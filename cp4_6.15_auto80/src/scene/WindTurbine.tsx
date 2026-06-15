@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import { useFrame, useThree, ReactThreeFiber } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { WindTurbineData } from '@/store/windStore';
 
@@ -12,14 +12,14 @@ interface WindTurbineProps {
 
 const TOWER_HEIGHT = 120;
 const BLADE_LENGTH = 70;
-
-type LODLevel = 'high' | 'medium' | 'low';
+const LERP_RATE = 8;
 
 function useCurrentSpeed(targetSpeed: number) {
   const currentSpeedRef = useRef(targetSpeed);
 
   useFrame((_, delta) => {
-    const lerpFactor = 1 - Math.pow(0.02, delta * 60);
+    const clampedDelta = Math.min(delta, 0.1);
+    const lerpFactor = 1 - Math.exp(-clampedDelta * LERP_RATE);
     currentSpeedRef.current = THREE.MathUtils.lerp(
       currentSpeedRef.current,
       targetSpeed,
@@ -36,42 +36,48 @@ function BladeGlow({ length, viewportScale, cameraDistance }: {
   cameraDistance: number;
 }) {
   const glowMeshRef = useRef<THREE.Mesh>(null);
-
-  useFrame(() => {
-    if (glowMeshRef.current) {
-      const mat = glowMeshRef.current.material as THREE.ShaderMaterial;
-      const distanceFactor = THREE.MathUtils.clamp(1 - (cameraDistance - 200) / 1000, 0.3, 1.0);
-      mat.uniforms.uGlowIntensity.value = 0.15 * viewportScale * distanceFactor;
-    }
-  });
+  const { camera } = useThree();
 
   const glowShader = useMemo(
     () => ({
       uniforms: {
         uGlowIntensity: { value: 0.15 },
         uTime: { value: 0 },
+        uCameraPosition: { value: new THREE.Vector3() },
       },
       vertexShader: `
-        varying vec3 vNormal;
+        uniform vec3 uCameraPosition;
+        varying vec3 vNormalWorld;
+        varying vec3 vViewDirWorld;
         varying vec3 vPosition;
+
         void main() {
-          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
           vPosition = position;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+          vNormalWorld = normalize(mat3(modelMatrix) * normal);
+          vViewDirWorld = normalize(uCameraPosition - worldPosition.xyz);
+
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
         }
       `,
       fragmentShader: `
         uniform float uGlowIntensity;
         uniform float uTime;
-        varying vec3 vNormal;
+        varying vec3 vNormalWorld;
+        varying vec3 vViewDirWorld;
         varying vec3 vPosition;
 
         void main() {
-          float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.5);
+          float fresnel = 1.0 - abs(dot(normalize(vNormalWorld), normalize(vViewDirWorld)));
+          float intensity = pow(fresnel, 2.5);
+
           vec3 glowColor = vec3(0.0, 0.83, 1.0);
-          float pulse = 0.8 + 0.2 * sin(uTime * 1.5);
+          float pulse = 0.85 + 0.15 * sin(uTime * 1.8 + vPosition.x * 0.05);
           vec3 finalColor = glowColor * intensity * uGlowIntensity * pulse;
-          gl_FragColor = vec4(finalColor, intensity * uGlowIntensity * 1.5);
+
+          float alpha = intensity * uGlowIntensity * 1.8;
+          gl_FragColor = vec4(finalColor, alpha);
         }
       `,
     }),
@@ -81,13 +87,16 @@ function BladeGlow({ length, viewportScale, cameraDistance }: {
   useFrame((state) => {
     if (glowMeshRef.current) {
       const mat = glowMeshRef.current.material as THREE.ShaderMaterial;
+      const distanceFactor = THREE.MathUtils.clamp(1 - (cameraDistance - 200) / 1000, 0.3, 1.0);
+      mat.uniforms.uGlowIntensity.value = 0.15 * viewportScale * distanceFactor;
       mat.uniforms.uTime.value = state.clock.elapsedTime;
+      mat.uniforms.uCameraPosition.value.copy(camera.position);
     }
   });
 
   return (
     <mesh ref={glowMeshRef} position={[length / 2, 0, 0]}>
-      <boxGeometry args={[length + 6, 6, 3]} />
+      <boxGeometry args={[length + 8, 7, 4]} />
       <shaderMaterial
         uniforms={glowShader.uniforms}
         vertexShader={glowShader.vertexShader}
@@ -112,6 +121,7 @@ function PowerBar({
 }) {
   const powerBarRef = useRef<THREE.Mesh>(null);
   const targetScaleYRef = useRef(0);
+  const geomRef = useRef<THREE.CylinderGeometry>(null);
 
   const powerBarShader = useMemo(
     () => ({
@@ -122,9 +132,11 @@ function PowerBar({
       vertexShader: `
         varying vec3 vPosition;
         varying float vHeight;
+        varying vec2 vUv;
         void main() {
           vPosition = position;
           vHeight = position.y;
+          vUv = uv;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
@@ -133,13 +145,13 @@ function PowerBar({
         uniform float uHighlight;
         varying vec3 vPosition;
         varying float vHeight;
+        varying vec2 vUv;
 
         void main() {
           float t = clamp((vHeight + 50.0) / 100.0, 0.0, 1.0);
-          float t_rev = 1.0 - t;
           vec3 bottomColor = vec3(0.0, 0.5, 1.0);
           vec3 topColor = vec3(1.0, 0.45, 0.2);
-          vec3 color = mix(bottomColor, topColor, t_rev);
+          vec3 color = mix(bottomColor, topColor, t);
 
           float wave = sin(uTime * 3.0 + vHeight * 0.15) * 0.08;
           float glow = 0.6 + 0.4 * sin(uTime * 2.0 + vHeight * 0.1) + wave;
@@ -153,13 +165,22 @@ function PowerBar({
     []
   );
 
+  useEffect(() => {
+    if (geomRef.current) {
+      console.log('PowerBar UV check - UV min:', geomRef.current.attributes.uv.array.slice(0, 4));
+      console.log('PowerBar position min y:', geomRef.current.attributes.position.array[1]);
+    }
+  }, []);
+
   useFrame((state) => {
     if (powerBarRef.current) {
       targetScaleYRef.current = (powerOutput / 100) * 1.6;
+      const clampedDelta = Math.min(state.clock.getDelta(), 0.1);
+      const scaleLerpFactor = 1 - Math.exp(-clampedDelta * 10);
       powerBarRef.current.scale.y = THREE.MathUtils.lerp(
         powerBarRef.current.scale.y,
         targetScaleYRef.current,
-        0.12
+        scaleLerpFactor
       );
       const mat = powerBarRef.current.material as THREE.ShaderMaterial;
       if (mat.uniforms) {
@@ -171,7 +192,7 @@ function PowerBar({
 
   return (
     <mesh ref={powerBarRef} position={[0, 50, -25]}>
-      <cylinderGeometry args={[4, 4, 100, 16, 1, true]} />
+      <cylinderGeometry ref={geomRef as any} args={[4, 4, 100, 16, 1, true]} />
       <shaderMaterial
         uniforms={powerBarShader.uniforms}
         vertexShader={powerBarShader.vertexShader}
@@ -223,9 +244,19 @@ function HighDetailTurbine({
 
     if (bladeMaterialRef.current) {
       const distanceFactor = THREE.MathUtils.clamp((cameraDistance - 200) / 800, 0, 1);
-      bladeMaterialRef.current.metalness = THREE.MathUtils.lerp(0.7, 0.4, distanceFactor);
-      bladeMaterialRef.current.roughness = THREE.MathUtils.lerp(0.3, 0.5, distanceFactor);
-      bladeMaterialRef.current.envMapIntensity = THREE.MathUtils.lerp(1.2, 0.5, distanceFactor);
+      const oldMetalness = bladeMaterialRef.current.metalness;
+      bladeMaterialRef.current.metalness = THREE.MathUtils.lerp(0.75, 0.4, distanceFactor);
+      bladeMaterialRef.current.roughness = THREE.MathUtils.lerp(0.25, 0.5, distanceFactor);
+      bladeMaterialRef.current.envMapIntensity = THREE.MathUtils.lerp(1.3, 0.5, distanceFactor);
+
+      if (Math.abs(oldMetalness - bladeMaterialRef.current.metalness) > 0.01) {
+        console.log(
+          `[叶片反光] distance=${cameraDistance.toFixed(1)}, factor=${distanceFactor.toFixed(2)}, ` +
+          `metalness=${oldMetalness.toFixed(2)}→${bladeMaterialRef.current.metalness.toFixed(2)}, ` +
+          `roughness=${bladeMaterialRef.current.roughness.toFixed(2)}, ` +
+          `envMapIntensity=${bladeMaterialRef.current.envMapIntensity.toFixed(2)}`
+        );
+      }
     }
   });
 
@@ -283,9 +314,9 @@ function HighDetailTurbine({
               <meshStandardMaterial
                 ref={bladeMaterialRef as any}
                 color="#e2e8f0"
-                metalness={0.7}
-                roughness={0.3}
-                envMapIntensity={1.2}
+                metalness={0.75}
+                roughness={0.25}
+                envMapIntensity={1.3}
                 transparent
                 opacity={0.98}
               />
@@ -401,40 +432,53 @@ function LowDetailTurbine({ data }: { data: WindTurbineData }) {
   );
 }
 
-const LODComponent: React.FC<{
-  distances: number[];
-  children: React.ReactNode;
-  position: [number, number, number];
-}> = ({ distances, children, position }) => {
-  const lodRef = useRef<THREE.LOD>(null);
-  const { camera } = useThree();
+function calculateDynamicLODDistances(
+  camera: THREE.PerspectiveCamera,
+  baseDistance: number,
+  screenHeight: number
+): number {
+  const BASE_FOV = 50;
+  const BASE_SCREEN_HEIGHT = 1080;
 
-  useEffect(() => {
-    if (!lodRef.current) return;
-    const lod = lodRef.current;
-    while (lod.children.length > 0) {
-      lod.remove(lod.children[0]);
-    }
-    React.Children.forEach(children, (child, index) => {
-      if (!React.isValidElement(child)) return;
-      const distance = distances[index] || 0;
-      const group = new THREE.Group();
-      lod.addLevel(group, distance);
-    });
-  }, [children, distances]);
+  const fovFactor =
+    Math.tan((camera.fov * Math.PI) / 360) / Math.tan((BASE_FOV * Math.PI) / 360);
+  const screenFactor = screenHeight / BASE_SCREEN_HEIGHT;
+
+  return baseDistance * fovFactor * screenFactor;
+}
+
+function TurbineLOD({
+  turbineData,
+  children,
+}: {
+  turbineData: WindTurbineData;
+  children: React.ReactNode[];
+}) {
+  const { camera, size } = useThree();
+  const [currentLevel, setCurrentLevel] = useState(0);
+  const lastLevelRef = useRef(-1);
 
   useFrame(() => {
-    if (lodRef.current) {
-      lodRef.current.update(camera);
+    const dist = camera.position.distanceTo(
+      new THREE.Vector3(turbineData.position.x, 60, turbineData.position.z)
+    );
+
+    const perspCamera = camera as THREE.PerspectiveCamera;
+    const dist1 = calculateDynamicLODDistances(perspCamera, 550, size.height);
+    const dist2 = calculateDynamicLODDistances(perspCamera, 1100, size.height);
+
+    let newLevel = 0;
+    if (dist >= dist2) newLevel = 2;
+    else if (dist >= dist1) newLevel = 1;
+
+    if (newLevel !== currentLevel && newLevel !== lastLevelRef.current) {
+      lastLevelRef.current = newLevel;
+      setCurrentLevel(newLevel);
     }
   });
 
-  return (
-    <primitive object={new THREE.LOD()} ref={lodRef} position={position}>
-      {children}
-    </primitive>
-  );
-};
+  return <>{children[currentLevel]}</>;
+}
 
 export const WindTurbine: React.FC<WindTurbineProps> = ({
   data,
@@ -445,69 +489,48 @@ export const WindTurbine: React.FC<WindTurbineProps> = ({
   const [hovered, setHovered] = useState(false);
   const [cameraDistance, setCameraDistance] = useState(800);
   const { camera } = useThree();
-  const lodChildrenRef = useRef<React.ReactNode[]>([]);
+  const debugLoggedRef = useRef(false);
 
   useFrame(() => {
     const dist = camera.position.distanceTo(
       new THREE.Vector3(data.position.x, 60, data.position.z)
     );
     setCameraDistance(dist);
+
+    if (!debugLoggedRef.current && data.index === 0) {
+      debugLoggedRef.current = true;
+      console.log('Turbine 0 initialized - cameraDistance:', dist);
+      console.log('Power output:', data.powerOutput);
+    }
   });
 
-  const lodLevels = [
-    { distance: 0, element: (
-      <HighDetailTurbine
-        data={data}
-        isSelected={isSelected}
-        onClick={onClick}
-        viewportScale={viewportScale}
-        onPointerOver={() => setHovered(true)}
-        onPointerOut={() => setHovered(false)}
-        hovered={hovered}
-        cameraDistance={cameraDistance}
-      />
-    )},
-    { distance: 600, element: <MediumDetailTurbine data={data} /> },
-    { distance: 1200, element: <LowDetailTurbine data={data} /> },
-  ];
+  const highDetailElement = (
+    <HighDetailTurbine
+      key={`high-${data.id}`}
+      data={data}
+      isSelected={isSelected}
+      onClick={onClick}
+      viewportScale={viewportScale}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
+      hovered={hovered}
+      cameraDistance={cameraDistance}
+    />
+  );
 
-  lodChildrenRef.current = lodLevels.map((l) => l.element);
+  const mediumDetailElement = (
+    <MediumDetailTurbine key={`med-${data.id}`} data={data} />
+  );
+
+  const lowDetailElement = (
+    <LowDetailTurbine key={`low-${data.id}`} data={data} />
+  );
 
   return (
     <group position={[data.position.x, 0, data.position.z]}>
-      <TurbineLOD
-        levels={lodLevels}
-        turbineData={data}
-      />
+      <TurbineLOD turbineData={data}>
+        {[highDetailElement, mediumDetailElement, lowDetailElement]}
+      </TurbineLOD>
     </group>
   );
 };
-
-function TurbineLOD({
-  levels,
-  turbineData,
-}: {
-  levels: { distance: number; element: React.ReactNode }[];
-  turbineData: WindTurbineData;
-}) {
-  const { camera } = useThree();
-  const [currentLevel, setCurrentLevel] = useState(0);
-
-  useFrame(() => {
-    const dist = camera.position.distanceTo(
-      new THREE.Vector3(turbineData.position.x, 60, turbineData.position.z)
-    );
-    let newLevel = 0;
-    for (let i = levels.length - 1; i >= 0; i--) {
-      if (dist >= levels[i].distance) {
-        newLevel = i;
-        break;
-      }
-    }
-    if (newLevel !== currentLevel) {
-      setCurrentLevel(newLevel);
-    }
-  });
-
-  return <>{levels[currentLevel].element}</>;
-}

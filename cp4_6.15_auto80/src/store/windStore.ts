@@ -26,10 +26,10 @@ interface WindStore {
   updateAnimationTimestamp: (ts: number) => void;
 }
 
-const ROWS = 5;
-const COLS = 5;
-const ROW_SPACING = 300;
-const COL_SPACING = 250;
+const ROWS = 6;
+const COLS = 6;
+const ROW_SPACING = 280;
+const COL_SPACING = 230;
 
 function generateInitialTurbines(): WindTurbineData[] {
   const turbines: WindTurbineData[] = [];

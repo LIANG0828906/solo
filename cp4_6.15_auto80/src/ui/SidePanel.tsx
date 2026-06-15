@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useWindStore, WindTurbineData } from '@/store/windStore';
 
 interface TooltipData {
@@ -26,6 +26,9 @@ export const SidePanel: React.FC = () => {
   });
   const [hoveredPointId, setHoveredPointId] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const tooltipHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTooltipUpdateRef = useRef(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -37,6 +40,14 @@ export const SidePanel: React.FC = () => {
     }, 80);
     return () => clearInterval(interval);
   }, [totalPowerOutput]);
+
+  useEffect(() => {
+    return () => {
+      if (tooltipHideTimerRef.current) {
+        clearTimeout(tooltipHideTimerRef.current);
+      }
+    };
+  }, []);
 
   const selectedTurbine = turbines.find((t) => t.id === selectedTurbineId) || null;
 
@@ -74,6 +85,45 @@ export const SidePanel: React.FC = () => {
   const gradientId = 'windSpeedGradient';
   const areaGradientId = 'areaGradient';
 
+  const showTooltip = useCallback((turbine: WindTurbineData, x: number, y: number) => {
+    if (tooltipHideTimerRef.current) {
+      clearTimeout(tooltipHideTimerRef.current);
+      tooltipHideTimerRef.current = null;
+    }
+
+    const now = performance.now();
+    if (now - lastTooltipUpdateRef.current < 16) return;
+    lastTooltipUpdateRef.current = now;
+
+    setTooltip({
+      visible: true,
+      x,
+      y,
+      turbine,
+    });
+    setHoveredPointId(turbine.id);
+  }, []);
+
+  const hideTooltip = useCallback(() => {
+    if (tooltipHideTimerRef.current) {
+      clearTimeout(tooltipHideTimerRef.current);
+    }
+    tooltipHideTimerRef.current = setTimeout(() => {
+      setTooltip({ visible: false, x: 0, y: 0, turbine: null });
+      setHoveredPointId(null);
+      tooltipHideTimerRef.current = null;
+    }, 50);
+  }, []);
+
+  const immediateHideTooltip = useCallback(() => {
+    if (tooltipHideTimerRef.current) {
+      clearTimeout(tooltipHideTimerRef.current);
+      tooltipHideTimerRef.current = null;
+    }
+    setTooltip({ visible: false, x: 0, y: 0, turbine: null });
+    setHoveredPointId(null);
+  }, []);
+
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -87,36 +137,14 @@ export const SidePanel: React.FC = () => {
     });
 
     if (closest && closest.dist < 35) {
-      setTooltip({
-        visible: true,
-        x: closest.point.x,
-        y: closest.point.y,
-        turbine: closest.point.turbine,
-      });
-      setHoveredPointId(closest.point.turbine.id);
+      showTooltip(closest.point.turbine, closest.point.x, closest.point.y);
     } else {
-      setTooltip({ visible: false, x: 0, y: 0, turbine: null });
-      setHoveredPointId(null);
+      hideTooltip();
     }
   };
 
   const handlePointClick = (turbine: WindTurbineData) => {
     selectTurbine(selectedTurbineId === turbine.id ? null : turbine.id);
-  };
-
-  const handlePointHover = (turbine: WindTurbineData, x: number, y: number) => {
-    setTooltip({
-      visible: true,
-      x,
-      y,
-      turbine,
-    });
-    setHoveredPointId(turbine.id);
-  };
-
-  const handlePointLeave = () => {
-    setTooltip({ visible: false, x: 0, y: 0, turbine: null });
-    setHoveredPointId(null);
   };
 
   return (
@@ -161,13 +189,17 @@ export const SidePanel: React.FC = () => {
 
       <div className="chart-section">
         <div className="chart-title">Wind Speed Distribution</div>
-        <div className="chart-container">
+        <div
+          className="chart-container"
+          ref={chartContainerRef}
+          onMouseLeave={immediateHideTooltip}
+        >
           <svg
             ref={svgRef}
             width={chartWidth}
             height={chartHeight}
             onMouseMove={handleMouseMove}
-            onMouseLeave={handlePointLeave}
+            onMouseLeave={immediateHideTooltip}
             style={{ overflow: 'visible' }}
           >
             <defs>
@@ -233,6 +265,7 @@ export const SidePanel: React.FC = () => {
               strokeWidth="2.5"
               strokeLinecap="round"
               style={{ transition: 'd 0.6s ease' }}
+              pointerEvents="none"
             />
 
             {points.map((p) => (
@@ -270,8 +303,8 @@ export const SidePanel: React.FC = () => {
                     filter: hoveredPointId === p.turbine.id ? 'drop-shadow(0 0 6px rgba(0,212,255,0.6))' : 'none',
                   }}
                   onClick={() => handlePointClick(p.turbine)}
-                  onMouseEnter={() => handlePointHover(p.turbine, p.x, p.y)}
-                  onMouseLeave={handlePointLeave}
+                  onMouseEnter={() => showTooltip(p.turbine, p.x, p.y)}
+                  onMouseLeave={hideTooltip}
                 />
               </g>
             ))}
@@ -290,11 +323,12 @@ export const SidePanel: React.FC = () => {
             <div
               className="chart-tooltip"
               style={{
-                left: Math.min(tooltip.x + 15, chartWidth - 130),
-                top: tooltip.y - 55,
+                left: Math.min(tooltip.x + 15, chartWidth - 140),
+                top: tooltip.y - 65,
                 opacity: 1,
                 transform: 'translateY(0)',
-                transition: 'opacity 0.15s ease, transform 0.15s ease',
+                transition: 'opacity 0.12s ease, transform 0.12s ease',
+                pointerEvents: 'none',
               }}
             >
               <div className="tooltip-id">Turbine #{tooltip.turbine.index + 1}</div>
