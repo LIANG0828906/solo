@@ -68,7 +68,9 @@ export function useWebSocket({
     }
 
     try {
-      const wsUrl = url.startsWith('ws') ? url : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}${url}`;
+      const wsUrl = url.startsWith('ws')
+        ? url
+        : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:3002${url}`;
       const ws = new WebSocket(`${wsUrl}?token=${encodeURIComponent(token)}`);
       wsRef.current = ws;
 

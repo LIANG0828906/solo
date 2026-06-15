@@ -10,6 +10,7 @@ export interface Book {
   id: string;
   title: string;
   author: string;
+  category: string;
   description?: string;
   coverImage?: string;
   condition: 'new' | 'good' | 'fair' | 'poor';

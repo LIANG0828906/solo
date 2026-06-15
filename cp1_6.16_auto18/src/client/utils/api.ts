@@ -53,22 +53,22 @@ interface AuthResponse {
 }
 
 export const register = (data: { username: string; email: string; password: string }) =>
-  request<AuthResponse>('/auth/register', {
+  request<AuthResponse>('/register', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
 export const login = (data: { email: string; password: string }) =>
-  request<AuthResponse>('/auth/login', {
+  request<AuthResponse>('/login', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
-export const getBooks = (params?: { page?: number; limit?: number; search?: string }) => {
+export const getBooks = (params?: { search?: string; category?: string }) => {
   const queryString = params
     ? '?' + new URLSearchParams(params as Record<string, string>).toString()
     : '';
-  return request<{ books: Book[]; total: number }>(`/books${queryString}`);
+  return request<Book[]>(`/books${queryString}`);
 };
 
 export const createBook = (data: Omit<Book, 'id' | 'ownerId' | 'createdAt' | 'owner'>) =>

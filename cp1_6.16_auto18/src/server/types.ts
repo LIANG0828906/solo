@@ -3,38 +3,47 @@ export interface User {
   username: string;
   email: string;
   passwordHash: string;
-  avatar: string;
+  avatar?: string;
+  createdAt: string;
 }
 
 export interface Book {
   id: string;
   ownerId: string;
+  owner?: User;
   title: string;
   author: string;
   category: string;
-  coverUrl: string;
-  condition: string;
-  description: string;
+  coverImage?: string;
+  condition: 'new' | 'good' | 'fair' | 'poor';
+  description?: string;
   createdAt: string;
-  status: string;
+  isAvailable: boolean;
 }
 
 export interface Exchange {
   id: string;
+  bookId: string;
+  book?: Book;
   requesterId: string;
-  targetBookId: string;
+  requester?: User;
   ownerId: string;
-  status: string;
+  owner?: User;
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+  message?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface Message {
   id: string;
-  userId: string;
+  senderId: string;
+  sender?: User;
+  receiverId: string;
+  receiver?: User;
   content: string;
-  type: string;
+  type: 'system' | 'exchange' | 'chat' | 'exchange_request' | 'exchange_update';
   isRead: boolean;
+  relatedExchangeId?: string;
   createdAt: string;
-  relatedExchangeId: string;
 }
