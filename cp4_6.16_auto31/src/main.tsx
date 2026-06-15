@@ -1,27 +1,20 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useHabitStore } from './store';
 import HabitsPanel from './modules/habits/HabitsPanel';
 import TimelinePage from './modules/timeline/TimelinePage';
+import AchievementManager from './modules/achievements/AchievementManager';
+import ProgressBar from './components/ProgressBar';
 import './styles/global.css';
 
 const App: React.FC = () => {
   const loadFromStorage = useHabitStore((state) => state.loadFromStorage);
-  const habits = useHabitStore((state) => state.habits);
-  const checkins = useHabitStore((state) => state.checkins);
   const location = useLocation();
 
   useEffect(() => {
     loadFromStorage();
   }, [loadFromStorage]);
-
-  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
-  const todayCheckins = checkins[today] || [];
-  const totalHabits = habits.length;
-  const completedHabits = todayCheckins.length;
-  const progressPercent = totalHabits > 0 ? (completedHabits / totalHabits) * 100 : 0;
 
   const getNavLinkClass = ({ isActive }: { isActive: boolean }): string => {
     return isActive
@@ -47,16 +40,7 @@ const App: React.FC = () => {
           </nav>
         </div>
         <div className="progress-section">
-          <div className="progress-info">
-            <span className="progress-label">今日进度</span>
-            <span className="progress-value">{completedHabits}/{totalHabits}</span>
-          </div>
-          <div className="progress-bar">
-            <div
-              className="progress-bar-fill"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
+          <ProgressBar />
         </div>
       </header>
 
@@ -66,6 +50,8 @@ const App: React.FC = () => {
           <Route path="/timeline" element={<TimelinePage />} />
         </Routes>
       </main>
+
+      <AchievementManager />
 
       <style>{`
         .app-container {

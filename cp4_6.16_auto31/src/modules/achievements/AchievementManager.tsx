@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
-import { useHabitStore, BadgeLevel } from '../../store';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { useHabitStore, BadgeLevel, Badge } from '../../store';
 
 const badgeColors: Record<BadgeLevel, { primary: string; secondary: string; glow: string }> = {
   bronze: {
@@ -102,7 +102,9 @@ const BadgeShield: React.FC<{ level: BadgeLevel }> = ({ level }) => {
 };
 
 const AchievementManager: React.FC = () => {
-  const { showAchievement, setShowAchievement, habits } = useHabitStore();
+  const { showAchievement, setShowAchievement, habits, badges, getStreakDays } = useHabitStore();
+  const shownAchievementsRef = useRef<Set<string>>(new Set());
+  const hasCheckedInitialRef = useRef(false);
 
   const coins = useMemo(() => {
     if (!showAchievement) return [];
@@ -117,7 +119,56 @@ const AchievementManager: React.FC = () => {
   }, [showAchievement]);
 
   useEffect(() => {
+    if (hasCheckedInitialRef.current) return;
+
+    const checkInitialAchievements = () => {
+      const state = useHabitStore.getState();
+      const { habits, badges, getStreakDays } = state;
+
+      habits.forEach((habit) => {
+        const streak = getStreakDays(habit.id);
+        const existingBadge = badges.find((b) => b.habitId === habit.id);
+
+        let shouldShow: Badge | null = null;
+        if (streak >= 30 && existingBadge?.level === 'gold') {
+          shouldShow = existingBadge;
+        } else if (streak >= 14 && existingBadge?.level === 'silver') {
+          shouldShow = existingBadge;
+        } else if (streak >= 7 && existingBadge?.level === 'bronze') {
+          shouldShow = existingBadge;
+        }
+
+        if (shouldShow && !shownAchievementsRef.current.has(shouldShow.id)) {
+          shownAchievementsRef.current.add(shouldShow.id);
+        }
+      });
+
+      hasCheckedInitialRef.current = true;
+    };
+
+    const unsubscribe = useHabitStore.subscribe((state) => {
+      if (!hasCheckedInitialRef.current && state.habits.length > 0) {
+        checkInitialAchievements();
+      }
+    });
+
+    const state = useHabitStore.getState();
+    if (state.habits.length > 0) {
+      checkInitialAchievements();
+    }
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     if (!showAchievement) return;
+
+    if (shownAchievementsRef.current.has(showAchievement.id)) {
+      setShowAchievement(null);
+      return;
+    }
+
+    shownAchievementsRef.current.add(showAchievement.id);
 
     const timer = setTimeout(() => {
       setShowAchievement(null);

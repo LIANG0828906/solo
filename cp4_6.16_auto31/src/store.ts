@@ -44,6 +44,7 @@ export interface HabitStore {
   loadFromStorage: () => Promise<void>;
   saveToStorage: () => Promise<void>;
   getStreakDays: (habitId: string) => number;
+  getGlobalProgress: () => { completed: number; total: number; percentage: number };
 }
 
 const generateId = (): string => {
@@ -235,5 +236,15 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
   getStreakDays: (habitId) => {
     const { checkins } = get();
     return getStreakDaysFromCheckins(habitId, checkins);
+  },
+
+  getGlobalProgress: () => {
+    const { habits, checkins } = get();
+    const today = formatDate(new Date());
+    const todayCheckins = checkins[today] || [];
+    const total = habits.length;
+    const completed = todayCheckins.length;
+    const percentage = total > 0 ? (completed / total) * 100 : 0;
+    return { completed, total, percentage };
   },
 }));

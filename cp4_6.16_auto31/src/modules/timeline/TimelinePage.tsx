@@ -294,11 +294,44 @@ const MonthGroup: React.FC<{
 }> = ({ monthData, onDayClick, nodeSize, gap }) => {
   const [showRing, setShowRing] = useState(false);
 
-  const getStreakColor = (streak: number): string => {
-    if (streak >= 30) return '#ffd700';
-    if (streak >= 14) return '#c0c0c0';
-    if (streak >= 7) return '#cd7f32';
-    return 'rgba(255, 255, 255, 0.6)';
+  const getLineColor = (streak: number): string => {
+    if (streak <= 0) return 'rgba(255, 255, 255, 0.15)';
+
+    const gray = { r: 100, g: 100, b: 100 };
+    const bronze = { r: 205, g: 127, b: 50 };
+    const silver = { r: 192, g: 192, b: 192 };
+    const gold = { r: 255, g: 215, b: 0 };
+
+    let color;
+    if (streak >= 30) {
+      color = gold;
+    } else if (streak >= 14) {
+      const t = (streak - 14) / 16;
+      const easedT = t * t * (3 - 2 * t);
+      color = {
+        r: Math.round(silver.r + (gold.r - silver.r) * easedT),
+        g: Math.round(silver.g + (gold.g - silver.g) * easedT),
+        b: Math.round(silver.b + (gold.b - silver.b) * easedT),
+      };
+    } else if (streak >= 7) {
+      const t = (streak - 7) / 7;
+      const easedT = t * t * (3 - 2 * t);
+      color = {
+        r: Math.round(bronze.r + (silver.r - bronze.r) * easedT),
+        g: Math.round(bronze.g + (silver.g - bronze.g) * easedT),
+        b: Math.round(bronze.b + (silver.b - bronze.b) * easedT),
+      };
+    } else {
+      const t = streak / 7;
+      const easedT = t * t * (3 - 2 * t);
+      color = {
+        r: Math.round(gray.r + (bronze.r - gray.r) * easedT),
+        g: Math.round(gray.g + (bronze.g - gray.g) * easedT),
+        b: Math.round(gray.b + (bronze.b - gray.b) * easedT),
+      };
+    }
+
+    return `rgb(${color.r}, ${color.g}, ${color.b})`;
   };
 
   return (
@@ -367,7 +400,7 @@ const MonthGroup: React.FC<{
             day={day}
             isFirst={index === 0}
             isLast={index === monthData.days.length - 1}
-            streakColor={getStreakColor(day.streakFromStart)}
+            streakColor={getLineColor(day.streakFromStart)}
             onClick={(e) => onDayClick(day, e)}
             nodeSize={nodeSize}
             gap={gap}

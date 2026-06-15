@@ -61,10 +61,9 @@ const HabitsPanel: React.FC = () => {
   const [newHabitReminder, setNewHabitReminder] = useState('');
   const [particles, setParticles] = useState<Particle[]>([]);
   const particleIdRef = useRef(0);
-  const animatingCards = useRef<Set<string>>(new Set());
-  const particleAnimFrameRef = useRef<number | null>(null);
-  const particlesRef = useRef<Particle[]>([]);
-  const flipTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const animatingCardsRef = useRef<Set<string>>(new Set());
+  const animationFrameRef = useRef<number | null>(null);
+  const flipTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const todayFormatted = useMemo(() => format(new Date(), 'M月d日 EEEE', { locale: zhCN }), []);
@@ -104,6 +103,8 @@ const HabitsPanel: React.FC = () => {
   useEffect(() => {
     if (particles.length === 0) return;
 
+    let rafId: number;
+
     const animate = () => {
       setParticles((prev) => {
         const updated = prev
@@ -117,38 +118,64 @@ const HabitsPanel: React.FC = () => {
           .filter((p) => p.life > 0);
 
         if (updated.length > 0) {
-          animationFrameRef.current = requestAnimationFrame(animate);
+          rafId = requestAnimationFrame(animate);
         }
 
         return updated;
       });
     };
 
-    animationFrameRef.current = requestAnimationFrame(animate);
+    rafId = requestAnimationFrame(animate);
+    animationFrameRef.current = rafId;
 
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
       }
     };
   }, [particles.length]);
 
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      flipTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+      flipTimeoutsRef.current.clear();
+    };
+  }, []);
+
   const handleCheckin = useCallback((habitId: string, event: React.MouseEvent) => {
+    if (animatingCardsRef.current.has(habitId)) {
+      return;
+    }
+
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
 
     if (!isCheckedToday(habitId)) {
+      animatingCardsRef.current.add(habitId);
+
+      const existingTimeout = flipTimeoutsRef.current.get(habitId);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+      }
+
       setFlippedCards((prev) => new Set(prev).add(habitId));
       triggerParticles(centerX, centerY);
 
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         setFlippedCards((prev) => {
           const next = new Set(prev);
           next.delete(habitId);
           return next;
         });
+        animatingCardsRef.current.delete(habitId);
+        flipTimeoutsRef.current.delete(habitId);
       }, 1200);
+
+      flipTimeoutsRef.current.set(habitId, timeout);
     }
 
     toggleCheckin(habitId, today);
