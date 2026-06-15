@@ -3,7 +3,8 @@ import {
   ThemeType,
   validateWordMatch,
   getRandomStartWord,
-  getWordsByTheme
+  getWordsByTheme,
+  normalizeWord
 } from './words';
 
 export interface Player {
@@ -79,18 +80,17 @@ export class GameEngine {
       return false;
     }
 
-    const normalizedHistory = this.wordHistory.map((w) =>
-      w.trim().toLowerCase()
-    );
-    if (normalizedHistory.includes(trimmedWord.toLowerCase())) {
+    const normalizedInput = normalizeWord(trimmedWord);
+    const normalizedHistory = this.wordHistory.map((w) => normalizeWord(w));
+    if (normalizedHistory.includes(normalizedInput)) {
       this.gameOver('duplicate');
       return false;
     }
 
     const words = getWordsByTheme(this.theme);
     if (this.theme !== 'english') {
-      const normalizedWords = words.map((w) => w.trim().toLowerCase());
-      if (!normalizedWords.includes(trimmedWord.toLowerCase())) {
+      const normalizedWords = words.map((w) => normalizeWord(w));
+      if (!normalizedWords.includes(normalizedInput)) {
         this.callbacks.onError('该词语不在词库中，请换一个');
         return false;
       }

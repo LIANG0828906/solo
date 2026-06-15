@@ -59,17 +59,21 @@ export const ENGLISH_WORDS: string[] = [
   'tiger', 'radish', 'husband', 'dictionary', 'yesterday', 'winner'
 ];
 
+export function normalizeWord(word: string): string {
+  return word.replace(/\s+/g, '').toLowerCase();
+}
+
 export function normalizeChar(char: string): string {
-  return char.trim().toLowerCase();
+  return char.replace(/\s+/g, '').toLowerCase();
 }
 
 export function validateWordMatch(prevWord: string, nextWord: string): boolean {
   if (!prevWord || !nextWord) return false;
-  const trimmedPrev = prevWord.trim();
-  const trimmedNext = nextWord.trim();
-  if (trimmedPrev.length === 0 || trimmedNext.length === 0) return false;
-  const lastChar = normalizeChar(trimmedPrev[trimmedPrev.length - 1]);
-  const firstChar = normalizeChar(trimmedNext[0]);
+  const normalizedPrev = normalizeWord(prevWord);
+  const normalizedNext = normalizeWord(nextWord);
+  if (normalizedPrev.length === 0 || normalizedNext.length === 0) return false;
+  const lastChar = normalizedPrev[normalizedPrev.length - 1];
+  const firstChar = normalizedNext[0];
   return lastChar === firstChar;
 }
 
