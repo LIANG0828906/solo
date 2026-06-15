@@ -53,15 +53,37 @@ export class OceanFlowRenderer {
     const points: THREE.Vector3[] = [];
     const r = this.earthRadius * 1.003;
     
-    points.push(this.latLngToVector3(current.start.lat, current.start.lng, r));
+    const startVec = this.latLngToVector3(current.start.lat, current.start.lng, r);
+    const endVec = this.latLngToVector3(current.end.lat, current.end.lng, r);
+    
+    points.push(startVec);
     
     if (current.waypoints && current.waypoints.length > 0) {
       for (const wp of current.waypoints) {
         points.push(this.latLngToVector3(wp.lat, wp.lng, r));
       }
+    } else {
+      const midLat = (current.start.lat + current.end.lat) / 2;
+      const midLng = (current.start.lng + current.end.lng) / 2;
+      const dLat = current.end.lat - current.start.lat;
+      const dLng = current.end.lng - current.start.lng;
+      const distKm = Math.sqrt(dLat * dLat * 111 + dLng * dLng * 111 * Math.cos(midLat * Math.PI / 180));
+      const curveOffset = Math.min(25, Math.max(6, distKm * 0.012));
+      
+      const perpLat = -dLng;
+      const perpLng = dLat;
+      const perpLen = Math.sqrt(perpLat * perpLat + perpLng * perpLng) || 1;
+      
+      const mid1Lat = current.start.lat + dLat * 0.33 + (perpLat / perpLen) * curveOffset;
+      const mid1Lng = current.start.lng + dLng * 0.33 + (perpLng / perpLen) * curveOffset;
+      const mid2Lat = current.start.lat + dLat * 0.66 - (perpLat / perpLen) * curveOffset * 0.6;
+      const mid2Lng = current.start.lng + dLng * 0.66 - (perpLng / perpLen) * curveOffset * 0.6;
+      
+      points.push(this.latLngToVector3(mid1Lat, mid1Lng, r * 1.006));
+      points.push(this.latLngToVector3(mid2Lat, mid2Lng, r * 1.004));
     }
     
-    points.push(this.latLngToVector3(current.end.lat, current.end.lng, r));
+    points.push(endVec);
     
     return new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.3);
   }
@@ -149,17 +171,19 @@ export class OceanFlowRenderer {
       for (let i = 0; i < particleCount; i++) {
         progress[i] = i / particleCount;
         
+        particleBaseAlphas[i] = 1.0;
+        particleAlphas[i] = 1.0;
+        
         const t = progress[i];
         let fadeAlpha = 1.0;
-        if (t < 0.15) {
-          fadeAlpha = t / 0.15;
-        } else if (t > 0.75) {
-          fadeAlpha = Math.max(0, 1 - (t - 0.75) / 0.25);
+        if (t < 0.12) {
+          fadeAlpha = t / 0.12;
+        } else if (t > 0.78) {
+          fadeAlpha = Math.max(0, 1 - (t - 0.78) / 0.22);
         }
-        particleBaseAlphas[i] = fadeAlpha;
         particleAlphas[i] = fadeAlpha;
         
-        const pos = curve.getPoint(progress[i]);
+        const pos = curve.getPointAt(progress[i]);
         positions[i * 3] = pos.x;
         positions[i * 3 + 1] = pos.y;
         positions[i * 3 + 2] = pos.z;
