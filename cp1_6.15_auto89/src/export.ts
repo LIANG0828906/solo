@@ -2,7 +2,7 @@ import { parseFilterComponents, FilterType } from './filter.js';
 import { calculateAdaptiveFontSize } from './ui.js';
 
 const EXPORT_WIDTH = 1920;
-const EXPORT_HEIGHT = 1920;
+const EXPORT_HEIGHT = 1080;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -29,15 +29,27 @@ function applyFilterToCanvas(
   const tempCtx = tempCanvas.getContext('2d');
   if (!tempCtx) return;
 
-  const sx: number = image.naturalWidth > image.naturalHeight
-    ? (image.naturalWidth - image.naturalHeight) / 2
-    : 0;
-  const sy: number = image.naturalHeight > image.naturalWidth
-    ? (image.naturalHeight - image.naturalWidth) / 2
-    : 0;
-  const sSize: number = Math.min(image.naturalWidth, image.naturalHeight);
+  const targetRatio = width / height;
+  const sourceRatio = image.naturalWidth / image.naturalHeight;
 
-  tempCtx.drawImage(image, sx, sy, sSize, sSize, 0, 0, width, height);
+  let sx: number;
+  let sy: number;
+  let sWidth: number;
+  let sHeight: number;
+
+  if (sourceRatio > targetRatio) {
+    sHeight = image.naturalHeight;
+    sWidth = sHeight * targetRatio;
+    sx = (image.naturalWidth - sWidth) / 2;
+    sy = 0;
+  } else {
+    sWidth = image.naturalWidth;
+    sHeight = sWidth / targetRatio;
+    sx = 0;
+    sy = (image.naturalHeight - sHeight) / 2;
+  }
+
+  tempCtx.drawImage(image, sx, sy, sWidth, sHeight, 0, 0, width, height);
 
   let imageData = tempCtx.getImageData(0, 0, width, height);
   const data = imageData.data;
