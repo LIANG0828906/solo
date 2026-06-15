@@ -12,15 +12,31 @@ const Leaderboard = ({ latestEntryId, refreshTrigger }: LeaderboardProps) => {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const [computedLatestId, setComputedLatestId] = useState<string | null>(null);
 
   const loadEntries = useCallback(() => {
     const topTen = getTopTen();
     setEntries(topTen);
+    
+    if (topTen.length > 0) {
+      const latestByTime = topTen.reduce((latest, entry) => {
+        return entry.timestamp > latest.timestamp ? entry : latest;
+      }, topTen[0]);
+      setComputedLatestId(latestByTime.id);
+    } else {
+      setComputedLatestId(null);
+    }
   }, []);
 
   useEffect(() => {
     loadEntries();
   }, [loadEntries, refreshTrigger]);
+
+  const isLatestEntry = useCallback((entry: LeaderboardEntry): boolean => {
+    if (latestEntryId && entry.id === latestEntryId) return true;
+    if (computedLatestId && entry.id === computedLatestId) return true;
+    return false;
+  }, [latestEntryId, computedLatestId]);
 
   const formatDate = (timestamp: number): string => {
     const date = new Date(timestamp);
@@ -90,7 +106,7 @@ const Leaderboard = ({ latestEntryId, refreshTrigger }: LeaderboardProps) => {
                 <div
                   key={entry.id}
                   className={`leaderboard-item ${
-                    entry.id === latestEntryId ? 'latest-entry' : ''
+                    isLatestEntry(entry) ? 'latest-entry' : ''
                   }`}
                 >
                   <div className="rank-badge">

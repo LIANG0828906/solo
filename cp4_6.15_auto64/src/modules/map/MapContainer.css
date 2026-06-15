@@ -158,6 +158,37 @@
   margin: 0;
 }
 
+.loading-hint {
+  font-size: 12px !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  margin-top: 8px !important;
+}
+
+.fallback-warning {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: rgba(251, 191, 36, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  border-radius: 6px;
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  animation: fade-in 500ms ease-out;
+}
+
+.warning-icon {
+  font-size: 14px;
+}
+
 .country-interactive {
   cursor: pointer;
   transition: fill-opacity 300ms ease-out, opacity 300ms ease-out, stroke-width 300ms ease-out;

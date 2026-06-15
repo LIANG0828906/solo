@@ -1,12 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer as LeafletMap, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { getAvailableCountries } from '@/data/quiz-questions';
+import { fallbackWorldGeoJSON } from '@/data/fallback-geojson';
 import type { CountryInfo } from '@/types';
 import type { FeatureCollection, Feature, Geometry } from 'geojson';
 import './MapContainer.css';
 
 const GEOJSON_URL = 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson';
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 1500;
 
 const COUNTRY_NAME_MAP: Record<string, string> = {
   'China': '中国',
@@ -155,21 +158,53 @@ interface MapContainerProps {
 const MapContainerComponent = ({ onCountryClick }: MapContainerProps) => {
   const [geoJsonData, setGeoJsonData] = useState<FeatureCollection | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUsingFallback, setIsUsingFallback] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const fetchGeoJSON = async () => {
+    let cancelled = false;
+
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const loadWithFallback = async (attempt: number) => {
       try {
-        const response = await fetch(GEOJSON_URL);
+        const response = await fetch(GEOJSON_URL, { cache: 'force-cache' });
+        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         const data = await response.json();
-        setGeoJsonData(data);
-        setIsLoading(false);
+        if (!cancelled) {
+          setGeoJsonData(data);
+          setIsLoading(false);
+          setIsUsingFallback(false);
+        }
       } catch (error) {
-        console.error('Failed to load GeoJSON data:', error);
-        setIsLoading(false);
+        console.warn(`GeoJSON load attempt ${attempt + 1} failed:`, error);
+
+        if (attempt < MAX_RETRIES) {
+          setRetryCount(attempt + 1);
+          retryTimerRef.current = setTimeout(() => {
+            loadWithFallback(attempt + 1);
+          }, RETRY_DELAY * (attempt + 1));
+        } else {
+          console.error('All retries failed, using fallback GeoJSON');
+          if (!cancelled) {
+            await sleep(500);
+            setGeoJsonData(fallbackWorldGeoJSON);
+            setIsLoading(false);
+            setIsUsingFallback(true);
+          }
+        }
       }
     };
 
-    fetchGeoJSON();
+    loadWithFallback(0);
+
+    return () => {
+      cancelled = true;
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
+    };
   }, []);
 
   return (
@@ -201,7 +236,21 @@ const MapContainerComponent = ({ onCountryClick }: MapContainerProps) => {
       {isLoading && (
         <div className="map-loading">
           <div className="loading-spinner">🌍</div>
-          <p>正在加载世界地图...</p>
+          <p>
+            {retryCount > 0 
+              ? `加载中... (重试 ${retryCount}/${MAX_RETRIES})` 
+              : '正在加载世界地图...'}
+          </p>
+          {retryCount > 0 && (
+            <p className="loading-hint">CDN连接较慢，正在重试...</p>
+          )}
+        </div>
+      )}
+
+      {!isLoading && isUsingFallback && (
+        <div className="fallback-warning">
+          <span className="warning-icon">⚠️</span>
+          <span>当前使用本地简化地图，网络恢复后自动更新</span>
         </div>
       )}
 
