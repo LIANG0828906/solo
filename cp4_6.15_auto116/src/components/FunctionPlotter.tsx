@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { FunctionConfig, ViewTransform, Point, Particle } from '../types';
 import { evaluateFunction } from '../utils/mathParser';
 
@@ -13,81 +13,89 @@ const PARTICLES_PER_FUNCTION = 80;
 const MAX_TOTAL_PARTICLES = 10000;
 const X_RANGE = [-15, 15];
 
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function getPointOnCurve(points: Point[], progress: number): Point | null {
+  if (points.length < 2) return null;
+  const t = Math.max(0, Math.min(1, progress));
+  const index = t * (points.length - 1);
+  const i = Math.floor(index);
+  const frac = index - i;
+  if (i >= points.length - 1) return points[points.length - 1];
+  return {
+    x: points[i].x + (points[i + 1].x - points[i].x) * frac,
+    y: points[i].y + (points[i + 1].y - points[i].y) * frac,
+  };
+}
+
 const FunctionPlotter: React.FC<FunctionPlotterProps> = ({
   functions,
   viewTransform,
   onViewTransformChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>(0);
+  const functionsRef = useRef(functions);
+  const viewTransformRef = useRef(viewTransform);
+  const onViewTransformChangeRef = useRef(onViewTransformChange);
+
+  const currentTransformRef = useRef<ViewTransform>(viewTransform);
   const particlesRef = useRef<Map<string, Particle[]>>(new Map());
   const pointsCacheRef = useRef<Map<string, Point[]>>(new Map());
   const isDraggingRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
-  const targetTransformRef = useRef(viewTransform);
-  const currentTransformRef = useRef(viewTransform);
+  const fpsFramesRef = useRef<number[]>([]);
+  const fpsDisplayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    targetTransformRef.current = viewTransform;
+    functionsRef.current = functions;
+  }, [functions]);
+
+  useEffect(() => {
+    viewTransformRef.current = viewTransform;
   }, [viewTransform]);
 
-  const interpolateTransform = useCallback(() => {
-    const target = targetTransformRef.current;
-    const current = currentTransformRef.current;
-    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-    const t = 0.12;
+  useEffect(() => {
+    onViewTransformChangeRef.current = onViewTransformChange;
+  }, [onViewTransformChange]);
 
-    currentTransformRef.current = {
-      offsetX: lerp(current.offsetX, target.offsetX, t),
-      offsetY: lerp(current.offsetY, target.offsetY, t),
-      scale: lerp(current.scale, target.scale, t),
-    };
-  }, []);
+  useEffect(() => {
+    pointsCacheRef.current.clear();
+  }, [functions]);
 
-  const initParticles = useCallback((funcId: string) => {
-    const count = Math.min(PARTICLES_PER_FUNCTION, Math.floor(MAX_TOTAL_PARTICLES / Math.max(1, functions.length)));
-    const particles: Particle[] = [];
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        progress: i / count,
-        speed: 0.0008 + Math.random() * 0.0006,
-        size: 2 + Math.random() * 2,
-        trail: [],
-      });
+  useEffect(() => {
+    const existingIds = new Set(functions.map((f) => f.id));
+    for (const key of particlesRef.current.keys()) {
+      if (!existingIds.has(key)) {
+        particlesRef.current.delete(key);
+      }
     }
-    particlesRef.current.set(funcId, particles);
-  }, [functions.length]);
+  }, [functions]);
 
-  const getPointOnCurve = useCallback((points: Point[], progress: number): Point | null => {
-    if (points.length < 2) return null;
-    const t = Math.max(0, Math.min(1, progress));
-    const index = t * (points.length - 1);
-    const i = Math.floor(index);
-    const frac = index - i;
-    if (i >= points.length - 1) {
-      return points[points.length - 1];
-    }
-    return {
-      x: points[i].x + (points[i + 1].x - points[i].x) * frac,
-      y: points[i].y + (points[i + 1].y - points[i].y) * frac,
-    };
-  }, []);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  const worldToScreen = useCallback(
-    (x: number, y: number, width: number, height: number) => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+
+    const worldToScreen = (x: number, y: number, width: number, height: number) => {
       const transform = currentTransformRef.current;
       const centerX = width / 2;
       const centerY = height / 2;
       return {
-        sx: centerX + (x * transform.scale) + transform.offsetX,
-        sy: centerY - (y * transform.scale) + transform.offsetY,
+        sx: centerX + x * transform.scale + transform.offsetX,
+        sy: centerY - y * transform.scale + transform.offsetY,
       };
-    },
-    []
-  );
+    };
 
-  const screenToWorld = useCallback(
-    (sx: number, sy: number, width: number, height: number) => {
+    const screenToWorld = (sx: number, sy: number, width: number, height: number) => {
       const transform = currentTransformRef.current;
       const centerX = width / 2;
       const centerY = height / 2;
@@ -95,12 +103,29 @@ const FunctionPlotter: React.FC<FunctionPlotterProps> = ({
         x: (sx - centerX - transform.offsetX) / transform.scale,
         y: -(sy - centerY - transform.offsetY) / transform.scale,
       };
-    },
-    []
-  );
+    };
 
-  const drawGrid = useCallback(
-    (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    const ensureParticles = (funcId: string, funcCount: number) => {
+      const existing = particlesRef.current.get(funcId);
+      const desiredCount = Math.min(
+        PARTICLES_PER_FUNCTION,
+        Math.floor(MAX_TOTAL_PARTICLES / Math.max(1, funcCount))
+      );
+      if (existing && existing.length === desiredCount) return existing;
+      const particles: Particle[] = [];
+      for (let i = 0; i < desiredCount; i++) {
+        particles.push({
+          progress: i / desiredCount,
+          speed: 0.0015 + Math.random() * 0.001,
+          size: 2 + Math.random() * 2,
+          trail: [],
+        });
+      }
+      particlesRef.current.set(funcId, particles);
+      return particles;
+    };
+
+    const drawGrid = (width: number, height: number) => {
       const transform = currentTransformRef.current;
       const scale = transform.scale;
 
@@ -143,53 +168,57 @@ const FunctionPlotter: React.FC<FunctionPlotterProps> = ({
 
       ctx.setLineDash([]);
 
-      ctx.strokeStyle = 'rgba(150, 200, 255, 0.4)';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(150, 200, 255, 0.45)';
+      ctx.lineWidth = 1.5;
 
-      const xAxisY1 = worldToScreen(topLeft.x, 0, width, height);
-      if (xAxisY1.sy >= 0 && xAxisY1.sy <= height) {
+      const x0 = worldToScreen(0, 0, width, height);
+      if (x0.sy >= -1 && x0.sy <= height + 1) {
         ctx.beginPath();
-        ctx.moveTo(0, xAxisY1.sy);
-        ctx.lineTo(width, xAxisY1.sy);
+        ctx.moveTo(0, x0.sy);
+        ctx.lineTo(width, x0.sy);
         ctx.stroke();
       }
 
-      const yAxisX1 = worldToScreen(0, topLeft.y, width, height);
-      if (yAxisX1.sx >= 0 && yAxisX1.sx <= width) {
+      if (x0.sx >= -1 && x0.sx <= width + 1) {
         ctx.beginPath();
-        ctx.moveTo(yAxisX1.sx, 0);
-        ctx.lineTo(yAxisX1.sx, height);
+        ctx.moveTo(x0.sx, 0);
+        ctx.lineTo(x0.sx, height);
         ctx.stroke();
       }
 
-      ctx.fillStyle = 'rgba(150, 200, 255, 0.6)';
-      ctx.font = '12px "Segoe UI", sans-serif';
+      ctx.fillStyle = 'rgba(150, 200, 255, 0.55)';
+      ctx.font = '11px "Segoe UI", "PingFang SC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
 
       for (let x = startX; x <= endX; x += gridSize) {
-        if (Math.abs(x) < 0.001) continue;
+        if (Math.abs(x) < gridSize * 0.1) continue;
         const p = worldToScreen(x, 0, width, height);
-        if (p.sy >= 0 && p.sy <= height) {
-          const label = Math.abs(x) >= 1 ? x.toFixed(0) : x.toFixed(1);
-          ctx.fillText(label, p.sx - 10, Math.min(Math.max(p.sy + 16, 16), height - 4));
-        }
+        const labelY = Math.max(2, Math.min(p.sy + 6, height - 14));
+        const label = Math.abs(x) >= 1 ? x.toFixed(0) : x.toFixed(1);
+        ctx.fillText(label, p.sx, labelY);
       }
+
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
 
       for (let y = startY; y <= endY; y += gridSize) {
-        if (Math.abs(y) < 0.001) continue;
+        if (Math.abs(y) < gridSize * 0.1) continue;
         const p = worldToScreen(0, y, width, height);
-        if (p.sx >= 0 && p.sx <= width) {
-          const label = Math.abs(y) >= 1 ? y.toFixed(0) : y.toFixed(1);
-          ctx.fillText(label, Math.max(p.sx + 6, 4), p.sy + 4);
-        }
+        const labelX = Math.max(30, Math.min(p.sx - 6, width - 4));
+        const label = Math.abs(y) >= 1 ? y.toFixed(0) : y.toFixed(1);
+        ctx.fillText(label, labelX, p.sy);
       }
-    },
-    [worldToScreen, screenToWorld]
-  );
 
-  const drawParticles = useCallback(
-    (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-      functions.forEach((func) => {
-        if (!func.visible) return;
+      ctx.textAlign = 'start';
+      ctx.textBaseline = 'alphabetic';
+    };
+
+    const drawParticles = (width: number, height: number) => {
+      const funcs = functionsRef.current;
+
+      for (const func of funcs) {
+        if (!func.visible) continue;
 
         const cacheKey = `${func.id}_${func.expression}_${func.amplitude}_${func.frequency}_${func.phase}`;
         let points = pointsCacheRef.current.get(cacheKey);
@@ -205,36 +234,37 @@ const FunctionPlotter: React.FC<FunctionPlotterProps> = ({
           pointsCacheRef.current.set(cacheKey, points);
         }
 
-        let particles = particlesRef.current.get(func.id);
-        if (!particles) {
-          initParticles(func.id);
-          particles = particlesRef.current.get(func.id)!;
-        }
+        const particles = ensureParticles(func.id, funcs.filter((f) => f.visible).length);
 
-        particles.forEach((particle) => {
+        for (const particle of particles) {
           particle.progress += particle.speed;
           if (particle.progress > 1) {
-            particle.progress = 0;
+            particle.progress -= 1;
             particle.trail = [];
           }
 
-          const pos = getPointOnCurve(points!, particle.progress);
+          const pos = getPointOnCurve(points, particle.progress);
           if (pos) {
             particle.trail.unshift(pos);
             if (particle.trail.length > TRAIL_LENGTH) {
-              particle.trail.pop();
+              particle.trail.length = TRAIL_LENGTH;
             }
           }
+
+          if (particle.trail.length < 2) continue;
 
           for (let i = 0; i < particle.trail.length - 1; i++) {
             const t1 = particle.trail[i];
             const t2 = particle.trail[i + 1];
-            const alpha = 1 - i / TRAIL_LENGTH;
+            const trailRatio = i / TRAIL_LENGTH;
+            const alpha = Math.pow(1 - trailRatio, 2.0) * 0.85;
+            const lineWidth = particle.size * Math.pow(1 - trailRatio, 1.5) * 1.2;
+
             const p1 = worldToScreen(t1.x, t1.y, width, height);
             const p2 = worldToScreen(t2.x, t2.y, width, height);
 
-            ctx.strokeStyle = hexToRgba(func.color, alpha * 0.8);
-            ctx.lineWidth = particle.size * (1 - i / TRAIL_LENGTH) * 0.8;
+            ctx.strokeStyle = hexToRgba(func.color, alpha);
+            ctx.lineWidth = lineWidth;
             ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(p1.sx, p1.sy);
@@ -242,104 +272,86 @@ const FunctionPlotter: React.FC<FunctionPlotterProps> = ({
             ctx.stroke();
           }
 
-          if (particle.trail.length > 0) {
-            const head = particle.trail[0];
-            const p = worldToScreen(head.x, head.y, width, height);
-            const gradient = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, particle.size * 3);
-            gradient.addColorStop(0, hexToRgba(func.color, 1));
-            gradient.addColorStop(0.4, hexToRgba(func.color, 0.6));
-            gradient.addColorStop(1, hexToRgba(func.color, 0));
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(p.sx, p.sy, particle.size * 3, 0, Math.PI * 2);
-            ctx.fill();
+          const head = particle.trail[0];
+          const p = worldToScreen(head.x, head.y, width, height);
 
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(p.sx, p.sy, particle.size * 0.6, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        });
-      });
-    },
-    [functions, initParticles, getPointOnCurve, worldToScreen]
-  );
+          const glowRadius = particle.size * 4;
+          const gradient = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, glowRadius);
+          gradient.addColorStop(0, hexToRgba(func.color, 0.95));
+          gradient.addColorStop(0.3, hexToRgba(func.color, 0.5));
+          gradient.addColorStop(0.7, hexToRgba(func.color, 0.15));
+          gradient.addColorStop(1, hexToRgba(func.color, 0));
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, glowRadius, 0, Math.PI * 2);
+          ctx.fill();
 
-  const render = useCallback(() => {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, particle.size * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    };
+
+    const loop = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      const target = viewTransformRef.current;
+      const current = currentTransformRef.current;
+      const lerpFactor = 0.14;
+
+      currentTransformRef.current = {
+        offsetX: current.offsetX + (target.offsetX - current.offsetX) * lerpFactor,
+        offsetY: current.offsetY + (target.offsetY - current.offsetY) * lerpFactor,
+        scale: current.scale + (target.scale - current.scale) * lerpFactor,
+      };
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, width, height);
+
+      drawGrid(width, height);
+      drawParticles(width, height);
+
+      const now = performance.now();
+      fpsFramesRef.current.push(now);
+      while (fpsFramesRef.current.length > 0 && fpsFramesRef.current[0] < now - 1000) {
+        fpsFramesRef.current.shift();
+      }
+      if (fpsDisplayRef.current) {
+        fpsDisplayRef.current.textContent = `${fpsFramesRef.current.length} FPS`;
+      }
+
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-
-    if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      ctx.scale(dpr, dpr);
-    }
-
-    interpolateTransform();
-
-    ctx.clearRect(0, 0, width, height);
-
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, width, height);
-
-    drawGrid(ctx, width, height);
-    drawParticles(ctx, width, height);
-
-    animationRef.current = requestAnimationFrame(render);
-  }, [interpolateTransform, drawGrid, drawParticles]);
-
-  useEffect(() => {
-    pointsCacheRef.current.clear();
-  }, [functions]);
-
-  useEffect(() => {
-    animationRef.current = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animationRef.current);
-  }, [render]);
-
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (e.button === 2) {
-      isDraggingRef.current = true;
-      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
-    }
-  }, []);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDraggingRef.current) return;
-    const dx = e.clientX - lastMousePosRef.current.x;
-    const dy = e.clientY - lastMousePosRef.current.y;
-    lastMousePosRef.current = { x: e.clientX, y: e.clientY };
-    onViewTransformChange({
-      ...targetTransformRef.current,
-      offsetX: targetTransformRef.current.offsetX + dx,
-      offsetY: targetTransformRef.current.offsetY + dy,
-    });
-  }, [onViewTransformChange]);
-
-  const handleMouseUp = useCallback(() => {
-    isDraggingRef.current = false;
-  }, []);
-
-  const handleWheel = useCallback(
-    (e: React.WheelEvent<HTMLCanvasElement>) => {
+    const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      const current = targetTransformRef.current;
-      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+      const current = viewTransformRef.current;
+      const zoomFactor = e.deltaY > 0 ? 0.92 : 1.08;
       const newScale = Math.max(20, Math.min(500, current.scale * zoomFactor));
 
       const centerX = rect.width / 2;
@@ -350,17 +362,63 @@ const FunctionPlotter: React.FC<FunctionPlotterProps> = ({
       const newOffsetX = mouseX - centerX - worldX * newScale;
       const newOffsetY = -(mouseY - centerY - worldY * newScale);
 
-      onViewTransformChange({
+      onViewTransformChangeRef.current({
         scale: newScale,
         offsetX: newOffsetX,
         offsetY: newOffsetY,
       });
-    },
-    [onViewTransformChange]
-  );
+    };
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 2 || e.button === 0) {
+        isDraggingRef.current = true;
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+        canvas.style.cursor = 'grabbing';
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      const dx = e.clientX - lastMousePosRef.current.x;
+      const dy = e.clientY - lastMousePosRef.current.y;
+      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+
+      const current = viewTransformRef.current;
+      onViewTransformChangeRef.current({
+        ...current,
+        offsetX: current.offsetX + dx,
+        offsetY: current.offsetY + dy,
+      });
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      canvas.style.cursor = 'grab';
+    };
+
+    const handleContextMenu = (e: Event) => {
+      e.preventDefault();
+    };
+
+    canvas.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      canvas.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('contextmenu', handleContextMenu);
+    };
   }, []);
 
   return (
@@ -368,25 +426,13 @@ const FunctionPlotter: React.FC<FunctionPlotterProps> = ({
       <canvas
         ref={canvasRef}
         className="plotter-canvas"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
-        onContextMenu={handleContextMenu}
       />
       <div className="canvas-hint">
-        <span>右键拖拽平移 · 滚轮缩放</span>
+        <span>右键/左键拖拽平移 · 滚轮缩放</span>
       </div>
+      <div ref={fpsDisplayRef} className="fps-counter" />
     </div>
   );
 };
-
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 export default FunctionPlotter;

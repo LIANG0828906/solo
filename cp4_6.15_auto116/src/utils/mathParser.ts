@@ -1,4 +1,4 @@
-import { parse, evaluate } from 'mathjs';
+import { parse } from 'mathjs';
 import { Point, ParseResult } from '../types';
 
 const MAX_POINTS = 2000;
@@ -30,7 +30,7 @@ export function evaluateFunction(
   const step = (xMax - xMin) / (MAX_POINTS - 1);
   const safeExpr = expression.replace(/\^/g, '**');
 
-  let compiled: ReturnType<typeof parse>;
+  let compiled;
   try {
     compiled = parse(safeExpr);
   } catch {
@@ -41,7 +41,7 @@ export function evaluateFunction(
     const xRaw = xMin + i * step;
     const xScaled = frequency * xRaw + phase;
     try {
-      const yRaw = compiled.evaluate({ x: xScaled });
+      const yRaw = compiled.evaluate({ x: xScaled }) as number;
       if (typeof yRaw === 'number' && isFinite(yRaw) && !isNaN(yRaw)) {
         points.push({
           x: xRaw,
