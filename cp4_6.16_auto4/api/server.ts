@@ -244,6 +244,28 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('get-versions', (data: { docId: string }) => {
+    const docVersions = versions.get(data.docId) || [];
+    socket.emit('version-list', {
+      docId: data.docId,
+      versions: docVersions,
+    });
+  });
+
+  socket.on('save-version', (data: { docId: string }) => {
+    const doc = documents.get(data.docId);
+    if (!doc) return;
+
+    const docVersions = versions.get(data.docId) || [];
+    const lastVersion = docVersions[docVersions.length - 1];
+
+    if (lastVersion && Date.now() - lastVersion.createdAt < 10 * 1000) {
+      return;
+    }
+
+    saveVersion(data.docId);
+  });
+
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${userId}`);
     onlineUsers.delete(userId);

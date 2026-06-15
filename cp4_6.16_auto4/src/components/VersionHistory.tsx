@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDocStore } from '../store/useDocStore';
+import { useSocket } from '../hooks/useSocket';
 import { Clock, RotateCcw, X, History, Loader2 } from 'lucide-react';
 import type { VersionSnapshot } from '../../shared/types';
 
@@ -7,53 +8,53 @@ export default function VersionHistory() {
   const activeDocId = useDocStore((s) => s.activeDocId);
   const showVersionHistory = useDocStore((s) => s.showVersionHistory);
   const setShowVersionHistory = useDocStore((s) => s.setShowVersionHistory);
+  const { getSocket } = useSocket();
 
   const [versions, setVersions] = useState<VersionSnapshot[]>([]);
   const [loading, setLoading] = useState(false);
   const [rollingBack, setRollingBack] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!showVersionHistory || !activeDocId) return;
+    const socket = getSocket();
+    if (!socket || !showVersionHistory || !activeDocId) return;
 
-    const fetchVersions = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/versions/${activeDocId}`);
-        const data = await res.json();
-        if (data.success) {
-          setVersions(data.versions);
-        }
-      } catch (err) {
-        console.error('Failed to fetch versions:', err);
-      } finally {
+    setLoading(true);
+
+    const handleVersionList = (data: { docId: string; versions: VersionSnapshot[] }) => {
+      if (data.docId === activeDocId) {
+        setVersions(data.versions.sort((a, b) => b.createdAt - a.createdAt));
         setLoading(false);
       }
     };
 
-    fetchVersions();
-  }, [showVersionHistory, activeDocId]);
+    const handleVersionSaved = (data: { docId: string; version: VersionSnapshot }) => {
+      if (data.docId === activeDocId) {
+        setVersions((prev) => [data.version, ...prev].sort((a, b) => b.createdAt - a.createdAt));
+      }
+    };
 
-  const handleRollback = async (versionId: string) => {
-    if (!activeDocId) return;
+    socket.on('version-list', handleVersionList);
+    socket.on('version-saved', handleVersionSaved);
+
+    socket.emit('get-versions', { docId: activeDocId });
+
+    return () => {
+      socket.off('version-list', handleVersionList);
+      socket.off('version-saved', handleVersionSaved);
+    };
+  }, [showVersionHistory, activeDocId, getSocket]);
+
+  const handleRollback = (versionId: string) => {
+    const socket = getSocket();
+    if (!socket || !activeDocId) return;
 
     setRollingBack(versionId);
-    try {
-      const res = await fetch(`/api/rollback/${activeDocId}/${versionId}`, {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (data.success) {
-        const res2 = await fetch(`/api/versions/${activeDocId}`);
-        const data2 = await res2.json();
-        if (data2.success) {
-          setVersions(data2.versions);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to rollback:', err);
-    } finally {
+    socket.emit('rollback-version', { docId: activeDocId, versionId });
+
+    setTimeout(() => {
       setRollingBack(null);
-    }
+      socket.emit('get-versions', { docId: activeDocId });
+    }, 500);
   };
 
   const formatTime = (timestamp: number) => {

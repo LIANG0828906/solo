@@ -50,4 +50,6 @@ export interface ClientToServerEvents {
   "delete-document": (data: { docId: string }) => void;
   "set-nickname": (data: { nickname: string }) => void;
   "rollback-version": (data: { docId: string; versionId: string }) => void;
+  "get-versions": (data: { docId: string }) => void;
+  "save-version": (data: { docId: string }) => void;
 }

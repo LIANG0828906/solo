@@ -55,8 +55,86 @@ const Editor = forwardRef<EditorHandle>((_props, ref) => {
       if (!user.cursor) return;
       try {
         const range = user.cursor;
-        const startBounds = quill.getBounds(range.index);
 
+        if (range.length > 0) {
+          const startBounds = quill.getBounds(range.index);
+          const endBounds = quill.getBounds(range.index + range.length);
+
+          const startTop = startBounds.top;
+          const startBottom = startBounds.top + startBounds.height;
+          const endTop = endBounds.top;
+          const endBottom = endBounds.top + endBounds.height;
+
+          if (startTop === endTop) {
+            const selection = document.createElement('div');
+            selection.style.cssText = `
+              position: absolute;
+              left: ${startBounds.left}px;
+              top: ${startTop}px;
+              width: ${endBounds.right - startBounds.left}px;
+              height: ${startBounds.height}px;
+              background-color: ${user.color};
+              opacity: 0.25;
+              pointer-events: none;
+              z-index: 15;
+              border-radius: 2px;
+            `;
+            layer.appendChild(selection);
+          } else {
+            const lineHeight = startBounds.height;
+
+            const editorWidth = quill.root.clientWidth;
+
+            const firstLine = document.createElement('div');
+            firstLine.style.cssText = `
+              position: absolute;
+              left: ${startBounds.left}px;
+              top: ${startTop}px;
+              right: 0;
+              height: ${lineHeight}px;
+              background-color: ${user.color};
+              opacity: 0.25;
+              pointer-events: none;
+              z-index: 15;
+              border-radius: 2px 2px 0 0;
+            `;
+            layer.appendChild(firstLine);
+
+            const middleLinesCount = Math.floor((endTop - startBottom) / lineHeight);
+            if (middleLinesCount > 0) {
+              const middle = document.createElement('div');
+              middle.style.cssText = `
+                position: absolute;
+                left: 0;
+                top: ${startBottom}px;
+                right: 0;
+                height: ${middleLinesCount * lineHeight}px;
+                background-color: ${user.color};
+                opacity: 0.25;
+                pointer-events: none;
+                z-index: 15;
+              `;
+              layer.appendChild(middle);
+            }
+
+            const lastLine = document.createElement('div');
+            lastLine.style.cssText = `
+              position: absolute;
+              left: 0;
+              top: ${endTop}px;
+              width: ${endBounds.right}px;
+              height: ${endBounds.height}px;
+              background-color: ${user.color};
+              opacity: 0.25;
+              pointer-events: none;
+              z-index: 15;
+              border-radius: 0 0 2px 2px;
+            `;
+            layer.appendChild(lastLine);
+          }
+        }
+
+        const startBounds = quill.getBounds(range.index);
         const cursor = document.createElement('div');
         cursor.style.cssText = `
           position: absolute;
@@ -68,6 +146,7 @@ const Editor = forwardRef<EditorHandle>((_props, ref) => {
           pointer-events: none;
           z-index: 20;
           animation: cursorBlink 1.2s ease-in-out infinite;
+          border-radius: 1px;
         `;
 
         const label = document.createElement('div');
@@ -84,26 +163,11 @@ const Editor = forwardRef<EditorHandle>((_props, ref) => {
           background-color: ${user.color};
           transform: translateX(-50%);
           line-height: 1.4;
+          font-weight: 500;
+          letter-spacing: 0.2px;
         `;
         cursor.appendChild(label);
         layer.appendChild(cursor);
-
-        if (range.length > 0) {
-          const endBounds = quill.getBounds(range.index + range.length);
-          const selection = document.createElement('div');
-          selection.style.cssText = `
-            position: absolute;
-            left: ${startBounds.left}px;
-            top: ${startBounds.top}px;
-            width: ${endBounds.right - startBounds.left}px;
-            height: ${Math.max(startBounds.height, endBounds.height)}px;
-            background-color: ${user.color};
-            opacity: 0.2;
-            pointer-events: none;
-            z-index: 15;
-          `;
-          layer.appendChild(selection);
-        }
       } catch {
         // ignore
       }
@@ -127,20 +191,31 @@ const Editor = forwardRef<EditorHandle>((_props, ref) => {
       bottom: 0;
       pointer-events: none;
       overflow: hidden;
+      z-index: 10;
     `;
     container.appendChild(layer);
     cursorLayerRef.current = layer;
 
-    const handleScroll = () => renderCursors();
-    quill.on('selection-change', handleScroll);
+    const handleUpdate = () => {
+      requestAnimationFrame(() => renderCursors());
+    };
+
+    quill.on('selection-change', handleUpdate);
+    quill.on('text-change', handleUpdate);
+
     const editorRoot = quill.root;
-    editorRoot.addEventListener('scroll', handleScroll);
+    editorRoot.addEventListener('scroll', handleUpdate, { passive: true });
+
+    const resizeObserver = new ResizeObserver(handleUpdate);
+    resizeObserver.observe(editorRoot);
 
     renderCursors();
 
     return () => {
-      quill.off('selection-change', handleScroll);
-      editorRoot.removeEventListener('scroll', handleScroll);
+      quill.off('selection-change', handleUpdate);
+      quill.off('text-change', handleUpdate);
+      editorRoot.removeEventListener('scroll', handleUpdate);
+      resizeObserver.disconnect();
       if (layer.parentNode) {
         layer.parentNode.removeChild(layer);
       }
@@ -163,7 +238,7 @@ const Editor = forwardRef<EditorHandle>((_props, ref) => {
         isLocalChange.current = true;
         quill.setContents(data.content as any, 'silent');
         isLocalChange.current = false;
-        setTimeout(() => renderCursors(), 0);
+        requestAnimationFrame(() => renderCursors());
       }
     };
 
@@ -174,12 +249,12 @@ const Editor = forwardRef<EditorHandle>((_props, ref) => {
         isLocalChange.current = true;
         quill.updateContents(data.delta as any, 'silent');
         isLocalChange.current = false;
-        setTimeout(() => renderCursors(), 0);
+        requestAnimationFrame(() => renderCursors());
       }
     };
 
     const handleCursor = (_data: { docId: string; cursor: { index: number; length: number }; userId: string }) => {
-      setTimeout(() => renderCursors(), 0);
+      requestAnimationFrame(() => renderCursors());
     };
 
     socket.on('document-content', handleContent);
@@ -200,7 +275,7 @@ const Editor = forwardRef<EditorHandle>((_props, ref) => {
         if (socket && activeDocId) {
           socket.emit('delta', { docId: activeDocId, delta: _delta });
         }
-        setTimeout(() => renderCursors(), 0);
+        requestAnimationFrame(() => renderCursors());
       }
     },
     [activeDocId, getSocket, renderCursors]

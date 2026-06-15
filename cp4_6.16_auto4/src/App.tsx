@@ -76,6 +76,19 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen, setFullscreen]);
 
+  useEffect(() => {
+    if (!joined || !activeDocId || !isConnected) return;
+
+    const socket = getSocket();
+    if (!socket) return;
+
+    const interval = setInterval(() => {
+      socket.emit('save-version', { docId: activeDocId });
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [joined, activeDocId, isConnected, getSocket]);
+
   if (!joined) {
     return <JoinModal onJoin={handleJoin} />;
   }
