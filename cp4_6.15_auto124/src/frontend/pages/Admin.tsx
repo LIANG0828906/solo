@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Package, TruckSend, AlertTriangle, Search, Plus, Minus, Tag, X, BookOpen, Check } from 'lucide-react';
+import { Package, Truck, AlertTriangle, Search, Plus, Minus, Tag, X, BookOpen, Check } from 'lucide-react';
 import type { Book, OrderStats } from '../types';
 import { useCountUp } from '../hooks/useCountUp';
 
@@ -172,7 +172,7 @@ export default function Admin() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
         <StatCard label="当日订单" value={stats.todayOrders} icon={Package} color="bg-tan-500" />
-        <StatCard label="已发货" value={stats.shippedCount} icon={TruckSend} color="bg-brown-700" />
+        <StatCard label="已发货" value={stats.shippedCount} icon={Truck} color="bg-brown-700" />
         <StatCard label="低库存预警" value={stats.lowStockCount} icon={AlertTriangle} color="bg-accent-500" />
       </div>
 
