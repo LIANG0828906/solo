@@ -4,7 +4,7 @@ import { SubscriptionForm } from '@/modules/subscription/SubscriptionForm';
 import { SubscriptionCard } from '@/modules/subscription/SubscriptionCard';
 import { CalendarView } from '@/modules/calendar/CalendarView';
 import { StatisticsPanel } from '@/modules/stats/StatisticsPanel';
-import { subscribe, getSnapshot, markAllAsRead } from '@/utils/notification';
+import { subscribe, getSnapshot, markAsRead, markAllAsRead } from '@/utils/notification';
 import { Plus, Download, Upload, Bell, BellOff } from 'lucide-react';
 import type { Subscription, NotificationItem } from '@/types';
 
@@ -161,14 +161,24 @@ export default function App() {
             <Bell size={16} style={{ color: 'var(--color-accent)', flexShrink: 0, marginTop: 2 }} />
             <p className="text-xs flex-1" style={{ color: 'var(--color-text)' }}>{n.message}</p>
             <button
-              onClick={() => markAllAsRead()}
+              onClick={() => markAsRead(n.id)}
               className="flex-shrink-0"
               style={{ color: 'var(--color-text-secondary)' }}
+              title="标记已读"
             >
               <BellOff size={14} />
             </button>
           </div>
         ))}
+        {notifications.length > 0 && (
+          <button
+            onClick={markAllAsRead}
+            className="text-[10px] text-right pr-1"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            全部已读
+          </button>
+        )}
       </div>
 
       {/* Main Content */}

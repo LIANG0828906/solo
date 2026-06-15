@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 import { X } from 'lucide-react';
 import type { Subscription, Category } from '@/types';
 import { CATEGORY_CONFIG, BILLING_CYCLE_LABELS } from '@/types';

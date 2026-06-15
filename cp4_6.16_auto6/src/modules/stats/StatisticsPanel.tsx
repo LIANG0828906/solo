@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { PieChart } from 'react-minimal-pie-chart';
 import { AlertTriangle } from 'lucide-react';
 import type { Subscription, Category } from '@/types';
@@ -18,6 +18,8 @@ function getMonthlyPrice(sub: Subscription): number {
 }
 
 export function StatisticsPanel({ subscriptions }: StatisticsPanelProps) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
   const stats = useMemo(() => {
     const totalMonthly = subscriptions.reduce((sum, sub) => sum + getMonthlyPrice(sub), 0);
 
@@ -93,21 +95,11 @@ export function StatisticsPanel({ subscriptions }: StatisticsPanelProps) {
               segmentsStyle={{
                 transition: 'transform 0.2s ease',
                 cursor: 'pointer',
+                transformOrigin: 'center',
               }}
-              segmentsShift={(index) => (index === 0 ? 0 : 0)}
-              onMouseOver={(_, index) => {
-                const segments = document.querySelectorAll('.react-minimal-pie-chart-segment');
-                if (segments[index]) {
-                  (segments[index] as SVGElement).style.transform = 'scale(1.05)';
-                  (segments[index] as SVGElement).style.transformOrigin = 'center';
-                }
-              }}
-              onMouseOut={(_, index) => {
-                const segments = document.querySelectorAll('.react-minimal-pie-chart-segment');
-                if (segments[index]) {
-                  (segments[index] as SVGElement).style.transform = 'scale(1)';
-                }
-              }}
+              segmentsShift={(index) => (index === hoveredIndex ? 4 : 0)}
+              onMouseOver={(_, index) => setHoveredIndex(index)}
+              onMouseOut={() => setHoveredIndex(null)}
             />
           </div>
           <div className="space-y-1.5">
