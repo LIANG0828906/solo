@@ -12,6 +12,8 @@ export interface GhostData {
   lapNumber: number;
 }
 
+export type InterpolationMethod = 'linear' | 'spline';
+
 export class GhostRecorder {
   private currentFrames: GhostFrame[] = [];
   private recordedGhosts: GhostData[] = [];
@@ -84,12 +86,21 @@ export class GhostReplay {
   private trailPoints: { x: number; y: number; alpha: number }[] = [];
   private maxTrailLength: number = 80;
   private lastInterpolatedFrame: GhostFrame | null = null;
+  private interpolationMethod: InterpolationMethod = 'linear';
 
   loadGhost(ghostData: GhostData): void {
     this.ghostData = ghostData;
     this.currentFrameIndex = 0;
     this.trailPoints = [];
     this.lastInterpolatedFrame = null;
+  }
+
+  setInterpolationMethod(method: InterpolationMethod): void {
+    this.interpolationMethod = method;
+  }
+
+  getInterpolationMethod(): InterpolationMethod {
+    return this.interpolationMethod;
   }
 
   startPlayback(): void {
@@ -116,6 +127,60 @@ export class GhostReplay {
     return a + diff * t;
   }
 
+  private catmullRomInterpolate(
+    p0: number,
+    p1: number,
+    p2: number,
+    p3: number,
+    t: number
+  ): number {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return (
+      0.5 *
+      (2 * p1 +
+        (-p0 + p2) * t +
+        (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+        (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+    );
+  }
+
+  private getSplineInterpolatedFrame(
+    frames: GhostFrame[],
+    lowerIndex: number,
+    t: number
+  ): GhostFrame {
+    const i0 = Math.max(0, lowerIndex - 1);
+    const i1 = lowerIndex;
+    const i2 = Math.min(frames.length - 1, lowerIndex + 1);
+    const i3 = Math.min(frames.length - 1, lowerIndex + 2);
+    const f0 = frames[i0];
+    const f1 = frames[i1];
+    const f2 = frames[i2];
+    const f3 = frames[i3];
+    const x = this.catmullRomInterpolate(f0.x, f1.x, f2.x, f3.x, t);
+    const y = this.catmullRomInterpolate(f0.y, f1.y, f2.y, f3.y, t);
+    const speed = this.catmullRomInterpolate(f0.speed, f1.speed, f2.speed, f3.speed, t);
+    const angle = this.interpolateAngle(f1.angle, f2.angle, t);
+    const timestamp = this.linearInterpolate(f1.timestamp, f2.timestamp, t);
+    return { x, y, angle, speed, timestamp };
+  }
+
+  private getLinearInterpolatedFrame(
+    frameA: GhostFrame,
+    frameB: GhostFrame,
+    t: number,
+    elapsed: number
+  ): GhostFrame {
+    return {
+      x: this.linearInterpolate(frameA.x, frameB.x, t),
+      y: this.linearInterpolate(frameA.y, frameB.y, t),
+      angle: this.interpolateAngle(frameA.angle, frameB.angle, t),
+      speed: this.linearInterpolate(frameA.speed, frameB.speed, t),
+      timestamp: elapsed
+    };
+  }
+
   private getInterpolatedFrame(elapsed: number): GhostFrame | null {
     if (!this.ghostData || this.ghostData.frames.length < 2) {
       return this.ghostData?.frames[0] || null;
@@ -125,20 +190,12 @@ export class GhostReplay {
     if (elapsed >= frames[frames.length - 1].timestamp) return frames[frames.length - 1];
     let lower = 0;
     let upper = frames.length - 1;
+    let foundIndex = -1;
     while (lower <= upper) {
       const mid = Math.floor((lower + upper) / 2);
       if (frames[mid].timestamp <= elapsed && mid < frames.length - 1 && frames[mid + 1].timestamp >= elapsed) {
-        const frameA = frames[mid];
-        const frameB = frames[mid + 1];
-        const duration = frameB.timestamp - frameA.timestamp;
-        const t = duration > 0 ? (elapsed - frameA.timestamp) / duration : 0;
-        return {
-          x: this.linearInterpolate(frameA.x, frameB.x, t),
-          y: this.linearInterpolate(frameA.y, frameB.y, t),
-          angle: this.interpolateAngle(frameA.angle, frameB.angle, t),
-          speed: this.linearInterpolate(frameA.speed, frameB.speed, t),
-          timestamp: elapsed
-        };
+        foundIndex = mid;
+        break;
       }
       if (frames[mid].timestamp < elapsed) {
         lower = mid + 1;
@@ -146,7 +203,18 @@ export class GhostReplay {
         upper = mid - 1;
       }
     }
-    return frames[Math.min(lower, frames.length - 1)];
+    if (foundIndex === -1) {
+      return frames[Math.min(lower, frames.length - 1)];
+    }
+    const frameA = frames[foundIndex];
+    const frameB = frames[foundIndex + 1];
+    const duration = frameB.timestamp - frameA.timestamp;
+    const t = duration > 0 ? (elapsed - frameA.timestamp) / duration : 0;
+    if (this.interpolationMethod === 'spline' && frames.length >= 4) {
+      return this.getSplineInterpolatedFrame(frames, foundIndex, t);
+    } else {
+      return this.getLinearInterpolatedFrame(frameA, frameB, t, elapsed);
+    }
   }
 
   update(): GhostFrame | null {

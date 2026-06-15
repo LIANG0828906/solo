@@ -1,6 +1,7 @@
-import { GhostRecorder, GhostReplay, GhostData, GhostFrame } from './ghostRecorder';
+// 幽灵赛车竞技场 - 主程序入口
+import { GhostRecorder, GhostReplay, GhostData, GhostFrame, InterpolationMethod } from './ghostRecorder';
 import { AIOpponent, AIFactory, TrackWaypoint } from './aiOpponent';
-import { CollisionManager, FinishLineDetector, Point, Obstacle } from './collisionManager';
+import { CollisionManager, FinishLineDetector, Point, Obstacle, CollisionEvent } from './collisionManager';
 import { UIRenderer, LeaderboardEntry, CarMiniMapData, UIData } from './uiRenderer';
 
 interface PlayerCar {
@@ -28,6 +29,24 @@ interface TrackData {
   finishLineStart: Point;
   finishLineEnd: Point;
   obstacles: Obstacle[];
+}
+
+interface GameState {
+  playerPosition: { x: number; y: number; angle: number; speed: number };
+  collisionState: {
+    active: boolean;
+    lastEvent: CollisionEvent | null;
+    slowdownActive: boolean;
+    slowdownFactor: number;
+  };
+  lapInfo: {
+    currentLap: number;
+    totalLaps: number;
+    lapTimes: number[];
+    currentLapTime: number;
+    totalTime: number;
+  };
+  raceState: 'countdown' | 'racing' | 'finished';
 }
 
 const CANVAS_WIDTH = 1200;
@@ -65,7 +84,12 @@ class Game {
   private playerFinished: boolean = false;
   private lapPenaltyTime: number = 0;
 
-  private guardrailParticles: { x: number; y: number; phase: number }[] = [];
+  private globalState: GameState;
+  private lastCollisionEvent: CollisionEvent | null = null;
+  private collisionActive: boolean = false;
+  private slowdownActive: boolean = false;
+  private slowdownFactor: number = 1.0;
+  private interpolationMethod: InterpolationMethod = 'spline';
 
   constructor() {
     const canvasEl = document.getElementById('gameCanvas');
@@ -85,11 +109,59 @@ class Game {
     );
     this.uiRenderer = new UIRenderer(this.ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    this.globalState = this.createInitialState();
+
     this.setupInput();
     this.initializeTrack();
     this.initializeAI();
-    this.initializeGuardrailParticles();
+    this.setupCollisionCallbacks();
     this.startCountdown();
+  }
+
+  private createInitialState(): GameState {
+    return {
+      playerPosition: { x: this.player.x, y: this.player.y, angle: this.player.angle, speed: this.player.speed },
+      collisionState: {
+        active: false,
+        lastEvent: null,
+        slowdownActive: false,
+        slowdownFactor: 1.0
+      },
+      lapInfo: {
+        currentLap: 1,
+        totalLaps: TOTAL_LAPS,
+        lapTimes: [],
+        currentLapTime: 0,
+        totalTime: 0
+      },
+      raceState: 'countdown'
+    };
+  }
+
+  private updateGlobalState(): void {
+    this.globalState.playerPosition = {
+      x: this.player.x,
+      y: this.player.y,
+      angle: this.player.angle,
+      speed: this.player.speed
+    };
+    this.globalState.collisionState = {
+      active: this.collisionActive,
+      lastEvent: this.lastCollisionEvent,
+      slowdownActive: this.slowdownActive,
+      slowdownFactor: this.slowdownFactor
+    };
+    const currentLapTime = this.gameState === 'racing' && !this.playerFinished
+      ? (performance.now() - this.lapStartTime) / 1000 + this.lapPenaltyTime
+      : this.lapPenaltyTime;
+    this.globalState.lapInfo = {
+      currentLap: Math.min(this.player.lap, TOTAL_LAPS),
+      totalLaps: TOTAL_LAPS,
+      lapTimes: [...this.lapTimes],
+      currentLapTime,
+      totalTime: this.totalTime + (this.gameState === 'racing' && !this.playerFinished ? currentLapTime : 0)
+    };
+    this.globalState.raceState = this.gameState;
   }
 
   private createPlayer(): PlayerCar {
@@ -189,6 +261,11 @@ class Game {
       if (e.key.toLowerCase() === 'r' && this.gameState === 'finished') {
         this.restartRace();
       }
+      if (e.key.toLowerCase() === 'i') {
+        this.interpolationMethod = this.interpolationMethod === 'linear' ? 'spline' : 'linear';
+        this.ghostReplays.forEach(replay => replay.setInterpolationMethod(this.interpolationMethod));
+        console.log(`插值方法切换为: ${this.interpolationMethod}`);
+      }
     });
 
     window.addEventListener('keyup', (e: KeyboardEvent) => {
@@ -202,26 +279,27 @@ class Game {
   }
 
   private initializeAI(): void {
-    this.aiOpponents = AIFactory.generateOpponents(this.track.waypoints, 45, 2);
+    this.aiOpponents = AIFactory.generateOpponents(this.track.waypoints, 45, 2, this.player.maxSpeed);
   }
 
-  private initializeGuardrailParticles(): void {
-    this.guardrailParticles = [];
-    const allPoints = [...this.track.outerBoundary, ...this.track.innerBoundary];
-    for (let i = 0; i < 80; i++) {
-      const p = allPoints[Math.floor(Math.random() * allPoints.length)];
-      this.guardrailParticles.push({
-        x: p.x + (Math.random() - 0.5) * 4,
-        y: p.y + (Math.random() - 0.5) * 4,
-        phase: Math.random() * Math.PI * 2
-      });
-    }
+  private setupCollisionCallbacks(): void {
+    this.collisionManager.onCollision((event: CollisionEvent) => {
+      this.lastCollisionEvent = event;
+      this.collisionActive = true;
+      this.slowdownActive = event.speedReductionFactor < 1.0;
+      this.slowdownFactor = event.speedReductionFactor;
+      console.log(`碰撞发生: 类型=${event.type}, 力度=${event.impactForce.toFixed(2)}, 减速=${event.speedReductionFactor}, 惩罚=${event.penaltyTime}s`);
+      setTimeout(() => {
+        this.collisionActive = false;
+      }, 300);
+    });
   }
 
   private startCountdown(): void {
     this.gameState = 'countdown';
     this.countdownValue = 3;
     this.countdownTimer = 0;
+    this.globalState.raceState = 'countdown';
   }
 
   private startRace(): void {
@@ -230,11 +308,13 @@ class Game {
     this.lapStartTime = performance.now();
     this.ghostRecorder.startRecording(1);
     this.aiOpponents.forEach(ai => ai.start());
+    this.globalState.raceState = 'racing';
 
     const bestGhost = this.ghostRecorder.getBestGhost();
     if (bestGhost) {
       const replay = new GhostReplay();
       replay.loadGhost(bestGhost);
+      replay.setInterpolationMethod(this.interpolationMethod);
       replay.startPlayback();
       this.ghostReplays.push(replay);
     }
@@ -250,7 +330,11 @@ class Game {
     this.ghostReplays = [];
     this.collisionManager.reset();
     this.aiOpponents.forEach(ai => ai.reset());
-    this.initializeGuardrailParticles();
+    this.lastCollisionEvent = null;
+    this.collisionActive = false;
+    this.slowdownActive = false;
+    this.slowdownFactor = 1.0;
+    this.globalState = this.createInitialState();
     this.startCountdown();
   }
 
@@ -265,6 +349,7 @@ class Game {
 
     if (this.gameState === 'countdown') {
       this.updateCountdown(deltaTime);
+      this.updateGlobalState();
       return;
     }
 
@@ -281,6 +366,8 @@ class Game {
       this.updateGhostReplays();
       this.collisionManager.updateParticles(deltaTime);
     }
+
+    this.updateGlobalState();
   }
 
   private updateCountdown(deltaTime: number): void {
@@ -345,6 +432,12 @@ class Game {
       this.lapPenaltyTime += collisionResult.positionPenalty;
     }
 
+    this.slowdownActive = collisionResult.shouldSlowdown;
+    this.slowdownFactor = collisionResult.slowdownFactor;
+    if (this.slowdownActive && this.slowdownFactor < 1.0) {
+      this.player.speed *= Math.pow(this.slowdownFactor, deltaTime * 2);
+    }
+
     this.player.x += Math.cos(this.player.angle) * this.player.speed * deltaTime;
     this.player.y += Math.sin(this.player.angle) * this.player.speed * deltaTime;
 
@@ -392,6 +485,7 @@ class Game {
         this.finishAnimationTimer = 0;
         if (this.allFinished()) {
           this.gameState = 'finished';
+          this.globalState.raceState = 'finished';
           this.saveLeaderboard();
         }
       } else {
@@ -401,6 +495,7 @@ class Game {
         if (ghostData) {
           const replay = new GhostReplay();
           replay.loadGhost(ghostData);
+          replay.setInterpolationMethod(this.interpolationMethod);
           replay.startPlayback();
           this.ghostReplays.push(replay);
         }
@@ -409,6 +504,7 @@ class Game {
 
     if (this.playerFinished && this.allFinished() && this.gameState !== 'finished') {
       this.gameState = 'finished';
+      this.globalState.raceState = 'finished';
       this.saveLeaderboard();
     }
   }
@@ -424,8 +520,9 @@ class Game {
       let all: LeaderboardEntry[] = existing ? JSON.parse(existing) : [];
       all = [...all, ...entries].sort((a, b) => a.totalTime - b.totalTime).slice(0, 20);
       localStorage.setItem('ghostRacingLeaderboard', JSON.stringify(all));
+      console.log('排行榜已保存，共', all.length, '条记录');
     } catch (e) {
-      console.log('Could not save leaderboard');
+      console.log('无法保存排行榜:', e);
     }
   }
 
@@ -456,29 +553,85 @@ class Game {
   public render(): void {
     this.ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    this.drawTrack();
+    this.uiRenderer.drawTrackWithNeonEdges(
+      this.track.outerBoundary,
+      this.track.innerBoundary,
+      this.track.centerLine
+    );
+
     this.drawGuardrailParticles();
-    this.drawObstacles();
-    this.drawFinishLine();
+
+    for (const obs of this.track.obstacles) {
+      this.uiRenderer.drawObstacleWithGlow(obs);
+    }
+
+    this.uiRenderer.drawFinishLineWithFlag(
+      this.track.finishLineStart.x,
+      this.track.finishLineStart.y,
+      this.track.finishLineEnd.x,
+      this.track.finishLineEnd.y,
+      this.gameState === 'finished'
+    );
 
     for (const replay of this.ghostReplays) {
-      this.drawGhostTrail(replay.getTrailPoints());
+      this.uiRenderer.drawGhostTrail(
+        replay.getTrailPoints(),
+        'rgba(100, 180, 255, 0.5)',
+        '#64b4ff'
+      );
     }
 
     for (const ai of this.aiOpponents) {
-      this.drawAITrail(ai);
+      this.uiRenderer.drawGhostTrail(
+        ai.getTrailPoints(),
+        ai.getColor().replace('#', 'rgba(').concat(', 0.5)'),
+        ai.getNeonShadowColor()
+      );
     }
 
     for (const replay of this.ghostReplays) {
       const frame = replay.update();
-      this.drawGhostCar(frame);
+      if (frame) {
+        this.uiRenderer.drawCarWithNeonGlow(
+          frame.x,
+          frame.y,
+          frame.angle,
+          this.player.width,
+          this.player.height,
+          'rgba(100, 180, 255, 0.6)',
+          '#64b4ff',
+          12,
+          true
+        );
+      }
     }
 
     for (const ai of this.aiOpponents) {
-      this.drawAICar(ai);
+      const pos = ai.getPosition();
+      this.uiRenderer.drawCarWithNeonGlow(
+        pos.x,
+        pos.y,
+        ai.getAngle(),
+        this.player.width,
+        this.player.height,
+        ai.getColor() + 'aa',
+        ai.getNeonShadowColor(),
+        10,
+        false
+      );
     }
 
-    this.drawPlayer();
+    this.uiRenderer.drawCarWithNeonGlow(
+      this.player.x,
+      this.player.y,
+      this.player.angle,
+      this.player.width,
+      this.player.height,
+      'rgba(0, 255, 170, 0.85)',
+      '#00ffaa',
+      15,
+      false
+    );
 
     const uiData = this.buildUIData();
     this.uiRenderer.render(uiData);
@@ -486,275 +639,22 @@ class Game {
     this.drawFPSCounter();
   }
 
-  private drawTrack(): void {
-    const ctx = this.ctx;
-
-    const trackGrad = ctx.createRadialGradient(
-      CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 100,
-      CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 600
-    );
-    trackGrad.addColorStop(0, '#0a0a15');
-    trackGrad.addColorStop(1, '#05050a');
-    ctx.fillStyle = trackGrad;
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    ctx.save();
-    ctx.fillStyle = '#1a1f2e';
-    ctx.strokeStyle = '#2a3a5a';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    this.track.outerBoundary.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#0a0a15';
-    ctx.beginPath();
-    this.track.innerBoundary.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    ctx.strokeStyle = 'rgba(0, 255, 170, 0.8)';
-    ctx.lineWidth = 3;
-    ctx.shadowColor = '#00ffaa';
-    ctx.shadowBlur = 8;
-    ctx.beginPath();
-    this.track.outerBoundary.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    ctx.closePath();
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.save();
-    ctx.strokeStyle = 'rgba(0, 255, 170, 0.7)';
-    ctx.lineWidth = 2;
-    ctx.shadowColor = '#00ffaa';
-    ctx.shadowBlur = 5;
-    ctx.beginPath();
-    this.track.innerBoundary.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    ctx.closePath();
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([20, 20]);
-    ctx.beginPath();
-    this.track.centerLine.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
-    });
-    ctx.closePath();
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
-  }
-
   private drawGuardrailParticles(): void {
-    const ctx = this.ctx;
+    const guardrailParticles = this.collisionManager.getGuardrailParticles();
     const time = performance.now() / 500;
-    for (const p of this.guardrailParticles) {
-      const alpha = 0.3 + Math.sin(time + p.phase) * 0.4;
-      ctx.fillStyle = `rgba(0, 255, 170, ${alpha.toFixed(3)})`;
-      ctx.shadowColor = '#00ffaa';
-      ctx.shadowBlur = 4;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 2 + Math.sin(time + p.phase) * 1, 0, Math.PI * 2);
-      ctx.fill();
+    for (const p of guardrailParticles) {
+      const alpha = 0.25 + Math.sin(time + p.phase) * 0.35;
+      const offset = Math.sin(time * 1.5 + p.phase) * 2;
+      this.ctx.save();
+      this.ctx.fillStyle = `rgba(0, 255, 170, ${alpha.toFixed(3)})`;
+      this.ctx.shadowColor = '#00ffaa';
+      this.ctx.shadowBlur = 6;
+      this.ctx.beginPath();
+      this.ctx.arc(p.x + offset, p.y + offset * 0.5, 2 + Math.sin(time + p.phase) * 1, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.shadowBlur = 0;
+      this.ctx.restore();
     }
-    ctx.shadowBlur = 0;
-  }
-
-  private drawObstacles(): void {
-    const ctx = this.ctx;
-    for (const obs of this.track.obstacles) {
-      ctx.save();
-      if (obs.type === 'barrier') {
-        ctx.fillStyle = '#ff6b35';
-        ctx.shadowColor = '#ff6b35';
-      } else if (obs.type === 'cone') {
-        ctx.fillStyle = '#ff9500';
-        ctx.shadowColor = '#ff9500';
-      } else {
-        ctx.fillStyle = '#ff4757';
-        ctx.shadowColor = '#ff4757';
-      }
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
-  private drawFinishLine(): void {
-    const ctx = this.ctx;
-    const { finishLineStart, finishLineEnd } = this.track;
-
-    ctx.save();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 6;
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur = 10;
-    ctx.beginPath();
-    ctx.moveTo(finishLineStart.x, finishLineStart.y - 30);
-    ctx.lineTo(finishLineEnd.x, finishLineEnd.y - 30);
-    ctx.stroke();
-    ctx.restore();
-
-    const segments = 8;
-    const dx = (finishLineEnd.x - finishLineStart.x) / segments;
-    for (let i = 0; i < segments; i++) {
-      const x1 = finishLineStart.x + dx * i;
-      ctx.fillStyle = i % 2 === 0 ? '#ffffff' : '#111111';
-      ctx.fillRect(x1, finishLineStart.y - 35, dx, 10);
-    }
-
-    if (this.gameState === 'finished') {
-      const wave = Math.sin(performance.now() / 200) * 10;
-      ctx.save();
-      ctx.fillStyle = '#ff4757';
-      ctx.fillRect(finishLineEnd.x + 5, finishLineEnd.y - 80 + wave, 40, 30);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(finishLineEnd.x, finishLineEnd.y - 100);
-      ctx.lineTo(finishLineEnd.x, finishLineEnd.y - 40);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
-  private drawGhostTrail(points: { x: number; y: number; alpha: number }[]): void {
-    if (points.length < 2) return;
-    const ctx = this.ctx;
-    ctx.save();
-    for (let i = 1; i < points.length; i++) {
-      const p1 = points[i - 1];
-      const p2 = points[i];
-      ctx.strokeStyle = `rgba(100, 180, 255, ${(p1.alpha * 0.4).toFixed(3)})`;
-      ctx.lineWidth = 4;
-      ctx.shadowColor = '#64b4ff';
-      ctx.shadowBlur = 6;
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
-    }
-    ctx.shadowBlur = 0;
-    ctx.restore();
-  }
-
-  private drawGhostCar(frame: GhostFrame | null): void {
-    if (!frame) return;
-    const ctx = this.ctx;
-    ctx.save();
-    ctx.translate(frame.x, frame.y);
-    ctx.rotate(frame.angle);
-    ctx.globalAlpha = 0.5;
-
-    ctx.fillStyle = 'rgba(100, 180, 255, 0.6)';
-    ctx.strokeStyle = '#64b4ff';
-    ctx.lineWidth = 2;
-    ctx.shadowColor = '#64b4ff';
-    ctx.shadowBlur = 12;
-    this.drawCarBody(ctx);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  private drawAITrail(ai: AIOpponent): void {
-    const points = ai.getTrailPoints();
-    if (points.length < 2) return;
-    const ctx = this.ctx;
-    ctx.save();
-    for (let i = 1; i < points.length; i++) {
-      const p1 = points[i - 1];
-      const p2 = points[i];
-      ctx.strokeStyle = `${ai.getColor()}${Math.floor(p1.alpha * 128).toString(16).padStart(2, '0')}`;
-      ctx.lineWidth = 3;
-      ctx.shadowColor = ai.getColor();
-      ctx.shadowBlur = 5;
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p2.x, p2.y);
-      ctx.stroke();
-    }
-    ctx.shadowBlur = 0;
-    ctx.restore();
-  }
-
-  private drawAICar(ai: AIOpponent): void {
-    const ctx = this.ctx;
-    const pos = ai.getPosition();
-    const angle = ai.getAngle();
-    const color = ai.getColor();
-
-    ctx.save();
-    ctx.translate(pos.x, pos.y);
-    ctx.rotate(angle);
-
-    ctx.fillStyle = `${color}aa`;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 10;
-    this.drawCarBody(ctx);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  private drawPlayer(): void {
-    const ctx = this.ctx;
-    ctx.save();
-    ctx.translate(this.player.x, this.player.y);
-    ctx.rotate(this.player.angle);
-
-    const neonGreen = '#00ffaa';
-    ctx.fillStyle = 'rgba(0, 255, 170, 0.85)';
-    ctx.strokeStyle = neonGreen;
-    ctx.lineWidth = 2.5;
-    ctx.shadowColor = neonGreen;
-    ctx.shadowBlur = 15;
-    this.drawCarBody(ctx);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.shadowBlur = 0;
-    ctx.restore();
-  }
-
-  private drawCarBody(ctx: CanvasRenderingContext2D): void {
-    const w = this.player.width;
-    const h = this.player.height;
-    ctx.beginPath();
-    ctx.moveTo(w / 2, 0);
-    ctx.lineTo(w / 4, -h / 2);
-    ctx.lineTo(-w / 3, -h / 2);
-    ctx.lineTo(-w / 2, -h / 4);
-    ctx.lineTo(-w / 2, h / 4);
-    ctx.lineTo(-w / 3, h / 2);
-    ctx.lineTo(w / 4, h / 2);
-    ctx.closePath();
   }
 
   private buildUIData(): UIData {
@@ -832,7 +732,9 @@ class Game {
       particles: this.collisionManager.getSparkParticles(),
       finishAnimation: this.gameState === 'finished',
       countdown: this.countdownValue,
-      countdownActive: this.gameState === 'countdown'
+      countdownActive: this.gameState === 'countdown',
+      guardrailParticles: this.collisionManager.getGuardrailParticles(),
+      collisionActive: this.collisionActive
     };
   }
 
@@ -843,6 +745,9 @@ class Game {
     ctx.font = '12px monospace';
     ctx.textAlign = 'right';
     ctx.fillText(`FPS: ${this.fps}`, CANVAS_WIDTH - 10, CANVAS_HEIGHT - 10);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '10px monospace';
+    ctx.fillText(`插值: ${this.interpolationMethod}`, CANVAS_WIDTH - 10, CANVAS_HEIGHT - 25);
     ctx.restore();
   }
 
@@ -860,9 +765,16 @@ class Game {
   public start(): void {
     requestAnimationFrame(this.gameLoop);
   }
+
+  public getGlobalState(): Readonly<GameState> {
+    return this.globalState;
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   const game = new Game();
   game.start();
+  (window as any).gameInstance = game;
+  console.log('🏁 幽灵赛车竞技场已启动!');
+  console.log('🎮 控制: 方向键/WASD移动 | L键排行榜 | R键重开 | I键切换插值');
 });

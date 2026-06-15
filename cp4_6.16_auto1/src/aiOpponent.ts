@@ -28,7 +28,8 @@ export class AIOpponent {
   private y: number = 0;
   private angle: number = 0;
   private speed: number = 0;
-  private maxSpeed: number = 320;
+  private baseSpeed: number = 300;
+  private maxSpeed: number = 300;
   private acceleration: number = 180;
   private deceleration: number = 250;
   private turnSpeed: number = 2.8;
@@ -47,16 +48,30 @@ export class AIOpponent {
   private finished: boolean = false;
   private trailPoints: { x: number; y: number; alpha: number }[] = [];
   private maxTrailLength: number = 40;
+  private neonShadowColor: string = '#ff4757';
 
-  constructor(config: AICarConfig, waypoints: TrackWaypoint[]) {
+  constructor(config: AICarConfig, waypoints: TrackWaypoint[], playerReferenceSpeed: number = 300) {
     this.id = config.id;
     this.name = config.name;
     this.color = config.color;
     this.waypoints = waypoints;
-    this.speedMultiplier = config.speedMultiplier;
-    this.corneringSkill = config.corneringSkill;
-    this.startDelay = config.startDelay;
-    this.maxSpeed = 300 + Math.random() * 40;
+    this.neonShadowColor = config.color;
+    
+    const rawMultiplier = config.speedMultiplier;
+    const minAllowed = 0.95;
+    const maxAllowed = 1.05;
+    this.speedMultiplier = Math.max(minAllowed, Math.min(maxAllowed, rawMultiplier));
+    
+    this.corneringSkill = Math.max(0.7, Math.min(0.95, config.corneringSkill));
+    this.startDelay = Math.max(0, Math.min(2, config.startDelay));
+    
+    this.baseSpeed = playerReferenceSpeed;
+    this.maxSpeed = this.baseSpeed * this.speedMultiplier;
+    
+    if (this.speedMultiplier < minAllowed || this.speedMultiplier > maxAllowed) {
+      console.warn(`AI ${this.name}: speedMultiplier clamped to ${this.speedMultiplier.toFixed(3)} (clamped from ${rawMultiplier.toFixed(3)})`);
+    }
+    
     if (waypoints.length > 0) {
       this.x = waypoints[0].x;
       this.y = waypoints[0].y;
@@ -140,7 +155,7 @@ export class AIOpponent {
     const targetAngle = Math.atan2(dy, dx);
     let angleDiff = Math.abs(targetAngle - this.angle);
     while (angleDiff > Math.PI) angleDiff = Math.abs(angleDiff - Math.PI * 2);
-    let targetSpeed = this.maxSpeed * this.speedMultiplier;
+    let targetSpeed = this.maxSpeed;
     if (angleDiff > 0.2) {
       const slowdownFactor = 1 - (angleDiff / Math.PI) * (1 - this.corneringSkill) * 0.5;
       targetSpeed *= Math.max(0.4, slowdownFactor);
@@ -171,8 +186,6 @@ export class AIOpponent {
       this.currentWaypointIndex++;
       if (this.currentWaypointIndex >= this.waypoints.length) {
         this.completeLap();
-      } else if (prevIndex === this.waypoints.length - 2 && this.currentWaypointIndex === this.waypoints.length - 1) {
-        // Approaching start/finish line
       }
     }
   }
@@ -218,6 +231,10 @@ export class AIOpponent {
     return this.color;
   }
 
+  getNeonShadowColor(): string {
+    return this.neonShadowColor;
+  }
+
   getName(): string {
     return this.name;
   }
@@ -253,30 +270,46 @@ export class AIOpponent {
   getWaypointProgress(): number {
     return this.currentWaypointIndex / Math.max(1, this.waypoints.length);
   }
+
+  getSpeedMultiplier(): number {
+    return this.speedMultiplier;
+  }
 }
 
 export class AIFactory {
   static generateOpponents(
     waypoints: TrackWaypoint[],
     playerAverageLapTime: number = 45,
-    count: number = 2
+    count: number = 2,
+    playerReferenceSpeed: number = 300
   ): AIOpponent[] {
     const opponents: AIOpponent[] = [];
-    const colors = ['#ff4757', '#ff6b81', '#ffa502', '#ff6348'];
+    const colors = ['#ff4757', '#ff6b81', '#ff3838', '#ff5252'];
     const names = ['幽灵猎手', '极速幻影', '暗夜追踪', '疾风骑士'];
+    
+    const getClampedSpeedMultiplier = (): number => {
+      const raw = 0.95 + Math.random() * 0.10;
+      const clamped = Math.max(0.95, Math.min(1.05, raw));
+      const actualDeviation = Math.abs(clamped - 1.0) * 100;
+      console.assert(actualDeviation <= 5.01, `Speed deviation ${actualDeviation.toFixed(2)}% exceeds ±5% limit!`);
+      return clamped;
+    };
+    
     for (let i = 0; i < count; i++) {
-      const speedBase = 0.92 + Math.random() * 0.16;
-      const speedVariation = 1 + (Math.random() - 0.5) * 0.05;
-      const cornering = 0.75 + Math.random() * 0.2;
+      const speedMultiplier = getClampedSpeedMultiplier();
+      const cornering = 0.78 + Math.random() * 0.15;
       const config: AICarConfig = {
         id: i,
         name: names[i % names.length],
         color: colors[i % colors.length],
-        speedMultiplier: speedBase * speedVariation,
+        speedMultiplier: speedMultiplier,
         corneringSkill: cornering,
-        startDelay: 0.1 + i * 0.3 + Math.random() * 0.2
+        startDelay: 0.15 + i * 0.25 + Math.random() * 0.15
       };
-      opponents.push(new AIOpponent(config, waypoints));
+      opponents.push(new AIOpponent(config, waypoints, playerReferenceSpeed));
+      
+      const deviation = Math.abs(speedMultiplier - 1.0) * 100;
+      console.log(`AI ${config.name}: speedMultiplier=${speedMultiplier.toFixed(4)}, deviation=${deviation.toFixed(2)}%`);
     }
     return opponents;
   }

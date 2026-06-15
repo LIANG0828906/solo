@@ -24,6 +24,8 @@ export interface CollisionEvent {
   impactPoint: Point;
   impactForce: number;
   timestamp: number;
+  penaltyTime: number;
+  speedReductionFactor: number;
 }
 
 export interface Particle {
@@ -37,81 +39,148 @@ export interface Particle {
   size: number;
 }
 
+export type CollisionCallback = (event: CollisionEvent) => void;
+
+export interface CollisionResult {
+  collided: boolean;
+  newSpeed: number;
+  positionPenalty: number;
+  shouldSlowdown: boolean;
+  slowdownFactor: number;
+}
+
 export class CollisionManager {
   private trackOuterBoundary: Point[] = [];
   private trackInnerBoundary: Point[] = [];
   private obstacles: Obstacle[] = [];
-  private particles: Particle[] = [];
-  private onCollisionCallbacks: ((event: CollisionEvent) => void) | null = null;
+  private onCollisionCallback: CollisionCallback | null = null;
   private sparkParticles: Particle[] = [];
   private screenFlashAlpha: number = 0;
+  private isSlowdownActive: boolean = false;
+  private slowdownEndTime: number = 0;
+  private slowdownDuration: number = 0.5;
+  private slowdownFactor: number = 0.3;
+  private lastCollisionTime: number = 0;
+  private guardrailParticles: { x: number; y: number; phase: number; baseX: number; baseY: number }[] = [];
+  private collisionPosition: { x: number; y: number } | null = null;
 
   constructor() {
-    this.onCollisionCallbacks = () => {};
+    this.onCollisionCallback = () => {};
   }
 
   setTrackBoundaries(outer: Point[], inner: Point[]): void {
     this.trackOuterBoundary = outer;
     this.trackInnerBoundary = inner;
+    this.initializeGuardrailParticles();
   }
 
   setObstacles(obstacles: Obstacle[]): void {
     this.obstacles = obstacles;
   }
 
-  onCollision(callback: (event: CollisionEvent) => void): void {
-    this.onCollisionCallbacks = callback;
+  onCollision(callback: CollisionCallback): void {
+    this.onCollisionCallback = callback;
   }
 
-  checkCarCollision(car: CarState, deltaTime: number): { collided: boolean; newSpeed: number; positionPenalty: number } {
+  private initializeGuardrailParticles(): void {
+    this.guardrailParticles = [];
+    const allPoints = [...this.trackOuterBoundary, ...this.trackInnerBoundary];
+    for (let i = 0; i < 120; i++) {
+      const p = allPoints[Math.floor(Math.random() * allPoints.length)];
+      this.guardrailParticles.push({
+        x: p.x + (Math.random() - 0.5) * 4,
+        y: p.y + (Math.random() - 0.5) * 4,
+        baseX: p.x,
+        baseY: p.y,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  getGuardrailParticles(): { x: number; y: number; phase: number; baseX: number; baseY: number }[] {
+    return this.guardrailParticles;
+  }
+
+  checkCarCollision(car: CarState, deltaTime: number): CollisionResult {
+    const now = performance.now();
     let collided = false;
-    let speedPenalty = 0;
     let positionPenalty = 0;
+    let impactForce = 0;
+    let impactPoint: Point = { x: 0, y: 0 };
+    let collisionType: 'track_boundary' | 'obstacle' | 'car' = 'track_boundary';
+    let newSpeed = car.speed;
+
+    if (now - this.lastCollisionTime < 200) {
+      return {
+        collided: false,
+        newSpeed: car.speed,
+        positionPenalty: 0,
+        shouldSlowdown: this.isSlowdownActive && now < this.slowdownEndTime,
+        slowdownFactor: this.slowdownFactor
+      };
+    }
+
     const carCorners = this.getCarCorners(car);
     for (const corner of carCorners) {
       const boundaryCollision = this.checkPointAgainstBoundaries(corner);
       if (boundaryCollision.collided) {
         collided = true;
-        const force = Math.abs(car.speed) / 200;
-        speedPenalty = Math.max(speedPenalty, car.speed * 0.4);
+        impactForce = Math.abs(car.speed) / 200;
+        impactPoint = boundaryCollision.point;
+        collisionType = 'track_boundary';
         positionPenalty = 0.5;
-        this.createSparks(boundaryCollision.point, force);
-        this.triggerScreenFlash(0.6);
-        if (this.onCollisionCallbacks) {
-          this.onCollisionCallbacks({
-            type: 'track_boundary',
-            impactPoint: boundaryCollision.point,
-            impactForce: force,
-            timestamp: performance.now()
-          });
-        }
         break;
       }
     }
-    for (const obstacle of this.obstacles) {
-      const obstacleCollision = this.checkCarAgainstObstacle(car, obstacle);
-      if (obstacleCollision.collided) {
-        collided = true;
-        const force = Math.abs(car.speed) / 150;
-        speedPenalty = Math.max(speedPenalty, car.speed * 0.5);
-        positionPenalty = 0.5;
-        this.createSparks(obstacleCollision.point, force);
-        this.triggerScreenFlash(0.8);
-        if (this.onCollisionCallbacks) {
-          this.onCollisionCallbacks({
-            type: 'obstacle',
-            impactPoint: obstacleCollision.point,
-            impactForce: force,
-            timestamp: performance.now()
-          });
+
+    if (!collided) {
+      for (const obstacle of this.obstacles) {
+        const obstacleCollision = this.checkCarAgainstObstacle(car, obstacle);
+        if (obstacleCollision.collided) {
+          collided = true;
+          impactForce = Math.abs(car.speed) / 150;
+          impactPoint = obstacleCollision.point;
+          collisionType = 'obstacle';
+          positionPenalty = 0.5;
+          break;
         }
-        break;
       }
     }
+
+    if (collided) {
+      this.lastCollisionTime = now;
+      this.isSlowdownActive = true;
+      this.slowdownEndTime = now + this.slowdownDuration * 1000;
+      this.collisionPosition = { ...impactPoint };
+      newSpeed = car.speed * this.slowdownFactor;
+      this.createSparks(impactPoint, impactForce);
+      this.triggerScreenFlash(Math.min(1, 0.5 + impactForce * 0.5));
+
+      const event: CollisionEvent = {
+        type: collisionType,
+        impactPoint: { ...impactPoint },
+        impactForce,
+        timestamp: now,
+        penaltyTime: positionPenalty,
+        speedReductionFactor: this.slowdownFactor
+      };
+
+      if (this.onCollisionCallback) {
+        this.onCollisionCallback(event);
+      }
+    }
+
+    const shouldSlowdown = this.isSlowdownActive && now < this.slowdownEndTime;
+    if (!shouldSlowdown && this.isSlowdownActive) {
+      this.isSlowdownActive = false;
+    }
+
     return {
       collided,
-      newSpeed: Math.max(0, car.speed - speedPenalty),
-      positionPenalty
+      newSpeed,
+      positionPenalty,
+      shouldSlowdown,
+      slowdownFactor: shouldSlowdown ? this.slowdownFactor : 1.0
     };
   }
 
@@ -205,20 +274,20 @@ export class CollisionManager {
   }
 
   private createSparks(position: Point, force: number): void {
-    const count = Math.floor(8 + force * 15);
+    const count = Math.floor(12 + force * 20);
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = (2 + Math.random() * 4) * (0.5 + force);
-      const colors = ['#ffaa00', '#ff6600', '#ff3300', '#ffff00', '#ffffff'];
+      const speed = (3 + Math.random() * 6) * (0.6 + force);
+      const colors = ['#ffaa00', '#ff6600', '#ff3300', '#ffff00', '#ffffff', '#ff8800'];
       this.sparkParticles.push({
-        x: position.x + (Math.random() - 0.5) * 6,
-        y: position.y + (Math.random() - 0.5) * 6,
+        x: position.x + (Math.random() - 0.5) * 8,
+        y: position.y + (Math.random() - 0.5) * 8,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         life: 0,
-        maxLife: 0.3 + Math.random() * 0.4,
+        maxLife: 0.4 + Math.random() * 0.5,
         color: colors[Math.floor(Math.random() * colors.length)],
-        size: 2 + Math.random() * 3
+        size: 2 + Math.random() * 4
       });
     }
   }
@@ -233,13 +302,14 @@ export class CollisionManager {
       p.life += deltaTime;
       p.x += p.vx;
       p.y += p.vy;
-      p.vx *= 0.96;
-      p.vy *= 0.96;
+      p.vx *= 0.95;
+      p.vy *= 0.95;
+      p.vy += 2 * deltaTime;
       if (p.life >= p.maxLife) {
         this.sparkParticles.splice(i, 1);
       }
     }
-    this.screenFlashAlpha = Math.max(0, this.screenFlashAlpha - deltaTime * 2);
+    this.screenFlashAlpha = Math.max(0, this.screenFlashAlpha - deltaTime * 2.5);
   }
 
   getSparkParticles(): Particle[] {
@@ -254,9 +324,17 @@ export class CollisionManager {
     return [...this.obstacles];
   }
 
+  getCollisionPosition(): { x: number; y: number } | null {
+    return this.collisionPosition;
+  }
+
   reset(): void {
     this.sparkParticles = [];
     this.screenFlashAlpha = 0;
+    this.isSlowdownActive = false;
+    this.slowdownEndTime = 0;
+    this.lastCollisionTime = 0;
+    this.collisionPosition = null;
   }
 }
 
