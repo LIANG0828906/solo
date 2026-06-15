@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, Fragment } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -18,7 +18,7 @@ function lerpColor(t: number): string {
 function AutoFitBounds({ photos }: { photos: Photo[] }) {
   const map = useMap();
 
-  useMemo(() => {
+  useEffect(() => {
     const validPhotos = photos.filter(
       (p) => p.latitude != null && p.longitude != null
     );
@@ -90,6 +90,7 @@ export default function MapView({ photos }: { photos: Photo[] }) {
   }, [positions, validPhotos]);
 
   const total = validPhotos.length;
+  const noGpsCount = photos.length - validPhotos.length;
 
   if (photos.length === 0) {
     return (
@@ -114,6 +115,32 @@ export default function MapView({ photos }: { photos: Photo[] }) {
     );
   }
 
+  if (validPhotos.length === 0) {
+    return (
+      <div
+        style={{
+          height: '400px',
+          backgroundColor: '#2d2d44',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          color: '#8080a0'
+        }}
+      >
+        <div style={{ fontSize: '48px', marginBottom: '12px' }}>📍</div>
+        <p>照片缺少GPS坐标</p>
+        <p style={{ fontSize: '13px', marginTop: '4px', color: '#606080' }}>
+          {photos.length} 张照片均未包含GPS位置信息
+        </p>
+        <p style={{ fontSize: '12px', marginTop: '8px', color: '#505070' }}>
+          时间线仍可正常显示，地图需GPS坐标才能绘制轨迹
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)' }}>
       <MapContainer
@@ -133,38 +160,33 @@ export default function MapView({ photos }: { photos: Photo[] }) {
           <>
             {positions.slice(0, positions.length - 1).map((pos, i) => {
               const nextPos = positions[i + 1];
+              const t = i / (positions.length - 1);
+              const nextT = (i + 1) / (positions.length - 1);
               const midLat = (pos[0] + nextPos[0]) / 2;
               const midLng = (pos[1] + nextPos[1]) / 2;
-              const t = i / (positions.length - 1);
-              const color1 = lerpColor(t);
-              const color2 = lerpColor((i + 1) / (positions.length - 1));
               return (
-                <Polyline
-                  key={`seg-${i}`}
-                  positions={[pos, [midLat, midLng]]}
-                  pathOptions={{
-                    color: color1,
-                    weight: 4,
-                    opacity: 0.85
-                  }}
-                />
-              );
-            })}
-            {positions.slice(1, positions.length).map((pos, i) => {
-              const prevPos = positions[i];
-              const midLat = (prevPos[0] + pos[0]) / 2;
-              const midLng = (prevPos[1] + pos[1]) / 2;
-              const t = (i + 1) / (positions.length - 1);
-              return (
-                <Polyline
-                  key={`seg2-${i}`}
-                  positions={[[midLat, midLng], pos]}
-                  pathOptions={{
-                    color: lerpColor(t),
-                    weight: 4,
-                    opacity: 0.85
-                  }}
-                />
+                <Fragment key={`line-${i}`}>
+                  <Polyline
+                    positions={[pos, [midLat, midLng]]}
+                    pathOptions={{
+                      color: lerpColor(t),
+                      weight: 4,
+                      opacity: 0.9,
+                      lineCap: 'round',
+                      lineJoin: 'round'
+                    }}
+                  />
+                  <Polyline
+                    positions={[[midLat, midLng], nextPos]}
+                    pathOptions={{
+                      color: lerpColor((t + nextT) / 2),
+                      weight: 4,
+                      opacity: 0.9,
+                      lineCap: 'round',
+                      lineJoin: 'round'
+                    }}
+                  />
+                </Fragment>
               );
             })}
           </>
@@ -214,14 +236,6 @@ export default function MapView({ photos }: { photos: Photo[] }) {
             </CircleMarker>
           );
         })}
-
-        {photos.length > 0 && validPhotos.length === 0 && (
-          <Popup>
-            <div style={{ padding: '20px', textAlign: 'center', color: '#8080a0' }}>
-              暂无GPS坐标
-            </div>
-          </Popup>
-        )}
       </MapContainer>
 
       <div
@@ -229,7 +243,8 @@ export default function MapView({ photos }: { photos: Photo[] }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '12px',
+          flexWrap: 'wrap',
+          gap: '16px',
           padding: '12px',
           backgroundColor: '#2d2d44',
           borderTop: '1px solid #3d3d5c',
@@ -249,6 +264,11 @@ export default function MapView({ photos }: { photos: Photo[] }) {
           <span>行程开始</span>
           <span>行程结束</span>
         </div>
+        {noGpsCount > 0 && (
+          <span style={{ color: '#fdcb6e', fontSize: '11px' }}>
+            ⚠️ {noGpsCount} 张照片无GPS，未在地图显示
+          </span>
+        )}
       </div>
     </div>
   );

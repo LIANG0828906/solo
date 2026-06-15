@@ -23,8 +23,8 @@ const cardStyle: React.CSSProperties = {
 
 const timePeriodLabels: Record<string, string> = {
   morning: '🌅 上午 (6-12)',
-  afternoon: '☀️ 下午 (12-17)',
-  evening: '🌆 傍晚 (17-20)',
+  afternoon: '☀️ 下午 (12-18)',
+  evening: '🌆 傍晚 (18-20)',
   night: '🌙 夜晚 (20-6)'
 };
 
@@ -46,8 +46,8 @@ export default function StatsPanel({ trip, photos }: { trip: Trip | undefined; p
     photos.forEach((p) => {
       const hour = getHours(new Date(p.captureTime));
       if (hour >= 6 && hour < 12) timePeriods.morning++;
-      else if (hour >= 12 && hour < 17) timePeriods.afternoon++;
-      else if (hour >= 17 && hour < 20) timePeriods.evening++;
+      else if (hour >= 12 && hour < 18) timePeriods.afternoon++;
+      else if (hour >= 18 && hour < 20) timePeriods.evening++;
       else timePeriods.night++;
     });
 
