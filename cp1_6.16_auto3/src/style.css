@@ -295,6 +295,22 @@ body {
   animation: successGlow 1.5s ease-out forwards;
 }
 
+.card--matched .card__face--front::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: var(--border-radius);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(74, 222, 128, 0.45) 0%,
+    rgba(74, 222, 128, 0.2) 40%,
+    rgba(74, 222, 128, 0) 70%
+  );
+  pointer-events: none;
+  animation: glowOverlay 1.5s ease-out forwards;
+  z-index: 1;
+}
+
 @keyframes matchBounce {
   0% {
     transform: translateY(0);
@@ -322,15 +338,15 @@ body {
       0 0 0 0 rgba(74, 222, 128, 0),
       inset 0 0 0 0 rgba(74, 222, 128, 0);
   }
-  20% {
+  15% {
     box-shadow: 0 4px 8px var(--shadow),
-      0 0 40px 15px rgba(74, 222, 128, 0.7),
-      inset 0 0 20px 5px rgba(74, 222, 128, 0.2);
+      0 0 50px 20px rgba(74, 222, 128, 0.8),
+      inset 0 0 30px 8px rgba(74, 222, 128, 0.35);
   }
-  40% {
+  35% {
     box-shadow: 0 4px 8px var(--shadow),
-      0 0 30px 10px rgba(74, 222, 128, 0.5),
-      inset 0 0 15px 3px rgba(74, 222, 128, 0.15);
+      0 0 35px 12px rgba(74, 222, 128, 0.55),
+      inset 0 0 20px 5px rgba(74, 222, 128, 0.2);
   }
   100% {
     box-shadow: 0 4px 8px var(--shadow),
@@ -339,18 +355,40 @@ body {
   }
 }
 
+@keyframes glowOverlay {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  35% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+
 .card--wrong .card__face {
-  animation: wrongFlashBorder 0.2s ease-in-out 2;
+  animation: wrongFlashBorder 0.2s ease-out 1;
 }
 
 @keyframes wrongFlashBorder {
-  0%, 100% {
+  0% {
     border-color: transparent;
   }
-  25%, 75% {
+  15% {
     border-color: var(--error-color);
   }
-  50% {
+  70% {
+    border-color: var(--error-color);
+  }
+  100% {
     border-color: transparent;
   }
 }

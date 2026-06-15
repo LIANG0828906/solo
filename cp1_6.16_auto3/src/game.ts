@@ -203,14 +203,20 @@ class MemoryGame {
   }
 
   private endGame(): void {
+    if (this.isGameStarted) {
+      this.elapsedMs = performance.now() - this.startTime;
+    }
     this.stopTimer();
+    updateTimerDisplay(this.timerDisplay, this.elapsedMs);
+    const finalElapsedMs = this.elapsedMs;
+    const finalMoves = this.moves;
     setTimeout(() => {
       showGameOverModal(
         this.gameOverModal,
         this.finalTimeElement,
         this.finalMovesElement,
-        this.elapsedMs,
-        this.moves
+        finalElapsedMs,
+        finalMoves
       );
     }, 600);
   }
