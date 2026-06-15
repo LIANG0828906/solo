@@ -145,20 +145,26 @@ body {
   box-shadow: var(--shadow-glow-cyan);
 }
 
-.input-container.flip-in {
-  animation: flipIn 0.6s ease-out;
+.input-container {
+  transform-style: preserve-3d;
+  transform-origin: right center;
 }
 
-@keyframes flipIn {
+.input-container.flip-in {
+  animation: flipInFromRight 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes flipInFromRight {
   0% {
-    transform: perspective(1000px) rotateY(90deg);
+    transform: perspective(1200px) rotateY(-90deg) translateX(50px);
     opacity: 0;
   }
-  50% {
-    transform: perspective(1000px) rotateY(-10deg);
+  60% {
+    transform: perspective(1200px) rotateY(10deg) translateX(-10px);
+    opacity: 0.8;
   }
   100% {
-    transform: perspective(1000px) rotateY(0);
+    transform: perspective(1200px) rotateY(0deg) translateX(0);
     opacity: 1;
   }
 }
@@ -419,4 +425,37 @@ body {
   .rings-section {
     padding: 20px;
   }
+}
+
+.chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 100;
+  background: rgba(30, 30, 46, 0.95);
+  border: 1px solid var(--neon-cyan);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: opacity 0.15s ease;
+}
+
+.tooltip-title {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.tooltip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tooltip-body span {
+  color: var(--neon-cyan);
+  font-size: 12px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }

@@ -1,9 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
-import type { StrengthLevel } from '../types';
 
 interface StrengthMeterProps {
   entropy: number;
-  strengthLevel: StrengthLevel;
+  strengthLevel: string;
   strengthText: string;
 }
 
@@ -11,7 +10,37 @@ const MAX_ENTROPY = 128;
 const CANVAS_SIZE = 280;
 const ARC_WIDTH = 24;
 
-export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthLevel, strengthText }) => {
+const COLOR_STOPS = [
+  { entropy: 0, r: 255, g: 107, b: 107 },
+  { entropy: 32, r: 255, g: 180, b: 71 },
+  { entropy: 64, r: 255, g: 217, b: 61 },
+  { entropy: 96, r: 107, g: 203, b: 119 },
+  { entropy: 128, r: 0, g: 212, b: 255 }
+];
+
+function interpolateColor(entropy: number): { r: number; g: number; b: number } {
+  const clampedEntropy = Math.max(0, Math.min(MAX_ENTROPY, entropy));
+  
+  for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
+    const start = COLOR_STOPS[i];
+    const end = COLOR_STOPS[i + 1];
+    
+    if (clampedEntropy >= start.entropy && clampedEntropy <= end.entropy) {
+      const range = end.entropy - start.entropy;
+      const progress = (clampedEntropy - start.entropy) / range;
+      
+      return {
+        r: Math.round(start.r + (end.r - start.r) * progress),
+        g: Math.round(start.g + (end.g - start.g) * progress),
+        b: Math.round(start.b + (end.b - start.b) * progress)
+      };
+    }
+  }
+  
+  return COLOR_STOPS[COLOR_STOPS.length - 1];
+}
+
+export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthText }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   const [displayEntropy, setDisplayEntropy] = useState(0);
@@ -76,21 +105,42 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthL
     const currentEndAngle = startAngle + (endAngle - startAngle) * progress;
 
     if (progress > 0) {
-      const gradient = ctx.createLinearGradient(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-      gradient.addColorStop(0, '#ff6b6b');
-      gradient.addColorStop(0.33, '#ffd93d');
-      gradient.addColorStop(0.66, '#6bcb77');
-      gradient.addColorStop(1, '#00d4ff');
+      const color = interpolateColor(displayEntropy);
+      const colorStr = `rgb(${color.r}, ${color.g}, ${color.b})`;
 
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, startAngle, currentEndAngle);
-      ctx.strokeStyle = gradient;
+      ctx.strokeStyle = colorStr;
       ctx.lineWidth = ARC_WIDTH;
       ctx.lineCap = 'round';
-      ctx.shadowColor = getStrengthColor(strengthLevel);
+      ctx.shadowColor = colorStr;
       ctx.shadowBlur = 15;
       ctx.stroke();
       ctx.shadowBlur = 0;
+
+      const glowGradient = ctx.createRadialGradient(
+        centerX + Math.cos(currentEndAngle) * radius,
+        centerY + Math.sin(currentEndAngle) * radius,
+        0,
+        centerX + Math.cos(currentEndAngle) * radius,
+        centerY + Math.sin(currentEndAngle) * radius,
+        ARC_WIDTH
+      );
+      glowGradient.addColorStop(0, colorStr);
+      glowGradient.addColorStop(1, 'transparent');
+
+      ctx.beginPath();
+      ctx.arc(
+        centerX + Math.cos(currentEndAngle) * radius,
+        centerY + Math.sin(currentEndAngle) * radius,
+        ARC_WIDTH,
+        0,
+        Math.PI * 2
+      );
+      ctx.fillStyle = glowGradient;
+      ctx.globalAlpha = 0.6;
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }
 
     ctx.fillStyle = '#ffffff';
@@ -106,7 +156,7 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthL
     ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
     ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.fillText('熵值', centerX, centerY + 50);
-  }, [displayEntropy, strengthLevel, strengthText]);
+  }, [displayEntropy, strengthText]);
 
   return (
     <div className="strength-meter">
@@ -114,13 +164,3 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ entropy, strengthL
     </div>
   );
 };
-
-function getStrengthColor(level: StrengthLevel): string {
-  const colors: Record<StrengthLevel, string> = {
-    'weak': '#ff6b6b',
-    'medium': '#ffd93d',
-    'strong': '#6bcb77',
-    'very-strong': '#00d4ff'
-  };
-  return colors[level];
-}

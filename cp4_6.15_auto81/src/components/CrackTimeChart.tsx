@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
-  LinearScale,
+  LogarithmicScale,
   PointElement,
   LineElement,
   Title,
@@ -18,7 +18,7 @@ import type { CrackTimeEstimate } from '../types';
 
 ChartJS.register(
   CategoryScale,
-  LinearScale,
+  LogarithmicScale,
   PointElement,
   LineElement,
   Title,
@@ -87,7 +87,7 @@ export const CrackTimeChart: React.FC<CrackTimeChartProps> = ({ data }) => {
     datasets: [
       {
         label: '破解时间',
-        data: data.map(d => d.timeSeconds),
+        data: data.map(d => Math.max(d.timeSeconds, 1e-6)),
         borderColor: '#00d4ff',
         backgroundColor: (context: ScriptableContext<'line'>) => {
           const chart = context.chart;
@@ -180,6 +180,7 @@ export const CrackTimeChart: React.FC<CrackTimeChartProps> = ({ data }) => {
       },
       y: {
         type: 'logarithmic' as const,
+        min: 1e-6,
         ticks: {
           color: 'rgba(255, 255, 255, 0.7)',
           font: {
@@ -187,10 +188,11 @@ export const CrackTimeChart: React.FC<CrackTimeChartProps> = ({ data }) => {
           },
           callback: function(value: string | number, _index: number, _ticks: Tick[]) {
             const num = Number(value);
-            if (num < 60) return num.toFixed(0) + 's';
-            if (num < 3600) return (num / 60).toFixed(0) + 'm';
-            if (num < 86400) return (num / 3600).toFixed(0) + 'h';
-            if (num < 31536000) return (num / 86400).toFixed(0) + 'd';
+            if (num < 1) return '<1s';
+            if (num < 60) return Math.round(num) + 's';
+            if (num < 3600) return Math.round(num / 60) + 'm';
+            if (num < 86400) return Math.round(num / 3600) + 'h';
+            if (num < 31536000) return Math.round(num / 86400) + 'd';
             return (num / 31536000).toExponential(1) + 'y';
           }
         },
