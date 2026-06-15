@@ -30,6 +30,7 @@ interface Room {
   challenge: Challenge;
   submissions: Map<string, string>;
   codingTimer?: ReturnType<typeof setInterval>;
+  roundStartTime: number;
 }
 
 interface QueueEntry {
@@ -41,8 +42,8 @@ interface QueueEntry {
 
 const challenges: Challenge[] = [
   {
-    description: '实现一个函数 fibonacci(n)，返回第n个斐波那契数。fibonacci(0)=0, fibonacci(1)=1。',
-    template: 'function fibonacci(n) {\n  // 你的代码\n}',
+    description: '实现一个函数 solution(n)，返回第n个斐波那契数。规则：solution(0)=0, solution(1)=1。',
+    template: 'function solution(n) {\n  // 返回第n个斐波那契数\n  // solution(0)=0, solution(1)=1\n  return 0;\n}',
     testCases: [
       { input: [0], expected: 0 },
       { input: [1], expected: 1 },
@@ -51,8 +52,8 @@ const challenges: Challenge[] = [
     ],
   },
   {
-    description: '实现一个函数 isPalindrome(str)，判断字符串是否为回文。',
-    template: 'function isPalindrome(str) {\n  // 你的代码\n}',
+    description: '实现一个函数 solution(str)，判断字符串是否为回文（正反读一样）。',
+    template: 'function solution(str) {\n  // 判断字符串是否为回文\n  return true;\n}',
     testCases: [
       { input: ['racecar'], expected: true },
       { input: ['hello'], expected: false },
@@ -61,8 +62,8 @@ const challenges: Challenge[] = [
     ],
   },
   {
-    description: '实现一个函数 maxSubArray(nums)，找出数组中连续子数组的最大和。',
-    template: 'function maxSubArray(nums) {\n  // 你的代码\n}',
+    description: '实现一个函数 solution(nums)，找出数组中连续子数组的最大和。',
+    template: 'function solution(nums) {\n  // 返回连续子数组的最大和\n  return 0;\n}',
     testCases: [
       { input: [[-2, 1, -3, 4, -1, 2, 1, -5, 4]], expected: 6 },
       { input: [[1]], expected: 1 },
@@ -70,8 +71,8 @@ const challenges: Challenge[] = [
     ],
   },
   {
-    description: '实现一个函数 reverseString(str)，反转字符串。',
-    template: 'function reverseString(str) {\n  // 你的代码\n}',
+    description: '实现一个函数 solution(str)，反转字符串并返回结果。',
+    template: 'function solution(str) {\n  // 返回反转后的字符串\n  return "";\n}',
     testCases: [
       { input: ['hello'], expected: 'olleh' },
       { input: ['world'], expected: 'dlrow' },
@@ -80,8 +81,8 @@ const challenges: Challenge[] = [
     ],
   },
   {
-    description: '实现一个函数 isPrime(n)，判断一个数是否为质数。',
-    template: 'function isPrime(n) {\n  // 你的代码\n}',
+    description: '实现一个函数 solution(n)，判断一个正整数是否为质数。',
+    template: 'function solution(n) {\n  // 判断是否为质数\n  return false;\n}',
     testCases: [
       { input: [2], expected: true },
       { input: [3], expected: true },
@@ -91,8 +92,8 @@ const challenges: Challenge[] = [
     ],
   },
   {
-    description: '实现一个函数 twoSum(nums, target)，找出数组中两个数的索引，使它们的和等于target。',
-    template: 'function twoSum(nums, target) {\n  // 你的代码\n}',
+    description: '实现一个函数 solution(nums, target)，返回数组中和等于target的两个数的索引数组。',
+    template: 'function solution(nums, target) {\n  // 返回两个索引的数组 [i, j]\n  // nums[i] + nums[j] = target\n  return [0, 0];\n}',
     testCases: [
       { input: [[2, 7, 11, 15], 9], expected: [0, 1] },
       { input: [[3, 2, 4], 6], expected: [1, 2] },
@@ -106,6 +107,7 @@ const queue: QueueEntry[] = [];
 let matchmakingTimer: ReturnType<typeof setTimeout> | null = null;
 const socketNicknames = new Map<string, string>();
 const playerScores = new Map<string, number>();
+let perfCounter = { totalMatches: 0, totalSubmissions: 0, totalRoundTime: 0, totalCodeLatency: 0 };
 
 const app = express();
 const httpServer = createServer(app);
@@ -114,7 +116,14 @@ const io = new Server(httpServer, {
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', rooms: rooms.size, queue: queue.length });
+  res.json({
+    status: 'ok',
+    rooms: rooms.size,
+    queue: queue.length,
+    matches: perfCounter.totalMatches,
+    submissions: perfCounter.totalSubmissions,
+    avgCodeLatencyMs: perfCounter.totalSubmissions > 0 ? Math.round(perfCounter.totalCodeLatency / perfCounter.totalSubmissions) : 0,
+  });
 });
 
 function generateRoomId(): string {
@@ -122,6 +131,7 @@ function generateRoomId(): string {
 }
 
 function createAndStartRoom(matched: QueueEntry[]): void {
+
   const roomId = generateRoomId();
   const players: Player[] = matched.map((entry) => ({
     id: entry.id,
@@ -139,6 +149,7 @@ function createAndStartRoom(matched: QueueEntry[]): void {
     status: 'matching',
     challenge,
     submissions: new Map(),
+    roundStartTime: Date.now(),
   };
 
   rooms.set(roomId, room);
@@ -148,7 +159,7 @@ function createAndStartRoom(matched: QueueEntry[]): void {
     entry.socket.emit('matched', { roomId, players });
   });
 
-  console.log(`[Match] Room ${roomId} created with ${matched.length} players: ${matched.map(e => e.nickname).join(', ')}`);
+  console.log(`[Match][${perfCounter.totalMatches}] ✅ Room ${roomId} created with ${matched.length} players: ${matched.map(e => e.nickname).join(', ')}`);
 
   room.status = 'countdown';
   let count = 15;
@@ -157,6 +168,7 @@ function createAndStartRoom(matched: QueueEntry[]): void {
     if (count <= 0) {
       clearInterval(countdownInterval);
       room.status = 'coding';
+      room.roundStartTime = Date.now();
       room.players.forEach((p) => {
         p.status = 'coding';
       });
@@ -203,6 +215,7 @@ function tryMatch(): void {
       matchmakingTimer = null;
     }
     const matched = queue.splice(0, 4);
+    console.log(`[Match] 🎯 Instant match! Queue reached 4 players`);
     createAndStartRoom(matched);
     return;
   }
@@ -218,13 +231,20 @@ function tryMatch(): void {
         matchmakingTimer = null;
       }
       const matched = queue.splice(0, queue.length);
+      console.log(`[Match] ⏱ 5s timeout match with ${matched.length} players`);
       createAndStartRoom(matched);
     } else if (!matchmakingTimer) {
+      console.log(`[Match] ⌛ Starting ${remaining}ms countdown timer for ${queue.length} players`);
       matchmakingTimer = setTimeout(() => {
         matchmakingTimer = null;
         if (queue.length >= 2) {
           const matched = queue.splice(0, queue.length);
+          console.log(`[Match] ⏰ Timer fired, matching ${matched.length} players`);
           createAndStartRoom(matched);
+        } else if (queue.length === 1) {
+          console.log(`[Match] ⚠ Timer fired but only 1 player in queue, waiting...`);
+          const entry = queue[0];
+          entry.socket.emit('queue_status', { status: 'waiting', message: '等待更多玩家加入...', queueSize: 1 });
         }
       }, remaining);
     }
@@ -244,6 +264,9 @@ function checkRoundEnd(room: Room): void {
       clearInterval(room.codingTimer);
     }
 
+    const roundDuration = Date.now() - room.roundStartTime;
+    perfCounter.totalRoundTime += roundDuration;
+
     const rankings = [...room.players]
       .sort((a, b) => b.score - a.score || b.hp - a.hp)
       .map((p, i) => ({
@@ -254,14 +277,20 @@ function checkRoundEnd(room: Room): void {
         rank: i + 1,
       }));
 
-    console.log(`[Round] Room ${room.id} ended. Rankings: ${rankings.map(r => `#${r.rank} ${r.nickname}(${r.score}pts)`).join(', ')}`);
+    console.log(`[Round] 🏁 Room ${room.id} ended after ${roundDuration}ms. Queue: ${queue.length}`);
+    rankings.forEach((r) => {
+      console.log(`  #${r.rank} ${r.nickname}: ${r.score}pts (HP:${r.hp})`);
+    });
+
+    perfCounter.totalMatches++;
 
     io.to(room.id).emit('round_end', { rankings });
   }
 }
 
 io.on('connection', (socket) => {
-  console.log(`[Socket] Connected: ${socket.id}`);
+  const connectTime = Date.now();
+  console.log(`[Socket] 🔌 Connected: ${socket.id} (${socket.handshake.address})`);
 
   socket.on('join_queue', ({ nickname }: { nickname: string }) => {
     if (!nickname || nickname.trim().length === 0) {
@@ -269,15 +298,24 @@ io.on('connection', (socket) => {
       return;
     }
 
-    socketNicknames.set(socket.id, nickname.trim());
-    queue.push({ id: socket.id, nickname: nickname.trim(), socket, joinedAt: Date.now() });
-    console.log(`[Queue] ${nickname.trim()} joined queue. Queue size: ${queue.length}`);
+    const cleanName = nickname.trim().slice(0, 16);
+    socketNicknames.set(socket.id, cleanName);
+    queue.push({ id: socket.id, nickname: cleanName, socket, joinedAt: Date.now() });
+    console.log(`[Queue] ➕ ${cleanName} joined queue. Size: ${queue.length}`);
+
+    socket.emit('queue_status', { status: 'queued', queueSize: queue.length });
+
+    if (queue.length === 1) {
+      console.log(`[Queue] 👤 First player in queue, starting 5s countdown timer`);
+    }
+
     tryMatch();
   });
 
   socket.on(
     'submit_code',
     ({ roomId, code }: { roomId: string; code: string }) => {
+      perfCounter.totalSubmissions++;
       const submitStart = Date.now();
       const room = rooms.get(roomId);
       if (!room) return;
@@ -293,10 +331,11 @@ io.on('connection', (socket) => {
         status: 'running',
       });
 
-      console.log(`[Submit] ${player.nickname} submitted code in room ${roomId}`);
+      console.log(`[Submit] 📝 ${player.nickname} in room ${roomId} (${code.length} chars)`);
 
       const result = CodeRunner.run(code, room.challenge.testCases);
       const execLatency = Date.now() - submitStart;
+      perfCounter.totalCodeLatency += execLatency;
 
       let damageAmount = 0;
       let damageType: 'fast' | 'slow' | 'error';
@@ -328,7 +367,13 @@ io.on('connection', (socket) => {
         status: 'done',
       });
 
-      console.log(`[Result] ${player.nickname}: passed=${result.passed}, execTime=${result.execTime}ms, totalLatency=${execLatency}ms, damageType=${damageType}`);
+      const statusEmoji = result.passed ? '✅' : '❌';
+      const latencyFlag = execLatency > 2000 ? ' ⚠ SLOW!' : '';
+      console.log(`[Result] ${statusEmoji} ${player.nickname}: passed=${result.passedCount}/${result.totalCount}, exec=${result.execTime}ms, total=${execLatency}ms, type=${damageType}, dmg=${damageAmount}${latencyFlag}`);
+
+      if (execLatency > 2000) {
+        console.warn(`[Perf] ⚠ submit->result=${execLatency}ms exceeds 2s SLA! Player: ${player.nickname}`);
+      }
 
       if (damageType === 'error') {
         io.to(room.id).emit('damage', {
@@ -357,7 +402,7 @@ io.on('connection', (socket) => {
           if (opponent.hp <= 0 && prevHp > 0) {
             player.score += 10;
             playerScores.set(player.id, player.score);
-            console.log(`[Score] ${player.nickname} defeated ${opponent.nickname}. Score: ${player.score}`);
+            console.log(`[Score] ⚔ ${player.nickname} DEFEATED ${opponent.nickname}! +10pts → ${player.score}`);
             io.to(room.id).emit('player_defeated', {
               playerId: opponent.id,
               killerId: socket.id,
@@ -365,6 +410,8 @@ io.on('connection', (socket) => {
             io.to(room.id).emit('score_update', {
               playerId: player.id,
               score: player.score,
+              delta: 10,
+              defeated: opponent.nickname,
             });
           }
         }
@@ -385,20 +432,23 @@ io.on('connection', (socket) => {
     }
 
     queue.push({ id: socket.id, nickname, socket, joinedAt: Date.now() });
-    console.log(`[Queue] ${nickname} re-joined queue`);
+    console.log(`[Queue] 🔁 ${nickname} re-joined queue. Size: ${queue.length}`);
+    socket.emit('queue_status', { status: 'queued', queueSize: queue.length });
     tryMatch();
   });
 
   socket.on('disconnect', () => {
+    const sessionTime = Date.now() - connectTime;
     const queueIdx = queue.findIndex((p) => p.id === socket.id);
     if (queueIdx !== -1) {
       const removed = queue.splice(queueIdx, 1);
-      console.log(`[Queue] ${removed[0].nickname} left queue`);
+      console.log(`[Queue] ➖ ${removed[0].nickname} left queue (session: ${sessionTime}ms)`);
     }
 
     if (matchmakingTimer && queue.length < 2) {
       clearTimeout(matchmakingTimer);
       matchmakingTimer = null;
+      console.log(`[Match] ⏸ Cancelled timer, only ${queue.length} players left in queue`);
     }
 
     for (const [, room] of rooms) {
@@ -407,7 +457,7 @@ io.on('connection', (socket) => {
         const prevHp = player.hp;
         player.hp = 0;
         player.status = 'done';
-        console.log(`[Disconnect] ${player.nickname} disconnected from room ${room.id}`);
+        console.log(`[Disconnect] 💀 ${player.nickname} left room ${room.id} after ${sessionTime}ms`);
         io.to(room.id).emit('player_defeated', {
           playerId: socket.id,
           killerId: null,
@@ -423,12 +473,18 @@ io.on('connection', (socket) => {
     }
 
     socketNicknames.delete(socket.id);
+    console.log(`[Socket] 👋 Disconnected: ${socket.id} (session: ${sessionTime}ms)`);
   });
 });
 
 const PORT = 3001;
 httpServer.listen(PORT, () => {
-  console.log(`[Server] Code Battle Arena running on port ${PORT}`);
-  console.log(`[Server] Matchmaking: 4 players instant match, 5s timeout for 2+ players`);
-  console.log(`[Server] Sandbox: 3s execution timeout, blocked dangerous globals`);
+  console.log(`\n╔══════════════════════════════════════════════════════════════╗`);
+  console.log(`║  🎮 CODE BATTLE ARENA SERVER                                ║`);
+  console.log(`╠══════════════════════════════════════════════════════════════╣`);
+  console.log(`║  📡 Port:       ${PORT}                                        ║`);
+  console.log(`║  👥 Match:      4人立即匹配 / 5秒超时 ≥2人开始                 ║`);
+  console.log(`║  ⏱ Sandbox:    3秒超时 / 严格白名单模式                        ║`);
+  console.log(`║  🎯 SLA:       提交→结果 ≤2000ms                             ║`);
+  console.log(`╚══════════════════════════════════════════════════════════════╝\n`);
 });
