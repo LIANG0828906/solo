@@ -84,19 +84,30 @@ const App: React.FC = () => {
     if (tiles.length === 0) return;
 
     const themeTiles = currentTheme.tiles;
-    if (themeTiles.length === 0) return;
+    if (!Array.isArray(themeTiles) || themeTiles.length === 0) return;
 
     setTiles((prevTiles) =>
       prevTiles.map((tile) => {
-        const newTileData = themeTiles[tile.tileIndex % themeTiles.length];
-        if (newTileData) {
-          return {
-            ...tile,
-            tileId: newTileData.id,
-            tileData: newTileData,
-          };
+        if (
+          typeof tile.tileIndex !== 'number' ||
+          !Number.isFinite(tile.tileIndex) ||
+          tile.tileIndex < 0
+        ) {
+          return tile;
         }
-        return tile;
+
+        const safeIndex = Math.abs(Math.floor(tile.tileIndex)) % themeTiles.length;
+        const newTileData = themeTiles[safeIndex];
+
+        if (!newTileData || typeof newTileData.id !== 'string') {
+          return tile;
+        }
+
+        return {
+          ...tile,
+          tileId: newTileData.id,
+          tileData: { ...newTileData },
+        };
       })
     );
   }, [currentTheme, tiles.length]);

@@ -42,32 +42,26 @@ const Customizer: React.FC<CustomizerProps> = ({
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          const size = 200;
+          const size = 64;
+          const previewSize = 200;
           const canvas = document.createElement('canvas');
+          const previewCanvas = document.createElement('canvas');
           canvas.width = size;
           canvas.height = size;
+          previewCanvas.width = previewSize;
+          previewCanvas.height = previewSize;
           const ctx = canvas.getContext('2d');
+          const previewCtx = previewCanvas.getContext('2d');
 
-          if (ctx) {
-            const scale = Math.max(size / img.width, size / img.height);
-            const drawWidth = img.width * scale;
-            const drawHeight = img.height * scale;
-            const sx = (img.width - size / scale) / 2;
-            const sy = (img.height - size / scale) / 2;
-            const sw = Math.min(img.width, size / scale);
-            const sh = Math.min(img.height, size / scale);
+          if (ctx && previewCtx) {
+            const srcScale = Math.max(size / img.width, size / img.height);
+            const sx = Math.max(0, (img.width - size / srcScale) / 2);
+            const sy = Math.max(0, (img.height - size / srcScale) / 2);
+            const sw = Math.min(img.width, size / srcScale);
+            const sh = Math.min(img.height, size / srcScale);
 
-            if (sx >= 0 && sy >= 0 && sw > 0 && sh > 0) {
-              ctx.drawImage(
-                img,
-                sx, sy, sw, sh,
-                0, 0, size, size
-              );
-            } else {
-              const x = (size - drawWidth) / 2;
-              const y = (size - drawHeight) / 2;
-              ctx.drawImage(img, x, y, drawWidth, drawHeight);
-            }
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
+            previewCtx.drawImage(img, sx, sy, sw, sh, 0, 0, previewSize, previewSize);
 
             const imageData = ctx.getImageData(size / 2 - 5, size / 2 - 5, 10, 10);
             let r = 0, g = 0, b = 0, count = 0;
@@ -77,12 +71,16 @@ const Customizer: React.FC<CustomizerProps> = ({
               b += imageData.data[i + 2];
               count++;
             }
-            r = Math.round(r / count);
-            g = Math.round(g / count);
-            b = Math.round(b / count);
+            if (count > 0) {
+              r = Math.round(r / count);
+              g = Math.round(g / count);
+              b = Math.round(b / count);
+            } else {
+              r = 107; g = 114; b = 128;
+            }
             const dominantColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 
-            const thumbnailUrl = canvas.toDataURL('image/webp', 0.8);
+            const thumbnailUrl = previewCanvas.toDataURL('image/webp', 0.85);
 
             resolve({
               id: uuidv4(),

@@ -119,10 +119,12 @@ body {
 }
 
 .time-stat.time-warning .stat-value {
-  color: #FF4757;
+  color: #FF4757 !important;
   animation: pulse-time 0.8s ease-in-out infinite;
+  animation-fill-mode: both;
   text-shadow: 0 0 10px rgba(255, 71, 87, 0.6), 0 0 20px rgba(255, 71, 87, 0.3);
   display: inline-block;
+  will-change: transform, text-shadow;
 }
 
 @keyframes pulse-time {
@@ -132,14 +134,15 @@ body {
     text-shadow: 0 0 10px rgba(255, 71, 87, 0.6), 0 0 20px rgba(255, 71, 87, 0.3);
   }
   50% {
-    transform: scale(1.25);
-    text-shadow: 0 0 20px rgba(255, 71, 87, 0.9), 0 0 40px rgba(255, 71, 87, 0.5), 0 0 60px rgba(255, 71, 87, 0.2);
+    transform: scale(1.25) translateY(-2px);
+    text-shadow: 0 0 20px rgba(255, 71, 87, 0.95), 0 0 40px rgba(255, 71, 87, 0.6), 0 0 60px rgba(255, 71, 87, 0.3);
   }
 }
 
-.time-stat.time-warning .stat-label {
+div.stat-item.time-stat.time-warning .stat-label {
   color: #FF4757;
-  opacity: 0.8;
+  opacity: 0.9;
+  font-weight: 500;
 }
 
 .score-value {

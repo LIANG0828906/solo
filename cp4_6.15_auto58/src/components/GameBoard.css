@@ -170,10 +170,13 @@
 .victory-particle {
   position: absolute;
   pointer-events: none;
-  animation: victory-explode 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: victory-explode 2.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: forwards;
+  animation-iteration-count: 1;
   z-index: 150;
   border-radius: 50%;
   box-shadow: 0 0 12px currentColor, 0 0 24px currentColor;
+  will-change: transform, opacity;
 }
 
 @keyframes victory-explode {

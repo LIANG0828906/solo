@@ -107,47 +107,71 @@ const GameBoard: React.FC<GameBoardProps> = ({
     }, 700);
   }, []);
 
-  const createVictoryParticles = useCallback((centerX: number, centerY: number) => {
-    const colors = ['#FF6B6B', '#FFD93D', '#6BCB77', '#4D96FF', '#9B59B6', '#FF9FF3', '#00D9FF', '#FFA502'];
-    const newParticles: VictoryParticle[] = [];
-    const totalParticles = 80;
+  const createVictoryParticles = useCallback(
+    (centerX: number, centerY: number, boardWidth: number, boardHeight: number) => {
+      const colors = [
+        '#FF6B6B',
+        '#FFD93D',
+        '#6BCB77',
+        '#4D96FF',
+        '#9B59B6',
+        '#FF9FF3',
+        '#00D9FF',
+        '#FFA502',
+      ];
+      const newParticles: VictoryParticle[] = [];
+      const totalParticles = 120;
+      const safeW = Math.max(80, boardWidth);
+      const safeH = Math.max(80, boardHeight);
 
-    for (let i = 0; i < totalParticles; i++) {
-      const angle = (Math.PI * 2 * i) / totalParticles + Math.random() * 0.5;
-      const distance = 100 + Math.random() * 200;
-      newParticles.push({
-        id: `v-${Date.now()}-${i}-${Math.random()}`,
-        x: centerX,
-        y: centerY,
-        endX: centerX + Math.cos(angle) * distance,
-        endY: centerY + Math.sin(angle) * distance,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        size: 6 + Math.random() * 10,
-        rotation: Math.random() * 360,
-        delay: Math.random() * 300,
-      });
-    }
-    setVictoryParticles(newParticles);
-    setTimeout(() => {
-      setVictoryParticles([]);
-    }, 2500);
-  }, []);
+      for (let burst = 0; burst < 3; burst++) {
+        for (let i = 0; i < totalParticles / 3; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const minDist = Math.min(safeW, safeH) * 0.1;
+          const maxDist = Math.max(safeW, safeH) * 0.6;
+          const distance = minDist + Math.random() * (maxDist - minDist);
+
+          const offsetX = (Math.random() - 0.5) * safeW * 0.4;
+          const offsetY = (Math.random() - 0.5) * safeH * 0.4;
+          const startX = centerX + offsetX;
+          const startY = centerY + offsetY;
+
+          newParticles.push({
+            id: `v-${Date.now()}-${burst}-${i}-${Math.random()}`,
+            x: startX,
+            y: startY,
+            endX: startX + Math.cos(angle) * distance,
+            endY: startY + Math.sin(angle) * distance,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            size: 5 + Math.random() * 11,
+            rotation: Math.random() * 720 - 360,
+            delay: burst * 120 + Math.random() * 180,
+          });
+        }
+      }
+      setVictoryParticles((prev) => [...prev, ...newParticles]);
+      setTimeout(() => {
+        setVictoryParticles((prev) =>
+          prev.filter((p) => !newParticles.find((np) => np.id === p.id))
+        );
+      }, 3000);
+    },
+    []
+  );
 
   useEffect(() => {
     if (isVictory && !prevVictoryRef.current) {
       const boardEl = document.getElementById('game-board');
       if (boardEl) {
-        const rect = boardEl.getBoundingClientRect();
-        const cx = rect.width / 2;
-        const cy = rect.height / 2;
-        setTimeout(() => createVictoryParticles(cx, cy), 100);
-        setTimeout(() => createVictoryParticles(cx, cy - 50), 300);
-        setTimeout(() => createVictoryParticles(cx + 50, cy), 500);
-        setTimeout(() => createVictoryParticles(cx - 50, cy), 700);
+        const w = boardEl.clientWidth || boardSize;
+        const h = boardEl.clientHeight || boardSize;
+        const cx = w / 2;
+        const cy = h / 2;
+        setTimeout(() => createVictoryParticles(cx, cy, w, h), 50);
       }
     }
     prevVictoryRef.current = isVictory;
-  }, [isVictory, createVictoryParticles]);
+  }, [isVictory, boardSize, createVictoryParticles]);
 
   const handleTileClick = useCallback(
     (tile: Tile) => {
