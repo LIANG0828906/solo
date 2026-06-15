@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -39,6 +39,29 @@ function getMarkerRadius(count: number, zoom: number): number {
   return baseRadius * zoomFactor;
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 0, g: 0, b: 0 };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return (
+    '#' +
+    [r, g, b]
+      .map((x) => {
+        const hex = Math.round(Math.max(0, Math.min(255, x))).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      })
+      .join('')
+  );
+}
+
 function MapController({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
   const map = useMap();
   
@@ -48,7 +71,9 @@ function MapController({ onZoomChange }: { onZoomChange: (zoom: number) => void 
     };
     
     map.on('zoom', handleZoom);
-    return () => map.off('zoom', handleZoom);
+    return () => {
+      map.off('zoom', handleZoom);
+    };
   }, [map, onZoomChange]);
   
   return null;
@@ -65,18 +90,112 @@ function LocationMarker({
 }) {
   const getFirstDiaryByLocation = useDiaryStore((s) => s.getFirstDiaryByLocation);
   const firstDiary = getFirstDiaryByLocation(location.id);
-  
-  const radius = getMarkerRadius(location.diaryCount, zoom);
-  const color = getMarkerColor(location.diaryCount);
-  
+
+  const markerRef = useRef<L.CircleMarker | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const prevRadiusRef = useRef<number>(0);
+  const prevColorRef = useRef<{ r: number; g: number; b: number }>({ r: 0, g: 0, b: 0 });
+  const animStateRef = useRef<{
+    startRadius: number;
+    targetRadius: number;
+    startColor: { r: number; g: number; b: number };
+    targetColor: { r: number; g: number; b: number };
+    startTime: number;
+    duration: number;
+  } | null>(null);
+
+  const targetRadius = getMarkerRadius(location.diaryCount, zoom);
+  const targetColor = getMarkerColor(location.diaryCount);
+  const targetColorRgb = hexToRgb(targetColor);
+
+  const [displayRadius, setDisplayRadius] = useState(targetRadius);
+  const [displayColor, setDisplayColor] = useState(targetColor);
+
+  useEffect(() => {
+    if (prevRadiusRef.current === 0) {
+      prevRadiusRef.current = targetRadius;
+      prevColorRef.current = targetColorRgb;
+      return;
+    }
+
+    const startRadius = prevRadiusRef.current;
+    const startColor = { ...prevColorRef.current };
+    const startTime = performance.now();
+    const duration = 350;
+
+    animStateRef.current = {
+      startRadius,
+      targetRadius,
+      startColor,
+      targetColor: targetColorRgb,
+      startTime,
+      duration,
+    };
+
+    const animate = (now: number) => {
+      if (!animStateRef.current) return;
+      const state = animStateRef.current;
+      const elapsed = now - state.startTime;
+      const t = Math.min(1, elapsed / state.duration);
+      const easeOut = 1 - Math.pow(1 - t, 3);
+
+      const newRadius = state.startRadius + (state.targetRadius - state.startRadius) * easeOut;
+      const newColor = {
+        r: state.startColor.r + (state.targetColor.r - state.startColor.r) * easeOut,
+        g: state.startColor.g + (state.targetColor.g - state.startColor.g) * easeOut,
+        b: state.startColor.b + (state.targetColor.b - state.startColor.b) * easeOut,
+      };
+
+      setDisplayRadius(newRadius);
+      setDisplayColor(rgbToHex(newColor.r, newColor.g, newColor.b));
+
+      if (markerRef.current) {
+        markerRef.current.setRadius(newRadius);
+        markerRef.current.setStyle({
+          fillColor: rgbToHex(newColor.r, newColor.g, newColor.b),
+        });
+      }
+
+      if (t < 1) {
+        animFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        prevRadiusRef.current = state.targetRadius;
+        prevColorRef.current = { ...state.targetColor };
+        animStateRef.current = null;
+      }
+    };
+
+    if (animFrameRef.current !== null) {
+      cancelAnimationFrame(animFrameRef.current);
+    }
+    animFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, [targetRadius, targetColor]);
+
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, []);
+
   return (
     <CircleMarker
+      ref={(ref) => {
+        markerRef.current = ref;
+      }}
       center={[location.lat, location.lng]}
-      radius={radius}
+      radius={displayRadius}
       pathOptions={{
         color: 'white',
         weight: 2,
-        fillColor: color,
+        fillColor: displayColor,
         fillOpacity: 0.85,
       }}
       eventHandlers={{
@@ -84,8 +203,11 @@ function LocationMarker({
           L.DomEvent.stopPropagation(e);
           onClick(location.id);
         },
+        mouseover: (e) => {
+          const el = e.target.getElement();
+          if (el) el.style.cursor = 'pointer';
+        },
       }}
-      style={{ cursor: 'pointer' }}
     >
       <Popup closeButton={false} className="custom-popup">
         {firstDiary && (
@@ -146,13 +268,8 @@ export const MapView: React.FC<MapViewProps> = ({ onLocationClick, onDiaryClick 
     }
   }, [getFirstDiaryByLocation, onLocationClick]);
 
-  const mapOptions = useMemo(() => ({
-    preferCanvas: true,
-    zoomControl: false,
-  }), []);
-
-  const tileLayerUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-  const tileLayerAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+  const tileLayerUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const tileLayerAttribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
   return (
     <div className="w-full h-full">
@@ -163,7 +280,8 @@ export const MapView: React.FC<MapViewProps> = ({ onLocationClick, onDiaryClick 
         maxZoom={16}
         scrollWheelZoom={true}
         className="w-full h-full"
-        options={mapOptions}
+        preferCanvas={true}
+        zoomControl={false}
       >
         <TileLayer
           attribution={tileLayerAttribution}

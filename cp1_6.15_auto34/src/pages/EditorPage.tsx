@@ -13,11 +13,11 @@ export const EditorPage: React.FC = () => {
   const { diaryId } = useParams<{ diaryId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const getDiaryById = useDiaryStore((s) => s.getDiaryById);
   const addDiary = useDiaryStore((s) => s.addDiary);
   const updateDiary = useDiaryStore((s) => s.updateDiary);
-  
+
   const existingDiary = diaryId && diaryId !== 'new' ? getDiaryById(diaryId) : undefined;
   const isNew = diaryId === 'new' || !diaryId;
   const prefillData = location.state as {
@@ -35,8 +35,9 @@ export const EditorPage: React.FC = () => {
   const [lat, setLat] = useState(0);
   const [lng, setLng] = useState(0);
   const [locationId, setLocationId] = useState('');
-  
+
   const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
@@ -93,14 +94,15 @@ export const EditorPage: React.FC = () => {
       setToast({ message: '请输入日记标题', type: 'error' });
       return;
     }
-    
+
     if (!locationName.trim()) {
       setToast({ message: '请输入地点名称', type: 'error' });
       return;
     }
 
     setIsSaving(true);
-    
+    setIsSaved(false);
+
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     try {
@@ -117,19 +119,20 @@ export const EditorPage: React.FC = () => {
 
       if (isNew || !existingDiary) {
         addDiary(diaryData);
-        setToast({ message: '日记保存成功！', type: 'success' });
       } else {
         updateDiary(existingDiary.id, diaryData);
-        setToast({ message: '日记更新成功！', type: 'success' });
       }
+
+      setIsSaving(false);
+      setIsSaved(true);
+      setToast({ message: '日记保存成功！', type: 'success' });
 
       setTimeout(() => {
         navigate(`/location/${locationId}`);
       }, 1000);
     } catch (error) {
-      setToast({ message: '保存失败，请重试', type: 'error' });
-    } finally {
       setIsSaving(false);
+      setToast({ message: '保存失败，请重试', type: 'error' });
     }
   };
 
@@ -193,4 +196,79 @@ export const EditorPage: React.FC = () => {
                   value={locationName}
                   onChange={(e) => setLocationName(e.target.value)}
                   placeholder="例如：巴黎，法国"
-                  className="w-full px-4 py-3 rounded-xl border border
+                  className="w-full px-4 py-3 rounded-xl border border-sand-200 bg-white/70 focus:outline-none focus:ring-2 focus:ring-sand-400 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-sand-700 mb-2 block">
+                  今日心情
+                </label>
+                <div className="flex flex-wrap gap-2 p-3 rounded-xl border border-sand-200 bg-white/70">
+                  {MOOD_OPTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => setMood(emoji)}
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl transition-all hover-lift ${
+                        mood === emoji
+                          ? 'bg-sand-200 ring-2 ring-sand-400 scale-110'
+                          : 'hover:bg-sand-100'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-sand-700 mb-2 block">
+                日记内容
+              </label>
+              <RichEditor
+                value={content}
+                onChange={setContent}
+                placeholder="开始记录你的旅行故事..."
+              />
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <button
+        onClick={handleSave}
+        disabled={isSaving || isSaved}
+        className={`fixed bottom-8 right-8 z-40 flex items-center gap-2 px-6 py-3 rounded-full shadow-xl font-medium text-white transition-all hover-lift ${
+          isSaved
+            ? 'bg-green-500'
+            : isSaving
+            ? 'bg-sand-400 cursor-not-allowed'
+            : 'bg-sand-700 hover:bg-sand-800'
+        }`}
+      >
+        {isSaving ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+          </>
+        ) : isSaved ? (
+          <>
+            <Check className="w-5 h-5" />
+          </>
+        ) : (
+          <>
+            <Save className="w-5 h-5" />
+            <span>保存</span>
+          </>
+        )}
+      </button>
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+    </div>
+  );
+};

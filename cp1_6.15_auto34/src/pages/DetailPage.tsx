@@ -8,57 +8,147 @@ import { useDiaryStore } from '@/data/DiaryStore';
 import { useVirtualScroll } from '@/hooks/useVirtualScroll';
 import type { Diary } from '@/types';
 
+const GAP = 16;
+const CARD_EST_HEIGHT = 340;
+const AVERAGE_ITEM_HEIGHT = (CARD_EST_HEIGHT + GAP) / 2;
+
+interface WaterfallItem {
+  diary: Diary;
+  originalIndex: number;
+  column: number;
+  top: number;
+  height: number;
+}
+
+function computeWaterfallLayout(
+  diaries: Diary[],
+  startIndex: number
+): { items: WaterfallItem[]; columnsHeight: [number, number] } {
+  const columnsHeight: [number, number] = [0, 0];
+  const items: WaterfallItem[] = [];
+
+  for (let i = 0; i < diaries.length; i++) {
+    const globalIndex = startIndex + i;
+    const column = columnsHeight[0] <= columnsHeight[1] ? 0 : 1;
+    const top = columnsHeight[column];
+    const height = CARD_EST_HEIGHT;
+
+    items.push({
+      diary: diaries[i],
+      originalIndex: globalIndex,
+      column,
+      top,
+      height,
+    });
+
+    columnsHeight[column] = top + height + GAP;
+  }
+
+  return { items, columnsHeight };
+}
+
 export const DetailPage: React.FC = () => {
   const { locationId } = useParams<{ locationId: string }>();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   const getLocationById = useDiaryStore((s) => s.getLocationById);
   const getDiariesByLocation = useDiaryStore((s) => s.getDiariesByLocation);
-  
+
   const location = locationId ? getLocationById(locationId) : undefined;
   const allDiaries = locationId ? getDiariesByLocation(locationId) : [];
-  
+
   const [displayCount, setDisplayCount] = useState(12);
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [containerHeight, setContainerHeight] = useState(
+    typeof window !== 'undefined' ? window.innerHeight - 140 : 600
+  );
 
   const displayedDiaries = useMemo(
     () => allDiaries.slice(0, displayCount),
     [allDiaries, displayCount]
   );
 
-  const { visibleItems, totalHeight } = useVirtualScroll({
+  useEffect(() => {
+    const updateHeight = () => {
+      setContainerHeight(window.innerHeight - 140);
+    };
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
+
+  const { startIndex, endIndex } = useVirtualScroll({
     items: displayedDiaries,
-    itemHeight: 320,
-    containerHeight: typeof window !== 'undefined' ? window.innerHeight - 140 : 600,
-    overscan: 4,
+    itemHeight: AVERAGE_ITEM_HEIGHT,
+    containerHeight,
+    overscan: 6,
+    containerRef,
   });
 
-  const leftColumn = visibleItems.filter((_, i) => i % 2 === 0);
-  const rightColumn = visibleItems.filter((_, i) => i % 2 === 1);
+  const visibleDiariesWindow = useMemo(
+    () => displayedDiaries.slice(startIndex, endIndex),
+    [displayedDiaries, startIndex, endIndex]
+  );
+
+  const waterfallItems = useMemo(() => {
+    const prefixItems = displayedDiaries.slice(0, startIndex);
+    const { columnsHeight: prefixHeight } = computeWaterfallLayout(prefixItems, 0);
+    const { items } = computeWaterfallLayout(visibleDiariesWindow, startIndex);
+
+    return items.map((it) => ({
+      ...it,
+      top: it.top + prefixHeight[it.column],
+    }));
+  }, [visibleDiariesWindow, displayedDiaries, startIndex]);
+
+  const leftItems = useMemo(
+    () => waterfallItems.filter((it) => it.column === 0),
+    [waterfallItems]
+  );
+
+  const rightItems = useMemo(
+    () => waterfallItems.filter((it) => it.column === 1),
+    [waterfallItems]
+  );
+
+  const actualTotalHeight = useMemo(() => {
+    const { columnsHeight } = computeWaterfallLayout(displayedDiaries, 0);
+    return Math.max(columnsHeight[0], columnsHeight[1]);
+  }, [displayedDiaries]);
+
+  const rafRef = useRef<number | null>(null);
 
   const handleScroll = useCallback(() => {
-    const container = containerRef.current;
-    if (!container || isLoading) return;
-    
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const isNearBottom = scrollTop + clientHeight >= scrollHeight - 200;
-    
-    if (isNearBottom && displayCount < allDiaries.length) {
-      setIsLoading(true);
-      setTimeout(() => {
-        setDisplayCount((prev) => Math.min(prev + 8, allDiaries.length));
-        setIsLoading(false);
-      }, 500);
-    }
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const container = containerRef.current;
+      if (!container || isLoading) return;
+
+      const { scrollTop: st, scrollHeight, clientHeight } = container;
+      const isNearBottom = st + clientHeight >= scrollHeight - 300;
+
+      if (isNearBottom && displayCount < allDiaries.length) {
+        setIsLoading(true);
+        setTimeout(() => {
+          setDisplayCount((prev) => Math.min(prev + 8, allDiaries.length));
+          setIsLoading(false);
+        }, 400);
+      }
+    });
   }, [allDiaries.length, displayCount, isLoading]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (container) {
       container.addEventListener('scroll', handleScroll, { passive: true });
-      return () => container.removeEventListener('scroll', handleScroll);
+      return () => {
+        container.removeEventListener('scroll', handleScroll);
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+        }
+      };
     }
   }, [handleScroll]);
 
@@ -122,7 +212,7 @@ export const DetailPage: React.FC = () => {
               </p>
             </div>
           </div>
-          
+
           <button
             onClick={handleNewDiary}
             className="flex items-center gap-2 px-5 py-2.5 bg-sand-600 text-white rounded-xl hover:bg-sand-700 hover-lift transition-colors"
@@ -131,13 +221,17 @@ export const DetailPage: React.FC = () => {
             <span className="text-sm font-medium">写日记</span>
           </button>
         </div>
-        
+
         <LoadingBar isLoading={isLoading} />
       </header>
 
       <main
         ref={containerRef}
         className="flex-1 overflow-y-auto custom-scrollbar"
+        style={{
+          contain: 'strict',
+          willChange: 'scroll-position',
+        }}
       >
         <div className="max-w-6xl mx-auto px-4 py-6">
           {allDiaries.length === 0 ? (
@@ -157,76 +251,80 @@ export const DetailPage: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div
-              className="relative"
-              style={{ height: Math.ceil(visibleItems.length / 2) * 340 }}
-            >
-              <div className="absolute left-0 right-1/2 pr-3">
-                {leftColumn.map(({ item, index, offsetTop }) => (
+            <>
+              <div
+                className="relative"
+                style={{
+                  height: actualTotalHeight,
+                  contain: 'strict',
+                  willChange: 'height',
+                }}
+              >
+                {leftItems.map((it) => (
                   <div
-                    key={item.id}
+                    key={it.diary.id}
                     style={{
                       position: 'absolute',
-                      top: offsetTop,
+                      transform: `translate3d(0, ${it.top}px, 0)`,
+                      width: `calc(50% - ${GAP / 2}px)`,
                       left: 0,
-                      right: 12,
-                      height: 320,
-                      contentVisibility: 'auto',
+                      height: it.height,
+                      contain: 'layout paint',
+                      willChange: 'transform',
                     }}
                   >
                     <DiaryCard
-                      diary={item}
-                      index={index}
+                      diary={it.diary}
+                      index={it.originalIndex}
                       onClick={handleDiaryClick}
                     />
                   </div>
                 ))}
-              </div>
-              
-              <div className="absolute left-1/2 right-0 pl-3">
-                {rightColumn.map(({ item, index, offsetTop }) => (
+
+                {rightItems.map((it) => (
                   <div
-                    key={item.id}
+                    key={it.diary.id}
                     style={{
                       position: 'absolute',
-                      top: offsetTop,
-                      left: 12,
+                      transform: `translate3d(0, ${it.top}px, 0)`,
+                      width: `calc(50% - ${GAP / 2}px)`,
                       right: 0,
-                      height: 320,
-                      contentVisibility: 'auto',
+                      height: it.height,
+                      contain: 'layout paint',
+                      willChange: 'transform',
                     }}
                   >
                     <DiaryCard
-                      diary={item}
-                      index={index + 1}
+                      diary={it.diary}
+                      index={it.originalIndex}
                       onClick={handleDiaryClick}
                     />
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-          
-          {isLoading && (
-            <div className="flex justify-center py-6">
-              <div className="w-8 h-8 border-3 border-sand-300 border-t-sand-600 rounded-full animate-spin" />
-            </div>
-          )}
-          
-          {!isLoading && displayCount < allDiaries.length && (
-            <div className="text-center py-6">
-              <p className="text-sm text-sand-500">
-                向下滚动加载更多...
-              </p>
-            </div>
-          )}
-          
-          {displayCount >= allDiaries.length && allDiaries.length > 0 && (
-            <div className="text-center py-8">
-              <p className="text-sm text-sand-400">
-                — 已经到底啦 —
-              </p>
-            </div>
+
+              {isLoading && (
+                <div className="flex justify-center py-6">
+                  <div className="w-8 h-8 border-3 border-sand-300 border-t-sand-600 rounded-full animate-spin" />
+                </div>
+              )}
+
+              {!isLoading && displayCount < allDiaries.length && (
+                <div className="text-center py-6">
+                  <p className="text-sm text-sand-500">
+                    向下滚动加载更多...
+                  </p>
+                </div>
+              )}
+
+              {displayCount >= allDiaries.length && allDiaries.length > 0 && (
+                <div className="text-center py-8">
+                  <p className="text-sm text-sand-400">
+                    — 已经到底啦 —
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
