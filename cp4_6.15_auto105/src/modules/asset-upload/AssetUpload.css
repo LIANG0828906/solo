@@ -220,7 +220,7 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #ef4444 0%, #3b82f6 50%, #06b6d4 100%);
+  background: linear-gradient(90deg, #ef4444 0%, #3b82f6 50%, #10b981 100%);
   border-radius: 3px;
   transition: width 0.3s ease;
   position: relative;

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { Asset, FilterOptions, SortOption } from './types';
+import type { Asset, FilterOptions, SortOption, TimeRange, SearchResult } from './types';
+import { TAG_STYLES } from './types';
 
 interface AssetStore {
   assets: Asset[];
@@ -18,10 +19,20 @@ interface AssetStore {
 
   setSearch: (search: string) => void;
   toggleTagFilter: (tag: string) => void;
+  toggleStyleFilter: (style: string) => void;
+  setTimeRange: (timeRange: TimeRange | null) => void;
   setSortBy: (sortBy: SortOption) => void;
+  clearFilters: () => void;
 
+  searchAssets: (query: string, limit?: number, offset?: number) => SearchResult;
+  filterByTag: (tags: string[]) => Asset[];
+  filterByStyle: (styles: string[]) => Asset[];
+  filterByTime: (timeRange: TimeRange) => Asset[];
   getFilteredAssets: () => Asset[];
   getCurrentAsset: () => Asset | undefined;
+  getAllStyles: () => string[];
+
+  applySort: (assets: Asset[]) => Asset[];
 
   initMockData: () => void;
 }
@@ -32,12 +43,31 @@ const formatFileSize = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const getTimeRangeDate = (timeRange: TimeRange): Date => {
+  const now = new Date();
+  switch (timeRange) {
+    case 'day':
+      return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    case 'week':
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    case 'month':
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    case 'year':
+      return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    case 'all':
+    default:
+      return new Date(0);
+  }
+};
+
 export const useAssetStore = create<AssetStore>((set, get) => ({
   assets: [],
   currentAssetId: null,
   filterOptions: {
     search: '',
     tags: [],
+    styles: [],
+    timeRange: null,
     sortBy: 'newest',
   },
   isLoading: false,
@@ -105,10 +135,83 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       return { filterOptions: { ...state.filterOptions, tags } };
     }),
 
+  toggleStyleFilter: (style) =>
+    set((state) => {
+      const styles = state.filterOptions.styles.includes(style)
+        ? state.filterOptions.styles.filter((s) => s !== style)
+        : [...state.filterOptions.styles, style];
+      return { filterOptions: { ...state.filterOptions, styles } };
+    }),
+
+  setTimeRange: (timeRange) =>
+    set((state) => ({
+      filterOptions: { ...state.filterOptions, timeRange },
+    })),
+
   setSortBy: (sortBy) =>
     set((state) => ({
       filterOptions: { ...state.filterOptions, sortBy },
     })),
+
+  clearFilters: () =>
+    set(() => ({
+      filterOptions: {
+        search: '',
+        tags: [],
+        styles: [],
+        timeRange: null,
+        sortBy: 'newest',
+      },
+    })),
+
+  searchAssets: (query, limit = 20, offset = 0) => {
+    const { assets } = get();
+    const queryLower = query.toLowerCase().trim();
+
+    let results = assets.filter((asset) => {
+      if (!queryLower) return true;
+      const matchesName = asset.name.toLowerCase().includes(queryLower);
+      const matchesTags = asset.tags.some((t) =>
+        t.toLowerCase().includes(queryLower)
+      );
+      const matchesDescription = asset.description
+        ?.toLowerCase()
+        .includes(queryLower);
+      return matchesName || matchesTags || matchesDescription;
+    });
+
+    results = get().applySort(results);
+
+    const total = results.length;
+    const paginated = results.slice(offset, offset + limit);
+
+    return {
+      assets: paginated,
+      total,
+      hasMore: offset + limit < total,
+    };
+  },
+
+  filterByTag: (tags) => {
+    if (tags.length === 0) return get().assets;
+    return get().assets.filter((asset) =>
+      tags.some((tag) => asset.tags.includes(tag))
+    );
+  },
+
+  filterByStyle: (styles) => {
+    if (styles.length === 0) return get().assets;
+    return get().assets.filter((asset) =>
+      styles.some((style) => asset.tags.includes(style))
+    );
+  },
+
+  filterByTime: (timeRange) => {
+    const fromDate = getTimeRangeDate(timeRange);
+    return get().assets.filter(
+      (asset) => new Date(asset.createdAt) >= fromDate
+    );
+  },
 
   getFilteredAssets: () => {
     const { assets, filterOptions } = get();
@@ -119,7 +222,8 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       filtered = filtered.filter(
         (a) =>
           a.name.toLowerCase().includes(searchLower) ||
-          a.tags.some((t) => t.toLowerCase().includes(searchLower))
+          a.tags.some((t) => t.toLowerCase().includes(searchLower)) ||
+          a.description?.toLowerCase().includes(searchLower)
       );
     }
 
@@ -129,26 +233,20 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       );
     }
 
-    switch (filterOptions.sortBy) {
-      case 'newest':
-        filtered.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        break;
-      case 'oldest':
-        filtered.sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-        break;
-      case 'name':
-        filtered.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case 'rating':
-        filtered.sort((a, b) => b.rating - a.rating);
-        break;
+    if (filterOptions.styles.length > 0) {
+      filtered = filtered.filter((a) =>
+        filterOptions.styles.some((s) => a.tags.includes(s))
+      );
     }
+
+    if (filterOptions.timeRange && filterOptions.timeRange !== 'all') {
+      const fromDate = getTimeRangeDate(filterOptions.timeRange);
+      filtered = filtered.filter(
+        (a) => new Date(a.createdAt) >= fromDate
+      );
+    }
+
+    filtered = get().applySort(filtered);
 
     return filtered;
   },
@@ -156,6 +254,47 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
   getCurrentAsset: () => {
     const { assets, currentAssetId } = get();
     return assets.find((a) => a.id === currentAssetId);
+  },
+
+  getAllStyles: () => {
+    const { assets } = get();
+    const styleSet = new Set<string>();
+    assets.forEach((asset) => {
+      asset.tags.forEach((tag) => {
+        if (TAG_STYLES.includes(tag as typeof TAG_STYLES[number])) {
+          styleSet.add(tag);
+        }
+      });
+    });
+    return Array.from(styleSet).sort();
+  },
+
+  applySort: (assets: Asset[]) => {
+    const { filterOptions } = get();
+    const sorted = [...assets];
+
+    switch (filterOptions.sortBy) {
+      case 'newest':
+        sorted.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        break;
+      case 'oldest':
+        sorted.sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        break;
+      case 'name':
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'rating':
+        sorted.sort((a, b) => b.rating - a.rating);
+        break;
+    }
+
+    return sorted;
   },
 
   initMockData: () => {

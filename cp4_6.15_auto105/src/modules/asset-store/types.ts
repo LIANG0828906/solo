@@ -20,7 +20,17 @@ export type SortOption = 'newest' | 'oldest' | 'name' | 'rating';
 export interface FilterOptions {
   search: string;
   tags: string[];
+  styles: string[];
+  timeRange: TimeRange | null;
   sortBy: SortOption;
+}
+
+export type TimeRange = 'day' | 'week' | 'month' | 'year' | 'all';
+
+export interface SearchResult {
+  assets: Asset[];
+  total: number;
+  hasMore: boolean;
 }
 
 export const TAG_STYLES = [
