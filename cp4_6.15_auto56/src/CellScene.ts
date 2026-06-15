@@ -182,17 +182,22 @@ export class CellScene {
           vec3 viewDir = normalize(cameraPosition - vPos);
           float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 2.5);
 
-          vec2 flowUv = vUv * 3.5 + vec2(uTime * 0.15, uTime * 0.1);
-          float n1 = noise(flowUv);
-          float n2 = noise(flowUv * 2.0 + 10.0);
+          vec2 flowUv1 = vUv * 2.5 + vec2(uTime * 0.3, uTime * 0.2);
+          vec2 flowUv2 = vUv * 4.5 + vec2(-uTime * 0.15, uTime * 0.35);
+          float n1 = noise(flowUv1);
+          float n2 = noise(flowUv2);
           float pattern = mix(n1, n2, 0.5);
-          pattern = smoothstep(0.3, 0.7, pattern);
+          pattern = smoothstep(0.25, 0.75, pattern);
 
-          vec3 baseColor = uColor * (0.6 + pattern * 0.4);
-          vec3 glowColor = uColor * 1.4;
-          vec3 finalColor = mix(baseColor, glowColor, fresnel * 0.7);
+          float streak = sin(flowUv1.y * 8.0 + uTime * 1.5) * 0.5 + 0.5;
+          streak = smoothstep(0.3, 0.9, streak);
 
-          float alpha = uOpacity + fresnel * 0.5 + pattern * 0.08;
+          vec3 baseColor = uColor * (0.55 + pattern * 0.35);
+          vec3 glowColor = uColor * 1.6;
+          vec3 streakColor = vec3(0.7, 0.9, 1.0) * streak * 0.4;
+          vec3 finalColor = mix(baseColor, glowColor, fresnel * 0.7) + streakColor;
+
+          float alpha = uOpacity + fresnel * 0.55 + pattern * 0.12 + streak * 0.08;
           alpha = min(alpha, 0.95);
 
           float rim = fresnel * 0.8;

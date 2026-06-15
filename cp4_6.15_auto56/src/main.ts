@@ -51,12 +51,15 @@ class App {
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
-    this.controls.dampingFactor = 0.08
-    this.controls.rotateSpeed = 0.7
-    this.controls.zoomSpeed = 0.8
+    this.controls.dampingFactor = 0.06
+    this.controls.rotateSpeed = 0.65
+    this.controls.zoomSpeed = 0.7
     this.controls.minDistance = 3
     this.controls.maxDistance = 18
     this.controls.target.copy(this.initialTarget)
+    this.controls.enablePan = false
+    this.controls.minPolarAngle = Math.PI * 0.15
+    this.controls.maxPolarAngle = Math.PI * 0.85
 
     this.cellScene = new CellScene(this.scene)
     this.particleEffect = new ParticleEffect(this.scene)
@@ -65,6 +68,7 @@ class App {
     this.controller.setOnPhaseChange((phase) => this.updatePhaseUI(phase))
     this.controller.setOnProgressChange((phaseProgress, overall) => this.updateProgressUI(phaseProgress, overall))
     this.controller.setOnPlayStateChange((isPlaying) => this.updatePlayButtonUI(isPlaying))
+    this.controller.setOnTimeUpdate((remaining, total) => this.updateTimeUI(remaining, total))
 
     window.addEventListener('resize', this.onResize.bind(this))
   }
@@ -120,7 +124,18 @@ class App {
     })
 
     panelToggle?.addEventListener('click', () => {
-      infoPanel?.classList.toggle('drawer-open')
+      this.toggleDrawer()
+    })
+
+    const drawerOverlay = document.getElementById('drawer-overlay')
+    drawerOverlay?.addEventListener('click', () => {
+      this.closeDrawer()
+    })
+
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 1024) {
+        this.closeDrawer()
+      }
     })
 
     this.updatePhaseUI('interphase')
@@ -164,10 +179,17 @@ class App {
     }
 
     if (phaseNameEl) phaseNameEl.textContent = info.name
-    if (phaseDurationEl) phaseDurationEl.textContent = `${info.duration}秒`
+    if (phaseDurationEl) phaseDurationEl.textContent = `剩余 ${info.duration}秒`
     if (phaseDescEl) phaseDescEl.textContent = info.description
 
     this.updateActivePhaseButtons(phase)
+  }
+
+  private updateTimeUI(remainingSeconds: number, totalSeconds: number): void {
+    const phaseDurationEl = document.getElementById('phase-duration')
+    if (phaseDurationEl) {
+      phaseDurationEl.textContent = `剩余 ${Math.max(0, remainingSeconds)}秒`
+    }
   }
 
   private updateProgressUI(phaseProgress: number, overallProgress: number): void {
@@ -210,6 +232,32 @@ class App {
         stage.classList.remove('active')
       }
     })
+  }
+
+  private toggleDrawer(): void {
+    const infoPanel = document.getElementById('info-panel')
+    const drawerOverlay = document.getElementById('drawer-overlay')
+    const isOpen = infoPanel?.classList.contains('drawer-open')
+
+    if (isOpen) {
+      this.closeDrawer()
+    } else {
+      this.openDrawer()
+    }
+  }
+
+  private openDrawer(): void {
+    const infoPanel = document.getElementById('info-panel')
+    const drawerOverlay = document.getElementById('drawer-overlay')
+    infoPanel?.classList.add('drawer-open')
+    drawerOverlay?.classList.add('visible')
+  }
+
+  private closeDrawer(): void {
+    const infoPanel = document.getElementById('info-panel')
+    const drawerOverlay = document.getElementById('drawer-overlay')
+    infoPanel?.classList.remove('drawer-open')
+    drawerOverlay?.classList.remove('visible')
   }
 }
 

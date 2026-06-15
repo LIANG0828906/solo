@@ -54,6 +54,9 @@ export class MitosisController {
   private onPhaseChange?: (phase: PhaseType) => void
   private onProgressChange?: (phaseProgress: number, overallProgress: number) => void
   private onPlayStateChange?: (isPlaying: boolean) => void
+  private onTimeUpdate?: (remainingSeconds: number, totalSeconds: number) => void
+
+  private lastSecondEmitted = -1
 
   constructor(cellScene: CellScene, particleEffect: ParticleEffect) {
     this.cellScene = cellScene
@@ -71,6 +74,19 @@ export class MitosisController {
 
   public setOnPlayStateChange(callback: (isPlaying: boolean) => void): void {
     this.onPlayStateChange = callback
+  }
+
+  public setOnTimeUpdate(callback: (remainingSeconds: number, totalSeconds: number) => void): void {
+    this.onTimeUpdate = callback
+  }
+
+  public getRemainingTime(): number {
+    const info = PHASES[this.currentPhase]
+    return Math.max(0, info.duration - this.phaseElapsed)
+  }
+
+  public getTotalTime(): number {
+    return PHASES[this.currentPhase].duration
   }
 
   public getCurrentPhase(): PhaseType {
@@ -135,9 +151,14 @@ export class MitosisController {
     this.hasReformed = false
     this.hasFlashed = false
     this.isFinished = false
+    this.lastSecondEmitted = -1
     this.cellScene.setPhase(phase)
     if (this.onPhaseChange) this.onPhaseChange(phase)
     if (this.onProgressChange) this.onProgressChange(0, this.getOverallProgress())
+    if (this.onTimeUpdate) {
+      const info = PHASES[phase]
+      this.onTimeUpdate(info.duration, info.duration)
+    }
   }
 
   public update(delta: number): void {
@@ -178,6 +199,14 @@ export class MitosisController {
 
     if (this.onProgressChange) {
       this.onProgressChange(progress, this.getOverallProgress())
+    }
+
+    const remaining = Math.ceil(this.getRemainingTime())
+    if (remaining !== this.lastSecondEmitted) {
+      this.lastSecondEmitted = remaining
+      if (this.onTimeUpdate) {
+        this.onTimeUpdate(remaining, PHASES[this.currentPhase].duration)
+      }
     }
 
     if (this.phaseElapsed >= phaseInfo.duration) {
