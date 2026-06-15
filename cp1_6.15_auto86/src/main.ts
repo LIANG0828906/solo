@@ -24,6 +24,7 @@ class Game {
   private raceTime: number = 0;
   private lastTime: number = 0;
   private frameCount: number = 0;
+  private totalTriangles: number = 0;
   
   private lastPlayerProgress: number = 0;
   private lastAIProgresses: number[] = [];
@@ -65,6 +66,8 @@ class Game {
     this.playerShip = new PlayerShip(this.scene);
     this.physics = new Physics(this.scene);
     this.gameUI = new GameUI();
+    
+    this.calculateTriangleCount();
     
     const trackCurve = this.circuit.getTrackCurve();
     for (let i = 0; i < CONFIG.AI_COUNT; i++) {
@@ -214,10 +217,20 @@ class Game {
       const aiPos = ai.getPosition();
       const aiOnTrack = this.circuit.isOnTrack(aiPos);
       const aiTrackHeight = this.circuit.getTrackHeightAt(aiPos);
-      ai.update(dt, playerPos, playerSpeed, aiOnTrack, aiTrackHeight, obstacles);
+      
+      if (this.frameCount % CONFIG.AI_UPDATE_INTERVAL === 0) {
+        ai.update(dt * CONFIG.AI_UPDATE_INTERVAL, playerPos, playerSpeed, aiOnTrack, aiTrackHeight, obstacles);
+      } else {
+        const aiState = ai.getState();
+        const newPos = aiPos.clone().add(aiState.velocity.clone().multiplyScalar(dt));
+        ai.getMesh().position.copy(newPos);
+        ai.syncPositionFromMesh();
+        ai.setTotalTime(this.raceTime);
+      }
     });
     
     this.checkCollisions();
+    
     this.checkEnergyCollections();
     this.updateProgress();
     this.checkLapCompletions();
@@ -244,8 +257,36 @@ class Game {
       const aiPos = ai.getPosition();
       const aiOnTrack = this.circuit.isOnTrack(aiPos);
       const aiTrackHeight = this.circuit.getTrackHeightAt(aiPos);
-      ai.update(dt, playerPos, playerSpeed, aiOnTrack, aiTrackHeight, obstacles);
+      
+      if (this.frameCount % CONFIG.AI_UPDATE_INTERVAL === 0) {
+        ai.update(dt * CONFIG.AI_UPDATE_INTERVAL, playerPos, playerSpeed, aiOnTrack, aiTrackHeight, obstacles);
+      } else {
+        const aiState = ai.getState();
+        const newPos = aiPos.clone().add(aiState.velocity.clone().multiplyScalar(dt));
+        ai.getMesh().position.copy(newPos);
+      }
     });
+  }
+
+  private calculateTriangleCount(): void {
+    this.totalTriangles = 0;
+    
+    this.scene.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        const geometry = object.geometry;
+        if (geometry.index) {
+          this.totalTriangles += geometry.index.count / 3;
+        } else if (geometry.attributes.position) {
+          this.totalTriangles += geometry.attributes.position.count / 3;
+        }
+      }
+    });
+    
+    if (this.totalTriangles > CONFIG.MAX_TRIANGLES) {
+      console.warn(`三角形数量超过限制: ${Math.floor(this.totalTriangles)} > ${CONFIG.MAX_TRIANGLES}`);
+    } else {
+      console.log(`场景三角形数量: ${Math.floor(this.totalTriangles)} / ${CONFIG.MAX_TRIANGLES}`);
+    }
   }
 
   private checkCollisions(): void {

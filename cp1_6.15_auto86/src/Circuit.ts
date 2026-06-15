@@ -27,24 +27,37 @@ export class Circuit {
 
   private generateTrackPoints(): void {
     this.trackPoints = [];
-    const radius = CONFIG.TRACK_PERIMETER / (2 * Math.PI);
+    const baseRadius = CONFIG.TRACK_PERIMETER / (2 * Math.PI);
     const segmentAngle = (2 * Math.PI) / CONFIG.TRACK_SEGMENTS;
     
     let currentAngle = 0;
     let currentHeight = 0;
+    let accumulatedCurvature = 0;
     
     for (let i = 0; i <= CONFIG.TRACK_SEGMENTS; i++) {
-      const curvatureOffset = (Math.random() - 0.5) * 2 * CONFIG.CURVATURE_VARIATION;
-      const heightOffset = (Math.random() - 0.5) * 2 * CONFIG.HEIGHT_VARIATION;
-      currentHeight = THREE.MathUtils.clamp(currentHeight + heightOffset, -CONFIG.HEIGHT_VARIATION, CONFIG.HEIGHT_VARIATION);
+      const curvatureDelta = (Math.random() - 0.5) * 2 * CONFIG.CURVATURE_VARIATION;
+      accumulatedCurvature = THREE.MathUtils.clamp(accumulatedCurvature + curvatureDelta, -CONFIG.CURVATURE_VARIATION * 3, CONFIG.CURVATURE_VARIATION * 3);
       
-      const angle = currentAngle + curvatureOffset;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
+      const heightDelta = (Math.random() - 0.5) * 2 * CONFIG.HEIGHT_VARIATION * 0.8;
+      currentHeight = THREE.MathUtils.lerp(currentHeight, currentHeight + heightDelta, 0.6);
+      currentHeight = THREE.MathUtils.clamp(currentHeight, -CONFIG.HEIGHT_VARIATION, CONFIG.HEIGHT_VARIATION);
+      
+      const radiusVariation = 1 + (Math.random() - 0.5) * 0.15;
+      const effectiveRadius = baseRadius * radiusVariation;
+      
+      const angle = currentAngle + accumulatedCurvature;
+      const x = Math.cos(angle) * effectiveRadius;
+      const z = Math.sin(angle) * effectiveRadius;
       const y = currentHeight;
       
       this.trackPoints.push(new THREE.Vector3(x, y, z));
       currentAngle += segmentAngle;
+    }
+    
+    if (this.trackPoints.length > 1) {
+      const firstPoint = this.trackPoints[0];
+      const lastPoint = this.trackPoints[this.trackPoints.length - 1];
+      firstPoint.y = lastPoint.y = (firstPoint.y + lastPoint.y) / 2;
     }
     
     this.startLinePosition.copy(this.trackPoints[0]);

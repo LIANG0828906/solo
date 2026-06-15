@@ -161,6 +161,14 @@ export class AIShip {
         this.state.energy = CONFIG.MAX_ENERGY * 0.3;
       }
     } else if (!this.state.isStunned) {
+      this.speedEvalTimer -= dt;
+      if (this.speedEvalTimer <= 0) {
+        const speedMultiplier = CONFIG.AI_SPEED_MIN + Math.random() * (CONFIG.AI_SPEED_MAX - CONFIG.AI_SPEED_MIN);
+        this.targetSpeed = playerSpeed * speedMultiplier;
+        this.targetSpeed = THREE.MathUtils.clamp(this.targetSpeed, 30, 180);
+        this.speedEvalTimer = 5;
+      }
+      
       if (this.frameCounter % CONFIG.AI_UPDATE_INTERVAL === 0) {
         this.updateAI(dt, playerPosition, playerSpeed, obstacles);
       }
@@ -178,16 +186,33 @@ export class AIShip {
 
     this.applySteering(dt);
 
+    const maxAltitude = trackHeight + CONFIG.MAX_ALTITUDE;
+    const minAltitude = trackHeight + 2;
+    
     if (!isOnTrack) {
       this.state.velocity.y -= CONFIG.GRAVITY * dt;
+      
+      const altitudeAboveTrack = this.state.position.y - trackHeight;
+      if (altitudeAboveTrack < 0) {
+        this.state.velocity.y = Math.max(0, this.state.velocity.y);
+        this.state.position.y = trackHeight;
+      }
     } else {
-      const targetAltitude = trackHeight + 3;
-      if (this.state.position.y < targetAltitude) {
-        this.state.velocity.y += (targetAltitude - this.state.position.y) * dt * 5;
+      const liftFactor = THREE.MathUtils.clamp(1 - (this.state.position.y - trackHeight) / CONFIG.MAX_ALTITUDE, 0, 1);
+      
+      if (this.state.position.y < minAltitude) {
+        this.state.velocity.y += (minAltitude - this.state.position.y) * dt * 8 * liftFactor;
+      } else if (this.state.position.y > maxAltitude) {
+        this.state.velocity.y -= (this.state.position.y - maxAltitude) * dt * 8;
+      } else {
+        const targetAltitude = minAltitude + 1;
+        this.state.velocity.y += (targetAltitude - this.state.position.y) * dt * 2 * liftFactor;
       }
-      if (this.state.position.y > trackHeight + CONFIG.MAX_ALTITUDE) {
-        this.state.velocity.y -= (this.state.position.y - (trackHeight + CONFIG.MAX_ALTITUDE)) * dt * 5;
-      }
+    }
+    
+    if (this.state.position.y < trackHeight) {
+      this.state.position.y = trackHeight;
+      this.state.velocity.y = Math.max(0, this.state.velocity.y);
     }
 
     if (Math.abs(this.state.velocity.y) < 0.1 && isOnTrack && this.state.position.y < trackHeight + 3) {
@@ -214,17 +239,9 @@ export class AIShip {
   private updateAI(
     dt: number,
     playerPosition: THREE.Vector3,
-    playerSpeed: number,
+    _playerSpeed: number,
     obstacles: Array<{ position: THREE.Vector3; boundingBox: THREE.Box3 }>
   ): void {
-    this.speedEvalTimer -= dt * CONFIG.AI_UPDATE_INTERVAL;
-    if (this.speedEvalTimer <= 0) {
-      const speedMultiplier = CONFIG.AI_SPEED_MIN + Math.random() * (CONFIG.AI_SPEED_MAX - CONFIG.AI_SPEED_MIN);
-      this.targetSpeed = playerSpeed * speedMultiplier;
-      this.targetSpeed = THREE.MathUtils.clamp(this.targetSpeed, 30, 180);
-      this.speedEvalTimer = 5;
-    }
-
     const forward = new THREE.Vector3(
       -Math.sin(this.state.rotation.y),
       0,
@@ -366,6 +383,10 @@ export class AIShip {
 
   setTotalTime(time: number): void {
     this.state.totalTime = time;
+  }
+
+  syncPositionFromMesh(): void {
+    this.state.position.copy(this.mesh.position);
   }
 
   setTrackCurve(curve: THREE.CatmullRomCurve3): void {

@@ -168,21 +168,33 @@ export class PlayerShip {
       }
     }
 
+    const maxAltitude = trackHeight + CONFIG.MAX_ALTITUDE;
+    const minAltitude = trackHeight + 2;
+    
     if (!isOnTrack) {
       this.state.velocity.y -= CONFIG.GRAVITY * dt;
-    } else {
-      const targetAltitude = trackHeight + 3;
-      if (this.state.position.y < targetAltitude) {
-        this.state.velocity.y += (targetAltitude - this.state.position.y) * dt * 5;
+      
+      const altitudeAboveTrack = this.state.position.y - trackHeight;
+      if (altitudeAboveTrack < 0) {
+        this.state.velocity.y = Math.max(0, this.state.velocity.y);
+        this.state.position.y = trackHeight;
       }
-      if (this.state.position.y > trackHeight + CONFIG.MAX_ALTITUDE) {
-        this.state.velocity.y -= (this.state.position.y - (trackHeight + CONFIG.MAX_ALTITUDE)) * dt * 5;
+    } else {
+      const liftFactor = THREE.MathUtils.clamp(1 - (this.state.position.y - trackHeight) / CONFIG.MAX_ALTITUDE, 0, 1);
+      
+      if (this.state.position.y < minAltitude) {
+        this.state.velocity.y += (minAltitude - this.state.position.y) * dt * 8 * liftFactor;
+      } else if (this.state.position.y > maxAltitude) {
+        this.state.velocity.y -= (this.state.position.y - maxAltitude) * dt * 8;
+      } else {
+        const targetAltitude = minAltitude + 1;
+        this.state.velocity.y += (targetAltitude - this.state.position.y) * dt * 2 * liftFactor;
       }
     }
 
-    if (Math.abs(this.state.velocity.y) < 0.1 && isOnTrack && this.state.position.y < trackHeight + 3) {
-      this.state.position.y = trackHeight + 3;
-      this.state.velocity.y = 0;
+    if (this.state.position.y < trackHeight) {
+      this.state.position.y = trackHeight;
+      this.state.velocity.y = Math.max(0, this.state.velocity.y);
     }
 
     this.state.position.add(this.state.velocity.clone().multiplyScalar(dt));
