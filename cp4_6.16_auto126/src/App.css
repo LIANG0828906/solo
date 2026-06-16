@@ -1,0 +1,54 @@
+.app {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.main-content {
+  margin-left: var(--sidebar-width);
+  padding: 32px;
+  min-height: 100vh;
+}
+
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--color-bg);
+  gap: 16px;
+}
+
+.loading-icon {
+  font-size: 64px;
+  animation: spin 2s linear infinite, bounce 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(180deg); }
+}
+
+.app-loading p {
+  font-size: 18px;
+  color: var(--color-text-light);
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    padding: 20px;
+    padding-bottom: 80px;
+  }
+}

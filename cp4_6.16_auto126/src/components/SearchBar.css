@@ -1,0 +1,172 @@
+.search-bar-container {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  z-index: 50;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid var(--color-primary);
+  border-radius: 50px;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 20px var(--color-shadow);
+}
+
+.search-bar.focused {
+  box-shadow: 0 6px 30px var(--color-shadow-hover);
+  border-color: var(--color-primary-dark);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.search-icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.search-input::placeholder {
+  color: var(--color-text-light);
+}
+
+.clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-border);
+  color: var(--color-text-light);
+  transition: all var(--transition-fast);
+}
+
+.clear-btn:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  animation: slideDown 0.2s ease;
+  border: 1px solid var(--color-border);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 20px;
+  text-align: left;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover {
+  background: var(--color-bg);
+}
+
+.suggestion-text {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.suggestion-tag {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.tag-ingredient {
+  background: #E8F5E9;
+  color: #388E3C;
+}
+
+.tag-cuisine {
+  background: #FFF3E0;
+  color: #F57C00;
+}
+
+.tag-difficulty {
+  background: #E3F2FD;
+  color: #1976D2;
+}
+
+.filter-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 13px;
+  color: var(--color-text-light);
+}
+
+.filter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--color-card);
+  border: 1px solid var(--color-primary);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--color-primary-dark);
+}
+
+.filter-tag button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  transition: transform 0.15s;
+}
+
+.filter-tag button:hover {
+  transform: scale(1.1);
+}
