@@ -12,9 +12,11 @@ export interface UIControls {
   container: HTMLDivElement;
   fpsCounter: HTMLDivElement;
   modeIndicator: HTMLDivElement;
+  particleCountEl: HTMLDivElement;
   onParamsChange: (callback: ParamsChangeCallback) => void;
   setFPS: (fps: number) => void;
   setMode: (mode: 'orbit' | 'fly') => void;
+  setParticleCount: (count: number) => void;
 }
 
 export function createUI(initialState: UIState): UIControls {
@@ -139,10 +141,25 @@ export function createUI(initialState: UIState): UIControls {
     user-select: none;
   `;
 
+  const particleCountEl = document.createElement('div');
+  particleCountEl.textContent = '粒子: 75000';
+  particleCountEl.style.cssText = `
+    position: fixed;
+    right: 20px;
+    top: 48px;
+    color: rgba(255, 170, 0, 0.7);
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    z-index: 100;
+    text-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
+    user-select: none;
+  `;
+
   return {
     container,
     fpsCounter,
     modeIndicator,
+    particleCountEl,
     onParamsChange: (cb: ParamsChangeCallback) => {
       paramsChangeCallback = cb;
     },
@@ -151,6 +168,9 @@ export function createUI(initialState: UIState): UIControls {
     },
     setMode: (mode: 'orbit' | 'fly') => {
       modeIndicator.textContent = `模式: ${mode === 'orbit' ? '环绕观察' : '自由飞行'}`;
+    },
+    setParticleCount: (count: number) => {
+      particleCountEl.textContent = `粒子: ${count.toLocaleString()}`;
     },
   };
 }

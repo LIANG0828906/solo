@@ -33,6 +33,7 @@ const PALETTES: Record<ColorPalette, [number, number, number][]> = {
     [1.0, 0.0, 0.0],
     [1.0, 0.0, 1.0],
     [0.0, 0.0, 1.0],
+    [1.0, 0.0, 1.0],
   ],
   aurora: [
     [0.0, 1.0, 0.533],
@@ -58,11 +59,29 @@ function lerpColor(
 
 function samplePalette(palette: ColorPalette, t: number): [number, number, number] {
   const colors = PALETTES[palette];
-  const scaled = t * (colors.length - 1);
+  const segmentCount = colors.length - 1;
+  const wrappedT = ((t % 1) + 1) % 1;
+  const scaled = wrappedT * segmentCount;
   const idx = Math.floor(scaled);
   const frac = scaled - idx;
-  if (idx >= colors.length - 1) return colors[colors.length - 1];
+  if (idx >= segmentCount) return colors[segmentCount];
   return lerpColor(colors[idx], colors[idx + 1], frac);
+}
+
+function getParticleColor(
+  palette: ColorPalette,
+  x: number,
+  y: number,
+  z: number
+): [number, number, number] {
+  const dist = Math.sqrt(x * x + y * y + z * z);
+  if (palette === 'rainbow') {
+    const hue = (dist / 20) * 1.5;
+    return samplePalette('rainbow', hue);
+  } else {
+    const t = Math.min(1, dist / 20);
+    return samplePalette(palette, t);
+  }
 }
 
 function rand(): number {
@@ -73,41 +92,49 @@ function randRange(min: number, max: number): number {
   return min + rand() * (max - min);
 }
 
-function gaussianRandom(): number {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+function clampedGaussian(stdDev: number = 1.0, maxSigma: number = 3.0): number {
+  let g: number;
+  do {
+    let u = 0;
+    let v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    g = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  } while (Math.abs(g) > maxSigma);
+  return g * stdDev;
 }
 
 function generatePosition(density: number, turbulence: number): [number, number, number] {
   const densityFactor = density / 100;
-  const gauss = Math.abs(gaussianRandom());
-  const radiusFactor = Math.min(1, gauss * (0.3 + densityFactor * 0.4));
+
+  const gaussStd = 0.25 + (1 - densityFactor) * 0.45;
+  const radiusFactor = Math.min(1, Math.abs(clampedGaussian(gaussStd, 2.5)) * (0.35 + densityFactor * 0.5));
 
   const theta = rand() * Math.PI * 2;
   const phi = Math.acos(2 * rand() - 1);
 
   const baseRadius = 20 * radiusFactor;
 
-  const irregular = 0.15 + densityFactor * 0.1;
-  const noiseX = gaussianRandom() * irregular;
-  const noiseY = gaussianRandom() * irregular;
-  const noiseZ = gaussianRandom() * irregular;
+  const irregular = 0.1 + densityFactor * 0.12;
+  const noiseX = clampedGaussian(0.33, 2.5) * irregular;
+  const noiseY = clampedGaussian(0.33, 2.5) * irregular;
+  const noiseZ = clampedGaussian(0.33, 2.5) * irregular;
 
-  let x = baseRadius * Math.sin(phi) * Math.cos(theta) + noiseX * baseRadius;
-  let y = baseRadius * Math.sin(phi) * Math.sin(theta) + noiseY * baseRadius;
-  let z = baseRadius * Math.cos(phi) + noiseZ * baseRadius;
+  const radialNoise = 1.0 + clampedGaussian(0.1, 2.0) * (0.08 + densityFactor * 0.08);
 
-  const turbAmp = (turbulence / 5) * 3;
-  x += gaussianRandom() * turbAmp;
-  y += gaussianRandom() * turbAmp;
-  z += gaussianRandom() * turbAmp;
+  let x = baseRadius * radialNoise * Math.sin(phi) * Math.cos(theta) + noiseX * baseRadius;
+  let y = baseRadius * radialNoise * Math.sin(phi) * Math.sin(theta) + noiseY * baseRadius;
+  let z = baseRadius * radialNoise * Math.cos(phi) + noiseZ * baseRadius;
+
+  const turbAmp = (turbulence / 5) * 2.5;
+  x += clampedGaussian(0.33, 2.5) * turbAmp;
+  y += clampedGaussian(0.33, 2.5) * turbAmp;
+  z += clampedGaussian(0.33, 2.5) * turbAmp;
 
   const dist = Math.sqrt(x * x + y * y + z * z);
-  if (dist > 25) {
-    const scale = 25 / dist;
+  if (dist > 22) {
+    const falloff = Math.pow(Math.min(1, (25 - dist) / 3), 0.5);
+    const scale = (22 + (25 - 22) * falloff) / dist;
     x *= scale;
     y *= scale;
     z *= scale;
@@ -123,12 +150,14 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
   let positions = new Float32Array(currentCount * 3);
   let colors = new Float32Array(currentCount * 3);
   let sizes = new Float32Array(currentCount);
-  let opacities = new Float32Array(currentCount);
+  let opacities = new Float32Array(currentCount * 2);
 
   let targetPositions = new Float32Array(currentCount * 3);
   let targetColors = new Float32Array(currentCount * 3);
+  let targetSizes = new Float32Array(currentCount);
   let initialPositions = new Float32Array(currentCount * 3);
   let initialColors = new Float32Array(currentCount * 3);
+  let initialSizes = new Float32Array(currentCount);
 
   let driftOffsets = new Float32Array(currentCount * 3);
   let driftFrequencies = new Float32Array(currentCount * 3);
@@ -138,9 +167,7 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
 
   for (let i = 0; i < currentCount; i++) {
     const pos = generatePosition(params.density, params.turbulence);
-    const dist = Math.sqrt(pos[0] * pos[0] + pos[1] * pos[1] + pos[2] * pos[2]);
-    const colorT = Math.min(1, dist / 20);
-    const color = samplePalette(params.colorPalette, colorT);
+    const color = getParticleColor(params.colorPalette, pos[0], pos[1], pos[2]);
     const size = randRange(0.05, 0.3);
 
     positions[i * 3] = pos[0];
@@ -168,7 +195,13 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
     initialColors[i * 3 + 2] = color[2];
 
     sizes[i] = size;
-    opacities[i] = randRange(0.3, 0.8);
+    targetSizes[i] = size;
+    initialSizes[i] = size;
+
+    const baseOpacity = randRange(0.3, 0.8);
+    baseOpacities[i] = baseOpacity;
+    opacities[i * 2] = baseOpacity;
+    opacities[i * 2 + 1] = baseOpacity;
 
     driftOffsets[i * 3] = rand() * Math.PI * 2;
     driftOffsets[i * 3 + 1] = rand() * Math.PI * 2;
@@ -180,14 +213,18 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
 
     breathPhases[i] = rand() * Math.PI * 2;
     breathPeriods[i] = randRange(2, 4);
-    baseOpacities[i] = opacities[i];
+  }
+
+  const flatOpacities = new Float32Array(currentCount);
+  for (let i = 0; i < currentCount; i++) {
+    flatOpacities[i] = opacities[i * 2];
   }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
-  geometry.setAttribute('aOpacity', new THREE.BufferAttribute(opacities, 1));
+  geometry.setAttribute('aOpacity', new THREE.BufferAttribute(flatOpacities, 1));
 
   const material = new THREE.ShaderMaterial({
     vertexShader,
@@ -204,30 +241,61 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
   const transitionDuration = 2;
   let transitionActive = false;
   let nebulaRotation = 0;
+  let targetNebulaRotation = 0;
 
   function updateParams(newParams: Partial<NebulaParams>) {
     params = { ...params, ...newParams };
 
+    const currentGeometry = points.geometry;
+    const posAttr = currentGeometry.getAttribute('position') as THREE.BufferAttribute;
+    const colorAttr = currentGeometry.getAttribute('color') as THREE.BufferAttribute;
+    const sizeAttr = currentGeometry.getAttribute('aSize') as THREE.BufferAttribute;
+
+    const currPosArr = posAttr.array as Float32Array;
+    const currColorArr = colorAttr.array as Float32Array;
+    const currSizeArr = sizeAttr.array as Float32Array;
+
+    if (transitionActive) {
+      const t = transitionProgress;
+      for (let i = 0; i < currentCount; i++) {
+        const ix = i * 3;
+        initialPositions[ix] = lerp(initialPositions[ix], targetPositions[ix], t);
+        initialPositions[ix + 1] = lerp(initialPositions[ix + 1], targetPositions[ix + 1], t);
+        initialPositions[ix + 2] = lerp(initialPositions[ix + 2], targetPositions[ix + 2], t);
+
+        initialColors[ix] = lerp(initialColors[ix], targetColors[ix], t);
+        initialColors[ix + 1] = lerp(initialColors[ix + 1], targetColors[ix + 1], t);
+        initialColors[ix + 2] = lerp(initialColors[ix + 2], targetColors[ix + 2], t);
+
+        initialSizes[i] = lerp(initialSizes[i], targetSizes[i], t);
+      }
+    } else {
+      for (let i = 0; i < currentCount; i++) {
+        const ix = i * 3;
+        initialPositions[ix] = currPosArr[ix];
+        initialPositions[ix + 1] = currPosArr[ix + 1];
+        initialPositions[ix + 2] = currPosArr[ix + 2];
+
+        initialColors[ix] = currColorArr[ix];
+        initialColors[ix + 1] = currColorArr[ix + 1];
+        initialColors[ix + 2] = currColorArr[ix + 2];
+
+        initialSizes[i] = currSizeArr[i];
+      }
+    }
+
     for (let i = 0; i < currentCount; i++) {
-      initialPositions[i * 3] = positions[i * 3];
-      initialPositions[i * 3 + 1] = positions[i * 3 + 1];
-      initialPositions[i * 3 + 2] = positions[i * 3 + 2];
-
-      initialColors[i * 3] = colors[i * 3];
-      initialColors[i * 3 + 1] = colors[i * 3 + 1];
-      initialColors[i * 3 + 2] = colors[i * 3 + 2];
-
       const newPos = generatePosition(params.density, params.turbulence);
       targetPositions[i * 3] = newPos[0];
       targetPositions[i * 3 + 1] = newPos[1];
       targetPositions[i * 3 + 2] = newPos[2];
 
-      const dist = Math.sqrt(newPos[0] * newPos[0] + newPos[1] * newPos[1] + newPos[2] * newPos[2]);
-      const colorT = Math.min(1, dist / 20);
-      const newColor = samplePalette(params.colorPalette, colorT);
+      const newColor = getParticleColor(params.colorPalette, newPos[0], newPos[1], newPos[2]);
       targetColors[i * 3] = newColor[0];
       targetColors[i * 3 + 1] = newColor[1];
       targetColors[i * 3 + 2] = newColor[2];
+
+      targetSizes[i] = randRange(0.05, 0.3);
     }
 
     transitionProgress = 0;
@@ -242,11 +310,13 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
     const newPositions = new Float32Array(newCount * 3);
     const newColors = new Float32Array(newCount * 3);
     const newSizes = new Float32Array(newCount);
-    const newOpacities = new Float32Array(newCount);
+    const newOpacities = new Float32Array(newCount * 2);
     const newTargetPositions = new Float32Array(newCount * 3);
     const newTargetColors = new Float32Array(newCount * 3);
+    const newTargetSizes = new Float32Array(newCount);
     const newInitialPositions = new Float32Array(newCount * 3);
     const newInitialColors = new Float32Array(newCount * 3);
+    const newInitialSizes = new Float32Array(newCount);
     const newDriftOffsets = new Float32Array(newCount * 3);
     const newDriftFrequencies = new Float32Array(newCount * 3);
     const newBreathPhases = new Float32Array(newCount);
@@ -264,7 +334,8 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
       newColors[i * 3 + 2] = colors[srcIdx * 3 + 2];
 
       newSizes[i] = sizes[srcIdx];
-      newOpacities[i] = opacities[srcIdx];
+      newOpacities[i * 2] = opacities[srcIdx * 2];
+      newOpacities[i * 2 + 1] = opacities[srcIdx * 2 + 1];
 
       newTargetPositions[i * 3] = targetPositions[srcIdx * 3];
       newTargetPositions[i * 3 + 1] = targetPositions[srcIdx * 3 + 1];
@@ -274,6 +345,8 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
       newTargetColors[i * 3 + 1] = targetColors[srcIdx * 3 + 1];
       newTargetColors[i * 3 + 2] = targetColors[srcIdx * 3 + 2];
 
+      newTargetSizes[i] = targetSizes[srcIdx];
+
       newInitialPositions[i * 3] = initialPositions[srcIdx * 3];
       newInitialPositions[i * 3 + 1] = initialPositions[srcIdx * 3 + 1];
       newInitialPositions[i * 3 + 2] = initialPositions[srcIdx * 3 + 2];
@@ -281,6 +354,8 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
       newInitialColors[i * 3] = initialColors[srcIdx * 3];
       newInitialColors[i * 3 + 1] = initialColors[srcIdx * 3 + 1];
       newInitialColors[i * 3 + 2] = initialColors[srcIdx * 3 + 2];
+
+      newInitialSizes[i] = initialSizes[srcIdx];
 
       newDriftOffsets[i * 3] = driftOffsets[srcIdx * 3];
       newDriftOffsets[i * 3 + 1] = driftOffsets[srcIdx * 3 + 1];
@@ -298,11 +373,16 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
     const oldGeometry = points.geometry;
     oldGeometry.dispose();
 
+    const newFlatOpacities = new Float32Array(newCount);
+    for (let i = 0; i < newCount; i++) {
+      newFlatOpacities[i] = newOpacities[i * 2];
+    }
+
     const newGeometry = new THREE.BufferGeometry();
     newGeometry.setAttribute('position', new THREE.BufferAttribute(newPositions, 3));
     newGeometry.setAttribute('color', new THREE.BufferAttribute(newColors, 3));
     newGeometry.setAttribute('aSize', new THREE.BufferAttribute(newSizes, 1));
-    newGeometry.setAttribute('aOpacity', new THREE.BufferAttribute(newOpacities, 1));
+    newGeometry.setAttribute('aOpacity', new THREE.BufferAttribute(newFlatOpacities, 1));
 
     points.geometry = newGeometry;
 
@@ -315,8 +395,10 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
     opacities = newOpacities;
     targetPositions = newTargetPositions;
     targetColors = newTargetColors;
+    targetSizes = newTargetSizes;
     initialPositions = newInitialPositions;
     initialColors = newInitialColors;
+    initialSizes = newInitialSizes;
     driftOffsets = newDriftOffsets;
     driftFrequencies = newDriftFrequencies;
     breathPhases = newBreathPhases;
@@ -325,7 +407,8 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
   }
 
   function animate(delta: number, elapsed: number) {
-    nebulaRotation += delta * 0.01;
+    targetNebulaRotation += delta * 0.01;
+    nebulaRotation = targetNebulaRotation;
     points.rotation.y = nebulaRotation;
 
     if (transitionActive) {
@@ -338,10 +421,12 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
     const currentGeometry = points.geometry;
     const posAttr = currentGeometry.getAttribute('position') as THREE.BufferAttribute;
     const colorAttr = currentGeometry.getAttribute('color') as THREE.BufferAttribute;
+    const sizeAttr = currentGeometry.getAttribute('aSize') as THREE.BufferAttribute;
     const opacityAttr = currentGeometry.getAttribute('aOpacity') as THREE.BufferAttribute;
 
     const posArr = posAttr.array as Float32Array;
     const colorArr = colorAttr.array as Float32Array;
+    const sizeArr = sizeAttr.array as Float32Array;
     const opacityArr = opacityAttr.array as Float32Array;
 
     const t = transitionProgress;
@@ -362,6 +447,8 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
         colorArr[ix] = lerp(initialColors[ix], targetColors[ix], t);
         colorArr[ix + 1] = lerp(initialColors[ix + 1], targetColors[ix + 1], t);
         colorArr[ix + 2] = lerp(initialColors[ix + 2], targetColors[ix + 2], t);
+
+        sizeArr[i] = lerp(initialSizes[i], targetSizes[i], t);
       } else {
         posArr[ix] = targetPositions[ix] + driftX;
         posArr[ix + 1] = targetPositions[ix + 1] + driftY;
@@ -370,11 +457,12 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
 
       const breathOmega = (Math.PI * 2) / breathPeriods[i];
       const breathValue = 0.5 + 0.5 * Math.sin(elapsed * breathOmega + breathPhases[i]);
-      opacityArr[i] = 0.3 + 0.5 * breathValue;
+      opacityArr[i] = 0.55 + 0.25 * breathValue;
     }
 
     posAttr.needsUpdate = true;
     colorAttr.needsUpdate = true;
+    sizeAttr.needsUpdate = true;
     opacityAttr.needsUpdate = true;
   }
 

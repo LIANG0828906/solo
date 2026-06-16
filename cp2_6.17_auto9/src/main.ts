@@ -39,6 +39,8 @@ const ui = createUI({
 document.body.appendChild(ui.container);
 document.body.appendChild(ui.fpsCounter);
 document.body.appendChild(ui.modeIndicator);
+document.body.appendChild(ui.particleCountEl);
+ui.setParticleCount(initialParams.particleCount);
 
 let updateTimer: number | null = null;
 let pendingParams: Partial<NebulaParams> = {};
@@ -241,7 +243,53 @@ let fpsTimer = 0;
 let currentFps = 60;
 let smoothedFps = 60;
 let lastReduceTime = -5;
-let lowFpsCount = 0;
+
+type DowngradeState = 'monitoring' | 'confirming' | 'cooldown';
+let downgradeState: DowngradeState = 'monitoring';
+let confirmingFrames = 0;
+let cooldownTimer = 0;
+const CONFIRM_THRESHOLD = 2;
+const COOLDOWN_DURATION = 2;
+
+function handleFpsDowngrade(smoothedFps: number) {
+  const particleCount = nebula.getCurrentParticleCount();
+  if (particleCount <= 20000) return;
+
+  switch (downgradeState) {
+    case 'monitoring':
+      if (smoothedFps < 30) {
+        downgradeState = 'confirming';
+        confirmingFrames = 1;
+      }
+      break;
+
+    case 'confirming':
+      if (smoothedFps < 30) {
+        confirmingFrames++;
+        if (confirmingFrames >= CONFIRM_THRESHOLD && elapsed - lastReduceTime > COOLDOWN_DURATION) {
+          nebula.reduceParticles(0.2);
+          const newCount = nebula.getCurrentParticleCount();
+          ui.setParticleCount(newCount);
+          lastReduceTime = elapsed;
+          downgradeState = 'cooldown';
+          cooldownTimer = 0;
+          confirmingFrames = 0;
+        }
+      } else if (smoothedFps >= 32) {
+        downgradeState = 'monitoring';
+        confirmingFrames = 0;
+      }
+      break;
+
+    case 'cooldown':
+      cooldownTimer += 0.5;
+      if (cooldownTimer >= COOLDOWN_DURATION) {
+        downgradeState = 'monitoring';
+        cooldownTimer = 0;
+      }
+      break;
+  }
+}
 
 function animate() {
   requestAnimationFrame(animate);
@@ -258,17 +306,7 @@ function animate() {
     frameCount = 0;
     fpsTimer = 0;
 
-    const particleCount = nebula.getCurrentParticleCount();
-    if (smoothedFps < 30 && particleCount > 20000) {
-      lowFpsCount++;
-      if (lowFpsCount >= 2 && elapsed - lastReduceTime > 2) {
-        nebula.reduceParticles(0.2);
-        lastReduceTime = elapsed;
-        lowFpsCount = 0;
-      }
-    } else if (smoothedFps >= 30) {
-      lowFpsCount = 0;
-    }
+    handleFpsDowngrade(smoothedFps);
   }
 
   if (modeTransition.active) {
