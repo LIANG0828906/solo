@@ -5,13 +5,19 @@ import PlaybackPanel from './components/PlaybackPanel';
 import ExportButton from './components/ExportButton';
 import { useCanvasStore } from './store/useCanvasStore';
 
+const MOBILE_BREAKPOINT = 768;
+
 const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
-  const { isPlayback } = useCanvasStore();
+  const { isPlayback, isPlaybackPanelExpanded, setPlaybackPanelExpanded } = useCanvasStore();
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 900);
+      const mobile = window.innerWidth < MOBILE_BREAKPOINT;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setPlaybackPanelExpanded(true);
+      }
     };
 
     checkMobile();
@@ -20,7 +26,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('resize', checkMobile);
     };
-  }, []);
+  }, [setPlaybackPanelExpanded]);
 
   return (
     <div
@@ -42,16 +48,60 @@ const App: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        <Canvas />
-        <ExportButton />
+        <div
+          style={{
+            position: 'relative',
+            flex: isMobile ? 1 : (isPlaybackPanelExpanded ? 'calc(100% - 280px)' : '100%'),
+            transition: 'flex 0.3s ease',
+            minWidth: 0,
+          }}
+        >
+          <Canvas />
+          <ExportButton />
+        </div>
 
-        {!isMobile && <PlaybackPanel />}
+        {!isMobile && isPlaybackPanelExpanded && <PlaybackPanel />}
+
+        {!isMobile && !isPlaybackPanelExpanded && (
+          <div
+            onClick={() => setPlaybackPanelExpanded(true)}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              right: 0,
+              transform: 'translateY(-50%)',
+              width: 20,
+              height: 60,
+              backgroundColor: '#FAFAFA',
+              borderLeft: '1px solid #E0E0E0',
+              borderTop: '1px solid #E0E0E0',
+              borderBottom: '1px solid #E0E0E0',
+              borderTopLeftRadius: 8,
+              borderBottomLeftRadius: 8,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 40,
+              fontSize: 12,
+              color: '#666',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#F0F0F0';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#FAFAFA';
+            }}
+          >
+            ◀
+          </div>
+        )}
 
         {isPlayback && (
           <div
             style={{
               position: 'absolute',
-              top: 80,
+              top: 16,
               left: '50%',
               transform: 'translateX(-50%)',
               backgroundColor: '#1976D2',
@@ -61,6 +111,7 @@ const App: React.FC = () => {
               fontSize: 13,
               zIndex: 50,
               boxShadow: '0 2px 8px rgba(25, 118, 210, 0.4)',
+              pointerEvents: 'none',
             }}
           >
             回放模式 - 画布已锁定
@@ -68,7 +119,7 @@ const App: React.FC = () => {
         )}
       </div>
 
-      {isMobile && <PlaybackPanel isMobile />}
+      {isMobile && <PlaybackPanel isCollapsedMobile />}
     </div>
   );
 };

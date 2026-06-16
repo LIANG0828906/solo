@@ -18,8 +18,14 @@ interface CanvasState {
   playbackIndex: number;
   playbackSpeed: number;
   playbackShapes: Shape[];
+  playbackStartTime: number | null;
+  actionTimeline: { delay: number; record: ActionRecord }[];
   isExporting: boolean;
   showNoteInput: { x: number; y: number } | null;
+  isNotepadInputActive: boolean;
+  notepadInputContent: string;
+  notepadInputPosition: { x: number; y: number } | null;
+  isPlaybackPanelExpanded: boolean;
 
   setCurrentTool: (tool: ToolType) => void;
   setCurrentColor: (color: string) => void;
@@ -44,10 +50,19 @@ interface CanvasState {
   setPlaybackSpeed: (speed: number) => void;
   setPlaybackShapes: (shapes: Shape[]) => void;
   stepPlayback: () => boolean;
+  buildActionTimeline: () => void;
 
   setIsExporting: (value: boolean) => void;
   setShowNoteInput: (value: { x: number; y: number } | null) => void;
   addNote: (x: number, y: number, text: string) => void;
+  setIsNotepadInputActive: (value: boolean) => void;
+  setNotepadInputContent: (value: string) => void;
+  setNotepadInputPosition: (value: { x: number; y: number } | null) => void;
+  commitNotepadInput: () => void;
+  cancelNotepadInput: () => void;
+
+  setPlaybackPanelExpanded: (value: boolean) => void;
+  togglePlaybackPanel: () => void;
 }
 
 const USER_ID = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -74,10 +89,22 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   playbackIndex: -1,
   playbackSpeed: 1,
   playbackShapes: [],
+  playbackStartTime: null,
+  actionTimeline: [],
   isExporting: false,
   showNoteInput: null,
+  isNotepadInputActive: false,
+  notepadInputContent: '',
+  notepadInputPosition: null,
+  isPlaybackPanelExpanded: true,
 
-  setCurrentTool: (tool) => set({ currentTool: tool }),
+  setCurrentTool: (tool) => {
+    const { isNotepadInputActive, commitNotepadInput, currentTool: oldTool } = get();
+    if (isNotepadInputActive && oldTool === 'note' && tool !== 'note') {
+      commitNotepadInput();
+    }
+    set({ currentTool: tool });
+  },
   setCurrentColor: (color) => set({ currentColor: color }),
   setLineWidth: (width) => set({ lineWidth: width }),
   setFillColor: (color) => set({ fillColor: color }),
@@ -96,6 +123,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       shapes: newShapes,
       actionRecords: [...actionRecords, record],
     });
+    get().buildActionTimeline();
   },
 
   updateShape: (id, updates) => {
@@ -116,6 +144,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         shapes: newShapes,
         actionRecords: [...actionRecords, record],
       });
+      get().buildActionTimeline();
     }
   },
 
@@ -135,6 +164,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         shapes: newShapes,
         actionRecords: [...actionRecords, record],
       });
+      get().buildActionTimeline();
     }
   },
 
@@ -174,11 +204,39 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   resetView: () => set({ viewTransform: initialViewTransform }),
 
+  buildActionTimeline: () => {
+    const { actionRecords } = get();
+    const addRecords = actionRecords
+      .filter((r) => r.action === 'add')
+      .sort((a, b) => a.timestamp - b.timestamp);
+    
+    if (addRecords.length === 0) {
+      set({ actionTimeline: [] });
+      return;
+    }
+
+    const timeline: { delay: number; record: ActionRecord }[] = [];
+    let prevTimestamp = addRecords[0].timestamp;
+    
+    timeline.push({ delay: 0, record: addRecords[0] });
+    
+    for (let i = 1; i < addRecords.length; i++) {
+      const delay = addRecords[i].timestamp - prevTimestamp;
+      timeline.push({ delay: Math.min(delay, 3000), record: addRecords[i] });
+      prevTimestamp = addRecords[i].timestamp;
+    }
+    
+    set({ actionTimeline: timeline });
+  },
+
   startPlayback: () => {
+    const { buildActionTimeline } = get();
+    buildActionTimeline();
     set({
       isPlayback: true,
       playbackIndex: -1,
       playbackShapes: [],
+      playbackStartTime: Date.now(),
     });
   },
 
@@ -187,12 +245,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       isPlayback: false,
       playbackIndex: -1,
       playbackShapes: [],
+      playbackStartTime: null,
     }),
 
   setPlaybackIndex: (index) => {
-    const { actionRecords } = get();
-    const addRecords = actionRecords.filter((r) => r.action === 'add');
-    const shapes = addRecords.slice(0, index + 1).map((r) => r.shape);
+    const { actionTimeline } = get();
+    const shapes = actionTimeline
+      .slice(0, index + 1)
+      .map((t) => t.record.shape);
     set({ playbackIndex: index, playbackShapes: shapes });
   },
 
@@ -201,11 +261,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setPlaybackShapes: (shapes) => set({ playbackShapes: shapes }),
 
   stepPlayback: () => {
-    const { playbackIndex, actionRecords } = get();
-    const addRecords = actionRecords.filter((r) => r.action === 'add');
-    if (playbackIndex < addRecords.length - 1) {
+    const { playbackIndex, actionTimeline } = get();
+    if (playbackIndex < actionTimeline.length - 1) {
       const nextIndex = playbackIndex + 1;
-      const shapes = addRecords.slice(0, nextIndex + 1).map((r) => r.shape);
+      const shapes = actionTimeline
+        .slice(0, nextIndex + 1)
+        .map((t) => t.record.shape);
       set({ playbackIndex: nextIndex, playbackShapes: shapes });
       return true;
     }
@@ -235,4 +296,34 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     get().pushHistory();
     get().addShape(note);
   },
+
+  setIsNotepadInputActive: (value) => set({ isNotepadInputActive: value }),
+  setNotepadInputContent: (value) => set({ notepadInputContent: value }),
+  setNotepadInputPosition: (value) => set({ notepadInputPosition: value }),
+
+  commitNotepadInput: () => {
+    const { notepadInputContent, notepadInputPosition, addNote } = get();
+    if (notepadInputPosition && notepadInputContent.trim()) {
+      addNote(notepadInputPosition.x, notepadInputPosition.y, notepadInputContent.trim());
+    }
+    set({
+      isNotepadInputActive: false,
+      notepadInputContent: '',
+      notepadInputPosition: null,
+      showNoteInput: null,
+    });
+  },
+
+  cancelNotepadInput: () => {
+    set({
+      isNotepadInputActive: false,
+      notepadInputContent: '',
+      notepadInputPosition: null,
+      showNoteInput: null,
+    });
+  },
+
+  setPlaybackPanelExpanded: (value) => set({ isPlaybackPanelExpanded: value }),
+  togglePlaybackPanel: () =>
+    set((state) => ({ isPlaybackPanelExpanded: !state.isPlaybackPanelExpanded })),
 }));

@@ -3,9 +3,30 @@ import { useCanvasStore } from '../store/useCanvasStore';
 
 const speedOptions = [0.5, 1, 2];
 
-const PlaybackPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) => {
+function getShapeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    brush: '画笔',
+    rectangle: '矩形',
+    circle: '圆形',
+    line: '直线',
+    eraser: '橡皮擦',
+    note: '便签',
+  };
+  return labels[type] || type;
+}
+
+function formatTimestamp(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = (seconds - mins * 60).toFixed(0);
+  return `${mins}m${secs}s`;
+}
+
+const PlaybackPanel: React.FC<{ isCollapsedMobile?: boolean }> = ({ isCollapsedMobile = false }) => {
   const {
-    actionRecords,
+    actionTimeline,
     isPlayback,
     playbackIndex,
     playbackSpeed,
@@ -14,33 +35,45 @@ const PlaybackPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) =
     setPlaybackIndex,
     setPlaybackSpeed,
     stepPlayback,
+    isPlaybackPanelExpanded,
+    togglePlaybackPanel,
   } = useCanvasStore();
 
   const [isPlaying, setIsPlaying] = useState(false);
   const animationRef = useRef<number | null>(null);
-  const lastTimeRef = useRef<number>(0);
+  const lastStepTimeRef = useRef<number>(0);
+  const accumulatedTimeRef = useRef<number>(0);
 
-  const addRecords = actionRecords.filter((r) => r.action === 'add');
-  const totalSteps = addRecords.length;
+  const totalSteps = actionTimeline.length;
+  const totalDuration = actionTimeline.reduce((sum, t) => sum + t.delay, 0);
+  const currentDuration = actionTimeline
+    .slice(0, playbackIndex + 1)
+    .reduce((sum, t) => sum + t.delay, 0);
 
   useEffect(() => {
     if (!isPlaying || !isPlayback) return;
 
     const animate = (timestamp: number) => {
-      if (!lastTimeRef.current) {
-        lastTimeRef.current = timestamp;
+      if (!lastStepTimeRef.current) {
+        lastStepTimeRef.current = timestamp;
       }
 
-      const delta = timestamp - lastTimeRef.current;
-      const interval = 500 / playbackSpeed;
+      const delta = timestamp - lastStepTimeRef.current;
+      lastStepTimeRef.current = timestamp;
+      accumulatedTimeRef.current += delta * playbackSpeed;
 
-      if (delta >= interval) {
-        const hasMore = stepPlayback();
-        if (!hasMore) {
-          setIsPlaying(false);
-          return;
+      while (playbackIndex >= -1 && playbackIndex < actionTimeline.length - 1) {
+        const nextDelay = actionTimeline[playbackIndex + 1].delay;
+        if (accumulatedTimeRef.current >= nextDelay) {
+          accumulatedTimeRef.current -= nextDelay;
+          const hasMore = stepPlayback();
+          if (!hasMore) {
+            setIsPlaying(false);
+            return;
+          }
+        } else {
+          break;
         }
-        lastTimeRef.current = timestamp;
       }
 
       animationRef.current = requestAnimationFrame(animate);
@@ -53,23 +86,28 @@ const PlaybackPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) =
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPlaying, isPlayback, playbackSpeed, stepPlayback]);
+  }, [isPlaying, isPlayback, playbackSpeed, playbackIndex, actionTimeline, stepPlayback]);
 
   const handlePlayPause = () => {
     if (!isPlayback) {
       startPlayback();
+      accumulatedTimeRef.current = 0;
+      lastStepTimeRef.current = 0;
     }
     setIsPlaying(!isPlaying);
   };
 
   const handleStop = () => {
     setIsPlaying(false);
+    accumulatedTimeRef.current = 0;
+    lastStepTimeRef.current = 0;
     stopPlayback();
   };
 
   const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const index = Number(e.target.value);
     if (isPlayback) {
+      accumulatedTimeRef.current = 0;
       setPlaybackIndex(index);
     }
   };
@@ -78,124 +116,246 @@ const PlaybackPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) =
     setPlaybackSpeed(speed);
   };
 
-  const formatTime = (index: number) => {
-    if (index < 0 || addRecords.length === 0) return '00:00';
-    const seconds = Math.floor((index + 1) * 0.5);
+  const formatTime = (ms: number) => {
+    const seconds = Math.floor(ms / 1000);
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (isMobile) {
+  const playIcon = isPlaying ? '⏸' : '▶';
+  const playLabel = totalSteps === 0 ? '无动作' : (isPlaying ? '暂停' : '播放');
+
+  if (isCollapsedMobile) {
+    if (!isPlaybackPanelExpanded) {
+      return (
+        <div
+          onClick={togglePlaybackPanel}
+          style={{
+            height: 40,
+            backgroundColor: '#FAFAFA',
+            borderTop: '1px solid #E0E0E0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 16px',
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePlayPause();
+              }}
+              disabled={totalSteps === 0}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                border: 'none',
+                backgroundColor: totalSteps === 0 ? '#E0E0E0' : '#1976D2',
+                color: 'white',
+                cursor: totalSteps === 0 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 12,
+                transition: 'transform 0.1s ease',
+              }}
+              onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.9)'}
+              onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              {playIcon}
+            </button>
+            <span style={{ fontSize: 12, color: '#333' }}>
+              {playLabel} {isPlayback && `(${playbackIndex + 1}/${totalSteps})`}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: '#666' }}>
+              {formatTime(currentDuration)}/{formatTime(totalDuration)}
+            </span>
+            <span style={{ fontSize: 16, color: '#666', transform: isPlaybackPanelExpanded ? 'rotate(180deg)' : '' }}>
+              ▲
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         style={{
-          height: 60,
           backgroundColor: '#FAFAFA',
           borderTop: '1px solid #E0E0E0',
           display: 'flex',
-          alignItems: 'center',
-          padding: '0 16px',
-          gap: 12,
+          flexDirection: 'column',
+          maxHeight: '50vh',
+          overflow: 'hidden',
         }}
       >
-        <button
-          onClick={handlePlayPause}
-          disabled={totalSteps === 0}
+        <div
+          onClick={togglePlaybackPanel}
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            border: 'none',
-            backgroundColor: totalSteps === 0 ? '#E0E0E0' : '#1976D2',
-            color: 'white',
-            cursor: totalSteps === 0 ? 'not-allowed' : 'pointer',
+            height: 40,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 16,
-            transition: 'transform 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            if (totalSteps > 0) e.currentTarget.style.transform = 'scale(1.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-          onMouseDown={(e) => {
-            if (totalSteps > 0) e.currentTarget.style.transform = 'scale(0.9)';
-          }}
-          onMouseUp={(e) => {
-            if (totalSteps > 0) e.currentTarget.style.transform = 'scale(1.1)';
+            justifyContent: 'space-between',
+            padding: '0 16px',
+            cursor: 'pointer',
+            userSelect: 'none',
+            borderBottom: '1px solid #E0E0E0',
           }}
         >
-          {isPlaying ? '⏸' : '▶'}
-        </button>
-
-        <button
-          onClick={handleStop}
-          disabled={!isPlayback}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            border: '1px solid #E0E0E0',
-            backgroundColor: isPlayback ? '#FFFFFF' : '#F5F5F5',
-            cursor: isPlayback ? 'pointer' : 'not-allowed',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 14,
-            opacity: isPlayback ? 1 : 0.5,
-          }}
-        >
-          ■
-        </button>
-
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, color: '#666', width: 40 }}>
-            {formatTime(playbackIndex)}
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>
+            回放面板 {isPlayback && `(${playbackIndex + 1}/${totalSteps})`}
           </span>
-          <input
-            type="range"
-            min="-1"
-            max={totalSteps - 1}
-            value={playbackIndex}
-            onChange={handleProgressChange}
-            disabled={!isPlayback || totalSteps === 0}
-            style={{ flex: 1, cursor: isPlayback ? 'pointer' : 'not-allowed' }}
-          />
-          <span style={{ fontSize: 11, color: '#666', width: 40, textAlign: 'right' }}>
-            {formatTime(totalSteps - 1)}
+          <span
+            style={{
+              fontSize: 16,
+              color: '#666',
+              transform: 'rotate(180deg)',
+            }}
+          >
+            ▲
           </span>
         </div>
 
-        <div style={{ display: 'flex', gap: 4 }}>
-          {speedOptions.map((speed) => (
-            <button
-              key={speed}
-              onClick={() => handleSpeedChange(speed)}
-              style={{
-                width: 32,
-                height: 28,
-                borderRadius: 4,
-                border: playbackSpeed === speed ? '1px solid #1976D2' : '1px solid #E0E0E0',
-                backgroundColor: playbackSpeed === speed ? '#E3F2FD' : '#FFFFFF',
-                color: playbackSpeed === speed ? '#1976D2' : '#666',
-                fontSize: 11,
-                cursor: 'pointer',
-                transition: 'transform 0.1s ease',
-              }}
-              onMouseDown={(e) => {
-                e.currentTarget.style.transform = 'scale(0.95)';
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              {speed}x
-            </button>
-          ))}
+        <div
+          style={{
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            borderBottom: '1px solid #E0E0E0',
+          }}
+        >
+          <button
+            onClick={handlePlayPause}
+            disabled={totalSteps === 0}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              border: 'none',
+              backgroundColor: totalSteps === 0 ? '#E0E0E0' : '#1976D2',
+              color: 'white',
+              cursor: totalSteps === 0 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 16,
+            }}
+          >
+            {playIcon}
+          </button>
+
+          <button
+            onClick={handleStop}
+            disabled={!isPlayback}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              border: '1px solid #E0E0E0',
+              backgroundColor: isPlayback ? '#FFFFFF' : '#F5F5F5',
+              cursor: isPlayback ? 'pointer' : 'not-allowed',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 12,
+              opacity: isPlayback ? 1 : 0.5,
+            }}
+          >
+            ■
+          </button>
+
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, color: '#666' }}>{formatTime(currentDuration)}</span>
+            <input
+              type="range"
+              min="-1"
+              max={Math.max(totalSteps - 1, -1)}
+              value={playbackIndex}
+              onChange={handleProgressChange}
+              disabled={!isPlayback || totalSteps === 0}
+              style={{ flex: 1, cursor: isPlayback ? 'pointer' : 'not-allowed' }}
+            />
+            <span style={{ fontSize: 11, color: '#666' }}>{formatTime(totalDuration)}</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 4 }}>
+            {speedOptions.map((speed) => (
+              <button
+                key={speed}
+                onClick={() => handleSpeedChange(speed)}
+                style={{
+                  width: 30,
+                  height: 26,
+                  borderRadius: 4,
+                  border: playbackSpeed === speed ? '1px solid #1976D2' : '1px solid #E0E0E0',
+                  backgroundColor: playbackSpeed === speed ? '#E3F2FD' : '#FFFFFF',
+                  color: playbackSpeed === speed ? '#1976D2' : '#666',
+                  fontSize: 10,
+                  cursor: 'pointer',
+                }}
+              >
+                {speed}x
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '8px 16px',
+          }}
+        >
+          {actionTimeline.length === 0 ? (
+            <p style={{ fontSize: 12, color: '#999', textAlign: 'center', padding: 20 }}>
+              暂无绘图记录
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {actionTimeline.map((item, index) => (
+                <div
+                  key={item.record.id}
+                  onClick={() => isPlayback && setPlaybackIndex(index)}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 6,
+                    backgroundColor: index <= playbackIndex ? '#E3F2FD' : '#FFFFFF',
+                    border: '1px solid #E0E0E0',
+                    cursor: isPlayback ? 'pointer' : 'default',
+                    fontSize: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: item.record.shape.color,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ flex: 1, color: '#333' }}>
+                    {getShapeLabel(item.record.shape.type)}
+                  </span>
+                  <span style={{ color: '#999', fontSize: 10, flexShrink: 0 }}>
+                    +{formatTimestamp(item.delay)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -222,7 +382,7 @@ const PlaybackPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) =
           回放面板
         </h3>
         <p style={{ fontSize: 12, color: '#999' }}>
-          共 {totalSteps} 个绘图动作
+          共 {totalSteps} 个绘图动作 · {formatTime(totalDuration)}
         </p>
       </div>
 
@@ -258,7 +418,7 @@ const PlaybackPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) =
               if (totalSteps > 0) e.currentTarget.style.transform = 'scale(1.1)';
             }}
           >
-            {isPlaying ? '⏸' : '▶'}
+            {playIcon}
           </button>
 
           <button
@@ -297,13 +457,13 @@ const PlaybackPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) =
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#666' }}>
-            <span>{formatTime(playbackIndex)}</span>
-            <span>{formatTime(totalSteps - 1)}</span>
+            <span>{formatTime(currentDuration)}</span>
+            <span>{formatTime(totalDuration)}</span>
           </div>
           <input
             type="range"
             min="-1"
-            max={totalSteps - 1}
+            max={Math.max(totalSteps - 1, -1)}
             value={playbackIndex}
             onChange={handleProgressChange}
             disabled={!isPlayback || totalSteps === 0}
@@ -356,15 +516,15 @@ const PlaybackPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) =
       >
         <div style={{ padding: '8px 16px' }}>
           <h4 style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>时间线</h4>
-          {addRecords.length === 0 ? (
+          {actionTimeline.length === 0 ? (
             <p style={{ fontSize: 12, color: '#999', textAlign: 'center', padding: 20 }}>
               暂无绘图记录
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {addRecords.map((record, index) => (
+              {actionTimeline.map((item, index) => (
                 <div
-                  key={record.id}
+                  key={item.record.id}
                   onClick={() => isPlayback && setPlaybackIndex(index)}
                   style={{
                     padding: '8px 10px',
@@ -391,15 +551,21 @@ const PlaybackPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) =
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      backgroundColor: record.shape.color,
+                      backgroundColor: item.record.shape.color,
+                      flexShrink: 0,
                     }}
                   />
                   <span style={{ flex: 1, color: '#333' }}>
-                    {getShapeLabel(record.shape.type)}
+                    {getShapeLabel(item.record.shape.type)}
                   </span>
-                  <span style={{ color: '#999', fontSize: 11 }}>
-                    #{index + 1}
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <span style={{ color: '#999', fontSize: 10 }}>
+                      #{index + 1}
+                    </span>
+                    <span style={{ color: '#BBB', fontSize: 9 }}>
+                      +{formatTimestamp(item.delay)}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -409,17 +575,5 @@ const PlaybackPanel: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) =
     </div>
   );
 };
-
-function getShapeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    brush: '画笔',
-    rectangle: '矩形',
-    circle: '圆形',
-    line: '直线',
-    eraser: '橡皮擦',
-    note: '便签',
-  };
-  return labels[type] || type;
-}
 
 export default PlaybackPanel;

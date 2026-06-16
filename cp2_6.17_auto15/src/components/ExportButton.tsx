@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { useCanvasStore } from '../store/useCanvasStore';
 import { drawShape } from '../utils/canvasRenderer';
+import { OffscreenCanvasContext } from './Canvas';
 
 const ExportButton: React.FC = () => {
   const { shapes, isExporting, setIsExporting } = useCanvasStore();
+  const offscreenCanvas = useContext(OffscreenCanvasContext);
+  const useOffscreenRendering = shapes.length > 500;
 
   const handleExport = () => {
     setIsExporting(true);
@@ -17,15 +20,32 @@ const ExportButton: React.FC = () => {
   };
 
   const exportCanvas = () => {
-    const allShapes = shapes;
-    
+    if (useOffscreenRendering && offscreenCanvas) {
+      exportFromOffscreen(offscreenCanvas);
+      return;
+    }
+    exportFromShapes();
+  };
+
+  const exportFromOffscreen = (offCanvas: HTMLCanvasElement) => {
+    const link = document.createElement('a');
+    link.download = `drawripple-${Date.now()}.png`;
+    link.href = offCanvas.toDataURL('image/png');
+    link.click();
+  };
+
+  const exportFromShapes = () => {
+    const allShapes = shapes.filter((s) => s.type !== 'eraser');
+
     if (allShapes.length === 0) {
       downloadEmptyImage();
       return;
     }
 
-    let minX = Infinity, minY = Infinity;
-    let maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity;
+    let maxX = -Infinity,
+      maxY = -Infinity;
 
     for (const shape of allShapes) {
       const bounds = getShapeBounds(shape);
@@ -39,10 +59,10 @@ const ExportButton: React.FC = () => {
     const width = Math.ceil(maxX - minX + padding * 2);
     const height = Math.ceil(maxY - minY + padding * 2);
 
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
+    const exportCanvasEl = document.createElement('canvas');
+    exportCanvasEl.width = width;
+    exportCanvasEl.height = height;
+    const ctx = exportCanvasEl.getContext('2d');
     if (!ctx) return;
 
     ctx.fillStyle = '#FFFFFF';
@@ -52,7 +72,6 @@ const ExportButton: React.FC = () => {
     ctx.translate(padding - minX, padding - minY);
 
     for (const shape of allShapes) {
-      if (shape.type === 'eraser') continue;
       drawShape(ctx, shape);
     }
 
@@ -60,7 +79,7 @@ const ExportButton: React.FC = () => {
 
     const link = document.createElement('a');
     link.download = `drawripple-${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png');
+    link.href = exportCanvasEl.toDataURL('image/png');
     link.click();
   };
 
@@ -72,7 +91,7 @@ const ExportButton: React.FC = () => {
     if (!ctx) return;
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, 800, 600);
-    
+
     const link = document.createElement('a');
     link.download = `drawripple-${Date.now()}.png`;
     link.href = canvas.toDataURL('image/png');
@@ -82,7 +101,7 @@ const ExportButton: React.FC = () => {
   const getShapeBounds = (shape: any): { minX: number; minY: number; maxX: number; maxY: number } => {
     switch (shape.type) {
       case 'brush':
-      case 'eraser':
+      case 'eraser': {
         const xs = shape.points.map((p: any) => p.x);
         const ys = shape.points.map((p: any) => p.y);
         return {
@@ -91,6 +110,7 @@ const ExportButton: React.FC = () => {
           maxX: Math.max(...xs) + shape.lineWidth,
           maxY: Math.max(...ys) + shape.lineWidth,
         };
+      }
       case 'rectangle':
         return {
           minX: shape.x,
@@ -131,8 +151,8 @@ const ExportButton: React.FC = () => {
         disabled={isExporting}
         style={{
           position: 'absolute',
-          top: 80,
-          right: 300,
+          top: 16,
+          right: 16,
           zIndex: 50,
           padding: '10px 20px',
           backgroundColor: '#1976D2',
@@ -169,6 +189,24 @@ const ExportButton: React.FC = () => {
       >
         {isExporting ? '导出中...' : '导出 PNG'}
       </button>
+
+      {useOffscreenRendering && !isExporting && shapes.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 68,
+            right: 16,
+            zIndex: 50,
+            fontSize: 10,
+            color: '#999',
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            padding: '2px 6px',
+            borderRadius: 4,
+          }}
+        >
+          离屏渲染 · {shapes.length} 个图形
+        </div>
+      )}
 
       {isExporting && (
         <div

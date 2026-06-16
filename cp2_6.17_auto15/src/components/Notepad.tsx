@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
+import { useCanvasStore } from '../store/useCanvasStore';
 
 interface NoteInputModalProps {
   onSubmit: (text: string) => void;
@@ -6,7 +7,7 @@ interface NoteInputModalProps {
 }
 
 export const NoteInputModal: React.FC<NoteInputModalProps> = ({ onSubmit, onCancel }) => {
-  const [text, setText] = useState('');
+  const { notepadInputContent, setNotepadInputContent } = useCanvasStore();
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export const NoteInputModal: React.FC<NoteInputModalProps> = ({ onSubmit, onCanc
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      onSubmit(text);
+      onSubmit(notepadInputContent);
     }
     if (e.key === 'Escape') {
       onCancel();
@@ -36,13 +37,16 @@ export const NoteInputModal: React.FC<NoteInputModalProps> = ({ onSubmit, onCanc
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
         border: '1px solid #E0D890',
       }}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
     >
       <textarea
         ref={inputRef}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
+        value={notepadInputContent}
+        onChange={(e) => setNotepadInputContent(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="输入便签内容..."
+        placeholder="输入便签内容... (Enter保存)"
         style={{
           width: '100%',
           height: '100%',
@@ -63,16 +67,29 @@ export const NoteInputModal: React.FC<NoteInputModalProps> = ({ onSubmit, onCanc
 interface NotepadProps {
   position: { x: number; y: number };
   scale: number;
+  offsetX: number;
+  offsetY: number;
+  rectLeft: number;
+  rectTop: number;
   onSubmit: (text: string) => void;
   onCancel: () => void;
 }
 
-const Notepad: React.FC<NotepadProps> = ({ position, scale, onSubmit, onCancel }) => {
+const Notepad: React.FC<NotepadProps> = ({
+  position,
+  scale,
+  offsetX,
+  offsetY,
+  rectLeft,
+  rectTop,
+  onSubmit,
+  onCancel,
+}) => {
   const getNoteStyle = (): React.CSSProperties => {
     return {
       position: 'fixed',
-      left: position.x * scale,
-      top: position.y * scale,
+      left: position.x * scale + offsetX + rectLeft,
+      top: position.y * scale + offsetY + rectTop,
       transform: `scale(${scale})`,
       transformOrigin: 'top left',
       zIndex: 100,

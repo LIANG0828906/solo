@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, createContext } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useCanvasStore } from '../store/useCanvasStore';
 import { drawShape, drawGrid, screenToCanvas, isPointInNote, isPointOnNoteDeleteButton } from '../utils/canvasRenderer';
@@ -7,10 +7,13 @@ import type { Shape, Point } from '../types';
 
 const OFFSCREEN_THRESHOLD = 500;
 
+export const OffscreenCanvasContext = createContext<HTMLCanvasElement | null>(null);
+
 const Canvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRectRef = useRef<DOMRect | null>(null);
   
   const [isDrawing, setIsDrawing] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
@@ -31,12 +34,18 @@ const Canvas: React.FC = () => {
     isPlayback,
     playbackShapes,
     showNoteInput,
+    isNotepadInputActive,
+    commitNotepadInput,
+    cancelNotepadInput,
+    setShowNoteInput,
+    setIsNotepadInputActive,
+    setNotepadInputPosition,
+    setNotepadInputContent,
     setViewTransform,
     addShape,
     updateShape,
     deleteShape,
     pushHistory,
-    setShowNoteInput,
     addNote,
   } = useCanvasStore();
 
@@ -49,6 +58,12 @@ const Canvas: React.FC = () => {
       width: containerRef.current.clientWidth,
       height: containerRef.current.clientHeight,
     };
+  }, []);
+
+  const updateCanvasRect = useCallback(() => {
+    if (canvasRef.current) {
+      canvasRectRef.current = canvasRef.current.getBoundingClientRect();
+    }
   }, []);
 
   const render = useCallback(() => {
@@ -124,15 +139,18 @@ const Canvas: React.FC = () => {
       if (ctx) {
         ctx.scale(dpr, dpr);
       }
+      updateCanvasRect();
     };
     
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('scroll', updateCanvasRect);
     
     return () => {
       window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('scroll', updateCanvasRect);
     };
-  }, []);
+  }, [updateCanvasRect]);
 
   useEffect(() => {
     let animationId: number;
@@ -160,10 +178,10 @@ const Canvas: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPlayback]);
 
-  const getCanvasPos = (e: React.MouseEvent): Point => {
+  const getCanvasPos = (e: React.MouseEvent | MouseEvent): Point => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
+    const rect = canvasRectRef.current || canvas.getBoundingClientRect();
     return screenToCanvas(
       e.clientX - rect.left,
       e.clientY - rect.top,
@@ -176,11 +194,18 @@ const Canvas: React.FC = () => {
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isPlayback) return;
     
+    updateCanvasRect();
     const pos = getCanvasPos(e);
     
     if (e.button === 1) {
+      e.preventDefault();
       setIsPanning(true);
       setLastMousePos({ x: e.clientX, y: e.clientY });
+      return;
+    }
+    
+    if (isNotepadInputActive) {
+      commitNotepadInput();
       return;
     }
     
@@ -205,6 +230,9 @@ const Canvas: React.FC = () => {
       }
       
       setShowNoteInput({ x: pos.x, y: pos.y });
+      setNotepadInputPosition({ x: pos.x, y: pos.y });
+      setIsNotepadInputActive(true);
+      setNotepadInputContent('');
       return;
     }
     
@@ -365,7 +393,8 @@ const Canvas: React.FC = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const rect = canvas.getBoundingClientRect();
+    updateCanvasRect();
+    const rect = canvasRectRef.current || canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     
@@ -389,62 +418,60 @@ const Canvas: React.FC = () => {
     if (showNoteInput && text.trim()) {
       addNote(showNoteInput.x, showNoteInput.y, text.trim());
     }
-    setShowNoteInput(null);
+    cancelNotepadInput();
   };
 
   const getNoteInputStyle = () => {
     if (!showNoteInput) return {};
     const canvas = canvasRef.current;
     if (!canvas) return {};
-    const rect = canvas.getBoundingClientRect();
+    const rect = canvasRectRef.current || canvas.getBoundingClientRect();
     return {
+      position: 'fixed' as const,
       left: showNoteInput.x * viewTransform.scale + viewTransform.offsetX + rect.left,
       top: showNoteInput.y * viewTransform.scale + viewTransform.offsetY + rect.top,
       transform: `scale(${viewTransform.scale})`,
-      transformOrigin: 'top left',
+      transformOrigin: 'top left' as const,
+      zIndex: 100,
     };
   };
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        flex: 1,
-        position: 'relative',
-        overflow: 'hidden',
-        backgroundColor: '#FFFFFF',
-        cursor: isPanning ? 'grabbing' : currentTool === 'note' ? 'pointer' : 'crosshair',
-      }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onWheel={handleWheel}
-    >
-      <canvas
-        ref={canvasRef}
+    <OffscreenCanvasContext.Provider value={offscreenCanvasRef.current}>
+      <div
+        ref={containerRef}
         style={{
-          display: 'block',
-          width: '100%',
-          height: '100%',
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+          backgroundColor: '#FFFFFF',
+          cursor: isPanning ? 'grabbing' : currentTool === 'note' ? (isDraggingNote ? 'move' : 'pointer') : 'crosshair',
         }}
-      />
-      
-      {showNoteInput && !isPlayback && (
-        <div
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+      >
+        <canvas
+          ref={canvasRef}
           style={{
-            position: 'fixed',
-            ...getNoteInputStyle(),
-            zIndex: 100,
+            display: 'block',
+            width: '100%',
+            height: '100%',
           }}
-        >
-          <NoteInputModal
-            onSubmit={handleNoteInputSubmit}
-            onCancel={() => setShowNoteInput(null)}
-          />
-        </div>
-      )}
-    </div>
+        />
+        
+        {showNoteInput && isNotepadInputActive && !isPlayback && (
+          <div style={getNoteInputStyle()}>
+            <NoteInputModal
+              onSubmit={handleNoteInputSubmit}
+              onCancel={cancelNotepadInput}
+            />
+          </div>
+        )}
+      </div>
+    </OffscreenCanvasContext.Provider>
   );
 };
 
