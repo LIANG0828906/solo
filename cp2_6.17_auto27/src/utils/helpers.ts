@@ -37,15 +37,29 @@ export function generateInvoiceNo(): string {
 }
 
 export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = typeof date === 'string' ? parseDate(date) : date;
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
+export function parseDate(dateStr: string): Date {
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  }
+  return new Date(dateStr);
+}
+
+export function normalizeDate(dateStr: string): string {
+  if (!dateStr) return '';
+  const d = parseDate(dateStr);
+  return formatDate(d);
+}
+
 export function isFutureDate(dateStr: string): boolean {
-  const inputDate = new Date(dateStr);
+  const inputDate = parseDate(dateStr);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   inputDate.setHours(0, 0, 0, 0);
@@ -56,8 +70,7 @@ export function aggregateMonthlyData(invoices: Invoice[]): { month: string; amou
   const map = new Map<string, number>();
 
   invoices.forEach((invoice) => {
-    const date = new Date(invoice.date);
-    const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const month = invoice.date.substring(0, 7);
     const current = map.get(month) || 0;
     map.set(month, current + invoice.amount);
   });

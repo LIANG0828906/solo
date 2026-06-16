@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { Invoice, InvoiceFormData, InvoiceStatus } from '@/utils/helpers';
+import { normalizeDate } from '@/utils/helpers';
 
 const DB_NAME = 'InvoiceHubDB';
 const DB_VERSION = 1;
@@ -194,11 +195,14 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
   getStatistics: (startDate?: string, endDate?: string) => {
     let filtered = get().invoices;
 
-    if (startDate) {
-      filtered = filtered.filter((inv) => inv.date >= startDate);
+    const normalizedStart = startDate ? normalizeDate(startDate) : '';
+    const normalizedEnd = endDate ? normalizeDate(endDate) : '';
+
+    if (normalizedStart) {
+      filtered = filtered.filter((inv) => inv.date >= normalizedStart);
     }
-    if (endDate) {
-      filtered = filtered.filter((inv) => inv.date <= endDate);
+    if (normalizedEnd) {
+      filtered = filtered.filter((inv) => inv.date <= normalizedEnd);
     }
 
     const monthlyMap = new Map<string, number>();

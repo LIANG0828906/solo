@@ -16,7 +16,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
   submitText = '提交',
   loading = false,
 }) => {
-  const { isInvoiceNoUnique } = useInvoiceStore()
+  const invoices = useInvoiceStore((state) => state.invoices)
 
   const [formData, setFormData] = useState<InvoiceFormData>({
     invoiceNo: '',
@@ -73,7 +73,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
     if (!formData.invoiceNo.trim()) {
       newErrors.invoiceNo = '发票号不能为空'
-    } else if (!isInvoiceNoUnique(formData.invoiceNo, initialData?.id)) {
+    } else if (invoices.some((inv) => inv.invoiceNo === formData.invoiceNo && inv.id !== initialData?.id)) {
       newErrors.invoiceNo = '发票号已存在'
     }
 

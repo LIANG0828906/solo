@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { useInvoiceStore } from '@/store/invoiceStore';
 import type { Invoice, InvoiceStatus } from '@/utils/helpers';
 import { formatCurrency } from '@/utils/helpers';
@@ -68,11 +68,11 @@ export default function InvoiceList() {
 
   const SortIndicator = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
-      return <span className="sort-arrow"><ArrowUp size={10} style={{ opacity: 0.3 }} /></span>;
+      return <span className="sort-arrow" style={{ opacity: 0.3 }}>▲</span>;
     }
     return (
       <span className="sort-arrow">
-        {sortOrder === 'asc' ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
+        {sortOrder === 'asc' ? '▲' : '▼'}
       </span>
     );
   };
