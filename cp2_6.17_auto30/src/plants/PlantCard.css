@@ -1,0 +1,103 @@
+.plant-card {
+  width: 240px;
+  height: 320px;
+  border-radius: 12px;
+  background-color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.plant-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.card-photo {
+  height: 160px;
+  width: 100%;
+  overflow: hidden;
+  background-color: #E8F0E8;
+  position: relative;
+}
+
+.card-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-photo.no-photo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-photo-text {
+  color: #888;
+  font-size: 14px;
+}
+
+.card-info {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.plant-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2F4F2F;
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.plant-species {
+  font-size: 13px;
+  color: #6B8E23;
+  margin: 0;
+}
+
+.favorite-btn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #ccc;
+  padding: 0;
+  line-height: 1;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.favorite-btn:hover {
+  transform: scale(1.1);
+}
+
+.favorite-btn.active {
+  color: #FFD700;
+  animation: starPop 0.2s ease;
+}
+
+@keyframes starPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.watering-info {
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0;
+}
