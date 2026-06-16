@@ -297,6 +297,10 @@ body {
   color: #CE9178;
 }
 
+.token-templateLiteral {
+  color: #CE9178;
+}
+
 .token-template-literal {
   color: #CE9178;
 }
@@ -314,7 +318,15 @@ body {
   color: #DCDCAA;
 }
 
+.token-functionName {
+  color: #DCDCAA;
+}
+
 .token-variable {
+  color: #9CDCFE;
+}
+
+.token-identifier {
   color: #9CDCFE;
 }
 
@@ -324,6 +336,10 @@ body {
 
 .token-punctuation {
   color: #D4D4D4;
+}
+
+.token-whitespace {
+  color: inherit;
 }
 
 .token-boolean {
