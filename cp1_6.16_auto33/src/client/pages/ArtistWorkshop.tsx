@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import LazyLoad from 'react-lazyload';
 import { Plus, X, Image as ImageIcon, User, Calendar, Send } from 'lucide-react';
-import { useAppState } from '../App';
+import { useAppState, authHeaders } from '../App';
 import { Artist, Work, Exhibition } from '../types';
 import { useState, useEffect, useMemo } from 'react';
 import PortfolioViewer from '../components/PortfolioViewer';
@@ -84,7 +84,7 @@ export default function ArtistWorkshop() {
   };
 
   const handleApplyToExhibition = async (exhibitionId: string) => {
-    if (!selectedWorkId || !state.currentUser) return;
+    if (!selectedWorkId || !state.currentUser?.id) return;
     setTargetExhibitionId(exhibitionId);
 
     try {
@@ -101,7 +101,7 @@ export default function ArtistWorkshop() {
       const updatedWorkIds = [...currentWorkIds, selectedWorkId];
       const updateRes = await fetch(`/api/exhibitions/${exhibitionId}/order`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ workIds: updatedWorkIds }),
       });
       const updated: Exhibition = await updateRes.json();
@@ -244,12 +244,12 @@ export default function ArtistWorkshop() {
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                   style={{ boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                 >
-                  <div className="relative overflow-hidden">
+                  <div className="relative overflow-hidden aspect-[4/3]">
                     <LazyLoad height={200} offset={100} once>
                       <motion.img
                         src={work.images[0]}
                         alt={work.title}
-                        className="w-full object-cover"
+                        className="w-full h-full object-cover transition-transform duration-300"
                         whileHover={{ scale: 1.1 }}
                         transition={{ duration: 0.5 }}
                         onClick={() => openPortfolioViewer(work.id)}

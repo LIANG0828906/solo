@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import LazyLoad from 'react-lazyload';
-import { Calendar } from 'lucide-react';
+import { Calendar, Sparkles } from 'lucide-react';
 import { useAppState } from '../App';
 import { Exhibition, Artist } from '../types';
 
@@ -48,7 +48,10 @@ export default function Home() {
         </section>
 
         <section>
-          <h2 className="font-display text-xl font-bold mb-4 text-charcoal">展览</h2>
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-copper-500" />
+            <h2 className="font-display text-xl font-bold text-charcoal">展览</h2>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {state.exhibitions.map((ex: Exhibition, index: number) => (
               <motion.div
@@ -59,13 +62,20 @@ export default function Home() {
               >
                 <Link to={`/exhibition/${ex.id}`} className="block">
                   <div className="bg-white rounded-xl overflow-hidden shadow-md card-hover">
-                    <LazyLoad height={200} once>
-                      <img
-                        src={ex.coverImage}
-                        alt={ex.title}
-                        className="w-full h-48 object-cover"
-                      />
-                    </LazyLoad>
+                    <div className="overflow-hidden">
+                      <LazyLoad height={200} once>
+                        <motion.div
+                          whileHover={{ scale: 1.08 }}
+                          transition={{ duration: 0.4 }}
+                        >
+                          <img
+                            src={ex.coverImage}
+                            alt={ex.title}
+                            className="w-full h-48 object-cover"
+                          />
+                        </motion.div>
+                      </LazyLoad>
+                    </div>
                     <div className="p-4">
                       <h3 className="font-display text-lg font-bold text-charcoal mb-1">
                         {ex.title}

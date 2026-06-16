@@ -10,7 +10,7 @@ import {
   ArrowLeft,
   Calendar,
 } from 'lucide-react';
-import { useAppState } from '../App';
+import { useAppState, authHeaders } from '../App';
 import { Exhibition, Work, Artist } from '../types';
 import PortfolioViewer from '../components/PortfolioViewer';
 
@@ -44,7 +44,7 @@ export default function ExhibitionDetail() {
 
   useEffect(() => {
     if (exhibition && state.currentUser) {
-      setIsCuratorMode(exhibition.curatorId === state.currentUser.id);
+      setIsCuratorMode(exhibition.curatorId === state.currentUser?.id);
     }
   }, [exhibition, state.currentUser]);
 
@@ -66,7 +66,10 @@ export default function ExhibitionDetail() {
     );
 
     try {
-      const res = await fetch(`/api/works/${workId}/like`, { method: 'POST' });
+      const res = await fetch(`/api/works/${workId}/like`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
       const updated: Work = await res.json();
       setLocalWorks((prev) =>
         prev.map((w) => (w.id === workId ? updated : w))
@@ -91,8 +94,8 @@ export default function ExhibitionDetail() {
     try {
       const res = await fetch(`/api/works/${workId}/comment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: state.currentUser.id, content }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ userId: state.currentUser?.id, content }),
       });
       const updated: Work = await res.json();
       setLocalWorks((prev) =>
@@ -145,7 +148,7 @@ export default function ExhibitionDetail() {
     try {
       const res = await fetch(`/api/exhibitions/${exhibition.id}/order`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ workIds }),
       });
       const updated: Exhibition = await res.json();
@@ -297,15 +300,21 @@ export default function ExhibitionDetail() {
 
                   <div className="flex-1">
                     <div
-                      className="relative cursor-pointer overflow-hidden"
+                      className="relative cursor-pointer overflow-hidden min-h-[224px] aspect-[16/10]"
                       onClick={() => openPortfolioViewer(work.id)}
                     >
-                      <LazyLoad height={200} offset={100} once>
-                        <img
-                          src={work.images[0]}
-                          alt={work.title}
-                          className="w-full h-48 md:h-56 object-cover hover:scale-105 transition-transform duration-300"
-                        />
+                      <LazyLoad height={280} offset={200} once>
+                        <motion.div
+                          className="w-full h-full transition-transform duration-300"
+                          whileHover={{ scale: 1.06 }}
+                          transition={{ duration: 0.4 }}
+                        >
+                          <img
+                            src={work.images[0]}
+                            alt={work.title}
+                            className="w-full h-48 md:h-56 object-cover transition-transform duration-300"
+                          />
+                        </motion.div>
                       </LazyLoad>
                     </div>
 

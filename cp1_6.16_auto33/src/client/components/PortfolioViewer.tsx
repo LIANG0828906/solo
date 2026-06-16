@@ -10,7 +10,7 @@ import {
   Flame,
   Send,
 } from 'lucide-react';
-import { useAppState } from '../App';
+import { useAppState, authHeaders } from '../App';
 import { Work, Comment } from '../types';
 
 interface PortfolioViewerProps {
@@ -109,7 +109,10 @@ export default function PortfolioViewer({
     setWork({ ...work, likes: prevLikes + delta, heat: prevHeat + delta });
 
     try {
-      const res = await fetch(`/api/works/${work.id}/like`, { method: 'POST' });
+      const res = await fetch(`/api/works/${work.id}/like`, {
+        method: 'POST',
+        headers: authHeaders(),
+      });
       const updated: Work = await res.json();
       setWork(updated);
       dispatch({ type: 'UPDATE_WORK', payload: updated });
@@ -122,7 +125,7 @@ export default function PortfolioViewer({
 
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!work || !commentText.trim() || !state.currentUser) return;
+    if (!work || !commentText.trim() || !state.currentUser?.id) return;
 
     const newComment: Comment = {
       id: `temp-${Date.now()}`,
@@ -138,9 +141,12 @@ export default function PortfolioViewer({
     try {
       const res = await fetch(`/api/works/${work.id}/comment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders(),
+        },
         body: JSON.stringify({
-          userId: state.currentUser.id,
+          userId: state.currentUser?.id,
           content: commentText,
         }),
       });

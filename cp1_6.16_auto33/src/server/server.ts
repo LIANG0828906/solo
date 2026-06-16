@@ -196,10 +196,68 @@ const exhibitions: Exhibition[] = [
   },
 ];
 
+const TOKEN_USER_MAP: Record<string, string> = {
+  'token-a1': 'a1',
+  'token-a2': 'a2',
+  'token-a3': 'a3',
+};
+
+function authMiddleware(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: '未授权，请先登录' });
+    return;
+  }
+  const token = authHeader.slice(7);
+  const userId = TOKEN_USER_MAP[token];
+  if (!userId) {
+    res.status(401).json({ error: 'Token 无效' });
+    return;
+  }
+  (req as express.Request & { userId?: string }).userId = userId;
+  next();
+}
+
+function getUserId(req: express.Request): string | undefined {
+  return (req as express.Request & { userId?: string }).userId;
+}
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { userId } = req.body as { userId?: string };
+    if (!userId) {
+      res.status(400).json({ error: '缺少 userId' });
+      return;
+    }
+    const artist = artists.find((a) => a.id === userId);
+    if (!artist) {
+      res.status(404).json({ error: '用户不存在' });
+      return;
+    }
+    res.json({ token: `token-${userId}`, user: artist });
+  } catch (err) {
+    res.status(500).json({ error: '登录失败' });
+  }
+});
+
+app.get('/api/auth/me', authMiddleware, (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const artist = artists.find((a) => a.id === userId);
+    if (!artist) {
+      res.status(404).json({ error: '用户不存在' });
+      return;
+    }
+    res.json(artist);
+  } catch (err) {
+    res.status(500).json({ error: '获取用户信息失败' });
+  }
+});
 
 app.get('/api/exhibitions', (_req, res) => {
   try {
@@ -213,8 +271,14 @@ app.get('/api/exhibitions', (_req, res) => {
   }
 });
 
-app.post('/api/exhibitions', (req, res) => {
+app.post('/api/exhibitions', authMiddleware, (req, res) => {
   try {
+    const userId = getUserId(req);
+    const artist = artists.find((a) => a.id === userId);
+    if (!artist || artist.role !== 'curator') {
+      res.status(403).json({ error: '仅策展人可以创建展览' });
+      return;
+    }
     const { curatorId, title, coverImage, description, startDate, endDate, maxWorks, workIds } = req.body;
     const exhibition: Exhibition = {
       id: uuidv4(),
@@ -244,17 +308,22 @@ app.get('/api/exhibitions/:id', (req, res) => {
     const exhibitionWorks = exhibition.workIds
       .map((wid) => works.find((w) => w.id === wid))
       .filter((w): w is Work => w !== undefined);
-    res.json({ ...exhibition, works: exhibitionWorks });
+    res.json({ ...exhibition, works: exhibitionWorks, workCount: exhibition.workIds.length });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch exhibition' });
   }
 });
 
-app.put('/api/exhibitions/:id/order', (req, res) => {
+app.put('/api/exhibitions/:id/order', authMiddleware, (req, res) => {
   try {
+    const userId = getUserId(req);
     const exhibition = exhibitions.find((ex) => ex.id === req.params.id);
     if (!exhibition) {
       res.status(404).json({ error: 'Exhibition not found' });
+      return;
+    }
+    if (exhibition.curatorId !== userId) {
+      res.status(403).json({ error: '仅该展览的策展人可以修改作品顺序' });
       return;
     }
     const { workIds } = req.body as { workIds: string[] };
@@ -265,12 +334,13 @@ app.put('/api/exhibitions/:id/order', (req, res) => {
   }
 });
 
-app.post('/api/works', (req, res) => {
+app.post('/api/works', authMiddleware, (req, res) => {
   try {
+    const userId = getUserId(req);
     const { artistId, title, series, scale, material, images, story, forSale } = req.body;
     const work: Work = {
       id: uuidv4(),
-      artistId,
+      artistId: artistId ?? userId,
       title,
       series,
       scale,
@@ -302,7 +372,7 @@ app.get('/api/works/:id', (req, res) => {
   }
 });
 
-app.post('/api/works/:id/like', (req, res) => {
+app.post('/api/works/:id/like', authMiddleware, (req, res) => {
   try {
     const work = works.find((w) => w.id === req.params.id);
     if (!work) {
@@ -317,17 +387,18 @@ app.post('/api/works/:id/like', (req, res) => {
   }
 });
 
-app.post('/api/works/:id/comment', (req, res) => {
+app.post('/api/works/:id/comment', authMiddleware, (req, res) => {
   try {
     const work = works.find((w) => w.id === req.params.id);
     if (!work) {
       res.status(404).json({ error: 'Work not found' });
       return;
     }
-    const { userId, content } = req.body as { userId: string; content: string };
+    const userId = getUserId(req);
+    const { content } = req.body as { content: string };
     const comment: Comment = {
       id: uuidv4(),
-      userId,
+      userId: userId!,
       content,
       createdAt: new Date().toISOString(),
     };

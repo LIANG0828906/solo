@@ -9,7 +9,7 @@ import {
   Image as ImageIcon,
   Loader2,
 } from 'lucide-react';
-import { useAppState } from '../App';
+import { useAppState, authHeaders } from '../App';
 import { Work } from '../types';
 
 export default function CreateWork() {
@@ -66,7 +66,7 @@ export default function CreateWork() {
       }
 
       const payload = {
-        artistId: currentUser.id,
+        artistId: currentUser?.id,
         title: formData.title,
         series: formData.series,
         scale: formData.scale,
@@ -76,10 +76,11 @@ export default function CreateWork() {
         forSale: formData.forSale,
       };
 
-      const response = await fetch('http://localhost:3001/api/works', {
+      const response = await fetch('/api/works', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders(),
         },
         body: JSON.stringify(payload),
       });
@@ -90,7 +91,7 @@ export default function CreateWork() {
 
       const newWork: Work = await response.json();
       dispatch({ type: 'ADD_WORK', payload: newWork });
-      navigate(`/artist/${currentUser.id}`);
+      navigate(`/artist/${currentUser?.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : '发布失败');
     } finally {
@@ -100,7 +101,7 @@ export default function CreateWork() {
 
   const handleBack = () => {
     if (currentUser) {
-      navigate(`/artist/${currentUser.id}`);
+      navigate(`/artist/${currentUser?.id}`);
     } else {
       navigate('/home');
     }

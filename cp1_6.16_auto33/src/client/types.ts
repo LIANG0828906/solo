@@ -54,6 +54,7 @@ export type AppAction =
   | { type: 'SET_WORKS'; payload: Work[] }
   | { type: 'SET_ARTISTS'; payload: Artist[] }
   | { type: 'SET_USER'; payload: Artist | null }
+  | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'UPDATE_WORK'; payload: Work }
   | { type: 'ADD_WORK'; payload: Work }
   | { type: 'UPDATE_EXHIBITION'; payload: Exhibition };

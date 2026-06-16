@@ -7,6 +7,29 @@ import ArtistWorkshop from './pages/ArtistWorkshop';
 import CreateWork from './pages/CreateWork';
 import { AppState, AppAction, Artist, Exhibition } from './types';
 
+const TOKEN_KEY = 'miniature_token';
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const headers = {
+    ...(options.headers || {}),
+    ...authHeaders(),
+  };
+  return fetch(url, { ...options, headers });
+}
+
 const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
@@ -24,12 +47,7 @@ const initialState: AppState = {
   exhibitions: [],
   works: [],
   artists: [],
-  currentUser: {
-    id: 'a1',
-    name: '林墨山',
-    avatar: 'https://picsum.photos/seed/a1/200/200',
-    role: 'artist',
-  },
+  currentUser: null,
   loading: true,
 };
 
@@ -43,6 +61,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, artists: action.payload };
     case 'SET_USER':
       return { ...state, currentUser: action.payload };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
     case 'UPDATE_WORK':
       return {
         ...state,
@@ -84,7 +104,7 @@ function Navbar() {
         </Link>
         {user && (
           <Link
-            to={`/artist/${user.id}`}
+            to={`/artist/${user?.id}`}
             className="text-ivory/90 hover:text-ivory transition-colors font-medium"
           >
             工作室
@@ -100,11 +120,11 @@ function Navbar() {
       {user && (
         <div className="flex items-center gap-3">
           <img
-            src={user.avatar}
-            alt={user.name}
+            src={user?.avatar}
+            alt={user?.name}
             className="w-9 h-9 rounded-full object-cover border-2 border-copper-400"
           />
-          <span className="font-medium">{user.name}</span>
+          <span className="font-medium">{user?.name}</span>
         </div>
       )}
     </nav>
@@ -148,22 +168,40 @@ function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        let token = getToken();
+
+        if (!token) {
+          const loginRes = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: 'a1' }),
+          });
+          const loginData = await loginRes.json();
+          if (loginData.token) {
+            setToken(loginData.token);
+            token = loginData.token;
+          }
+        }
+
+        const meRes = await authFetch('/api/auth/me');
+        if (meRes.ok) {
+          const userData: Artist = await meRes.json();
+          dispatch({ type: 'SET_USER', payload: userData });
+        }
+
         const [exhibitionsRes, artistsRes] = await Promise.all([
-          fetch('http://localhost:3001/api/exhibitions'),
-          fetch('http://localhost:3001/api/artists'),
+          authFetch('/api/exhibitions'),
+          authFetch('/api/artists'),
         ]);
         const exhibitions: Exhibition[] = await exhibitionsRes.json();
         const artists: Artist[] = await artistsRes.json();
 
         dispatch({ type: 'SET_EXHIBITIONS', payload: exhibitions });
         dispatch({ type: 'SET_ARTISTS', payload: artists });
-
-        const currentArtist = artists.find((a) => a.id === 'a1');
-        if (currentArtist) {
-          dispatch({ type: 'SET_USER', payload: currentArtist });
-        }
       } catch (err) {
         console.error('Failed to fetch initial data:', err);
+      } finally {
+        dispatch({ type: 'SET_LOADING', payload: false });
       }
     };
 
