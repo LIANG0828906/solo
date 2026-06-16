@@ -1,0 +1,124 @@
+.sticky-note {
+  position: absolute;
+  background-color: #FFF9C4;
+  cursor: move;
+  user-select: none;
+  transition: box-shadow 200ms ease-out, transform 200ms ease-out;
+  box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.15);
+  clip-path: polygon(
+    0% 2%, 3% 0%, 7% 1%, 12% 0%, 18% 2%, 25% 0%, 32% 1%, 40% 0%, 48% 2%, 55% 0%, 62% 1%, 70% 0%, 78% 2%, 85% 0%, 92% 1%, 98% 0%, 100% 3%,
+    100% 97%, 98% 100%, 92% 99%, 85% 100%, 78% 98%, 70% 100%, 62% 99%, 55% 100%, 48% 98%, 40% 100%, 32% 99%, 25% 100%, 18% 98%, 12% 100%, 7% 99%, 3% 100%, 0% 98%
+  );
+  padding: 20px 16px 16px;
+  will-change: left, top, transform;
+}
+
+.sticky-note:hover {
+  box-shadow: 4px 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.sticky-note.dragging {
+  transition: none;
+  box-shadow: 6px 8px 20px rgba(0, 0, 0, 0.25);
+  z-index: 100;
+}
+
+.sticky-note.deleting {
+  transform: scale(0) rotate(180deg) !important;
+  opacity: 0;
+  transition: transform 200ms ease-out, opacity 200ms ease-out !important;
+}
+
+.selection-outline {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 2px dashed #607D8B;
+  border-radius: 4px;
+  pointer-events: none;
+  animation: dash-flow 1s linear infinite;
+  background: none;
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: 20;
+  }
+}
+
+.selection-outline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px dashed #607D8B;
+  border-radius: 4px;
+  animation: dash-move 0.8s linear infinite;
+}
+
+@keyframes dash-move {
+  0% {
+    border-spacing: 0 0;
+  }
+  100% {
+    border-spacing: 10px 10px;
+  }
+}
+
+.delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #888;
+  font-size: 20px;
+  line-height: 24px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background-color 150ms ease, color 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+
+.sticky-note:hover .delete-btn,
+.sticky-note.selected .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+
+.sticky-text {
+  width: 100%;
+  height: 100%;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  overflow: hidden;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.sticky-textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  font-family: inherit;
+}
