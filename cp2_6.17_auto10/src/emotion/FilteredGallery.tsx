@@ -85,24 +85,32 @@ export function FilteredGallery() {
           <div className="flex gap-6">
             <div className="flex-1 flex flex-col gap-6">
               {leftColumn.map((work, idx) => (
-                <WorkCard
+                <div
                   key={work.id}
-                  work={work}
-                  index={idx * 2}
-                  highlighted
-                  onClick={() => handleCardClick(work)}
-                />
+                  className="rounded-xl border-2 border-[#E0E0E0] overflow-hidden"
+                >
+                  <WorkCard
+                    work={work}
+                    index={idx * 2}
+                    variant="masonry"
+                    onClick={() => handleCardClick(work)}
+                  />
+                </div>
               ))}
             </div>
             <div className="flex-1 flex flex-col gap-6">
               {rightColumn.map((work, idx) => (
-                <WorkCard
+                <div
                   key={work.id}
-                  work={work}
-                  index={idx * 2 + 1}
-                  highlighted
-                  onClick={() => handleCardClick(work)}
-                />
+                  className="rounded-xl border-2 border-[#E0E0E0] overflow-hidden"
+                >
+                  <WorkCard
+                    work={work}
+                    index={idx * 2 + 1}
+                    variant="masonry"
+                    onClick={() => handleCardClick(work)}
+                  />
+                </div>
               ))}
             </div>
           </div>

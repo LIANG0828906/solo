@@ -53,11 +53,25 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   loadWorks: async () => {
-    let works = await loadAll();
-    if (works.length === 0) {
-      works = generateSampleWorks();
-      saveAll(works);
+    try {
+      const timeoutPromise = new Promise<Work[]>((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout')), 3000);
+      });
+      
+      let works: Work[];
+      try {
+        works = await Promise.race([loadAll(), timeoutPromise]);
+      } catch {
+        works = [];
+      }
+      
+      if (works.length === 0) {
+        works = generateSampleWorks();
+        saveAll(works).catch(() => {});
+      }
+      set({ works, isLoaded: true });
+    } catch {
+      set({ works: generateSampleWorks(), isLoaded: true });
     }
-    set({ works, isLoaded: true });
   },
 }));

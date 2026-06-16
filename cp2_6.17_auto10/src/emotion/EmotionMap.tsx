@@ -134,9 +134,12 @@ export function EmotionMap() {
       .attr('stroke-opacity', 0.2)
       .style('cursor', 'pointer');
 
+    let dragged: D3Node | null = null;
+
     const drag = d3.drag<SVGCircleElement, D3Node>()
       .on('start', (event, d) => {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
+        dragged = d;
+        if (!event.active) simulation.alpha(0.3).restart();
         d.fx = d.x;
         d.fy = d.y;
       })
@@ -145,7 +148,8 @@ export function EmotionMap() {
         d.fy = event.y;
       })
       .on('end', (event) => {
-        if (!event.active) simulation.alphaTarget(0);
+        if (!event.active) simulation.alpha(0.1);
+        dragged = null;
       });
 
     nodeElements.call(drag);
@@ -170,6 +174,7 @@ export function EmotionMap() {
       })
       .on('click', (event, d) => {
         event.stopPropagation();
+        if (dragged) return;
         handleNodeClick(d.id);
       })
       .on('dblclick', (event, d) => {

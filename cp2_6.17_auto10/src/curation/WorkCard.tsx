@@ -7,9 +7,10 @@ interface WorkCardProps {
   highlighted?: boolean;
   style?: React.CSSProperties;
   index?: number;
+  variant?: 'grid' | 'masonry';
 }
 
-export function WorkCard({ work, onClick, highlighted, style, index = 0 }: WorkCardProps) {
+export function WorkCard({ work, onClick, highlighted, style, index = 0, variant = 'grid' }: WorkCardProps) {
   return (
     <div
       onClick={onClick}
@@ -23,11 +24,14 @@ export function WorkCard({ work, onClick, highlighted, style, index = 0 }: WorkC
         animation: `fadeInUp 0.5s ease-out ${index * 50}ms forwards`,
       }}
     >
-      <div className="relative aspect-square overflow-hidden">
+      <div className={`relative overflow-hidden ${variant === 'grid' ? 'aspect-square' : ''}`}>
         <img
           src={work.cover}
           alt={work.title}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className={`w-full object-cover transition-transform duration-500 group-hover:scale-110 ${
+            variant === 'grid' ? 'h-full' : 'h-auto'
+          }`}
+          loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       </div>
