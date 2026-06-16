@@ -167,10 +167,12 @@ export const GameBoard: React.FC = () => {
       const timer = setTimeout(() => {
         enemyAttack();
         showDamagePopup(5, true);
+        setScreenShake(true, 8);
+        setTimeout(() => setScreenShake(false), 400);
       }, 900);
       return () => clearTimeout(timer);
     }
-  }, [phase, gameResult, enemyAttack, showDamagePopup]);
+  }, [phase, gameResult, enemyAttack, showDamagePopup, setScreenShake]);
 
   useEffect(() => {
     if (phase === 'enemy' && !gameResult) {
@@ -194,6 +196,7 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
+    let timeoutId: number;
     const animate = (time: number) => {
       if (time - lastTimeRef.current > 16) {
         lastTimeRef.current = time;
@@ -207,9 +210,16 @@ export const GameBoard: React.FC = () => {
 
     animationFrameRef.current = requestAnimationFrame(animate);
 
+    timeoutId = window.setTimeout(() => {
+      setShakeOffset({ x: 0, y: 0 });
+    }, 400);
+
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
     };
   }, [isScreenShake, shakeIntensity]);
@@ -245,14 +255,20 @@ export const GameBoard: React.FC = () => {
         style={{
           width: `${BASE_WIDTH}px`,
           height: `${BASE_HEIGHT}px`,
-          transform: `scale(${scale}) translate(${shakeOffset.x}px, ${shakeOffset.y}px)`,
+          transform: `scale(${scale})`,
           transformOrigin: 'center center',
+        }}
+      >
+      <div
+        className="absolute inset-0"
+        style={{
           background: isTurnTransition
             ? 'linear-gradient(135deg, #2d1f0a 0%, #1a1423 50%, #0a1628 100%)'
             : phase === 'draw'
             ? 'linear-gradient(135deg, #2d1f0a 0%, #1a1f35 50%, #0f172a 100%)'
             : 'linear-gradient(135deg, #0a0e1a 0%, #1a1f35 50%, #0f172a 100%)',
           transition: 'background 1.5s ease-in-out',
+          transform: `translate(${shakeOffset.x}px, ${shakeOffset.y}px)`,
           fontFamily: "'Roboto', sans-serif",
         }}
       >
@@ -281,9 +297,8 @@ export const GameBoard: React.FC = () => {
       )}
 
       <div className="relative z-10 h-full flex">
-        <div
-          className="w-[260px] flex-shrink-0 h-full flex flex-col p-3 border-r border-white/10"
-          style={{ background: 'rgba(0, 0, 0, 0.4)' }}
+        <div className="flex-shrink-0 h-full flex flex-col p-3 border-r border-white/10"
+          style={{ width: '260px', background: 'rgba(0, 0, 0, 0.4)' }}
         >
           <div className="text-center mb-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
             <h2 className="text-lg font-bold text-amber-400 flex items-center justify-center gap-2">
@@ -335,7 +350,7 @@ export const GameBoard: React.FC = () => {
         </div>
 
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="h-[14%] px-6 py-2 flex items-center justify-between border-b border-white/10 flex-shrink-0 min-h-[80px]">
+          <div className="px-6 py-2 flex items-center justify-between border-b border-white/10 flex-shrink-0" style={{ height: '100px' }}>
             <div className="flex items-center gap-4">
               <div
                 className="px-5 py-2 rounded-lg"
@@ -508,7 +523,7 @@ export const GameBoard: React.FC = () => {
             )}
           </div>
 
-          <div className="h-[30%] px-6 py-2 border-t border-white/10 flex flex-col flex-shrink-0 min-h-[160px]">
+          <div className="px-6 py-2 border-t border-white/10 flex flex-col flex-shrink-0" style={{ height: '215px' }}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-4">
                 <div
@@ -728,6 +743,8 @@ export const GameBoard: React.FC = () => {
           background: rgba(255, 255, 255, 0.35);
         }
       `}</style>
+      </div>
+      </div>
     </div>
   );
 };
@@ -755,7 +772,7 @@ const FlyingCardDisplay: React.FC<{ flyingCard: FlyingCard }> = ({ flyingCard })
   const x = flyingCard.startX + (flyingCard.targetX - flyingCard.startX) * progress;
   const y = flyingCard.startY + (flyingCard.targetY - flyingCard.startY) * progress - Math.sin(progress * Math.PI) * 40;
   const rotation = (progress - 0.5) * 20;
-  const scale = 1 + Math.sin(progress * Math.PI) * 0.15;
+  const cardScale = 1 + Math.sin(progress * Math.PI) * 0.15;
 
   return (
     <div
@@ -763,7 +780,7 @@ const FlyingCardDisplay: React.FC<{ flyingCard: FlyingCard }> = ({ flyingCard })
       style={{
         left: `${x}%`,
         top: `${y}%`,
-        transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${scale})`,
+        transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${cardScale})`,
         opacity: 1 - progress * 0.2,
       }}
     >

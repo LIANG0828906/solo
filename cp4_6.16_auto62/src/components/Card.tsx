@@ -30,12 +30,12 @@ export const Card: React.FC<CardProps> = ({
   const tagColor = TAG_COLORS[card.tag];
   const gradient = COST_GRADIENTS[card.cost];
 
-  const sizeMultiplier = size === 'small' ? 0.6 : size === 'large' ? 1.2 : 1;
-  const baseWidth = 8 * sizeMultiplier;
-  const baseHeight = 11.2 * sizeMultiplier;
+  const sizeMultiplier = size === 'small' ? 0.7 : size === 'large' ? 1.2 : 1;
+  const baseWidth = 120 * sizeMultiplier;
+  const baseHeight = 168 * sizeMultiplier;
 
   const arcOffset = !isInShop && total > 1
-    ? Math.sin(((index - (total - 1) / 2) / (total - 1 || 1)) * Math.PI * 0.35) * 1.5
+    ? Math.sin(((index - (total - 1) / 2) / (total - 1 || 1)) * Math.PI * 0.35) * 25
     : 0;
 
   const rotation = !isInShop && total > 1
@@ -64,10 +64,8 @@ export const Card: React.FC<CardProps> = ({
       onMouseLeave={() => setIsHovered(false)}
       className="relative select-none"
       style={{
-        width: `${baseWidth}vw`,
-        height: `${baseHeight}vw`,
-        minWidth: `${60 * sizeMultiplier}px`,
-        minHeight: `${84 * sizeMultiplier}px`,
+        width: `${baseWidth}px`,
+        height: `${baseHeight}px`,
         cursor: isInShop ? 'default' : 'pointer',
         perspective: '1000px',
         flexShrink: 0,
@@ -93,8 +91,8 @@ export const Card: React.FC<CardProps> = ({
           transform: isInShop
             ? `rotate(${(index % 2 === 0 ? 1 : -1) * 1.5}deg)`
             : isHovered
-            ? `translateY(-1.2vw) scale(1.2) rotate(${rotation * 0.2}deg) translateZ(0)`
-            : `translateY(${arcOffset}vw) rotate(${rotation}deg) translateZ(0)`,
+            ? `translateY(-20px) scale(1.2) rotate(${rotation * 0.2}deg) translateZ(0)`
+            : `translateY(${arcOffset}px) rotate(${rotation}deg) translateZ(0)`,
           transformOrigin: 'bottom center',
           zIndex: isHovered ? 100 : isSelected ? 50 : index,
           animation: isNew ? 'cardFlipIn 0.6s ease-out forwards' : 'none',
@@ -102,18 +100,16 @@ export const Card: React.FC<CardProps> = ({
       >
         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
 
-        <div className="absolute top-[0.3vw] left-[0.3vw] right-[0.3vw] flex justify-between items-start z-10">
+        <div className="absolute top-[4px] left-[4px] right-[4px] flex justify-between items-start z-10">
           <div
             className="flex items-center justify-center text-white font-bold shadow-lg"
             style={{
-              width: `${1.8 * sizeMultiplier}vw`,
-              height: `${1.8 * sizeMultiplier}vw`,
-              minWidth: `${14 * sizeMultiplier}px`,
-              minHeight: `${14 * sizeMultiplier}px`,
+              width: `${22 * sizeMultiplier}px`,
+              height: `${22 * sizeMultiplier}px`,
               borderRadius: '50%',
               background: 'linear-gradient(135deg, #1e3a5f, #0f1d30)',
               border: '1px solid rgba(255,255,255,0.5)',
-              fontSize: `${0.9 * sizeMultiplier}vw`,
+              fontSize: `${11 * sizeMultiplier}px`,
             }}
           >
             {card.cost}
@@ -121,10 +117,10 @@ export const Card: React.FC<CardProps> = ({
           <div
             className="font-bold text-white"
             style={{
-              padding: `${0.15 * sizeMultiplier}vw ${0.5 * sizeMultiplier}vw`,
+              padding: `${2 * sizeMultiplier}px ${6 * sizeMultiplier}px`,
               borderRadius: '4px',
               background: tagColor.primary,
-              fontSize: `${0.7 * sizeMultiplier}vw`,
+              fontSize: `${9 * sizeMultiplier}px`,
             }}
           >
             {card.tag}
@@ -133,13 +129,13 @@ export const Card: React.FC<CardProps> = ({
 
         <div
           className="absolute inset-x-0 text-center px-1"
-          style={{ top: `${2.2 * sizeMultiplier}vw` }}
+          style={{ top: `${28 * sizeMultiplier}px` }}
         >
           <div
             className="font-bold text-white truncate"
             style={{
               fontFamily: "'Orbitron', sans-serif",
-              fontSize: `${0.85 * sizeMultiplier}vw`,
+              fontSize: `${11 * sizeMultiplier}px`,
               textShadow: '0 2px 4px rgba(0,0,0,0.5)',
             }}
           >
@@ -148,10 +144,10 @@ export const Card: React.FC<CardProps> = ({
         </div>
 
         <div
-          className="absolute inset-x-[0.5vw] rounded-lg flex items-center justify-center"
+          className="absolute left-[6px] right-[6px] rounded-lg flex items-center justify-center"
           style={{
-            top: `${4 * sizeMultiplier}vw`,
-            bottom: `${3.5 * sizeMultiplier}vw`,
+            top: `${52 * sizeMultiplier}px`,
+            bottom: `${44 * sizeMultiplier}px`,
             background: 'rgba(0, 0, 0, 0.3)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
           }}
@@ -159,8 +155,8 @@ export const Card: React.FC<CardProps> = ({
           <div className="text-center">
             <div
               style={{
-                fontSize: `${2.2 * sizeMultiplier}vw`,
-                marginBottom: `${0.3 * sizeMultiplier}vw`,
+                fontSize: `${28 * sizeMultiplier}px`,
+                marginBottom: `${4 * sizeMultiplier}px`,
                 filter: `drop-shadow(0 0 8px ${tagColor.glow})`,
               }}
             >
@@ -171,7 +167,7 @@ export const Card: React.FC<CardProps> = ({
             </div>
             <div
               className="text-white/80 leading-tight px-1"
-              style={{ fontSize: `${0.65 * sizeMultiplier}vw` }}
+              style={{ fontSize: `${8 * sizeMultiplier}px` }}
             >
               {card.description}
             </div>
@@ -180,20 +176,18 @@ export const Card: React.FC<CardProps> = ({
 
         <div
           className="absolute left-1/2 transform -translate-x-1/2"
-          style={{ bottom: `${0.6 * sizeMultiplier}vw` }}
+          style={{ bottom: `${8 * sizeMultiplier}px` }}
         >
           <div
             className="flex items-center justify-center text-white font-bold"
             style={{
-              width: `${2.8 * sizeMultiplier}vw`,
-              height: `${2.8 * sizeMultiplier}vw`,
-              minWidth: `${20 * sizeMultiplier}px`,
-              minHeight: `${20 * sizeMultiplier}px`,
+              width: `${36 * sizeMultiplier}px`,
+              height: `${36 * sizeMultiplier}px`,
               borderRadius: '50%',
               background: 'linear-gradient(135deg, #dc2626, #991b1b)',
               border: '2px solid rgba(255, 255, 255, 0.8)',
               boxShadow: `0 0 10px ${tagColor.glow}`,
-              fontSize: `${1 * sizeMultiplier}vw`,
+              fontSize: `${13 * sizeMultiplier}px`,
             }}
           >
             {card.attack}
@@ -206,10 +200,8 @@ export const Card: React.FC<CardProps> = ({
           key={i}
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: '0.4vw',
-            height: '0.4vw',
-            minWidth: '4px',
-            minHeight: '4px',
+            width: '5px',
+            height: '5px',
             background: tagColor.particle,
             boxShadow: `0 0 6px ${tagColor.particle}`,
             left: `${20 + Math.random() * 60}%`,
