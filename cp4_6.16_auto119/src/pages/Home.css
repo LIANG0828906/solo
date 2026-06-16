@@ -1,0 +1,131 @@
+.home-page {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.section-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.mood-section {
+  animation: slideUp 0.6s ease;
+}
+
+.text-input-wrapper {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 24px;
+  height: 0;
+  overflow: hidden;
+  transition: height 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.text-input-wrapper.visible {
+  height: auto;
+  animation: slideUp 0.35s ease;
+}
+
+.text-input-container {
+  background: var(--bg-white);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.mood-textarea {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  line-height: 1.5;
+}
+
+.mood-textarea:focus {
+  border-color: var(--klein-blue);
+  box-shadow: 0 0 0 3px rgba(0, 47, 167, 0.1);
+}
+
+.mood-textarea::placeholder {
+  color: var(--text-light);
+}
+
+.textarea-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.char-count {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.submit-btn {
+  padding: 10px 24px;
+  background: var(--klein-blue);
+  color: #fff;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: var(--klein-blue-light);
+  transform: translateY(-1px);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.calendar-section {
+  animation: slideUp 0.6s ease 0.1s both;
+}
+
+.mosaic-section {
+  animation: slideUp 0.6s ease 0.2s both;
+}
+
+@media (max-width: 480px) {
+  .home-page {
+    gap: 32px;
+  }
+  
+  .section-title {
+    font-size: 20px;
+  }
+  
+  .section-subtitle {
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+}
