@@ -68,7 +68,7 @@ export function openChest(chest: Item, tileSize: number): Item[] {
   const hasPotion = Math.random() < 0.5;
 
   if (hasPotion) {
-    items.push(createItem('potion', chest.gridX, chest.gridY, tileSize, 5));
+    items.push(createItem('potion', chest.gridX, chest.gridY, tileSize, 2));
     const goldAmount = Math.floor(Math.random() * 11) + 5;
     items.push(createItem('gold', chest.gridX, chest.gridY, tileSize, goldAmount));
   } else {
@@ -77,6 +77,20 @@ export function openChest(chest: Item, tileSize: number): Item[] {
   }
 
   return items;
+}
+
+export function createMonsterDrop(
+  type: 'potion' | 'gold',
+  gridX: number,
+  gridY: number,
+  tileSize: number
+): Item {
+  if (type === 'potion') {
+    return createItem('potion', gridX, gridY, tileSize, 2);
+  } else {
+    const goldAmount = Math.floor(Math.random() * 6) + 3;
+    return createItem('gold', gridX, gridY, tileSize, goldAmount);
+  }
 }
 
 export function updateItem(item: Item, deltaTime: number): void {

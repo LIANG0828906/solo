@@ -27,6 +27,7 @@ export interface Monster {
   moveToX: number;
   moveToY: number;
   animFrame: 0 | 1;
+  animTimer: number;
   deathTimer: number;
   hurtTimer: number;
   damageText: number;
@@ -48,7 +49,8 @@ export function createMonster(
   roomX: number,
   roomY: number,
   tileSize: number,
-  type: MonsterType
+  type: MonsterType,
+  room: { gridX: number; gridY: number; width: number; height: number }
 ): Monster {
   const x = gridX * tileSize;
   const y = gridY * tileSize;
@@ -71,7 +73,7 @@ export function createMonster(
       break;
   }
 
-  return {
+  const monster: Monster = {
     id: monsterIdCounter++,
     x,
     y,
@@ -88,12 +90,13 @@ export function createMonster(
     patrolIndex: 0,
     patrolDirection: 1,
     moveSpeed: MONSTER_SPEED_RATIO,
-    moveProgress: 0,
+    moveProgress: 1,
     moveFromX: x,
     moveFromY: y,
     moveToX: x,
     moveToY: y,
     animFrame: 0,
+    animTimer: 0,
     deathTimer: 0,
     hurtTimer: 0,
     damageText: 0,
@@ -101,6 +104,9 @@ export function createMonster(
     isAttacking: false,
     attackTimer: 0,
   };
+
+  monster.patrolPath = generatePatrolPath(room, monster);
+  return monster;
 }
 
 export function generatePatrolPath(
@@ -153,76 +159,78 @@ function startMonsterMove(
 
 export function updateMonster(
   monster: Monster,
-  player: { gridX: number; gridY: number; x: number; y: number },
+  player: { gridX: number; gridY: number; roomX: number; roomY: number },
   deltaTime: number,
-  tiles: number[][],
-  isWalkable: (gridX: number, gridY: number, tiles: number[][]) => boolean
+  tileSize: number,
+  isWalkable: (x: number, y: number) => boolean
 ): boolean {
   if (monster.state === 'dead') {
     monster.deathTimer -= deltaTime;
     return monster.deathTimer <= 0;
   }
 
-  const tileSize = monster.moveToX - monster.moveFromX || monster.x;
-  const actualTileSize = tileSize > 0 ? tileSize : monster.x / monster.gridX || 1;
-
+  const sameRoom = player.roomX === monster.roomX && player.roomY === monster.roomY;
   const dx = player.gridX - monster.gridX;
   const dy = player.gridY - monster.gridY;
   const distance = Math.abs(dx) + Math.abs(dy);
 
-  if (distance <= 5 && monster.state !== 'chase') {
+  if (sameRoom && monster.state === 'patrol') {
     monster.state = 'chase';
-  } else if (distance > 8 && monster.state !== 'patrol') {
+  } else if (!sameRoom && monster.state === 'chase') {
     monster.state = 'patrol';
     monster.patrolIndex = 0;
     monster.patrolDirection = 1;
   }
 
-  const isMoving = monster.moveProgress < 1 && (monster.moveFromX !== monster.moveToX || monster.moveFromY !== monster.moveToY);
+  if (distance <= 1 && sameRoom) {
+    return false;
+  }
+
+  const isMoving = monster.moveProgress < 1;
 
   if (!isMoving) {
     if (monster.state === 'patrol' && monster.patrolPath.length > 0) {
       const target = monster.patrolPath[monster.patrolIndex];
       if (target) {
-        startMonsterMove(monster, target.x, target.y, actualTileSize);
+        startMonsterMove(monster, target.x, target.y, tileSize);
 
         monster.patrolIndex += monster.patrolDirection;
         if (monster.patrolIndex >= monster.patrolPath.length) {
           monster.patrolDirection = -1;
-          monster.patrolIndex = monster.patrolPath.length - 2;
+          monster.patrolIndex = Math.max(0, monster.patrolPath.length - 2);
         } else if (monster.patrolIndex < 0) {
           monster.patrolDirection = 1;
-          monster.patrolIndex = 1;
+          monster.patrolIndex = Math.min(1, monster.patrolPath.length - 1);
         }
       }
-    } else if (monster.state === 'chase') {
+    } else if (monster.state === 'chase' && sameRoom) {
       let targetX = monster.gridX;
       let targetY = monster.gridY;
 
-      if (Math.abs(dx) > Math.abs(dy)) {
+      if (Math.abs(dx) >= Math.abs(dy)) {
         const nextX = monster.gridX + Math.sign(dx);
-        if (isWalkable(nextX, monster.gridY, tiles)) {
+        if (isWalkable(nextX, monster.gridY)) {
           targetX = nextX;
         } else {
           const nextY = monster.gridY + Math.sign(dy);
-          if (isWalkable(monster.gridX, nextY, tiles)) {
+          if (isWalkable(monster.gridX, nextY)) {
             targetY = nextY;
           }
         }
       } else {
         const nextY = monster.gridY + Math.sign(dy);
-        if (isWalkable(monster.gridX, nextY, tiles)) {
+        if (isWalkable(monster.gridX, nextY)) {
           targetY = nextY;
         } else {
           const nextX = monster.gridX + Math.sign(dx);
-          if (isWalkable(nextX, monster.gridY, tiles)) {
+          if (isWalkable(nextX, monster.gridY)) {
             targetX = nextX;
           }
         }
       }
 
-      if (targetX !== monster.gridX || targetY !== monster.gridY) {
-        startMonsterMove(monster, targetX, targetY, actualTileSize);
+      if ((targetX !== monster.gridX || targetY !== monster.gridY) && isWalkable(targetX, targetY)) {
+        startMonsterMove(monster, targetX, targetY, tileSize);
       }
     }
   } else {
@@ -238,7 +246,11 @@ export function updateMonster(
     }
   }
 
-  monster.animFrame = Math.floor(Date.now() / (ANIM_FRAME_DURATION * 1000)) % 2 === 0 ? 0 : 1;
+  monster.animTimer = (monster.animTimer || 0) + deltaTime;
+  if (monster.animTimer >= ANIM_FRAME_DURATION) {
+    monster.animTimer = 0;
+    monster.animFrame = monster.animFrame === 0 ? 1 : 0;
+  }
 
   if (monster.attackTimer > 0) {
     monster.attackTimer -= deltaTime;
@@ -256,6 +268,12 @@ export function updateMonster(
   }
 
   return false;
+}
+
+export function attackPlayer(monster: Monster): number {
+  monster.isAttacking = true;
+  monster.attackTimer = 0.3;
+  return monster.attack + Math.floor(Math.random() * 2);
 }
 
 export function takeDamage(monster: Monster, damage: number): void {

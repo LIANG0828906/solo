@@ -29,6 +29,7 @@ export interface Player {
   damageText: number;
   damageTextTimer: number;
   hurtTimer: number;
+  moveCooldown: number;
 }
 
 const MOVE_DURATION = 0.3;
@@ -70,6 +71,7 @@ export function createPlayer(
     damageText: 0,
     damageTextTimer: 0,
     hurtTimer: 0,
+    moveCooldown: 0,
   };
 }
 
@@ -77,8 +79,8 @@ export function startMove(
   player: Player,
   direction: Direction,
   tileSize: number
-): void {
-  if (player.isMoving) return;
+): boolean {
+  if (player.isMoving || player.moveCooldown > 0) return false;
 
   player.direction = direction;
   player.isMoving = true;
@@ -110,9 +112,15 @@ export function startMove(
       player.moveToGridX = player.gridX + 1;
       break;
   }
+
+  return true;
 }
 
 export function updatePlayer(player: Player, deltaTime: number): void {
+  if (player.moveCooldown > 0) {
+    player.moveCooldown = Math.max(0, player.moveCooldown - deltaTime);
+  }
+
   if (player.isMoving) {
     player.moveProgress += deltaTime / MOVE_DURATION;
 
@@ -123,6 +131,7 @@ export function updatePlayer(player: Player, deltaTime: number): void {
       player.gridX = player.moveToGridX;
       player.gridY = player.moveToGridY;
       player.isMoving = false;
+      player.moveCooldown = MOVE_DURATION;
     } else {
       player.x = player.moveFromX + (player.moveToX - player.moveFromX) * player.moveProgress;
       player.y = player.moveFromY + (player.moveToY - player.moveFromY) * player.moveProgress;
