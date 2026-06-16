@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import type { StoryNode, Connection } from '../../store/gameStore'
 
 interface NodeEditorProps {
@@ -9,6 +9,30 @@ interface NodeEditorProps {
   onRemoveConnection: (targetNodeId: string) => void
   onClose: () => void
   allNodes: StoryNode[]
+}
+
+function renderRichText(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={idx} style={{ color: '#F39C12', fontWeight: 700 }}>
+          {part.slice(2, -2)}
+        </strong>
+      )
+    }
+    return <span key={idx}>{part}</span>
+  })
+}
+
+function renderPreview(text: string): React.ReactNode {
+  const lines = text.split('\n')
+  return lines.map((line, lineIdx) => (
+    <React.Fragment key={lineIdx}>
+      {renderRichText(line)}
+      {lineIdx < lines.length - 1 && <br />}
+    </React.Fragment>
+  ))
 }
 
 export default function NodeEditor({
@@ -25,7 +49,9 @@ export default function NodeEditor({
   const [newConnLabel, setNewConnLabel] = useState('')
   const [newConnTarget, setNewConnTarget] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSave = () => {
     onUpdate({ title: editTitle, text: editText })
@@ -53,6 +79,45 @@ export default function NodeEditor({
       onClose()
     }
   }
+
+  const insertBold = useCallback(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = editText.substring(start, end)
+
+    let newText: string
+    let newCursorPos: number
+
+    if (selectedText) {
+      newText = editText.substring(0, start) + `**${selectedText}**` + editText.substring(end)
+      newCursorPos = end + 4
+    } else {
+      newText = editText.substring(0, start) + '**加粗文字**' + editText.substring(end)
+      newCursorPos = start + 2
+    }
+
+    setEditText(newText)
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(newCursorPos, newCursorPos + (selectedText ? selectedText.length : 4))
+    }, 0)
+  }, [editText])
+
+  const insertNewLine = useCallback(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const newText = editText.substring(0, start) + '\n' + editText.substring(start)
+    setEditText(newText)
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(start + 1, start + 1)
+    }, 0)
+  }, [editText])
 
   return (
     <div
@@ -154,34 +219,101 @@ export default function NodeEditor({
           padding: '16px 20px',
           overflow: 'auto',
           minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        <div style={{ fontSize: '13px', color: '#B2BEC3', marginBottom: '8px' }}>节点文本</div>
-        <textarea
-          value={editText}
-          onChange={(e) => handleTextChange(e.target.value)}
-          placeholder="在此输入节点文本内容..."
-          style={{
-            width: '100%',
-            height: '100%',
-            minHeight: '120px',
-            backgroundColor: '#2D2D3F',
-            color: '#E2E8F0',
-            border: '1px solid #4A4E69',
-            borderRadius: '8px',
-            padding: '12px',
-            fontSize: '16px',
-            lineHeight: '1.6',
-            resize: 'none',
-            outline: 'none',
-            fontFamily: 'inherit',
-            whiteSpace: 'pre-wrap',
-            wordWrap: 'break-word',
-            transition: 'border-color 0.2s',
-          }}
-          onFocus={(e) => { e.currentTarget.style.borderColor = '#6C5CE7' }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = '#4A4E69' }}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div style={{ fontSize: '13px', color: '#B2BEC3' }}>节点文本</div>
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+            <button
+              onClick={insertBold}
+              title="加粗"
+              style={toolbarBtnStyle}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4A4E69' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#2D2D3F' }}
+            >
+              <strong style={{ color: '#F39C12' }}>B</strong>
+            </button>
+            <button
+              onClick={insertNewLine}
+              title="换行"
+              style={toolbarBtnStyle}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4A4E69' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#2D2D3F' }}
+            >
+              ↵
+            </button>
+            <div style={{ width: '1px', height: '16px', backgroundColor: '#4A4E69', margin: '0 4px' }} />
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              title={showPreview ? '编辑' : '预览'}
+              style={{
+                ...toolbarBtnStyle,
+                backgroundColor: showPreview ? '#6C5CE7' : '#2D2D3F',
+                color: showPreview ? '#FFFFFF' : '#B2BEC3',
+              }}
+              onMouseEnter={(e) => {
+                if (!showPreview) e.currentTarget.style.backgroundColor = '#4A4E69'
+              }}
+              onMouseLeave={(e) => {
+                if (!showPreview) e.currentTarget.style.backgroundColor = '#2D2D3F'
+              }}
+            >
+              {showPreview ? '✏️ 编辑' : '👁️ 预览'}
+            </button>
+          </div>
+        </div>
+        {!showPreview ? (
+          <textarea
+            ref={textareaRef}
+            value={editText}
+            onChange={(e) => handleTextChange(e.target.value)}
+            placeholder="在此输入节点文本内容...\n\n提示：\n- 使用 **文字** 可以将文字加粗\n- 点击工具栏 B 按钮快速加粗选中文字\n- Enter 键可以换行"
+            style={{
+              width: '100%',
+              flex: 1,
+              minHeight: '120px',
+              backgroundColor: '#2D2D3F',
+              color: '#E2E8F0',
+              border: '1px solid #4A4E69',
+              borderRadius: '8px',
+              padding: '12px',
+              fontSize: '16px',
+              lineHeight: '1.6',
+              resize: 'none',
+              outline: 'none',
+              fontFamily: 'inherit',
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
+              transition: 'border-color 0.2s',
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = '#6C5CE7' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = '#4A4E69' }}
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              flex: 1,
+              minHeight: '120px',
+              backgroundColor: '#2D2D3F',
+              color: '#E2E8F0',
+              border: '1px solid #6C5CE7',
+              borderRadius: '8px',
+              padding: '12px',
+              fontSize: '16px',
+              lineHeight: '1.6',
+              overflow: 'auto',
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
+            }}
+          >
+            {editText ? renderPreview(editText) : (
+              <span style={{ color: '#4A4E69' }}>暂无内容，切换到编辑模式添加文本</span>
+            )}
+          </div>
+        )}
       </div>
 
       <div
@@ -379,4 +511,19 @@ export default function NodeEditor({
       )}
     </div>
   )
+}
+
+const toolbarBtnStyle: React.CSSProperties = {
+  width: '28px',
+  height: '24px',
+  backgroundColor: '#2D2D3F',
+  color: '#B2BEC3',
+  border: '1px solid #4A4E69',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  fontSize: '13px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'all 0.2s',
 }

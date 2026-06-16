@@ -35,8 +35,17 @@ export default function EditorCanvas() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1200)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [filterType, setFilterType] = useState<NodeType | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const filteredNodes = filterType
+    ? nodes.filter((n) => n.type === filterType)
+    : nodes
+
+  const toggleFilter = (type: NodeType) => {
+    setFilterType((prev) => (prev === type ? null : type))
+  }
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 1200)
@@ -139,6 +148,40 @@ export default function EditorCanvas() {
       {!isMobile && (
         <div style={{ marginBottom: '8px' }}>
           <span style={{ fontSize: '16px', fontWeight: 600, color: '#E2E8F0' }}>故事节点</span>
+          <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+            {(['dialogue', 'choice', 'event'] as NodeType[]).map((type) => (
+              <button
+                key={type}
+                onClick={() => toggleFilter(type)}
+                style={{
+                  height: '32px',
+                  padding: '0 14px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: filterType === type ? '#FFFFFF' : '#B2BEC3',
+                  backgroundColor: filterType === type ? NODE_COLORS[type] : '#2D2D3F',
+                  border: `1px solid ${filterType === type ? NODE_COLORS[type] : '#4A4E69'}`,
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  if (filterType !== type) {
+                    e.currentTarget.style.backgroundColor = '#3D3D52'
+                    e.currentTarget.style.borderColor = '#6C5CE7'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (filterType !== type) {
+                    e.currentTarget.style.backgroundColor = '#2D2D3F'
+                    e.currentTarget.style.borderColor = '#4A4E69'
+                  }
+                }}
+              >
+                {NODE_TYPE_LABELS[type]}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       <div
@@ -150,7 +193,7 @@ export default function EditorCanvas() {
           flex: isMobile ? '0 0 auto' : '1 1 auto',
         }}
       >
-        {nodes.map((node) => (
+        {filteredNodes.map((node) => (
           <div
             key={node.id}
             onClick={() => selectNode(node.id)}
@@ -171,12 +214,21 @@ export default function EditorCanvas() {
               transform: selectedNodeId === node.id ? 'scale(1.02)' : 'scale(1)',
               border: selectedNodeId === node.id ? '2px solid #F39C12' : '2px solid transparent',
               whiteSpace: isMobile ? 'nowrap' : 'normal',
+              position: 'relative',
             }}
           >
             <span style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 500 }}>
               {node.title}
             </span>
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
+            <span
+              style={{
+                fontSize: '11px',
+                color: '#B2BEC3',
+                position: 'absolute',
+                right: '10px',
+                bottom: '6px',
+              }}
+            >
               {NODE_TYPE_LABELS[node.type]}
             </span>
           </div>

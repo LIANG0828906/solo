@@ -226,6 +226,28 @@ function NodeRenderer({
   const typeColor =
     node.type === 'dialogue' ? '#4A4E69' : node.type === 'choice' ? '#9B59B6' : '#2ECC71'
 
+  const renderRichText = (text: string): React.ReactNode => {
+    const lines = text.split('\n')
+    return lines.map((line, lineIdx) => {
+      const parts = line.split(/(\*\*[^*]+\*\*)/g)
+      return (
+        <React.Fragment key={lineIdx}>
+          {parts.map((part, partIdx) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              return (
+                <strong key={partIdx} style={{ color: '#F39C12', fontWeight: 700 }}>
+                  {part.slice(2, -2)}
+                </strong>
+              )
+            }
+            return <span key={partIdx}>{part}</span>
+          })}
+          {lineIdx < lines.length - 1 && <br />}
+        </React.Fragment>
+      )
+    })
+  }
+
   return (
     <div style={{ textAlign: 'center' }}>
       <div
@@ -267,11 +289,10 @@ function NodeRenderer({
           border: '1px solid #4A4E69',
           marginBottom: '32px',
           textAlign: 'left',
-          whiteSpace: 'pre-wrap',
           wordWrap: 'break-word',
         }}
       >
-        {node.text}
+        {renderRichText(node.text)}
       </div>
 
       {node.type === 'choice' && node.outputs.length > 0 && (
