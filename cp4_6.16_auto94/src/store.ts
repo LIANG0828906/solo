@@ -11,6 +11,8 @@ function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
+let globalTimer: ReturnType<typeof setInterval> | null = null;
+
 export const useCapsuleStore = create<CapsuleStore>((set, get) => ({
   capsules: [],
   isLoading: false,
@@ -18,6 +20,32 @@ export const useCapsuleStore = create<CapsuleStore>((set, get) => ({
   filterStatus: 'all',
   sortBy: 'createdAt',
   sortOrder: 'desc',
+  currentTimestamp: Date.now(),
+
+  startTimer: () => {
+    if (globalTimer) return;
+    globalTimer = setInterval(() => {
+      const now = Date.now();
+      set({ currentTimestamp: now });
+      const { capsules, checkExpiredCapsules } = get();
+      const hasLocked = capsules.some((c) => c.status === 'locked');
+      if (hasLocked) {
+        const shouldCheck = capsules.some(
+          (c) => c.status === 'locked' && new Date(c.openDate).getTime() <= now
+        );
+        if (shouldCheck) {
+          checkExpiredCapsules();
+        }
+      }
+    }, 1000);
+  },
+
+  stopTimer: () => {
+    if (globalTimer) {
+      clearInterval(globalTimer);
+      globalTimer = null;
+    }
+  },
 
   fetchCapsules: async () => {
     set({ isLoading: true });
