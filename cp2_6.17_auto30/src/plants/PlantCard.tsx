@@ -8,6 +8,14 @@ interface PlantCardProps {
   plant: Plant;
 }
 
+function getSpeciesName(plant: Plant): string {
+  const species = plant.species;
+  if (species === undefined || species === null || species.trim() === '') {
+    return '未知品种';
+  }
+  return species;
+}
+
 export function PlantCard({ plant }: PlantCardProps) {
   const navigate = useNavigate();
   const toggleFavorite = useStore(state => state.toggleFavorite);
@@ -20,7 +28,15 @@ export function PlantCard({ plant }: PlantCardProps) {
   const nextRepottingDate = formatDate(addDays(repottingBaseDate, 365));
   const repottingDaysLeft = daysFromToday(nextRepottingDate);
 
-  const minDaysLeft = Math.min(wateringDaysLeft, repottingDaysLeft);
+  const careItems = [
+    { days: wateringDaysLeft, type: '浇水' },
+    { days: repottingDaysLeft, type: '换盆' }
+  ];
+  const nearest = careItems.reduce((prev, curr) =>
+    curr.days < prev.days ? curr : prev
+  , careItems[0]);
+  const minDaysLeft = nearest.days;
+  const nearestType = nearest.type;
 
   const getStatusColor = () => {
     if (minDaysLeft < 0 || minDaysLeft <= 3) return '#E74C3C';
@@ -30,7 +46,7 @@ export function PlantCard({ plant }: PlantCardProps) {
 
   const getStatusLabel = () => {
     if (minDaysLeft < 0) return `已超期${Math.abs(minDaysLeft)}天`;
-    if (minDaysLeft === 0) return '今日到期';
+    if (minDaysLeft === 0) return `${nearestType}今日`;
     return `${minDaysLeft}天后`;
   };
 
@@ -53,22 +69,31 @@ export function PlantCard({ plant }: PlantCardProps) {
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    (e.target as HTMLImageElement).style.display = 'none';
-    const parent = (e.target as HTMLImageElement).parentElement;
-    if (parent) {
-      parent.classList.add('no-photo');
+    const img = e.target as HTMLImageElement;
+    const parent = img.parentElement;
+    if (!parent) return;
+    img.style.display = 'none';
+    parent.classList.add('no-photo');
+    let placeholder = parent.querySelector('.thumb-placeholder');
+    if (!placeholder) {
+      placeholder = document.createElement('span');
+      placeholder.className = 'thumb-placeholder';
+      placeholder.textContent = '🌵';
+      parent.appendChild(placeholder);
     }
+    (placeholder as HTMLElement).style.display = 'flex';
   };
 
   return (
     <div className="plant-card" onClick={handleCardClick}>
       <div className="card-top">
         <div className="card-thumb">
-          {plant.photoUrl ? (
+          {plant.photoUrl && plant.photoUrl.trim() !== '' ? (
             <img
               src={plant.photoUrl}
               alt={plant.name}
               onError={handleImageError}
+              loading="lazy"
             />
           ) : (
             <span className="thumb-placeholder">🌵</span>
@@ -76,7 +101,7 @@ export function PlantCard({ plant }: PlantCardProps) {
         </div>
         <div className="card-title-group">
           <h3 className="plant-name">{plant.name}</h3>
-          <p className="plant-species">{plant.species || '未知品种'}</p>
+          <p className="plant-species">{getSpeciesName(plant)}</p>
         </div>
         <button
           className={`favorite-btn ${plant.isFavorite ? 'active' : ''}`}
@@ -107,7 +132,10 @@ export function PlantCard({ plant }: PlantCardProps) {
           <span className="watering-label">下次浇水</span>
           <span className="watering-days">{getWateringText()}</span>
         </div>
-        <div className="status-indicator" title={`养护状态：${getStatusLabel()}`}>
+        <div
+          className="status-indicator"
+          title={`最近养护：${nearestType}，${getStatusLabel()}`}
+        >
           <span className="status-dot" style={{ backgroundColor: getStatusColor() }} />
           <span className="status-text">{getStatusLabel()}</span>
         </div>
