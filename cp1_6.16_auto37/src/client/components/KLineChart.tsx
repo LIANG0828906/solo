@@ -84,12 +84,26 @@ const KLineChart: React.FC<KLineChartProps> = ({ data, stockCode }) => {
       ctx.fillText(priceLabel, width - padding.right + 5, y);
     }
 
+    const UP_COLOR = '#e74c3c';
+    const UP_FILL = 'rgba(231, 76, 60, 0.35)';
+    const DOWN_COLOR = '#2ecc71';
+    const DOWN_FILL = 'rgba(46, 204, 113, 0.35)';
+
+    const expectedTotalWidth = data.length * TOTAL_BAR_WIDTH;
+    const availableWidth = chartInnerWidth;
+    let scale = 1;
+    if (expectedTotalWidth > availableWidth && availableWidth > 0) {
+      scale = availableWidth / expectedTotalWidth;
+    }
+
     data.forEach((item, i) => {
-      const x = startX + i * TOTAL_BAR_WIDTH + CANDLE_GAP / 2;
+      const x = startX + i * TOTAL_BAR_WIDTH * scale + CANDLE_GAP / 2 * scale;
+      const candleW = CANDLE_WIDTH * scale;
       const isUp = item.close >= item.open;
-      const strokeColor = isUp ? '#ef4444' : '#22c55e';
-      const fillColor = isUp ? 'rgba(239, 68, 68, 0.4)' : 'rgba(34, 197, 94, 0.4)';
-      const volumeColor = isUp ? 'rgba(239, 68, 68, 0.7)' : 'rgba(34, 197, 94, 0.7)';
+      const strokeColor = isUp ? UP_COLOR : DOWN_COLOR;
+      const fillColor = isUp ? UP_FILL : DOWN_FILL;
+      const volStrokeColor = isUp ? UP_COLOR : DOWN_COLOR;
+      const volFillColor = isUp ? 'rgba(231, 76, 60, 0.6)' : 'rgba(46, 204, 113, 0.6)';
 
       const priceToY = (price: number) => {
         return padding.top + klineHeight - ((price - minPrice) / priceRange) * klineHeight;
@@ -101,30 +115,30 @@ const KLineChart: React.FC<KLineChartProps> = ({ data, stockCode }) => {
       const closeY = priceToY(item.close);
 
       ctx.beginPath();
-      ctx.moveTo(x + CANDLE_WIDTH / 2, highY);
-      ctx.lineTo(x + CANDLE_WIDTH / 2, lowY);
+      ctx.moveTo(x + candleW / 2, highY);
+      ctx.lineTo(x + candleW / 2, lowY);
       ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1 * scale;
       ctx.stroke();
 
       const bodyTop = Math.min(openY, closeY);
       const bodyHeight = Math.max(Math.abs(closeY - openY), 1);
       ctx.fillStyle = fillColor;
-      ctx.fillRect(x, bodyTop, CANDLE_WIDTH, bodyHeight);
+      ctx.fillRect(x, bodyTop, candleW, bodyHeight);
       ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(x, bodyTop, CANDLE_WIDTH, bodyHeight);
+      ctx.lineWidth = 1.5 * scale;
+      ctx.strokeRect(x, bodyTop, candleW, bodyHeight);
 
       const volHeight = maxVolume > 0 ? (item.volume / safeMaxVolume) * volumeHeight : 0;
-      ctx.fillStyle = volumeColor;
-      ctx.fillRect(x, volumeTop + volumeHeight - volHeight, CANDLE_WIDTH, volHeight);
-      ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(x, volumeTop + volumeHeight - volHeight, CANDLE_WIDTH, volHeight);
+      ctx.fillStyle = volFillColor;
+      ctx.fillRect(x, volumeTop + volumeHeight - volHeight, candleW, volHeight);
+      ctx.strokeStyle = volStrokeColor;
+      ctx.lineWidth = 1 * scale;
+      ctx.strokeRect(x, volumeTop + volumeHeight - volHeight, candleW, volHeight);
     });
 
     if (hoveredIndex !== null && hoveredIndex >= 0 && hoveredIndex < data.length) {
-      const x = startX + hoveredIndex * TOTAL_BAR_WIDTH + CANDLE_GAP / 2 + CANDLE_WIDTH / 2;
+      const x = startX + hoveredIndex * TOTAL_BAR_WIDTH * scale + CANDLE_GAP / 2 * scale + (CANDLE_WIDTH * scale) / 2;
 
       ctx.save();
       ctx.setLineDash([4, 4]);
@@ -150,10 +164,14 @@ const KLineChart: React.FC<KLineChartProps> = ({ data, stockCode }) => {
       const padding = { left: 10, right: 60 };
       const chartInnerWidth = rect.width - padding.left - padding.right;
       const totalDataWidth = data.length * TOTAL_BAR_WIDTH;
-      const startX = padding.left + Math.max(0, (chartInnerWidth - totalDataWidth) / 2);
+      let scale = 1;
+      if (totalDataWidth > chartInnerWidth && chartInnerWidth > 0) {
+        scale = chartInnerWidth / totalDataWidth;
+      }
+      const startX = padding.left + Math.max(0, (chartInnerWidth - totalDataWidth * scale) / 2);
 
       const relativeX = x - startX;
-      const index = Math.floor(relativeX / TOTAL_BAR_WIDTH);
+      const index = Math.floor(relativeX / (TOTAL_BAR_WIDTH * scale));
 
       if (index >= 0 && index < data.length) {
         setHoveredIndex(index);
@@ -234,13 +252,13 @@ const KLineChart: React.FC<KLineChartProps> = ({ data, stockCode }) => {
             <span style={{ color: '#a0a0c0' }}>开盘:</span>
             <span>{data[hoveredIndex].open.toFixed(2)}</span>
             <span style={{ color: '#a0a0c0' }}>收盘:</span>
-            <span style={{ color: data[hoveredIndex].close >= data[hoveredIndex].open ? '#ef4444' : '#22c55e' }}>
+            <span style={{ color: data[hoveredIndex].close >= data[hoveredIndex].open ? '#e74c3c' : '#2ecc71' }}>
               {data[hoveredIndex].close.toFixed(2)}
             </span>
             <span style={{ color: '#a0a0c0' }}>最高:</span>
-            <span style={{ color: '#ef4444' }}>{data[hoveredIndex].high.toFixed(2)}</span>
+            <span style={{ color: '#e74c3c' }}>{data[hoveredIndex].high.toFixed(2)}</span>
             <span style={{ color: '#a0a0c0' }}>最低:</span>
-            <span style={{ color: '#22c55e' }}>{data[hoveredIndex].low.toFixed(2)}</span>
+            <span style={{ color: '#2ecc71' }}>{data[hoveredIndex].low.toFixed(2)}</span>
             <span style={{ color: '#a0a0c0' }}>成交量:</span>
             <span>{formatVolume(data[hoveredIndex].volume)}</span>
           </div>

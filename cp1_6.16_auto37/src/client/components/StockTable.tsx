@@ -32,26 +32,52 @@ const COLUMNS: { key: keyof StockComputed; label: string; align?: 'right' }[] = 
 
 const SORT_STORAGE_KEY = 'stock_table_sort_state';
 
+const isValidSortDirection = (dir: unknown): dir is SortDirection => {
+  return dir === 'asc' || dir === 'desc' || dir === null;
+};
+
 const loadSortState = (): SortState => {
   try {
     const saved = localStorage.getItem(SORT_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.key || parsed.direction) {
-        return parsed;
+    if (!saved) {
+      return { key: null, direction: null };
+    }
+
+    const parsed = JSON.parse(saved);
+
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      ('key' in parsed || 'direction' in parsed)
+    ) {
+      const key = parsed.key === null || typeof parsed.key === 'string' ? parsed.key : null;
+      const direction = isValidSortDirection(parsed.direction) ? parsed.direction : null;
+
+      if (key === null && direction === null) {
+        return { key: null, direction: null };
+      }
+
+      if (key !== null && direction !== null) {
+        return { key: key as keyof StockComputed, direction };
       }
     }
   } catch {
-    // ignore
+    try {
+      localStorage.removeItem(SORT_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
   }
   return { key: null, direction: null };
 };
 
-const saveSortState = (state: SortState) => {
+const saveSortState = (state: SortState): boolean => {
   try {
-    localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(state));
+    const data = JSON.stringify(state);
+    localStorage.setItem(SORT_STORAGE_KEY, data);
+    return true;
   } catch {
-    // ignore
+    return false;
   }
 };
 

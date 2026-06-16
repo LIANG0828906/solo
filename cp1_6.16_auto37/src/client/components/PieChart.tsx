@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import type { StockComputed } from '../../data/types';
 
 const COLORS = [
@@ -21,6 +21,9 @@ interface SliceData {
   code: string;
 }
 
+const MIN_FPS = 30;
+const FRAME_TIME_TARGET = 1000 / 60;
+
 const PieChart: React.FC<PieChartProps> = ({ holdings }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -28,6 +31,13 @@ const PieChart: React.FC<PieChartProps> = ({ holdings }) => {
   const animProgressRef = useRef(1);
   const oldSlicesRef = useRef<SliceData[]>([]);
   const rafRef = useRef<number | null>(null);
+  const lastFrameTimeRef = useRef<number>(0);
+  const fpsRef = useRef<number>(60);
+  const frameCountRef = useRef<number>(0);
+  const fpsUpdateTimeRef = useRef<number>(0);
+  const animatingRef = useRef<boolean>(false);
+  const hoverRafRef = useRef<number | null>(null);
+  const pendingHoverRef = useRef<{ x: number; y: number } | null>(null);
 
   const totalValue = useMemo(() => {
     return holdings.reduce((sum, h) => sum + h.marketValue, 0);
@@ -134,8 +144,36 @@ const PieChart: React.FC<PieChartProps> = ({ holdings }) => {
     animProgressRef.current = 0;
     const startTime = performance.now();
     const duration = 500;
+    let frameSkip = 0;
+    let skipCounter = 0;
+    animatingRef.current = true;
 
     const animate = (now: number) => {
+      if (!animatingRef.current) return;
+
+      const deltaTime = now - lastFrameTimeRef.current;
+      lastFrameTimeRef.current = now;
+
+      frameCountRef.current++;
+      if (now - fpsUpdateTimeRef.current >= 500) {
+        fpsRef.current = (frameCountRef.current * 1000) / (now - fpsUpdateTimeRef.current);
+        frameCountRef.current = 0;
+        fpsUpdateTimeRef.current = now;
+
+        if (fpsRef.current < MIN_FPS) {
+          frameSkip = 1;
+        } else {
+          frameSkip = 0;
+        }
+      }
+
+      if (frameSkip > 0 && skipCounter < frameSkip) {
+        skipCounter++;
+        rafRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      skipCounter = 0;
+
       const elapsed = now - startTime;
       animProgressRef.current = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - animProgressRef.current, 3);
@@ -145,17 +183,23 @@ const PieChart: React.FC<PieChartProps> = ({ holdings }) => {
         rafRef.current = requestAnimationFrame(animate);
       } else {
         oldSlicesRef.current = [...currentSlices];
+        animatingRef.current = false;
       }
     };
 
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
     }
+    lastFrameTimeRef.current = performance.now();
+    fpsUpdateTimeRef.current = performance.now();
+    frameCountRef.current = 0;
     rafRef.current = requestAnimationFrame(animate);
 
     return () => {
+      animatingRef.current = false;
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -235,52 +279,83 @@ const PieChart: React.FC<PieChartProps> = ({ holdings }) => {
     return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const processHover = useCallback(
+    (clientX: number, clientY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const outerRadius = Math.min(rect.width, rect.height) / 2 - 30;
-    const innerRadius = outerRadius * 0.55;
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const outerRadius = Math.min(rect.width, rect.height) / 2 - 30;
+      const innerRadius = outerRadius * 0.55;
 
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+      const dx = x - centerX;
+      const dy = y - centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist >= innerRadius && dist <= outerRadius) {
-      let angle = Math.atan2(dy, dx);
-      if (angle < -Math.PI / 2) angle += Math.PI * 2;
+      if (dist >= innerRadius && dist <= outerRadius) {
+        let angle = Math.atan2(dy, dx);
+        if (angle < -Math.PI / 2) angle += Math.PI * 2;
 
-      let foundIndex: number | null = null;
-      for (let i = 0; i < currentSlices.length; i++) {
-        const slice = currentSlices[i];
-        if (angle >= slice.startAngle && angle <= slice.endAngle) {
-          foundIndex = i;
-          break;
+        let foundIndex: number | null = null;
+        for (let i = 0; i < currentSlices.length; i++) {
+          const slice = currentSlices[i];
+          if (angle >= slice.startAngle && angle <= slice.endAngle) {
+            foundIndex = i;
+            break;
+          }
         }
-      }
 
-      if (foundIndex !== null) {
-        setHoveredIndex(foundIndex);
-        const slice = currentSlices[foundIndex];
-        setTooltip({
-          x: e.clientX - rect.left + 15,
-          y: e.clientY - rect.top - 10,
-          text: `${slice.name} (${slice.code})\n${(slice.percentage * 100).toFixed(2)}%`,
-        });
+        if (foundIndex !== null) {
+          setHoveredIndex(foundIndex);
+          const slice = currentSlices[foundIndex];
+          setTooltip({
+            x: x + 15,
+            y: y - 10,
+            text: `${slice.name} (${slice.code})\n${(slice.percentage * 100).toFixed(2)}%`,
+          });
+        } else {
+          setHoveredIndex(null);
+          setTooltip(null);
+        }
       } else {
         setHoveredIndex(null);
         setTooltip(null);
       }
-    } else {
-      setHoveredIndex(null);
-      setTooltip(null);
-    }
-  };
+    },
+    [currentSlices]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      pendingHoverRef.current = { x: e.clientX, y: e.clientY };
+
+      if (hoverRafRef.current !== null) {
+        return;
+      }
+
+      hoverRafRef.current = requestAnimationFrame(() => {
+        if (pendingHoverRef.current) {
+          const { x, y } = pendingHoverRef.current;
+          processHover(x, y);
+        }
+        hoverRafRef.current = null;
+      });
+    },
+    [processHover]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (hoverRafRef.current) {
+        cancelAnimationFrame(hoverRafRef.current);
+        hoverRafRef.current = null;
+      }
+    };
+  }, []);
 
   const handleMouseLeave = () => {
     setHoveredIndex(null);
