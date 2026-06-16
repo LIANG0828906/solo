@@ -26,7 +26,7 @@ export default function App() {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const interactionManagerRef = useRef<InteractionManager | null>(null)
-  const treeMeshRef = useRef<THREE.Mesh | null>(null)
+  const treeMeshRef = useRef<THREE.Points | null>(null)
   const particlesRef = useRef<THREE.Points | null>(null)
   const starsRef = useRef<THREE.Points | null>(null)
   const pulseRingRef = useRef<THREE.Mesh | null>(null)
@@ -39,6 +39,13 @@ export default function App() {
   const currentTreeRef = useRef<FractalTree | null>(null)
   const nextTreeRef = useRef<FractalTree | null>(null)
   const petalStartTimeRef = useRef<number | null>(null)
+  const lastFrameTimeRef = useRef(0)
+  const batchedGenerationRef = useRef({
+    active: false,
+    currentDepth: 0,
+    frameCount: 0,
+    totalFrames: 3
+  })
 
   const { params, render } = useFractalStore()
 
@@ -50,15 +57,16 @@ export default function App() {
   useEffect(() => {
     if (!containerRef.current) return
 
-    const width = containerRef.current.clientWidth
-    const height = containerRef.current.clientHeight
+    const container = containerRef.current
+    const width = container.clientWidth
+    const height = container.clientHeight
+
+    if (width === 0 || height === 0) return
 
     const scene = new THREE.Scene()
     sceneRef.current = scene
-    ;(window as any).__FRACTAL_SCENE__ = scene
-    ;(window as any).__THREE__ = THREE
 
-    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000)
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
     cameraRef.current = camera
 
     const initialCamera = useFractalStore.getState().camera
@@ -68,27 +76,33 @@ export default function App() {
       radius * Math.sin(initialCamera.rotationX),
       radius * Math.cos(initialCamera.rotationY) * Math.cos(initialCamera.rotationX)
     )
-    camera.lookAt(0, 0, 0)
-    console.log('Initial camera position:', camera.position)
+    camera.lookAt(0, 4, 0)
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    containerRef.current.appendChild(renderer.domElement)
+    renderer.setClearColor(0x000000, 0)
+    container.appendChild(renderer.domElement)
     rendererRef.current = renderer
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8)
     scene.add(ambientLight)
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2)
     directionalLight.position.set(5, 10, 5)
     scene.add(directionalLight)
+
+    const pointLight = new THREE.PointLight(0x00FFAA, 0.8, 50)
+    pointLight.position.set(0, 5, 0)
+    scene.add(pointLight)
 
     createStars(scene)
     createPulseRing(scene)
     createPetals(scene)
+    createParticles(scene)
+    generateAndDisplayTree()
 
-    const interactionManager = new InteractionManager(containerRef.current, camera)
+    const interactionManager = new InteractionManager(container, camera)
     interactionManagerRef.current = interactionManager
 
     interactionManager.setOnClickCallback((point) => {
@@ -97,11 +111,11 @@ export default function App() {
       }
     })
 
-    generateTree()
-
-    const animate = () => {
+    const animate = (timestamp: number) => {
       animationIdRef.current = requestAnimationFrame(animate)
-      timeRef.current += 0.016
+      const deltaTime = Math.min((timestamp - lastFrameTimeRef.current) / 1000, 0.05)
+      lastFrameTimeRef.current = timestamp
+      timeRef.current += deltaTime
 
       updateTransition()
       updateGrowth()
@@ -113,27 +127,137 @@ export default function App() {
       renderer.render(scene, camera)
     }
 
-    animate()
+    lastFrameTimeRef.current = performance.now()
+    animate(lastFrameTimeRef.current)
+
+    const handleResize = () => {
+      if (!container || !cameraRef.current || !rendererRef.current) return
+      const w = container.clientWidth
+      const h = container.clientHeight
+      cameraRef.current.aspect = w / h
+      cameraRef.current.updateProjectionMatrix()
+      rendererRef.current.setSize(w, h)
+    }
+    window.addEventListener('resize', handleResize)
 
     return () => {
       cancelAnimationFrame(animationIdRef.current)
+      window.removeEventListener('resize', handleResize)
       interactionManager.dispose()
-      if (containerRef.current && renderer.domElement) {
-        containerRef.current.removeChild(renderer.domElement)
+      if (container && renderer.domElement && renderer.domElement.parentNode === container) {
+        container.removeChild(renderer.domElement)
       }
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) {
+          obj.geometry?.dispose()
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => m.dispose())
+          } else {
+            obj.material?.dispose()
+          }
+        }
+      })
       renderer.dispose()
+      sceneRef.current = null
+      cameraRef.current = null
+      rendererRef.current = null
+      treeMeshRef.current = null
+      particlesRef.current = null
+      starsRef.current = null
+      pulseRingRef.current = null
+      petalsRef.current = null
+      interactionManagerRef.current = null
+      currentTreeRef.current = null
+      nextTreeRef.current = null
     }
   }, [])
 
   useEffect(() => {
-    if (render.mode !== lastModeRef.current || params.randomSeed !== lastSeedRef.current) {
-      if (!render.isTransitioning) {
+    const modeChanged = render.mode !== lastModeRef.current
+    const seedChanged = params.randomSeed !== lastSeedRef.current
+    
+    if (modeChanged || seedChanged) {
+      const { render: renderState } = useFractalStore.getState()
+      if (!renderState.isTransitioning) {
         useFractalStore.getState().startTransition()
       }
       lastModeRef.current = render.mode
       lastSeedRef.current = params.randomSeed
     }
   }, [render.mode, params.randomSeed])
+
+  const generateAndDisplayTree = () => {
+    if (!sceneRef.current) return
+    const { params: currentParams, render: currentRender } = useFractalStore.getState()
+    
+    if (currentTreeRef.current) {
+      nextTreeRef.current = new FractalTree(currentParams, currentRender.mode)
+    } else {
+      currentTreeRef.current = new FractalTree(currentParams, currentRender.mode)
+    }
+    displayCurrentTree()
+    
+    growthFrameRef.current = 0
+    batchedGenerationRef.current = {
+      active: currentParams.maxDepth > 8,
+      currentDepth: 0,
+      frameCount: 0,
+      totalFrames: 3
+    }
+    useFractalStore.getState().setCurrentDepth(0)
+    useFractalStore.getState().incrementBranchesGenerated(0)
+  }
+
+  const displayCurrentTree = () => {
+    if (!sceneRef.current || !currentTreeRef.current) return
+
+    if (treeMeshRef.current) {
+      sceneRef.current.remove(treeMeshRef.current)
+      treeMeshRef.current.geometry.dispose()
+      if (Array.isArray(treeMeshRef.current.material)) {
+        treeMeshRef.current.material.forEach(m => m.dispose())
+      } else {
+        treeMeshRef.current.material.dispose()
+      }
+      treeMeshRef.current = null
+    }
+
+    try {
+      const branchData = currentTreeRef.current.generate()
+      useFractalStore.getState().setBranchTips(branchData.tips)
+
+      const positions = branchData.vertices
+      const colors = branchData.colors
+      const pointCount = positions.length / 3
+
+      const pointSizes = new Float32Array(pointCount)
+      for (let i = 0; i < pointCount; i++) {
+        pointSizes[i] = 0.8 + Math.random() * 0.4
+      }
+
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3))
+      geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3))
+      geometry.setAttribute('size', new THREE.BufferAttribute(pointSizes, 1))
+      geometry.computeBoundingSphere()
+
+      const material = new THREE.PointsMaterial({
+        size: 0.22,
+        vertexColors: true,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 1.0
+      })
+
+      const points = new THREE.Points(geometry, material)
+      points.visible = true
+      sceneRef.current.add(points)
+      treeMeshRef.current = points
+
+    } catch (e) {
+      console.error('Error generating tree:', e)
+    }
+  }
 
   const createStars = (scene: THREE.Scene) => {
     const positions = new Float32Array(STAR_COUNT * 3)
@@ -187,7 +311,9 @@ export default function App() {
         uColor: { value: new THREE.Color(0x00FFFF) }
       },
       transparent: true,
-      side: THREE.DoubleSide
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
     })
 
     const ring = new THREE.Mesh(geometry, material)
@@ -262,6 +388,14 @@ export default function App() {
   const spawnPetals = (position: THREE.Vector3) => {
     if (!petalsRef.current) return
 
+    const positions = petalsRef.current.geometry.attributes.position.array as Float32Array
+    for (let i = 0; i < positions.length; i += 3) {
+      positions[i] = 0
+      positions[i + 1] = 0
+      positions[i + 2] = 0
+    }
+    petalsRef.current.geometry.attributes.position.needsUpdate = true
+
     petalsRef.current.position.copy(position)
     petalsRef.current.visible = true
     petalStartTimeRef.current = timeRef.current
@@ -282,96 +416,19 @@ export default function App() {
     material.uniforms.uTime.value = elapsed
   }
 
-  const generateTree = () => {
-    const { params, render } = useFractalStore.getState()
-    console.log('generateTree called, mode:', render.mode, 'currentTree exists:', !!currentTreeRef.current)
-
-    if (currentTreeRef.current) {
-      nextTreeRef.current = new FractalTree(params, render.mode)
-    } else {
-      currentTreeRef.current = new FractalTree(params, render.mode)
-      console.log('Creating new tree mesh')
-      createTreeMesh()
-    }
-
-    growthFrameRef.current = 0
-    useFractalStore.getState().setCurrentDepth(0)
-    useFractalStore.getState().incrementBranchesGenerated(0)
-  }
-
-  const createTreeMesh = () => {
-    if (!sceneRef.current || !currentTreeRef.current) {
-      console.log('createTreeMesh: early return, scene:', !!sceneRef.current, 'tree:', !!currentTreeRef.current)
-      return
-    }
-
-    console.log('createTreeMesh: generating tree...')
-
-    if (treeMeshRef.current) {
-      sceneRef.current.remove(treeMeshRef.current)
-      treeMeshRef.current.geometry.dispose()
-      if (Array.isArray(treeMeshRef.current.material)) {
-        treeMeshRef.current.material.forEach(m => m.dispose())
-      } else {
-        treeMeshRef.current.material.dispose()
-      }
-    }
-
-    try {
-      const branchData = currentTreeRef.current.generate()
-      console.log('Tree generated, vertices:', branchData.vertices.length / 3, 'tips:', branchData.tips.length)
-      useFractalStore.getState().setBranchTips(branchData.tips)
-
-      const material = new THREE.MeshBasicMaterial({
-        vertexColors: true,
-        side: THREE.DoubleSide
-      })
-      console.log('Material created, vertex colors enabled')
-
-      const mesh = new THREE.Mesh(branchData.geometry, material)
-      sceneRef.current.add(mesh)
-      treeMeshRef.current = mesh
-      ;(window as any).__TREE_MESH__ = mesh
-      console.log('Mesh added to scene, children count:', sceneRef.current.children.length)
-
-      const box = new THREE.Box3().setFromObject(mesh)
-      console.log('Tree bounding box min:', JSON.stringify(box.min))
-      console.log('Tree bounding box max:', JSON.stringify(box.max))
-      console.log('Tree position:', JSON.stringify(mesh.position))
-      console.log('Camera position:', JSON.stringify(cameraRef.current?.position))
-      console.log('Camera far:', cameraRef.current?.far)
-      console.log('Camera near:', cameraRef.current?.near)
-
-      createParticles()
-    } catch (e) {
-      console.error('Error generating tree:', e)
-    }
-  }
-
-  const createParticles = () => {
-    if (!sceneRef.current || !currentTreeRef.current) return
-
-    if (particlesRef.current) {
-      sceneRef.current.remove(particlesRef.current)
-      particlesRef.current.geometry.dispose()
-      if (Array.isArray(particlesRef.current.material)) {
-        particlesRef.current.material.forEach(m => m.dispose())
-      } else {
-        particlesRef.current.material.dispose()
-      }
-    }
-
-    const currentData = currentTreeRef.current.generateParticleData(PARTICLE_COUNT)
-    const targetData = nextTreeRef.current
-      ? nextTreeRef.current.generateParticleData(PARTICLE_COUNT)
-      : currentData
+  const createParticles = (scene: THREE.Scene) => {
+    const positions = new Float32Array(PARTICLE_COUNT * 3)
+    const startPositions = new Float32Array(PARTICLE_COUNT * 3)
+    const targetPositions = new Float32Array(PARTICLE_COUNT * 3)
+    const colors = new Float32Array(PARTICLE_COUNT * 3)
+    const sizes = new Float32Array(PARTICLE_COUNT)
 
     const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(currentData.positions), 3))
-    geometry.setAttribute('startPosition', new THREE.BufferAttribute(new Float32Array(currentData.positions), 3))
-    geometry.setAttribute('targetPosition', new THREE.BufferAttribute(new Float32Array(targetData.positions), 3))
-    geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(targetData.colors), 3))
-    geometry.setAttribute('size', new THREE.BufferAttribute(new Float32Array(currentData.sizes), 1))
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geometry.setAttribute('startPosition', new THREE.BufferAttribute(startPositions, 3))
+    geometry.setAttribute('targetPosition', new THREE.BufferAttribute(targetPositions, 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
 
     const material = new THREE.ShaderMaterial({
       vertexShader: particleVertexShader,
@@ -388,14 +445,14 @@ export default function App() {
 
     const particles = new THREE.Points(geometry, material)
     particles.visible = false
-    sceneRef.current.add(particles)
+    scene.add(particles)
     particlesRef.current = particles
   }
 
   const updateTransition = () => {
-    const { render } = useFractalStore.getState()
+    const { render: renderState, params: currentParams } = useFractalStore.getState()
 
-    if (!render.isTransitioning) {
+    if (!renderState.isTransitioning) {
       if (transitionStartTimeRef.current !== null) {
         transitionStartTimeRef.current = null
         if (particlesRef.current) {
@@ -419,7 +476,7 @@ export default function App() {
       if (particlesRef.current && currentTreeRef.current) {
         const currentData = currentTreeRef.current.generateParticleData(PARTICLE_COUNT)
 
-        const targetTree = new FractalTree(useFractalStore.getState().params, useFractalStore.getState().render.mode)
+        const targetTree = new FractalTree(currentParams, renderState.mode)
         nextTreeRef.current = targetTree
         const targetData = targetTree.generateParticleData(PARTICLE_COUNT)
 
@@ -427,6 +484,7 @@ export default function App() {
         const startPositions = particlesRef.current.geometry.attributes.startPosition.array as Float32Array
         const targetPositions = particlesRef.current.geometry.attributes.targetPosition.array as Float32Array
         const colors = particlesRef.current.geometry.attributes.color.array as Float32Array
+        const sizes = particlesRef.current.geometry.attributes.size.array as Float32Array
 
         for (let i = 0; i < PARTICLE_COUNT * 3; i++) {
           positions[i] = currentData.positions[i]
@@ -434,11 +492,15 @@ export default function App() {
           targetPositions[i] = targetData.positions[i]
           colors[i] = targetData.colors[i]
         }
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          sizes[i] = currentData.sizes[i]
+        }
 
         particlesRef.current.geometry.attributes.position.needsUpdate = true
         particlesRef.current.geometry.attributes.startPosition.needsUpdate = true
         particlesRef.current.geometry.attributes.targetPosition.needsUpdate = true
         particlesRef.current.geometry.attributes.color.needsUpdate = true
+        particlesRef.current.geometry.attributes.size.needsUpdate = true
 
         particlesRef.current.visible = true
       }
@@ -463,15 +525,10 @@ export default function App() {
       useFractalStore.getState().endTransition()
       transitionStartTimeRef.current = null
 
-      if (currentTreeRef.current) {
-        const branchData = currentTreeRef.current.generate()
-        useFractalStore.getState().setBranchTips(branchData.tips)
-
-        if (treeMeshRef.current) {
-          treeMeshRef.current.geometry.dispose()
-          treeMeshRef.current.geometry = branchData.geometry
-          treeMeshRef.current.visible = true
-        }
+      if (nextTreeRef.current) {
+        currentTreeRef.current = nextTreeRef.current
+        nextTreeRef.current = null
+        displayCurrentTree()
       }
 
       if (particlesRef.current) {
@@ -481,42 +538,49 @@ export default function App() {
   }
 
   const updateGrowth = () => {
-    const { params, render } = useFractalStore.getState()
+    const { params: currentParams, render: renderState } = useFractalStore.getState()
 
-    if (render.isTransitioning) return
+    if (renderState.isTransitioning) return
 
-    const effectiveSpeed = params.growthSpeed
-    const shouldGrow = Math.random() < effectiveSpeed * 0.1
+    const effectiveSpeed = currentParams.growthSpeed
+    const shouldGrow = Math.random() < effectiveSpeed * 0.08
 
     if (!shouldGrow) return
 
-    const currentDepth = render.currentDepth
-    if (currentDepth >= params.maxDepth) return
+    const currentDepth = renderState.currentDepth
+    if (currentDepth >= currentParams.maxDepth) return
 
-    const useBatchedGeneration = params.maxDepth > 8
-    const generationRatio = useBatchedGeneration ? 0.4 : 1.0
+    const useBatchedGeneration = currentParams.maxDepth > 8
 
     if (useBatchedGeneration) {
-      growthFrameRef.current++
-      if (growthFrameRef.current < 3) {
-        const depthIncrement = Math.ceil(generationRatio * (params.maxDepth - currentDepth) / 3)
-        const newDepth = Math.min(currentDepth + depthIncrement, params.maxDepth)
-        useFractalStore.getState().setCurrentDepth(newDepth)
-        useFractalStore.getState().incrementBranchesGenerated(Math.floor(Math.pow(2, newDepth) * 0.4))
-        return
+      batchedGenerationRef.current.frameCount++
+      const frameCount = batchedGenerationRef.current.frameCount
+      const totalFrames = batchedGenerationRef.current.totalFrames
+
+      if (frameCount <= totalFrames) {
+        const ratio = frameCount / totalFrames
+        const newDepth = Math.min(
+          Math.ceil(currentParams.maxDepth * ratio),
+          currentParams.maxDepth
+        )
+        if (newDepth > currentDepth) {
+          useFractalStore.getState().setCurrentDepth(newDepth)
+          useFractalStore.getState().incrementBranchesGenerated(
+            Math.floor(Math.pow(2, newDepth) * 0.35)
+          )
+        }
       }
-      growthFrameRef.current = 0
+      return
     }
 
-    const newDepth = currentDepth + 1
+    const newDepth = Math.min(currentDepth + 1, currentParams.maxDepth)
     useFractalStore.getState().setCurrentDepth(newDepth)
     useFractalStore.getState().incrementBranchesGenerated(Math.floor(Math.pow(2, newDepth)))
   }
 
   const updateCamera = () => {
-    if (interactionManagerRef.current) {
-      interactionManagerRef.current.update()
-    }
+    if (!interactionManagerRef.current || !cameraRef.current) return
+    interactionManagerRef.current.update()
   }
 
   const updateStars = () => {
@@ -530,19 +594,7 @@ export default function App() {
 
   const updatePulseRing = () => {
     if (!pulseRingRef.current || !cameraRef.current) return
-
-    const { camera } = useFractalStore.getState()
-    const normalizedZoom = (camera.zoom - 5) / 25
-
-    if (normalizedZoom > 0.05) {
-      pulseRingRef.current.visible = true
-      const material = pulseRingRef.current.material as THREE.ShaderMaterial
-      material.uniforms.uTime.value = timeRef.current
-      material.uniforms.uZoom.value = 1 + normalizedZoom * 3
-      material.uniforms.uRadius.value = 10
-    } else {
-      pulseRingRef.current.visible = false
-    }
+    pulseRingRef.current.visible = false
   }
 
   return (

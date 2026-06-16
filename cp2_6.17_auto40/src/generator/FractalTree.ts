@@ -53,7 +53,7 @@ export class FractalTree {
     this.branchTips = []
     this.curvePoints = []
 
-    const start = new THREE.Vector3(0, -5, 0)
+    const start = new THREE.Vector3(0, 0, 0)
     const direction = new THREE.Vector3(0, 1, 0)
 
     switch (this.mode) {
@@ -253,13 +253,14 @@ export class FractalTree {
   }
 
   private addBranch(start: THREE.Vector3, end: THREE.Vector3, depth: number, radius: number): void {
-    const segments = Math.max(4, Math.floor(12 - depth))
+    const segments = Math.max(6, Math.floor(16 - depth))
+    const tubularSegments = Math.max(3, Math.floor(10 - depth * 0.5))
 
     const direction = new THREE.Vector3().subVectors(end, start)
     const length = direction.length()
 
     const curve = new THREE.LineCurve3(start, end)
-    const tubeGeometry = new THREE.TubeGeometry(curve, 1, radius, segments, false)
+    const tubeGeometry = new THREE.TubeGeometry(curve, tubularSegments, radius, segments, false)
 
     const positions = tubeGeometry.attributes.position.array as Float32Array
     const tipColor = lerpColor(TIP_COLOR1, TIP_COLOR2, this.random())
@@ -273,7 +274,7 @@ export class FractalTree {
       this.allPoints.push(vertex)
 
       const distFromStart = new THREE.Vector3().subVectors(vertex, start).length()
-      const t = distFromStart / length
+      const t = length > 0 ? distFromStart / length : 0
       const depthT = depth / this.params.maxDepth
       const colorT = Math.max(t, depthT)
       const branchColor = lerpColor(ROOT_COLOR, tipColor, colorT)
@@ -284,9 +285,10 @@ export class FractalTree {
   }
 
   private addCurveBranch(points: THREE.Vector3[], depth: number, radius: number): void {
-    const segments = Math.max(4, Math.floor(10 - depth))
+    const segments = Math.max(6, Math.floor(14 - depth))
+    const tubularSegments = Math.max(3, Math.floor(8 - depth * 0.5))
     const curve = new THREE.CatmullRomCurve3(points)
-    const tubeGeometry = new THREE.TubeGeometry(curve, points.length * 2, radius, segments, false)
+    const tubeGeometry = new THREE.TubeGeometry(curve, tubularSegments, radius, segments, false)
 
     const positions = tubeGeometry.attributes.position.array as Float32Array
     const tipColor = lerpColor(TIP_COLOR1, TIP_COLOR2, this.random())

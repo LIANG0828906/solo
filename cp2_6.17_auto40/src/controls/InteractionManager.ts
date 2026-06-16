@@ -9,6 +9,7 @@ export class InteractionManager {
   private targetRotationY = 0
   private targetRotationX = 0
   private onClickCallback?: (point: THREE.Vector3 | null) => void
+  private handlers: Record<string, any> = {}
 
   constructor(container: HTMLElement, camera: THREE.PerspectiveCamera) {
     this.container = container
@@ -21,14 +22,25 @@ export class InteractionManager {
   }
 
   private bindEvents(): void {
-    this.container.addEventListener('mousedown', this.onMouseDown.bind(this))
-    this.container.addEventListener('mousemove', this.onMouseMove.bind(this))
-    this.container.addEventListener('mouseup', this.onMouseUp.bind(this))
-    this.container.addEventListener('mouseleave', this.onMouseUp.bind(this))
-    this.container.addEventListener('wheel', this.onWheel.bind(this), { passive: false })
-    this.container.addEventListener('click', this.onClick.bind(this))
-    window.addEventListener('keydown', this.onKeyDown.bind(this))
-    window.addEventListener('resize', this.onResize.bind(this))
+    this.handlers = {
+      mousedown: this.onMouseDown.bind(this),
+      mousemove: this.onMouseMove.bind(this),
+      mouseup: this.onMouseUp.bind(this),
+      mouseleave: this.onMouseUp.bind(this),
+      wheel: this.onWheel.bind(this),
+      click: this.onClick.bind(this),
+      keydown: this.onKeyDown.bind(this),
+      resize: this.onResize.bind(this)
+    }
+
+    this.container.addEventListener('mousedown', this.handlers.mousedown)
+    this.container.addEventListener('mousemove', this.handlers.mousemove)
+    this.container.addEventListener('mouseup', this.handlers.mouseup)
+    this.container.addEventListener('mouseleave', this.handlers.mouseleave)
+    this.container.addEventListener('wheel', this.handlers.wheel, { passive: false })
+    this.container.addEventListener('click', this.handlers.click)
+    window.addEventListener('keydown', this.handlers.keydown)
+    window.addEventListener('resize', this.handlers.resize)
   }
 
   private onMouseDown(event: MouseEvent): void {
@@ -134,17 +146,17 @@ export class InteractionManager {
     const z = radius * Math.cos(camera.rotationY) * Math.cos(camera.rotationX)
 
     this.camera.position.set(x, y, z)
-    this.camera.lookAt(0, 0, 0)
+    this.camera.lookAt(0, 4, 0)
   }
 
   dispose(): void {
-    this.container.removeEventListener('mousedown', this.onMouseDown.bind(this))
-    this.container.removeEventListener('mousemove', this.onMouseMove.bind(this))
-    this.container.removeEventListener('mouseup', this.onMouseUp.bind(this))
-    this.container.removeEventListener('mouseleave', this.onMouseUp.bind(this))
-    this.container.removeEventListener('wheel', this.onWheel.bind(this))
-    this.container.removeEventListener('click', this.onClick.bind(this))
-    window.removeEventListener('keydown', this.onKeyDown.bind(this))
-    window.removeEventListener('resize', this.onResize.bind(this))
+    this.container.removeEventListener('mousedown', this.handlers.mousedown)
+    this.container.removeEventListener('mousemove', this.handlers.mousemove)
+    this.container.removeEventListener('mouseup', this.handlers.mouseup)
+    this.container.removeEventListener('mouseleave', this.handlers.mouseleave)
+    this.container.removeEventListener('wheel', this.handlers.wheel)
+    this.container.removeEventListener('click', this.handlers.click)
+    window.removeEventListener('keydown', this.handlers.keydown)
+    window.removeEventListener('resize', this.handlers.resize)
   }
 }

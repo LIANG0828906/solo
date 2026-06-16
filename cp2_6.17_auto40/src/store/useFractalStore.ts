@@ -53,9 +53,9 @@ const defaultParams: FractalParams = {
 }
 
 const defaultCamera: CameraState = {
-  rotationX: 0.3,
+  rotationX: 0.6,
   rotationY: 0,
-  zoom: 15
+  zoom: 20
 }
 
 const defaultRender: RenderState = {
