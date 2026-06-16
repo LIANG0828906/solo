@@ -22,6 +22,8 @@ export interface MoleculeData {
   bonds: BondData[];
 }
 
+const EPSILON = 1e-6;
+
 export function parseMOL(text: string): MoleculeData {
   const lines = text.split(/\r?\n/);
   
@@ -31,15 +33,26 @@ export function parseMOL(text: string): MoleculeData {
   const atomCount = parseInt(countsLine.substring(0, 3).trim(), 10);
   const bondCount = parseInt(countsLine.substring(3, 6).trim(), 10);
   
+  if (isNaN(atomCount) || atomCount < 0) {
+    throw new Error(`Invalid atom count: ${atomCount}`);
+  }
+  if (isNaN(bondCount) || bondCount < 0) {
+    throw new Error(`Invalid bond count: ${bondCount}`);
+  }
+  
   const atoms: AtomData[] = [];
   const atomStartIndex = 4;
   
   for (let i = 0; i < atomCount; i++) {
     const line = lines[atomStartIndex + i] || '';
-    const x = parseFloat(line.substring(0, 10));
-    const y = parseFloat(line.substring(10, 20));
-    const z = parseFloat(line.substring(20, 30));
+    let x = parseFloat(line.substring(0, 10));
+    let y = parseFloat(line.substring(10, 20));
+    let z = parseFloat(line.substring(20, 30));
     const element = line.substring(30, 33).trim();
+    
+    if (isNaN(x)) x = 0;
+    if (isNaN(y)) y = 0;
+    if (isNaN(z)) z = 0;
     
     atoms.push({
       id: uuidv4(),
@@ -125,7 +138,11 @@ export function calculateBondLength(a1: AtomData, a2: AtomData): number {
   const dx = a2.x - a1.x;
   const dy = a2.y - a1.y;
   const dz = a2.z - a1.z;
-  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  const distSq = dx * dx + dy * dy + dz * dz;
+  if (distSq < EPSILON * EPSILON) {
+    return 0;
+  }
+  return Math.sqrt(distSq);
 }
 
 export function calculateBondAngle(center: AtomData, a1: AtomData, a2: AtomData): number {
@@ -139,15 +156,32 @@ export function calculateBondAngle(center: AtomData, a1: AtomData, a2: AtomData)
   
   const dot = v1x * v2x + v1y * v2y + v1z * v2z;
   
-  const len1 = Math.sqrt(v1x * v1x + v1y * v1y + v1z * v1z);
-  const len2 = Math.sqrt(v2x * v2x + v2y * v2y + v2z * v2z);
+  const len1Sq = v1x * v1x + v1y * v1y + v1z * v1z;
+  const len2Sq = v2x * v2x + v2y * v2y + v2z * v2z;
   
-  if (len1 === 0 || len2 === 0) {
+  if (len1Sq < EPSILON * EPSILON || len2Sq < EPSILON * EPSILON) {
     return 0;
   }
   
-  const cosAngle = Math.max(-1, Math.min(1, dot / (len1 * len2)));
-  return (Math.acos(cosAngle) * 180) / Math.PI;
+  const len1 = Math.sqrt(len1Sq);
+  const len2 = Math.sqrt(len2Sq);
+  const lenProduct = len1 * len2;
+  
+  if (lenProduct < EPSILON) {
+    return 0;
+  }
+  
+  const cosAngle = dot / lenProduct;
+  
+  if (cosAngle > 1 - EPSILON) {
+    return 0;
+  }
+  if (cosAngle < -1 + EPSILON) {
+    return 180;
+  }
+  
+  const clampedCos = Math.max(-1, Math.min(1, cosAngle));
+  return (Math.acos(clampedCos) * 180) / Math.PI;
 }
 
 export function findAdjacentAtoms(atomId: string, bonds: BondData[]): string[] {
@@ -165,6 +199,7 @@ export function findAdjacentAtoms(atomId: string, bonds: BondData[]): string[] {
 export function recomputeBonds(atoms: AtomData[], threshold: number = 1.6): BondData[] {
   const bonds: BondData[] = [];
   const bonded = new Set<string>();
+  const effectiveThreshold = threshold + EPSILON;
   
   for (let i = 0; i < atoms.length; i++) {
     for (let j = i + 1; j < atoms.length; j++) {
@@ -172,7 +207,7 @@ export function recomputeBonds(atoms: AtomData[], threshold: number = 1.6): Bond
       const a2 = atoms[j];
       const dist = calculateBondLength(a1, a2);
       
-      if (dist < threshold) {
+      if (dist < effectiveThreshold) {
         const key1 = `${a1.id}-${a2.id}`;
         const key2 = `${a2.id}-${a1.id}`;
         if (!bonded.has(key1) && !bonded.has(key2)) {

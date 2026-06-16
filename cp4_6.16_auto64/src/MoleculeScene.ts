@@ -53,10 +53,17 @@ export class MoleculeScene {
   dragOffset: THREE.Vector3
   container: HTMLElement | null
   atomMaterialsCache: Map<string, THREE.MeshStandardMaterial>
-  atomGeometriesCache: Map<number, THREE.SphereGeometry>
+  atomGeometriesCache: Map<string, THREE.SphereGeometry>
   bondGeometry: THREE.CylinderGeometry
   previousStateVersion: number = 0
   _onStoreUnsubscribe: (() => void) | null = null
+
+  static _getAtomSegments(atomCount: number): { sphere: number; cylinder: number } {
+    if (atomCount <= 20) return { sphere: 32, cylinder: 12 }
+    if (atomCount <= 50) return { sphere: 24, cylinder: 10 }
+    if (atomCount <= 100) return { sphere: 16, cylinder: 8 }
+    return { sphere: 12, cylinder: 6 }
+  }
 
   constructor() {
     this.scene = new THREE.Scene()
@@ -84,9 +91,23 @@ export class MoleculeScene {
     this.dragPlane = new THREE.Plane()
     this.dragOffset = new THREE.Vector3()
     this.container = null
-    this.atomMaterialsCache = new Map()
-    this.atomGeometriesCache = new Map()
+    this.atomMaterialsCache = new Map<string, THREE.MeshStandardMaterial>()
+    this.atomGeometriesCache = new Map<string, THREE.SphereGeometry>()
     this.bondGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1, 12)
+  }
+
+  _recreateBondCylinder(bondId: string): void {
+    const oldGroup = this.bondMeshes.get(bondId)
+    if (oldGroup) {
+      this.bondGroup.remove(oldGroup)
+      this.bondMeshes.delete(bondId)
+    }
+    const store = useMoleculeStore.getState()
+    const bond = store.molecule.bonds.find(b => b.id === bondId)
+    if (bond) {
+      this._createBondCylinder(bond)
+      this.flashBond(bondId)
+    }
   }
 
   init(container: HTMLElement): void {
@@ -157,9 +178,11 @@ export class MoleculeScene {
     this.scene.add(this.atomGroup)
     this.scene.add(this.bondGroup)
 
-    this.atomMaterialsCache = new Map()
-    this.atomGeometriesCache = new Map()
-    this.bondGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1, 12)
+    this.atomMaterialsCache = new Map<string, THREE.MeshStandardMaterial>()
+    this.atomGeometriesCache = new Map<string, THREE.SphereGeometry>()
+    const store = useMoleculeStore.getState()
+    const segments = MoleculeScene._getAtomSegments(store.molecule.atoms.length)
+    this.bondGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1, segments.cylinder)
 
     this.handleGroup = new THREE.Group()
     this.handleGroup.visible = false
@@ -233,7 +256,48 @@ export class MoleculeScene {
     this._setupInteraction()
 
     this._onStoreUnsubscribe = useMoleculeStore.subscribe((state, prevState) => {
-      this.refreshMoleculeFromStore()
+      const newFlashIds = state.flashBondIds.filter(
+        (id) => !prevState.flashBondIds.includes(id)
+      )
+      newFlashIds.forEach((bondId) => {
+        this.flashBond(bondId)
+      })
+
+      const prevBonds = prevState.molecule.bonds
+      const currBonds = state.molecule.bonds
+      const prevAtoms = prevState.molecule.atoms
+      const currAtoms = state.molecule.atoms
+
+      const moleculeReplaced =
+        prevAtoms.length !== currAtoms.length ||
+        prevAtoms.some((a, i) => a.id !== currAtoms[i]?.id)
+
+      if (moleculeReplaced) {
+        this.refreshMoleculeFromStore()
+      } else {
+        const prevBondMap = new Map(prevBonds.map(b => [b.id, b]))
+        const currBondMap = new Map(currBonds.map(b => [b.id, b]))
+
+        for (const bond of currBonds) {
+          const prevBond = prevBondMap.get(bond.id)
+          if (!prevBond) {
+            this._createBondCylinder(bond)
+            this.flashBond(bond.id)
+          } else if (prevBond.type !== bond.type) {
+            this._recreateBondCylinder(bond.id)
+          }
+        }
+
+        for (const bond of prevBonds) {
+          if (!currBondMap.has(bond.id)) {
+            const oldGroup = this.bondMeshes.get(bond.id)
+            if (oldGroup) {
+              this.bondGroup.remove(oldGroup)
+              this.bondMeshes.delete(bond.id)
+            }
+          }
+        }
+      }
       this._updateSelectedHighlight()
     })
 
@@ -286,10 +350,14 @@ export class MoleculeScene {
     const radius = ELEMENT_RADIUS[element] ?? 0.35
     const color = ELEMENT_COLORS[element] ?? 0x9b59b6
 
-    let geometry = this.atomGeometriesCache.get(radius)
+    const store = useMoleculeStore.getState()
+    const segments = MoleculeScene._getAtomSegments(store.molecule.atoms.length)
+    const cacheKey = `${radius}_${segments.sphere}`
+
+    let geometry = this.atomGeometriesCache.get(cacheKey)
     if (!geometry) {
-      geometry = new THREE.SphereGeometry(radius, 32, 32)
-      this.atomGeometriesCache.set(radius, geometry)
+      geometry = new THREE.SphereGeometry(radius, segments.sphere, segments.sphere)
+      this.atomGeometriesCache.set(cacheKey, geometry)
     }
 
     let material = this.atomMaterialsCache.get(element)
@@ -344,6 +412,8 @@ export class MoleculeScene {
     const a2 = store.molecule.atoms.find((a) => a.id === bond.atom2Id)
     if (!a1 || !a2) return
 
+    const segments = MoleculeScene._getAtomSegments(store.molecule.atoms.length)
+
     const style = BOND_STYLES[bond.type] ?? BOND_STYLES[1]
     const group = new THREE.Group()
     group.userData = { bondId: bond.id }
@@ -373,7 +443,8 @@ export class MoleculeScene {
         roughness: 0.6,
       })
 
-      const mesh = new THREE.Mesh(this.bondGeometry, material)
+      const bondGeo = new THREE.CylinderGeometry(0.08, 0.08, 1, segments.cylinder)
+      const mesh = new THREE.Mesh(bondGeo, material)
       mesh.scale.set(1, length, 1)
       mesh.position.copy(cylPos)
       mesh.quaternion.setFromUnitVectors(up, direction)
@@ -454,38 +525,42 @@ export class MoleculeScene {
       this.raycaster.setFromCamera(this.mouse, this.camera)
 
       const handleIntersects = this.raycaster.intersectObjects(this.handleGroup.children, false)
-      if (handleIntersects.length > 0 && this.selectedAtomId) {
-        const hit = handleIntersects[0]
-        const axis = (hit.object.userData.axis as 'x' | 'y' | 'z')
-        this.draggingAtomId = this.selectedAtomId
-        this.draggingAxis = axis
-
-        const atomMesh = this.atomMeshes.get(this.selectedAtomId)
-        if (!atomMesh) return
-        const atomPos = atomMesh.getWorldPosition(new THREE.Vector3())
-
-        const cameraRight = new THREE.Vector3()
-        const cameraUp = new THREE.Vector3()
-        const cameraForward = new THREE.Vector3()
-        this.camera.matrixWorld.extractBasis(cameraRight, cameraUp, cameraForward)
-
-        let normal: THREE.Vector3
-        if (axis === 'x') {
-          normal = cameraRight.clone()
-        } else if (axis === 'y') {
-          normal = cameraUp.clone()
-        } else {
-          normal = cameraForward.clone()
-        }
-        this.dragPlane = new THREE.Plane(normal, -normal.dot(atomPos))
-        this.dragOffset = hit.point.clone().sub(atomPos)
-        this.controls.enabled = false
-        event.preventDefault()
-        event.stopPropagation()
-        return
-      }
-
       const atomIntersects = this.raycaster.intersectObjects(this.atomGroup.children, false)
+
+      const handleHit = handleIntersects.length > 0 ? handleIntersects[0] : null
+      const atomHit = atomIntersects.length > 0 ? atomIntersects[0] : null
+
+      if (handleHit && this.selectedAtomId) {
+        if (!atomHit || handleHit.distance < atomHit.distance) {
+          const axis = (handleHit.object.userData.axis as 'x' | 'y' | 'z')
+          this.draggingAtomId = this.selectedAtomId
+          this.draggingAxis = axis
+
+          const atomMesh = this.atomMeshes.get(this.selectedAtomId)
+          if (!atomMesh) return
+          const atomPos = atomMesh.getWorldPosition(new THREE.Vector3())
+
+          const cameraRight = new THREE.Vector3()
+          const cameraUp = new THREE.Vector3()
+          const cameraForward = new THREE.Vector3()
+          this.camera.matrixWorld.extractBasis(cameraRight, cameraUp, cameraForward)
+
+          let normal: THREE.Vector3
+          if (axis === 'x') {
+            normal = cameraRight.clone()
+          } else if (axis === 'y') {
+            normal = cameraUp.clone()
+          } else {
+            normal = cameraForward.clone()
+          }
+          this.dragPlane = new THREE.Plane(normal, -normal.dot(atomPos))
+          this.dragOffset = handleHit.point.clone().sub(atomPos)
+          this.controls.enabled = false
+          event.preventDefault()
+          event.stopPropagation()
+          return
+        }
+      }
       if (atomIntersects.length > 0) {
         const atomId = atomIntersects[0].object.userData.atomId as string
         useMoleculeStore.getState().selectAtom(atomId)
@@ -526,6 +601,10 @@ export class MoleculeScene {
         }
         event.preventDefault()
         event.stopPropagation()
+        return
+      }
+
+      if (this.draggingAtomId) {
         return
       }
 
@@ -635,11 +714,14 @@ export class MoleculeScene {
   }
 
   update(delta: number): void {
-    this.controls.update()
+    if (!this.draggingAtomId) {
+      this.controls.update()
+    }
 
     const store = useMoleculeStore.getState()
     const updatedAtomIds: Set<string> = new Set()
 
+    const targetsToRemove: string[] = []
     store.atomTargetPositions.forEach((target, id) => {
       const mesh = this.atomMeshes.get(id)
       if (!mesh) return
@@ -647,16 +729,20 @@ export class MoleculeScene {
       const currentPos = mesh.position
       const targetVec = new THREE.Vector3(target.x, target.y, target.z)
       currentPos.lerp(targetVec, 0.15)
-      store.updateAtomPosition(id, currentPos.x, currentPos.y, currentPos.z)
       updatedAtomIds.add(id)
 
       const dist = currentPos.distanceTo(targetVec)
       if (dist < 0.001) {
-        const newMap = new Map(store.atomTargetPositions)
-        newMap.delete(id)
-        useMoleculeStore.setState({ atomTargetPositions: newMap })
+        targetsToRemove.push(id)
+        store.updateAtomPosition(id, currentPos.x, currentPos.y, currentPos.z)
       }
     })
+
+    if (targetsToRemove.length > 0) {
+      const newMap = new Map(store.atomTargetPositions)
+      targetsToRemove.forEach(id => newMap.delete(id))
+      useMoleculeStore.setState({ atomTargetPositions: newMap })
+    }
 
     if (updatedAtomIds.size > 0) {
       const affectedBondIds = new Set<string>()
@@ -733,6 +819,15 @@ export class MoleculeScene {
 
     this.renderer.dispose()
     this.bondGeometry.dispose()
+
+    this.bondMeshes.forEach((group) => {
+      group.traverse((child) => {
+        const mesh = child as THREE.Mesh
+        if (mesh.isMesh && mesh.geometry) {
+          mesh.geometry.dispose()
+        }
+      })
+    })
 
     this.atomGeometriesCache.forEach((geo) => geo.dispose())
     this.atomMaterialsCache.forEach((mat) => mat.dispose())

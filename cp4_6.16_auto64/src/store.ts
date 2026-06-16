@@ -17,6 +17,7 @@ export interface MoleculeStore {
   firstBondAtomId: string | null
   selectedBondId: string | null
   atomTargetPositions: Map<string, { x: number; y: number; z: number }>
+  flashBondIds: string[]
 
   setMolecule(mol: MoleculeData): void
   selectAtom(id: string | null): void
@@ -31,6 +32,7 @@ export interface MoleculeStore {
   importMOL(text: string): boolean
   exportMOL(): string
   resetView(): void
+  triggerBondFlash(bondId: string): void
 }
 
 export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
@@ -40,6 +42,7 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
   firstBondAtomId: null,
   selectedBondId: null,
   atomTargetPositions: new Map(),
+  flashBondIds: [],
 
   setMolecule: (mol: MoleculeData) => {
     set({
@@ -48,7 +51,14 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
       selectedBondId: null,
       firstBondAtomId: null,
       atomTargetPositions: new Map(),
+      flashBondIds: [],
     })
+  },
+
+  triggerBondFlash: (bondId: string) => {
+    set((state) => ({
+      flashBondIds: [...state.flashBondIds, bondId],
+    }))
   },
 
   selectAtom: (id: string | null) => {
@@ -123,6 +133,7 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
           selectedAtomId: null,
           selectedBondId: targetBondId,
         })
+        get().triggerBondFlash(targetBondId)
       } else {
         set({
           firstBondAtomId: null,
@@ -185,6 +196,7 @@ export const useMoleculeStore = create<MoleculeStore>((set, get) => ({
         ),
       },
     })
+    get().triggerBondFlash(bondId)
   },
 
   createBond: (atom1Id: string, atom2Id: string, type: 1 | 2 | 3 | 4 = 1) => {

@@ -2,6 +2,8 @@ import { MoleculeScene } from './MoleculeScene'
 import UIPanel from './UIPanel'
 import { useMoleculeStore } from './store'
 
+let scene: MoleculeScene | null = null
+
 function main(): void {
   const app = document.getElementById('app')
   const canvasContainer = document.getElementById('canvas-container')
@@ -10,7 +12,7 @@ function main(): void {
     throw new Error('DOM元素 #app 或 #canvas-container 未找到')
   }
 
-  const scene = new MoleculeScene()
+  scene = new MoleculeScene()
   scene.init(canvasContainer)
 
   const uiPanel = new UIPanel(app, useMoleculeStore, scene)
@@ -21,13 +23,18 @@ function main(): void {
   let frameCount = 0
   let fps = 0
   let fpsAccumulator = 0
+  const baseDPR = Math.min(window.devicePixelRatio, 2)
+  let lastDPRAdjustTime = 0
+  let lastAtomCount = 0
 
   const animate = (currentTime: number): void => {
     const delta = (currentTime - lastTime) / 1000
     lastTime = currentTime
 
-    scene.update(delta)
-    scene.render()
+    if (scene) {
+      scene.update(delta)
+      scene.render()
+    }
 
     frameCount++
     fpsAccumulator += delta
@@ -37,10 +44,22 @@ function main(): void {
       frameCount = 0
       fpsAccumulator = 0
 
-      if (fps < 30 && scene.renderer) {
+      const atomCount = useMoleculeStore.getState().molecule.atoms.length
+      if (atomCount !== lastAtomCount) {
+        lastAtomCount = atomCount
+        if (scene) {
+          scene.refreshMoleculeFromStore()
+        }
+      }
+
+      if (scene?.renderer && currentTime - lastDPRAdjustTime >= 3000) {
         const currentDPR = scene.renderer.getPixelRatio()
-        if (currentDPR > 1) {
+        if (fps < 30 && currentDPR > 1) {
           scene.renderer.setPixelRatio(Math.max(1, currentDPR - 0.5))
+          lastDPRAdjustTime = currentTime
+        } else if (fps >= 45 && currentDPR < baseDPR) {
+          scene.renderer.setPixelRatio(Math.min(baseDPR, currentDPR + 0.5))
+          lastDPRAdjustTime = currentTime
         }
       }
     }
@@ -53,7 +72,9 @@ function main(): void {
   const handleResize = (): void => {
     const w = window.innerWidth
     const h = window.innerHeight
-    scene.resize(w, h)
+    if (scene) {
+      scene.resize(w, h)
+    }
   }
 
   window.addEventListener('resize', handleResize)
