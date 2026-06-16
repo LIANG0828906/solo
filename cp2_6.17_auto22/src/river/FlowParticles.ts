@@ -24,11 +24,12 @@ export interface FlowParticlesSystem {
     deltaSec: number,
     paths: RiverPath[],
     pathFlowMap: Record<string, number>,
-    pathMaxParticles: number,
+    totalParticles: number,
     interpolate: typeof interpolateOnPath,
     highlightedParticleIndex: number | null
   ) => void
   getParticlePathCounts: () => Record<string, number>
+  getTotalParticleCount: () => number
   getAverageSpeedByPath: () => Record<string, number>
   getPathMinMaxFlow: () => { min: number; max: number }
 }
@@ -119,7 +120,7 @@ export function createFlowParticles(paths: RiverPath[]): FlowParticlesSystem {
   deltaSec,
   paths,
   pathFlowMap,
-  pathMaxParticles,
+  totalParticles,
   interpolate,
   highlightedParticleIndex
 ) {
@@ -129,7 +130,7 @@ export function createFlowParticles(paths: RiverPath[]): FlowParticlesSystem {
       for (const particle of allParticles) {
         particle.t += particle.tPerSec * deltaSec
         if (particle.t >= 1) {
-          particle.t = particle.t - Math.floor(particle.t)
+          particle.t = Math.random() * 0.1
         }
 
         const path = pathMap[particle.pathId]
@@ -141,8 +142,8 @@ export function createFlowParticles(paths: RiverPath[]): FlowParticlesSystem {
         positions[idx + 2] = pos.z
 
         const flowCount = pathFlowMap[path.id] ?? 0
-        const ratio = pathMaxParticles > 0 ? flowCount / pathMaxParticles : 0
-        const clamped = Math.max(0, Math.min(1, ratio))
+        const ratio = totalParticles > 0 ? flowCount / totalParticles : 0
+        const clamped = Math.max(0, Math.min(1, ratio * 3))
         lerpColor(particle.baseColor, LOW_FLOW_COLOR, HIGH_FLOW_COLOR, clamped)
 
         if (particle.index === highlightedParticleIndex) {
@@ -169,6 +170,10 @@ export function createFlowParticles(paths: RiverPath[]): FlowParticlesSystem {
         counts[p.pathId] = (counts[p.pathId] ?? 0) + 1
       }
       return counts
+    },
+
+    getTotalParticleCount() {
+      return allParticles.length
     },
 
     getAverageSpeedByPath() {

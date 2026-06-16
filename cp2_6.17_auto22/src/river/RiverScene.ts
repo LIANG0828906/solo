@@ -124,7 +124,7 @@ export function createRiverScene(container: HTMLElement): RiverSceneAPI {
   }
 
   let pathFlowMap: Record<string, number> = particleSystem.getParticlePathCounts()
-  let maxParticles = 80
+  let totalParticles = particleSystem.getTotalParticleCount()
   const startTime = performance.now()
   let lastStatsTime = startTime
 
@@ -180,8 +180,7 @@ export function createRiverScene(container: HTMLElement): RiverSceneAPI {
     if (now - lastStatsTime >= 5000) {
       lastStatsTime = now
       pathFlowMap = particleSystem.getParticlePathCounts()
-      const vals = Object.values(pathFlowMap)
-      maxParticles = vals.length > 0 ? Math.max(...vals) : 1
+      totalParticles = particleSystem.getTotalParticleCount()
       for (const pathId of Object.keys(pathFlowMap)) {
         recordFlowSample(pathId, pathFlowMap[pathId], now)
       }
@@ -192,7 +191,7 @@ export function createRiverScene(container: HTMLElement): RiverSceneAPI {
       delta,
       paths,
       pathFlowMap,
-      maxParticles,
+      totalParticles,
       interpolateOnPath,
       selectedParticleIdx
     )

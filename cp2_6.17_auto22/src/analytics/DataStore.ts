@@ -38,15 +38,23 @@ export const useStore = create<DataStoreState>((set, get) => ({
   selectParticle: (particleIndex) => set({ selectedParticleIndex: particleIndex }),
 
   updatePathStats: (pathId, stats) =>
-    set((state) => ({
-      pathStats: {
-        ...state.pathStats,
-        [pathId]: {
-          ...state.pathStats[pathId],
-          ...stats
+    set((state) => {
+      const existing = state.pathStats[pathId]
+      const merged: PathStats = {
+        pathId: existing?.pathId || pathId,
+        pathName: existing?.pathName || pathId,
+        currentParticleCount: existing?.currentParticleCount ?? 0,
+        averageSpeed: existing?.averageSpeed ?? 0,
+        history: existing?.history ?? [],
+        ...stats
+      }
+      return {
+        pathStats: {
+          ...state.pathStats,
+          [pathId]: merged
         }
       }
-    })),
+    }),
 
   recordFlowSample: (pathId, particleCount, timestamp) =>
     set((state) => {
