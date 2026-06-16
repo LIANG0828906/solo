@@ -1,0 +1,5 @@
+[
+  {"id":"u1","email":"artist@test.com","password":"123456","name":"Luna Chen","role":"artist"},
+  {"id":"u2","email":"user@test.com","password":"123456","name":"Alex Wang","role":"user"},
+  {"id":"u3","email":"admin@test.com","password":"123456","name":"Admin","role":"admin"}
+]
