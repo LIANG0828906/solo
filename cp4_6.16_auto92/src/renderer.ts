@@ -180,12 +180,44 @@ export class CanvasRenderer {
       const startAngle = -Math.PI / 2;
       const endAngle = startAngle + Math.PI * 2 * ore.harvestProgress;
       
-      ctx.strokeStyle = `rgba(255, 50, 50, 0.7)`;
+      const progressGradient = ctx.createLinearGradient(
+        pos.x - progressBarRadius, pos.y - progressBarRadius,
+        pos.x + progressBarRadius, pos.y + progressBarRadius
+      );
+      const t = ore.harvestProgress;
+      const r = Math.floor(180 + (255 - 180) * t);
+      const g = Math.floor(50 + (200 - 50) * t);
+      const b = Math.floor(50 + (50 - 50) * t);
+      progressGradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.7)`);
+      progressGradient.addColorStop(1, `rgba(255, 215, 0, 0.9)`);
+      
+      ctx.strokeStyle = progressGradient;
       ctx.lineWidth = barWidth;
       ctx.lineCap = 'round';
+      ctx.shadowColor = `rgba(255, 200, 50, ${0.5 * ore.harvestProgress})`;
+      ctx.shadowBlur = 8 * ore.harvestProgress;
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, progressBarRadius, startAngle, endAngle);
       ctx.stroke();
+      ctx.shadowBlur = 0;
+      
+      if (ore.harvestProgress > 0.1) {
+        const particleCount = Math.floor(ore.harvestProgress * 3);
+        for (let i = 0; i < particleCount; i++) {
+          const angle = startAngle + Math.PI * 2 * ore.harvestProgress * Math.random();
+          const dist = progressBarRadius + (Math.random() - 0.5) * 6;
+          const px = pos.x + Math.cos(angle) * dist;
+          const py = pos.y + Math.sin(angle) * dist;
+          
+          const glowP = ctx.createRadialGradient(px, py, 0, px, py, 4);
+          glowP.addColorStop(0, `rgba(255, 220, 100, ${0.6 * Math.random()})`);
+          glowP.addColorStop(1, 'rgba(255, 200, 50, 0)');
+          ctx.fillStyle = glowP;
+          ctx.beginPath();
+          ctx.arc(px, py, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     }
   }
 
@@ -203,6 +235,8 @@ export class CanvasRenderer {
   }
 
   drawDebris(debris: SpaceDebris): void {
+    this.drawDebrisEdgeGlow(debris);
+    
     if (debris.isWarning) {
       if (debris.isWarningVisible()) {
         this.drawDebrisWarning(debris);
@@ -251,6 +285,106 @@ export class CanvasRenderer {
     ctx.stroke();
     
     ctx.restore();
+  }
+
+  private drawDebrisEdgeGlow(debris: SpaceDebris): void {
+    const ctx = this.ctx;
+    const screenW = this.canvas.width;
+    const screenH = this.canvas.height;
+    
+    const glowPos = debris.getEdgeGlowPosition(screenW, screenH, this.cameraX, this.cameraY);
+    if (!glowPos) return;
+    
+    const intensity = debris.getEdgeGlowIntensity(screenW, screenH, this.cameraX, this.cameraY);
+    if (intensity <= 0) return;
+    
+    const pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.008);
+    const finalIntensity = intensity * pulse;
+    
+    const glowRadius = 60 + finalIntensity * 40;
+    
+    let gradient: CanvasGradient;
+    
+    switch (glowPos.side) {
+      case 'left':
+        gradient = ctx.createRadialGradient(
+          glowPos.x - glowRadius * 0.5, glowPos.y, 0,
+          glowPos.x - glowRadius * 0.5, glowPos.y, glowRadius
+        );
+        break;
+      case 'right':
+        gradient = ctx.createRadialGradient(
+          glowPos.x + glowRadius * 0.5, glowPos.y, 0,
+          glowPos.x + glowRadius * 0.5, glowPos.y, glowRadius
+        );
+        break;
+      case 'top':
+        gradient = ctx.createRadialGradient(
+          glowPos.x, glowPos.y - glowRadius * 0.5, 0,
+          glowPos.x, glowPos.y - glowRadius * 0.5, glowRadius
+        );
+        break;
+      default:
+        gradient = ctx.createRadialGradient(
+          glowPos.x, glowPos.y + glowRadius * 0.5, 0,
+          glowPos.x, glowPos.y + glowRadius * 0.5, glowRadius
+        );
+        break;
+    }
+    
+    gradient.addColorStop(0, `rgba(255, 60, 40, ${finalIntensity * 0.6})`);
+    gradient.addColorStop(0.5, `rgba(255, 40, 30, ${finalIntensity * 0.3})`);
+    gradient.addColorStop(1, 'rgba(255, 30, 20, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    
+    if (glowPos.side === 'left' || glowPos.side === 'right') {
+      ctx.ellipse(
+        glowPos.x, glowPos.y,
+        glowRadius * 0.6, glowRadius,
+        0, 0, Math.PI * 2
+      );
+    } else {
+      ctx.ellipse(
+        glowPos.x, glowPos.y,
+        glowRadius, glowRadius * 0.6,
+        0, 0, Math.PI * 2
+      );
+    }
+    ctx.fill();
+    
+    const arrowSize = 12;
+    const arrowColor = `rgba(255, 100, 80, ${finalIntensity})`;
+    ctx.fillStyle = arrowColor;
+    ctx.strokeStyle = arrowColor;
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    switch (glowPos.side) {
+      case 'left':
+        ctx.moveTo(glowPos.x + arrowSize, glowPos.y);
+        ctx.lineTo(glowPos.x - arrowSize * 0.3, glowPos.y - arrowSize * 0.6);
+        ctx.lineTo(glowPos.x - arrowSize * 0.3, glowPos.y + arrowSize * 0.6);
+        break;
+      case 'right':
+        ctx.moveTo(glowPos.x - arrowSize, glowPos.y);
+        ctx.lineTo(glowPos.x + arrowSize * 0.3, glowPos.y - arrowSize * 0.6);
+        ctx.lineTo(glowPos.x + arrowSize * 0.3, glowPos.y + arrowSize * 0.6);
+        break;
+      case 'top':
+        ctx.moveTo(glowPos.x, glowPos.y + arrowSize);
+        ctx.lineTo(glowPos.x - arrowSize * 0.6, glowPos.y - arrowSize * 0.3);
+        ctx.lineTo(glowPos.x + arrowSize * 0.6, glowPos.y - arrowSize * 0.3);
+        break;
+      default:
+        ctx.moveTo(glowPos.x, glowPos.y - arrowSize);
+        ctx.lineTo(glowPos.x - arrowSize * 0.6, glowPos.y + arrowSize * 0.3);
+        ctx.lineTo(glowPos.x + arrowSize * 0.6, glowPos.y + arrowSize * 0.3);
+        break;
+    }
+    ctx.closePath();
+    ctx.fill();
   }
 
   drawDebrisWarning(debris: SpaceDebris): void {
@@ -332,21 +466,70 @@ export class CanvasRenderer {
     ctx.shadowBlur = 0;
   }
 
-  drawScore(score: number): void {
+  drawScore(score: number, health: number, maxHealth: number): void {
     const ctx = this.ctx;
+    const panelW = 200;
+    const panelH = 80;
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(10, 10, 180, 50);
+    ctx.fillRect(10, 10, panelW, panelH);
     
     ctx.strokeStyle = '#4a90d9';
     ctx.lineWidth = 2;
-    ctx.strokeRect(10, 10, 180, 50);
+    ctx.strokeRect(10, 10, panelW, panelH);
     
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 18px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('分数: ' + score, 20, 25);
+    ctx.fillText('分数: ' + score, 20, 20);
+    
+    const healthRatio = health / maxHealth;
+    const barX = 20;
+    const barY = 55;
+    const barW = panelW - 40;
+    const barH = 14;
+    
+    ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
+    ctx.fillRect(barX, barY, barW, barH);
+    
+    const isLowHealth = healthRatio < 0.3;
+    let barGradient: CanvasGradient;
+    
+    if (isLowHealth) {
+      const blinkIntensity = 0.5 + 0.5 * Math.sin(Date.now() * 0.015);
+      barGradient = ctx.createLinearGradient(barX, barY, barX + barW, barY);
+      barGradient.addColorStop(0, `rgba(180, 20, 20, ${0.7 + blinkIntensity * 0.3})`);
+      barGradient.addColorStop(1, `rgba(220, 40, 40, ${0.8 + blinkIntensity * 0.2})`);
+    } else {
+      barGradient = ctx.createLinearGradient(barX, barY, barX + barW, barY);
+      barGradient.addColorStop(0, '#e74c3c');
+      barGradient.addColorStop(0.4, '#f39c12');
+      barGradient.addColorStop(0.7, '#2ecc71');
+      barGradient.addColorStop(1, '#27ae60');
+    }
+    
+    const fillWidth = Math.max(0, barW * healthRatio);
+    
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(barX, barY, fillWidth, barH);
+    ctx.clip();
+    
+    ctx.fillStyle = barGradient;
+    ctx.fillRect(barX, barY, barW, barH);
+    
+    ctx.restore();
+    
+    ctx.strokeStyle = isLowHealth ? '#ff3333' : '#34495e';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${health}/${maxHealth}`, barX + barW / 2, barY + barH / 2);
   }
 
   drawHealth(health: number, maxHealth: number, shockwaves: Shockwave[]): void {

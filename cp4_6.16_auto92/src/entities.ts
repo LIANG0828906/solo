@@ -243,6 +243,72 @@ export class SpaceDebris implements Entity {
   isWarningVisible(): boolean {
     return Math.floor(this.blinkPhase / this.warningBlinkPeriod) % 2 === 0;
   }
+
+  getEdgeGlowIntensity(screenWidth: number, screenHeight: number, cameraX: number, cameraY: number): number {
+    const screenX = this.x - cameraX + screenWidth / 2;
+    const screenY = this.y - cameraY + screenHeight / 2;
+    
+    const margin = 100;
+    const glowRange = 200;
+    
+    let minDist = Infinity;
+    
+    if (screenX < margin + glowRange) {
+      minDist = Math.min(minDist, screenX - margin);
+    }
+    if (screenX > screenWidth - margin - glowRange) {
+      minDist = Math.min(minDist, screenWidth - margin - screenX);
+    }
+    if (screenY < margin + glowRange) {
+      minDist = Math.min(minDist, screenY - margin);
+    }
+    if (screenY > screenHeight - margin - glowRange) {
+      minDist = Math.min(minDist, screenHeight - margin - screenY);
+    }
+    
+    if (minDist >= glowRange) return 0;
+    if (minDist <= 0) return 1;
+    
+    return 1 - minDist / glowRange;
+  }
+
+  getEdgeGlowPosition(screenWidth: number, screenHeight: number, cameraX: number, cameraY: number): { x: number; y: number; side: 'left' | 'right' | 'top' | 'bottom' } | null {
+    const screenX = this.x - cameraX + screenWidth / 2;
+    const screenY = this.y - cameraY + screenHeight / 2;
+    
+    const margin = 50;
+    
+    const distLeft = screenX;
+    const distRight = screenWidth - screenX;
+    const distTop = screenY;
+    const distBottom = screenHeight - screenY;
+    
+    const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+    
+    if (minDist > 150) return null;
+    
+    let x = 0, y = 0, side: 'left' | 'right' | 'top' | 'bottom' = 'left';
+    
+    if (distLeft === minDist) {
+      x = margin;
+      y = Math.max(margin, Math.min(screenHeight - margin, screenY));
+      side = 'left';
+    } else if (distRight === minDist) {
+      x = screenWidth - margin;
+      y = Math.max(margin, Math.min(screenHeight - margin, screenY));
+      side = 'right';
+    } else if (distTop === minDist) {
+      x = Math.max(margin, Math.min(screenWidth - margin, screenX));
+      y = margin;
+      side = 'top';
+    } else {
+      x = Math.max(margin, Math.min(screenWidth - margin, screenX));
+      y = screenHeight - margin;
+      side = 'bottom';
+    }
+    
+    return { x, y, side };
+  }
 }
 
 export class Particle {

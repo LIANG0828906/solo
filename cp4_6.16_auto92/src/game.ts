@@ -485,7 +485,7 @@ export class Game {
     
     this.renderer.drawShip(this.ship);
     
-    this.renderer.drawScore(this.score);
+    this.renderer.drawScore(this.score, this.ship.health, this.ship.maxHealth);
     this.renderer.drawHealth(this.ship.health, this.ship.maxHealth, this.shockwaves);
     
     if (this.isGameOver) {
