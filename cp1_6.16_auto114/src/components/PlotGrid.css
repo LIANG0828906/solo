@@ -1,0 +1,240 @@
+.plot-grid-wrapper {
+  width: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.plot-grid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 0 4px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.plot-grid-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #3E2723;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.plot-grid-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #5D4037;
+}
+
+.legend-item i {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(62, 39, 35, 0.25);
+}
+
+.plot-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.plot-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 2px solid #DEB887;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.18) 0px,
+      rgba(255, 255, 255, 0.18) 3px,
+      transparent 3px,
+      transparent 9px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.08) 0px,
+      rgba(255, 255, 255, 0.08) 2px,
+      transparent 2px,
+      transparent 11px
+    );
+  background-blend-mode: overlay;
+  min-height: 44px;
+  outline: none;
+  user-select: none;
+}
+
+.plot-cell:hover {
+  transform: scale(1.05);
+  box-shadow:
+    0 6px 16px rgba(62, 39, 35, 0.22),
+    0 2px 6px rgba(62, 39, 35, 0.12);
+  z-index: 2;
+}
+
+.plot-cell:active {
+  transform: scale(0.97);
+}
+
+.plot-cell--selected {
+  border-color: #6D4C41;
+  box-shadow: 0 0 0 3px rgba(109, 76, 65, 0.25);
+}
+
+.plot-cell--highlight {
+  animation: orangeBlink 0.3s ease;
+}
+
+@keyframes orangeBlink {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0); }
+  50% {
+    box-shadow:
+      0 0 0 6px rgba(255, 165, 0, 0.7),
+      0 0 20px 4px rgba(255, 165, 0, 0.5);
+    border-color: #FFA500;
+  }
+}
+
+.plot-cell--water {
+  position: relative;
+}
+
+.plot-cell--exchange {
+  border-color: #E65100;
+  border-style: dashed;
+  border-width: 2px;
+}
+
+.plot-cell__badge-top-left {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 10px;
+  color: #5D4037;
+  opacity: 0.75;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.plot-cell__avatar {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 16px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
+}
+
+.plot-cell__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--plot-icon-bg, #ccc);
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.plot-cell__icon {
+  transition: transform 0.2s ease;
+}
+
+.plot-cell:hover .plot-cell__icon {
+  transform: translateY(-1px) scale(1.08);
+}
+
+.plot-cell__crop-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3E2723;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.plot-cell__hint {
+  font-size: 10px;
+  color: rgba(62, 39, 35, 0.7);
+  font-weight: 500;
+}
+
+.plot-cell__exchange-tag {
+  position: absolute;
+  bottom: 3px;
+  right: 4px;
+  background: #E65100;
+  color: #fff;
+  font-size: 9px;
+  padding: 2px 5px;
+  border-radius: 8px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.plot-cell__water-drop {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2196F3;
+  box-shadow: 0 0 4px rgba(33, 150, 243, 0.6);
+  animation: waterDrop 0.5s ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes waterDrop {
+  0% {
+    top: 0;
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    top: calc(100% - 8px);
+    opacity: 0;
+    transform: translateX(-50%) scale(1.4);
+  }
+}
+
+@media (max-width: 768px) {
+  .plot-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .plot-cell__icon-wrap {
+    width: 30px;
+    height: 30px;
+  }
+  .plot-grid-header h2 {
+    font-size: 16px;
+  }
+}
