@@ -8,6 +8,8 @@ export const CanvasRenderer: React.FC = () => {
     artifacts,
     cards,
     connections,
+    bindings,
+    bindingCardId,
     isPreviewMode,
     scrollY,
     setScrollY,
@@ -211,6 +213,26 @@ export const CanvasRenderer: React.FC = () => {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    bindings.forEach(binding => {
+      const artifact = artifacts.find(a => a.id === binding.artifactId);
+      const card = cards.find(c => c.id === binding.cardId);
+      if (!artifact || !card) return;
+      
+      const fromX = artifact.x + artifact.width / 2;
+      const fromY = artifact.y + artifact.height / 2;
+      const toX = card.x + card.width / 2;
+      const toY = card.y + 60;
+      
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.setLineDash([4, 4]);
+      ctx.lineTo(toX, toY);
+      ctx.strokeStyle = binding.color;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+    
     const allBounds = [
       ...artifacts.map(a => ({ x: a.x, y: a.y, width: a.width, height: a.height })),
       ...cards.map(c => ({ x: c.x, y: c.y, width: c.width, height: 120 })),
@@ -281,7 +303,7 @@ export const CanvasRenderer: React.FC = () => {
       ctx.stroke();
       ctx.setLineDash([]);
     }
-  }, [artifacts, cards, connections, hoveredConnectionId, isConnectingMode, connectingFromId, connectingFromType, mousePos, getEntityCenter, getEntityBounds, computeBezierPath]);
+  }, [artifacts, cards, connections, bindings, hoveredConnectionId, isConnectingMode, connectingFromId, connectingFromType, mousePos, getEntityCenter, getEntityBounds, computeBezierPath]);
 
   useEffect(() => {
     drawConnections();
@@ -397,7 +419,7 @@ export const CanvasRenderer: React.FC = () => {
     setHoveredConnectionId(foundConnection);
   }, [connections, artifacts, cards, getEntityCenter, getEntityBounds, computeBezierPath, getPointOnBezier]);
 
-  const cursorStyle = isConnectingMode ? 'crosshair' : isBindingMode ? 'pointer' : 'default';
+  const cursorStyle = isConnectingMode || isBindingMode ? 'crosshair' : 'default';
 
   return (
     <div
@@ -417,6 +439,21 @@ export const CanvasRenderer: React.FC = () => {
         cursor: cursorStyle,
       }}
     >
+      {isBindingMode && (
+        <div
+          className="binding-overlay"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(196, 168, 130, 0.08)',
+            zIndex: 5,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
       <div
         style={{
           position: 'relative',
@@ -444,6 +481,7 @@ export const CanvasRenderer: React.FC = () => {
             key={artifact.id}
             artifact={artifact}
             isPreview={isPreviewMode}
+            isBindingModeActive={isBindingMode}
             onPreviewClick={() => setSelectedArtifact(artifact.id)}
           />
         ))}

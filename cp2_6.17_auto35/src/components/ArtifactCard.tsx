@@ -4,6 +4,7 @@ import { useExhibitionStore, Artifact as ArtifactType } from '../store/useExhibi
 interface ArtifactCardProps {
   artifact: ArtifactType;
   isPreview?: boolean;
+  isBindingModeActive?: boolean;
   onPreviewClick?: () => void;
 }
 
@@ -12,7 +13,7 @@ const DAMPING = 0.8;
 const EDGE_THRESHOLD = 50;
 const MAX_SCROLL_SPEED = 25;
 
-export const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, isPreview = false, onPreviewClick }) => {
+export const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, isPreview = false, isBindingModeActive = false, onPreviewClick }) => {
   const {
     moveEntity,
     isBindingMode,
@@ -340,16 +341,20 @@ export const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, isPreview 
         cursor: isPreviewMode ? 'pointer' : cursorStyle,
         transform: transformValue,
         transformOrigin: 'center center',
-        boxShadow: isDragging || springScale !== 1
-          ? '0 4px 16px rgba(0,0,0,0.2)' 
-          : isSelected 
-            ? '0 2px 8px rgba(196, 168, 130, 0.4)'
-            : '0 2px 8px rgba(0,0,0,0.1)',
+        boxShadow: isBindingModeActive
+          ? '0 0 0 3px rgba(196, 168, 130, 0.3), 0 0 16px rgba(196, 168, 130, 0.4)'
+          : isDragging || springScale !== 1
+            ? '0 4px 16px rgba(0,0,0,0.2)' 
+            : isSelected 
+              ? '0 2px 8px rgba(196, 168, 130, 0.4)'
+              : '0 2px 8px rgba(0,0,0,0.1)',
         borderRadius: '4px',
-        border: `2px solid ${isSelected ? '#C4A882' : '#C4A882'}`,
+        border: isBindingModeActive
+          ? '3px solid #C4A882'
+          : `2px solid ${isSelected ? '#C4A882' : '#C4A882'}`,
         overflow: 'hidden',
         userSelect: 'none',
-        zIndex: isDragging ? 100 : isSelected ? 10 : 1,
+        zIndex: isDragging ? 100 : isBindingModeActive ? 50 : isSelected ? 10 : 1,
         willChange: 'transform',
       }}
       onMouseDown={handleMouseDown}
