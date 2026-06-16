@@ -74,10 +74,14 @@ const App: React.FC = () => {
 
   const handlePreview = () => {
     setPreviewMode(true);
+    setSelectedArtifact(null);
+    setContextMenu({ visible: false });
+    setConnectingMode(false);
   };
 
   const handleExitPreview = () => {
     setPreviewMode(false);
+    setSelectedArtifact(null);
     setPreviewArtifact(null);
   };
 
@@ -356,7 +360,7 @@ const App: React.FC = () => {
       )}
 
       {/* 右键菜单 */}
-      {contextMenu.visible && (
+      {contextMenu.visible && !isPreviewMode && (
         <div
           onClick={handleContextMenuClick}
           style={{
@@ -569,7 +573,7 @@ const App: React.FC = () => {
       )}
 
       {/* 模式提示 */}
-      {(isConnectingMode || isBindingMode) && (
+      {(isConnectingMode || isBindingMode) && !isPreviewMode && (
         <div
           style={{
             position: 'fixed',

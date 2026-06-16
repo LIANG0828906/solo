@@ -75,6 +75,39 @@ export const CanvasRenderer: React.FC = () => {
     return { x: 0, y: 0, width: 0, height: 0 };
   }, [artifacts, cards]);
 
+  const getPointOnBezier = useCallback((
+    t: number,
+    p0x: number, p0y: number,
+    p1x: number, p1y: number,
+    p2x: number, p2y: number,
+    p3x: number, p3y: number
+  ) => {
+    const mt = 1 - t;
+    return {
+      x: mt * mt * mt * p0x + 3 * mt * mt * t * p1x + 3 * mt * t * t * p2x + t * t * t * p3x,
+      y: mt * mt * mt * p0y + 3 * mt * mt * t * p1y + 3 * mt * t * t * p2y + t * t * t * p3y,
+    };
+  }, []);
+
+  const getClosestPointOnRect = useCallback((
+    px: number, py: number,
+    rx: number, ry: number, rw: number, rh: number
+  ) => {
+    const cx = Math.max(rx, Math.min(px, rx + rw));
+    const cy = Math.max(ry, Math.min(py, ry + rh));
+    return { x: cx, y: cy };
+  }, []);
+
+  const distancePointToRect = useCallback((
+    px: number, py: number,
+    rx: number, ry: number, rw: number, rh: number
+  ) => {
+    const closest = getClosestPointOnRect(px, py, rx, ry, rw, rh);
+    const dx = px - closest.x;
+    const dy = py - closest.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }, [getClosestPointOnRect]);
+
   const computeBezierPath = useCallback((
     fromX: number,
     fromY: number,
@@ -82,12 +115,12 @@ export const CanvasRenderer: React.FC = () => {
     toY: number,
     otherBounds: Array<{ x: number; y: number; width: number; height: number }>
   ) => {
-    const midX = (fromX + toX) / 2;
-    const midY = (fromY + toY) / 2;
-    
     const dx = toX - fromX;
     const dy = toY - fromY;
     const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    const midX = (fromX + toX) / 2;
+    const midY = (fromY + toY) / 2;
     
     let offsetX = -dy / dist * 60;
     let offsetY = dx / dist * 60;
@@ -99,42 +132,75 @@ export const CanvasRenderer: React.FC = () => {
       offsetX = dx > 0 ? -60 : 60;
       offsetY = 0;
     }
-    
-    const avoidance = 40;
-    
-    for (const bounds of otherBounds) {
-      const bx = bounds.x + bounds.width / 2;
-      const by = bounds.y + bounds.height / 2;
-      
-      const lineMinX = Math.min(fromX, toX);
-      const lineMaxX = Math.max(fromX, toX);
-      const lineMinY = Math.min(fromY, toY);
-      const lineMaxY = Math.max(fromY, toY);
-      
-      if (
-        bx > lineMinX - bounds.width / 2 &&
-        bx < lineMaxX + bounds.width / 2 &&
-        by > lineMinY - bounds.height / 2 &&
-        by < lineMaxY + bounds.height / 2
-      ) {
-        const pushX = bx > midX ? avoidance : -avoidance;
-        const pushY = by > midY ? avoidance : -avoidance;
-        
-        if (Math.abs(dx) > Math.abs(dy)) {
-          offsetY += pushY;
-        } else {
-          offsetX += pushX;
+
+    let cp1x = midX + offsetX * 0.5;
+    let cp1y = midY + offsetY * 0.5;
+    let cp2x = midX + offsetX;
+    let cp2y = midY + offsetY;
+
+    const MIN_CLEARANCE = 40;
+    const MAX_ITERATIONS = 5;
+
+    for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+      let maxPushX = 0;
+      let maxPushY = 0;
+      let hasCollision = false;
+
+      for (let t = 0; t <= 1; t += 0.05) {
+        const point = getPointOnBezier(t, fromX, fromY, cp1x, cp1y, cp2x, cp2y, toX, toY);
+
+        for (const bounds of otherBounds) {
+          const dist = distancePointToRect(
+            point.x, point.y,
+            bounds.x, bounds.y, bounds.width, bounds.height
+          );
+
+          if (dist < MIN_CLEARANCE) {
+            hasCollision = true;
+
+            const closest = getClosestPointOnRect(
+              point.x, point.y,
+              bounds.x, bounds.y, bounds.width, bounds.height
+            );
+
+            const normalX = point.x - closest.x;
+            const normalY = point.y - closest.y;
+            const normalLen = Math.sqrt(normalX * normalX + normalY * normalY);
+
+            if (normalLen > 0) {
+              const nx = normalX / normalLen;
+              const ny = normalY / normalLen;
+
+              const pushAmount = MIN_CLEARANCE - dist;
+
+              if (t <= 0.5) {
+                const weight = 1 - t * 2;
+                maxPushX += nx * pushAmount * weight;
+                maxPushY += ny * pushAmount * weight;
+              } else {
+                const weight = (t - 0.5) * 2;
+                maxPushX += nx * pushAmount * weight;
+                maxPushY += ny * pushAmount * weight;
+              }
+            }
+          }
         }
       }
+
+      if (!hasCollision) break;
+
+      const pushMag = Math.sqrt(maxPushX * maxPushX + maxPushY * maxPushY);
+      if (pushMag < 0.1) break;
+
+      const scale = Math.min(pushMag, 30) / pushMag;
+      cp1x += maxPushX * scale * 0.5;
+      cp1y += maxPushY * scale * 0.5;
+      cp2x += maxPushX * scale;
+      cp2y += maxPushY * scale;
     }
-    
-    return {
-      cp1x: midX + offsetX * 0.5,
-      cp1y: midY + offsetY * 0.5,
-      cp2x: midX + offsetX,
-      cp2y: midY + offsetY,
-    };
-  }, []);
+
+    return { cp1x, cp1y, cp2x, cp2y };
+  }, [getPointOnBezier, getClosestPointOnRect, distancePointToRect]);
 
   const drawConnections = useCallback(() => {
     const canvas = canvasRef.current;
@@ -310,17 +376,15 @@ export const CanvasRenderer: React.FC = () => {
       );
       
       for (let t = 0; t <= 1; t += 0.05) {
-        const px = Math.pow(1 - t, 3) * fromCenter.x +
-          3 * Math.pow(1 - t, 2) * t * path.cp1x +
-          3 * (1 - t) * t * t * path.cp2x +
-          Math.pow(t, 3) * toCenter.x;
+        const point = getPointOnBezier(
+          t,
+          fromCenter.x, fromCenter.y,
+          path.cp1x, path.cp1y,
+          path.cp2x, path.cp2y,
+          toCenter.x, toCenter.y
+        );
         
-        const py = Math.pow(1 - t, 3) * fromCenter.y +
-          3 * Math.pow(1 - t, 2) * t * path.cp1y +
-          3 * (1 - t) * t * t * path.cp2y +
-          Math.pow(t, 3) * toCenter.y;
-        
-        const dist = Math.sqrt((px - x) ** 2 + (py - y) ** 2);
+        const dist = Math.sqrt((point.x - x) ** 2 + (point.y - y) ** 2);
         if (dist < 10) {
           foundConnection = conn.id;
           break;
@@ -331,7 +395,7 @@ export const CanvasRenderer: React.FC = () => {
     }
     
     setHoveredConnectionId(foundConnection);
-  }, [connections, artifacts, cards, getEntityCenter, getEntityBounds, computeBezierPath]);
+  }, [connections, artifacts, cards, getEntityCenter, getEntityBounds, computeBezierPath, getPointOnBezier]);
 
   const cursorStyle = isConnectingMode ? 'crosshair' : isBindingMode ? 'pointer' : 'default';
 
@@ -376,7 +440,12 @@ export const CanvasRenderer: React.FC = () => {
         />
         
         {artifacts.map(artifact => (
-          <ArtifactCard key={artifact.id} artifact={artifact} isPreview={isPreviewMode} />
+          <ArtifactCard
+            key={artifact.id}
+            artifact={artifact}
+            isPreview={isPreviewMode}
+            onPreviewClick={() => setSelectedArtifact(artifact.id)}
+          />
         ))}
         
         {cards.map(card => (
