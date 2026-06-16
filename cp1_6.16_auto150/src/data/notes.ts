@@ -1,0 +1,156 @@
+import { Note } from '../types';
+
+export const topNotes: Note[] = [
+  {
+    id: 'top-1',
+    name: '柠檬',
+    color: '#FFE44D',
+    description: '清新明亮的柑橘果香',
+    type: 'top',
+    dimensions: { fresh: 95, warm: 10, sweet: 40, spicy: 5, woody: 5 },
+  },
+  {
+    id: 'top-2',
+    name: '佛手柑',
+    color: '#98FB98',
+    description: '优雅的花香柑橘调',
+    type: 'top',
+    dimensions: { fresh: 80, warm: 20, sweet: 50, spicy: 10, woody: 5 },
+  },
+  {
+    id: 'top-3',
+    name: '薄荷',
+    color: '#7FFFD4',
+    description: '清凉提神的草本气息',
+    type: 'top',
+    dimensions: { fresh: 100, warm: 0, sweet: 20, spicy: 15, woody: 0 },
+  },
+  {
+    id: 'top-4',
+    name: '葡萄柚',
+    color: '#FF6B6B',
+    description: '微苦的活力果香',
+    type: 'top',
+    dimensions: { fresh: 90, warm: 15, sweet: 35, spicy: 8, woody: 3 },
+  },
+  {
+    id: 'top-5',
+    name: '薰衣草',
+    color: '#B19CD9',
+    description: '舒缓的草本花香',
+    type: 'top',
+    dimensions: { fresh: 60, warm: 30, sweet: 45, spicy: 20, woody: 15 },
+  },
+  {
+    id: 'top-6',
+    name: '海盐',
+    color: '#87CEEB',
+    description: '海洋清新的矿物感',
+    type: 'top',
+    dimensions: { fresh: 85, warm: 5, sweet: 10, spicy: 5, woody: 10 },
+  },
+];
+
+export const middleNotes: Note[] = [
+  {
+    id: 'mid-1',
+    name: '玫瑰',
+    color: '#FF69B4',
+    description: '经典优雅的花香女王',
+    type: 'middle',
+    dimensions: { fresh: 40, warm: 50, sweet: 70, spicy: 20, woody: 10 },
+  },
+  {
+    id: 'mid-2',
+    name: '茉莉',
+    color: '#FFFACD',
+    description: '浓郁甜美的白花香气',
+    type: 'middle',
+    dimensions: { fresh: 35, warm: 55, sweet: 80, spicy: 15, woody: 8 },
+  },
+  {
+    id: 'mid-3',
+    name: '鸢尾',
+    color: '#DDA0DD',
+    description: '粉质优雅的高级花香',
+    type: 'middle',
+    dimensions: { fresh: 30, warm: 45, sweet: 55, spicy: 10, woody: 40 },
+  },
+  {
+    id: 'mid-4',
+    name: '肉桂',
+    color: '#D2691E',
+    description: '温暖辛香的东方调',
+    type: 'middle',
+    dimensions: { fresh: 10, warm: 90, sweet: 50, spicy: 95, woody: 30 },
+  },
+  {
+    id: 'mid-5',
+    name: '铃兰',
+    color: '#E6E6FA',
+    description: '清新纯净的绿色花香',
+    type: 'middle',
+    dimensions: { fresh: 70, warm: 25, sweet: 55, spicy: 5, woody: 5 },
+  },
+  {
+    id: 'mid-6',
+    name: '胡椒',
+    color: '#8B0000',
+    description: '辛香刺激的提亮点缀',
+    type: 'middle',
+    dimensions: { fresh: 20, warm: 70, sweet: 15, spicy: 100, woody: 25 },
+  },
+];
+
+export const baseNotes: Note[] = [
+  {
+    id: 'base-1',
+    name: '檀香',
+    color: '#DEB887',
+    description: '温润奶香的木质基底',
+    type: 'base',
+    dimensions: { fresh: 10, warm: 75, sweet: 40, spicy: 15, woody: 95 },
+  },
+  {
+    id: 'base-2',
+    name: '麝香',
+    color: '#F5DEB3',
+    description: '性感温暖的动物香',
+    type: 'base',
+    dimensions: { fresh: 5, warm: 85, sweet: 50, spicy: 10, woody: 50 },
+  },
+  {
+    id: 'base-3',
+    name: '香草',
+    color: '#F3E5AB',
+    description: '甜美温暖的美食调',
+    type: 'base',
+    dimensions: { fresh: 5, warm: 80, sweet: 100, spicy: 10, woody: 20 },
+  },
+  {
+    id: 'base-4',
+    name: '雪松',
+    color: '#8B4513',
+    description: '干燥利落的木质香',
+    type: 'base',
+    dimensions: { fresh: 25, warm: 50, sweet: 15, spicy: 20, woody: 90 },
+  },
+  {
+    id: 'base-5',
+    name: '广藿香',
+    color: '#654321',
+    description: '神秘深邃的泥土香',
+    type: 'base',
+    dimensions: { fresh: 15, warm: 60, sweet: 25, spicy: 40, woody: 85 },
+  },
+  {
+    id: 'base-6',
+    name: '琥珀',
+    color: '#FFBF00',
+    description: '温暖树脂的东方韵味',
+    type: 'base',
+    dimensions: { fresh: 5, warm: 95, sweet: 75, spicy: 35, woody: 40 },
+  },
+];
+
+export const allNotes = [...topNotes, ...middleNotes, ...baseNotes];
