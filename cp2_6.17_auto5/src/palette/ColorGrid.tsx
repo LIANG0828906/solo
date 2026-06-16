@@ -60,8 +60,9 @@ const ColorCard: React.FC<ColorCardProps> = memo(({
         transition: 'transform 0.2s ease, box-shadow 0.2s ease',
         transform: isPressed ? 'scale(0.95)' : 'translateY(0)',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-        userSelect: 'none'
-      }}
+        userSelect: 'none',
+        '--glow-color': color.hex
+      } as unknown as React.CSSProperties}
       className="color-card"
     >
       <div
@@ -135,9 +136,26 @@ const Toast: React.FC<{ message: string; visible: boolean }> = ({ message, visib
       zIndex: 1000,
       pointerEvents: 'none',
       transition: 'all 0.3s ease',
-      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px'
     }}
   >
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0 }}
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
     {message}
   </div>
 );
@@ -299,7 +317,7 @@ const ColorGrid: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '16px',
+          gap: '12px',
           flex: 1,
           overflowY: 'auto',
           padding: '4px'
@@ -350,12 +368,15 @@ const ColorGrid: React.FC = () => {
         @media (min-width: 768px) {
           .color-grid {
             grid-template-columns: repeat(4, 1fr) !important;
+            gap: 16px !important;
           }
         }
         
         .color-card:hover {
           transform: translateY(-3px) !important;
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+          box-shadow:
+            0 8px 25px rgba(0, 0, 0, 0.3),
+            0 0 8px 3px var(--glow-color)4d !important;
         }
         
         .color-grid::-webkit-scrollbar {
