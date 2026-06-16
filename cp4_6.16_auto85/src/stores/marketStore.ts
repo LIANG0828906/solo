@@ -55,4 +55,78 @@ export const useMarketStore = create<MarketState>((set, get) => ({
       createdAt: Date.now(),
       status: 'available',
     };
-    const updated
+    const updatedItems = [newItem, ...get().items];
+    set({ items: updatedItems });
+    try {
+      await set('items', updatedItems);
+    } catch (error) {
+      console.error('Failed to save new item:', error);
+    }
+  },
+
+  removeItem: async (itemId) => {
+    const updatedItems = get().items.filter((i) => i.id !== itemId);
+    set({ items: updatedItems });
+    try {
+      await set('items', updatedItems);
+    } catch (error) {
+      console.error('Failed to remove item:', error);
+    }
+  },
+
+  updateItemStatus: async (itemId, status) => {
+    const updatedItems = get().items.map((i) =>
+      i.id === itemId ? { ...i, status } : i
+    );
+    set({ items: updatedItems });
+    try {
+      await set('items', updatedItems);
+    } catch (error) {
+      console.error('Failed to update item status:', error);
+    }
+  },
+
+  updateItemStatusBatch: async (ids, status) => {
+    const idSet = new Set(ids);
+    const updatedItems = get().items.map((i) =>
+      idSet.has(i.id) ? { ...i, status } : i
+    );
+    set({ items: updatedItems });
+    try {
+      await set('items', updatedItems);
+    } catch (error) {
+      console.error('Failed to batch update item statuses:', error);
+    }
+  },
+
+  setSearchQuery: (query) => {
+    set({ searchQuery: query });
+  },
+
+  setSelectedCategory: (category) => {
+    set({ selectedCategory: category });
+  },
+
+  getFilteredItems: () => {
+    const { items, searchQuery, selectedCategory } = get();
+    return items.filter((item) => {
+      if (item.status === 'exchanged') return false;
+      const matchesCategory =
+        selectedCategory === 'all' || item.category === selectedCategory;
+      const matchesSearch =
+        !searchQuery ||
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.desiredExchange.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  },
+
+  getItemById: (itemId) => {
+    return get().items.find((i) => i.id === itemId);
+  },
+
+  getItemsByOwner: (ownerId) => {
+    return get().items.filter((i) => i.ownerId === ownerId);
+  },
+}));
