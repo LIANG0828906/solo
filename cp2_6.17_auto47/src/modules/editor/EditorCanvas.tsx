@@ -201,23 +201,33 @@ export default function EditorCanvas() {
               height: '60px',
               minHeight: isMobile ? '48px' : '60px',
               width: isMobile ? 'auto' : '100%',
-              padding: isMobile ? '8px 16px' : '8px 12px',
+              padding: isMobile ? '8px 16px' : '0 12px',
+              paddingRight: isMobile ? '16px' : '12px',
               borderRadius: '8px',
               backgroundColor: NODE_COLORS[node.type],
               cursor: 'pointer',
               display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              gap: '2px',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              position: 'relative',
               transition: 'opacity 0.15s, transform 0.15s',
               opacity: selectedNodeId === node.id ? 1 : 0.7,
               transform: selectedNodeId === node.id ? 'scale(1.02)' : 'scale(1)',
               border: selectedNodeId === node.id ? '2px solid #F39C12' : '2px solid transparent',
               whiteSpace: isMobile ? 'nowrap' : 'normal',
-              position: 'relative',
             }}
           >
-            <span style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 500 }}>
+            <span
+              style={{
+                fontSize: '14px',
+                color: '#FFFFFF',
+                fontWeight: 500,
+                paddingRight: isMobile ? '0' : '50px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {node.title}
             </span>
             <span
@@ -225,8 +235,8 @@ export default function EditorCanvas() {
                 fontSize: '11px',
                 color: '#B2BEC3',
                 position: 'absolute',
-                right: '10px',
-                bottom: '6px',
+                right: '8px',
+                bottom: '8px',
               }}
             >
               {NODE_TYPE_LABELS[node.type]}

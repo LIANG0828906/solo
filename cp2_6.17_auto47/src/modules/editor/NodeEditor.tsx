@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import type { StoryNode, Connection } from '../../store/gameStore'
 
 interface NodeEditorProps {
@@ -11,28 +11,45 @@ interface NodeEditorProps {
   allNodes: StoryNode[]
 }
 
-function renderRichText(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g)
-  return parts.map((part, idx) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return (
-        <strong key={idx} style={{ color: '#F39C12', fontWeight: 700 }}>
-          {part.slice(2, -2)}
-        </strong>
-      )
-    }
-    return <span key={idx}>{part}</span>
-  })
+function isContentEditableSupported(): boolean {
+  if (typeof document === 'undefined') return false
+  const div = document.createElement('div')
+  return typeof div.contentEditable !== 'undefined' && document.execCommand !== undefined
 }
 
-function renderPreview(text: string): React.ReactNode {
-  const lines = text.split('\n')
-  return lines.map((line, lineIdx) => (
-    <React.Fragment key={lineIdx}>
-      {renderRichText(line)}
-      {lineIdx < lines.length - 1 && <br />}
-    </React.Fragment>
-  ))
+function htmlToPlainText(html: string): string {
+  const div = document.createElement('div')
+  div.innerHTML = html
+
+  const strongs = div.querySelectorAll('strong, b')
+  strongs.forEach((el) => {
+    const text = el.textContent || ''
+    el.replaceWith(`**${text}**`)
+  })
+
+  const brs = div.querySelectorAll('br')
+  brs.forEach((br) => {
+    br.replaceWith('\n')
+  })
+
+  const divs = div.querySelectorAll('div, p')
+  divs.forEach((el, idx) => {
+    if (idx < divs.length - 1) {
+      el.after('\n')
+    }
+  })
+
+  return div.innerText || div.textContent || ''
+}
+
+function plainTextToHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .split('\n')
+    .join('<br>')
 }
 
 export default function NodeEditor({
@@ -44,21 +61,47 @@ export default function NodeEditor({
   onClose,
   allNodes,
 }: NodeEditorProps) {
-  const [editText, setEditText] = useState(node.text)
   const [editTitle, setEditTitle] = useState(node.title)
+  const [editText, setEditText] = useState(node.text)
   const [newConnLabel, setNewConnLabel] = useState('')
   const [newConnTarget, setNewConnTarget] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [showPreview, setShowPreview] = useState(false)
+  const [useRichEditor, setUseRichEditor] = useState(isContentEditableSupported())
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleSave = () => {
-    onUpdate({ title: editTitle, text: editText })
-  }
+  useEffect(() => {
+    setEditTitle(node.title)
+    setEditText(node.text)
+    if (useRichEditor && editorRef.current) {
+      editorRef.current.innerHTML = plainTextToHtml(node.text)
+    }
+  }, [node.id, useRichEditor])
 
-  const handleTextChange = (val: string) => {
-    setEditText(val)
+  useEffect(() => {
+    if (useRichEditor && editorRef.current) {
+      const styleId = 'rich-editor-style'
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement('style')
+        style.id = styleId
+        style.textContent = `
+          [contenteditable] b, [contenteditable] strong {
+            color: #F39C12;
+            font-weight: 700;
+          }
+        `
+        document.head.appendChild(style)
+      }
+    }
+  }, [useRichEditor])
+
+  const handleSave = () => {
+    let finalText = editText
+    if (useRichEditor && editorRef.current) {
+      finalText = htmlToPlainText(editorRef.current.innerHTML)
+    }
+    onUpdate({ title: editTitle, text: finalText })
   }
 
   const handleTitleChange = (val: string) => {
@@ -80,44 +123,50 @@ export default function NodeEditor({
     }
   }
 
-  const insertBold = useCallback(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const selectedText = editText.substring(start, end)
-
-    let newText: string
-    let newCursorPos: number
-
-    if (selectedText) {
-      newText = editText.substring(0, start) + `**${selectedText}**` + editText.substring(end)
-      newCursorPos = end + 4
-    } else {
-      newText = editText.substring(0, start) + '**加粗文字**' + editText.substring(end)
-      newCursorPos = start + 2
+  const execBold = useCallback(() => {
+    if (!useRichEditor) return
+    if (editorRef.current) {
+      editorRef.current.focus()
     }
+    document.execCommand('bold', false, '')
+  }, [useRichEditor])
 
-    setEditText(newText)
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(newCursorPos, newCursorPos + (selectedText ? selectedText.length : 4))
-    }, 0)
-  }, [editText])
+  const execNewLine = useCallback(() => {
+    if (!useRichEditor) return
+    if (editorRef.current) {
+      editorRef.current.focus()
+    }
+    document.execCommand('insertLineBreak', false, '')
+  }, [useRichEditor])
 
-  const insertNewLine = useCallback(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!useRichEditor) return
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault()
+        execBold()
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        execNewLine()
+      }
+    },
+    [useRichEditor, execBold, execNewLine]
+  )
 
-    const start = textarea.selectionStart
-    const newText = editText.substring(0, start) + '\n' + editText.substring(start)
-    setEditText(newText)
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(start + 1, start + 1)
-    }, 0)
-  }, [editText])
+  const handleEditorInput = useCallback(() => {
+    if (useRichEditor && editorRef.current) {
+      setEditText(htmlToPlainText(editorRef.current.innerHTML))
+    }
+  }, [useRichEditor])
+
+  const handleTextareaChange = (val: string) => {
+    setEditText(val)
+  }
+
+  const toggleEditorMode = () => {
+    setUseRichEditor(!useRichEditor)
+  }
 
   return (
     <div
@@ -227,49 +276,84 @@ export default function NodeEditor({
           <div style={{ fontSize: '13px', color: '#B2BEC3' }}>节点文本</div>
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
             <button
-              onClick={insertBold}
-              title="加粗"
-              style={toolbarBtnStyle}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4A4E69' }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#2D2D3F' }}
+              onClick={execBold}
+              title="加粗 (Ctrl+B)"
+              disabled={!useRichEditor}
+              style={{
+                ...toolbarBtnStyle,
+                opacity: useRichEditor ? 1 : 0.4,
+                cursor: useRichEditor ? 'pointer' : 'not-allowed',
+              }}
+              onMouseEnter={(e) => { if (useRichEditor) e.currentTarget.style.backgroundColor = '#4A4E69' }}
+              onMouseLeave={(e) => { if (useRichEditor) e.currentTarget.style.backgroundColor = '#2D2D3F' }}
             >
               <strong style={{ color: '#F39C12' }}>B</strong>
             </button>
             <button
-              onClick={insertNewLine}
-              title="换行"
-              style={toolbarBtnStyle}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4A4E69' }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#2D2D3F' }}
+              onClick={execNewLine}
+              title="换行 (Enter)"
+              disabled={!useRichEditor}
+              style={{
+                ...toolbarBtnStyle,
+                opacity: useRichEditor ? 1 : 0.4,
+                cursor: useRichEditor ? 'pointer' : 'not-allowed',
+              }}
+              onMouseEnter={(e) => { if (useRichEditor) e.currentTarget.style.backgroundColor = '#4A4E69' }}
+              onMouseLeave={(e) => { if (useRichEditor) e.currentTarget.style.backgroundColor = '#2D2D3F' }}
             >
               ↵
             </button>
             <div style={{ width: '1px', height: '16px', backgroundColor: '#4A4E69', margin: '0 4px' }} />
             <button
-              onClick={() => setShowPreview(!showPreview)}
-              title={showPreview ? '编辑' : '预览'}
+              onClick={toggleEditorMode}
+              title={useRichEditor ? '切换到纯文本模式' : '切换到富文本模式'}
               style={{
                 ...toolbarBtnStyle,
-                backgroundColor: showPreview ? '#6C5CE7' : '#2D2D3F',
-                color: showPreview ? '#FFFFFF' : '#B2BEC3',
+                width: 'auto',
+                padding: '0 8px',
               }}
-              onMouseEnter={(e) => {
-                if (!showPreview) e.currentTarget.style.backgroundColor = '#4A4E69'
-              }}
-              onMouseLeave={(e) => {
-                if (!showPreview) e.currentTarget.style.backgroundColor = '#2D2D3F'
-              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#4A4E69' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#2D2D3F' }}
             >
-              {showPreview ? '✏️ 编辑' : '👁️ 预览'}
+              {useRichEditor ? '📝 富文本' : '� 纯文本'}
             </button>
           </div>
         </div>
-        {!showPreview ? (
+        {useRichEditor ? (
+          <div
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={handleEditorInput}
+            onKeyDown={handleKeyDown}
+            style={{
+              width: '100%',
+              flex: 1,
+              minHeight: '120px',
+              backgroundColor: '#2D2D3F',
+              color: '#E2E8F0',
+              border: '1px solid #4A4E69',
+              borderRadius: '8px',
+              padding: '12px',
+              fontSize: '16px',
+              lineHeight: '1.6',
+              outline: 'none',
+              fontFamily: 'inherit',
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
+              overflow: 'auto',
+              transition: 'border-color 0.2s',
+              cursor: 'text',
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = '#6C5CE7' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = '#4A4E69' }}
+          />
+        ) : (
           <textarea
             ref={textareaRef}
             value={editText}
-            onChange={(e) => handleTextChange(e.target.value)}
-            placeholder="在此输入节点文本内容...\n\n提示：\n- 使用 **文字** 可以将文字加粗\n- 点击工具栏 B 按钮快速加粗选中文字\n- Enter 键可以换行"
+            onChange={(e) => handleTextareaChange(e.target.value)}
+            placeholder="在此输入节点文本内容...\n\n提示：\n- 使用 **文字** 可以将文字加粗\n- Enter 键可以换行"
             style={{
               width: '100%',
               flex: 1,
@@ -291,28 +375,6 @@ export default function NodeEditor({
             onFocus={(e) => { e.currentTarget.style.borderColor = '#6C5CE7' }}
             onBlur={(e) => { e.currentTarget.style.borderColor = '#4A4E69' }}
           />
-        ) : (
-          <div
-            style={{
-              width: '100%',
-              flex: 1,
-              minHeight: '120px',
-              backgroundColor: '#2D2D3F',
-              color: '#E2E8F0',
-              border: '1px solid #6C5CE7',
-              borderRadius: '8px',
-              padding: '12px',
-              fontSize: '16px',
-              lineHeight: '1.6',
-              overflow: 'auto',
-              whiteSpace: 'pre-wrap',
-              wordWrap: 'break-word',
-            }}
-          >
-            {editText ? renderPreview(editText) : (
-              <span style={{ color: '#4A4E69' }}>暂无内容，切换到编辑模式添加文本</span>
-            )}
-          </div>
         )}
       </div>
 
