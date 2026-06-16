@@ -1,0 +1,302 @@
+[
+  {
+    "id": "creature-dragon-cn",
+    "name": "东方神龙",
+    "region": "东方",
+    "description": "中国神话中的万兽之首，身长百丈，鳞甲似金，能呼风唤雨、腾云驾雾，象征皇权与祥瑞。",
+    "primaryColor": "#D4AF37",
+    "secondaryColor": "#8B0000",
+    "morphology": ["鳞片", "犄角", "爪子", "触须"],
+    "abilities": {
+      "strength": 95,
+      "agility": 70,
+      "wisdom": 88,
+      "mystery": 92,
+      "charm": 80,
+      "longevity": 100
+    },
+    "genes": [
+      {"id": "g1-1","name":"龙族鳞甲","type":"形态","value":"鳞片","color":"#D4AF37","creatureId":"creature-dragon-cn","creatureName":"东方神龙"},
+      {"id": "g1-2","name":"天脊犄角","type":"形态","value":"犄角","color":"#FFD700","creatureId":"creature-dragon-cn","creatureName":"东方神龙"},
+      {"id": "g1-3","name":"金色血脉","type":"颜色","value":"金红渐变","color":"#FF4500","creatureId":"creature-dragon-cn","creatureName":"东方神龙"},
+      {"id": "g1-4","name":"雷霆之息","type":"能力","value":"呼风唤雨","color":"#6A5ACD","creatureId":"creature-dragon-cn","creatureName":"东方神龙"},
+      {"id": "g1-5","name":"龙须智脉","type":"属性","value":"祥瑞神性","color":"#FF8C00","creatureId":"creature-dragon-cn","creatureName":"东方神龙"},
+      {"id": "g1-6","name":"千年龙魂","type":"属性","value":"长生不老","color":"#B8860B","creatureId":"creature-dragon-cn","creatureName":"东方神龙"}
+    ]
+  },
+  {
+    "id": "creature-phoenix-cn",
+    "name": "朱雀凤凰",
+    "region": "东方",
+    "description": "浴火重生的神鸟，羽毛如火焰般绚烂，非梧桐不栖，非竹实不食，是南方七宿的化身。",
+    "primaryColor": "#FF4500",
+    "secondaryColor": "#FFD700",
+    "morphology": ["翅膀", "尖刺", "尾巴"],
+    "abilities": {
+      "strength": 75,
+      "agility": 92,
+      "wisdom": 85,
+      "mystery": 95,
+      "charm": 98,
+      "longevity": 95
+    },
+    "genes": [
+      {"id":"g2-1","name":"烈焰之翼","type":"形态","value":"翅膀","color":"#FF4500","creatureId":"creature-phoenix-cn","creatureName":"朱雀凤凰"},
+      {"id":"g2-2","name":"焰尾彩羽","type":"形态","value":"尾巴","color":"#FF6347","creatureId":"creature-phoenix-cn","creatureName":"朱雀凤凰"},
+      {"id":"g2-3","name":"涅槃之色","type":"颜色","value":"火焰渐变","color":"#FF8C00","creatureId":"creature-phoenix-cn","creatureName":"朱雀凤凰"},
+      {"id":"g2-4","name":"浴火重生","type":"能力","value":"不死之身","color":"#DC143C","creatureId":"creature-phoenix-cn","creatureName":"朱雀凤凰"},
+      {"id":"g2-5","name":"朱雀灵韵","type":"属性","value":"火属神性","color":"#FFA500","creatureId":"creature-phoenix-cn","creatureName":"朱雀凤凰"},
+      {"id":"g2-6","name":"凤舞九天","type":"属性","value":"高贵魅力","color":"#FFD700","creatureId":"creature-phoenix-cn","creatureName":"朱雀凤凰"}
+    ]
+  },
+  {
+    "id": "creature-qilin",
+    "name": "瑞兽麒麟",
+    "region": "东方",
+    "description": "仁兽之首，身形似鹿、尾似牛、蹄似马、头上有角，不踏生草、不食生灵，千年一出必伴圣人。",
+    "primaryColor": "#6A5ACD",
+    "secondaryColor": "#E6E6FA",
+    "morphology": ["犄角", "毛皮", "尾巴", "尖刺"],
+    "abilities": {
+      "strength": 80,
+      "agility": 78,
+      "wisdom": 95,
+      "mystery": 88,
+      "charm": 90,
+      "longevity": 90
+    },
+    "genes": [
+      {"id":"g3-1","name":"麒麟灵角","type":"形态","value":"犄角","color":"#E6E6FA","creatureId":"creature-qilin","creatureName":"瑞兽麒麟"},
+      {"id":"g3-2","name":"紫霄皮毛","type":"形态","value":"毛皮","color":"#6A5ACD","creatureId":"creature-qilin","creatureName":"瑞兽麒麟"},
+      {"id":"g3-3","name":"祥瑞紫光","type":"颜色","value":"紫金交织","color":"#9370DB","creatureId":"creature-qilin","creatureName":"瑞兽麒麟"},
+      {"id":"g3-4","name":"仁兽圣光","type":"能力","value":"驱邪纳福","color":"#BA55D3","creatureId":"creature-qilin","creatureName":"瑞兽麒麟"},
+      {"id":"g3-5","name":"圣贤之慧","type":"属性","value":"无上智慧","color":"#8A2BE2","creatureId":"creature-qilin","creatureName":"瑞兽麒麟"},
+      {"id":"g3-6","name":"千年瑞兆","type":"属性","value":"瑞应天命","color":"#DDA0DD","creatureId":"creature-qilin","creatureName":"瑞兽麒麟"}
+    ]
+  },
+  {
+    "id": "creature-griffin",
+    "name": "狮鹫格里芬",
+    "region": "西方",
+    "description": "鹰头狮身的神兽，拥有雄鹰的翅膀和视力与狮子的力量与威严，是守护宝藏的忠诚卫士。",
+    "primaryColor": "#DAA520",
+    "secondaryColor": "#8B4513",
+    "morphology": ["翅膀", "爪子", "毛皮"],
+    "abilities": {
+      "strength": 88,
+      "agility": 90,
+      "wisdom": 72,
+      "mystery": 70,
+      "charm": 75,
+      "longevity": 70
+    },
+    "genes": [
+      {"id":"g4-1","name":"苍穹之翼","type":"形态","value":"翅膀","color":"#DAA520","creatureId":"creature-griffin","creatureName":"狮鹫格里芬"},
+      {"id":"g4-2","name":"猎神利爪","type":"形态","value":"爪子","color":"#8B4513","creatureId":"creature-griffin","creatureName":"狮鹫格里芬"},
+      {"id":"g4-3","name":"金鬃之皮","type":"形态","value":"毛皮","color":"#B8860B","creatureId":"creature-griffin","creatureName":"狮鹫格里芬"},
+      {"id":"g4-4","name":"王者金棕","type":"颜色","value":"棕金双色","color":"#CD853F","creatureId":"creature-griffin","creatureName":"狮鹫格里芬"},
+      {"id":"g4-5","name":"守护本能","type":"能力","value":"警觉守护","color":"#D2691E","creatureId":"creature-griffin","creatureName":"狮鹫格里芬"},
+      {"id":"g4-6","name":"王者威严","type":"属性","value":"威压气势","color":"#A0522D","creatureId":"creature-griffin","creatureName":"狮鹫格里芬"}
+    ]
+  },
+  {
+    "id": "creature-unicorn",
+    "name": "独角兽",
+    "region": "西方",
+    "description": "形如白马、额头有螺旋独角的神兽，纯洁善良，只现身于纯洁心灵之前，角可净化万物。",
+    "primaryColor": "#FFFFFF",
+    "secondaryColor": "#FFB6C1",
+    "morphology": ["犄角", "毛皮", "尾巴"],
+    "abilities": {
+      "strength": 65,
+      "agility": 88,
+      "wisdom": 90,
+      "mystery": 92,
+      "charm": 99,
+      "longevity": 85
+    },
+    "genes": [
+      {"id":"g5-1","name":"圣光独角","type":"形态","value":"犄角","color":"#FFFFFF","creatureId":"creature-unicorn","creatureName":"独角兽"},
+      {"id":"g5-2","name":"雪白皮毛","type":"形态","value":"毛皮","color":"#FFFAF0","creatureId":"creature-unicorn","creatureName":"独角兽"},
+      {"id":"g5-3","name":"粉银流光","type":"颜色","value":"白粉色调","color":"#FFB6C1","creatureId":"creature-unicorn","creatureName":"独角兽"},
+      {"id":"g5-4","name":"净化之角","type":"能力","value":"净化万毒","color":"#FFC0CB","creatureId":"creature-unicorn","creatureName":"独角兽"},
+      {"id":"g5-5","name":"纯真之心","type":"属性","value":"心灵纯净","color":"#FFE4E1","creatureId":"creature-unicorn","creatureName":"独角兽"},
+      {"id":"g5-6","name":"星尘魔力","type":"属性","value":"魔力亲和","color":"#E6E6FA","creatureId":"creature-unicorn","creatureName":"独角兽"}
+    ]
+  },
+  {
+    "id": "creature-fenrir",
+    "name": "巨狼芬里尔",
+    "region": "北欧",
+    "description": "北欧神话中的巨狼，洛基之子，身形庞大可吞噬天地，在诸神黄昏中咬死奥丁，终结旧世。",
+    "primaryColor": "#2F4F4F",
+    "secondaryColor": "#8B0000",
+    "morphology": ["毛皮", "爪子", "尖刺", "尾巴"],
+    "abilities": {
+      "strength": 98,
+      "agility": 82,
+      "wisdom": 60,
+      "mystery": 85,
+      "charm": 40,
+      "longevity": 88
+    },
+    "genes": [
+      {"id":"g6-1","name":"吞天巨口","type":"形态","value":"尖刺","color":"#8B0000","creatureId":"creature-fenrir","creatureName":"巨狼芬里尔"},
+      {"id":"g6-2","name":"暗灰鬃毛","type":"形态","value":"毛皮","color":"#2F4F4F","creatureId":"creature-fenrir","creatureName":"巨狼芬里尔"},
+      {"id":"g6-3","name":"撕裂之爪","type":"形态","value":"爪子","color":"#1C1C1C","creatureId":"creature-fenrir","creatureName":"巨狼芬里尔"},
+      {"id":"g6-4","name":"混沌暗血","type":"颜色","value":"暗灰血色","color":"#708090","creatureId":"creature-fenrir","creatureName":"巨狼芬里尔"},
+      {"id":"g6-5","name":"世界吞噬","type":"能力","value":"吞噬万物","color":"#363636","creatureId":"creature-fenrir","creatureName":"巨狼芬里尔"},
+      {"id":"g6-6","name":"宿命之力","type":"属性","value":"终结神力","color":"#4A0000","creatureId":"creature-fenrir","creatureName":"巨狼芬里尔"}
+    ]
+  },
+  {
+    "id": "creature-jormungandr",
+    "name": "世界蛇耶梦加得",
+    "region": "北欧",
+    "description": "环绕整个米德加德的巨蛇，洛基之次子，首尾相衔环绕世界，诸神黄昏时与雷神托尔同归于尽。",
+    "primaryColor": "#228B22",
+    "secondaryColor": "#006400",
+    "morphology": ["鳞片", "触须", "尾巴"],
+    "abilities": {
+      "strength": 96,
+      "agility": 55,
+      "wisdom": 75,
+      "mystery": 95,
+      "charm": 45,
+      "longevity": 98
+    },
+    "genes": [
+      {"id":"g7-1","name":"环世鳞甲","type":"形态","value":"鳞片","color":"#228B22","creatureId":"creature-jormungandr","creatureName":"世界蛇耶梦加得"},
+      {"id":"g7-2","name":"深渊触须","type":"形态","value":"触须","color":"#006400","creatureId":"creature-jormungandr","creatureName":"世界蛇耶梦加得"},
+      {"id":"g7-3","name":"无尽蛇身","type":"形态","value":"尾巴","color":"#2E8B57","creatureId":"creature-jormungandr","creatureName":"世界蛇耶梦加得"},
+      {"id":"g7-4","name":"毒渊鳞色","type":"颜色","value":"墨绿深青","color":"#3CB371","creatureId":"creature-jormungandr","creatureName":"世界蛇耶梦加得"},
+      {"id":"g7-5","name":"灭世毒息","type":"能力","value":"剧毒喷吐","color":"#008000","creatureId":"creature-jormungandr","creatureName":"世界蛇耶梦加得"},
+      {"id":"g7-6","name":"环世之躯","type":"属性","value":"无尽巨体","color":"#004d00","creatureId":"creature-jormungandr","creatureName":"世界蛇耶梦加得"}
+    ]
+  },
+  {
+    "id": "creature-medusa",
+    "name": "蛇发美杜莎",
+    "region": "希腊",
+    "description": "戈耳工三姐妹之一，满头毒蛇，任何人与之对视都会被石化，最终被珀尔修斯斩下头颅。",
+    "primaryColor": "#556B2F",
+    "secondaryColor": "#800000",
+    "morphology": ["触须", "鳞片", "尖刺"],
+    "abilities": {
+      "strength": 60,
+      "agility": 65,
+      "wisdom": 70,
+      "mystery": 98,
+      "charm": 85,
+      "longevity": 75
+    },
+    "genes": [
+      {"id":"g8-1","name":"万蛇之发","type":"形态","value":"触须","color":"#556B2F","creatureId":"creature-medusa","creatureName":"蛇发美杜莎"},
+      {"id":"g8-2","name":"毒牙之刺","type":"形态","value":"尖刺","color":"#800000","creatureId":"creature-medusa","creatureName":"蛇发美杜莎"},
+      {"id":"g8-3","name":"蛇鳞肌肤","type":"形态","value":"鳞片","color":"#6B8E23","creatureId":"creature-medusa","creatureName":"蛇发美杜莎"},
+      {"id":"g8-4","name":"诅咒之绿","type":"颜色","value":"橄榄酒红","color":"#8B7355","creatureId":"creature-medusa","creatureName":"蛇发美杜莎"},
+      {"id":"g8-5","name":"石化凝视","type":"能力","value":"目光石化","color":"#8FBC8F","creatureId":"creature-medusa","creatureName":"蛇发美杜莎"},
+      {"id":"g8-6","name":"怨念之灵","type":"属性","value":"神诅咒力","color":"#4B0082","creatureId":"creature-medusa","creatureName":"蛇发美杜莎"}
+    ]
+  },
+  {
+    "id": "creature-cerberus",
+    "name": "地狱犬刻耳柏洛斯",
+    "region": "希腊",
+    "description": "看守冥界入口的三头恶犬，蛇尾狮爪，允许亡魂进入但不允许离开，赫拉克勒斯十二功绩之一。",
+    "primaryColor": "#1C1C1C",
+    "secondaryColor": "#B22222",
+    "morphology": ["尾巴", "爪子", "尖刺", "毛皮"],
+    "abilities": {
+      "strength": 90,
+      "agility": 70,
+      "wisdom": 55,
+      "mystery": 90,
+      "charm": 35,
+      "longevity": 92
+    },
+    "genes": [
+      {"id":"g9-1","name":"三头獠牙","type":"形态","value":"尖刺","color":"#B22222","creatureId":"creature-cerberus","creatureName":"地狱犬刻耳柏洛斯"},
+      {"id":"g9-2","name":"冥府之爪","type":"形态","value":"爪子","color":"#1C1C1C","creatureId":"creature-cerberus","creatureName":"地狱犬刻耳柏洛斯"},
+      {"id":"g9-3","name":"蛇形长尾","type":"形态","value":"尾巴","color":"#2F2F2F","creatureId":"creature-cerberus","creatureName":"地狱犬刻耳柏洛斯"},
+      {"id":"g9-4","name":"冥界黑毛","type":"形态","value":"毛皮","color":"#0a0a0a","creatureId":"creature-cerberus","creatureName":"地狱犬刻耳柏洛斯"},
+      {"id":"g9-5","name":"深渊狱火","type":"颜色","value":"黑红相间","color":"#8B0000","creatureId":"creature-cerberus","creatureName":"地狱犬刻耳柏洛斯"},
+      {"id":"g9-6","name":"冥界守望","type":"能力","value":"亡魂束缚","color":"#3d0000","creatureId":"creature-cerberus","creatureName":"地狱犬刻耳柏洛斯"}
+    ]
+  },
+  {
+    "id": "creature-anubis",
+    "name": "阿努比斯",
+    "region": "埃及",
+    "description": "古埃及的胡狼头死神，木乃伊的保护神与冥界审判者，掌管亡者通往来世的旅程与心脏称重仪式。",
+    "primaryColor": "#000000",
+    "secondaryColor": "#D4AF37",
+    "morphology": ["毛皮", "尾巴", "尖刺"],
+    "abilities": {
+      "strength": 78,
+      "agility": 68,
+      "wisdom": 92,
+      "mystery": 99,
+      "charm": 60,
+      "longevity": 95
+    },
+    "genes": [
+      {"id":"g10-1","name":"胡狼圣颅","type":"形态","value":"尖刺","color":"#000000","creatureId":"creature-anubis","creatureName":"阿努比斯"},
+      {"id":"g10-2","name":"冥神黑毛","type":"形态","value":"毛皮","color":"#1a1a1a","creatureId":"creature-anubis","creatureName":"阿努比斯"},
+      {"id":"g10-3","name":"审判长尾","type":"形态","value":"尾巴","color":"#2c2c2c","creatureId":"creature-anubis","creatureName":"阿努比斯"},
+      {"id":"g10-4","name":"黑金祭袍","type":"颜色","value":"黑金肃穆","color":"#D4AF37","creatureId":"creature-anubis","creatureName":"阿努比斯"},
+      {"id":"g10-5","name":"亡灵引导","type":"能力","value":"灵魂指引","color":"#B8860B","creatureId":"creature-anubis","creatureName":"阿努比斯"},
+      {"id":"g10-6","name":"天秤审判","type":"属性","value":"亡者裁决","color":"#8B6914","creatureId":"creature-anubis","creatureName":"阿努比斯"}
+    ]
+  },
+  {
+    "id": "creature-bennu",
+    "name": "贝努鸟",
+    "region": "埃及",
+    "description": "古埃及的不死鸟，拉神的灵魂化身，从火焰中诞生，周期性自我焚化重生，是创造与复兴的象征。",
+    "primaryColor": "#FF8C00",
+    "secondaryColor": "#4169E1",
+    "morphology": ["翅膀", "尾巴", "尖刺"],
+    "abilities": {
+      "strength": 72,
+      "agility": 88,
+      "wisdom": 90,
+      "mystery": 97,
+      "charm": 92,
+      "longevity": 98
+    },
+    "genes": [
+      {"id":"g11-1","name":"日神之翼","type":"形态","value":"翅膀","color":"#FF8C00","creatureId":"creature-bennu","creatureName":"贝努鸟"},
+      {"id":"g11-2","name":"星辰之尾","type":"形态","value":"尾巴","color":"#4169E1","creatureId":"creature-bennu","creatureName":"贝努鸟"},
+      {"id":"g11-3","name":"金焰冠羽","type":"形态","value":"尖刺","color":"#FFD700","creatureId":"creature-bennu","creatureName":"贝努鸟"},
+      {"id":"g11-4","name":"黄昏配色","type":"颜色","value":"橙蓝辉映","color":"#FF6347","creatureId":"creature-bennu","creatureName":"贝努鸟"},
+      {"id":"g11-5","name":"创世圣焰","type":"能力","value":"火焰重生","color":"#FF4500","creatureId":"creature-bennu","creatureName":"贝努鸟"},
+      {"id":"g11-6","name":"拉神之魂","type":"属性","value":"太阳神性","color":"#FFA500","creatureId":"creature-bennu","creatureName":"贝努鸟"}
+    ]
+  },
+  {
+    "id": "creature-kraken",
+    "name": "海妖克拉肯",
+    "region": "北欧",
+    "description": "挪威传说中的深海巨怪，形似巨型章鱼或乌贼，身躯如岛屿般庞大，能瞬间拖沉整艘战舰。",
+    "primaryColor": "#191970",
+    "secondaryColor": "#483D8B",
+    "morphology": ["触手", "甲壳", "触须"],
+    "abilities": {
+      "strength": 92,
+      "agility": 60,
+      "wisdom": 65,
+      "mystery": 96,
+      "charm": 30,
+      "longevity": 90
+    },
+    "genes": [
+      {"id":"g12-1","name":"深渊触手","type":"形态","value":"触手","color":"#191970","creatureId":"creature-kraken","creatureName":"海妖克拉肯"},
+      {"id":"g12-2","name":"深海甲壳","type":"形态","value":"甲壳","color":"#483D8B","creatureId":"creature-kraken","creatureName":"海妖克拉肯"},
+      {"id":"g12-3","name":"感知触须","type":"形态","value":"触须","color":"#6A5ACD","creatureId":"creature-kraken","creatureName":"海妖克拉肯"},
+      {"id":"g12-4","name":"深渊幽蓝","type":"颜色","value":"蓝紫暗调","color":"#4B0082","creatureId":"creature-kraken","creatureName":"海妖克拉肯"},
+      {"id":"g12-5","name":"漩涡吞噬","type":"能力","value":"拖沉万物","color":"#000080","creatureId":"creature-kraken","creatureName":"海妖克拉肯"},
+      {"id":"g12-6","name":"深海威压","type":"属性","value":"深渊魔力","color":"#101040","creatureId":"creature-kraken","creatureName":"海妖克拉肯"}
+    ]
+  }
+]
