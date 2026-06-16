@@ -68,6 +68,7 @@ export class AudioEngine {
     const beatDuration = 60 / bpm / 2;
     const noteDuration = beatDuration * 0.5;
     let stopped = false;
+    let animationFrameId: number | null = null;
 
     const notesByCol: NoteData[][] = Array.from({ length: cols }, () => []);
     notes.forEach((note) => {
@@ -77,35 +78,89 @@ export class AudioEngine {
       }
     });
 
-    const baseTime = ctx.currentTime + 0.05;
+    const startDelay = 0.05;
+    const baseTime = ctx.currentTime + startDelay;
+    const scheduleAheadTime = 0.3;
+    const highlightAheadThreshold = 0.003;
 
-    const timeouts: number[] = [];
+    let nextColToSchedule = 0;
+    let nextColToHighlight = 0;
+    const highlightedCols = new Set<number>();
 
+    const colTimes: number[] = [];
     for (let col = 0; col < cols; col++) {
-      const colStart = baseTime + col * beatDuration;
-
-      const highlightTimeout = window.setTimeout(() => {
-        if (!stopped) {
-          columnCallback(col);
-        }
-      }, (colStart - ctx.currentTime) * 1000);
-      timeouts.push(highlightTimeout);
-
-      notesByCol[col].forEach((note) => {
-        this.playNote(note.frequency, note.type, noteDuration, colStart);
-      });
+      colTimes.push(baseTime + col * beatDuration);
     }
 
-    const clearTimeout = window.setTimeout(() => {
-      if (!stopped) {
-        columnCallback(null);
+    const scheduleAudioEvents = () => {
+      if (stopped) return;
+
+      const now = ctx.currentTime;
+
+      while (nextColToSchedule < cols) {
+        const colTime = colTimes[nextColToSchedule];
+        if (colTime > now + scheduleAheadTime) {
+          break;
+        }
+
+        notesByCol[nextColToSchedule].forEach((note) => {
+          this.playNote(note.frequency, note.type, noteDuration, colTime);
+        });
+
+        nextColToSchedule++;
       }
-    }, (baseTime + cols * beatDuration - ctx.currentTime) * 1000);
-    timeouts.push(clearTimeout);
+    };
+
+    const schedulerLoop = () => {
+      if (stopped) return;
+
+      const now = ctx.currentTime;
+
+      scheduleAudioEvents();
+
+      for (let col = nextColToHighlight; col < cols; col++) {
+        const colTime = colTimes[col];
+        const timeUntilCol = colTime - now;
+
+        if (timeUntilCol <= highlightAheadThreshold && !highlightedCols.has(col)) {
+          highlightedCols.add(col);
+
+          const drift = (now - colTime) * 1000;
+          const absDrift = Math.abs(drift);
+
+          if (absDrift > 5) {
+            console.warn(`节拍 ${col} 漂移: ${drift.toFixed(2)}ms`);
+          }
+
+          columnCallback(col);
+          nextColToHighlight = col + 1;
+          break;
+        }
+
+        if (timeUntilCol > highlightAheadThreshold) {
+          break;
+        }
+      }
+
+      const sequenceEnd = colTimes[cols - 1] + beatDuration;
+      if (now >= sequenceEnd) {
+        const totalDrift = Math.abs(now - sequenceEnd) * 1000;
+        console.log(`序列结束 - 预期: ${(sequenceEnd - baseTime) * 1000}ms, 总漂移: ${totalDrift.toFixed(2)}ms`);
+        columnCallback(null);
+        return;
+      }
+
+      animationFrameId = requestAnimationFrame(schedulerLoop);
+    };
+
+    scheduleAudioEvents();
+    animationFrameId = requestAnimationFrame(schedulerLoop);
 
     return () => {
       stopped = true;
-      timeouts.forEach((t) => window.clearTimeout(t));
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+      }
       columnCallback(null);
     };
   }
@@ -125,3 +180,7 @@ export class AudioEngine {
 }
 
 export const audioEngine = new AudioEngine();
+
+if (typeof window !== 'undefined') {
+  (window as any).__audio_engine = audioEngine;
+}

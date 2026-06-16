@@ -37,21 +37,27 @@ interface StoreState {
   setIsPlaying: (playing: boolean) => void;
   setStopCallback: (cb: (() => void) | null) => void;
   pushHistory: () => void;
+  _recordHistory: () => void;
+  canUndo: boolean;
 }
 
 export const ROWS = 3;
 export const COLS = 8;
 
 export const calculateColor = (col: number, row: number): string => {
-  const h = (col * 45 + 30) % 360;
+  let h = col * 45 + 30;
+  while (h < 0) h += 360;
+  h = h % 360;
   const s = 80;
-  const l = 60 + row * 10;
+  const l = Math.min(60 + row * 10, 100);
   return `hsl(${h}, ${s}%, ${l}%)`;
 };
 
 const saveToHistory = (notes: Note[]): HistoryEntry => ({
   notes: JSON.parse(JSON.stringify(notes)),
 });
+
+const MAX_HISTORY = 10;
 
 export const useStore = create<StoreState>((set, get) => ({
   notes: [],
@@ -63,6 +69,23 @@ export const useStore = create<StoreState>((set, get) => ({
   currentPlayingCol: null,
   isPlaying: false,
   stopCallback: null,
+  canUndo: false,
+
+  _recordHistory: () => {
+    const state = get();
+    const newHistory = state.history.slice(0, state.historyIndex + 1);
+    newHistory.push(saveToHistory(state.notes));
+    if (newHistory.length > MAX_HISTORY + 1) {
+      const excess = newHistory.length - (MAX_HISTORY + 1);
+      newHistory.splice(0, excess);
+    }
+    const newIndex = Math.min(newHistory.length - 1, MAX_HISTORY);
+    set({
+      history: newHistory,
+      historyIndex: newIndex,
+      canUndo: newIndex > 0,
+    });
+  },
 
   addNote: (row: number, col: number) => {
     if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return null;
@@ -70,6 +93,8 @@ export const useStore = create<StoreState>((set, get) => ({
     const state = get();
     const existing = state.notes.find((n) => n.row === row && n.col === col);
     if (existing) return existing;
+
+    state._recordHistory();
 
     const note: Note = {
       id: uuidv4(),
@@ -82,13 +107,17 @@ export const useStore = create<StoreState>((set, get) => ({
 
     audioEngine.playNote(note.frequency, note.noteType, 0.2);
 
-    set({ notes: [...state.notes, note] });
+    set({ notes: [...get().notes, note] });
     return note;
   },
 
   removeNote: (row: number, col: number) => {
     const state = get();
-    set({ notes: state.notes.filter((n) => !(n.row === row && n.col === col)) });
+    const exists = state.notes.some((n) => n.row === row && n.col === col);
+    if (!exists) return;
+
+    state._recordHistory();
+    set({ notes: get().notes.filter((n) => !(n.row === row && n.col === col)) });
   },
 
   toggleNote: (row: number, col: number) => {
@@ -107,6 +136,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   clearAll: () => {
     const state = get();
+    state._recordHistory();
     if (state.stopCallback) {
       state.stopCallback();
     }
@@ -125,28 +155,13 @@ export const useStore = create<StoreState>((set, get) => ({
       set({
         notes: JSON.parse(JSON.stringify(previousState.notes)),
         historyIndex: newIndex,
+        canUndo: newIndex > 0,
       });
     }
   },
 
   pushHistory: () => {
-    const state = get();
-    const newHistory = state.history.slice(0, state.historyIndex + 1);
-    newHistory.push(saveToHistory(state.notes));
-    const maxHistory = 11;
-    if (newHistory.length > maxHistory) {
-      const excess = newHistory.length - maxHistory;
-      newHistory.splice(0, excess);
-      set({
-        history: newHistory,
-        historyIndex: maxHistory - 1,
-      });
-    } else {
-      set({
-        history: newHistory,
-        historyIndex: newHistory.length - 1,
-      });
-    }
+    get()._recordHistory();
   },
 
   toNoteSequence: (): NoteData[] => {
@@ -172,3 +187,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ stopCallback: cb });
   },
 }));
+
+if (typeof window !== 'undefined') {
+  (window as any).__zustand_store = useStore;
+}

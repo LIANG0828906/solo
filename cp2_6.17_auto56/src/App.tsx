@@ -47,7 +47,10 @@ const App: React.FC = () => {
     const currentNotes = useStore.getState().notes;
     const currentBpm = useStore.getState().bpm;
 
+    console.log('startPlayback called, notes:', currentNotes.length, 'bpm:', currentBpm);
+
     if (currentNotes.length === 0) {
+      console.log('No notes, aborting');
       return;
     }
 
@@ -59,6 +62,7 @@ const App: React.FC = () => {
     const playOnce = () => {
       if (!isPlayingRef.current) return;
       const latestNotes = useStore.getState().toNoteSequence();
+      console.log('playOnce called, sequence notes:', latestNotes.length);
       const stopFn = audioEngine.playNoteSequence(
         latestNotes,
         (col) => {
@@ -146,8 +150,7 @@ const App: React.FC = () => {
   };
 
   const handleActionComplete = useCallback(() => {
-    pushHistory();
-  }, [pushHistory]);
+  }, []);
 
   const handleClearClick = () => {
     setShowConfirmDialog(true);
@@ -155,7 +158,6 @@ const App: React.FC = () => {
 
   const confirmClear = () => {
     clearAll();
-    pushHistory();
     setShowConfirmDialog(false);
   };
 

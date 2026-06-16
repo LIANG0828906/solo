@@ -5,6 +5,9 @@ import { audioEngine } from './AudioEngine';
 const CELL_PADDING = 4;
 const MIN_CELL_SIZE = 60;
 const BORDER_WIDTH = 2;
+const DRAG_THROTTLE_MS = 50;
+const PLAYING_FPS_TARGET = 45;
+const IDLE_FPS_TARGET = 55;
 
 interface GridCanvasProps {
   onActionComplete?: () => void;
@@ -18,6 +21,13 @@ interface GridMetrics {
   gridHeight: number;
 }
 
+interface CellRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,14 +35,92 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
   const [dragAction, setDragAction] = useState<'add' | 'remove' | null>(null);
   const [lastFilledCell, setLastFilledCell] = useState<{ row: number; col: number } | null>(null);
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+  const [, forceUpdate] = useState(0);
+
   const dragCellsRef = useRef<Set<string>>(new Set());
-  const lastPlayTimeRef = useRef<number>(0);
+  const lastDragProcessTimeRef = useRef<number>(0);
+  const animationFrameIdRef = useRef<number | null>(null);
+  const lastFrameTimeRef = useRef<number>(0);
+  const fpsFrameCountRef = useRef<number>(0);
+  const fpsLastUpdateRef = useRef<number>(0);
+  const currentFpsRef = useRef<number>(60);
+  const previousNotesRef = useRef<string | null>(null);
+  const previousPlayingColRef = useRef<number | null>(null);
+  const previousSelectedRef = useRef<string | null>(null);
+  const dirtyCellsRef = useRef<Set<string>>(new Set());
+  const isPlayingRef = useRef(false);
+  const lastMouseMoveTimeRef = useRef<number>(0);
 
   const notes = useStore((state) => state.notes);
   const currentPlayingCol = useStore((state) => state.currentPlayingCol);
+  const isPlaying = useStore((state) => state.isPlaying);
   const addNote = useStore((state) => state.addNote);
   const removeNote = useStore((state) => state.removeNote);
-  const toggleNote = useStore((state) => state.toggleNote);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  const markCellDirty = useCallback((row: number, col: number) => {
+    dirtyCellsRef.current.add(`${row}-${col}`);
+  }, []);
+
+  const markAllCellsDirty = useCallback(() => {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        dirtyCellsRef.current.add(`${r}-${c}`);
+      }
+    }
+  }, []);
+
+  const checkDirty = useCallback(() => {
+    const notesKey = JSON.stringify(notes);
+    if (notesKey !== previousNotesRef.current) {
+      const prevNotes = previousNotesRef.current ? JSON.parse(previousNotesRef.current) : [];
+      const currentNotesMap = new Map(notes.map((n) => [`${n.row}-${n.col}`, n]));
+      const prevNotesMap = new Map(prevNotes.map((n: any) => [`${n.row}-${n.col}`, n]));
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const key = `${r}-${c}`;
+          const hasCurrent = currentNotesMap.has(key);
+          const hasPrev = prevNotesMap.has(key);
+          if (hasCurrent !== hasPrev) {
+            markCellDirty(r, c);
+          }
+        }
+      }
+
+      previousNotesRef.current = notesKey;
+    }
+
+    if (currentPlayingCol !== previousPlayingColRef.current) {
+      if (previousPlayingColRef.current !== null) {
+        for (let r = 0; r < ROWS; r++) {
+          markCellDirty(r, previousPlayingColRef.current);
+        }
+      }
+      if (currentPlayingCol !== null) {
+        for (let r = 0; r < ROWS; r++) {
+          markCellDirty(r, currentPlayingCol);
+        }
+      }
+      previousPlayingColRef.current = currentPlayingCol;
+    }
+
+    const selectedKey = selectedCell ? `${selectedCell.row}-${selectedCell.col}` : null;
+    if (selectedKey !== previousSelectedRef.current) {
+      if (previousSelectedRef.current) {
+        const [r, c] = previousSelectedRef.current.split('-').map(Number);
+        markCellDirty(r, c);
+      }
+      if (selectedKey) {
+        const [r, c] = selectedKey.split('-').map(Number);
+        markCellDirty(r, c);
+      }
+      previousSelectedRef.current = selectedKey;
+    }
+  }, [notes, currentPlayingCol, selectedCell, markCellDirty]);
 
   const getMetrics = useCallback((): GridMetrics => {
     const canvas = canvasRef.current;
@@ -62,6 +150,16 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
     return { cellSize, startX, startY, gridWidth, gridHeight };
   }, []);
 
+  const getCellRect = useCallback(
+    (row: number, col: number, metrics: GridMetrics): CellRect => {
+      const { cellSize, startX, startY } = metrics;
+      const x = startX + CELL_PADDING + col * (cellSize + CELL_PADDING);
+      const y = startY + CELL_PADDING + row * (cellSize + CELL_PADDING);
+      return { x, y, width: cellSize, height: cellSize };
+    },
+    []
+  );
+
   const getCellFromPosition = useCallback(
     (clientX: number, clientY: number): { row: number; col: number } | null => {
       const canvas = canvasRef.current;
@@ -77,24 +175,23 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
       const col = Math.floor((x - startX - CELL_PADDING) / (cellSize + CELL_PADDING));
       const row = Math.floor((y - startY - CELL_PADDING) / (cellSize + CELL_PADDING));
 
-      const cellX = startX + CELL_PADDING + col * (cellSize + CELL_PADDING);
-      const cellY = startY + CELL_PADDING + row * (cellSize + CELL_PADDING);
+      const cellRect = getCellRect(row, col, metrics);
 
       if (
         col >= 0 &&
         col < COLS &&
         row >= 0 &&
         row < ROWS &&
-        x >= cellX &&
-        x < cellX + cellSize &&
-        y >= cellY &&
-        y < cellY + cellSize
+        x >= cellRect.x &&
+        x < cellRect.x + cellRect.width &&
+        y >= cellRect.y &&
+        y < cellRect.y + cellRect.height
       ) {
         return { row, col };
       }
       return null;
     },
-    [getMetrics]
+    [getMetrics, getCellRect]
   );
 
   const noteAt = useCallback(
@@ -104,167 +201,248 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
     [notes]
   );
 
-  const render = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const drawCell = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      row: number,
+      col: number,
+      metrics: GridMetrics
+    ) => {
+      const { cellSize } = metrics;
+      const cellRect = getCellRect(row, col, metrics);
+      const note = noteAt(row, col);
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+      const isPlayingCol = currentPlayingCol === col;
+      const isSelected = selectedCell && selectedCell.row === row && selectedCell.col === col;
+      const radius = 8;
 
-    ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.clearRect(
+        cellRect.x - 5,
+        cellRect.y - 5,
+        cellRect.width + 10,
+        cellRect.height + 10
+      );
 
-    const metrics = getMetrics();
-    const { cellSize, startX, startY, gridWidth, gridHeight } = metrics;
+      if (note) {
+        const colorMatch = note.color.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+        let fillStyle: CanvasGradient | string = note.color;
 
-    ctx.save();
-    ctx.shadowColor = '#00A8FF';
-    ctx.shadowBlur = 20;
-    ctx.strokeStyle = '#00A8FF';
-    ctx.lineWidth = BORDER_WIDTH;
-    ctx.strokeRect(startX - BORDER_WIDTH, startY - BORDER_WIDTH, gridWidth + BORDER_WIDTH * 2, gridHeight + BORDER_WIDTH * 2);
-    ctx.restore();
+        if (colorMatch) {
+          const h = parseInt(colorMatch[1]);
+          const s = parseInt(colorMatch[2]);
+          const l = parseInt(colorMatch[3]);
 
-    for (let row = 0; row < ROWS; row++) {
-      for (let col = 0; col < COLS; col++) {
-        const x = startX + CELL_PADDING + col * (cellSize + CELL_PADDING);
-        const y = startY + CELL_PADDING + row * (cellSize + CELL_PADDING);
-        const note = noteAt(row, col);
+          const gradient = ctx.createLinearGradient(
+            cellRect.x,
+            cellRect.y,
+            cellRect.x + cellSize,
+            cellRect.y + cellSize
+          );
+          gradient.addColorStop(0, `hsl(${h}, ${s}%, ${Math.min(l + 15, 100)}%)`);
+          gradient.addColorStop(0.5, `hsl(${h}, ${s}%, ${l}%)`);
+          gradient.addColorStop(1, `hsl(${h}, ${s}%, ${Math.max(l - 15, 0)}%)`);
+          fillStyle = gradient;
+        }
 
-        const isPlayingCol = currentPlayingCol === col;
-        const isSelected = selectedCell && selectedCell.row === row && selectedCell.col === col;
+        ctx.fillStyle = fillStyle;
+        ctx.beginPath();
+        ctx.roundRect(cellRect.x, cellRect.y, cellSize, cellSize, radius);
+        ctx.fill();
 
-        if (note) {
-          const colorMatch = note.color.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
-          let fillStyle: CanvasGradient | string = note.color;
-
-          if (colorMatch) {
-            const h = parseInt(colorMatch[1]);
-            const s = parseInt(colorMatch[2]);
-            const l = parseInt(colorMatch[3]);
-
-            const gradient = ctx.createLinearGradient(x, y, x + cellSize, y + cellSize);
-            gradient.addColorStop(0, `hsl(${h}, ${s}%, ${Math.min(l + 15, 100)}%)`);
-            gradient.addColorStop(0.5, `hsl(${h}, ${s}%, ${l}%)`);
-            gradient.addColorStop(1, `hsl(${h}, ${s}%, ${Math.max(l - 15, 0)}%)`);
-            fillStyle = gradient;
-          }
-
-          ctx.fillStyle = fillStyle;
+        if (isPlayingCol) {
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 4;
           ctx.beginPath();
-          const radius = 8;
-          ctx.roundRect(x, y, cellSize, cellSize, radius);
-          ctx.fill();
-
-          if (isPlayingCol) {
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.roundRect(x - 2, y - 2, cellSize + 4, cellSize + 4, radius + 2);
-            ctx.stroke();
-          } else if (isSelected) {
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.roundRect(x - 1.5, y - 1.5, cellSize + 3, cellSize + 3, radius + 1);
-            ctx.stroke();
-          } else {
-            ctx.strokeStyle = '#AAAAAA';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(x, y, cellSize, cellSize, radius);
-            ctx.stroke();
-          }
+          ctx.roundRect(
+            cellRect.x - 2,
+            cellRect.y - 2,
+            cellSize + 4,
+            cellSize + 4,
+            radius + 2
+          );
+          ctx.stroke();
+        } else if (isSelected) {
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.roundRect(
+            cellRect.x - 1.5,
+            cellRect.y - 1.5,
+            cellSize + 3,
+            cellSize + 3,
+            radius + 1
+          );
+          ctx.stroke();
         } else {
-          ctx.fillStyle = '#2D2D2D';
+          ctx.strokeStyle = '#AAAAAA';
+          ctx.lineWidth = 2;
           ctx.beginPath();
-          const radius = 8;
-          ctx.roundRect(x, y, cellSize, cellSize, radius);
-          ctx.fill();
+          ctx.roundRect(cellRect.x, cellRect.y, cellSize, cellSize, radius);
+          ctx.stroke();
+        }
+      } else {
+        ctx.fillStyle = '#2D2D2D';
+        ctx.beginPath();
+        ctx.roundRect(cellRect.x, cellRect.y, cellSize, cellSize, radius);
+        ctx.fill();
 
-          if (isPlayingCol) {
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.roundRect(x - 2, y - 2, cellSize + 4, cellSize + 4, radius + 2);
-            ctx.stroke();
-          } else if (isSelected) {
-            ctx.strokeStyle = '#00A8FF';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.roundRect(x - 1.5, y - 1.5, cellSize + 3, cellSize + 3, radius + 1);
-            ctx.stroke();
-          } else {
-            ctx.strokeStyle = '#555555';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(x, y, cellSize, cellSize, radius);
-            ctx.stroke();
-          }
+        if (isPlayingCol) {
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.roundRect(
+            cellRect.x - 2,
+            cellRect.y - 2,
+            cellSize + 4,
+            cellSize + 4,
+            radius + 2
+          );
+          ctx.stroke();
+        } else if (isSelected) {
+          ctx.strokeStyle = '#00A8FF';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.roundRect(
+            cellRect.x - 1.5,
+            cellRect.y - 1.5,
+            cellSize + 3,
+            cellSize + 3,
+            radius + 1
+          );
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = '#555555';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(cellRect.x, cellRect.y, cellSize, cellSize, radius);
+          ctx.stroke();
         }
       }
-    }
-  }, [getMetrics, noteAt, currentPlayingCol, selectedCell]);
+    },
+    [getCellRect, noteAt, currentPlayingCol, selectedCell]
+  );
+
+  const drawBorder = useCallback(
+    (ctx: CanvasRenderingContext2D, metrics: GridMetrics) => {
+      const { startX, startY, gridWidth, gridHeight } = metrics;
+
+      ctx.save();
+      ctx.shadowColor = '#00A8FF';
+      ctx.shadowBlur = 20;
+      ctx.strokeStyle = '#00A8FF';
+      ctx.lineWidth = BORDER_WIDTH;
+      ctx.strokeRect(
+        startX - BORDER_WIDTH,
+        startY - BORDER_WIDTH,
+        gridWidth + BORDER_WIDTH * 2,
+        gridHeight + BORDER_WIDTH * 2
+      );
+      ctx.restore();
+    },
+    []
+  );
+
+  const render = useCallback(
+    (forceFull: boolean = false) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+
+      const canvasWidth = rect.width * dpr;
+      const canvasHeight = rect.height * dpr;
+      if (canvas.width !== canvasWidth || canvas.height !== canvasHeight) {
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        forceFull = true;
+      }
+
+      const metrics = getMetrics();
+
+      if (forceFull) {
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        drawBorder(ctx, metrics);
+        for (let row = 0; row < ROWS; row++) {
+          for (let col = 0; col < COLS; col++) {
+            drawCell(ctx, row, col, metrics);
+          }
+        }
+        dirtyCellsRef.current.clear();
+      } else {
+        if (dirtyCellsRef.current.size > 0) {
+          dirtyCellsRef.current.forEach((key) => {
+            const [row, col] = key.split('-').map(Number);
+            drawCell(ctx, row, col, metrics);
+          });
+          dirtyCellsRef.current.clear();
+        }
+      }
+    },
+    [getMetrics, drawBorder, drawCell]
+  );
 
   useEffect(() => {
-    render();
-  }, [render]);
+    checkDirty();
+  }, [checkDirty]);
+
+  useEffect(() => {
+    const updateFPS = (now: number) => {
+      fpsFrameCountRef.current++;
+      if (now - fpsLastUpdateRef.current >= 1000) {
+        currentFpsRef.current = fpsFrameCountRef.current;
+        fpsFrameCountRef.current = 0;
+        fpsLastUpdateRef.current = now;
+      }
+    };
+
+    const animationLoop = (now: number) => {
+      const targetFPS = isPlayingRef.current ? PLAYING_FPS_TARGET : IDLE_FPS_TARGET;
+      const frameInterval = 1000 / targetFPS;
+      const delta = now - lastFrameTimeRef.current;
+
+      if (delta >= frameInterval) {
+        lastFrameTimeRef.current = now - (delta % frameInterval);
+        updateFPS(now);
+        render(false);
+      }
+
+      animationFrameIdRef.current = requestAnimationFrame(animationLoop);
+    };
+
+    render(true);
+    markAllCellsDirty();
+
+    animationFrameIdRef.current = requestAnimationFrame(animationLoop);
+
+    return () => {
+      if (animationFrameIdRef.current !== null) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+      }
+    };
+  }, [render, markAllCellsDirty]);
 
   useEffect(() => {
     const handleResize = () => {
-      render();
+      render(true);
+      markAllCellsDirty();
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [render]);
-
-  useEffect(() => {
-    let animationId: number;
-    const loop = () => {
-      render();
-      animationId = requestAnimationFrame(loop);
-    };
-    animationId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animationId);
-  }, [render]);
+  }, [render, markAllCellsDirty]);
 
   const processCell = useCallback(
     (row: number, col: number) => {
       const key = `${row}-${col}`;
-      const now = performance.now();
 
       if (dragAction === 'add') {
         if (!dragCellsRef.current.has(key)) {
           dragCellsRef.current.add(key);
           if (!noteAt(row, col)) {
-            if (now - lastPlayTimeRef.current > 16) {
-              addNote(row, col);
-              lastPlayTimeRef.current = now;
-            } else {
-              const freq = audioEngine.getFrequencyForPosition(col, row);
-              const type = audioEngine.getOscillatorType(row);
-              audioEngine.playNote(freq, type, 0.2);
-              const cellNote = notes.find((n) => n.row === row && n.col === col);
-              if (!cellNote) {
-                useStore.setState((state) => ({
-                  notes: [
-                    ...state.notes,
-                    {
-                      id: Math.random().toString(36),
-                      row,
-                      col,
-                      color: calculateColor(col, row),
-                      noteType: type,
-                      frequency: freq,
-                    },
-                  ],
-                }));
-              }
-            }
+            addNote(row, col);
             setLastFilledCell({ row, col });
           }
         }
@@ -278,7 +456,7 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
         }
       }
     },
-    [dragAction, noteAt, addNote, removeNote, notes]
+    [dragAction, noteAt, addNote, removeNote]
   );
 
   const handleMouseDown = useCallback(
@@ -292,6 +470,7 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
       const action = existingNote ? 'remove' : 'add';
       setDragAction(action);
       setIsDragging(true);
+      lastDragProcessTimeRef.current = performance.now();
 
       if (action === 'add') {
         addNote(cell.row, cell.col);
@@ -308,9 +487,17 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
       if (!isDragging || !dragAction) return;
+
+      const now = performance.now();
+      if (now - lastDragProcessTimeRef.current < DRAG_THROTTLE_MS) {
+        return;
+      }
+
+      lastMouseMoveTimeRef.current = now;
       const cell = getCellFromPosition(e.clientX, e.clientY);
       if (cell) {
         processCell(cell.row, cell.col);
+        lastDragProcessTimeRef.current = now;
       }
     },
     [isDragging, dragAction, getCellFromPosition, processCell]
