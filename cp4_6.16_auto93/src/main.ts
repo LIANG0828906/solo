@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useStore, PlantData } from './store';
-import { Plant } from './plant';
+import { PlantRenderSystem } from './plant';
 import { WindSystem } from './wind';
 import { createUI } from './ui';
 
@@ -129,17 +129,19 @@ ground.name = 'ground';
 scene.add(ground);
 
 const windSystem = new WindSystem();
-const plants: Map<string, Plant> = new Map();
+const plantRenderSystem = new PlantRenderSystem(scene);
 const ui = createUI();
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let pointerDownPos = { x: 0, y: 0 };
 let isDragging = false;
+let rightDown = false;
 
 renderer.domElement.addEventListener('pointerdown', (e) => {
   pointerDownPos = { x: e.clientX, y: e.clientY };
   isDragging = false;
+  if (e.button === 2) rightDown = true;
 });
 
 renderer.domElement.addEventListener('pointermove', (e) => {
@@ -151,6 +153,7 @@ renderer.domElement.addEventListener('pointermove', (e) => {
 });
 
 renderer.domElement.addEventListener('pointerup', (e) => {
+  if (e.button === 2) rightDown = false;
   if (isDragging) return;
   if (e.button !== 0) return;
 
@@ -158,31 +161,15 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
 
-  const plantMeshes: THREE.Object3D[] = [];
-  plants.forEach((p) => {
-    p.group.traverse((child) => {
-      if (child instanceof THREE.Mesh || child instanceof THREE.Points) {
-        plantMeshes.push(child);
-      }
-    });
-  });
-
-  const plantIntersects = raycaster.intersectObjects(plantMeshes, false);
-  if (plantIntersects.length > 0) {
-    let target: THREE.Object3D | null = plantIntersects[0].object;
-    while (target && !target.userData.plantId) {
-      target = target.parent;
+  const pickedId = plantRenderSystem.pickPlant(raycaster);
+  if (pickedId) {
+    const store = useStore.getState();
+    if (store.selectedPlantId === pickedId) {
+      store.selectPlant(null);
+    } else {
+      store.selectPlant(pickedId);
     }
-    if (target && target.userData.plantId) {
-      const id = target.userData.plantId;
-      const store = useStore.getState();
-      if (store.selectedPlantId === id) {
-        store.selectPlant(null);
-      } else {
-        store.selectPlant(id);
-      }
-      return;
-    }
+    return;
   }
 
   const groundIntersects = raycaster.intersectObject(ground, false);
@@ -196,8 +183,6 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   }
 });
 
-const store = useStore.getState();
-
 useStore.subscribe((state, prevState) => {
   const added = state.plants.filter(
     (p) => !prevState.plants.find((pp) => pp.id === p.id)
@@ -207,17 +192,11 @@ useStore.subscribe((state, prevState) => {
   );
 
   added.forEach((p) => {
-    if (!plants.has(p.id)) {
-      plants.set(p.id, new Plant(p, scene));
-    }
+    plantRenderSystem.addPlant(p);
   });
 
   removed.forEach((p) => {
-    const plant = plants.get(p.id);
-    if (plant) {
-      plant.dispose(scene);
-      plants.delete(p.id);
-    }
+    plantRenderSystem.removePlant(p.id);
   });
 });
 
@@ -244,27 +223,31 @@ function animate(): void {
 
   const time = now / 1000;
 
-  plants.forEach((plant) => {
-    plant.updateGrowth(delta);
+  plantRenderSystem.update(delta, time, windDir, windStr, (id, data) => {
+    currentStore.updatePlant(id, data);
+  });
 
-    const pId = plant.getData().id;
-    const storePlant = currentStore.plants.find((p) => p.id === pId);
-    if (storePlant) {
-      currentStore.updatePlant(pId, plant.getData());
-    }
-
-    plant.updatePose(windDir, windStr, time);
-
-    const isSelected = currentStore.selectedPlantId === pId;
-    plant.setHighlighted(isSelected);
+  const selectedId = currentStore.selectedPlantId;
+  plantRenderSystem.plants.forEach((state, id) => {
+    plantRenderSystem.setHighlighted(id, id === selectedId);
   });
 
   ui.updateWindIndicator(currentStore.wind);
 
-  const selectedPlant = currentStore.selectedPlantId
-    ? currentStore.plants.find((p) => p.id === currentStore.selectedPlantId) || null
+  const selectedPlantData = selectedId
+    ? plantRenderSystem.getPlantData(selectedId)
     : null;
-  ui.updatePlantInfo(selectedPlant);
+  if (selectedPlantData) {
+    ui.updatePlantInfo({
+      ...selectedPlantData,
+      initialHeight: selectedPlantData.currentHeight,
+      targetHeight: selectedPlantData.currentHeight,
+      position: { x: 0, z: 0 },
+      id: selectedId,
+    } as PlantData);
+  } else {
+    ui.updatePlantInfo(null);
+  }
 
   controls.update();
   renderer.render(scene, camera);
@@ -277,3 +260,5 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+window.addEventListener('contextmenu', (e) => e.preventDefault());
