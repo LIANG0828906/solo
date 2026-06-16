@@ -7,8 +7,8 @@
   --primary-dark: #6B4421;
   --accent: #D4A76A;
   --accent-light: #E5C090;
-  --warning: #F5B7A0;
-  --warning-light: #FFE4DA;
+  --warning: #F5C6A0;
+  --warning-light: #FFE8D0;
   --success: #7CB342;
   --danger: #E53935;
   --text-primary: #3E2723;
@@ -623,16 +623,29 @@ a {
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--card-border);
   cursor: pointer;
-  transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1), border-color 300ms ease;
-  animation: flyIn 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-  will-change: transform, box-shadow;
-  transform: rotate(var(--card-tilt, 0deg));
+  transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1), border-color 300ms ease, transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform, box-shadow, opacity;
+  transform: translateY(0) scale(1) rotate(var(--card-tilt, 0deg));
+}
+
+.product-card.card-hidden {
+  opacity: 0;
+  transform: translateY(30px) scale(0.95) rotate(var(--card-tilt, 0deg));
+}
+
+.product-card.card-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1) rotate(var(--card-tilt, 0deg));
+  transition: opacity 500ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition-delay: var(--stagger-delay, 0ms);
 }
 
 .product-card:hover {
   transform: translateY(-8px) scale(1.015) rotate(0deg);
   box-shadow: var(--shadow-hover);
   border-color: var(--accent);
+  z-index: 2;
 }
 
 .card-cover {
@@ -818,11 +831,11 @@ a {
 }
 
 .material-table tbody tr.warning-row {
-  background: linear-gradient(90deg, #FFE4D6 0%, #F5C6A0 100%);
+  background: linear-gradient(90deg, #F5C6A0 0%, #E8A878 100%);
 }
 
 .material-table tbody tr.warning-row:hover {
-  background: linear-gradient(90deg, #FFD6C4 0%, #F0B888 100%);
+  background: linear-gradient(90deg, #F0B888 0%, #E09965 100%);
 }
 
 .material-name {
@@ -856,6 +869,9 @@ a {
   border-radius: 10px;
   font-size: 11px;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
@@ -1251,18 +1267,29 @@ a {
   position: relative;
 }
 
-.timeline-step-wrapper.dragging {
-  opacity: 0.4;
+.timeline-step-wrapper.is-dragging {
+  opacity: 0.3;
 }
 
-.timeline-step-wrapper.drag-over {
-  border-top: 3px solid var(--accent);
-  padding-top: 8px;
-}
-
-.timeline-step-wrapper.drag-over .timeline-card {
+.timeline-step-wrapper.is-drag-over .timeline-card {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(212, 167, 106, 0.3);
+  box-shadow: 0 0 0 3px rgba(212, 167, 106, 0.4);
+  transform: translateX(4px);
+}
+
+.timeline-card.card-dragging {
+  opacity: 0.6;
+  transform: scale(0.98);
+  cursor: grabbing;
+}
+
+.timeline-card.card-drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212, 167, 106, 0.4);
+}
+
+.timeline-card {
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease, opacity 200ms ease;
 }
 
 .timeline-node {
@@ -1325,15 +1352,17 @@ a {
   margin-top: 2px;
   transition: var(--transition);
   flex-shrink: 0;
+  user-select: none;
 }
 
 .step-drag-handle:hover {
-  background: var(--bg-warm-light);
+  background: rgba(212, 167, 106, 0.25);
   color: var(--primary);
 }
 
 .step-drag-handle:active {
   cursor: grabbing;
+  background: rgba(212, 167, 106, 0.35);
 }
 
 .step-title-section {

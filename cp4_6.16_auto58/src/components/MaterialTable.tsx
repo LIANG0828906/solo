@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Material, SortOrder } from '@/types';
-import { Plus, X, Edit2, Trash2, AlertTriangle, Search, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, X, Edit2, Trash2, AlertTriangle, Search, ArrowUpDown, ChevronUp, ChevronDown, PackagePlus } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/utils/format';
 
 export function MaterialTable() {
@@ -156,7 +156,7 @@ export function MaterialTable() {
                   </td>
                   <td className="quantity-cell">
                     <strong>{m.quantity}</strong>
-                    {isWarning(m) && <span className="replenish-tag">补货</span>}
+                    {isWarning(m) && <span className="replenish-tag"><PackagePlus size={12} /> 补货</span>}
                   </td>
                   <td>{m.unit}</td>
                   <td>{formatCurrency(m.unitPrice)}</td>

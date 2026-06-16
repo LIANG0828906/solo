@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Step, TimelineFilters, ProjectLog, DifficultyLevel } from '@/types';
 import { GripVertical, Plus, X, Image as ImageIcon, Clock, Edit2, Trash2, Search, Calendar } from 'lucide-react';
@@ -128,40 +128,47 @@ export function Timeline({ project }: TimelineProps) {
     e.dataTransfer.setData('text/plain', String(idx));
     const target = e.currentTarget as HTMLElement;
     requestAnimationFrame(() => {
-      target.style.opacity = '0.4';
+      target.style.opacity = '0.5';
+      target.style.transform = 'scale(0.98)';
     });
   }, []);
 
   const handleDragOver = useCallback((idx: number) => (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setDragState((prev) => {
-      if (prev.overIdx !== idx) {
-        return { ...prev, overIdx: idx };
-      }
-      return prev;
-    });
+    if (dragItemRef.current !== null && dragItemRef.current !== idx) {
+      setDragState((prev) => {
+        if (prev.overIdx !== idx) {
+          return { ...prev, overIdx: idx };
+        }
+        return prev;
+      });
+    }
   }, []);
 
   const handleDragLeave = useCallback(() => {
-    setDragState((prev) => ({ ...prev, overIdx: null }));
+    // 不立即清除，避免快速移动时闪烁
   }, []);
 
   const handleDrop = useCallback((toIdx: number) => async (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     const fromIdx = dragItemRef.current;
+    setDragState({ dragging: false, dragIdx: null, overIdx: null });
     if (fromIdx === null || fromIdx === toIdx) {
-      setDragState({ dragging: false, dragIdx: null, overIdx: null });
+      dragItemRef.current = null;
       return;
     }
     await reorderSteps(project.id, fromIdx, toIdx);
     dragItemRef.current = null;
-    setDragState({ dragging: false, dragIdx: null, overIdx: null });
   }, [project.id, reorderSteps]);
 
-  const handleDragEnd = useCallback(() => {
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
     dragItemRef.current = null;
     setDragState({ dragging: false, dragIdx: null, overIdx: null });
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = '';
+    target.style.transform = '';
   }, []);
 
   return (
@@ -208,29 +215,28 @@ export function Timeline({ project }: TimelineProps) {
           <div className="timeline-vertical">
             {filteredSteps.map((step, idx) => {
               const isDragging = dragState.dragIdx === idx;
-              const isOver = dragState.overIdx === idx && dragState.dragIdx !== idx;
+              const isOver = dragState.overIdx === idx && dragState.dragIdx !== idx && dragState.dragIdx !== null;
               return (
               <div
                 key={step.id}
-                className={`timeline-step-wrapper ${isDragging ? 'dragging' : ''} ${isOver ? 'drag-over' : ''}`}
-                onDragOver={handleDragOver(idx)}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop(idx)}
+                className={`timeline-step-wrapper ${isDragging ? 'is-dragging' : ''} ${isOver ? 'is-drag-over' : ''}`}
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
                 <div className="timeline-node">
                   <span className="node-dot" style={{ backgroundColor: getDifficultyColor(step.difficulty) }} />
                   <div className="timeline-line" />
                 </div>
-                <div className="timeline-card">
+                <div
+                  className={`timeline-card ${isDragging ? 'card-dragging' : ''} ${isOver ? 'card-drag-over' : ''}`}
+                  draggable
+                  onDragStart={handleDragStart(idx)}
+                  onDragOver={handleDragOver(idx)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop(idx)}
+                  onDragEnd={handleDragEnd}
+                >
                   <div className="step-header">
-                    <div
-                      className="step-drag-handle"
-                      title="拖拽排序"
-                      draggable
-                      onDragStart={handleDragStart(idx)}
-                      onDragEnd={handleDragEnd}
-                    >
+                    <div className="step-drag-handle" title="拖拽调整顺序">
                       <GripVertical size={16} />
                     </div>
                     <div className="step-title-section">

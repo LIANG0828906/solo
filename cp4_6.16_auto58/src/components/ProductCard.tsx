@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Product } from '@/types';
 import { Clock, Package } from 'lucide-react';
@@ -10,6 +11,39 @@ interface ProductCardProps {
 
 export function ProductCard({ product, index }: ProductCardProps) {
   const navigate = useNavigate();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      setHasAnimated(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasAnimated) {
+            setIsVisible(true);
+            setHasAnimated(true);
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '50px 0px'
+      }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasAnimated]);
 
   const handleClick = () => {
     navigate(`/product/${product.id}`);
@@ -19,12 +53,13 @@ export function ProductCard({ product, index }: ProductCardProps) {
 
   return (
     <div
-      className="product-card"
+      ref={cardRef}
+      className={`product-card ${isVisible ? 'card-visible' : 'card-hidden'}`}
       onClick={handleClick}
       style={
         {
           '--card-tilt': `${tilt}deg`,
-          animationDelay: `${index * 50}ms`
+          '--stagger-delay': `${index * 50}ms`
         } as React.CSSProperties
       }
     >
