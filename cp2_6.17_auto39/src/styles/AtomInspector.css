@@ -1,0 +1,148 @@
+.atom-inspector {
+  width: 320px;
+  background: rgba(30, 30, 46, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 20px;
+  color: #ffffff;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(108, 99, 255, 0.2);
+}
+
+.inspector-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.element-symbol {
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 4px;
+  text-shadow: 0 0 20px currentColor;
+}
+
+.element-name {
+  font-size: 14px;
+  color: #888888;
+}
+
+.inspector-section {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 12px;
+  color: #888888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.coordinates {
+  display: flex;
+  gap: 10px;
+}
+
+.coord-item {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.coord-label {
+  display: block;
+  font-size: 10px;
+  color: #6C63FF;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+.coord-value {
+  font-size: 12px;
+  color: #aaaaaa;
+  font-family: monospace;
+}
+
+.connected-atoms {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.no-bonds {
+  font-size: 12px;
+  color: #666666;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.atom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.atom-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border-left: 3px solid;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.atom-chip:hover {
+  background: rgba(108, 99, 255, 0.2);
+  transform: translateX(4px);
+}
+
+.atom-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.atom-label {
+  font-size: 13px;
+  color: #dddddd;
+  font-weight: 500;
+}
+
+.atom-id {
+  margin-left: auto;
+  font-size: 11px;
+  color: #666666;
+  font-family: monospace;
+}
+
+.close-button {
+  width: 100%;
+  padding: 12px;
+  background: #FF5555;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.close-button:hover {
+  background: #CC4444;
+  box-shadow: 0 4px 12px rgba(255, 85, 85, 0.4);
+}
+
+.close-button:active {
+  transform: scale(0.98);
+}

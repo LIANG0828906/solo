@@ -1,0 +1,63 @@
+.molecule-info {
+  width: 180px;
+  background: rgba(40, 40, 64, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(108, 99, 255, 0.15);
+}
+
+.molecule-info:hover {
+  box-shadow: 0 6px 32px rgba(108, 99, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.info-gradient-bar {
+  height: 6px;
+  background: linear-gradient(90deg, #6C63FF, #A29BFE);
+}
+
+.info-content {
+  padding: 16px;
+}
+
+.molecule-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 16px 0;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  color: #888888;
+  font-size: 12px;
+}
+
+.info-value {
+  color: #dddddd;
+  font-weight: 500;
+  font-family: monospace;
+}
+
+.formula {
+  font-size: 13px;
+  color: #A29BFE;
+  letter-spacing: 1px;
+}
