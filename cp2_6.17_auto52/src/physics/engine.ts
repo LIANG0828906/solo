@@ -55,7 +55,14 @@ export function updateBallSpawn(ball: Ball, now: number): Ball {
   if (!ball.spawning) return ball;
   const elapsed = now - ball.spawnTime;
   if (elapsed >= SPAWN_ANIM_DURATION) {
-    return { ...ball, spawning: false };
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 100 + Math.random() * 150;
+    return {
+      ...ball,
+      spawning: false,
+      vx: Math.cos(angle) * speed,
+      vy: -150,
+    };
   }
   return ball;
 }
@@ -65,20 +72,23 @@ export function updatePhysics(
   paddle: Paddle,
   dt: number,
   now: number
-): { balls: Ball[]; scoreDelta: number; lifeLost: boolean } {
+): { balls: Ball[]; scoreDelta: number; lifeLost: boolean; collisionTime: number } {
   let scoreDelta = 0;
   let lifeLost = false;
+  let totalCollisionTime = 0;
 
   const updated = balls.map((ball) => {
     let b = { ...ball };
 
     b = updateBallSpawn(b, now);
 
-    b.vy += GRAVITY * dt;
-    b.vx *= FRICTION;
-    b.vy *= FRICTION;
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
+    if (!b.spawning) {
+      b.vy += GRAVITY * dt;
+      b.vx *= FRICTION;
+      b.vy *= FRICTION;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+    }
 
     if (b.x - b.radius < 0) {
       b.x = b.radius;
@@ -93,10 +103,10 @@ export function updatePhysics(
       b.vy = Math.abs(b.vy) * WALL_RESTITUTION;
     }
 
-    if (
+    if (!b.spawning &&
       b.vy > 0 &&
       b.y + b.radius >= paddle.y &&
-      b.y + b.radius <= paddle.y + paddle.height + b.vy * dt &&
+      b.y + b.radius <= paddle.y + paddle.height + b.vy * dt + 5 &&
       b.x + b.radius > paddle.x &&
       b.x - b.radius < paddle.x + paddle.width
     ) {
@@ -121,11 +131,17 @@ export function updatePhysics(
 
   const alive: Ball[] = updated.filter((b): b is Ball => b !== null);
 
+  const collisionDetectStart = performance.now();
   const collisionPairs: [number, number][] = [];
   for (let i = 0; i < alive.length; i++) {
     for (let j = i + 1; j < alive.length; j++) {
+      const pairStart = performance.now();
       const a = alive[i];
       const b = alive[j];
+      if (a.spawning || b.spawning) {
+        totalCollisionTime += performance.now() - pairStart;
+        continue;
+      }
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -133,10 +149,12 @@ export function updatePhysics(
       if (dist < minDist && dist > 0) {
         collisionPairs.push([i, j]);
       }
+      totalCollisionTime += performance.now() - pairStart;
     }
   }
 
   for (const [i, j] of collisionPairs) {
+    const resolveStart = performance.now();
     const a = alive[i];
     const b = alive[j];
     const dx = b.x - a.x;
@@ -171,7 +189,10 @@ export function updatePhysics(
       b.flashUntil = now + FLASH_DURATION;
       b.flashColor = fc;
     }
+    totalCollisionTime += performance.now() - resolveStart;
   }
 
-  return { balls: alive, scoreDelta, lifeLost };
+  totalCollisionTime += performance.now() - collisionDetectStart;
+
+  return { balls: alive, scoreDelta, lifeLost, collisionTime: totalCollisionTime };
 }

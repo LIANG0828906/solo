@@ -56,17 +56,14 @@ const GameCanvas: React.FC = () => {
     if (spawning) {
       const elapsed = now - spawnTime;
       const t = Math.min(elapsed / 300, 1);
-      const bounce = Math.sin(t * Math.PI * 3) * (1 - t) * 15;
+      const bounce = Math.sin(t * Math.PI * 3) * (1 - t) * 20;
       drawY = y + bounce;
       drawRadius = radius * (0.5 + 0.5 * t);
     }
 
     ctx.save();
 
-    if (flashUntil > now && flashColor) {
-      ctx.shadowColor = flashColor;
-      ctx.shadowBlur = 20;
-    }
+    const isFlashing = flashUntil > now && flashColor;
 
     const gradient = ctx.createRadialGradient(
       drawX(x, drawRadius, -0.33),
@@ -77,15 +74,35 @@ const GameCanvas: React.FC = () => {
       drawRadius
     );
 
-    const baseColor = flashUntil > now && flashColor ? flashColor : color;
     gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
-    gradient.addColorStop(0.3, baseColor);
-    gradient.addColorStop(1, darkenColor(baseColor, 0.4));
+    gradient.addColorStop(0.3, color);
+    gradient.addColorStop(1, darkenColor(color, 0.4));
 
     ctx.beginPath();
     ctx.arc(x, drawY, drawRadius, 0, Math.PI * 2);
     ctx.fillStyle = gradient;
     ctx.fill();
+
+    if (isFlashing) {
+      const flashProgress = (flashUntil - now) / 100;
+      ctx.globalAlpha = flashProgress * 0.7;
+      const flashRadius = drawRadius * (1.5 + (1 - flashProgress) * 0.5);
+      const flashGrad = ctx.createRadialGradient(x, drawY, 0, x, drawY, flashRadius);
+      flashGrad.addColorStop(0, flashColor);
+      flashGrad.addColorStop(0.5, flashColor);
+      flashGrad.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.arc(x, drawY, flashRadius, 0, Math.PI * 2);
+      ctx.fillStyle = flashGrad;
+      ctx.fill();
+
+      ctx.globalAlpha = flashProgress * 0.9;
+      ctx.beginPath();
+      ctx.arc(x, drawY, drawRadius * 1.1, 0, Math.PI * 2);
+      ctx.strokeStyle = flashColor;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
 
     ctx.restore();
   }, []);
@@ -124,10 +141,8 @@ const GameCanvas: React.FC = () => {
       p.y = CANVAS_HEIGHT - PADDLE_Y_OFFSET;
       setPaddle(p);
 
-      const collisionStart = performance.now();
       const result = updatePhysics(balls, p, dt, now);
-      const collisionEnd = performance.now();
-      collisionTimesRef.current.push(collisionEnd - collisionStart);
+      collisionTimesRef.current.push(result.collisionTime);
       if (collisionTimesRef.current.length > 60) {
         collisionTimesRef.current.shift();
       }

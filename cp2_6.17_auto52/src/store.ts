@@ -71,10 +71,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (state.balls.length >= 15) return;
     const paddle = state.paddle;
     const x = paddle.x + paddle.width / 2;
-    const y = paddle.y - 30;
+    const y = paddle.y - 50;
     const newBall = createBall(x, y);
-    newBall.vx = (Math.random() - 0.5) * 100;
-    newBall.vy = -150;
+    newBall.vx = 0;
+    newBall.vy = 0;
+    newBall.spawnTime = performance.now();
+    newBall.spawning = true;
     set({ balls: [...state.balls, newBall] });
   },
   removeBall: (id) =>
