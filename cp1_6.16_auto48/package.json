@@ -1,0 +1,36 @@
+{
+  "name": "used-bookstore-system",
+  "version": "1.0.0",
+  "description": "二手书店库存与在线订单协同管理系统",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "ts-node src/server/app.ts",
+    "dev:client": "vite",
+    "build": "tsc && vite build",
+    "build:client": "vite build",
+    "start": "node dist/server/app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "uuid": "^9.0.0",
+    "cors": "^2.8.5",
+    "sse-channel": "^2.0.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.10.3",
+    "react-router-dom": "^6.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@types/express": "^4.17.21",
+    "@types/uuid": "^9.0.7",
+    "@types/cors": "^2.8.17",
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2"
+  }
+}
