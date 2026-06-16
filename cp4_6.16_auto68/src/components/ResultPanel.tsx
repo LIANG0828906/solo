@@ -91,12 +91,19 @@ export function ResultPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300"
-      style={{ opacity: mounted ? 1 : 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 transition-opacity duration-300"
+      style={{
+        opacity: mounted ? 1 : 0,
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}
     >
       <div
-        className="relative w-full max-w-md mx-4 p-8 rounded-3xl bg-gradient-to-br from-purple-900/80 to-indigo-900/80 backdrop-blur-xl border border-purple-500/30 shadow-2xl shadow-purple-500/20 transition-all duration-500"
+        className="relative w-full max-w-md mx-4 p-8 rounded-3xl border border-purple-400/40 shadow-2xl shadow-purple-500/30 transition-all duration-500"
         style={{
+          background: 'linear-gradient(135deg, rgba(88, 28, 135, 0.7) 0%, rgba(49, 46, 129, 0.7) 100%)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
           transform: mounted ? 'scale(1) translateY(0)' : 'scale(0.9) translateY(30px)',
           opacity: mounted ? 1 : 0,
         }}

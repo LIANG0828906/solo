@@ -57,9 +57,14 @@ class ParticlePool {
   private pool: Particle[] = []
   private nextId = 0
   private maxParticles: number
+  private activeCount = 0
 
   constructor(maxParticles: number) {
     this.maxParticles = maxParticles
+  }
+
+  public getParticleCount(): number {
+    return this.activeCount
   }
 
   emit(
@@ -69,20 +74,25 @@ class ParticlePool {
     size: number,
     color: string,
     type: 'drift' | 'nitro'
-  ): void {
-    const existing = this.pool.find((p) => p.life <= 0)
-    if (existing) {
-      existing.position = { ...position }
-      existing.velocity = { ...velocity }
-      existing.life = life
-      existing.maxLife = life
-      existing.size = size
-      existing.color = color
-      existing.type = type
-      return
+  ): boolean {
+    if (this.activeCount >= this.maxParticles) return false
+
+    const deadParticle = this.pool.find((p) => p.life <= 0)
+    if (deadParticle) {
+      deadParticle.position.x = position.x
+      deadParticle.position.y = position.y
+      deadParticle.velocity.x = velocity.x
+      deadParticle.velocity.y = velocity.y
+      deadParticle.life = life
+      deadParticle.maxLife = life
+      deadParticle.size = size
+      deadParticle.color = color
+      deadParticle.type = type
+      this.activeCount++
+      return true
     }
 
-    if (this.pool.length >= this.maxParticles) return
+    if (this.pool.length >= this.maxParticles) return false
 
     this.pool.push({
       id: this.nextId++,
@@ -94,17 +104,26 @@ class ParticlePool {
       color,
       type,
     })
+    this.activeCount++
+    return true
   }
 
   update(dt: number): void {
+    let count = 0
     for (const p of this.pool) {
       if (p.life <= 0) continue
       p.life -= dt
+      if (p.life <= 0) {
+        p.life = 0
+        continue
+      }
       p.position.x += p.velocity.x * dt
       p.position.y += p.velocity.y * dt
-      p.velocity.x *= 0.98
-      p.velocity.y *= 0.98
+      p.velocity.x *= 0.97
+      p.velocity.y *= 0.97
+      count++
     }
+    this.activeCount = count
   }
 
   getActiveParticles(): Particle[] {
@@ -123,8 +142,12 @@ export class GameEngine {
   public driftScore = 0
   public nitroUses = 0
   public bestLapTime: number | null = null
+  public lastLapTime = 0
+  public lastLapDriftScore = 0
+  public lastLapNitroUses = 0
   private lastWaypointIndex = -1
   private lapStartTime = 0
+  private lapJustCompleted = false
 
   constructor(config?: Partial<EngineConfig>) {
     this.config = { ...DEFAULT_ENGINE_CONFIG, ...config }
@@ -264,29 +287,57 @@ export class GameEngine {
 
   private emitNitroParticles(dt: number): void {
     const car = this.car
-    const emitRate = 60
+    const emitRate = 80
     const count = Math.floor(emitRate * dt)
 
-    const rearX = car.position.x - Math.cos(car.angle) * 25
-    const rearY = car.position.y - Math.sin(car.angle) * 25
+    const rearX = car.position.x - Math.cos(car.angle) * 28
+    const rearY = car.position.y - Math.sin(car.angle) * 28
 
     for (let i = 0; i < count; i++) {
-      const sideOffset = (Math.random() - 0.5) * 15
+      const sideOffset = (Math.random() - 0.5) * 18
       const perpX = -Math.sin(car.angle) * sideOffset
       const perpY = Math.cos(car.angle) * sideOffset
 
-      const speed = 100 + Math.random() * 80
-      const angle = car.angle + Math.PI + (Math.random() - 0.5) * 0.3
+      const speed = 120 + Math.random() * 100
+      const spread = (Math.random() - 0.5) * 0.4
+      const angle = car.angle + Math.PI + spread
 
-      const isOrange = Math.random() > 0.5
-      const color = isOrange ? '#f97316' : '#fbbf24'
+      const rand = Math.random()
+      let color: string
+      if (rand < 0.3) {
+        color = '#fef08a'
+      } else if (rand < 0.6) {
+        color = '#f97316'
+      } else if (rand < 0.85) {
+        color = '#ea580c'
+      } else {
+        color = '#dc2626'
+      }
 
       this.particles.emit(
         { x: rearX + perpX, y: rearY + perpY },
         { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
-        0.3 + Math.random() * 0.3,
-        4 + Math.random() * 6,
+        0.25 + Math.random() * 0.35,
+        5 + Math.random() * 8,
         color,
+        'nitro'
+      )
+    }
+
+    for (let i = 0; i < Math.floor(count * 0.3); i++) {
+      const sideOffset = (Math.random() - 0.5) * 12
+      const perpX = -Math.sin(car.angle) * sideOffset
+      const perpY = Math.cos(car.angle) * sideOffset
+
+      const speed = 60 + Math.random() * 40
+      const angle = car.angle + Math.PI + (Math.random() - 0.5) * 0.2
+
+      this.particles.emit(
+        { x: rearX - Math.cos(car.angle) * 10 + perpX, y: rearY - Math.sin(car.angle) * 10 + perpY },
+        { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+        0.4 + Math.random() * 0.4,
+        10 + Math.random() * 12,
+        'rgba(251, 146, 60, 0.4)',
         'nitro'
       )
     }
@@ -383,13 +434,23 @@ export class GameEngine {
   }
 
   private completeLap(): void {
+    this.lastLapTime = this.lapTime
+    this.lastLapDriftScore = Math.floor(this.driftScore)
+    this.lastLapNitroUses = this.nitroUses
     this.lap++
-    if (this.bestLapTime === null || this.lapTime < this.bestLapTime) {
-      this.bestLapTime = this.lapTime
+    if (this.bestLapTime === null || this.lastLapTime < this.bestLapTime) {
+      this.bestLapTime = this.lastLapTime
     }
     this.lapTime = 0
     this.driftScore = 0
     this.nitroUses = 0
+    this.lapJustCompleted = true
+  }
+
+  public hasLapJustCompleted(): boolean {
+    const completed = this.lapJustCompleted
+    this.lapJustCompleted = false
+    return completed
   }
 
   public getLapData(): {

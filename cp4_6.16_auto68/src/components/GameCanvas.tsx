@@ -405,11 +405,11 @@ export function GameCanvas({ width = 1280, height = 720 }: GameCanvasProps) {
           currentWaypointIndex: engine.currentWaypointIndex,
         })
 
-        if (engine.lap > lastLapRef.current && lastLapRef.current > 0) {
+        if (engine.hasLapJustCompleted() && engine.lap > 0) {
           setLastLapStats({
-            time: engine.bestLapTime || engine.lapTime,
-            driftScore: engine.driftScore,
-            nitroUses: engine.nitroUses,
+            time: engine.lastLapTime,
+            driftScore: engine.lastLapDriftScore,
+            nitroUses: engine.lastLapNitroUses,
           })
           setShowResultPanel(true)
           setGameStatus('paused')

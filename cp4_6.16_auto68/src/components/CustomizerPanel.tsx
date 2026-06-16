@@ -13,6 +13,26 @@ const stickerNames: Record<StickerType, string> = {
   star: '星形',
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 255, g: 255, b: 255 }
+}
+
+function lerpColor(from: string, to: string, t: number): string {
+  const fromRgb = hexToRgb(from)
+  const toRgb = hexToRgb(to)
+  const r = Math.round(fromRgb.r + (toRgb.r - fromRgb.r) * t)
+  const g = Math.round(fromRgb.g + (toRgb.g - fromRgb.g) * t)
+  const b = Math.round(fromRgb.b + (toRgb.b - fromRgb.b) * t)
+  return `rgb(${r}, ${g}, ${b})`
+}
+
 export function CustomizerPanel() {
   const { setScreen } = useGameStore()
   const { player, setCustomizationColor, setCustomizationSticker } = usePlayerStore()
@@ -20,11 +40,21 @@ export function CustomizerPanel() {
   const [rotation, setRotation] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const lastXRef = useRef(0)
-  const [selectedColor, setSelectedColor] = useState(player?.currentCustomization.color || '#ffffff')
-  const [selectedSticker, setSelectedSticker] = useState<StickerType>(
+  const [targetColor, setTargetColor] = useState(player?.currentCustomization.color || '#ffffff')
+  const [targetSticker, setTargetSticker] = useState<StickerType>(
     player?.currentCustomization.sticker || 'none'
   )
-  const [animating, setAnimating] = useState(false)
+
+  const displayColorRef = useRef(player?.currentCustomization.color || '#ffffff')
+  const displayStickerRef = useRef<StickerType>(player?.currentCustomization.sticker || 'none')
+  const animColorRef = useRef({ from: '#ffffff', to: '#ffffff', progress: 1, duration: 80 })
+  const animStickerRef = useRef({
+    from: 'none' as StickerType,
+    to: 'none' as StickerType,
+    progress: 1,
+    duration: 100,
+  })
+  const animationFrameRef = useRef<number>(0)
 
   const renderCar = useCallback(() => {
     const canvas = canvasRef.current
@@ -54,18 +84,86 @@ export function CustomizerPanel() {
     ctx.ellipse(0, 60, 80, 15, 0, 0, Math.PI * 2)
     ctx.fill()
 
-    drawCarOnCanvas(ctx, 0, 0, rotation, selectedColor, selectedSticker, 2.5)
+    const stickerProgress = animStickerRef.current.progress
+    if (stickerProgress < 1 && animStickerRef.current.from !== animStickerRef.current.to) {
+      const scale1 = 1 - stickerProgress * 0.3
+      const scale2 = 0.7 + stickerProgress * 0.3
+      const alpha1 = 1 - stickerProgress
+      const alpha2 = stickerProgress
+
+      ctx.globalAlpha = alpha1
+      ctx.save()
+      ctx.scale(scale1, scale1)
+      drawCarOnCanvas(ctx, 0, 0, rotation, displayColorRef.current, animStickerRef.current.from, 2.5)
+      ctx.restore()
+
+      ctx.globalAlpha = alpha2
+      ctx.save()
+      ctx.scale(scale2, scale2)
+      drawCarOnCanvas(ctx, 0, 0, rotation, displayColorRef.current, animStickerRef.current.to, 2.5)
+      ctx.restore()
+
+      ctx.globalAlpha = 1
+    } else {
+      drawCarOnCanvas(ctx, 0, 0, rotation, displayColorRef.current, displayStickerRef.current, 2.5)
+    }
+
     ctx.restore()
-  }, [rotation, selectedColor, selectedSticker])
+  }, [rotation])
 
   useEffect(() => {
-    renderCar()
+    let lastTime = performance.now()
+
+    const animate = (time: number) => {
+      const dt = time - lastTime
+      lastTime = time
+
+      let needsRender = false
+
+      if (animColorRef.current.progress < 1) {
+        animColorRef.current.progress = Math.min(
+          1,
+          animColorRef.current.progress + dt / animColorRef.current.duration
+        )
+        displayColorRef.current = lerpColor(
+          animColorRef.current.from,
+          animColorRef.current.to,
+          animColorRef.current.progress
+        )
+        needsRender = true
+      }
+
+      if (animStickerRef.current.progress < 1) {
+        animStickerRef.current.progress = Math.min(
+          1,
+          animStickerRef.current.progress + dt / animStickerRef.current.duration
+        )
+        if (animStickerRef.current.progress >= 1) {
+          displayStickerRef.current = animStickerRef.current.to
+        }
+        needsRender = true
+      }
+
+      if (needsRender) {
+        renderCar()
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate)
+    }
+
+    animationFrameRef.current = requestAnimationFrame(animate)
+
+    return () => {
+      cancelAnimationFrame(animationFrameRef.current)
+    }
   }, [renderCar])
 
   useEffect(() => {
     if (player) {
-      setSelectedColor(player.currentCustomization.color)
-      setSelectedSticker(player.currentCustomization.sticker)
+      setTargetColor(player.currentCustomization.color)
+      setTargetSticker(player.currentCustomization.sticker)
+      displayColorRef.current = player.currentCustomization.color
+      displayStickerRef.current = player.currentCustomization.sticker
     }
   }, [player])
 
@@ -86,16 +184,26 @@ export function CustomizerPanel() {
   }
 
   const handleColorSelect = async (color: string) => {
-    setSelectedColor(color)
-    setAnimating(true)
-    setTimeout(() => setAnimating(false), 100)
+    const fromColor = displayColorRef.current
+    animColorRef.current = {
+      from: fromColor,
+      to: color,
+      progress: 0,
+      duration: 80,
+    }
+    setTargetColor(color)
     await setCustomizationColor(color)
   }
 
   const handleStickerSelect = async (sticker: StickerType) => {
-    setSelectedSticker(sticker)
-    setAnimating(true)
-    setTimeout(() => setAnimating(false), 100)
+    if (sticker === displayStickerRef.current) return
+    animStickerRef.current = {
+      from: displayStickerRef.current,
+      to: sticker,
+      progress: 0,
+      duration: 100,
+    }
+    setTargetSticker(sticker)
     await setCustomizationSticker(sticker)
   }
 
@@ -155,7 +263,7 @@ export function CustomizerPanel() {
               ref={canvasRef}
               width={400}
               height={300}
-              className={`transition-transform duration-100 ${animating ? 'scale-105' : 'scale-100'}`}
+              className="transition-all duration-100"
             />
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-purple-300/60 text-sm">
               拖拽旋转查看
@@ -184,13 +292,13 @@ export function CustomizerPanel() {
                   key={color}
                   onClick={() => handleColorSelect(color)}
                   className={`aspect-square rounded-xl border-2 transition-all duration-150 hover:scale-110 active:scale-95 ${
-                    selectedColor === color
+                    targetColor === color
                       ? 'border-yellow-400 shadow-lg shadow-yellow-400/30 scale-110'
                       : 'border-white/20 hover:border-white/40'
                   }`}
                   style={{ backgroundColor: color }}
                 >
-                  {selectedColor === color && (
+                  {targetColor === color && (
                     <span className="text-2xl">✓</span>
                   )}
                 </button>
@@ -210,7 +318,7 @@ export function CustomizerPanel() {
                   key={sticker}
                   onClick={() => handleStickerSelect(sticker)}
                   className={`p-4 rounded-xl border-2 transition-all duration-150 hover:scale-105 active:scale-95 flex flex-col items-center gap-2 ${
-                    selectedSticker === sticker
+                    targetSticker === sticker
                       ? 'border-yellow-400 bg-yellow-400/10 shadow-lg shadow-yellow-400/20'
                       : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10'
                   }`}
@@ -233,14 +341,14 @@ export function CustomizerPanel() {
                 <div className="flex items-center gap-2">
                   <div
                     className="w-6 h-6 rounded-md border border-white/30"
-                    style={{ backgroundColor: selectedColor }}
+                    style={{ backgroundColor: targetColor }}
                   />
-                  <span className="text-white font-mono">{selectedColor}</span>
+                  <span className="text-white font-mono">{targetColor}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-purple-300">贴纸图案</span>
-                <span className="text-white">{stickerNames[selectedSticker]}</span>
+                <span className="text-white">{stickerNames[targetSticker]}</span>
               </div>
             </div>
           </div>
