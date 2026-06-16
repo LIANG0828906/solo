@@ -1,4 +1,5 @@
 export type RoastLevel = '浅' | '中浅' | '中' | '中深' | '深';
+export type ConcentrationTag = '浓萃' | '均衡' | '淡雅';
 
 export interface BrewRecord {
   id: string;
@@ -12,6 +13,7 @@ export interface BrewRecord {
   coffeeWeight: number;
   waterWeight: number;
   rating: number;
+  concentrationTag: ConcentrationTag;
   createdAt: number;
 }
 

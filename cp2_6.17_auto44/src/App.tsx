@@ -6,7 +6,7 @@ import LogView from './components/LogView';
 import StatsView from './components/StatsView';
 import Toast from './components/Toast';
 import { useLogStore } from './store/logStore';
-import type { RoastLevel } from './types';
+import type { RoastLevel, ConcentrationTag } from './types';
 
 function App() {
   const [showStats, setShowStats] = useState(false);
@@ -26,11 +26,11 @@ function App() {
     }
     const headers = [
       'date', 'bean', 'roast', 'grind', 'temp',
-      'method', 'duration', 'coffeeWeight', 'waterWeight', 'rating'
+      'method', 'duration', 'coffeeWeight', 'waterWeight', 'rating', 'concentrationTag'
     ];
     const rows = records.map((r) => [
       r.date, r.bean, r.roast, r.grind, r.temp,
-      r.method, r.duration, r.coffeeWeight, r.waterWeight, r.rating
+      r.method, r.duration, r.coffeeWeight, r.waterWeight, r.rating, r.concentrationTag || ''
     ]);
     const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
@@ -78,10 +78,21 @@ function App() {
           date: string; bean: string; roast: RoastLevel; grind: number;
           temp: number; method: string; duration: string;
           coffeeWeight: number; waterWeight: number; rating: number;
+          concentrationTag: ConcentrationTag;
         }> = [];
 
         lines.forEach((line) => {
           const parts = line.split(',');
+          const cw = Number(parts[fieldIdx['coffeeWeight']]?.trim()) || 0;
+          const ww = Number(parts[fieldIdx['waterWeight']]?.trim()) || 0;
+          const ratio = cw > 0 ? ww / cw : 0;
+          const tagFromRatio: ConcentrationTag = ratio > 0
+            ? (ratio < 15 ? '浓萃' : ratio > 18 ? '淡雅' : '均衡')
+            : '均衡';
+          const tagRaw = parts[fieldIdx['concentrationTag']]?.trim();
+          const validTags: ConcentrationTag[] = ['浓萃', '均衡', '淡雅'];
+          const tag = (validTags.includes(tagRaw as ConcentrationTag) ? tagRaw : tagFromRatio) as ConcentrationTag;
+
           parsed.push({
             date: parts[fieldIdx['date']]?.trim() || '',
             bean: parts[fieldIdx['bean']]?.trim() || '',
@@ -90,9 +101,10 @@ function App() {
             temp: Number(parts[fieldIdx['temp']]?.trim()) || 0,
             method: parts[fieldIdx['method']]?.trim() || '',
             duration: parts[fieldIdx['duration']]?.trim() || '',
-            coffeeWeight: Number(parts[fieldIdx['coffeeWeight']]?.trim()) || 0,
-            waterWeight: Number(parts[fieldIdx['waterWeight']]?.trim()) || 0,
+            coffeeWeight: cw,
+            waterWeight: ww,
             rating: Number(parts[fieldIdx['rating']]?.trim()) || 0,
+            concentrationTag: tag,
           });
         });
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FiTrash2, FiEdit2 } from 'react-icons/fi';
 import type { BrewRecord } from '../types';
+import { TAG_COLORS } from '../utils/ratio';
 
 interface Props {
   records: BrewRecord[];
@@ -120,6 +121,7 @@ export default function BrewList({ records, selectedId, onSelect, onEdit, onDele
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    flex: 1,
                   }}>
                     {r.bean}
                   </span>
@@ -133,6 +135,22 @@ export default function BrewList({ records, selectedId, onSelect, onEdit, onDele
                   </span>
                   <div style={{ display: 'flex', gap: 1 }}>{renderStars(r.rating)}</div>
                 </div>
+                {r.concentrationTag && (
+                  <span
+                    style={{
+                      padding: '3px 10px',
+                      borderRadius: 10,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      backgroundColor: TAG_COLORS[r.concentrationTag].bg,
+                      color: TAG_COLORS[r.concentrationTag].text,
+                      flexShrink: 0,
+                      transition: 'all 0.2s ease-out',
+                    }}
+                  >
+                    {r.concentrationTag}
+                  </span>
+                )}
               </div>
 
               {isSelected && selectedRecord && (
@@ -183,6 +201,23 @@ export default function BrewList({ records, selectedId, onSelect, onEdit, onDele
                         <span style={{ color: '#6F4E37' }}>{value}</span>
                       </div>
                     ))}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, color: '#4A3525', minWidth: 88 }}>浓度风格：</span>
+                      {r.concentrationTag && (
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            borderRadius: 8,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            backgroundColor: TAG_COLORS[r.concentrationTag].bg,
+                            color: TAG_COLORS[r.concentrationTag].text,
+                          }}
+                        >
+                          {r.concentrationTag}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <span style={{ fontWeight: 700, color: '#4A3525', minWidth: 88 }}>评分：</span>
                       <div style={{ display: 'flex', gap: 1 }}>{renderStars(r.rating)}</div>

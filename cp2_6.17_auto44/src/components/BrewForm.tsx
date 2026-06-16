@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { FiSave } from 'react-icons/fi';
 import type { BrewRecord, RoastLevel } from '../types';
+import { calcRatioValue, formatRatio, getRatioIndicatorInfo } from '../utils/ratio';
 
 interface Props {
   initialData?: BrewRecord;
@@ -21,13 +22,6 @@ const inputBase = {
   transition: 'border-color 0.2s ease-out, box-shadow 0.2s ease-out',
 };
 
-const calcRatio = (cw: number | '', ww: number | ''): string => {
-  const coffee = Number(cw);
-  const water = Number(ww);
-  if (!coffee || !water || coffee <= 0) return '1:--';
-  return `1:${(water / coffee).toFixed(1)}`;
-};
-
 export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditing }: Props) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [bean, setBean] = useState('');
@@ -46,6 +40,8 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
 
   const durationTimeoutRef = useRef<number | null>(null);
   const ratioRef = useRef<HTMLSpanElement>(null);
+  const ratioIndicatorRef = useRef<HTMLDivElement>(null);
+  const ratioLabelRef = useRef<HTMLSpanElement>(null);
   const coffeeWeightRef = useRef<number | ''>(15);
   const waterWeightRef = useRef<number | ''>(250);
   const rafIdRef = useRef<number | null>(null);
@@ -59,11 +55,20 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
       return;
     }
     lastUpdateRef.current = now;
-    if (ratioRef.current) {
-      const newRatio = calcRatio(coffeeWeightRef.current, waterWeightRef.current);
-      if (ratioRef.current.textContent !== newRatio) {
-        ratioRef.current.textContent = newRatio;
-      }
+    const ratioVal = calcRatioValue(coffeeWeightRef.current, waterWeightRef.current);
+    const formatted = formatRatio(ratioVal);
+    const indicator = getRatioIndicatorInfo(ratioVal);
+
+    if (ratioRef.current && ratioRef.current.textContent !== formatted) {
+      ratioRef.current.textContent = formatted;
+    }
+    if (ratioIndicatorRef.current) {
+      ratioIndicatorRef.current.style.backgroundColor = indicator.dotColor;
+      ratioIndicatorRef.current.style.boxShadow = `0 0 6px ${indicator.dotColor}40`;
+    }
+    if (ratioLabelRef.current) {
+      ratioLabelRef.current.textContent = indicator.label;
+      ratioLabelRef.current.style.color = indicator.textColor;
     }
   }, []);
 
@@ -108,7 +113,9 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
     }
   }, [initialData, scheduleRatioUpdate]);
 
-  const ratio = calcRatio(coffeeWeight, waterWeight);
+  const ratioVal = useMemo(() => calcRatioValue(coffeeWeight, waterWeight), [coffeeWeight, waterWeight]);
+  const ratio = formatRatio(ratioVal);
+  const ratioIndicator = useMemo(() => getRatioIndicatorInfo(ratioVal), [ratioVal]);
 
   const validateDuration = (val: string): boolean => {
     const parts = val.split(':');
@@ -149,6 +156,13 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
       alert('请进行评分');
       return;
     }
+    const cw = Number(coffeeWeight) || 0;
+    const ww = Number(waterWeight) || 0;
+    const ratioValue = cw > 0 ? ww / cw : null;
+    const tag = ratioValue !== null
+      ? (ratioValue < 15 ? '浓萃' : ratioValue > 18 ? '淡雅' : '均衡')
+      : '均衡';
+
     await onSubmit({
       date,
       bean: bean.trim(),
@@ -157,9 +171,10 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
       temp,
       method: method.trim(),
       duration: duration || '0:00',
-      coffeeWeight: Number(coffeeWeight) || 0,
-      waterWeight: Number(waterWeight) || 0,
+      coffeeWeight: cw,
+      waterWeight: ww,
       rating,
+      concentrationTag: tag,
     });
     if (!isEditing) {
       setDate(new Date().toISOString().slice(0, 10));
@@ -396,9 +411,42 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
               color: '#6F4E37',
               fontFamily: 'Georgia, serif',
               letterSpacing: 1,
+              minWidth: 64,
             }}>
             {ratio}
           </span>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginLeft: 'auto',
+            padding: '4px 10px',
+            backgroundColor: ratioIndicator.bgColor,
+            borderRadius: 12,
+            transition: 'all 0.25s ease-out',
+          }}>
+            <div
+              ref={ratioIndicatorRef}
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: ratioIndicator.dotColor,
+                boxShadow: `0 0 6px ${ratioIndicator.dotColor}40`,
+                transition: 'all 0.25s ease-out',
+              }}
+            />
+            <span
+              ref={ratioLabelRef}
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: ratioIndicator.textColor,
+                transition: 'color 0.25s ease-out',
+              }}>
+              {ratioIndicator.label}
+            </span>
+          </div>
         </div>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, gridColumn: '1 / -1' }}>

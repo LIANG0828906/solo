@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { BrewRecord, StatsData, ToastItem } from '../types';
+import { BrewRecord, StatsData, ToastItem, ConcentrationTag } from '../types';
 import {
   getAllRecords,
   addRecordDB,
   deleteRecordDB,
   bulkAddRecordsDB,
 } from '../db';
+import { getConcentrationTag } from '../utils/ratio';
 
 interface LogState {
   records: BrewRecord[];
@@ -31,6 +32,18 @@ export const useLogStore = create<LogState>((set, get) => ({
   init: async () => {
     if (get().initialized) return;
     const records = await getAllRecords();
+    const needMigrate: BrewRecord[] = [];
+    records.forEach((r) => {
+      if (!r.concentrationTag) {
+        const ratio = r.coffeeWeight > 0 ? r.waterWeight / r.coffeeWeight : null;
+        const tag = getConcentrationTag(ratio) || '均衡';
+        r.concentrationTag = tag as ConcentrationTag;
+        needMigrate.push(r);
+      }
+    });
+    if (needMigrate.length > 0) {
+      await bulkAddRecordsDB(needMigrate);
+    }
     records.sort((a, b) => b.createdAt - a.createdAt);
     set({ records, initialized: true });
   },
