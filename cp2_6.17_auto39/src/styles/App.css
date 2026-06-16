@@ -41,16 +41,16 @@ body {
 .left-panel {
   position: absolute;
   left: 24px;
-  top: 24px;
-  z-index: 10;
+  top: 80px;
+  z-index: 20;
   pointer-events: auto;
 }
 
 .right-panel {
   position: absolute;
   right: 24px;
-  top: 24px;
-  z-index: 10;
+  top: 80px;
+  z-index: 20;
   pointer-events: auto;
 }
 
@@ -62,9 +62,10 @@ body {
   font-size: 20px;
   font-weight: bold;
   color: #ffffff;
-  z-index: 10;
+  z-index: 30;
   letter-spacing: 2px;
   text-shadow: 0 0 20px rgba(108, 99, 255, 0.5);
+  pointer-events: none;
 }
 
 .app-title span {
@@ -80,37 +81,54 @@ body {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 16px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
   z-index: 10;
+  max-width: 100%;
+  padding: 0 24px;
 }
 
 .hint-item {
-  background: rgba(30, 30, 46, 0.7);
+  background: rgba(30, 30, 46, 0.75);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   padding: 8px 16px;
   border-radius: 20px;
   font-size: 12px;
+  line-height: 1;
   color: #aaaaaa;
   border: 1px solid rgba(108, 99, 255, 0.2);
   transition: all 0.3s ease;
   white-space: nowrap;
-  display: flex;
+  display: inline-flex;
+  flex-direction: row;
   align-items: center;
+  flex-shrink: 0;
+}
+
+.hint-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(108, 99, 255, 0.3);
+  color: #A29BFE;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  margin-right: 8px;
+  font-family: monospace;
+  flex-shrink: 0;
+  min-width: 32px;
+  text-align: center;
 }
 
 .hint-item:hover {
   background: rgba(108, 99, 255, 0.2);
   color: #ffffff;
-}
-
-.hint-key {
-  display: inline-block;
-  background: rgba(108, 99, 255, 0.3);
-  color: #A29BFE;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  margin-right: 6px;
-  font-family: monospace;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.2);
 }

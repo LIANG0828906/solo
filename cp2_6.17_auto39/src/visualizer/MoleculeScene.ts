@@ -5,7 +5,6 @@ import { createBondMesh } from './BondGeometry'
 
 interface HighlightRing {
   mesh: THREE.Mesh
-  baseScale: number
   startTime: number
 }
 
@@ -23,17 +22,13 @@ export class MoleculeScene {
   private tooltip: HTMLDivElement
   private isDragging: boolean = false
   private previousMousePosition: { x: number; y: number } = { x: 0, y: 0 }
-  private rotationY: number = 0
-  private rotationX: number = 0
+  private targetRotationY: number = 0
+  private targetRotationX: number = 0
   private autoRotationSpeed: number = 2
   private isAutoRotating: boolean = true
   private autoRotateResumeTimer: number | null = null
   private zoom: number = 1
   private animationId: number = 0
-  private loadStartTime: number = 0
-  private isAnimatingEntrance: boolean = false
-  private entranceAtomMeshes: THREE.Mesh[] = []
-  private entranceBondMeshes: THREE.Mesh[] = []
 
   private onAtomClick: ((atomId: number) => void) | null = null
   private onRotationChange: ((rotationY: number) => void) | null = null
@@ -48,17 +43,15 @@ export class MoleculeScene {
     this.raycaster = new THREE.Raycaster()
     this.mouse = new THREE.Vector2()
 
-    this.camera = new THREE.PerspectiveCamera(
-      60,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      1000
-    )
-    this.camera.position.set(0, 5, 12)
+    const width = container.clientWidth || window.innerWidth
+    const height = container.clientHeight || window.innerHeight
+
+    this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000)
+    this.camera.position.set(0, 3, 15)
     this.camera.lookAt(0, 0, 0)
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    this.renderer.setSize(container.clientWidth, container.clientHeight)
+    this.renderer.setSize(width, height)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setClearColor(0x000000, 0)
     container.appendChild(this.renderer.domElement)
@@ -74,6 +67,7 @@ export class MoleculeScene {
     this.tooltip.style.zIndex = '1000'
     this.tooltip.style.display = 'none'
     this.tooltip.style.transition = 'opacity 0.2s ease'
+    this.tooltip.style.whiteSpace = 'nowrap'
     container.appendChild(this.tooltip)
 
     this.setupLights()
@@ -81,6 +75,13 @@ export class MoleculeScene {
 
     this.scene.add(this.atomGroup)
     this.scene.add(this.bondGroup)
+
+    console.log('[MoleculeScene] Initialized with', {
+      width,
+      height,
+      atomGroupChildren: this.atomGroup.children.length,
+      bondGroupChildren: this.bondGroup.children.length,
+    })
   }
 
   private setupLights(): void {
@@ -94,6 +95,8 @@ export class MoleculeScene {
     const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.8)
     dirLight2.position.set(-10, -10, 10)
     this.scene.add(dirLight2)
+
+    console.log('[MoleculeScene] Lights added:', this.scene.children.length, 'objects in scene')
   }
 
   private setupEventListeners(): void {
@@ -103,7 +106,7 @@ export class MoleculeScene {
     canvas.addEventListener('mousemove', this.onMouseMove)
     canvas.addEventListener('mouseup', this.onMouseUp)
     canvas.addEventListener('mouseleave', this.onMouseLeave)
-    canvas.addEventListener('wheel', this.onWheel)
+    canvas.addEventListener('wheel', this.onWheel, { passive: false })
     canvas.addEventListener('click', this.onClick)
 
     window.addEventListener('resize', this.onResize)
@@ -132,12 +135,12 @@ export class MoleculeScene {
       const deltaX = e.clientX - this.previousMousePosition.x
       const deltaY = e.clientY - this.previousMousePosition.y
 
-      this.rotationY += deltaX * 0.01
-      this.rotationX += deltaY * 0.01
-      this.rotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.rotationX))
+      this.targetRotationY += deltaX * 0.01
+      this.targetRotationX += deltaY * 0.01
+      this.targetRotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.targetRotationX))
 
       this.previousMousePosition = { x: e.clientX, y: e.clientY }
-      this.onRotationChange?.(this.rotationY)
+      this.onRotationChange?.(this.targetRotationY)
     }
 
     this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
@@ -170,7 +173,7 @@ export class MoleculeScene {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.9 : 1.1
     this.zoom = Math.max(0.5, Math.min(5, this.zoom * delta))
-    this.camera.position.setLength(12 / this.zoom)
+    this.camera.position.setLength(15 / this.zoom)
     this.camera.lookAt(0, 0, 0)
   }
 
@@ -185,9 +188,12 @@ export class MoleculeScene {
     const meshes = Array.from(this.atomMeshes.values())
     const intersects = this.raycaster.intersectObjects(meshes)
 
+    console.log('[MoleculeScene] Click detected, atom meshes available:', meshes.length, 'intersections:', intersects.length)
+
     if (intersects.length > 0) {
       const clickedMesh = intersects[0].object as THREE.Mesh
       const atomId = Number(clickedMesh.userData.atomId)
+      console.log('[MoleculeScene] Atom clicked:', atomId, 'element:', clickedMesh.userData.element)
       this.highlightAtom(atomId)
       this.onAtomClick?.(atomId)
     }
@@ -216,10 +222,7 @@ export class MoleculeScene {
       this.renderer.domElement.style.cursor = 'pointer'
     } else {
       this.tooltip.style.display = 'none'
-      this.renderer.domElement.style.cursor = 'grab'
-      if (this.isDragging) {
-        this.renderer.domElement.style.cursor = 'grabbing'
-      }
+      this.renderer.domElement.style.cursor = this.isDragging ? 'grabbing' : 'grab'
     }
   }
 
@@ -249,7 +252,6 @@ export class MoleculeScene {
     this.atomGroup.add(ringMesh)
     this.highlightRings.set(atomId, {
       mesh: ringMesh,
-      baseScale: 1,
       startTime: performance.now(),
     })
 
@@ -257,6 +259,8 @@ export class MoleculeScene {
       if (this.highlightRings.has(atomId)) {
         const ring = this.highlightRings.get(atomId)!
         this.atomGroup.remove(ring.mesh)
+        ring.mesh.geometry.dispose()
+        ;(ring.mesh.material as THREE.Material).dispose()
         this.highlightRings.delete(atomId)
       }
     }, 500)
@@ -265,13 +269,15 @@ export class MoleculeScene {
   public clearHighlights(): void {
     this.highlightRings.forEach((ring) => {
       this.atomGroup.remove(ring.mesh)
+      ring.mesh.geometry.dispose()
+      ;(ring.mesh.material as THREE.Material).dispose()
     })
     this.highlightRings.clear()
   }
 
   public loadMolecule(molecule: MoleculeData): void {
+    console.log('[MoleculeScene] Loading molecule:', molecule.name, 'atoms:', molecule.atoms.length, 'bonds:', molecule.bonds.length)
     this.clearMolecule()
-    this.loadStartTime = performance.now()
 
     molecule.atoms.forEach((atom, index) => {
       this.createAtomMesh(atom, index)
@@ -281,15 +287,16 @@ export class MoleculeScene {
       this.createBondMesh(bond, molecule.atoms)
     })
 
-    this.startEntranceAnimation()
+    console.log('[MoleculeScene] Molecule loaded. Atoms in group:', this.atomGroup.children.length, 'Bonds in group:', this.bondGroup.children.length)
+    console.log('[MoleculeScene] Scene total objects:', this.scene.children.length)
   }
 
   private createAtomMesh(atom: AtomData, index: number): void {
     const color = ELEMENT_COLORS[atom.element] || '#FFFFFF'
-    const radius = (ELEMENT_RADII[atom.element] || 0.3) * 3
+    const radius = ELEMENT_RADII[atom.element] || 0.3
+    const emissiveColor = new THREE.Color(color).multiplyScalar(0.3)
 
     const geometry = new THREE.SphereGeometry(radius, 32, 32)
-    const emissiveColor = new THREE.Color(color)
 
     const material = new THREE.MeshStandardMaterial({
       color: color,
@@ -302,58 +309,37 @@ export class MoleculeScene {
     const mesh = new THREE.Mesh(geometry, material)
     mesh.position.set(atom.x, atom.y, atom.z)
     mesh.userData = { atomId: atom.id, element: atom.element, radius, index }
+    mesh.visible = true
 
     this.atomGroup.add(mesh)
     this.atomMeshes.set(atom.id, mesh)
-    console.log('Atom created:', atom.id, atom.element, 'at position:', atom.x, atom.y, atom.z)
+
+    console.log('[MoleculeScene] Atom created:', {
+      id: atom.id,
+      element: atom.element,
+      position: [atom.x, atom.y, atom.z],
+      radius,
+      color,
+      inGroup: this.atomGroup.children.includes(mesh),
+    })
   }
 
   private createBondMesh(bond: BondData, atoms: AtomData[]): void {
     const atom1 = atoms.find((a) => a.id === bond.atom1)
     const atom2 = atoms.find((a) => a.id === bond.atom2)
 
-    if (!atom1 || !atom2) return
+    if (!atom1 || !atom2) {
+      console.warn('[MoleculeScene] Could not find atoms for bond:', bond)
+      return
+    }
 
     const bondMesh = createBondMesh(atom1, atom2, 0.1)
     bondMesh.userData.bondId = `${bond.atom1}-${bond.atom2}`
+    bondMesh.visible = true
 
     this.bondGroup.add(bondMesh)
-  }
 
-  private startEntranceAnimation(): void {
-    this.entranceAtomMeshes = Array.from(this.atomMeshes.values())
-    this.entranceBondMeshes = this.bondGroup.children as THREE.Mesh[]
-    this.isAnimatingEntrance = true
-  }
-
-  private updateEntranceAnimation(): void {
-    if (!this.isAnimatingEntrance) return
-
-    const elapsed = (performance.now() - this.loadStartTime) / 1000
-    let allDone = true
-
-    this.entranceAtomMeshes.forEach((mesh, index) => {
-      const delay = index * 0.02
-      const progress = Math.max(0, Math.min(1, (elapsed - delay) / 1.5))
-      const eased = 1 - Math.pow(1 - progress, 3)
-      mesh.scale.setScalar(eased)
-
-      if (progress < 1) allDone = false
-    })
-
-    if (elapsed > 1.5) {
-      const bondProgress = Math.max(0, Math.min(1, (elapsed - 1.5) / 0.2))
-      this.entranceBondMeshes.forEach((mesh) => {
-        mesh.scale.y = bondProgress
-      })
-      if (bondProgress < 1) allDone = false
-    }
-
-    if (allDone) {
-      this.isAnimatingEntrance = false
-      this.entranceAtomMeshes = []
-      this.entranceBondMeshes = []
-    }
+    console.log('[MoleculeScene] Bond created:', bond.atom1, '-', bond.atom2, 'at position:', bondMesh.position.toArray())
   }
 
   private clearMolecule(): void {
@@ -364,7 +350,7 @@ export class MoleculeScene {
     })
     this.atomMeshes.clear()
 
-    this.bondGroup.children.forEach((child) => {
+    this.bondGroup.children.slice().forEach((child) => {
       const mesh = child as THREE.Mesh
       this.bondGroup.remove(mesh)
       mesh.geometry.dispose()
@@ -372,6 +358,7 @@ export class MoleculeScene {
     })
 
     this.clearHighlights()
+    console.log('[MoleculeScene] Molecule cleared')
   }
 
   public setOnAtomClick(callback: (atomId: number) => void): void {
@@ -391,23 +378,22 @@ export class MoleculeScene {
   }
 
   public startAnimation(): void {
+    console.log('[MoleculeScene] Starting animation loop')
     const animate = () => {
       this.animationId = requestAnimationFrame(animate)
 
       if (this.isAutoRotating && !this.isDragging) {
-        this.rotationY += (this.autoRotationSpeed * Math.PI / 180) / 60
-        this.onRotationChange?.(this.rotationY)
+        this.targetRotationY += (this.autoRotationSpeed * Math.PI / 180) / 60
+        this.onRotationChange?.(this.targetRotationY)
       }
 
       const damping = this.isDragging ? 1 : 0.1
-      this.atomGroup.rotation.y += (this.rotationY - this.atomGroup.rotation.y) * damping
-      this.atomGroup.rotation.x += (this.rotationX - this.atomGroup.rotation.x) * damping
+      this.atomGroup.rotation.y += (this.targetRotationY - this.atomGroup.rotation.y) * damping
+      this.atomGroup.rotation.x += (this.targetRotationX - this.atomGroup.rotation.x) * damping
       this.bondGroup.rotation.y = this.atomGroup.rotation.y
       this.bondGroup.rotation.x = this.atomGroup.rotation.x
 
-      this.updateEntranceAnimation()
       this.updateHighlights()
-
       this.renderer.render(this.scene, this.camera)
     }
 
@@ -421,7 +407,7 @@ export class MoleculeScene {
       const pulse = 0.5 + 0.5 * Math.sin(elapsed * Math.PI * 4)
       ring.mesh.scale.setScalar(1 + pulse * 0.2)
       const material = ring.mesh.material as THREE.MeshBasicMaterial
-      material.opacity = 0.6 * (1 - elapsed)
+      material.opacity = Math.max(0, 0.6 * (1 - elapsed))
     })
   }
 
@@ -448,5 +434,7 @@ export class MoleculeScene {
     if (this.autoRotateResumeTimer) {
       clearTimeout(this.autoRotateResumeTimer)
     }
+
+    console.log('[MoleculeScene] Disposed')
   }
 }

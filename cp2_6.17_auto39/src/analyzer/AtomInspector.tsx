@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { ELEMENT_NAMES } from '../types'
 import '../styles/AtomInspector.css'
@@ -11,11 +12,35 @@ export function AtomInspector() {
   const selectedAtom = getSelectedAtom()
   const connectedAtoms = selectedAtomId !== null ? getConnectedAtoms(selectedAtomId) : []
 
+  useEffect(() => {
+    if (selectedAtomId !== null) {
+      console.log('[AtomInspector] Atom selected:', {
+        id: selectedAtomId,
+        element: selectedAtom?.element,
+        position: selectedAtom ? [selectedAtom.x, selectedAtom.y, selectedAtom.z] : null,
+        connectedCount: connectedAtoms.length,
+        connectedElements: connectedAtoms.map((a) => a.element),
+      })
+    } else {
+      console.log('[AtomInspector] No atom selected')
+    }
+  }, [selectedAtomId])
+
   if (selectedAtomId === null || !selectedAtom) {
     return null
   }
 
   const elementName = ELEMENT_NAMES[selectedAtom.element] || '未知'
+
+  const handleConnectedAtomClick = (atomId: number) => {
+    console.log('[AtomInspector] Connected atom clicked:', atomId)
+    setSelectedAtom(atomId)
+  }
+
+  const handleClose = () => {
+    console.log('[AtomInspector] Close button clicked')
+    setSelectedAtom(null)
+  }
 
   return (
     <div className="atom-inspector">
@@ -56,7 +81,7 @@ export function AtomInspector() {
                   key={atom.id}
                   className="atom-chip"
                   style={{ borderColor: getElementColor(atom.element) }}
-                  onClick={() => setSelectedAtom(atom.id)}
+                  onClick={() => handleConnectedAtomClick(atom.id)}
                 >
                   <span
                     className="atom-dot"
@@ -71,7 +96,7 @@ export function AtomInspector() {
         </div>
       </div>
 
-      <button className="close-button" onClick={() => setSelectedAtom(null)}>
+      <button className="close-button" onClick={handleClose}>
         关闭
       </button>
     </div>
