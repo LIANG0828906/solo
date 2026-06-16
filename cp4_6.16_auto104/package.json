@@ -1,0 +1,23 @@
+{
+  "name": "rift-racer",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "RiftRacer - Multiplayer Online Racing Game",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.80.0",
+    "zustand": "^4.5.2",
+    "uuid": "^9.0.1",
+    "idb-keyval": "^6.2.1",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.8",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}
