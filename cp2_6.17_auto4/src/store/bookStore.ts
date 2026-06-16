@@ -36,6 +36,9 @@ const initialDrag: DragState = {
   startX: 0,
   currentX: 0,
   dragDirection: null,
+  startTime: 0,
+  lastX: 0,
+  lastTime: 0,
 };
 
 export const useBookStore = create<BookState>((set, get) => ({
@@ -115,8 +118,17 @@ export const useBookStore = create<BookState>((set, get) => ({
   },
 
   startDrag: (x: number) => {
+    const now = performance.now();
     set({
-      drag: { isDragging: true, startX: x, currentX: x, dragDirection: null },
+      drag: {
+        isDragging: true,
+        startX: x,
+        currentX: x,
+        dragDirection: null,
+        startTime: now,
+        lastX: x,
+        lastTime: now,
+      },
       isFlipping: false,
       flipDirection: null,
       flipProgress: 0,
@@ -126,10 +138,11 @@ export const useBookStore = create<BookState>((set, get) => ({
   updateDrag: (x: number) => {
     const { drag } = get();
     if (!drag.isDragging) return;
+    const now = performance.now();
     const delta = x - drag.startX;
     const direction: 'next' | 'prev' | null = delta < 0 ? 'next' : delta > 0 ? 'prev' : null;
     set({
-      drag: { ...drag, currentX: x, dragDirection: direction },
+      drag: { ...drag, currentX: x, dragDirection: direction, lastX: x, lastTime: now },
       flipDirection: direction,
     });
   },
@@ -140,13 +153,26 @@ export const useBookStore = create<BookState>((set, get) => ({
       set({ drag: initialDrag });
       return { shouldFlip: false, direction: null };
     }
-    const delta = drag.currentX - drag.startX;
-    const absDelta = Math.abs(delta);
-    const direction: 'next' | 'prev' | null = delta < 0 ? 'next' : delta > 0 ? 'prev' : null;
-    const threshold = 80;
-    let shouldFlip = absDelta >= threshold;
+
+    const totalDelta = drag.currentX - drag.startX;
+    const absDelta = Math.abs(totalDelta);
+    const direction: 'next' | 'prev' | null = totalDelta < 0 ? 'next' : totalDelta > 0 ? 'prev' : null;
+
+    const elapsed = drag.lastTime - drag.startTime;
+    const recentElapsed = drag.lastTime - (drag.startTime || 0);
+    const recentDelta = Math.abs(drag.lastX - drag.startX);
+    const avgVelocity = elapsed > 0 ? absDelta / elapsed : 0;
+    const recentVelocity = recentElapsed > 0 ? recentDelta / recentElapsed : 0;
+    const velocity = Math.max(avgVelocity, recentVelocity);
+
+    const DISTANCE_THRESHOLD = 80;
+    const VELOCITY_THRESHOLD = 0.5;
+
+    let shouldFlip = absDelta >= DISTANCE_THRESHOLD || velocity >= VELOCITY_THRESHOLD;
+
     if (direction === 'next' && currentPage >= book.totalPages - 1) shouldFlip = false;
     if (direction === 'prev' && currentPage <= 0) shouldFlip = false;
+    if (!direction) shouldFlip = false;
 
     if (!shouldFlip) {
       set({
@@ -159,7 +185,7 @@ export const useBookStore = create<BookState>((set, get) => ({
         drag: initialDrag,
         isFlipping: true,
         flipDirection: direction,
-        flipProgress: absDelta / 500,
+        flipProgress: Math.min(absDelta / 300, 1),
       });
     }
     return { shouldFlip, direction };

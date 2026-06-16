@@ -39,4 +39,21 @@ export interface DragState {
   startX: number;
   currentX: number;
   dragDirection: 'next' | 'prev' | null;
+  startTime: number;
+  lastX: number;
+  lastTime: number;
+}
+
+export interface MeshGrid {
+  cols: number;
+  rows: number;
+  vertices: CurvePoint[][];
+  foldX: number;
+  curlRadius: number;
+}
+
+export interface ShadowContour {
+  points: CurvePoint[];
+  innerPoints: CurvePoint[];
+  gradientStops: { offset: number; opacity: number }[];
 }

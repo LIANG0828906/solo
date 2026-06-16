@@ -1,4 +1,4 @@
-import type { FlipStyle, CurvePoint } from '@/types';
+import type { FlipStyle, CurvePoint, MeshGrid, ShadowContour } from '@/types';
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
@@ -26,92 +26,128 @@ export function bezierPoint(
   };
 }
 
-export interface CurlGeometry {
-  foldAngle: number;
-  curlHeight: number;
-  curlRadius: number;
-  spineBend: number;
-  tipOffset: CurvePoint;
+export function computeMeshDeformation(
+  direction: 'next' | 'prev',
+  progress: number,
+  width: number,
+  height: number,
+  gridCols: number = 16,
+  gridRows: number = 20
+): MeshGrid {
+  const t = Math.max(0, Math.min(1, progress));
+  const easedT = easeOutCubic(t);
+
+  let foldX: number;
+  let turnedWidth: number;
+
+  if (direction === 'next') {
+    foldX = width * (1 - easedT);
+    turnedWidth = width - foldX;
+  } else {
+    foldX = width * easedT;
+    turnedWidth = foldX;
+  }
+
+  const curlRadius = Math.max(turnedWidth / Math.PI, 8);
+  const sineT = Math.sin(t * Math.PI);
+  const vertLift = 0.25 + sineT * 0.15;
+  const perspDist = 1500;
+
+  const vertices: CurvePoint[][] = [];
+
+  for (let row = 0; row <= gridRows; row++) {
+    const rowPts: CurvePoint[] = [];
+    const baseY = (row / gridRows) * height;
+
+    for (let col = 0; col <= gridCols; col++) {
+      const baseX = (col / gridCols) * width;
+
+      if (direction === 'next') {
+        if (baseX <= foldX) {
+          rowPts.push({ x: baseX, y: baseY });
+        } else {
+          const d = baseX - foldX;
+          const theta = Math.min((d / turnedWidth) * Math.PI, Math.PI);
+          const projX = foldX - curlRadius * Math.sin(theta);
+          const liftZ = curlRadius * (1 - Math.cos(theta));
+          const perspScale = perspDist / (perspDist - liftZ);
+          const dy = -liftZ * vertLift;
+          const verticalBulge = Math.sin(theta) * sineT * 6;
+          rowPts.push({
+            x: foldX + (projX - foldX) * perspScale,
+            y: baseY + dy + verticalBulge * Math.sin((row / gridRows) * Math.PI),
+          });
+        }
+      } else {
+        if (baseX >= foldX) {
+          rowPts.push({ x: baseX, y: baseY });
+        } else {
+          const d = foldX - baseX;
+          const theta = Math.min((d / turnedWidth) * Math.PI, Math.PI);
+          const projX = foldX + curlRadius * Math.sin(theta);
+          const liftZ = curlRadius * (1 - Math.cos(theta));
+          const perspScale = perspDist / (perspDist - liftZ);
+          const dy = -liftZ * vertLift;
+          const verticalBulge = Math.sin(theta) * sineT * 6;
+          rowPts.push({
+            x: foldX + (projX - foldX) * perspScale,
+            y: baseY + dy + verticalBulge * Math.sin((row / gridRows) * Math.PI),
+          });
+        }
+      }
+    }
+    vertices.push(rowPts);
+  }
+
+  return { cols: gridCols, rows: gridRows, vertices, foldX, curlRadius };
 }
 
-export function computeCurlGeometry(
+export function computeCurvedShadow(
   direction: 'next' | 'prev',
-  progress: number
-): CurlGeometry {
+  progress: number,
+  width: number,
+  height: number,
+  mesh: MeshGrid
+): ShadowContour {
   const t = Math.max(0, Math.min(1, progress));
   const sineT = Math.sin(t * Math.PI);
-  const dirSign = direction === 'next' ? 1 : -1;
+  const curlRadius = mesh.curlRadius;
+  const foldX = mesh.foldX;
+  const dirSign = direction === 'next' ? -1 : 1;
 
-  const foldAngle = dirSign * 180 * easeOutCubic(t);
-  const curlHeight = sineT * 45;
-  const curlRadius = 15 + sineT * 35;
-  const spineBend = sineT * 8;
-  const tipOffset = {
-    x: dirSign * sineT * 20,
-    y: -sineT * sineT * 15,
-  };
+  const curvature = curlRadius > 0 ? 1 / curlRadius : 0;
+  const shadowBaseWidth = 15 + sineT * 35;
+  const curvatureFactor = Math.min(curvature * 100, 1);
+  const shadowWarpAmount = curvatureFactor * sineT * 20;
 
-  return { foldAngle, curlHeight, curlRadius, spineBend, tipOffset };
-}
+  const points: CurvePoint[] = [];
+  const innerPoints: CurvePoint[] = [];
+  const steps = 20;
 
-export interface ShadowLayers {
-  layer1: { offsetX: number; offsetY: number; blur: number; opacity: number };
-  layer2: { offsetX: number; offsetY: number; blur: number; opacity: number };
-  layer3: { offsetX: number; offsetY: number; blur: number; opacity: number };
-  spineShadow: { offsetX: number; blur: number; opacity: number };
-}
+  for (let i = 0; i <= steps; i++) {
+    const frac = i / steps;
+    const y = frac * height;
+    const verticalWarp = Math.sin(frac * Math.PI) * shadowWarpAmount;
+    const rowIdx = Math.min(Math.round(frac * mesh.rows), mesh.rows);
+    const foldYOffset = mesh.vertices[rowIdx]
+      ? mesh.vertices[rowIdx][direction === 'next' ? 0 : mesh.cols].y - (frac * height)
+      : 0;
 
-export function computeShadowLayers(
-  direction: 'next' | 'prev',
-  progress: number
-): ShadowLayers {
-  const t = Math.max(0, Math.min(1, progress));
-  const sineT = Math.sin(t * Math.PI);
-  const dirSign = direction === 'next' ? 1 : -1;
-  const easeT = easeInOutSine(t);
+    const shadowEdge = foldX + dirSign * (shadowBaseWidth + verticalWarp);
+    const innerEdge = foldX + dirSign * (3 + verticalWarp * 0.3);
 
-  return {
-    layer1: {
-      offsetX: dirSign * (5 + sineT * 20),
-      offsetY: 2 + sineT * 8,
-      blur: 15 + sineT * 25,
-      opacity: 0.15 + sineT * 0.25,
-    },
-    layer2: {
-      offsetX: dirSign * (2 + sineT * 10),
-      offsetY: 1 + sineT * 4,
-      blur: 8 + sineT * 15,
-      opacity: 0.1 + sineT * 0.2,
-    },
-    layer3: {
-      offsetX: 0,
-      offsetY: 0,
-      blur: 3 + sineT * 8,
-      opacity: 0.05 + sineT * 0.1,
-    },
-    spineShadow: {
-      offsetX: -dirSign * sineT * 3,
-      blur: 3 + sineT * 10,
-      opacity: 0.1 + easeT * 0.25,
-    },
-  };
-}
+    points.push({ x: shadowEdge, y: y + foldYOffset });
+    innerPoints.push({ x: innerEdge, y: y + foldYOffset * 0.5 });
+  }
 
-function shadowLayersToString(layers: ShadowLayers): string {
-  const parts: string[] = [];
-  parts.push(
-    `${layers.layer1.offsetX}px ${layers.layer1.offsetY}px ${layers.layer1.blur}px rgba(0,0,0,${layers.layer1.opacity})`
-  );
-  parts.push(
-    `${layers.layer2.offsetX}px ${layers.layer2.offsetY}px ${layers.layer2.blur}px rgba(0,0,0,${layers.layer2.opacity})`
-  );
-  parts.push(
-    `${layers.layer3.offsetX}px ${layers.layer3.offsetY}px ${layers.layer3.blur}px rgba(0,0,0,${layers.layer3.opacity})`
-  );
-  parts.push(
-    `inset ${layers.spineShadow.offsetX}px 0 ${layers.spineShadow.blur}px rgba(0,0,0,${layers.spineShadow.opacity})`
-  );
-  return parts.join(', ');
+  const gradientStops = [
+    { offset: 0, opacity: 0.3 + sineT * 0.35 },
+    { offset: 0.3, opacity: 0.15 + sineT * 0.2 },
+    { offset: 0.6, opacity: 0.05 + sineT * 0.08 },
+    { offset: 1, opacity: 0 },
+  ];
+
+  return { points, innerPoints, gradientStops };
 }
 
 export function computeFlipStyle(
@@ -119,30 +155,33 @@ export function computeFlipStyle(
   progress: number
 ): FlipStyle {
   const t = Math.max(0, Math.min(1, progress));
-  const curl = computeCurlGeometry(direction, progress);
-  const layers = computeShadowLayers(direction, progress);
-  const dirSign = direction === 'next' ? 1 : -1;
   const sineT = Math.sin(t * Math.PI);
+  const dirSign = direction === 'next' ? 1 : -1;
+  const easeT = easeOutCubic(t);
   const cosHalf = Math.cos((t * Math.PI) / 2);
 
-  const perspective = 1500;
-  const rotateY = curl.foldAngle;
-  const translateZ = curl.curlHeight * 0.6;
-  const translateX = dirSign * (curl.tipOffset.x + sineT * 5);
-  const translateY = curl.tipOffset.y * 0.5;
-  const rotateX = -curl.spineBend * 0.5;
+  const foldAngle = dirSign * 180 * easeT;
+  const curlHeight = sineT * 45;
+  const translateZ = curlHeight * 0.6;
+  const translateX = dirSign * sineT * 25;
+  const translateY = -sineT * sineT * 8;
+  const rotateX = -sineT * 4;
   const skewY = dirSign * sineT * 2;
   const scale = 1 - sineT * 0.015 + cosHalf * 0.005;
 
+  const shadowOpacity = 0.15 + sineT * 0.3;
+  const shadowBlur = 15 + sineT * 30;
+  const shadowOffsetX = dirSign * (5 + sineT * 20);
+
   return {
     transform:
-      `perspective(${perspective}px) ` +
+      `perspective(1500px) ` +
       `translate3d(${translateX}px, ${translateY}px, ${translateZ}px) ` +
-      `rotateY(${rotateY}deg) ` +
+      `rotateY(${foldAngle}deg) ` +
       `rotateX(${rotateX}deg) ` +
       `skewY(${skewY}deg) ` +
       `scale(${scale})`,
-    boxShadow: shadowLayersToString(layers),
+    boxShadow: `${shadowOffsetX}px 2px ${shadowBlur}px rgba(0,0,0,${shadowOpacity})`,
     backfaceVisibility: 'hidden',
     transformOrigin: direction === 'next' ? 'left center' : 'right center',
   };
@@ -153,62 +192,24 @@ export function computeBackPageStyle(
   progress: number
 ): FlipStyle {
   const t = Math.max(0, Math.min(1, progress));
-  const curl = computeCurlGeometry(direction, progress);
-  const dirSign = direction === 'next' ? 1 : -1;
   const sineT = Math.sin(t * Math.PI);
+  const easeT = easeOutCubic(t);
+  const dirSign = direction === 'next' ? 1 : -1;
 
-  const backAngle = direction === 'next' ? -180 * (1 - easeOutCubic(t)) : 180 * easeOutCubic(t);
-  const backLayers = computeShadowLayers(direction === 'next' ? 'prev' : 'next', 1 - t);
+  const backAngle = direction === 'next' ? -180 * (1 - easeT) : 180 * easeT;
 
   return {
     transform:
       `perspective(1500px) ` +
-      `translate3d(${-dirSign * sineT * 8}px, ${-sineT * sineT * 8}px, ${curl.curlHeight * 0.3}px) ` +
+      `translate3d(${-dirSign * sineT * 8}px, ${-sineT * sineT * 6}px, ${sineT * 15}px) ` +
       `rotateY(${backAngle}deg) ` +
-      `rotateX(${curl.spineBend * 0.25}deg) ` +
+      `rotateX(${sineT * 2}deg) ` +
       `scale(${1 - sineT * 0.008})`,
-    boxShadow: shadowLayersToString(backLayers),
+    boxShadow: `${-dirSign * 5}px 0 15px rgba(0,0,0,0.15)`,
     backfaceVisibility: 'hidden',
     transformOrigin: direction === 'next' ? 'left center' : 'right center',
   };
 }
 
-export function computeCurlClipPath(
-  direction: 'next' | 'prev',
-  progress: number,
-  width: number,
-  height: number
-): string {
-  const t = Math.max(0, Math.min(1, progress));
-  const dirSign = direction === 'next' ? 1 : -1;
-  const sineT = Math.sin(t * Math.PI);
-  const curlAmount = sineT * 0.25;
-
-  if (direction === 'next') {
-    const foldX = width * t;
-    const curveDepth = height * curlAmount;
-    return `polygon(
-      0 0,
-      ${foldX - width * 0.02} 0,
-      ${foldX} ${height * 0.05 + curveDepth * 0.3},
-      ${foldX + width * 0.01} ${height * 0.5 + curveDepth * 0.5},
-      ${foldX} ${height * 0.95 + curveDepth * 0.3},
-      ${foldX - width * 0.02} ${height},
-      0 ${height}
-    )`;
-  } else {
-    const foldX = width * (1 - t);
-    const curveDepth = height * curlAmount;
-    return `polygon(
-      ${width} 0,
-      ${foldX + width * 0.02} 0,
-      ${foldX} ${height * 0.05 + curveDepth * 0.3},
-      ${foldX - width * 0.01} ${height * 0.5 + curveDepth * 0.5},
-      ${foldX} ${height * 0.95 + curveDepth * 0.3},
-      ${foldX + width * 0.02} ${height},
-      ${width} ${height}
-    )`;
-  }
-}
-
 export const easeOutCubicFn = easeOutCubic;
+export { easeInOutSine };
