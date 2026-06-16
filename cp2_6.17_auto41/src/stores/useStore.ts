@@ -4,7 +4,8 @@ import {
   Task, TaskStatus, Member,
   initDB, saveTasks, loadTasks,
   saveColumns, loadColumns,
-  saveMembers as saveMembersDB, loadMembers
+  saveMembers as saveMembersDB, loadMembers,
+  saveVersion, loadVersion, clearAllData
 } from '@/utils/db';
 
 interface BoardColumn {
@@ -97,13 +98,21 @@ function createMockTasks(): { tasks: Record<string, Task>; columns: Record<TaskS
     { id: uuidv4(), title: '数据看板前端开发', description: '实现销售趋势、用户增长等图表', status: 'in_progress', assigneeId: 'm1', projectName: '数据分析', dueDate: due(4), createdAt: created(7), completedAt: null },
     { id: uuidv4(), title: '编写单元测试', description: '核心模块测试覆盖率达到80%', status: 'in_progress', assigneeId: 'm2', projectName: '质量保障', dueDate: due(6), createdAt: created(4), completedAt: null },
     { id: uuidv4(), title: '移动端适配', description: '适配iOS/Android主流机型', status: 'in_progress', assigneeId: 'm3', projectName: '官网重构', dueDate: due(5), createdAt: created(6), completedAt: null },
+    { id: uuidv4(), title: '消息推送功能开发', description: '实现站内信和短信推送', status: 'in_progress', assigneeId: 'm3', projectName: '消息系统', dueDate: due(8), createdAt: created(5), completedAt: null },
     { id: uuidv4(), title: '用户反馈处理', description: '整理并分类本周用户反馈', status: 'in_progress', assigneeId: 'm5', projectName: '用户系统', dueDate: due(2), createdAt: created(2), completedAt: null },
+    { id: uuidv4(), title: '首页Banner配置', description: '新增活动Banner位管理功能', status: 'todo', assigneeId: 'm2', projectName: '运营后台', dueDate: due(4), createdAt: created(2), completedAt: null },
+    { id: uuidv4(), title: '商品搜索优化', description: '优化搜索联想词和排序算法', status: 'todo', assigneeId: 'm3', projectName: '商品系统', dueDate: due(9), createdAt: created(4), completedAt: null },
     { id: uuidv4(), title: '数据库索引优化', description: '慢查询优化，提升10倍查询速度', status: 'done', assigneeId: 'm4', projectName: '性能优化', dueDate: due(-2), createdAt: created(14), completedAt: completed(2) },
     { id: uuidv4(), title: '登录注册功能开发', description: '完成邮箱、手机、第三方登录', status: 'done', assigneeId: 'm2', projectName: '用户系统', dueDate: due(-5), createdAt: created(20), completedAt: completed(5) },
     { id: uuidv4(), title: '需求文档评审', description: '组织产品需求评审会议', status: 'done', assigneeId: 'm1', projectName: '数据分析', dueDate: due(-3), createdAt: created(10), completedAt: completed(3) },
     { id: uuidv4(), title: '部署测试环境', description: '配置CI/CD流水线', status: 'done', assigneeId: 'm4', projectName: '基础设施', dueDate: due(-7), createdAt: created(15), completedAt: completed(7) },
     { id: uuidv4(), title: '安全漏洞修复', description: '修复SQL注入和XSS漏洞', status: 'done', assigneeId: 'm5', projectName: '安全加固', dueDate: due(-4), createdAt: created(12), completedAt: completed(4) },
     { id: uuidv4(), title: '国际化多语言支持', description: '支持中文/英文/日文切换', status: 'done', assigneeId: 'm3', projectName: '官网重构', dueDate: due(-1), createdAt: created(8), completedAt: completed(1) },
+    { id: uuidv4(), title: '营销活动页面开发', description: '开发双11大促活动落地页', status: 'todo', assigneeId: 'm4', projectName: '营销活动', dueDate: due(3), createdAt: created(1), completedAt: null },
+    { id: uuidv4(), title: '会员等级系统', description: '实现会员积分和等级体系', status: 'in_progress', assigneeId: 'm4', projectName: '会员系统', dueDate: due(6), createdAt: created(5), completedAt: null },
+    { id: uuidv4(), title: '优惠券发放功能', description: '开发新人优惠券自动发放', status: 'todo', assigneeId: 'm2', projectName: '营销活动', dueDate: due(5), createdAt: created(3), completedAt: null },
+    { id: uuidv4(), title: '订单导出功能', description: '支持按条件批量导出订单数据', status: 'in_progress', assigneeId: 'm4', projectName: '订单系统', dueDate: due(7), createdAt: created(4), completedAt: null },
+    { id: uuidv4(), title: '微信小程序适配', description: '小程序端核心功能适配', status: 'todo', assigneeId: 'm4', projectName: '小程序', dueDate: due(12), createdAt: created(2), completedAt: null },
   ];
 
   const taskMap: Record<string, Task> = {};
@@ -148,18 +157,29 @@ export const useStore = create<AppState>((set, get) => ({
 
   initStore: async () => {
     await initDB();
+    const DATA_VERSION = 2;
+
+    const savedVersion = await loadVersion();
+    let needReset = savedVersion !== DATA_VERSION;
+
+    if (needReset) {
+      await clearAllData();
+    }
+
     const [savedTasks, savedColumns, savedMembers] = await Promise.all([
       loadTasks(),
       loadColumns(),
       loadMembers(),
     ]);
 
-    if (savedMembers && savedMembers.length > 0) {
+    const validMembers = savedMembers.filter(m => m.id !== '__version__');
+
+    if (!needReset && validMembers.length > 0) {
       if (Object.keys(savedTasks).length > 0 && savedColumns) {
         set({
           tasks: savedTasks,
           columns: savedColumns,
-          members: savedMembers,
+          members: validMembers,
           initialized: true,
         });
       } else {
@@ -167,7 +187,7 @@ export const useStore = create<AppState>((set, get) => ({
         set({
           tasks: mock.tasks,
           columns: mock.columns,
-          members: savedMembers,
+          members: validMembers,
           initialized: true,
         });
       }
@@ -182,6 +202,7 @@ export const useStore = create<AppState>((set, get) => ({
       await saveMembersDB(DEFAULT_MEMBERS);
       await saveTasks(mock.tasks);
       await saveColumns(mock.columns);
+      await saveVersion(DATA_VERSION);
     }
   },
 

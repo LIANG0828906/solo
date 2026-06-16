@@ -24,6 +24,7 @@ export default function TaskEditPanel() {
   const [status, setStatus] = useState<TaskStatus>('todo');
   const [projectName, setProjectName] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
@@ -37,14 +38,26 @@ export default function TaskEditPanel() {
     }
   }, [task]);
 
+  useEffect(() => {
+    if (task) {
+      requestAnimationFrame(() => {
+        setIsOpen(true);
+      });
+    } else {
+      setIsOpen(false);
+    }
+  }, [task]);
+
   if (!task || !selectedTaskId) return null;
 
   const close = () => {
+    setIsOpen(false);
     setClosing(true);
     setTimeout(() => {
       setSelectedTaskId(null);
       setClosing(false);
-    }, 280);
+      setIsOpen(false);
+    }, 300);
   };
 
   const handleSave = () => {
@@ -71,7 +84,6 @@ export default function TaskEditPanel() {
   return (
     <>
       <div
-        className="overlay-fade-in"
         onClick={close}
         style={{
           position: 'fixed',
@@ -79,12 +91,13 @@ export default function TaskEditPanel() {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(44, 62, 80, 0.45)',
+          backgroundColor: isOpen ? 'rgba(44, 62, 80, 0.45)' : 'rgba(44, 62, 80, 0)',
           zIndex: 999,
+          transition: 'background-color 0.3s ease-out',
+          pointerEvents: isOpen ? 'auto' : 'none',
         }}
       />
       <div
-        className={closing ? 'panel-slide-out' : 'panel-slide-in'}
         style={{
           position: 'fixed',
           top: 0,
@@ -96,6 +109,8 @@ export default function TaskEditPanel() {
           zIndex: 1000,
           display: 'flex',
           flexDirection: 'column',
+          transform: isOpen ? 'translateX(0%)' : 'translateX(100%)',
+          transition: 'transform 0.3s ease-out',
         }}
       >
         <div

@@ -37,7 +37,6 @@ export default function NavBar() {
       >
         <span
           style={{
-            display: 'inline-block',
             width: '32px',
             height: '32px',
             borderRadius: '8px',

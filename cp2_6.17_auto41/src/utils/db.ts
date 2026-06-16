@@ -108,3 +108,27 @@ export async function loadMembers(): Promise<Member[]> {
   const database = await initDB();
   return await database.getAll('members');
 }
+
+export async function saveVersion(version: number): Promise<void> {
+  const database = await initDB();
+  await database.put('members' as any, { id: '__version__', name: String(version), avatarColor: '' } as any);
+}
+
+export async function loadVersion(): Promise<number | null> {
+  const database = await initDB();
+  try {
+    const v = await database.get('members' as any, '__version__' as any);
+    return v ? parseInt(v.name, 10) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearAllData(): Promise<void> {
+  const database = await initDB();
+  const tx = database.transaction(['tasks', 'columns', 'members'], 'readwrite');
+  await tx.objectStore('tasks').clear();
+  await tx.objectStore('columns').clear();
+  await tx.objectStore('members').clear();
+  await tx.done;
+}
