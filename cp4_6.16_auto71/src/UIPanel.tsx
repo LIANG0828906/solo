@@ -391,12 +391,15 @@ export function UIPanel() {
             <button
               onClick={undo}
               disabled={undoStack.length === 0}
+              className={`undo-btn ${pulse > 0 && undoStack.length > 0 ? 'pulse-active' : ''}`}
               style={{
-                ...getButtonStyle(pulse > 0 && undoStack.length > 0, 'primary'),
+                ...getButtonStyle(false, 'primary'),
                 flex: 1,
                 padding: '10px 8px',
                 opacity: undoStack.length === 0 ? 0.4 : 1,
                 cursor: undoStack.length === 0 ? 'not-allowed' : 'pointer',
+                position: 'relative',
+                overflow: 'visible',
               }}>
               <div style={{ fontSize: 14, fontWeight: 700 }}>↶ 撤销</div>
               <div style={{ fontSize: 10, marginTop: 2, color: '#7090b0' }}>{undoStack.length} 步可撤</div>
@@ -404,12 +407,15 @@ export function UIPanel() {
             <button
               onClick={redo}
               disabled={redoStack.length === 0}
+              className={`redo-btn ${pulse > 0 && redoStack.length > 0 ? 'pulse-active-green' : ''}`}
               style={{
-                ...getButtonStyle(pulse > 0 && redoStack.length > 0, 'secondary'),
+                ...getButtonStyle(false, 'secondary'),
                 flex: 1,
                 padding: '10px 8px',
                 opacity: redoStack.length === 0 ? 0.4 : 1,
                 cursor: redoStack.length === 0 ? 'not-allowed' : 'pointer',
+                position: 'relative',
+                overflow: 'visible',
               }}>
               <div style={{ fontSize: 14, fontWeight: 700 }}>↷ 重做</div>
               <div style={{ fontSize: 10, marginTop: 2, color: '#7090b0' }}>{redoStack.length} 步可重</div>
@@ -458,6 +464,58 @@ export function UIPanel() {
         @keyframes pulse-green {
           0%, 100% { box-shadow: 0 0 0 0 rgba(100, 255, 120, 0.5), 0 4px 12px rgba(100,255,120,0.25); }
           50% { box-shadow: 0 0 0 10px rgba(100, 255, 120, 0), 0 4px 16px rgba(100,255,120,0.45); }
+        }
+        @keyframes pulse-blue-ring {
+          0% {
+            box-shadow: 0 0 0 0 rgba(96, 192, 255, 0.7),
+                        0 0 10px 2px rgba(96, 192, 255, 0.5),
+                        inset 0 0 8px rgba(96, 192, 255, 0.3);
+            transform: scale(1);
+          }
+          50% {
+            box-shadow: 0 0 0 14px rgba(96, 192, 255, 0),
+                        0 0 20px 4px rgba(96, 192, 255, 0.25),
+                        inset 0 0 12px rgba(96, 192, 255, 0.5);
+            transform: scale(1.04);
+          }
+          100% {
+            box-shadow: 0 0 0 24px rgba(96, 192, 255, 0),
+                        0 0 8px 1px rgba(96, 192, 255, 0.4),
+                        inset 0 0 6px rgba(96, 192, 255, 0.2);
+            transform: scale(1);
+          }
+        }
+        @keyframes pulse-green-ring {
+          0% {
+            box-shadow: 0 0 0 0 rgba(100, 255, 140, 0.7),
+                        0 0 10px 2px rgba(100, 255, 140, 0.5),
+                        inset 0 0 8px rgba(100, 255, 140, 0.3);
+            transform: scale(1);
+          }
+          50% {
+            box-shadow: 0 0 0 14px rgba(100, 255, 140, 0),
+                        0 0 20px 4px rgba(100, 255, 140, 0.25),
+                        inset 0 0 12px rgba(100, 255, 140, 0.5);
+            transform: scale(1.04);
+          }
+          100% {
+            box-shadow: 0 0 0 24px rgba(100, 255, 140, 0),
+                        0 0 8px 1px rgba(100, 255, 140, 0.4),
+                        inset 0 0 6px rgba(100, 255, 140, 0.2);
+            transform: scale(1);
+          }
+        }
+        .undo-btn.pulse-active {
+          animation: pulse-blue-ring 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+          border-color: #60c0ff !important;
+          background: rgba(96, 192, 255, 0.3) !important;
+          color: #c0e8ff !important;
+        }
+        .redo-btn.pulse-active-green {
+          animation: pulse-green-ring 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+          border-color: #60ff90 !important;
+          background: rgba(100, 255, 140, 0.25) !important;
+          color: #b0ffc8 !important;
         }
         *::-webkit-scrollbar { width: 6px; height: 6px; }
         *::-webkit-scrollbar-track { background: transparent; }
@@ -615,13 +673,11 @@ function AnimationControlPanel() {
               ...pausedStyle,
               opacity: disabled ? 0.4 : 1,
               cursor: disabled ? 'not-allowed' : 'pointer',
-              animation: !disabled ? 'none' : undefined,
               background: disabled
                 ? 'linear-gradient(135deg, rgba(100, 255, 120, 0.15), rgba(100, 200, 100, 0.08))'
                 : pausedStyle.background,
               borderColor: disabled ? 'rgba(120, 200, 120, 0.4)' : pausedStyle.borderColor,
               color: disabled ? '#80c888' : '#ffa050',
-              animationIterationCount: 'infinite',
             }}>
             ▶ 播放
           </button>

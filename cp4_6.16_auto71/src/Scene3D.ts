@@ -10,6 +10,8 @@ export interface HighlightInfo {
   type: 'place' | 'remove' | 'hover'
 }
 
+export type CameraDragMode = 'none' | 'rotate' | 'pan' | 'axis'
+
 export class Scene3D {
   public scene: THREE.Scene
   public camera: THREE.PerspectiveCamera
@@ -21,25 +23,22 @@ export class Scene3D {
   private voxelMeshes: Map<string, THREE.Mesh> = new Map()
   private voxelAnimStates: Map<string, { scale: number; targetScale: number; appearTime: number }> = new Map()
   private removingVoxels: Map<string, { startTime: number; mesh: THREE.Mesh }> = new Map()
+  private appearingVoxels: Set<string> = new Set()
 
   private gridFloor: THREE.GridHelper | null = null
   private gridSize = 32
   private gridDivisions = 32
 
   private highlightMesh: THREE.Mesh | null = null
-  private highlightActive = false
   private highlightInfo: HighlightInfo | null = null
 
   private axisHelperGroup: THREE.Group | null = null
-  private draggingAxis: 'x' | 'y' | 'z' | null = null
+  public draggingAxis: 'x' | 'y' | 'z' | null = null
   private axisDragStart: THREE.Vector3 | null = null
   private axisStartPosition: THREE.Vector3 = new THREE.Vector3(6, 0.5, 6)
 
   private targetCameraPos = new THREE.Vector3()
   private targetCameraTarget = new THREE.Vector3()
-  private isDraggingCamera = false
-  private isPanning = false
-  private lastMousePos = { x: 0, y: 0 }
   private cameraAzimuth = Math.PI / 4
   private cameraPolar = Math.PI / 3.5
   private cameraDistance = 25
@@ -47,6 +46,15 @@ export class Scene3D {
 
   private animationFrameId: number = 0
   private prevVoxelIds = new Set<string>()
+  private lerpFactor = 0.12
+
+  private instancedMesh: THREE.InstancedMesh | null = null
+  private instancedMaterial: THREE.ShaderMaterial | null = null
+  private dummy = new THREE.Object3D()
+  private instanceColors: Float32Array | null = null
+  private instanceBasePositions: Float32Array | null = null
+  private useInstanced = true
+  private dirtyInstances = true
 
   constructor(container: HTMLElement) {
     this.container = container
@@ -69,11 +77,11 @@ export class Scene3D {
     this.setupGridFloor()
     this.setupHighlightMesh()
     this.setupAxisHelper()
-    this.setupEventListeners()
+    this.setupGlobalEvents()
 
-    this.animate()
     this.subscribeStore()
     this.resize()
+    this.animate()
   }
 
   private setupLights() {
@@ -130,7 +138,6 @@ export class Scene3D {
       color: 0x40a0ff,
       transparent: true,
       opacity: 0.35,
-      wireframe: false,
       side: THREE.DoubleSide,
     })
     this.highlightMesh = new THREE.Mesh(geo, mat)
@@ -147,151 +154,95 @@ export class Scene3D {
     this.axisHelperGroup = new THREE.Group()
     this.axisHelperGroup.position.copy(this.axisStartPosition)
 
-    const createArrow = (dir: THREE.Vector3, color: number, name: string) => {
+    const createArrow = (color: number, axis: 'x' | 'y' | 'z') => {
       const group = new THREE.Group()
-      group.name = name
-
-      const lineGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.6, 8)
-      const lineMat = new THREE.MeshStandardMaterial({ color, metalness: 0.4, roughness: 0.3, emissive: color, emissiveIntensity: 0.3 })
-      const line = new THREE.Mesh(lineGeo, lineMat)
-      line.position.y = 0.8
-      line.rotation.z = -Math.PI / 2
-      if (name === 'y-axis') line.rotation.z = 0
-      if (name === 'z-axis') { line.rotation.x = Math.PI / 2; line.rotation.y = 0 }
-      group.add(line)
-
-      const coneGeo = new THREE.ConeGeometry(0.18, 0.45, 12)
-      const coneMat = new THREE.MeshStandardMaterial({ color, metalness: 0.4, roughness: 0.3, emissive: color, emissiveIntensity: 0.5 })
-      const cone = new THREE.Mesh(coneGeo, coneMat)
-      cone.position.y = 1.8
-      cone.rotation.z = -Math.PI / 2
-      if (name === 'y-axis') cone.rotation.z = 0
-      if (name === 'z-axis') { cone.rotation.x = Math.PI / 2 }
-      cone.name = 'cone'
-      group.add(cone)
-
-      if (name === 'x-axis') {
-        group.rotation.y = -Math.PI / 2
-      } else if (name === 'z-axis') {
-        group.rotation.y = Math.PI
-      }
-
-      group.userData.axis = name === 'x-axis' ? 'x' : name === 'y-axis' ? 'y' : 'z'
+      const dir = new THREE.Vector3(axis === 'x' ? 1 : 0, axis === 'y' ? 1 : 0, axis === 'z' ? 1 : 0)
+      const arrowHelper = new THREE.ArrowHelper(dir, new THREE.Vector3(), 1.8, color, 0.45, 0.2)
+      group.add(arrowHelper)
+      group.userData.axis = axis
       return group
     }
 
-    this.axisHelperGroup.add(createArrow(new THREE.Vector3(1, 0, 0), 0xff4040, 'x-axis'))
-    this.axisHelperGroup.add(createArrow(new THREE.Vector3(0, 1, 0), 0x40ff60, 'y-axis'))
-    this.axisHelperGroup.add(createArrow(new THREE.Vector3(0, 0, 1), 0x4080ff, 'z-axis'))
+    this.axisHelperGroup.add(createArrow(0xff4040, 'x'))
+    this.axisHelperGroup.add(createArrow(0x40ff60, 'y'))
+    this.axisHelperGroup.add(createArrow(0x4080ff, 'z'))
 
     const sphereGeo = new THREE.SphereGeometry(0.15, 16, 16)
-    const sphereMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5 })
+    const sphereMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5,
+    })
     const sphere = new THREE.Mesh(sphereGeo, sphereMat)
     this.axisHelperGroup.add(sphere)
 
     this.scene.add(this.axisHelperGroup)
   }
 
-  private setupEventListeners() {
+  private setupGlobalEvents() {
     const canvas = this.renderer.domElement
     canvas.style.touchAction = 'none'
-
-    canvas.addEventListener('pointerdown', this.onPointerDown)
-    canvas.addEventListener('pointermove', this.onPointerMove)
-    window.addEventListener('pointerup', this.onPointerUp)
-    canvas.addEventListener('wheel', this.onWheel, { passive: false })
     canvas.addEventListener('contextmenu', (e) => e.preventDefault())
     window.addEventListener('resize', this.resize)
   }
 
-  private onPointerDown = (e: PointerEvent) => {
-    this.updateMouse(e)
-    this.lastMousePos = { x: e.clientX, y: e.clientY }
+  public updateMouse(clientX: number, clientY: number) {
+    const rect = this.renderer.domElement.getBoundingClientRect()
+    this.mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1
+    this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1
+  }
 
+  public getAxisIntersection(): 'x' | 'y' | 'z' | null {
+    if (!this.axisHelperGroup) return null
     this.raycaster.setFromCamera(this.mouse, this.camera)
-
-    if (this.axisHelperGroup) {
-      const axisIntersects = this.raycaster.intersectObject(this.axisHelperGroup, true)
-      if (axisIntersects.length > 0) {
-        let obj = axisIntersects[0].object
-        while (obj && !obj.userData.axis && obj.parent) obj = obj.parent
-        if (obj && obj.userData.axis) {
-          this.draggingAxis = obj.userData.axis as 'x' | 'y' | 'z'
-          this.axisDragStart = new THREE.Vector3()
-          this.axisHelperGroup.getWorldPosition(this.axisDragStart)
-          ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-          return
-        }
-      }
+    const intersects = this.raycaster.intersectObject(this.axisHelperGroup, true)
+    if (intersects.length > 0) {
+      let obj: THREE.Object3D | null = intersects[0].object
+      while (obj && !obj.userData.axis && obj.parent) obj = obj.parent
+      if (obj && obj.userData.axis) return obj.userData.axis as 'x' | 'y' | 'z'
     }
-
-    if (e.button === 2) {
-      this.isPanning = true
-    } else if (e.button === 0) {
-      this.isDraggingCamera = true
-    }
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    return null
   }
 
-  private onPointerMove = (e: PointerEvent) => {
-    const store = useVoxelStore.getState()
-    this.updateMouse(e)
-
-    if (this.draggingAxis && this.axisHelperGroup && this.axisDragStart) {
-      const movement = new THREE.Vector2(e.clientX - this.lastMousePos.x, e.clientY - this.lastMousePos.y)
-      movement.multiplyScalar(0.03)
-      if (this.draggingAxis === 'x') this.axisHelperGroup.position.x += movement.x
-      if (this.draggingAxis === 'y') this.axisHelperGroup.position.y -= movement.y
-      if (this.draggingAxis === 'z') this.axisHelperGroup.position.z += movement.x
-      this.lastMousePos = { x: e.clientX, y: e.clientY }
-      return
-    }
-
-    if (this.isDraggingCamera) {
-      const dx = e.clientX - this.lastMousePos.x
-      const dy = e.clientY - this.lastMousePos.y
-      this.cameraAzimuth -= dx * 0.008
-      this.cameraPolar = Math.max(0.15, Math.min(Math.PI / 2 - 0.1, this.cameraPolar - dy * 0.008))
-      this.lastMousePos = { x: e.clientX, y: e.clientY }
-      this.updateCameraPosition(true)
-      return
-    }
-
-    if (this.isPanning) {
-      const dx = e.clientX - this.lastMousePos.x
-      const dy = e.clientY - this.lastMousePos.y
-      const panSpeed = this.cameraDistance * 0.0015
-      const right = new THREE.Vector3().crossVectors(this.camera.up, this.camera.getWorldDirection(new THREE.Vector3())).normalize()
-      this.cameraTarget.addScaledVector(right, -dx * panSpeed)
-      this.cameraTarget.y += dy * panSpeed
-      this.lastMousePos = { x: e.clientX, y: e.clientY }
-      this.updateCameraPosition(true)
-      return
-    }
-
-    this.updateHover()
+  public startAxisDrag(axis: 'x' | 'y' | 'z') {
+    this.draggingAxis = axis
+    this.axisDragStart = new THREE.Vector3()
+    this.axisHelperGroup?.getWorldPosition(this.axisDragStart)
   }
 
-  private onPointerUp = (e: PointerEvent) => {
-    if (this.draggingAxis) {
-      this.draggingAxis = null
-      this.axisDragStart = null
-    }
-    this.isDraggingCamera = false
-    this.isPanning = false
+  public updateAxisDrag(dx: number, dy: number) {
+    if (!this.axisHelperGroup || !this.draggingAxis) return
+    const sensitivity = 0.04
+    if (this.draggingAxis === 'x') this.axisHelperGroup.position.x += dx * sensitivity
+    if (this.draggingAxis === 'y') this.axisHelperGroup.position.y -= dy * sensitivity
+    if (this.draggingAxis === 'z') this.axisHelperGroup.position.z += dx * sensitivity
   }
 
-  private onWheel = (e: WheelEvent) => {
-    e.preventDefault()
-    const delta = e.deltaY * 0.0015
-    this.cameraDistance = Math.max(6, Math.min(60, this.cameraDistance * (1 + delta)))
+  public endAxisDrag() {
+    this.draggingAxis = null
+    this.axisDragStart = null
+  }
+
+  public startCameraRotate() {}
+  public startCameraPan() {}
+
+  public updateCameraRotate(dx: number, dy: number) {
+    this.cameraAzimuth -= dx * 0.008
+    this.cameraPolar = Math.max(0.15, Math.min(Math.PI / 2 - 0.1, this.cameraPolar - dy * 0.008))
     this.updateCameraPosition(true)
   }
 
-  private updateMouse(e: PointerEvent) {
-    const rect = this.renderer.domElement.getBoundingClientRect()
-    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+  public updateCameraPan(dx: number, dy: number) {
+    const panSpeed = this.cameraDistance * 0.0015
+    const right = new THREE.Vector3()
+      .crossVectors(this.camera.up, this.camera.getWorldDirection(new THREE.Vector3()))
+      .normalize()
+    this.cameraTarget.addScaledVector(right, -dx * panSpeed)
+    this.cameraTarget.y += dy * panSpeed
+    this.updateCameraPosition(true)
+  }
+
+  public zoomCamera(delta: number) {
+    this.cameraDistance = Math.max(6, Math.min(60, this.cameraDistance * (1 + delta * 0.0015)))
+    this.updateCameraPosition(true)
   }
 
   private updateCameraPosition(animate: boolean) {
@@ -309,19 +260,33 @@ export class Scene3D {
     }
   }
 
-  public getIntersection(): { voxel?: Voxel; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean } {
+  public getIntersection(): { voxelId?: string; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean } {
     this.raycaster.setFromCamera(this.mouse, this.camera)
+
+    if (this.instancedMesh && this.useInstanced) {
+      const hits = this.raycaster.intersectObject(this.instancedMesh, false)
+      if (hits.length > 0 && hits[0].instanceId !== undefined) {
+        const hit = hits[0]
+        const instanceId = hit.instanceId
+        const voxelId = this.getInstanceVoxelId(instanceId)
+        if (voxelId) {
+          const normal = hit.face?.normal.clone() || new THREE.Vector3()
+          normal.transformDirection(this.instancedMesh.matrixWorld)
+          const pos = this.getInstancePosition(instanceId)
+          return { voxelId, position: pos, normal, isFloor: false }
+        }
+      }
+    }
+
     const meshes = Array.from(this.voxelMeshes.values())
     const voxelIntersects = this.raycaster.intersectObjects(meshes, false)
-
     if (voxelIntersects.length > 0) {
       const hit = voxelIntersects[0]
       const mesh = hit.object as THREE.Mesh
       const voxelId = mesh.userData.voxelId as string
-      const voxel = useVoxelStore.getState().voxels.find(v => v.id === voxelId)
       const normal = hit.face?.normal.clone() || new THREE.Vector3()
       normal.transformDirection(mesh.matrixWorld)
-      return { voxel, position: mesh.position.clone(), normal, isFloor: false }
+      return { voxelId, position: mesh.position.clone(), normal, isFloor: false }
     }
 
     const floor = this.scene.getObjectByName('floor')
@@ -334,6 +299,23 @@ export class Scene3D {
     }
 
     return {}
+  }
+
+  private instanceIdToVoxelId: Map<number, string> = new Map()
+  private voxelIdToInstanceId: Map<string, number> = new Map()
+
+  private getInstanceVoxelId(instanceId: number): string | undefined {
+    return this.instanceIdToVoxelId.get(instanceId)
+  }
+
+  private getInstancePosition(instanceId: number): THREE.Vector3 {
+    if (!this.instanceBasePositions) return new THREE.Vector3()
+    const idx = instanceId * 3
+    return new THREE.Vector3(
+      this.instanceBasePositions[idx] + 0.5,
+      this.instanceBasePositions[idx + 1] + 0.5,
+      this.instanceBasePositions[idx + 2] + 0.5
+    )
   }
 
   public updateHighlight(info: HighlightInfo | null) {
@@ -373,9 +355,7 @@ export class Scene3D {
   private createVoxelMesh(voxel: Voxel): THREE.Mesh {
     const geo = new THREE.BoxGeometry(0.96, 0.96, 0.96)
     const mat = new THREE.MeshStandardMaterial({
-      color: voxel.color,
-      roughness: 0.85,
-      metalness: 0.05,
+      color: voxel.color, roughness: 0.85, metalness: 0.05,
     })
     const mesh = new THREE.Mesh(geo, mat)
     mesh.position.set(voxel.x + 0.5, voxel.y + 0.5, voxel.z + 0.5)
@@ -385,10 +365,191 @@ export class Scene3D {
 
     const edges = new THREE.EdgesGeometry(geo)
     const edgeMat = new THREE.LineBasicMaterial({ color: 0x0a0a12, transparent: true, opacity: 0.85 })
-    const lineSegments = new THREE.LineSegments(edges, edgeMat)
-    mesh.add(lineSegments)
+    mesh.add(new THREE.LineSegments(edges, edgeMat))
 
     return mesh
+  }
+
+  private setupInstancedMesh(count: number) {
+    if (this.instancedMesh) {
+      this.scene.remove(this.instancedMesh)
+      this.instancedMesh.geometry.dispose()
+      ;(this.instancedMesh.material as THREE.Material).dispose()
+      this.instancedMesh = null
+    }
+
+    if (count === 0) return
+
+    const geo = new THREE.BoxGeometry(0.96, 0.96, 0.96)
+
+    const vertexShader = `
+      uniform float uTime;
+      uniform int uAnimType;
+      uniform float uAnimSpeed;
+
+      attribute vec3 aBasePos;
+      attribute vec3 aColor;
+      attribute float aAnimOffset;
+
+      varying vec3 vColor;
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+
+      vec3 hsl2rgb(vec3 c) {
+        vec3 rgb = clamp(abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0);
+        return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
+      }
+
+      void main() {
+        vColor = aColor;
+        vNormal = normalMatrix * normal;
+
+        vec3 pos = position + aBasePos;
+        float time = uTime * uAnimSpeed;
+        float offset = aAnimOffset;
+
+        if (uAnimType == 1) {
+          float hue = mod(time * 30.0 + (aBasePos.x + aBasePos.y + aBasePos.z) * 5.0, 360.0);
+          vColor = hsl2rgb(vec3(hue / 360.0, 0.7, 0.6));
+          float bounce = sin(time * 2.0 + offset) * 0.1;
+          pos.y += bounce;
+        } else if (uAnimType == 2) {
+          float bounce = sin(time * 3.0 + offset) * 0.5;
+          float scale = 1.0 + sin(time * 4.0 + offset) * 0.15;
+          pos += (position) * (scale - 1.0);
+          pos.y += bounce;
+          float hue = (sin(time * 2.0 + offset) * 0.5 + 0.5) * 360.0;
+          vColor = hsl2rgb(vec3(hue / 360.0, 0.75, 0.6));
+        } else if (uAnimType == 3) {
+          float dist = sqrt(aBasePos.x * aBasePos.x + aBasePos.z * aBasePos.z);
+          float wave = sin(time * 2.5 - dist * 0.4) * 0.8;
+          float scale = 1.0 + wave * 0.1;
+          pos += position * (scale - 1.0);
+          pos.y += wave;
+          float hue = mod(dist * 15.0 + time * 40.0, 360.0);
+          vColor = hsl2rgb(vec3(hue / 360.0, 0.7, 0.55));
+        }
+
+        vec4 worldPosition = modelMatrix * vec4(pos, 1.0);
+        vWorldPos = worldPosition.xyz;
+        gl_Position = projectionMatrix * viewMatrix * worldPosition;
+      }
+    `
+
+    const fragmentShader = `
+      uniform vec3 uLightDir;
+      uniform vec3 uAmbient;
+      uniform vec3 uDiffuse;
+
+      varying vec3 vColor;
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+
+      void main() {
+        vec3 normal = normalize(vNormal);
+        vec3 lightDir = normalize(uLightDir);
+
+        float diff = max(dot(normal, lightDir), 0.0);
+        vec3 ambient = uAmbient * vColor;
+        vec3 diffuse = uDiffuse * diff * vColor;
+
+        vec3 color = ambient + diffuse;
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `
+
+    this.instancedMaterial = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms: {
+        uTime: { value: 0 },
+        uAnimType: { value: 0 },
+        uAnimSpeed: { value: 1 },
+        uLightDir: { value: new THREE.Vector3(0.6, 1, 0.5).normalize() },
+        uAmbient: { value: new THREE.Vector3(0.55, 0.55, 0.6) },
+        uDiffuse: { value: new THREE.Vector3(0.9, 0.9, 0.95) },
+      },
+    })
+
+    this.instancedMesh = new THREE.InstancedMesh(geo, this.instancedMaterial, count)
+    this.instancedMesh.castShadow = true
+    this.instancedMesh.receiveShadow = true
+    this.instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+
+    this.instanceBasePositions = new Float32Array(count * 3)
+    this.instanceColors = new Float32Array(count * 3)
+    const animOffsets = new Float32Array(count)
+
+    this.instancedMesh.geometry.setAttribute(
+      'aBasePos',
+      new THREE.InstancedBufferAttribute(this.instanceBasePositions, 3)
+    )
+    this.instancedMesh.geometry.setAttribute(
+      'aColor',
+      new THREE.InstancedBufferAttribute(this.instanceColors, 3)
+    )
+    this.instancedMesh.geometry.setAttribute(
+      'aAnimOffset',
+      new THREE.InstancedBufferAttribute(animOffsets, 1)
+    )
+
+    this.scene.add(this.instancedMesh)
+    this.dirtyInstances = true
+  }
+
+  private updateInstancedMesh(voxels: Voxel[]) {
+    const count = voxels.length
+    if (count === 0) {
+      if (this.instancedMesh) {
+        this.scene.remove(this.instancedMesh)
+        this.instancedMesh.geometry.dispose()
+        this.instancedMaterial?.dispose()
+        this.instancedMesh = null
+        this.instancedMaterial = null
+      }
+      return
+    }
+
+    if (!this.instancedMesh || this.instancedMesh.count !== count) {
+      this.setupInstancedMesh(count)
+    }
+    if (!this.instancedMesh || !this.instanceBasePositions || !this.instanceColors) return
+
+    const color = new THREE.Color()
+    this.instanceIdToVoxelId.clear()
+    this.voxelIdToInstanceId.clear()
+
+    for (let i = 0; i < count; i++) {
+      const v = voxels[i]
+      this.instanceIdToVoxelId.set(i, v.id)
+      this.voxelIdToInstanceId.set(v.id, i)
+
+      const basePosAttr = this.instancedMesh.geometry.getAttribute('aBasePos') as THREE.InstancedBufferAttribute
+      basePosAttr.setXYZ(i, v.x + 0.5, v.y + 0.5, v.z + 0.5)
+
+      color.set(v.color)
+      const colorAttr = this.instancedMesh.geometry.getAttribute('aColor') as THREE.InstancedBufferAttribute
+      colorAttr.setXYZ(i, color.r, color.g, color.b)
+
+      const offsetAttr = this.instancedMesh.geometry.getAttribute('aAnimOffset') as THREE.InstancedBufferAttribute
+      offsetAttr.setX(i, v.animOffset || 0)
+
+      this.dummy.position.set(v.x + 0.5, v.y + 0.5, v.z + 0.5)
+      this.dummy.scale.setScalar(1)
+      this.dummy.rotation.set(0, 0, 0)
+      this.dummy.updateMatrix()
+      this.instancedMesh.setMatrixAt(i, this.dummy.matrix)
+    }
+
+    const basePosAttr = this.instancedMesh.geometry.getAttribute('aBasePos') as THREE.InstancedBufferAttribute
+    basePosAttr.needsUpdate = true
+    const colorAttr = this.instancedMesh.geometry.getAttribute('aColor') as THREE.InstancedBufferAttribute
+    colorAttr.needsUpdate = true
+    const offsetAttr = this.instancedMesh.geometry.getAttribute('aAnimOffset') as THREE.InstancedBufferAttribute
+    offsetAttr.needsUpdate = true
+
+    this.instancedMesh.instanceMatrix.needsUpdate = true
+    this.dirtyInstances = false
   }
 
   private subscribeStore() {
@@ -419,9 +580,13 @@ export class Scene3D {
       if (!mesh) {
         const m = this.createVoxelMesh(voxel)
         m.scale.setScalar(0.001)
+        m.visible = !this.useInstanced
         this.scene.add(m)
         this.voxelMeshes.set(voxel.id, m)
-        this.voxelAnimStates.set(voxel.id, { scale: 0, targetScale: 1, appearTime: performance.now() })
+        this.voxelAnimStates.set(voxel.id, {
+          scale: 0, targetScale: 1, appearTime: performance.now(),
+        })
+        this.appearingVoxels.add(voxel.id)
       } else {
         const mat = mesh.material as THREE.MeshStandardMaterial
         if (mat.color.getHexString() !== voxel.color.replace('#', '')) {
@@ -430,12 +595,8 @@ export class Scene3D {
       }
     }
 
-    for (const [id, old] of oldMap) {
-      const nw = newMap.get(id)
-      if (nw && (old.x !== nw.x || old.y !== nw.y || old.z !== nw.z)) {
-        const mesh = this.voxelMeshes.get(id)
-        if (mesh) mesh.position.set(nw.x + 0.5, nw.y + 0.5, nw.z + 0.5)
-      }
+    if (this.useInstanced) {
+      this.updateInstancedMesh(newVoxels)
     }
 
     this.prevVoxelIds = newIds
@@ -456,13 +617,22 @@ export class Scene3D {
 
     animationController.update(1 / 60)
 
-    const lerpFactor = 0.12
-    this.camera.position.lerp(this.targetCameraPos, lerpFactor)
-    const lookTarget = new THREE.Vector3().copy(this.cameraTarget).lerp(this.targetCameraTarget, lerpFactor)
+    const lerp = this.lerpFactor
+    this.camera.position.lerp(this.targetCameraPos, lerp)
+    const lookTarget = new THREE.Vector3().copy(this.cameraTarget).lerp(this.targetCameraTarget, lerp)
     this.camera.lookAt(lookTarget)
 
     const store = useVoxelStore.getState()
-    const { selectedVoxel } = store
+    const { selectedVoxel, animation } = store
+    const animTime = animationController.getTime()
+
+    if (this.instancedMaterial && this.useInstanced) {
+      this.instancedMaterial.uniforms.uTime.value = animTime
+      this.instancedMaterial.uniforms.uAnimSpeed.value = animation.speed
+      this.instancedMaterial.uniforms.uAnimType.value = animation.isPlaying
+        ? animation.type === 'rotate' ? 1 : animation.type === 'bounce' ? 2 : 3
+        : 0
+    }
 
     for (const [id, mesh] of this.voxelMeshes) {
       const voxel = store.voxels.find(v => v.id === id)
@@ -473,28 +643,14 @@ export class Scene3D {
 
       if (animState) {
         const elapsed = (now - animState.appearTime) / 1000
-        const t = Math.min(elapsed / 0.25, 1)
+        const t = Math.min(elapsed / 0.3, 1)
         const eased = 1 - Math.pow(1 - t, 3)
         animState.scale = eased
-        if (t >= 1) this.voxelAnimStates.delete(id)
-        finalScale = animState.scale
-      }
-
-      if (store.animation.isPlaying) {
-        const animPos = animationController.getVoxelPosition(voxel)
-        const animScale = animationController.getVoxelScale(voxel)
-        const animColor = animationController.getVoxelColor(voxel)
-        mesh.position.lerp(new THREE.Vector3(animPos.x + 0.5, animPos.y + 0.5, animPos.z + 0.5), 0.3)
-        finalScale *= animScale
-        const mat = mesh.material as THREE.MeshStandardMaterial
-        mat.color.set(animColor)
-      } else {
-        const basePos = new THREE.Vector3(voxel.x + 0.5, voxel.y + 0.5, voxel.z + 0.5)
-        mesh.position.lerp(basePos, 0.25)
-        const mat = mesh.material as THREE.MeshStandardMaterial
-        if (mat.color.getHexString() !== voxel.color.replace('#', '')) {
-          mat.color.lerp(new THREE.Color(voxel.color), 0.2)
+        if (t >= 1) {
+          this.voxelAnimStates.delete(id)
+          this.appearingVoxels.delete(id)
         }
+        finalScale = animState.scale
       }
 
       if (id === selectedVoxel) {
@@ -502,17 +658,24 @@ export class Scene3D {
       }
 
       mesh.scale.setScalar(finalScale)
+
+      if (this.useInstanced) {
+        mesh.visible = this.appearingVoxels.has(id) || this.removingVoxels.has(id)
+      }
     }
 
     for (const [id, info] of this.removingVoxels) {
       const elapsed = (now - info.startTime) / 1000
-      const t = Math.min(elapsed / 0.2, 1)
-      const eased = 1 - t
-      info.mesh.scale.setScalar(eased * eased * 0.96)
-      info.mesh.position.y -= t * t * 0.3
+      const t = Math.min(elapsed / 0.25, 1)
+      const easedOut = 1 - Math.pow(1 - t, 4)
+      const scale = Math.max(0, 1 - easedOut)
+      info.mesh.scale.setScalar(scale * 0.96)
+      info.mesh.position.y -= t * 0.4
+
       const mat = info.mesh.material as THREE.MeshStandardMaterial
       mat.transparent = true
-      mat.opacity = 1 - t
+      mat.opacity = Math.max(0, 1 - t)
+
       if (t >= 1) {
         this.scene.remove(info.mesh)
         info.mesh.geometry.dispose()
@@ -525,15 +688,16 @@ export class Scene3D {
     this.renderer.render(this.scene, this.camera)
   }
 
+  public setLerpFactor(factor: number) {
+    this.lerpFactor = factor
+  }
+
   public destroy() {
     cancelAnimationFrame(this.animationFrameId)
     window.removeEventListener('resize', this.resize)
-    window.removeEventListener('pointerup', this.onPointerUp)
-    const canvas = this.renderer.domElement
-    canvas.removeEventListener('pointerdown', this.onPointerDown)
-    canvas.removeEventListener('pointermove', this.onPointerMove)
-    canvas.removeEventListener('wheel', this.onWheel)
     this.renderer.dispose()
-    if (canvas.parentElement) canvas.parentElement.removeChild(canvas)
+    if (this.renderer.domElement.parentElement) {
+      this.renderer.domElement.parentElement.removeChild(this.renderer.domElement)
+    }
   }
 }

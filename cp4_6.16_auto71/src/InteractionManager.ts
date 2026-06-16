@@ -2,80 +2,172 @@ import * as THREE from 'three'
 import { Scene3D, HighlightInfo } from './Scene3D'
 import { useVoxelStore, VoxelMode, BrushSize, Voxel } from './VoxelStore'
 
+type DragMode = 'none' | 'voxel-place' | 'voxel-remove' | 'camera-rotate' | 'camera-pan' | 'axis'
+
 export class InteractionManager {
   private scene3D: Scene3D
   private container: HTMLElement
-  private isDragging = false
+  private canvas: HTMLCanvasElement
+
+  private dragMode: DragMode = 'none'
   private dragStartPos = { x: 0, y: 0 }
+  private lastMousePos = { x: 0, y: 0 }
   private lastProcessedKey = ''
-  private debounceTimer: number | null = null
+  private lastHoverUpdate = 0
+
   private hoverInfo: HighlightInfo | null = null
 
   constructor(scene3D: Scene3D, container: HTMLElement) {
     this.scene3D = scene3D
     this.container = container
+    this.canvas = scene3D.renderer.domElement
     this.setupEvents()
   }
 
   private setupEvents() {
-    const canvas = this.scene3D.renderer.domElement
-
-    canvas.addEventListener('pointerdown', this.onPointerDown)
-    canvas.addEventListener('pointermove', this.onPointerMove)
+    this.canvas.addEventListener('pointerdown', this.onPointerDown)
+    this.canvas.addEventListener('pointermove', this.onPointerMove)
+    this.canvas.addEventListener('pointerenter', this.onPointerEnter)
+    this.canvas.addEventListener('pointerleave', this.onPointerLeave)
     window.addEventListener('pointerup', this.onPointerUp)
+    this.canvas.addEventListener('wheel', this.onWheel, { passive: false })
     window.addEventListener('keydown', this.onKeyDown)
 
     useVoxelStore.subscribe((state, prev) => {
-      if (state.mode !== prev.mode || state.brushSize !== prev.brushSize || state.currentColor !== prev.currentColor) {
+      if (
+        state.mode !== prev.mode ||
+        state.brushSize !== prev.brushSize ||
+        state.currentColor !== prev.currentColor
+      ) {
         this.updateHoverHighlight()
       }
     })
   }
 
   private onPointerDown = (e: PointerEvent) => {
-    if (e.button !== 0) return
-    if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return
-    this.isDragging = true
+    if (e.target !== this.canvas) return
+    e.preventDefault()
+
+    this.lastMousePos = { x: e.clientX, y: e.clientY }
     this.dragStartPos = { x: e.clientX, y: e.clientY }
-    this.lastProcessedKey = ''
-  }
+    this.scene3D.updateMouse(e.clientX, e.clientY)
 
-  private onPointerMove = (e: PointerEvent) => {
-    if (!this.isDragging) return
-    if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return
-    if (e.buttons !== 1) return
-
-    const dx = Math.abs(e.clientX - this.dragStartPos.x)
-    const dy = Math.abs(e.clientY - this.dragStartPos.y)
-    if (dx < 3 && dy < 3) return
-
-    this.processInteraction(true)
-  }
-
-  private onPointerUp = (e: PointerEvent) => {
-    if (!this.isDragging) return
-    if (e.button !== 0) {
-      this.isDragging = false
+    if (e.button === 2) {
+      this.dragMode = 'camera-pan'
+      this.canvas.setPointerCapture(e.pointerId)
       return
     }
 
-    const dx = Math.abs(e.clientX - this.dragStartPos.x)
-    const dy = Math.abs(e.clientY - this.dragStartPos.y)
-    const isClick = dx < 4 && dy < 4
+    if (e.button !== 0) return
 
-    if (isClick) {
-      this.processInteraction(false)
+    const axis = this.scene3D.getAxisIntersection()
+    if (axis) {
+      this.dragMode = 'axis'
+      this.scene3D.startAxisDrag(axis)
+      this.canvas.setPointerCapture(e.pointerId)
+      return
     }
 
-    this.isDragging = false
-    this.lastProcessedKey = ''
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer)
-      this.debounceTimer = null
+    const state = useVoxelStore.getState()
+    const hit = this.scene3D.getIntersection()
+    const hasTarget = !!(hit.voxelId || hit.isFloor)
+
+    if (state.mode === 'pick' && hit.voxelId) {
+      this.handlePick(hit)
+      this.dragMode = 'none'
+      return
+    }
+
+    if (hasTarget && (state.mode === 'place' || state.mode === 'remove')) {
+      this.lastProcessedKey = ''
+      this.processVoxelAction(false)
+      this.dragMode = state.mode === 'place' ? 'voxel-place' : 'voxel-remove'
+      this.canvas.setPointerCapture(e.pointerId)
+      return
+    }
+
+    this.dragMode = 'camera-rotate'
+    this.canvas.setPointerCapture(e.pointerId)
+  }
+
+  private onPointerMove = (e: PointerEvent) => {
+    this.scene3D.updateMouse(e.clientX, e.clientY)
+
+    const dx = e.clientX - this.lastMousePos.x
+    const dy = e.clientY - this.lastMousePos.y
+
+    switch (this.dragMode) {
+      case 'camera-rotate':
+        this.scene3D.updateCameraRotate(dx, dy)
+        this.lastMousePos = { x: e.clientX, y: e.clientY }
+        return
+
+      case 'camera-pan':
+        this.scene3D.updateCameraPan(dx, dy)
+        this.lastMousePos = { x: e.clientX, y: e.clientY }
+        return
+
+      case 'axis':
+        this.scene3D.updateAxisDrag(dx, dy)
+        this.lastMousePos = { x: e.clientX, y: e.clientY }
+        return
+
+      case 'voxel-place':
+      case 'voxel-remove':
+        const distMoved = Math.hypot(
+          e.clientX - this.dragStartPos.x,
+          e.clientY - this.dragStartPos.y
+        )
+        if (distMoved > 3) {
+          this.processVoxelAction(true)
+        }
+        this.lastMousePos = { x: e.clientX, y: e.clientY }
+        return
+    }
+
+    this.lastMousePos = { x: e.clientX, y: e.clientY }
+
+    const now = performance.now()
+    if (now - this.lastHoverUpdate > 16) {
+      this.lastHoverUpdate = now
+      requestAnimationFrame(() => this.updateHoverHighlight())
     }
   }
 
+  private onPointerEnter = (_e: PointerEvent) => {
+    this.updateHoverHighlight()
+  }
+
+  private onPointerLeave = (_e: PointerEvent) => {
+    this.scene3D.updateHighlight(null)
+    this.hoverInfo = null
+  }
+
+  private onPointerUp = (e: PointerEvent) => {
+    if (this.dragMode === 'axis') {
+      this.scene3D.endAxisDrag()
+    }
+
+    if (this.canvas.hasPointerCapture(e.pointerId)) {
+      this.canvas.releasePointerCapture(e.pointerId)
+    }
+
+    this.dragMode = 'none'
+    this.lastProcessedKey = ''
+
+    this.updateHoverHighlight()
+  }
+
+  private onWheel = (e: WheelEvent) => {
+    e.preventDefault()
+    this.scene3D.zoomCamera(e.deltaY)
+  }
+
   private onKeyDown = (e: KeyboardEvent) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      return
+    }
+
     if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
       if (e.shiftKey) {
@@ -83,14 +175,29 @@ export class InteractionManager {
       } else {
         useVoxelStore.getState().undo()
       }
+      return
     }
+
     if (e.key === 'y' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
       useVoxelStore.getState().redo()
+      return
     }
-    if (e.key === '1') useVoxelStore.getState().setMode('place')
-    if (e.key === '2') useVoxelStore.getState().setMode('remove')
-    if (e.key === '3') useVoxelStore.getState().setMode('pick')
+
+    if (e.key === '1') {
+      e.preventDefault()
+      useVoxelStore.getState().setMode('place')
+    } else if (e.key === '2') {
+      e.preventDefault()
+      useVoxelStore.getState().setMode('remove')
+    } else if (e.key === '3') {
+      e.preventDefault()
+      useVoxelStore.getState().setMode('pick')
+    }
+
+    if (e.key === 'Escape') {
+      useVoxelStore.getState().setSelectedVoxel(null)
+    }
   }
 
   public updateHoverHighlight() {
@@ -102,26 +209,37 @@ export class InteractionManager {
   }
 
   private computeHighlightInfo(
-    hit: { voxel?: Voxel; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean },
+    hit: { voxelId?: string; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean },
     mode: VoxelMode,
     brushSize: BrushSize
   ): HighlightInfo | null {
-    if (!hit.position && !hit.voxel) return null
+    if (!hit.position && !hit.voxelId) return null
 
-    if (mode === 'remove' && hit.voxel) {
-      return { x: hit.voxel.x, y: hit.voxel.y, z: hit.voxel.z, face: hit.normal || new THREE.Vector3(), type: 'remove' }
+    const store = useVoxelStore.getState()
+    const voxel = hit.voxelId ? store.voxels.find(v => v.id === hit.voxelId) : undefined
+
+    if (mode === 'remove' && voxel) {
+      return {
+        x: voxel.x, y: voxel.y, z: voxel.z,
+        face: hit.normal || new THREE.Vector3(),
+        type: 'remove',
+      }
     }
 
-    if (mode === 'pick' && hit.voxel) {
-      return { x: hit.voxel.x, y: hit.voxel.y, z: hit.voxel.z, face: hit.normal || new THREE.Vector3(), type: 'hover' }
+    if (mode === 'pick' && voxel) {
+      return {
+        x: voxel.x, y: voxel.y, z: voxel.z,
+        face: hit.normal || new THREE.Vector3(),
+        type: 'hover',
+      }
     }
 
     if (mode === 'place') {
       let targetX = 0, targetY = 0, targetZ = 0
-      if (hit.voxel && hit.normal) {
-        targetX = Math.floor(hit.voxel.x + hit.normal.x)
-        targetY = Math.floor(hit.voxel.y + hit.normal.y)
-        targetZ = Math.floor(hit.voxel.z + hit.normal.z)
+      if (voxel && hit.normal) {
+        targetX = Math.floor(voxel.x + hit.normal.x)
+        targetY = Math.floor(voxel.y + hit.normal.y)
+        targetZ = Math.floor(voxel.z + hit.normal.z)
       } else if (hit.isFloor && hit.position) {
         targetX = Math.floor(hit.position.x)
         targetY = 0
@@ -132,20 +250,28 @@ export class InteractionManager {
       const half = Math.floor(brushSize / 2)
       targetX -= half
       targetZ -= half
-      return { x: targetX, y: targetY, z: targetZ, face: hit.normal || new THREE.Vector3(0, 1, 0), type: 'place' }
+      return {
+        x: targetX, y: targetY, z: targetZ,
+        face: hit.normal || new THREE.Vector3(0, 1, 0),
+        type: 'place',
+      }
     }
 
-    if (hit.voxel) {
-      return { x: hit.voxel.x, y: hit.voxel.y, z: hit.voxel.z, face: hit.normal || new THREE.Vector3(), type: 'hover' }
+    if (voxel) {
+      return {
+        x: voxel.x, y: voxel.y, z: voxel.z,
+        face: hit.normal || new THREE.Vector3(),
+        type: 'hover',
+      }
     }
     return null
   }
 
-  private processInteraction(isDragging: boolean) {
+  private processVoxelAction(isDragging: boolean) {
     const state = useVoxelStore.getState()
     const hit = this.scene3D.getIntersection()
 
-    if (!hit.position && !hit.voxel) return
+    if (!hit.position && !hit.voxelId) return
 
     switch (state.mode) {
       case 'place':
@@ -154,22 +280,22 @@ export class InteractionManager {
       case 'remove':
         this.handleRemove(hit, state.brushSize, isDragging)
         break
-      case 'pick':
-        this.handlePick(hit)
-        break
     }
   }
 
   private handlePlace(
-    hit: { voxel?: Voxel; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean },
+    hit: { voxelId?: string; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean },
     brushSize: BrushSize,
     isDragging: boolean
   ) {
+    const store = useVoxelStore.getState()
+    const voxel = hit.voxelId ? store.voxels.find(v => v.id === hit.voxelId) : undefined
+
     let targetX = 0, targetY = 0, targetZ = 0
-    if (hit.voxel && hit.normal) {
-      targetX = Math.floor(hit.voxel.x + hit.normal.x)
-      targetY = Math.floor(hit.voxel.y + hit.normal.y)
-      targetZ = Math.floor(hit.voxel.z + hit.normal.z)
+    if (voxel && hit.normal) {
+      targetX = Math.floor(voxel.x + hit.normal.x)
+      targetY = Math.floor(voxel.y + hit.normal.y)
+      targetZ = Math.floor(voxel.z + hit.normal.z)
     } else if (hit.isFloor && hit.position) {
       targetX = Math.floor(hit.position.x)
       targetY = 0
@@ -178,7 +304,6 @@ export class InteractionManager {
       return
     }
 
-    const half = Math.floor(brushSize / 2)
     const positions = this.scene3D.getBrushPositions(targetX, targetY, targetZ, brushSize)
 
     if (isDragging) {
@@ -187,7 +312,6 @@ export class InteractionManager {
       this.lastProcessedKey = key
     }
 
-    const store = useVoxelStore.getState()
     const currentVoxels = new Set(store.voxels.map(v => `${v.x},${v.y},${v.z}`))
 
     let anyAdded = false
@@ -196,6 +320,8 @@ export class InteractionManager {
       if (currentVoxels.has(k)) continue
       if (pos.y < 0) continue
       if (pos.y > 64) continue
+      if (pos.x < -32 || pos.x > 31) continue
+      if (pos.z < -32 || pos.z > 31) continue
       store.addVoxel(pos.x, pos.y, pos.z)
       anyAdded = true
     }
@@ -203,17 +329,19 @@ export class InteractionManager {
   }
 
   private handleRemove(
-    hit: { voxel?: Voxel; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean },
+    hit: { voxelId?: string; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean },
     brushSize: BrushSize,
     isDragging: boolean
   ) {
-    if (!hit.voxel) return
-
     const store = useVoxelStore.getState()
+    const voxel = hit.voxelId ? store.voxels.find(v => v.id === hit.voxelId) : undefined
+
+    if (!voxel) return
+
     const half = Math.floor(brushSize / 2)
-    const baseX = hit.voxel.x
-    const baseY = hit.voxel.y
-    const baseZ = hit.voxel.z
+    const baseX = voxel.x
+    const baseY = voxel.y
+    const baseZ = voxel.z
 
     if (isDragging) {
       const key = `${baseX},${baseY},${baseZ},s${brushSize}`
@@ -238,18 +366,22 @@ export class InteractionManager {
     if (anyRemoved) store.triggerPulse()
   }
 
-  private handlePick(hit: { voxel?: Voxel; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean }) {
-    if (!hit.voxel) return
-    useVoxelStore.getState().pickColor(hit.voxel.color)
-    useVoxelStore.getState().setSelectedVoxel(hit.voxel.id)
+  private handlePick(hit: { voxelId?: string }) {
+    if (!hit.voxelId) return
+    const store = useVoxelStore.getState()
+    const voxel = store.voxels.find(v => v.id === hit.voxelId)
+    if (!voxel) return
+    store.pickColor(voxel.color)
+    store.setSelectedVoxel(voxel.id)
   }
 
   public destroy() {
     window.removeEventListener('keydown', this.onKeyDown)
     window.removeEventListener('pointerup', this.onPointerUp)
-    const canvas = this.scene3D.renderer.domElement
-    canvas.removeEventListener('pointerdown', this.onPointerDown)
-    canvas.removeEventListener('pointermove', this.onPointerMove)
-    if (this.debounceTimer) clearTimeout(this.debounceTimer)
+    this.canvas.removeEventListener('pointerdown', this.onPointerDown)
+    this.canvas.removeEventListener('pointermove', this.onPointerMove)
+    this.canvas.removeEventListener('pointerenter', this.onPointerEnter)
+    this.canvas.removeEventListener('pointerleave', this.onPointerLeave)
+    this.canvas.removeEventListener('wheel', this.onWheel)
   }
 }
