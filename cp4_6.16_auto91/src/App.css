@@ -228,6 +228,18 @@ html, body, #root {
   transform: scale(1.2);
 }
 
+.brush-preview-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.brush-preview-canvas {
+  border-radius: 8px;
+  display: block;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
 .color-palette {
   display: grid;
   grid-template-columns: repeat(8, 1fr);

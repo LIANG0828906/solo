@@ -63,6 +63,7 @@ const App: React.FC = () => {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const newTextRef = useRef<HTMLInputElement>(null);
+  const brushPreviewRef = useRef<HTMLCanvasElement>(null);
 
   const {
     activeTab, currentTool, brushSize, brushColor,
@@ -152,6 +153,30 @@ const App: React.FC = () => {
   useEffect(() => {
     if (rendererRef.current) rendererRef.current.setBrushColor(brushColor);
   }, [brushColor]);
+
+  useEffect(() => {
+    const canvas = brushPreviewRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const size = 80;
+    const cx = size / 2;
+    const cy = size / 2;
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, size - 1, size - 1);
+    const color = hoverColor || brushColor;
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(cx, cy, brushSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }, [brushSize, brushColor, hoverColor]);
 
   useEffect(() => {
     if (rendererRef.current) rendererRef.current.setSelectedTextId(selectedTextId);
@@ -352,6 +377,14 @@ const App: React.FC = () => {
 
             <div className="toolbar-section">
               <div className="toolbar-label">颜色</div>
+              <div className="brush-preview-container">
+                <canvas
+                  ref={brushPreviewRef}
+                  width={80}
+                  height={80}
+                  className="brush-preview-canvas"
+                />
+              </div>
               <div className="color-palette">
                 {COLORS_32.map((c) => (
                   <button
