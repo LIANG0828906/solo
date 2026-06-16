@@ -124,12 +124,22 @@ export class LevelEngine {
     if (this.running) return;
     this.running = true;
     this.lastTime = performance.now();
+    this.scheduleLoop();
+  }
+
+  scheduleLoop() {
+    if (!this.running) return;
     const loop = (t: number) => {
       if (!this.running) return;
+      const state = useGameStore.getState();
       const dt = Math.min(50, t - this.lastTime);
       this.lastTime = t;
-      const paused = useGameStore.getState().paused;
-      if (!paused) this.time += dt;
+      if (state.currentScreen === 'playing' && state.paused) {
+        this.render();
+        this.rafId = 0;
+        return;
+      }
+      this.time += dt;
       this.update(dt);
       this.render();
       this.rafId = requestAnimationFrame(loop);
@@ -137,9 +147,19 @@ export class LevelEngine {
     this.rafId = requestAnimationFrame(loop);
   }
 
+  resumeLoopIfNeeded() {
+    if (!this.running) return;
+    if (this.rafId !== 0) return;
+    const state = useGameStore.getState();
+    if (state.currentScreen === 'playing' && state.paused) return;
+    this.lastTime = performance.now();
+    this.scheduleLoop();
+  }
+
   stop() {
     this.running = false;
     if (this.rafId) cancelAnimationFrame(this.rafId);
+    this.rafId = 0;
   }
 
   update(dt: number) {

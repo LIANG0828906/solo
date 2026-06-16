@@ -239,7 +239,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   },
 
   goToLevelSelect: () => {
-    set({ currentScreen: 'levelSelect' });
+    set({ currentScreen: 'levelSelect', paused: false });
   },
 
   startGame: (levelId: number) => {
@@ -313,6 +313,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     set({
       currentScreen: 'result',
       resultStars: stars,
+      paused: false,
     });
   },
 

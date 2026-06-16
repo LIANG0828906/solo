@@ -23,6 +23,12 @@ export default function GameCanvas() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!paused && engineRef.current) {
+      engineRef.current.resumeLoopIfNeeded();
+    }
+  }, [paused]);
+
   const showPauseButton = currentScreen === 'playing';
 
   return (
@@ -53,22 +59,27 @@ export default function GameCanvas() {
             border: 'none',
             cursor: 'pointer',
             padding: 0,
-            opacity: btnHover ? 1 : 0.55,
-            transition: 'opacity 0.2s ease',
             zIndex: 5,
           }}
           aria-label="暂停游戏"
           title="暂停 (Esc)"
         >
-          <svg width="28" height="28" viewBox="0 0 24 24">
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            style={{
+              transition: 'filter 0.2s ease',
+              filter: btnHover ? 'drop-shadow(0 0 4px rgba(255,255,255,0.3))' : 'none',
+            }}
+          >
             <rect
               x="6"
               y="4"
               width="4"
               height="16"
               rx="1"
-              fill="white"
-              opacity={btnHover ? 1 : 0.9}
+              fill={btnHover ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.55)'}
             />
             <rect
               x="14"
@@ -76,8 +87,7 @@ export default function GameCanvas() {
               width="4"
               height="16"
               rx="1"
-              fill="white"
-              opacity={btnHover ? 1 : 0.9}
+              fill={btnHover ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.55)'}
             />
           </svg>
         </button>
@@ -85,11 +95,10 @@ export default function GameCanvas() {
 
       {showPauseButton && paused && (
         <div
+          className="pause-overlay"
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(8, 4, 16, 0.72)',
-            backdropFilter: 'blur(2px)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',

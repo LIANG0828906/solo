@@ -33,3 +33,11 @@ button:focus {
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
 }
+
+.pause-overlay {
+  background: rgba(8, 4, 16, 0.72);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  -moz-backdrop-filter: blur(4px);
+  filter: none;
+}
