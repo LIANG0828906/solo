@@ -1,28 +1,65 @@
 import { useDrag } from 'react-dnd';
-import { useEditorStore } from '../store/editorStore';
-import type { PortfolioComponent } from '../store/editorStore';
-import { useState, useRef, useEffect } from 'react';
+import { useEditorStore, useThemeColor } from '../store/editorStore';
+import type {
+  PortfolioComponent,
+  TitleProps,
+  ImageProps,
+  TextCardProps,
+} from '../store/editorStore';
+import { useState, useEffect } from 'react';
 
 interface EditableComponentProps {
   component: PortfolioComponent;
   isSelected: boolean;
-  onSelect: (id: string) => void;
+  isMultiSelected: boolean;
+  onSelect: (id: string, isMulti?: boolean) => void;
 }
 
-function TitleRenderer({ text, fontSize }: { text: string; fontSize: number }) {
+function TitleRenderer({
+  text,
+  fontSize,
+  color,
+  align,
+  themeColor,
+}: {
+  text: string;
+  fontSize: number;
+  color: string;
+  align: 'left' | 'center' | 'right';
+  themeColor: string;
+}) {
+  const displayColor = color === 'inherit' ? themeColor : color;
   return (
-    <div style={{ fontSize, fontWeight: 'bold', color: '#2C3E50', lineHeight: 1.3 }}>
+    <div
+      style={{
+        fontSize,
+        fontWeight: 'bold',
+        color: displayColor,
+        lineHeight: 1.3,
+        textAlign: align,
+      }}
+    >
       {text}
     </div>
   );
 }
 
-function ImageRenderer({ src, widthPercent, borderRadius }: { src: string; widthPercent: number; borderRadius: number }) {
+function ImageRenderer({
+  src,
+  widthPercent,
+  borderRadius,
+  alt,
+}: {
+  src: string;
+  widthPercent: number;
+  borderRadius: number;
+  alt: string;
+}) {
   return (
     <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
       <img
         src={src}
-        alt="portfolio"
+        alt={alt}
         style={{
           width: `${widthPercent}%`,
           borderRadius,
@@ -35,14 +72,22 @@ function ImageRenderer({ src, widthPercent, borderRadius }: { src: string; width
   );
 }
 
-function TextCardRenderer({ content, bgColor }: { content: string; bgColor: string }) {
+function TextCardRenderer({
+  content,
+  bgColor,
+  fontSize,
+}: {
+  content: string;
+  bgColor: string;
+  fontSize: number;
+}) {
   return (
     <div
       style={{
         backgroundColor: bgColor,
         padding: '20px 24px',
         borderRadius: 6,
-        fontSize: 15,
+        fontSize,
         lineHeight: 1.7,
         color: '#2C3E50',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
@@ -52,17 +97,16 @@ function TextCardRenderer({ content, bgColor }: { content: string; bgColor: stri
   );
 }
 
-export default function EditableComponent({ component, isSelected, onSelect }: EditableComponentProps) {
+export default function EditableComponent({
+  component,
+  isSelected,
+  isMultiSelected,
+  onSelect,
+}: EditableComponentProps) {
   const removeComponent = useEditorStore((s) => s.removeComponent);
+  const themeColor = useThemeColor();
   const [animating, setAnimating] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const prevIdRef = useRef(component.id);
-
-  useEffect(() => {
-    if (prevIdRef.current !== component.id) {
-      prevIdRef.current = component.id;
-    }
-  }, [component.id]);
 
   useEffect(() => {
     setAnimating(true);
@@ -91,19 +135,42 @@ export default function EditableComponent({ component, isSelected, onSelect }: E
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onSelect(component.id);
+    onSelect(component.id, e.ctrlKey || e.metaKey);
   };
 
   const renderContent = () => {
     switch (component.type) {
       case 'title':
-        return <TitleRenderer text={(component.props as { text: string; fontSize: number }).text} fontSize={(component.props as { text: string; fontSize: number }).fontSize} />;
+        return (
+          <TitleRenderer
+            text={(component.props as TitleProps).text}
+            fontSize={(component.props as TitleProps).fontSize}
+            color={(component.props as TitleProps).color}
+            align={(component.props as TitleProps).align}
+            themeColor={themeColor}
+          />
+        );
       case 'image':
-        return <ImageRenderer src={(component.props as { src: string; widthPercent: number; borderRadius: number }).src} widthPercent={(component.props as { src: string; widthPercent: number; borderRadius: number }).widthPercent} borderRadius={(component.props as { src: string; widthPercent: number; borderRadius: number }).borderRadius} />;
+        return (
+          <ImageRenderer
+            src={(component.props as ImageProps).src}
+            widthPercent={(component.props as ImageProps).widthPercent}
+            borderRadius={(component.props as ImageProps).borderRadius}
+            alt={(component.props as ImageProps).alt}
+          />
+        );
       case 'textCard':
-        return <TextCardRenderer content={(component.props as { content: string; bgColor: string }).content} bgColor={(component.props as { content: string; bgColor: string }).bgColor} />;
+        return (
+          <TextCardRenderer
+            content={(component.props as TextCardProps).content}
+            bgColor={(component.props as TextCardProps).bgColor}
+            fontSize={(component.props as TextCardProps).fontSize}
+          />
+        );
     }
   };
+
+  const showSelectedBorder = isSelected || isMultiSelected;
 
   return (
     <div
@@ -116,13 +183,35 @@ export default function EditableComponent({ component, isSelected, onSelect }: E
         opacity: isDragging ? 0.4 : removing ? 0 : 1,
         transform: animating ? 'scale(1.05)' : 'scale(1)',
         transition: 'all 0.3s ease',
-        outline: isSelected
-          ? '2px dashed #3498DB'
-          : 'none',
+        outline: showSelectedBorder ? '2px dashed #3498DB' : 'none',
         outlineOffset: 2,
         borderRadius: 6,
+        zIndex: component.zIndex,
       }}
     >
+      {isMultiSelected && (
+        <div
+          style={{
+            position: 'absolute',
+            top: -10,
+            left: -10,
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            backgroundColor: '#3498DB',
+            color: '#fff',
+            fontSize: 10,
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 20,
+          }}
+        >
+          ✓
+        </div>
+      )}
+
       <div
         ref={drag}
         style={{

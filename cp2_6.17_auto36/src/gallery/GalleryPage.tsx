@@ -1,21 +1,61 @@
 import { useNavigate } from 'react-router-dom';
-import { useEditorStore, useComponentList, useThemeColor, useBgColor } from '../store/editorStore';
-import type { PortfolioComponent, TitleProps, ImageProps, TextCardProps } from '../store/editorStore';
+import {
+  useComponentList,
+  useThemeColor,
+  useBgColor,
+} from '../store/editorStore';
+import type {
+  PortfolioComponent,
+  TitleProps,
+  ImageProps,
+  TextCardProps,
+} from '../store/editorStore';
 
-function GalleryTitle({ text, fontSize }: { text: string; fontSize: number }) {
+function GalleryTitle({
+  text,
+  fontSize,
+  color,
+  align,
+  themeColor,
+}: {
+  text: string;
+  fontSize: number;
+  color: string;
+  align: 'left' | 'center' | 'right';
+  themeColor: string;
+}) {
+  const displayColor = color === 'inherit' ? themeColor : color;
   return (
-    <div style={{ fontSize, fontWeight: 'bold', color: '#2C3E50', lineHeight: 1.3 }}>
+    <div
+      style={{
+        fontSize,
+        fontWeight: 'bold',
+        color: displayColor,
+        lineHeight: 1.3,
+        textAlign: align,
+      }}
+    >
       {text}
     </div>
   );
 }
 
-function GalleryImage({ src, widthPercent, borderRadius }: { src: string; widthPercent: number; borderRadius: number }) {
+function GalleryImage({
+  src,
+  widthPercent,
+  borderRadius,
+  alt,
+}: {
+  src: string;
+  widthPercent: number;
+  borderRadius: number;
+  alt: string;
+}) {
   return (
     <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
       <img
         src={src}
-        alt="portfolio"
+        alt={alt}
         style={{
           width: `${widthPercent}%`,
           borderRadius,
@@ -28,14 +68,22 @@ function GalleryImage({ src, widthPercent, borderRadius }: { src: string; widthP
   );
 }
 
-function GalleryTextCard({ content, bgColor }: { content: string; bgColor: string }) {
+function GalleryTextCard({
+  content,
+  bgColor,
+  fontSize,
+}: {
+  content: string;
+  bgColor: string;
+  fontSize: number;
+}) {
   return (
     <div
       style={{
         backgroundColor: bgColor,
         padding: '20px 24px',
         borderRadius: 6,
-        fontSize: 15,
+        fontSize,
         lineHeight: 1.7,
         color: '#2C3E50',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
@@ -45,15 +93,45 @@ function GalleryTextCard({ content, bgColor }: { content: string; bgColor: strin
   );
 }
 
-function renderComponent(comp: PortfolioComponent) {
+function renderComponent(comp: PortfolioComponent, themeColor: string) {
   switch (comp.type) {
     case 'title':
-      return <GalleryTitle text={(comp.props as TitleProps).text} fontSize={(comp.props as TitleProps).fontSize} />;
+      return (
+        <GalleryTitle
+          text={(comp.props as TitleProps).text}
+          fontSize={(comp.props as TitleProps).fontSize}
+          color={(comp.props as TitleProps).color}
+          align={(comp.props as TitleProps).align}
+          themeColor={themeColor}
+        />
+      );
     case 'image':
-      return <GalleryImage src={(comp.props as ImageProps).src} widthPercent={(comp.props as ImageProps).widthPercent} borderRadius={(comp.props as ImageProps).borderRadius} />;
+      return (
+        <GalleryImage
+          src={(comp.props as ImageProps).src}
+          widthPercent={(comp.props as ImageProps).widthPercent}
+          borderRadius={(comp.props as ImageProps).borderRadius}
+          alt={(comp.props as ImageProps).alt}
+        />
+      );
     case 'textCard':
-      return <GalleryTextCard content={(comp.props as TextCardProps).content} bgColor={(comp.props as TextCardProps).bgColor} />;
+      return (
+        <GalleryTextCard
+          content={(comp.props as TextCardProps).content}
+          bgColor={(comp.props as TextCardProps).bgColor}
+          fontSize={(comp.props as TextCardProps).fontSize}
+        />
+      );
   }
+}
+
+function darkenColor(hex: string, percent: number): string {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = Math.max((num >> 16) - amt, 0);
+  const G = Math.max(((num >> 8) & 0x00ff) - amt, 0);
+  const B = Math.max((num & 0x0000ff) - amt, 0);
+  return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
 }
 
 export default function GalleryPage() {
@@ -125,20 +203,11 @@ export default function GalleryPage() {
           </div>
         )}
         {sorted.map((comp) => (
-          <div key={comp.id} style={{ marginBottom: 16 }}>
-            {renderComponent(comp)}
+          <div key={comp.id} style={{ marginBottom: 16, zIndex: comp.zIndex }}>
+            {renderComponent(comp, themeColor)}
           </div>
         ))}
       </div>
     </div>
   );
-}
-
-function darkenColor(hex: string, percent: number): string {
-  const num = parseInt(hex.replace('#', ''), 16);
-  const amt = Math.round(2.55 * percent);
-  const R = Math.max((num >> 16) - amt, 0);
-  const G = Math.max(((num >> 8) & 0x00ff) - amt, 0);
-  const B = Math.max((num & 0x0000ff) - amt, 0);
-  return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
 }

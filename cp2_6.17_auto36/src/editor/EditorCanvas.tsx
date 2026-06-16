@@ -1,29 +1,67 @@
 import { useDrop } from 'react-dnd';
-import { useEditorStore, useComponentList, useSelectedId, useBgColor } from '../store/editorStore';
+import {
+  useComponentList,
+  useSelectedId,
+  useSelectedIds,
+  useBgColor,
+  useEditorStore,
+} from '../store/editorStore';
 import EditableComponent from './EditableComponent';
-import type { ComponentType, PortfolioComponent } from '../store/editorStore';
-import { useState, useCallback, useRef } from 'react';
+import type { ComponentType } from '../store/editorStore';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export default function EditorCanvas() {
   const addComponent = useEditorStore((s) => s.addComponent);
   const selectComponent = useEditorStore((s) => s.selectComponent);
+  const toggleMultiSelect = useEditorStore((s) => s.toggleMultiSelect);
+  const clearSelection = useEditorStore((s) => s.clearSelection);
+  const moveComponent = useEditorStore((s) => s.moveComponent);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
   const components = useComponentList();
   const selectedId = useSelectedId();
+  const selectedIds = useSelectedIds();
   const bgColor = useBgColor();
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (
+        ((e.ctrlKey || e.metaKey) && e.key === 'y') ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Z')
+      ) {
+        e.preventDefault();
+        redo();
+      } else if (e.key === 'Escape') {
+        clearSelection();
+      } else if (e.key === 'Delete' && selectedIds.length > 0) {
+        e.preventDefault();
+        if (window.confirm(`确定要删除选中的 ${selectedIds.length} 个组件吗？`)) {
+          useEditorStore.getState().removeComponents(selectedIds);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, clearSelection, selectedIds]);
+
   const [{ isOver, canDrop }, drop] = useDrop(
     () => ({
       accept: ['PALETTE_COMPONENT', 'CANVAS_COMPONENT'],
-      drop: (item: { type: ComponentType; id?: string; order?: number }, monitor) => {
+      drop: (
+        item: { type: ComponentType; id?: string; order?: number },
+        monitor
+      ) => {
         const itemType = monitor.getItemType();
         if (itemType === 'PALETTE_COMPONENT') {
           addComponent(item.type, dropIndex ?? undefined);
         } else if (itemType === 'CANVAS_COMPONENT' && item.id) {
           const targetOrder = dropIndex ?? components.length;
-          const mover = useEditorStore.getState();
-          mover.moveComponent(item.id, targetOrder);
+          moveComponent(item.id, targetOrder);
         }
         setDropIndex(null);
       },
@@ -41,19 +79,32 @@ export default function EditorCanvas() {
         canDrop: monitor.canDrop(),
       }),
     }),
-    [dropIndex, components, addComponent]
+    [dropIndex, components, addComponent, moveComponent]
   );
 
   const handleCanvasClick = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === canvasRef.current) {
-        selectComponent(null);
+        clearSelection();
       }
     },
-    [selectComponent]
+    [clearSelection]
+  );
+
+  const handleSelect = useCallback(
+    (id: string, isMulti?: boolean) => {
+      if (isMulti) {
+        toggleMultiSelect(id);
+      } else {
+        selectComponent(id);
+      }
+    },
+    [selectComponent, toggleMultiSelect]
   );
 
   drop(canvasRef);
+
+  const sortedComponents = [...components].sort((a, b) => a.order - b.order);
 
   return (
     <div
@@ -82,7 +133,7 @@ export default function EditorCanvas() {
           transition: 'border 0.2s ease',
         }}
       >
-        {components.length === 0 && !isOver && (
+        {sortedComponents.length === 0 && !isOver && (
           <div
             style={{
               display: 'flex',
@@ -93,9 +144,14 @@ export default function EditorCanvas() {
               fontSize: 16,
               border: '2px dashed #BDC3C7',
               borderRadius: 6,
+              flexDirection: 'column',
+              gap: 12,
             }}
           >
-            从左侧拖拽组件到此处
+            <div>从左侧拖拽组件到此处</div>
+            <div style={{ fontSize: 12, color: '#D5DBDB' }}>
+              提示：按住 Ctrl 点击可多选组件
+            </div>
           </div>
         )}
 
@@ -105,22 +161,23 @@ export default function EditorCanvas() {
               height: 4,
               backgroundColor: '#3498DB',
               borderRadius: 2,
-              marginBottom: 8,
               position: 'absolute',
               left: 24,
               right: 24,
               top: 24 + dropIndex * 80,
               transition: 'top 0.2s ease-out',
+              zIndex: 100,
             }}
           />
         )}
 
-        {components.map((comp) => (
+        {sortedComponents.map((comp) => (
           <EditableComponent
             key={comp.id}
             component={comp}
             isSelected={comp.id === selectedId}
-            onSelect={selectComponent}
+            isMultiSelected={selectedIds.includes(comp.id) && comp.id !== selectedId}
+            onSelect={handleSelect}
           />
         ))}
       </div>

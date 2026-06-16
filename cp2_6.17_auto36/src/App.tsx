@@ -3,11 +3,28 @@ import EditorCanvas from './editor/EditorCanvas';
 import ComponentPalette from './editor/ComponentPalette';
 import PropertyPanel from './editor/PropertyPanel';
 import GalleryPage from './gallery/GalleryPage';
-import { useEditorStore } from './store/editorStore';
+import {
+  useEditorStore,
+  useThemeColor,
+  useBgColor,
+  useCanUndo,
+  useCanRedo,
+} from './store/editorStore';
 import { useNavigate } from 'react-router-dom';
 
 function Toolbar() {
-  const { themeColor, bgColor, setThemeColor, setBgColor } = useEditorStore();
+  const themeColor = useThemeColor();
+  const bgColor = useBgColor();
+  const canUndo = useCanUndo();
+  const canRedo = useCanRedo();
+  const {
+    undo,
+    redo,
+    setThemeColor,
+    setBgColor,
+    selectedIds,
+    removeComponents,
+  } = useEditorStore();
   const navigate = useNavigate();
 
   const themePresets = [
@@ -22,6 +39,27 @@ function Toolbar() {
     { label: '白', value: '#FFFFFF' },
     { label: '深色', value: '#2C3E50' },
   ];
+
+  const buttonBaseStyle: React.CSSProperties = {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    border: '1px solid rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    color: '#fff',
+    fontSize: 14,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedIds.length > 0 && window.confirm(`确定要删除选中的 ${selectedIds.length} 个组件吗？`)) {
+      removeComponents(selectedIds);
+    }
+  };
 
   return (
     <div
@@ -40,15 +78,85 @@ function Toolbar() {
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
       }}
     >
-      <div
-        style={{
-          color: '#fff',
-          fontSize: 20,
-          fontWeight: 'bold',
-          letterSpacing: 1,
-        }}
-      >
-        PixelPortfolio
+      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+        <div
+          style={{
+            color: '#fff',
+            fontSize: 20,
+            fontWeight: 'bold',
+            letterSpacing: 1,
+          }}
+        >
+          PixelPortfolio
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            style={{
+              ...buttonBaseStyle,
+              opacity: canUndo ? 1 : 0.4,
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+            }}
+            title="撤销 (Ctrl+Z)"
+            onMouseEnter={(e) => {
+              if (canUndo) {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+            }}
+          >
+            ↶
+          </button>
+          <button
+            onClick={redo}
+            disabled={!canRedo}
+            style={{
+              ...buttonBaseStyle,
+              opacity: canRedo ? 1 : 0.4,
+              cursor: canRedo ? 'pointer' : 'not-allowed',
+            }}
+            title="重做 (Ctrl+Y)"
+            onMouseEnter={(e) => {
+              if (canRedo) {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+            }}
+          >
+            ↷
+          </button>
+
+          {selectedIds.length > 1 && (
+            <button
+              onClick={handleBatchDelete}
+              style={{
+                ...buttonBaseStyle,
+                backgroundColor: '#E74C3C',
+                border: 'none',
+                marginLeft: 8,
+              }}
+              title={`批量删除 (${selectedIds.length}个)`}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              🗑
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
