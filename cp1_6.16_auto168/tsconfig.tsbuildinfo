@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/gamecanvas.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/store/gamestore.ts","./src/types/index.ts","./src/utils/audio.ts","./src/utils/nodegenerator.ts","./src/utils/scoring.ts"],"errors":true,"version":"5.6.3"}
