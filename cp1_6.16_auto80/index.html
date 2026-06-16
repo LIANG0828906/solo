@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>深海生物垂直分布可视化</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 30%, #0a2a55 0%, #0a1628 40%, #000000 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: #e6f1ff;
+      user-select: none;
+    }
+
+    #app { position: fixed; inset: 0; }
+    #canvas-container { position: absolute; inset: 0; }
+
+    .glass {
+      background: rgba(0, 20, 40, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    #depth-ruler {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 56px;
+      height: 80vh;
+      max-height: 820px;
+      padding: 12px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .ruler-track {
+      position: relative;
+      width: 2px;
+      flex: 1;
+      background: linear-gradient(to bottom, rgba(0, 229, 255, 0.4), rgba(99, 102, 241, 0.15));
+      margin: 4px 0;
+    }
+
+    .ruler-tick {
+      position: absolute;
+      left: -18px;
+      width: 40px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transform: translateY(-50%);
+    }
+
+    .ruler-tick .line {
+      width: 14px;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.45);
+    }
+
+    .ruler-tick .label {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.75);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .ruler-indicator {
+      position: absolute;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #00e5ff;
+      box-shadow: 0 0 12px #00e5ff, 0 0 24px rgba(0, 229, 255, 0.5);
+      transition: top 0.15s linear;
+      z-index: 2;
+    }
+
+    #env-card {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      width: 220px;
+      padding: 16px 18px;
+    }
+
+    #env-card .title {
+      font-size: 12px;
+      color: rgba(230, 241, 255, 0.6);
+      letter-spacing: 1px;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+
+    #env-card .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    #env-card .row:last-child { border-bottom: none; }
+
+    #env-card .label { font-size: 12px; color: rgba(230, 241, 255, 0.7); }
+    #env-card .value {
+      font-size: 22px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: #00e5ff;
+    }
+    #env-card .value.temp { color: #ff9066; }
+    #env-card .unit { font-size: 11px; color: rgba(230, 241, 255, 0.5); margin-left: 3px; }
+
+    #view-panel {
+      position: absolute;
+      right: 20px;
+      top: 200px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 220px;
+    }
+
+    #view-panel .panel-title {
+      grid-column: 1 / -1;
+      font-size: 11px;
+      color: rgba(230, 241, 255, 0.6);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .btn {
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      color: #bfefff;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .btn:hover {
+      background: rgba(0, 229, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 229, 255, 0.25);
+    }
+    .btn.active {
+      background: rgba(0, 229, 255, 0.35);
+      border-color: #00e5ff;
+      color: #ffffff;
+    }
+
+    #sidebar {
+      position: absolute;
+      right: 20px;
+      top: 340px;
+      bottom: 200px;
+      width: 220px;
+      padding: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: width 0.3s ease;
+    }
+
+    #sidebar.collapsed { width: 52px; }
+    #sidebar.collapsed .sidebar-title,
+    #sidebar.collapsed .creature-name,
+    #sidebar.collapsed .creature-depth { display: none; }
+
+    .sidebar-title {
+      font-size: 11px;
+      color: rgba(230, 241, 255, 0.6);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      white-space: nowrap;
+    }
+
+    .sidebar-toggle {
+      position: absolute;
+      left: -14px;
+      top: 10px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(0, 20, 40, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #e6f1ff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      z-index: 3;
+    }
+    .sidebar-toggle:hover { background: rgba(0, 229, 255, 0.3); transform: scale(1.08); }
+
+    .creature-list {
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-right: 4px;
+    }
+    .creature-list::-webkit-scrollbar { width: 4px; }
+    .creature-list::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.3); border-radius: 2px; }
+
+    .creature-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      min-width: 0;
+    }
+    .creature-item:hover {
+      background: rgba(0, 229, 255, 0.1);
+      border-color: rgba(0, 229, 255, 0.3);
+      transform: translateY(-2px);
+    }
+    .creature-item.active {
+      background: rgba(0, 229, 255, 0.18);
+      border-color: #00e5ff;
+    }
+
+    .creature-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    .creature-meta { display: flex; flex-direction: column; min-width: 0; }
+    .creature-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .creature-depth { font-size: 10px; color: rgba(230, 241, 255, 0.5); }
+
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      padding: 12px 14px;
+      min-width: 200px;
+      opacity: 0;
+      transform: translate(12px, 12px);
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+    #tooltip.visible { opacity: 1; }
+
+    #tooltip .t-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+    #tooltip .t-depth {
+      font-size: 11px;
+      color: #00e5ff;
+      margin-bottom: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+    #tooltip .t-features {
+      font-size: 12px;
+      color: rgba(230, 241, 255, 0.8);
+      line-height: 1.5;
+    }
+
+    #chart-container {
+      position: absolute;
+      left: 96px;
+      right: 260px;
+      bottom: 20px;
+      height: 140px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #chart-container .chart-title {
+      font-size: 11px;
+      color: rgba(230, 241, 255, 0.55);
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      display: flex;
+      gap: 20px;
+    }
+    #chart-container .chart-title .legend {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #chart-container .chart-title .legend .bar {
+      width: 24px;
+      height: 3px;
+      border-radius: 2px;
+    }
+    #chart-container .chart-title .legend .bar.p { background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
+    #chart-container .chart-title .legend .bar.t { background: repeating-linear-gradient(90deg, #f97316 0 6px, transparent 6px 10px); }
+
+    #chart-svg {
+      width: 100%;
+      flex: 1;
+      display: block;
+    }
+
+    .chart-label {
+      position: absolute;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      pointer-events: none;
+      transform: translate(-50%, -140%);
+      white-space: nowrap;
+    }
+    .chart-label.p { background: rgba(99, 102, 241, 0.5); color: #c7d2fe; border: 1px solid rgba(139, 92, 246, 0.4); }
+    .chart-label.t { background: rgba(249, 115, 22, 0.5); color: #fed7aa; border: 1px solid rgba(249, 115, 22, 0.4); }
+
+    @media (max-width: 1440px) {
+      #depth-ruler { height: 78vh; }
+      #sidebar { top: 330px; bottom: 180px; }
+      #chart-container { height: 130px; right: 260px; }
+    }
+
+    @media (max-width: 1200px) {
+      #sidebar { width: 52px; }
+      #sidebar .sidebar-title,
+      #sidebar .creature-name,
+      #sidebar .creature-depth { display: none; }
+      #chart-container { right: 96px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <div id="depth-ruler" class="glass">
+      <div class="ruler-track" id="ruler-track">
+        <div class="ruler-indicator" id="ruler-indicator"></div>
+      </div>
+    </div>
+
+    <div id="env-card" class="glass">
+      <div class="title">环境参数</div>
+      <div class="row">
+        <span class="label">压力</span>
+        <span><span class="value" id="val-pressure">1.0</span><span class="unit">atm</span></span>
+      </div>
+      <div class="row">
+        <span class="label">温度</span>
+        <span><span class="value temp" id="val-temp">24.0</span><span class="unit">°C</span></span>
+      </div>
+    </div>
+
+    <div id="view-panel" class="glass">
+      <div class="panel-title">快速视角</div>
+      <div class="btn" data-depth="0">海面全景</div>
+      <div class="btn" data-depth="1000">中层带</div>
+      <div class="btn" data-depth="4000">深海带</div>
+      <div class="btn" data-depth="10000">超深渊带</div>
+    </div>
+
+    <div id="sidebar" class="glass">
+      <div class="sidebar-toggle" id="sidebar-toggle">«</div>
+      <div class="sidebar-title">生物图鉴</div>
+      <div class="creature-list" id="creature-list"></div>
+    </div>
+
+    <div id="tooltip" class="glass"></div>
+
+    <div id="chart-container" class="glass">
+      <div class="chart-title">
+        <span class="legend"><span class="bar p"></span>压力 (atm)</span>
+        <span class="legend"><span class="bar t"></span>温度 (°C)</span>
+      </div>
+      <svg id="chart-svg" preserveAspectRatio="none"></svg>
+      <div class="chart-label p" id="chart-label-p" style="display:none"></div>
+      <div class="chart-label t" id="chart-label-t" style="display:none"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
