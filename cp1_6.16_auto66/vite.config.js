@@ -5,10 +5,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    open: true
-  },
-  build: {
-    sourcemap: true,
-    outDir: 'dist'
+    open: false
   }
 })

@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/controlpanel.tsx","./src/statistics.tsx","./src/creatures.ts","./src/ecosystem.ts","./src/main.tsx","./src/vite-env.d.ts"],"version":"5.8.3"}
+{"root":["./src/app.tsx","./src/controlpanel.tsx","./src/dreamengine.ts","./src/dreamrenderer.ts","./src/main.tsx","./src/vite-env.d.ts"],"errors":true,"version":"5.8.3"}
