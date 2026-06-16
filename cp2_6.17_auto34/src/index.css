@@ -1,0 +1,55 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  background: #F5F9FF;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+input, select, button, textarea {
+  font-family: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F0F4F8;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #90CAF9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64B5F6;
+}
+
+@media (max-width: 768px) {
+  input[type="date"],
+  input[type="text"],
+  input[type="number"],
+  select {
+    font-size: 16px;
+  }
+}
