@@ -31,7 +31,7 @@ interface AppState {
   pressKey: (note: string) => void;
   releaseKey: (note: string) => void;
   clearStaff: () => void;
-  setTone: (tone: Tone) => void;
+  setTone: (tone: Tone) => Promise<void>;
   startRecording: () => void;
   stopRecording: () => void;
   playMelody: (melodyId: string) => void;
@@ -186,8 +186,8 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
 
-  setTone: (tone: Tone) => {
-    audioEngine.setTone(tone);
+  setTone: async (tone: Tone) => {
+    await audioEngine.setTone(tone);
     set({ tone });
   },
 
@@ -264,11 +264,11 @@ export const useStore = create<AppState>((set, get) => ({
       }
 
       melody.notes.forEach(note => {
-        if (note.time <= elapsed && !playedNotes.has(note.id)) {
-          playedNotes.add(note.id);
-          audioEngine.playNote(note.pitch, note.duration * 0.8);
-        }
-      });
+      if (note.time <= elapsed && !playedNotes.has(note.id)) {
+        playedNotes.add(note.id);
+        audioEngine.playNoteWithTone(note.pitch, note.duration * 0.8, tone);
+      }
+    });
 
       set({ playProgress: progress });
       requestAnimationFrame(animate);

@@ -174,26 +174,29 @@ const Staff: React.FC = () => {
   };
 
   useEffect(() => {
-    console.log('Staff useEffect - animation setup');
     const canvas = canvasRef.current;
-    console.log('Staff canvas ref:', canvas);
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    console.log('Staff ctx:', ctx);
     if (!ctx) return;
 
-    let frameCount = 0;
+    const initialState = stateRef.current;
+    ctx.fillStyle = '#FEFEFE';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    drawStaff(ctx);
+    initialState.staffNotes.forEach(note => {
+      drawNote(ctx, note, initialState.beatWidth, false, initialState.isEditMode);
+    });
+
+    let isMounted = true;
+    let animationId = 0;
 
     let lastFrameTime = 0;
     const targetFPS = 30;
     const frameInterval = 1000 / targetFPS;
 
     const render = (timestamp: number) => {
-      frameCount++;
-      if (frameCount <= 3) {
-        console.log('Staff render frame:', frameCount, 'timestamp:', timestamp);
-      }
+      if (!isMounted) return;
 
       if (timestamp - lastFrameTime >= frameInterval) {
         const { staffNotes, isPlaying, playProgress, isEditMode, beatWidth } = stateRef.current;
@@ -228,14 +231,16 @@ const Staff: React.FC = () => {
         lastFrameTime = timestamp;
       }
 
-      animationRef.current = requestAnimationFrame(render);
+      animationId = requestAnimationFrame(render);
     };
 
-    animationRef.current = requestAnimationFrame(render);
+    animationId = requestAnimationFrame(render);
 
     return () => {
-      console.log('Staff useEffect cleanup - cancel animation');
-      cancelAnimationFrame(animationRef.current);
+      isMounted = false;
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
     };
   }, []);
 
