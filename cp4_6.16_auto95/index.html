@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PlantPassport</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Nunito:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      .loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #e8f5e9;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        font-family: 'Quicksand', sans-serif;
+      }
+
+      .watering-can {
+        animation: bounce 2s ease-in-out infinite;
+        transform-origin: center bottom;
+      }
+
+      @keyframes bounce {
+        0%, 100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-12px);
+        }
+      }
+
+      .water-drop {
+        animation: fall 1.5s ease-in infinite;
+        opacity: 0;
+      }
+
+      .water-drop.drop-1 {
+        animation-delay: 0s;
+      }
+      .water-drop.drop-2 {
+        animation-delay: 0.4s;
+      }
+      .water-drop.drop-3 {
+        animation-delay: 0.8s;
+      }
+
+      @keyframes fall {
+        0% {
+          opacity: 0;
+          transform: translateY(0);
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(40px);
+        }
+      }
+
+      .loading-text {
+        margin-top: 24px;
+        font-size: 18px;
+        font-weight: 600;
+        color: #2e7d32;
+        letter-spacing: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="loading-screen">
+        <svg
+          class="watering-can"
+          width="80"
+          height="80"
+          viewBox="0 0 80 80"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <!-- Can body -->
+          <rect x="20" y="30" width="36" height="28" rx="4" fill="#4caf50" />
+          <!-- Can top -->
+          <rect x="22" y="26" width="32" height="6" rx="3" fill="#66bb6a" />
+          <!-- Spout -->
+          <path d="M56 38 L72 28 L74 32 L58 42 Z" fill="#43a047" />
+          <!-- Spout rose -->
+          <ellipse cx="73" cy="28" rx="5" ry="4" fill="#388e3c" />
+          <circle cx="71" cy="27" r="0.8" fill="#2e7d32" />
+          <circle cx="73" cy="26" r="0.8" fill="#2e7d32" />
+          <circle cx="75" cy="27" r="0.8" fill="#2e7d32" />
+          <circle cx="72" cy="29" r="0.8" fill="#2e7d32" />
+          <circle cx="74" cy="29" r="0.8" fill="#2e7d32" />
+          <!-- Handle -->
+          <path
+            d="M20 32 Q8 32 8 44 Q8 56 20 56"
+            stroke="#388e3c"
+            stroke-width="4"
+            fill="none"
+            stroke-linecap="round"
+          />
+          <!-- Highlight -->
+          <rect x="26" y="34" width="4" height="12" rx="2" fill="#81c784" opacity="0.6" />
+        </svg>
+
+        <!-- Water drops -->
+        <svg width="40" height="30" viewBox="0 0 40 30" fill="none" style="margin-top: -8px; margin-left: 20px;">
+          <path class="water-drop drop-1" d="M8 0 Q6 6 8 9 Q10 6 8 0Z" fill="#64b5f6" />
+          <path class="water-drop drop-2" d="M18 0 Q16 6 18 9 Q20 6 18 0Z" fill="#42a5f5" />
+          <path class="water-drop drop-3" d="M28 0 Q26 6 28 9 Q30 6 28 0Z" fill="#64b5f6" />
+        </svg>
+
+        <p class="loading-text">PlantPassport 加载中...</p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
