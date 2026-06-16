@@ -12,7 +12,8 @@ export class InteractionManager {
   private dragMode: DragMode = 'none'
   private dragStartPos = { x: 0, y: 0 }
   private lastMousePos = { x: 0, y: 0 }
-  private lastProcessedKey = ''
+  private lastProcessedPos = { x: 0, y: 0 }
+  private processedPositions: Set<string> = new Set()
   private lastHoverUpdate = 0
 
   private hoverInfo: HighlightInfo | null = null
@@ -79,8 +80,9 @@ export class InteractionManager {
     }
 
     if (hasTarget && (state.mode === 'place' || state.mode === 'remove')) {
-      this.lastProcessedKey = ''
-      this.processVoxelAction(false)
+      this.processedPositions.clear()
+      this.lastProcessedPos = { x: e.clientX, y: e.clientY }
+      this.processVoxelAt(e.clientX, e.clientY)
       this.dragMode = state.mode === 'place' ? 'voxel-place' : 'voxel-remove'
       this.canvas.setPointerCapture(e.pointerId)
       return
@@ -114,13 +116,11 @@ export class InteractionManager {
 
       case 'voxel-place':
       case 'voxel-remove':
-        const distMoved = Math.hypot(
-          e.clientX - this.dragStartPos.x,
-          e.clientY - this.dragStartPos.y
+        this.interpolatePath(
+          this.lastProcessedPos.x, this.lastProcessedPos.y,
+          e.clientX, e.clientY
         )
-        if (distMoved > 3) {
-          this.processVoxelAction(true)
-        }
+        this.lastProcessedPos = { x: e.clientX, y: e.clientY }
         this.lastMousePos = { x: e.clientX, y: e.clientY }
         return
     }
@@ -153,7 +153,7 @@ export class InteractionManager {
     }
 
     this.dragMode = 'none'
-    this.lastProcessedKey = ''
+    this.processedPositions.clear()
 
     this.updateHoverHighlight()
   }
@@ -267,7 +267,23 @@ export class InteractionManager {
     return null
   }
 
-  private processVoxelAction(isDragging: boolean) {
+  private interpolatePath(x0: number, y0: number, x1: number, y1: number) {
+    const dx = x1 - x0
+    const dy = y1 - y0
+    const dist = Math.hypot(dx, dy)
+    const step = 1.5
+    const steps = Math.max(1, Math.floor(dist / step))
+
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps
+      const x = x0 + dx * t
+      const y = y0 + dy * t
+      this.processVoxelAt(x, y)
+    }
+  }
+
+  private processVoxelAt(clientX: number, clientY: number) {
+    this.scene3D.updateMouse(clientX, clientY)
     const state = useVoxelStore.getState()
     const hit = this.scene3D.getIntersection()
 
@@ -275,18 +291,17 @@ export class InteractionManager {
 
     switch (state.mode) {
       case 'place':
-        this.handlePlace(hit, state.brushSize, isDragging)
+        this.handlePlaceAt(hit, state.brushSize)
         break
       case 'remove':
-        this.handleRemove(hit, state.brushSize, isDragging)
+        this.handleRemoveAt(hit, state.brushSize)
         break
     }
   }
 
-  private handlePlace(
+  private handlePlaceAt(
     hit: { voxelId?: string; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean },
-    brushSize: BrushSize,
-    isDragging: boolean
+    brushSize: BrushSize
   ) {
     const store = useVoxelStore.getState()
     const voxel = hit.voxelId ? store.voxels.find(v => v.id === hit.voxelId) : undefined
@@ -306,32 +321,28 @@ export class InteractionManager {
 
     const positions = this.scene3D.getBrushPositions(targetX, targetY, targetZ, brushSize)
 
-    if (isDragging) {
-      const key = positions.map(p => `${p.x},${p.y},${p.z}`).sort().join('|')
-      if (key === this.lastProcessedKey) return
-      this.lastProcessedKey = key
-    }
-
-    const currentVoxels = new Set(store.voxels.map(v => `${v.x},${v.y},${v.z}`))
-
     let anyAdded = false
     for (const pos of positions) {
-      const k = `${pos.x},${pos.y},${pos.z}`
-      if (currentVoxels.has(k)) continue
+      const key = `p_${pos.x}_${pos.y}_${pos.z}`
+      if (this.processedPositions.has(key)) continue
+      this.processedPositions.add(key)
+
       if (pos.y < 0) continue
       if (pos.y > 64) continue
       if (pos.x < -32 || pos.x > 31) continue
       if (pos.z < -32 || pos.z > 31) continue
+
+      const exists = store.voxels.some(v => v.x === pos.x && v.y === pos.y && v.z === pos.z)
+      if (exists) continue
+
       store.addVoxel(pos.x, pos.y, pos.z)
       anyAdded = true
     }
-    if (anyAdded) store.triggerPulse()
   }
 
-  private handleRemove(
+  private handleRemoveAt(
     hit: { voxelId?: string; position?: THREE.Vector3; normal?: THREE.Vector3; isFloor?: boolean },
-    brushSize: BrushSize,
-    isDragging: boolean
+    brushSize: BrushSize
   ) {
     const store = useVoxelStore.getState()
     const voxel = hit.voxelId ? store.voxels.find(v => v.id === hit.voxelId) : undefined
@@ -343,19 +354,18 @@ export class InteractionManager {
     const baseY = voxel.y
     const baseZ = voxel.z
 
-    if (isDragging) {
-      const key = `${baseX},${baseY},${baseZ},s${brushSize}`
-      if (key === this.lastProcessedKey) return
-      this.lastProcessedKey = key
-    }
-
     let anyRemoved = false
     for (let dx = -half; dx <= half; dx++) {
       for (let dy = 0; dy < brushSize; dy++) {
         for (let dz = -half; dz <= half; dz++) {
-          const found = store.voxels.find(
-            v => v.x === baseX + dx && v.y === baseY + dy && v.z === baseZ + dz
-          )
+          const gx = baseX + dx
+          const gy = baseY + dy
+          const gz = baseZ + dz
+          const key = `r_${gx}_${gy}_${gz}`
+          if (this.processedPositions.has(key)) continue
+          this.processedPositions.add(key)
+
+          const found = store.voxels.find(v => v.x === gx && v.y === gy && v.z === gz)
           if (found) {
             store.removeVoxel(found.id)
             anyRemoved = true
@@ -363,7 +373,6 @@ export class InteractionManager {
         }
       }
     }
-    if (anyRemoved) store.triggerPulse()
   }
 
   private handlePick(hit: { voxelId?: string }) {

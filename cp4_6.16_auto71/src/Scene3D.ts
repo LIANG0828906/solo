@@ -688,6 +688,51 @@ export class Scene3D {
     this.renderer.render(this.scene, this.camera)
   }
 
+  public resetCamera(animate: boolean = true) {
+    this.cameraAzimuth = Math.PI / 4
+    this.cameraPolar = Math.PI / 3.5
+    this.cameraDistance = 25
+    this.cameraTarget.set(0, 1, 0)
+    this.updateCameraPosition(animate)
+  }
+
+  public zoomToFit(animate: boolean = true) {
+    const store = useVoxelStore.getState()
+    const voxels = store.voxels
+    if (voxels.length === 0) {
+      this.resetCamera(animate)
+      return
+    }
+
+    let minX = Infinity, maxX = -Infinity
+    let minY = Infinity, maxY = -Infinity
+    let minZ = Infinity, maxZ = -Infinity
+    for (const v of voxels) {
+      minX = Math.min(minX, v.x)
+      maxX = Math.max(maxX, v.x)
+      minY = Math.min(minY, v.y)
+      maxY = Math.max(maxY, v.y)
+      minZ = Math.min(minZ, v.z)
+      maxZ = Math.max(maxZ, v.z)
+    }
+
+    const centerX = (minX + maxX) / 2
+    const centerY = (minY + maxY) / 2
+    const centerZ = (minZ + maxZ) / 2
+    this.cameraTarget.set(centerX, centerY, centerZ)
+
+    const sizeX = maxX - minX + 2
+    const sizeY = maxY - minY + 2
+    const sizeZ = maxZ - minZ + 2
+    const maxSize = Math.max(sizeX, sizeY, sizeZ)
+
+    const fov = this.camera.fov * (Math.PI / 180)
+    const distance = maxSize / (2 * Math.tan(fov / 2)) * 1.6
+    this.cameraDistance = Math.max(6, Math.min(60, distance))
+
+    this.updateCameraPosition(animate)
+  }
+
   public setLerpFactor(factor: number) {
     this.lerpFactor = factor
   }

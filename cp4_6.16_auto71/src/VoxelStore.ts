@@ -18,6 +18,7 @@ export interface AnimationConfig {
   type: AnimationType
   speed: number
   isPlaying: boolean
+  elapsedTime: number
 }
 
 interface VoxelState {
@@ -30,6 +31,8 @@ interface VoxelState {
   animation: AnimationConfig
   selectedVoxel: string | null
   pulseTrigger: number
+  undoPulseTrigger: number
+  redoPulseTrigger: number
 
   addVoxel: (x: number, y: number, z: number, color?: string) => void
   removeVoxel: (id: string) => void
@@ -52,6 +55,8 @@ interface VoxelState {
   importSnapshot: (data: { voxels: Voxel[]; animation?: AnimationConfig }) => void
   clearVoxels: () => void
   triggerPulse: () => void
+  triggerUndoPulse: () => void
+  triggerRedoPulse: () => void
 }
 
 export const PRESET_COLORS = [
@@ -97,9 +102,12 @@ export const useVoxelStore = create<VoxelState>((set, get) => ({
     type: 'rotate',
     speed: 1,
     isPlaying: false,
+    elapsedTime: 0,
   },
   selectedVoxel: null,
   pulseTrigger: 0,
+  undoPulseTrigger: 0,
+  redoPulseTrigger: 0,
 
   addVoxel: (x, y, z, color) => {
     const state = get()
@@ -117,6 +125,7 @@ export const useVoxelStore = create<VoxelState>((set, get) => ({
     set({
       ...pushHistory(state),
       voxels: [...state.voxels, newVoxel],
+      undoPulseTrigger: state.undoPulseTrigger + 1,
     })
   },
 
@@ -128,6 +137,7 @@ export const useVoxelStore = create<VoxelState>((set, get) => ({
       ...pushHistory(state),
       voxels: state.voxels.filter(v => v.id !== id),
       selectedVoxel: state.selectedVoxel === id ? null : state.selectedVoxel,
+      undoPulseTrigger: state.undoPulseTrigger + 1,
     })
   },
 
@@ -155,7 +165,7 @@ export const useVoxelStore = create<VoxelState>((set, get) => ({
       undoStack: state.undoStack.slice(0, -1),
       redoStack: [...state.redoStack, state.voxels],
       voxels: prev,
-      pulseTrigger: state.pulseTrigger + 1,
+      undoPulseTrigger: state.undoPulseTrigger + 1,
     })
   },
 
@@ -167,7 +177,7 @@ export const useVoxelStore = create<VoxelState>((set, get) => ({
       redoStack: state.redoStack.slice(0, -1),
       undoStack: [...state.undoStack, state.voxels],
       voxels: next,
-      pulseTrigger: state.pulseTrigger + 1,
+      redoPulseTrigger: state.redoPulseTrigger + 1,
     })
   },
 
@@ -184,7 +194,7 @@ export const useVoxelStore = create<VoxelState>((set, get) => ({
   })),
 
   resetAnimation: () => set(s => ({
-    animation: { ...s.animation, isPlaying: false },
+    animation: { ...s.animation, isPlaying: false, elapsedTime: 0 },
   })),
 
   setAnimationType: (type) => set(s => ({
@@ -200,7 +210,8 @@ export const useVoxelStore = create<VoxelState>((set, get) => ({
         id: v.id || uuidv4(),
         animOffset: v.animOffset ?? Math.random() * Math.PI * 2,
       })),
-      animation: data.animation || { type: 'rotate', speed: 1, isPlaying: false },
+      animation: data.animation || { type: 'rotate', speed: 1, isPlaying: false, elapsedTime: 0 },
+      undoPulseTrigger: state.undoPulseTrigger + 1,
     })
   },
 
@@ -209,8 +220,11 @@ export const useVoxelStore = create<VoxelState>((set, get) => ({
     set({
       ...pushHistory(state),
       voxels: [],
+      undoPulseTrigger: state.undoPulseTrigger + 1,
     })
   },
 
   triggerPulse: () => set(s => ({ pulseTrigger: s.pulseTrigger + 1 })),
+  triggerUndoPulse: () => set(s => ({ undoPulseTrigger: s.undoPulseTrigger + 1 })),
+  triggerRedoPulse: () => set(s => ({ redoPulseTrigger: s.redoPulseTrigger + 1 })),
 }))

@@ -108,24 +108,39 @@ export function UIPanel() {
     mode, setMode,
     brushSize, setBrushSize,
     undo, redo, undoStack, redoStack,
-    voxels, pulseTrigger,
+    voxels, undoPulseTrigger, redoPulseTrigger,
     animation, startAnimation, pauseAnimation, resetAnimation, setAnimationType,
     clearVoxels,
   } = useVoxelStore()
 
   const [hoveredColor, setHoveredColor] = useState<string | null>(null)
-  const [pulse, setPulse] = useState(0)
+  const [undoPulseActive, setUndoPulseActive] = useState(false)
+  const [redoPulseActive, setRedoPulseActive] = useState(false)
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (pulseTrigger > 0) {
-      setPulse(p => p + 1)
-      const t = setTimeout(() => setPulse(p => p), 600)
-      return () => clearTimeout(t)
+    if (undoPulseTrigger > 0 && undoStack.length > 0) {
+      setUndoPulseActive(false)
+      requestAnimationFrame(() => {
+        setUndoPulseActive(true)
+        const t = setTimeout(() => setUndoPulseActive(false), 600)
+        return () => clearTimeout(t)
+      })
     }
-  }, [pulseTrigger])
+  }, [undoPulseTrigger, undoStack.length])
+
+  useEffect(() => {
+    if (redoPulseTrigger > 0 && redoStack.length > 0) {
+      setRedoPulseActive(false)
+      requestAnimationFrame(() => {
+        setRedoPulseActive(true)
+        const t = setTimeout(() => setRedoPulseActive(false), 600)
+        return () => clearTimeout(t)
+      })
+    }
+  }, [redoPulseTrigger, redoStack.length])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -391,7 +406,7 @@ export function UIPanel() {
             <button
               onClick={undo}
               disabled={undoStack.length === 0}
-              className={`undo-btn ${pulse > 0 && undoStack.length > 0 ? 'pulse-active' : ''}`}
+              className={`undo-btn ${undoPulseActive ? 'pulse-active' : ''}`}
               style={{
                 ...getButtonStyle(false, 'primary'),
                 flex: 1,
@@ -407,7 +422,7 @@ export function UIPanel() {
             <button
               onClick={redo}
               disabled={redoStack.length === 0}
-              className={`redo-btn ${pulse > 0 && redoStack.length > 0 ? 'pulse-active-green' : ''}`}
+              className={`redo-btn ${redoPulseActive ? 'pulse-active-green' : ''}`}
               style={{
                 ...getButtonStyle(false, 'secondary'),
                 flex: 1,

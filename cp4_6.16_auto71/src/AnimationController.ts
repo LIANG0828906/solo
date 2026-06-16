@@ -1,8 +1,6 @@
-import * as THREE from 'three'
-import { useVoxelStore, AnimationType, Voxel } from './VoxelStore'
+import { useVoxelStore } from './VoxelStore'
 
 export class AnimationController {
-  private time = 0
   private lastTime = 0
   private subscribers: Set<() => void> = new Set()
 
@@ -18,10 +16,17 @@ export class AnimationController {
   }
 
   getTime(): number {
-    return this.time
+    return useVoxelStore.getState().animation.elapsedTime
   }
 
-  update(deltaTime: number) {
+  setTime(time: number) {
+    useVoxelStore.setState({
+      animation: { ...useVoxelStore.getState().animation, elapsedTime: time },
+    })
+    this.notify()
+  }
+
+  update() {
     const store = useVoxelStore.getState()
     const { animation } = store
 
@@ -35,13 +40,21 @@ export class AnimationController {
     const dt = Math.min((now - this.lastTime) / 1000, 0.1)
     this.lastTime = now
 
-    this.time += dt * animation.speed
+    const newTime = animation.elapsedTime + dt * animation.speed
+    useVoxelStore.setState({
+      animation: { ...animation, elapsedTime: newTime },
+    })
+
     this.notify()
   }
 
   reset() {
-    this.time = 0
+    const store = useVoxelStore.getState()
+    useVoxelStore.setState({
+      animation: { ...store.animation, elapsedTime: 0, isPlaying: false },
+    })
     this.lastTime = 0
+    this.notify()
   }
 }
 
