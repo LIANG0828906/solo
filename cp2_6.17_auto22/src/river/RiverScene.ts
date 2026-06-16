@@ -105,6 +105,7 @@ export function createRiverScene(container: HTMLElement): RiverSceneAPI {
 
   const paths: RiverPath[] = loadPaths()
   const particleSystem: FlowParticlesSystem = createFlowParticles(paths)
+  scene.add(particleSystem.trailPoints)
   scene.add(particleSystem.points)
 
   const pathNameMap: Record<string, string> = {}
@@ -219,6 +220,8 @@ export function createRiverScene(container: HTMLElement): RiverSceneAPI {
       }
       particleSystem.geometry.dispose()
       particleSystem.material.dispose()
+      particleSystem.trailGeometry.dispose()
+      particleSystem.trailMaterial.dispose()
       starGeom.dispose()
       starMat.dispose()
       bgTexture.dispose()
