@@ -27,6 +27,7 @@ export class SceneManager {
   
   private stars: THREE.Points | null = null
   private starCount = 300
+  private starSizes: Float32Array | null = null
   
   private isDragging = false
   private previousMousePosition = { x: 0, y: 0 }
@@ -121,35 +122,41 @@ export class SceneManager {
     const geometry = new THREE.BufferGeometry()
     const positions = new Float32Array(this.starCount * 3)
     const colors = new Float32Array(this.starCount * 3)
+    this.starSizes = new Float32Array(this.starCount)
     
     for (let i = 0; i < this.starCount; i++) {
-      const radius = 60 + Math.random() * 30
+      const radius = 70 + Math.random() * 40
       const theta = Math.random() * Math.PI * 2
       const phi = Math.random() * Math.PI
       
       positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta)
-      positions[i * 3 + 1] = radius * Math.cos(phi) + 20
+      positions[i * 3 + 1] = radius * Math.cos(phi)
       positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta)
       
       const colorChoice = Math.random()
-      if (colorChoice < 0.3) {
-        colors.set([1, 0.8, 0.6], i * 3)
-      } else if (colorChoice < 0.6) {
-        colors.set([0.7, 0.8, 1], i * 3)
+      if (colorChoice < 0.25) {
+        colors.set([1, 0.85, 0.7], i * 3)
+      } else if (colorChoice < 0.5) {
+        colors.set([0.75, 0.85, 1], i * 3)
+      } else if (colorChoice < 0.75) {
+        colors.set([0.9, 0.95, 1], i * 3)
       } else {
-        colors.set([1, 1, 1], i * 3)
+        colors.set([1, 1, 0.9], i * 3)
       }
+      
+      this.starSizes[i] = 0.4 + Math.random() * 0.8
     }
     
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     
     const material = new THREE.PointsMaterial({
-      size: 0.3,
+      size: 0.8,
       vertexColors: true,
       transparent: true,
-      opacity: 0.8,
-      sizeAttenuation: true
+      opacity: 0.9,
+      sizeAttenuation: true,
+      blending: THREE.AdditiveBlending
     })
     
     this.stars = new THREE.Points(geometry, material)
@@ -490,7 +497,16 @@ export class SceneManager {
         return t >= timeRange.start && t <= timeRange.end
       })
       
-      chart.updateData(filteredData, 1)
+      const paddedData: DataPoint[] = []
+      for (let i = 0; i < series.data.length; i++) {
+        if (i < filteredData.length) {
+          paddedData.push(filteredData[i])
+        } else {
+          paddedData.push({ x: i, y: 0 })
+        }
+      }
+      
+      chart.updateData(paddedData, true)
     })
   }
 
@@ -552,6 +568,7 @@ export class SceneManager {
     
     const delta = this.clock.getDelta()
     const now = performance.now()
+    const elapsed = this.clock.getElapsedTime()
     
     if (this.autoRotate && !this.autoRotatePaused) {
       this.targetSpherical.theta += (this.autoRotateSpeed * Math.PI / 180) * delta
@@ -567,8 +584,14 @@ export class SceneManager {
     
     this.updateCameraPosition()
     
-    if (this.stars && this.autoRotate) {
-      this.stars.rotation.y += (this.autoRotateSpeed * Math.PI / 180) * delta * 0.2
+    if (this.stars) {
+      this.stars.rotation.y += (this.autoRotateSpeed * Math.PI / 180) * delta * 0.3
+      
+      if (this.starSizes) {
+        const material = this.stars.material as THREE.PointsMaterial
+        const twinkle = Math.sin(elapsed * 2) * 0.15 + 0.85
+        material.size = 0.8 * twinkle
+      }
     }
     
     this.renderer.render(this.scene, this.camera)

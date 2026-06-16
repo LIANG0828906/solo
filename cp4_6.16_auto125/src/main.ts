@@ -58,27 +58,30 @@ class DataOrbitApp {
   }
 
   private loadDemoData() {
+    const now = Date.now()
+    const hourMs = 60 * 60 * 1000
+    
     const demoDatasets = [
       {
-        name: '股票走势示例',
+        name: '24小时气温变化',
         series: [
           {
             id: '',
-            name: '科技股指数',
-            data: this.generateStockData(200, 100, 30),
-            hasTimeDimension: false
+            name: '北京气温(°C)',
+            data: this.generateTimeSeriesData(100, 15, 10, now - 24 * hourMs, hourMs / 4),
+            hasTimeDimension: true
           },
           {
             id: '',
-            name: '医疗股指数',
-            data: this.generateStockData(200, 80, 20),
-            hasTimeDimension: false
+            name: '上海气温(°C)',
+            data: this.generateTimeSeriesData(100, 20, 8, now - 24 * hourMs, hourMs / 4),
+            hasTimeDimension: true
           },
           {
             id: '',
-            name: '消费股指数',
-            data: this.generateStockData(200, 120, 25),
-            hasTimeDimension: false
+            name: '广州气温(°C)',
+            data: this.generateTimeSeriesData(100, 25, 6, now - 24 * hourMs, hourMs / 4),
+            hasTimeDimension: true
           }
         ]
       }
@@ -92,14 +95,18 @@ class DataOrbitApp {
     this.sceneManager.updateCharts(state.datasets, state.chartType)
   }
 
-  private generateStockData(count: number, basePrice: number, volatility: number): { x: number; y: number }[] {
-    const data: { x: number; y: number }[] = []
-    let price = basePrice
+  private generateTimeSeriesData(count: number, baseValue: number, volatility: number, startTime: number, interval: number): { x: number; y: number; time: number }[] {
+    const data: { x: number; y: number; time: number }[] = []
+    let value = baseValue
 
     for (let i = 0; i < count; i++) {
-      const change = (Math.random() - 0.48) * volatility
-      price = Math.max(10, price + change)
-      data.push({ x: i, y: Math.round(price * 100) / 100 })
+      const change = (Math.random() - 0.5) * volatility
+      value = Math.max(0, value + change)
+      data.push({ 
+        x: i, 
+        y: Math.round(value * 10) / 10,
+        time: startTime + i * interval
+      })
     }
 
     return data

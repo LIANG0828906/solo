@@ -297,6 +297,15 @@
       margin-bottom: 8px;
     }
     
+    .timeline-ticks {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 5px;
+      margin-bottom: 4px;
+      font-size: 10px;
+      color: #666;
+    }
+    
     .timeline-slider {
       width: 100%;
       height: 6px;
@@ -561,11 +570,12 @@
     
     <div class="timeline-container glass-panel" id="timeline-container">
       <div class="timeline-current" id="timeline-current">拖动滑块查看时间维度数据</div>
+      <div class="timeline-ticks" id="timeline-ticks"></div>
+      <input type="range" class="timeline-slider" id="timeline-slider" min="0" max="100" value="100" />
       <div class="timeline-label">
         <span id="timeline-start">-</span>
         <span id="timeline-end">-</span>
       </div>
-      <input type="range" class="timeline-slider" id="timeline-slider" min="0" max="100" value="100" />
     </div>
     
     <div class="bottom-right-controls">

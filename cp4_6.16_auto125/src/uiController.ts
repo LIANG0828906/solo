@@ -38,6 +38,7 @@ export class UIController {
       timelineStart: document.getElementById('timeline-start')!,
       timelineEnd: document.getElementById('timeline-end')!,
       timelineCurrent: document.getElementById('timeline-current')!,
+      timelineTicks: document.getElementById('timeline-ticks')!,
       resetViewBtn: document.getElementById('reset-view-btn')!,
       autoRotateBtn: document.getElementById('auto-rotate-btn')!,
       loadingOverlay: document.getElementById('loading-overlay')!,
