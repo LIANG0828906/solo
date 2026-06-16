@@ -85,7 +85,7 @@ const GiftPanel: React.FC = () => {
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{
                   duration: 0.4,
-                  ease: [0.25, 0.46, 0.45, 0.94],
+                  ease: 'easeOut',
                 }}
                 className={flashingIds.has(record.id) ? 'gold-flash' : ''}
                 style={{

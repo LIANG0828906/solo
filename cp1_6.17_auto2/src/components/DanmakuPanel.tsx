@@ -40,6 +40,7 @@ const DanmakuPanel: React.FC = () => {
       <h3 style={{ color: '#E0E0E0', margin: '0 0 16px 0', fontSize: 18 }}>弹幕流</h3>
       <div
         ref={containerRef}
+        className="danmaku-container"
         style={{
           flex: 1,
           overflowY: 'auto',

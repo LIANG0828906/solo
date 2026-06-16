@@ -33,6 +33,23 @@ body {
   background: #555577;
 }
 
+.danmaku-container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.danmaku-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.danmaku-container::-webkit-scrollbar-thumb {
+  background: #444466;
+  border-radius: 5px;
+}
+
+.danmaku-container::-webkit-scrollbar-thumb:hover {
+  background: #555577;
+}
+
 @keyframes slideInRight {
   from {
     transform: translateX(100%);
@@ -82,10 +99,13 @@ body {
   border: 1px solid #E0E0E0;
   transition: all cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.2s;
   cursor: pointer;
+  transform: translateY(0);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .gift-card:hover {
-  animation: floatUp 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
 .gift-slide-in {

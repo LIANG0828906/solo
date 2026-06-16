@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Tabs, Spin } from 'antd';
 import { TrophyOutlined } from '@ant-design/icons';
 import { useDashboardStore } from '../stores/dashboardStore';
@@ -50,7 +50,15 @@ const formatNumber = (num: number): string => {
 };
 
 const RankingTable: React.FC = () => {
-  const { ranking, rankingPeriod, setRankingPeriod, loading } = useDashboardStore();
+  const { ranking, rankingPeriod, setRankingPeriod, loading, fetchRanking } = useDashboardStore();
+
+  useEffect(() => {
+    fetchRanking();
+    const interval = setInterval(() => {
+      fetchRanking();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchRanking]);
 
   const items = [
     { key: 'today', label: '今日' },
