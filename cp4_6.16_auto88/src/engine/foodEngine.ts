@@ -1,5 +1,70 @@
-import { GeoPoint, Restaurant } from '@/types';
+import { GeoPoint, Restaurant, ScenarioType } from '@/types';
 import { restaurants } from '@/data/foodData';
+
+export const inferScenarios = (tags: string[], rating: number, signatureDishes: string[]): ScenarioType[] => {
+  const scenarios: ScenarioType[] = [];
+  const tagsLower = tags.map(t => t.toLowerCase());
+  const dishesLower = signatureDishes.map(d => d.toLowerCase());
+  const dishesStr = dishesLower.join(' ');
+
+  const isFast = tagsLower.some(t => ['小吃', '街头', '面食'].includes(t)) || 
+                 dishesLower.some(d => ['面', '粉', '包', '饺', '馍'].some(c => d.includes(c)));
+  
+  const isFormal = tagsLower.some(t => ['老字号', '西餐', '景观', '粤菜', '闽菜', '鲁菜', '杭帮菜', '苏帮菜', '陕菜', '徽菜', '赣菜', '湘菜'].includes(t));
+  
+  const isHotpot = tagsLower.includes('火锅');
+  const isSeafood = tagsLower.includes('海鲜') || dishesStr.includes('虾') || dishesStr.includes('鱼') || dishesStr.includes('蟹');
+  const isSpicy = tagsLower.includes('麻辣') || dishesLower.some(d => d.includes('辣') || d.includes('麻') || d.includes('椒'));
+  const isNight = tagsLower.some(t => ['小龙虾', '烤串'].includes(t)) || dishesLower.some(d => d.includes('龙虾') || d.includes('烤'));
+  
+  const hasSoup = dishesLower.some(d => d.includes('汤') || d.includes('粥'));
+  const hasDimsum = dishesLower.some(d => d.includes('包') || d.includes('饺') || d.includes('小笼') || d.includes('粉'));
+
+  if (isFast) {
+    scenarios.push('适合赶路快餐');
+    if (hasSoup || hasDimsum || tagsLower.includes('面食')) {
+      scenarios.push('适合午餐');
+    }
+  } else {
+    scenarios.push('适合悠闲慢享');
+    scenarios.push('适合晚餐');
+  }
+
+  if (isHotpot || isSeafood || tagsLower.some(t => ['火锅', '麻辣', '海鲜'].includes(t))) {
+    if (!scenarios.includes('适合晚餐')) scenarios.push('适合晚餐');
+    scenarios.push('适合朋友聚会');
+  }
+
+  if (isNight || tagsLower.some(t => ['小龙虾', '烤串'].includes(t))) {
+    scenarios.push('适合夜宵');
+  }
+
+  if (rating >= 4.6 && isFormal) {
+    scenarios.push('适合商务宴请');
+  }
+
+  if (tagsLower.includes('景观') || tagsLower.includes('西餐') || (rating >= 4.6 && !isFast)) {
+    scenarios.push('适合情侣约会');
+  }
+
+  if ((isFormal && rating >= 4.5) || tagsLower.some(t => ['老字号', '家庭'].includes(t)) || 
+      dishesStr.includes('鸡') || dishesStr.includes('鸭') || dishesStr.includes('鱼')) {
+    if (!scenarios.some(s => s.includes('家庭'))) {
+      scenarios.push('适合家庭聚餐');
+    }
+  }
+
+  if (hasSoup && (isFast || tagsLower.includes('面食'))) {
+    if (!scenarios.includes('适合午餐')) scenarios.push('适合午餐');
+  }
+
+  if (rating >= 4.7 && !scenarios.includes('适合家庭聚餐')) {
+    if (!isFast) scenarios.push('适合家庭聚餐');
+  }
+
+  const uniqueScenarios = Array.from(new Set(scenarios));
+  return uniqueScenarios.slice(0, 3);
+};
 
 const haversineDistance = (p1: GeoPoint, p2: GeoPoint): number => {
   const R = 6371;

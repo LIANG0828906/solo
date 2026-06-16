@@ -12,6 +12,18 @@ export interface City {
   province: string;
 }
 
+export type ScenarioType = 
+  | '适合午餐'
+  | '适合晚餐'
+  | '适合夜宵'
+  | '适合早餐'
+  | '适合家庭聚餐'
+  | '适合情侣约会'
+  | '适合朋友聚会'
+  | '适合商务宴请'
+  | '适合赶路快餐'
+  | '适合悠闲慢享';
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -21,6 +33,7 @@ export interface Restaurant {
   tags: string[];
   signatureDishes: string[];
   city: string;
+  scenarios: ScenarioType[];
 }
 
 export interface Route {
