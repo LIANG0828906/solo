@@ -394,8 +394,13 @@ export class Enemy implements IEnemy {
     this.health -= damage;
     this.hitFlash = true;
     this.hitFlashTimer = 0.1;
-    this.knockbackX = knockbackDir * 200;
-    this.knockbackTimer = 0.15;
+    if (this.type === 'skeleton') {
+      this.knockbackX = knockbackDir * 200;
+      this.knockbackTimer = 0.15;
+    } else {
+      this.knockbackX = knockbackDir * 100;
+      this.knockbackTimer = 0.15;
+    }
     return this.health <= 0;
   }
 

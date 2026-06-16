@@ -232,13 +232,13 @@ export class GameEngine {
       }
     }
 
-    if (this.victoryParticles.length < 100) {
-      for (let i = 0; i < 3; i++) {
+    if (this.victoryParticles.length < 300) {
+      for (let i = 0; i < 30; i++) {
         this.victoryParticles.push({
           x: this.baseWidth / 2 + (Math.random() - 0.5) * 100,
           y: this.baseHeight / 2,
           vx: (Math.random() - 0.5) * 8,
-          vy: -Math.random() * 8 - 2,
+          vy: -Math.random() * 9.6 - 2.4,
           life: 2,
           maxLife: 2,
           color: '#ffffff',
@@ -324,9 +324,9 @@ export class GameEngine {
         break;
     }
 
-    for (let i = 0; i < 8; i++) {
-      const angle = (Math.PI * 2 * i) / 8;
-      const speed = 3 + Math.random() * 2;
+    for (let i = 0; i < 12; i++) {
+      const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.2;
+      const speed = 4 + Math.random() * 3;
       this.particles.push({
         x,
         y,
@@ -369,12 +369,12 @@ export class GameEngine {
   }
 
   createVictoryParticles(): void {
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 60; i++) {
       this.victoryParticles.push({
         x: this.baseWidth / 2,
         y: this.baseHeight / 2,
         vx: (Math.random() - 0.5) * 10,
-        vy: -Math.random() * 10 - 3,
+        vy: -Math.random() * 12 - 4,
         life: 3,
         maxLife: 3,
         color: '#ffffff',

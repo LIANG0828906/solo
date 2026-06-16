@@ -119,20 +119,32 @@ export function drawHealthBar(
   const healthPercent = Math.max(0, currentHealth / maxHealth);
   const currentWidth = barWidth * healthPercent;
 
-  let fillColor: string;
-  if (healthPercent > 0.5) {
-    fillColor = '#22c55e';
-  } else if (healthPercent > 0.25) {
-    fillColor = '#eab308';
+  const greenR = 34;
+  const greenG = 197;
+  const greenB = 94;
+  const orangeR = 249;
+  const orangeG = 115;
+  const orangeB = 22;
+  const redR = 239;
+  const redG = 68;
+  const redB = 68;
+
+  let r: number, g: number, b: number;
+  if (healthPercent >= 0.5) {
+    const t = (1 - healthPercent) * 2;
+    r = Math.round(greenR + (orangeR - greenR) * t);
+    g = Math.round(greenG + (orangeG - greenG) * t);
+    b = Math.round(greenB + (orangeB - greenB) * t);
   } else {
-    fillColor = '#ef4444';
+    const t = 1 - healthPercent * 2;
+    r = Math.round(orangeR + (redR - orangeR) * t);
+    g = Math.round(orangeG + (redG - orangeG) * t);
+    b = Math.round(orangeB + (redB - orangeB) * t);
   }
 
-  const healthGradient = ctx.createLinearGradient(barX, barY, barX + currentWidth, barY);
-  healthGradient.addColorStop(0, fillColor);
-  healthGradient.addColorStop(1, fillColor);
+  const fillColor = `rgb(${r}, ${g}, ${b})`;
 
-  ctx.fillStyle = healthGradient;
+  ctx.fillStyle = fillColor;
   ctx.fillRect(barX, barY, currentWidth, barHeight);
 
   ctx.font = 'bold 12px Arial';
@@ -238,7 +250,9 @@ export function drawVictory(
   ctx.fillRect(0, 0, width, height);
   ctx.globalAlpha = 1;
 
-  const fontSize = 80;
+  const baseFontSize = 80;
+  const textScale = 1.0 + Math.sin(time * 0.002) * 0.2;
+  const fontSize = baseFontSize * textScale;
   ctx.font = `bold ${fontSize}px 'Times New Roman', serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -246,9 +260,9 @@ export function drawVictory(
   const textY = height / 2 - 50 + Math.sin(time * 0.003) * 10;
 
   ctx.fillStyle = '#000000';
-  ctx.fillText('Victory!', width / 2 + 4, textY + 4);
+  ctx.fillText('Victory!', width / 2 + 4 * textScale, textY + 4 * textScale);
 
-  const gradient = ctx.createLinearGradient(width / 2 - 200, textY, width / 2 + 200, textY);
+  const gradient = ctx.createLinearGradient(width / 2 - 250, textY, width / 2 + 250, textY);
   gradient.addColorStop(0, '#FFD700');
   gradient.addColorStop(0.5, '#FFA500');
   gradient.addColorStop(1, '#FFD700');
