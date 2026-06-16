@@ -1,0 +1,73 @@
+.plans-page {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.plans-page__sidebar {
+  width: 240px;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.plans-page__sidebar-header {
+  padding: 20px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.plans-page__sidebar-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.plans-page__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.plans-page__empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.plans-page__item {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  margin-bottom: 4px;
+}
+
+.plans-page__item:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.plans-page__item.active {
+  background-color: var(--bg-tertiary);
+  border-left: 3px solid var(--accent-primary);
+  padding-left: 9px;
+}
+
+.plans-page__item-name {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.plans-page__item-info {
+  font-size: 12px;

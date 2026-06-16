@@ -1,0 +1,252 @@
+.social-feed {
+  width: 100%;
+  padding: 16px;
+}
+
+.social-feed-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+}
+
+.social-feed-filter::-webkit-scrollbar {
+  display: none;
+}
+
+.social-feed-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.social-feed-filter-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.social-feed-filter-btn.active {
+  background-color: var(--accent-primary);
+  color: #121212;
+  border-color: var(--accent-primary);
+}
+
+.social-feed-grid {
+  column-count: 2;
+  column-gap: 16px;
+}
+
+.social-feed-card {
+  break-inside: avoid;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.social-feed-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.social-feed-card-user {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.social-feed-card-username {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.social-feed-card-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.social-feed-card-workout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.social-feed-card-workout-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.social-feed-card-workout-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.social-feed-card-actions {
+  display: flex;
+  gap: 16px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-color);
+}
+
+.social-feed-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
+  transition: all var(--transition-fast);
+}
+
+.social-feed-action-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.social-feed-action-btn.liked {
+  color: var(--error);
+}
+
+.social-feed-action-btn.active {
+  color: var(--accent-primary);
+}
+
+.social-feed-action-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.social-feed-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.social-feed-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.social-feed-comment {
+  display: flex;
+  gap: 8px;
+}
+
+.social-feed-comment-content {
+  flex: 1;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.social-feed-comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.social-feed-comment-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.social-feed-comment-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.social-feed-comment-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.social-feed-comments-empty {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 16px 0;
+}
+
+.social-feed-comment-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.social-feed-comment-input input {
+  flex: 1;
+  padding: 8px 12px;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.social-feed-comment-input input::placeholder {
+  color: var(--text-muted);
+}
+
+.social-feed-comment-submit {
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background-color: var(--accent-primary);
+  color: #121212;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.social-feed-comment-submit:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.social-feed-comment-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .social-feed {
+    padding: 12px;
+  }
+
+  .social-feed-grid {
+    column-count: 1;
+  }
+
+  .social-feed-card {
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .social-feed-grid {
+    column-count: 3;
+  }
+}
