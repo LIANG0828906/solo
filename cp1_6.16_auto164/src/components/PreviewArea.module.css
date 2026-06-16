@@ -1,0 +1,171 @@
+.preview {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.3s ease;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.content {
+  width: 100%;
+  height: 100%;
+  padding: 60px 80px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.floatingLabel {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: var(--radius-small);
+  font-size: 12px;
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 500;
+  color: #666666;
+  line-height: 1.4;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.textBlockWrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.textBlock {
+  position: relative;
+  display: inline-block;
+  cursor: move;
+  user-select: none;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  transition: transform 0s;
+  will-change: transform;
+}
+
+.dragging {
+  cursor: move;
+}
+
+.dragBorder {
+  outline: 2px dashed rgba(0, 188, 212, 0.6);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.textContent {
+  position: relative;
+  z-index: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.guideLine {
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  border-top: 1px dashed #888888;
+  pointer-events: none;
+}
+
+.guideLabel {
+  position: absolute;
+  right: -36px;
+  transform: translateY(-50%);
+  font-size: 9px;
+  color: #888888;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-family: sans-serif;
+  white-space: nowrap;
+}
+
+.baselineLabel {
+  top: 0;
+}
+
+.xHeightLabel {
+  top: 0;
+}
+
+.titleText {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  width: 100%;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+.bodyText {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  width: 100%;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+.fadeEnter {
+  animation: fadeIn 0.3s ease;
+}
+
+.bounceBack {
+  animation: bounceBackAnim 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bounceBackAnim {
+  0% {
+    transform: translate(var(--bx, 0px), var(--by, 0px));
+  }
+  60% {
+    transform: translate(
+      calc(var(--bx, 0px) * -0.15),
+      calc(var(--by, 0px) * -0.15)
+    );
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+.measureCanvas {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  visibility: hidden;
+  pointer-events: none;
+}
