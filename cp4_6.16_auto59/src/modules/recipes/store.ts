@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { get, set } from 'idb-keyval'
+import { get as idbGet, set as idbSet } from 'idb-keyval'
 import { v4 as uuidv4 } from 'uuid'
 import {
   Recipe,
@@ -295,15 +295,15 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
 
   initStore: async () => {
     try {
-      const storedRecipes = await get('recipes')
-      const storedCustomIngredients = await get('customIngredients')
+      const storedRecipes = await idbGet('recipes')
+      const storedCustomIngredients = await idbGet('customIngredients')
 
       let recipes: Recipe[] = ensureRecipes(storedRecipes)
       const customIngredients: Ingredient[] = ensureIngredients(storedCustomIngredients)
 
       if (recipes.length === 0) {
         recipes = createSampleRecipes()
-        await set('recipes', recipes)
+        await idbSet('recipes', recipes)
       }
 
       set({ recipes, customIngredients, isLoading: false })
@@ -319,30 +319,33 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
 
   createRecipe: (data) => {
     const newRecipe = createEmptyRecipe(data)
-    const updated = [...get().recipes, newRecipe]
+    const recipes = ensureRecipes(get().recipes)
+    const updated = [...recipes, newRecipe]
     set({ recipes: updated, currentRecipe: newRecipe })
-    set('recipes', updated)
+    idbSet('recipes', updated)
     return newRecipe
   },
 
   updateRecipe: (id, data) => {
-    const updated = get().recipes.map((r) =>
+    const recipes = ensureRecipes(get().recipes)
+    const updated = recipes.map((r) =>
       r.id === id ? { ...r, ...data, updatedAt: new Date().toISOString() } : r
     )
     set({ recipes: updated })
     if (get().currentRecipe?.id === id) {
       set({ currentRecipe: updated.find((r) => r.id === id) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   deleteRecipe: (id) => {
-    const updated = get().recipes.filter((r) => r.id !== id)
+    const recipes = ensureRecipes(get().recipes)
+    const updated = recipes.filter((r) => r.id !== id)
     set({
       recipes: updated,
       currentRecipe: get().currentRecipe?.id === id ? null : get().currentRecipe
     })
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   setCurrentRecipe: (id) => {
@@ -350,76 +353,84 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
       set({ currentRecipe: null })
       return
     }
-    const recipe = get().recipes.find((r) => r.id === id) || null
+    const recipes = ensureRecipes(get().recipes)
+    const recipe = recipes.find((r) => r.id === id) || null
     set({ currentRecipe: recipe })
   },
 
   toggleFavorite: (id) => {
-    const updated = get().recipes.map((r) =>
+    const recipes = ensureRecipes(get().recipes)
+    const updated = recipes.map((r) =>
       r.id === id ? { ...r, isFavorite: !r.isFavorite } : r
     )
     set({ recipes: updated })
     if (get().currentRecipe?.id === id) {
       set({ currentRecipe: updated.find((r) => r.id === id) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   addRating: (id, rating) => {
-    const updated = get().recipes.map((r) =>
-      r.id === id ? { ...r, ratings: [...r.ratings, rating] } : r
+    const recipes = ensureRecipes(get().recipes)
+    const updated = recipes.map((r) =>
+      r.id === id ? { ...r, ratings: Array.isArray(r.ratings) ? [...r.ratings, rating] : [rating] } : r
     )
     set({ recipes: updated })
     if (get().currentRecipe?.id === id) {
       set({ currentRecipe: updated.find((r) => r.id === id) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   incrementViews: (id) => {
-    const updated = get().recipes.map((r) =>
-      r.id === id ? { ...r, views: r.views + 1 } : r
+    const recipes = ensureRecipes(get().recipes)
+    const updated = recipes.map((r) =>
+      r.id === id ? { ...r, views: (typeof r.views === 'number' ? r.views : 0) + 1 } : r
     )
     set({ recipes: updated })
     if (get().currentRecipe?.id === id) {
       set({ currentRecipe: updated.find((r) => r.id === id) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   addBlock: (recipeId, blockData) => {
-    const recipes = get().recipes
+    const recipes = ensureRecipes(get().recipes)
     const recipe = recipes.find((r) => r.id === recipeId)
     if (!recipe) return
 
+    const recipeBlocks = Array.isArray(recipe.blocks) ? recipe.blocks : []
     const newBlock: CanvasBlock = {
       id: uuidv4(),
-      title: blockData?.title || `步骤 ${recipe.blocks.length + 1}`,
+      title: blockData?.title || `步骤 ${recipeBlocks.length + 1}`,
       description: blockData?.description || '',
       imageUrl: blockData?.imageUrl,
-      ingredients: blockData?.ingredients || [],
-      position: blockData?.position || { x: 50 + recipe.blocks.length * 40, y: 50 + recipe.blocks.length * 30 },
-      order: recipe.blocks.length + 1
+      ingredients: Array.isArray(blockData?.ingredients) ? blockData!.ingredients! : [],
+      position: blockData?.position || { x: 50 + recipeBlocks.length * 40, y: 50 + recipeBlocks.length * 30 },
+      order: recipeBlocks.length + 1
     }
 
     const updated = recipes.map((r) =>
       r.id === recipeId
-        ? { ...r, blocks: [...r.blocks, newBlock], updatedAt: new Date().toISOString() }
+        ? { ...r, blocks: [...recipeBlocks, newBlock], updatedAt: new Date().toISOString() }
         : r
     )
     set({ recipes: updated })
     if (get().currentRecipe?.id === recipeId) {
       set({ currentRecipe: updated.find((r) => r.id === recipeId) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   updateBlock: (recipeId, blockId, data) => {
-    const updated = get().recipes.map((r) =>
+    const recipes = ensureRecipes(get().recipes)
+    const updated = recipes.map((r) =>
       r.id === recipeId
         ? {
             ...r,
-            blocks: r.blocks.map((b) => (b.id === blockId ? { ...b, ...data } : b)),
+            blocks: Array.isArray(r.blocks)
+              ? r.blocks.map((b) => (b.id === blockId ? { ...b, ...data } : b))
+              : [],
             updatedAt: new Date().toISOString()
           }
         : r
@@ -428,18 +439,19 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
     if (get().currentRecipe?.id === recipeId) {
       set({ currentRecipe: updated.find((r) => r.id === recipeId) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   deleteBlock: (recipeId, blockId) => {
-    const recipes = get().recipes
+    const recipes = ensureRecipes(get().recipes)
     const recipe = recipes.find((r) => r.id === recipeId)
     if (!recipe) return
 
-    const targetBlock = recipe.blocks.find((b) => b.id === blockId)
+    const recipeBlocks = Array.isArray(recipe.blocks) ? recipe.blocks : []
+    const targetBlock = recipeBlocks.find((b) => b.id === blockId)
     if (!targetBlock) return
 
-    const remainingBlocks = recipe.blocks
+    const remainingBlocks = recipeBlocks
       .filter((b) => b.id !== blockId)
       .map((b) => {
         if (b.order > targetBlock.order) {
@@ -457,15 +469,17 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
     if (get().currentRecipe?.id === recipeId) {
       set({ currentRecipe: updated.find((r) => r.id === recipeId) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   reorderBlocks: (recipeId, orderedIds) => {
-    const updated = get().recipes.map((r) => {
+    const recipes = ensureRecipes(get().recipes)
+    const updated = recipes.map((r) => {
       if (r.id !== recipeId) return r
+      const blocks = Array.isArray(r.blocks) ? r.blocks : []
       const newBlocks = orderedIds
         .map((id, index) => {
-          const block = r.blocks.find((b) => b.id === id)
+          const block = blocks.find((b) => b.id === id)
           if (block) {
             return { ...block, order: index + 1 }
           }
@@ -478,20 +492,23 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
     if (get().currentRecipe?.id === recipeId) {
       set({ currentRecipe: updated.find((r) => r.id === recipeId) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   addIngredientToBlock: (recipeId, blockId, ingredient) => {
+    const recipes = ensureRecipes(get().recipes)
     const newIngredient = { ...ingredient, id: `${ingredient.id}-${Date.now()}` }
-    const updated = get().recipes.map((r) =>
+    const updated = recipes.map((r) =>
       r.id === recipeId
         ? {
             ...r,
-            blocks: r.blocks.map((b) =>
-              b.id === blockId
-                ? { ...b, ingredients: [...b.ingredients, newIngredient] }
-                : b
-            ),
+            blocks: Array.isArray(r.blocks)
+              ? r.blocks.map((b) =>
+                  b.id === blockId
+                    ? { ...b, ingredients: Array.isArray(b.ingredients) ? [...b.ingredients, newIngredient] : [newIngredient] }
+                    : b
+                )
+              : [],
             updatedAt: new Date().toISOString()
           }
         : r
@@ -500,19 +517,22 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
     if (get().currentRecipe?.id === recipeId) {
       set({ currentRecipe: updated.find((r) => r.id === recipeId) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   removeIngredientFromBlock: (recipeId, blockId, ingredientId) => {
-    const updated = get().recipes.map((r) =>
+    const recipes = ensureRecipes(get().recipes)
+    const updated = recipes.map((r) =>
       r.id === recipeId
         ? {
             ...r,
-            blocks: r.blocks.map((b) =>
-              b.id === blockId
-                ? { ...b, ingredients: b.ingredients.filter((i) => i.id !== ingredientId) }
-                : b
-            ),
+            blocks: Array.isArray(r.blocks)
+              ? r.blocks.map((b) =>
+                  b.id === blockId
+                    ? { ...b, ingredients: Array.isArray(b.ingredients) ? b.ingredients.filter((i) => i.id !== ingredientId) : [] }
+                    : b
+                )
+              : [],
             updatedAt: new Date().toISOString()
           }
         : r
@@ -521,24 +541,29 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
     if (get().currentRecipe?.id === recipeId) {
       set({ currentRecipe: updated.find((r) => r.id === recipeId) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   updateBlockIngredient: (recipeId, blockId, ingredientId, data) => {
-    const updated = get().recipes.map((r) =>
+    const recipes = ensureRecipes(get().recipes)
+    const updated = recipes.map((r) =>
       r.id === recipeId
         ? {
             ...r,
-            blocks: r.blocks.map((b) =>
-              b.id === blockId
-                ? {
-                    ...b,
-                    ingredients: b.ingredients.map((i) =>
-                      i.id === ingredientId ? { ...i, ...data } : i
-                    )
-                  }
-                : b
-            ),
+            blocks: Array.isArray(r.blocks)
+              ? r.blocks.map((b) =>
+                  b.id === blockId
+                    ? {
+                        ...b,
+                        ingredients: Array.isArray(b.ingredients)
+                          ? b.ingredients.map((i) =>
+                              i.id === ingredientId ? { ...i, ...data } : i
+                            )
+                          : []
+                      }
+                    : b
+                )
+              : [],
             updatedAt: new Date().toISOString()
           }
         : r
@@ -547,7 +572,7 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
     if (get().currentRecipe?.id === recipeId) {
       set({ currentRecipe: updated.find((r) => r.id === recipeId) || null })
     }
-    set('recipes', updated)
+    idbSet('recipes', updated)
   },
 
   addCustomIngredient: (ingredient) => {
@@ -555,12 +580,13 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
       ...ingredient,
       id: `custom-${uuidv4()}`
     }
-    const updated = [...get().customIngredients, newIngredient]
+    const customIngredients = ensureIngredients(get().customIngredients)
+    const updated = [...customIngredients, newIngredient]
     set({ customIngredients: updated })
-    set('customIngredients', updated)
+    idbSet('customIngredients', updated)
   },
 
   getAllIngredients: () => {
-    return [...PRESET_INGREDIENTS, ...get().customIngredients]
+    return [...PRESET_INGREDIENTS, ...ensureIngredients(get().customIngredients)]
   }
 }))

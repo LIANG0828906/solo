@@ -77,6 +77,7 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
   const [likedComments, setLikedComments] = useState<Set<string>>(new Set())
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [isCommentAnimating, setIsCommentAnimating] = useState(false)
+  const [checkAnimKey, setCheckAnimKey] = useState(0)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [scrollY, setScrollY] = useState(0)
@@ -165,6 +166,7 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
     setMyRating(0)
     setHoverRating(0)
     setCommentText('')
+    setCheckAnimKey((k) => k + 1)
     if (selectedRecipeId && hasIncrementedView.current !== selectedRecipeId) {
       hasIncrementedView.current = selectedRecipeId
       const api = useRecipesStore.getState()
@@ -803,6 +805,7 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
                             >
                               <div className="flex gap-4">
                                 <button
+                                  key={`${checkAnimKey}-${block.id}-badge`}
                                   onClick={() => handleToggleStep(block.order)}
                                   className={`relative flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold transition-all ${
                                     isDone
