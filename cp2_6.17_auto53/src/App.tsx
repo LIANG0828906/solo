@@ -109,12 +109,13 @@ function App() {
 
       <div
         style={{
-          position: 'absolute',
+          position: 'fixed',
           bottom: '80px',
           right: '80px',
           display: 'flex',
           gap: '12px',
           pointerEvents: 'auto',
+          zIndex: 1000,
         }}
       >
         {NEON_COLORS.map((color) => (

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useMemo, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -12,49 +12,62 @@ import {
   LineRenderResult,
   createTubeLine,
   createCurveFromPoints,
-  createParticleSystem,
-  PARTICLE_COUNT,
+  createUnifiedParticleSystem,
+  UnifiedParticleSystem,
+  PARTICLE_COUNT_PER_LINE,
+  TaperedTubeGeometry,
 } from '../utils/LineRenderer';
 
 const SAMPLING_INTERVAL = 1000 / 30;
 const DISSOLVE_DURATION = 800;
-const MAX_PARTICLES = 5000;
+const MAX_LINES = 50;
 
 interface LineInstanceProps {
   line: LightLine;
   isDissolving: boolean;
-  onDissolveComplete?: () => void;
+  particleSystem: UnifiedParticleSystem;
 }
 
-function LineInstance({ line, isDissolving, onDissolveComplete }: LineInstanceProps) {
+function LineInstance({ line, isDissolving, particleSystem }: LineInstanceProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const particlesRef = useRef<THREE.Points>(null);
   const dissolveStartRef = useRef<number | null>(null);
-  const updateParticlesRef = useRef<((time: number) => void) | null>(null);
-  const curveRef = useRef<THREE.CatmullRomCurve3 | null>(null);
+  const lineRenderRef = useRef<LineRenderResult | null>(null);
 
-  const { mesh, particles, curve, update } = useMemo(() => {
-    const curveResult = createCurveFromPoints(line.points);
+  const lineRender = useMemo(() => {
     const { mesh } = createTubeLine(line.points, line.color);
-    const { particles, update } = createParticleSystem(
-      curveResult,
-      line.color,
-      line.createdAt
-    );
-    return { mesh, particles, curve: curveResult, update };
-  }, [line]);
-
-  useEffect(() => {
-    updateParticlesRef.current = update;
-    curveRef.current = curve;
-  }, [update, curve]);
-
-  useFrame(({ clock }) => {
-    if (updateParticlesRef.current && !isDissolving) {
-      updateParticlesRef.current(performance.now());
+    const curve = createCurveFromPoints(line.points);
+    const particleData = particleSystem.addLine(curve, line.color, line.createdAt);
+    
+    if (!particleData) {
+      const tubeGeo = mesh.geometry as TaperedTubeGeometry;
+      tubeGeo.dispose();
+      (mesh.material as THREE.Material).dispose();
+      return null;
     }
 
-    if (isDissolving && meshRef.current && particlesRef.current) {
+    const dispose = () => {
+      const tubeGeo = mesh.geometry as TaperedTubeGeometry;
+      tubeGeo.dispose();
+      (mesh.material as THREE.Material).dispose();
+      particleSystem.removeLine(particleData);
+    };
+
+    return { mesh, curve, particleData, dispose };
+  }, [line, particleSystem]);
+
+  useEffect(() => {
+    lineRenderRef.current = lineRender || null;
+    return () => {
+      if (lineRenderRef.current) {
+        lineRenderRef.current.dispose();
+      }
+    };
+  }, [lineRender]);
+
+  useFrame(() => {
+    if (!lineRender || !meshRef.current) return;
+
+    if (isDissolving) {
       if (dissolveStartRef.current === null) {
         dissolveStartRef.current = performance.now();
       }
@@ -65,35 +78,24 @@ function LineInstance({ line, isDissolving, onDissolveComplete }: LineInstancePr
       const meshMaterial = meshRef.current.material as THREE.MeshStandardMaterial;
       meshMaterial.opacity = 1 - progress;
 
-      const particleMaterial = particlesRef.current.material as THREE.PointsMaterial;
-      particleMaterial.opacity = 1 - progress;
-
-      const scale = 1 - progress * 0.5;
-      meshRef.current.scale.setScalar(scale);
-      particlesRef.current.scale.setScalar(scale);
-
-      if (progress >= 1 && onDissolveComplete) {
-        onDissolveComplete();
-      }
+      const tubeGeo = meshRef.current.geometry as TaperedTubeGeometry;
+      tubeGeo.applyDissolve(progress);
     }
   });
 
-  return (
-    <group>
-      <primitive object={mesh} ref={meshRef} />
-      <primitive object={particles} ref={particlesRef} />
-    </group>
-  );
+  if (!lineRender) return null;
+
+  return <primitive object={lineRender.mesh} ref={meshRef} />;
 }
 
 interface CurrentDrawingLineProps {
   points: Point3D[];
   color: string;
+  particleSystem: UnifiedParticleSystem;
 }
 
-function CurrentDrawingLine({ points, color }: CurrentDrawingLineProps) {
+function CurrentDrawingLine({ points, color, particleSystem }: CurrentDrawingLineProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const particlesRef = useRef<THREE.Points>(null);
   const lineRenderRef = useRef<LineRenderResult | null>(null);
 
   const lineRender = useMemo(() => {
@@ -101,10 +103,10 @@ function CurrentDrawingLine({ points, color }: CurrentDrawingLineProps) {
     if (lineRenderRef.current) {
       lineRenderRef.current.dispose();
     }
-    const result = createLineRender(points, color as any, Date.now());
-    lineRenderRef.current = result;
+    const result = createLineRender(points, color as any, Date.now(), particleSystem);
+    lineRenderRef.current = result || null;
     return result;
-  }, [points, color]);
+  }, [points, color, particleSystem]);
 
   useEffect(() => {
     return () => {
@@ -116,15 +118,10 @@ function CurrentDrawingLine({ points, color }: CurrentDrawingLineProps) {
 
   if (!lineRender) return null;
 
-  return (
-    <group>
-      <primitive object={lineRender.mesh} ref={meshRef} />
-      <primitive object={lineRender.particles} ref={particlesRef} />
-    </group>
-  );
+  return <primitive object={lineRender.mesh} ref={meshRef} />;
 }
 
-function SceneContent() {
+function SceneContent({ backgroundColor }: { backgroundColor: string }) {
   const {
     lines,
     isDrawing,
@@ -139,15 +136,77 @@ function SceneContent() {
   } = useSculptureStore();
 
   const { camera, gl, scene } = useThree();
+
+  useEffect(() => {
+    if (scene) {
+      const startColor = new THREE.Color(scene.background as THREE.Color);
+      const endColor = new THREE.Color(backgroundColor);
+      const startTime = performance.now();
+      const duration = 500;
+
+      const animate = () => {
+        const elapsed = performance.now() - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        const easeProgress = 1 - Math.pow(1 - progress, 3);
+        
+        const currentColor = startColor.clone().lerp(endColor, easeProgress);
+        scene.background = currentColor;
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      animate();
+    }
+  }, [backgroundColor, scene]);
+
   const raycaster = useRef(new THREE.Raycaster());
   const mouse = useRef(new THREE.Vector2());
-  const plane = useRef(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0));
   const lastSampleTime = useRef(0);
   const isMouseDown = useRef(false);
+  const particleSystemRef = useRef<UnifiedParticleSystem | null>(null);
+  const dissolveStartRef = useRef<number | null>(null);
+  const [, forceUpdate] = useState(0);
 
-  const totalParticles = useMemo(() => {
-    return Math.min(lines.length * PARTICLE_COUNT, MAX_PARTICLES);
-  }, [lines.length]);
+  if (!particleSystemRef.current) {
+    particleSystemRef.current = createUnifiedParticleSystem();
+  }
+
+  const particleSystem = useMemo(() => {
+    if (!particleSystemRef.current) {
+      particleSystemRef.current = createUnifiedParticleSystem();
+    }
+    return particleSystemRef.current!;
+  }, []);
+
+  useFrame(() => {
+    if (particleSystem && !isDissolving) {
+      particleSystem.update(performance.now());
+    }
+
+    if (isDissolving && particleSystem) {
+      if (dissolveStartRef.current === null) {
+        dissolveStartRef.current = performance.now();
+      }
+
+      const elapsed = performance.now() - dissolveStartRef.current;
+      const progress = Math.min(1, elapsed / DISSOLVE_DURATION);
+
+      const opacity = 1 - progress;
+      const scale = 1 - progress * 0.5;
+
+      particleSystem.setOpacity(opacity);
+      particleSystem.setScale(scale);
+
+      if (progress >= 1) {
+        particleSystem.dispose();
+        particleSystemRef.current = null;
+        resetAfterDissolve();
+        dissolveStartRef.current = null;
+        forceUpdate((n) => n + 1);
+      }
+    }
+  });
 
   const get3DPosition = useCallback(
     (clientX: number, clientY: number): Point3D | null => {
@@ -216,11 +275,11 @@ function SceneContent() {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'r' && !isDissolving) {
+      if (e.key.toLowerCase() === 'r' && !isDissolving && lines.length > 0) {
         clearAll();
       }
     },
-    [clearAll, isDissolving]
+    [clearAll, isDissolving, lines.length]
   );
 
   useEffect(() => {
@@ -240,13 +299,8 @@ function SceneContent() {
     };
   }, [handlePointerDown, handlePointerMove, handlePointerUp, handleKeyDown, gl]);
 
-  const handleDissolveComplete = useCallback(() => {
-    resetAfterDissolve();
-  }, [resetAfterDissolve]);
-
   const displayedLines = useMemo(() => {
-    const maxLinesWithParticles = Math.floor(MAX_PARTICLES / PARTICLE_COUNT);
-    return lines.slice(-maxLinesWithParticles);
+    return lines.slice(-MAX_LINES);
   }, [lines]);
 
   return (
@@ -254,17 +308,23 @@ function SceneContent() {
       <ambientLight intensity={0.3} />
       <directionalLight position={[5, 5, 5]} intensity={0.5} castShadow />
 
+      {particleSystem && <primitive object={particleSystem.points} />}
+
       {displayedLines.map((line) => (
         <LineInstance
           key={line.id}
           line={line}
           isDissolving={isDissolving}
-          onDissolveComplete={displayedLines.indexOf(line) === 0 ? handleDissolveComplete : undefined}
+          particleSystem={particleSystem}
         />
       ))}
 
-      {isDrawing && currentPoints.length >= 2 && (
-        <CurrentDrawingLine points={currentPoints} color={currentColor} />
+      {isDrawing && currentPoints.length >= 2 && particleSystem && (
+        <CurrentDrawingLine
+          points={currentPoints}
+          color={currentColor}
+          particleSystem={particleSystem}
+        />
       )}
 
       <OrbitControls
@@ -288,13 +348,13 @@ export function SculptureCanvas({ backgroundColor }: SculptureCanvasProps) {
     <Canvas
       camera={{ position: [3, 3, 3], fov: 60 }}
       gl={{ antialias: true, alpha: false }}
-      style={{ background: backgroundColor, width: '100%', height: '100%' }}
+      style={{ background: backgroundColor, width: '100%', height: '100%', transition: 'background 0.5s ease' }}
       onCreated={({ gl, scene }) => {
         gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         scene.background = new THREE.Color(backgroundColor);
       }}
     >
-      <SceneContent />
+      <SceneContent backgroundColor={backgroundColor} />
     </Canvas>
   );
 }
