@@ -1,7 +1,7 @@
 import { create } from 'zustand';
-import { get, set } from 'idb-keyval';
+import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { v4 as uuidv4 } from 'uuid';
-import { format, isSameDay, startOfWeek, addDays, isWithinInterval } from 'date-fns';
+import { format, startOfWeek, addDays, isWithinInterval } from 'date-fns';
 import type { Seat, Reservation, TimerState, Stats, DailyStats, SeatStatus } from './types';
 
 interface AppState {
@@ -60,7 +60,7 @@ const calculateScores = (stats: Stats) => {
   return { focus, duration, attendance, punctuality, completion };
 };
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>((zSet, zGet) => ({
   seats: [],
   reservations: [],
   timer: {
@@ -80,12 +80,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   initStore: async () => {
-    const savedSeats = await get<Seat[]>('focushub_seats');
-    const savedReservations = await get<Reservation[]>('focushub_reservations');
-    const savedStats = await get<Stats>('focushub_stats');
+    const savedSeats = await idbGet<Seat[]>('focushub_seats');
+    const savedReservations = await idbGet<Reservation[]>('focushub_reservations');
+    const savedStats = await idbGet<Stats>('focushub_stats');
 
-    const seats = savedSeats || generateSeats();
-    const reservations = savedReservations || [];
+    const seats: Seat[] = savedSeats || generateSeats();
+    const reservations: Reservation[] = savedReservations || [];
     const todayStr = format(new Date(), 'yyyy-MM-dd');
 
     let stats: Stats;
@@ -125,14 +125,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       s.status = seatStatusMap[s.id] || 'idle';
     });
 
-    set({ seats, reservations, stats });
-    await set('focushub_seats', seats);
-    await set('focushub_reservations', reservations);
-    await set('focushub_stats', stats);
+    zSet({ seats, reservations, stats });
+    await idbSet('focushub_seats', seats);
+    await idbSet('focushub_reservations', reservations);
+    await idbSet('focushub_stats', stats);
   },
 
   addReservation: async (seatId: string, durationHours: number) => {
-    const { seats, reservations, stats } = get();
+    const state = zGet();
+    const seats = [...state.seats];
+    const reservations = [...state.reservations];
+    const stats = { ...state.stats, today: { ...state.stats.today }, scores: { ...state.stats.scores } };
+
     const seat = seats.find(s => s.id === seatId);
     if (!seat || seat.status !== 'idle') {
       throw new Error('座位不可预约');
@@ -155,19 +159,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     stats.today.onTimeCheckIns += 1;
     stats.scores = calculateScores(stats);
 
-    const newReservations = [...reservations, reservation];
-    const newSeats = [...seats];
+    reservations.push(reservation);
 
-    set({ seats: newSeats, reservations: newReservations, stats: { ...stats } });
-    await set('focushub_seats', newSeats);
-    await set('focushub_reservations', newReservations);
-    await set('focushub_stats', stats);
+    zSet({ seats, reservations, stats });
+    await idbSet('focushub_seats', seats);
+    await idbSet('focushub_reservations', reservations);
+    await idbSet('focushub_stats', stats);
 
     return reservation;
   },
 
   cancelReservation: async (reservationId: string) => {
-    const { seats, reservations, stats } = get();
+    const state = zGet();
+    const seats = [...state.seats];
+    const reservations = [...state.reservations];
+
     const reservation = reservations.find(r => r.id === reservationId);
     if (!reservation || reservation.status !== 'waiting') {
       throw new Error('无法取消该预约');
@@ -177,20 +183,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     const seat = seats.find(s => s.id === reservation.seatId);
     if (seat) seat.status = 'idle';
 
-    const newReservations = [...reservations];
-    const newSeats = [...seats];
-
-    set({ seats: newSeats, reservations: newReservations });
-    await set('focushub_seats', newSeats);
-    await set('focushub_reservations', newReservations);
+    zSet({ seats, reservations });
+    await idbSet('focushub_seats', seats);
+    await idbSet('focushub_reservations', reservations);
   },
 
   startTimer: (reservationId: string) => {
-    const { reservations } = get();
-    const reservation = reservations.find(r => r.id === reservationId);
+    const state = zGet();
+    const reservation = state.reservations.find(r => r.id === reservationId);
     if (!reservation) return;
 
-    set({
+    zSet({
       timer: {
         isRunning: true,
         isPaused: false,
@@ -204,24 +207,34 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   pauseTimer: () => {
-    set(state => ({
+    const state = zGet();
+    zSet({
       timer: { ...state.timer, isPaused: true }
-    }));
+    });
   },
 
   resumeTimer: () => {
-    set(state => ({
+    const state = zGet();
+    zSet({
       timer: { ...state.timer, isPaused: false }
-    }));
+    });
   },
 
   stopTimer: async () => {
-    const { timer, reservations, stats } = get();
+    const state = zGet();
+    const { timer } = state;
     if (!timer.currentReservationId) return;
 
     const focusMinutes = Math.floor(timer.elapsedSeconds / 60);
-    const reservation = reservations.find(r => r.id === timer.currentReservationId);
+    const reservations = [...state.reservations];
+    const seats = [...state.seats];
+    const stats = {
+      ...state.stats,
+      today: { ...state.stats.today },
+      scores: { ...state.stats.scores }
+    };
 
+    const reservation = reservations.find(r => r.id === timer.currentReservationId);
     if (reservation) {
       reservation.focusMinutes = focusMinutes;
       if (reservation.status === 'in-progress') {
@@ -250,14 +263,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     stats.scores = calculateScores(stats);
 
     const seatId = timer.currentSeatId;
-    const newSeats = get().seats.map(s =>
+    const finalSeats = seats.map(s =>
       s.id === seatId ? { ...s, status: 'idle' as SeatStatus } : s
     );
 
-    set({
-      seats: newSeats,
-      reservations: [...reservations],
-      stats: { ...stats },
+    zSet({
+      seats: finalSeats,
+      reservations,
+      stats,
       timer: {
         isRunning: false,
         isPaused: false,
@@ -269,48 +282,50 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     });
 
-    await set('focushub_seats', newSeats);
-    await set('focushub_reservations', reservations);
-    await set('focushub_stats', stats);
+    await idbSet('focushub_seats', finalSeats);
+    await idbSet('focushub_reservations', reservations);
+    await idbSet('focushub_stats', stats);
   },
 
   tickTimer: () => {
-    set(state => {
-      if (!state.timer.isRunning || state.timer.isPaused) return state;
-      const newElapsed = state.timer.elapsedSeconds + 1;
-      if (newElapsed >= state.timer.totalSeconds) {
-        return state;
-      }
-      return {
-        timer: { ...state.timer, elapsedSeconds: newElapsed }
-      };
+    const state = zGet();
+    const { timer } = state;
+    if (!timer.isRunning || timer.isPaused) return;
+    const newElapsed = timer.elapsedSeconds + 1;
+    if (newElapsed >= timer.totalSeconds) {
+      return;
+    }
+    zSet({
+      timer: { ...timer, elapsedSeconds: newElapsed }
     });
   },
 
   updateReservationStatus: () => {
-    const { reservations, seats } = get();
+    const state = zGet();
+    const { reservations, seats } = state;
     const now = Date.now();
     let changed = false;
 
-    reservations.forEach(r => {
+    const newReservations = reservations.map(r => {
       if (r.status === 'waiting' && r.startTime <= now) {
-        r.status = 'in-progress';
         changed = true;
+        return { ...r, status: 'in-progress' as const };
       }
+      return r;
     });
 
     if (changed) {
       const seatStatusMap: Record<string, SeatStatus> = {};
-      reservations.forEach(r => {
+      newReservations.forEach(r => {
         if (r.status === 'waiting') seatStatusMap[r.seatId] = 'reserved';
         else if (r.status === 'in-progress') seatStatusMap[r.seatId] = 'in-use';
       });
-      seats.forEach(s => {
-        const newStatus = seatStatusMap[s.id] || 'idle';
-        if (s.status !== newStatus) s.status = newStatus;
-      });
+      const newSeats = seats.map(s => ({
+        ...s,
+        status: seatStatusMap[s.id] || 'idle'
+      }));
 
-      set({ reservations: [...reservations], seats: [...seats] });
+      zSet({ reservations: newReservations, seats: newSeats });
     }
   }
 }));
