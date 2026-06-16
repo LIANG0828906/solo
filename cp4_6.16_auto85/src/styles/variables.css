@@ -1,0 +1,41 @@
+:root {
+  --color-primary: #4CAF50;
+  --color-primary-light: #81C784;
+  --color-primary-dark: #388E3C;
+  --color-secondary: #8D6E63;
+  --color-accent: #4FC3F7;
+  --color-background: #F5F0E1;
+  --color-surface: #FFFDF7;
+  --color-card: #F8F4E8;
+  --color-text-primary: #3E2723;
+  --color-text-secondary: #6D4C41;
+  --color-text-muted: #8D6E63;
+  --color-border: #D7CCC8;
+  --color-success: #4CAF50;
+  --color-warning: #FF9800;
+  --color-error: #F44336;
+
+  --gradient-primary: linear-gradient(135deg, #4CAF50 0%, #81C784 100%);
+  --gradient-navbar: linear-gradient(135deg, #4CAF50 0%, #4FC3F7 100%);
+  --gradient-wear: linear-gradient(90deg, #4CAF50 0%, #FFC107 50%, #F44336 100%);
+  --gradient-glass: rgba(255, 255, 255, 0.85);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.16);
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --transition-fast: 0.15s ease-out;
+  --transition-normal: 0.3s ease-out;
+  --transition-slow: 0.5s ease-out;
+
+  --wood-texture: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h100v100H0z' fill='%23F5F0E1'/%3E%3Cpath d='M0 20h100M0 40h100M0 60h100M0 80h100' stroke='%23E8DFCC' stroke-width='0.5' opacity='0.5'/%3E%3C/svg%3E");
+}
