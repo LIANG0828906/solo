@@ -23,7 +23,7 @@ export const ANIMATION = {
 export const AUDIO = {
   sampleRate: 44100,
   maxPreviewDuration: 30,
-  fadeDuration: 0.15,
+  fadeDuration: 0.3,
 };
 
 export const LAYOUT = {

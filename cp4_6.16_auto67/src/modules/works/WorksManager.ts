@@ -133,10 +133,18 @@ export class WorksManager {
 
     if (dateRange?.start) {
       const startDate = new Date(dateRange.start);
-      filtered = filtered.filter((w) => new Date(w.createdAt) >= startDate);
-    }
+      const effectiveEndDate = dateRange?.end
+        ? new Date(dateRange.end)
+        : new Date();
 
-    if (dateRange?.end) {
+      startDate.setHours(0, 0, 0, 0);
+      effectiveEndDate.setHours(23, 59, 59, 999);
+
+      filtered = filtered.filter((w) => {
+        const workDate = new Date(w.createdAt);
+        return workDate >= startDate && workDate <= effectiveEndDate;
+      });
+    } else if (dateRange?.end) {
       const endDate = new Date(dateRange.end);
       endDate.setHours(23, 59, 59, 999);
       filtered = filtered.filter((w) => new Date(w.createdAt) <= endDate);

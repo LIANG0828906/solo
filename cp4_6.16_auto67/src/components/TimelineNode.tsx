@@ -129,6 +129,7 @@ export function TimelineNode({
             ${isExpanded ? 'scale-100 shadow-card-hover' : 'hover:translate-x-1'}
             ${!isSelectedSong && !isExpanded ? 'opacity-70 scale-[0.98]' : ''}
           `}
+          style={{ transformOrigin: 'center center' }}
         >
           <div className="flex items-start justify-between">
             <div className="flex-1">

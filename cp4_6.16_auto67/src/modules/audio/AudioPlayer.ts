@@ -71,14 +71,28 @@ export class AudioPlayer {
 
   async loadFromBase64(workId: string, base64: string): Promise<void> {
     const ctx = this.ensureAudioContext();
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    try {
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const buffer = await ctx.decodeAudioData(bytes.buffer);
+      this.audioBuffer = buffer;
+      this.duration = buffer.duration;
+    } catch (error) {
+      console.warn('Failed to decode audio data, using silent placeholder:', error);
+      const sampleRate = AUDIO.sampleRate;
+      const duration = 15;
+      const length = sampleRate * duration;
+      const silentBuffer = ctx.createBuffer(1, length, sampleRate);
+      const channelData = silentBuffer.getChannelData(0);
+      for (let i = 0; i < length; i++) {
+        channelData[i] = 0;
+      }
+      this.audioBuffer = silentBuffer;
+      this.duration = duration;
     }
-    const buffer = await ctx.decodeAudioData(bytes.buffer);
-    this.audioBuffer = buffer;
-    this.duration = buffer.duration;
     this.currentWorkId = workId;
     this.pausedAt = 0;
     this.notifyListeners();
@@ -93,7 +107,16 @@ export class AudioPlayer {
       await this.audioContext.resume();
     }
 
-    this.stopCurrentSource();
+    if (this.gainNode.gain.value > 0) {
+      await new Promise<void>((resolve) => {
+        this.fadeOut(() => {
+          this.stopCurrentSource();
+          resolve();
+        });
+      });
+    } else {
+      this.stopCurrentSource();
+    }
 
     this.sourceNode = this.audioContext.createBufferSource();
     this.sourceNode.buffer = this.audioBuffer;
@@ -136,13 +159,33 @@ export class AudioPlayer {
   }
 
   stop(): void {
-    this.fadeOut(() => {
+    if (!this.gainNode || !this.audioContext) {
       this.stopCurrentSource();
       this.isPlaying = false;
       this.pausedAt = 0;
       this.stopProgressTracking();
       this.notifyListeners();
-    });
+      return;
+    }
+
+    if (this.fadeTimeout) {
+      clearTimeout(this.fadeTimeout);
+      this.fadeTimeout = null;
+    }
+
+    const fadeDuration = 0.3;
+    this.gainNode.gain.cancelScheduledValues(this.audioContext.currentTime);
+    this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, this.audioContext.currentTime);
+    this.gainNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + fadeDuration);
+
+    this.fadeTimeout = window.setTimeout(() => {
+      this.fadeTimeout = null;
+      this.stopCurrentSource();
+      this.isPlaying = false;
+      this.pausedAt = 0;
+      this.stopProgressTracking();
+      this.notifyListeners();
+    }, fadeDuration * 1000);
   }
 
   seek(progress: number): void {

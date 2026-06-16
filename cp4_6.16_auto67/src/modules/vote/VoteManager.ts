@@ -7,6 +7,9 @@ import type { Vote, VoteStats, Work } from '../../types';
 export class VoteManager {
   private votes: Vote[] = [];
   private listeners = new Set<(votes: Vote[]) => void>();
+  private isSaving = false;
+  private pendingVotes: Vote[] = [];
+  private saveRetryCount = 0;
 
   subscribe(listener: (votes: Vote[]) => void): () => void {
     this.listeners.add(listener);
@@ -62,10 +65,39 @@ export class VoteManager {
   }
 
   private async saveToStorage(): Promise<void> {
+    if (this.isSaving) {
+      return;
+    }
+
+    this.isSaving = true;
     try {
-      await set(STORAGE_KEYS.votes, this.votes);
+      const allVotes = [...this.votes, ...this.pendingVotes];
+      await set(STORAGE_KEYS.votes, allVotes);
+      this.votes = allVotes;
+      this.pendingVotes = [];
+      this.saveRetryCount = 0;
     } catch (error) {
       console.error('Failed to save votes to IndexedDB:', error);
+      this.saveRetryCount++;
+      if (this.saveRetryCount < 3) {
+        setTimeout(() => {
+          this.isSaving = false;
+          this.saveToStorage();
+        }, 100 * this.saveRetryCount);
+        return;
+      }
+      this.saveRetryCount = 0;
+    } finally {
+      if (this.saveRetryCount === 0) {
+        this.isSaving = false;
+      }
+    }
+  }
+
+  private async processPendingVotes(): Promise<void> {
+    if (this.pendingVotes.length > 0 && !this.isSaving) {
+      await this.saveToStorage();
+      this.notifyListeners();
     }
   }
 
@@ -77,9 +109,18 @@ export class VoteManager {
       comment: comment.slice(0, 200),
       createdAt: new Date().toISOString(),
     };
-    this.votes.push(newVote);
-    await this.saveToStorage();
-    this.notifyListeners();
+
+    this.pendingVotes.push(newVote);
+    const optimisticVotes = [...this.votes, ...this.pendingVotes];
+    this.listeners.forEach((listener) => listener([...optimisticVotes]));
+
+    if (!this.isSaving) {
+      await this.saveToStorage();
+      this.notifyListeners();
+    } else {
+      setTimeout(() => this.processPendingVotes(), 100);
+    }
+
     return newVote;
   }
 
