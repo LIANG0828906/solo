@@ -65,6 +65,16 @@ export function calculateSunPosition(
   return { azimuth, altitude }
 }
 
+export function sunDirectionFromAngles(azimuth: number, altitude: number): { x: number; y: number; z: number } {
+  const azimuthRad = (azimuth * Math.PI) / 180
+  const altitudeRad = (altitude * Math.PI) / 180
+  return {
+    x: Math.cos(altitudeRad) * Math.sin(azimuthRad),
+    y: Math.sin(altitudeRad),
+    z: Math.cos(altitudeRad) * Math.cos(azimuthRad),
+  }
+}
+
 export function calculateFaceIntensity(
   faceNormal: { x: number; y: number; z: number },
   sunDirection: { x: number; y: number; z: number }
@@ -73,13 +83,120 @@ export function calculateFaceIntensity(
   return Math.max(0, dot)
 }
 
+export function findSunriseHour(
+  month: number,
+  day: number,
+  latitude: number,
+  longitude: number
+): number {
+  let lo = 0
+  let hi = 12
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2
+    const { altitude } = calculateSunPosition(month, day, mid, latitude, longitude)
+    if (altitude > 0) {
+      hi = mid
+    } else {
+      lo = mid
+    }
+  }
+  return (lo + hi) / 2
+}
+
+export function findSunsetHour(
+  month: number,
+  day: number,
+  latitude: number,
+  longitude: number
+): number {
+  let lo = 12
+  let hi = 24
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2
+    const { altitude } = calculateSunPosition(month, day, mid, latitude, longitude)
+    if (altitude > 0) {
+      lo = mid
+    } else {
+      hi = mid
+    }
+  }
+  return (lo + hi) / 2
+}
+
+export function calculateCumulativeIntensities(
+  month: number,
+  day: number,
+  currentHour: number,
+  latitude: number,
+  longitude: number,
+  faces: BuildingFace[],
+  stepHours: number = 0.1
+): number[] {
+  const sunrise = findSunriseHour(month, day, latitude, longitude)
+  const effectiveEnd = Math.min(currentHour, findSunsetHour(month, day, latitude, longitude))
+
+  if (effectiveEnd <= sunrise || faces.length === 0) {
+    return new Array(faces.length).fill(0)
+  }
+
+  const cumulative = new Array(faces.length).fill(0)
+  const peakPerFace = new Array(faces.length).fill(0)
+  let steps = 0
+
+  for (let h = sunrise; h <= effectiveEnd; h += stepHours) {
+    const { azimuth, altitude } = calculateSunPosition(month, day, h, latitude, longitude)
+    if (altitude <= 0) continue
+
+    const sunDir = sunDirectionFromAngles(azimuth, altitude)
+    steps++
+
+    for (let i = 0; i < faces.length; i++) {
+      const intensity = calculateFaceIntensity(faces[i].normal, sunDir)
+      cumulative[i] += intensity
+      if (intensity > peakPerFace[i]) peakPerFace[i] = intensity
+    }
+  }
+
+  if (steps === 0) return new Array(faces.length).fill(0)
+
+  const maxCumulative = Math.max(...cumulative, 0.0001)
+  const normalized = cumulative.map((c) => Math.min(1, c / maxCumulative))
+
+  return normalized
+}
+
+export function calculateInstantaneousIntensities(
+  month: number,
+  day: number,
+  currentHour: number,
+  latitude: number,
+  longitude: number,
+  faces: BuildingFace[]
+): number[] {
+  const { azimuth, altitude } = calculateSunPosition(month, day, currentHour, latitude, longitude)
+  if (altitude <= 0 || faces.length === 0) {
+    return new Array(faces.length).fill(0)
+  }
+
+  const sunDir = sunDirectionFromAngles(azimuth, altitude)
+  return faces.map((face) => calculateFaceIntensity(face.normal, sunDir))
+}
+
 export function updateAllFaceIntensities(): void {
   const state = useSunStore.getState()
-  const { buildingFaces, sunDirection } = state
+  const { currentDate, timeHour, latitude, longitude, buildingFaces } = state
 
   if (buildingFaces.length === 0) return
 
-  const intensities = buildingFaces.map((face) => calculateFaceIntensity(face.normal, sunDirection))
+  const intensities = calculateCumulativeIntensities(
+    currentDate.month,
+    currentDate.day,
+    timeHour,
+    latitude,
+    longitude,
+    buildingFaces
+  )
+
   useSunStore.getState().updateFaceIntensities(intensities)
 }
 
@@ -104,8 +221,10 @@ export function generateBuildingFaces(): BuildingFace[] {
   const mainBuilding = { x: 0, y: 3, z: 0, w: 8, h: 6, d: 6 }
   const wingBuilding = { x: 5, y: 2, z: -1, w: 3, h: 4, d: 4 }
   const towerBuilding = { x: -3, y: 4, z: 2, w: 2, h: 8, d: 2 }
+  const bayWindow = { x: -1, y: 3, z: -3.3, w: 2.5, h: 3.5, d: 0.6 }
+  const entrance = { x: 1, y: 1.5, z: -3.1, w: 2, h: 3, d: 0.4 }
 
-  const buildings = [mainBuilding, wingBuilding, towerBuilding]
+  const buildings = [mainBuilding, wingBuilding, towerBuilding, bayWindow, entrance]
 
   buildings.forEach((b, bIdx) => {
     faces.push({
