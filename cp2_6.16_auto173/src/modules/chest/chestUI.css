@@ -1,0 +1,166 @@
+.chest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.chest-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  border-radius: 16px;
+  border: 2px solid;
+  background-color: rgba(20, 26, 41, 0.6);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.chest-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
+}
+
+.chest-shake {
+  animation: shake-title 0.5s ease-in-out;
+}
+
+@keyframes shake-title {
+  0%, 100% { transform: translateX(0) scale(1.05); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px) scale(1.05); opacity: 0.3; }
+  20%, 40%, 60%, 80% { transform: translateX(5px) scale(1.05); opacity: 1; }
+}
+
+.chest-key-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  z-index: 2;
+}
+
+.chest-key-icon {
+  font-size: 14px;
+}
+
+.chest-key-count {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.chest-icon-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 120px;
+  margin: 16px 0;
+}
+
+.chest-icon {
+  position: relative;
+  width: 100px;
+  height: 70px;
+  border-radius: 8px 8px 4px 4px;
+  transition: transform 0.3s ease;
+}
+
+.chest-lid {
+  position: absolute;
+  top: 0;
+  left: -5px;
+  right: -5px;
+  height: 20px;
+  border-radius: 6px 6px 0 0;
+  transform-origin: bottom center;
+}
+
+.chest-lock {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 24px;
+  background: linear-gradient(180deg, #ffd700 0%, #ffb300 100%);
+  border-radius: 4px 4px 8px 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.chest-lock::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  border: 3px solid #ffd700;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+}
+
+.chest-info {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.chest-name {
+  font-size: 18px;
+  font-weight: bold;
+  font-family: 'Orbitron', sans-serif;
+  margin: 0 0 4px 0;
+}
+
+.chest-rarity-badge {
+  font-size: 12px;
+  margin: 0 0 6px 0;
+  opacity: 0.8;
+}
+
+.chest-item-count {
+  font-size: 12px;
+  color: #e0e0e0;
+  margin: 0;
+  opacity: 0.7;
+}
+
+.chest-button {
+  width: 100%;
+  padding: 10px 0;
+  background: linear-gradient(135deg, #00d4aa 0%, #008b74 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  font-family: 'Orbitron', sans-serif;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.chest-button:active {
+  transform: scale(0.95);
+}
+
+.chest-button.disabled {
+  background: linear-gradient(135deg, #555 0%, #333 100%);
+  cursor: not-allowed;
+}
+
+.chest-keys-owned {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+  opacity: 0.7;
+}
