@@ -17,6 +17,7 @@ const CreateRecipeModal: React.FC = () => {
   const [recipeName, setRecipeName] = useState('');
   const [recipeDesc, setRecipeDesc] = useState('');
   const [ingredientAmounts, setIngredientAmounts] = useState<Record<string, number>>({});
+  const [justSelectedIngredient, setJustSelectedIngredient] = useState<string | null>(null);
 
   const nutritionInfo: NutritionInfo = useMemo(() => {
     const fullIngredients = selectedIngredients.map((si) => ({
@@ -42,13 +43,16 @@ const CreateRecipeModal: React.FC = () => {
     
     if (isSelected) {
       setSelectedIngredients((prev) =>
-        prev.filter((i) => i.ingredientId !== ingredientId);
+        prev.filter((i) => i.ingredientId !== ingredientId)
+      );
       const newAmounts = { ...ingredientAmounts };
       delete newAmounts[ingredientId];
       setIngredientAmounts(newAmounts);
     } else {
       setSelectedIngredients((prev) => [...prev, { ingredientId, amount: 150 }]);
       setIngredientAmounts((prev) => ({ ...prev, [ingredientId]: 150 }));
+      setJustSelectedIngredient(ingredientId);
+      setTimeout(() => setJustSelectedIngredient(null), 400);
     }
   };
 
@@ -193,230 +197,9 @@ const CreateRecipeModal: React.FC = () => {
                   const isSelected = selectedIngredients.some(
                     (i) => i.ingredientId === ingredient.id
                   );
+                  const isJustSelected = justSelectedIngredient === ingredient.id;
                   return (
                     <button
                       key={ingredient.id}
-                      className={`ingredient-card ${isSelected ? 'selected' : ''}`}
-                      onClick={() => handleIngredientClick(ingredient.id)}
-                      style={{ '--cardColor': ingredient.color } as React.CSSProperties}
-                    >
-                      <div className="ingredient-icon">{ingredient.icon}</div>
-                      <span className="ingredient-name">{ingredient.name}</span>
-                      {isSelected && (
-                        <div className="selected-check">
-                          <Check size={16} />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {selectedIngredients.length > 0 && (
-                <div className="selected-ingredients-list">
-                  <h4>已选食材份量</h4>
-                  {selectedIngredients.map((si) => {
-                    const ing = ingredients.find((i) => i.id === si.ingredientId);
-                    const amount = ingredientAmounts[si.ingredientId] || si.amount;
-                    return (
-                      <div key={si.ingredientId} className="ingredient-amount-row">
-                        <span className="amount-label">
-                          {ing?.icon} {ing?.name}
-                        </span>
-                        <div className="amount-control">
-                          <input
-                            type="range"
-                            min="50"
-                            max="500"
-                            step="10"
-                            value={amount}
-                            onChange={(e) =>
-                              handleAmountChange(si.ingredientId, Number(e.target.value))
-                            }
-                            className="amount-slider"
-                          />
-                          <span className="amount-value">{amount}g</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {currentStep === 2 && (
-            <div className="step-content fade-in">
-              <h3>选择烹饪方法</h3>
-              <p className="step-hint">选择你想用的烹饪方式</p>
-
-              <div className="cooking-methods-grid">
-                {cookingMethods.map((method) => (
-                  <button
-                    key={method.id}
-                    className={`method-circle ${
-                      selectedMethod === method.id ? 'selected' : ''
-                    }`}
-                    onClick={() => setSelectedMethod(method.id)}
-                  >
-                    <div className="method-icon">{method.icon}</div>
-                    <span className="method-name">{method.name}</span>
-                    <div className="method-details">
-                      <span className="detail-item">
-                        <Flame size={12} /> {method.tempRange}
-                      </span>
-                      <span className="detail-item">
-                        <Clock size={12} /> {method.duration}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {currentStep === 3 && (
-            <div className="step-content fade-in">
-              <div className="step-3-layout">
-                <div className="seasonings-section">
-                  <h3>添加调料</h3>
-                  <p className="step-hint">选择并调节料份量</p>
-
-                  <div className="recipe-info">
-                    <div className="form-group">
-                      <label>菜谱名称</label>
-                      <input
-                        type="text"
-                        value={recipeName}
-                        onChange={(e) => setRecipeName(e.target.value)}
-                        placeholder="给你的菜谱起个名字"
-                        className="name-input"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>描述</label>
-                      <textarea
-                        value={recipeDesc}
-                        onChange={(e) => setRecipeDesc(e.target.value)}
-                        placeholder="简单描述一下这道菜..."
-                        className="desc-input"
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="seasonings-grid">
-                    {seasonings.map((seasoning) => {
-                      const isSelected = selectedSeasonings.some(
-                        (s) => s.seasoningId === seasoning.id
-                      );
-                      const seasoningData = selectedSeasonings.find(
-                        (s) => s.seasoningId === seasoning.id
-                      );
-                      return (
-                        <div
-                          key={seasoning.id}
-                          className={`seasoning-item ${isSelected ? 'selected' : ''}`}
-                        >
-                          <button
-                            className="seasoning-toggle"
-                            onClick={() => handleSeasoningToggle(seasoning.id)}
-                          >
-                            <span className="seasoning-icon">{seasoning.icon}</span>
-                            <span className="seasoning-name">{seasoning.name}</span>
-                          </button>
-                          {isSelected && (
-                            <div className="seasoning-amount">
-                              <input
-                                type="range"
-                                min="1"
-                                max="30"
-                                step="1"
-                                value={seasoningData?.amount || 5}
-                                onChange={(e) =>
-                                  handleSeasoningAmountChange(
-                                    seasoning.id,
-                                    Number(e.target.value)
-                                  )
-                                }
-                                className="amount-slider"
-                              />
-                              <span className="amount-value">
-                                {seasoningData?.amount || 5}g
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="nutrition-card">
-                  <h4>营养估算</h4>
-                  <div className="nutrition-grid">
-                    <div className="nutrition-item">
-                      <span className="nutri-value">{nutritionInfo.calories}</span>
-                      <span className="nutri-label">卡路里</span>
-                      <span className="nutri-unit">kcal</span>
-                    </div>
-                    <div className="nutrition-item">
-                      <span className="nutri-value">{nutritionInfo.protein}</span>
-                      <span className="nutri-label">蛋白质</span>
-                      <span className="nutri-unit">g</span>
-                    </div>
-                    <div className="nutrition-item">
-                      <span className="nutri-value">{nutritionInfo.carbs}</span>
-                      <span className="nutri-label">碳水</span>
-                      <span className="nutri-unit">g</span>
-                    </div>
-                    <div className="nutrition-item">
-                      <span className="nutri-value">{nutritionInfo.fat}</span>
-                      <span className="nutri-label">脂肪</span>
-                      <span className="nutri-unit">g</span>
-                    </div>
-                  </div>
-                  <p className="nutrition-hint">
-                    * 估算值，实际营养含量可能因食材和烹饪方式而异
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="modal-footer">
-          <button
-            className="btn-secondary"
-            onClick={handlePrev}
-            disabled={currentStep === 1}
-          >
-            <ChevronLeft size={20} />
-            上一步
-          </button>
-          {currentStep < 3 ? (
-            <button
-              className="btn-primary"
-              onClick={handleNext}
-              disabled={!canProceed()}
-            >
-              下一步
-              <ChevronRight size={20} />
-            </button>
-          ) : (
-            <button
-              className="btn-primary"
-              onClick={handleSubmit}
-              disabled={!canProceed()}
-            >
-              <Check size={20} />
-              创建配方
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default CreateRecipeModal;
+                      className={`ingredient-card ${isSelected ? 'selected' : ''} ${isJustSelected ? 'pop-animation' : ''}`}
+                      onClick={() => handleIngredientClick

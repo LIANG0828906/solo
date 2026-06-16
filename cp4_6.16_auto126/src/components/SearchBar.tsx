@@ -5,41 +5,83 @@ import { ingredients, cuisines, difficultyLabels } from '@/data/ingredients';
 import { SearchSuggestion } from '@/types';
 import './SearchBar.css';
 
+const CATEGORY_ICONS: Record<string, string> = {
+  ingredient: '🥕',
+  cuisine: '🍽️',
+  difficulty: '🌶️',
+};
+
+const CATEGORY_TITLES: Record<string, string> = {
+  ingredient: '食材',
+  cuisine: '菜系',
+  difficulty: '难度',
+};
+
 const SearchBar: React.FC = () => {
   const { searchQuery, setSearchQuery, toggleIngredientFilter, selectedIngredients } = useAppStore();
   const [isFocused, setIsFocused] = useState(false);
+  const [localQuery, setLocalQuery] = useState(searchQuery);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const suggestions = useMemo<SearchSuggestion[]>(() => {
-    if (!searchQuery.trim()) return [];
-    
+  useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
+
+  const handleInputChange = (value: string) => {
+    setLocalQuery(value);
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      setSearchQuery(value);
+    }, 150);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const groupedSuggestions = useMemo<Record<string, SearchSuggestion[]>>(() => {
+    if (!searchQuery.trim()) return {};
+
     const query = searchQuery.toLowerCase();
-    const result: SearchSuggestion[] = [];
+    const groups: Record<string, SearchSuggestion[]> = {
+      ingredient: [],
+      cuisine: [],
+      difficulty: [],
+    };
 
     ingredients
       .filter((i) => i.name.toLowerCase().includes(query))
-      .slice(0, 3)
+      .slice(0, 5)
       .forEach((i) => {
-        result.push({ id: `ing-${i.id}`, text: i.name, category: 'ingredient' });
+        groups.ingredient.push({ id: `ing-${i.id}`, text: i.name, category: 'ingredient' });
       });
 
     cuisines
       .filter((c) => c.toLowerCase().includes(query))
-      .slice(0, 2)
+      .slice(0, 5)
       .forEach((c) => {
-        result.push({ id: `cui-${c}`, text: c, category: 'cuisine' });
+        groups.cuisine.push({ id: `cui-${c}`, text: c, category: 'cuisine' });
       });
 
     Object.entries(difficultyLabels)
       .filter(([_, label]) => label.includes(query))
-      .slice(0, 2)
+      .slice(0, 5)
       .forEach(([level, label]) => {
-        result.push({ id: `diff-${level}`, text: `${label}难度`, category: 'difficulty' });
+        groups.difficulty.push({ id: `diff-${level}`, text: `${label}难度`, category: 'difficulty' });
       });
 
-    return result.slice(0, 6);
+    return groups;
   }, [searchQuery]);
+
+  const hasSuggestions = Object.values(groupedSuggestions).some((group) => group.length > 0);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -57,22 +99,15 @@ const SearchBar: React.FC = () => {
       const ingredientId = suggestion.id.replace('ing-', '');
       toggleIngredientFilter(ingredientId);
     }
+    setLocalQuery(suggestion.text);
     setSearchQuery(suggestion.text);
     setIsFocused(false);
   };
 
   const handleClear = () => {
+    setLocalQuery('');
     setSearchQuery('');
     inputRef.current?.focus();
-  };
-
-  const getCategoryLabel = (category: string) => {
-    const labels: Record<string, string> = {
-      ingredient: '食材',
-      cuisine: '菜系',
-      difficulty: '难度',
-    };
-    return labels[category] || category;
   };
 
   return (
@@ -83,32 +118,44 @@ const SearchBar: React.FC = () => {
           ref={inputRef}
           type="text"
           placeholder="搜索菜谱、食材、菜系..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          value={localQuery}
+          onChange={(e) => handleInputChange(e.target.value)}
           onFocus={() => setIsFocused(true)}
           className="search-input"
         />
-        {searchQuery && (
+        {localQuery && (
           <button className="clear-btn" onClick={handleClear}>
             <X size={18} />
           </button>
         )}
       </div>
 
-      {isFocused && suggestions.length > 0 && (
+      {isFocused && hasSuggestions && (
         <div className="suggestions-dropdown">
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion.id}
-              className="suggestion-item"
-              onClick={() => handleSuggestionClick(suggestion)}
-            >
-              <span className="suggestion-text">{suggestion.text}</span>
-              <span className={`suggestion-tag tag-${suggestion.category}`}>
-                {getCategoryLabel(suggestion.category)}
-              </span>
-            </button>
-          ))}
+          {Object.entries(groupedSuggestions).map(([category, items]) => {
+            if (items.length === 0) return null;
+            return (
+              <div key={category} className="suggestion-group">
+                <div className="suggestion-group-title">
+                  <span className="group-icon">{CATEGORY_ICONS[category]}</span>
+                  {CATEGORY_TITLES[category]}
+                </div>
+                {items.map((suggestion) => (
+                  <button
+                    key={suggestion.id}
+                    className={`suggestion-item suggestion-item-${suggestion.category}`}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                  >
+                    <span className="suggestion-icon">{CATEGORY_ICONS[suggestion.category]}</span>
+                    <span className="suggestion-text">{suggestion.text}</span>
+                    <span className={`suggestion-tag tag-${suggestion.category}`}>
+                      {CATEGORY_TITLES[suggestion.category]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </div>
       )}
 

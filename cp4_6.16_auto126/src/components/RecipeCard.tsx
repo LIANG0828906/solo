@@ -44,18 +44,19 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, style }) => {
   const renderSparkles = () => {
     if (!isLikeAnimating) return null;
     
-    const sparkles = Array.from({ length: 12 }, (_, i) => {
-      const angle = (i / 12) * Math.PI * 2;
-      const distance = 30 + Math.random() * 20;
+    const sparkles = Array.from({ length: 16 }, (_, i) => {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 40 + Math.random() * 50;
       const tx = Math.cos(angle) * distance;
       const ty = Math.sin(angle) * distance;
-      const size = 6 + Math.random() * 6;
-      const delay = Math.random() * 0.1;
+      const size = 6 + Math.random() * 10;
+      const delay = Math.random() * 0.15;
+      const isHeart = Math.random() > 0.5;
       
       return (
         <span
           key={i}
-          className="sparkle"
+          className={`sparkle ${isHeart ? 'sparkle-heart' : 'sparkle-circle'}`}
           style={{
             '--tx': `${tx}px`,
             '--ty': `${ty}px`,
@@ -102,9 +103,10 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onClick, style }) => {
           onClick={handleFavoriteClick}
         >
           <Heart size={20} fill={isFavorite ? '#FF4757' : 'none'} />
-          {renderSparkles()}
         </button>
       </div>
+
+      {renderSparkles()}
 
       <div className="card-content">
         <h3 className="recipe-title">{recipe.name}</h3>

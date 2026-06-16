@@ -9,34 +9,49 @@ export interface RecommendOptions {
 
 export class RecommendEngine {
   private recipes: Recipe[];
+  private recipeIngredientSets: Map<string, Set<string>>;
 
   constructor(recipes: Recipe[]) {
     this.recipes = recipes;
+    this.recipeIngredientSets = new Map();
+    this.buildIngredientIndex();
   }
 
-  getRecommendations(options: RecommendOptions = {}): Recipe[] {
-    const {
-      favoriteIds = [],
-      searchQuery = '',
-      selectedIngredients = [],
-      maxResults = 20,
-    } = options;
-
-    let scoredRecipes = this.recipes.map((recipe) => ({
-      recipe,
-      score: this.calculateScore(recipe, favoriteIds, selectedIngredients),
-    }));
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      scoredRecipes = scoredRecipes.filter(({ recipe }) =>
-        this.matchesSearch(recipe, query)
+  private buildIngredientIndex(): void {
+    for (const recipe of this.recipes) {
+      const ingredientSet = new Set(
+        recipe.mainIngredients.map((ing) => ing.ingredientId)
       );
+      this.recipeIngredientSets.set(recipe.id, ingredientSet);
+    }
+  }
+
+  private getRecipeIngredientSet(recipeId: string): Set<string> {
+    let set = this.recipeIngredientSets.get(recipeId);
+    if (!set) {
+      const recipe = this.recipes.find((r) => r.id === recipeId);
+      set = recipe
+        ? new Set(recipe.mainIngredients.map((ing) => ing.ingredientId))
+        : new Set();
+      this.recipeIngredientSets.set(recipeId, set);
+    }
+    return set;
+  }
+
+  private static jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+    if (a.size === 0 && b.size === 0) return 1;
+    if (a.size === 0 || b.size === 0) return 0;
+
+    let intersection = 0;
+    const [smaller, larger] = a.size <= b.size ? [a, b] : [b, a];
+    for (const item of smaller) {
+      if (larger.has(item)) {
+        intersection++;
+      }
     }
 
-    scoredRecipes.sort((a, b) => b.score - a.score);
-
-    return scoredRecipes.slice(0, maxResults).map((item) => item.recipe);
+    const union = a.size + b.size - intersection;
+    return intersection / union;
   }
 
   private calculateScore(
@@ -46,26 +61,24 @@ export class RecommendEngine {
   ): number {
     let score = 0;
 
-    score += recipe.rating * 10;
+    score += recipe.rating * 20;
 
-    score += Math.log10(recipe.ratingCount + 1) * 5;
+    score += Math.log(recipe.ratingCount + 1) * 10;
 
-    const ingredientMatchCount = recipe.mainIngredients.filter((ing) =>
-      selectedIngredients.includes(ing.ingredientId)
-    ).length;
     if (selectedIngredients.length > 0) {
-      score += (ingredientMatchCount / selectedIngredients.length) * 30;
+      const selectedSet = new Set(selectedIngredients);
+      const recipeSet = this.getRecipeIngredientSet(recipe.id);
+      const similarity = RecommendEngine.jaccardSimilarity(selectedSet, recipeSet);
+      score += similarity * 50;
     }
 
     if (favoriteIds.includes(recipe.id)) {
-      score += 15;
+      score += 25;
     }
 
     const ageInDays = (Date.now() - recipe.createdAt) / (1000 * 60 * 60 * 24);
     const recencyBonus = Math.max(0, 10 - ageInDays * 0.1);
     score += recencyBonus;
-
-    score += Math.random() * 2;
 
     return score;
   }
@@ -83,14 +96,45 @@ export class RecommendEngine {
     return false;
   }
 
+  getRecommendations(options: RecommendOptions = {}): Recipe[] {
+    const {
+      favoriteIds = [],
+      searchQuery = '',
+      selectedIngredients = [],
+      maxResults = 20,
+    } = options;
+
+    const favoriteSet = new Set(favoriteIds);
+    const hasSearchQuery = searchQuery.trim() !== '';
+    const query = hasSearchQuery ? searchQuery.toLowerCase() : '';
+
+    const scoredRecipes: { recipe: Recipe; score: number }[] = [];
+
+    for (const recipe of this.recipes) {
+      if (hasSearchQuery && !this.matchesSearch(recipe, query)) {
+        continue;
+      }
+
+      const score = this.calculateScore(recipe, favoriteIds, selectedIngredients);
+      scoredRecipes.push({ recipe, score });
+    }
+
+    scoredRecipes.sort((a, b) => b.score - a.score);
+
+    return scoredRecipes.slice(0, maxResults).map((item) => item.recipe);
+  }
+
   filterByIngredients(ingredientIds: string[]): Recipe[] {
     if (ingredientIds.length === 0) return this.recipes;
 
-    return this.recipes.filter((recipe) =>
-      ingredientIds.some((id) =>
-        recipe.mainIngredients.some((ing) => ing.ingredientId === id)
-      )
-    );
+    const ingredientSet = new Set(ingredientIds);
+    return this.recipes.filter((recipe) => {
+      const recipeSet = this.getRecipeIngredientSet(recipe.id);
+      for (const id of ingredientSet) {
+        if (recipeSet.has(id)) return true;
+      }
+      return false;
+    });
   }
 
   filterByDifficulty(difficulty: 1 | 2 | 3): Recipe[] {
@@ -105,29 +149,45 @@ export class RecommendEngine {
     const targetRecipe = this.recipes.find((r) => r.id === recipeId);
     if (!targetRecipe) return [];
 
-    const targetIngredientIds = targetRecipe.mainIngredients.map(
-      (ing) => ing.ingredientId
-    );
+    const targetIngredientSet = this.getRecipeIngredientSet(recipeId);
+    const targetMethod = targetRecipe.cookingMethod;
+    const targetCuisine = targetRecipe.cuisine;
 
-    const similar = this.recipes
-      .filter((r) => r.id !== recipeId)
-      .map((recipe) => {
-        const commonIngredients = recipe.mainIngredients.filter((ing) =>
-          targetIngredientIds.includes(ing.ingredientId)
-        ).length;
+    const similar: { recipe: Recipe; similarity: number }[] = [];
 
-        const sameMethod = recipe.cookingMethod === targetRecipe.cookingMethod ? 1 : 0;
-        const sameCuisine = recipe.cuisine === targetRecipe.cuisine ? 1 : 0;
+    for (const recipe of this.recipes) {
+      if (recipe.id === recipeId) continue;
 
-        const similarity =
-          commonIngredients * 2 + sameMethod * 3 + sameCuisine * 2 + recipe.rating;
+      let similarity = 0;
 
-        return { recipe, similarity };
-      })
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, limit)
-      .map((item) => item.recipe);
+      const recipeIngredientSet = this.getRecipeIngredientSet(recipe.id);
+      let intersection = 0;
+      const [smaller, larger] =
+        targetIngredientSet.size <= recipeIngredientSet.size
+          ? [targetIngredientSet, recipeIngredientSet]
+          : [recipeIngredientSet, targetIngredientSet];
+      for (const item of smaller) {
+        if (larger.has(item)) {
+          intersection++;
+        }
+      }
+      similarity += intersection * 2;
 
-    return similar;
+      if (recipe.cookingMethod === targetMethod) {
+        similarity += 3;
+      }
+
+      if (targetCuisine && recipe.cuisine === targetCuisine) {
+        similarity += 2;
+      }
+
+      similarity += recipe.rating;
+
+      similar.push({ recipe, similarity });
+    }
+
+    similar.sort((a, b) => b.similarity - a.similarity);
+
+    return similar.slice(0, limit).map((item) => item.recipe);
   }
 }
