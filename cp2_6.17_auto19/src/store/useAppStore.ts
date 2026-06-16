@@ -283,10 +283,9 @@ export const useFilteredMenuItems = (category: Category, searchQuery?: string) =
     const query = searchQuery.trim().toLowerCase();
     items = items.filter(item => {
       const nameMatch = item.name.toLowerCase().includes(query);
-      const descMatch = item.description?.toLowerCase().includes(query) ?? false;
       const categoryLabel = CATEGORY_LABELS[item.category] ?? '';
       const categoryMatch = categoryLabel.toLowerCase().includes(query);
-      return nameMatch || descMatch || categoryMatch;
+      return nameMatch || categoryMatch;
     });
   } else if (category !== 'all') {
     items = items.filter(item => item.category === category);
