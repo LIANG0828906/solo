@@ -230,16 +230,28 @@ export function createBars(
       const duration = 600
       const startTime = performance.now()
       
+      const startScales = new Map<number, THREE.Vector3>()
+      data.forEach((_, index) => {
+        const bar = objects.get(index)
+        if (bar) startScales.set(index, bar.scale.clone())
+      })
+      
       const animate = () => {
         const elapsed = performance.now() - startTime
         const progress = Math.min(elapsed / duration, 1)
-        const eased = 1 - Math.pow(progress, 3)
+        const eased = 1 - Math.pow(progress, 2)
         
         data.forEach((_, index) => {
           const bar = objects.get(index)
           if (!bar || !bar.visible) return
           
-          bar.scale.setScalar(eased * 0.01)
+          const startScale = startScales.get(index)
+          if (startScale) {
+            bar.scale.x = startScale.x * eased
+            bar.scale.z = startScale.z * eased
+            bar.scale.y = startScale.y * eased
+          }
+          
           const mat = bar.material as THREE.MeshStandardMaterial
           mat.opacity = eased
         })
@@ -486,18 +498,24 @@ export function createLine(
       const duration = 600
       const startTime = performance.now()
       
+      const startScales = new Map<number, number>()
+      objects.forEach((sphere, index) => {
+        startScales.set(index, sphere.scale.x)
+      })
+      
       const animate = () => {
         const elapsed = performance.now() - startTime
         const progress = Math.min(elapsed / duration, 1)
-        const eased = 1 - Math.pow(progress, 3)
+        const eased = 1 - Math.pow(progress, 2)
         
         lineMaterial.opacity = eased
-        lineMesh.scale.setScalar(0.5 + eased * 0.5)
+        lineMesh.scale.setScalar(eased)
         
-        objects.forEach(sphere => {
+        objects.forEach((sphere, index) => {
           const mat = sphere.material as THREE.MeshStandardMaterial
           mat.opacity = eased
-          sphere.scale.setScalar(eased)
+          const startScale = startScales.get(index) || 1
+          sphere.scale.setScalar(startScale * eased)
         })
         
         if (progress < 1) {
@@ -710,13 +728,19 @@ export function createScatter(
       const duration = 600
       const startTime = performance.now()
       
+      const startScales = new Map<number, number>()
+      objects.forEach((sphere, index) => {
+        startScales.set(index, sphere.scale.x)
+      })
+      
       const animate = () => {
         const elapsed = performance.now() - startTime
         const progress = Math.min(elapsed / duration, 1)
-        const eased = 1 - Math.pow(progress, 3)
+        const eased = 1 - Math.pow(progress, 2)
         
-        objects.forEach(sphere => {
-          sphere.scale.setScalar(eased * 0.01)
+        objects.forEach((sphere, index) => {
+          const startScale = startScales.get(index) || 1
+          sphere.scale.setScalar(startScale * eased)
           const mat = sphere.material as THREE.MeshStandardMaterial
           mat.opacity = eased
         })

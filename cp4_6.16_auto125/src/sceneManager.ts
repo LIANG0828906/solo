@@ -10,7 +10,7 @@ interface ChartInstance {
   objects: Map<number, THREE.Mesh>
   animateIn: () => void
   animateOut: () => Promise<void>
-  updateData: (data: DataPoint[], progress?: number) => void
+  updateData: (data: DataPoint[], animate?: boolean) => void
   dispose: () => void
 }
 
@@ -27,7 +27,7 @@ export class SceneManager {
   
   private stars: THREE.Points | null = null
   private starCount = 300
-  private starSizes: Float32Array | null = null
+  private starPhases: Float32Array | null = null
   
   private isDragging = false
   private previousMousePosition = { x: 0, y: 0 }
@@ -122,7 +122,7 @@ export class SceneManager {
     const geometry = new THREE.BufferGeometry()
     const positions = new Float32Array(this.starCount * 3)
     const colors = new Float32Array(this.starCount * 3)
-    this.starSizes = new Float32Array(this.starCount)
+    this.starPhases = new Float32Array(this.starCount)
     
     for (let i = 0; i < this.starCount; i++) {
       const radius = 70 + Math.random() * 40
@@ -144,11 +144,17 @@ export class SceneManager {
         colors.set([1, 1, 0.9], i * 3)
       }
       
-      this.starSizes[i] = 0.4 + Math.random() * 0.8
+      this.starPhases[i] = Math.random() * Math.PI * 2
     }
     
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    
+    const sizes = new Float32Array(this.starCount)
+    for (let i = 0; i < this.starCount; i++) {
+      sizes[i] = 0.4 + Math.random() * 0.8
+    }
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
     
     const material = new THREE.PointsMaterial({
       size: 0.8,
@@ -383,7 +389,7 @@ export class SceneManager {
       
       if (chart && chart.chartType === chartType) {
         chart.group.visible = true
-        chart.updateData(series.data, 1)
+        chart.updateData(series.data, false)
         
         if (seriesSpacing) {
           chart.group.position.z = seriesSpacing[idx]
@@ -584,13 +590,18 @@ export class SceneManager {
     
     this.updateCameraPosition()
     
-    if (this.stars) {
+    if (this.stars && this.starPhases) {
       this.stars.rotation.y += (this.autoRotateSpeed * Math.PI / 180) * delta * 0.3
       
-      if (this.starSizes) {
-        const material = this.stars.material as THREE.PointsMaterial
-        const twinkle = Math.sin(elapsed * 2) * 0.15 + 0.85
-        material.size = 0.8 * twinkle
+      const sizeAttr = this.stars.geometry.getAttribute('size') as THREE.BufferAttribute
+      if (sizeAttr) {
+        const baseSizes = sizeAttr.array as Float32Array
+        for (let i = 0; i < this.starCount; i++) {
+          const baseSize = 0.4 + (i % 5) * 0.15
+          const twinkle = Math.sin(elapsed * (1.5 + i * 0.02) + this.starPhases[i])
+          baseSizes[i] = baseSize * (0.6 + 0.4 * (twinkle * 0.5 + 0.5))
+        }
+        sizeAttr.needsUpdate = true
       }
     }
     

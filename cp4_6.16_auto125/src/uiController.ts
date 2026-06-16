@@ -39,6 +39,7 @@ export class UIController {
       timelineEnd: document.getElementById('timeline-end')!,
       timelineCurrent: document.getElementById('timeline-current')!,
       timelineTicks: document.getElementById('timeline-ticks')!,
+      topTimestamp: document.getElementById('top-timestamp')!,
       resetViewBtn: document.getElementById('reset-view-btn')!,
       autoRotateBtn: document.getElementById('auto-rotate-btn')!,
       loadingOverlay: document.getElementById('loading-overlay')!,
@@ -270,6 +271,18 @@ export class UIController {
       this.elements.timelineEnd.textContent = this.formatTime(maxTime)
       this.elements.timelineCurrent.textContent = `时间范围: ${this.formatTime(minTime)} - ${this.formatTime(maxTime)}`
       
+      this.elements.topTimestamp.textContent = `⏱ ${this.formatTime(maxTime)}`
+      
+      const ticksEl = this.elements.timelineTicks
+      ticksEl.innerHTML = ''
+      const tickCount = 6
+      for (let i = 0; i <= tickCount; i++) {
+        const tick = document.createElement('span')
+        const tickTime = minTime + (maxTime - minTime) * (i / tickCount)
+        tick.textContent = this.formatTime(tickTime)
+        ticksEl.appendChild(tick)
+      }
+      
       useDataStore.getState().setTimeRange({ start: minTime, end: maxTime })
     }
   }
@@ -302,6 +315,8 @@ export class UIController {
     
     this.elements.timelineCurrent.textContent = 
       `当前时间: ${this.formatTime(currentMaxTime)} / ${this.formatTime(maxTime)}`
+    
+    this.elements.topTimestamp.textContent = `⏱ ${this.formatTime(currentMaxTime)}`
 
     if (this.sceneManager) {
       this.sceneManager.updateTimeRange(newRange)
