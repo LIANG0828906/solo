@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg-primary: #1A1A2E;
+  --color-bg-secondary: #16213E;
+  --color-bg-tertiary: #0F3460;
+  --color-accent-primary: #E94560;
+  --color-accent-secondary: #3498DB;
+  --color-accent-tertiary: #F1C40F;
+  --color-text-primary: #E0E0E0;
+  --color-text-secondary: #A0A0A0;
+  --color-text-muted: #606060;
+  --color-border: rgba(15, 52, 96, 0.5);
+  --color-success: #2ECC71;
+  --color-warning: #F39C12;
+  --color-error: #E74C3C;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.ProseMirror {
+  outline: none;
+  min-height: 100%;
+  padding: 1.5rem;
+}
+
+.ProseMirror p {
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.ProseMirror h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-primary);
+}
+
+.ProseMirror h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: var(--color-text-primary);
+}
+
+.ProseMirror h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-text-primary);
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.ProseMirror li {
+  margin-bottom: 0.25rem;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid var(--color-accent-secondary);
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-bottom: 1rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.ProseMirror code {
+  background-color: rgba(52, 152, 219, 0.2);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  font-size: 0.875rem;
+  color: var(--color-accent-secondary);
+}
+
+.ProseMirror pre {
+  background-color: var(--color-bg-tertiary);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: var(--color-text-primary);
+}
+
+.ProseMirror a {
+  color: var(--color-accent-secondary);
+  text-decoration: underline;
+}
+
+.ProseMirror a:hover {
+  color: var(--color-accent-primary);
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5rem 0;
+}
+
+.ProseMirror strong {
+  font-weight: 600;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror u {
+  text-decoration: underline;
+}
+
+.ProseMirror s {
+  text-decoration: line-through;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: '开始输入笔记内容...';
+  float: left;
+  color: rgba(224, 224, 224, 0.3);
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap-menubar {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg-secondary);
+}
+
+.tiptap-menubar button {
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.tiptap-menubar button:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.tiptap-menubar button.is-active {
+  background-color: var(--color-accent-primary);
+  color: white;
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+}
+
+.node-glow {
+  animation: glow 2s ease-in-out infinite;
+}
