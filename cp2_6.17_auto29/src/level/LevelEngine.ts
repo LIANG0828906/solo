@@ -89,8 +89,17 @@ export class LevelEngine {
 
   onKeyDown = (e: KeyboardEvent) => {
     const k = e.key.toLowerCase();
-    const acceptKeys = new Set(['arrowleft', 'arrowright', 'arrowup', 'a', 'd', 'w', ' ', 'shift', 'space']);
+    const acceptKeys = new Set(['arrowleft', 'arrowright', 'arrowup', 'a', 'd', 'w', ' ', 'shift', 'space', 'escape', 'esc']);
     if (acceptKeys.has(k)) e.preventDefault();
+
+    if (k === 'escape' || k === 'esc') {
+      useGameStore.getState().togglePause();
+      return;
+    }
+
+    const state = useGameStore.getState();
+    if (state.paused) return;
+
     if (!this.keys.has(k)) {
       if (k === 'arrowup' || k === 'w' || k === ' ' || k === 'space') {
         this.jumpQueued = true;
@@ -108,6 +117,7 @@ export class LevelEngine {
     if (k === 'shift') {
       useGameStore.getState().toggleChronoField(false);
     }
+    if (k === 'escape' || k === 'esc') return;
   };
 
   start() {
@@ -118,7 +128,8 @@ export class LevelEngine {
       if (!this.running) return;
       const dt = Math.min(50, t - this.lastTime);
       this.lastTime = t;
-      this.time += dt;
+      const paused = useGameStore.getState().paused;
+      if (!paused) this.time += dt;
       this.update(dt);
       this.render();
       this.rafId = requestAnimationFrame(loop);
@@ -134,6 +145,7 @@ export class LevelEngine {
   update(dt: number) {
     const state = useGameStore.getState();
     if (state.currentScreen !== 'playing') return;
+    if (state.paused) return;
 
     state.updateState(dt);
     const s = useGameStore.getState();

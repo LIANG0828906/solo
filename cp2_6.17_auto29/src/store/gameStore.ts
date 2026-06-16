@@ -162,6 +162,7 @@ export interface GameState {
   };
 
   chronoPulseTime: number;
+  paused: boolean;
 }
 
 export interface GameActions {
@@ -173,6 +174,8 @@ export interface GameActions {
   showResult: () => void;
   resetLevel: () => void;
   updateState: (delta: number) => void;
+  togglePause: () => void;
+  setPaused: (paused: boolean) => void;
 }
 
 const emptyLevel: LevelData = {
@@ -229,9 +232,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   },
 
   chronoPulseTime: 0,
+  paused: false,
 
   goToMenu: () => {
-    set({ currentScreen: 'menu' });
+    set({ currentScreen: 'menu', paused: false });
   },
 
   goToLevelSelect: () => {
@@ -271,6 +275,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       collectedFragments: 0,
       totalFragmentsInLevel: level.totalFragments,
       uiAnim: { healthFlash: 0, healthShake: 0, energyShake: 0 },
+      paused: false,
     });
   },
 
@@ -348,5 +353,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
       return { uiAnim, chronoField, chronoPulseTime };
     });
+  },
+
+  togglePause: () => {
+    const s = get();
+    if (s.currentScreen !== 'playing') return;
+    set({ paused: !s.paused });
+  },
+
+  setPaused: (paused: boolean) => {
+    const s = get();
+    if (s.currentScreen !== 'playing') return;
+    set({ paused });
   },
 }));
