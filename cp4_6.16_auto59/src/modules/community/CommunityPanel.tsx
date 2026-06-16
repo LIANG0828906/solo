@@ -52,19 +52,13 @@ const MOCK_COMMENTS: Record<string, Comment[]> = {
   ]
 }
 
-const safeCall = (fn: any, ...args: any[]) => {
-  if (typeof fn === 'function') return fn(...args)
-  return undefined
-}
-
 export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, onViewRecipe }) => {
-  const store = useRecipesStore()
-  const recipes = store?.recipes ?? []
-  const toggleFavorite = (id: string) => safeCall(useRecipesStore.getState()?.toggleFavorite, id)
-  const addRating = (id: string, rating: number) => safeCall(useRecipesStore.getState()?.addRating, id, rating)
-  const incrementViews = (id: string) => safeCall(useRecipesStore.getState()?.incrementViews, id)
-  const createRecipe = (data: any) => safeCall(useRecipesStore.getState()?.createRecipe, data)
-  const deleteRecipe = (id: string) => safeCall(useRecipesStore.getState()?.deleteRecipe, id)
+  const recipes = useRecipesStore((s) => s.recipes) || []
+  const toggleFavorite = useRecipesStore((s) => s.toggleFavorite)
+  const addRating = useRecipesStore((s) => s.addRating)
+  const incrementViews = useRecipesStore((s) => s.incrementViews)
+  const createRecipe = useRecipesStore((s) => s.createRecipe)
+  const deleteRecipe = useRecipesStore((s) => s.deleteRecipe)
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null)
@@ -86,6 +80,7 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [scrollY, setScrollY] = useState(0)
+  const hasIncrementedView = useRef<string | null>(null)
 
   const selectedRecipe = useMemo(
     () => recipes.find((r) => r.id === selectedRecipeId) || null,
@@ -170,10 +165,11 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
     setMyRating(0)
     setHoverRating(0)
     setCommentText('')
-    if (selectedRecipe) {
-      const s = useRecipesStore.getState()
-      if (s && typeof s.incrementViews === 'function') {
-        s.incrementViews(selectedRecipe.id)
+    if (selectedRecipeId && hasIncrementedView.current !== selectedRecipeId) {
+      hasIncrementedView.current = selectedRecipeId
+      const api = useRecipesStore.getState()
+      if (api && typeof api.incrementViews === 'function') {
+        api.incrementViews(selectedRecipeId)
       }
     }
   }, [selectedRecipeId])
@@ -193,8 +189,11 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
   }
 
   const handleCreateNew = () => {
-    const newRecipe = createRecipe({ title: '我的新食谱' })
-    onEditRecipe(newRecipe.id)
+    const api = useRecipesStore.getState()
+    if (api && typeof api.createRecipe === 'function') {
+      const newRecipe = api.createRecipe({ title: '我的新食谱' })
+      onEditRecipe(newRecipe.id)
+    }
   }
 
   const handleToggleStep = (order: number) => {
@@ -268,10 +267,6 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
           animation: pageFlip 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
           transform-origin: left center;
         }
-        @keyframes slideBack {
-          0% { transform: translateX(0); opacity: 1; }
-          100% { transform: translateX(-100px); opacity: 0; }
-        }
         @keyframes checkmarkPop {
           0% { transform: scale(0) rotate(-180deg); }
           50% { transform: scale(1.3) rotate(10deg); }
@@ -309,6 +304,12 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
           100% { transform: scale(1); }
         }
         .like-burst { animation: likeBurst 0.3s ease; }
+        @media (max-width: 1024px) {
+          .museum-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 640px) {
+          .museum-grid { grid-template-columns: 1fr !important; }
+        }
       `}</style>
 
       {viewMode === 'grid' && (
@@ -421,7 +422,7 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+            <div className="museum-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
               {sortedAndFilteredRecipes.map((recipe, idx) => {
                 const recipeAvg = recipe.ratings.length
                   ? recipe.ratings.reduce((a, b) => a + b, 0) / recipe.ratings.length
@@ -479,9 +480,7 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
                           {recipe.cuisine === 'chinese' ? '🥢' : recipe.cuisine === 'western' ? '🍝' : recipe.cuisine === 'japanese' ? '🍣' : '🍰'}
                         </div>
                       </div>
-                      <div
-                        className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/15 to-transparent"
-                      />
+                      <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/15 to-transparent" />
                     </div>
 
                     <div className="p-4">
@@ -632,6 +631,7 @@ export const CommunityPanel: React.FC<CommunityPanelProps> = ({ onEditRecipe, on
                   onClick={() => {
                     setViewMode('grid')
                     setSelectedRecipeId(null)
+                    hasIncrementedView.current = null
                   }}
                   className="w-10 h-10 rounded-full bg-white/80 backdrop-blur text-[#8B5E3C] font-bold hover:bg-white transition-all flex items-center justify-center shadow-md"
                 >

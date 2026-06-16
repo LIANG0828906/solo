@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Recipe } from './modules/recipes/types'
 import { useRecipesStore } from './modules/recipes/store'
 import { EditorCanvas } from './modules/recipes/EditorCanvas'
 import { CommunityPanel } from './modules/community/CommunityPanel'
@@ -9,8 +10,7 @@ const Navigation: React.FC<{
   recipeId?: string | null
 }> = ({ mode, recipeId }) => {
   const navigate = useNavigate()
-  const navStore = useRecipesStore()
-  const currentRecipe = navStore?.currentRecipe ?? null
+  const currentRecipe = useRecipesStore((s) => s.currentRecipe)
 
   return (
     <nav className="h-14 flex-shrink-0 bg-white border-b border-[#E8DCC8] px-6 flex items-center justify-between shadow-sm relative z-50">
@@ -82,7 +82,7 @@ const Navigation: React.FC<{
 }
 
 const CommunityPage: React.FC = () => {
-  const { recipes } = useRecipesStore()
+  const recipes = useRecipesStore((s) => s.recipes) || []
   const navigate = useNavigate()
 
   return (
@@ -101,23 +101,23 @@ const CommunityPage: React.FC = () => {
 const EditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const store = useRecipesStore()
-  const recipes = store?.recipes ?? []
+  const recipes = useRecipesStore((s) => s.recipes) || []
   const [inited, setInited] = useState(false)
 
   useEffect(() => {
-    if (!inited && id) {
-      const exists = recipes.some((r) => r.id === id)
-      const s = useRecipesStore.getState()
-      if (!exists && recipes.length > 0) {
-        if (typeof s?.setCurrentRecipe === 'function') s.setCurrentRecipe(recipes[0].id)
-        navigate(`/editor/${recipes[0].id}`, { replace: true })
-      } else if (exists) {
-        if (typeof s?.setCurrentRecipe === 'function') s.setCurrentRecipe(id)
-      }
-      setInited(true)
+    if (inited || !id) return
+    const api = useRecipesStore.getState()
+    if (!api) return
+    const recs = api.recipes || []
+    const exists = recs.some((r: Recipe) => r.id === id)
+    if (!exists && recs.length > 0) {
+      if (typeof api.setCurrentRecipe === 'function') api.setCurrentRecipe(recs[0].id)
+      navigate(`/editor/${recs[0].id}`, { replace: true })
+    } else if (exists) {
+      if (typeof api.setCurrentRecipe === 'function') api.setCurrentRecipe(id)
     }
-  }, [inited, id, recipes, navigate])
+    setInited(true)
+  }, [inited, id, navigate])
 
   const recipe = recipes.find((r) => r.id === id)
 
@@ -125,11 +125,9 @@ const EditorPage: React.FC = () => {
     if (recipes.length > 0) {
       return <Navigate to={`/editor/${recipes[0].id}`} replace />
     }
-    const s = useRecipesStore.getState()
-    const newRecipe = typeof s?.createRecipe === 'function'
-      ? s.createRecipe({ title: '我的新食谱' })
-      : null
-    if (newRecipe) {
+    const api = useRecipesStore.getState()
+    if (api && typeof api.createRecipe === 'function') {
+      const newRecipe = api.createRecipe({ title: '我的新食谱' })
       return <Navigate to={`/editor/${newRecipe.id}`} replace />
     }
     return null
@@ -146,21 +144,13 @@ const EditorPage: React.FC = () => {
 }
 
 export const App: React.FC = () => {
-  const store = useRecipesStore()
-  const isLoading = store?.isLoading ?? true
+  const isLoading = useRecipesStore((s) => s.isLoading)
 
   useEffect(() => {
-    const doInit = async () => {
-      try {
-        const s = useRecipesStore.getState()
-        if (s && typeof s.initStore === 'function') {
-          await s.initStore()
-        }
-      } catch (e) {
-        console.error('Init failed:', e)
-      }
+    const api = useRecipesStore.getState()
+    if (api && typeof api.initStore === 'function') {
+      api.initStore()
     }
-    doInit()
   }, [])
 
   if (isLoading) {
@@ -187,47 +177,14 @@ export const App: React.FC = () => {
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
           }
-          ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-          }
-          ::-webkit-scrollbar-track {
-            background: transparent;
-          }
-          ::-webkit-scrollbar-thumb {
-            background: #D4C4A8;
-            border-radius: 4px;
-          }
-          ::-webkit-scrollbar-thumb:hover {
-            background: #B8A894;
-          }
-          input, textarea, select {
-            font-family: inherit;
-          }
-          button {
-            cursor: pointer;
-            font-family: inherit;
-            border: none;
-            outline: none;
-          }
-          .line-clamp-1 {
-            display: -webkit-box;
-            -webkit-line-clamp: 1;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-          }
-          .line-clamp-2 {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-          }
-          @media (max-width: 1024px) {
-            .museum-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          }
-          @media (max-width: 640px) {
-            .museum-grid { grid-template-columns: 1fr !important; }
-          }
+          ::-webkit-scrollbar { width: 8px; height: 8px; }
+          ::-webkit-scrollbar-track { background: transparent; }
+          ::-webkit-scrollbar-thumb { background: #D4C4A8; border-radius: 4px; }
+          ::-webkit-scrollbar-thumb:hover { background: #B8A894; }
+          input, textarea, select { font-family: inherit; }
+          button { cursor: pointer; font-family: inherit; border: none; outline: none; }
+          .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+          .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         `}</style>
         <Routes>
           <Route path="/" element={<CommunityPage />} />

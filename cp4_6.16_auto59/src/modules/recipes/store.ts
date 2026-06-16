@@ -16,7 +16,6 @@ interface RecipesState {
   customIngredients: Ingredient[]
   isLoading: boolean
   error: string | null
-
   initStore: () => Promise<void>
   createRecipe: (data: Partial<Recipe>) => Recipe
   updateRecipe: (id: string, data: Partial<Recipe>) => void
@@ -25,7 +24,6 @@ interface RecipesState {
   toggleFavorite: (id: string) => void
   addRating: (id: string, rating: number) => void
   incrementViews: (id: string) => void
-
   addBlock: (recipeId: string, block?: Partial<CanvasBlock>) => void
   updateBlock: (recipeId: string, blockId: string, data: Partial<CanvasBlock>) => void
   deleteBlock: (recipeId: string, blockId: string) => void
@@ -38,9 +36,16 @@ interface RecipesState {
     ingredientId: string,
     data: Partial<Ingredient>
   ) => void
-
   addCustomIngredient: (ingredient: Omit<Ingredient, 'id'>) => void
   getAllIngredients: () => Ingredient[]
+}
+
+function ensureRecipes(val: unknown): Recipe[] {
+  return Array.isArray(val) ? val : []
+}
+
+function ensureIngredients(val: unknown): Ingredient[] {
+  return Array.isArray(val) ? val : []
 }
 
 const createEmptyRecipe = (data: Partial<Recipe> = {}): Recipe => ({
@@ -282,9 +287,9 @@ const createSampleRecipes = (): Recipe[] => {
 }
 
 export const useRecipesStore = create<RecipesState>((set, get) => ({
-  recipes: [],
+  recipes: [] as Recipe[],
   currentRecipe: null,
-  customIngredients: [],
+  customIngredients: [] as Ingredient[],
   isLoading: true,
   error: null,
 
@@ -293,20 +298,16 @@ export const useRecipesStore = create<RecipesState>((set, get) => ({
       const storedRecipes = await get('recipes')
       const storedCustomIngredients = await get('customIngredients')
 
-      let recipes: Recipe[] = Array.isArray(storedRecipes) ? storedRecipes : []
-      const customIngredients: Ingredient[] = Array.isArray(storedCustomIngredients) ? storedCustomIngredients : []
+      let recipes: Recipe[] = ensureRecipes(storedRecipes)
+      const customIngredients: Ingredient[] = ensureIngredients(storedCustomIngredients)
 
-      if (!recipes || recipes.length === 0) {
+      if (recipes.length === 0) {
         recipes = createSampleRecipes()
         await set('recipes', recipes)
       }
 
-      set({
-        recipes,
-        customIngredients,
-        isLoading: false
-      })
-    } catch (error) {
+      set({ recipes, customIngredients, isLoading: false })
+    } catch {
       set({
         recipes: createSampleRecipes(),
         customIngredients: [],
