@@ -1,20 +1,76 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useMagicLoomStore } from './store'
 import { updateLines, sortLinesForRender, type UpdateContext, type Line } from './weaver'
-import { RUNE_COLOR } from './theme'
+import { RUNE_COLOR, getButtonColors, getNebulaColors, hexToRgb, type NebulaColors } from './theme'
 
 const RUNE_BLINK_PERIOD = 2000
 const FPS_CHECK_INTERVAL = 500
 const FPS_THRESHOLD = 55
+const NEBULA_UPDATE_INTERVAL = 2
+
+interface NebulaBand {
+  y: number
+  height: number
+  speed: number
+  phase: number
+  opacity: number
+}
+
+interface GlowOrb {
+  x: number
+  y: number
+  radius: number
+  speedX: number
+  speedY: number
+  phase: number
+  opacity: number
+  colorIndex: number
+}
+
+const initNebulaBands = (h: number): NebulaBand[] => {
+  const bands: NebulaBand[] = []
+  for (let i = 0; i < 5; i++) {
+    bands.push({
+      y: Math.random() * h,
+      height: 60 + Math.random() * 120,
+      speed: 0.1 + Math.random() * 0.3,
+      phase: Math.random() * Math.PI * 2,
+      opacity: 0.08 + Math.random() * 0.12,
+    })
+  }
+  return bands
+}
+
+const initGlowOrbs = (w: number, h: number): GlowOrb[] => {
+  const orbs: GlowOrb[] = []
+  for (let i = 0; i < 8; i++) {
+    orbs.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      radius: 80 + Math.random() * 200,
+      speedX: (Math.random() - 0.5) * 0.2,
+      speedY: (Math.random() - 0.5) * 0.15,
+      phase: Math.random() * Math.PI * 2,
+      opacity: 0.1 + Math.random() * 0.15,
+      colorIndex: i % 2,
+    })
+  }
+  return orbs
+}
 
 export default function MagicLoom() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const bgCanvasRef = useRef<HTMLCanvasElement>(null)
   const runeCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const frameCountRef = useRef(0)
   const lastFpsCheckRef = useRef(performance.now())
   const lastFrameTimeRef = useRef(performance.now())
   const frameCounterRef = useRef(0)
+  const bgFrameCounterRef = useRef(0)
   const rafRef = useRef<number | null>(null)
+  const bandsRef = useRef<NebulaBand[]>([])
+  const orbsRef = useRef<GlowOrb[]>([])
+  const bgInitedRef = useRef(false)
 
   const lines = useMagicLoomStore((s) => s.lines)
   const paused = useMagicLoomStore((s) => s.paused)
@@ -38,9 +94,13 @@ export default function MagicLoom() {
     h: window.innerHeight,
   })
 
+  const buttonColors = useMemo(() => getButtonColors(theme), [theme])
+  const nebulaColors = useMemo(() => getNebulaColors(theme), [theme])
+
   useEffect(() => {
     const onResize = () => {
       setViewportSize({ w: window.innerWidth, h: window.innerHeight })
+      bgInitedRef.current = false
     }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
@@ -53,6 +113,84 @@ export default function MagicLoom() {
     const tapestryY = viewportSize.h * 0.1
     return { tapestryX, tapestryY, tapestryW, tapestryH }
   }, [viewportSize])
+
+  const ensureBgInitialized = useCallback((w: number, h: number) => {
+    if (!bgInitedRef.current) {
+      bandsRef.current = initNebulaBands(h)
+      orbsRef.current = initGlowOrbs(w, h)
+      bgInitedRef.current = true
+    }
+  }, [])
+
+  const drawNebulaBackground = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number, ts: number, colors: NebulaColors) => {
+    ensureBgInitialized(w, h)
+
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, h)
+    bgGrad.addColorStop(0, colors.bgTop)
+    bgGrad.addColorStop(1, colors.bgBottom)
+    ctx.fillStyle = bgGrad
+    ctx.fillRect(0, 0, w, h)
+
+    const orbs = orbsRef.current
+    for (let i = 0; i < orbs.length; i++) {
+      const orb = orbs[i]
+      const time = ts * 0.0005
+      const pulse = 0.7 + 0.3 * Math.sin(time + orb.phase)
+
+      orb.x += orb.speedX
+      orb.y += orb.speedY
+
+      if (orb.x < -orb.radius) orb.x = w + orb.radius
+      if (orb.x > w + orb.radius) orb.x = -orb.radius
+      if (orb.y < -orb.radius) orb.y = h + orb.radius
+      if (orb.y > h + orb.radius) orb.y = -orb.radius
+
+      const orbColor = orb.colorIndex === 0 ? colors.glow1 : colors.glow2
+      const { r, g, b } = hexToRgb(orbColor)
+      const grad = ctx.createRadialGradient(orb.x, orb.y, 0, orb.x, orb.y, orb.radius * pulse)
+      grad.addColorStop(0, `rgba(${r},${g},${b},${orb.opacity * pulse})`)
+      grad.addColorStop(1, `rgba(${r},${g},${b},0)`)
+
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.arc(orb.x, orb.y, orb.radius * pulse, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    const bands = bandsRef.current
+    for (let i = 0; i < bands.length; i++) {
+      const band = bands[i]
+      const time = ts * 0.0003
+      const wave = Math.sin(time + band.phase) * 20
+      const bandY = band.y + wave
+
+      const bandColor = i % 2 === 0 ? colors.band1 : colors.band2
+      const { r, g, b } = hexToRgb(bandColor)
+
+      const grad = ctx.createLinearGradient(0, bandY - band.height / 2, 0, bandY + band.height / 2)
+      grad.addColorStop(0, `rgba(${r},${g},${b},0)`)
+      grad.addColorStop(0.5, `rgba(${r},${g},${b},${band.opacity})`)
+      grad.addColorStop(1, `rgba(${r},${g},${b},0)`)
+
+      ctx.fillStyle = grad
+      ctx.fillRect(0, bandY - band.height / 2, w, band.height)
+
+      band.y += band.speed
+      if (band.y > h + band.height) {
+        band.y = -band.height
+      }
+    }
+
+    ctx.globalAlpha = 0.02
+    for (let i = 0; i < 50; i++) {
+      const x = (i * 137.5 + ts * 0.01) % w
+      const y = (i * 89.3 + Math.sin(ts * 0.001 + i) * 30) % h
+      const size = 1 + (i % 3)
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillRect(x, y, size, size)
+    }
+    ctx.globalAlpha = 1
+  }, [ensureBgInitialized])
 
   const generateRunePattern = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number, phase: number) => {
     ctx.save()
@@ -141,6 +279,23 @@ export default function MagicLoom() {
     ctx.restore()
   }, [getTapestryBounds])
 
+  const renderBackground = useCallback((ts: number) => {
+    const canvas = bgCanvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const dpr = window.devicePixelRatio || 1
+    if (canvas.width !== viewportSize.w * dpr || canvas.height !== viewportSize.h * dpr) {
+      canvas.width = viewportSize.w * dpr
+      canvas.height = viewportSize.h * dpr
+      canvas.style.width = viewportSize.w + 'px'
+      canvas.style.height = viewportSize.h + 'px'
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    drawNebulaBackground(ctx, viewportSize.w, viewportSize.h, ts, nebulaColors)
+  }, [viewportSize, drawNebulaBackground, nebulaColors])
+
   const render = useCallback((ts: number) => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -156,11 +311,10 @@ export default function MagicLoom() {
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-    ctx.fillStyle = '#0a0a0a'
-    ctx.fillRect(0, 0, viewportSize.w, viewportSize.h)
+    ctx.clearRect(0, 0, viewportSize.w, viewportSize.h)
 
     const { tapestryX, tapestryY, tapestryW, tapestryH } = getTapestryBounds()
-    ctx.fillStyle = '#0f0f14'
+    ctx.fillStyle = 'rgba(15, 15, 20, 0.5)'
     ctx.fillRect(tapestryX, tapestryY, tapestryW, tapestryH)
 
     const phase = (ts % RUNE_BLINK_PERIOD) / RUNE_BLINK_PERIOD * Math.PI * 2
@@ -173,6 +327,7 @@ export default function MagicLoom() {
   useEffect(() => {
     const tick = (ts: number) => {
       frameCounterRef.current++
+      bgFrameCounterRef.current++
 
       const sinceFps = ts - lastFpsCheckRef.current
       if (sinceFps >= FPS_CHECK_INTERVAL) {
@@ -209,6 +364,10 @@ export default function MagicLoom() {
         updateLinesState(() => updated)
       }
 
+      if (bgFrameCounterRef.current % NEBULA_UPDATE_INTERVAL === 0) {
+        renderBackground(ts)
+      }
+
       render(ts)
       lastFrameTimeRef.current = ts
       rafRef.current = requestAnimationFrame(tick)
@@ -220,7 +379,7 @@ export default function MagicLoom() {
         cancelAnimationFrame(rafRef.current)
       }
     }
-  }, [lines, paused, theme, vortex, pulses, reducedQuality, viewportSize, getTapestryBounds, render, updateLinesState, setReducedQuality])
+  }, [lines, paused, theme, vortex, pulses, reducedQuality, viewportSize, getTapestryBounds, render, renderBackground, updateLinesState, setReducedQuality])
 
   const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current
@@ -280,6 +439,16 @@ export default function MagicLoom() {
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <canvas
+        ref={bgCanvasRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          display: 'block',
+          pointerEvents: 'none',
+        }}
+      />
+      <canvas
         ref={canvasRef}
         onMouseEnter={onMouseEnter}
         onMouseMove={onMouseMove}
@@ -289,6 +458,9 @@ export default function MagicLoom() {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
           display: 'block',
           cursor: 'crosshair',
         }}
@@ -308,11 +480,12 @@ export default function MagicLoom() {
           alignItems: 'center',
           backdropFilter: 'blur(8px)',
           WebkitBackdropFilter: 'blur(8px)',
+          zIndex: 10,
         }}
       >
         <button
           onClick={togglePause}
-          style={buttonStyle('#2D3436')}
+          style={buttonStyle(buttonColors.pause, buttonColors.pauseText)}
           onMouseEnter={(e) => applyHover(e.currentTarget)}
           onMouseLeave={(e) => removeHover(e.currentTarget)}
         >
@@ -320,7 +493,7 @@ export default function MagicLoom() {
         </button>
         <button
           onClick={reset}
-          style={buttonStyle('#E17055')}
+          style={buttonStyle(buttonColors.reset, buttonColors.resetText)}
           onMouseEnter={(e) => applyHover(e.currentTarget)}
           onMouseLeave={(e) => removeHover(e.currentTarget)}
         >
@@ -328,7 +501,7 @@ export default function MagicLoom() {
         </button>
         <button
           onClick={onSaveSnapshot}
-          style={buttonStyle('#00CEC9')}
+          style={buttonStyle(buttonColors.save, buttonColors.saveText)}
           onMouseEnter={(e) => applyHover(e.currentTarget)}
           onMouseLeave={(e) => removeHover(e.currentTarget)}
         >
@@ -336,7 +509,7 @@ export default function MagicLoom() {
         </button>
         <button
           onClick={toggleTheme}
-          style={buttonStyle('#6C5CE7')}
+          style={buttonStyle(buttonColors.theme, buttonColors.themeText)}
           onMouseEnter={(e) => applyHover(e.currentTarget)}
           onMouseLeave={(e) => removeHover(e.currentTarget)}
         >
@@ -347,16 +520,16 @@ export default function MagicLoom() {
   )
 }
 
-const buttonStyle = (bg: string): React.CSSProperties => ({
+const buttonStyle = (bg: string, text: string): React.CSSProperties => ({
   padding: '8px 16px',
   borderRadius: 8,
   border: 'none',
   background: bg,
-  color: '#FFFFFF',
+  color: text,
   fontSize: 14,
   fontWeight: 600,
   cursor: 'pointer',
-  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+  transition: 'transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease, color 0.3s ease',
   fontFamily: 'inherit',
   outline: 'none',
   userSelect: 'none',

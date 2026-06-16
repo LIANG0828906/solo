@@ -19,8 +19,76 @@ export const VORTEX_CENTER_COLOR = '#FFFFFF'
 
 export type ThemeName = 'default' | 'deepSea'
 
+export interface ButtonColors {
+  pause: string
+  reset: string
+  save: string
+  theme: string
+  pauseText: string
+  resetText: string
+  saveText: string
+  themeText: string
+}
+
+export const DEFAULT_BUTTON_COLORS: ButtonColors = {
+  pause: '#2D3436',
+  reset: '#E17055',
+  save: '#00CEC9',
+  theme: '#6C5CE7',
+  pauseText: '#FFFFFF',
+  resetText: '#FFFFFF',
+  saveText: '#FFFFFF',
+  themeText: '#FFFFFF',
+}
+
+export const DEEP_SEA_BUTTON_COLORS: ButtonColors = {
+  pause: '#0984E3',
+  reset: '#2D3436',
+  save: '#00CEC9',
+  theme: '#DFE6E9',
+  pauseText: '#FFFFFF',
+  resetText: '#FFFFFF',
+  saveText: '#FFFFFF',
+  themeText: '#2D3436',
+}
+
 export const getPalette = (theme: ThemeName): string[] => {
   return theme === 'default' ? DEFAULT_PALETTE : DEEP_SEA_PALETTE
+}
+
+export const getButtonColors = (theme: ThemeName): ButtonColors => {
+  return theme === 'default' ? DEFAULT_BUTTON_COLORS : DEEP_SEA_BUTTON_COLORS
+}
+
+export interface NebulaColors {
+  bgTop: string
+  bgBottom: string
+  glow1: string
+  glow2: string
+  band1: string
+  band2: string
+}
+
+export const DEFAULT_NEBULA_COLORS: NebulaColors = {
+  bgTop: '#0a0a1a',
+  bgBottom: '#1a0a2e',
+  glow1: '#6C5CE7',
+  glow2: '#0984E3',
+  band1: '#FD79A8',
+  band2: '#FDCB6E',
+}
+
+export const DEEP_SEA_NEBULA_COLORS: NebulaColors = {
+  bgTop: '#020810',
+  bgBottom: '#0a1628',
+  glow1: '#00CEC9',
+  glow2: '#0984E3',
+  band1: '#B2BEC3',
+  band2: '#DFE6E9',
+}
+
+export const getNebulaColors = (theme: ThemeName): NebulaColors => {
+  return theme === 'default' ? DEFAULT_NEBULA_COLORS : DEEP_SEA_NEBULA_COLORS
 }
 
 export const pickRandomColor = (palette: string[]): string => {
