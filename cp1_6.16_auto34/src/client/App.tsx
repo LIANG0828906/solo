@@ -55,6 +55,12 @@ export default function App() {
     loadTrips();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'report' && currentTrip) {
+      generateReport();
+    }
+  }, [activeTab, currentTrip]);
+
   async function loadTrips() {
     try {
       const res = await fetch('/api/trips');
@@ -130,7 +136,6 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setReport(data);
-        setActiveTab('report');
       }
     } catch (err) {
       console.error('生成报告失败', err);
@@ -289,7 +294,7 @@ export default function App() {
         </button>
         <button
           className={`nav-tab ${activeTab === 'report' ? 'active' : ''}`}
-          onClick={() => currentTrip && generateReport()}
+          onClick={() => currentTrip && setActiveTab('report')}
           disabled={!currentTrip}
           style={{ opacity: currentTrip ? 1 : 0.5, cursor: currentTrip ? 'pointer' : 'not-allowed' }}
         >
@@ -350,9 +355,6 @@ export default function App() {
             <h2 style={{ fontSize: '20px', color: '#333' }}>
               {currentTrip.destination} - 行程规划
             </h2>
-            <button className="btn btn-primary" onClick={generateReport} disabled={isLoading}>
-              {isLoading ? '生成中...' : '📊 生成报告'}
-            </button>
           </div>
 
           <BudgetDashboard trip={currentTrip} />
@@ -360,7 +362,14 @@ export default function App() {
         </div>
       )}
 
-      {activeTab === 'report' && report && (
+      {activeTab === 'report' && isLoading && (
+        <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ fontSize: '32px', marginBottom: '16px' }}>📊</div>
+          <p style={{ color: '#666', fontSize: '16px' }}>正在加载报告数据...</p>
+        </div>
+      )}
+
+      {activeTab === 'report' && !isLoading && report && (
         <div className="report-container" id="report-content">
           <div className="report-header">
             <h2>✈️ {report.trip.destination} 旅行报告</h2>

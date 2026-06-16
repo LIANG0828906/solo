@@ -41,8 +41,9 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [draggedActivity, setDraggedActivity] = useState<{ activity: Activity; fromDate: string } | null>(null);
+  const [draggedActivity, setDraggedActivity] = useState<{ activityId: string; fromDate: string; fromIndex: number } | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<{ date: string; index: number } | null>(null);
 
   const [formData, setFormData] = useState({
     time: '09:00',
@@ -130,43 +131,58 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
     onUpdate({ ...trip, days: updatedDays });
   }
 
-  function handleDragStart(e: React.DragEvent, activity: Activity, fromDate: string) {
-    setDraggedActivity({ activity, fromDate });
+  function handleDragStart(e: React.DragEvent, activityId: string, fromDate: string, fromIndex: number) {
+    setDraggedActivity({ activityId, fromDate, fromIndex });
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', activityId);
   }
 
-  function handleDragOver(e: React.DragEvent, date: string) {
+  function handleDragOver(e: React.DragEvent, date: string, index: number) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOverDate(date);
+    setDragOverItem({ date, index });
   }
 
   function handleDragLeave() {
     setDragOverDate(null);
+    setDragOverItem(null);
   }
 
-  function handleDrop(e: React.DragEvent, toDate: string) {
+  function handleDrop(e: React.DragEvent, toDate: string, toIndex: number) {
     e.preventDefault();
     setDragOverDate(null);
+    setDragOverItem(null);
 
     if (!draggedActivity) return;
 
-    const { activity, fromDate } = draggedActivity;
+    const { activityId, fromDate, fromIndex } = draggedActivity;
+    const fromDay = trip.days.find(d => d.date === fromDate);
+    if (!fromDay) return;
 
-    if (fromDate === toDate) {
-      setDraggedActivity(null);
-      return;
-    }
+    const activity = fromDay.activities.find(a => a.id === activityId);
+    if (!activity) return;
 
     const updatedDays = trip.days.map(day => {
+      if (day.date === fromDate && day.date === toDate) {
+        const newActivities = [...day.activities];
+        const [removed] = newActivities.splice(fromIndex, 1);
+        let insertIndex = toIndex;
+        if (fromIndex < toIndex) {
+          insertIndex = toIndex - 1;
+        }
+        newActivities.splice(insertIndex, 0, removed);
+        return { ...day, activities: newActivities };
+      }
       if (day.date === fromDate) {
         return {
           ...day,
-          activities: day.activities.filter(act => act.id !== activity.id)
+          activities: day.activities.filter(act => act.id !== activityId)
         };
       }
       if (day.date === toDate) {
-        const newActivities = sortActivitiesByTime([...day.activities, activity]);
+        const newActivities = [...day.activities];
+        newActivities.splice(toIndex, 0, activity);
         return { ...day, activities: newActivities };
       }
       return day;
@@ -179,41 +195,41 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
   function handleDragEnd() {
     setDraggedActivity(null);
     setDragOverDate(null);
-  }
-
-  function reorderActivity(date: string, activityId: string, direction: 'up' | 'down') {
-    const day = trip.days.find(d => d.date === date);
-    if (!day) return;
-
-    const index = day.activities.findIndex(a => a.id === activityId);
-    if (index === -1) return;
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === day.activities.length - 1) return;
-
-    const newActivities = [...day.activities];
-    const swapIndex = direction === 'up' ? index - 1 : index + 1;
-    [newActivities[index], newActivities[swapIndex]] = [newActivities[swapIndex], newActivities[index]];
-
-    const updatedDays = trip.days.map(d =>
-      d.date === date ? { ...d, activities: newActivities } : d
-    );
-
-    onUpdate({ ...trip, days: updatedDays });
+    setDragOverItem(null);
   }
 
   return (
     <div className="trip-planner">
+      <style>{`
+        .activity-card.dragging {
+          opacity: 0.5;
+        }
+        .activity-card.drag-over-top::before {
+          content: '';
+          position: absolute;
+          top: -2px;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background-color: #1E88E5;
+          border-radius: 2px;
+          z-index: 10;
+        }
+        .activity-card {
+          position: relative;
+        }
+      `}</style>
       <div className="days-grid">
         {trip.days.map((day, dayIndex) => (
           <div
             key={day.date}
-            className={`day-column ${dragOverDate === day.date ? 'drag-over' : ''}`}
-            onDragOver={(e) => handleDragOver(e, day.date)}
+            className={`day-column ${dragOverDate === day.date && !dragOverItem ? 'drag-over' : ''}`}
+            onDragOver={(e) => handleDragOver(e, day.date, day.activities.length)}
             onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, day.date)}
+            onDrop={(e) => handleDrop(e, day.date, day.activities.length)}
             style={{
-              border: dragOverDate === day.date ? '2px dashed #1E88E5' : 'none',
-              backgroundColor: dragOverDate === day.date ? '#f0f7ff' : 'white'
+              border: dragOverDate === day.date && !dragOverItem ? '2px dashed #1E88E5' : 'none',
+              backgroundColor: dragOverDate === day.date && !dragOverItem ? '#f0f7ff' : 'white'
             }}
           >
             <h3>
@@ -235,9 +251,14 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
                 day.activities.map((activity, actIndex) => (
                   <div
                     key={activity.id}
-                    className={`activity-card ${draggedActivity?.activity.id === activity.id ? 'dragging' : ''}`}
+                    className={`activity-card ${draggedActivity?.activityId === activity.id ? 'dragging' : ''} ${dragOverItem?.date === day.date && dragOverItem?.index === actIndex ? 'drag-over-top' : ''}`}
                     draggable
-                    onDragStart={(e) => handleDragStart(e, activity, day.date)}
+                    onDragStart={(e) => handleDragStart(e, activity.id, day.date, actIndex)}
+                    onDragOver={(e) => handleDragOver(e, day.date, actIndex)}
+                    onDragLeave={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onDrop={(e) => handleDrop(e, day.date, actIndex)}
                     onDragEnd={handleDragEnd}
                   >
                     <div className="activity-time">
@@ -267,22 +288,6 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
                       marginTop: '8px',
                       justifyContent: 'flex-end'
                     }}>
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => reorderActivity(day.date, activity.id, 'up')}
-                        disabled={actIndex === 0}
-                        style={{ opacity: actIndex === 0 ? 0.5 : 1 }}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => reorderActivity(day.date, activity.id, 'down')}
-                        disabled={actIndex === day.activities.length - 1}
-                        style={{ opacity: actIndex === day.activities.length - 1 ? 0.5 : 1 }}
-                      >
-                        ↓
-                      </button>
                       <button
                         className="btn btn-sm btn-secondary"
                         onClick={() => openEditModal(day.date, activity)}

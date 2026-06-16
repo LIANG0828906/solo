@@ -56,11 +56,47 @@ function calculateDailySpent(days: DayPlan[]): Record<string, number> {
   return daily;
 }
 
+function rgbToHex([r, g, b]: [number, number, number]): string {
+  return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
 function getProgressColor(percentage: number): string {
-  if (percentage >= 100) return '#ef4444';
-  if (percentage >= 80) return '#f59e0b';
-  if (percentage >= 50) return '#eab308';
-  return '#22c55e';
+  const colorStops: { percent: number; color: [number, number, number] }[] = [
+    { percent: 0, color: [34, 197, 94] },
+    { percent: 50, color: [234, 179, 8] },
+    { percent: 75, color: [249, 115, 22] },
+    { percent: 100, color: [239, 68, 68] }
+  ];
+
+  if (percentage <= 0) {
+    return rgbToHex(colorStops[0].color);
+  }
+
+  if (percentage >= 100) {
+    return rgbToHex(colorStops[colorStops.length - 1].color);
+  }
+
+  let lowerIndex = 0;
+  let upperIndex = colorStops.length - 1;
+
+  for (let i = 0; i < colorStops.length - 1; i++) {
+    if (percentage >= colorStops[i].percent && percentage <= colorStops[i + 1].percent) {
+      lowerIndex = i;
+      upperIndex = i + 1;
+      break;
+    }
+  }
+
+  const lower = colorStops[lowerIndex];
+  const upper = colorStops[upperIndex];
+  const range = upper.percent - lower.percent;
+  const t = (percentage - lower.percent) / range;
+
+  const r = Math.round(lower.color[0] + (upper.color[0] - lower.color[0]) * t);
+  const g = Math.round(lower.color[1] + (upper.color[1] - lower.color[1]) * t);
+  const b = Math.round(lower.color[2] + (upper.color[2] - lower.color[2]) * t);
+
+  return rgbToHex([r, g, b]);
 }
 
 function AnimatedNumber({ value, duration = 600 }: { value: number; duration?: number }) {
