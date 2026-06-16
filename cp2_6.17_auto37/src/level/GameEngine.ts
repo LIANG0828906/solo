@@ -14,18 +14,13 @@ export function setupInputHandlers(canvas: HTMLCanvasElement) {
 
     if (e.key === ' ' && !e.repeat) {
       const state = useGameStore.getState();
-      if (state.gameState === 'playing') {
+      if (state.gameState === 'menu') {
+        state.loadLevel(0);
+      } else if (state.gameState === 'playing') {
         const emitted = state.emitPulse(false);
         if (emitted) {
           useAudioStore.getState().playPulse('normal');
         }
-      }
-    }
-
-    if (e.key.toLowerCase() === 'enter' && !e.repeat) {
-      const state = useGameStore.getState();
-      if (state.gameState === 'menu') {
-        state.loadLevel(0);
       } else if (state.gameState === 'gameover') {
         state.loadLevel(state.levelIndex);
       } else if (state.gameState === 'victory') {
@@ -608,38 +603,55 @@ function applyDarkness(ctx: CanvasRenderingContext2D, darkness: number, player: 
 }
 
 function renderHUD(ctx: CanvasRenderingContext2D, state: any, now: number) {
-  ctx.fillStyle = 'rgba(0, 255, 200, 0.85)';
-  ctx.font = 'bold 22px monospace';
+  ctx.save();
   ctx.textAlign = 'left';
-  ctx.fillText(`关卡 ${state.levelIndex + 1}/${state.totalLevels}`, 30, 40);
+  ctx.font = '16px monospace';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
 
-  const crystalText = `水晶: ${state.collectedCount}/${state.crystalsRequired}`;
-  const textColor = state.exitOpen ? '#FFAA00' : '#FFD700';
-  ctx.fillStyle = textColor;
-  ctx.fillText(crystalText, 30, 72);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.fillText(`关卡 ${state.levelIndex + 1}`, 24, 32);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.fillText(`水晶: ${state.collectedCount}/${state.crystalsRequired}`, 24, 56);
 
   if (state.exitOpen) {
-    const pulse = 0.5 + 0.5 * Math.sin(now / 300);
-    ctx.fillStyle = `rgba(255, 170, 0, ${0.6 + pulse * 0.4})`;
-    ctx.font = 'bold 18px monospace';
-    ctx.fillText('★ 出口已开启！', 30, 102);
+    const elapsed = now - state.exitOpenTime;
+    if (elapsed < 2000) {
+      const life = 1 - elapsed / 2000;
+      const alpha = life > 0.3 ? 1 : life / 0.3;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 28px monospace';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      ctx.fillStyle = `rgba(255, 170, 0, ${alpha})`;
+      ctx.fillText('出口已开启！', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 60);
+      ctx.restore();
+    }
   }
 
   if (state.highFrequencyActive && now < state.highFrequencyEndTime) {
     ctx.fillStyle = 'rgba(170, 136, 255, 0.9)';
-    ctx.font = 'bold 16px monospace';
-    ctx.fillText('⚡ 高频脉冲发射中...', 30, CANVAS_HEIGHT - 30);
+    ctx.font = '16px monospace';
+    ctx.fillText('⚡ 高频脉冲发射中...', 24, CANVAS_HEIGHT - 30);
   } else if (now < state.highFrequencyCooldownEnd) {
     const remaining = (state.highFrequencyCooldownEnd - now) / 1000;
     ctx.fillStyle = 'rgba(120, 120, 180, 0.7)';
     ctx.font = '16px monospace';
-    ctx.fillText(`冷却: ${remaining.toFixed(1)}s`, 30, CANVAS_HEIGHT - 30);
+    ctx.fillText(`冷却: ${remaining.toFixed(1)}s`, 24, CANVAS_HEIGHT - 30);
   }
 
-  ctx.fillStyle = 'rgba(120, 180, 200, 0.5)';
-  ctx.font = '13px monospace';
   ctx.textAlign = 'right';
-  ctx.fillText('WASD/方向键:移动 | 空格:声波 | E:致盲脉冲 | 回车:确认', CANVAS_WIDTH - 20, CANVAS_HEIGHT - 20);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.font = '13px monospace';
+  ctx.fillText('WASD:移动 | 空格:声波/确认 | E:致盲脉冲', CANVAS_WIDTH - 20, CANVAS_HEIGHT - 20);
+
+  ctx.restore();
 }
 
 function renderMenu(ctx: CanvasRenderingContext2D, now: number) {
@@ -670,11 +682,11 @@ function renderMenu(ctx: CanvasRenderingContext2D, now: number) {
   titleGrad.addColorStop(0, '#00FFAA');
   titleGrad.addColorStop(1, '#0088FF');
   ctx.fillStyle = titleGrad;
-  ctx.font = 'bold 88px monospace';
+  ctx.font = 'bold 80px monospace';
   ctx.textAlign = 'center';
   ctx.shadowColor = '#00FFAA';
   ctx.shadowBlur = 30 + Math.sin(t * 2) * 10;
-  ctx.fillText('ECHO PULSE', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 60);
+  ctx.fillText('EchoPulse', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 60);
   ctx.shadowBlur = 0;
 
   ctx.fillStyle = 'rgba(150, 200, 220, 0.8)';
@@ -683,8 +695,11 @@ function renderMenu(ctx: CanvasRenderingContext2D, now: number) {
 
   const blink = 0.5 + 0.5 * Math.sin(t * 3);
   ctx.fillStyle = `rgba(255, 215, 0, ${0.6 + blink * 0.4})`;
-  ctx.font = 'bold 26px monospace';
-  ctx.fillText('按 [ 回车键 ] 开始游戏', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 80);
+  ctx.font = 'bold 24px monospace';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+  ctx.shadowBlur = 6;
+  ctx.fillText('按空格键开始', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 80);
+  ctx.shadowBlur = 0;
 
   ctx.fillStyle = 'rgba(120, 180, 200, 0.6)';
   ctx.font = '15px monospace';
@@ -720,7 +735,7 @@ function renderGameOver(ctx: CanvasRenderingContext2D, now: number) {
   const blink = 0.5 + 0.5 * Math.sin(t * 3);
   ctx.fillStyle = `rgba(255, 220, 100, ${0.6 + blink * 0.4})`;
   ctx.font = 'bold 24px monospace';
-  ctx.fillText('按 [ 回车键 ] 重新尝试', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 80);
+  ctx.fillText('按空格键重新尝试', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 80);
 }
 
 function renderVictory(ctx: CanvasRenderingContext2D, now: number) {
@@ -759,7 +774,7 @@ function renderVictory(ctx: CanvasRenderingContext2D, now: number) {
   const blink = 0.5 + 0.5 * Math.sin(t * 3);
   ctx.fillStyle = `rgba(100, 255, 180, ${0.6 + blink * 0.4})`;
   ctx.font = 'bold 24px monospace';
-  ctx.fillText('按 [ 回车键 ] 返回主菜单', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 80);
+  ctx.fillText('按空格键返回主菜单', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 80);
 }
 
 function renderLevelComplete(ctx: CanvasRenderingContext2D, levelIndex: number, now: number) {
@@ -782,7 +797,7 @@ function renderLevelComplete(ctx: CanvasRenderingContext2D, levelIndex: number, 
   const blink = 0.5 + 0.5 * Math.sin(t * 3);
   ctx.fillStyle = `rgba(100, 220, 255, ${0.6 + blink * 0.4})`;
   ctx.font = 'bold 24px monospace';
-  ctx.fillText('按 [ 回车键 ] 进入下一关', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 80);
+  ctx.fillText('按空格键进入下一关', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 80);
 }
 
 function drawDiamond(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string, rotation: number) {

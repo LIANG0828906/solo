@@ -106,6 +106,7 @@ export interface GameStore {
   collectedCount: number;
   crystalsRequired: number;
   exitOpen: boolean;
+  exitOpenTime: number;
   gameState: GameState;
   lastPulseTime: number;
   highFrequencyActive: boolean;
@@ -416,6 +417,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   collectedCount: 0,
   crystalsRequired: 10,
   exitOpen: false,
+  exitOpenTime: 0,
   gameState: 'menu',
   lastPulseTime: 0,
   highFrequencyActive: false,
@@ -526,10 +528,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     state.addParticles(crystal.x, crystal.y, 20, '#FFD700', '#FF6600', 300);
 
     const newCount = state.collectedCount + 1;
+    const nowOpen = newCount >= state.crystalsRequired;
     set({
       crystals: state.crystals.map(c => c.id === id ? { ...c, collected: true } : c),
       collectedCount: newCount,
-      exitOpen: newCount >= state.crystalsRequired
+      exitOpen: nowOpen,
+      exitOpenTime: nowOpen && !state.exitOpen ? performance.now() : state.exitOpenTime
     });
   },
 
@@ -657,6 +661,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       levelIndex: index,
       collectedCount: 0,
       exitOpen: false,
+      exitOpenTime: 0,
       player: {
         x: levelData.startPos.x,
         y: levelData.startPos.y,
@@ -682,7 +687,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       gameState: 'menu',
       levelIndex: 0,
       collectedCount: 0,
-      exitOpen: false
+      exitOpen: false,
+      exitOpenTime: 0
     });
   },
 
