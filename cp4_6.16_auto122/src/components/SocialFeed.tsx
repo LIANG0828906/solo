@@ -1,5 +1,5 @@
-import type { SocialPost } from '../types';
-import { useState, useMemo } from 'react';
+import type { SocialPost, Workout, WorkoutExercise } from '../types';
+import { useState, useMemo, useCallback } from 'react';
 import { formatDate, formatTime } from '../utils/helpers';
 import { getExerciseProgress, getFriendWorkoutsForWeek } from '../utils/mockData';
 import UserAvatar from './UserAvatar';
@@ -26,24 +26,30 @@ function getRelativeTime(timestamp: number): string {
   return `${days}天前`;
 }
 
-function getPrimaryExerciseName(post: SocialPost): string {
-  if (post.workout.exercises.length === 0) return '深蹲';
-  let primary = post.workout.exercises[0];
-  for (const ex of post.workout.exercises) {
-    const maxWeight = Math.max(...ex.sets.map(s => s.weight));
-    const primaryMaxWeight = Math.max(...primary.sets.map(s => s.weight));
-    if (maxWeight > primaryMaxWeight) {
-      primary = ex;
-    }
-  }
-  return primary.exerciseName;
+function getExerciseMaxWeight(exercise: WorkoutExercise): number {
+  if (exercise.sets.length === 0) return 0;
+  return Math.max(...exercise.sets.map(s => s.weight));
+}
+
+function getTopExercises(exercises: WorkoutExercise[], limit: number = 3): {
+  displayed: WorkoutExercise[];
+  hiddenCount: number;
+} {
+  const sorted = [...exercises].sort(
+    (a, b) => getExerciseMaxWeight(b) - getExerciseMaxWeight(a)
+  );
+  return {
+    displayed: sorted.slice(0, limit),
+    hiddenCount: Math.max(0, sorted.length - limit),
+  };
 }
 
 export default function SocialFeed({ posts, onLike, onComment }: SocialFeedProps) {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
-  const [animKey, setAnimKey] = useState(0);
+  const [animating, setAnimating] = useState<boolean>(true);
+  const [animVersion, setAnimVersion] = useState<number>(0);
 
   const uniqueUsers = useMemo(() => {
     const userMap = new Map<string, { id: string; name: string }>();
@@ -60,12 +66,18 @@ export default function SocialFeed({ posts, onLike, onComment }: SocialFeedProps
     return posts.filter(post => post.userId === selectedUserId);
   }, [posts, selectedUserId]);
 
-  const handleUserSelect = (userId: string | null) => {
+  const handleUserSelect = useCallback((userId: string | null) => {
     setSelectedUserId(userId);
-    setAnimKey(prev => prev + 1);
-  };
+    setAnimating(false);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setAnimVersion(prev => prev + 1);
+        setAnimating(true);
+      });
+    });
+  }, []);
 
-  const toggleComments = (postId: string) => {
+  const toggleComments = useCallback((postId: string) => {
     setExpandedComments(prev => {
       const next = new Set(prev);
       if (next.has(postId)) {
@@ -75,19 +87,43 @@ export default function SocialFeed({ posts, onLike, onComment }: SocialFeedProps
       }
       return next;
     });
-  };
+  }, []);
 
-  const handleCommentInputChange = (postId: string, value: string) => {
+  const handleCommentInputChange = useCallback((postId: string, value: string) => {
     setCommentInputs(prev => ({ ...prev, [postId]: value }));
-  };
+  }, []);
 
-  const handleSubmitComment = (postId: string) => {
+  const handleSubmitComment = useCallback((postId: string) => {
     const content = commentInputs[postId]?.trim();
     if (content) {
       onComment(postId, content);
       setCommentInputs(prev => ({ ...prev, [postId]: '' }));
     }
-  };
+  }, [commentInputs, onComment]);
+
+  const renderCharts = useCallback((post: SocialPost) => {
+    const { displayed, hiddenCount } = getTopExercises(post.workout.exercises, 3);
+
+    return (
+      <div className="social-feed-charts">
+        {displayed.map((exercise, index) => {
+          const chartData = getExerciseProgress(exercise.exerciseName, 30);
+          return (
+            <WeightChart
+              key={`${post.id}-chart-${exercise.exerciseName}-${index}`}
+              data={chartData}
+              exerciseName={exercise.exerciseName}
+            />
+          );
+        })}
+        {hiddenCount > 0 && (
+          <div className="social-feed-charts-more">
+            还有 {hiddenCount} 个动作未展示
+          </div>
+        )}
+      </div>
+    );
+  }, []);
 
   return (
     <div className="social-feed">
@@ -113,8 +149,6 @@ export default function SocialFeed({ posts, onLike, onComment }: SocialFeedProps
       <div className="social-feed-grid">
         {filteredPosts.map(post => {
           const isCommentsExpanded = expandedComments.has(post.id);
-          const primaryExercise = getPrimaryExerciseName(post);
-          const chartData = getExerciseProgress(primaryExercise, 30);
           const weekWorkouts = getFriendWorkoutsForWeek(post.userId);
 
           return (
@@ -134,13 +168,25 @@ export default function SocialFeed({ posts, onLike, onComment }: SocialFeedProps
                 </div>
               </div>
 
-              <div key={`calendar-${post.id}-${animKey}`} className="fade-in">
-                <WeeklyCalendar workouts={weekWorkouts} />
-              </div>
+              {animating && (
+                <div
+                  key={`calendar-${post.id}-${animVersion}`}
+                  className="fade-in"
+                >
+                  <WeeklyCalendar workouts={weekWorkouts} />
+                </div>
+              )}
+              {!animating && <div className="social-feed-placeholder" />}
 
-              <div key={`chart-${post.id}-${animKey}`} className="fade-in">
-                <WeightChart data={chartData} exerciseName={primaryExercise} />
-              </div>
+              {animating && (
+                <div
+                  key={`charts-${post.id}-${animVersion}`}
+                  className="fade-in"
+                >
+                  {renderCharts(post)}
+                </div>
+              )}
+              {!animating && <div className="social-feed-placeholder" />}
 
               <div className="social-feed-card-actions">
                 <button

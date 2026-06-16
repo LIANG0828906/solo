@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Plan, Exercise, PresetExercise } from '../types';
 import { PRESET_EXERCISE_LIST } from '../utils/mockData';
 import { generateId } from '../utils/helpers';
@@ -12,6 +12,14 @@ interface PlanBuilderProps {
 }
 
 const MAX_SLOTS = 8;
+const ANIMATION_DURATION = 250;
+
+interface Rect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
 
 export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderProps) {
   const [name, setName] = useState('');
@@ -22,6 +30,12 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [draggedPreset, setDraggedPreset] = useState<PresetExercise | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const firstRectsRef = useRef<Map<number, Rect>>(new Map());
+  const animationFrameRef = useRef<number | null>(null);
+  const animationTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (plan) {
@@ -37,7 +51,72 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
     }
   }, [plan]);
 
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (animationTimeoutRef.current !== null) {
+        window.clearTimeout(animationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const recordFirstRects = useCallback(() => {
+    firstRectsRef.current.clear();
+    slotRefs.current.forEach((el, index) => {
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        firstRectsRef.current.set(index, {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        });
+      }
+    });
+  }, []);
+
+  const playFlipAnimation = useCallback(() => {
+    slotRefs.current.forEach((el, index) => {
+      if (!el) return;
+      const firstRect = firstRectsRef.current.get(index);
+      if (!firstRect) return;
+
+      const lastRect = el.getBoundingClientRect();
+      const deltaX = firstRect.left - lastRect.left;
+      const deltaY = firstRect.top - lastRect.top;
+
+      if (deltaX === 0 && deltaY === 0) return;
+
+      el.style.transition = 'none';
+      el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+    });
+
+    animationFrameRef.current = requestAnimationFrame(() => {
+      slotRefs.current.forEach((el) => {
+        if (!el) return;
+        el.style.transition = `transform ${ANIMATION_DURATION}ms ease-out`;
+        el.style.transform = 'translate(0, 0)';
+      });
+
+      animationTimeoutRef.current = window.setTimeout(() => {
+        slotRefs.current.forEach((el) => {
+          if (!el) return;
+          el.style.transition = '';
+          el.style.transform = '';
+        });
+        setIsAnimating(false);
+      }, ANIMATION_DURATION);
+    });
+  }, []);
+
   const handlePresetDragStart = (e: React.DragEvent, preset: PresetExercise) => {
+    if (isAnimating) {
+      e.preventDefault();
+      return;
+    }
+    recordFirstRects();
     setDraggedPreset(preset);
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('text/plain', preset.id);
@@ -48,6 +127,11 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
   };
 
   const handleSlotDragStart = (e: React.DragEvent, index: number) => {
+    if (isAnimating) {
+      e.preventDefault();
+      return;
+    }
+    recordFirstRects();
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(index));
@@ -73,6 +157,7 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
     setDragOverIndex(null);
 
     if (draggedPreset) {
+      setIsAnimating(true);
       const newExercise: Exercise = {
         id: generateId(),
         name: draggedPreset.name,
@@ -86,7 +171,12 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
       });
       setExercises(newExercises);
       setDraggedPreset(null);
+
+      requestAnimationFrame(() => {
+        playFlipAnimation();
+      });
     } else if (draggedIndex !== null && draggedIndex !== dropIndex) {
+      setIsAnimating(true);
       const newExercises = [...exercises];
       const [removed] = newExercises.splice(draggedIndex, 1);
       newExercises.splice(dropIndex, 0, removed);
@@ -95,16 +185,28 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
       });
       setExercises(newExercises);
       setDraggedIndex(null);
+
+      requestAnimationFrame(() => {
+        playFlipAnimation();
+      });
     }
   };
 
   const handleRemoveExercise = (index: number) => {
+    if (isAnimating) return;
+    recordFirstRects();
+    setIsAnimating(true);
+
     const newExercises = [...exercises];
     newExercises[index] = null;
     newExercises.forEach((ex, i) => {
       if (ex) ex.order = i;
     });
     setExercises(newExercises);
+
+    requestAnimationFrame(() => {
+      playFlipAnimation();
+    });
   };
 
   const handleSave = () => {
@@ -133,7 +235,7 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
               <div
                 key={preset.id}
                 className={`preset-card ${draggedPreset?.id === preset.id ? 'dragging' : ''}`}
-                draggable
+                draggable={!isAnimating}
                 onDragStart={(e) => handlePresetDragStart(e, preset)}
                 onDragEnd={handlePresetDragEnd}
               >
@@ -173,6 +275,7 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
             {exercises.map((exercise, index) => (
               <div
                 key={index}
+                ref={(el) => { slotRefs.current[index] = el; }}
                 className={`slot ${exercise ? 'filled' : 'empty'} ${
                   dragOverIndex === index ? 'drag-over' : ''
                 } ${draggedIndex === index ? 'dragging' : ''}`}
@@ -183,7 +286,7 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
                 {exercise ? (
                   <div
                     className="slot-content"
-                    draggable
+                    draggable={!isAnimating}
                     onDragStart={(e) => handleSlotDragStart(e, index)}
                     onDragEnd={handleSlotDragEnd}
                   >
@@ -193,6 +296,7 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
                       className="slot-remove"
                       onClick={() => handleRemoveExercise(index)}
                       title="移除"
+                      disabled={isAnimating}
                     >
                       ×
                     </button>
@@ -211,18 +315,18 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
       <div className="plan-builder-footer">
         <div className="footer-left">
           {plan && onDelete && (
-            <button className="btn btn-danger" onClick={onDelete}>
+            <button className="btn btn-danger" onClick={onDelete} disabled={isAnimating}>
               删除计划
             </button>
           )}
         </div>
         <div className="footer-right">
           {onCancel && (
-            <button className="btn btn-ghost" onClick={onCancel}>
+            <button className="btn btn-ghost" onClick={onCancel} disabled={isAnimating}>
               取消
             </button>
           )}
-          <button className="btn btn-primary" onClick={handleSave} disabled={!canSave}>
+          <button className="btn btn-primary" onClick={handleSave} disabled={!canSave || isAnimating}>
             保存计划
           </button>
         </div>

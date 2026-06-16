@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Plan, Workout, WorkoutExercise, WorkoutSet } from '../types';
+import { useAppStore } from '../store';
 import './styles/WorkoutLogger.css';
 
 interface WorkoutLoggerProps {
@@ -13,9 +14,11 @@ const DEFAULT_SETS = 4;
 export function WorkoutLogger({ plan, onComplete, onCancel }: WorkoutLoggerProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [exerciseData, setExerciseData] = useState<WorkoutExercise[]>([]);
-  const [lastMaxWeights, setLastMaxWeights] = useState<Record<string, number>>({});
+  const [lastMaxWeights, setLastMaxWeights] = useState<Record<string, WorkoutSet | null>>({});
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
   const [animating, setAnimating] = useState(false);
+  const getLastSetForExercise = useAppStore((state) => state.getLastSetForExercise);
 
   const sortedExercises = [...plan.exercises].sort((a, b) => a.order - b.order);
 
@@ -34,25 +37,33 @@ export function WorkoutLogger({ plan, onComplete, onCancel }: WorkoutLoggerProps
   }, [plan]);
 
   useEffect(() => {
-    const stored = localStorage.getItem('workoutHistory');
-    if (stored) {
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      setLoadingHistory(true);
       try {
-        const history: Workout[] = JSON.parse(stored);
-        const planWorkouts = history.filter((w) => w.planId === plan.id);
-        if (planWorkouts.length > 0) {
-          const lastWorkout = planWorkouts[planWorkouts.length - 1];
-          const maxWeights: Record<string, number> = {};
-          lastWorkout.exercises.forEach((ex) => {
-            const maxWeight = Math.max(...ex.sets.map((s) => s.weight));
-            maxWeights[ex.exerciseId] = maxWeight;
-          });
-          setLastMaxWeights(maxWeights);
+        const results = await Promise.all(
+          sortedExercises.map((ex) => getLastSetForExercise(plan.id, ex.id))
+        );
+        if (cancelled) return;
+        const weightsMap: Record<string, WorkoutSet | null> = {};
+        sortedExercises.forEach((ex, index) => {
+          weightsMap[ex.id] = results[index];
+        });
+        setLastMaxWeights(weightsMap);
+      } finally {
+        if (!cancelled) {
+          setLoadingHistory(false);
         }
-      } catch (e) {
-        console.error('Failed to parse workout history');
       }
-    }
-  }, [plan.id]);
+    };
+
+    loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [plan.id, sortedExercises, getLastSetForExercise]);
 
   const handleSetChange = (
     exerciseIndex: number,
@@ -97,7 +108,7 @@ export function WorkoutLogger({ plan, onComplete, onCancel }: WorkoutLoggerProps
 
   const currentExercise = sortedExercises[currentPage];
   const currentSets = exerciseData[currentPage]?.sets || [];
-  const lastMaxWeight = lastMaxWeights[currentExercise?.id || ''];
+  const lastSet = lastMaxWeights[currentExercise?.id || ''];
 
   return (
     <div className="workout-logger">
@@ -111,13 +122,16 @@ export function WorkoutLogger({ plan, onComplete, onCancel }: WorkoutLoggerProps
       </div>
 
       <div className="workout-logger-body">
-        {currentExercise && exerciseData.length > 0 && (
+        {loadingHistory && (
+          <div className="loading-hint">加载历史数据...</div>
+        )}
+        {currentExercise && exerciseData.length > 0 && !loadingHistory && (
           <div className={`exercise-page ${animating ? 'slide-out-left' : 'slide-in-right'}`}>
             <h3 className="exercise-name">{currentExercise.name}</h3>
 
-            {lastMaxWeight && lastMaxWeight > 0 && (
+            {lastSet && lastSet.weight > 0 && (
               <div className="last-weight-hint">
-                上次最大重量：<span>{lastMaxWeight} kg</span>
+                上次最大重量：<span>{lastSet.weight}kg × {lastSet.reps}次</span>
               </div>
             )}
 
@@ -181,7 +195,7 @@ export function WorkoutLogger({ plan, onComplete, onCancel }: WorkoutLoggerProps
         <button
           className="btn btn-primary"
           onClick={handleNext}
-          disabled={exerciseData.length === 0}
+          disabled={exerciseData.length === 0 || loadingHistory}
         >
           {currentPage === sortedExercises.length - 1 ? '完成训练' : '完成本页'}
         </button>
