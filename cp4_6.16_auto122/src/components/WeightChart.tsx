@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import './styles/WeightChart.css';
 
 interface WeightChartProps {
@@ -6,6 +7,9 @@ interface WeightChartProps {
 }
 
 export default function WeightChart({ data, exerciseName }: WeightChartProps) {
+  const uniqueId = useId();
+  const gradientId = `weightGradient-${uniqueId}`;
+
   const width = 300;
   const height = 120;
   const paddingLeft = 32;
@@ -73,7 +77,7 @@ export default function WeightChart({ data, exerciseName }: WeightChartProps) {
       <div className="weight-chart-title">{exerciseName}</div>
       <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
         <defs>
-          <linearGradient id="weightGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#BB86FC" stopOpacity="0.4" />
             <stop offset="100%" stopColor="#BB86FC" stopOpacity="0.05" />
           </linearGradient>
@@ -101,7 +105,7 @@ export default function WeightChart({ data, exerciseName }: WeightChartProps) {
           </g>
         ))}
 
-        <path d={areaPath} fill="url(#weightGradient)" />
+        <path d={areaPath} fill={`url(#${gradientId})`} />
 
         <polyline
           points={points}

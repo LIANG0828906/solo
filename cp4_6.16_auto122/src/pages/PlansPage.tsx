@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
 import { PlanBuilder } from '../components/PlanBuilder';
 import type { Plan } from '../types';
 import './styles/PlansPage.css';
 
 export function PlansPage() {
+  const navigate = useNavigate();
   const { plans, currentPlanId, setCurrentPlan, addPlan, updatePlan, removePlan } = useAppStore();
   const [isCreating, setIsCreating] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
@@ -117,7 +119,9 @@ export function PlansPage() {
               </div>
             </div>
             <div className="plans-page__actions">
-              <button className="btn btn-primary btn-lg">开始训练</button>
+              <button className="btn btn-primary btn-lg" onClick={() => navigate(`/workout/${currentPlan.id}`)}>
+                开始训练
+              </button>
             </div>
           </div>
         ) : (

@@ -7,6 +7,7 @@ interface NavigationProps {
   onSelectPlan: (id: string) => void;
   currentPage: 'plans' | 'workout' | 'social';
   onNavigate: (page: 'plans' | 'workout' | 'social') => void;
+  onStartWorkout?: () => void;
 }
 
 const navItems = [
@@ -15,17 +16,21 @@ const navItems = [
   { key: 'social' as const, label: '社群', icon: '👥' },
 ];
 
-export default function Navigation({
+export function Navigation({
   plans,
   currentPlanId,
   onSelectPlan,
   currentPage,
   onNavigate,
+  onStartWorkout,
 }: NavigationProps) {
   return (
     <nav className="navigation">
       <div className="navigation-desktop">
-        <div className="navigation-logo">FitTrack</div>
+        <div className="navigation-logo">
+          <span className="navigation-logo-icon">🏋️</span>
+          IronTrack
+        </div>
 
         <div className="nav-main-items">
           {navItems.map((item) => (
@@ -53,6 +58,12 @@ export default function Navigation({
             </button>
           ))}
         </div>
+
+        {currentPlanId && onStartWorkout && (
+          <button className="nav-start-btn btn btn-primary" onClick={onStartWorkout}>
+            开始训练
+          </button>
+        )}
       </div>
 
       <div className="navigation-mobile">
@@ -84,3 +95,5 @@ export default function Navigation({
     </nav>
   );
 }
+
+export default Navigation;

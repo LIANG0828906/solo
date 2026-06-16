@@ -175,7 +175,11 @@ a {
 }
 
 .fade-in {
-  animation: fadeIn var(--transition-normal) ease;
+  animation: fadeIn var(--transition-normal) ease forwards;
+}
+
+.fade-in-animate {
+  animation: fadeIn var(--transition-normal) ease forwards;
 }
 
 .slide-in-right {

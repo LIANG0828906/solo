@@ -16,6 +16,7 @@ export function WorkoutLogger({ plan, onComplete, onCancel }: WorkoutLoggerProps
   const [exerciseData, setExerciseData] = useState<WorkoutExercise[]>([]);
   const [lastMaxWeights, setLastMaxWeights] = useState<Record<string, WorkoutSet | null>>({});
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
   const [animating, setAnimating] = useState(false);
   const getLastSetForExercise = useAppStore((state) => state.getLastSetForExercise);
@@ -41,16 +42,37 @@ export function WorkoutLogger({ plan, onComplete, onCancel }: WorkoutLoggerProps
 
     const loadHistory = async () => {
       setLoadingHistory(true);
+      setHistoryError(false);
+
       try {
         const results = await Promise.all(
-          sortedExercises.map((ex) => getLastSetForExercise(plan.id, ex.id))
+          sortedExercises.map(async (ex) => {
+            try {
+              return await getLastSetForExercise(plan.id, ex.id);
+            } catch (err) {
+              console.debug(`[WorkoutLogger] Failed to load history for ${ex.name}:`, err);
+              return null;
+            }
+          })
         );
+
         if (cancelled) return;
+
         const weightsMap: Record<string, WorkoutSet | null> = {};
         sortedExercises.forEach((ex, index) => {
-          weightsMap[ex.id] = results[index];
+          weightsMap[ex.id] = results[index] ?? null;
         });
         setLastMaxWeights(weightsMap);
+      } catch (err) {
+        console.debug('[WorkoutLogger] Failed to load workout history:', err);
+        if (!cancelled) {
+          setHistoryError(true);
+          const defaults: Record<string, WorkoutSet | null> = {};
+          sortedExercises.forEach((ex) => {
+            defaults[ex.id] = null;
+          });
+          setLastMaxWeights(defaults);
+        }
       } finally {
         if (!cancelled) {
           setLoadingHistory(false);
@@ -125,6 +147,9 @@ export function WorkoutLogger({ plan, onComplete, onCancel }: WorkoutLoggerProps
         {loadingHistory && (
           <div className="loading-hint">加载历史数据...</div>
         )}
+        {historyError && !loadingHistory && (
+          <div className="error-hint">历史数据加载失败，请手动输入</div>
+        )}
         {currentExercise && exerciseData.length > 0 && !loadingHistory && (
           <div className={`exercise-page ${animating ? 'slide-out-left' : 'slide-in-right'}`}>
             <h3 className="exercise-name">{currentExercise.name}</h3>
@@ -132,6 +157,11 @@ export function WorkoutLogger({ plan, onComplete, onCancel }: WorkoutLoggerProps
             {lastSet && lastSet.weight > 0 && (
               <div className="last-weight-hint">
                 上次最大重量：<span>{lastSet.weight}kg × {lastSet.reps}次</span>
+              </div>
+            )}
+            {!lastSet && !historyError && (
+              <div className="last-weight-hint no-history">
+                暂无历史记录
               </div>
             )}
 

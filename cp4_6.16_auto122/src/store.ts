@@ -12,12 +12,20 @@ import {
 import { generateMockSocialPosts, generateMockPlans } from './utils/mockData';
 import { generateId } from './utils/helpers';
 
+export interface WriteMetrics {
+  lastWriteDuration: number | null;
+  lastWriteTimedOut: boolean;
+  totalWrites: number;
+  timedOutWrites: number;
+}
+
 interface AppState {
   plans: Plan[];
   workouts: Workout[];
   socialPosts: SocialPost[];
   currentPlanId: string | null;
   isLoading: boolean;
+  writeMetrics: WriteMetrics;
 
   loadData: () => Promise<void>;
   setCurrentPlan: (planId: string | null) => void;
@@ -26,12 +34,19 @@ interface AppState {
   updatePlan: (plan: Plan) => Promise<void>;
   removePlan: (planId: string) => Promise<void>;
 
-  addWorkout: (workout: Omit<Workout, 'id'>) => Promise<void>;
+  addWorkout: (workout: Omit<Workout, 'id'>) => Promise<WriteMetrics>;
   getLastSetForExercise: (planId: string, exerciseId: string) => Promise<WorkoutSet | null>;
 
   toggleLike: (postId: string) => void;
   addComment: (postId: string, content: string) => void;
 }
+
+const initialMetrics: WriteMetrics = {
+  lastWriteDuration: null,
+  lastWriteTimedOut: false,
+  totalWrites: 0,
+  timedOutWrites: 0,
+};
 
 export const useAppStore = create<AppState>((set, get) => ({
   plans: [],
@@ -39,6 +54,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   socialPosts: [],
   currentPlanId: null,
   isLoading: true,
+  writeMetrics: { ...initialMetrics },
 
   loadData: async () => {
     set({ isLoading: true });
@@ -104,14 +120,44 @@ export const useAppStore = create<AppState>((set, get) => ({
       id: generateId(),
     };
 
-    await dbAddWorkout(newWorkout);
+    const startTime = performance.now();
+    let timedOut = false;
+
+    try {
+      await dbAddWorkout(newWorkout);
+    } catch (err) {
+      console.debug('[Store] IndexedDB write failed, data saved to localStorage fallback');
+      timedOut = true;
+    }
+
+    const duration = performance.now() - startTime;
+    if (duration > 200) {
+      console.warn(`[Store] Workout write exceeded 200ms: ${duration.toFixed(2)}ms`);
+      timedOut = true;
+    }
+
+    const metrics: WriteMetrics = {
+      lastWriteDuration: duration,
+      lastWriteTimedOut: timedOut,
+      totalWrites: get().writeMetrics.totalWrites + 1,
+      timedOutWrites: get().writeMetrics.timedOutWrites + (timedOut ? 1 : 0),
+    };
+
     set((state) => ({
       workouts: [...state.workouts, newWorkout],
+      writeMetrics: metrics,
     }));
+
+    return metrics;
   },
 
   getLastSetForExercise: async (planId, exerciseId) => {
-    return await getLastWorkoutForExercise(planId, exerciseId);
+    try {
+      return await getLastWorkoutForExercise(planId, exerciseId);
+    } catch (err) {
+      console.debug('[Store] Failed to query exercise history:', err);
+      return null;
+    }
   },
 
   toggleLike: (postId) => {

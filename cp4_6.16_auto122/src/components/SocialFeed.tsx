@@ -1,5 +1,5 @@
-import type { SocialPost, Workout, WorkoutExercise } from '../types';
-import { useState, useMemo, useCallback } from 'react';
+import type { SocialPost, WorkoutExercise } from '../types';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { formatDate, formatTime } from '../utils/helpers';
 import { getExerciseProgress, getFriendWorkoutsForWeek } from '../utils/mockData';
 import UserAvatar from './UserAvatar';
@@ -48,8 +48,8 @@ export default function SocialFeed({ posts, onLike, onComment }: SocialFeedProps
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
-  const [animating, setAnimating] = useState<boolean>(true);
-  const [animVersion, setAnimVersion] = useState<number>(0);
+  const [animVersion, setAnimVersion] = useState(0);
+  const prevSelectedUserId = useRef<string | null>(null);
 
   const uniqueUsers = useMemo(() => {
     const userMap = new Map<string, { id: string; name: string }>();
@@ -67,14 +67,13 @@ export default function SocialFeed({ posts, onLike, onComment }: SocialFeedProps
   }, [posts, selectedUserId]);
 
   const handleUserSelect = useCallback((userId: string | null) => {
+    if (prevSelectedUserId.current === userId) {
+      setAnimVersion(prev => prev + 1);
+    } else {
+      setAnimVersion(prev => prev + 1);
+    }
+    prevSelectedUserId.current = userId;
     setSelectedUserId(userId);
-    setAnimating(false);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setAnimVersion(prev => prev + 1);
-        setAnimating(true);
-      });
-    });
   }, []);
 
   const toggleComments = useCallback((postId: string) => {
@@ -110,7 +109,7 @@ export default function SocialFeed({ posts, onLike, onComment }: SocialFeedProps
           const chartData = getExerciseProgress(exercise.exerciseName, 30);
           return (
             <WeightChart
-              key={`${post.id}-chart-${exercise.exerciseName}-${index}`}
+              key={`chart-${post.id}-${exercise.exerciseName}-${index}`}
               data={chartData}
               exerciseName={exercise.exerciseName}
             />
@@ -168,25 +167,19 @@ export default function SocialFeed({ posts, onLike, onComment }: SocialFeedProps
                 </div>
               </div>
 
-              {animating && (
-                <div
-                  key={`calendar-${post.id}-${animVersion}`}
-                  className="fade-in"
-                >
-                  <WeeklyCalendar workouts={weekWorkouts} />
-                </div>
-              )}
-              {!animating && <div className="social-feed-placeholder" />}
+              <div
+                key={`calendar-${post.id}-${animVersion}`}
+                className="fade-in-animate"
+              >
+                <WeeklyCalendar workouts={weekWorkouts} />
+              </div>
 
-              {animating && (
-                <div
-                  key={`charts-${post.id}-${animVersion}`}
-                  className="fade-in"
-                >
-                  {renderCharts(post)}
-                </div>
-              )}
-              {!animating && <div className="social-feed-placeholder" />}
+              <div
+                key={`charts-${post.id}-${animVersion}`}
+                className="fade-in-animate"
+              >
+                {renderCharts(post)}
+              </div>
 
               <div className="social-feed-card-actions">
                 <button
@@ -222,7 +215,7 @@ export default function SocialFeed({ posts, onLike, onComment }: SocialFeedProps
               </div>
 
               {isCommentsExpanded && (
-                <div className="social-feed-comments fade-in">
+                <div className="social-feed-comments fade-in-animate">
                   {post.comments.length > 0 ? (
                     <div className="social-feed-comments-list">
                       {post.comments.map(comment => (

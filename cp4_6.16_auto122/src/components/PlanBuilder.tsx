@@ -12,13 +12,11 @@ interface PlanBuilderProps {
 }
 
 const MAX_SLOTS = 8;
-const ANIMATION_DURATION = 250;
+const FLIP_DURATION = 250;
 
 interface Rect {
   left: number;
   top: number;
-  width: number;
-  height: number;
 }
 
 export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderProps) {
@@ -31,11 +29,13 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [draggedPreset, setDraggedPreset] = useState<PresetExercise | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [liveExercises, setLiveExercises] = useState<(Exercise | null)[] | null>(null);
 
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
   const firstRectsRef = useRef<Map<number, Rect>>(new Map());
-  const animationFrameRef = useRef<number | null>(null);
-  const animationTimeoutRef = useRef<number | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const animTimeoutRef = useRef<number | null>(null);
+  const prevDragOverRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (plan) {
@@ -53,12 +53,8 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
 
   useEffect(() => {
     return () => {
-      if (animationFrameRef.current !== null) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (animationTimeoutRef.current !== null) {
-        window.clearTimeout(animationTimeoutRef.current);
-      }
+      if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current);
+      if (animTimeoutRef.current !== null) window.clearTimeout(animTimeoutRef.current);
     };
   }, []);
 
@@ -67,55 +63,52 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
     slotRefs.current.forEach((el, index) => {
       if (el) {
         const rect = el.getBoundingClientRect();
-        firstRectsRef.current.set(index, {
-          left: rect.left,
-          top: rect.top,
-          width: rect.width,
-          height: rect.height,
-        });
+        firstRectsRef.current.set(index, { left: rect.left, top: rect.top });
       }
     });
   }, []);
 
-  const playFlipAnimation = useCallback(() => {
-    slotRefs.current.forEach((el, index) => {
-      if (!el) return;
-      const firstRect = firstRectsRef.current.get(index);
-      if (!firstRect) return;
-
-      const lastRect = el.getBoundingClientRect();
-      const deltaX = firstRect.left - lastRect.left;
-      const deltaY = firstRect.top - lastRect.top;
-
-      if (deltaX === 0 && deltaY === 0) return;
-
-      el.style.transition = 'none';
-      el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-    });
-
-    animationFrameRef.current = requestAnimationFrame(() => {
-      slotRefs.current.forEach((el) => {
+  const playFlipAnimation = useCallback((callback?: () => void) => {
+    animFrameRef.current = requestAnimationFrame(() => {
+      slotRefs.current.forEach((el, index) => {
         if (!el) return;
-        el.style.transition = `transform ${ANIMATION_DURATION}ms ease-out`;
-        el.style.transform = 'translate(0, 0)';
+        const firstRect = firstRectsRef.current.get(index);
+        if (!firstRect) return;
+
+        const lastRect = el.getBoundingClientRect();
+        const deltaX = firstRect.left - lastRect.left;
+        const deltaY = firstRect.top - lastRect.top;
+
+        if (deltaX === 0 && deltaY === 0) return;
+
+        el.style.transition = 'none';
+        el.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        el.style.zIndex = '10';
       });
 
-      animationTimeoutRef.current = window.setTimeout(() => {
+      animFrameRef.current = requestAnimationFrame(() => {
         slotRefs.current.forEach((el) => {
           if (!el) return;
-          el.style.transition = '';
-          el.style.transform = '';
+          el.style.transition = `transform ${FLIP_DURATION}ms cubic-bezier(0.2, 0, 0, 1)`;
+          el.style.transform = 'translate(0, 0)';
         });
-        setIsAnimating(false);
-      }, ANIMATION_DURATION);
+
+        animTimeoutRef.current = window.setTimeout(() => {
+          slotRefs.current.forEach((el) => {
+            if (!el) return;
+            el.style.transition = '';
+            el.style.transform = '';
+            el.style.zIndex = '';
+          });
+          setIsAnimating(false);
+          if (callback) callback();
+        }, FLIP_DURATION + 20);
+      });
     });
   }, []);
 
   const handlePresetDragStart = (e: React.DragEvent, preset: PresetExercise) => {
-    if (isAnimating) {
-      e.preventDefault();
-      return;
-    }
+    if (isAnimating) { e.preventDefault(); return; }
     recordFirstRects();
     setDraggedPreset(preset);
     e.dataTransfer.effectAllowed = 'copy';
@@ -124,13 +117,13 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
 
   const handlePresetDragEnd = () => {
     setDraggedPreset(null);
+    setDragOverIndex(null);
+    setLiveExercises(null);
+    prevDragOverRef.current = null;
   };
 
   const handleSlotDragStart = (e: React.DragEvent, index: number) => {
-    if (isAnimating) {
-      e.preventDefault();
-      return;
-    }
+    if (isAnimating) { e.preventDefault(); return; }
     recordFirstRects();
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
@@ -140,23 +133,48 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
   const handleSlotDragEnd = () => {
     setDraggedIndex(null);
     setDragOverIndex(null);
+    setLiveExercises(null);
+    prevDragOverRef.current = null;
   };
 
   const handleSlotDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = draggedPreset ? 'copy' : 'move';
+
+    if (prevDragOverRef.current === index) return;
+    prevDragOverRef.current = index;
     setDragOverIndex(index);
+
+    if (draggedIndex !== null && draggedIndex !== index && !isAnimating) {
+      recordFirstRects();
+
+      const preview = [...exercises];
+      const [removed] = preview.splice(draggedIndex, 1);
+      preview.splice(index, 0, removed);
+      preview.forEach((ex, i) => { if (ex) ex.order = i; });
+      setLiveExercises(preview);
+
+      requestAnimationFrame(() => {
+        playFlipAnimation();
+      });
+    }
   };
 
   const handleSlotDragLeave = () => {
     setDragOverIndex(null);
+    if (draggedIndex !== null) {
+      setLiveExercises(null);
+      prevDragOverRef.current = null;
+    }
   };
 
   const handleSlotDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
     setDragOverIndex(null);
+    prevDragOverRef.current = null;
 
     if (draggedPreset) {
+      recordFirstRects();
       setIsAnimating(true);
       const newExercise: Exercise = {
         id: generateId(),
@@ -166,29 +184,22 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
       };
       const newExercises = [...exercises];
       newExercises[dropIndex] = newExercise;
-      newExercises.forEach((ex, i) => {
-        if (ex) ex.order = i;
-      });
+      newExercises.forEach((ex, i) => { if (ex) ex.order = i; });
       setExercises(newExercises);
       setDraggedPreset(null);
+      setLiveExercises(null);
 
-      requestAnimationFrame(() => {
-        playFlipAnimation();
-      });
+      requestAnimationFrame(() => playFlipAnimation());
     } else if (draggedIndex !== null && draggedIndex !== dropIndex) {
-      setIsAnimating(true);
-      const newExercises = [...exercises];
-      const [removed] = newExercises.splice(draggedIndex, 1);
-      newExercises.splice(dropIndex, 0, removed);
-      newExercises.forEach((ex, i) => {
-        if (ex) ex.order = i;
-      });
-      setExercises(newExercises);
+      const committed = [...(liveExercises || exercises)];
+      committed.forEach((ex, i) => { if (ex) ex.order = i; });
+      setExercises(committed);
       setDraggedIndex(null);
-
-      requestAnimationFrame(() => {
-        playFlipAnimation();
-      });
+      setLiveExercises(null);
+      setIsAnimating(false);
+    } else {
+      setDraggedIndex(null);
+      setLiveExercises(null);
     }
   };
 
@@ -199,14 +210,10 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
 
     const newExercises = [...exercises];
     newExercises[index] = null;
-    newExercises.forEach((ex, i) => {
-      if (ex) ex.order = i;
-    });
+    newExercises.forEach((ex, i) => { if (ex) ex.order = i; });
     setExercises(newExercises);
 
-    requestAnimationFrame(() => {
-      playFlipAnimation();
-    });
+    requestAnimationFrame(() => playFlipAnimation());
   };
 
   const handleSave = () => {
@@ -218,6 +225,7 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
     });
   };
 
+  const displayExercises = liveExercises || exercises;
   const validExercises = exercises.filter((ex) => ex !== null);
   const canSave = name.trim() && validExercises.length > 0;
 
@@ -272,9 +280,9 @@ export function PlanBuilder({ plan, onSave, onCancel, onDelete }: PlanBuilderPro
 
           <h3>计划槽位（{validExercises.length}/{MAX_SLOTS}）</h3>
           <div className="slot-grid">
-            {exercises.map((exercise, index) => (
+            {displayExercises.map((exercise, index) => (
               <div
-                key={index}
+                key={`slot-${index}`}
                 ref={(el) => { slotRefs.current[index] = el; }}
                 className={`slot ${exercise ? 'filled' : 'empty'} ${
                   dragOverIndex === index ? 'drag-over' : ''
