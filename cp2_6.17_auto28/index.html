@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Audio Visual Particles</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0D0D1A;
+      font-family: monospace;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+
+    #control-panel {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      width: 220px;
+      padding: 16px;
+      background: rgba(20, 20, 30, 0.7);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      border-radius: 12px;
+      color: #ffffff;
+      font-size: 14px;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 100;
+      transition: opacity 0.3s ease;
+      animation: borderBreath 3s ease-in-out infinite;
+    }
+
+    #control-panel:hover {
+      opacity: 0.9;
+    }
+
+    @keyframes borderBreath {
+      0%, 100% {
+        border-color: rgba(0, 212, 255, 0.3);
+        box-shadow: 0 0 10px rgba(0, 212, 255, 0.1);
+      }
+      50% {
+        border-color: rgba(0, 212, 255, 0.6);
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+      }
+    }
+
+    .panel-section {
+      margin-bottom: 16px;
+    }
+
+    .panel-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .panel-label {
+      display: block;
+      margin-bottom: 8px;
+      color: #cccccc;
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+
+    .slider-container {
+      width: 100%;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: #555;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #00D4FF;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      background: #66E3FF;
+      transform: scale(1.1);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #00D4FF;
+      cursor: pointer;
+      border: none;
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .slider::-moz-range-thumb:hover {
+      background: #66E3FF;
+      transform: scale(1.1);
+    }
+
+    .slider-value {
+      display: block;
+      text-align: right;
+      margin-top: 4px;
+      color: #00D4FF;
+      font-size: 11px;
+    }
+
+    .mode-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: #333;
+      color: #ffffff;
+      font-family: monospace;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .mode-btn:hover:not(:disabled) {
+      background: #444;
+    }
+
+    .mode-btn.active {
+      background: #00D4FF;
+      color: #0D0D1A;
+      font-weight: bold;
+    }
+
+    .mode-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #fps-display {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      text-align: right;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .fps-number {
+      color: #FFD700;
+      font-size: 20px;
+      font-weight: bold;
+      font-family: monospace;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    .fps-label {
+      color: #888;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .particle-count {
+      color: #00D4FF;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    #start-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(13, 13, 26, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      color: #ffffff;
+      font-family: monospace;
+    }
+
+    #start-overlay.hidden {
+      display: none;
+    }
+
+    .start-title {
+      font-size: 32px;
+      margin-bottom: 16px;
+      color: #00D4FF;
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+    }
+
+    .start-subtitle {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 32px;
+      text-align: center;
+      max-width: 400px;
+      line-height: 1.6;
+    }
+
+    .start-btn {
+      padding: 14px 40px;
+      font-size: 16px;
+      font-family: monospace;
+      background: #00D4FF;
+      color: #0D0D1A;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: bold;
+    }
+
+    .start-btn:hover {
+      background: #66E3FF;
+      transform: scale(1.05);
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.5);
+    }
+
+    .shortcut-hints {
+      margin-top: 40px;
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+      line-height: 2;
+    }
+
+    .shortcut-hints span {
+      color: #00D4FF;
+      padding: 2px 6px;
+      background: rgba(0, 212, 255, 0.1);
+      border-radius: 4px;
+      margin: 0 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="start-overlay">
+    <div class="start-title">Audio Visual Particles</div>
+    <div class="start-subtitle">
+      将您的声音和影像转化为沉浸式三维粒子艺术<br>
+      需要麦克风和摄像头权限
+    </div>
+    <button class="start-btn" id="start-btn">开始体验</button>
+    <div class="shortcut-hints">
+      <span>1</span> 粒子模式 <span>2</span> 纹理模式 <span>3</span> 融合模式<br>
+      <span>空格</span> 暂停粒子 <span>拖拽</span> 旋转 <span>滚轮</span> 缩放
+    </div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <div id="control-panel">
+    <div class="panel-section">
+      <label class="panel-label">纹理透明度</label>
+      <div class="slider-container">
+        <input type="range" class="slider" id="opacity-slider" min="-1" max="1" step="0.01" value="0">
+        <span class="slider-value" id="opacity-value">0.50</span>
+      </div>
+    </div>
+    <div class="panel-section">
+      <label class="panel-label">显示模式</label>
+      <div class="mode-buttons">
+        <button class="mode-btn active" data-mode="particles">粒子</button>
+        <button class="mode-btn" data-mode="texture">纹理</button>
+        <button class="mode-btn" data-mode="blend">融合</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fps-display">
+    <div class="fps-number" id="fps-number">--</div>
+    <div class="fps-label">FPS</div>
+    <div class="particle-count" id="particle-count">0 粒子</div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
