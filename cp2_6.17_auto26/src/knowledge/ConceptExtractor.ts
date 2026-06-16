@@ -194,15 +194,36 @@ export function extractConcepts(text: string, noteId: string): ExtractResult {
 export function mapFrequencyToSize(frequency: number, minFreq: number, maxFreq: number): number {
   const minSize = 36;
   const maxSize = 72;
+  if (frequency === undefined || frequency === null || isNaN(frequency) || frequency <= 0) {
+    return minSize;
+  }
+  if (minFreq === undefined || minFreq === null || isNaN(minFreq)) {
+    minFreq = 0;
+  }
+  if (maxFreq === undefined || maxFreq === null || isNaN(maxFreq)) {
+    maxFreq = Math.max(frequency, 1);
+  }
   if (maxFreq === minFreq) return (minSize + maxSize) / 2;
   const normalized = (frequency - minFreq) / (maxFreq - minFreq);
-  return minSize + normalized * (maxSize - minSize);
+  const result = minSize + normalized * (maxSize - minSize);
+  if (isNaN(result) || result <= 0) return minSize;
+  return Math.max(minSize, Math.min(maxSize, result));
 }
 
 export function mapFrequencyToColor(frequency: number, minFreq: number, maxFreq: number): string {
   const startColor = { r: 52, g: 152, b: 219 };
   const endColor = { r: 231, g: 76, b: 60 };
-  
+
+  if (frequency === undefined || frequency === null || isNaN(frequency)) {
+    return `rgb(${startColor.r}, ${startColor.g}, ${startColor.b})`;
+  }
+  if (minFreq === undefined || minFreq === null || isNaN(minFreq)) {
+    minFreq = 0;
+  }
+  if (maxFreq === undefined || maxFreq === null || isNaN(maxFreq)) {
+    maxFreq = Math.max(frequency, 1);
+  }
+
   if (maxFreq === minFreq) {
     const mid = {
       r: Math.round((startColor.r + endColor.r) / 2),
@@ -211,18 +232,24 @@ export function mapFrequencyToColor(frequency: number, minFreq: number, maxFreq:
     };
     return `rgb(${mid.r}, ${mid.g}, ${mid.b})`;
   }
-  
-  const normalized = (frequency - minFreq) / (maxFreq - minFreq);
+
+  const normalized = Math.max(0, Math.min(1, (frequency - minFreq) / (maxFreq - minFreq)));
   const r = Math.round(startColor.r + normalized * (endColor.r - startColor.r));
   const g = Math.round(startColor.g + normalized * (endColor.g - startColor.g));
   const b = Math.round(startColor.b + normalized * (endColor.b - startColor.b));
-  
+
   return `rgb(${r}, ${g}, ${b})`;
 }
 
 export function mapWeightToWidth(weight: number, maxWeight: number): number {
   const minWidth = 1;
   const maxWidth = 3;
-  if (maxWeight === 0) return minWidth;
-  return minWidth + (weight / maxWeight) * (maxWidth - minWidth);
+  if (weight === undefined || weight === null || isNaN(weight) || weight <= 0) {
+    return minWidth;
+  }
+  if (maxWeight === undefined || maxWeight === null || isNaN(maxWeight) || maxWeight === 0) {
+    return minWidth;
+  }
+  const normalized = Math.max(0, Math.min(1, weight / maxWeight));
+  return minWidth + normalized * (maxWidth - minWidth);
 }

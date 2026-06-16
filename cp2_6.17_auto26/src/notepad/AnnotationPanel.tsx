@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useStore } from '@/store';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { X, Send, Edit2, Trash2, MessageCircle, Reply } from 'lucide-react';
@@ -19,6 +19,33 @@ export function AnnotationPanel() {
   const [editText, setEditText] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
+  const prevAnnotationsRef = useRef<Annotation[]>([]);
+
+  useEffect(() => {
+    const prevIds = new Set(prevAnnotationsRef.current.map((a) => a.id));
+    const newIds = annotations.filter((a) => !prevIds.has(a.id)).map((a) => a.id);
+
+    if (newIds.length > 0) {
+      newIds.forEach((id, index) => {
+        setTimeout(() => {
+          setVisibleIds((prev) => new Set(prev).add(id));
+        }, index * 50);
+      });
+    }
+
+    setVisibleIds((prev) => {
+      const next = new Set(prev);
+      annotations.forEach((a) => {
+        if (prevIds.has(a.id)) {
+          next.add(a.id);
+        }
+      });
+      return next;
+    });
+
+    prevAnnotationsRef.current = annotations;
+  }, [annotations]);
 
   const handleEdit = useCallback(
     (annotation: Annotation) => {
@@ -41,12 +68,19 @@ export function AnnotationPanel() {
 
   const handleDelete = useCallback(
     (annotation: Annotation) => {
-      removeAnnotation(annotation.id);
-      sendMessage({
-        type: 'annotation',
-        payload: { annotation, action: 'delete' },
-        userId: currentUser.id,
+      setVisibleIds((prev) => {
+        const next = new Set(prev);
+        next.delete(annotation.id);
+        return next;
       });
+      setTimeout(() => {
+        removeAnnotation(annotation.id);
+        sendMessage({
+          type: 'annotation',
+          payload: { annotation, action: 'delete' },
+          userId: currentUser.id,
+        });
+      }, 200);
     },
     [removeAnnotation, sendMessage, currentUser.id]
   );
@@ -103,15 +137,18 @@ export function AnnotationPanel() {
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {annotations.map((annotation) => {
           const conceptName = getRelatedConceptName(annotation.relatedConceptId);
+          const isVisible = visibleIds.has(annotation.id);
 
           return (
             <div
               key={annotation.id}
-              className="annotation-bubble bg-[#2C3E50] rounded-xl p-4 shadow-lg"
+              className="bg-[#2C3E50] rounded-xl p-4 shadow-lg annotation-bubble"
               style={{
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                animation: 'bubblePopIn 0.3s ease-out forwards',
                 transformOrigin: 'top left',
+                transform: isVisible ? 'scale(1)' : 'scale(0.95)',
+                opacity: isVisible ? 1 : 0,
+                transition: 'transform 0.3s ease-out, opacity 0.3s ease-out',
               }}
             >
               <div className="flex items-start justify-between mb-2">
@@ -253,28 +290,6 @@ export function AnnotationPanel() {
           );
         })}
       </div>
-
-      <style>{`
-        @keyframes bubblePopIn {
-          0% {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          60% {
-            opacity: 1;
-            transform: scale(1.02);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        .annotation-bubble {
-          opacity: 0;
-          transform: scale(0.95);
-          will-change: transform, opacity;
-        }
-      `}</style>
     </div>
   );
 }

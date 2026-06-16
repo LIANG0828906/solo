@@ -6,8 +6,7 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from 'prosemirror-state';
-import type { Decoration } from 'prosemirror-view';
-import { DecorationSet } from 'prosemirror-view';
+import { Decoration, DecorationSet } from 'prosemirror-view';
 import { useStore } from '@/store';
 import { extractConcepts } from '@/knowledge/ConceptExtractor';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -174,6 +173,21 @@ export function Editor() {
       } else {
         setSelectedText(null);
       }
+    },
+    onBlur: ({ editor }) => {
+      sendMessage({
+        type: 'cursor',
+        payload: { position: null },
+        userId: currentUser.id,
+      });
+    },
+    onFocus: ({ editor }) => {
+      const { from } = editor.state.selection;
+      sendMessage({
+        type: 'cursor',
+        payload: { position: from },
+        userId: currentUser.id,
+      });
     },
     editorProps: {
       attributes: {

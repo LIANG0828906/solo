@@ -32,8 +32,13 @@ export function useWebSocket() {
 
         case 'cursor':
           if (message.userId !== currentUser.id) {
-            updateUserCursor(message.userId, message.payload.position);
+            const pos = message.payload.position;
+            updateUserCursor(message.userId, pos === undefined ? null : pos);
           }
+          break;
+
+        case 'user-leave':
+          updateUserCursor(message.payload.clientId || message.userId, null);
           break;
 
         case 'edit':

@@ -91,6 +91,7 @@ const getInitialNote = (): Note => {
 
 let intervalTimer: ReturnType<typeof setInterval> | null = null;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
+let autoSaveDestroyed = false;
 
 export const useStore = create<StoreState>((set, get) => ({
   currentUser: mockUsers[0],
@@ -108,20 +109,32 @@ export const useStore = create<StoreState>((set, get) => ({
   lastEditTime: Date.now(),
 
   initAutoSave: () => {
+    autoSaveDestroyed = false;
     if (intervalTimer) {
       clearInterval(intervalTimer);
+      intervalTimer = null;
+    }
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
     }
 
     intervalTimer = setInterval(() => {
-      const now = Date.now();
-      const timeSinceLastEdit = now - get().lastEditTime;
-      if (timeSinceLastEdit >= VERSION_INTERVAL) {
-        get().addVersion('定时自动保存');
+      if (autoSaveDestroyed) return;
+      try {
+        const now = Date.now();
+        const timeSinceLastEdit = now - get().lastEditTime;
+        if (timeSinceLastEdit >= VERSION_INTERVAL) {
+          get().addVersion('定时自动保存');
+        }
+      } catch (e) {
+        console.error('Auto save interval error:', e);
       }
     }, VERSION_INTERVAL);
   },
 
   cleanupAutoSave: () => {
+    autoSaveDestroyed = true;
     if (intervalTimer) {
       clearInterval(intervalTimer);
       intervalTimer = null;
@@ -147,10 +160,18 @@ export const useStore = create<StoreState>((set, get) => ({
 
     if (idleTimer) {
       clearTimeout(idleTimer);
+      idleTimer = null;
     }
-    idleTimer = setTimeout(() => {
-      get().addVersion('空闲自动保存');
-    }, IDLE_VERSION_DELAY);
+    if (!autoSaveDestroyed) {
+      idleTimer = setTimeout(() => {
+        if (autoSaveDestroyed) return;
+        try {
+          get().addVersion('空闲自动保存');
+        } catch (e) {
+          console.error('Idle auto save error:', e);
+        }
+      }, IDLE_VERSION_DELAY);
+    }
 
     set({ note: updatedNote, lastEditTime: now });
     saveNote(updatedNote).catch(console.error);
