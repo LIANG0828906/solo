@@ -1,11 +1,13 @@
 interface StarRatingProps {
   rating: number;
-  onRate?: (rating: 1 | 2 | 3 | 4 | 5) => void;
+  onChange?: (rating: 1 | 2 | 3 | 4 | 5) => void;
+  interactive?: boolean;
   readonly?: boolean;
 }
 
-const StarRating = ({ rating, onRate, readonly = false }: StarRatingProps) => {
+const StarRating = ({ rating, onChange, interactive = false, readonly = false }: StarRatingProps) => {
   const stars: (1 | 2 | 3 | 4 | 5)[] = [1, 2, 3, 4, 5];
+  const isInteractive = interactive && !readonly;
 
   return (
     <div className="star-rating">
@@ -13,7 +15,8 @@ const StarRating = ({ rating, onRate, readonly = false }: StarRatingProps) => {
         <span
           key={star}
           className={`star ${star <= rating ? 'filled' : ''}`}
-          onClick={() => !readonly && onRate?.(star)}
+          style={{ cursor: isInteractive ? 'pointer' : 'default' }}
+          onClick={() => isInteractive && onChange?.(star)}
         >
           ★
         </span>

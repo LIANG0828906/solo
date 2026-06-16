@@ -3,6 +3,43 @@ import type { User, Book, Chapter, Review } from './types';
 import * as db from './db';
 import { v4 as uuidv4 } from 'uuid';
 
+export function computeFilteredBooks(
+  books: Book[],
+  searchQuery: string,
+  sortOrder: 'desc' | 'asc'
+): Book[] {
+  let result = books.filter((book) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      book.title.toLowerCase().includes(query) ||
+      book.author.toLowerCase().includes(query)
+    );
+  });
+  result = result.sort((a, b) => {
+    if (sortOrder === 'desc') {
+      return b.avgRating - a.avgRating;
+    }
+    return a.avgRating - b.avgRating;
+  });
+  return result;
+}
+
+export function computePaginatedBooks(
+  filteredBooks: Book[],
+  currentPage: number,
+  pageSize: number
+): Book[] {
+  const start = (currentPage - 1) * pageSize;
+  return filteredBooks.slice(start, start + pageSize);
+}
+
+export function computeTotalPages(
+  filteredBooks: Book[],
+  pageSize: number
+): number {
+  return Math.ceil(filteredBooks.length / pageSize);
+}
+
 interface StoreState {
   currentUser: User | null;
   books: Book[];
@@ -14,9 +51,6 @@ interface StoreState {
   currentPage: number;
   pageSize: number;
   expandedChapterId: string | null;
-  filteredBooks: Book[];
-  paginatedBooks: Book[];
-  totalPages: number;
   loadBooks: () => Promise<void>;
   setCurrentBook: (bookId: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
@@ -44,35 +78,6 @@ export const useStore = create<StoreState>((set, get) => ({
   currentPage: 1,
   pageSize: 12,
   expandedChapterId: null,
-
-  get filteredBooks(): Book[] {
-    const { books, searchQuery, sortOrder } = get();
-    let result = books.filter((book) => {
-      const query = searchQuery.toLowerCase();
-      return (
-        book.title.toLowerCase().includes(query) ||
-        book.author.toLowerCase().includes(query)
-      );
-    });
-    result = result.sort((a, b) => {
-      if (sortOrder === 'desc') {
-        return b.avgRating - a.avgRating;
-      }
-      return a.avgRating - b.avgRating;
-    });
-    return result;
-  },
-
-  get paginatedBooks(): Book[] {
-    const { filteredBooks, currentPage, pageSize } = get();
-    const start = (currentPage - 1) * pageSize;
-    return filteredBooks.slice(start, start + pageSize);
-  },
-
-  get totalPages(): number {
-    const { filteredBooks, pageSize } = get();
-    return Math.ceil(filteredBooks.length / pageSize);
-  },
 
   loadBooks: async () => {
     const books = await db.getAllBooks();

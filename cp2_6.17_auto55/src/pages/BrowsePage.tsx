@@ -1,20 +1,40 @@
-import { useEffect, useRef } from 'react';
-import { useStore } from '../store';
+import { useEffect, useMemo, useRef } from 'react';
+import {
+  useStore,
+  computeFilteredBooks,
+  computePaginatedBooks,
+  computeTotalPages,
+} from '../store';
 import BookCard from '../components/BookCard';
 import Pagination from '../components/Pagination';
 
 const BrowsePage = () => {
   const {
     loadBooks,
-    paginatedBooks,
+    books,
     searchQuery,
     sortOrder,
     currentPage,
-    totalPages,
+    pageSize,
     setSearchQuery,
     setSortOrder,
     setCurrentPage,
   } = useStore();
+
+  const filteredBooks = useMemo(
+    () => computeFilteredBooks(books, searchQuery, sortOrder),
+    [books, searchQuery, sortOrder]
+  );
+
+  const paginatedBooks = useMemo(
+    () => computePaginatedBooks(filteredBooks, currentPage, pageSize),
+    [filteredBooks, currentPage, pageSize]
+  );
+
+  const totalPages = useMemo(
+    () => computeTotalPages(filteredBooks, pageSize),
+    [filteredBooks, pageSize]
+  );
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -31,10 +51,6 @@ const BrowsePage = () => {
     }, 200);
   };
 
-  const toggleSortOrder = () => {
-    setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
-  };
-
   return (
     <div className="page-container">
       <div className="search-bar">
@@ -45,13 +61,20 @@ const BrowsePage = () => {
           defaultValue={searchQuery}
           onChange={(e) => handleSearchChange(e.target.value)}
         />
-        <button
-          className="sort-btn"
-          onClick={toggleSortOrder}
-          style={{ background: '#3498DB', color: 'white', borderRadius: '6px' }}
-        >
-          {sortOrder === 'desc' ? '评分从高到低' : '评分从低到高'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className={`sort-btn ${sortOrder === 'desc' ? 'sort-btn-active' : ''}`}
+            onClick={() => setSortOrder('desc')}
+          >
+            评分从高到低
+          </button>
+          <button
+            className={`sort-btn ${sortOrder === 'asc' ? 'sort-btn-active' : ''}`}
+            onClick={() => setSortOrder('asc')}
+          >
+            评分从低到高
+          </button>
+        </div>
       </div>
 
       <div className="book-grid">

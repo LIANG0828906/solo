@@ -217,11 +217,30 @@ button {
 }
 
 .sort-btn {
-  background: var(--color-sort-btn);
-  color: white;
+  background: white;
+  color: var(--color-text);
   padding: 8px 16px;
   border-radius: var(--radius-md);
   font-size: 14px;
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+}
+
+.sort-btn:hover {
+  border-color: var(--color-sort-btn);
+  color: var(--color-sort-btn);
+}
+
+.sort-btn-active {
+  background: #3498DB;
+  color: white;
+  border-color: #3498DB;
+}
+
+.sort-btn-active:hover {
+  background: #2980b9;
+  color: white;
+  border-color: #2980b9;
 }
 
 .pagination {
