@@ -1,9 +1,30 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, ReactNode } from 'react';
 import * as echarts from 'echarts';
 import { useStore } from '@/stores/useStore';
 
+const TasksIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="4" width="18" height="16" rx="2" stroke="#3498DB" strokeWidth="2" fill="none" />
+    <path d="M7 9h10M7 13h10M7 17h6" stroke="#3498DB" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="9" stroke="#27AE60" strokeWidth="2" fill="none" />
+    <path d="M8 12l3 3 5-6" stroke="#27AE60" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const ClockIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="9" stroke="#F39C12" strokeWidth="2" fill="none" />
+    <path d="M12 7v5l3 2" stroke="#F39C12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 interface StatCardProps {
-  icon: string;
+  icon: ReactNode;
   label: string;
   value: string | number;
   subValue?: string;
@@ -43,7 +64,6 @@ function StatCard({ icon, label, value, subValue, bgColor }: StatCardProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '24px',
           marginBottom: '4px',
         }}
       >
@@ -207,21 +227,21 @@ export default function ReportPage() {
         }}
       >
         <StatCard
-          icon="📋"
+          icon={<TasksIcon />}
           label="总任务数"
           value={stats.totalTasks}
           subValue="全项目任务合计"
           bgColor="#EBF5FB"
         />
         <StatCard
-          icon="✅"
+          icon={<CheckIcon />}
           label="已完成数"
           value={stats.completedTasks}
           subValue={`完成率 ${completionRate}%`}
           bgColor="#EAFAF1"
         />
         <StatCard
-          icon="⏱️"
+          icon={<ClockIcon />}
           label="平均完成时长"
           value={stats.avgCompletionTime}
           subValue="单位：小时"

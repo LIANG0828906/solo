@@ -24,7 +24,9 @@ export default function TaskCard({ taskId, index }: Props) {
 
   if (!task) return null;
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     setSelectedTaskId(task.id);
   };
 
@@ -46,8 +48,9 @@ export default function TaskCard({ taskId, index }: Props) {
               backgroundColor: '#FFFFFF',
               borderRadius: '8px',
               padding: '16px',
+              opacity: 1,
               boxShadow: isDragging
-                ? '0 8px 24px rgba(0,0,0,0.15)'
+                ? 'none'
                 : '0 1px 3px rgba(0,0,0,0.08)',
               cursor: 'pointer',
               transition: 'all 0.2s ease',

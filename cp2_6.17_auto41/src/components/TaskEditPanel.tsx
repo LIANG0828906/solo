@@ -13,7 +13,7 @@ const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
 export default function TaskEditPanel() {
   const selectedTaskId = useStore(s => s.selectedTaskId);
   const setSelectedTaskId = useStore(s => s.setSelectedTaskId);
-  const task = useStore(s => selectedTaskId ? s.tasks[selectedTaskId] : null);
+  const taskFromStore = useStore(s => selectedTaskId ? s.tasks[selectedTaskId] : null);
   const updateTask = useStore(s => s.updateTask);
   const deleteTask = useStore(s => s.deleteTask);
   const members = useStore(s => s.members);
@@ -25,44 +25,39 @@ export default function TaskEditPanel() {
   const [projectName, setProjectName] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [closing, setClosing] = useState(false);
+  const [localTask, setLocalTask] = useState(taskFromStore);
+  const [localTaskId, setLocalTaskId] = useState(selectedTaskId);
 
   useEffect(() => {
-    if (task) {
-      setTitle(task.title);
-      setDescription(task.description);
-      setAssigneeId(task.assigneeId);
-      setStatus(task.status);
-      setProjectName(task.projectName);
-      setDueDate(task.dueDate);
-    }
-  }, [task]);
-
-  useEffect(() => {
-    if (task) {
+    if (taskFromStore && selectedTaskId) {
+      setLocalTask(taskFromStore);
+      setLocalTaskId(selectedTaskId);
+      setTitle(taskFromStore.title);
+      setDescription(taskFromStore.description);
+      setAssigneeId(taskFromStore.assigneeId);
+      setStatus(taskFromStore.status);
+      setProjectName(taskFromStore.projectName);
+      setDueDate(taskFromStore.dueDate);
       requestAnimationFrame(() => {
         setIsOpen(true);
       });
-    } else {
-      setIsOpen(false);
     }
-  }, [task]);
+  }, [taskFromStore, selectedTaskId]);
 
-  if (!task || !selectedTaskId) return null;
+  if (!localTask || !localTaskId) return null;
 
   const close = () => {
     setIsOpen(false);
-    setClosing(true);
     setTimeout(() => {
       setSelectedTaskId(null);
-      setClosing(false);
-      setIsOpen(false);
+      setLocalTask(null);
+      setLocalTaskId(null);
     }, 300);
   };
 
   const handleSave = () => {
-    if (!title.trim()) return;
-    updateTask(selectedTaskId, {
+    if (!title.trim() || !localTaskId) return;
+    updateTask(localTaskId, {
       title: title.trim(),
       description: description.trim(),
       assigneeId,
@@ -74,8 +69,10 @@ export default function TaskEditPanel() {
   };
 
   const handleDelete = () => {
+    if (!localTaskId) return;
     if (confirm('确定要删除此任务吗？')) {
-      deleteTask(selectedTaskId);
+      deleteTask(localTaskId);
+      close();
     }
   };
 
@@ -179,11 +176,11 @@ export default function TaskEditPanel() {
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  backgroundColor: STATUS_OPTIONS.find(o => o.value === task.status)?.color,
+                  backgroundColor: STATUS_OPTIONS.find(o => o.value === localTask.status)?.color,
                 }}
               />
               <span style={{ fontSize: '14px', fontWeight: 500, color: '#2C3E50' }}>
-                {STATUS_OPTIONS.find(o => o.value === task.status)?.label}
+                {STATUS_OPTIONS.find(o => o.value === localTask.status)?.label}
               </span>
             </div>
           </div>
@@ -383,9 +380,9 @@ export default function TaskEditPanel() {
                 任务创建信息
               </div>
               <div style={{ fontSize: '13px', color: '#5D6D7E', lineHeight: 1.8 }}>
-                <div>创建时间：{new Date(task.createdAt).toLocaleString('zh-CN')}</div>
-                {task.completedAt && (
-                  <div>完成时间：{new Date(task.completedAt).toLocaleString('zh-CN')}</div>
+                <div>创建时间：{new Date(localTask.createdAt).toLocaleString('zh-CN')}</div>
+                {localTask.completedAt && (
+                  <div>完成时间：{new Date(localTask.completedAt).toLocaleString('zh-CN')}</div>
                 )}
               </div>
             </div>
