@@ -6,7 +6,6 @@ import {
   setParticleCount,
   getParticleCount,
   togglePause,
-  isPausedState,
   setParticleOpacity,
   setParticlesVisible,
   getParticleBaseCount,
@@ -32,16 +31,18 @@ let sphereMesh: THREE.Mesh | null = null;
 let sphereMaterial: THREE.ShaderMaterial | null = null;
 
 let currentMode: DisplayMode = 'particles';
+let previousMode: DisplayMode = 'particles';
 let modeTransitionProgress = 1;
-let modeTransitionDirection = 0;
+let modeTransitioning = false;
 let textureOpacity = 0.5;
-let particleOpacity = 0.6;
+let particleOpacity = 0.55;
 
 let fps = 0;
 let frameCount = 0;
 let lastFpsUpdateTime = 0;
-let lastAdaptiveTime = 0;
 let adaptiveUpTimer = 0;
+let lowFpsCounter = 0;
+let highFpsCounter = 0;
 
 let isStarted = false;
 let buttonsDisabled = false;
@@ -49,8 +50,9 @@ let buttonsDisabled = false;
 const SPHERE_RADIUS = 5;
 const FFT_SIZE = 256;
 const MODE_TRANSITION_DURATION = 0.5;
+const FPS_CHECK_INTERVAL = 2;
 
-const vertexShader = `
+const sphereVertexShader = `
   varying vec2 vUv;
   varying vec3 vNormal;
   varying vec3 vPosition;
@@ -63,7 +65,7 @@ const vertexShader = `
   }
 `;
 
-const fragmentShader = `
+const sphereFragmentShader = `
   uniform sampler2D uTexture;
   uniform float uOpacity;
   uniform float uTime;
@@ -78,23 +80,23 @@ const fragmentShader = `
   void main() {
     vec2 uv = vUv;
     
-    float distortAmount = uLowFrequency * 0.1;
-    float waveSpeed = uTime * 2.0;
+    float distortAmount = uLowFrequency * 0.08;
+    float waveSpeed = uTime * 1.5;
     
-    uv.x += sin(uv.y * 10.0 + waveSpeed + vPosition.x * 0.5) * distortAmount;
-    uv.y += cos(uv.x * 10.0 + waveSpeed + vPosition.y * 0.5) * distortAmount;
+    uv.x += sin(uv.y * 12.0 + waveSpeed + vPosition.x * 0.3) * distortAmount;
+    uv.y += cos(uv.x * 12.0 + waveSpeed + vPosition.y * 0.3) * distortAmount;
     
     uv.x = 1.0 - uv.x;
     
     vec4 texColor = texture2D(uTexture, uv);
     
     float rim = 1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0)));
-    rim = pow(rim, 2.0);
+    rim = pow(rim, 1.5);
     
     vec3 glowColor = vec3(0.0, 0.83, 1.0);
-    vec3 finalColor = mix(texColor.rgb, glowColor, rim * 0.3 * uLowFrequency);
+    vec3 finalColor = mix(texColor.rgb, glowColor, rim * 0.25 * uLowFrequency);
     
-    float alpha = uOpacity * (0.7 + rim * 0.3);
+    float alpha = uOpacity * (0.6 + rim * 0.4);
     
     gl_FragColor = vec4(finalColor, alpha);
   }
@@ -154,20 +156,21 @@ function createSphere(): void {
   sphereMaterial = new THREE.ShaderMaterial({
     uniforms: {
       uTexture: { value: videoTexture },
-      uOpacity: { value: textureOpacity },
+      uOpacity: { value: 0 },
       uTime: { value: 0 },
       uLowFrequency: { value: 0 },
       uMidFrequency: { value: 0 },
       uHighFrequency: { value: 0 }
     },
-    vertexShader,
-    fragmentShader,
+    vertexShader: sphereVertexShader,
+    fragmentShader: sphereFragmentShader,
     transparent: true,
     side: THREE.BackSide,
     depthWrite: false
   });
 
   sphereMesh = new THREE.Mesh(geometry, sphereMaterial);
+  sphereMesh.visible = false;
   scene.add(sphereMesh);
 }
 
@@ -276,22 +279,19 @@ function animate(currentTime: number): void {
     updateFpsDisplay();
   }
 
-  if (modeTransitionDirection !== 0) {
-    modeTransitionProgress += modeTransitionDirection * (deltaTime / MODE_TRANSITION_DURATION);
+  if (modeTransitioning) {
+    modeTransitionProgress += deltaTime / MODE_TRANSITION_DURATION;
     if (modeTransitionProgress >= 1) {
       modeTransitionProgress = 1;
-      modeTransitionDirection = 0;
-    } else if (modeTransitionProgress <= 0) {
-      modeTransitionProgress = 0;
-      modeTransitionDirection = 0;
-      applyModeVisibility();
+      modeTransitioning = false;
+      applyFinalModeState();
     }
-    updateModeOpacity();
+    updateTransitionOpacity();
   }
 
   const bands = getFrequencyBands();
 
-  if (frequencyData && analyser) {
+  if (frequencyData && analyser && frequencyData.length > 0) {
     updateParticles(frequencyData, bands.low, bands.mid, bands.high, deltaTime);
   }
 
@@ -310,11 +310,33 @@ function animate(currentTime: number): void {
 }
 
 function getEffectiveTextureOpacity(): number {
-  switch (currentMode) {
+  if (!modeTransitioning) {
+    switch (currentMode) {
+      case 'particles':
+        return 0;
+      case 'texture':
+        return textureOpacity;
+      case 'blend':
+        return textureOpacity;
+      default:
+        return textureOpacity;
+    }
+  }
+
+  const t = easeInOutCubic(modeTransitionProgress);
+
+  const fromOpacity = getModeTextureOpacity(previousMode);
+  const toOpacity = getModeTextureOpacity(currentMode);
+
+  return fromOpacity + (toOpacity - fromOpacity) * t;
+}
+
+function getModeTextureOpacity(mode: DisplayMode): number {
+  switch (mode) {
     case 'particles':
-      return textureOpacity * (1 - modeTransitionProgress);
+      return 0;
     case 'texture':
-      return textureOpacity * modeTransitionProgress;
+      return textureOpacity;
     case 'blend':
       return textureOpacity;
     default:
@@ -323,11 +345,33 @@ function getEffectiveTextureOpacity(): number {
 }
 
 function getEffectiveParticleOpacity(): number {
-  switch (currentMode) {
+  if (!modeTransitioning) {
+    switch (currentMode) {
+      case 'particles':
+        return 1;
+      case 'texture':
+        return 0;
+      case 'blend':
+        return particleOpacity;
+      default:
+        return 1;
+    }
+  }
+
+  const t = easeInOutCubic(modeTransitionProgress);
+
+  const fromOpacity = getModeParticleOpacity(previousMode);
+  const toOpacity = getModeParticleOpacity(currentMode);
+
+  return fromOpacity + (toOpacity - fromOpacity) * t;
+}
+
+function getModeParticleOpacity(mode: DisplayMode): number {
+  switch (mode) {
     case 'particles':
-      return 1 * modeTransitionProgress;
+      return 1;
     case 'texture':
-      return 1 * (1 - modeTransitionProgress);
+      return 0;
     case 'blend':
       return particleOpacity;
     default:
@@ -335,14 +379,20 @@ function getEffectiveParticleOpacity(): number {
   }
 }
 
-function updateModeOpacity(): void {
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function updateTransitionOpacity(): void {
   setParticleOpacity(getEffectiveParticleOpacity());
 }
 
-function applyModeVisibility(): void {
+function applyFinalModeState(): void {
+  setParticlesVisible(true);
+  if (sphereMesh) sphereMesh.visible = true;
+
   switch (currentMode) {
     case 'particles':
-      setParticlesVisible(true);
       if (sphereMesh) sphereMesh.visible = false;
       setParticleOpacity(1);
       break;
@@ -360,23 +410,25 @@ function applyModeVisibility(): void {
 }
 
 function setDisplayMode(mode: DisplayMode, immediate = false): void {
-  const previousMode = currentMode;
+  if (mode === currentMode && !immediate) return;
+
+  previousMode = currentMode;
   currentMode = mode;
 
   updateModeButtons();
 
   if (immediate) {
     modeTransitionProgress = 1;
-    modeTransitionDirection = 0;
-    applyModeVisibility();
+    modeTransitioning = false;
+    applyFinalModeState();
   } else {
     modeTransitionProgress = 0;
-    modeTransitionDirection = 1;
+    modeTransitioning = true;
 
     setParticlesVisible(true);
     if (sphereMesh) sphereMesh.visible = true;
-
-    if (previousMode === mode) return;
+    setParticleOpacity(getModeParticleOpacity(previousMode));
+    updateTransitionOpacity();
   }
 }
 
@@ -411,27 +463,40 @@ function updateAdaptiveParticles(deltaTime: number): void {
   const minCount = getParticleMinCount();
   const currentCount = getParticleCount();
 
-  if (fps < 20 && currentCount > minCount) {
-    setParticleCount(minCount);
-    adaptiveUpTimer = 0;
-    return;
-  }
-
-  if (fps < 30 && currentCount > midCount) {
-    setParticleCount(midCount);
-    adaptiveUpTimer = 0;
-    return;
-  }
-
-  if (fps > 45 && currentCount < baseCount) {
-    adaptiveUpTimer += deltaTime;
-    if (adaptiveUpTimer >= 5) {
+  if (fps > 0 && fps < 20) {
+    lowFpsCounter += deltaTime;
+    highFpsCounter = 0;
+    if (lowFpsCounter >= FPS_CHECK_INTERVAL && currentCount > minCount) {
+      setParticleCount(minCount);
       adaptiveUpTimer = 0;
-      const newCount = Math.min(baseCount, currentCount + 500);
-      setParticleCount(newCount);
+      lowFpsCounter = 0;
+      return;
+    }
+  } else if (fps > 0 && fps < 30) {
+    lowFpsCounter += deltaTime;
+    highFpsCounter = 0;
+    if (lowFpsCounter >= FPS_CHECK_INTERVAL && currentCount > midCount) {
+      setParticleCount(midCount);
+      adaptiveUpTimer = 0;
+      lowFpsCounter = 0;
+      return;
+    }
+  } else if (fps > 45) {
+    lowFpsCounter = 0;
+    highFpsCounter += deltaTime;
+    if (highFpsCounter >= FPS_CHECK_INTERVAL && currentCount < baseCount) {
+      adaptiveUpTimer += deltaTime;
+      if (adaptiveUpTimer >= 5) {
+        adaptiveUpTimer = 0;
+        highFpsCounter = 0;
+        const newCount = Math.min(baseCount, currentCount + 500);
+        setParticleCount(newCount);
+      }
     }
   } else {
-    adaptiveUpTimer = Math.max(0, adaptiveUpTimer - deltaTime * 0.5);
+    lowFpsCounter = Math.max(0, lowFpsCounter - deltaTime * 0.5);
+    highFpsCounter = Math.max(0, highFpsCounter - deltaTime * 0.5);
+    adaptiveUpTimer = Math.max(0, adaptiveUpTimer - deltaTime * 0.2);
   }
 }
 
@@ -448,23 +513,26 @@ function onKeyDown(event: KeyboardEvent): void {
 
   switch (event.code) {
     case 'Digit1':
+      event.preventDefault();
       switchModeWithDebounce('particles');
       break;
     case 'Digit2':
+      event.preventDefault();
       switchModeWithDebounce('texture');
       break;
     case 'Digit3':
+      event.preventDefault();
       switchModeWithDebounce('blend');
       break;
     case 'Space':
       event.preventDefault();
-      const paused = togglePause();
+      togglePause();
       break;
   }
 }
 
 function switchModeWithDebounce(mode: DisplayMode): void {
-  if (buttonsDisabled || currentMode === mode) return;
+  if (buttonsDisabled || modeTransitioning || currentMode === mode) return;
 
   buttonsDisabled = true;
   setDisplayMode(mode);
@@ -505,6 +573,7 @@ function setupUI(): void {
           audioContext.resume();
         }
 
+        lastTime = performance.now();
         requestAnimationFrame(animate);
       } catch (error) {
         console.error('Failed to start:', error);
@@ -520,7 +589,7 @@ function setupUI(): void {
       textureOpacity = normalized;
       opacityValue.textContent = normalized.toFixed(2);
 
-      if (sphereMaterial && sphereMaterial.uniforms) {
+      if (!modeTransitioning && sphereMaterial && sphereMaterial.uniforms) {
         sphereMaterial.uniforms.uOpacity.value = getEffectiveTextureOpacity();
       }
     };

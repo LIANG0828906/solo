@@ -9,20 +9,20 @@ const BASE_COUNT = 3000;
 const MIN_COUNT = 800;
 const MID_COUNT = 1500;
 
-const vertexShader = `
-  attribute float size;
-  attribute vec3 color;
+const particleVertexShader = `
+  attribute float aSize;
+  attribute vec3 aColor;
   varying vec3 vColor;
   
   void main() {
-    vColor = color;
+    vColor = aColor;
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = size * (300.0 / -mvPosition.z);
+    gl_PointSize = aSize * (300.0 / -mvPosition.z);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
 
-const fragmentShader = `
+const particleFragmentShader = `
   varying vec3 vColor;
   uniform float uOpacity;
   
@@ -31,8 +31,11 @@ const fragmentShader = `
     float dist = length(center);
     if (dist > 0.5) discard;
     
-    float alpha = smoothstep(0.5, 0.0, dist) * uOpacity;
-    gl_FragColor = vec4(vColor, alpha);
+    float glow = smoothstep(0.5, 0.0, dist);
+    float alpha = glow * uOpacity;
+    vec3 finalColor = vColor * (0.5 + glow * 0.5);
+    
+    gl_FragColor = vec4(finalColor, alpha);
   }
 `;
 
@@ -99,8 +102,8 @@ export function createParticles(scene: THREE.Scene): ParticleData {
 
   geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
 
   geometry.setDrawRange(0, currentCount);
 
@@ -108,8 +111,8 @@ export function createParticles(scene: THREE.Scene): ParticleData {
     uniforms: {
       uOpacity: { value: 1.0 }
     },
-    vertexShader,
-    fragmentShader,
+    vertexShader: particleVertexShader,
+    fragmentShader: particleFragmentShader,
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false
@@ -141,8 +144,8 @@ export function updateParticles(
   points.rotation.y += rotationSpeed * deltaTime;
 
   const positionAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
-  const colorAttr = geometry.getAttribute('color') as THREE.BufferAttribute;
-  const sizeAttr = geometry.getAttribute('size') as THREE.BufferAttribute;
+  const colorAttr = geometry.getAttribute('aColor') as THREE.BufferAttribute;
+  const sizeAttr = geometry.getAttribute('aSize') as THREE.BufferAttribute;
 
   const posArray = positionAttr.array as Float32Array;
   const colorArray = colorAttr.array as Float32Array;
@@ -196,8 +199,8 @@ export function setParticleCount(count: number): void {
   geometry.setDrawRange(0, currentCount);
 
   const positionAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
-  const colorAttr = geometry.getAttribute('color') as THREE.BufferAttribute;
-  const sizeAttr = geometry.getAttribute('size') as THREE.BufferAttribute;
+  const colorAttr = geometry.getAttribute('aColor') as THREE.BufferAttribute;
+  const sizeAttr = geometry.getAttribute('aSize') as THREE.BufferAttribute;
 
   positionAttr.needsUpdate = true;
   colorAttr.needsUpdate = true;
