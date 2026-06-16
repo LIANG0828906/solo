@@ -119,11 +119,11 @@ a {
 @keyframes flyIn {
   from {
     opacity: 0;
-    transform: translateY(30px) scale(0.95);
+    transform: translateY(30px) scale(0.95) rotate(var(--card-tilt, 0deg));
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0) scale(1) rotate(var(--card-tilt, 0deg));
   }
 }
 
@@ -623,13 +623,14 @@ a {
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--card-border);
   cursor: pointer;
-  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1), border-color 300ms ease;
   animation: flyIn 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   will-change: transform, box-shadow;
+  transform: rotate(var(--card-tilt, 0deg));
 }
 
 .product-card:hover {
-  transform: translateY(-8px) scale(1.015);
+  transform: translateY(-8px) scale(1.015) rotate(0deg);
   box-shadow: var(--shadow-hover);
   border-color: var(--accent);
 }
@@ -817,11 +818,11 @@ a {
 }
 
 .material-table tbody tr.warning-row {
-  background: linear-gradient(90deg, var(--warning-light) 0%, rgba(245, 183, 160, 0.35) 100%);
+  background: linear-gradient(90deg, #FFE4D6 0%, #F5C6A0 100%);
 }
 
 .material-table tbody tr.warning-row:hover {
-  background: linear-gradient(90deg, #FFD6C8 0%, rgba(245, 183, 160, 0.55) 100%);
+  background: linear-gradient(90deg, #FFD6C4 0%, #F0B888 100%);
 }
 
 .material-name {
@@ -1252,6 +1253,16 @@ a {
 
 .timeline-step-wrapper.dragging {
   opacity: 0.4;
+}
+
+.timeline-step-wrapper.drag-over {
+  border-top: 3px solid var(--accent);
+  padding-top: 8px;
+}
+
+.timeline-step-wrapper.drag-over .timeline-card {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(212, 167, 106, 0.3);
 }
 
 .timeline-node {

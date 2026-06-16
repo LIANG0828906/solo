@@ -16,7 +16,7 @@ let dbPromise: Promise<IDBPDatabase<CraftStudioDB>> | null = null;
 
 function getDB(): Promise<IDBPDatabase<CraftStudioDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<CraftStudioDB>('craft-studio-db', 1, {
+    dbPromise = openDB<CraftStudioDB>('craft-studio-v2', 1, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('projects')) {
           db.createObjectStore('projects', { keyPath: 'id' });

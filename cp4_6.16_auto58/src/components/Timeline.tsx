@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Step, TimelineFilters, ProjectLog, DifficultyLevel } from '@/types';
 import { GripVertical, Plus, X, Image as ImageIcon, Clock, Edit2, Trash2, Search, Calendar } from 'lucide-react';
@@ -18,7 +18,11 @@ export function Timeline({ project }: TimelineProps) {
   });
   const [showForm, setShowForm] = useState(false);
   const [editingStep, setEditingStep] = useState<Step | null>(null);
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragState, setDragState] = useState<{
+    dragging: boolean;
+    dragIdx: number | null;
+    overIdx: number | null;
+  }>({ dragging: false, dragIdx: null, overIdx: null });
   const [formData, setFormData] = useState<{
     title: string;
     description: string;
@@ -32,6 +36,7 @@ export function Timeline({ project }: TimelineProps) {
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [error, setError] = useState('');
+  const dragItemRef = useRef<number | null>(null);
 
   const sortedSteps = useMemo(
     () => [...project.steps].sort((a, b) => a.order - b.order),
@@ -116,22 +121,48 @@ export function Timeline({ project }: TimelineProps) {
     }
   };
 
-  const handleDragStart = (index: number) => (e: React.DragEvent) => {
-    setDragIndex(index);
+  const handleDragStart = useCallback((idx: number) => (e: React.DragEvent) => {
+    dragItemRef.current = idx;
+    setDragState({ dragging: true, dragIdx: idx, overIdx: null });
     e.dataTransfer.effectAllowed = 'move';
-  };
+    e.dataTransfer.setData('text/plain', String(idx));
+    const target = e.currentTarget as HTMLElement;
+    requestAnimationFrame(() => {
+      target.style.opacity = '0.4';
+    });
+  }, []);
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = useCallback((idx: number) => (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-  };
+    setDragState((prev) => {
+      if (prev.overIdx !== idx) {
+        return { ...prev, overIdx: idx };
+      }
+      return prev;
+    });
+  }, []);
 
-  const handleDrop = (toIndex: number) => async (e: React.DragEvent) => {
+  const handleDragLeave = useCallback(() => {
+    setDragState((prev) => ({ ...prev, overIdx: null }));
+  }, []);
+
+  const handleDrop = useCallback((toIdx: number) => async (e: React.DragEvent) => {
     e.preventDefault();
-    if (dragIndex === null || dragIndex === toIndex) return;
-    await reorderSteps(project.id, dragIndex, toIndex);
-    setDragIndex(null);
-  };
+    const fromIdx = dragItemRef.current;
+    if (fromIdx === null || fromIdx === toIdx) {
+      setDragState({ dragging: false, dragIdx: null, overIdx: null });
+      return;
+    }
+    await reorderSteps(project.id, fromIdx, toIdx);
+    dragItemRef.current = null;
+    setDragState({ dragging: false, dragIdx: null, overIdx: null });
+  }, [project.id, reorderSteps]);
+
+  const handleDragEnd = useCallback(() => {
+    dragItemRef.current = null;
+    setDragState({ dragging: false, dragIdx: null, overIdx: null });
+  }, []);
 
   return (
     <div className="timeline-container">
@@ -175,13 +206,15 @@ export function Timeline({ project }: TimelineProps) {
           </div>
         ) : (
           <div className="timeline-vertical">
-            {filteredSteps.map((step, idx) => (
+            {filteredSteps.map((step, idx) => {
+              const isDragging = dragState.dragIdx === idx;
+              const isOver = dragState.overIdx === idx && dragState.dragIdx !== idx;
+              return (
               <div
                 key={step.id}
-                className={`timeline-step-wrapper ${dragIndex === idx ? 'dragging' : ''}`}
-                draggable
-                onDragStart={handleDragStart(idx)}
-                onDragOver={handleDragOver}
+                className={`timeline-step-wrapper ${isDragging ? 'dragging' : ''} ${isOver ? 'drag-over' : ''}`}
+                onDragOver={handleDragOver(idx)}
+                onDragLeave={handleDragLeave}
                 onDrop={handleDrop(idx)}
                 style={{ animationDelay: `${idx * 50}ms` }}
               >
@@ -191,7 +224,13 @@ export function Timeline({ project }: TimelineProps) {
                 </div>
                 <div className="timeline-card">
                   <div className="step-header">
-                    <div className="step-drag-handle" title="拖拽排序">
+                    <div
+                      className="step-drag-handle"
+                      title="拖拽排序"
+                      draggable
+                      onDragStart={handleDragStart(idx)}
+                      onDragEnd={handleDragEnd}
+                    >
                       <GripVertical size={16} />
                     </div>
                     <div className="step-title-section">
@@ -232,7 +271,8 @@ export function Timeline({ project }: TimelineProps) {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

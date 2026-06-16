@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjectStore } from '@/store/useProjectStore';
 import { useProductStore } from '@/store/useProductStore';
@@ -8,25 +8,27 @@ import { formatDate, formatHours, formatCurrency, getDifficultyLabel, getDifficu
 export function ProductDetail() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
-  const { projects } = useProjectStore();
+  const { isHydrated } = useProjectStore();
   const { getProductById, getProductStats, refreshProducts } = useProductStore();
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    refreshProducts();
+    if (isHydrated) refreshProducts();
+  }, [isHydrated, refreshProducts]);
+
+  useEffect(() => {
     const t = setTimeout(() => setLoaded(true), 50);
     return () => clearTimeout(t);
-  }, [refreshProducts, projects.length]);
+  }, [productId]);
 
   if (!productId) return null;
 
   const product = getProductById(productId);
   const stats = getProductStats(productId);
-  const project = projects.find(p => p.id === productId);
 
-  if (!product || !stats || !project) {
+  if (!product || !stats) {
     return (
-      <div className="detail-page">
+      <div className="detail-page loaded">
         <div className="not-found">
           <h2>未找到该作品</h2>
           <button className="btn-primary" onClick={() => navigate('/showcase')}>
@@ -36,8 +38,6 @@ export function ProductDetail() {
       </div>
     );
   }
-
-  const sortedSteps = [...stats.steps].sort((a, b) => a.order - b.order);
 
   return (
     <div className={`detail-page ${loaded ? 'loaded' : ''}`}>
@@ -101,13 +101,13 @@ export function ProductDetail() {
         <div className="detail-section">
           <div className="section-header">
             <h2>创作日志</h2>
-            <span className="section-count">共 {sortedSteps.length} 个步骤</span>
+            <span className="section-count">共 {stats.steps.length} 个步骤</span>
           </div>
-          {sortedSteps.length === 0 ? (
+          {stats.steps.length === 0 ? (
             <div className="section-empty">暂无创作步骤记录</div>
           ) : (
             <div className="detail-timeline">
-              {sortedSteps.map((step, idx) => (
+              {stats.steps.map((step, idx) => (
                 <div key={step.id} className="detail-step" style={{ animationDelay: `${idx * 60}ms` }}>
                   <div className="detail-step-node">
                     <span className="step-number">{idx + 1}</span>

@@ -15,16 +15,18 @@ export function ProductCard({ product, index }: ProductCardProps) {
     navigate(`/product/${product.id}`);
   };
 
-  const randomRotate = (index % 5 - 2) * 0.3;
+  const tilt = (index % 5 - 2) * 0.3;
 
   return (
     <div
       className="product-card"
       onClick={handleClick}
-      style={{
-        animationDelay: `${index * 50}ms`,
-        transform: `rotate(${randomRotate}deg)`
-      }}
+      style={
+        {
+          '--card-tilt': `${tilt}deg`,
+          animationDelay: `${index * 50}ms`
+        } as React.CSSProperties
+      }
     >
       <div className="card-cover">
         {product.coverImage ? (
