@@ -33,7 +33,7 @@ export class SunScene {
   private targetSunDirection: THREE.Vector3 = new THREE.Vector3()
   private currentSunDirection: THREE.Vector3 = new THREE.Vector3(0.5, 0.7, 0.5)
   private targetIntensities: number[] = []
-  private currentIntensities: number[] = []
+  private currentDisplayIntensities: number[] = []
   private startIntensities: number[] = []
   private sunAnimating: boolean = false
   private sunAnimationProgress: number = 0
@@ -41,7 +41,7 @@ export class SunScene {
   private colorAnimating: boolean = false
   private colorAnimationProgress: number = 0
   private colorAnimationDuration: number = 1.0
-  private readonly COLOR_STEP = 0.05
+  private readonly COLOR_INTENSITY_STEP = 0.05
 
   private fpsDiv: HTMLDivElement | null = null
   private frameCount: number = 0
@@ -55,6 +55,8 @@ export class SunScene {
     { x: -1, y: 3, z: -3.3, w: 2.5, h: 3.5, d: 0.6, color: 0x5a6a7e },
     { x: 1, y: 1.5, z: -3.1, w: 2, h: 3, d: 0.4, color: 0x4a5a6e },
   ]
+
+  private readonly facesPerBuilding = 5
 
   constructor(container: HTMLElement) {
     this.scene = new THREE.Scene()
@@ -110,8 +112,7 @@ export class SunScene {
     this.directionalLight.shadow.camera.bottom = -30
     this.directionalLight.shadow.bias = -0.0008
     this.directionalLight.shadow.normalBias = 0.03
-    this.directionalLight.shadow.radius = 8
-    this.directionalLight.shadow.blurSamples = 25
+    this.directionalLight.shadow.radius = 6
     this.scene.add(this.directionalLight)
 
     const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x2a3a5a, 0.4)
@@ -137,8 +138,10 @@ export class SunScene {
     const shadowBlurMat = new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
+      depthTest: false,
       uniforms: {
-        uLightDir: { value: new THREE.Vector3(0.5, 0.7, 0.5) },
+        uSunAltitude: { value: 0.5 },
+        uSunAzimuth: { value: 0.0 },
       },
       vertexShader: `
         varying vec2 vUv;
@@ -153,21 +156,31 @@ export class SunScene {
       fragmentShader: `
         varying vec2 vUv;
         varying vec3 vWorldPos;
-        uniform vec3 uLightDir;
+        uniform float uSunAltitude;
+        uniform float uSunAzimuth;
         void main() {
-          float dist = length(vUv - 0.5) * 2.0;
-          float feather = smoothstep(0.7, 1.0, dist);
-          float shadowAmount = smoothstep(0.2, 0.9, 1.0 - dist) * 0.15;
+          vec2 center = vUv - 0.5;
+          float dist = length(center) * 2.0;
+          if(dist > 1.0) discard;
+          
+          float edgeFeather = smoothstep(1.0, 0.85, dist);
+          
+          float shadowAmount = 0.0;
+          if(uSunAltitude > 0.0) {
+            float altitudeFactor = 1.0 - clamp(uSunAltitude, 0.0, 1.0);
+            shadowAmount = mix(0.0, 0.12, altitudeFactor) * edgeFeather;
+          }
+          
           vec3 shadowColor = vec3(0.05, 0.08, 0.12);
-          float alpha = shadowAmount * (1.0 - feather);
-          gl_FragColor = vec4(shadowColor, alpha);
+          gl_FragColor = vec4(shadowColor, shadowAmount);
         }
       `,
       blending: THREE.MultiplyBlending,
     })
     this.shadowBlurPlane = new THREE.Mesh(shadowBlurGeom, shadowBlurMat)
     this.shadowBlurPlane.rotation.x = -Math.PI / 2
-    this.shadowBlurPlane.position.y = 0.01
+    this.shadowBlurPlane.position.y = 0.02
+    this.shadowBlurPlane.visible = true
     this.scene.add(this.shadowBlurPlane)
 
     this.gridHelper = new THREE.GridHelper(44, 44, 0x2a3a5a, 0x1a2a3a)
@@ -189,9 +202,9 @@ export class SunScene {
     const faces = generateBuildingFaces()
     useSunStore.getState().setBuildingFaces(faces)
 
-    const faceCount = this.buildings.length * 4
+    const faceCount = this.buildings.length * this.facesPerBuilding
     this.targetIntensities = new Array(faceCount).fill(0)
-    this.currentIntensities = new Array(faceCount).fill(0)
+    this.currentDisplayIntensities = new Array(faceCount).fill(0)
     this.startIntensities = new Array(faceCount).fill(0)
 
     this.updateSunFromStore()
@@ -277,6 +290,12 @@ export class SunScene {
           position: new THREE.Vector3(b.x - b.w / 2, b.y, b.z),
           rotation: new THREE.Euler(0, -Math.PI / 2, 0),
         },
+        {
+          width: b.w,
+          height: b.d,
+          position: new THREE.Vector3(b.x, b.y + b.h / 2, b.z),
+          rotation: new THREE.Euler(-Math.PI / 2, 0, 0),
+        },
       ]
 
       const baseColor = new THREE.Color(b.color ?? 0x3a4a5a)
@@ -305,19 +324,6 @@ export class SunScene {
         this.faceMeshes.push(mesh)
         this.faceMaterials.push(material)
       })
-
-      const topGeometry = new THREE.PlaneGeometry(b.w, b.d)
-      const topMaterial = new THREE.MeshStandardMaterial({
-        color: baseColor.clone().multiplyScalar(1.2),
-        roughness: 0.75,
-        metalness: 0.25,
-      })
-      const topMesh = new THREE.Mesh(topGeometry, topMaterial)
-      topMesh.position.set(b.x, b.y + b.h / 2, b.z)
-      topMesh.rotation.x = -Math.PI / 2
-      topMesh.castShadow = true
-      topMesh.receiveShadow = true
-      this.buildingGroup.add(topMesh)
 
       const bottomGeometry = new THREE.PlaneGeometry(b.w, b.d)
       const bottomMaterial = new THREE.MeshStandardMaterial({
@@ -372,11 +378,12 @@ export class SunScene {
 
     this.targetSunDirection.set(sunDirection.x, sunDirection.y, sunDirection.z).normalize()
 
-    for (let i = 0; i < this.currentIntensities.length; i++) {
-      this.startIntensities[i] = this.currentIntensities[i]
+    for (let i = 0; i < this.currentDisplayIntensities.length; i++) {
+      this.startIntensities[i] = this.currentDisplayIntensities[i]
     }
+
     this.targetIntensities = buildingFaces.map((f) => f.intensity)
-    while (this.targetIntensities.length < this.currentIntensities.length) {
+    while (this.targetIntensities.length < this.currentDisplayIntensities.length) {
       this.targetIntensities.push(0)
     }
 
@@ -389,6 +396,21 @@ export class SunScene {
 
   private easeInOutQuad(t: number): number {
     return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+  }
+
+  private isInViewFrustum(object: THREE.Object3D): boolean {
+    const frustum = new THREE.Frustum()
+    const matrix = new THREE.Matrix4().multiplyMatrices(
+      this.camera.projectionMatrix,
+      this.camera.matrixWorldInverse
+    )
+    frustum.setFromProjectionMatrix(matrix)
+
+    const sphere = new THREE.Sphere()
+    const box = new THREE.Box3().setFromObject(object)
+    box.getBoundingSphere(sphere)
+
+    return frustum.intersectsSphere(sphere)
   }
 
   private updateAnimations(delta: number): void {
@@ -406,24 +428,24 @@ export class SunScene {
 
     if (this.colorAnimating) {
       this.colorAnimationProgress += delta / this.colorAnimationDuration
-
-      const rawSteps = this.colorAnimationProgress / this.COLOR_STEP
-      const steppedProgress = Math.floor(rawSteps) * this.COLOR_STEP
-      const clampedStep = Math.min(steppedProgress, 1.0)
-
-      const eased = this.easeInOutQuad(clampedStep)
-
-      for (let i = 0; i < this.currentIntensities.length; i++) {
-        const start = this.startIntensities[i] ?? 0
-        const target = this.targetIntensities[i] ?? 0
-        this.currentIntensities[i] = start + (target - start) * eased
-      }
-
       if (this.colorAnimationProgress >= 1) {
         this.colorAnimationProgress = 1
         this.colorAnimating = false
-        for (let i = 0; i < this.currentIntensities.length; i++) {
-          this.currentIntensities[i] = this.targetIntensities[i] ?? 0
+        for (let i = 0; i < this.currentDisplayIntensities.length; i++) {
+          this.currentDisplayIntensities[i] = this.targetIntensities[i] ?? 0
+        }
+      } else {
+        const easedProgress = this.easeInOutQuad(this.colorAnimationProgress)
+
+        for (let i = 0; i < this.currentDisplayIntensities.length; i++) {
+          const start = this.startIntensities[i] ?? 0
+          const target = this.targetIntensities[i] ?? 0
+          const continuousValue = start + (target - start) * easedProgress
+
+          const steppedValue =
+            Math.round(continuousValue / this.COLOR_INTENSITY_STEP) * this.COLOR_INTENSITY_STEP
+
+          this.currentDisplayIntensities[i] = Math.max(0, Math.min(1, steppedValue))
         }
       }
     }
@@ -433,11 +455,16 @@ export class SunScene {
     this.directionalLight.target.position.set(0, 0, 0)
     this.directionalLight.intensity = 0.8 + Math.max(0, this.currentSunDirection.y) * 1.2
 
-    ;(this.shadowBlurPlane.material as THREE.ShaderMaterial).uniforms.uLightDir.value.copy(this.currentSunDirection)
+    const sunAltitude = Math.max(0, this.currentSunDirection.y)
+    const sunAzimuth = Math.atan2(this.currentSunDirection.x, this.currentSunDirection.z)
+    ;(this.shadowBlurPlane.material as THREE.ShaderMaterial).uniforms.uSunAltitude.value = sunAltitude
+    ;(this.shadowBlurPlane.material as THREE.ShaderMaterial).uniforms.uSunAzimuth.value = sunAzimuth
+
+    this.shadowBlurPlane.visible = this.isInViewFrustum(this.shadowBlurPlane) && sunAltitude > 0.05
 
     this.faceMaterials.forEach((mat, index) => {
-      if (index < this.currentIntensities.length) {
-        mat.uniforms.uIntensity.value = this.currentIntensities[index]
+      if (index < this.currentDisplayIntensities.length) {
+        mat.uniforms.uIntensity.value = this.currentDisplayIntensities[index]
         mat.uniforms.uSunDirection.value.copy(this.currentSunDirection)
       }
     })

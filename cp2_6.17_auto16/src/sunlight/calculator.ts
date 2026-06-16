@@ -68,18 +68,37 @@ export function calculateSunPosition(
 export function sunDirectionFromAngles(azimuth: number, altitude: number): { x: number; y: number; z: number } {
   const azimuthRad = (azimuth * Math.PI) / 180
   const altitudeRad = (altitude * Math.PI) / 180
-  return {
+  const dir = {
     x: Math.cos(altitudeRad) * Math.sin(azimuthRad),
     y: Math.sin(altitudeRad),
     z: Math.cos(altitudeRad) * Math.cos(azimuthRad),
   }
+  const len = Math.sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z)
+  if (len > 0) {
+    dir.x /= len
+    dir.y /= len
+    dir.z /= len
+  }
+  return dir
 }
 
 export function calculateFaceIntensity(
   faceNormal: { x: number; y: number; z: number },
   sunDirection: { x: number; y: number; z: number }
 ): number {
-  const dot = faceNormal.x * sunDirection.x + faceNormal.y * sunDirection.y + faceNormal.z * sunDirection.z
+  const nx = faceNormal.x
+  const ny = faceNormal.y
+  const nz = faceNormal.z
+  const nLen = Math.sqrt(nx * nx + ny * ny + nz * nz)
+  if (nLen === 0) return 0
+
+  const sx = sunDirection.x
+  const sy = sunDirection.y
+  const sz = sunDirection.z
+  const sLen = Math.sqrt(sx * sx + sy * sy + sz * sz)
+  if (sLen === 0) return 0
+
+  const dot = (nx * sx + ny * sy + nz * sz) / (nLen * sLen)
   return Math.max(0, dot)
 }
 
@@ -133,31 +152,30 @@ export function calculateCumulativeIntensities(
   stepHours: number = 0.1
 ): number[] {
   const sunrise = findSunriseHour(month, day, latitude, longitude)
-  const effectiveEnd = Math.min(currentHour, findSunsetHour(month, day, latitude, longitude))
+  const sunset = findSunsetHour(month, day, latitude, longitude)
+  const effectiveEnd = Math.min(currentHour, sunset)
 
   if (effectiveEnd <= sunrise || faces.length === 0) {
     return new Array(faces.length).fill(0)
   }
 
   const cumulative = new Array(faces.length).fill(0)
-  const peakPerFace = new Array(faces.length).fill(0)
-  let steps = 0
+  let actualSteps = 0
 
   for (let h = sunrise; h <= effectiveEnd; h += stepHours) {
     const { azimuth, altitude } = calculateSunPosition(month, day, h, latitude, longitude)
-    if (altitude <= 0) continue
+    if (altitude <= 0.1) continue
 
     const sunDir = sunDirectionFromAngles(azimuth, altitude)
-    steps++
+    actualSteps++
 
     for (let i = 0; i < faces.length; i++) {
       const intensity = calculateFaceIntensity(faces[i].normal, sunDir)
-      cumulative[i] += intensity
-      if (intensity > peakPerFace[i]) peakPerFace[i] = intensity
+      cumulative[i] += Math.max(0, intensity)
     }
   }
 
-  if (steps === 0) return new Array(faces.length).fill(0)
+  if (actualSteps === 0) return new Array(faces.length).fill(0)
 
   const maxCumulative = Math.max(...cumulative, 0.0001)
   const normalized = cumulative.map((c) => Math.min(1, c / maxCumulative))
@@ -257,6 +275,14 @@ export function generateBuildingFaces(): BuildingFace[] {
       intensity: 0,
       position: { x: b.x - b.w / 2, y: b.y, z: b.z },
       size: { width: b.d, height: b.h },
+    })
+
+    faces.push({
+      id: `b${bIdx}_top`,
+      normal: { x: 0, y: 1, z: 0 },
+      intensity: 0,
+      position: { x: b.x, y: b.y + b.h / 2, z: b.z },
+      size: { width: b.w, height: b.d },
     })
   })
 

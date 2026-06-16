@@ -62,8 +62,11 @@ export function createUIPanel(container: HTMLElement, options: UIPanelOptions = 
   title.style.alignItems = 'center'
   title.innerHTML = `
     <span>☀️ 日照分析控制台</span>
-    <div id="sunIndicator" style="width:40px;height:40px;border-radius:50%;background:radial-gradient(circle, rgba(255,200,50,0.3) 0%, transparent 70%);position:relative;">
-      <div id="sunDot" style="position:absolute;width:8px;height:8px;border-radius:50%;background:#FFD700;box-shadow:0 0 10px #FFD700;top:50%;left:50%;transform:translate(-50%, -50%);"></div>
+    <div id="sunIndicator" style="width:48px;height:48px;border-radius:50%;background:radial-gradient(circle, rgba(255,200,50,0.25) 0%, transparent 70%);position:relative;border:1px solid rgba(255,200,50,0.2);">
+      <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(255,200,50,0.15);"></div>
+      <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,200,50,0.15);"></div>
+      <div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:9px;color:rgba(255,200,50,0.5);">N</div>
+      <div id="sunDot" style="position:absolute;width:10px;height:10px;border-radius:50%;background:#FFD700;box-shadow:0 0 8px #FFD700, 0 0 16px rgba(255,215,0,0.5);left:19px;top:19px;"></div>
     </div>
   `
   panel.appendChild(title)
@@ -263,20 +266,25 @@ export function createUIPanel(container: HTMLElement, options: UIPanelOptions = 
       altitudeEl.textContent = `${state.altitude.toFixed(1)}°`
     }
     if (sunDot) {
-      const indicatorSize = 40
+      const indicatorSize = 48
+      const dotSize = 10
       const centerX = indicatorSize / 2
       const centerY = indicatorSize / 2
-      const radius = 14
+      const radius = 15
 
       const angle = ((state.azimuth - 90) * Math.PI) / 180
-      const altitudeRatio = Math.max(0, state.altitude) / 90
+      const altitudeRatio = Math.max(0, Math.min(1, state.altitude / 90))
 
-      const x = centerX + Math.cos(angle) * radius * altitudeRatio
-      const y = centerY - Math.sin(angle) * radius * altitudeRatio
+      const offsetX = Math.cos(angle) * radius * altitudeRatio
+      const offsetY = -Math.sin(angle) * radius * altitudeRatio
 
-      sunDot.style.left = `${x}px`
-      sunDot.style.top = `${y}px`
-      sunDot.style.opacity = state.altitude > 0 ? '1' : '0.3'
+      const dotLeft = centerX + offsetX - dotSize / 2
+      const dotTop = centerY + offsetY - dotSize / 2
+
+      sunDot.style.left = `${dotLeft}px`
+      sunDot.style.top = `${dotTop}px`
+      sunDot.style.opacity = state.altitude > 0 ? '1' : '0.25'
+      sunDot.style.transform = `scale(${0.6 + altitudeRatio * 0.6})`
     }
   }
 
