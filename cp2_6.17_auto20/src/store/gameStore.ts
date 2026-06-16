@@ -74,7 +74,7 @@ export const GEAR_WARNING_DISTANCE = 2 * TILE_SIZE;
 export const LEVER_INTERACTION_RANGE = 50;
 export const GEAR_WARNING_DURATION = 500;
 
-interface GameStore {
+export interface GameStore {
   gameState: GameState;
   currentLevel: number;
   transitionProgress: number;
