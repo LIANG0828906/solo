@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { get, set } from 'idb-keyval';
+import { get as idbGet, set as idbSet } from 'idb-keyval';
 import {
   format,
   subDays,
@@ -11,14 +11,17 @@ import {
 } from 'date-fns';
 
 export type ActivityType = 'sowing' | 'watering' | 'fertilizing' | 'weeding' | 'harvesting';
+export type PlotStatus = 'unclaimed' | 'claimed' | 'planting';
 
 export interface Plot {
   id: string;
   row: number;
   col: number;
+  status: PlotStatus;
   ownerId: string | null;
   ownerName: string | null;
   color: string | null;
+  currentCrop: string | null;
   totalYield: number;
 }
 
@@ -90,8 +93,17 @@ export const CROP_COLORS: Record<string, string> = {
   '薄荷': '#1abc9c',
 };
 
-const GRID_SIZE = 8;
-const STORAGE_KEY = 'grove-commons-data';
+const GRID_SIZE = 6;
+const STORAGE_KEY = 'grove-commons-data-v2';
+
+const SAMPLE_OWNERS = [
+  { name: '张小花', color: '#2ecc71', initials: '张' },
+  { name: '李果园', color: '#e67e22', initials: '李' },
+  { name: '王菜园', color: '#3498db', initials: '王' },
+  { name: '赵农夫', color: '#9b59b6', initials: '赵' },
+];
+
+const SAMPLE_CROPS = ['番茄', '黄瓜', '生菜', '辣椒', '茄子', '萝卜', '胡萝卜', '白菜', '豆角', '草莓'];
 
 interface PersistedState {
   plots: Plot[];
@@ -120,23 +132,53 @@ const createInitialPlots = (): Plot[] => {
   const plots: Plot[] = [];
   for (let row = 0; row < GRID_SIZE; row++) {
     for (let col = 0; col < GRID_SIZE; col++) {
+      let status: PlotStatus = 'unclaimed';
+      let ownerName: string | null = null;
+      let color: string | null = null;
+      let currentCrop: string | null = null;
+
+      if (row < 2) {
+        status = 'claimed';
+        const ownerIdx = col % SAMPLE_OWNERS.length;
+        ownerName = SAMPLE_OWNERS[ownerIdx].name;
+        color = SAMPLE_OWNERS[ownerIdx].color;
+        currentCrop = SAMPLE_CROPS[(row * GRID_SIZE + col) % SAMPLE_CROPS.length];
+      } else if (row === 2) {
+        status = 'planting';
+        const ownerIdx = col % SAMPLE_OWNERS.length;
+        ownerName = SAMPLE_OWNERS[ownerIdx].name;
+        color = SAMPLE_OWNERS[ownerIdx].color;
+        currentCrop = SAMPLE_CROPS[(row * GRID_SIZE + col) % SAMPLE_CROPS.length];
+      }
+
       plots.push({
-        id: `${row}-${col}`,
+        id: `plot-${row}-${col}`,
         row,
         col,
-        ownerId: null,
-        ownerName: null,
-        color: null,
-        totalYield: 0,
+        status,
+        ownerId: ownerName ? `user-${ownerName}` : null,
+        ownerName,
+        color,
+        currentCrop,
+        totalYield: status === 'claimed' ? Math.floor(Math.random() * 2000) + 500 : 0,
       });
     }
   }
   return plots;
 };
 
+const createInitialUsers = (): User[] => {
+  return SAMPLE_OWNERS.map((o, i) => ({
+    id: `user-${o.name}`,
+    name: o.name,
+    color: o.color,
+    initials: o.initials,
+  }));
+};
+
 const getPersistedState = async (): Promise<PersistedState | null> => {
   try {
-    const data = await get<PersistedState>(STORAGE_KEY);
+    const data = await idbGet<PersistedState>(STORAGE_KEY);
     return data || null;
   } catch {
     return null;
@@ -146,24 +188,29 @@ const getPersistedState = async (): Promise<PersistedState | null> => {
 export const useGardenStore = create<GardenState>((set, get) => ({
   plots: createInitialPlots(),
   logs: [],
-  users: [],
+  users: createInitialUsers(),
   currentUserId: null,
   selectedPlotId: null,
   isLogPanelOpen: false,
-  initialized: false,
+  initialized: true,
   leaderboardPeriod: 'all',
 
   initStore: async () => {
-    const persisted = await getPersistedState();
-    if (persisted && persisted.plots && persisted.plots.length > 0) {
-      set({
-        plots: persisted.plots,
-        logs: persisted.logs || [],
-        users: persisted.users || [],
-        currentUserId: persisted.currentUserId,
-        initialized: true,
-      });
-    } else {
+    try {
+      const persisted = await getPersistedState();
+      if (persisted && persisted.plots && persisted.plots.length > 0 && 'status' in persisted.plots[0]) {
+        set({
+          plots: persisted.plots,
+          logs: persisted.logs || [],
+          users: persisted.users || [],
+          currentUserId: persisted.currentUserId,
+          initialized: true,
+        });
+      } else {
+        set({ initialized: true });
+      }
+    } catch (e) {
+      console.error('initStore error:', e);
       set({ initialized: true });
     }
   },
@@ -175,8 +222,8 @@ export const useGardenStore = create<GardenState>((set, get) => ({
 
     set({
       plots: state.plots.map((p) =>
-        p.id === plotId && !p.ownerId
-          ? { ...p, ownerId: user.id, ownerName: user.name, color }
+        p.id === plotId && p.status === 'unclaimed'
+          ? { ...p, status: 'claimed' as PlotStatus, ownerId: user.id, ownerName: user.name, color }
           : p
       ),
     });
@@ -246,7 +293,7 @@ export const useGardenStore = create<GardenState>((set, get) => ({
   persistState: async () => {
     const state = get();
     try {
-      await set(STORAGE_KEY, {
+      await idbSet(STORAGE_KEY, {
         plots: state.plots,
         logs: state.logs,
         users: state.users,

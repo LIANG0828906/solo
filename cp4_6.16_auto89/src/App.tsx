@@ -81,25 +81,11 @@ const MobileTabs: React.FC<{ activeTab: string; onTabChange: (tab: string) => vo
 );
 
 const App: React.FC = () => {
-  const initialized = useGardenStore((s) => s.initialized);
-  const initStore = useGardenStore((s) => s.initStore);
   const currentUserId = useGardenStore((s) => s.currentUserId);
   const users = useGardenStore((s) => s.users);
   const isLogPanelOpen = useGardenStore((s) => s.isLogPanelOpen);
 
   const [mobileTab, setMobileTab] = useState('map');
-
-  useEffect(() => {
-    initStore();
-  }, [initStore]);
-
-  if (!initialized) {
-    return (
-      <div className="loading-screen">
-        🌿 加载中...
-      </div>
-    );
-  }
 
   const currentUser = users.find((u) => u.id === currentUserId);
 

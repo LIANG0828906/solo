@@ -1,32 +1,28 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { useGardenStore, PRESET_COLORS } from '../store/gardenStore';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
+import { useGardenStore, PRESET_COLORS, PlotStatus } from '../store/gardenStore';
 
-const ACTIVITY_ICONS: Record<string, string> = {
-  sowing: '🌱',
-  watering: '💧',
-  fertilizing: '🧪',
-  weeding: '🧹',
-  harvesting: '🍎',
+const STATUS_LABELS: Record<PlotStatus, string> = {
+  unclaimed: '未认领',
+  claimed: '已认领',
+  planting: '种植中',
 };
 
-const ACTIVITY_LABELS: Record<string, string> = {
-  sowing: '播种',
-  watering: '浇水',
-  fertilizing: '施肥',
-  weeding: '除草',
-  harvesting: '收获',
+const STATUS_COLORS: Record<PlotStatus, string> = {
+  unclaimed: '#c0c0c0',
+  claimed: '#6b8e23',
+  planting: '#f1c40f',
 };
 
 const GardenMap: React.FC = () => {
   const plots = useGardenStore((s) => s.plots);
-  const logs = useGardenStore((s) => s.logs);
   const currentUserId = useGardenStore((s) => s.currentUserId);
   const users = useGardenStore((s) => s.users);
   const claimPlot = useGardenStore((s) => s.claimPlot);
   const selectPlot = useGardenStore((s) => s.selectPlot);
   const toggleLogPanel = useGardenStore((s) => s.toggleLogPanel);
 
-  const [claimingPlotId, setClaimingPlotId] = useState<string | null>(null);
+  const [detailPlotId, setDetailPlotId] = useState<string | null>(null);
+  const [claiming, setClaiming] = useState(false);
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
   const [tooltip, setTooltip] = useState<{
     plotId: string;
@@ -38,6 +34,16 @@ const GardenMap: React.FC = () => {
   const isDragging = useRef(false);
   const startPos = useRef({ x: 0, y: 0 });
   const scrollStart = useRef({ x: 0, y: 0 });
+
+  const detailPlot = useMemo(
+    () => plots.find((p) => p.id === detailPlotId) || null,
+    [plots, detailPlotId]
+  );
+
+  const gridSize = useMemo(() => {
+    const rowCount = Math.max(...plots.map((p) => p.row)) + 1;
+    return rowCount || 6;
+  }, [plots]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.map-cell')) return;
@@ -68,41 +74,45 @@ const GardenMap: React.FC = () => {
   const handleCellClick = useCallback(
     (plotId: string) => {
       if (isDragging.current) return;
-      const plot = plots.find((p) => p.id === plotId);
-      if (!plot) return;
-
-      if (!plot.ownerId) {
-        setClaimingPlotId(plotId);
-        setSelectedColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
-      } else {
-        selectPlot(plotId);
-        toggleLogPanel(true);
-      }
+      setDetailPlotId(plotId);
+      setClaiming(false);
     },
-    [plots, selectPlot, toggleLogPanel]
+    []
   );
 
-  const handleClaim = useCallback(() => {
-    if (claimingPlotId) {
-      claimPlot(claimingPlotId, selectedColor);
-      setClaimingPlotId(null);
+  const handleClaimStart = useCallback(() => {
+    setClaiming(true);
+    setSelectedColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
+  }, []);
+
+  const handleClaimConfirm = useCallback(() => {
+    if (detailPlotId) {
+      claimPlot(detailPlotId, selectedColor);
+      setClaiming(false);
+      setDetailPlotId(null);
     }
-  }, [claimingPlotId, selectedColor, claimPlot]);
+  }, [detailPlotId, selectedColor, claimPlot]);
+
+  const handleViewLogs = useCallback(() => {
+    if (detailPlotId) {
+      selectPlot(detailPlotId);
+      toggleLogPanel(true);
+      setDetailPlotId(null);
+    }
+  }, [detailPlotId, selectPlot, toggleLogPanel]);
 
   const handleCellMouseEnter = useCallback(
     (plotId: string, e: React.MouseEvent) => {
-      const plot = plots.find((p) => p.id === plotId);
-      if (!plot || !plot.ownerId) return;
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const containerRect = mapRef.current?.getBoundingClientRect();
       if (!containerRect) return;
       setTooltip({
         plotId,
-        x: rect.right - containerRect.left + mapRef.current!.scrollLeft + 8,
-        y: rect.top - containerRect.top + mapRef.current!.scrollTop,
+        x: rect.left - containerRect.left + mapRef.current!.scrollLeft + rect.width / 2,
+        y: rect.top - containerRect.top + mapRef.current!.scrollTop - 28,
       });
     },
-    [plots]
+    []
   );
 
   const handleCellMouseLeave = useCallback(() => {
@@ -110,7 +120,20 @@ const GardenMap: React.FC = () => {
   }, []);
 
   const currentUser = users.find((u) => u.id === currentUserId);
-  const plotLogs = (plotId: string) => logs.filter((l) => l.plotId === plotId);
+  const owner = detailPlot ? users.find((u) => u.id === detailPlot.ownerId) : null;
+
+  const getCellStyle = (plot: typeof plots[0]) => {
+    let bg = STATUS_COLORS[plot.status];
+    if (plot.status !== 'unclaimed' && plot.color) {
+      if (plot.status === 'planting') {
+        return {
+          background: `linear-gradient(135deg, ${plot.color} 0%, ${STATUS_COLORS.planting} 100%)`,
+        };
+      }
+      return { background: plot.color };
+    }
+    return { background: bg };
+  };
 
   return (
     <div
@@ -120,30 +143,32 @@ const GardenMap: React.FC = () => {
       onMouseMove={handleMouseMove}
     >
       <div className="map-grid-wrapper">
-        <div className="map-grid">
+        <div
+          className="map-grid"
+          style={{ gridTemplateColumns: `repeat(${gridSize}, 1fr)` }}
+        >
           {plots.map((plot) => {
-            const isClaimed = !!plot.ownerId;
-            const isMine = plot.ownerId === currentUserId;
-            const owner = users.find((u) => u.id === plot.ownerId);
-            const pLogs = plotLogs(plot.id);
-            const lastActivity = pLogs.length > 0 ? pLogs[pLogs.length - 1] : null;
+            const isUnclaimed = plot.status === 'unclaimed';
+            const isPlanting = plot.status === 'planting';
 
             return (
               <div
                 key={plot.id}
-                className={`map-cell ${isClaimed ? 'claimed' : 'unclaimed'} ${isMine ? 'mine' : ''}`}
-                style={isClaimed ? { background: plot.color || '#999' } : undefined}
+                className={`map-cell ${isUnclaimed ? 'unclaimed' : 'claimed'} ${isPlanting ? 'planting' : ''}`}
+                style={getCellStyle(plot)}
                 onClick={() => handleCellClick(plot.id)}
                 onMouseEnter={(e) => handleCellMouseEnter(plot.id, e)}
                 onMouseLeave={handleCellMouseLeave}
               >
-                {isClaimed && (
+                {isUnclaimed ? (
+                  <span className="cell-plus">+</span>
+                ) : (
                   <>
                     <span className="cell-initials">
-                      {owner?.initials || '??'}
+                      {owner?.initials || plot.ownerName?.slice(0, 2) || '??'}
                     </span>
-                    {plot.totalYield > 0 && (
-                      <span className="cell-yield">{plot.totalYield}g</span>
+                    {plot.currentCrop && (
+                      <span className="cell-crop">{plot.currentCrop}</span>
                     )}
                   </>
                 )}
@@ -154,54 +179,110 @@ const GardenMap: React.FC = () => {
 
         {tooltip && (() => {
           const plot = plots.find((p) => p.id === tooltip.plotId);
-          if (!plot || !plot.ownerId) return null;
-          const owner = users.find((u) => u.id === plot.ownerId);
-          const pLogs = logs.filter((l) => l.plotId === plot.id);
+          if (!plot) return null;
           return (
             <div
-              className="plot-detail-tooltip"
-              style={{ left: tooltip.x, top: tooltip.y }}
+              className="plot-tooltip"
+              style={{
+                left: tooltip.x,
+                top: tooltip.y,
+                transform: 'translateX(-50%)',
+              }}
             >
-              <div className="td-name">{owner?.name || '未知'}</div>
-              <div className="td-info">
-                日志 {pLogs.length} 条 · 产量 {plot.totalYield}g
-              </div>
+              地块 {plot.id.replace('plot-', '')}
             </div>
           );
         })()}
       </div>
 
-      {claimingPlotId && (
+      {detailPlot && (
         <div
           className="claim-modal-overlay"
-          onClick={() => setClaimingPlotId(null)}
+          onClick={() => { setDetailPlotId(null); setClaiming(false); }}
         >
-          <div className="claim-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>🌿 认领地块</h3>
-            <p>
-              为地块选择一个主题色，你将以「{currentUser?.name || '园丁'}」的身份认领此地块
-            </p>
-            <div className="color-picker">
-              {PRESET_COLORS.map((color) => (
-                <div
-                  key={color}
-                  className={`color-swatch ${selectedColor === color ? 'selected' : ''}`}
-                  style={{ background: color }}
-                  onClick={() => setSelectedColor(color)}
-                />
-              ))}
+          <div className="claim-modal plot-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>🌿 地块详情</h3>
+
+            <div className="detail-grid">
+              <div className="detail-item">
+                <span className="detail-label">地块编号</span>
+                <span className="detail-value">{detailPlot.id.replace('plot-', '')}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">位置坐标</span>
+                <span className="detail-value">({detailPlot.row}, {detailPlot.col})</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">状态</span>
+                <span
+                  className="detail-value status-badge"
+                  style={{ background: STATUS_COLORS[detailPlot.status] + '33', color: STATUS_COLORS[detailPlot.status] }}
+                >
+                  {STATUS_LABELS[detailPlot.status]}
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">认领人</span>
+                <span className="detail-value">{detailPlot.ownerName || '-'}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">当前作物</span>
+                <span className="detail-value">{detailPlot.currentCrop || '-'}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">总产量</span>
+                <span className="detail-value">{detailPlot.totalYield}g</span>
+              </div>
             </div>
-            <div className="modal-actions">
+
+            {!claiming && detailPlot.status === 'unclaimed' && (
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%', marginTop: 16 }}
+                onClick={handleClaimStart}
+              >
+                认领此地块
+              </button>
+            )}
+
+            {claiming && (
+              <div className="claiming-section">
+                <p style={{ fontSize: 13, color: '#795548', marginBottom: 10 }}>
+                  选择一个主题色，以「{currentUser?.name || '园丁'}」身份认领
+                </p>
+                <div className="color-picker">
+                  {PRESET_COLORS.map((color) => (
+                    <div
+                      key={color}
+                      className={`color-swatch ${selectedColor === color ? 'selected' : ''}`}
+                      style={{ background: color }}
+                      onClick={() => setSelectedColor(color)}
+                    />
+                  ))}
+                </div>
+                <div className="modal-actions" style={{ marginTop: 12 }}>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setClaiming(false)}
+                  >
+                    取消
+                  </button>
+                  <button className="btn btn-primary" onClick={handleClaimConfirm}>
+                    确认认领
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {detailPlot.status !== 'unclaimed' && (
               <button
                 className="btn btn-secondary"
-                onClick={() => setClaimingPlotId(null)}
+                style={{ width: '100%', marginTop: 16 }}
+                onClick={handleViewLogs}
               >
-                取消
+                查看种植日志
               </button>
-              <button className="btn btn-primary" onClick={handleClaim}>
-                确认认领
-              </button>
-            </div>
+            )}
           </div>
         </div>
       )}

@@ -164,20 +164,66 @@ body {
   margin-top: 2px;
 }
 
+.map-cell .cell-crop {
+  font-size: 10px;
+  opacity: 0.85;
+  margin-top: 2px;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-cell .cell-plus {
+  font-size: 24px;
+  font-weight: 300;
+  opacity: 0.5;
+  line-height: 1;
+}
+
 .map-cell.unclaimed {
   background: #c0c0c0;
   color: #888;
 }
 
-.map-cell.unclaimed::after {
-  content: '+';
-  font-size: 22px;
-  font-weight: 300;
-  opacity: 0.5;
+.map-cell.planting {
+  position: relative;
 }
 
-.map-cell.unclaimed:hover::after {
-  opacity: 0.8;
+.map-cell.planting::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.plot-tooltip {
+  position: absolute;
+  background: rgba(62, 39, 35, 0.9);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 50;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.plot-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: rgba(62, 39, 35, 0.9);
 }
 
 .claim-modal-overlay {
@@ -201,6 +247,53 @@ body {
   min-width: 340px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.2);
   animation: slideUp 0.3s ease;
+}
+
+.plot-detail-modal {
+  min-width: 380px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 11px;
+  color: var(--text-light);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.detail-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--title);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.claiming-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--divider);
 }
 
 .claim-modal h3 {
