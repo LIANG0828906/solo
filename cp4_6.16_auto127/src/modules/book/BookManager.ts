@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { useBookStore } from '../../store/bookStore';
-import type { Book, BookCategory, BookCondition, BookStatus } from '../../types';
+import { getLendingHistory } from '../lending/LendingManager';
+import type { Book, BookCategory, BookCondition, BookStatus, LendingRecord } from '../../types';
 
 export interface AddBookInput {
   title: string;
@@ -29,7 +30,12 @@ export async function fetchCoverByIsbn(isbn: string): Promise<string> {
   }
 }
 
-export async function addBook(input: AddBookInput): Promise<Book> {
+export interface AddBookResult {
+  book: Book;
+  driftHistory: LendingRecord[];
+}
+
+export async function addBook(input: AddBookInput): Promise<AddBookResult> {
   const coverUrl = input.coverUrl || (await fetchCoverByIsbn(input.isbn));
   const book: Book = {
     id: uuidv4(),
@@ -44,7 +50,8 @@ export async function addBook(input: AddBookInput): Promise<Book> {
     tags: input.tags || [input.category, input.condition],
   };
   await useBookStore.getState().addBook(book);
-  return book;
+  const driftHistory = getLendingHistory(book.id);
+  return { book, driftHistory };
 }
 
 export async function removeBook(bookId: string): Promise<void> {

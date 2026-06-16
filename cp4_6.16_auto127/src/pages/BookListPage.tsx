@@ -18,8 +18,6 @@ export default function BookListPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  const addBookStore = useBookStore((s) => s.addBook);
-
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
@@ -202,8 +200,7 @@ export default function BookListPage() {
       {showAddModal && (
         <AddBookModal
           onClose={() => setShowAddModal(false)}
-          onAdded={(book) => {
-            addBookStore(book);
+          onAdded={() => {
             setShowAddModal(false);
           }}
         />
@@ -226,7 +223,7 @@ function AddBookModal({
   onAdded,
 }: {
   onClose: () => void;
-  onAdded: (book: Book) => void;
+  onAdded: () => void;
 }) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -257,7 +254,7 @@ function AddBookModal({
     e.preventDefault();
     if (!title.trim() || !author.trim()) return;
     setIsSubmitting(true);
-    const book = await addBook({
+    const result = await addBook({
       title: title.trim(),
       author: author.trim(),
       isbn: isbn.trim(),
@@ -267,7 +264,9 @@ function AddBookModal({
       coverUrl: coverPreview,
     });
     setIsSubmitting(false);
-    onAdded(book);
+    if (result.book) {
+      onAdded();
+    }
   };
 
   return (
