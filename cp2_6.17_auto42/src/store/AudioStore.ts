@@ -55,6 +55,7 @@ export interface AudioState {
   isPlaying: boolean
   presetKey: string
   particleCount: number
+  backgroundHex: string
 
   setSpectrum: (spectrum: Float32Array) => void
   setVolume: (volume: number) => void
@@ -63,6 +64,7 @@ export interface AudioState {
   setIsPlaying: (playing: boolean) => void
   setPresetKey: (key: string) => void
   setParticleCount: (count: number) => void
+  setBackgroundHex: (hex: string) => void
   reset: () => void
 }
 
@@ -77,6 +79,7 @@ export const useAudioStore = create<AudioState>((set) => ({
   isPlaying: false,
   presetKey: 'neon',
   particleCount: 800,
+  backgroundHex: '#000000',
 
   setSpectrum: (spectrum) => set({ spectrum }),
   setVolume: (volume) => set({ volume }),
@@ -85,6 +88,7 @@ export const useAudioStore = create<AudioState>((set) => ({
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setPresetKey: (key) => set({ presetKey: key }),
   setParticleCount: (count) => set({ particleCount: count }),
+  setBackgroundHex: (hex) => set({ backgroundHex: hex }),
   reset: () => set({
     spectrum: new Float32Array(256),
     volume: 0,

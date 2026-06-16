@@ -65,6 +65,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ canvasRef }) => {
   const setSourceType = useAudioStore(s => s.setSourceType)
   const beat = useAudioStore(s => s.beat)
   const beatTimestamp = useAudioStore(s => s.beatTimestamp)
+  const backgroundHex = useAudioStore(s => s.backgroundHex)
+  const setBackgroundHex = useAudioStore(s => s.setBackgroundHex)
 
   const audioEngineRef = useRef<AudioEngine | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -259,6 +261,36 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ canvasRef }) => {
               />
             )
           })}
+        </div>
+      </div>
+
+      <div style={styles.section}>
+        <div style={styles.sectionLabel}>背景颜色</div>
+        <div style={styles.colorPickerWrapper}>
+          <label style={styles.colorPickerLabel}>
+            <input
+              type="color"
+              value={backgroundHex}
+              onChange={(e) => setBackgroundHex(e.target.value)}
+              style={styles.colorInput}
+            />
+            <div style={{ ...styles.colorPreview, background: backgroundHex }} />
+            <span style={styles.colorValue}>{backgroundHex.toUpperCase()}</span>
+          </label>
+        </div>
+        <div style={styles.colorPresets}>
+          {['#000000', '#0D1117', '#161B22', '#1A1A2E', '#2D1B69', '#0F3460', '#1B4332', '#5C3D2E'].map((color) => (
+            <button
+              key={color}
+              onClick={() => setBackgroundHex(color)}
+              style={{
+                ...styles.colorPresetButton,
+                background: color,
+                border: backgroundHex.toLowerCase() === color.toLowerCase() ? '2px solid #58A6FF' : '2px solid #30363D',
+              }}
+              title={color}
+            />
+          ))}
         </div>
       </div>
 
@@ -463,6 +495,57 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     color: '#fff',
     fontWeight: 600,
+  },
+  colorPickerWrapper: {
+    marginBottom: '10px',
+  },
+  colorPickerLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '10px 12px',
+    background: '#21262D',
+    border: '1px solid #30363D',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    transition: 'border-color 0.2s ease',
+  },
+  colorInput: {
+    position: 'absolute',
+    opacity: 0,
+    width: 0,
+    height: 0,
+    pointerEvents: 'none',
+  },
+  colorPreview: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '6px',
+    border: '2px solid #30363D',
+    flexShrink: 0,
+    transition: 'transform 0.2s ease',
+  },
+  colorValue: {
+    fontSize: '13px',
+    color: '#C9D1D9',
+    fontFamily: 'monospace',
+    textTransform: 'uppercase',
+  },
+  colorPresets: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(8, 1fr)',
+    gap: '6px',
+    padding: '10px',
+    background: '#0D1117',
+    borderRadius: '8px',
+  },
+  colorPresetButton: {
+    width: '100%',
+    aspectRatio: '1',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    padding: 0,
+    transition: 'transform 0.15s ease, border-color 0.2s ease',
   },
   footer: {
     marginTop: 'auto',

@@ -61,6 +61,7 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle>((_, ref) => {
   const presetKey = useAudioStore(s => s.presetKey)
   const particleCount = useAudioStore(s => s.particleCount)
   const setParticleCount = useAudioStore(s => s.setParticleCount)
+  const backgroundHex = useAudioStore(s => s.backgroundHex)
 
   const createParticle = useCallback((width: number, height: number, preset: typeof PRESETS[string]): Particle => {
     const x = Math.random() * width
@@ -196,6 +197,7 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle>((_, ref) => {
       const currentState = useAudioStore.getState()
       const spectrum = currentState.spectrum
       const volume = currentState.volume
+      const bgColor = currentState.backgroundHex
       const isBeat = currentState.beatTimestamp !== lastBeatTimestamp
       if (isBeat) {
         lastBeatTimestamp = currentState.beatTimestamp
@@ -246,7 +248,7 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle>((_, ref) => {
       const preset = PRESETS[presetKey]
       const hueRange = preset.hueEnd - preset.hueStart
 
-      ctx.fillStyle = '#0D1117'
+      ctx.fillStyle = bgColor
       ctx.globalAlpha = 1
       ctx.fillRect(0, 0, W, H)
 
@@ -401,7 +403,7 @@ export const ParticleCanvas = forwardRef<ParticleCanvasHandle>((_, ref) => {
         width: '100%',
         height: '100%',
         display: 'block',
-        background: '#0D1117',
+        background: backgroundHex,
         cursor: 'none',
         transition: 'opacity 0.5s ease',
         opacity: fadeOpacity,
