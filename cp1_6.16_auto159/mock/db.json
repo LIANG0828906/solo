@@ -1,0 +1,119 @@
+{
+  "tastings": [
+    {
+      "id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+      "teaName": "西湖龙井",
+      "variety": "龙井",
+      "brewTemperature": 85,
+      "rating": 9,
+      "tasteNotes": [
+        "口感鲜爽甘醇",
+        "带有明显的豆香",
+        "回甘持久",
+        "叶底嫩绿匀整"
+      ],
+      "aromaTags": ["炒豆香", "栗香", "兰香"],
+      "colorCode": "#C8E6C9",
+      "dryLeafPhotoUrl": "/images/dry-leaf-longjing.jpg",
+      "infusedLeafPhotoUrl": "/images/infused-leaf-longjing.jpg",
+      "createTime": "2026-06-10T14:30:00.000Z",
+      "soupClarity": 9,
+      "aromaIntensity": 8,
+      "mouthfeelRichness": 7,
+      "aftertasteDuration": 8,
+      "leafIntegrity": 9
+    },
+    {
+      "id": "2b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bee",
+      "teaName": "洞庭碧螺春",
+      "variety": "碧螺春",
+      "brewTemperature": 80,
+      "rating": 8.5,
+      "tasteNotes": [
+        "茶汤鲜醇",
+        "花果香浓郁",
+        "入口清甜",
+        "回味悠长"
+      ],
+      "aromaTags": ["花香", "果香", "蜜香"],
+      "colorCode": "#A5D6A7",
+      "dryLeafPhotoUrl": "/images/dry-leaf-biluochun.jpg",
+      "infusedLeafPhotoUrl": "/images/infused-leaf-biluochun.jpg",
+      "createTime": "2026-06-12T09:15:00.000Z",
+      "soupClarity": 8,
+      "aromaIntensity": 9,
+      "mouthfeelRichness": 7,
+      "aftertasteDuration": 7,
+      "leafIntegrity": 8
+    },
+    {
+      "id": "3b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bef",
+      "teaName": "安溪铁观音",
+      "variety": "铁观音",
+      "brewTemperature": 95,
+      "rating": 8,
+      "tasteNotes": [
+        "兰花香馥郁",
+        "滋味醇厚甘鲜",
+        "七泡有余香",
+        "叶底肥厚软亮"
+      ],
+      "aromaTags": ["兰香", "花香", "蜜香"],
+      "colorCode": "#FFE0B2",
+      "dryLeafPhotoUrl": "/images/dry-leaf-tieguanyin.jpg",
+      "infusedLeafPhotoUrl": "/images/infused-leaf-tieguanyin.jpg",
+      "createTime": "2026-06-08T16:45:00.000Z",
+      "soupClarity": 8,
+      "aromaIntensity": 9,
+      "mouthfeelRichness": 8,
+      "aftertasteDuration": 9,
+      "leafIntegrity": 7
+    },
+    {
+      "id": "4b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bf0",
+      "teaName": "云南普洱生茶",
+      "variety": "普洱生茶",
+      "brewTemperature": 100,
+      "rating": 7.5,
+      "tasteNotes": [
+        "茶气强劲",
+        "回甘明显",
+        "生津快",
+        "略带苦涩但化得快"
+      ],
+      "aromaTags": ["蜜香", "花香", "陈香"],
+      "colorCode": "#FFCC80",
+      "dryLeafPhotoUrl": "/images/dry-leaf-puer-sheng.jpg",
+      "infusedLeafPhotoUrl": "/images/infused-leaf-puer-sheng.jpg",
+      "createTime": "2026-06-05T11:20:00.000Z",
+      "soupClarity": 7,
+      "aromaIntensity": 8,
+      "mouthfeelRichness": 8,
+      "aftertasteDuration": 9,
+      "leafIntegrity": 6
+    },
+    {
+      "id": "5b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bf1",
+      "teaName": "武夷大红袍",
+      "variety": "大红袍",
+      "brewTemperature": 98,
+      "rating": 9,
+      "tasteNotes": [
+        "岩韵明显",
+        "香气馥郁持久",
+        "滋味醇厚",
+        "杯底有余香"
+      ],
+      "aromaTags": ["花香", "蜜香", "果香"],
+      "colorCode": "#FFAB91",
+      "dryLeafPhotoUrl": "/images/dry-leaf-dahongpao.jpg",
+      "infusedLeafPhotoUrl": "/images/infused-leaf-dahongpao.jpg",
+      "createTime": "2026-06-15T20:00:00.000Z",
+      "soupClarity": 8,
+      "aromaIntensity": 10,
+      "mouthfeelRichness": 9,
+      "aftertasteDuration": 9,
+      "leafIntegrity": 7
+    }
+  ]
+}
