@@ -677,12 +677,13 @@ const ArtworkDetailModal: React.FC<{
           marginTop: 'auto'
         }}
       >
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          padding: '12px 0 8px',
-          display: window.innerWidth <= 480 ? 'flex' : 'none'
-        }}>
+        <div
+          className="mobile-handle"
+          style={{
+            justifyContent: 'center',
+            padding: '12px 0 8px',
+            display: 'none'
+          }}>
           <div style={{
             width: 36,
             height: 4,

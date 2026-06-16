@@ -95,7 +95,7 @@ export interface AppActions {
   deleteArtwork: (id: string) => void
   selectArtwork: (id: string | null) => void
 
-  lendArtwork: (artworkId: string, record: Omit<TransferRecord, 'id' | 'type' | 'returned'>) => void
+  lendArtwork: (artworkId: string, record: Omit<TransferRecord, 'id' | 'type' | 'returned' | 'artworkId'>) => void
   returnArtwork: (artworkId: string, transferId: string, notes?: string) => void
 
   exportData: () => string
