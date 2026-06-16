@@ -140,10 +140,18 @@ export class Player {
     this.grappleState = 'idle';
     this.grappleProgress = 0;
     this.grappleLength = 0;
+    this.grappleX = 0;
+    this.grappleY = 0;
+    this.grappleTargetX = 0;
+    this.grappleTargetY = 0;
+    this.grappleDirX = 0;
+    this.grappleDirY = 0;
     this.attachedAnchor = null;
     this.swingAngularVel = 0;
     this.swingAngle = 0;
     this.swingRadius = 0;
+    this.lastSwingTangentX = 0;
+    this.lastSwingTangentY = 0;
   }
 
   releaseGrapple(): void {
@@ -177,9 +185,6 @@ export class Player {
   flipGravity(): void {
     this.gravityDir *= -1;
     this.flashTimer = 0.1;
-    if (this.grappleState === 'swinging') {
-      this.swingAngularVel *= -1;
-    }
   }
 
   update(dt: number, platforms: Platform[], anchors: Anchor[], levelW: number, levelH: number): void {

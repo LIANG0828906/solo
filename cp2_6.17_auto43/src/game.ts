@@ -105,8 +105,11 @@ export class Game {
   setupInput(): void {
     this.canvas.addEventListener('mousemove', (e) => {
       const rect = this.canvas.getBoundingClientRect();
-      this.mouseX = e.clientX - rect.left;
-      this.mouseY = e.clientY - rect.top;
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      const dpr = window.devicePixelRatio || 1;
+      this.mouseX = ((e.clientX - rect.left) * scaleX) / dpr;
+      this.mouseY = ((e.clientY - rect.top) * scaleY) / dpr;
     });
 
     this.canvas.addEventListener('mousedown', (e) => {
@@ -153,11 +156,17 @@ export class Game {
         const s = Math.random() * speed;
         p.x = x;
         p.y = y;
+        p.vx = 0;
+        p.vy = 0;
         p.vx = Math.cos(a) * s;
         p.vy = Math.sin(a) * s;
+        p.life = 0;
+        p.maxLife = 0;
         p.life = life;
         p.maxLife = life;
+        p.size = 0;
         p.size = 2 + Math.random() * 3;
+        p.color = '';
         p.color = color;
         p.active = true;
         spawned++;
