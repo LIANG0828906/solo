@@ -239,7 +239,9 @@ let elapsed = 0;
 let frameCount = 0;
 let fpsTimer = 0;
 let currentFps = 60;
-let lastReduceTime = 0;
+let smoothedFps = 60;
+let lastReduceTime = -5;
+let lowFpsCount = 0;
 
 function animate() {
   requestAnimationFrame(animate);
@@ -251,13 +253,21 @@ function animate() {
   fpsTimer += delta;
   if (fpsTimer >= 0.5) {
     currentFps = frameCount / fpsTimer;
-    ui.setFPS(currentFps);
+    smoothedFps = smoothedFps * 0.7 + currentFps * 0.3;
+    ui.setFPS(smoothedFps);
     frameCount = 0;
     fpsTimer = 0;
 
-    if (currentFps < 30 && elapsed - lastReduceTime > 2) {
-      nebula.reduceParticles(0.2);
-      lastReduceTime = elapsed;
+    const particleCount = nebula.getCurrentParticleCount();
+    if (smoothedFps < 30 && particleCount > 20000) {
+      lowFpsCount++;
+      if (lowFpsCount >= 2 && elapsed - lastReduceTime > 2) {
+        nebula.reduceParticles(0.2);
+        lastReduceTime = elapsed;
+        lowFpsCount = 0;
+      }
+    } else if (smoothedFps >= 30) {
+      lowFpsCount = 0;
     }
   }
 

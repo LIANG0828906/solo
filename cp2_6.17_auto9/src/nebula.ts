@@ -31,25 +31,16 @@ const fragmentShader = /* glsl */ `
 const PALETTES: Record<ColorPalette, [number, number, number][]> = {
   rainbow: [
     [1.0, 0.0, 0.0],
-    [1.0, 0.5, 0.0],
-    [1.0, 1.0, 0.0],
-    [0.0, 1.0, 0.0],
-    [0.0, 0.8, 1.0],
-    [0.0, 0.0, 1.0],
-    [0.5, 0.0, 1.0],
     [1.0, 0.0, 1.0],
+    [0.0, 0.0, 1.0],
   ],
   aurora: [
-    [0.0, 1.0, 0.53],
-    [0.0, 0.8, 0.8],
-    [0.0, 0.53, 1.0],
-    [0.3, 0.2, 0.8],
+    [0.0, 1.0, 0.533],
+    [0.0, 0.533, 1.0],
   ],
   lava: [
-    [1.0, 0.27, 0.0],
-    [1.0, 0.5, 0.0],
-    [1.0, 0.67, 0.0],
-    [0.8, 0.1, 0.0],
+    [1.0, 0.267, 0.0],
+    [1.0, 0.667, 0.0],
   ],
 };
 
@@ -82,22 +73,45 @@ function randRange(min: number, max: number): number {
   return min + rand() * (max - min);
 }
 
+function gaussianRandom(): number {
+  let u = 0;
+  let v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
 function generatePosition(density: number, turbulence: number): [number, number, number] {
-  const radiusFactor = Math.pow(rand(), 1 / 3);
-  const densityFactor = 1 - density / 200;
-  const radius = 20 * radiusFactor * (0.3 + densityFactor * 0.7);
+  const densityFactor = density / 100;
+  const gauss = Math.abs(gaussianRandom());
+  const radiusFactor = Math.min(1, gauss * (0.3 + densityFactor * 0.4));
 
   const theta = rand() * Math.PI * 2;
   const phi = Math.acos(2 * rand() - 1);
 
-  let x = radius * Math.sin(phi) * Math.cos(theta);
-  let y = radius * Math.sin(phi) * Math.sin(theta);
-  let z = radius * Math.cos(phi);
+  const baseRadius = 20 * radiusFactor;
 
-  const turb = (turbulence / 5) * 8;
-  x += (rand() - 0.5) * turb;
-  y += (rand() - 0.5) * turb;
-  z += (rand() - 0.5) * turb;
+  const irregular = 0.15 + densityFactor * 0.1;
+  const noiseX = gaussianRandom() * irregular;
+  const noiseY = gaussianRandom() * irregular;
+  const noiseZ = gaussianRandom() * irregular;
+
+  let x = baseRadius * Math.sin(phi) * Math.cos(theta) + noiseX * baseRadius;
+  let y = baseRadius * Math.sin(phi) * Math.sin(theta) + noiseY * baseRadius;
+  let z = baseRadius * Math.cos(phi) + noiseZ * baseRadius;
+
+  const turbAmp = (turbulence / 5) * 3;
+  x += gaussianRandom() * turbAmp;
+  y += gaussianRandom() * turbAmp;
+  z += gaussianRandom() * turbAmp;
+
+  const dist = Math.sqrt(x * x + y * y + z * z);
+  if (dist > 25) {
+    const scale = 25 / dist;
+    x *= scale;
+    y *= scale;
+    z *= scale;
+  }
 
   return [x, y, z];
 }
@@ -119,12 +133,13 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
   let driftOffsets = new Float32Array(currentCount * 3);
   let driftFrequencies = new Float32Array(currentCount * 3);
   let breathPhases = new Float32Array(currentCount);
-  let breathSpeeds = new Float32Array(currentCount);
+  let breathPeriods = new Float32Array(currentCount);
   let baseOpacities = new Float32Array(currentCount);
 
   for (let i = 0; i < currentCount; i++) {
     const pos = generatePosition(params.density, params.turbulence);
-    const colorT = (pos[0] + 20) / 40;
+    const dist = Math.sqrt(pos[0] * pos[0] + pos[1] * pos[1] + pos[2] * pos[2]);
+    const colorT = Math.min(1, dist / 20);
     const color = samplePalette(params.colorPalette, colorT);
     const size = randRange(0.05, 0.3);
 
@@ -164,7 +179,7 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
     driftFrequencies[i * 3 + 2] = randRange(0.2, 0.8);
 
     breathPhases[i] = rand() * Math.PI * 2;
-    breathSpeeds[i] = randRange(Math.PI / 2, Math.PI);
+    breathPeriods[i] = randRange(2, 4);
     baseOpacities[i] = opacities[i];
   }
 
@@ -207,7 +222,8 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
       targetPositions[i * 3 + 1] = newPos[1];
       targetPositions[i * 3 + 2] = newPos[2];
 
-      const colorT = (newPos[0] + 20) / 40;
+      const dist = Math.sqrt(newPos[0] * newPos[0] + newPos[1] * newPos[1] + newPos[2] * newPos[2]);
+      const colorT = Math.min(1, dist / 20);
       const newColor = samplePalette(params.colorPalette, colorT);
       targetColors[i * 3] = newColor[0];
       targetColors[i * 3 + 1] = newColor[1];
@@ -234,7 +250,7 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
     const newDriftOffsets = new Float32Array(newCount * 3);
     const newDriftFrequencies = new Float32Array(newCount * 3);
     const newBreathPhases = new Float32Array(newCount);
-    const newBreathSpeeds = new Float32Array(newCount);
+    const newBreathPeriods = new Float32Array(newCount);
     const newBaseOpacities = new Float32Array(newCount);
 
     for (let i = 0; i < newCount; i++) {
@@ -275,7 +291,7 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
       newDriftFrequencies[i * 3 + 2] = driftFrequencies[srcIdx * 3 + 2];
 
       newBreathPhases[i] = breathPhases[srcIdx];
-      newBreathSpeeds[i] = breathSpeeds[srcIdx];
+      newBreathPeriods[i] = breathPeriods[srcIdx];
       newBaseOpacities[i] = baseOpacities[srcIdx];
     }
 
@@ -304,7 +320,7 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
     driftOffsets = newDriftOffsets;
     driftFrequencies = newDriftFrequencies;
     breathPhases = newBreathPhases;
-    breathSpeeds = newBreathSpeeds;
+    breathPeriods = newBreathPeriods;
     baseOpacities = newBaseOpacities;
   }
 
@@ -329,38 +345,32 @@ export function createNebula(initialParams: NebulaParams): NebulaAPI {
     const opacityArr = opacityAttr.array as Float32Array;
 
     const t = transitionProgress;
-    const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
     for (let i = 0; i < currentCount; i++) {
       const ix = i * 3;
-
-      if (transitionActive) {
-        posArr[ix] = lerp(initialPositions[ix], targetPositions[ix], easeT);
-        posArr[ix + 1] = lerp(initialPositions[ix + 1], targetPositions[ix + 1], easeT);
-        posArr[ix + 2] = lerp(initialPositions[ix + 2], targetPositions[ix + 2], easeT);
-
-        colorArr[ix] = lerp(initialColors[ix], targetColors[ix], easeT);
-        colorArr[ix + 1] = lerp(initialColors[ix + 1], targetColors[ix + 1], easeT);
-        colorArr[ix + 2] = lerp(initialColors[ix + 2], targetColors[ix + 2], easeT);
-      }
 
       const driftAmp = 0.3;
       const driftX = Math.sin(elapsed * driftFrequencies[ix] + driftOffsets[ix]) * driftAmp;
       const driftY = Math.sin(elapsed * driftFrequencies[ix + 1] + driftOffsets[ix + 1]) * driftAmp;
       const driftZ = Math.sin(elapsed * driftFrequencies[ix + 2] + driftOffsets[ix + 2]) * driftAmp;
 
-      if (!transitionActive) {
+      if (transitionActive) {
+        posArr[ix] = lerp(initialPositions[ix], targetPositions[ix], t) + driftX;
+        posArr[ix + 1] = lerp(initialPositions[ix + 1], targetPositions[ix + 1], t) + driftY;
+        posArr[ix + 2] = lerp(initialPositions[ix + 2], targetPositions[ix + 2], t) + driftZ;
+
+        colorArr[ix] = lerp(initialColors[ix], targetColors[ix], t);
+        colorArr[ix + 1] = lerp(initialColors[ix + 1], targetColors[ix + 1], t);
+        colorArr[ix + 2] = lerp(initialColors[ix + 2], targetColors[ix + 2], t);
+      } else {
         posArr[ix] = targetPositions[ix] + driftX;
         posArr[ix + 1] = targetPositions[ix + 1] + driftY;
         posArr[ix + 2] = targetPositions[ix + 2] + driftZ;
-      } else {
-        posArr[ix] += driftX * (1 - easeT);
-        posArr[ix + 1] += driftY * (1 - easeT);
-        posArr[ix + 2] += driftZ * (1 - easeT);
       }
 
-      const breath = 0.3 + 0.5 * (0.5 + 0.5 * Math.sin(elapsed * breathSpeeds[i] + breathPhases[i]));
-      opacityArr[i] = baseOpacities[i] * breath;
+      const breathOmega = (Math.PI * 2) / breathPeriods[i];
+      const breathValue = 0.5 + 0.5 * Math.sin(elapsed * breathOmega + breathPhases[i]);
+      opacityArr[i] = 0.3 + 0.5 * breathValue;
     }
 
     posAttr.needsUpdate = true;
