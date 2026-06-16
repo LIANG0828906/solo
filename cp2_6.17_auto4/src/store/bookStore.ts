@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Book } from '@/types';
+import type { Book, DragState } from '@/types';
 import { getProgress, saveProgress } from './db';
 import { createSampleBook } from '@/data/sampleBook';
 
@@ -13,6 +13,7 @@ interface BookState {
   isFullscreen: boolean;
   showContinueReading: boolean;
   isInstantTransition: boolean;
+  drag: DragState;
   setCurrentPage: (page: number, save?: boolean) => void;
   startFlip: (direction: 'next' | 'prev') => void;
   endFlip: () => void;
@@ -22,9 +23,20 @@ interface BookState {
   hideContinueReading: () => void;
   loadBook: () => Promise<void>;
   goToPageInstant: (page: number) => void;
+  startDrag: (x: number) => void;
+  updateDrag: (x: number) => void;
+  endDrag: () => { shouldFlip: boolean; direction: 'next' | 'prev' | null };
+  cancelDrag: () => void;
 }
 
 let saveTimer: number | null = null;
+
+const initialDrag: DragState = {
+  isDragging: false,
+  startX: 0,
+  currentX: 0,
+  dragDirection: null,
+};
 
 export const useBookStore = create<BookState>((set, get) => ({
   book: null,
@@ -36,6 +48,7 @@ export const useBookStore = create<BookState>((set, get) => ({
   isFullscreen: false,
   showContinueReading: false,
   isInstantTransition: false,
+  drag: initialDrag,
 
   setCurrentPage: (page: number, save = true) => {
     const { book } = get();
@@ -99,5 +112,65 @@ export const useBookStore = create<BookState>((set, get) => ({
         get().hideContinueReading();
       }, 2300);
     }
+  },
+
+  startDrag: (x: number) => {
+    set({
+      drag: { isDragging: true, startX: x, currentX: x, dragDirection: null },
+      isFlipping: false,
+      flipDirection: null,
+      flipProgress: 0,
+    });
+  },
+
+  updateDrag: (x: number) => {
+    const { drag } = get();
+    if (!drag.isDragging) return;
+    const delta = x - drag.startX;
+    const direction: 'next' | 'prev' | null = delta < 0 ? 'next' : delta > 0 ? 'prev' : null;
+    set({
+      drag: { ...drag, currentX: x, dragDirection: direction },
+      flipDirection: direction,
+    });
+  },
+
+  endDrag: () => {
+    const { drag, book, currentPage } = get();
+    if (!drag.isDragging || !book) {
+      set({ drag: initialDrag });
+      return { shouldFlip: false, direction: null };
+    }
+    const delta = drag.currentX - drag.startX;
+    const absDelta = Math.abs(delta);
+    const direction: 'next' | 'prev' | null = delta < 0 ? 'next' : delta > 0 ? 'prev' : null;
+    const threshold = 80;
+    let shouldFlip = absDelta >= threshold;
+    if (direction === 'next' && currentPage >= book.totalPages - 1) shouldFlip = false;
+    if (direction === 'prev' && currentPage <= 0) shouldFlip = false;
+
+    if (!shouldFlip) {
+      set({
+        drag: initialDrag,
+        flipDirection: null,
+        flipProgress: 0,
+      });
+    } else {
+      set({
+        drag: initialDrag,
+        isFlipping: true,
+        flipDirection: direction,
+        flipProgress: absDelta / 500,
+      });
+    }
+    return { shouldFlip, direction };
+  },
+
+  cancelDrag: () => {
+    set({
+      drag: initialDrag,
+      flipDirection: null,
+      flipProgress: 0,
+      isFlipping: false,
+    });
   },
 }));

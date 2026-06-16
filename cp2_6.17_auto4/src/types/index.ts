@@ -28,3 +28,15 @@ export interface FlipStyle {
   backfaceVisibility: string;
   transformOrigin: string;
 }
+
+export interface CurvePoint {
+  x: number;
+  y: number;
+}
+
+export interface DragState {
+  isDragging: boolean;
+  startX: number;
+  currentX: number;
+  dragDirection: 'next' | 'prev' | null;
+}
