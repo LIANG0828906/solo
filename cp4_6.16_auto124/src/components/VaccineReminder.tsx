@@ -1,31 +1,65 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { usePetStore } from '@/stores/petStore';
 import { cn } from '@/lib/utils';
 import { Syringe, Clock, Check } from 'lucide-react';
 import type { VaccineRecord, Pet } from '@/types';
 
 export default function VaccineReminder() {
-  const { pets, checkDueVaccines, updateVaccine } = usePetStore();
+  const pets = usePetStore((state) => state.pets);
+  const vaccines = usePetStore((state) => state.vaccines);
+  const updateVaccine = usePetStore((state) => state.updateVaccine);
+
   const [currentReminder, setCurrentReminder] = useState<VaccineRecord | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [postponedIds, setPostponedIds] = useState<Set<string>>(new Set());
   const checkedRef = useRef(false);
 
-  const findPet = (petId: string): Pet | undefined => {
-    return pets.find((p) => p.id === petId);
-  };
+  const petMap = useMemo(() => {
+    const map = new Map<string, Pet>();
+    for (const pet of pets) {
+      map.set(pet.id, pet);
+    }
+    return map;
+  }, [pets]);
 
-  const getDaysUntilDue = (nextDueDate: string): number => {
+  const findPet = useCallback((petId: string): Pet | undefined => {
+    return petMap.get(petId);
+  }, [petMap]);
+
+  const getDaysUntilDue = useCallback((nextDueDate: string): number => {
     const now = new Date();
+    now.setHours(0, 0, 0, 0);
     const due = new Date(nextDueDate);
+    due.setHours(0, 0, 0, 0);
     const diffTime = due.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
-  };
+  }, []);
 
-  const checkVaccines = () => {
-    const dueVaccines = checkDueVaccines(3);
+  const checkDueVaccinesOptimized = useCallback((days: number = 3): VaccineRecord[] => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const thresholdDate = new Date(now);
+    thresholdDate.setDate(now.getDate() + days);
+    const thresholdTime = thresholdDate.getTime();
+    const nowTime = now.getTime();
+
+    const results: VaccineRecord[] = [];
+    for (const v of vaccines) {
+      if (v.isDone) continue;
+      const dueTime = new Date(v.nextDueDate).setHours(0, 0, 0, 0);
+      if (dueTime <= thresholdTime && dueTime >= nowTime) {
+        results.push(v);
+      }
+    }
+    return results;
+  }, [vaccines]);
+
+  const checkVaccines = useCallback(() => {
+    if (currentReminder && isVisible) return;
+
+    const dueVaccines = checkDueVaccinesOptimized(3);
     const available = dueVaccines.filter((v) => !postponedIds.has(v.id));
 
     if (available.length > 0) {
@@ -34,7 +68,7 @@ export default function VaccineReminder() {
       setIsAnimating(true);
       setTimeout(() => setIsVisible(true), 10);
     }
-  };
+  }, [checkDueVaccinesOptimized, postponedIds, currentReminder, isVisible]);
 
   useEffect(() => {
     if (!checkedRef.current) {
@@ -44,7 +78,7 @@ export default function VaccineReminder() {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [checkVaccines]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -52,7 +86,7 @@ export default function VaccineReminder() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [postponedIds]);
+  }, [checkVaccines]);
 
   const handleMarkDone = () => {
     if (!currentReminder) return;

@@ -142,69 +142,76 @@ export default function PetCard({
       )}
       style={{
         ...gradientStyle,
-        height: isExpanded ? '480px' : '160px',
-        transition: 'height 0.3s ease-in-out, transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+        height: isExpanded ? 480 : 160,
+        transition: 'height 300ms ease-in-out, transform 300ms ease-in-out, box-shadow 300ms ease-in-out',
       }}
       onClick={handleCardClick}
     >
-      <div className="p-5">
-        <div className="flex items-start gap-4">
-          <div
-            className={cn(
-              'flex h-16 w-16 shrink-0 items-center justify-center',
-              'rounded-full border-2 border-white text-3xl',
-              'shadow-md transition-shadow duration-300'
-            )}
-            style={{ backgroundColor: hexToRgba(pet.colorScheme, 0.3) }}
-          >
-            {pet.avatar ? (
-              <img
-                src={pet.avatar}
-                alt={pet.name}
-                className="h-full w-full rounded-full object-cover"
-              />
-            ) : (
-              <span>{emoji}</span>
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-xl font-bold text-pet-text">{pet.name}</h3>
-            <p className="mt-1 text-sm text-pet-textLight">{pet.breed}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
-              <span className="text-pet-text">{genderText}</span>
-              <span className="text-pet-textLight">·</span>
-              <span className="text-pet-text">{ageText}</span>
-              <span className="text-pet-textLight">·</span>
-              <span className="text-pet-text">{pet.weight}kg</span>
-            </div>
-          </div>
-
-          <div
-            className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-full',
-              'text-pet-textLight transition-transform duration-300',
-              isExpanded ? 'rotate-180' : ''
-            )}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+      <div className="h-full w-full">
+        <div className="p-5">
+          <div className="flex items-start gap-4">
+            <div
+              className={cn(
+                'flex h-16 w-16 shrink-0 items-center justify-center',
+                'rounded-full border-2 border-white text-3xl',
+                'shadow-md transition-shadow duration-300'
+              )}
+              style={{ backgroundColor: hexToRgba(pet.colorScheme, 0.3) }}
             >
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
+              {pet.avatar ? (
+                <img
+                  src={pet.avatar}
+                  alt={pet.name}
+                  className="h-full w-full rounded-full object-cover"
+                />
+              ) : (
+                <span>{emoji}</span>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate text-xl font-bold text-pet-text">{pet.name}</h3>
+              <p className="mt-1 text-sm text-pet-textLight">{pet.breed}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                <span className="text-pet-text">{genderText}</span>
+                <span className="text-pet-textLight">·</span>
+                <span className="text-pet-text">{ageText}</span>
+                <span className="text-pet-textLight">·</span>
+                <span className="text-pet-text">{pet.weight}kg</span>
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-full',
+                'text-pet-textLight transition-transform duration-300',
+                isExpanded ? 'rotate-180' : ''
+              )}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
           </div>
         </div>
 
-        {isExpanded && (
-          <div className="mt-6 space-y-4">
+        <div
+          className={cn(
+            'transition-opacity duration-200',
+            isExpanded ? 'opacity-100' : 'pointer-events-none opacity-0'
+          )}
+        >
+          <div className="px-5">
             <div className="rounded-xl bg-white/60 p-4 backdrop-blur-sm">
               <h4 className="mb-3 text-sm font-semibold text-pet-text">宠物档案</h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -234,60 +241,60 @@ export default function PetCard({
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="absolute bottom-0 left-0 right-0 border-t border-pet-border bg-white/90 p-4 backdrop-blur-sm">
-              <div className="grid grid-cols-4 gap-2">
-                <button
-                  onClick={handleVaccinate}
-                  className={cn(
-                    'flex flex-col items-center gap-1 rounded-xl py-3',
-                    'bg-blue-50 text-blue-600 transition-all duration-200',
-                    'hover:bg-blue-100 hover:shadow-md active:scale-95'
-                  )}
-                >
-                  <span className="text-xl">💉</span>
-                  <span className="text-xs font-medium">打疫苗</span>
-                </button>
+          <div className="absolute bottom-0 left-0 right-0 border-t border-pet-border bg-white/90 p-4 backdrop-blur-sm">
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                onClick={handleVaccinate}
+                className={cn(
+                  'flex flex-col items-center gap-1 rounded-xl py-3',
+                  'bg-blue-50 text-blue-600 transition-all duration-200',
+                  'hover:bg-blue-100 hover:shadow-md active:scale-95'
+                )}
+              >
+                <span className="text-xl">💉</span>
+                <span className="text-xs font-medium">打疫苗</span>
+              </button>
 
-                <button
-                  onClick={handleFeed}
-                  className={cn(
-                    'flex flex-col items-center gap-1 rounded-xl py-3',
-                    'bg-amber-50 text-amber-600 transition-all duration-200',
-                    'hover:bg-amber-100 hover:shadow-md active:scale-95'
-                  )}
-                >
-                  <span className="text-xl">🍖</span>
-                  <span className="text-xs font-medium">喂食</span>
-                </button>
+              <button
+                onClick={handleFeed}
+                className={cn(
+                  'flex flex-col items-center gap-1 rounded-xl py-3',
+                  'bg-amber-50 text-amber-600 transition-all duration-200',
+                  'hover:bg-amber-100 hover:shadow-md active:scale-95'
+                )}
+              >
+                <span className="text-xl">🍖</span>
+                <span className="text-xs font-medium">喂食</span>
+              </button>
 
-                <button
-                  onClick={handleWalk}
-                  className={cn(
-                    'flex flex-col items-center gap-1 rounded-xl py-3',
-                    'bg-green-50 text-green-600 transition-all duration-200',
-                    'hover:bg-green-100 hover:shadow-md active:scale-95'
-                  )}
-                >
-                  <span className="text-xl">🐾</span>
-                  <span className="text-xs font-medium">遛狗</span>
-                </button>
+              <button
+                onClick={handleWalk}
+                className={cn(
+                  'flex flex-col items-center gap-1 rounded-xl py-3',
+                  'bg-green-50 text-green-600 transition-all duration-200',
+                  'hover:bg-green-100 hover:shadow-md active:scale-95'
+                )}
+              >
+                <span className="text-xl">🐾</span>
+                <span className="text-xs font-medium">遛狗</span>
+              </button>
 
-                <button
-                  onClick={handleEdit}
-                  className={cn(
-                    'flex flex-col items-center gap-1 rounded-xl py-3',
-                    'bg-gray-50 text-gray-600 transition-all duration-200',
-                    'hover:bg-gray-100 hover:shadow-md active:scale-95'
-                  )}
-                >
-                  <span className="text-xl">✏️</span>
-                  <span className="text-xs font-medium">编辑</span>
-                </button>
-              </div>
+              <button
+                onClick={handleEdit}
+                className={cn(
+                  'flex flex-col items-center gap-1 rounded-xl py-3',
+                  'bg-gray-50 text-gray-600 transition-all duration-200',
+                  'hover:bg-gray-100 hover:shadow-md active:scale-95'
+                )}
+              >
+                <span className="text-xl">✏️</span>
+                <span className="text-xs font-medium">编辑</span>
+              </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
