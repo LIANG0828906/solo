@@ -10,12 +10,19 @@ const statusColors: Record<BookingStatus, string> = {
   pending: '#F39C12',
 };
 
+const statusLabels: Record<BookingStatus, string> = {
+  booked: '已预订',
+  available: '空闲',
+  pending: '待确认',
+};
+
 export default function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null);
   const [draggingBooking, setDraggingBooking] = useState<Booking | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<BookingStatus | null>(null);
   const [animKey, setAnimKey] = useState(0);
   const calendarRef = useRef<HTMLDivElement>(null);
 
@@ -57,7 +64,8 @@ export default function CalendarView() {
       setPopoverPos(null);
       return;
     }
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
     const calRect = calendarRef.current?.getBoundingClientRect();
     if (calRect) {
       setSelectedDate(dateStr);
@@ -71,27 +79,48 @@ export default function CalendarView() {
   const handleDragStart = (booking: Booking, e: React.DragEvent) => {
     setDraggingBooking(booking);
     e.dataTransfer.effectAllowed = 'move';
-    (e.target as HTMLElement).style.opacity = '0.6';
+    e.dataTransfer.setData('text/plain', booking.id);
   };
 
-  const handleDragEnd = (e: React.DragEvent) => {
-    (e.target as HTMLElement).style.opacity = '1';
+  const handleDragEnd = () => {
     setDraggingBooking(null);
+    setDragOverDate(null);
+    setDragOverStatus(null);
+  };
+
+  const handleDragOverDate = (dateStr: string, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverDate(dateStr);
+    setDragOverStatus(null);
+  };
+
+  const handleDragOverStatus = (status: BookingStatus, e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverStatus(status);
     setDragOverDate(null);
   };
 
-  const handleDragOver = (dateStr: string, e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOverDate(dateStr);
-  };
-
-  const handleDrop = (dateStr: string, e: React.DragEvent) => {
+  const handleDropDate = (dateStr: string, e: React.DragEvent) => {
     e.preventDefault();
     if (draggingBooking) {
       updateBooking(draggingBooking.id, { date: dateStr });
     }
-    setDraggingBooking(null);
-    setDragOverDate(null);
+    handleDragEnd();
+  };
+
+  const handleDropStatus = (status: BookingStatus, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggingBooking) {
+      updateBooking(draggingBooking.id, { status });
+    }
+    handleDragEnd();
+  };
+
+  const handleBookingStatusClick = (booking: Booking, newStatus: BookingStatus, e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateBooking(booking.id, { status: newStatus });
   };
 
   const goPrevMonth = () => {
@@ -121,6 +150,8 @@ export default function CalendarView() {
 
   const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
 
+  const statusList: BookingStatus[] = ['available', 'booked', 'pending'];
+
   return (
     <div className="calendar-view" ref={calendarRef}>
       <div className="calendar-header">
@@ -140,8 +171,9 @@ export default function CalendarView() {
           <div
             key={idx}
             className={`cal-day-cell ${dateStr === todayStr ? 'is-today' : ''} ${dateStr === dragOverDate ? 'drag-over' : ''}`}
-            onDragOver={dateStr ? (e) => handleDragOver(dateStr, e) : undefined}
-            onDrop={dateStr ? (e) => handleDrop(dateStr, e) : undefined}
+            onDragOver={dateStr ? (e) => handleDragOverDate(dateStr, e) : undefined}
+            onDragLeave={() => dateStr === dragOverDate && setDragOverDate(null)}
+            onDrop={dateStr ? (e) => handleDropDate(dateStr, e) : undefined}
             onClick={dateStr ? (e) => handleDateClick(dateStr, e) : undefined}
           >
             {dateStr && (
@@ -156,12 +188,12 @@ export default function CalendarView() {
                   .map((b) => (
                     <div
                       key={b.id}
-                      className={`cal-booking-item ${draggingBooking?.id === b.id ? 'dragging' : ''}`}
+                      className={`cal-booking-item ${draggingBooking?.id === b.id ? 'is-dragging' : ''}`}
                       draggable
                       onDragStart={(e) => handleDragStart(b, e)}
                       onDragEnd={handleDragEnd}
                       onClick={(e) => e.stopPropagation()}
-                      title={`${getPropertyName(b.propertyId)} - ${b.customerName}`}
+                      title={`${getPropertyName(b.propertyId)} - ${b.customerName} (${statusLabels[b.status]})`}
                     >
                       <span className="cal-booking-dot" style={{ backgroundColor: statusColors[b.status] }} />
                       <span className="cal-booking-name">{b.customerName}</span>
@@ -196,21 +228,49 @@ export default function CalendarView() {
                 {selectedPropertyId ? '' : `${getPropertyName(b.propertyId)} · `}
                 {b.nights}晚 · ¥{b.totalPrice}
               </div>
+              <div className="cal-popover-status-switch">
+                <span className="cal-popover-status-label">切换状态：</span>
+                {statusList.map((s) => (
+                  <span
+                    key={s}
+                    className={`cal-status-chip ${b.status === s ? 'active' : ''}`}
+                    style={{ backgroundColor: statusColors[s] }}
+                    onClick={(e) => handleBookingStatusClick(b, s, e)}
+                    title={statusLabels[s]}
+                  />
+                ))}
+              </div>
             </div>
           ))}
         </div>
       )}
 
       <div className="calendar-legend">
-        <div className="legend-item">
+        <div
+          className={`legend-item ${dragOverStatus === 'available' ? 'drag-over-status' : ''}`}
+          onDragOver={(e) => handleDragOverStatus('available', e)}
+          onDragLeave={() => dragOverStatus === 'available' && setDragOverStatus(null)}
+          onDrop={(e) => handleDropStatus('available', e)}
+        >
           <span className="legend-dot" style={{ background: '#2ECC71' }} />空闲
         </div>
-        <div className="legend-item">
+        <div
+          className={`legend-item ${dragOverStatus === 'booked' ? 'drag-over-status' : ''}`}
+          onDragOver={(e) => handleDragOverStatus('booked', e)}
+          onDragLeave={() => dragOverStatus === 'booked' && setDragOverStatus(null)}
+          onDrop={(e) => handleDropStatus('booked', e)}
+        >
           <span className="legend-dot" style={{ background: '#E74C3C' }} />已预订
         </div>
-        <div className="legend-item">
+        <div
+          className={`legend-item ${dragOverStatus === 'pending' ? 'drag-over-status' : ''}`}
+          onDragOver={(e) => handleDragOverStatus('pending', e)}
+          onDragLeave={() => dragOverStatus === 'pending' && setDragOverStatus(null)}
+          onDrop={(e) => handleDropStatus('pending', e)}
+        >
           <span className="legend-dot" style={{ background: '#F39C12' }} />待确认
         </div>
+        <span className="legend-hint">（拖拽预订到此切换状态）</span>
       </div>
     </div>
   );

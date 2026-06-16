@@ -6,8 +6,12 @@ export default function ChartPanel() {
   const getMonthlyStats = usePropertyStore((s) => s.getMonthlyStats);
   const selectedPropertyId = usePropertyStore((s) => s.selectedPropertyId);
   const properties = usePropertyStore((s) => s.properties);
+  const bookings = usePropertyStore((s) => s.bookings);
 
-  const stats = useMemo(() => getMonthlyStats(), [getMonthlyStats, selectedPropertyId]);
+  const stats = useMemo(
+    () => getMonthlyStats(),
+    [getMonthlyStats, selectedPropertyId, bookings.length, properties.length]
+  );
 
   const selectedPropName = selectedPropertyId
     ? properties.find((p) => p.id === selectedPropertyId)?.name
