@@ -1,0 +1,396 @@
+import { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import type { Trip, Activity, DayPlan, ExpenseCategory } from '../types';
+
+interface TripPlannerProps {
+  trip: Trip;
+  onUpdate: (trip: Trip) => void;
+}
+
+const categoryOptions: { value: ExpenseCategory; label: string }[] = [
+  { value: 'transport', label: '交通' },
+  { value: 'accommodation', label: '住宿' },
+  { value: 'food', label: '餐饮' },
+  { value: 'ticket', label: '门票' },
+  { value: 'other', label: '其他' }
+];
+
+const locationIcons: Record<string, string> = {
+  default: '📍'
+};
+
+const categoryIcons: Record<ExpenseCategory, string> = {
+  transport: '🚗',
+  accommodation: '🏨',
+  food: '🍜',
+  ticket: '🎫',
+  other: '📦'
+};
+
+function getDayOfWeek(dateStr: string): string {
+  const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const date = new Date(dateStr);
+  return days[date.getDay()];
+}
+
+function sortActivitiesByTime(activities: Activity[]): Activity[] {
+  return [...activities].sort((a, b) => a.time.localeCompare(b.time));
+}
+
+export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
+  const [showModal, setShowModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [draggedActivity, setDraggedActivity] = useState<{ activity: Activity; fromDate: string } | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState({
+    time: '09:00',
+    location: '',
+    description: '',
+    transport: '',
+    cost: 0,
+    category: 'other' as ExpenseCategory
+  });
+
+  function openAddModal(date: string) {
+    setSelectedDate(date);
+    setEditingActivity(null);
+    setFormData({
+      time: '09:00',
+      location: '',
+      description: '',
+      transport: '',
+      cost: 0,
+      category: 'other'
+    });
+    setShowModal(true);
+  }
+
+  function openEditModal(date: string, activity: Activity) {
+    setSelectedDate(date);
+    setEditingActivity(activity);
+    setFormData({
+      time: activity.time,
+      location: activity.location,
+      description: activity.description,
+      transport: activity.transport,
+      cost: activity.cost,
+      category: activity.category
+    });
+    setShowModal(true);
+  }
+
+  function handleSubmit() {
+    if (!selectedDate) return;
+    if (!formData.location.trim()) {
+      alert('请输入地点');
+      return;
+    }
+
+    const updatedDays = trip.days.map(day => {
+      if (day.date !== selectedDate) return day;
+
+      let activities: Activity[];
+      if (editingActivity) {
+        activities = day.activities.map(act =>
+          act.id === editingActivity.id
+            ? { ...act, ...formData }
+            : act
+        );
+      } else {
+        const newActivity: Activity = {
+          id: uuidv4(),
+          ...formData
+        };
+        activities = [...day.activities, newActivity];
+      }
+
+      return {
+        ...day,
+        activities: sortActivitiesByTime(activities)
+      };
+    });
+
+    onUpdate({ ...trip, days: updatedDays });
+    setShowModal(false);
+  }
+
+  function handleDelete(date: string, activityId: string) {
+    if (!confirm('确定要删除这个行程吗？')) return;
+
+    const updatedDays = trip.days.map(day => {
+      if (day.date !== date) return day;
+      return {
+        ...day,
+        activities: day.activities.filter(act => act.id !== activityId)
+      };
+    });
+
+    onUpdate({ ...trip, days: updatedDays });
+  }
+
+  function handleDragStart(e: React.DragEvent, activity: Activity, fromDate: string) {
+    setDraggedActivity({ activity, fromDate });
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDragOver(e: React.DragEvent, date: string) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverDate(date);
+  }
+
+  function handleDragLeave() {
+    setDragOverDate(null);
+  }
+
+  function handleDrop(e: React.DragEvent, toDate: string) {
+    e.preventDefault();
+    setDragOverDate(null);
+
+    if (!draggedActivity) return;
+
+    const { activity, fromDate } = draggedActivity;
+
+    if (fromDate === toDate) {
+      setDraggedActivity(null);
+      return;
+    }
+
+    const updatedDays = trip.days.map(day => {
+      if (day.date === fromDate) {
+        return {
+          ...day,
+          activities: day.activities.filter(act => act.id !== activity.id)
+        };
+      }
+      if (day.date === toDate) {
+        const newActivities = sortActivitiesByTime([...day.activities, activity]);
+        return { ...day, activities: newActivities };
+      }
+      return day;
+    });
+
+    onUpdate({ ...trip, days: updatedDays });
+    setDraggedActivity(null);
+  }
+
+  function handleDragEnd() {
+    setDraggedActivity(null);
+    setDragOverDate(null);
+  }
+
+  function reorderActivity(date: string, activityId: string, direction: 'up' | 'down') {
+    const day = trip.days.find(d => d.date === date);
+    if (!day) return;
+
+    const index = day.activities.findIndex(a => a.id === activityId);
+    if (index === -1) return;
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === day.activities.length - 1) return;
+
+    const newActivities = [...day.activities];
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    [newActivities[index], newActivities[swapIndex]] = [newActivities[swapIndex], newActivities[index]];
+
+    const updatedDays = trip.days.map(d =>
+      d.date === date ? { ...d, activities: newActivities } : d
+    );
+
+    onUpdate({ ...trip, days: updatedDays });
+  }
+
+  return (
+    <div className="trip-planner">
+      <div className="days-grid">
+        {trip.days.map((day, dayIndex) => (
+          <div
+            key={day.date}
+            className={`day-column ${dragOverDate === day.date ? 'drag-over' : ''}`}
+            onDragOver={(e) => handleDragOver(e, day.date)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, day.date)}
+            style={{
+              border: dragOverDate === day.date ? '2px dashed #1E88E5' : 'none',
+              backgroundColor: dragOverDate === day.date ? '#f0f7ff' : 'white'
+            }}
+          >
+            <h3>
+              第 {dayIndex + 1} 天
+              <span className="day-date"> · {day.date} {getDayOfWeek(day.date)}</span>
+            </h3>
+
+            <div className="activities-list">
+              {day.activities.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '30px 10px',
+                  color: '#bbb',
+                  fontSize: '13px'
+                }}>
+                  暂无行程，点击下方添加
+                </div>
+              ) : (
+                day.activities.map((activity, actIndex) => (
+                  <div
+                    key={activity.id}
+                    className={`activity-card ${draggedActivity?.activity.id === activity.id ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, activity, day.date)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="activity-time">
+                      <span className="activity-icon">🕐</span> {activity.time}
+                    </div>
+                    <div className="activity-location">
+                      <span className="activity-icon">{locationIcons.default}</span>
+                      {activity.location}
+                    </div>
+                    <div className="activity-desc">{activity.description}</div>
+                    <div className="activity-footer">
+                      <div>
+                        <span className={`category-tag category-${activity.category}`}>
+                          {categoryIcons[activity.category]} {categoryOptions.find(c => c.value === activity.category)?.label}
+                        </span>
+                        {activity.transport && (
+                          <span style={{ marginLeft: '8px', color: '#888' }}>
+                            🚗 {activity.transport}
+                          </span>
+                        )}
+                      </div>
+                      <div className="activity-cost">¥{activity.cost.toLocaleString()}</div>
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      gap: '6px',
+                      marginTop: '8px',
+                      justifyContent: 'flex-end'
+                    }}>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => reorderActivity(day.date, activity.id, 'up')}
+                        disabled={actIndex === 0}
+                        style={{ opacity: actIndex === 0 ? 0.5 : 1 }}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => reorderActivity(day.date, activity.id, 'down')}
+                        disabled={actIndex === day.activities.length - 1}
+                        style={{ opacity: actIndex === day.activities.length - 1 ? 0.5 : 1 }}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => openEditModal(day.date, activity)}
+                      >
+                        编辑
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleDelete(day.date, activity.id)}
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button
+              className="add-activity-btn"
+              onClick={() => openAddModal(day.date)}
+            >
+              + 添加行程
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{editingActivity ? '编辑行程' : '添加行程'}</h2>
+              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+            </div>
+
+            <div className="form-group">
+              <label>时间</label>
+              <input
+                type="time"
+                value={formData.time}
+                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>地点</label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="例如：故宫博物院"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>活动描述</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="描述这个活动的内容..."
+                rows={3}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>交通方式</label>
+              <input
+                type="text"
+                value={formData.transport}
+                onChange={(e) => setFormData({ ...formData, transport: e.target.value })}
+                placeholder="例如：地铁、步行、出租车"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>花费分类</label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value as ExpenseCategory })}
+              >
+                {categoryOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>预计花费 (元)</label>
+              <input
+                type="number"
+                min="0"
+                value={formData.cost}
+                onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
+              />
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                取消
+              </button>
+              <button className="btn btn-primary" onClick={handleSubmit}>
+                {editingActivity ? '保存' : '添加'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
