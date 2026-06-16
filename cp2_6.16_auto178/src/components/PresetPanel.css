@@ -1,0 +1,149 @@
+.preset-panel {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  background: #161B22;
+  border-right: 1px solid #21262d;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.preset-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.preset-panel-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #f0f6fc;
+  margin: 0;
+}
+
+.add-preset-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: #21262d;
+  color: #58A6FF;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.add-preset-btn:hover {
+  background: #58A6FF;
+  color: #0D1117;
+  transform: scale(1.05);
+}
+
+.preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preset-card {
+  position: relative;
+  background: #0D1117;
+  border: 1px solid #21262d;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.preset-card:hover {
+  border-color: #58A6FF;
+  transform: translateX(4px);
+  box-shadow: -4px 0 20px rgba(88, 166, 255, 0.15);
+}
+
+.preset-card.active {
+  border-color: #58A6FF;
+  background: linear-gradient(135deg, rgba(88, 166, 255, 0.1) 0%, rgba(88, 166, 255, 0.02) 100%);
+}
+
+.preset-card.dragging {
+  opacity: 0.8;
+  transform: scale(1.02);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+}
+
+.preset-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.preset-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f0f6fc;
+  margin: 0 0 6px 0;
+}
+
+.preset-description {
+  font-size: 12px;
+  color: #8b949e;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.preset-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #58A6FF;
+  font-weight: 500;
+}
+
+.custom-badge {
+  padding: 2px 6px;
+  background: rgba(88, 166, 255, 0.15);
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.preset-play-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #58A6FF;
+  color: #0D1117;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.preset-play-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(88, 166, 255, 0.5);
+}
+
+.preset-card.active .preset-play-btn {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(88, 166, 255, 0);
+  }
+}
