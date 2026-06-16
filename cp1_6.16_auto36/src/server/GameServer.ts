@@ -88,7 +88,7 @@ app.get('/api/rooms/:roomId/versions', (req: Request, res: Response) => {
   res.json({ versions });
 });
 
-const wss = new WebSocketServer({ server, path: '/ws' });
+const wss = new WebSocketServer({ server, path: '/ws-game' });
 
 wss.on('connection', (ws: WebSocket) => {
   const clientId = uuidv4();
@@ -266,7 +266,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('  暗夜密室 - 逃脱谜题编辑器 服务器');
   console.log('========================================');
   console.log(`HTTP 端口: ${PORT}`);
-  console.log(`WebSocket: ws://localhost:${PORT}/ws`);
+  console.log(`WebSocket: ws://localhost:${PORT}/ws-game`);
   console.log(`API 地址: http://localhost:${PORT}/api`);
   console.log('========================================');
   console.log(`演示密室 ID: demo`);

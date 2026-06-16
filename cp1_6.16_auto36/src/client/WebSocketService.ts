@@ -12,7 +12,7 @@ class WebSocketService {
   private onConnectCallback?: () => void;
   private onDisconnectCallback?: () => void;
 
-  connect(url: string = 'ws://localhost:3001/ws'): Promise<void> {
+  connect(url: string = '/ws-game'): Promise<void> {
     return new Promise((resolve, reject) => {
       this.url = url;
       try {
