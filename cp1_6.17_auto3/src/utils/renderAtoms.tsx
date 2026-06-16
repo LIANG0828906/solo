@@ -31,7 +31,11 @@ export interface RenderResult {
   labels: React.ReactNode[];
 }
 
-export function renderAtoms(molecule: Molecule, showLabels: boolean): RenderResult {
+export function renderAtoms(
+  molecule: Molecule,
+  showLabels: boolean,
+  cameraDistance: number = 10
+): RenderResult {
   const atoms: React.ReactNode[] = molecule.atoms.map((atom, index) => (
     <mesh key={`atom-${index}`} position={[atom.x, atom.y, atom.z]}>
       <sphereGeometry args={[atom.radius, 32, 32]} />
@@ -42,13 +46,13 @@ export function renderAtoms(molecule: Molecule, showLabels: boolean): RenderResu
   const bonds: React.ReactNode[] = molecule.bonds.map((bond, index) => {
     const fromAtom = molecule.atoms[bond.from];
     const toAtom = molecule.atoms[bond.to];
-    
+
     const start = new THREE.Vector3(fromAtom.x, fromAtom.y, fromAtom.z);
     const end = new THREE.Vector3(toAtom.x, toAtom.y, toAtom.z);
     const direction = end.clone().sub(start);
     const length = direction.length();
     const midpoint = start.clone().add(end).multiplyScalar(0.5);
-    
+
     const quaternion = new THREE.Quaternion();
     quaternion.setFromUnitVectors(
       new THREE.Vector3(0, 1, 0),
@@ -67,23 +71,30 @@ export function renderAtoms(molecule: Molecule, showLabels: boolean): RenderResu
     );
   });
 
+  const scaleFactor = 10 / cameraDistance;
+
   const labels: React.ReactNode[] = showLabels
     ? molecule.atoms.map((atom, index) => (
         <Html
           key={`label-${index}`}
           position={[atom.x, atom.y + atom.radius + 0.3, atom.z]}
           center
+          distanceFactor={cameraDistance}
+          zIndexRange={[100, 0]}
+          occlude
         >
           <div
             style={{
-              background: 'rgba(0, 0, 0, 0.7)',
+              background: 'rgba(0, 0, 0, 0.75)',
               color: 'white',
-              padding: '2px 6px',
-              borderRadius: '4px',
+              padding: '3px 8px',
+              borderRadius: '6px',
               fontSize: '16px',
               fontWeight: 'bold',
               whiteSpace: 'nowrap',
               userSelect: 'none',
+              transform: `scale(${scaleFactor})`,
+              transformOrigin: 'center',
             }}
           >
             {atom.element}

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-interface MoleculeState {
+export interface MoleculeState {
   currentMoleculeId: string;
   cameraDistance: number;
   rotationY: number;

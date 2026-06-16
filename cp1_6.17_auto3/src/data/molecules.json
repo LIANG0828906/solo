@@ -1,7 +1,7 @@
 {
   "molecules": [
     {
-      "id": "h2o",
+      "id": "water",
       "name": "水",
       "formula": "H2O",
       "atoms": [
