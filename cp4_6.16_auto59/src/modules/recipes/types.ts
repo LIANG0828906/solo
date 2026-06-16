@@ -1,0 +1,109 @@
+export type CuisineType = 'chinese' | 'western' | 'japanese' | 'dessert'
+
+export const CuisineLabel: Record<CuisineType, string> = {
+  chinese: '中餐',
+  western: '西餐',
+  japanese: '日食',
+  dessert: '甜品'
+}
+
+export const CuisineColor: Record<CuisineType, string> = {
+  chinese: '#C8102E',
+  western: '#1E3A5F',
+  japanese: '#88A878',
+  dessert: '#9B7EBD'
+}
+
+export type DifficultyLevel = 1 | 2 | 3 | 4 | 5
+
+export interface Ingredient {
+  id: string
+  name: string
+  quantity: number
+  unit: string
+  emoji: string
+  category: string
+}
+
+export interface CanvasBlock {
+  id: string
+  title: string
+  description: string
+  imageUrl?: string
+  ingredients: Ingredient[]
+  position: { x: number; y: number }
+  order: number
+}
+
+export interface Recipe {
+  id: string
+  title: string
+  coverImage?: string
+  cuisine: CuisineType
+  difficulty: DifficultyLevel
+  totalTime: number
+  blocks: CanvasBlock[]
+  description: string
+  author: string
+  authorAvatar: string
+  createdAt: string
+  updatedAt: string
+  isFavorite: boolean
+  ratings: number[]
+  views: number
+}
+
+export const PRESET_INGREDIENTS: Ingredient[] = [
+  { id: 'ing-1', name: '大米', quantity: 200, unit: '克', emoji: '🍚', category: '主食' },
+  { id: 'ing-2', name: '面粉', quantity: 300, unit: '克', emoji: '🌾', category: '主食' },
+  { id: 'ing-3', name: '面条', quantity: 250, unit: '克', emoji: '🍜', category: '主食' },
+  { id: 'ing-4', name: '面包', quantity: 2, unit: '片', emoji: '🍞', category: '主食' },
+  { id: 'ing-5', name: '燕麦', quantity: 50, unit: '克', emoji: '🥣', category: '主食' },
+  { id: 'ing-6', name: '猪肉', quantity: 300, unit: '克', emoji: '🥩', category: '肉类' },
+  { id: 'ing-7', name: '牛肉', quantity: 250, unit: '克', emoji: '🥩', category: '肉类' },
+  { id: 'ing-8', name: '鸡肉', quantity: 400, unit: '克', emoji: '🍗', category: '肉类' },
+  { id: 'ing-9', name: '鸭肉', quantity: 500, unit: '克', emoji: '🦆', category: '肉类' },
+  { id: 'ing-10', name: '羊肉', quantity: 300, unit: '克', emoji: '🍖', category: '肉类' },
+  { id: 'ing-11', name: '培根', quantity: 100, unit: '克', emoji: '🥓', category: '肉类' },
+  { id: 'ing-12', name: '火腿', quantity: 150, unit: '克', emoji: '🍖', category: '肉类' },
+  { id: 'ing-13', name: '三文鱼', quantity: 200, unit: '克', emoji: '🐟', category: '海鲜' },
+  { id: 'ing-14', name: '虾', quantity: 250, unit: '克', emoji: '🦐', category: '海鲜' },
+  { id: 'ing-15', name: '螃蟹', quantity: 2, unit: '只', emoji: '🦀', category: '海鲜' },
+  { id: 'ing-16', name: '鱿鱼', quantity: 200, unit: '克', emoji: '🦑', category: '海鲜' },
+  { id: 'ing-17', name: '蛤蜊', quantity: 300, unit: '克', emoji: '🦪', category: '海鲜' },
+  { id: 'ing-18', name: '鸡蛋', quantity: 3, unit: '个', emoji: '🥚', category: '蛋奶' },
+  { id: 'ing-19', name: '牛奶', quantity: 250, unit: '毫升', emoji: '🥛', category: '蛋奶' },
+  { id: 'ing-20', name: '黄油', quantity: 50, unit: '克', emoji: '🧈', category: '蛋奶' },
+  { id: 'ing-21', name: '奶酪', quantity: 100, unit: '克', emoji: '🧀', category: '蛋奶' },
+  { id: 'ing-22', name: '奶油', quantity: 150, unit: '毫升', emoji: '🍦', category: '蛋奶' },
+  { id: 'ing-23', name: '酸奶', quantity: 200, unit: '克', emoji: '🥛', category: '蛋奶' },
+  { id: 'ing-24', name: '番茄', quantity: 2, unit: '个', emoji: '🍅', category: '蔬菜' },
+  { id: 'ing-25', name: '土豆', quantity: 3, unit: '个', emoji: '🥔', category: '蔬菜' },
+  { id: 'ing-26', name: '胡萝卜', quantity: 2, unit: '根', emoji: '🥕', category: '蔬菜' },
+  { id: 'ing-27', name: '西兰花', quantity: 1, unit: '颗', emoji: '🥦', category: '蔬菜' },
+  { id: 'ing-28', name: '白菜', quantity: 300, unit: '克', emoji: '🥬', category: '蔬菜' },
+  { id: 'ing-29', name: '黄瓜', quantity: 2, unit: '根', emoji: '🥒', category: '蔬菜' },
+  { id: 'ing-30', name: '茄子', quantity: 2, unit: '根', emoji: '🍆', category: '蔬菜' },
+  { id: 'ing-31', name: '辣椒', quantity: 3, unit: '个', emoji: '🌶️', category: '蔬菜' },
+  { id: 'ing-32', name: '洋葱', quantity: 1, unit: '个', emoji: '🧅', category: '蔬菜' },
+  { id: 'ing-33', name: '大蒜', quantity: 5, unit: '瓣', emoji: '🧄', category: '蔬菜' },
+  { id: 'ing-34', name: '生姜', quantity: 30, unit: '克', emoji: '🫚', category: '蔬菜' },
+  { id: 'ing-35', name: '玉米', quantity: 2, unit: '根', emoji: '🌽', category: '蔬菜' },
+  { id: 'ing-36', name: '蘑菇', quantity: 200, unit: '克', emoji: '🍄', category: '蔬菜' },
+  { id: 'ing-37', name: '菠菜', quantity: 200, unit: '克', emoji: '🥬', category: '蔬菜' },
+  { id: 'ing-38', name: '生菜', quantity: 150, unit: '克', emoji: '🥗', category: '蔬菜' },
+  { id: 'ing-39', name: '苹果', quantity: 2, unit: '个', emoji: '🍎', category: '水果' },
+  { id: 'ing-40', name: '香蕉', quantity: 3, unit: '根', emoji: '🍌', category: '水果' },
+  { id: 'ing-41', name: '橙子', quantity: 2, unit: '个', emoji: '🍊', category: '水果' },
+  { id: 'ing-42', name: '草莓', quantity: 200, unit: '克', emoji: '🍓', category: '水果' },
+  { id: 'ing-43', name: '蓝莓', quantity: 100, unit: '克', emoji: '🫐', category: '水果' },
+  { id: 'ing-44', name: '柠檬', quantity: 1, unit: '个', emoji: '🍋', category: '水果' },
+  { id: 'ing-45', name: '白砂糖', quantity: 50, unit: '克', emoji: '🍬', category: '调味' },
+  { id: 'ing-46', name: '食盐', quantity: 5, unit: '克', emoji: '🧂', category: '调味' },
+  { id: 'ing-47', name: '酱油', quantity: 20, unit: '毫升', emoji: '🫗', category: '调味' },
+  { id: 'ing-48', name: '醋', quantity: 15, unit: '毫升', emoji: '🍶', category: '调味' },
+  { id: 'ing-49', name: '食用油', quantity: 30, unit: '毫升', emoji: '🫒', category: '调味' },
+  { id: 'ing-50', name: '料酒', quantity: 20, unit: '毫升', emoji: '🍶', category: '调味' }
+]
+
+export const UNITS = ['克', '毫升', '个', '片', '根', '颗', '只', '瓣', '勺', '茶匙', '杯']
