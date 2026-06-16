@@ -5,6 +5,15 @@ export interface Particle {
   vy: number;
   life: number;
   maxLife: number;
+  color: string;
+}
+
+export interface GroundCrack {
+  x: number;
+  y: number;
+  lines: { angle: number; length: number }[];
+  life: number;
+  maxLife: number;
 }
 
 export interface Player {
@@ -140,8 +149,31 @@ export function drawParticles(
   for (const particle of particles) {
     const alpha = particle.life / particle.maxLife;
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = particle.color;
     ctx.fillRect(particle.x, particle.y, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+}
+
+export function drawGroundCracks(
+  ctx: CanvasRenderingContext2D,
+  cracks: GroundCrack[],
+  scale: number
+): void {
+  ctx.lineWidth = 2 * scale;
+  ctx.lineCap = 'round';
+  for (const crack of cracks) {
+    const alpha = crack.life / crack.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#ffffff';
+    for (const line of crack.lines) {
+      ctx.beginPath();
+      ctx.moveTo(crack.x, crack.y);
+      const endX = crack.x + Math.cos(line.angle) * line.length;
+      const endY = crack.y + Math.sin(line.angle) * line.length;
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    }
   }
   ctx.globalAlpha = 1;
 }

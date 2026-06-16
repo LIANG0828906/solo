@@ -2,8 +2,8 @@ import { Player, Enemy } from './entities';
 import { updateGameState, resetGameState, type GameState } from './gameState';
 import {
   drawBackground, drawHealthBar, drawParticles, drawDamageFlash,
-  drawUI, drawVictory, drawControlsHint, drawPlayer, drawEnemy,
-  type Particle, type Hitbox
+  drawUI, drawVictory, drawControlsHint, drawPlayer, drawEnemy, drawGroundCracks,
+  type Particle, type Hitbox, type GroundCrack
 } from './rendering';
 
 const WAVE_INTERVAL = 15;
@@ -33,6 +33,7 @@ export class GameEngine {
   enemies: Enemy[];
   particles: Particle[];
   victoryParticles: Particle[];
+  groundCracks: GroundCrack[];
   healthPotions: HealthPotion[];
   gameState: GameState;
   keys: Set<string>;
@@ -80,6 +81,7 @@ export class GameEngine {
     this.enemies = [];
     this.particles = [];
     this.victoryParticles = [];
+    this.groundCracks = [];
     this.healthPotions = [];
     this.gameState = resetGameState();
 
@@ -99,6 +101,7 @@ export class GameEngine {
     this.enemies = [];
     this.particles = [];
     this.victoryParticles = [];
+    this.groundCracks = [];
     this.healthPotions = [];
     this.gameState = resetGameState();
     this.waveTimer = 0;
@@ -164,6 +167,7 @@ export class GameEngine {
     this.player.update(dt, this.keys, this.baseWidth, groundY, pillarWidth);
     this.updateEnemies(dt, groundY);
     this.updateParticles(dt);
+    this.updateGroundCracks(dt);
     this.updateHealthPotions(dt, groundY);
     this.checkCollisions();
     this.updateWaveSpawning(dt);
@@ -183,7 +187,7 @@ export class GameEngine {
       enemy.update(dt, this.player.x, this.player.y, groundY);
 
       if (enemy.health <= 0) {
-        this.createHitParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
+        this.createHitParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, 1);
         if (Math.random() < 0.5) {
           this.healthPotions.push({
             x: enemy.x + enemy.width / 2 - 10,
@@ -237,6 +241,7 @@ export class GameEngine {
           vy: -Math.random() * 8 - 2,
           life: 2,
           maxLife: 2,
+          color: '#ffffff',
         });
       }
     }
@@ -305,7 +310,20 @@ export class GameEngine {
     this.enforceEntityLimit();
   }
 
-  createHitParticles(x: number, y: number): void {
+  createHitParticles(x: number, y: number, attackStage: number = 1): void {
+    let color: string;
+    switch (attackStage) {
+      case 2:
+        color = '#FFD700';
+        break;
+      case 3:
+        color = '#8B0000';
+        break;
+      default:
+        color = '#ffffff';
+        break;
+    }
+
     for (let i = 0; i < 8; i++) {
       const angle = (Math.PI * 2 * i) / 8;
       const speed = 3 + Math.random() * 2;
@@ -316,9 +334,38 @@ export class GameEngine {
         vy: Math.sin(angle) * speed,
         life: 0.3,
         maxLife: 0.3,
+        color,
       });
     }
     this.enforceEntityLimit();
+  }
+
+  createGroundCrack(x: number, y: number): void {
+    const lines: { angle: number; length: number }[] = [];
+    const lineCount = 6;
+    for (let i = 0; i < lineCount; i++) {
+      const angle = -Math.PI + (Math.PI * i) / (lineCount - 1);
+      const length = 30 + Math.random() * 20;
+      lines.push({ angle, length });
+    }
+
+    this.groundCracks.push({
+      x,
+      y,
+      lines,
+      life: 0.2,
+      maxLife: 0.2,
+    });
+    this.enforceEntityLimit();
+  }
+
+  private updateGroundCracks(dt: number): void {
+    for (let i = this.groundCracks.length - 1; i >= 0; i--) {
+      this.groundCracks[i].life -= dt;
+      if (this.groundCracks[i].life <= 0) {
+        this.groundCracks.splice(i, 1);
+      }
+    }
   }
 
   createVictoryParticles(): void {
@@ -330,15 +377,21 @@ export class GameEngine {
         vy: -Math.random() * 10 - 3,
         life: 3,
         maxLife: 3,
+        color: '#ffffff',
       });
     }
   }
 
   private enforceEntityLimit(): void {
-    const total = 1 + this.enemies.length + this.particles.length + this.victoryParticles.length + this.healthPotions.length;
+    const total = 1 + this.enemies.length + this.particles.length + this.victoryParticles.length + this.groundCracks.length + this.healthPotions.length;
     if (total > MAX_ENTITIES) {
-      const excess = total - MAX_ENTITIES;
-      this.particles.splice(0, Math.min(excess, this.particles.length));
+      let excess = total - MAX_ENTITIES;
+      const removeFromParticles = Math.min(excess, this.particles.length);
+      this.particles.splice(0, removeFromParticles);
+      excess -= removeFromParticles;
+      if (excess > 0) {
+        this.groundCracks.splice(0, Math.min(excess, this.groundCracks.length));
+      }
     }
   }
 
@@ -351,7 +404,12 @@ export class GameEngine {
             const damage = this.player.getAttackDamage();
             const knockbackDir = this.player.facingRight ? 1 : -1;
             enemy.takeDamage(damage, knockbackDir);
-            this.createHitParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
+            this.createHitParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, this.player.attackStage);
+
+            if (this.player.attackStage === 3) {
+              const groundY = this.baseHeight - 80;
+              this.createGroundCrack(enemy.x + enemy.width / 2, groundY);
+            }
 
             const newCombo = this.gameState.currentCombo + 1;
             this.gameState = updateGameState(this.gameState, {
@@ -432,6 +490,7 @@ export class GameEngine {
     drawPlayer(this.ctx, this.player, this.scale);
 
     drawParticles(this.ctx, this.particles);
+    drawGroundCracks(this.ctx, this.groundCracks, this.scale);
 
     this.ctx.fillStyle = '#ef4444';
     for (const potion of this.healthPotions) {
