@@ -13,6 +13,8 @@ const SignaturePad: React.FC = () => {
   const [error, setError] = useState<string>('')
   const [submittedRecordId, setSubmittedRecordId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSigning, setIsSigning] = useState(false)
+  const [hasSignature, setHasSignature] = useState(false)
 
   const sigCanvasRef = useRef<SignatureCanvas>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -25,9 +27,16 @@ const SignaturePad: React.FC = () => {
     }
   }, [trackingNumber])
 
+  const handleSignBegin = () => {
+    setIsSigning(true)
+    setHasSignature(true)
+  }
+
   const clearSignature = () => {
     sigCanvasRef.current?.clear()
     setSignatureBase64('')
+    setIsSigning(false)
+    setHasSignature(false)
   }
 
   const confirmSignature = () => {
@@ -157,11 +166,15 @@ const SignaturePad: React.FC = () => {
 
         <div className="section">
           <h3 className="section-title">收件人电子签名</h3>
-          <div className="signature-wrapper">
+          <div className="signature-wrapper-dotted">
+            {!hasSignature && (
+              <span className="signature-hint">请在此处签名</span>
+            )}
             <SignatureCanvas
               ref={sigCanvasRef}
               penColor="#1A237E"
               backgroundColor="#FAF5F0"
+              onBegin={handleSignBegin}
               canvasProps={{
                 width: 320,
                 height: 160,
@@ -169,9 +182,16 @@ const SignaturePad: React.FC = () => {
               }}
             />
           </div>
-          {signatureBase64 && (
-            <div className="signature-preview">
-              <span className="preview-badge">✓ 已确认签名</span>
+          {(hasSignature || signatureBase64) && (
+            <div className="signature-actions">
+              {signatureBase64 ? (
+                <span className="preview-badge">✓ 已确认签名</span>
+              ) : (
+                <span className="sign-status-badge">已绘制签名，请确认</span>
+              )}
+              <button className="btn btn-clear-small" onClick={clearSignature}>
+                清除重签
+              </button>
             </div>
           )}
           <div className="button-row">
@@ -186,25 +206,46 @@ const SignaturePad: React.FC = () => {
 
         <div className="section">
           <h3 className="section-title">货物照片上传</h3>
-          <div className="photo-upload-area" onClick={() => fileInputRef.current?.click()}>
-            {photoBase64 ? (
-              <img src={photoBase64} alt="货物照片预览" className="photo-thumbnail" />
-            ) : (
+          {photoBase64 ? (
+            <div className="photo-preview-section">
+              <div className="photo-preview-wrapper">
+                <img src={photoBase64} alt="货物照片预览" className="photo-preview-large" />
+                <div className="photo-info">
+                  <span className="photo-status-badge">✓ 已选择照片</span>
+                </div>
+              </div>
+              <button
+                className="btn btn-retake"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                📷 重新拍照
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png"
+                capture="environment"
+                onChange={handlePhotoSelect}
+                className="hidden-input"
+              />
+            </div>
+          ) : (
+            <div className="photo-upload-area" onClick={() => fileInputRef.current?.click()}>
               <div className="photo-placeholder">
                 <span className="photo-icon">📷</span>
                 <span className="photo-text">点击拍照或从相册选择</span>
                 <span className="photo-hint">支持JPEG/PNG，不超过5MB</span>
               </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png"
-              capture="environment"
-              onChange={handlePhotoSelect}
-              className="hidden-input"
-            />
-          </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png"
+                capture="environment"
+                onChange={handlePhotoSelect}
+                className="hidden-input"
+              />
+            </div>
+          )}
         </div>
 
         {error && <div className="error-message">{error}</div>}

@@ -117,6 +117,95 @@
   background: #FAF5F0;
 }
 
+.signature-wrapper-dotted {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px dotted #BDBDBD;
+  background: #FAF5F0;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.signature-wrapper-dotted:hover {
+  border-color: #9E9E9E;
+  background: #F5F0EA;
+}
+
+.signature-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #9E9E9E;
+  font-size: 16px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.3s ease;
+  animation: hintPulse 2s ease-in-out infinite;
+}
+
+@keyframes hintPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.signature-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 2px 0;
+  animation: fadeInDown 0.3s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sign-status-badge {
+  background: #FFF3E0;
+  color: #E65100;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid #FFCC80;
+}
+
+.btn-clear-small {
+  height: 32px;
+  padding: 0 16px;
+  font-size: 13px;
+  background: #FFFFFF;
+  color: #D32F2F;
+  border: 1px solid #FFCDD2;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-clear-small:hover {
+  background: #FEECEC;
+  border-color: #D32F2F;
+  transform: translateY(-1px);
+}
+
 .signature-canvas {
   width: 320px;
   height: 160px;
@@ -230,6 +319,105 @@
   border-radius: 4px;
   border: 2px solid #FFFFFF;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.photo-preview-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.photo-preview-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px;
+  background: #F8FAFC;
+  border-radius: 10px;
+  border: 2px solid #E2E8F0;
+}
+
+.photo-preview-large {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+
+.photo-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.photo-status-badge {
+  align-self: flex-start;
+  background: #E8F5E9;
+  color: #2E7D32;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #A5D6A7;
+}
+
+.btn-retake {
+  height: 44px;
+  padding: 0 20px;
+  background: #FFFFFF;
+  color: #1565C0;
+  border: 2px solid #90CAF9;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-retake:hover {
+  background: #E3F2FD;
+  border-color: #1565C0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(21, 101, 192, 0.15);
+}
+
+@media (max-width: 767px) {
+  .photo-preview-wrapper {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .photo-info {
+    align-items: center;
+  }
+
+  .photo-status-badge {
+    align-self: center;
+  }
 }
 
 .hidden-input {

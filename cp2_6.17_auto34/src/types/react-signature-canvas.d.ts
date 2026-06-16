@@ -11,6 +11,8 @@ declare module 'react-signature-canvas' {
     minWidth?: number
     maxWidth?: number
     dotSize?: number | (() => number)
+    onBegin?: () => void
+    onEnd?: () => void
   }
 
   class SignatureCanvas extends Component<SignatureCanvasProps> {
