@@ -7,6 +7,7 @@ interface MindMapState {
   rawText: string;
   parsedTree: MindMapNode | null;
   totalNodes: number;
+  rootInitialPosition: Position | null;
   setText: (text: string, canvasCenter: Position) => void;
   toggleCollapse: (nodeId: string) => void;
   updateNodePosition: (nodeId: string, position: Position) => void;
@@ -39,6 +40,7 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
   rawText: '',
   parsedTree: null,
   totalNodes: 0,
+  rootInitialPosition: null,
 
   setText: (text: string, canvasCenter: Position) => {
     const parsed = parseMarkdown(text);
@@ -48,12 +50,14 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
         rawText: text,
         parsedTree: layoutResult.root,
         totalNodes: countNodes(layoutResult.root),
+        rootInitialPosition: { ...canvasCenter },
       });
     } else {
       set({
         rawText: text,
         parsedTree: null,
         totalNodes: 0,
+        rootInitialPosition: null,
       });
     }
   },
@@ -86,21 +90,30 @@ export const useMindMapStore = create<MindMapState>((set, get) => ({
   },
 
   resetPositions: (canvasCenter: Position) => {
-    const { parsedTree, rawText } = get();
+    const { parsedTree, rawText, rootInitialPosition } = get();
     if (!parsedTree) return;
 
     let newTree: MindMapNode | null;
+    const center = rootInitialPosition || canvasCenter;
 
     if (rawText) {
       const parsed = parseMarkdown(rawText);
       if (parsed) {
-        const layoutResult = calculateRadialLayout(parsed, canvasCenter);
+        const layoutResult = calculateRadialLayout(parsed, center);
         newTree = layoutResult.root;
       } else {
-        newTree = resetAllPositions(parsedTree);
+        newTree = resetAllPositions({
+          ...parsedTree,
+          position: { ...center },
+          initialPosition: { ...center },
+        });
       }
     } else {
-      newTree = resetAllPositions(parsedTree);
+      newTree = resetAllPositions({
+        ...parsedTree,
+        position: { ...center },
+        initialPosition: { ...center },
+      });
     }
 
     set({ parsedTree: newTree });

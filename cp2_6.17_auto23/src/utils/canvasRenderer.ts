@@ -119,15 +119,29 @@ export function drawBezierConnection(
   const parentColor = NODE_COLORS[parentNode.level].border;
   const childColor = NODE_COLORS[childNode.level].border;
 
-  const gradient = ctx.createLinearGradient(startX, startY, endX, endY);
+  const gradientStartX = startX;
+  const gradientStartY = startY;
+  const gradientEndX = endX;
+  const gradientEndY = endY;
+
+  const gradient = ctx.createLinearGradient(
+    gradientStartX,
+    gradientStartY,
+    gradientEndX,
+    gradientEndY
+  );
   gradient.addColorStop(0, parentColor);
   gradient.addColorStop(1, childColor);
 
   ctx.save();
   ctx.globalAlpha = childOpacity;
 
-  const isDragging = draggedNodeId === parentNode.id || draggedNodeId === childNode.id;
-  const lineWidth = isDragging ? LINE_CONFIG.dragWidth : LINE_CONFIG.defaultWidth;
+  const isParentDragging = draggedNodeId === parentNode.id;
+  const isChildDragging = draggedNodeId === childNode.id;
+  const isConnectionDragging = isParentDragging || isChildDragging;
+  const lineWidth = isConnectionDragging
+    ? LINE_CONFIG.draggingLineWidth
+    : LINE_CONFIG.lineWidth;
 
   ctx.beginPath();
   ctx.moveTo(startX, startY);
@@ -135,6 +149,7 @@ export function drawBezierConnection(
   ctx.strokeStyle = gradient;
   ctx.lineWidth = lineWidth;
   ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   ctx.stroke();
 
   ctx.restore();

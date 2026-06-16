@@ -286,7 +286,7 @@ export default function MindMap({ initialTree }: MindMapProps) {
         if (hoveredNodeId !== found.id) {
           setHoveredNodeId(found.id);
         }
-        if (isTextTruncated(found.text) || found.level >= 1) {
+        if (isTextTruncated(found.text)) {
           const bounds = getNodeBounds(found);
           setTooltipInfo({
             visible: true,

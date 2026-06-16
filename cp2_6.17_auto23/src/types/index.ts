@@ -94,8 +94,8 @@ export const ANIMATION_CONFIG = {
 };
 
 export const LINE_CONFIG = {
-  defaultWidth: 1,
-  dragWidth: 2,
+  lineWidth: 1,
+  draggingLineWidth: 2,
   controlPointOffset: 50,
   color: '#666666',
 };
