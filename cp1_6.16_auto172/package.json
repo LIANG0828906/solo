@@ -1,0 +1,34 @@
+{
+  "name": "coffee-exchange-platform",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "client:dev": "vite",
+    "server:dev": "node server/routes.js",
+    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
+    "build": "tsc -b && vite build",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "antd": "^5.12.0",
+    "@ant-design/icons": "^5.2.6",
+    "recharts": "^2.10.0",
+    "zustand": "^4.4.7",
+    "uuid": "^9.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.21.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/uuid": "^9.0.7",
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "concurrently": "^8.2.2"
+  }
+}
