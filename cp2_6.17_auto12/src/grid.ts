@@ -7,6 +7,10 @@ export const PHOTON_RADIUS = 25;
 export class Grid {
   cells: (Photon | null)[][];
   nextPhotonColor: PhotonColor;
+  shiftDuration: number = 0.5;
+  fadeDuration: number = 0.3;
+  scoreForLastShift: number = 0;
+  scorePerShift: number = 100;
 
   constructor() {
     this.cells = [];
@@ -208,6 +212,14 @@ export class Grid {
     if (this.findSuperpositions().length > 0) return false;
     if (this.findCollapses().length > 0) return false;
     return true;
+  }
+
+  shouldTriggerShift(score: number): boolean {
+    return score - this.scoreForLastShift >= this.scorePerShift;
+  }
+
+  markShiftTriggered(score: number) {
+    this.scoreForLastShift = Math.floor(score / this.scorePerShift) * this.scorePerShift;
   }
 
   clear() {

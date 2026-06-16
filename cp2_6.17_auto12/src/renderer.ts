@@ -467,4 +467,176 @@ export class Renderer {
   easeOutQuad(t: number): number {
     return 1 - (1 - t) * (1 - t);
   }
+
+  drawReturningPhoton(
+    photon: Photon,
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    progress: number,
+    time: number
+  ) {
+    const e = this.easeOutBack(progress);
+    const prevX = photon.x;
+    const prevY = photon.y;
+    photon.x = startX + (endX - startX) * e;
+    photon.y = startY + (endY - startY) * e;
+    this.drawPhoton(photon, time);
+    photon.x = prevX;
+    photon.y = prevY;
+  }
+
+  drawBurstParticles(particles: BurstParticle[]) {
+    this.drawParticles(particles);
+  }
+
+  drawSuperposeMerge(
+    photonA: Photon,
+    photonB: Photon,
+    origAX: number,
+    origAY: number,
+    origBX: number,
+    origBY: number,
+    progress: number,
+    time: number
+  ) {
+    const ctx = this.ctx;
+    const dur = 0.6;
+    const t = this.easeInOutCubic(progress);
+    const ax = origAX + (origBX - origAX) * t * 0.5;
+    const ay = origAY + (origBY - origAY) * t * 0.5;
+    const bx = origBX + (origAX - origBX) * t * 0.5;
+    const by = origBY + (origAY - origBY) * t * 0.5;
+    const config = COLOR_CONFIG[photonA.color];
+
+    const prevAX = photonA.x;
+    const prevAY = photonA.y;
+    const prevAS = photonA.scale;
+    const prevAO = photonA.opacity;
+    photonA.x = ax;
+    photonA.y = ay;
+    photonA.scale = 1 + t * 0.2;
+    this.drawPhoton(photonA, time);
+    photonA.x = prevAX;
+    photonA.y = prevAY;
+    photonA.scale = prevAS;
+    photonA.opacity = prevAO;
+
+    if (t < 0.95) {
+      const prevBX = photonB.x;
+      const prevBY = photonB.y;
+      const prevBS = photonB.scale;
+      const prevBO = photonB.opacity;
+      photonB.x = bx;
+      photonB.y = by;
+      photonB.opacity = 1 - t;
+      this.drawPhoton(photonB, time);
+      photonB.x = prevBX;
+      photonB.y = prevBY;
+      photonB.scale = prevBS;
+      photonB.opacity = prevBO;
+    }
+
+    if (progress > 0.25) {
+      const rp = (progress - 0.25) / 0.75;
+      const midX = (origAX + origBX) / 2;
+      const midY = (origAY + origBY) / 2;
+      const alpha = (1 - rp) * 0.5;
+      ctx.save();
+      ctx.strokeStyle = `rgba(${config.rgb}, ${alpha})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(midX, midY, rp * CELL_SIZE * 0.9, 0, Math.PI * 2);
+      ctx.stroke();
+      if (rp > 0.3) {
+        const alpha2 = (1 - rp) * 0.35;
+        ctx.strokeStyle = `rgba(${config.rgb}, ${alpha2})`;
+        ctx.beginPath();
+        ctx.arc(midX, midY, (rp - 0.3) * CELL_SIZE * 0.8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  drawCollapseBurst(
+    photon: Photon,
+    progress: number,
+    time: number,
+    particles: BurstParticle[]
+  ) {
+    const ctx = this.ctx;
+    const config = COLOR_CONFIG[photon.color];
+    const flash = Math.abs(Math.sin(progress * 20 * Math.PI));
+    const radius = PHOTON_RADIUS * (photon.scale || 1) * (1 + progress * 0.5);
+
+    const prevO = photon.opacity;
+    const prevS = photon.scale;
+    photon.opacity = 0.4 + flash * 0.6;
+    photon.scale = (photon.scale || 1) * (1 + progress * 0.3) * (1 + flash * 0.1);
+    this.drawPhoton(photon, time);
+    photon.opacity = prevO;
+    photon.scale = prevS;
+
+    ctx.save();
+    ctx.globalAlpha = flash * (1 - progress) * 0.6;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(photon.x, photon.y, radius * 1.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    if (progress >= 0.8 && particles.length === 0) {
+      const count = 8 + Math.floor(Math.random() * 5);
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+        const speed = 80 + Math.random() * 120;
+        particles.push({
+          x: photon.x,
+          y: photon.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 0.6 + Math.random() * 0.4,
+          maxLife: 0.6 + Math.random() * 0.4,
+          color: Math.random() > 0.5 ? config.base : config.glow,
+          size: 2 + Math.random() * 3,
+        });
+      }
+    }
+  }
+
+  drawDragPhoton(
+    photon: Photon,
+    dragX: number,
+    dragY: number,
+    ghostX: number,
+    ghostY: number,
+    time: number
+  ) {
+    const ctx = this.ctx;
+    const config = COLOR_CONFIG[photon.color];
+    const quantum = photon.getQuantumOffset(time);
+    const radius = Math.max(1, PHOTON_RADIUS * photon.scale * quantum.extraScale);
+
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.translate(ghostX + quantum.dx, ghostY + quantum.dy);
+    const ghostGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 1.5);
+    ghostGrad.addColorStop(0, `rgba(${config.rgb}, 0.7)`);
+    ghostGrad.addColorStop(1, `rgba(${config.rgb}, 0)`);
+    ctx.fillStyle = ghostGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    const prevX = photon.x;
+    const prevY = photon.y;
+    photon.x = dragX;
+    photon.y = dragY;
+    this.drawPhoton(photon, time);
+    photon.x = prevX;
+    photon.y = prevY;
+  }
 }

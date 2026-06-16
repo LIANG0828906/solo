@@ -78,6 +78,9 @@ export class GameLoop {
   lastTimestamp: number;
   running: boolean;
   animFrameId: number;
+  frameRenderTime: number;
+  maxFrameRenderTime: number;
+  frameCount: number;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -140,6 +143,9 @@ export class GameLoop {
     this.lastTimestamp = 0;
     this.running = false;
     this.animFrameId = 0;
+    this.frameRenderTime = 0;
+    this.maxFrameRenderTime = 12;
+    this.frameCount = 0;
 
     this.initGame();
     this.setupInput();
@@ -473,8 +479,11 @@ export class GameLoop {
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
         const p = this.grid.getPhoton(x, y);
-        if (p && p.energyLevel >= 2) {
-          p.haloAngle += dt * 0.5;
+        if (p) {
+          p.updateAnimation(dt);
+          if (p.energyLevel >= 2) {
+            p.haloAngle += dt * 0.5;
+          }
         }
       }
     }
@@ -564,7 +573,7 @@ export class GameLoop {
     const t = Math.min(1, this.phaseTimer / dur);
     const flash = Math.abs(Math.sin(t * Math.PI * 10));
     this.collapsePhotonRef.opacity = 0.4 + flash * 0.6;
-    this.collapsePhotonRef.scale = (1.2 || 1) * (1 + t * 0.3) * (1 + flash * 0.1);
+    this.collapsePhotonRef.scale = (this.collapsePhotonRef.targetScale || 1) * (1 + t * 0.3) * (1 + flash * 0.1);
 
     for (const p of this.collapseRemovedList) {
       if (p !== this.collapsePhotonRef) {
@@ -637,33 +646,63 @@ export class GameLoop {
         const photon = this.grid.getPhoton(x, y);
         if (!photon) continue;
         if (photon === this.dragPhoton) continue;
+        if (this.phase === GamePhase.Superposing && (photon === this.superposeA || photon === this.superposeB)) continue;
         if (this.phase === GamePhase.Collapsing && this.collapseRemovedList.includes(photon)) continue;
+        if (this.phase === GamePhase.Returning && photon === this.returnPhotonRef) continue;
+        if (this.phase === GamePhase.Moving && photon === this.movePhotonRef) continue;
         if (this.shiftRemoved.includes(photon)) continue;
         if (this.shiftNewPhotons.includes(photon)) continue;
         this.renderer.drawPhoton(photon, time);
       }
     }
 
-    if (this.phase === GamePhase.Superposing && this.superposeA && this.superposeB) {
-      this.renderer.drawPhoton(this.superposeA, time);
-      this.renderer.drawPhoton(this.superposeB, time);
+    if (this.phase === GamePhase.Moving && this.movePhotonRef) {
+      const dur = 0.2;
+      const t = Math.min(1, this.phaseTimer / dur);
+      const e = this.renderer.easeOutQuad(t);
+      const nx = this.moveStartX + (this.moveEndX - this.moveStartX) * e;
+      const ny = this.moveStartY + (this.moveEndY - this.moveStartY) * e;
+      const prevX = this.movePhotonRef.x;
+      const prevY = this.movePhotonRef.y;
+      this.movePhotonRef.x = nx;
+      this.movePhotonRef.y = ny;
+      this.renderer.drawPhoton(this.movePhotonRef, time);
+      this.movePhotonRef.x = prevX;
+      this.movePhotonRef.y = prevY;
     }
 
-    if (this.phase === GamePhase.Collapsing) {
+    if (this.phase === GamePhase.Returning && this.returnPhotonRef) {
+      const dur = 0.3;
+      const t = Math.min(1, this.phaseTimer / dur);
+      this.renderer.drawReturningPhoton(
+        this.returnPhotonRef,
+        this.returnStartX, this.returnStartY,
+        this.returnEndX, this.returnEndY,
+        t, time
+      );
+    }
+
+    if (this.phase === GamePhase.Superposing && this.superposeA && this.superposeB) {
+      const dur = 0.6;
+      const t = Math.min(1, this.phaseTimer / dur);
+      this.renderer.drawSuperposeMerge(
+        this.superposeA, this.superposeB,
+        this.superposeAOrigX, this.superposeAOrigY,
+        this.superposeBOrigX, this.superposeBOrigY,
+        t, time
+      );
+    }
+
+    if (this.phase === GamePhase.Collapsing && this.collapsePhotonRef) {
+      const prog = Math.min(1, this.phaseTimer / 0.4);
+      this.renderer.drawCollapseBurst(this.collapsePhotonRef, prog, time, this.burstParticles);
       for (const p of this.collapseRemovedList) {
-        this.renderer.drawPhoton(p, time);
-      }
-      if (this.collapsePhotonRef) {
-        const prog = Math.min(1, this.phaseTimer / 0.4);
-        const flash = Math.abs(Math.sin(prog * Math.PI * 10));
-        const r = PHOTON_RADIUS * (this.collapsePhotonRef.scale || 1) * (1 + prog * 0.3);
-        ctx.save();
-        ctx.globalAlpha = flash * 0.5;
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(this.collapsePhotonRef.x, this.collapsePhotonRef.y, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        if (p !== this.collapsePhotonRef) {
+          const prevO = p.opacity;
+          p.opacity = 0.3 + Math.abs(Math.sin(prog * 10 * Math.PI)) * 0.3;
+          this.renderer.drawPhoton(p, time);
+          p.opacity = prevO;
+        }
       }
     }
 
@@ -675,8 +714,12 @@ export class GameLoop {
     }
 
     if (this.phase === GamePhase.Dragging && this.dragPhoton) {
-      this.renderer.drawDragGhost(this.dragPhoton, this.dragOrigPixelX, this.dragOrigPixelY, time);
-      this.renderer.drawPhoton(this.dragPhoton, time);
+      this.renderer.drawDragPhoton(
+        this.dragPhoton,
+        this.dragX, this.dragY,
+        this.dragOrigPixelX, this.dragOrigPixelY,
+        time
+      );
     }
 
     this.renderer.drawParticles(this.burstParticles);
@@ -700,8 +743,22 @@ export class GameLoop {
     if (!this.running) return;
     const dt = Math.min((timestamp - this.lastTimestamp) / 1000, 0.05);
     this.lastTimestamp = timestamp;
+    this.frameCount++;
+
+    const updateStart = performance.now();
     this.update(dt);
+    const renderStart = performance.now();
     this.render();
+    const renderEnd = performance.now();
+
+    const frameTime = renderEnd - updateStart;
+    this.frameRenderTime = frameTime;
+    if (frameTime > this.maxFrameRenderTime) {
+      if (this.frameCount % 60 === 0) {
+        console.warn(`[QuantumShift] Frame time exceeded ${this.maxFrameRenderTime}ms: ${frameTime.toFixed(2)}ms`);
+      }
+    }
+
     this.animFrameId = requestAnimationFrame(this.loop);
   };
 

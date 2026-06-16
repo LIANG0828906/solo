@@ -44,6 +44,7 @@ export class Photon {
   energyLevel: number;
   state: PhotonState;
   stateTime: number;
+  animState: number;
   x: number;
   y: number;
   targetX: number;
@@ -53,6 +54,11 @@ export class Photon {
   opacity: number;
   haloAngle: number;
   particles: BurstParticle[];
+  offsetDX: number;
+  offsetDY: number;
+  quantumScale: number;
+  quantumRotation: number;
+  quantumAlpha: number;
 
   constructor(color: PhotonColor, gridX: number, gridY: number) {
     this.color = color;
@@ -61,6 +67,7 @@ export class Photon {
     this.energyLevel = 1;
     this.state = PhotonState.Normal;
     this.stateTime = 0;
+    this.animState = 0;
     this.x = 0;
     this.y = 0;
     this.targetX = 0;
@@ -70,26 +77,66 @@ export class Photon {
     this.opacity = 1;
     this.haloAngle = 0;
     this.particles = [];
+    this.offsetDX = 0;
+    this.offsetDY = 0;
+    this.quantumScale = 1;
+    this.quantumRotation = 0;
+    this.quantumAlpha = 1;
   }
 
-  getQuantumOffset(time: number): { dx: number; dy: number; extraScale: number; rotation: number; extraAlpha: number } {
+  updateAnimation(dt: number) {
+    this.animState += dt;
     switch (this.color) {
       case 'red': {
-        const dy = Math.sin(time * 8) * 4;
-        return { dx: 0, dy, extraScale: 1, rotation: 0, extraAlpha: 1 };
+        this.offsetDY = Math.sin(this.animState * 8) * 4;
+        this.offsetDX = 0;
+        this.quantumScale = 1;
+        this.quantumRotation = 0;
+        this.quantumAlpha = 1;
+        break;
       }
       case 'blue': {
-        const s = 1 + Math.sin(time * 2) * 0.1;
-        return { dx: 0, dy: 0, extraScale: s, rotation: 0, extraAlpha: 0.85 + Math.sin(time * 2) * 0.15 };
+        const s = this.easeInOutSine(0.5 + 0.5 * Math.sin(this.animState * 2));
+        this.offsetDX = 0;
+        this.offsetDY = 0;
+        this.quantumScale = 0.9 + s * 0.2;
+        this.quantumRotation = 0;
+        this.quantumAlpha = 0.7 + s * 0.3;
+        break;
       }
       case 'green': {
-        return { dx: 0, dy: 0, extraScale: 1, rotation: time * 2, extraAlpha: 1 };
+        this.offsetDX = 0;
+        this.offsetDY = 0;
+        this.quantumScale = 1;
+        this.quantumRotation = this.animState * 2;
+        this.quantumAlpha = 1;
+        break;
       }
       case 'purple': {
-        const a = 0.5 + Math.abs(Math.sin(time * 6)) * 0.5;
-        return { dx: 0, dy: 0, extraScale: 1, rotation: 0, extraAlpha: a };
+        const s = 0.5 + Math.abs(Math.sin(this.animState * 6)) * 0.5;
+        const eased = this.easeInOutSine(s);
+        this.offsetDX = 0;
+        this.offsetDY = 0;
+        this.quantumScale = 1;
+        this.quantumRotation = 0;
+        this.quantumAlpha = 0.4 + eased * 0.6;
+        break;
       }
     }
+  }
+
+  easeInOutSine(t: number): number {
+    return -(Math.cos(Math.PI * t) - 1) / 2;
+  }
+
+  getQuantumOffset(_time: number): { dx: number; dy: number; extraScale: number; rotation: number; extraAlpha: number } {
+    return {
+      dx: this.offsetDX,
+      dy: this.offsetDY,
+      extraScale: this.quantumScale,
+      rotation: this.quantumRotation,
+      extraAlpha: this.quantumAlpha,
+    };
   }
 
   static randomColor(): PhotonColor {
