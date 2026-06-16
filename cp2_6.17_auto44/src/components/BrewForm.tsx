@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiSave } from 'react-icons/fi';
 import type { BrewRecord, RoastLevel } from '../types';
 
@@ -21,6 +21,13 @@ const inputBase = {
   transition: 'border-color 0.2s ease-out, box-shadow 0.2s ease-out',
 };
 
+const calcRatio = (cw: number | '', ww: number | ''): string => {
+  const coffee = Number(cw);
+  const water = Number(ww);
+  if (!coffee || !water || coffee <= 0) return '1:--';
+  return `1:${(water / coffee).toFixed(1)}`;
+};
+
 export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditing }: Props) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [bean, setBean] = useState('');
@@ -34,8 +41,54 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [pressedStar, setPressedStar] = useState<number | null>(null);
+  const [animatingStar, setAnimatingStar] = useState<number | null>(null);
   const [durationError, setDurationError] = useState('');
+
   const durationTimeoutRef = useRef<number | null>(null);
+  const ratioRef = useRef<HTMLSpanElement>(null);
+  const coffeeWeightRef = useRef<number | ''>(15);
+  const waterWeightRef = useRef<number | ''>(250);
+  const rafIdRef = useRef<number | null>(null);
+  const lastUpdateRef = useRef<number>(0);
+
+  const updateRatioRAF = useCallback(() => {
+    const now = performance.now();
+    const minInterval = 1000 / 30;
+    if (now - lastUpdateRef.current < minInterval) {
+      rafIdRef.current = requestAnimationFrame(updateRatioRAF);
+      return;
+    }
+    lastUpdateRef.current = now;
+    if (ratioRef.current) {
+      const newRatio = calcRatio(coffeeWeightRef.current, waterWeightRef.current);
+      if (ratioRef.current.textContent !== newRatio) {
+        ratioRef.current.textContent = newRatio;
+      }
+    }
+  }, []);
+
+  const scheduleRatioUpdate = useCallback(() => {
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+    rafIdRef.current = requestAnimationFrame(updateRatioRAF);
+  }, [updateRatioRAF]);
+
+  useEffect(() => {
+    coffeeWeightRef.current = coffeeWeight;
+    scheduleRatioUpdate();
+  }, [coffeeWeight, scheduleRatioUpdate]);
+
+  useEffect(() => {
+    waterWeightRef.current = waterWeight;
+    scheduleRatioUpdate();
+  }, [waterWeight, scheduleRatioUpdate]);
+
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (initialData) {
@@ -49,15 +102,13 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
       setCoffeeWeight(initialData.coffeeWeight);
       setWaterWeight(initialData.waterWeight);
       setRating(initialData.rating);
+      coffeeWeightRef.current = initialData.coffeeWeight;
+      waterWeightRef.current = initialData.waterWeight;
+      scheduleRatioUpdate();
     }
-  }, [initialData]);
+  }, [initialData, scheduleRatioUpdate]);
 
-  const ratio = useMemo(() => {
-    const cw = Number(coffeeWeight);
-    const ww = Number(waterWeight);
-    if (!cw || !ww || cw <= 0) return '1:--';
-    return `1:${(ww / cw).toFixed(1)}`;
-  }, [coffeeWeight, waterWeight]);
+  const ratio = calcRatio(coffeeWeight, waterWeight);
 
   const validateDuration = (val: string): boolean => {
     const parts = val.split(':');
@@ -135,6 +186,41 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
   };
 
   const displayRating = hoverRating || rating;
+
+  const handleStarMouseDown = (n: number) => {
+    setPressedStar(n);
+    setAnimatingStar(n);
+  };
+
+  const handleStarMouseUp = () => {
+    setPressedStar(null);
+    setTimeout(() => {
+      setAnimatingStar(null);
+    }, 200);
+  };
+
+  const handleStarClick = (n: number) => {
+    setRating(n);
+    handleStarMouseUp();
+  };
+
+  const handleStarMouseLeave = () => {
+    setHoverRating(0);
+    if (pressedStar !== null) {
+      handleStarMouseUp();
+    }
+  };
+
+  const getStarColor = (starIndex: number, activeRating: number): string => {
+    if (starIndex > activeRating) return '#C8BFB5';
+    const t = Math.max(0, Math.min(1, (starIndex - 1) / 4));
+    const r1 = 212, g1 = 163, b1 = 115;
+    const r2 = 240, g2 = 190, b2 = 140;
+    const r = Math.round(r1 + (r2 - r1) * t);
+    const g = Math.round(g1 + (g2 - g1) * t);
+    const b = Math.round(b1 + (b2 - b1) * t);
+    return `rgb(${r}, ${g}, ${b})`;
+  };
 
   return (
     <form
@@ -302,13 +388,15 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
           borderRadius: 8,
         }}>
           <span style={{ color: '#6F4E37', fontWeight: 500, fontSize: 13 }}>粉水比：</span>
-          <span style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: '#6F4E37',
-            fontFamily: 'Georgia, serif',
-            letterSpacing: 1,
-          }}>
+          <span
+            ref={ratioRef}
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#6F4E37',
+              fontFamily: 'Georgia, serif',
+              letterSpacing: 1,
+            }}>
             {ratio}
           </span>
         </div>
@@ -319,26 +407,31 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
             {[1, 2, 3, 4, 5].map((n) => {
               const isActive = n <= displayRating;
               const isPressed = pressedStar === n;
+              const isAnimating = animatingStar === n;
+              const color = getStarColor(n, displayRating);
               return (
                 <button
                   key={n}
                   type="button"
-                  onClick={() => setRating(n)}
+                  onClick={() => handleStarClick(n)}
                   onMouseEnter={() => setHoverRating(n)}
-                  onMouseLeave={() => setHoverRating(0)}
-                  onMouseDown={() => setPressedStar(n)}
-                  onMouseUp={() => setPressedStar(null)}
+                  onMouseLeave={handleStarMouseLeave}
+                  onMouseDown={() => handleStarMouseDown(n)}
+                  onMouseUp={handleStarMouseUp}
+                  onTouchStart={() => handleStarMouseDown(n)}
+                  onTouchEnd={() => handleStarClick(n)}
                   style={{
                     background: 'none',
                     border: 'none',
                     padding: 4,
                     fontSize: 32,
                     cursor: 'pointer',
-                    color: isActive ? '#D4A373' : '#C8BFB5',
-                    transform: isPressed ? 'scale(1.15)' : 'scale(1)',
-                    transition: 'transform 0.15s ease-out, color 0.2s ease-out',
-                    textShadow: isActive ? '0 0 4px rgba(212, 163, 115, 0.4)' : 'none',
+                    color: color,
+                    transform: isPressed ? 'scale(1.15)' : (isAnimating ? 'scale(1.15)' : 'scale(1)'),
+                    transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.25s ease-out',
+                    textShadow: isActive ? '0 0 8px rgba(212, 163, 115, 0.5)' : 'none',
                     lineHeight: 1,
+                    animation: isAnimating ? 'starBounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
                   }}
                 >
                   ★
@@ -346,6 +439,14 @@ export default function BrewForm({ initialData, onSubmit, onCancelEdit, isEditin
               );
             })}
           </div>
+          <style>{`
+            @keyframes starBounce {
+              0% { transform: scale(1); }
+              40% { transform: scale(1.15); }
+              70% { transform: scale(0.95); }
+              100% { transform: scale(1); }
+            }
+          `}</style>
         </label>
       </div>
 

@@ -77,7 +77,8 @@ export const useLogStore = create<LogState>((set, get) => ({
 
     const dedupMap = new Map<string, BrewRecord>();
     for (const r of currentRecords) {
-      dedupMap.set(`${r.date}_${r.bean}`, r);
+      const dedupKey = `${r.date}_${r.bean}`;
+      dedupMap.set(dedupKey, r);
     }
 
     dataList.forEach((data, index) => {
@@ -98,14 +99,14 @@ export const useLogStore = create<LogState>((set, get) => ({
         return;
       }
 
-      const key = `${data.date}_${data.bean}`;
-      const existing = dedupMap.get(key);
+      const dedupKey = `${data.date}_${data.bean}`;
+      const existing = dedupMap.get(dedupKey);
       const record: BrewRecord = {
         ...data,
         id: existing ? existing.id : uuidv4(),
         createdAt: Date.now(),
       };
-      dedupMap.set(key, record);
+      dedupMap.set(dedupKey, record);
       toAdd.push(record);
     });
 

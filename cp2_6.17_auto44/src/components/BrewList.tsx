@@ -76,6 +76,7 @@ export default function BrewList({ records, selectedId, onSelect, onEdit, onDele
             <div key={r.id}>
               <div
                 onClick={() => onSelect(isSelected ? null : r.id)}
+                className={`brew-list-row ${isSelected ? 'brew-list-row-selected' : ''}`}
                 style={{
                   height: 64,
                   padding: '0 16px',
@@ -89,13 +90,12 @@ export default function BrewList({ records, selectedId, onSelect, onEdit, onDele
                   transition: 'background-color 0.2s ease-out',
                   border: isSelected ? '1px solid #D4A373' : '1px solid transparent',
                 }}
-                onMouseEnter={(e) => {
-                  if (!isSelected) e.currentTarget.style.backgroundColor = '#FFF8F0';
-                }}
-                onMouseLeave={(e) => {
-                  if (!isSelected) e.currentTarget.style.backgroundColor = '#FAF5EF';
-                }}
               >
+                <style>{`
+                  .brew-list-row:hover {
+                    background-color: #FFF8F0 !important;
+                  }
+                `}</style>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',

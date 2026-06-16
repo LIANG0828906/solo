@@ -20,12 +20,13 @@ interface Props {
 
 const ratingToColor = (rating: number): string => {
   if (rating <= 0) return '#C8BFB5';
-  const t = Math.max(0, Math.min(1, (rating - 1) / 4));
-  const r1 = 192, g1 = 57, b1 = 43;
-  const r2 = 39, g2 = 174, b2 = 96;
-  const r = Math.round(r1 + (r2 - r1) * t);
-  const g = Math.round(g1 + (g2 - g1) * t);
-  const b = Math.round(b1 + (b2 - b1) * t);
+  const clampedRating = Math.max(1, Math.min(5, rating));
+  const t = (clampedRating - 1) / 4;
+  const color1 = { r: 192, g: 57, b: 43 };
+  const color2 = { r: 39, g: 174, b: 96 };
+  const r = Math.round(color1.r + (color2.r - color1.r) * t);
+  const g = Math.round(color1.g + (color2.g - color1.g) * t);
+  const b = Math.round(color1.b + (color2.b - color1.b) * t);
   return `rgb(${r}, ${g}, ${b})`;
 };
 

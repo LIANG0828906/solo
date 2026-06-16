@@ -114,6 +114,7 @@ function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <nav
+        className="app-navbar"
         style={{
           position: 'sticky',
           top: 0,
@@ -127,12 +128,16 @@ function App() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          '@media (max-width: 640px)': {
-            justifyContent: 'center',
-            gap: 12,
-          },
         }}
       >
+        <style>{`
+          @media (max-width: 640px) {
+            .app-navbar {
+              justify-content: center !important;
+              gap: 12px;
+            }
+          }
+        `}</style>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#E8D6C3' }}>
           <FiCoffee size={22} />
           <span style={{
