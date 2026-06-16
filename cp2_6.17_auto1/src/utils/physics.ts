@@ -2,13 +2,39 @@ export interface Medium {
   name: string;
   refractiveIndex: number;
   color: string;
+  cauchyA: number;
+  cauchyB: number;
 }
 
 export const MEDIA: Record<string, Medium> = {
-  air: { name: '空气', refractiveIndex: 1.0, color: '#4A90D9' },
-  water: { name: '水', refractiveIndex: 1.33, color: '#2C5282' },
-  glass: { name: '玻璃', refractiveIndex: 1.52, color: '#4A5568' },
-  diamond: { name: '钻石', refractiveIndex: 2.42, color: '#E2E8F0' },
+  air: {
+    name: '空气',
+    refractiveIndex: 1.0003,
+    color: '#4A90D9',
+    cauchyA: 1.000293,
+    cauchyB: 0.0052,
+  },
+  water: {
+    name: '水',
+    refractiveIndex: 1.333,
+    color: '#2C5282',
+    cauchyA: 1.3199,
+    cauchyB: 6878,
+  },
+  glass: {
+    name: '玻璃',
+    refractiveIndex: 1.517,
+    color: '#4A5568',
+    cauchyA: 1.5046,
+    cauchyB: 4200,
+  },
+  diamond: {
+    name: '钻石',
+    refractiveIndex: 2.417,
+    color: '#E2E8F0',
+    cauchyA: 2.3790,
+    cauchyB: 6620,
+  },
 };
 
 export const PRESETS = [
@@ -17,15 +43,27 @@ export const PRESETS = [
   { id: 'water-glass', medium1: 'water', medium2: 'glass', label: '水 → 玻璃' },
 ];
 
-export const DISPERSION_WAVELENGTHS = [
-  { color: '#FF0000', wavelength: 700, offset: -0.012 },
-  { color: '#FF7F00', wavelength: 620, offset: -0.008 },
-  { color: '#FFFF00', wavelength: 580, offset: -0.004 },
-  { color: '#00FF00', wavelength: 530, offset: 0.0 },
-  { color: '#0000FF', wavelength: 470, offset: 0.004 },
-  { color: '#4B0082', wavelength: 440, offset: 0.008 },
-  { color: '#9400D3', wavelength: 400, offset: 0.012 },
+export interface WavelengthData {
+  color: string;
+  wavelength: number;
+}
+
+export const DISPERSION_WAVELENGTHS: WavelengthData[] = [
+  { color: '#FF2020', wavelength: 700 },
+  { color: '#FF8C00', wavelength: 620 },
+  { color: '#FFE500', wavelength: 580 },
+  { color: '#00C850', wavelength: 530 },
+  { color: '#2060FF', wavelength: 470 },
+  { color: '#5A10A0', wavelength: 440 },
+  { color: '#9C00D0', wavelength: 400 },
 ];
+
+export const PIXEL_TO_THREE = 0.005;
+
+export function cauchyDispersion(medium: Medium, wavelengthNm: number): number {
+  const lambdaMicrom2 = (wavelengthNm / 1000) ** 2;
+  return medium.cauchyA + medium.cauchyB / lambdaMicrom2;
+}
 
 export function snellLaw(
   incidentAngle: number,

@@ -9,6 +9,10 @@ import {
   radToDeg,
   MEDIA,
   DISPERSION_WAVELENGTHS,
+  WavelengthData,
+  cauchyDispersion,
+  PIXEL_TO_THREE,
+  clamp,
 } from '@/utils/physics';
 
 interface SceneProps {
@@ -26,6 +30,9 @@ const BOUNDS = {
   interfaceY: 0,
 };
 
+const ANIM_DURATION = 0.55;
+const DAMPING = 0.92;
+
 function cubicBezier(t: number, p1: number, p2: number, p3: number, p4: number): number {
   const cx = 3 * p1;
   const bx = 3 * (p3 - p1) - cx;
@@ -37,7 +44,7 @@ function cubicBezier(t: number, p1: number, p2: number, p3: number, p4: number):
   const sampleY = (tt: number) => ((ay * tt + by) * tt + cy) * tt;
   let lo = 0;
   let hi = 1;
-  while (hi - lo > 0.0001) {
+  for (let i = 0; i < 18; i++) {
     const mid = (lo + hi) / 2;
     if (sampleX(mid) < t) lo = mid;
     else hi = mid;
@@ -45,7 +52,13 @@ function cubicBezier(t: number, p1: number, p2: number, p3: number, p4: number):
   return sampleY((lo + hi) / 2);
 }
 
-const EASE_OUT_ELASTIC = (t: number) => cubicBezier(t, 0.68, -0.55, 0.27, 1.55);
+function easeOutElasticDamped(t: number): number {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  const base = cubicBezier(t, 0.5, -0.3, 0.35, 1.25);
+  const wobble = Math.sin(t * Math.PI * 2.5) * Math.pow(1 - t, 3) * 0.12;
+  return clamp(base + wobble, 0, 1.08);
+}
 
 function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: SceneProps) {
   const medium1 = MEDIA[preset.medium1];
@@ -62,6 +75,8 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
   const targetAngleRef = useRef(incidentAngle);
   const animProgressRef = useRef(1);
   const animStartAngleRef = useRef(incidentAngle);
+
+  const flashRef = useRef(0);
 
   const mediumTransitionRef = useRef({ progress: 1, fromMedium: preset.medium2, toMedium: preset.medium2 });
 
@@ -84,23 +99,35 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
   }
 
   useFrame((_, delta) => {
-    if (animProgressRef.current < 1) {
-      animProgressRef.current = Math.min(1, animProgressRef.current + delta * 4);
-      const eased = EASE_OUT_ELASTIC(animProgressRef.current);
+    const clampedDelta = Math.min(delta, 0.05);
+
+    if (animProgressRef.current < 1 && !isDragging) {
+      animProgressRef.current = Math.min(1, animProgressRef.current + clampedDelta / ANIM_DURATION);
+      const eased = easeOutElasticDamped(animProgressRef.current);
       animatedAngleRef.current =
         animStartAngleRef.current + (targetAngleRef.current - animStartAngleRef.current) * eased;
-    }
-    if (mediumTransitionRef.current.progress < 1) {
-      mediumTransitionRef.current.progress = Math.min(1, mediumTransitionRef.current.progress + delta * 2.5);
+    } else if (isDragging) {
+      animatedAngleRef.current = targetAngleRef.current;
+      animProgressRef.current = 1;
     }
 
-    if (lightSourceRef.current && !isDragging) {
+    if (mediumTransitionRef.current.progress < 1) {
+      mediumTransitionRef.current.progress = Math.min(
+        1,
+        mediumTransitionRef.current.progress + clampedDelta * 3
+      );
+    }
+
+    flashRef.current = (flashRef.current + clampedDelta * 2) % (Math.PI * 2);
+
+    if (lightSourceRef.current) {
       const currentAngleRad = degToRad(animatedAngleRef.current);
       const distance = 3;
       const x = -distance * Math.sin(currentAngleRad);
       const y = BOUNDS.interfaceY + distance * Math.cos(currentAngleRad);
       const targetPos = new THREE.Vector3(x, y, 0);
-      lightSourceRef.current.position.lerp(targetPos, Math.min(1, delta * 15));
+      const lerpFactor = isDragging ? 0.35 : 1 - Math.pow(1 - DAMPING, clampedDelta * 60);
+      lightSourceRef.current.position.lerp(targetPos, lerpFactor);
     }
   });
 
@@ -149,23 +176,34 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
 
   const dispersionRays = useMemo(() => {
     if (!dispersionMode || physics.isTotalReflection || physics.refractionAngle === null) return [];
-    return DISPERSION_WAVELENGTHS.map((wl, i) => {
+    const n1Base = medium1.refractiveIndex;
+    return DISPERSION_WAVELENGTHS.map((wl: WavelengthData, i: number) => {
+      const n1 = cauchyDispersion(medium1, wl.wavelength);
+      const n2 = cauchyDispersion(medium2, wl.wavelength);
+      const wlResult = snellLaw(incidentAngleRad, n1, n2);
+      const refractAngle = wlResult.refractionAngle ?? physics.refractionAngle!;
+
       const [ix, iy] = incidentPoint;
-      const baseRefract = physics.refractionAngle!;
-      const wlFactor = (wl.wavelength - 550) / 100;
-      const refractAngle = baseRefract + wlFactor * 0.025;
       const dirX = Math.sin(refractAngle);
       const dirY = -Math.cos(refractAngle);
-      const distance = 5;
-      const spacing = 0.03;
-      const offset = (i - 3) * spacing;
+      const distance = 5.5;
+
+      const spacingPx = 1;
+      const offset = (i - 3) * spacingPx * PIXEL_TO_THREE;
+
+      const perpX1 = Math.cos(incidentAngleRad);
+      const perpY1 = Math.sin(incidentAngleRad);
+      const perpX2 = Math.cos(refractAngle);
+      const perpY2 = Math.sin(refractAngle);
+
       return {
         color: wl.color,
-        start: [ix + offset * Math.sin(incidentAngleRad), iy - offset * Math.cos(incidentAngleRad), 0.01] as [number, number, number],
-        end: [ix + dirX * distance + offset * Math.sin(refractAngle), iy + dirY * distance - offset * Math.cos(refractAngle), 0.01] as [number, number, number],
+        start: [ix + offset * perpX1, iy + offset * perpY1, 0.01] as [number, number, number],
+        end: [ix + dirX * distance + offset * perpX2, iy + dirY * distance + offset * perpY2, 0.01] as [number, number, number],
+        lineWidth: 1.2 * PIXEL_TO_THREE * 200,
       };
     });
-  }, [dispersionMode, physics, incidentPoint, incidentAngleRad]);
+  }, [dispersionMode, physics, incidentPoint, incidentAngleRad, medium1, medium2]);
 
   const getIntersection = useCallback(
     (clientX: number, clientY: number): THREE.Vector3 | null => {
@@ -181,18 +219,32 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
     [camera, gl]
   );
 
+  const onPointerEnterLight = useCallback(() => {
+    if (!isDragging) {
+      gl.domElement.style.cursor = 'grab';
+    }
+  }, [gl, isDragging]);
+
+  const onPointerLeaveLight = useCallback(() => {
+    if (!isDragging) {
+      gl.domElement.style.cursor = 'default';
+    }
+  }, [gl, isDragging]);
+
   const onPointerDown = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
       e.stopPropagation();
       setIsDragging(true);
+      try {
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+      } catch (_) {}
       const canvas = gl.domElement;
-      canvas.setPointerCapture(e.pointerId);
       canvas.style.cursor = 'crosshair';
     },
     [gl]
   );
 
-  const onPointerMoveCanvas = useCallback(
+  const onPointerMoveWindow = useCallback(
     (e: PointerEvent) => {
       if (!isDragging) return;
       const intersection = getIntersection(e.clientX, e.clientY);
@@ -204,8 +256,8 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
       const maxAngle = Math.PI / 2 - 0.08;
       angle = Math.max(-maxAngle, Math.min(maxAngle, angle));
       const degree = radToDeg(angle);
-      animatedAngleRef.current = degree;
       targetAngleRef.current = degree;
+      animatedAngleRef.current = degree;
       animProgressRef.current = 1;
       onAngleChange(degree);
       if (lightSourceRef.current) {
@@ -215,34 +267,38 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
         lightSourceRef.current.position.set(x, y, 0);
       }
     },
-    [isDragging, getIntersection, onAngleChange, gl]
+    [isDragging, getIntersection, onAngleChange]
   );
 
-  const onPointerUpCanvas = useCallback(
+  const onPointerUpWindow = useCallback(
     (e: PointerEvent) => {
       if (isDragging) {
         setIsDragging(false);
         const canvas = gl.domElement;
         try {
-          canvas.releasePointerCapture(e.pointerId);
+          (e.target as Element).releasePointerCapture?.(e.pointerId);
         } catch (_) {}
         canvas.style.cursor = 'default';
+        animStartAngleRef.current = animatedAngleRef.current;
+        targetAngleRef.current = animatedAngleRef.current;
+        animProgressRef.current = 1;
       }
     },
     [isDragging, gl]
   );
 
   React.useEffect(() => {
-    const canvas = gl.domElement;
-    canvas.addEventListener('pointermove', onPointerMoveCanvas);
-    canvas.addEventListener('pointerup', onPointerUpCanvas);
-    canvas.addEventListener('pointercancel', onPointerUpCanvas);
+    if (isDragging) {
+      window.addEventListener('pointermove', onPointerMoveWindow, true);
+      window.addEventListener('pointerup', onPointerUpWindow, true);
+      window.addEventListener('pointercancel', onPointerUpWindow, true);
+    }
     return () => {
-      canvas.removeEventListener('pointermove', onPointerMoveCanvas);
-      canvas.removeEventListener('pointerup', onPointerUpCanvas);
-      canvas.removeEventListener('pointercancel', onPointerUpCanvas);
+      window.removeEventListener('pointermove', onPointerMoveWindow, true);
+      window.removeEventListener('pointerup', onPointerUpWindow, true);
+      window.removeEventListener('pointercancel', onPointerUpWindow, true);
     };
-  }, [onPointerMoveCanvas, onPointerUpCanvas, gl]);
+  }, [isDragging, onPointerMoveWindow, onPointerUpWindow]);
 
   const medium1Color = preset.medium1 === 'air' ? '#4A90D9' : medium1.color;
   const medium2Color = preset.medium2 === 'water' ? '#2C3E50' : medium2.color;
@@ -250,6 +306,9 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
   const { progress: mtProgress, fromMedium, toMedium } = mediumTransitionRef.current;
   const iconOpacityIn = mtProgress;
   const iconOpacityOut = 1 - mtProgress;
+
+  const flashOpacity = 0.65 + 0.35 * Math.abs(Math.sin(flashRef.current * 3));
+  const flashScale = 1 + 0.08 * Math.sin(flashRef.current * 3);
 
   return (
     <>
@@ -270,7 +329,7 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
             <meshBasicMaterial color="#63B3ED" transparent opacity={0.4 * iconOpacityOut} />
           </mesh>
           <Html position={[0, 0.8, 0]} center style={{ pointerEvents: 'none' }}>
-            <div style={{ opacity: iconOpacityOut, transition: 'opacity 0.3s', fontSize: 24 }}>💧</div>
+            <div style={{ opacity: iconOpacityOut, transition: 'opacity 0.25s', fontSize: 24 }}>💧</div>
           </Html>
         </group>
       )}
@@ -281,7 +340,7 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
             <meshBasicMaterial color="#A0AEC0" transparent opacity={0.4 * iconOpacityOut} />
           </mesh>
           <Html position={[0, 0.8, 0]} center style={{ pointerEvents: 'none' }}>
-            <div style={{ opacity: iconOpacityOut, transition: 'opacity 0.3s', fontSize: 24 }}>🪟</div>
+            <div style={{ opacity: iconOpacityOut, transition: 'opacity 0.25s', fontSize: 24 }}>🪟</div>
           </Html>
         </group>
       )}
@@ -293,7 +352,7 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
             <meshBasicMaterial color="#63B3ED" transparent opacity={0.4 * iconOpacityIn} />
           </mesh>
           <Html position={[0, 0.8, 0]} center style={{ pointerEvents: 'none' }}>
-            <div style={{ opacity: iconOpacityIn, transition: 'opacity 0.3s', fontSize: 24 }}>💧</div>
+            <div style={{ opacity: iconOpacityIn, transition: 'opacity 0.25s', fontSize: 24 }}>💧</div>
           </Html>
         </group>
       )}
@@ -304,7 +363,7 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
             <meshBasicMaterial color="#A0AEC0" transparent opacity={0.4 * iconOpacityIn} />
           </mesh>
           <Html position={[0, 0.8, 0]} center style={{ pointerEvents: 'none' }}>
-            <div style={{ opacity: iconOpacityIn, transition: 'opacity 0.3s', fontSize: 24 }}>🪟</div>
+            <div style={{ opacity: iconOpacityIn, transition: 'opacity 0.25s', fontSize: 24 }}>🪟</div>
           </Html>
         </group>
       )}
@@ -315,7 +374,7 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
             <meshBasicMaterial color="#E2E8F0" transparent opacity={0.5 * iconOpacityIn} />
           </mesh>
           <Html position={[0, 0.8, 0]} center style={{ pointerEvents: 'none' }}>
-            <div style={{ opacity: iconOpacityIn, transition: 'opacity 0.3s', fontSize: 24 }}>💎</div>
+            <div style={{ opacity: iconOpacityIn, transition: 'opacity 0.25s', fontSize: 24 }}>💎</div>
           </Html>
         </group>
       )}
@@ -379,27 +438,36 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
           key={i}
           points={[ray.start, ray.end]}
           color={ray.color}
-          lineWidth={1.8}
+          lineWidth={2}
           transparent
           opacity={0.98}
         />
       ))}
 
       {physics.isTotalReflection && (
-        <Html position={[incidentPoint[0], incidentPoint[1] + 0.6, 0]} center zIndexRange={[100, 0]}>
+        <Html
+          position={[incidentPoint[0], incidentPoint[1] + 0.6, 0]}
+          center
+          zIndexRange={[100, 0]}
+          style={{ pointerEvents: 'none' }}
+        >
           <div
             style={{
               color: '#FFD700',
               fontFamily: 'Courier New',
               fontSize: 20,
               fontWeight: 'bold',
-              textShadow: '0 0 8px rgba(255, 215, 0, 0.9), 0 0 16px rgba(255, 100, 0, 0.6)',
-              animation: 'flash 0.5s ease-in-out infinite',
+              textShadow:
+                '0 0 8px rgba(255, 215, 0, 0.95), 0 0 18px rgba(255, 100, 0, 0.7), 1px 1px 2px rgba(0,0,0,0.8)',
               whiteSpace: 'nowrap',
-              padding: '6px 14px',
-              background: 'rgba(0,0,0,0.4)',
-              borderRadius: 8,
-              border: '1px solid rgba(255, 215, 0, 0.5)',
+              padding: '7px 16px',
+              background: 'rgba(0, 0, 0, 0.55)',
+              borderRadius: 10,
+              border: '1px solid rgba(255, 215, 0, 0.6)',
+              opacity: flashOpacity,
+              transform: `scale(${flashScale})`,
+              boxShadow: `0 0 ${18 + 8 * Math.sin(flashRef.current * 3)}px rgba(255, 170, 0, 0.55)`,
+              transition: 'none',
             }}
           >
             ⚠ 全反射 ⚠
@@ -410,7 +478,8 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
       <group
         ref={lightSourceRef}
         onPointerDown={onPointerDown}
-        style={{ cursor: isDragging ? 'crosshair' : 'grab' }}
+        onPointerEnter={onPointerEnterLight}
+        onPointerLeave={onPointerLeaveLight}
       >
         <mesh>
           <circleGeometry args={[0.15, 48]} />
@@ -513,12 +582,10 @@ function Scene({ preset, incidentAngle, onAngleChange, dispersionMode }: ScenePr
               whiteSpace: 'nowrap',
             }}
           >
-            🌈 色散中...
+            🌈 色散中 (柯西公式)
           </div>
         </Html>
       )}
-
-
     </>
   );
 }
