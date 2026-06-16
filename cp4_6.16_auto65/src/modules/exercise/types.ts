@@ -41,19 +41,23 @@ export interface TrainingTemplate {
   createdAt: number;
 }
 
-export interface ExerciseStore {
-  exercises: Exercise[];
-  trainingRecords: TrainingRecord[];
-  templates: TrainingTemplate[];
-  addExercise: (exercise: Omit<Exercise, 'id' | 'createdAt'>) => void;
-  updateExercise: (id: string, exercise: Partial<Exercise>) => void;
-  deleteExercise: (id: string) => void;
-  addTrainingRecord: (record: Omit<TrainingRecord, 'id' | 'createdAt'>) => void;
-  deleteTrainingRecord: (id: string) => void;
-  addTemplate: (template: Omit<TrainingTemplate, 'id' | 'createdAt'>) => void;
-  updateTemplate: (id: string, template: Partial<TrainingTemplate>) => void;
-  deleteTemplate: (id: string) => void;
-  loadExercises: () => Promise<void>;
-  loadTrainingRecords: () => Promise<void>;
-  loadTemplates: () => Promise<void>;
+export interface LogFormExercise {
+  exerciseId: string;
+  exerciseName: string;
+  category: ExerciseCategory;
+  sets: number;
+  reps: number;
+  weight: number;
+}
+
+export interface LogFormState {
+  date: string;
+  time: string;
+  exercises: LogFormExercise[];
+}
+
+export interface SearchIndex {
+  nameIndex: Map<string, string[]>;
+  categoryIndex: Map<string, string[]>;
+  exerciseMap: Map<string, Exercise>;
 }

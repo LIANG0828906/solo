@@ -1,24 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom';
 import { useExerciseStore } from './modules/exercise/store';
-
-const HomePage = () => {
-  return (
-    <div className="container">
-      <h1 className="mb-4">首页</h1>
-      <p className="text-secondary">FitScribe 健身记录应用</p>
-    </div>
-  );
-};
-
-const ChartPage = () => {
-  return (
-    <div className="container">
-      <h1 className="mb-4">数据图表</h1>
-      <p className="text-secondary">查看您的训练统计数据</p>
-    </div>
-  );
-};
+import HomePage from './pages/HomePage';
+import ChartPage from './pages/ChartPage';
 
 const AppLayout = () => {
   const init = useExerciseStore((state) => state.init);
@@ -71,7 +55,7 @@ const AppLayout = () => {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="app-root">
       <nav className="navbar">
         <NavLink to="/" className="navbar-brand">
           FitScribe
@@ -111,7 +95,7 @@ const AppLayout = () => {
           />
         </div>
       </nav>
-      <main className="flex-1">
+      <main className="app-main">
         <Outlet />
       </main>
     </div>
