@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudWeaver - 3D云层可视化工具</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #F0F8FF;
+      color: #333333;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    .stats-panel {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 8px;
+      padding: 16px 20px;
+      box-shadow: 0 4px 12px rgba(74, 144, 217, 0.15);
+      z-index: 100;
+      min-width: 180px;
+      transition: all 0.2s ease-out;
+    }
+
+    .stats-panel:hover {
+      box-shadow: 0 6px 20px rgba(74, 144, 217, 0.25);
+    }
+
+    .stats-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #4A90D9;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(74, 144, 217, 0.1);
+    }
+
+    .stat-item:last-child {
+      border-bottom: none;
+    }
+
+    .stat-label {
+      color: #666666;
+      font-weight: 500;
+    }
+
+    .stat-value {
+      color: #333333;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .control-panel {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 100;
+    }
+
+    .panel-toggle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(74, 144, 217, 0.85);
+      backdrop-filter: blur(10px);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease-out;
+      box-shadow: 0 4px 12px rgba(74, 144, 217, 0.4);
+      position: relative;
+    }
+
+    .panel-toggle:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(74, 144, 217, 0.5);
+      background: rgba(74, 144, 217, 0.95);
+    }
+
+    .panel-toggle::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      right: 70px;
+      background: rgba(51, 51, 51, 0.9);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease-out;
+    }
+
+    .panel-toggle:hover::after {
+      opacity: 1;
+    }
+
+    .panel-toggle svg {
+      width: 24px;
+      height: 24px;
+      stroke: white;
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      transition: transform 0.3s ease-out;
+    }
+
+    .panel-toggle.active svg {
+      transform: rotate(45deg);
+    }
+
+    .panel-content {
+      position: absolute;
+      bottom: 76px;
+      right: 0;
+      width: 320px;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(74, 144, 217, 0.2);
+      overflow: hidden;
+      transform: translateY(20px) scale(0.95);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease-out;
+    }
+
+    .panel-content.active {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .tab-nav {
+      display: flex;
+      background: rgba(74, 144, 217, 0.08);
+      border-bottom: 1px solid rgba(74, 144, 217, 0.15);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px 8px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #666666;
+      transition: all 0.2s ease-out;
+      position: relative;
+    }
+
+    .tab-btn:hover {
+      color: #4A90D9;
+      background: rgba(74, 144, 217, 0.05);
+    }
+
+    .tab-btn.active {
+      color: #4A90D9;
+    }
+
+    .tab-btn::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 0;
+      height: 2px;
+      background: #4A90D9;
+      transition: all 0.2s ease-out;
+      transform: translateX(-50%);
+    }
+
+    .tab-btn.active::after {
+      width: 60%;
+    }
+
+    .tab-content {
+      padding: 20px;
+      min-height: 200px;
+    }
+
+    .tab-pane {
+      display: none;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .pane-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 16px;
+    }
+
+    .cloud-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .cloud-btn {
+      padding: 16px 8px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: rgba(74, 144, 217, 0.08);
+      cursor: pointer;
+      transition: all 0.2s ease-out;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cloud-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(74, 144, 217, 0.2);
+    }
+
+    .cloud-btn.cumulus.active {
+      background: rgba(240, 248, 255, 0.9);
+      border-color: #F0F8FF;
+      box-shadow: 0 0 16px rgba(240, 248, 255, 0.6);
+    }
+
+    .cloud-btn.stratus.active {
+      background: rgba(220, 220, 220, 0.9);
+      border-color: #DCDCDC;
+      box-shadow: 0 0 16px rgba(220, 220, 220, 0.6);
+    }
+
+    .cloud-btn.cirrus.active {
+      background: rgba(230, 230, 250, 0.9);
+      border-color: #E6E6FA;
+      box-shadow: 0 0 16px rgba(230, 230, 250, 0.6);
+    }
+
+    .cloud-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+    }
+
+    .cloud-btn.cumulus .cloud-icon {
+      background: radial-gradient(circle at 30% 30%, #FFFFFF, #F0F8FF);
+    }
+
+    .cloud-btn.stratus .cloud-icon {
+      background: linear-gradient(180deg, #E8E8E8, #D0D0D0);
+      border-radius: 4px;
+      height: 16px;
+      margin: 8px 0;
+    }
+
+    .cloud-btn.cirrus .cloud-icon {
+      background: linear-gradient(135deg, transparent 40%, #E6E6FA 50%, transparent 60%);
+      border-radius: 0;
+    }
+
+    .cloud-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: #333333;
+    }
+
+    .slider-group {
+      margin-bottom: 20px;
+    }
+
+    .slider-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .slider-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: #333333;
+    }
+
+    .slider-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #4A90D9;
+      font-variant-numeric: tabular-nums;
+      background: rgba(74, 144, 217, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+      transition: all 0.2s ease-out;
+    }
+
+    .slider.wind-speed {
+      background: linear-gradient(to right, #87CEEB, #1E3A5F);
+    }
+
+    .slider.precipitation {
+      background: linear-gradient(to right, #E0F7FA, #0288D1);
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      border: 3px solid #4A90D9;
+      transition: all 0.2s ease-out;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 4px 12px rgba(74, 144, 217, 0.4);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      border: 3px solid #4A90D9;
+      transition: all 0.2s ease-out;
+    }
+
+    .slider::-moz-range-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 4px 12px rgba(74, 144, 217, 0.4);
+    }
+
+    .knob-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .knob-container {
+      position: relative;
+      width: 140px;
+      height: 140px;
+    }
+
+    .knob {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #FFFFFF, #F0F0F0);
+      box-shadow: 
+        inset 2px 2px 5px rgba(255, 255, 255, 0.8),
+        inset -2px -2px 5px rgba(0, 0, 0, 0.1),
+        0 4px 12px rgba(74, 144, 217, 0.2);
+      cursor: grab;
+      transition: box-shadow 0.2s ease-out;
+    }
+
+    .knob:active {
+      cursor: grabbing;
+    }
+
+    .knob:hover {
+      box-shadow: 
+        inset 2px 2px 5px rgba(255, 255, 255, 0.8),
+        inset -2px -2px 5px rgba(0, 0, 0, 0.1),
+        0 6px 20px rgba(74, 144, 217, 0.3);
+    }
+
+    .knob-ticks {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .knob-tick {
+      position: absolute;
+      left: 50%;
+      top: 8px;
+      width: 2px;
+      height: 8px;
+      background: rgba(74, 144, 217, 0.4);
+      transform-origin: center 62px;
+      border-radius: 1px;
+    }
+
+    .knob-tick.major {
+      height: 12px;
+      width: 3px;
+      background: #4A90D9;
+    }
+
+    .knob-pointer {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 4px;
+      height: 50px;
+      background: linear-gradient(to top, #4A90D9, #87CEEB);
+      transform-origin: center bottom;
+      transform: translate(-50%, -100%) rotate(0deg);
+      border-radius: 2px;
+      pointer-events: none;
+      transition: transform 0.1s ease-out;
+      box-shadow: 0 0 8px rgba(74, 144, 217, 0.5);
+    }
+
+    .knob-center {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(145deg, #4A90D9, #357ABD);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 2px 8px rgba(74, 144, 217, 0.4);
+    }
+
+    .knob-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #4A90D9;
+      font-variant-numeric: tabular-nums;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .knob-value::after {
+      content: '°';
+      font-size: 14px;
+      color: #666666;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    
+    <div class="stats-panel">
+      <div class="stats-title">实时统计</div>
+      <div class="stat-item">
+        <span class="stat-label">粒子总数</span>
+        <span class="stat-value" id="stat-particles">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">云类型</span>
+        <span class="stat-value" id="stat-cloud-type">积云</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">风速</span>
+        <span class="stat-value" id="stat-wind-speed">0 m/s</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">降水强度</span>
+        <span class="stat-value" id="stat-precipitation">0%</span>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <div class="panel-content" id="panel-content">
+        <div class="tab-nav">
+          <button class="tab-btn active" data-tab="0">云类型</button>
+          <button class="tab-btn" data-tab="1">风参数</button>
+          <button class="tab-btn" data-tab="2">降水</button>
+        </div>
+        <div class="tab-content">
+          <div class="tab-pane active">
+            <div class="pane-title">选择云类型</div>
+            <div class="cloud-buttons">
+              <button class="cloud-btn cumulus active" data-cloud="cumulus">
+                <div class="cloud-icon"></div>
+                <span class="cloud-name">积云</span>
+              </button>
+              <button class="cloud-btn stratus" data-cloud="stratus">
+                <div class="cloud-icon"></div>
+                <span class="cloud-name">层云</span>
+              </button>
+              <button class="cloud-btn cirrus" data-cloud="cirrus">
+                <div class="cloud-icon"></div>
+                <span class="cloud-name">卷云</span>
+              </button>
+            </div>
+          </div>
+          <div class="tab-pane">
+            <div class="slider-group">
+              <div class="slider-label">
+                <span class="slider-name">风速</span>
+                <span class="slider-value" id="wind-speed-value">0 m/s</span>
+              </div>
+              <input type="range" class="slider wind-speed" id="wind-speed" min="0" max="20" step="0.1" value="0" />
+            </div>
+            <div class="slider-group">
+              <div class="slider-label">
+                <span class="slider-name">风向</span>
+              </div>
+              <div class="knob-group">
+                <div class="knob-container" id="wind-direction-knob">
+                  <div class="knob-ticks" id="knob-ticks"></div>
+                  <div class="knob" id="knob"></div>
+                  <div class="knob-pointer" id="knob-pointer"></div>
+                  <div class="knob-center"></div>
+                </div>
+                <div class="knob-value" id="wind-direction-value">0</div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane">
+            <div class="slider-group">
+              <div class="slider-label">
+                <span class="slider-name">降水强度</span>
+                <span class="slider-value" id="precipitation-value">0%</span>
+              </div>
+              <input type="range" class="slider precipitation" id="precipitation" min="0" max="100" step="1" value="0" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="panel-toggle" id="panel-toggle" data-tooltip="打开控制面板">
+        <svg viewBox="0 0 24 24">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
