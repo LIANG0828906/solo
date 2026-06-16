@@ -21,6 +21,8 @@ import {
 } from '@/utils/db';
 
 const CURRENT_NOTE_ID = 'default-note';
+const VERSION_INTERVAL = 10 * 60 * 1000;
+const IDLE_VERSION_DELAY = 5 * 60 * 1000;
 
 interface StoreState {
   currentUser: User;
@@ -35,6 +37,7 @@ interface StoreState {
   isLoading: boolean;
   wsConnected: boolean;
   rightPanelMode: 'annotations' | 'knowledge' | 'history';
+  lastEditTime: number;
 
   setNoteContent: (content: string, html: string) => void;
   addAnnotation: (annotation: Omit<Annotation, 'id' | 'createdAt' | 'replies'>) => void;
@@ -54,6 +57,8 @@ interface StoreState {
   setNote: (note: Note) => void;
   setAnnotations: (annotations: Annotation[]) => void;
   setCurrentUser: (user: User) => void;
+  initAutoSave: () => void;
+  cleanupAutoSave: () => void;
 }
 
 const mockUsers: User[] = [
@@ -84,6 +89,9 @@ const getInitialNote = (): Note => {
   };
 };
 
+let intervalTimer: ReturnType<typeof setInterval> | null = null;
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
 export const useStore = create<StoreState>((set, get) => ({
   currentUser: mockUsers[0],
   otherUsers: [mockUsers[1]],
@@ -97,6 +105,32 @@ export const useStore = create<StoreState>((set, get) => ({
   isLoading: false,
   wsConnected: false,
   rightPanelMode: 'knowledge',
+  lastEditTime: Date.now(),
+
+  initAutoSave: () => {
+    if (intervalTimer) {
+      clearInterval(intervalTimer);
+    }
+
+    intervalTimer = setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastEdit = now - get().lastEditTime;
+      if (timeSinceLastEdit >= VERSION_INTERVAL) {
+        get().addVersion('定时自动保存');
+      }
+    }, VERSION_INTERVAL);
+  },
+
+  cleanupAutoSave: () => {
+    if (intervalTimer) {
+      clearInterval(intervalTimer);
+      intervalTimer = null;
+    }
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+  },
 
   setCurrentUser: (user: User) => {
     set({ currentUser: user });
@@ -109,7 +143,16 @@ export const useStore = create<StoreState>((set, get) => ({
       html,
       updatedAt: new Date(),
     };
-    set({ note: updatedNote });
+    const now = Date.now();
+
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+    }
+    idleTimer = setTimeout(() => {
+      get().addVersion('空闲自动保存');
+    }, IDLE_VERSION_DELAY);
+
+    set({ note: updatedNote, lastEditTime: now });
     saveNote(updatedNote).catch(console.error);
   },
 

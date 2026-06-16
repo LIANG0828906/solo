@@ -1,16 +1,102 @@
 import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import type { Editor as TipTapEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
+import { Extension } from '@tiptap/core';
+import { Plugin, PluginKey } from 'prosemirror-state';
+import type { Decoration } from 'prosemirror-view';
+import { DecorationSet } from 'prosemirror-view';
 import { useStore } from '@/store';
 import { extractConcepts } from '@/knowledge/ConceptExtractor';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { MessageSquare, History, Lightbulb } from 'lucide-react';
+import type { User } from '@/types';
 
 const CONCEPT_EXTRACT_DEBOUNCE = 3000;
-const VERSION_SAVE_INTERVAL = 10 * 60 * 1000;
-const IDLE_VERSION_SAVE = 5 * 60 * 1000;
+const remoteCursorPluginKey = new PluginKey('remote-cursors');
+
+function createCursorExtension(otherUsers: User[], editorRef: React.MutableRefObject<TipTapEditor | null>) {
+  return Extension.create({
+    name: 'remote-cursors',
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: remoteCursorPluginKey,
+          props: {
+            decorations() {
+              const editor = editorRef.current;
+              if (!editor || !editor.state) return DecorationSet.empty;
+
+              const decorations: Decoration[] = [];
+              const { doc } = editor.state;
+
+              otherUsers
+                .filter((u) => u.cursorPosition !== null && u.cursorPosition !== undefined)
+                .forEach((user) => {
+                  const pos = Math.min(user.cursorPosition!, doc.content.size - 1);
+                  if (pos < 0) return;
+
+                  try {
+                    const widget = document.createElement('span');
+                    widget.className = 'remote-cursor-widget';
+                    widget.style.cssText = `
+                      position: relative;
+                      display: inline-block;
+                      width: 2px;
+                      height: 1.4em;
+                      background-color: ${user.color};
+                      box-shadow: 0 0 8px ${user.color};
+                      vertical-align: text-bottom;
+                      margin: 0 -1px;
+                      z-index: 100;
+                      pointer-events: none;
+                    `;
+
+                    const label = document.createElement('span');
+                    label.textContent = user.name;
+                    label.style.cssText = `
+                      position: absolute;
+                      top: -18px;
+                      left: 0;
+                      background-color: ${user.color};
+                      color: white;
+                      font-size: 10px;
+                      line-height: 1;
+                      padding: 2px 6px;
+                      border-radius: 4px;
+                      white-space: nowrap;
+                      transform: translateX(-50%);
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                      font-weight: 500;
+                      pointer-events: none;
+                      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    `;
+                    widget.appendChild(label);
+
+                    decorations.push(
+                      Decoration.widget(pos, widget, {
+                        side: 1,
+                        key: `cursor-${user.id}`,
+                      })
+                    );
+                  } catch (e) {
+                  }
+                });
+
+              try {
+                return DecorationSet.create(doc, decorations);
+              } catch (e) {
+                return DecorationSet.empty;
+              }
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
 
 export function Editor() {
   const {
@@ -23,16 +109,18 @@ export function Editor() {
     currentUser,
     otherUsers,
     setConceptsAndEdges,
-    addVersion,
     rightPanelMode,
     setRightPanelMode,
   } = useStore();
 
   const { sendMessage } = useWebSocket();
   const editorRef = useRef<HTMLDivElement>(null);
-  const lastInputTime = useRef(Date.now());
   const debounceTimer = useRef<number | null>(null);
-  const versionTimer = useRef<number | null>(null);
+  const tiptapEditorRef = useRef<TipTapEditor | null>(null);
+
+  const CursorExtension = useMemo(() => {
+    return createCursorExtension(otherUsers, tiptapEditorRef);
+  }, [otherUsers]);
 
   const initialContent = useMemo(() => note.content, []);
 
@@ -47,6 +135,7 @@ export function Editor() {
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
+      CursorExtension,
     ],
     content: initialContent,
     onUpdate: ({ editor }) => {
@@ -54,7 +143,6 @@ export function Editor() {
       const text = editor.getText();
 
       setNoteContent(text, html);
-      lastInputTime.current = Date.now();
 
       sendMessage({
         type: 'edit',
@@ -73,15 +161,16 @@ export function Editor() {
     },
     onSelectionUpdate: ({ editor }) => {
       const { from, to, empty } = editor.state.selection;
+
+      sendMessage({
+        type: 'cursor',
+        payload: { position: from },
+        userId: currentUser.id,
+      });
+
       if (!empty && to - from > 0) {
         const text = editor.state.doc.textBetween(from, to);
         setSelectedText({ text, from, to });
-
-        sendMessage({
-          type: 'cursor',
-          payload: { position: from },
-          userId: currentUser.id,
-        });
       } else {
         setSelectedText(null);
       }
@@ -94,47 +183,73 @@ export function Editor() {
   });
 
   useEffect(() => {
+    tiptapEditorRef.current = editor;
+    return () => {
+      tiptapEditorRef.current = null;
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (editor) {
+      editor.view.dispatch(editor.state.tr);
+    }
+  }, [otherUsers, editor]);
+
+  useEffect(() => {
     if (editor && !editor.isFocused) {
       const currentContent = editor.getText();
       if (note.content !== currentContent && note.content) {
-        editor.commands.setContent(note.content);
+        const { from } = editor.state.selection;
+        editor.commands.setContent(note.content, false);
+        try {
+          editor.commands.setTextSelection(Math.min(from, note.content.length));
+        } catch (e) {
+        }
       }
     }
   }, [note.content, editor]);
 
   useEffect(() => {
     if (highlightPosition !== null && editor) {
-      editor.commands.focus();
-      editor.commands.setTextSelection(highlightPosition);
-      const node = editor.view.domAtPos(highlightPosition);
-      if (node?.node?.parentElement) {
-        const paragraph = node.node.parentElement.closest('p, h1, h2, h3');
-        if (paragraph) {
-          paragraph.classList.add('highlight-paragraph');
+      try {
+        editor.commands.focus();
+        editor.commands.setTextSelection(highlightPosition);
+
+        const resolved = editor.state.doc.resolve(highlightPosition);
+        const paraStart = resolved.start(resolved.depth);
+        const paraEnd = resolved.end(resolved.depth);
+
+        const domStart = editor.view.domAtPos(paraStart);
+        const domEnd = editor.view.domAtPos(paraEnd);
+
+        let targetElement: HTMLElement | null = null;
+
+        if (domStart?.node) {
+          let el: HTMLElement | null = domStart.node.nodeType === 1
+            ? (domStart.node as HTMLElement)
+            : (domStart.node.parentElement as HTMLElement);
+
+          while (el && !el.matches('p, h1, h2, h3, li')) {
+            el = el.parentElement;
+          }
+          targetElement = el;
+        }
+
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          targetElement.classList.add('highlight-paragraph');
           setTimeout(() => {
-            paragraph.classList.remove('highlight-paragraph');
+            if (targetElement) {
+              targetElement.classList.remove('highlight-paragraph');
+            }
           }, 500);
         }
+      } catch (e) {
+        console.error('Highlight error:', e);
       }
     }
   }, [highlightPosition, editor]);
-
-  useEffect(() => {
-    versionTimer.current = window.setInterval(() => {
-      if (Date.now() - lastInputTime.current >= IDLE_VERSION_SAVE) {
-        addVersion('自动保存 - 空闲时快照');
-      }
-    }, VERSION_SAVE_INTERVAL);
-
-    return () => {
-      if (versionTimer.current) {
-        clearInterval(versionTimer.current);
-      }
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, [addVersion]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -144,7 +259,12 @@ export function Editor() {
       }
     }, 1000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
   }, []);
 
   const handleAddAnnotation = useCallback(() => {
@@ -163,42 +283,6 @@ export function Editor() {
     setSelectedText(null);
     setRightPanelMode('annotations');
   }, [selectedText, note.id, currentUser, addAnnotation, setSelectedText, setRightPanelMode]);
-
-  const renderRemoteCursors = useCallback(() => {
-    return otherUsers
-      .filter((u) => u.cursorPosition !== null)
-      .map((user) => (
-        <div
-          key={user.id}
-          className="remote-cursor"
-          style={{
-            position: 'absolute',
-            left: '0',
-            top: `${user.cursorPosition! * 0.8}px`,
-            width: '2px',
-            height: '20px',
-            backgroundColor: user.color,
-            boxShadow: `0 0 8px ${user.color}`,
-          }}
-        >
-          <span
-            style={{
-              position: 'absolute',
-              top: '-20px',
-              left: '0',
-              backgroundColor: user.color,
-              color: 'white',
-              fontSize: '10px',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {user.name}
-          </span>
-        </div>
-      ));
-  }, [otherUsers]);
 
   if (!editor) {
     return (
@@ -291,13 +375,12 @@ export function Editor() {
 
       <div
         ref={editorRef}
-        className="flex-1 overflow-auto relative"
+        className="flex-1 overflow-auto relative editor-container"
         style={{
           fontFamily: "'Fira Code', 'Consolas', 'Monaco', monospace",
           lineHeight: '1.6',
         }}
       >
-        {renderRemoteCursors()}
         <EditorContent
           editor={editor}
           className="h-full"
@@ -314,7 +397,7 @@ export function Editor() {
           color: #E0E0E0;
         }
         .ProseMirror p.is-editor-empty:first-child::before {
-          content: attr(data-placeholder);
+          content: '开始输入笔记内容...';
           float: left;
           color: rgba(224, 224, 224, 0.3);
           pointer-events: none;
@@ -323,10 +406,19 @@ export function Editor() {
         .highlight-paragraph {
           background-color: #F1C40F !important;
           color: #1A1A2E !important;
-          transition: background-color 0.5s ease;
+          transition: background-color 0.25s ease-in-out, color 0.25s ease-in-out;
+          border-radius: 4px;
+          padding: 2px 4px;
+          margin: -2px -4px;
         }
         ::selection {
           background-color: rgba(233, 69, 96, 0.3);
+        }
+        .ProseMirror {
+          position: relative;
+        }
+        .editor-container {
+          position: relative;
         }
       `}</style>
     </div>

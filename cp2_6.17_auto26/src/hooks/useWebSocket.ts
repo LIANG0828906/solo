@@ -3,11 +3,13 @@ import { useStore } from '@/store';
 import type { WsMessage, Note, Annotation } from '@/types';
 
 const WS_URL = 'ws://localhost:8080';
+const MAX_RECONNECT_ATTEMPTS = 10;
+const INITIAL_DELAY = 500;
 
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
+  const isManualClose = useRef(false);
 
   const {
     currentUser,
@@ -17,55 +19,6 @@ export function useWebSocket() {
     setNote,
     setAnnotations,
   } = useStore();
-
-  const connect = useCallback(() => {
-    try {
-      const ws = new WebSocket(WS_URL);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log('[WebSocket] Connected');
-        setWsConnected(true);
-        reconnectAttempts.current = 0;
-
-        ws.send(
-          JSON.stringify({
-            type: 'user-join',
-            payload: { user: currentUser },
-            userId: currentUser.id,
-            timestamp: Date.now(),
-          })
-        );
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message: WsMessage = JSON.parse(event.data);
-          handleMessage(message);
-        } catch (error) {
-          console.error('[WebSocket] Error parsing message:', error);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log('[WebSocket] Disconnected');
-        setWsConnected(false);
-
-        if (reconnectAttempts.current < maxReconnectAttempts) {
-          reconnectAttempts.current++;
-          const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 10000);
-          console.log(`[WebSocket] Reconnecting in ${delay}ms...`);
-          setTimeout(connect, delay);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('[WebSocket] Error:', error);
-      };
-    } catch (error) {
-      console.error('[WebSocket] Connection error:', error);
-    }
-  }, [currentUser, setWsConnected]);
 
   const handleMessage = useCallback(
     (message: WsMessage) => {
@@ -101,7 +54,7 @@ export function useWebSocket() {
           if (message.userId !== currentUser.id) {
             const { annotation, action } = message.payload;
             const currentAnnotations = useStore.getState().annotations;
-            
+
             if (action === 'add') {
               setAnnotations([...currentAnnotations, annotation as Annotation]);
             } else if (action === 'delete') {
@@ -116,26 +69,103 @@ export function useWebSocket() {
     [currentUser.id, setOtherUsers, updateUserCursor, setNote, setAnnotations]
   );
 
+  const connect = useCallback(() => {
+    if (isManualClose.current) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    try {
+      const ws = new WebSocket(WS_URL);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('[WebSocket] Connected to server');
+        setWsConnected(true);
+        reconnectAttempts.current = 0;
+
+        try {
+          ws.send(
+            JSON.stringify({
+              type: 'user-join',
+              payload: { user: currentUser },
+              userId: currentUser.id,
+              timestamp: Date.now(),
+            })
+          );
+        } catch (e) {
+          console.error('[WebSocket] Failed to send join message:', e);
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message: WsMessage = JSON.parse(event.data);
+          handleMessage(message);
+        } catch (error) {
+          console.error('[WebSocket] Error parsing message:', error);
+        }
+      };
+
+      ws.onclose = (event) => {
+        console.log('[WebSocket] Connection closed, code:', event.code);
+        setWsConnected(false);
+
+        if (!isManualClose.current && reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts.current++;
+          const delay = Math.min(
+            INITIAL_DELAY * 2 ** reconnectAttempts.current,
+            10000
+          );
+          console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current}/${MAX_RECONNECT_ATTEMPTS})...`);
+          setTimeout(connect, delay);
+        }
+      };
+
+      ws.onerror = (event) => {
+        console.log('[WebSocket] Connection error (will attempt reconnection)');
+      };
+    } catch (error) {
+      console.error('[WebSocket] Failed to create WebSocket:', error);
+
+      if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts.current++;
+        const delay = Math.min(
+          INITIAL_DELAY * 2 ** reconnectAttempts.current,
+          10000
+        );
+        setTimeout(connect, delay);
+      }
+    }
+  }, [currentUser, setWsConnected, handleMessage]);
+
   const sendMessage = useCallback(
     (message: Omit<WsMessage, 'timestamp'>) => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(
-          JSON.stringify({
-            ...message,
-            timestamp: Date.now(),
-          })
-        );
+        try {
+          wsRef.current.send(
+            JSON.stringify({
+              ...message,
+              timestamp: Date.now(),
+            })
+          );
+        } catch (e) {
+          console.error('[WebSocket] Failed to send message:', e);
+        }
       }
     },
     []
   );
 
   useEffect(() => {
-    connect();
+    const timer = setTimeout(() => {
+      connect();
+    }, 1000);
 
     return () => {
+      clearTimeout(timer);
+      isManualClose.current = true;
       if (wsRef.current) {
         wsRef.current.close();
+        wsRef.current = null;
       }
     };
   }, [connect]);

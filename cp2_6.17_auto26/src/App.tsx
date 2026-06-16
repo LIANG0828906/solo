@@ -170,7 +170,7 @@ function KnowledgeView() {
 }
 
 export default function App() {
-  const { setNote, setAnnotations, setConceptsAndEdges, setVersionHistory, note } = useStore();
+  const { setNote, setAnnotations, setConceptsAndEdges, setVersionHistory, note, initAutoSave, cleanupAutoSave } = useStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useWebSocket();
@@ -196,6 +196,8 @@ export default function App() {
 
         const savedVersions = await getVersions(note.id);
         setVersionHistory(savedVersions);
+
+        initAutoSave();
       } catch (error) {
         console.error('Failed to initialize app:', error);
       } finally {
@@ -204,7 +206,11 @@ export default function App() {
     };
 
     initialize();
-  }, [setNote, setAnnotations, setConceptsAndEdges, setVersionHistory, note.id]);
+
+    return () => {
+      cleanupAutoSave();
+    };
+  }, [setNote, setAnnotations, setConceptsAndEdges, setVersionHistory, note.id, initAutoSave, cleanupAutoSave]);
 
   if (!isInitialized) {
     return (

@@ -107,9 +107,11 @@ export function AnnotationPanel() {
           return (
             <div
               key={annotation.id}
-              className="annotation-bubble bg-[#2C3E50] rounded-xl p-4 shadow-lg animate-pop-in"
+              className="annotation-bubble bg-[#2C3E50] rounded-xl p-4 shadow-lg"
               style={{
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                animation: 'bubblePopIn 0.3s ease-out forwards',
+                transformOrigin: 'top left',
               }}
             >
               <div className="flex items-start justify-between mb-2">
@@ -253,18 +255,24 @@ export function AnnotationPanel() {
       </div>
 
       <style>{`
-        .animate-pop-in {
-          animation: popIn 0.3s ease-out;
-        }
-        @keyframes popIn {
-          from {
+        @keyframes bubblePopIn {
+          0% {
             opacity: 0;
             transform: scale(0.95);
           }
-          to {
+          60% {
+            opacity: 1;
+            transform: scale(1.02);
+          }
+          100% {
             opacity: 1;
             transform: scale(1);
           }
+        }
+        .annotation-bubble {
+          opacity: 0;
+          transform: scale(0.95);
+          will-change: transform, opacity;
         }
       `}</style>
     </div>
