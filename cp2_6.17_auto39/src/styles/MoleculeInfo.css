@@ -1,6 +1,7 @@
 .molecule-info {
   width: 180px;
-  background: rgba(40, 40, 64, 0.92);
+  min-width: 180px;
+  background: rgba(40, 40, 64, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 12px;
@@ -10,6 +11,8 @@
   opacity: 1;
   visibility: visible;
   position: relative;
+  z-index: 25;
+  display: block;
 }
 
 .molecule-info:hover {
@@ -34,15 +37,19 @@
   margin: 0 0 16px 0;
   text-align: center;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 12px;
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.5;
+  gap: 8px;
 }
 
 .info-row:last-child {
@@ -52,6 +59,8 @@
 .info-label {
   color: #999999;
   font-size: 12px;
+  flex-shrink: 0;
+  line-height: 1.5;
 }
 
 .info-value {
@@ -60,11 +69,34 @@
   font-family: 'SF Mono', 'Consolas', monospace;
   text-align: right;
   max-width: 110px;
-  word-break: break-all;
+  word-break: normal;
+  word-wrap: normal;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+  hyphens: auto;
 }
 
 .formula {
   font-size: 13px;
   color: #A29BFE;
   letter-spacing: 1px;
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .molecule-info {
+    width: 150px;
+    min-width: 150px;
+  }
+
+  .info-content {
+    padding: 12px;
+  }
+
+  .info-value {
+    max-width: 85px;
+    font-size: 12px;
+  }
 }

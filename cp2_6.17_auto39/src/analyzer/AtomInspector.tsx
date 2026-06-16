@@ -33,12 +33,26 @@ export function AtomInspector() {
   const elementName = ELEMENT_NAMES[selectedAtom.element] || '未知'
 
   const handleConnectedAtomClick = (atomId: number) => {
-    console.log('[AtomInspector] Connected atom clicked:', atomId)
+    const targetAtom = useStore.getState().molecule.atoms.find((a) => a.id === atomId)
+    console.log('[AtomInspector] Connected atom clicked:', {
+      targetId: atomId,
+      targetElement: targetAtom?.element,
+      targetPosition: targetAtom ? [targetAtom.x, targetAtom.y, targetAtom.z] : null,
+      fromSelectedAtom: selectedAtomId,
+      fromElement: selectedAtom?.element,
+      timestamp: new Date().toISOString(),
+    })
     setSelectedAtom(atomId)
   }
 
-  const handleClose = () => {
-    console.log('[AtomInspector] Close button clicked')
+  const handleClose = (e: React.MouseEvent) => {
+    console.log('[AtomInspector] Close button clicked:', {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      closingAtomId: selectedAtomId,
+      closingElement: selectedAtom?.element,
+      timestamp: new Date().toISOString(),
+    })
     setSelectedAtom(null)
   }
 

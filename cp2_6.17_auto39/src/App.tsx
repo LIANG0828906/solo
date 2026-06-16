@@ -69,15 +69,15 @@ export function App() {
       <div className="controls-hint">
         <div className="hint-item">
           <span className="hint-key">拖拽</span>
-          旋转视角
+          <span className="hint-text">旋转视角</span>
         </div>
         <div className="hint-item">
           <span className="hint-key">滚轮</span>
-          缩放
+          <span className="hint-text">缩放</span>
         </div>
         <div className="hint-item">
           <span className="hint-key">点击</span>
-          查看原子
+          <span className="hint-text">查看原子</span>
         </div>
       </div>
     </div>

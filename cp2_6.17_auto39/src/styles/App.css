@@ -82,13 +82,15 @@ body {
   transform: translateX(-50%);
   display: flex;
   flex-direction: row;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
+  align-content: center;
   gap: 12px;
   z-index: 10;
-  max-width: 100%;
+  max-width: calc(100% - 48px);
   padding: 0 24px;
+  overflow: visible;
 }
 
 .hint-item {
@@ -98,15 +100,20 @@ body {
   padding: 8px 16px;
   border-radius: 20px;
   font-size: 12px;
-  line-height: 1;
+  line-height: 1.4;
   color: #aaaaaa;
   border: 1px solid rgba(108, 99, 255, 0.2);
   transition: all 0.3s ease;
   white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
   display: inline-flex;
   flex-direction: row;
   align-items: center;
   flex-shrink: 0;
+  flex-grow: 0;
+  min-width: fit-content;
+  width: fit-content;
 }
 
 .hint-key {
@@ -124,6 +131,14 @@ body {
   flex-shrink: 0;
   min-width: 32px;
   text-align: center;
+  white-space: nowrap;
+}
+
+.hint-text {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .hint-item:hover {
@@ -131,4 +146,37 @@ body {
   color: #ffffff;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(108, 99, 255, 0.2);
+}
+
+@media (max-width: 768px) {
+  .controls-hint {
+    gap: 8px;
+    padding: 0 12px;
+    max-width: calc(100% - 24px);
+    bottom: 16px;
+  }
+
+  .hint-item {
+    padding: 6px 12px;
+    font-size: 11px;
+    min-width: fit-content;
+    width: fit-content;
+    flex-shrink: 0;
+  }
+
+  .hint-key {
+    font-size: 10px;
+    padding: 2px 6px;
+    min-width: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hint-item {
+    padding: 6px 10px;
+    font-size: 10px;
+    min-width: fit-content;
+    width: fit-content;
+    flex-shrink: 0;
+  }
 }

@@ -181,21 +181,43 @@ export class MoleculeScene {
     if (this.isDragging) return
 
     const rect = this.renderer.domElement.getBoundingClientRect()
-    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+    const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1
+    const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1
+    this.mouse.set(ndcX, ndcY)
 
     this.raycaster.setFromCamera(this.mouse, this.camera)
     const meshes = Array.from(this.atomMeshes.values())
-    const intersects = this.raycaster.intersectObjects(meshes)
+    const intersects = this.raycaster.intersectObjects(meshes, false)
 
-    console.log('[MoleculeScene] Click detected, atom meshes available:', meshes.length, 'intersections:', intersects.length)
+    console.log('[MoleculeScene] Click event:', {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      canvasX: e.clientX - rect.left,
+      canvasY: e.clientY - rect.top,
+      ndcX: ndcX.toFixed(4),
+      ndcY: ndcY.toFixed(4),
+      availableAtoms: meshes.length,
+      intersectionCount: intersects.length,
+    })
 
     if (intersects.length > 0) {
-      const clickedMesh = intersects[0].object as THREE.Mesh
+      const intersection = intersects[0]
+      const clickedMesh = intersection.object as THREE.Mesh
       const atomId = Number(clickedMesh.userData.atomId)
-      console.log('[MoleculeScene] Atom clicked:', atomId, 'element:', clickedMesh.userData.element)
+      const element = clickedMesh.userData.element as string
+
+      console.log('[MoleculeScene] Atom hit:', {
+        atomId,
+        element,
+        distance: intersection.distance.toFixed(4),
+        worldPoint: intersection.point.toArray().map((v) => v.toFixed(3)),
+        localPosition: clickedMesh.position.toArray().map((v) => v.toFixed(3)),
+      })
+
       this.highlightAtom(atomId)
       this.onAtomClick?.(atomId)
+    } else {
+      console.log('[MoleculeScene] No atom hit - ray missed all atoms')
     }
   }
 
@@ -298,29 +320,51 @@ export class MoleculeScene {
 
     const geometry = new THREE.SphereGeometry(radius, 32, 32)
 
-    const material = new THREE.MeshStandardMaterial({
+    const materialParams = {
       color: color,
-      emissive: emissiveColor,
+      emissive: emissiveColor.getHex(),
       emissiveIntensity: 1,
       roughness: 0.4,
       metalness: 0.1,
-    })
+      transparent: false,
+      opacity: 1,
+      side: THREE.FrontSide,
+    }
+    const material = new THREE.MeshStandardMaterial(materialParams)
 
     const mesh = new THREE.Mesh(geometry, material)
     mesh.position.set(atom.x, atom.y, atom.z)
     mesh.userData = { atomId: atom.id, element: atom.element, radius, index }
     mesh.visible = true
+    mesh.matrixAutoUpdate = true
+    mesh.renderOrder = 0
 
     this.atomGroup.add(mesh)
     this.atomMeshes.set(atom.id, mesh)
 
     console.log('[MoleculeScene] Atom created:', {
       id: atom.id,
+      index,
       element: atom.element,
-      position: [atom.x, atom.y, atom.z],
+      position: { x: atom.x, y: atom.y, z: atom.z },
       radius,
-      color,
-      inGroup: this.atomGroup.children.includes(mesh),
+      color: { hex: color, rgb: material.color.toArray() },
+      emissive: { hex: '#' + emissiveColor.getHexString(), rgb: emissiveColor.toArray() },
+      material: {
+        roughness: material.roughness,
+        metalness: material.metalness,
+        emissiveIntensity: material.emissiveIntensity,
+        transparent: material.transparent,
+        opacity: material.opacity,
+      },
+      geometry: {
+        type: geometry.type,
+        vertices: geometry.attributes.position?.count || 0,
+        radius: geometry.parameters.radius,
+      },
+      inAtomGroup: this.atomGroup.children.includes(mesh),
+      meshVisible: mesh.visible,
+      meshScale: mesh.scale.toArray(),
     })
   }
 
