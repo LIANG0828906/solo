@@ -1,0 +1,33 @@
+{
+  "polls": [
+    {
+      "id": "b53e4bbb-7a4c-42d4-89c2-3eb6cea279a2",
+      "title": "活动满意度调查",
+      "shortCode": "2F68P9",
+      "questions": [
+        {
+          "id": "fb376f60-4d84-4fff-921a-b378631c8d77",
+          "type": "single",
+          "title": "您对本次活动整体满意度如何？",
+          "options": [
+            "非常满意",
+            "一般满意"
+          ]
+        },
+        {
+          "id": "0b4d3c3c-2044-40d1-859e-7a73a33b00ef",
+          "type": "single",
+          "title": "请为本次活动打分",
+          "options": [
+            "活动内容",
+            "组织安排"
+          ]
+        }
+      ],
+      "votes": [],
+      "createdAt": 1781627909887,
+      "closed": false,
+      "closedAt": null
+    }
+  ]
+}
