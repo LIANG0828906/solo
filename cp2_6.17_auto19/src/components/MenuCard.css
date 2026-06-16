@@ -1,0 +1,107 @@
+.menu-card {
+  position: relative;
+  width: 220px;
+  height: 280px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  box-shadow: var(--shadow-sm);
+}
+
+.menu-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+}
+
+.card-bounce {
+  animation: bounce 0.2s ease-out;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.menu-card-image {
+  width: 140px;
+  height: 140px;
+  margin: 20px auto 16px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-card-emoji {
+  font-size: 72px;
+  line-height: 1;
+}
+
+.menu-card-content {
+  padding: 0 16px 16px;
+  text-align: center;
+}
+
+.menu-card-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-card-price {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.menu-card-add-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+  transition: transform var(--transition-normal);
+}
+
+.menu-card-add-btn:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.menu-card-add-btn .material-icons {
+  font-size: 32px;
+}
+
+.menu-card-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 14px;
+  background-color: var(--primary);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
