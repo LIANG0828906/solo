@@ -27,11 +27,12 @@ export default function AdminDashboard() {
   const [rejectingBookingId, setRejectingBookingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectSuggestion, setRejectSuggestion] = useState('');
+  const [deletingFacilityId, setDeletingFacilityId] = useState<string | null>(null);
   const [view, setView] = useState<'slideInLeft' | 'slideInRight'>('slideInLeft');
 
   const {
-    facilities,
-    bookings,
+    facilities = [],
+    bookings = [],
     currentUser,
     addFacility,
     updateFacility,
@@ -89,11 +90,20 @@ export default function AdminDashboard() {
     setEditingFacility(null);
   };
 
-  const handleDeleteFacility = async (id: string) => {
-    if (confirm('确定要删除此设施吗？相关预约也将被删除。')) {
-      await deleteFacility(id);
+  const handleDeleteFacility = (id: string) => {
+    setDeletingFacilityId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deletingFacilityId) {
+      await deleteFacility(deletingFacilityId);
       showNotification('success', '设施已删除');
+      setDeletingFacilityId(null);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setDeletingFacilityId(null);
   };
 
   const handleApprove = async (id: string) => {
@@ -423,6 +433,27 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deletingFacilityId && (
+        <div style={modalOverlayStyle} onClick={handleCancelDelete}>
+          <div className="card" style={modalStyle} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '20px' }}>
+              确认删除
+            </h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.6' }}>
+              ⚠️ 确定要删除此设施吗？该设施的所有预约记录也将被删除，此操作不可撤销。
+            </p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-ghost" onClick={handleCancelDelete}>
+                取消
+              </button>
+              <button type="button" className="btn btn-danger" onClick={handleConfirmDelete}>
+                确认删除
+              </button>
+            </div>
           </div>
         </div>
       )}

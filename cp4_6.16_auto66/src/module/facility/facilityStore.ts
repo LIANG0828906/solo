@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { get, set, del, keys } from 'idb-keyval';
+import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from 'idb-keyval';
 import { v4 as uuidv4 } from 'uuid';
 import type { Facility, Booking, User, FacilityStats, DailyStats } from './types';
 
@@ -39,7 +39,7 @@ interface FacilityStore {
   clearNotification: () => void;
 }
 
-export const useFacilityStore = create<FacilityStore>((set, get) => ({
+export const useFacilityStore = create<FacilityStore>((setState, getState) => ({
   facilities: [],
   bookings: [],
   users: [],
@@ -48,19 +48,28 @@ export const useFacilityStore = create<FacilityStore>((set, get) => ({
   notification: null,
 
   init: async () => {
+    let finalFacilities: Facility[] = [];
+    let finalBookings: Booking[] = [];
+    let finalUsers: User[] = [];
+    let currentUser: User | null = null;
+
     try {
       const [facilities, bookings, users, currentUserId] = await Promise.all([
-        get<Facility[]>(FACILITIES_KEY),
-        get<Booking[]>(BOOKINGS_KEY),
-        get<User[]>(USERS_KEY),
-        get<string>(CURRENT_USER_KEY),
+        idbGet<Facility[]>(FACILITIES_KEY),
+        idbGet<Booking[]>(BOOKINGS_KEY),
+        idbGet<User[]>(USERS_KEY),
+        idbGet<string>(CURRENT_USER_KEY),
       ]);
 
-      let finalFacilities = facilities || [];
-      let finalUsers = users || [];
-      let finalBookings = bookings || [];
+      finalFacilities = Array.isArray(facilities) ? facilities : [];
+      finalUsers = Array.isArray(users) ? users : [];
+      finalBookings = Array.isArray(bookings) ? bookings : [];
 
-      if (finalFacilities.length === 0) {
+      const facilitiesCorrupted = !Array.isArray(facilities);
+      const usersCorrupted = !Array.isArray(users);
+      const bookingsCorrupted = !Array.isArray(bookings);
+
+      if (finalFacilities.length === 0 || facilitiesCorrupted) {
         finalFacilities = [
           {
             id: uuidv4(),
@@ -103,66 +112,78 @@ export const useFacilityStore = create<FacilityStore>((set, get) => ({
             icon: '🏓',
           },
         ];
-        await set(FACILITIES_KEY, finalFacilities);
+        await idbSet(FACILITIES_KEY, finalFacilities);
       }
 
-      if (finalUsers.length === 0) {
+      if (finalUsers.length === 0 || usersCorrupted) {
         finalUsers = [
           { id: 'admin-1', name: '物业管理员', role: 'admin' },
           { id: 'user-1', name: '张三', role: 'resident', roomNumber: 'A栋101' },
           { id: 'user-2', name: '李四', role: 'resident', roomNumber: 'B栋203' },
         ];
-        await set(USERS_KEY, finalUsers);
+        await idbSet(USERS_KEY, finalUsers);
       }
 
-      let currentUser = finalUsers.find((u) => u.id === currentUserId) || null;
+      if (bookingsCorrupted) {
+        finalBookings = [];
+        await idbSet(BOOKINGS_KEY, finalBookings);
+      }
+
+      currentUser = finalUsers.find((u) => u.id === currentUserId) || null;
       if (!currentUser) {
         currentUser = finalUsers[1];
-        await set(CURRENT_USER_KEY, currentUser.id);
+        await idbSet(CURRENT_USER_KEY, currentUser.id);
       }
-
-      set({
+    } catch (error) {
+      console.error('Failed to initialize store:', error);
+      finalFacilities = [];
+      finalBookings = [];
+      finalUsers = [
+        { id: 'admin-1', name: '物业管理员', role: 'admin' },
+        { id: 'user-1', name: '张三', role: 'resident', roomNumber: 'A栋101' },
+        { id: 'user-2', name: '李四', role: 'resident', roomNumber: 'B栋203' },
+      ];
+      currentUser = finalUsers[1];
+    } finally {
+      setState({
         facilities: finalFacilities,
         bookings: finalBookings,
         users: finalUsers,
         currentUser,
         loading: false,
       });
-    } catch (error) {
-      console.error('Failed to initialize store:', error);
-      set({ loading: false });
     }
   },
 
   setCurrentUser: async (userId: string) => {
-    const user = get().users.find((u) => u.id === userId);
+    const user = getState().users.find((u) => u.id === userId);
     if (user) {
-      set({ currentUser: user });
-      await set(CURRENT_USER_KEY, userId);
+      setState({ currentUser: user });
+      await idbSet(CURRENT_USER_KEY, userId);
     }
   },
 
   addFacility: async (facility) => {
     const newFacility: Facility = { ...facility, id: uuidv4() };
-    const facilities = [...get().facilities, newFacility];
-    set({ facilities });
-    await set(FACILITIES_KEY, facilities);
+    const facilities = [...getState().facilities, newFacility];
+    setState({ facilities });
+    await idbSet(FACILITIES_KEY, facilities);
     return newFacility;
   },
 
   updateFacility: async (id, data) => {
-    const facilities = get().facilities.map((f) =>
+    const facilities = getState().facilities.map((f) =>
       f.id === id ? { ...f, ...data } : f
     );
-    set({ facilities });
-    await set(FACILITIES_KEY, facilities);
+    setState({ facilities });
+    await idbSet(FACILITIES_KEY, facilities);
   },
 
   deleteFacility: async (id) => {
-    const facilities = get().facilities.filter((f) => f.id !== id);
-    const bookings = get().bookings.filter((b) => b.facilityId !== id);
-    set({ facilities, bookings });
-    await Promise.all([set(FACILITIES_KEY, facilities), set(BOOKINGS_KEY, bookings)]);
+    const facilities = getState().facilities.filter((f) => f.id !== id);
+    const bookings = getState().bookings.filter((b) => b.facilityId !== id);
+    setState({ facilities, bookings });
+    await Promise.all([idbSet(FACILITIES_KEY, facilities), idbSet(BOOKINGS_KEY, bookings)]);
   },
 
   addBooking: async (booking) => {
@@ -173,24 +194,24 @@ export const useFacilityStore = create<FacilityStore>((set, get) => ({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    const bookings = [...get().bookings, newBooking];
-    set({ bookings });
-    await set(BOOKINGS_KEY, bookings);
+    const bookings = [...getState().bookings, newBooking];
+    setState({ bookings });
+    await idbSet(BOOKINGS_KEY, bookings);
     return newBooking;
   },
 
   approveBooking: async (id) => {
-    const bookings = get().bookings.map((b) =>
+    const bookings = getState().bookings.map((b) =>
       b.id === id
         ? { ...b, status: 'confirmed' as const, updatedAt: new Date().toISOString() }
         : b
     );
-    set({ bookings });
-    await set(BOOKINGS_KEY, bookings);
+    setState({ bookings });
+    await idbSet(BOOKINGS_KEY, bookings);
   },
 
   rejectBooking: async (id, reason, suggestion) => {
-    const bookings = get().bookings.map((b) =>
+    const bookings = getState().bookings.map((b) =>
       b.id === id
         ? {
             ...b,
@@ -201,28 +222,28 @@ export const useFacilityStore = create<FacilityStore>((set, get) => ({
           }
         : b
     );
-    set({ bookings });
-    await set(BOOKINGS_KEY, bookings);
+    setState({ bookings });
+    await idbSet(BOOKINGS_KEY, bookings);
   },
 
   deleteBooking: async (id) => {
-    const bookings = get().bookings.filter((b) => b.id !== id);
-    set({ bookings });
-    await set(BOOKINGS_KEY, bookings);
+    const bookings = getState().bookings.filter((b) => b.id !== id);
+    setState({ bookings });
+    await idbSet(BOOKINGS_KEY, bookings);
   },
 
   getUserBookings: (userId) => {
-    return get()
+    return getState()
       .bookings.filter((b) => b.userId === userId)
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   },
 
   getFacilityBookings: (facilityId) => {
-    return get().bookings.filter((b) => b.facilityId === facilityId);
+    return getState().bookings.filter((b) => b.facilityId === facilityId);
   },
 
   getPendingBookings: () => {
-    return get()
+    return getState()
       .bookings.filter((b) => b.status === 'pending')
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   },
@@ -230,10 +251,10 @@ export const useFacilityStore = create<FacilityStore>((set, get) => ({
   getFacilityStats: (days) => {
     const now = new Date();
     const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-    const facilities = get().facilities;
+    const facilities = getState().facilities;
 
     return facilities.map((f) => {
-      const relevantBookings = get().bookings.filter(
+      const relevantBookings = getState().bookings.filter(
         (b) =>
           b.facilityId === f.id &&
           b.status !== 'rejected' &&
@@ -262,7 +283,7 @@ export const useFacilityStore = create<FacilityStore>((set, get) => ({
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       const nextDay = new Date(date.getTime() + 24 * 60 * 60 * 1000);
-      const count = get().bookings.filter(
+      const count = getState().bookings.filter(
         (b) =>
           b.status !== 'rejected' &&
           new Date(b.startTime) >= date &&
@@ -277,11 +298,11 @@ export const useFacilityStore = create<FacilityStore>((set, get) => ({
   },
 
   showNotification: (type, message) => {
-    set({ notification: { type, message } });
-    setTimeout(() => get().clearNotification(), 2000);
+    setState({ notification: { type, message } });
+    setTimeout(() => getState().clearNotification(), 2000);
   },
 
   clearNotification: () => {
-    set({ notification: null });
+    setState({ notification: null });
   },
 }));

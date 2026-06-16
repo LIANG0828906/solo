@@ -1,6 +1,18 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format, parseISO, isBefore, isToday } from 'date-fns';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  LineChart,
+  Line,
+  ResponsiveContainer,
+} from 'recharts';
 import { useFacilityStore } from '../facility/facilityStore';
 import { formatDateTime } from '../facility/facilityService';
 import type { Booking } from '../facility/types';
@@ -15,10 +27,12 @@ export default function UserProfile() {
 
   const {
     currentUser,
-    facilities,
+    facilities = [],
     getUserBookings,
     deleteBooking,
     showNotification,
+    getFacilityStats,
+    getDailyStats,
   } = useFacilityStore();
 
   const allBookings = currentUser ? getUserBookings(currentUser.id) : [];
@@ -52,6 +66,9 @@ export default function UserProfile() {
   const confirmedCount = allBookings.filter((b) => b.status === 'confirmed').length;
   const pendingCount = allBookings.filter((b) => b.status === 'pending').length;
   const rejectedCount = allBookings.filter((b) => b.status === 'rejected').length;
+
+  const facilityStats = getFacilityStats(30).filter((s) => s.totalBookings > 0);
+  const dailyStats = getDailyStats(30);
 
   const filters: { key: FilterType; label: string }[] = [
     { key: 'all', label: '全部' },
@@ -94,6 +111,64 @@ export default function UserProfile() {
           <div className="card" style={{ padding: '20px' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>已驳回</div>
             <div style={{ fontSize: '32px', fontWeight: 700, color: 'var(--danger)' }}>{rejectedCount}</div>
+          </div>
+        </div>
+
+        <h2 className="section-title">我的使用统计(过去30天)</h2>
+        <div className="grid grid-2" style={{ marginBottom: '24px' }}>
+          <div className="card" style={{ padding: '20px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>各设施预约次数</h3>
+            <div style={{ height: '300px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={facilityStats}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="facilityName" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="totalBookings" name="预约次数" fill="#4A6FA5" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: '20px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>各设施使用率(%)</h3>
+            <div style={{ height: '300px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={facilityStats}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="facilityName" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="utilizationRate" name="使用率%" fill="#48BB78" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: '20px', gridColumn: '1 / -1' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>每日预约趋势</h3>
+            <div style={{ height: '300px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailyStats}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    name="预约数"
+                    stroke="#4A6FA5"
+                    strokeWidth={2}
+                    dot={{ fill: '#4A6FA5', r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 

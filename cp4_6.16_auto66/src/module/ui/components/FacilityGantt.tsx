@@ -128,7 +128,7 @@ export default function FacilityGantt({
                         style={{
                           padding: '8px 12px',
                           borderRadius: '8px',
-                          background: getStatusColor(b.status) + '20',
+                          backgroundColor: getStatusColor(b.status) + '20',
                           borderLeft: `3px solid ${getStatusColor(b.status)}`,
                           fontSize: '13px',
                         }}
@@ -268,8 +268,7 @@ export default function FacilityGantt({
                               right: '4px',
                               top: `${top + 2}px`,
                               height: `${height}px`,
-                              background: conflict ? undefined : getStatusColor(b.status) + 'CC',
-                              backgroundColor: conflict ? undefined : undefined,
+                              backgroundColor: conflict ? 'var(--danger)' : getStatusColor(b.status) + 'CC',
                               borderRadius: '6px',
                               padding: '4px 8px',
                               fontSize: '12px',
@@ -279,7 +278,6 @@ export default function FacilityGantt({
                               whiteSpace: 'nowrap',
                               boxShadow: isSelected ? '0 0 0 2px var(--primary)' : 'none',
                               animation: conflict ? 'blink 1s ease-in-out infinite' : undefined,
-                              backgroundColor: conflict ? 'var(--danger)' : getStatusColor(b.status) + 'CC',
                               zIndex: conflict ? 10 : 1,
                             }}
                           >

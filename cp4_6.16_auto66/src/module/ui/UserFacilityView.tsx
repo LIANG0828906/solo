@@ -28,8 +28,8 @@ export default function UserFacilityView() {
   const [shakeBookingForm, setShakeBookingForm] = useState(false);
 
   const {
-    facilities,
-    bookings,
+    facilities = [],
+    bookings = [],
     currentUser,
     addBooking,
     getFacilityBookings,

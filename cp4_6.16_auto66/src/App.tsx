@@ -21,7 +21,7 @@ function Notification() {
 }
 
 function UserSwitcher() {
-  const { users, currentUser, setCurrentUser } = useFacilityStore();
+  const { users = [], currentUser, setCurrentUser } = useFacilityStore();
 
   return (
     <div
