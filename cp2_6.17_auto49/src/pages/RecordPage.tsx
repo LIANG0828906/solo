@@ -14,10 +14,14 @@ const RecordPage: React.FC = () => {
     updateUserSettings,
     getDailyTotalCalories,
     getTodayDuration,
+    workoutRecords,
   } = useFitTrackyStore();
 
   const todayDuration = getTodayDuration();
   const goalReached = todayDuration >= userSettings.dailyDurationGoal;
+  
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayWorkoutCount = workoutRecords.filter(r => r.date === todayStr).length;
 
   const getDailyCalories = (date: string): number => {
     return getDailyTotalCalories(date).burned;
@@ -58,7 +62,7 @@ const RecordPage: React.FC = () => {
               <span className="stat-label">摄入(卡)</span>
             </div>
           </div>
-          <GoalBadge show={goalReached} />
+          <GoalBadge show={goalReached} triggerKey={todayWorkoutCount} />
         </div>
       </div>
 

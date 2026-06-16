@@ -1,12 +1,16 @@
 .workout-card {
-  width: 300px;
-  background-color: var(--card-bg);
+  width: 300px !important;
+  min-width: 300px;
+  max-width: 300px;
+  flex-shrink: 0;
+  background-color: #FFFFFF;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   overflow: hidden;
   color: #333;
+  box-sizing: border-box;
 }
 
 .workout-card:hover {
