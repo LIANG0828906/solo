@@ -414,7 +414,8 @@ export function generateLuggageList(
     if (!exists) {
       result.push({
         id: `weather-${adj.category}-${adj.item.name}-${Math.random().toString(36).substr(2, 9)}`,
-        ...adj.item
+        ...adj.item,
+        packed: false
       })
     }
   })
