@@ -183,8 +183,38 @@ export class GameManager {
 
       if (this.gameState.currentTurn === 'red') {
         this.gameState.redTime = Math.max(0, this.gameState.redTime - 1);
+        if (this.gameState.redTime <= 0) {
+          this.gameState.redTime = 0;
+          this.gameState.status = 'timeout';
+          this.gameState.winner = 'black';
+          if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+          }
+          if (!this.gameOverShown) {
+            this.gameOverShown = true;
+            this.emit('gameOver', { status: 'timeout', winner: 'black' });
+          }
+          this.emit('stateUpdate', this.gameState);
+          return;
+        }
       } else {
         this.gameState.blackTime = Math.max(0, this.gameState.blackTime - 1);
+        if (this.gameState.blackTime <= 0) {
+          this.gameState.blackTime = 0;
+          this.gameState.status = 'timeout';
+          this.gameState.winner = 'red';
+          if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+          }
+          if (!this.gameOverShown) {
+            this.gameOverShown = true;
+            this.emit('gameOver', { status: 'timeout', winner: 'red' });
+          }
+          this.emit('stateUpdate', this.gameState);
+          return;
+        }
       }
       this.emit('timerUpdate', {
         redTime: this.gameState.redTime,
@@ -433,6 +463,13 @@ export class GameManager {
   }
 
   sendChat(message: string) {
+    const localMsg = {
+      playerId: this.playerId,
+      color: this.myColor,
+      message,
+    };
+    this.chatMessages.push(localMsg);
+    this.emit('chatMessage', localMsg);
     this.send({ type: 'CHAT_MESSAGE', payload: { message } });
   }
 

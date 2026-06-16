@@ -34,8 +34,10 @@ const Board: React.FC<BoardProps> = ({ gameManager }) => {
   const [validMoves, setValidMoves] = useState<Position[]>([]);
   const [draggingPos, setDraggingPos] = useState<Position | null>(null);
   const [dragPixelPos, setDragPixelPos] = useState<{ x: number; y: number } | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [placedPos, setPlacedPos] = useState<Position | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
 
   const myColor = gameManager.getMyColor();
   const isMyTurn = gameManager.isMyTurn();
@@ -54,10 +56,6 @@ const Board: React.FC<BoardProps> = ({ gameManager }) => {
         setPlacedPos(data.to);
         setTimeout(() => setPlacedPos(null), 250);
       }
-      if (event === 'dragUpdate') {
-        setDraggingPos(data.dragging ? data.pos : null);
-        setDragPixelPos(data.pixelPos);
-      }
     };
 
     gameManager.onEvent(handleEvent);
@@ -70,7 +68,68 @@ const Board: React.FC<BoardProps> = ({ gameManager }) => {
     return () => gameManager.removeEvent(handleEvent);
   }, [gameManager]);
 
+  const handleDragStart = useCallback((pos: Position, e: React.MouseEvent) => {
+    if (!boardRef.current || !board) return;
+    const rect = boardRef.current.getBoundingClientRect();
+    const piecePx = posToPixel(pos);
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    gameManager.selectPiece(pos);
+
+    setDraggingPos(pos);
+    setSelectedPos(pos);
+    setDragOffset({
+      x: mouseX - piecePx.x,
+      y: mouseY - piecePx.y,
+    });
+    setDragPixelPos({ x: mouseX, y: mouseY });
+    isDraggingRef.current = true;
+
+    const valid = gameManager.getValidMoves();
+    setValidMoves(valid);
+  }, [board, gameManager]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !draggingPos || !boardRef.current) return;
+      const rect = boardRef.current.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      setDragPixelPos({ x: px - dragOffset.x, y: py - dragOffset.y });
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !draggingPos || !boardRef.current) {
+        isDraggingRef.current = false;
+        return;
+      }
+
+      const rect = boardRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const pos = pixelToPos(x, y);
+
+      isDraggingRef.current = false;
+      setDraggingPos(null);
+      setDragPixelPos(null);
+      gameManager.setDragging(false);
+
+      if (pos.row >= 0 && validMoves.some(m => m.row === pos.row && m.col === pos.col)) {
+        gameManager.movePiece(pos);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingPos, validMoves, dragOffset, gameManager]);
+
   const handleBoardClick = useCallback((e: React.MouseEvent) => {
+    if (isDraggingRef.current) return;
     if (!boardRef.current || !board) return;
     const rect = boardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -91,6 +150,7 @@ const Board: React.FC<BoardProps> = ({ gameManager }) => {
   }, [board, selectedPos, validMoves, myColor, gameManager]);
 
   const handlePieceClick = useCallback((pos: Position) => {
+    if (isDraggingRef.current) return;
     if (!board) return;
     const piece = board[pos.row][pos.col];
 
@@ -100,47 +160,6 @@ const Board: React.FC<BoardProps> = ({ gameManager }) => {
       gameManager.selectPiece(pos);
     }
   }, [board, selectedPos, validMoves, myColor, gameManager]);
-
-  const handleDragStart = useCallback((pos: Position, e: React.MouseEvent) => {
-    gameManager.selectPiece(pos);
-    setDraggingPos(pos);
-    setDragPixelPos({ x: e.clientX - (boardRef.current?.getBoundingClientRect().left || 0), y: e.clientY - (boardRef.current?.getBoundingClientRect().top || 0) });
-    gameManager.setDragging(true, pos, { x: e.clientX - (boardRef.current?.getBoundingClientRect().left || 0), y: e.clientY - (boardRef.current?.getBoundingClientRect().top || 0) });
-  }, [gameManager]);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!draggingPos || !boardRef.current) return;
-      const rect = boardRef.current.getBoundingClientRect();
-      const px = e.clientX - rect.left;
-      const py = e.clientY - rect.top;
-      setDragPixelPos({ x: px, y: py });
-      gameManager.setDragging(true, draggingPos, { x: px, y: py });
-    };
-
-    const handleMouseUp = (e: MouseEvent) => {
-      if (!draggingPos || !boardRef.current) return;
-      const rect = boardRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const pos = pixelToPos(x, y);
-
-      if (pos.row >= 0 && validMoves.some(m => m.row === pos.row && m.col === pos.col)) {
-        gameManager.movePiece(pos);
-      }
-
-      setDraggingPos(null);
-      setDragPixelPos(null);
-      gameManager.setDragging(false);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [draggingPos, validMoves, gameManager]);
 
   const boardWidth = PADDING * 2 + (COLS - 1) * CELL_SIZE;
   const boardHeight = PADDING * 2 + (ROWS - 1) * CELL_SIZE;
@@ -233,6 +252,20 @@ const Board: React.FC<BoardProps> = ({ gameManager }) => {
     );
   }
 
+  const getPiecePosition = (pos: Position, isSelected: boolean) => {
+    if (draggingPos && isSelected && dragPixelPos) {
+      return {
+        left: dragPixelPos.x - 24,
+        top: dragPixelPos.y - 24,
+      };
+    }
+    const px = posToPixel(pos);
+    return {
+      left: px.x - 24,
+      top: px.y - 24,
+    };
+  };
+
   return (
     <div className="board-wrapper">
       <div
@@ -261,25 +294,34 @@ const Board: React.FC<BoardProps> = ({ gameManager }) => {
           row.map((cell, c) => {
             if (!cell) return null;
             const pos = { row: r, col: c };
-            const px = posToPixel(pos);
             const isSelected = selectedPos?.row === r && selectedPos?.col === c;
             const isMyPiece = cell.color === myColor;
             const isPlaced = placedPos?.row === r && placedPos?.col === c;
+            const isCurrentlyDragging = !!draggingPos && isSelected;
+            const pieceStyle = getPiecePosition(pos, isSelected);
 
             return (
-              <div key={`p-${r}-${c}`} className={isPlaced ? 'placed' : ''}>
-                <PieceComponent
-                  piece={cell}
-                  pos={pos}
-                  isSelected={isSelected}
-                  isMyPiece={isMyPiece}
-                  isMyTurn={isMyTurn}
-                  pixelPos={px}
-                  isDragging={!!draggingPos}
-                  dragPixelPos={isSelected ? dragPixelPos : null}
-                  onClick={handlePieceClick}
-                  onDragStart={handleDragStart}
-                />
+              <div
+                key={`p-${r}-${c}`}
+                className={`piece ${cell.color} ${isSelected ? 'selected' : ''} ${isCurrentlyDragging ? 'dragging' : ''} ${isPlaced ? 'placed' : ''}`}
+                style={pieceStyle}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePieceClick(pos);
+                }}
+                onMouseDown={(e) => {
+                  if (isMyPiece && isMyTurn) {
+                    handleDragStart(pos, e);
+                  }
+                }}
+              >
+                {cell.type === 'king' ? (cell.color === 'red' ? '帥' : '將') :
+                 cell.type === 'advisor' ? (cell.color === 'red' ? '仕' : '士') :
+                 cell.type === 'bishop' ? (cell.color === 'red' ? '相' : '象') :
+                 cell.type === 'knight' ? '馬' :
+                 cell.type === 'rook' ? '車' :
+                 cell.type === 'cannon' ? (cell.color === 'red' ? '炮' : '砲') :
+                 (cell.color === 'red' ? '兵' : '卒')}
               </div>
             );
           })

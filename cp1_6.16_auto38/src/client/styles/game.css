@@ -304,7 +304,8 @@ body {
   z-index: 30;
   transform: scale(1.12);
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  transition: none;
+  transition: left 0.1s ease-out, top 0.1s ease-out, transform 0.1s ease, box-shadow 0.1s ease;
+  cursor: grabbing;
 }
 
 .piece.placed {

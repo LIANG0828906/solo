@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { GameState, MoveRecord, PieceColor, PRESET_MESSAGES } from '../../shared/types';
 import { GameManager } from './GameManager';
 
@@ -8,9 +8,10 @@ interface GamePanelProps {
 
 const GamePanel: React.FC<GamePanelProps> = ({ gameManager }) => {
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [chatMessages, setChatMessages] = useState<{ sender: string; color: PieceColor; message: string }[]>([]);
+  const [chatMessages, setChatMessages] = useState<{ playerId?: string; color: PieceColor | null; message: string }[]>([]);
   const [myColor, setMyColor] = useState<PieceColor | null>(null);
-  const moveListRef = React.useRef<HTMLDivElement>(null);
+  const moveListRef = useRef<HTMLDivElement>(null);
+  const chatListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleEvent = (event: string, data?: any) => {
@@ -23,7 +24,13 @@ const GamePanel: React.FC<GamePanelProps> = ({ gameManager }) => {
         setGameState(prev => prev ? { ...prev, redTime: data.redTime, blackTime: data.blackTime } : null);
       }
       if (event === 'chatMessage') {
-        setChatMessages(prev => [...prev, data]);
+        setChatMessages(prev => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg && lastMsg.message === data.message && lastMsg.color === data.color && lastMsg.playerId === data.playerId) {
+            return prev;
+          }
+          return [...prev, data];
+        });
       }
     };
 
@@ -34,7 +41,11 @@ const GamePanel: React.FC<GamePanelProps> = ({ gameManager }) => {
       setGameState({ ...gs, board: gs.board, moveHistory: [...gs.moveHistory] });
       setMyColor(gameManager.getMyColor());
     }
-    setChatMessages(gameManager.getChatMessages());
+    setChatMessages(gameManager.getChatMessages().map(m => ({
+      playerId: m.playerId,
+      color: m.color,
+      message: m.message,
+    })));
 
     return () => gameManager.removeEvent(handleEvent);
   }, [gameManager]);
@@ -44,6 +55,12 @@ const GamePanel: React.FC<GamePanelProps> = ({ gameManager }) => {
       moveListRef.current.scrollTop = moveListRef.current.scrollHeight;
     }
   }, [gameState?.moveHistory.length]);
+
+  useEffect(() => {
+    if (chatListRef.current) {
+      chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
+    }
+  }, [chatMessages.length]);
 
   if (!gameState) {
     return (
@@ -61,6 +78,13 @@ const GamePanel: React.FC<GamePanelProps> = ({ gameManager }) => {
   const isBlackWarning = gameState.blackTime < 120;
   const currentTurn = gameState.currentTurn;
   const isGameOver = gameState.status === 'checkmate' || gameState.status === 'stalemate' || gameState.status === 'timeout' || gameState.status === 'resigned';
+
+  const statusText: Record<string, string> = {
+    checkmate: '将杀',
+    stalemate: '困毙',
+    timeout: '超时',
+    resigned: '认输',
+  };
 
   return (
     <div className="info-panel">
@@ -81,16 +105,13 @@ const GamePanel: React.FC<GamePanelProps> = ({ gameManager }) => {
           <div className={`timer ${isRedWarning ? 'warning' : ''}`}>{redTime}</div>
         </div>
 
-        {(gameState.status === 'check') && (
+        {gameState.status === 'check' && (
           <div className="game-status-bar check">将军！</div>
         )}
 
         {isGameOver && (
           <div className="game-status-bar">
-            {gameState.status === 'checkmate' && '将杀'}
-            {gameState.status === 'stalemate' && '困毙'}
-            {gameState.status === 'timeout' && '超时'}
-            {gameState.status === 'resigned' && '认输'}
+            {statusText[gameState.status] || gameState.status}
             {' - '}
             {gameState.winner === 'red' ? '红方胜' : '黑方胜'}
           </div>
@@ -140,18 +161,19 @@ const GamePanel: React.FC<GamePanelProps> = ({ gameManager }) => {
             </button>
           ))}
         </div>
-        {chatMessages.length > 0 && (
-          <div className="chat-messages" style={{ marginTop: 10 }}>
-            {chatMessages.map((msg, i) => (
-              <div key={i} className="chat-msg">
-                <span className={`sender ${msg.color}`}>
-                  {msg.color === 'red' ? '红方' : '黑方'}
-                </span>
-                {msg.message}
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="chat-messages" ref={chatListRef} style={{ marginTop: 10 }}>
+          {chatMessages.length === 0 && (
+            <div style={{ color: '#666', fontSize: 12, textAlign: 'center', padding: 8 }}>暂无消息</div>
+          )}
+          {chatMessages.map((msg, i) => (
+            <div key={i} className="chat-msg">
+              <span className={`sender ${msg.color || 'red'}`}>
+                {msg.color === 'red' ? '红方' : '黑方'}
+              </span>
+              {msg.message}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
