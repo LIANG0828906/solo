@@ -8,6 +8,9 @@ export default defineConfig({
     tsconfigPaths(),
   ],
   root: '.',
+  optimizeDeps: {
+    include: ['react-lazyload', 'prop-types'],
+  },
   server: {
     proxy: {
       '/api': {
