@@ -78,12 +78,12 @@ export default function PreviewPanel() {
               onChange={(e) => setPreviewParams({ fontSize: Number(e.target.value) })}
             />
             <div className="preview-panel__range-marks">
-              <span>12</span>
-              <span>24</span>
-              <span>36</span>
-              <span>48</span>
+              <span>20</span>
+              <span>30</span>
+              <span>40</span>
+              <span>50</span>
               <span>60</span>
-              <span>72</span>
+              <span>70</span>
             </div>
           </label>
 

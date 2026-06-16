@@ -18,10 +18,20 @@ function getRandomChars(count: number): string {
   return result;
 }
 
+declare global {
+  interface Document {
+    fonts?: {
+      check: (spec: string, text?: string) => boolean;
+      load: (spec: string, text?: string) => Promise<FontFace[]>;
+    };
+  }
+}
+
 export default function FontCard({ font }: FontCardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [fontLoaded, setFontLoaded] = useState(false);
 
   const selectedFontId = useFontStore((s) => s.selectedFontId);
   const compareFontIds = useFontStore((s) => s.compareFontIds);
@@ -31,15 +41,49 @@ export default function FontCard({ font }: FontCardProps) {
   const isSelected = selectedFontId === font.id;
   const isInCompare = compareFontIds.includes(font.id);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkFont = async () => {
+      try {
+        if (document.fonts && document.fonts.check) {
+          const isLoaded = document.fonts.check(`16px "${font.googleFontName}"`);
+          if (isLoaded) {
+            if (!cancelled) setFontLoaded(true);
+            return;
+          }
+
+          if (document.fonts.load) {
+            await document.fonts.load(`16px "${font.googleFontName}"`, 'AaBbCc');
+            if (!cancelled) setFontLoaded(true);
+          } else {
+            await new Promise((r) => setTimeout(r, 2000));
+            if (!cancelled) setFontLoaded(true);
+          }
+        } else {
+          await new Promise((r) => setTimeout(r, 2500));
+          if (!cancelled) setFontLoaded(true);
+        }
+      } catch {
+        if (!cancelled) setFontLoaded(true);
+      }
+    };
+
+    checkFont();
+    return () => {
+      cancelled = true;
+    };
+  }, [font.googleFontName]);
+
   const drawCanvas = useCallback((text: string) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    renderMiniPreview(canvas, text, font.googleFontName);
-  }, [font.googleFontName]);
+    renderMiniPreview(canvas, text, fontLoaded ? font.googleFontName : 'sans-serif');
+  }, [font.googleFontName, fontLoaded]);
 
   useEffect(() => {
     drawCanvas('AaBbCc');
-  }, [drawCanvas]);
+  }, [drawCanvas, fontLoaded]);
 
   useEffect(() => {
     if (!isHovered) {
@@ -49,7 +93,7 @@ export default function FontCard({ font }: FontCardProps) {
     }
 
     const startTime = Date.now();
-    const duration = 300;
+    const duration = 500;
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
@@ -93,10 +137,37 @@ export default function FontCard({ font }: FontCardProps) {
           className={isInCompare ? 'compare-icon--active' : ''}
         />
       </button>
-      <canvas
-        ref={canvasRef}
-        className="font-card__canvas"
-      />
+
+      <div className="font-card__canvas-wrap">
+        <canvas
+          ref={canvasRef}
+          className="font-card__canvas"
+        />
+        {!fontLoaded && (
+          <div className="font-card__canvas-loading">
+            <svg className="font-card__spinner" viewBox="0 0 24 24">
+              <circle
+                className="font-card__spinner-track"
+                cx="12" cy="12" r="10"
+                fill="none"
+                stroke="#1E3A5F"
+                strokeOpacity="0.3"
+                strokeWidth="2.5"
+              />
+              <circle
+                className="font-card__spinner-arc"
+                cx="12" cy="12" r="10"
+                fill="none"
+                stroke="#4A90D9"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeDasharray="47 16"
+              />
+            </svg>
+          </div>
+        )}
+      </div>
+
       <div className="font-card__info">
         <h3 className="font-card__name">{font.name}</h3>
         <div className="font-card__meta">
