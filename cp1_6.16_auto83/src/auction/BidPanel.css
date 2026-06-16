@@ -1,0 +1,107 @@
+.bid-panel {
+  margin-top: auto;
+}
+
+.bid-input-wrapper {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.bid-currency {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.bid-input {
+  width: 100%;
+  padding: 14px 16px 14px 36px;
+  font-size: 18px;
+  font-weight: 600;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.bid-input:focus {
+  border-color: #b8860b;
+}
+
+.bid-input.has-error {
+  border-color: #ff4757;
+}
+
+.bid-input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.bid-error {
+  color: #ff4757;
+  font-size: 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #fff0f0;
+  border-radius: 6px;
+}
+
+.quick-bid-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.quick-bid-btn {
+  padding: 10px 0;
+  font-size: 13px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: white;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-bid-btn:hover:not(:disabled) {
+  border-color: #b8860b;
+  color: #b8860b;
+  background: #fdf9f0;
+}
+
+.quick-bid-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bid-submit-btn {
+  width: 100%;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: #b8860b;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bid-submit-btn:hover:not(.disabled) {
+  background: #9a7209;
+}
+
+.bid-submit-btn:active:not(.disabled) {
+  transform: scale(0.95);
+}
+
+.bid-submit-btn.disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
