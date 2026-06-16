@@ -253,6 +253,17 @@
   background: #E3F2FD;
 }
 
+.btn-back-secondary {
+  background: #F1F5F9;
+  color: #475569;
+  border: 1px solid #E2E8F0 !important;
+}
+
+.btn-back-secondary:hover {
+  background: #E2E8F0;
+  color: #1E293B;
+}
+
 @media (max-width: 767px) {
   .receipt-card {
     transform: scale(0.92);

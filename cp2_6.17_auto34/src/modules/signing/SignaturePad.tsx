@@ -13,8 +13,8 @@ const SignaturePad: React.FC = () => {
   const [error, setError] = useState<string>('')
   const [submittedRecordId, setSubmittedRecordId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSigning, setIsSigning] = useState(false)
   const [hasSignature, setHasSignature] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const sigCanvasRef = useRef<SignatureCanvas>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -28,14 +28,12 @@ const SignaturePad: React.FC = () => {
   }, [trackingNumber])
 
   const handleSignBegin = () => {
-    setIsSigning(true)
     setHasSignature(true)
   }
 
   const clearSignature = () => {
     sigCanvasRef.current?.clear()
     setSignatureBase64('')
-    setIsSigning(false)
     setHasSignature(false)
   }
 
@@ -95,6 +93,11 @@ const SignaturePad: React.FC = () => {
       return
     }
 
+    setShowConfirm(true)
+  }
+
+  const handleConfirmSubmit = () => {
+    setShowConfirm(false)
     setIsSubmitting(true)
 
     const startTime = performance.now()
@@ -112,6 +115,10 @@ const SignaturePad: React.FC = () => {
       setSubmittedRecordId(record.id)
       setIsSubmitting(false)
     }, Math.max(0, 100 - elapsed))
+  }
+
+  const handleCancelSubmit = () => {
+    setShowConfirm(false)
   }
 
   const resetForm = () => {
@@ -254,6 +261,57 @@ const SignaturePad: React.FC = () => {
           {isSubmitting ? '提交中...' : '提交签收'}
         </button>
       </div>
+
+      {showConfirm && (
+        <div className="confirm-overlay" onClick={handleCancelSubmit}>
+          <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="confirm-header">
+              <span className="confirm-icon">📋</span>
+              <h3 className="confirm-title">确认签收信息</h3>
+            </div>
+
+            <div className="confirm-body">
+              <div className="confirm-item">
+                <span className="confirm-label">运单号</span>
+                <span className="confirm-value confirm-tracking">{trackingNumber}</span>
+              </div>
+              <div className="confirm-item">
+                <span className="confirm-label">收件人</span>
+                <span className="confirm-value">{recipient}</span>
+              </div>
+              <div className="confirm-item">
+                <span className="confirm-label">快递员</span>
+                <span className="confirm-value">{courier}</span>
+              </div>
+
+              {signatureBase64 && (
+                <div className="confirm-item confirm-item-sig">
+                  <span className="confirm-label">签名预览</span>
+                  <div className="confirm-sig-box">
+                    <img src={signatureBase64} alt="签名预览" className="confirm-sig-img" />
+                  </div>
+                </div>
+              )}
+
+              <div className="confirm-item">
+                <span className="confirm-label">货物照片</span>
+                <span className="confirm-value">
+                  {photoBase64 ? '✓ 已上传 1 张' : '未上传'}
+                </span>
+              </div>
+            </div>
+
+            <div className="confirm-actions">
+              <button className="confirm-btn confirm-btn-cancel" onClick={handleCancelSubmit}>
+                取消
+              </button>
+              <button className="confirm-btn confirm-btn-ok" onClick={handleConfirmSubmit}>
+                确认提交
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

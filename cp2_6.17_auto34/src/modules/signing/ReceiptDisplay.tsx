@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useSignStore } from '@/stores/signStore'
 import { renderReceiptToCanvas, downloadReceipt } from '@/utils/receipt'
 import type { SignRecord } from '@/types'
@@ -14,6 +15,7 @@ const ReceiptDisplay: React.FC<ReceiptDisplayProps> = ({ recordId, onBack, showB
   const [record, setRecord] = useState<SignRecord | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const navigate = useNavigate()
 
   const records = useSignStore((s) => s.records)
 
@@ -133,8 +135,13 @@ const ReceiptDisplay: React.FC<ReceiptDisplayProps> = ({ recordId, onBack, showB
           <button className="btn btn-download" onClick={handleDownload} disabled={isDownloading}>
             {isDownloading ? '生成中...' : '下载凭证 (PNG)'}
           </button>
-          {showBackButton && onBack && (
-            <button className="btn btn-back" onClick={onBack}>
+          {showBackButton && (
+            <button className="btn btn-back" onClick={() => navigate('/signing')}>
+              返回签收
+            </button>
+          )}
+          {onBack && (
+            <button className="btn btn-back-secondary" onClick={onBack}>
               继续签收
             </button>
           )}
