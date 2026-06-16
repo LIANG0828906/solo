@@ -1,0 +1,207 @@
+.workout-card {
+  width: 300px;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+  color: #333;
+}
+
+.workout-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.workout-card.expanded {
+  transform: translateY(0);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.workout-card.rest-day .card-header {
+  background: linear-gradient(135deg, #9E9E9E 0%, #616161 100%);
+}
+
+.day-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.day-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.day-date {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.intensity-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+.card-content {
+  padding: 20px;
+}
+
+.workout-type {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.workout-type .label {
+  font-size: 14px;
+  color: #666;
+}
+
+.workout-type .value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.workout-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 16px 0;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--accent-primary);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #999;
+}
+
+.stat-divider {
+  width: 1px;
+  height: 36px;
+  background-color: #e0e0e0;
+}
+
+.card-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  padding: 0 20px;
+}
+
+.card-details.show {
+  max-height: 500px;
+  padding: 0 20px 16px;
+}
+
+.details-section {
+  padding: 12px 0;
+  border-top: 1px solid #eee;
+}
+
+.details-section:first-child {
+  border-top: none;
+}
+
+.details-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.details-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.details-section li {
+  font-size: 13px;
+  color: #666;
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.details-section li::before {
+  content: '•';
+  position: absolute;
+  left: 4px;
+  color: var(--accent-primary);
+}
+
+.alternatives {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.alt-tag {
+  padding: 4px 12px;
+  background-color: #e8f5e9;
+  color: #388e3c;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.card-footer {
+  padding: 8px 20px 16px;
+  text-align: center;
+}
+
+.expand-hint {
+  font-size: 12px;
+  color: #999;
+}
+
+.rest-content {
+  padding: 24px 20px;
+  text-align: center;
+}
+
+.rest-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.rest-text {
+  font-size: 15px;
+  color: #666;
+  margin: 0;
+}
+
+.workout-card.rest-day .card-details {
+  text-align: left;
+}

@@ -1,0 +1,45 @@
+.goal-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: bounceIn 0.3s ease-out;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+}
+
+.goal-badge.blinking {
+  animation: bounceIn 0.3s ease-out, blink 0.3s ease-in-out 2;
+}
+
+.check-icon {
+  width: 20px;
+  height: 20px;
+  color: white;
+  stroke: white;
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}

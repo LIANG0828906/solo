@@ -1,0 +1,127 @@
+.calendar-heatmap-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.heatmap-scroll-wrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+}
+
+.heatmap-months {
+  display: flex;
+  gap: 24px;
+  min-width: max-content;
+}
+
+.heatmap-month {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.month-title {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.weekday-labels {
+  display: grid;
+  grid-template-columns: repeat(7, 28px);
+  gap: 4px;
+  justify-content: start;
+}
+
+.weekday-label {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-secondary);
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 28px);
+  gap: 4px;
+  grid-auto-rows: 28px;
+}
+
+.heatmap-cell {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1;
+  position: relative;
+}
+
+.heatmap-cell.empty {
+  background: transparent;
+  cursor: default;
+}
+
+.heatmap-cell.empty:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.heatmap-cell.level-0 {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.heatmap-cell.level-1 {
+  background-color: var(--heat-level-1);
+}
+
+.heatmap-cell.level-2 {
+  background-color: var(--heat-level-2);
+}
+
+.heatmap-cell.level-3 {
+  background-color: var(--heat-level-3);
+}
+
+.heatmap-cell.level-4 {
+  background-color: var(--heat-level-4);
+}
+
+.heatmap-cell.level-5 {
+  background-color: var(--heat-level-5);
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.legend-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.legend-cells {
+  display: flex;
+  gap: 3px;
+}
+
+.legend-cells .heatmap-cell {
+  width: 16px;
+  height: 16px;
+}
