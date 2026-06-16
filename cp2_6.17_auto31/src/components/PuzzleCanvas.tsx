@@ -6,6 +6,7 @@ interface DraggingState {
   offsetX: number;
   offsetY: number;
   rotation: number;
+  originalZIndex: number;
 }
 
 const PuzzleCanvas: React.FC = () => {
@@ -91,12 +92,14 @@ const PuzzleCanvas: React.FC = () => {
 
       const rotation = (Math.random() - 0.5) * 10;
 
+      const originalZIndex = piece.zIndex;
       bringToFront(piece.id);
       setDragging({
         pieceId: piece.id,
         offsetX,
         offsetY,
         rotation,
+        originalZIndex,
       });
     },
     [canvasSize, bringToFront]
@@ -160,12 +163,29 @@ const PuzzleCanvas: React.FC = () => {
       handleMove(e);
     };
     const handleTouchEnd = () => handleEnd();
+    const handleMouseLeave = (e: MouseEvent) => {
+      if (e.relatedTarget === null) {
+        handleEnd();
+      }
+    };
+    const handleDocumentOut = (e: MouseEvent) => {
+      if (!canvasRef.current?.contains(e.target as Node)) {
+        if (e.clientX <= 0 || e.clientY <= 0 ||
+            e.clientX >= window.innerWidth ||
+            e.clientY >= window.innerHeight) {
+          handleEnd();
+        }
+      }
+    };
 
     if (dragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
       window.addEventListener('touchmove', handleTouchMove, { passive: false });
       window.addEventListener('touchend', handleTouchEnd);
+      document.addEventListener('mouseleave', handleMouseLeave);
+      window.addEventListener('blur', handleEnd);
+      document.addEventListener('mousemove', handleDocumentOut);
     }
 
     return () => {
@@ -173,6 +193,9 @@ const PuzzleCanvas: React.FC = () => {
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      window.removeEventListener('blur', handleEnd);
+      document.removeEventListener('mousemove', handleDocumentOut);
     };
   }, [dragging, handleMove, handleEnd]);
 
@@ -218,13 +241,18 @@ const PuzzleCanvas: React.FC = () => {
         {pieces.map((piece) => {
           const isDragging = dragging?.pieceId === piece.id;
           const imgUrl = getPieceDataUrl(piece.imgData);
+          const translateX = piece.curX;
+          const translateY = piece.curY;
+          const scale = isDragging ? 1.1 : 1;
+          const rotation = isDragging ? dragging?.rotation ?? 0 : 0;
+
           const style: React.CSSProperties = {
             position: 'absolute',
-            left: `${piece.curX}px`,
-            top: `${piece.curY}px`,
+            left: 0,
+            top: 0,
             width: `${piece.width}px`,
             height: `${piece.height}px`,
-            zIndex: isDragging ? 9999 : piece.zIndex,
+            zIndex: isDragging ? 1000 : piece.zIndex,
             cursor: piece.locked ? 'default' : 'grab',
             border: mergeAnim && isCompleted
               ? 'none'
@@ -240,20 +268,21 @@ const PuzzleCanvas: React.FC = () => {
               ? '#F0F8FF'
               : 'transparent',
             boxShadow: isDragging
-              ? '2px 2px 8px rgba(85, 85, 85, 0.4)'
+              ? '4px 4px 8px rgba(0, 0, 0, 0.15)'
               : 'none',
-            transform: isDragging
-              ? `scale(1.1) rotate(${dragging?.rotation}deg)`
-              : mergeAnim && isCompleted
-              ? 'scale(1)'
-              : 'scale(1) rotate(0deg)',
-            transformOrigin: 'center center',
+            willChange: 'transform',
+            transform: `translate3d(${translateX}px, ${translateY}px, 0) scale(${scale}) rotate(${rotation}deg)`,
+            transformOrigin: `${piece.width / 2}px ${piece.height / 2}px`,
             transition: isDragging
-              ? 'transform 0s'
+              ? 'box-shadow 0.15s, opacity 0.15s, border-color 0.2s'
               : isShuffling
-              ? 'left 0.5s ease-out, top 0.5s ease-out'
-              : 'transform 0.15s ease-out, border-color 0.2s, box-shadow 0.2s, background-color 0.3s, border 0.6s ease-in-out',
-            opacity: piece.highlighted ? 0.9 : 1,
+              ? 'transform 0.5s ease-out'
+              : 'transform 0.15s ease-out, border-color 0.2s, box-shadow 0.2s, background-color 0.3s, opacity 0.15s, border 0.6s ease-in-out',
+            opacity: piece.highlighted
+              ? 0.9
+              : isDragging
+              ? 0.9
+              : 1,
           };
 
           return (
