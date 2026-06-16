@@ -219,91 +219,95 @@ async function exportWithFfmpeg(
   const tmpDir = path.join(UPLOADS_DIR, `export_${uuidv4()}`);
   await fs.mkdir(tmpDir, { recursive: true });
 
-  const processedFiles: string[] = [];
+  const clipFiles: string[] = [];
+  const delayMsList: number[] = [];
 
+  const allClips: Array<{ track: ExportTrack; clip: ExportTrackClip }> = [];
   for (const track of tracks) {
     for (const clip of track.clips) {
-      const inputPath = await getAudioFilePath(clip.audioId);
-      if (!inputPath) continue;
-
-      const outFile = path.join(tmpDir, `clip_${uuidv4()}.mp3`);
-      const duration = clip.endTime - clip.startTime;
-
-      await new Promise<void>((resolve, reject) => {
-        let cmd = ffmpeg(inputPath)
-          .setStartTime(clip.startTime)
-          .duration(duration)
-          .audioCodec('libmp3lame')
-          .audioFilters(`volume=${clip.volume}`);
-
-        if (clip.fadeIn > 0) {
-          cmd = cmd.audioFilters(`afade=t=in:st=0:d=${clip.fadeIn}`);
-        }
-        if (clip.fadeOut > 0) {
-          cmd = cmd.audioFilters(`afade=t=out:st=${duration - clip.fadeOut}:d=${clip.fadeOut}`);
-        }
-
-        cmd
-          .on('end', () => resolve())
-          .on('error', (err) => reject(err))
-          .save(outFile);
-      });
-
-      const delayedFile = path.join(tmpDir, `delayed_${uuidv4()}.mp3`);
-      await new Promise<void>((resolve, reject) => {
-        ffmpeg()
-          .input(outFile)
-          .audioCodec('libmp3lame')
-          .audioFilters(`adelay=${clip.trackStartTime * 1000}|${clip.trackStartTime * 1000}`)
-          .on('end', () => resolve())
-          .on('error', (err) => reject(err))
-          .save(delayedFile);
-      });
-
-      processedFiles.push(delayedFile);
+      allClips.push({ track, clip });
     }
-  }
-
-  if (processedFiles.length === 0) {
-    res.status(400).json({ error: 'No valid audio files found for export' });
-    await cleanup(tmpDir);
-    return;
-  }
-
-  const mixFile = path.join(tmpDir, 'mix.mp3');
-  const padFilter = `apad=whole_dur=${maxEndTime}`;
-
-  if (processedFiles.length === 1) {
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg()
-        .input(processedFiles[0])
-        .audioCodec('libmp3lame')
-        .audioFilters(padFilter)
-        .on('end', () => resolve())
-        .on('error', (err) => reject(err))
-        .save(mixFile);
-    });
-  } else {
-    let cmd = ffmpeg();
-    for (const file of processedFiles) {
-      cmd = cmd.input(file);
-    }
-    const filterParts = processedFiles.map((_, i) => `[${i}:a]${padFilter}[a${i}]`);
-    const mixInputs = processedFiles.map((_, i) => `[a${i}]`).join('');
-    const filterComplex = `${filterParts.join(';')};${mixInputs}amix=inputs=${processedFiles.length}:duration=first[out]`;
-
-    await new Promise<void>((resolve, reject) => {
-      cmd
-        .complexFilter(filterComplex, 'out')
-        .audioCodec('libmp3lame')
-        .on('end', () => resolve())
-        .on('error', (err) => reject(err))
-        .save(mixFile);
-    });
   }
 
   res.setHeader('Content-Type', 'audio/mpeg');
   res.setHeader('Content-Disposition', 'attachment; filename="podcast_export.mp3"');
+
+  for (let n = 0; n < allClips.length; n++) {
+    const { track, clip } = allClips[n];
+    const inputPath = await getAudioFilePath(clip.audioId);
+    if (!inputPath) continue;
+
+    const outFile = path.join(tmpDir, `clip_${n}.mp3`);
+    const duration = clip.endTime - clip.startTime;
+    const volumeMultiplier = (track.volume / 100) * (clip.volume / 100);
+
+    const filterChain: string[] = [];
+    filterChain.push(`volume=${volumeMultiplier}`);
+    if (clip.fadeIn > 0) {
+      filterChain.push(`afade=t=in:st=0:d=${clip.fadeIn}`);
+    }
+    if (clip.fadeOut > 0) {
+      const fadeOutStart = Math.max(0, duration - clip.fadeOut);
+      filterChain.push(`afade=t=out:st=${fadeOutStart}:d=${clip.fadeOut}`);
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg(inputPath)
+        .setStartTime(clip.startTime)
+        .duration(duration)
+        .audioCodec('libmp3lame')
+        .audioFilters(filterChain)
+        .on('end', () => resolve())
+        .on('error', (err) => reject(err))
+        .save(outFile);
+    });
+
+    clipFiles.push(outFile);
+    delayMsList.push(Math.round(clip.trackStartTime * 1000));
+
+    const progress = Math.round(((n + 1) / allClips.length) * 50);
+    if (!res.headersSent) {
+      res.write(`\n`);
+    }
+  }
+
+  if (clipFiles.length === 0) {
+    if (!res.headersSent) {
+      res.status(400).json({ error: 'No valid audio files found for export' });
+    }
+    await cleanup(tmpDir);
+    return;
+  }
+
+  const N = clipFiles.length;
+  const filterArray: string[] = [];
+
+  for (let i = 0; i < N; i++) {
+    const delay = delayMsList[i];
+    filterArray.push(`[${i}:a]adelay=${delay}|${delay}[delayed${i}]`);
+  }
+
+  for (let i = 0; i < N; i++) {
+    filterArray.push(`[delayed${i}]apad=whole_dur=${maxEndTime}s[padded${i}]`);
+  }
+
+  const paddedLabels = Array.from({ length: N }, (_, i) => `[padded${i}]`).join('');
+  filterArray.push(`${paddedLabels}amix=inputs=${N}:duration=first:dropout_transition=0,dynaudnorm=f=150:g=15[out]`);
+
+  const mixFile = path.join(tmpDir, 'mix.mp3');
+
+  await new Promise<void>((resolve, reject) => {
+    let cmd = ffmpeg();
+    for (const file of clipFiles) {
+      cmd = cmd.input(file);
+    }
+    cmd
+      .complexFilter(filterArray, 'out')
+      .audioCodec('libmp3lame')
+      .on('end', () => resolve())
+      .on('error', (err) => reject(err))
+      .save(mixFile);
+  });
 
   const stream = createReadStream(mixFile);
   stream.pipe(res);
@@ -333,8 +337,10 @@ async function exportWithFallback(
     return;
   }
 
-  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Content-Type', 'application/octet-stream');
   res.setHeader('Content-Disposition', 'attachment; filename="podcast_export.mp3"');
+  res.setHeader('X-Export-Mode', 'fallback');
+  res.setHeader('X-Clip-Count', String(files.length));
 
   for (let i = 0; i < files.length; i++) {
     const data = await fs.readFile(files[i]);

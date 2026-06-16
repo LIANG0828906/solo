@@ -20,22 +20,37 @@ const TRACK_COLORS = [
   '#e91e63',
 ];
 
-const TRACK_COLOR_NAMES = [
-  '红色',
-  '蓝色',
-  '绿色',
-  '橙色',
-  '紫色',
-  '青色',
-  '深橙',
-  '粉色',
-];
+const TRACK_COLOR_NAMES = ['红色', '蓝色', '绿色', '橙色', '紫色', '青色', '深橙', '粉色'];
 
 const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 100);
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+};
+
+const isValidAudioClip = (obj: any): obj is AudioClip => {
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    typeof obj.id === 'string' &&
+    typeof obj.audioId === 'string' &&
+    typeof obj.fileName === 'string' &&
+    typeof obj.name === 'string' &&
+    typeof obj.startTime === 'number' &&
+    typeof obj.endTime === 'number' &&
+    typeof obj.duration === 'number'
+  );
+};
+
+const isValidTrackClipMove = (obj: any): boolean => {
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    typeof obj.clip === 'object' &&
+    typeof obj.clip.id === 'string' &&
+    typeof obj.trackId === 'number'
+  );
 };
 
 function WaveformEditor({ clips }: WaveformEditorProps) {
@@ -54,23 +69,23 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [activeTrackDrop, setActiveTrackDrop] = useState<number | null>(null);
-  const [selectedClip, setSelectedClip] = useState<{
-    trackId: number;
-    clipId: string;
-  } | null>(null);
+  const [selectedClip, setSelectedClip] = useState<{ trackId: number; clipId: string } | null>(null);
   const [fadeInValue, setFadeInValue] = useState(0.5);
   const [fadeOutValue, setFadeOutValue] = useState(0.5);
+  const [sidePanelOpen, setSidePanelOpen] = useState(true);
 
   const audioCacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
-  const audioBuffersRef = useRef<Map<string, AudioBuffer>>(new Map());
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedAtRef = useRef<number>(0);
   const activeSourceNodesRef = useRef<MediaElementAudioSourceNode[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const projectFileInputRef = useRef<HTMLInputElement>(null);
   const dragClipRef = useRef<AudioClip | null>(null);
   const dragTrackClipRef = useRef<{ clip: TrackClip; trackId: number } | null>(null);
+  const clipsRef = useRef<AudioClip[]>([]);
+
+  clipsRef.current = clips;
 
   const getTotalDuration = useCallback(() => {
     let max = 60;
@@ -105,20 +120,72 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     });
   }, [clips]);
 
+  useEffect(() => {
+    const handleGlobalDragEnd = () => {
+      dragClipRef.current = null;
+      dragTrackClipRef.current = null;
+      setActiveTrackDrop(null);
+    };
+    document.addEventListener('dragend', handleGlobalDragEnd);
+
+    const handleDocumentDrop = (e: DragEvent) => {
+      if (e.target === document.body || e.target === document.documentElement) {
+        setActiveTrackDrop(null);
+      }
+    };
+    document.addEventListener('drop', handleDocumentDrop);
+
+    const handleGlobalDragOver = (e: DragEvent) => {
+      e.dataTransfer && (e.dataTransfer.dropEffect = 'none');
+    };
+    document.addEventListener('dragover', handleGlobalDragOver);
+
+    return () => {
+      document.removeEventListener('dragend', handleGlobalDragEnd);
+      document.removeEventListener('drop', handleDocumentDrop);
+      document.removeEventListener('dragover', handleGlobalDragOver);
+    };
+  }, []);
+
+  const validateClipData = (dataStr: string): AudioClip | null => {
+    try {
+      const parsed = JSON.parse(dataStr);
+      if (!isValidAudioClip(parsed)) return null;
+      const existsInLibrary = clipsRef.current.some((c) => c.id === parsed.id);
+      return existsInLibrary ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const validateTrackClipMoveData = (dataStr: string): { clip: TrackClip; trackId: number } | null => {
+    try {
+      const parsed = JSON.parse(dataStr);
+      if (!isValidTrackClipMove(parsed)) return null;
+      const { trackId } = parsed;
+      const srcTrack = tracks.find((t) => t.id === trackId);
+      if (!srcTrack) return null;
+      const clipExists = srcTrack.clips.some((c) => c.id === parsed.clip.id);
+      return clipExists ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+
   const handleClipDragStart = (e: React.DragEvent, clip: AudioClip) => {
     dragClipRef.current = clip;
     dragTrackClipRef.current = null;
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/x-audio-clip', JSON.stringify(clip));
     if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '0.5';
+      e.currentTarget.classList.add('dragging');
     }
   };
 
   const handleClipDragEnd = (e: React.DragEvent) => {
     dragClipRef.current = null;
     if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '1';
+      e.currentTarget.classList.remove('dragging');
     }
     setActiveTrackDrop(null);
   };
@@ -137,23 +204,40 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
   };
 
   const handleTrackDragOver = (e: React.DragEvent, trackId: number) => {
+    const clipData = e.dataTransfer.types.includes('application/x-audio-clip');
+    const moveData = e.dataTransfer.types.includes('application/x-track-clip');
+    if (!clipData && !moveData) return;
+
     e.preventDefault();
-    e.dataTransfer.dropEffect = dragClipRef.current ? 'copy' : 'move';
-    setActiveTrackDrop(trackId);
+    e.stopPropagation();
+
+    if (clipData) {
+      e.dataTransfer.dropEffect = 'copy';
+    } else if (moveData) {
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    if (activeTrackDrop !== trackId) {
+      setActiveTrackDrop(trackId);
+    }
   };
 
-  const handleTrackDragLeave = (e: React.DragEvent) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const handleTrackDragLeave = (e: React.DragEvent, trackId: number) => {
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-      setActiveTrackDrop(null);
+      setActiveTrackDrop((prev) => (prev === trackId ? null : prev));
     }
   };
 
   const handleTrackDrop = async (e: React.DragEvent, trackId: number) => {
     e.preventDefault();
+    e.stopPropagation();
     setActiveTrackDrop(null);
+
+    if (trackId >= MAX_TRACKS) return;
 
     const trackElement = e.currentTarget as HTMLElement;
     const rect = trackElement.getBoundingClientRect();
@@ -161,36 +245,36 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     const trackWidth = rect.width;
     const dropTime = (relativeX / trackWidth) * totalDuration;
 
-    if (trackId >= MAX_TRACKS) return;
-
     const clipDataStr = e.dataTransfer.getData('application/x-audio-clip');
     const trackClipDataStr = e.dataTransfer.getData('application/x-track-clip');
 
     if (clipDataStr) {
-      try {
-        const clip = JSON.parse(clipDataStr) as AudioClip;
-        const newTrackClip: TrackClip = {
-          id: uuidv4(),
-          clipId: clip.id,
-          clipName: clip.name,
-          fileName: clip.fileName,
-          audioId: clip.audioId,
-          startTime: clip.startTime,
-          endTime: clip.endTime,
-          trackStartTime: Math.max(0, dropTime - clip.duration / 2),
-          volume: 100,
-          fadeIn: 0.5,
-          fadeOut: 0.5,
-          color: TRACK_COLORS[trackId],
-        };
+      const clip = validateClipData(clipDataStr);
+      if (!clip) return;
 
-        setTracks((prev) =>
-          prev.map((t) =>
-            t.id === trackId ? { ...t, clips: [...t.clips, newTrackClip] } : t
-          )
-        );
+      const newTrackClip: TrackClip = {
+        id: uuidv4(),
+        clipId: clip.id,
+        clipName: clip.name,
+        fileName: clip.fileName,
+        audioId: clip.audioId,
+        startTime: clip.startTime,
+        endTime: clip.endTime,
+        trackStartTime: Math.max(0, dropTime - clip.duration / 2),
+        volume: 100,
+        fadeIn: 0.5,
+        fadeOut: 0.5,
+        color: TRACK_COLORS[trackId],
+      };
 
-        if (!audioCacheRef.current.has(clip.audioId)) {
+      setTracks((prev) =>
+        prev.map((t) =>
+          t.id === trackId ? { ...t, clips: [...t.clips, newTrackClip] } : t
+        )
+      );
+
+      if (!audioCacheRef.current.has(clip.audioId)) {
+        try {
           const blob = await getAudioFile(clip.audioId);
           if (blob) {
             const url = URL.createObjectURL(blob);
@@ -198,45 +282,46 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
             audio.preload = 'auto';
             audioCacheRef.current.set(clip.audioId, audio);
           }
+        } catch (err) {
+          console.error('Failed to load audio:', err);
         }
-      } catch (err) {
-        console.error('Drop parse error:', err);
       }
+
       dragClipRef.current = null;
     } else if (trackClipDataStr) {
-      try {
-        const { clip, trackId: srcTrackId } = JSON.parse(trackClipDataStr) as {
-          clip: TrackClip;
-          trackId: number;
-        };
+      const moveData = validateTrackClipMoveData(trackClipDataStr);
+      if (!moveData) return;
+      const { clip, trackId: srcTrackId } = moveData;
+      if (srcTrackId === trackId) return;
 
-        const movedClip: TrackClip = {
-          ...clip,
-          trackStartTime: Math.max(0, dropTime - (clip.endTime - clip.startTime) / 2),
-          color: TRACK_COLORS[trackId],
-        };
+      const movedClip: TrackClip = {
+        ...clip,
+        trackStartTime: Math.max(
+          0,
+          dropTime - (clip.endTime - clip.startTime) / 2
+        ),
+        color: TRACK_COLORS[trackId],
+      };
 
-        setTracks((prev) =>
-          prev.map((t) => {
-            if (t.id === srcTrackId) {
-              return { ...t, clips: t.clips.filter((c) => c.id !== clip.id) };
-            }
-            if (t.id === trackId) {
-              return { ...t, clips: [...t.clips, movedClip] };
-            }
-            return t;
-          })
-        );
-      } catch (err) {
-        console.error('Track clip drop error:', err);
-      }
+      setTracks((prev) =>
+        prev.map((t) => {
+          if (t.id === srcTrackId) {
+            return { ...t, clips: t.clips.filter((c) => c.id !== clip.id) };
+          }
+          if (t.id === trackId) {
+            return { ...t, clips: [...t.clips, movedClip] };
+          }
+          return t;
+        })
+      );
+
       dragTrackClipRef.current = null;
     }
   };
 
-  const handleVolumeChange = (trackId: number, volume: number) => {
+  const handleVolumeChange = (trackId: number, rawPercent: number) => {
     setTracks((prev) =>
-      prev.map((t) => (t.id === trackId ? { ...t, volume } : t))
+      prev.map((t) => (t.id === trackId ? { ...t, volume: Math.round(rawPercent) } : t))
     );
   };
 
@@ -264,12 +349,8 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     setTracks((prev) =>
       prev.map((t) =>
         t.id === trackId
-          ? {
-              ...t,
-              clips: t.clips.map((c) =>
-                c.id === clipId ? { ...c, fadeIn: value } : c
-              ),
-            }
+          ? { ...t, clips: t.clips.map((c) => (c.id === clipId ? { ...c, fadeIn: value } : c))
+          }
           : t
       )
     );
@@ -282,12 +363,8 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     setTracks((prev) =>
       prev.map((t) =>
         t.id === trackId
-          ? {
-              ...t,
-              clips: t.clips.map((c) =>
-                c.id === clipId ? { ...c, fadeOut: value } : c
-              ),
-            }
+          ? { ...t, clips: t.clips.map((c) => (c.id === clipId ? { ...c, fadeOut: value } : c))
+          }
           : t
       )
     );
@@ -307,13 +384,16 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     });
     activeSourceNodesRef.current = [];
     audioCacheRef.current.forEach((audio) => {
-      try { audio.pause(); audio.currentTime = 0; } catch {}
+      try {
+        audio.pause();
+        audio.currentTime = 0;
+      } catch {}
     });
   }, []);
 
   const playAllTracks = useCallback(async () => {
     if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     const ctx = audioContextRef.current;
     if (ctx.state === 'suspended') await ctx.resume();
@@ -339,7 +419,7 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
 
           const source = ctx.createMediaElementSource(cloned);
           const gainNode = ctx.createGain();
-          const trackVolume = (track.volume / 100) * (clip.volume / 100);
+          const trackVolumeMultiplier = (track.volume / 100) * (clip.volume / 100);
 
           const offset = Math.max(0, currentTime - clip.trackStartTime);
           const playDuration = clipDuration - offset;
@@ -348,11 +428,11 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
           gainNode.gain.setValueAtTime(0, now);
 
           const fadeInDur = Math.min(clip.fadeIn, playDuration);
-          gainNode.gain.linearRampToValueAtTime(trackVolume, now + fadeInDur);
+          gainNode.gain.linearRampToValueAtTime(trackVolumeMultiplier, now + fadeInDur);
 
           const fadeOutDur = Math.min(clip.fadeOut, playDuration - fadeInDur);
-          if (fadeOutDur > 0) {
-            gainNode.gain.setValueAtTime(trackVolume, now + playDuration - fadeOutDur);
+          if (fadeOutDur > 0 && playDuration > fadeInDur) {
+            gainNode.gain.setValueAtTime(trackVolumeMultiplier, now + playDuration - fadeOutDur);
             gainNode.gain.linearRampToValueAtTime(0, now + playDuration);
           }
 
@@ -417,19 +497,33 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     }
   };
 
-  const handleExport = async () => {
+  const buildProjectData = (): ProjectData => ({
+    version: '1.0',
+    createdAt: new Date().toISOString(),
+    tracks,
+    clips: clipsRef.current,
+    totalDuration: getTotalDuration(),
+  });
+
+  const downloadProjectJson = () => {
+    const projectData = buildProjectData();
+    const jsonStr = JSON.stringify(projectData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `podcast-project-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportAudio = async () => {
     setIsExporting(true);
     setExportProgress(0);
 
     try {
-      const projectData: ProjectData = {
-        version: '1.0',
-        createdAt: new Date().toISOString(),
-        tracks,
-        clips,
-        totalDuration: getTotalDuration(),
-      };
-
       const progressSim = setInterval(() => {
         setExportProgress((prev) => {
           if (prev >= 30) {
@@ -439,6 +533,8 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
           return prev + 2;
         });
       }, 50);
+
+      let exportSucceeded = false;
 
       try {
         const response = await fetch('/api/export', {
@@ -450,7 +546,7 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
         clearInterval(progressSim);
 
         if (response.ok) {
-          setExportProgress(60);
+          setExportProgress(55);
 
           const contentLength = response.headers.get('content-length');
           const total = contentLength ? parseInt(contentLength, 10) : 0;
@@ -463,12 +559,14 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
             while (true) {
               const { done, value } = await reader.read();
               if (done) break;
-              chunks.push(value);
-              received += value.length;
-              if (total > 0) {
-                setExportProgress(60 + (received / total) * 35);
-              } else {
-                setExportProgress(Math.min(95, 60 + chunks.length * 5));
+              if (value) {
+                chunks.push(value);
+                received += value.length;
+                if (total > 0) {
+                  setExportProgress(55 + Math.round((received / total) * 40));
+                } else {
+                  setExportProgress(Math.min(95, 55 + chunks.length * 4));
+                }
               }
             }
           }
@@ -486,72 +584,20 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
           URL.revokeObjectURL(url);
 
           setExportProgress(100);
-        } else {
-          setExportProgress(60);
-          const fallbackBlob = new Blob(
-            [JSON.stringify(projectData, null, 2)],
-            { type: 'application/json' }
-          );
-          const url = URL.createObjectURL(fallbackBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `podcast-project-${Date.now()}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          setExportProgress(100);
+          exportSucceeded = true;
         }
-      } catch {
-        clearInterval(progressSim);
-        setExportProgress(50);
-
-        const jsonBlob = new Blob(
-          [JSON.stringify(projectData, null, 2)],
-          { type: 'application/json' }
-        );
-        const jsonUrl = URL.createObjectURL(jsonBlob);
-        const a = document.createElement('a');
-        a.href = jsonUrl;
-        a.download = `podcast-project-${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(jsonUrl);
-
-        for (const track of tracks) {
-          for (const clip of track.clips) {
-            const audio = audioCacheRef.current.get(clip.audioId);
-            if (audio && audio.src) {
-              try {
-                const resp = await fetch(audio.src);
-                const audioBlob = await resp.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const link = document.createElement('a');
-                link.href = audioUrl;
-                link.download = `clip-${clip.clipName}-${Date.now()}.mp3`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(audioUrl);
-              } catch {}
-            }
-          }
-        }
-
-        setExportProgress(100);
+      } catch (err) {
+        console.error('Backend export failed:', err);
       }
 
-      const jsonStr = JSON.stringify(projectData, null, 2);
-      const projBlob = new Blob([jsonStr], { type: 'application/json' });
-      const projUrl = URL.createObjectURL(projBlob);
-      const projLink = document.createElement('a');
-      projLink.href = projUrl;
-      projLink.download = `podcast-project-${Date.now()}.json`;
-      document.body.appendChild(projLink);
-      projLink.click();
-      document.body.removeChild(projLink);
-      URL.revokeObjectURL(projUrl);
+      if (!exportSucceeded) {
+        clearInterval(progressSim);
+        setExportProgress(60);
+        downloadProjectJson();
+        setExportProgress(100);
+      } else {
+        setTimeout(() => downloadProjectJson(), 500);
+      }
 
       setTimeout(() => {
         setIsExporting(false);
@@ -571,11 +617,24 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const data = JSON.parse(event.target?.result as string) as ProjectData;
-        if (data.tracks && Array.isArray(data.tracks)) {
+        const data = JSON.parse((event.target?.result as string) || '{}') as ProjectData;
+        if (data.tracks && Array.isArray(data.tracks) && data.tracks.length > 0) {
           const restoredTracks = Array.from({ length: MAX_TRACKS }, (_, i) => {
             const imported = data.tracks.find((t) => t.id === i);
-            return imported || {
+            if (imported) {
+              const validatedClips = imported.clips.map((c) => ({
+                ...c,
+                color: TRACK_COLORS[i],
+              }));
+              return {
+                id: i,
+                name: imported.name || `音轨 ${i + 1}`,
+                color: TRACK_COLORS[i],
+                volume: imported.volume ?? 100,
+                clips: validatedClips,
+              };
+            }
+            return {
               id: i,
               name: `音轨 ${i + 1}`,
               color: TRACK_COLORS[i],
@@ -585,11 +644,16 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
           });
           setTracks(restoredTracks);
           setTotalDuration(data.totalDuration || 60);
+          alert('项目导入成功！');
+        } else {
+          alert('导入成功，但没有检测到音轨数据');
         }
-        alert('项目导入成功！');
       } catch (error) {
-        alert('导入失败：无效的项目文件');
+        alert('导入失败：无效的项目文件格式');
       }
+    };
+    reader.onerror = () => {
+      alert('导入失败：无法读取文件');
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -619,14 +683,27 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
   };
 
   const getVolumeColor = (volume: number): string => {
-    if (volume <= 100) return '#2ecc71';
+    if (volume <= 80) return '#2ecc71';
+    if (volume <= 100) return '#27ae60';
     if (volume <= 150) return '#f39c12';
     return '#e74c3c';
   };
 
+  const toggleSidePanel = () => setSidePanelOpen((v) => !v);
+
   return (
     <div className="main-layout" style={styles.container}>
-      <div className="clip-panel side-panel" style={styles.leftPanel}>
+      <button
+        onClick={toggleSidePanel}
+        style={styles.mobileToggle}
+      >
+        ☰
+      </button>
+
+      <div
+        className={`clip-panel side-panel ${sidePanelOpen ? 'is-open' : 'is-closed'}`}
+        style={styles.leftPanel}
+      >
         <div style={styles.clipsCard}>
           <h2 style={styles.cardTitle}>片段库 ({clips.length})</h2>
           <p style={styles.hintText}>拖拽片段到右侧音轨进行编辑</p>
@@ -658,9 +735,16 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
 
         {selectedClip && (
           <div style={styles.fadePanel}>
-            <h3 style={styles.fadePanelTitle}>
-              片段效果
-            </h3>
+            <h3 style={styles.fadePanelTitle}>片段效果</h3>
+            <div style={styles.fadeHeader}>
+              <span style={styles.fadeClipName}>
+                {
+                  tracks
+                    .find((t) => t.id === selectedClip.trackId)
+                    ?.clips.find((c) => c.id === selectedClip.clipId)?.clipName
+                }
+              </span>
+            </div>
             <div style={styles.fadeControl}>
               <label style={styles.fadeLabel}>淡入</label>
               <input
@@ -714,24 +798,31 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
           </div>
           <div style={styles.exportControls}>
             <input
-              ref={fileInputRef}
+              ref={projectFileInputRef}
               type="file"
               accept=".json"
               style={{ display: 'none' }}
               onChange={handleImportProject}
             />
-            <button style={styles.importButton} onClick={() => fileInputRef.current?.click()}>
+            <button
+              style={styles.exportButtonSecondary}
+              onClick={() => projectFileInputRef.current?.click()}
+            >
               📂 导入项目
+            </button>
+            <button style={styles.exportButtonSecondary} onClick={downloadProjectJson}>
+              💼 导出项目
             </button>
             <button
               style={styles.exportButton}
-              onClick={handleExport}
+              onClick={handleExportAudio}
               disabled={isExporting}
             >
               {isExporting ? (
                 <span style={styles.spinnerWrap}>
                   <span style={styles.spinnerIcon}>⚙</span>
-                  {' '}导出中 {Math.round(exportProgress)}%
+                  {' '}
+                  导出中 {Math.round(exportProgress)}%
                 </span>
               ) : (
                 '💾 导出音频'
@@ -760,11 +851,13 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
         <div className="tracks-container" style={styles.tracksContainer}>
           {tracks.map((track) => {
             const isDropTarget = activeTrackDrop === track.id;
-            const hasClips = track.clips.length > 0;
 
             return (
               <div key={track.id} style={styles.trackRow}>
-                <div style={{ ...styles.trackHeader, borderLeft: `4px solid ${track.color}` }}>
+                <div
+                  className="track-header-style"
+                  style={{ ...styles.trackHeader, borderLeft: `4px solid ${track.color}` }}
+                >
                   <div style={styles.trackHeaderTop}>
                     <span
                       style={{
@@ -790,8 +883,8 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
                       />
                       <div style={styles.volumeMarks}>
                         <span>0%</span>
-                        <span>100%</span>
-                        <span>200%</span>
+                        <span style={{ color: '#00d2ff' }}>100%</span>
+                        <span style={{ color: '#e74c3c' }}>200%</span>
                       </div>
                     </div>
                     <span
@@ -808,26 +901,20 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
                   style={{
                     ...styles.trackTimeline,
                     backgroundColor: isDropTarget
-                      ? `${track.color}15`
+                      ? `${track.color}22`
                       : 'rgba(0, 0, 0, 0.1)',
                     borderColor: isDropTarget ? track.color : 'transparent',
                     borderStyle: isDropTarget ? 'dashed' : 'solid',
                     borderWidth: isDropTarget ? '2px' : '1px',
                   }}
                   onDragOver={(e) => handleTrackDragOver(e, track.id)}
-                  onDragLeave={handleTrackDragLeave}
+                  onDragLeave={(e) => handleTrackDragLeave(e, track.id)}
                   onDrop={(e) => handleTrackDrop(e, track.id)}
                 >
-                  {!hasClips && !isDropTarget && (
-                    <div style={styles.emptyTrackHint}>
-                      拖拽片段到此处
-                    </div>
+                  {track.clips.length === 0 && !isDropTarget && (
+                    <div style={styles.emptyTrackHint}>拖拽片段到此处</div>
                   )}
-                  {isDropTarget && (
-                    <div style={styles.dropIndicator}>
-                      释放以添加到{track.name}
-                    </div>
-                  )}
+                  {isDropTarget && <div style={styles.dropIndicator}>释放以添加到{track.name}</div>}
                   {track.clips.map((clip) => {
                     const duration = clip.endTime - clip.startTime;
                     const left = (clip.trackStartTime / totalDuration) * 100;
@@ -848,7 +935,7 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
                         style={{
                           ...styles.trackClip,
                           left: `${left}%`,
-                          width: `${Math.max(width, 2)}%`,
+                          width: `${Math.max(width, 1.5)}%`,
                           backgroundColor: `${track.color}33`,
                           borderColor: isSelected ? '#00d2ff' : track.color,
                           borderWidth: isSelected ? '3px' : '2px',
@@ -890,7 +977,8 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
                           </button>
                         </div>
                         <div style={styles.clipTimeLabel}>
-                          {formatTime(clip.trackStartTime)} - {formatTime(clip.trackStartTime + duration)}
+                          {formatTime(clip.trackStartTime)} -{' '}
+                          {formatTime(clip.trackStartTime + duration)}
                         </div>
                       </div>
                     );
@@ -928,9 +1016,9 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
               {exportProgress < 30
                 ? '正在准备音频数据...'
                 : exportProgress < 60
-                ? '正在混音处理...'
+                ? '正在执行 ffmpeg 混音处理...'
                 : exportProgress < 95
-                ? '正在生成MP3文件...'
+                ? '正在生成 MP3 文件...'
                 : '导出完成，正在下载...'}
             </p>
           </div>
@@ -945,6 +1033,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: '24px',
     height: 'calc(100vh - 120px)',
+    position: 'relative',
+  },
+  mobileToggle: {
+    display: 'none',
   },
   leftPanel: {
     width: '320px',
@@ -1053,6 +1145,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#00d2ff',
     marginBottom: '12px',
   },
+  fadeHeader: {
+    marginBottom: '12px',
+    paddingBottom: '8px',
+    borderBottom: '1px solid #2a3f5f',
+  },
+  fadeClipName: {
+    fontSize: '12px',
+    color: '#ffffff',
+    fontWeight: 500,
+  },
   fadeControl: {
     display: 'flex',
     alignItems: 'center',
@@ -1115,8 +1217,9 @@ const styles: Record<string, React.CSSProperties> = {
   exportControls: {
     display: 'flex',
     gap: '12px',
+    flexWrap: 'wrap',
   },
-  importButton: {
+  exportButtonSecondary: {
     padding: '10px 20px',
     borderRadius: '8px',
     backgroundColor: '#0f3460',
@@ -1313,13 +1416,13 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
     flex: 1,
     zIndex: 1,
-    textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+    textShadow: '0 1px 3px rgba(0, 0, 0, 0.5)',
   },
   removeClipBtn: {
     width: '18px',
     height: '18px',
     borderRadius: '50%',
-    backgroundColor: 'rgba(231, 76, 60, 0.8)',
+    backgroundColor: 'rgba(231, 76, 60, 0.85)',
     color: '#ffffff',
     fontSize: '13px',
     display: 'flex',
@@ -1329,7 +1432,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
     marginLeft: '4px',
     padding: 0,
-    background: 'rgba(231, 76, 60, 0.8)',
+    lineHeight: 1,
   },
   clipTimeLabel: {
     fontSize: '9px',
