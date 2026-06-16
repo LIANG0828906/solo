@@ -1,4 +1,4 @@
-import { useGameStore, Wall, Pulse, Vector2, CANVAS_WIDTH, CANVAS_HEIGHT } from './gameStore';
+import { useGameStore, Wall, Pulse, Vector2, CANVAS_WIDTH, CANVAS_HEIGHT, ScreenShakeEffect, FlashBurstEffect } from './gameStore';
 import { useAudioStore } from '../audio/audioStore';
 
 const keys = new Set<string>();
@@ -65,6 +65,7 @@ export function gameLoop(canvas: HTMLCanvasElement) {
       calculateEchoPoints(now);
       checkEnemyBlind(now);
       updateParticles(dt);
+      state.updateVisualEffects(now);
     }
 
     render(ctx, now);
@@ -288,7 +289,7 @@ function updateParticles(dt: number) {
 
 function render(ctx: CanvasRenderingContext2D, now: number) {
   const state = useGameStore.getState();
-  const { levelData, gameState } = state;
+  const { levelData, gameState, visualEffects } = state;
 
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -300,6 +301,20 @@ function render(ctx: CanvasRenderingContext2D, now: number) {
 
   const darkness = levelData.darkness;
 
+  ctx.save();
+  if (visualEffects.screenShake) {
+    const shake = visualEffects.screenShake;
+    const elapsed = now - shake.startTime;
+    const progress = Math.min(1, elapsed / shake.duration);
+    const intensity = shake.intensity * (1 - progress * progress);
+    const offsetX = (Math.random() - 0.5) * 2 * intensity;
+    const offsetY = (Math.random() - 0.5) * 2 * intensity;
+    const scale = 1 + (1 - progress) * 0.008;
+    ctx.translate(CANVAS_WIDTH / 2 + offsetX, CANVAS_HEIGHT / 2 + offsetY);
+    ctx.scale(scale, scale);
+    ctx.translate(-CANVAS_WIDTH / 2, -CANVAS_HEIGHT / 2);
+  }
+
   renderWalls(ctx, levelData.walls);
 
   renderPulses(ctx, state.pulses, now);
@@ -310,7 +325,12 @@ function render(ctx: CanvasRenderingContext2D, now: number) {
   renderParticles(ctx, state.particles, now);
   renderPlayer(ctx, state.player, state.highFrequencyActive && now < state.highFrequencyEndTime);
 
+  renderFlashBursts(ctx, visualEffects.flashBursts, now);
+
   applyDarkness(ctx, darkness, state.player, state.pulses, state.echoPoints, now);
+
+  ctx.restore();
+
   renderHUD(ctx, state, now);
 
   if (gameState === 'gameover') renderGameOver(ctx, now);
@@ -498,6 +518,29 @@ function renderParticles(ctx: CanvasRenderingContext2D, particles: any[], now: n
     ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function renderFlashBursts(ctx: CanvasRenderingContext2D, bursts: FlashBurstEffect[], now: number) {
+  for (const burst of bursts) {
+    const elapsed = now - burst.startTime;
+    const progress = Math.min(1, elapsed / burst.duration);
+    if (progress >= 1) continue;
+
+    const alpha = 0.8 * (1 - progress);
+    const radius = burst.maxRadius * progress;
+    const r = parseInt(burst.color.slice(1, 3), 16);
+    const g = parseInt(burst.color.slice(3, 5), 16);
+    const b = parseInt(burst.color.slice(5, 7), 16);
+
+    const gradient = ctx.createRadialGradient(burst.x, burst.y, 0, burst.x, burst.y, radius);
+    gradient.addColorStop(0, `rgba(${r},${g},${b},${alpha})`);
+    gradient.addColorStop(0.4, `rgba(${r},${g},${b},${alpha * 0.5})`);
+    gradient.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(burst.x, burst.y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
 }

@@ -81,6 +81,27 @@ export interface Particle {
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'gameover' | 'victory' | 'levelComplete';
 
+export interface ScreenShakeEffect {
+  startTime: number;
+  duration: number;
+  intensity: number;
+}
+
+export interface FlashBurstEffect {
+  id: number;
+  x: number;
+  y: number;
+  startTime: number;
+  duration: number;
+  color: string;
+  maxRadius: number;
+}
+
+export interface VisualEffects {
+  screenShake: ScreenShakeEffect | null;
+  flashBursts: FlashBurstEffect[];
+}
+
 export interface LevelData {
   walls: Wall[];
   crystals: Crystal[];
@@ -112,6 +133,7 @@ export interface GameStore {
   highFrequencyActive: boolean;
   highFrequencyEndTime: number;
   highFrequencyCooldownEnd: number;
+  visualEffects: VisualEffects;
 
   movePlayer: (dx: number, dy: number) => void;
   setPlayerAngle: (angle: number) => void;
@@ -126,6 +148,9 @@ export interface GameStore {
   resetGame: () => void;
   checkGameOver: (time: number) => void;
   advanceLevel: () => void;
+  triggerScreenShake: (duration: number, intensity: number) => void;
+  triggerFlashBurst: (x: number, y: number, duration: number, color: string, maxRadius: number) => void;
+  updateVisualEffects: (now: number) => void;
 }
 
 const CANVAS_WIDTH = 1600;
@@ -402,6 +427,7 @@ function createLevel3(): LevelData {
 let pulseIdCounter = 0;
 let echoIdCounter = 0;
 let particleIdCounter = 0;
+let flashBurstIdCounter = 0;
 
 export const useGameStore = create<GameStore>((set, get) => ({
   player: { x: 100, y: 100, angle: 0, speed: 150 },
@@ -423,6 +449,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   highFrequencyActive: false,
   highFrequencyEndTime: 0,
   highFrequencyCooldownEnd: 0,
+  visualEffects: { screenShake: null, flashBursts: [] },
 
   movePlayer: (dx: number, dy: number) => {
     const state = get();
@@ -513,6 +540,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     set(state => ({ pulses: [...state.pulses, pulse] }));
 
+    const shakeIntensity = highFrequency ? 6 : 3;
+    const shakeDuration = highFrequency ? 800 : 600;
+    get().triggerScreenShake(shakeDuration, shakeIntensity);
+
     setTimeout(() => {
       set(state => ({ pulses: state.pulses.filter(p => p.id !== pulse.id) }));
     }, duration + 100);
@@ -526,6 +557,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!crystal || crystal.collected) return;
 
     state.addParticles(crystal.x, crystal.y, 20, '#FFD700', '#FF6600', 300);
+
+    state.triggerFlashBurst(crystal.x, crystal.y, 300, '#FFD700', 50);
 
     const newCount = state.collectedCount + 1;
     const nowOpen = newCount >= state.crystalsRequired;
@@ -675,7 +708,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       lastPulseTime: 0,
       highFrequencyActive: false,
       highFrequencyEndTime: 0,
-      highFrequencyCooldownEnd: 0
+      highFrequencyCooldownEnd: 0,
+      visualEffects: { screenShake: null, flashBursts: [] }
     });
   },
 
@@ -688,7 +722,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       levelIndex: 0,
       collectedCount: 0,
       exitOpen: false,
-      exitOpenTime: 0
+      exitOpenTime: 0,
+      visualEffects: { screenShake: null, flashBursts: [] }
     });
   },
 
@@ -715,6 +750,55 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ gameState: 'victory' });
     } else {
       set({ gameState: 'levelComplete' });
+    }
+  },
+
+  triggerScreenShake: (duration: number, intensity: number) => {
+    const now = performance.now();
+    set(state => ({
+      visualEffects: {
+        ...state.visualEffects,
+        screenShake: { startTime: now, duration, intensity }
+      }
+    }));
+  },
+
+  triggerFlashBurst: (x: number, y: number, duration: number, color: string, maxRadius: number) => {
+    const now = performance.now();
+    const burst: FlashBurstEffect = {
+      id: ++flashBurstIdCounter,
+      x, y,
+      startTime: now,
+      duration,
+      color,
+      maxRadius
+    };
+    set(state => ({
+      visualEffects: {
+        ...state.visualEffects,
+        flashBursts: [...state.visualEffects.flashBursts, burst]
+      }
+    }));
+  },
+
+  updateVisualEffects: (now: number) => {
+    const state = get();
+    const { screenShake, flashBursts } = state.visualEffects;
+    let changed = false;
+
+    let newShake = screenShake;
+    if (screenShake && now - screenShake.startTime >= screenShake.duration) {
+      newShake = null;
+      changed = true;
+    }
+
+    const newBursts = flashBursts.filter(b => now - b.startTime < b.duration);
+    if (newBursts.length !== flashBursts.length) {
+      changed = true;
+    }
+
+    if (changed) {
+      set({ visualEffects: { screenShake: newShake, flashBursts: newBursts } });
     }
   }
 }));
