@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>StarPulse - 星系演化可视化</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #050510;
+      font-family: 'Inter', sans-serif;
+      color: #fff;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #galaxy-label {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      font-size: 28px;
+      font-weight: 300;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+      z-index: 10;
+      transition: all 0.3s ease;
+    }
+
+    #galaxy-label .subtitle {
+      font-size: 12px;
+      letter-spacing: 4px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 4px;
+    }
+
+    #control-panel {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      width: 320px;
+      background: rgba(26, 26, 46, 0.75);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 20px;
+      z-index: 10;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .galaxy-types {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .type-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 6px;
+      background: rgba(45, 45, 68, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      color: rgba(255, 255, 255, 0.7);
+      position: relative;
+    }
+
+    .type-btn:hover {
+      background: rgba(45, 45, 68, 0.9);
+      color: rgba(255, 255, 255, 0.95);
+      transform: translateY(-1px);
+    }
+
+    .type-btn.active {
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 69, 0, 0.15));
+      border-color: rgba(255, 215, 0, 0.4);
+      color: #fff;
+      box-shadow: 0 0 16px rgba(255, 215, 0, 0.15);
+    }
+
+    .type-btn .icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .type-btn .label {
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    .type-btn .tooltip {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      pointer-events: none;
+    }
+
+    .type-btn:hover .tooltip {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .control-group {
+      margin-bottom: 18px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .control-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      letter-spacing: 0.5px;
+      position: relative;
+    }
+
+    .control-label .tooltip {
+      position: absolute;
+      bottom: calc(100% + 4px);
+      left: 0;
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .control-label:hover .tooltip {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .control-value {
+      font-size: 12px;
+      font-weight: 500;
+      color: #FFD700;
+      letter-spacing: 0.5px;
+    }
+
+    .slider-container {
+      position: relative;
+      width: 100%;
+      height: 6px;
+    }
+
+    .slider-track {
+      width: 100%;
+      height: 100%;
+      background: #2D2D44;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .slider-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #FFD700, #FF4500);
+      border-radius: 3px;
+      width: 50%;
+      transition: width 0.05s ease;
+    }
+
+    .slider-thumb {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 18px;
+      height: 18px;
+      background: linear-gradient(135deg, #FFD700, #FF4500);
+      border-radius: 50%;
+      cursor: grab;
+      box-shadow: 0 2px 8px rgba(255, 69, 0, 0.4);
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .slider-thumb:hover {
+      transform: translate(-50%, -50%) scale(1.15);
+    }
+
+    .slider-thumb:active {
+      cursor: grabbing;
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+
+    input[type="range"] {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      margin: 0;
+    }
+
+    #fps-counter {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 1px;
+      z-index: 10;
+      font-family: 'Inter', monospace;
+    }
+
+    @media (max-width: 640px) {
+      #control-panel {
+        width: calc(100% - 32px);
+        bottom: 16px;
+        right: 16px;
+        left: 16px;
+        padding: 16px;
+      }
+
+      #galaxy-label {
+        top: 16px;
+        left: 16px;
+        font-size: 20px;
+      }
+
+      #fps-counter {
+        top: 16px;
+        right: 16px;
+      }
+
+      .type-btn .label {
+        font-size: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <div id="galaxy-label">
+      <div>旋涡星系</div>
+      <div class="subtitle">SPIRAL GALAXY</div>
+    </div>
+    <div id="fps-counter">FPS: 60</div>
+    <div id="control-panel">
+      <div class="panel-title">星系控制面板</div>
+      <div class="galaxy-types">
+        <div class="type-btn active" data-type="spiral" title="旋涡星系">
+          <div class="icon">🌀</div>
+          <div class="label">旋涡</div>
+          <div class="tooltip">对数螺旋结构，含明亮核心与旋臂</div>
+        </div>
+        <div class="type-btn" data-type="elliptical" title="椭圆星系">
+          <div class="icon">🔴</div>
+          <div class="label">椭圆</div>
+          <div class="tooltip">高斯椭球分布，中心亮度最高</div>
+        </div>
+        <div class="type-btn" data-type="irregular" title="不规则星系">
+          <div class="icon">✨</div>
+          <div class="label">不规则</div>
+          <div class="tooltip">随机散点分布，带局部聚集</div>
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="control-header">
+          <span class="control-label">
+            星体密度
+            <span class="tooltip">调节粒子数量倍数 (0.5x ~ 2.0x)</span>
+          </span>
+          <span class="control-value" id="density-value">1.0x</span>
+        </div>
+        <div class="slider-container">
+          <div class="slider-track">
+            <div class="slider-fill" id="density-fill" style="width: 33.33%"></div>
+          </div>
+          <div class="slider-thumb" id="density-thumb" style="left: 33.33%"></div>
+          <input type="range" id="density-slider" min="0.5" max="2.0" step="0.1" value="1.0" />
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="control-header">
+          <span class="control-label">
+            旋转速度
+            <span class="tooltip">每秒旋转弧度 (0 ~ 0.05 rad/s)</span>
+          </span>
+          <span class="control-value" id="speed-value">0.020</span>
+        </div>
+        <div class="slider-container">
+          <div class="slider-track">
+            <div class="slider-fill" id="speed-fill" style="width: 40%"></div>
+          </div>
+          <div class="slider-thumb" id="speed-thumb" style="left: 40%"></div>
+          <input type="range" id="speed-slider" min="0" max="0.05" step="0.005" value="0.02" />
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="control-header">
+          <span class="control-label">
+            演化时间
+            <span class="tooltip">模拟时间流逝 (0 ~ 100亿年)</span>
+          </span>
+          <span class="control-value" id="time-value">0</span>
+        </div>
+        <div class="slider-container">
+          <div class="slider-track">
+            <div class="slider-fill" id="time-fill" style="width: 0%"></div>
+          </div>
+          <div class="slider-thumb" id="time-thumb" style="left: 0%"></div>
+          <input type="range" id="time-slider" min="0" max="100" step="1" value="0" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
