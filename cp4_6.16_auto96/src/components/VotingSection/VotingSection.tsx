@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Vote, Plus, Trophy, BookOpenCheck } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { VotingSystem } from '@/modules/voting/VotingSystem';
-import type { Poll, PollOption } from '@/types';
+import type { PollOption } from '@/types';
 import './VotingSection.css';
 
 interface VotingSectionProps {
@@ -18,11 +18,16 @@ const VotingSection = ({ clubId, onCreatePollClick, isHost = false }: VotingSect
   const currentMemberMap = useAppStore(state => state.currentMemberMap);
   const [animatedPercentages, setAnimatedPercentages] = useState<Record<string, number>>({});
   const [showConfetti, setShowConfetti] = useState<string | null>(null);
+  const [showWinnerConfetti, setShowWinnerConfetti] = useState(false);
 
   const memberId = currentMemberMap[clubId];
 
   const activePoll = polls.find(
     p => p.clubId === clubId && p.status === 'active'
+  );
+
+  const endedPoll = polls.find(
+    p => p.clubId === clubId && p.status === 'ended'
   );
 
   useEffect(() => {
@@ -38,13 +43,27 @@ const VotingSection = ({ clubId, onCreatePollClick, isHost = false }: VotingSect
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [activePoll?.id]);
+  }, [activePoll]);
 
-  const sortedOptions = activePoll
-    ? [...activePoll.options].sort((a, b) => b.voteCount - a.voteCount)
+  useEffect(() => {
+    if (endedPoll && endedPoll.status === 'ended') {
+      const sorted = [...endedPoll.options].sort((a, b) => b.voteCount - a.voteCount);
+      if (sorted.length > 0 && sorted[0].voteCount > 0) {
+        setShowWinnerConfetti(true);
+        setTimeout(() => setShowWinnerConfetti(false), 2000);
+      }
+    }
+  }, [endedPoll]);
+
+  const currentPoll = activePoll || endedPoll;
+
+  const sortedOptions = currentPoll
+    ? [...currentPoll.options].sort((a, b) => b.voteCount - a.voteCount)
     : [];
 
   const winner = sortedOptions.length > 0 && sortedOptions[0].voteCount > 0 ? sortedOptions[0] : null;
+
+  const showWinnerBanner = endedPoll?.status === 'ended' && winner;
 
   const hasVoted = activePoll && memberId
     ? VotingSystem.hasUserVoted(activePoll.id, memberId)
@@ -84,6 +103,31 @@ const VotingSection = ({ clubId, onCreatePollClick, isHost = false }: VotingSect
             animationDelay: `${delay}s`,
             animationDuration: `${duration}s`,
           }}
+        />
+      );
+    }
+    return pieces;
+  };
+
+  const generateWinnerConfetti = (count: number) => {
+    const pieces = [];
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.random() * Math.PI * 2);
+      const distance = 80 + Math.random() * 120;
+      const tx = Math.cos(angle) * distance;
+      const ty = Math.sin(angle) * distance;
+      const delay = Math.random() * 0.3;
+      const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+      pieces.push(
+        <div
+          key={i}
+          className="winner-confetti-piece"
+          style={{
+            backgroundColor: color,
+            '--tx': `${tx}px`,
+            '--ty': `${ty}px`,
+            animationDelay: `${delay}s`,
+          } as React.CSSProperties}
         />
       );
     }
@@ -150,9 +194,9 @@ const VotingSection = ({ clubId, onCreatePollClick, isHost = false }: VotingSect
           下一本书投票
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {activePoll && (
-            <span className={`voting-status voting-status-${activePoll.status}`}>
-              {activePoll.status === 'active' ? '进行中' : '已结束'}
+          {currentPoll && (
+            <span className={`voting-status voting-status-${currentPoll.status}`}>
+              {currentPoll.status === 'active' ? '进行中' : '已结束'}
             </span>
           )}
           {isHost && (
@@ -167,7 +211,20 @@ const VotingSection = ({ clubId, onCreatePollClick, isHost = false }: VotingSect
         </div>
       </div>
 
-      {activePoll && sortedOptions.length > 0 ? (
+      {showWinnerBanner && winner && (
+        <div className="winner-banner">
+          {showWinnerConfetti && (
+            <div className="winner-confetti-container">
+              {generateWinnerConfetti(50)}
+            </div>
+          )}
+          <Trophy className="winner-trophy" size={64} color="#fbbf24" fill="#fbbf24" />
+          <div className="winner-subtitle">🎉 下一本书是：</div>
+          <div className="winner-title">{winner.bookTitle}</div>
+        </div>
+      )}
+
+      {currentPoll && sortedOptions.length > 0 ? (
         <div className="poll-cards">
           {sortedOptions.map((option, index) => renderPollCard(option, index))}
         </div>

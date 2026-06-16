@@ -9,21 +9,22 @@ export const ReaderEngine = {
 
   getHighlightsByChapter(chapterId: string, memberId?: string): Highlight[] {
     const state = useAppStore.getState();
-    let highlights = state.highlights.filter(h => h.chapterId === chapterId);
+    let highlights = [...state.highlights.filter(h => h.chapterId === chapterId)];
     if (memberId) {
-      highlights = highlights.filter(h => h.memberId === memberId);
+      highlights = [...highlights.filter(h => h.memberId === memberId)];
     }
-    return highlights.sort((a, b) => a.startOffset - b.startOffset);
+    return [...highlights].sort((a, b) => a.startOffset - b.startOffset).map(h => structuredClone(h));
   },
 
   getNotesByHighlight(highlightId: string): Note[] {
-    return useAppStore.getState().notes.filter(n => n.highlightId === highlightId);
+    return [...useAppStore.getState().notes.filter(n => n.highlightId === highlightId)].map(n => structuredClone(n));
   },
 
   getNoteByHighlightAndMember(highlightId: string, memberId: string): Note | undefined {
-    return useAppStore.getState().notes.find(
+    const note = useAppStore.getState().notes.find(
       n => n.highlightId === highlightId && n.memberId === memberId
     );
+    return note ? structuredClone(note) : undefined;
   },
 
   createHighlight(
@@ -36,7 +37,7 @@ export const ReaderEngine = {
   ): Highlight {
     const state = useAppStore.getState();
     
-    const highlight: Highlight = {
+    const highlight: Highlight = structuredClone({
       id: generateId(),
       chapterId,
       memberId,
@@ -45,12 +46,12 @@ export const ReaderEngine = {
       color,
       text,
       createdAt: Date.now(),
-    };
+    });
 
-    state.addHighlight(highlight);
+    state.addHighlight(structuredClone(highlight));
     state.addToast('已添加高亮', 'success');
 
-    return highlight;
+    return structuredClone(highlight);
   },
 
   updateHighlightColor(highlightId: string, color: HighlightColor): void {
@@ -58,7 +59,9 @@ export const ReaderEngine = {
     const highlight = state.highlights.find(h => h.id === highlightId);
     if (!highlight) return;
 
-    state.updateHighlight({ ...highlight, color });
+    const clonedHighlight = structuredClone(highlight);
+    clonedHighlight.color = color;
+    state.updateHighlight(clonedHighlight);
   },
 
   deleteHighlight(highlightId: string): void {
@@ -75,24 +78,26 @@ export const ReaderEngine = {
     );
 
     if (existingNote) {
-      const updatedNote = { ...existingNote, content, createdAt: Date.now() };
-      state.updateNote(updatedNote);
+      const clonedNote = structuredClone(existingNote);
+      clonedNote.content = content;
+      clonedNote.createdAt = Date.now();
+      state.updateNote(structuredClone(clonedNote));
       state.addToast('笔记已更新', 'success');
-      return updatedNote;
+      return structuredClone(clonedNote);
     }
 
-    const note: Note = {
+    const note: Note = structuredClone({
       id: generateId(),
       highlightId,
       memberId,
       content,
       createdAt: Date.now(),
-    };
+    });
 
-    state.addNote(note);
+    state.addNote(structuredClone(note));
     state.addToast('笔记已保存', 'success');
 
-    return note;
+    return structuredClone(note);
   },
 
   getHighlightPosition(highlightId: string): { top: number; left: number } | null {
@@ -100,18 +105,19 @@ export const ReaderEngine = {
     const highlight = state.highlights.find(h => h.id === highlightId);
     if (!highlight) return null;
 
-    return { top: highlight.startOffset, left: 0 };
+    return structuredClone({ top: highlight.startOffset, left: 0 });
   },
 
   buildHighlightedContent(chapterId: string, memberId: string): { text: string; highlights: Highlight[] } {
     const state = useAppStore.getState();
     const chapter = state.chapters.find(c => c.id === chapterId);
-    if (!chapter) return { text: '', highlights: [] };
+    if (!chapter) return structuredClone({ text: '', highlights: [] });
 
-    const highlights = state.highlights
-      .filter(h => h.chapterId === chapterId && h.memberId === memberId)
-      .sort((a, b) => a.startOffset - b.startOffset);
+    const highlights = [...state.highlights
+      .filter(h => h.chapterId === chapterId && h.memberId === memberId)]
+      .sort((a, b) => a.startOffset - b.startOffset)
+      .map(h => structuredClone(h));
 
-    return { text: chapter.content, highlights };
+    return structuredClone({ text: chapter.content, highlights: [...highlights] });
   },
 };

@@ -56,16 +56,16 @@ export default function ReaderSidebar({
     onChapterSelect(highlight.chapterId);
   };
 
-  const getHighlightColorClass = (color: string) => {
+  const getHighlightColorClass = (color: string): React.CSSProperties => {
     switch (color) {
       case 'yellow':
-        return 'background-color: var(--highlight-yellow)';
+        return { backgroundColor: 'var(--highlight-yellow)' };
       case 'green':
-        return 'background-color: var(--highlight-green)';
+        return { backgroundColor: 'var(--highlight-green)' };
       case 'pink':
-        return 'background-color: var(--highlight-pink)';
+        return { backgroundColor: 'var(--highlight-pink)' };
       default:
-        return 'background-color: var(--highlight-yellow)';
+        return { backgroundColor: 'var(--highlight-yellow)' };
     }
   };
 

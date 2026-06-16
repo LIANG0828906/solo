@@ -79,4 +79,12 @@ export const CommentBoard = {
   getMemberCommentCount(memberId: string): number {
     return useAppStore.getState().comments.filter(c => c.memberId === memberId).length;
   },
+
+  getCommentsWithReplies(chapterId: string): Array<Comment & { replies: Comment[] }> {
+    const parentComments = this.getCommentsByChapter(chapterId);
+    return parentComments.map(comment => ({
+      ...comment,
+      replies: this.getRepliesByComment(comment.id),
+    }));
+  },
 };
