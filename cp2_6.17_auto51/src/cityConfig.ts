@@ -1,0 +1,120 @@
+import type { CityConfig } from './types';
+import { WeatherType } from './types';
+
+export const CITIES: CityConfig[] = [
+  {
+    id: 'beijing',
+    name: '北京',
+    weatherType: WeatherType.Sunny,
+    weatherIcon: '☀️',
+    temperature: 28,
+    humidity: 45,
+    windSpeed: 2,
+    particleParams: {
+      count: 500,
+      shape: 'circle',
+      colors: ['#FFFACD', '#FFE4B5', '#FFD700', '#FFF8DC'],
+      minSize: 2,
+      maxSize: 4,
+      minSpeed: 0.2,
+      maxSpeed: 0.8,
+      opacityRange: [0.6, 1.0],
+      blinkEnabled: true,
+    },
+    themeColors: {
+      background: '#87CEEB',
+      gradient: ['#87CEEB', '#FFE4B5'],
+      glow: '#FFD700',
+      border: '#FFD700',
+    },
+  },
+  {
+    id: 'london',
+    name: '伦敦',
+    weatherType: WeatherType.Rainy,
+    weatherIcon: '🌧️',
+    temperature: 12,
+    humidity: 85,
+    windSpeed: 5,
+    particleParams: {
+      count: 1000,
+      shape: 'ellipse',
+      colors: ['#4A90D9', '#6BB3E9', '#87CEEB', '#5B9BD5'],
+      minSize: 2,
+      maxSize: 2,
+      minSizeY: 6,
+      maxSizeY: 10,
+      minSpeed: 4,
+      maxSpeed: 6,
+      angleDeg: 80,
+      angleVarianceDeg: 5,
+      opacityRange: [0.5, 0.85],
+    },
+    themeColors: {
+      background: '#4A6785',
+      gradient: ['#4A6785', '#6B8DAF'],
+      glow: '#B0C4DE',
+      border: '#87CEEB',
+    },
+  },
+  {
+    id: 'moscow',
+    name: '莫斯科',
+    weatherType: WeatherType.Snowy,
+    weatherIcon: '❄️',
+    temperature: -5,
+    humidity: 70,
+    windSpeed: 3,
+    particleParams: {
+      count: 800,
+      shape: 'hexagon',
+      colors: ['#FFFFFF', '#F0F8FF', '#E6E6FA', '#F5F5F5'],
+      minSize: 3,
+      maxSize: 6,
+      minSpeed: 1,
+      maxSpeed: 2.5,
+      opacityRange: [0.7, 1.0],
+    },
+    themeColors: {
+      background: '#DCE3F0',
+      gradient: ['#DCE3F0', '#A8B8C8'],
+      glow: '#FFFFFF',
+      border: '#E6E6FA',
+    },
+  },
+  {
+    id: 'singapore',
+    name: '新加坡',
+    weatherType: WeatherType.Thunderstorm,
+    weatherIcon: '⛈️',
+    temperature: 26,
+    humidity: 90,
+    windSpeed: 8,
+    particleParams: {
+      count: 600,
+      shape: 'rectangle',
+      colors: ['#2C3E50', '#34495E', '#1A252F', '#3D566E'],
+      minSize: 3,
+      maxSize: 6,
+      minSizeY: 2,
+      maxSizeY: 4,
+      minSpeed: 8,
+      maxSpeed: 12,
+      angleDeg: 70,
+      angleVarianceDeg: 10,
+      opacityRange: [0.6, 0.95],
+    },
+    themeColors: {
+      background: '#2C3E50',
+      gradient: ['#2C3E50', '#1A252F'],
+      glow: '#FFD700',
+      border: '#FFD700',
+    },
+  },
+];
+
+export const DEFAULT_CITY_ID = 'beijing';
+
+export const getCityById = (id: string): CityConfig => {
+  return CITIES.find((c) => c.id === id) ?? CITIES[0];
+};
