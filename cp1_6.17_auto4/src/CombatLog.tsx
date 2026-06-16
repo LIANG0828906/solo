@@ -7,14 +7,65 @@ const LOG_COLORS: Record<LogType, string> = {
   special: '#CE93D8',
 };
 
-const LOG_ICONS: Record<LogType, string> = {
-  attack: '⚔️',
-  defense: '🛡️',
-  special: '✨',
-};
-
+const FADE_OUT_LAST_COUNT = 5;
 const VISIBLE_COUNT = 20;
 const ITEM_HEIGHT = 48;
+
+function LogIcon({ type, size = 16 }: { type: LogType; size?: number }) {
+  const color = LOG_COLORS[type];
+
+  if (type === 'attack') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, display: 'block' }}>
+        <path
+          d="M6.5 17.5L14 10M14 10L11.5 4L20 8.5L16 7L14 10ZM14 10L9.5 14.5M10 17L7 20L4 17L7 14L10 17Z"
+          stroke={color}
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill={color + '22'}
+        />
+        <circle cx="20" cy="8.5" r="2" fill={color + '88'} />
+      </svg>
+    );
+  }
+
+  if (type === 'defense') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, display: 'block' }}>
+        <path
+          d="M12 3L4 6V12C4 16.5 7.5 20.5 12 22C16.5 20.5 20 16.5 20 12V6L12 3Z"
+          stroke={color}
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill={color + '22'}
+        />
+        <path
+          d="M9 12L11 14L15 10"
+          stroke={color}
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, display: 'block' }}>
+      <path
+        d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={color + '33'}
+      />
+      <circle cx="12" cy="12" r="2" fill={color} />
+    </svg>
+  );
+}
 
 export default function CombatLog() {
   const { logs } = useCombatStore((state) => state);
@@ -40,6 +91,13 @@ export default function CombatLog() {
 
   const totalHeight = logs.length * ITEM_HEIGHT;
   const offsetY = Math.floor(scrollTop / ITEM_HEIGHT) * ITEM_HEIGHT;
+
+  const getOpacity = (index: number): number => {
+    const fadeStartIndex = logs.length - FADE_OUT_LAST_COUNT;
+    if (index < fadeStartIndex) return 1;
+    const fadeProgress = (index - fadeStartIndex + 1) / FADE_OUT_LAST_COUNT;
+    return 1 - fadeProgress * 0.8;
+  };
 
   return (
     <div
@@ -90,23 +148,28 @@ export default function CombatLog() {
         style={{
           flex: 1,
           overflowY: 'auto',
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#444 transparent',
         }}
+        className="combat-log-scroll"
       >
         <style>{`
-          div::-webkit-scrollbar {
+          .combat-log-scroll::-webkit-scrollbar {
             width: 6px;
           }
-          div::-webkit-scrollbar-track {
-            background: transparent;
-          }
-          div::-webkit-scrollbar-thumb {
-            background: #444;
+          .combat-log-scroll::-webkit-scrollbar-track {
+            background: #333;
             border-radius: 3px;
           }
-          div::-webkit-scrollbar-thumb:hover {
-            background: #555;
+          .combat-log-scroll::-webkit-scrollbar-thumb {
+            background: #666;
+            border-radius: 3px;
+            transition: background-color 0.2s ease;
+          }
+          .combat-log-scroll::-webkit-scrollbar-thumb:hover {
+            background: #888;
+          }
+          .combat-log-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: #666 #333;
           }
         `}</style>
 
@@ -129,7 +192,7 @@ export default function CombatLog() {
           <div style={{ height: totalHeight, position: 'relative' }}>
             <div style={{ transform: `translateY(${offsetY}px)` }}>
               {visibleLogs.map((log) => {
-                const opacity = log.index < 10 ? 1 : Math.max(0.2, 1 - (log.index - 10) * 0.05);
+                const opacity = getOpacity(log.index);
                 return (
                   <div
                     key={log.id}
@@ -138,32 +201,39 @@ export default function CombatLog() {
                       padding: '8px 12px',
                       borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
                       display: 'flex',
-                      gap: '8px',
                       alignItems: 'flex-start',
                       opacity,
                       transition: 'opacity 0.3s ease',
                       boxSizing: 'border-box',
                     }}
                   >
-                    <span style={{ fontSize: '14px', lineHeight: '1.4' }}>
-                      {LOG_ICONS[log.type]}
-                    </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '2px', flexShrink: 0 }}>
+                      <LogIcon type={log.type} size={14} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, marginLeft: '4px' }}>
                       <div
                         style={{
                           color: LOG_COLORS[log.type],
                           fontSize: '11px',
                           fontFamily: "'JetBrains Mono', monospace",
                           marginBottom: '2px',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
                         }}
                       >
-                        回合 {log.round}
+                        <span style={{ opacity: 0.7 }}>回合</span>
+                        <span>{log.round}</span>
+                        <span style={{ marginLeft: '4px', fontSize: '10px', opacity: 0.6 }}>
+                          {log.type === 'attack' ? '· 攻击' : log.type === 'defense' ? '· 防御' : '· 特殊'}
+                        </span>
                       </div>
                       <div
                         style={{
                           color: '#E0E0E0',
                           fontSize: '12px',
-                          lineHeight: '1.3',
+                          lineHeight: '1.35',
                           wordBreak: 'break-word',
                         }}
                       >
@@ -184,20 +254,20 @@ export default function CombatLog() {
           borderTop: '1px solid #333',
           background: 'rgba(0, 0, 0, 0.3)',
           display: 'flex',
-          gap: '12px',
+          gap: '14px',
           fontSize: '10px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span>⚔️</span>
+          <LogIcon type="attack" size={12} />
           <span style={{ color: '#FF5252' }}>攻击</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span>🛡️</span>
+          <LogIcon type="defense" size={12} />
           <span style={{ color: '#69F0AE' }}>防御</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span>✨</span>
+          <LogIcon type="special" size={12} />
           <span style={{ color: '#CE93D8' }}>特殊</span>
         </div>
       </div>
