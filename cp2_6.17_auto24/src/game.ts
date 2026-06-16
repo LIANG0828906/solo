@@ -36,6 +36,7 @@ export class Game {
   waveMessageAlpha: number;
   comboMilestone10: boolean;
   comboMilestone20: boolean;
+  scoreAnimTimer: number;
   stats: GameStats;
 
   static readonly WAVE1_DURATION = 20 * 60;
@@ -43,6 +44,7 @@ export class Game {
   static readonly MAX_BULLETS = 300;
   static readonly CANVAS_WIDTH = 800;
   static readonly CANVAS_HEIGHT = 600;
+  static readonly SCORE_ANIM_DURATION = 9;
 
   constructor(width: number = Game.CANVAS_WIDTH, height: number = Game.CANVAS_HEIGHT) {
     this.width = width;
@@ -68,6 +70,7 @@ export class Game {
     this.waveMessageAlpha = 0;
     this.comboMilestone10 = false;
     this.comboMilestone20 = false;
+    this.scoreAnimTimer = 0;
     this.stats = {
       score: 0,
       surviveTime: 0,
@@ -101,6 +104,7 @@ export class Game {
     this.waveMessageAlpha = 0;
     this.comboMilestone10 = false;
     this.comboMilestone20 = false;
+    this.scoreAnimTimer = 0;
     this.stats = {
       score: 0,
       surviveTime: 0,
@@ -278,7 +282,7 @@ export class Game {
       if (this.player.tryGraze(bullet)) {
         this.combo += 1;
         this.grazeCount += 1;
-        this.score += 3;
+        this.addScore(3);
         if (this.combo > this.stats.maxCombo) {
           this.stats.maxCombo = this.combo;
         }
@@ -286,7 +290,7 @@ export class Game {
 
         if (this.combo === 10 && !this.comboMilestone10) {
           this.comboMilestone10 = true;
-          this.score += 20;
+          this.addScore(20);
           this.effects.push(new Effect(this.width / 2, this.height / 2, 'comboBurst', 6, 0, '#FFFFFF'));
         }
 
@@ -336,8 +340,16 @@ export class Game {
     this.scoreTimer += 1;
     if (this.scoreTimer >= 30) {
       this.scoreTimer = 0;
-      this.score += 1;
+      this.addScore(1);
     }
+    if (this.scoreAnimTimer > 0) {
+      this.scoreAnimTimer -= 1;
+    }
+  }
+
+  private addScore(amount: number): void {
+    this.score += amount;
+    this.scoreAnimTimer = Game.SCORE_ANIM_DURATION;
   }
 
   private updateWaveMessage(): void {

@@ -39,6 +39,32 @@ export class Renderer {
     gradient.addColorStop(1, '#1A2A4A');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, this.width, this.height);
+    this.drawCornerGlow();
+  }
+
+  private drawCornerGlow(): void {
+    const ctx = this.ctx;
+    const glowRadius = 180;
+    const corners = [
+      { x: 0, y: 0 },
+      { x: this.width, y: 0 },
+      { x: 0, y: this.height },
+      { x: this.width, y: this.height }
+    ];
+
+    for (const corner of corners) {
+      const gradient = ctx.createRadialGradient(
+        corner.x, corner.y, 0,
+        corner.x, corner.y, glowRadius
+      );
+      gradient.addColorStop(0, 'rgba(60, 120, 220, 0.12)');
+      gradient.addColorStop(0.5, 'rgba(40, 90, 180, 0.06)');
+      gradient.addColorStop(1, 'rgba(20, 50, 120, 0)');
+      ctx.beginPath();
+      ctx.arc(corner.x, corner.y, glowRadius, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    }
   }
 
   drawStars(stars: Star[]): void {
@@ -53,6 +79,8 @@ export class Renderer {
 
   drawPlayer(player: Player): void {
     const ctx = this.ctx;
+
+    this.drawPlayerTrail(player);
 
     const glowAlpha = 0.2 + 0.2 * Math.sin(player.glowPhase);
     const glowGradient = ctx.createRadialGradient(
@@ -96,6 +124,48 @@ export class Renderer {
     if (player.shieldActive) {
       this.drawShield(player);
     }
+
+    if (player.shieldShockwaveTimer > 0) {
+      this.drawShieldShockwave(player);
+    }
+  }
+
+  private drawPlayerTrail(player: Player): void {
+    const ctx = this.ctx;
+    const trail = player.trail;
+
+    for (let i = 0; i < trail.length; i++) {
+      const t = i / trail.length;
+      const point = trail[i];
+      const alpha = t * 0.5;
+      const radius = player.radius * (0.3 + t * 0.7);
+
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.fill();
+    }
+  }
+
+  private drawShieldShockwave(player: Player): void {
+    const ctx = this.ctx;
+    const t = 1 - player.shieldShockwaveTimer / 18;
+    const startRadius = player.shieldOuterRadius;
+    const endRadius = 80;
+    const radius = startRadius + t * (endRadius - startRadius);
+    const alpha = 1 - t;
+
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(100, 180, 255, ${alpha * 0.8})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, radius - 3, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(150, 220, 255, ${alpha * 0.4})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
   private drawShield(player: Player): void {
@@ -251,20 +321,37 @@ export class Renderer {
   }
 
   drawUI(game: Game): void {
-    this.drawScore(game.score);
+    this.drawScore(game.score, game.scoreAnimTimer);
     this.drawLives(game.player);
     this.drawWaveMessage(game);
     this.drawCombo(game.combo);
     this.drawFPS();
   }
 
-  private drawScore(score: number): void {
+  private drawScore(score: number, animTimer: number): void {
     const ctx = this.ctx;
-    ctx.font = '20px monospace';
+    const baseFontSize = 20;
+    let scale = 1;
+
+    if (animTimer > 0) {
+      const t = 1 - animTimer / 9;
+      if (t < 0.5) {
+        scale = 1 + t * 0.4;
+      } else {
+        const rebound = (t - 0.5) * 2;
+        scale = 1.2 - rebound * 0.2;
+      }
+    }
+
+    ctx.save();
+    ctx.translate(20, 20);
+    ctx.scale(scale, scale);
+    ctx.font = `${baseFontSize}px monospace`;
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(`得分: ${score}`, 20, 20);
+    ctx.fillText(`得分: ${score}`, 0, 0);
+    ctx.restore();
   }
 
   private drawLives(player: Player): void {

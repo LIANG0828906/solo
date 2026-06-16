@@ -147,6 +147,8 @@ export class Player {
   radius: number;
   targetX: number;
   targetY: number;
+  prevX: number;
+  prevY: number;
   lives: number;
   maxLives: number;
   shieldActive: boolean;
@@ -161,6 +163,9 @@ export class Player {
   glowPhase: number;
   livesAnimation: { [key: number]: number };
   hitFlashTimer: number;
+  trail: { x: number; y: number }[];
+  trailLength: number;
+  shieldShockwaveTimer: number;
 
   constructor(startX: number, startY: number) {
     this.x = startX;
@@ -168,6 +173,8 @@ export class Player {
     this.radius = 12;
     this.targetX = startX;
     this.targetY = startY;
+    this.prevX = startX;
+    this.prevY = startY;
     this.lives = 3;
     this.maxLives = 3;
     this.shieldActive = true;
@@ -182,6 +189,9 @@ export class Player {
     this.glowPhase = 0;
     this.livesAnimation = {};
     this.hitFlashTimer = 0;
+    this.trail = [];
+    this.trailLength = 15;
+    this.shieldShockwaveTimer = 0;
   }
 
   update(mouseX: number, mouseY: number, width: number, height: number): void {
@@ -189,8 +199,16 @@ export class Player {
     this.targetX = Math.max(margin, Math.min(width - margin, mouseX));
     this.targetY = Math.max(margin, Math.min(height - margin, mouseY));
 
+    this.prevX = this.x;
+    this.prevY = this.y;
+
     this.x = this.targetX;
     this.y = this.targetY;
+
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > this.trailLength) {
+      this.trail.shift();
+    }
 
     if (this.shieldActive) {
       this.shieldRotation += this.shieldRotationSpeed;
@@ -198,6 +216,10 @@ export class Player {
 
     if (this.shieldFlashTimer > 0) {
       this.shieldFlashTimer -= 1;
+    }
+
+    if (this.shieldShockwaveTimer > 0) {
+      this.shieldShockwaveTimer -= 1;
     }
 
     if (this.invincibilityTimer > 0) {
@@ -242,6 +264,7 @@ export class Player {
 
   takeShieldHit(): void {
     this.shieldFlashTimer = 12;
+    this.shieldShockwaveTimer = 18;
   }
 
   destroyShield(): void {
