@@ -8,6 +8,14 @@ export interface ChainEvent {
   removedPhotons?: Photon[];
 }
 
+export interface ChainPositionInfo {
+  chainLevel: number;
+  type: 'superpose' | 'collapse';
+  positions: { x: number; y: number; color: PhotonColor; pixelX?: number; pixelY?: number }[];
+  centerX?: number;
+  centerY?: number;
+}
+
 export class ChainResolver {
   grid: Grid;
   chainInterval: number = 0.8;
@@ -174,5 +182,58 @@ export class ChainResolver {
 
   hasMoreChains(): boolean {
     return this.findNextChainEvent() !== null;
+  }
+
+  getChainPositionInfo(event: ChainEvent): ChainPositionInfo {
+    const positions: ChainPositionInfo['positions'] = [];
+    let centerX = 0;
+    let centerY = 0;
+    let count = 0;
+
+    const addPos = (p: Photon) => {
+      positions.push({
+        x: p.gridX,
+        y: p.gridY,
+        color: p.color,
+        pixelX: p.x,
+        pixelY: p.y,
+      });
+      centerX += p.gridX;
+      centerY += p.gridY;
+      count++;
+    };
+
+    if (event.type === 'collapse') {
+      const x = event.photonA.gridX;
+      const y = event.photonA.gridY;
+      addPos(event.photonA);
+      const adj = this.grid.getAdjacentCells(x, y);
+      for (const n of adj) {
+        const nb = this.grid.getPhoton(n.x, n.y);
+        if (nb && nb.color === event.photonA.color) {
+          addPos(nb);
+        }
+      }
+    } else if (event.photonB) {
+      addPos(event.photonA);
+      addPos(event.photonB);
+    }
+
+    if (count > 0) {
+      centerX /= count;
+      centerY /= count;
+    }
+
+    return {
+      chainLevel: this.chainLevel,
+      type: event.type,
+      positions,
+      centerX,
+      centerY,
+    };
+  }
+
+  getChainCount(): number {
+    return this.chainLevel;
   }
 }

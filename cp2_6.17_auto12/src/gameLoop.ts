@@ -287,7 +287,8 @@ export class GameLoop {
     }
     this.chainLevel++;
     this.chainCount = this.chainLevel;
-    this.chainScale = 1.6;
+    this.chainResolver.chainLevel = this.chainLevel;
+    this.renderer.triggerChainPulse(this.gameTime);
     if (event.type === 'superpose') {
       this.beginSuperpose(event);
     } else {
@@ -309,6 +310,22 @@ export class GameLoop {
 
   finishSuperpose() {
     if (!this.superposeA || !this.superposeB) return;
+
+    const event: ChainEvent = {
+      type: 'superpose',
+      photonA: this.superposeA,
+      photonB: this.superposeB,
+    };
+    const info = this.chainResolver.getChainPositionInfo(event);
+    for (const p of info.positions) {
+      if (p.pixelX === undefined || p.pixelY === undefined) {
+        const gp = this.renderer.gridToPixel(p.x, p.y);
+        p.pixelX = gp.x;
+        p.pixelY = gp.y;
+      }
+    }
+    this.renderer.applyChainVisualEffects(info, this.gameTime);
+
     const midX = (this.superposeAOrigX + this.superposeBOrigX) / 2;
     const midY = (this.superposeAOrigY + this.superposeBOrigY) / 2;
     const cfg = COLOR_CONFIG[this.superposeA.color];
@@ -349,6 +366,27 @@ export class GameLoop {
 
   finishCollapse() {
     if (!this.collapsePhotonRef) return;
+
+    const event: ChainEvent = {
+      type: 'collapse',
+      photonA: this.collapsePhotonRef,
+    };
+    const info = this.chainResolver.getChainPositionInfo(event);
+    for (const p of info.positions) {
+      if (p.pixelX === undefined || p.pixelY === undefined) {
+        const photon = this.grid.getPhoton(p.x, p.y);
+        if (photon) {
+          p.pixelX = photon.x;
+          p.pixelY = photon.y;
+        } else {
+          const gp = this.renderer.gridToPixel(p.x, p.y);
+          p.pixelX = gp.x;
+          p.pixelY = gp.y;
+        }
+      }
+    }
+    this.renderer.applyChainVisualEffects(info, this.gameTime);
+
     for (const p of this.collapseRemovedList) {
       this.createBurst(p);
     }
@@ -724,8 +762,10 @@ export class GameLoop {
 
     this.renderer.drawParticles(this.burstParticles);
     this.renderer.drawRipples(this.ripples, time);
+    this.renderer.drawHaloResidues(time);
+    this.renderer.drawFullscreenPulses(time);
     this.renderer.drawScore(this.score, this.displayScore, this.scoreAnimScale);
-    this.renderer.drawChainCounter(this.chainCount, this.chainScale);
+    this.renderer.drawChainCounter(this.chainCount, time);
     this.renderer.drawNextPreview(this.grid.nextPhotonColor);
 
     if (this.phase === GamePhase.GameOver) {

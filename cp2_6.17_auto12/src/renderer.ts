@@ -1,5 +1,20 @@
 import { Photon, PhotonColor, COLOR_CONFIG, PhotonState, BurstParticle, Ripple } from './photon';
 import { GRID_SIZE, CELL_SIZE, PHOTON_RADIUS } from './grid';
+import { ChainPositionInfo } from './chainResolver';
+
+export interface HaloResidue {
+  x: number;
+  y: number;
+  color: PhotonColor;
+  startTime: number;
+  duration: number;
+  maxRadius: number;
+}
+
+export interface FullscreenPulse {
+  startTime: number;
+  duration: number;
+}
 
 export class Renderer {
   ctx: CanvasRenderingContext2D;
@@ -8,6 +23,11 @@ export class Renderer {
   gridOffsetX: number = 0;
   gridOffsetY: number = 0;
   stars: { x: number; y: number; size: number; speed: number; brightness: number }[] = [];
+  haloResidues: HaloResidue[] = [];
+  fullscreenPulses: FullscreenPulse[] = [];
+  chainPulseStart: number = 0;
+  chainPulseDuration: number = 0.3;
+  chainPulseTriggered: boolean = false;
 
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
@@ -322,21 +342,181 @@ export class Renderer {
     ctx.restore();
   }
 
-  drawChainCounter(chainCount: number, chainScale: number) {
+  drawChainCounter(chainCount: number, currentTime: number) {
     if (chainCount <= 0) return;
     const ctx = this.ctx;
     const centerX = this.gridOffsetX + GRID_SIZE * CELL_SIZE / 2;
-    const chainY = this.gridOffsetY - 70;
+    const chainY = this.gridOffsetY - 100;
+
+    let scale = 1;
+    if (this.chainPulseTriggered) {
+      const elapsed = currentTime - this.chainPulseStart;
+      if (elapsed >= 0 && elapsed <= this.chainPulseDuration) {
+        const t = elapsed / this.chainPulseDuration;
+        scale = this.pulseEasing(t);
+      } else {
+        this.chainPulseTriggered = false;
+        scale = 1;
+      }
+    }
+
+    const outerGrad = ctx.createRadialGradient(centerX, chainY, 0, centerX, chainY, 70);
+    outerGrad.addColorStop(0, 'rgba(74, 144, 217, 0.35)');
+    outerGrad.addColorStop(1, 'rgba(74, 144, 217, 0)');
+    ctx.fillStyle = outerGrad;
+    ctx.beginPath();
+    ctx.arc(centerX, chainY, 70, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.save();
-    ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
+    ctx.translate(centerX, chainY);
+    ctx.scale(scale, scale);
+
+    ctx.font = 'bold 28px "Courier New", "Consolas", monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#FFEE88';
-    ctx.translate(centerX, chainY);
-    ctx.scale(chainScale, chainScale);
-    ctx.fillText(`Chain x${chainCount}`, 0, 0);
+
+    ctx.fillStyle = 'rgba(123, 104, 238, 0.35)';
+    ctx.fillText(`CHAIN  x${chainCount}`, 2, 2);
+
+    const grad = ctx.createLinearGradient(-90, 0, 90, 0);
+    grad.addColorStop(0, '#88CCFF');
+    grad.addColorStop(0.5, '#FFFFFF');
+    grad.addColorStop(1, '#FFEE88');
+    ctx.fillStyle = grad;
+    ctx.fillText(`CHAIN  x${chainCount}`, 0, 0);
+
+    ctx.font = 'bold 34px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(255, 238, 136, 0.15)';
+    ctx.fillText(`${chainCount}`, 0, 0);
+
     ctx.restore();
+
+    if (chainCount >= 3) {
+      ctx.save();
+      ctx.font = '11px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(136, 204, 255, 0.7)';
+      const flash = 0.5 + Math.abs(Math.sin(currentTime * 6)) * 0.5;
+      ctx.globalAlpha = flash;
+      ctx.fillText('[ QUANTUM RESONANCE ACTIVE ]', centerX, chainY + 30);
+      ctx.restore();
+    }
+  }
+
+  triggerChainPulse(currentTime: number) {
+    this.chainPulseStart = currentTime;
+    this.chainPulseTriggered = true;
+  }
+
+  pulseEasing(t: number): number {
+    if (t < 0.2) {
+      return 1 + (t / 0.2) * 0.3;
+    } else {
+      const rt = (t - 0.2) / 0.8;
+      return 1.3 - 0.3 * this.easeOutBack(rt);
+    }
+  }
+
+  addHaloResidue(x: number, y: number, color: PhotonColor, currentTime: number) {
+    this.haloResidues.push({
+      x,
+      y,
+      color,
+      startTime: currentTime,
+      duration: 0.5,
+      maxRadius: PHOTON_RADIUS * 2.2,
+    });
+  }
+
+  drawHaloResidues(currentTime: number) {
+    const ctx = this.ctx;
+    this.haloResidues = this.haloResidues.filter(h => currentTime - h.startTime < h.duration);
+    for (const h of this.haloResidues) {
+      const elapsed = currentTime - h.startTime;
+      const t = elapsed / h.duration;
+      const cfg = COLOR_CONFIG[h.color];
+      const scale = 1 - t * 0.55;
+      const alpha = (1 - t) * 0.65;
+      const radius = h.maxRadius * scale;
+
+      const grad = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, radius);
+      grad.addColorStop(0, `rgba(${cfg.rgb}, ${alpha})`);
+      grad.addColorStop(0.4, `rgba(${cfg.rgb}, ${alpha * 0.5})`);
+      grad.addColorStop(1, `rgba(${cfg.rgb}, 0)`);
+
+      ctx.save();
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(${cfg.rgb}, ${alpha})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, radius * 0.7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  addFullscreenPulse(currentTime: number) {
+    this.fullscreenPulses.push({
+      startTime: currentTime,
+      duration: 0.8,
+    });
+  }
+
+  drawFullscreenPulses(currentTime: number) {
+    const ctx = this.ctx;
+    this.fullscreenPulses = this.fullscreenPulses.filter(p => currentTime - p.startTime < p.duration);
+    if (this.fullscreenPulses.length === 0) return;
+
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    const maxR = Math.hypot(this.width, this.height) * 0.7;
+
+    for (const pulse of this.fullscreenPulses) {
+      const elapsed = currentTime - pulse.startTime;
+      const t = elapsed / pulse.duration;
+      const alpha = (1 - t) * 0.6;
+      const radius = t * maxR;
+
+      ctx.save();
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      grad.addColorStop(0, 'rgba(74, 144, 217, 0)');
+      grad.addColorStop(Math.max(0, t - 0.15), 'rgba(74, 144, 217, 0)');
+      grad.addColorStop(t, `rgba(123, 104, 238, ${alpha * 0.6})`);
+      grad.addColorStop(1, `rgba(74, 144, 217, 0)`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, this.width, this.height);
+
+      ctx.strokeStyle = `rgba(136, 204, 255, ${alpha})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = `rgba(123, 104, 238, ${alpha * 0.5})`;
+      ctx.lineWidth = 1.5;
+      if (t > 0.1) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius * 0.85, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  applyChainVisualEffects(info: ChainPositionInfo, currentTime: number) {
+    for (const p of info.positions) {
+      if (p.pixelX !== undefined && p.pixelY !== undefined) {
+        this.addHaloResidue(p.pixelX, p.pixelY, p.color, currentTime);
+      }
+    }
+    if (info.chainLevel >= 3) {
+      this.addFullscreenPulse(currentTime);
+    }
   }
 
   drawNextPreview(nextColor: PhotonColor) {
