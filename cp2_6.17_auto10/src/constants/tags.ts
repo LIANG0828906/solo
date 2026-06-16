@@ -1,14 +1,13 @@
 import type { EmotionTag } from '@/types';
 
 export const EMOTION_TAGS: EmotionTag[] = [
-  { name: '宁静', category: 'warm' },
   { name: '温馨', category: 'warm' },
   { name: '炽热', category: 'warm' },
   { name: '欢快', category: 'warm' },
   { name: '热情', category: 'warm' },
   { name: '浪漫', category: 'warm' },
-  { name: '梦幻', category: 'warm' },
   
+  { name: '宁静', category: 'cold' },
   { name: '忧郁', category: 'cold' },
   { name: '孤独', category: 'cold' },
   { name: '冷峻', category: 'cold' },
@@ -17,6 +16,7 @@ export const EMOTION_TAGS: EmotionTag[] = [
   { name: '空灵', category: 'cold' },
   { name: '凛冽', category: 'cold' },
   
+  { name: '梦幻', category: 'mystery' },
   { name: '神秘', category: 'mystery' },
   { name: '迷幻', category: 'mystery' },
   { name: '诡异', category: 'mystery' },

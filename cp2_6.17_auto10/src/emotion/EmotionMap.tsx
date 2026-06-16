@@ -177,10 +177,12 @@ export function EmotionMap() {
         if (dragged) return;
         handleNodeClick(d.id);
       })
-      .on('dblclick', (event, d) => {
+      .on('dblclick', (event) => {
         event.stopPropagation();
-        d.fx = null;
-        d.fy = null;
+        nodes.forEach((n) => {
+          n.fx = null;
+          n.fy = null;
+        });
         simulation.alpha(0.3).restart();
       });
 

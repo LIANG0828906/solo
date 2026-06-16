@@ -28,8 +28,8 @@ export function WorkCard({ work, onClick, highlighted, style, index = 0, variant
         <img
           src={work.cover}
           alt={work.title}
-          className={`w-full object-cover transition-transform duration-500 group-hover:scale-110 ${
-            variant === 'grid' ? 'h-full' : 'h-auto'
+          className={`w-full transition-transform duration-500 group-hover:scale-110 ${
+            variant === 'grid' ? 'h-full object-cover' : 'h-auto object-contain'
           }`}
           loading="lazy"
         />
