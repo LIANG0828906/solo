@@ -617,6 +617,8 @@ export default class AstroScene {
     
     const repulsionRadius = 200
     const maxStrength = 500
+    const lateralStrengthRatio = 0.2
+    const time = this.clock.getElapsedTime()
     
     for (let i = 0; i < this.currentCount; i++) {
       const px = this.positions[i * 3]
@@ -637,6 +639,35 @@ export default class AstroScene {
         this.velocities[i * 3] += nx * strength * deltaTime
         this.velocities[i * 3 + 1] += ny * strength * deltaTime
         this.velocities[i * 3 + 2] += nz * strength * deltaTime
+        
+        const distFactor = 1 - dist / repulsionRadius
+        const lateralStrength = strength * lateralStrengthRatio * distFactor
+        
+        const phase = i * 0.37 + time * 1.5
+        const swingAngle = Math.sin(phase) * 0.8 + Math.sin(phase * 2.3) * 0.3
+        
+        const tanX = -ny
+        const tanY = nx
+        const tanZ = 0
+        const tanLen = Math.sqrt(tanX * tanX + tanY * tanY + tanZ * tanZ)
+        
+        if (tanLen > 0.001) {
+          const tx = tanX / tanLen
+          const ty = tanY / tanLen
+          const tz = tanZ / tanLen
+          
+          const bx = ny * tz - nz * ty
+          const by = nz * tx - nx * tz
+          const bz = nx * ty - ny * tx
+          
+          const latX = tx * Math.cos(swingAngle) + bx * Math.sin(swingAngle)
+          const latY = ty * Math.cos(swingAngle) + by * Math.sin(swingAngle)
+          const latZ = tz * Math.cos(swingAngle) + bz * Math.sin(swingAngle)
+          
+          this.velocities[i * 3] += latX * lateralStrength * deltaTime
+          this.velocities[i * 3 + 1] += latY * lateralStrength * deltaTime
+          this.velocities[i * 3 + 2] += latZ * lateralStrength * deltaTime
+        }
       }
     }
   }
@@ -694,38 +725,73 @@ export default class AstroScene {
   }
   
   private updateVelocity(deltaTime: number) {
-    const returnSpeed = 0.8 + Math.random() * 0.4
+    const springConstant = 0.05
+    const damping = 0.92
+    
+    const totalFrames = deltaTime * 60
+    const numSubsteps = Math.max(1, Math.ceil(totalFrames))
+    const framesPerSubstep = totalFrames / numSubsteps
+    const dampingPerSubstep = Math.pow(damping, framesPerSubstep)
+    const springPerSubstep = springConstant * framesPerSubstep
     
     for (let i = 0; i < this.currentCount; i++) {
       if (this.novaData.particles.some(p => p.index === i)) {
         continue
       }
       
-      const vx = this.velocities[i * 3]
-      const vy = this.velocities[i * 3 + 1]
-      const vz = this.velocities[i * 3 + 2]
+      let vx = this.velocities[i * 3]
+      let vy = this.velocities[i * 3 + 1]
+      let vz = this.velocities[i * 3 + 2]
       
-      this.positions[i * 3] += vx * deltaTime
-      this.positions[i * 3 + 1] += vy * deltaTime
-      this.positions[i * 3 + 2] += vz * deltaTime
-      
-      this.velocities[i * 3] *= 0.95
-      this.velocities[i * 3 + 1] *= 0.95
-      this.velocities[i * 3 + 2] *= 0.95
+      let px = this.positions[i * 3]
+      let py = this.positions[i * 3 + 1]
+      let pz = this.positions[i * 3 + 2]
       
       if (!this.isMouseOver) {
         const ox = this.originalPositions[i * 3]
         const oy = this.originalPositions[i * 3 + 1]
         const oz = this.originalPositions[i * 3 + 2]
         
-        const px = this.positions[i * 3]
-        const py = this.positions[i * 3 + 1]
-        const pz = this.positions[i * 3 + 2]
+        let vxPpf = vx / 60
+        let vyPpf = vy / 60
+        let vzPpf = vz / 60
         
-        this.positions[i * 3] += (ox - px) * returnSpeed * deltaTime
-        this.positions[i * 3 + 1] += (oy - py) * returnSpeed * deltaTime
-        this.positions[i * 3 + 2] += (oz - pz) * returnSpeed * deltaTime
+        for (let s = 0; s < numSubsteps; s++) {
+          const dx = ox - px
+          const dy = oy - py
+          const dz = oz - pz
+          
+          vxPpf = (vxPpf + dx * springPerSubstep) * dampingPerSubstep
+          vyPpf = (vyPpf + dy * springPerSubstep) * dampingPerSubstep
+          vzPpf = (vzPpf + dz * springPerSubstep) * dampingPerSubstep
+          
+          px += vxPpf * framesPerSubstep
+          py += vyPpf * framesPerSubstep
+          pz += vzPpf * framesPerSubstep
+        }
+        
+        vx = vxPpf * 60
+        vy = vyPpf * 60
+        vz = vzPpf * 60
+      } else {
+        const dragFactor = Math.pow(0.98, totalFrames)
+        
+        px += vx * deltaTime
+        py += vy * deltaTime
+        pz += vz * deltaTime
+        
+        vx *= dragFactor
+        vy *= dragFactor
+        vz *= dragFactor
       }
+      
+      this.positions[i * 3] = px
+      this.positions[i * 3 + 1] = py
+      this.positions[i * 3 + 2] = pz
+      
+      this.velocities[i * 3] = vx
+      this.velocities[i * 3 + 1] = vy
+      this.velocities[i * 3 + 2] = vz
     }
   }
   
