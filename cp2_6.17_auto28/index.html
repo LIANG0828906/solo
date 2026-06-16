@@ -53,12 +53,10 @@
       0%, 100% {
         border-color: rgba(0, 212, 255, 0.3);
         box-shadow: 0 0 10px rgba(0, 212, 255, 0.1);
-        filter: brightness(0.8);
       }
       50% {
         border-color: rgba(0, 212, 255, 0.6);
         box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
-        filter: brightness(1.2);
       }
     }
 
@@ -264,6 +262,21 @@
       border-radius: 4px;
       margin: 0 4px;
     }
+
+    #camera-warning {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background: rgba(20, 20, 30, 0.9);
+      color: #ff9966;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: monospace;
+      border: 1px solid rgba(255, 153, 102, 0.4);
+      display: none;
+      z-index: 99;
+    }
   </style>
 </head>
 <body>
@@ -305,6 +318,8 @@
     <div class="fps-label">FPS</div>
     <div class="particle-count" id="particle-count">0 粒子</div>
   </div>
+
+  <div id="camera-warning"></div>
 
   <script type="module" src="/src/main.ts"></script>
 </body>

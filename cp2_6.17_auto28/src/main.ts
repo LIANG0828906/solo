@@ -199,6 +199,43 @@ async function initAudio(): Promise<void> {
   }
 }
 
+function createFallbackTexture(): THREE.Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 640;
+  canvas.height = 480;
+  const ctx = canvas.getContext('2d')!;
+
+  const gradient = ctx.createRadialGradient(320, 240, 50, 320, 240, 400);
+  gradient.addColorStop(0, 'rgba(0, 100, 180, 1)');
+  gradient.addColorStop(0.5, 'rgba(20, 40, 100, 1)');
+  gradient.addColorStop(1, 'rgba(10, 10, 40, 1)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 640, 480);
+
+  for (let i = 0; i < 50; i++) {
+    const x = Math.random() * 640;
+    const y = Math.random() * 480;
+    const r = Math.random() * 3 + 1;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(100, 200, 255, ${Math.random() * 0.5 + 0.2})`;
+    ctx.fill();
+  }
+
+  ctx.font = 'bold 28px Arial';
+  ctx.fillStyle = 'rgba(180, 220, 255, 0.8)';
+  ctx.textAlign = 'center';
+  ctx.fillText('摄像头未授权', 320, 230);
+  ctx.font = '16px Arial';
+  ctx.fillText('已降级为渐变背景', 320, 260);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 async function initCamera(): Promise<void> {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -215,7 +252,19 @@ async function initCamera(): Promise<void> {
     }
   } catch (error) {
     console.error('Failed to initialize camera:', error);
-    alert('无法访问摄像头，请确保已授予权限。');
+
+    const warningEl = document.getElementById('camera-warning');
+    if (warningEl) {
+      warningEl.style.display = 'block';
+      warningEl.textContent = '摄像头未授权，已降级为渐变纹理';
+    } else {
+      alert('无法访问摄像头，已降级为渐变纹理模式。');
+    }
+
+    if (sphereMaterial && sphereMaterial.uniforms) {
+      const fallbackTex = createFallbackTexture();
+      sphereMaterial.uniforms.uTexture.value = fallbackTex;
+    }
   }
 }
 
@@ -224,7 +273,7 @@ function getFrequencyBands(): { low: number; mid: number; high: number } {
     return { low: 0, mid: 0, high: 0 };
   }
 
-  analyser.getByteFrequencyData(frequencyData as unknown as Uint8Array);
+  analyser.getByteFrequencyData(frequencyData as any);
 
   const binCount = frequencyData.length;
   const sampleRate = audioContext?.sampleRate || 44100;
@@ -412,6 +461,14 @@ function applyFinalModeState(): void {
 function setDisplayMode(mode: DisplayMode, immediate = false): void {
   if (mode === currentMode && !immediate) return;
 
+  if (modeTransitioning && !immediate) {
+    previousMode = currentMode;
+    currentMode = mode;
+    modeTransitionProgress = 1 - modeTransitionProgress;
+    updateModeButtons();
+    return;
+  }
+
   previousMode = currentMode;
   currentMode = mode;
 
@@ -463,7 +520,9 @@ function updateAdaptiveParticles(deltaTime: number): void {
   const minCount = getParticleMinCount();
   const currentCount = getParticleCount();
 
-  if (fps > 0 && fps < 20) {
+  if (fps <= 0) return;
+
+  if (fps < 20) {
     lowFpsCounter += deltaTime;
     highFpsCounter = 0;
     if (lowFpsCounter >= FPS_CHECK_INTERVAL && currentCount > minCount) {
@@ -472,16 +531,16 @@ function updateAdaptiveParticles(deltaTime: number): void {
       lowFpsCounter = 0;
       return;
     }
-  } else if (fps > 0 && fps < 30) {
+  } else if (fps < 30) {
     lowFpsCounter += deltaTime;
     highFpsCounter = 0;
-    if (lowFpsCounter >= FPS_CHECK_INTERVAL && currentCount > midCount) {
+    if (lowFpsCounter >= FPS_CHECK_INTERVAL && currentCount > midCount && currentCount > minCount) {
       setParticleCount(midCount);
       adaptiveUpTimer = 0;
       lowFpsCounter = 0;
       return;
     }
-  } else if (fps > 45) {
+  } else if (fps >= 45) {
     lowFpsCounter = 0;
     highFpsCounter += deltaTime;
     if (highFpsCounter >= FPS_CHECK_INTERVAL && currentCount < baseCount) {
@@ -532,7 +591,7 @@ function onKeyDown(event: KeyboardEvent): void {
 }
 
 function switchModeWithDebounce(mode: DisplayMode): void {
-  if (buttonsDisabled || modeTransitioning || currentMode === mode) return;
+  if (buttonsDisabled || currentMode === mode) return;
 
   buttonsDisabled = true;
   setDisplayMode(mode);
@@ -547,7 +606,7 @@ function switchModeWithDebounce(mode: DisplayMode): void {
     buttons.forEach((btn) => {
       (btn as HTMLButtonElement).disabled = false;
     });
-  }, 300);
+  }, 150);
 }
 
 function setupUI(): void {
