@@ -56,24 +56,40 @@ function calculateDailySpent(days: DayPlan[]): Record<string, number> {
   return daily;
 }
 
-function rgbToHex([r, g, b]: [number, number, number]): string {
-  return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+function interpolateHsl(hsl1: [number, number, number], hsl2: [number, number, number], t: number): [number, number, number] {
+  let [h1, s1, l1] = hsl1;
+  let [h2, s2, l2] = hsl2;
+
+  let delta = h2 - h1;
+  if (delta > 180) {
+    h1 += 360;
+  } else if (delta < -180) {
+    h2 += 360;
+  }
+
+  const h = ((h1 + (h2 - h1) * t) % 360 + 360) % 360;
+  const s = s1 + (s2 - s1) * t;
+  const l = l1 + (l2 - l1) * t;
+
+  return [Math.round(h), Math.round(s), Math.round(l)];
 }
 
 function getProgressColor(percentage: number): string {
   const colorStops: { percent: number; color: [number, number, number] }[] = [
-    { percent: 0, color: [34, 197, 94] },
-    { percent: 50, color: [234, 179, 8] },
-    { percent: 75, color: [249, 115, 22] },
-    { percent: 100, color: [239, 68, 68] }
+    { percent: 0, color: [142, 71, 45] },
+    { percent: 50, color: [45, 93, 47] },
+    { percent: 75, color: [25, 95, 53] },
+    { percent: 100, color: [0, 84, 60] }
   ];
 
   if (percentage <= 0) {
-    return rgbToHex(colorStops[0].color);
+    const [h, s, l] = colorStops[0].color;
+    return `hsl(${h}, ${s}%, ${l}%)`;
   }
 
   if (percentage >= 100) {
-    return rgbToHex(colorStops[colorStops.length - 1].color);
+    const [h, s, l] = colorStops[colorStops.length - 1].color;
+    return `hsl(${h}, ${s}%, ${l}%)`;
   }
 
   let lowerIndex = 0;
@@ -92,11 +108,9 @@ function getProgressColor(percentage: number): string {
   const range = upper.percent - lower.percent;
   const t = (percentage - lower.percent) / range;
 
-  const r = Math.round(lower.color[0] + (upper.color[0] - lower.color[0]) * t);
-  const g = Math.round(lower.color[1] + (upper.color[1] - lower.color[1]) * t);
-  const b = Math.round(lower.color[2] + (upper.color[2] - lower.color[2]) * t);
+  const [h, s, l] = interpolateHsl(lower.color, upper.color, t);
 
-  return rgbToHex([r, g, b]);
+  return `hsl(${h}, ${s}%, ${l}%)`;
 }
 
 function AnimatedNumber({ value, duration = 600 }: { value: number; duration?: number }) {
@@ -285,7 +299,7 @@ export default function BudgetDashboard({ trip }: BudgetDashboardProps) {
                     className={`progress-bar ${dayOver ? 'over-budget' : ''}`}
                     style={{
                       width: `${Math.min(dayPercent, 100)}%`,
-                      backgroundColor: dayOver ? '#ef4444' : getProgressColor(dayPercent),
+                      backgroundColor: getProgressColor(dayPercent),
                       transition: 'width 0.6s ease, background-color 0.6s ease'
                     }}
                   />

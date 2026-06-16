@@ -41,6 +41,9 @@ export default function App() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [report, setReport] = useState<TripReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportEmpty, setReportEmpty] = useState(false);
+  const reportCacheRef = useRef<Map<string, TripReport>>(new Map());
   const reportChartRef = useRef<HTMLCanvasElement | null>(null);
   const reportChartInstance = useRef<Chart | null>(null);
 
@@ -127,17 +130,37 @@ export default function App() {
     setActiveTab('planner');
   }
 
-  async function generateReport() {
+  async function generateReport(forceRefresh: boolean = false) {
     if (!currentTrip) return;
 
+    setReportError(null);
+    setReportEmpty(false);
     setIsLoading(true);
+
     try {
-      const res = await fetch(`/api/trips/${currentTrip.id}/report`);
-      if (res.ok) {
-        const data = await res.json();
-        setReport(data);
+      if (!forceRefresh && reportCacheRef.current.has(currentTrip.id)) {
+        const cachedData = reportCacheRef.current.get(currentTrip.id)!;
+        setReport(cachedData);
+        const allCategoryZero = Object.values(cachedData.categoryBreakdown).every(v => v === 0);
+        setReportEmpty(cachedData.totalSpent === 0 && allCategoryZero);
+        setIsLoading(false);
+        return;
       }
+
+      const res = await fetch(`/api/trips/${currentTrip.id}/report`);
+      if (!res.ok) {
+        throw new Error(`请求失败: ${res.status} ${res.statusText}`);
+      }
+      const data: TripReport = await res.json();
+      setReport(data);
+      reportCacheRef.current.set(currentTrip.id, data);
+
+      const allCategoryZero = Object.values(data.categoryBreakdown).every(v => v === 0);
+      setReportEmpty(data.totalSpent === 0 && allCategoryZero);
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : '生成报告失败，请稍后重试';
+      setReportError(errorMsg);
+      setReport(null);
       console.error('生成报告失败', err);
     } finally {
       setIsLoading(false);
@@ -369,7 +392,18 @@ export default function App() {
         </div>
       )}
 
-      {activeTab === 'report' && !isLoading && report && (
+      {activeTab === 'report' && !isLoading && reportError && (
+        <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>❌</div>
+          <p style={{ color: '#ef4444', fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>加载失败</p>
+          <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>{reportError}</p>
+          <button className="btn btn-primary" onClick={() => generateReport()}>
+            🔄 重试
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'report' && !isLoading && !reportError && report && !reportEmpty && (
         <div className="report-container" id="report-content">
           <div className="report-header">
             <h2>✈️ {report.trip.destination} 旅行报告</h2>
@@ -377,6 +411,13 @@ export default function App() {
               {formatDate(report.trip.startDate)} - {formatDate(report.trip.endDate)}
               &nbsp;·&nbsp; 共 {report.trip.days.length} 天
             </p>
+            <button
+              className="btn btn-secondary"
+              style={{ marginTop: '12px', fontSize: '13px', padding: '6px 14px' }}
+              onClick={() => generateReport(true)}
+            >
+              🔄 重新加载
+            </button>
           </div>
 
           <div className="report-summary">
@@ -460,6 +501,163 @@ export default function App() {
                     </span>
                     <span style={{ width: '100px', textAlign: 'right', fontWeight: '600', color: '#1E88E5' }}>
                       ¥{value.toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="report-actions">
+            <button className="btn btn-secondary" onClick={copyReport}>
+              📋 复制文本
+            </button>
+            <button className="btn btn-primary" onClick={printReport}>
+              🖨️ 打印报告
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'report' && !isLoading && !reportError && report && reportEmpty && (
+        <div className="report-container" id="report-content">
+          <div className="report-header">
+            <h2>✈️ {report.trip.destination} 旅行报告</h2>
+            <p className="report-subtitle">
+              {formatDate(report.trip.startDate)} - {formatDate(report.trip.endDate)}
+              &nbsp;·&nbsp; 共 {report.trip.days.length} 天
+            </p>
+            <button
+              className="btn btn-secondary"
+              style={{ marginTop: '12px', fontSize: '13px', padding: '6px 14px' }}
+              onClick={() => generateReport(true)}
+            >
+              🔄 重新加载
+            </button>
+          </div>
+
+          <div className="report-summary">
+            <div className="summary-item">
+              <div className="summary-label">总预算</div>
+              <div className="summary-value">¥{report.trip.totalBudget.toLocaleString()}</div>
+            </div>
+            <div className="summary-item">
+              <div className="summary-label">已花费</div>
+              <div className="summary-value" style={{ color: '#f59e0b' }}>
+                ¥0
+              </div>
+            </div>
+            <div className="summary-item">
+              <div className="summary-label">剩余</div>
+              <div className="summary-value" style={{ color: '#22c55e' }}>
+                ¥{report.trip.totalBudget.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          <div className="timeline">
+            <h3>📅 每日行程</h3>
+            {report.trip.days.map((day, dayIndex) => (
+              <div key={day.date} className="timeline-day">
+                <div className="day-title">
+                  第 {dayIndex + 1} 天 · {day.date} {getDayOfWeek(day.date)}
+                </div>
+                {day.activities.length === 0 ? (
+                  <p style={{ color: '#999', fontSize: '14px' }}>暂无安排</p>
+                ) : (
+                  day.activities.map(act => (
+                    <div key={act.id} className="timeline-activity">
+                      <div className="activity-time">🕐 {act.time}</div>
+                      <div className="activity-name">
+                        📍 <strong>{act.location}</strong>
+                      </div>
+                      {act.description && (
+                        <div style={{ fontSize: '13px', color: '#666', margin: '4px 0' }}>
+                          {act.description}
+                        </div>
+                      )}
+                      <div className="activity-cost">💰 ¥{act.cost.toLocaleString()}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="chart-section">
+            <h3>📊 花费分类占比</h3>
+            <div
+              className="chart-container"
+              style={{
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <div style={{ fontSize: '56px', marginBottom: '12px' }}>📊</div>
+                <p style={{ color: '#666', fontSize: '15px', fontWeight: '500' }}>
+                  暂无花费数据，添加行程后即可生成报告
+                </p>
+              </div>
+              <div
+                style={{
+                  width: '260px',
+                  height: '260px',
+                  borderRadius: '50%',
+                  background: '#e5e7eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  marginTop: '10px'
+                }}
+              >
+                <div
+                  style={{
+                    width: '140px',
+                    height: '140px',
+                    borderRadius: '50%',
+                    background: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <span style={{ color: '#9ca3af', fontSize: '14px', fontWeight: '500' }}>
+                    暂无数据
+                  </span>
+                </div>
+              </div>
+              <canvas ref={reportChartRef} style={{ display: 'none' }} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginTop: '20px' }}>
+              {Object.entries(report.categoryBreakdown).map(([key, value]) => {
+                return (
+                  <div key={key} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '8px 14px',
+                    background: '#f8f9fa',
+                    borderRadius: '8px'
+                  }}>
+                    <span style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      backgroundColor: categoryColors[key as ExpenseCategory]
+                    }} />
+                    <span style={{ flex: 1, fontWeight: '500' }}>
+                      {categoryLabels[key as ExpenseCategory]}
+                    </span>
+                    <span style={{ width: '80px', textAlign: 'right', color: '#9ca3af', fontSize: '13px' }}>
+                      0%
+                    </span>
+                    <span style={{ width: '100px', textAlign: 'right', fontWeight: '600', color: '#9ca3af' }}>
+                      ¥0
                     </span>
                   </div>
                 );

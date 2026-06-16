@@ -44,6 +44,7 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
   const [draggedActivity, setDraggedActivity] = useState<{ activityId: string; fromDate: string; fromIndex: number } | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{ date: string; index: number } | null>(null);
+  const [dragOverPosition, setDragOverPosition] = useState<{ date: string; index: number; position: 'top' | 'bottom' } | null>(null);
 
   const [formData, setFormData] = useState({
     time: '09:00',
@@ -142,17 +143,31 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
     e.dataTransfer.dropEffect = 'move';
     setDragOverDate(date);
     setDragOverItem({ date, index });
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const position: 'top' | 'bottom' = e.clientY < midY ? 'top' : 'bottom';
+    setDragOverPosition({ date, index, position });
   }
 
   function handleDragLeave() {
     setDragOverDate(null);
     setDragOverItem(null);
+    setDragOverPosition(null);
   }
 
   function handleDrop(e: React.DragEvent, toDate: string, toIndex: number) {
     e.preventDefault();
     setDragOverDate(null);
     setDragOverItem(null);
+
+    let insertIndex = toIndex;
+    if (dragOverPosition && dragOverPosition.date === toDate && dragOverPosition.index === toIndex) {
+      if (dragOverPosition.position === 'bottom') {
+        insertIndex = toIndex + 1;
+      }
+    }
+    setDragOverPosition(null);
 
     if (!draggedActivity) return;
 
@@ -167,11 +182,11 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
       if (day.date === fromDate && day.date === toDate) {
         const newActivities = [...day.activities];
         const [removed] = newActivities.splice(fromIndex, 1);
-        let insertIndex = toIndex;
-        if (fromIndex < toIndex) {
-          insertIndex = toIndex - 1;
+        let finalInsertIndex = insertIndex;
+        if (fromIndex < insertIndex) {
+          finalInsertIndex = insertIndex - 1;
         }
-        newActivities.splice(insertIndex, 0, removed);
+        newActivities.splice(finalInsertIndex, 0, removed);
         return { ...day, activities: newActivities };
       }
       if (day.date === fromDate) {
@@ -182,7 +197,7 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
       }
       if (day.date === toDate) {
         const newActivities = [...day.activities];
-        newActivities.splice(toIndex, 0, activity);
+        newActivities.splice(insertIndex, 0, activity);
         return { ...day, activities: newActivities };
       }
       return day;
@@ -196,27 +211,60 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
     setDraggedActivity(null);
     setDragOverDate(null);
     setDragOverItem(null);
+    setDragOverPosition(null);
   }
 
   return (
     <div className="trip-planner">
       <style>{`
-        .activity-card.dragging {
-          opacity: 0.5;
+        .activity-card {
+          position: relative;
+          transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+        }
+        .activity-card.dragging-source {
+          opacity: 0.4;
+          transform: scale(0.95);
+        }
+        .activity-card.drag-target {
+          border: 2px solid #1E88E5 !important;
+          background-color: #e3f2fd !important;
+          box-shadow: 0 4px 12px rgba(30, 136, 229, 0.2);
         }
         .activity-card.drag-over-top::before {
           content: '';
           position: absolute;
-          top: -2px;
+          top: -3px;
           left: 0;
           right: 0;
-          height: 3px;
+          height: 4px;
           background-color: #1E88E5;
           border-radius: 2px;
           z-index: 10;
+          box-shadow: 0 0 8px rgba(30, 136, 229, 0.5);
         }
-        .activity-card {
-          position: relative;
+        .activity-card.drag-over-bottom::after {
+          content: '';
+          position: absolute;
+          bottom: -3px;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background-color: #1E88E5;
+          border-radius: 2px;
+          z-index: 10;
+          box-shadow: 0 0 8px rgba(30, 136, 229, 0.5);
+        }
+        .placeholder {
+          border: 2px dashed #90caf9;
+          background-color: #f5f9ff;
+          border-radius: 8px;
+          min-height: 120px;
+          margin: 8px 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #64b5f6;
+          font-size: 13px;
         }
       `}</style>
       <div className="days-grid">
@@ -238,7 +286,7 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
             </h3>
 
             <div className="activities-list">
-              {day.activities.length === 0 ? (
+              {day.activities.length === 0 && !draggedActivity ? (
                 <div style={{
                   textAlign: 'center',
                   padding: '30px 10px',
@@ -248,61 +296,76 @@ export default function TripPlanner({ trip, onUpdate }: TripPlannerProps) {
                   暂无行程，点击下方添加
                 </div>
               ) : (
-                day.activities.map((activity, actIndex) => (
-                  <div
-                    key={activity.id}
-                    className={`activity-card ${draggedActivity?.activityId === activity.id ? 'dragging' : ''} ${dragOverItem?.date === day.date && dragOverItem?.index === actIndex ? 'drag-over-top' : ''}`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, activity.id, day.date, actIndex)}
-                    onDragOver={(e) => handleDragOver(e, day.date, actIndex)}
-                    onDragLeave={(e) => {
-                      e.stopPropagation();
-                    }}
-                    onDrop={(e) => handleDrop(e, day.date, actIndex)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <div className="activity-time">
-                      <span className="activity-icon">🕐</span> {activity.time}
-                    </div>
-                    <div className="activity-location">
-                      <span className="activity-icon">{locationIcons.default}</span>
-                      {activity.location}
-                    </div>
-                    <div className="activity-desc">{activity.description}</div>
-                    <div className="activity-footer">
-                      <div>
-                        <span className={`category-tag category-${activity.category}`}>
-                          {categoryIcons[activity.category]} {categoryOptions.find(c => c.value === activity.category)?.label}
-                        </span>
-                        {activity.transport && (
-                          <span style={{ marginLeft: '8px', color: '#888' }}>
-                            🚗 {activity.transport}
-                          </span>
-                        )}
+                day.activities.map((activity, actIndex) => {
+                  const isSource = draggedActivity?.activityId === activity.id;
+                  const isTarget = dragOverItem?.date === day.date && dragOverItem?.index === actIndex && !isSource;
+                  const isTopPosition = dragOverPosition?.date === day.date && dragOverPosition.index === actIndex && dragOverPosition.position === 'top';
+                  const isBottomPosition = dragOverPosition?.date === day.date && dragOverPosition.index === actIndex && dragOverPosition.position === 'bottom';
+                  const showPlaceholderBefore = isTopPosition && !isSource;
+                  const showPlaceholderAfter = isBottomPosition && !isSource;
+
+                  return (
+                    <div key={activity.id}>
+                      {showPlaceholderBefore && <div className="placeholder">放置到此处</div>}
+                      <div
+                        className={`activity-card ${isSource ? 'dragging-source' : ''} ${isTarget ? 'drag-target' : ''} ${isTopPosition && !isSource ? 'drag-over-top' : ''} ${isBottomPosition && !isSource ? 'drag-over-bottom' : ''}`}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, activity.id, day.date, actIndex)}
+                        onDragOver={(e) => handleDragOver(e, day.date, actIndex)}
+                        onDragLeave={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onDrop={(e) => handleDrop(e, day.date, actIndex)}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <div className="activity-time">
+                          <span className="activity-icon">🕐</span> {activity.time}
+                        </div>
+                        <div className="activity-location">
+                          <span className="activity-icon">{locationIcons.default}</span>
+                          {activity.location}
+                        </div>
+                        <div className="activity-desc">{activity.description}</div>
+                        <div className="activity-footer">
+                          <div>
+                            <span className={`category-tag category-${activity.category}`}>
+                              {categoryIcons[activity.category]} {categoryOptions.find(c => c.value === activity.category)?.label}
+                            </span>
+                            {activity.transport && (
+                              <span style={{ marginLeft: '8px', color: '#888' }}>
+                                🚗 {activity.transport}
+                              </span>
+                            )}
+                          </div>
+                          <div className="activity-cost">¥{activity.cost.toLocaleString()}</div>
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          gap: '6px',
+                          marginTop: '8px',
+                          justifyContent: 'flex-end'
+                        }}>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => openEditModal(day.date, activity)}
+                          >
+                            编辑
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => handleDelete(day.date, activity.id)}
+                          >
+                            删除
+                          </button>
+                        </div>
                       </div>
-                      <div className="activity-cost">¥{activity.cost.toLocaleString()}</div>
+                      {showPlaceholderAfter && <div className="placeholder">放置到此处</div>}
                     </div>
-                    <div style={{
-                      display: 'flex',
-                      gap: '6px',
-                      marginTop: '8px',
-                      justifyContent: 'flex-end'
-                    }}>
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => openEditModal(day.date, activity)}
-                      >
-                        编辑
-                      </button>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleDelete(day.date, activity.id)}
-                      >
-                        删除
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
+              )}
+              {day.activities.length === 0 && draggedActivity && dragOverDate === day.date && (
+                <div className="placeholder">放置到此处</div>
               )}
             </div>
 
