@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, memo } from 'react';
 import { usePaletteStore } from './store';
 import { useProjectStore } from '../project/store';
-import { getContrastTextColor } from '../utils/colorUtils';
+import { getContrastTextColor, hexToRgb } from '../utils/colorUtils';
 import { Color } from '../utils/types';
 
 interface ColorCardProps {
@@ -21,6 +21,8 @@ const ColorCard: React.FC<ColorCardProps> = memo(({
 }) => {
   const [isPressed, setIsPressed] = useState(false);
   const textColor = getContrastTextColor(color.hex);
+  const { r, g, b } = hexToRgb(color.hex);
+  const glowColor = `rgba(${r}, ${g}, ${b}, 0.3)`;
 
   const handleMouseDown = () => setIsPressed(true);
   const handleMouseUp = () => setIsPressed(false);
@@ -51,17 +53,17 @@ const ColorCard: React.FC<ColorCardProps> = memo(({
         backgroundColor: color.hex,
         color: textColor,
         borderRadius: '8px',
-        padding: '20px 16px',
+        padding: '16px 12px',
         cursor: isReadonly ? 'default' : 'pointer',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        gap: '6px',
+        gap: '5px',
         transition: 'transform 0.2s ease, box-shadow 0.2s ease',
         transform: isPressed ? 'scale(0.95)' : 'translateY(0)',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
         userSelect: 'none',
-        '--glow-color': color.hex
+        '--glow-color': glowColor
       } as unknown as React.CSSProperties}
       className="color-card"
     >
@@ -370,13 +372,17 @@ const ColorGrid: React.FC = () => {
             grid-template-columns: repeat(4, 1fr) !important;
             gap: 16px !important;
           }
+          .color-card {
+            padding: 20px 16px !important;
+            gap: 6px !important;
+          }
         }
         
         .color-card:hover {
           transform: translateY(-3px) !important;
           box-shadow:
             0 8px 25px rgba(0, 0, 0, 0.3),
-            0 0 8px 3px var(--glow-color)4d !important;
+            0 0 8px 3px var(--glow-color) !important;
         }
         
         .color-grid::-webkit-scrollbar {
