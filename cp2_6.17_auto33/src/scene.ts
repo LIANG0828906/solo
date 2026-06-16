@@ -24,10 +24,11 @@ const vertexShader = `
     float sizeMultiplier = 1.0;
     if (novaPhase > 0.0) {
       float t = novaPhase;
-      if (t < 0.5) {
-        sizeMultiplier = 1.0 + (5.0 / originalSize - 1.0) * (t * 2.0);
+      float peakT = 0.3 / 1.5;
+      if (t < peakT) {
+        sizeMultiplier = 1.0 + (5.0 / originalSize - 1.0) * (t / peakT);
       } else {
-        sizeMultiplier = 5.0 / originalSize - (5.0 / originalSize - 1.0) * ((t - 0.5) * 2.0);
+        sizeMultiplier = 5.0 / originalSize - (5.0 / originalSize - 1.0) * ((t - peakT) / (1.0 - peakT));
       }
     }
     
@@ -146,6 +147,7 @@ export default class AstroScene {
   
   currentCount: number
   driftPhase: number[]
+  driftFrequencies: Float32Array
   transitionParticles: Map<number, ParticleTransition>
   colorTransition: {
     active: boolean
@@ -200,6 +202,7 @@ export default class AstroScene {
     
     this.currentCount = 0
     this.driftPhase = []
+    this.driftFrequencies = new Float32Array(MAX_PARTICLES)
     this.transitionParticles = new Map()
     this.colorTransition = { active: false, startTime: 0, duration: 500 }
     this.resetAnimation = { active: false, startTime: 0, duration: 800 }
@@ -343,6 +346,7 @@ export default class AstroScene {
       this.velocities[i * 3 + 2] = 0
       
       this.driftSpeeds[i] = 0.5 + Math.random() * 1.5
+      this.driftFrequencies[i] = 0.2 + Math.random() * 0.6
       
       this.novaPhases[i] = 0
       
@@ -469,7 +473,7 @@ export default class AstroScene {
       
       if (dist < radius) {
         const direction = new THREE.Vector3(dx, dy, dz).normalize()
-        const angleOffset = (Math.random() - 0.5) * Math.PI / 12
+        const angleOffset = (Math.random() - 0.5) * Math.PI / 6
         const cos = Math.cos(angleOffset)
         const sin = Math.sin(angleOffset)
         const axis = new THREE.Vector3(Math.random(), Math.random(), Math.random()).normalize()
@@ -716,26 +720,22 @@ export default class AstroScene {
     const time = this.clock.getElapsedTime()
     
     for (let i = 0; i < this.currentCount; i++) {
-      const drift = Math.sin(time * 0.5 + this.driftPhase[i]) * this.driftSpeeds[i] * deltaTime
+      const drift = Math.sin(time * this.driftFrequencies[i] + this.driftPhase[i]) * this.driftSpeeds[i] * deltaTime
       
-      if (!this.novaData.particles.some(p => p.index === i)) {
+      if (!this.novaData.particles.some(p => p.index === i) && !this.transitionParticles.has(i)) {
         this.positions[i * 3 + 2] += drift
       }
     }
   }
   
   private updateVelocity(deltaTime: number) {
-    const springConstant = 0.05
-    const damping = 0.92
-    
     const totalFrames = deltaTime * 60
-    const numSubsteps = Math.max(1, Math.ceil(totalFrames))
-    const framesPerSubstep = totalFrames / numSubsteps
-    const dampingPerSubstep = Math.pow(damping, framesPerSubstep)
-    const springPerSubstep = springConstant * framesPerSubstep
     
     for (let i = 0; i < this.currentCount; i++) {
       if (this.novaData.particles.some(p => p.index === i)) {
+        continue
+      }
+      if (this.transitionParticles.has(i)) {
         continue
       }
       
@@ -752,27 +752,19 @@ export default class AstroScene {
         const oy = this.originalPositions[i * 3 + 1]
         const oz = this.originalPositions[i * 3 + 2]
         
-        let vxPpf = vx / 60
-        let vyPpf = vy / 60
-        let vzPpf = vz / 60
+        const durationFrames = 60 + (i % 90)
+        const lerpFactorPerFrame = 1 - Math.pow(0.01, 1 / durationFrames)
+        const lerpFactor = 1 - Math.pow(1 - lerpFactorPerFrame, totalFrames)
         
-        for (let s = 0; s < numSubsteps; s++) {
-          const dx = ox - px
-          const dy = oy - py
-          const dz = oz - pz
-          
-          vxPpf = (vxPpf + dx * springPerSubstep) * dampingPerSubstep
-          vyPpf = (vyPpf + dy * springPerSubstep) * dampingPerSubstep
-          vzPpf = (vzPpf + dz * springPerSubstep) * dampingPerSubstep
-          
-          px += vxPpf * framesPerSubstep
-          py += vyPpf * framesPerSubstep
-          pz += vzPpf * framesPerSubstep
-        }
+        const easeT = 1 - Math.pow(1 - lerpFactor, 3)
         
-        vx = vxPpf * 60
-        vy = vyPpf * 60
-        vz = vzPpf * 60
+        px = px + (ox - px) * easeT
+        py = py + (oy - py) * easeT
+        pz = pz + (oz - pz) * easeT
+        
+        vx *= 0.9
+        vy *= 0.9
+        vz *= 0.9
       } else {
         const dragFactor = Math.pow(0.98, totalFrames)
         
