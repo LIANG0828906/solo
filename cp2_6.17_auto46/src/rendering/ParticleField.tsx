@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useFireflyStore } from '../store/fireflyStore'
@@ -8,7 +8,7 @@ const FIREFLY_COUNT = 120
 const COOL_COLOR = new THREE.Color('#74B9FF')
 const WARM_COLOR = new THREE.Color('#E17055')
 
-function createParticleTexture(): THREE.Texture {
+function createParticleTexture(): THREE.CanvasTexture {
   const size = 64
   const canvas = document.createElement('canvas')
   canvas.width = size
@@ -37,6 +37,12 @@ export default function ParticleField() {
   const pointsRef = useRef<THREE.Points>(null)
   const texture = useMemo(() => createParticleTexture(), [])
   const fireflies = useFireflyStore((s) => s.fireflies)
+
+  useEffect(() => {
+    return () => {
+      texture.dispose()
+    }
+  }, [texture])
 
   const { positions, colors, sizes } = useMemo(() => {
     const positions = new Float32Array(FIREFLY_COUNT * 3)
@@ -85,18 +91,21 @@ export default function ParticleField() {
           count={FIREFLY_COUNT}
           array={positions}
           itemSize={3}
+          usage={THREE.DynamicDrawUsage}
         />
         <bufferAttribute
           attach="attributes-color"
           count={FIREFLY_COUNT}
           array={colors}
           itemSize={3}
+          usage={THREE.DynamicDrawUsage}
         />
         <bufferAttribute
           attach="attributes-size"
           count={FIREFLY_COUNT}
           array={sizes}
           itemSize={1}
+          usage={THREE.DynamicDrawUsage}
         />
       </bufferGeometry>
       <shaderMaterial

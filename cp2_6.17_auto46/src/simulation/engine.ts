@@ -9,18 +9,85 @@ const RANDOM_WALK_WEIGHT = 0.7
 const PULSE_ATTRACTION_WEIGHT = 0.5
 const BOUNDARY_RADIUS = 20
 const BOUNDARY_FORCE = 2
+const GRID_CELL_SIZE = 8
+const GRID_EXTENT = 24
+
+class SpatialGrid {
+  private cells: Map<number, number[]> = new Map()
+  private originX: number
+  private originY: number
+  private originZ: number
+  private dimX: number
+  private dimY: number
+  private dimZ: number
+
+  constructor() {
+    this.originX = -GRID_EXTENT
+    this.originY = -GRID_EXTENT
+    this.originZ = -GRID_EXTENT
+    this.dimX = Math.ceil((2 * GRID_EXTENT) / GRID_CELL_SIZE)
+    this.dimY = Math.ceil((2 * GRID_EXTENT) / GRID_CELL_SIZE)
+    this.dimZ = Math.ceil((2 * GRID_EXTENT) / GRID_CELL_SIZE)
+  }
+
+  private key(cx: number, cy: number, cz: number): number {
+    return (cx * this.dimY + cy) * this.dimZ + cz
+  }
+
+  rebuild(fireflies: Firefly[]) {
+    this.cells.clear()
+    for (let i = 0; i < fireflies.length; i++) {
+      const p = fireflies[i].position
+      const cx = Math.floor((p.x - this.originX) / GRID_CELL_SIZE)
+      const cy = Math.floor((p.y - this.originY) / GRID_CELL_SIZE)
+      const cz = Math.floor((p.z - this.originZ) / GRID_CELL_SIZE)
+      const k = this.key(cx, cy, cz)
+      let cell = this.cells.get(k)
+      if (!cell) {
+        cell = []
+        this.cells.set(k, cell)
+      }
+      cell.push(i)
+    }
+  }
+
+  getNeighborIndices(pos: THREE.Vector3): number[] {
+    const cx = Math.floor((pos.x - this.originX) / GRID_CELL_SIZE)
+    const cy = Math.floor((pos.y - this.originY) / GRID_CELL_SIZE)
+    const cz = Math.floor((pos.z - this.originZ) / GRID_CELL_SIZE)
+    const result: number[] = []
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          const k = this.key(cx + dx, cy + dy, cz + dz)
+          const cell = this.cells.get(k)
+          if (cell) {
+            for (let i = 0; i < cell.length; i++) {
+              result.push(cell[i])
+            }
+          }
+        }
+      }
+    }
+    return result
+  }
+}
+
+const _grid = new SpatialGrid()
 
 function computeNeighborAttraction(
   fireflies: Firefly[],
   index: number
 ): THREE.Vector3 {
   const self = fireflies[index]
-  const distances: { idx: number; d: number }[] = []
+  const candidateIndices = _grid.getNeighborIndices(self.position)
 
-  for (let i = 0; i < fireflies.length; i++) {
-    if (i === index) continue
-    const d = self.position.distanceToSquared(fireflies[i].position)
-    distances.push({ idx: i, d })
+  const distances: { idx: number; d: number }[] = []
+  for (let i = 0; i < candidateIndices.length; i++) {
+    const ci = candidateIndices[i]
+    if (ci === index) continue
+    const d = self.position.distanceToSquared(fireflies[ci].position)
+    distances.push({ idx: ci, d })
   }
 
   distances.sort((a, b) => a.d - b.d)
@@ -30,6 +97,7 @@ function computeNeighborAttraction(
   for (let i = 0; i < take; i++) {
     center.add(fireflies[distances[i].idx].position)
   }
+  if (take === 0) return center
   center.divideScalar(take)
 
   const dir = new THREE.Vector3().subVectors(center, self.position)
@@ -72,6 +140,8 @@ export function useSimulation() {
     const fireflies = state.fireflies
 
     if (fireflies.length === 0) return
+
+    _grid.rebuild(fireflies)
 
     state.updateFirefliesBatch((list) => {
       for (let i = 0; i < list.length; i++) {
@@ -134,5 +204,6 @@ export function useSimulation() {
     })
 
     store.getState().updatePulses(dt)
+    store.getState().incrementFpsFrame()
   })
 }

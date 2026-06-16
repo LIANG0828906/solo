@@ -30,6 +30,11 @@ interface FireflyState {
   fireflies: Firefly[]
   pulses: Pulse[]
   trailsVisible: boolean
+  fps: number
+  fpsFrameCount: number
+  fpsLastTime: number
+  setFps: (fps: number) => void
+  incrementFpsFrame: () => void
   initFireflies: () => void
   updateFirefliesBatch: (updater: (fireflies: Firefly[]) => void) => void
   resetFatigue: () => void
@@ -82,6 +87,22 @@ export const useFireflyStore = create<FireflyState>((set, get) => ({
   pulses: [],
   trailsVisible: true,
   pulseIdCounter: 0,
+  fps: 60,
+  fpsFrameCount: 0,
+  fpsLastTime: performance.now(),
+
+  setFps: (fps: number) => set({ fps }),
+  incrementFpsFrame: () => {
+    const count = get().fpsFrameCount + 1
+    if (count >= 15) {
+      const now = performance.now()
+      const elapsed = (now - get().fpsLastTime) / 1000
+      const currentFps = Math.round(count / elapsed)
+      set({ fps: currentFps, fpsFrameCount: 0, fpsLastTime: now })
+    } else {
+      set({ fpsFrameCount: count })
+    }
+  },
 
   initFireflies: () => {
     const fireflies: Firefly[] = []

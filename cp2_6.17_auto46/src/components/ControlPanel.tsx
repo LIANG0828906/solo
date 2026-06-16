@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
 import { useFireflyStore } from '../store/fireflyStore'
 
 export default function ControlPanel() {
@@ -6,28 +5,7 @@ export default function ControlPanel() {
   const trailsVisible = useFireflyStore((s) => s.trailsVisible)
   const resetFatigue = useFireflyStore((s) => s.resetFatigue)
   const toggleTrails = useFireflyStore((s) => s.toggleTrails)
-
-  const [fps, setFps] = useState(60)
-  const frameCountRef = useRef(0)
-  const lastTimeRef = useRef(performance.now())
-  const rafRef = useRef<number>(0)
-
-  useEffect(() => {
-    const tick = () => {
-      frameCountRef.current++
-      if (frameCountRef.current >= 15) {
-        const now = performance.now()
-        const elapsed = (now - lastTimeRef.current) / 1000
-        const currentFps = Math.round(frameCountRef.current / elapsed)
-        setFps(currentFps)
-        frameCountRef.current = 0
-        lastTimeRef.current = now
-      }
-      rafRef.current = requestAnimationFrame(tick)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [])
+  const fps = useFireflyStore((s) => s.fps)
 
   const fpsColor = fps >= 50 ? '#00FF00' : '#FF0000'
   const textColor = trailsVisible ? '#FFFFFF' : '#95A5A6'

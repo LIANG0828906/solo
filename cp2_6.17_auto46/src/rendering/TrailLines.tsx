@@ -92,12 +92,14 @@ export default function TrailLines() {
           count={MAX_TOTAL_SEGMENTS * 2}
           array={positions}
           itemSize={3}
+          usage={THREE.DynamicDrawUsage}
         />
         <bufferAttribute
           attach="attributes-color"
           count={MAX_TOTAL_SEGMENTS * 2}
           array={colors}
           itemSize={3}
+          usage={THREE.DynamicDrawUsage}
         />
       </bufferGeometry>
       <lineBasicMaterial
