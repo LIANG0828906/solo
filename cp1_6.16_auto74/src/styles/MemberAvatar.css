@@ -1,0 +1,74 @@
+.member-avatar {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.member-avatar__circle {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.member-avatar__text {
+  color: white;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.member-avatar--sm .member-avatar__text {
+  font-size: 14px;
+}
+
+.member-avatar--md .member-avatar__text {
+  font-size: 20px;
+}
+
+.member-avatar--lg .member-avatar__text {
+  font-size: 28px;
+}
+
+.member-avatar__status {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #9ca3af;
+  border: 2px solid var(--bg-primary);
+}
+
+.member-avatar__status--online {
+  background: var(--success);
+}
+
+.member-avatar__tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-glass);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 8px 12px;
+  border-radius: var(--border-radius-sm);
+  white-space: nowrap;
+  z-index: 100;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: fadeIn 0.2s ease;
+}
+
+.member-avatar__tooltip-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.member-avatar__tooltip-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
