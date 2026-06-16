@@ -2,14 +2,23 @@ import React, { useState, useCallback } from 'react';
 import { useSeatStore } from '../../../stores/seatStore';
 import { getEmployeeColor, getNameInitials } from '../../../assets/data';
 
-const SwapCard: React.FC<{
+interface SwapCardProps {
   requestId: string;
   employeeId: string;
   fromSeatId: string;
   toSeatId: string;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
-}> = ({ requestId, employeeId, fromSeatId, toSeatId, onApprove, onReject }) => {
+}
+
+const SwapCard: React.FC<SwapCardProps> = ({
+  requestId,
+  employeeId,
+  fromSeatId,
+  toSeatId,
+  onApprove,
+  onReject,
+}) => {
   const employees = useSeatStore((s) => s.employees);
   const seats = useSeatStore((s) => s.seats);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -22,7 +31,6 @@ const SwapCard: React.FC<{
     : null;
 
   const color = employee ? getEmployeeColor(employee.id) : '#78909C';
-  const toColor = toEmployee ? getEmployeeColor(toEmployee.id) : '#78909C';
 
   const handleApprove = useCallback(() => {
     setIsRemoving(true);
@@ -42,7 +50,7 @@ const SwapCard: React.FC<{
 
   return (
     <div
-      className={isRemoving ? 'swap-slide-out' : ''}
+      className={`swap-card ${isRemoving ? 'removing' : ''}`}
       style={{
         backgroundColor: '#2D2D44',
         borderRadius: 12,

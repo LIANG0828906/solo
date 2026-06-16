@@ -22,17 +22,6 @@
   100% { transform: translateX(-100%); opacity: 0; }
 }
 
-@keyframes btnScale {
-  0% { transform: scale(1); }
-  50% { transform: scale(0.92); }
-  100% { transform: scale(1); }
-}
-
-@keyframes swapMove {
-  0% { transform: translate(0, 0); }
-  100% { transform: translate(var(--swap-dx), var(--swap-dy)); }
-}
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -46,14 +35,22 @@
   animation: shake 1s ease-in-out;
 }
 
-.swap-slide-out {
-  animation: slideOutLeft 0.3s ease-in forwards;
+.swap-card {
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-.btn-press {
-  animation: btnScale 0.2s ease-in-out;
+.swap-card.removing {
+  transform: translateX(-100%);
+  opacity: 0;
 }
 
-.swap-move-anim {
+.custom-drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.seat-card-transition {
   transition: transform 0.5s ease;
 }

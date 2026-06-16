@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { useSeatStore } from '../../../stores/seatStore';
 import { getEmployeeColor, getNameInitials } from '../../../assets/data';
+import { createCustomDragGhost } from '../../../dragGhost';
 
 const EmployeeItem: React.FC<{
   employeeId: string;
@@ -12,14 +13,8 @@ const EmployeeItem: React.FC<{
     (e: React.DragEvent) => {
       e.dataTransfer.setData('application/employee', employeeId);
       e.dataTransfer.effectAllowed = 'move';
-      const el = e.currentTarget.cloneNode(true) as HTMLElement;
-      el.style.transform = 'scale(0.8)';
-      el.style.opacity = '0.6';
-      el.style.position = 'absolute';
-      el.style.top = '-9999px';
-      document.body.appendChild(el);
-      e.dataTransfer.setDragImage(el, 18, 18);
-      requestAnimationFrame(() => document.body.removeChild(el));
+      const target = e.currentTarget as HTMLElement;
+      createCustomDragGhost(target, 44, 44, e.nativeEvent);
     },
     [employeeId]
   );

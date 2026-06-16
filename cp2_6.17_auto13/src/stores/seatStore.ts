@@ -12,6 +12,8 @@ import {
 const DB_NAME = 'seatsync-db';
 const DB_VERSION = 1;
 
+type SwapAnimationCallback = (fromSeatId: string, toSeatId: string) => void;
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -73,12 +75,14 @@ export interface SeatState {
   employees: Employee[];
   swapRequests: SwapRequest[];
   initialized: boolean;
+  lastApprovedSwap: { fromSeatId: string; toSeatId: string } | null;
   initialize: () => Promise<void>;
   assignSeat: (seatId: string, employeeId: string) => void;
   removeSeat: (seatId: string) => void;
   submitSwap: (employeeId: string, fromSeatId: string, toSeatId: string) => void;
   approveSwap: (requestId: string) => void;
   rejectSwap: (requestId: string) => void;
+  clearLastApprovedSwap: () => void;
 }
 
 export const useSeatStore = create<SeatState>((set, get) => ({
@@ -86,6 +90,7 @@ export const useSeatStore = create<SeatState>((set, get) => ({
   employees: [],
   swapRequests: [],
   initialized: false,
+  lastApprovedSwap: null,
 
   initialize: async () => {
     try {
@@ -176,7 +181,7 @@ export const useSeatStore = create<SeatState>((set, get) => ({
   },
 
   approveSwap: (requestId: string) => {
-    const { seats, swapRequests, employees } = get();
+    const { seats, swapRequests } = get();
     const request = swapRequests.find((r) => r.id === requestId);
     if (!request || request.status !== 'pending') return;
 
@@ -209,10 +214,13 @@ export const useSeatStore = create<SeatState>((set, get) => ({
       r.id === requestId ? { ...r, status: 'approved' as const } : r
     );
 
-    set({ seats: newSeats, swapRequests: newRequests });
+    set({
+      seats: newSeats,
+      swapRequests: newRequests,
+      lastApprovedSwap: { fromSeatId: request.fromSeatId, toSeatId: request.toSeatId },
+    });
     persistSeats(newSeats);
     persistSwapRequests(newRequests);
-    void employees;
   },
 
   rejectSwap: (requestId: string) => {
@@ -234,5 +242,9 @@ export const useSeatStore = create<SeatState>((set, get) => ({
     set({ seats: newSeats, swapRequests: newRequests });
     persistSeats(newSeats);
     persistSwapRequests(newRequests);
+  },
+
+  clearLastApprovedSwap: () => {
+    set({ lastApprovedSwap: null });
   },
 }));

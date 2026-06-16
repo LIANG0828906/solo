@@ -4,9 +4,11 @@ import OfficeMap from './modules/seating/components/OfficeMap';
 import EmployeeList from './modules/seating/components/EmployeeList';
 import SwapRequestPanel from './modules/approval/components/SwapRequestPanel';
 
+type MobileTab = 'map' | 'approval';
+
 const App: React.FC = () => {
   const initialized = useSeatStore((s) => s.initialized);
-  const [mobileTab, setMobileTab] = useState<'employee' | 'approval'>('employee');
+  const [mobileTab, setMobileTab] = useState<MobileTab>('map');
 
   if (!initialized) {
     return (
@@ -61,8 +63,11 @@ const App: React.FC = () => {
       </header>
 
       <div className="main-layout">
-        <div className="office-map-wrapper">
+        <div className="office-map-wrapper desktop-only">
           <OfficeMap />
+          <div className="employee-list-inline">
+            <EmployeeList />
+          </div>
         </div>
         <div className="side-panel">
           <div className="employee-list-wrapper">
@@ -74,12 +79,34 @@ const App: React.FC = () => {
         </div>
       </div>
 
+      <div className="mobile-layout">
+        <div
+          style={{
+            display: mobileTab === 'map' ? 'block' : 'none',
+            height: '100%',
+            overflow: 'auto',
+          }}
+        >
+          <OfficeMap />
+          <EmployeeList />
+        </div>
+        <div
+          style={{
+            display: mobileTab === 'approval' ? 'block' : 'none',
+            height: '100%',
+            overflow: 'auto',
+          }}
+        >
+          <SwapRequestPanel />
+        </div>
+      </div>
+
       <div className="mobile-tab-bar">
         <button
-          className={`mobile-tab ${mobileTab === 'employee' ? 'active' : ''}`}
-          onClick={() => setMobileTab('employee')}
+          className={`mobile-tab ${mobileTab === 'map' ? 'active' : ''}`}
+          onClick={() => setMobileTab('map')}
         >
-          员工
+          座位图
         </button>
         <button
           className={`mobile-tab ${mobileTab === 'approval' ? 'active' : ''}`}
@@ -87,15 +114,6 @@ const App: React.FC = () => {
         >
           审批
         </button>
-      </div>
-
-      <div className="mobile-panels">
-        <div style={{ display: mobileTab === 'employee' ? 'block' : 'none', height: '100%' }}>
-          <EmployeeList />
-        </div>
-        <div style={{ display: mobileTab === 'approval' ? 'block' : 'none', height: '100%' }}>
-          <SwapRequestPanel />
-        </div>
       </div>
 
       <style>{`
@@ -116,6 +134,10 @@ const App: React.FC = () => {
           flex: 0 0 60%;
           overflow: auto;
           border-right: 1px solid #333344;
+        }
+
+        .employee-list-inline {
+          display: none;
         }
 
         .side-panel {
@@ -140,7 +162,7 @@ const App: React.FC = () => {
           display: none;
         }
 
-        .mobile-panels {
+        .mobile-layout {
           display: none;
         }
 
@@ -165,15 +187,13 @@ const App: React.FC = () => {
 
         @media (max-width: 767px) {
           .main-layout {
-            flex-direction: column;
-          }
-          .office-map-wrapper {
-            flex: none;
-            border-right: none;
-            border-bottom: 1px solid #333344;
-          }
-          .side-panel {
             display: none;
+          }
+          .mobile-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding-bottom: 56px;
           }
           .mobile-tab-bar {
             display: flex;
@@ -207,12 +227,6 @@ const App: React.FC = () => {
             right: 20%;
             height: 2px;
             background-color: #4CAF50;
-          }
-          .mobile-panels {
-            display: block;
-            flex: 1;
-            overflow: auto;
-            padding-bottom: 56px;
           }
         }
       `}</style>

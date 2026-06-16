@@ -1,8 +1,13 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useSeatStore } from '../../../stores/seatStore';
-import { getEmployeeColor, getNameInitials } from '../../../assets/data';
+import { getEmployeeColor, getNameInitials, Seat } from '../../../assets/data';
+import { createCustomDragGhost } from '../../../dragGhost';
 
-const SeatCard: React.FC<{
+const SEAT_SIZE = 80;
+const SEAT_GAP = 8;
+const CELL_SIZE = SEAT_SIZE + SEAT_GAP;
+
+interface SeatCardProps {
   seatId: string;
   seatNumber: string;
   employeeId: string | null;
@@ -10,16 +15,42 @@ const SeatCard: React.FC<{
   col: number;
   row: number;
   onSeatClick: (seatId: string) => void;
-}> = ({ seatId, seatNumber, employeeId, status, col, row, onSeatClick }) => {
+  animTranslate: { dx: number; dy: number } | null;
+  animating: boolean;
+  swapDone: (seatId: string) => void;
+  setSeatRef: (seatId: string, el: HTMLDivElement | null) => void;
+}
+
+const SeatCard: React.FC<SeatCardProps> = ({
+  seatId,
+  seatNumber,
+  employeeId,
+  status,
+  col,
+  row,
+  onSeatClick,
+  animTranslate,
+  animating,
+  swapDone,
+  setSeatRef,
+}) => {
   const employees = useSeatStore((s) => s.employees);
   const assignSeat = useSeatStore((s) => s.assignSeat);
   const [isDragOver, setIsDragOver] = useState(false);
   const [animClass, setAnimClass] = useState('');
-  const cardRef = useRef<HTMLDivElement>(null);
 
   const employee = employees.find((e) => e.id === employeeId);
   const color = employee ? getEmployeeColor(employee.id) : '#2A2A3E';
   const isFree = status === 'free';
+
+  useEffect(() => {
+    if (animating && animTranslate) {
+      const timer = setTimeout(() => {
+        swapDone(seatId);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [animating, animTranslate, seatId, swapDone]);
 
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -50,7 +81,7 @@ const SeatCard: React.FC<{
           const removeSeat = useSeatStore.getState().removeSeat;
           removeSeat(sourceSeatId);
         }
-      } else if (!isFree) {
+      } else if (!isFree && data) {
         setAnimClass('seat-shake');
         setTimeout(() => setAnimClass(''), 1000);
       }
@@ -66,17 +97,21 @@ const SeatCard: React.FC<{
     ? '2px solid #4CAF50'
     : '1px solid #333344';
 
+  const transformStyle = animating && animTranslate
+    ? `translate(${animTranslate.dx}px, ${animTranslate.dy}px)`
+    : undefined;
+
   return (
     <div
-      ref={cardRef}
-      className={animClass}
+      ref={(el) => setSeatRef(seatId, el)}
+      className={`${animClass} ${animating ? 'seat-card-transition' : ''}`}
       onClick={handleClick}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       style={{
-        width: 80,
-        height: 80,
+        width: SEAT_SIZE,
+        height: SEAT_SIZE,
         borderRadius: 8,
         backgroundColor: employeeId ? color : '#2A2A3E',
         border: borderStyle,
@@ -85,26 +120,22 @@ const SeatCard: React.FC<{
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
-        position: 'relative',
+        position: 'absolute',
+        left: col * CELL_SIZE,
+        top: row * CELL_SIZE,
         transition: isDragOver && isFree ? 'border 0.15s ease' : 'none',
-        gridColumn: col + 1,
-        gridRow: row + 1,
+        transform: transformStyle,
         userSelect: 'none',
+        zIndex: animating ? 10 : 1,
       }}
-      draggable={!!employeeId}
+      draggable={!!employeeId && !animating}
       onDragStart={(e) => {
-        if (employeeId) {
+        if (employeeId && !animating) {
           e.dataTransfer.setData('application/employee', employeeId);
           e.dataTransfer.setData('application/sourceSeatId', seatId);
           e.dataTransfer.effectAllowed = 'move';
-          const el = e.currentTarget.cloneNode(true) as HTMLElement;
-          el.style.transform = 'scale(0.8)';
-          el.style.opacity = '0.6';
-          el.style.position = 'absolute';
-          el.style.top = '-9999px';
-          document.body.appendChild(el);
-          e.dataTransfer.setDragImage(el, 40, 40);
-          requestAnimationFrame(() => document.body.removeChild(el));
+          const target = e.currentTarget as HTMLElement;
+          createCustomDragGhost(target, SEAT_SIZE, SEAT_SIZE, e.nativeEvent);
         }
       }}
     >
@@ -394,11 +425,20 @@ const SwapSeatDialog: React.FC<{
 
 const OfficeMap: React.FC = () => {
   const seats = useSeatStore((s) => s.seats);
+  const lastApprovedSwap = useSeatStore((s) => s.lastApprovedSwap);
+  const clearLastApprovedSwap = useSeatStore((s) => s.clearLastApprovedSwap);
+
   const [selectedSeatId, setSelectedSeatId] = useState<string | null>(null);
   const [swapDialogData, setSwapDialogData] = useState<{
     employeeId: string;
     fromSeatId: string;
   } | null>(null);
+
+  const seatRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [animatingSeats, setAnimatingSeats] = useState<
+    Record<string, { dx: number; dy: number } | null>
+  >({});
+  const [swapping, setSwapping] = useState(false);
 
   const handleSeatClick = useCallback((seatId: string) => {
     setSelectedSeatId(seatId);
@@ -408,6 +448,52 @@ const OfficeMap: React.FC = () => {
     setSwapDialogData({ employeeId, fromSeatId });
     setSelectedSeatId(null);
   }, []);
+
+  const setSeatRef = useCallback((seatId: string, el: HTMLDivElement | null) => {
+    if (el) {
+      seatRefs.current.set(seatId, el);
+    } else {
+      seatRefs.current.delete(seatId);
+    }
+  }, []);
+
+  const swapDone = useCallback((seatId: string) => {
+    setAnimatingSeats((prev) => {
+      const next = { ...prev };
+      next[seatId] = null;
+      const anyAnimating = Object.values(next).some((v) => v !== null);
+      if (!anyAnimating) {
+        setTimeout(() => setSwapping(false), 50);
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (lastApprovedSwap && !swapping) {
+      const { fromSeatId, toSeatId } = lastApprovedSwap;
+      const fromEl = seatRefs.current.get(fromSeatId);
+      const toEl = seatRefs.current.get(toSeatId);
+
+      if (fromEl && toEl) {
+        const fromRect = fromEl.getBoundingClientRect();
+        const toRect = toEl.getBoundingClientRect();
+        const dx = toRect.left - fromRect.left;
+        const dy = toRect.top - fromRect.top;
+
+        setSwapping(true);
+        setAnimatingSeats({
+          [fromSeatId]: { dx, dy },
+          [toSeatId]: { dx: -dx, dy: -dy },
+        });
+      }
+
+      clearLastApprovedSwap();
+    }
+  }, [lastApprovedSwap, swapping, clearLastApprovedSwap]);
+
+  const gridWidth = 5 * CELL_SIZE - SEAT_GAP + 8;
+  const gridHeight = 4 * CELL_SIZE - SEAT_GAP + 8;
 
   return (
     <div
@@ -427,18 +513,17 @@ const OfficeMap: React.FC = () => {
       </div>
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 80px)',
-          gridTemplateRows: 'repeat(4, 80px)',
-          gap: 8,
+          position: 'relative',
+          width: gridWidth,
+          height: gridHeight,
           backgroundImage:
             'linear-gradient(#333344 1px, transparent 1px), linear-gradient(90deg, #333344 1px, transparent 1px)',
-          backgroundSize: '88px 88px',
+          backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px`,
           padding: 4,
           borderRadius: 8,
         }}
       >
-        {seats.map((seat) => (
+        {seats.map((seat: Seat) => (
           <SeatCard
             key={seat.id}
             seatId={seat.id}
@@ -448,6 +533,10 @@ const OfficeMap: React.FC = () => {
             col={seat.position.x}
             row={seat.position.y}
             onSeatClick={handleSeatClick}
+            animTranslate={animatingSeats[seat.id] || null}
+            animating={!!animatingSeats[seat.id]}
+            swapDone={swapDone}
+            setSeatRef={setSeatRef}
           />
         ))}
       </div>
