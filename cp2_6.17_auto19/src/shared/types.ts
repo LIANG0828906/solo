@@ -14,6 +14,7 @@ export interface MenuItem {
   emoji: string;
   stock: number;
   enabled: boolean;
+  description?: string;
 }
 
 export interface CartItem {

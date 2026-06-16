@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore, useFilteredMenuItems } from '../store/useAppStore';
 import { Category } from '../shared/types';
 import { MenuCard } from '../components/MenuCard';
 import { RoleSwitcher } from '../components/RoleSwitcher';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import './CustomerScreen.css';
 
 const categories: { key: Category; label: string }[] = [
@@ -17,6 +18,8 @@ export const CustomerScreen: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
   
   const navigate = useNavigate();
   const loadMenuItems = useAppStore(state => state.loadMenuItems);
@@ -28,10 +31,15 @@ export const CustomerScreen: React.FC = () => {
   const submitOrder = useAppStore(state => state.submitOrder);
   const isLoading = useAppStore(state => state.isLoading);
 
-  const filteredItems = useFilteredMenuItems(activeCategory);
+  const filteredItems = useFilteredMenuItems(activeCategory, debouncedSearch);
   const total = getCartTotal();
   const itemCount = getCartItemCount();
   const isFreeDelivery = total >= 30;
+  const isSearching = debouncedSearch.trim().length > 0;
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+  }, []);
 
   useEffect(() => {
     loadMenuItems();
@@ -153,22 +161,52 @@ export const CustomerScreen: React.FC = () => {
 
       <main className="customer-main">
         <div className="menu-section">
+          <div className="search-bar">
+            <span className="material-icons search-icon">search</span>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="搜索菜品名称或分类..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="search-clear-btn" onClick={handleClearSearch}>
+                <span className="material-icons">close</span>
+              </button>
+            )}
+          </div>
+
           <div className="category-tabs">
             {categories.map(cat => (
               <button
                 key={cat.key}
-                className={`category-tab ${activeCategory === cat.key ? 'active' : ''}`}
+                className={`category-tab ${!isSearching && activeCategory === cat.key ? 'active' : ''}`}
                 onClick={() => setActiveCategory(cat.key)}
+                disabled={isSearching}
               >
                 {cat.label}
               </button>
             ))}
           </div>
 
+          {isSearching && (
+            <div className="search-result-hint">
+              <span className="material-icons">filter_list</span>
+              <span>找到 <strong>{filteredItems.length}</strong> 个相关菜品</span>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="loading-state">
               <span className="material-icons loading-icon">hourglass_empty</span>
               <p>加载中...</p>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="empty-search-state">
+              <span className="material-icons">search_off</span>
+              <p>没有找到相关菜品</p>
+              <p className="empty-search-hint">试试其他关键词吧</p>
             </div>
           ) : (
             <div className="menu-grid">

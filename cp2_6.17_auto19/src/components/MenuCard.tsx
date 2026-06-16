@@ -35,6 +35,9 @@ export const MenuCard: React.FC<MenuCardProps> = React.memo(({ item }) => {
       
       <div className="menu-card-content">
         <h3 className="menu-card-name">{item.name}</h3>
+        {item.description && (
+          <p className="menu-card-desc">{item.description}</p>
+        )}
         <p className="menu-card-price">¥{item.price.toFixed(2)}</p>
       </div>
 

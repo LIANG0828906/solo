@@ -268,14 +268,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   }
 }));
 
-export const useFilteredMenuItems = (category: Category) => {
+export const CATEGORY_LABELS: Record<string, string> = {
+  burger: '汉堡',
+  snack: '小食',
+  drink: '饮品'
+};
+
+export const useFilteredMenuItems = (category: Category, searchQuery?: string) => {
   const menuItems = useAppStore(state => state.menuItems);
   
-  if (category === 'all') {
-    return menuItems.filter(item => item.enabled);
+  let items = menuItems.filter(item => item.enabled);
+  
+  if (searchQuery && searchQuery.trim()) {
+    const query = searchQuery.trim().toLowerCase();
+    items = items.filter(item => {
+      const nameMatch = item.name.toLowerCase().includes(query);
+      const descMatch = item.description?.toLowerCase().includes(query) ?? false;
+      const categoryLabel = CATEGORY_LABELS[item.category] ?? '';
+      const categoryMatch = categoryLabel.toLowerCase().includes(query);
+      return nameMatch || descMatch || categoryMatch;
+    });
+  } else if (category !== 'all') {
+    items = items.filter(item => item.category === category);
   }
   
-  return menuItems.filter(item => item.enabled && item.category === category);
+  return items;
 };
 
 export const useLowStockItems = () => {
