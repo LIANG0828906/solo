@@ -7,12 +7,17 @@ import {
   getHandleAtPosition,
   HandlePosition,
   loadImage,
+  clearFilterCache,
 } from './utils/canvasUtils';
 
 const CanvasPreview: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(performance.now());
+  const frameCountRef = useRef<number>(0);
+  const fpsUpdateTimeRef = useRef<number>(performance.now());
+
   const [canvasScale, setCanvasScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [currentHandle, setCurrentHandle] = useState<HandlePosition>(null);
@@ -29,8 +34,10 @@ const CanvasPreview: React.FC = () => {
   const layers = useStore((state) => state.layers);
   const selectedLayerId = useStore((state) => state.selectedLayerId);
   const canvas = useStore((state) => state.canvas);
+  const fps = useStore((state) => state.fps);
   const updateLayer = useStore((state) => state.updateLayer);
   const selectLayer = useStore((state) => state.selectLayer);
+  const setFps = useStore((state) => state.setFps);
 
   const sortedLayers = [...layers].sort((a, b) => a.zIndex - b.zIndex);
   const selectedLayer = layers.find((l) => l.id === selectedLayerId);
@@ -84,11 +91,37 @@ const CanvasPreview: React.FC = () => {
   useEffect(() => {
     const renderFrame = () => {
       render();
+
+      frameCountRef.current++;
+      const now = performance.now();
+      const elapsed = now - fpsUpdateTimeRef.current;
+
+      if (elapsed >= 500) {
+        const currentFps = Math.round((frameCountRef.current * 1000) / elapsed);
+        setFps(currentFps);
+        console.log(`[Canvas FPS] ${currentFps}fps - Layers: ${sortedLayers.length}`);
+        frameCountRef.current = 0;
+        fpsUpdateTimeRef.current = now;
+      }
+
+      lastTimeRef.current = now;
       animationFrameRef.current = requestAnimationFrame(renderFrame);
     };
+
+    fpsUpdateTimeRef.current = performance.now();
+    frameCountRef.current = 0;
     animationFrameRef.current = requestAnimationFrame(renderFrame);
-    return () => cancelAnimationFrame(animationFrameRef.current);
-  }, [render]);
+
+    return () => {
+      cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [render, setFps, sortedLayers.length]);
+
+  useEffect(() => {
+    if (selectedLayerId) {
+      clearFilterCache(selectedLayerId);
+    }
+  }, [layers]);
 
   const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -208,6 +241,7 @@ const CanvasPreview: React.FC = () => {
       }
       
       newScale = Math.max(0.1, Math.min(5, newScale));
+      clearFilterCache(selectedLayerId);
       updateLayer(selectedLayerId, {
         scale: newScale,
         width: initialLayerState.width,
@@ -240,10 +274,12 @@ const CanvasPreview: React.FC = () => {
     preloadImages();
   }, [layers]);
 
+  const fpsColor = fps >= 40 ? '#4CAF50' : fps >= 25 ? '#FF9800' : '#F44336';
+
   return (
     <div
       ref={containerRef}
-      className="flex-1 flex items-center justify-center p-5 overflow-hidden"
+      className="flex-1 flex items-center justify-center p-5 overflow-hidden relative"
       style={{ backgroundColor: '#F5F5F5' }}
     >
       <div className="relative">
@@ -258,6 +294,31 @@ const CanvasPreview: React.FC = () => {
             borderRadius: '4px',
           }}
         />
+        
+        <div
+          className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            color: '#FFFFFF',
+          }}
+        >
+          <span
+            className="w-2 h-2 rounded-full animate-pulse"
+            style={{ backgroundColor: fpsColor }}
+          />
+          <span style={{ color: fpsColor, fontWeight: 700 }}>{fps}</span>
+          <span style={{ opacity: 0.8 }}>FPS</span>
+        </div>
+
+        <div
+          className="absolute top-3 right-3 px-3 py-1.5 rounded-full text-xs"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            color: '#FFFFFF',
+          }}
+        >
+          {canvas.width} × {canvas.height}
+        </div>
       </div>
     </div>
   );

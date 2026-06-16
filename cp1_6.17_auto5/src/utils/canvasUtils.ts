@@ -2,6 +2,7 @@ import { Layer, FilterConfig } from '../types';
 import { applyPixelFilter } from './filterUtils';
 
 const imageCache = new Map<string, HTMLImageElement>();
+const filteredImageCache = new Map<string, HTMLCanvasElement>();
 
 export async function loadImage(src: string): Promise<HTMLImageElement> {
   if (imageCache.has(src)) {
@@ -38,6 +39,66 @@ export function drawCheckerboard(
   }
 }
 
+function getFilterCacheKey(layerId: string, filterConfig: FilterConfig): string {
+  return `${layerId}_${filterConfig.brightness}_${filterConfig.contrast}_${filterConfig.hue}_${filterConfig.saturation}_${filterConfig.preset}`;
+}
+
+async function getFilteredImage(
+  img: HTMLImageElement,
+  layer: Layer,
+  drawWidth: number,
+  drawHeight: number
+): Promise<HTMLCanvasElement> {
+  const cacheKey = getFilterCacheKey(layer.id, layer.filterConfig);
+  
+  if (filteredImageCache.has(cacheKey)) {
+    return filteredImageCache.get(cacheKey)!;
+  }
+
+  const hasFilter = 
+    layer.filterConfig.brightness !== 0 ||
+    layer.filterConfig.contrast !== 0 ||
+    layer.filterConfig.hue !== 0 ||
+    layer.filterConfig.saturation !== 0;
+
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = drawWidth;
+  tempCanvas.height = drawHeight;
+  const tempCtx = tempCanvas.getContext('2d')!;
+  
+  tempCtx.drawImage(img, 0, 0, drawWidth, drawHeight);
+
+  if (hasFilter) {
+    try {
+      const imageData = tempCtx.getImageData(0, 0, drawWidth, drawHeight);
+      applyPixelFilter(imageData, layer.filterConfig);
+      tempCtx.putImageData(imageData, 0, 0);
+    } catch (e) {
+      console.warn('Pixel filter failed, falling back to CSS filter:', e);
+    }
+  }
+
+  if (hasFilter) {
+    filteredImageCache.set(cacheKey, tempCanvas);
+  }
+
+  return tempCanvas;
+}
+
+export function clearFilterCache(layerId?: string): void {
+  if (layerId) {
+    const keysToDelete: string[] = [];
+    filteredImageCache.forEach((_, key) => {
+      if (key.startsWith(`${layerId}_`)) {
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach((key) => filteredImageCache.delete(key));
+  } else {
+    filteredImageCache.clear();
+  }
+}
+
 async function drawImageLayer(
   ctx: CanvasRenderingContext2D,
   layer: Layer,
@@ -59,26 +120,8 @@ async function drawImageLayer(
     const offsetX = -drawWidth / 2;
     const offsetY = -drawHeight / 2;
 
-    if (layer.filterConfig.preset === 'vintage' || 
-        layer.filterConfig.preset === 'ecommerce' ||
-        layer.filterConfig.hue !== 0 ||
-        layer.filterConfig.saturation < -50 ||
-        layer.filterConfig.contrast > 25) {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = drawWidth;
-      tempCanvas.height = drawHeight;
-      const tempCtx = tempCanvas.getContext('2d')!;
-      tempCtx.drawImage(img, 0, 0, drawWidth, drawHeight);
-      
-      const imageData = tempCtx.getImageData(0, 0, drawWidth, drawHeight);
-      applyPixelFilter(imageData, layer.filterConfig);
-      tempCtx.putImageData(imageData, 0, 0);
-      
-      ctx.drawImage(tempCanvas, offsetX, offsetY);
-    } else {
-      ctx.filter = getCanvasFilter(layer.filterConfig);
-      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-    }
+    const filteredCanvas = await getFilteredImage(img, layer, drawWidth, drawHeight);
+    ctx.drawImage(filteredCanvas, offsetX, offsetY);
 
     ctx.restore();
   } catch (error) {
@@ -101,6 +144,16 @@ function drawTextLayer(
   ctx.scale(canvasScale, canvasScale);
   ctx.globalAlpha = layer.opacity;
 
+  const hasFilter = 
+    layer.filterConfig.brightness !== 0 ||
+    layer.filterConfig.contrast !== 0 ||
+    layer.filterConfig.hue !== 0 ||
+    layer.filterConfig.saturation !== 0;
+
+  if (hasFilter) {
+    ctx.filter = getCanvasFilter(layer.filterConfig);
+  }
+
   ctx.font = `${textStyle.fontWeight} ${textStyle.fontSize}px ${textStyle.fontFamily}`;
   ctx.fillStyle = textStyle.color;
   ctx.textAlign = textStyle.align;
@@ -110,8 +163,6 @@ function drawTextLayer(
   const lineHeight = textStyle.fontSize * 1.2;
   const totalHeight = lines.length * lineHeight;
   const startY = -totalHeight / 2 + lineHeight / 2;
-
-  ctx.filter = getCanvasFilter(layer.filterConfig);
   
   lines.forEach((line, index) => {
     ctx.fillText(line, 0, startY + index * lineHeight);
@@ -343,4 +394,5 @@ export function getHandleAtPosition(
 
 export function clearImageCache(): void {
   imageCache.clear();
+  filteredImageCache.clear();
 }

@@ -47,6 +47,7 @@ export interface AppState {
   isUploading: boolean;
   uploadProgress: number;
   isDownloading: boolean;
+  fps: number;
 }
 
 export interface PlatformConfig {

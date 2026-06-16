@@ -10,7 +10,7 @@ const defaultFilterConfig: FilterConfig = {
   preset: null,
 };
 
-const initialState: AppState = {
+const initialState: AppState & { fps: number } = {
   layers: [],
   selectedLayerId: null,
   canvas: {
@@ -21,6 +21,7 @@ const initialState: AppState = {
   isUploading: false,
   uploadProgress: 0,
   isDownloading: false,
+  fps: 0,
 };
 
 interface StoreActions {
@@ -29,14 +30,17 @@ interface StoreActions {
   duplicateLayer: (id: string) => void;
   updateLayer: (id: string, updates: Partial<Layer>) => void;
   reorderLayers: (fromIndex: number, toIndex: number) => void;
+  moveLayer: (id: string, direction: 'up' | 'down' | number) => void;
   selectLayer: (id: string | null) => void;
   setCanvasSize: (platform: string) => void;
+  handleCanvasResize: (newWidth: number, newHeight: number, platform?: string) => void;
   setUploading: (uploading: boolean, progress?: number) => void;
   setDownloading: (downloading: boolean) => void;
+  setFps: (fps: number) => void;
   addTextLayer: () => void;
 }
 
-export const useStore = create<AppState & StoreActions>((set, get) => ({
+export const useStore = create<AppState & { fps: number } & StoreActions>((set, get) => ({
   ...initialState,
 
   addLayer: (layerData) => {
@@ -92,6 +96,30 @@ export const useStore = create<AppState & StoreActions>((set, get) => ({
     });
   },
 
+  moveLayer: (id, direction) => {
+    const { layers } = get();
+    const sortedLayers = [...layers].sort((a, b) => a.zIndex - b.zIndex);
+    const currentIndex = sortedLayers.findIndex((l) => l.id === id);
+    if (currentIndex === -1) return;
+
+    let newIndex: number;
+    if (typeof direction === 'number') {
+      newIndex = direction;
+    } else if (direction === 'up') {
+      newIndex = Math.min(sortedLayers.length - 1, currentIndex + 1);
+    } else {
+      newIndex = Math.max(0, currentIndex - 1);
+    }
+
+    if (newIndex === currentIndex) return;
+
+    const [removed] = sortedLayers.splice(currentIndex, 1);
+    sortedLayers.splice(newIndex, 0, removed);
+    set({
+      layers: sortedLayers.map((l, idx) => ({ ...l, zIndex: idx })),
+    });
+  },
+
   selectLayer: (id) => {
     set({ selectedLayerId: id });
   },
@@ -99,25 +127,41 @@ export const useStore = create<AppState & StoreActions>((set, get) => ({
   setCanvasSize: (platform) => {
     const config = PLATFORM_CONFIGS[platform];
     if (!config) return;
+    get().handleCanvasResize(config.width, config.height, platform);
+  },
 
+  handleCanvasResize: (newWidth, newHeight, platform) => {
     const { canvas, layers } = get();
-    const scaleX = config.width / canvas.width;
-    const scaleY = config.height / canvas.height;
-    const scale = Math.min(scaleX, scaleY);
+    const oldWidth = canvas.width;
+    const oldHeight = canvas.height;
+
+    const scaleX = newWidth / oldWidth;
+    const scaleY = newHeight / oldHeight;
+    const uniformScale = Math.min(scaleX, scaleY);
+
+    const oldCenterX = oldWidth / 2;
+    const oldCenterY = oldHeight / 2;
+    const newCenterX = newWidth / 2;
+    const newCenterY = newHeight / 2;
+
+    const newLayers = layers.map((layer) => {
+      const relX = (layer.x - oldCenterX) / oldWidth;
+      const relY = (layer.y - oldCenterY) / oldHeight;
+
+      return {
+        ...layer,
+        x: newCenterX + relX * newWidth,
+        y: newCenterY + relY * newHeight,
+        width: layer.width * uniformScale,
+        height: layer.height * uniformScale,
+      };
+    });
 
     const newCanvas: CanvasState = {
-      width: config.width,
-      height: config.height,
-      platform: platform as 'taobao' | 'jd' | 'pdd',
+      width: newWidth,
+      height: newHeight,
+      platform: (platform || canvas.platform) as 'taobao' | 'jd' | 'pdd',
     };
-
-    const newLayers = layers.map((layer) => ({
-      ...layer,
-      x: layer.x * scaleX,
-      y: layer.y * scaleY,
-      width: layer.width * scale,
-      height: layer.height * scale,
-    }));
 
     set({ canvas: newCanvas, layers: newLayers });
   },
@@ -128,6 +172,10 @@ export const useStore = create<AppState & StoreActions>((set, get) => ({
 
   setDownloading: (downloading) => {
     set({ isDownloading: downloading });
+  },
+
+  setFps: (fps) => {
+    set({ fps });
   },
 
   addTextLayer: () => {
