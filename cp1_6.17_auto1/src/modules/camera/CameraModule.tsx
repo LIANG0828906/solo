@@ -64,6 +64,7 @@ export default function CameraModule() {
   const handleDownload = async () => {
     if (!capturedImage) return;
 
+    const startTime = Date.now();
     setIsLoading(true);
 
     try {
@@ -83,9 +84,11 @@ export default function CameraModule() {
     } catch (error) {
       console.error('Download error:', error);
     } finally {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 500 - elapsed);
       setTimeout(() => {
         setIsLoading(false);
-      }, 500);
+      }, remaining);
     }
   };
 

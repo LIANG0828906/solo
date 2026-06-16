@@ -1,6 +1,11 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '../../store';
-import { drawHeatmap, analyzeTexture, exportTextureImage } from './textureEngine';
+import {
+  drawHeatmap,
+  analyzeTexture,
+  analyzeTextureAsync,
+  exportTextureImage,
+} from './textureEngine';
 import { loadImage } from '../camera/cameraUtils';
 import type { GridPoint } from '../../types';
 
@@ -13,6 +18,8 @@ export default function TextureModule() {
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
   const heatmapCanvasRef = useRef<HTMLCanvasElement>(null);
   const heatmapPointsRef = useRef<GridPoint[]>([]);
+  const imageDataCacheRef = useRef<ImageData | null>(null);
+  const rafRef = useRef<number | null>(null);
   const capturedImage = useAppStore((state) => state.capturedImage);
   const sensitivity = useAppStore((state) => state.sensitivity);
   const setSensitivity = useAppStore((state) => state.setSensitivity);
@@ -22,26 +29,36 @@ export default function TextureModule() {
   const debounceRef = useRef<number | null>(null);
 
   const recalculateHeatmap = useCallback(
-    async (imageSrc: string, sens: number) => {
+    async (imageSrc: string, sens: number, useAsync: boolean = false) => {
       try {
-        const img = await loadImage(imageSrc);
+        let imageData: ImageData;
 
-        const canvas = imageCanvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        if (imageDataCacheRef.current && !useAsync) {
+          imageData = imageDataCacheRef.current;
+        } else {
+          const img = await loadImage(imageSrc);
 
-        canvas.width = WORKSPACE_WIDTH;
-        canvas.height = WORKSPACE_HEIGHT;
-        ctx.drawImage(img, 0, 0, WORKSPACE_WIDTH, WORKSPACE_HEIGHT);
+          const canvas = imageCanvasRef.current;
+          if (!canvas) return;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
 
-        const imageData = ctx.getImageData(
-          0,
-          0,
-          WORKSPACE_WIDTH,
-          WORKSPACE_HEIGHT
-        );
-        const result = analyzeTexture(imageData, sens);
+          canvas.width = WORKSPACE_WIDTH;
+          canvas.height = WORKSPACE_HEIGHT;
+          ctx.drawImage(img, 0, 0, WORKSPACE_WIDTH, WORKSPACE_HEIGHT);
+
+          imageData = ctx.getImageData(
+            0,
+            0,
+            WORKSPACE_WIDTH,
+            WORKSPACE_HEIGHT
+          );
+          imageDataCacheRef.current = imageData;
+        }
+
+        const result = useAsync
+          ? await analyzeTextureAsync(imageData, sens)
+          : analyzeTexture(imageData, sens);
 
         heatmapPointsRef.current = result.points;
         setWrinkleStats(result.stats);
@@ -69,8 +86,10 @@ export default function TextureModule() {
 
   useEffect(() => {
     if (capturedImage) {
-      recalculateHeatmap(capturedImage, sensitivity);
+      imageDataCacheRef.current = null;
+      recalculateHeatmap(capturedImage, sensitivity, false);
     } else {
+      imageDataCacheRef.current = null;
       setWrinkleStats(null);
       heatmapPointsRef.current = [];
       const canvas = imageCanvasRef.current;
@@ -92,18 +111,27 @@ export default function TextureModule() {
 
   useEffect(() => {
     if (!capturedImage) return;
+    if (!imageDataCacheRef.current) return;
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+    }
 
     debounceRef.current = window.setTimeout(() => {
-      recalculateHeatmap(capturedImage, sensitivity);
-    }, 50);
+      rafRef.current = requestAnimationFrame(() => {
+        recalculateHeatmap(capturedImage, sensitivity, true);
+      });
+    }, 30);
 
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
+      }
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
       }
     };
   }, [sensitivity, capturedImage, recalculateHeatmap]);
@@ -117,6 +145,7 @@ export default function TextureModule() {
   const handleDownload = async () => {
     if (!capturedImage) return;
 
+    const startTime = Date.now();
     setIsLoading(true);
 
     try {
@@ -136,9 +165,11 @@ export default function TextureModule() {
     } catch (error) {
       console.error('Download error:', error);
     } finally {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 500 - elapsed);
       setTimeout(() => {
         setIsLoading(false);
-      }, 500);
+      }, remaining);
     }
   };
 

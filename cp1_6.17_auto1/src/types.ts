@@ -9,6 +9,7 @@ export interface GridPoint {
   y: number;
   intensity: number;
   grayscale: number;
+  angle: number;
 }
 
 export interface TextureResult {

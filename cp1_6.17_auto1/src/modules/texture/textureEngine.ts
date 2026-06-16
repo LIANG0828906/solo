@@ -4,6 +4,17 @@ import { loadImage } from '../camera/cameraUtils';
 const GRID_SPACING = 20;
 const HIGH_COLOR = { r: 229, g: 57, b: 53 };
 const LOW_COLOR = { r: 30, g: 136, b: 229 };
+const BATCH_SIZE = 40;
+const SOBEL_GX = [
+  [-1, 0, 1],
+  [-2, 0, 2],
+  [-1, 0, 1],
+];
+const SOBEL_GY = [
+  [-1, -2, -1],
+  [0, 0, 0],
+  [1, 2, 1],
+];
 
 function getGrayscale(imageData: ImageData, x: number, y: number): number {
   const idx = (y * imageData.width + x) * 4;
@@ -13,35 +24,113 @@ function getGrayscale(imageData: ImageData, x: number, y: number): number {
   return 0.299 * r + 0.587 * g + 0.114 * b;
 }
 
-function getLocalContrast(
-  imageData: ImageData,
+function buildGrayscaleCache(imageData: ImageData): Float32Array {
+  const { width, height } = imageData;
+  const cache = new Float32Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      cache[y * width + x] = getGrayscale(imageData, x, y);
+    }
+  }
+  return cache;
+}
+
+function getCachedGrayscale(
+  cache: Float32Array,
+  width: number,
+  x: number,
+  y: number
+): number {
+  return cache[y * width + x];
+}
+
+interface SobelResult {
+  gx: number;
+  gy: number;
+  magnitude: number;
+  angle: number;
+}
+
+function getSobelGradient(
+  cache: Float32Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number
+): SobelResult {
+  let gx = 0;
+  let gy = 0;
+
+  for (let ky = -1; ky <= 1; ky++) {
+    for (let kx = -1; kx <= 1; kx++) {
+      const px = x + kx;
+      const py = y + ky;
+      if (px >= 0 && px < width && py >= 0 && py < height) {
+        const gray = getCachedGrayscale(cache, width, px, py);
+        gx += gray * SOBEL_GX[ky + 1][kx + 1];
+        gy += gray * SOBEL_GY[ky + 1][kx + 1];
+      }
+    }
+  }
+
+  const magnitude = Math.sqrt(gx * gx + gy * gy);
+  const angleRad = Math.atan2(gy, gx);
+  let angleDeg = (angleRad * 180) / Math.PI;
+  if (angleDeg < 0) {
+    angleDeg += 360;
+  }
+
+  return { gx, gy, magnitude, angle: angleDeg };
+}
+
+function getLocalStdDev(
+  cache: Float32Array,
+  width: number,
+  height: number,
   x: number,
   y: number,
   radius: number
 ): number {
-  const centerGray = getGrayscale(imageData, x, y);
   let sum = 0;
+  let sumSq = 0;
   let count = 0;
 
   for (let dy = -radius; dy <= radius; dy += 2) {
     for (let dx = -radius; dx <= radius; dx += 2) {
       const nx = x + dx;
       const ny = y + dy;
-      if (
-        nx >= 0 &&
-        nx < imageData.width &&
-        ny >= 0 &&
-        ny < imageData.height
-      ) {
-        sum += getGrayscale(imageData, nx, ny);
+      if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+        const gray = getCachedGrayscale(cache, width, nx, ny);
+        sum += gray;
+        sumSq += gray * gray;
         count++;
       }
     }
   }
 
-  const localAvg = count > 0 ? sum / count : centerGray;
-  const diff = localAvg - centerGray;
-  return Math.max(0, diff) / 255;
+  if (count === 0) return 0;
+  const mean = sum / count;
+  const variance = sumSq / count - mean * mean;
+  return Math.sqrt(Math.max(0, variance));
+}
+
+function getWrinkleIntensity(
+  cache: Float32Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  radius: number
+): { intensity: number; angle: number } {
+  const sobel = getSobelGradient(cache, width, height, x, y);
+  const normalizedGradient = Math.min(1, sobel.magnitude / 1020);
+
+  const stdDev = getLocalStdDev(cache, width, height, x, y, radius);
+  const normalizedStdDev = Math.min(1, stdDev / 128);
+
+  const intensity = 0.6 * normalizedGradient + 0.4 * normalizedStdDev;
+
+  return { intensity, angle: sobel.angle };
 }
 
 function applySensitivity(rawIntensity: number, sensitivity: number): number {
@@ -62,6 +151,54 @@ function interpolateColor(
   };
 }
 
+function collectGridPoints(
+  width: number,
+  height: number
+): { x: number; y: number }[] {
+  const coords: { x: number; y: number }[] = [];
+  for (let y = GRID_SPACING; y < height; y += GRID_SPACING) {
+    for (let x = GRID_SPACING; x < width; x += GRID_SPACING) {
+      coords.push({ x, y });
+    }
+  }
+  return coords;
+}
+
+function processPointsBatch(
+  cache: Float32Array,
+  width: number,
+  height: number,
+  coords: { x: number; y: number }[],
+  start: number,
+  end: number,
+  sensitivity: number,
+  points: GridPoint[],
+  statsAccum: { totalIntensity: number; maxIntensity: number; maxX: number; maxY: number }
+): void {
+  for (let i = start; i < end; i++) {
+    const { x, y } = coords[i];
+    const { intensity: rawIntensity, angle } = getWrinkleIntensity(
+      cache,
+      width,
+      height,
+      x,
+      y,
+      10
+    );
+    const intensity = applySensitivity(rawIntensity, sensitivity);
+    const grayscale = getCachedGrayscale(cache, width, x, y);
+
+    points.push({ x, y, intensity, grayscale, angle });
+
+    statsAccum.totalIntensity += intensity;
+    if (intensity > statsAccum.maxIntensity) {
+      statsAccum.maxIntensity = intensity;
+      statsAccum.maxX = x;
+      statsAccum.maxY = y;
+    }
+  }
+}
+
 export function analyzeTexture(
   imageData: ImageData,
   sensitivity: number
@@ -69,33 +206,86 @@ export function analyzeTexture(
   const points: GridPoint[] = [];
   const width = imageData.width;
   const height = imageData.height;
+  const cache = buildGrayscaleCache(imageData);
+  const coords = collectGridPoints(width, height);
 
-  let totalIntensity = 0;
-  let maxIntensity = 0;
-  let maxX = 0;
-  let maxY = 0;
+  const statsAccum = {
+    totalIntensity: 0,
+    maxIntensity: 0,
+    maxX: 0,
+    maxY: 0,
+  };
 
-  for (let y = GRID_SPACING; y < height; y += GRID_SPACING) {
-    for (let x = GRID_SPACING; x < width; x += GRID_SPACING) {
-      const rawIntensity = getLocalContrast(imageData, x, y, 10);
-      const intensity = applySensitivity(rawIntensity, sensitivity);
-      const grayscale = getGrayscale(imageData, x, y);
+  processPointsBatch(
+    cache,
+    width,
+    height,
+    coords,
+    0,
+    coords.length,
+    sensitivity,
+    points,
+    statsAccum
+  );
 
-      points.push({ x, y, intensity, grayscale });
+  const stats: WrinkleStats = {
+    averageIntensity: points.length > 0 ? (statsAccum.totalIntensity / points.length) * 100 : 0,
+    maxIntensity: statsAccum.maxIntensity * 100,
+    maxLocation: { x: statsAccum.maxX, y: statsAccum.maxY },
+  };
 
-      totalIntensity += intensity;
-      if (intensity > maxIntensity) {
-        maxIntensity = intensity;
-        maxX = x;
-        maxY = y;
-      }
+  return { points, stats };
+}
+
+export interface AnalyzeProgress {
+  processed: number;
+  total: number;
+}
+
+export async function analyzeTextureAsync(
+  imageData: ImageData,
+  sensitivity: number,
+  onProgress?: (progress: AnalyzeProgress) => void
+): Promise<TextureResult> {
+  const points: GridPoint[] = [];
+  const width = imageData.width;
+  const height = imageData.height;
+  const cache = buildGrayscaleCache(imageData);
+  const coords = collectGridPoints(width, height);
+  const total = coords.length;
+
+  const statsAccum = {
+    totalIntensity: 0,
+    maxIntensity: 0,
+    maxX: 0,
+    maxY: 0,
+  };
+
+  for (let start = 0; start < total; start += BATCH_SIZE) {
+    const end = Math.min(start + BATCH_SIZE, total);
+    processPointsBatch(
+      cache,
+      width,
+      height,
+      coords,
+      start,
+      end,
+      sensitivity,
+      points,
+      statsAccum
+    );
+
+    if (onProgress) {
+      onProgress({ processed: end, total });
     }
+
+    await Promise.resolve();
   }
 
   const stats: WrinkleStats = {
-    averageIntensity: points.length > 0 ? (totalIntensity / points.length) * 100 : 0,
-    maxIntensity: maxIntensity * 100,
-    maxLocation: { x: maxX, y: maxY },
+    averageIntensity: points.length > 0 ? (statsAccum.totalIntensity / points.length) * 100 : 0,
+    maxIntensity: statsAccum.maxIntensity * 100,
+    maxLocation: { x: statsAccum.maxX, y: statsAccum.maxY },
   };
 
   return { points, stats };
@@ -197,7 +387,9 @@ export async function exportTextureImage(
   }
 
   const img = await loadImage(imageSrc);
+  // 先绘制原始照片作为底层
   ctx.drawImage(img, 0, 0, exportWidth, exportHeight);
+  // 再叠加纹理热力图
   drawHeatmap(ctx, result.points, exportWidth, exportHeight);
 
   return canvas.toDataURL('image/png');
