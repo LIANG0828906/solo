@@ -5,17 +5,21 @@ import type { CanvasElement, CanvasOperation } from './types';
 
 const SNAPSHOT_KEY = 'canvas_snapshot';
 const processedOperations = new Set<string>();
+const pendingOperations: CanvasOperation[] = [];
 
 export class SyncManager {
   private unsubscribers: Array<() => void> = [];
   private saveTimeout: ReturnType<typeof setTimeout> | null = null;
   private isInitialized = false;
+  private localOperationBuffer: CanvasOperation[] = [];
+  private flushBufferTimeout: ReturnType<typeof setTimeout> | null = null;
 
   async init(wsUrl: string): Promise<void> {
     if (this.isInitialized) return;
 
     await this.loadFromIndexedDB();
     this.setupWebSocketListeners();
+    this.setupStoreListeners();
     wsManager.connect(wsUrl);
 
     this.isInitialized = true;
@@ -28,6 +32,9 @@ export class SyncManager {
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
     }
+    if (this.flushBufferTimeout) {
+      clearTimeout(this.flushBufferTimeout);
+    }
     this.isInitialized = false;
   }
 
@@ -36,9 +43,10 @@ export class SyncManager {
       const snapshot = await get<CanvasElement[]>(SNAPSHOT_KEY);
       if (snapshot && Array.isArray(snapshot)) {
         useCanvasStore.getState().loadSnapshot(snapshot);
+        console.log('[Sync] Loaded snapshot from IndexedDB, elements:', snapshot.length);
       }
     } catch (e) {
-      console.error('Failed to load snapshot from IndexedDB:', e);
+      console.error('[Sync] Failed to load snapshot from IndexedDB:', e);
     }
   }
 
@@ -52,7 +60,7 @@ export class SyncManager {
         const elements = useCanvasStore.getState().elements;
         await set(SNAPSHOT_KEY, elements);
       } catch (e) {
-        console.error('Failed to save snapshot to IndexedDB:', e);
+        console.error('[Sync] Failed to save snapshot to IndexedDB:', e);
       }
     }, 500);
   }
@@ -66,18 +74,28 @@ export class SyncManager {
       useCanvasStore.getState().setConnectionStatus(status);
 
       if (status === 'connected') {
-        this.sendSnapshot();
+        console.log('[Sync] Connected, requesting snapshot...');
+        this.sendLocalSnapshot();
+      } else if (status === 'disconnected') {
+        console.log('[Sync] Disconnected');
       }
     });
 
     this.unsubscribers.push(unsubMessage, unsubStatus);
+  }
 
-    const unsubscribeStore = useCanvasStore.subscribe(
-      (state: { elements: CanvasElement[] }) => {
+  private setupStoreListeners(): void {
+    let lastElementsJson = JSON.stringify(useCanvasStore.getState().elements);
+
+    const unsubscribe = useCanvasStore.subscribe(() => {
+      const currentElementsJson = JSON.stringify(useCanvasStore.getState().elements);
+      if (currentElementsJson !== lastElementsJson) {
+        lastElementsJson = currentElementsJson;
         this.saveToIndexedDB();
       }
-    );
-    this.unsubscribers.push(unsubscribeStore);
+    });
+
+    this.unsubscribers.push(unsubscribe);
   }
 
   private handleIncomingMessage(msg: CanvasOperation): void {
@@ -88,53 +106,97 @@ export class SyncManager {
     if (processedOperations.has(msg.id)) {
       return;
     }
-    processedOperations.add(msg.id);
 
-    const store = useCanvasStore.getState();
+    const localSeq = useCanvasStore.getState().getSequence();
+    const msgSeq = msg.sequence || 0;
 
-    switch (msg.type) {
-      case 'add': {
-        const element = msg.payload as CanvasElement;
-        if (!store.elements.find((e) => e.id === element.id)) {
-          store.addElement(element, false);
-        }
-        break;
+    if (msgSeq > 0 && msgSeq <= localSeq && msg.type !== 'snapshot') {
+      console.log(`[Sync] Skipping old op (seq ${msgSeq} <= local ${localSeq})`);
+      return;
+    }
+
+    if (msg.type === 'snapshot') {
+      const snapshotElements = msg.payload as CanvasElement[];
+      const localElements = useCanvasStore.getState().elements;
+
+      if (snapshotElements.length > localElements.length) {
+        console.log('[Sync] Applying remote snapshot, elements:', snapshotElements.length);
+        processedOperations.add(msg.id);
+        useCanvasStore.getState().applyRemoteOperation(msg);
+      } else if (localElements.length > 0) {
+        console.log('[Sync] Local has more elements, sending local snapshot');
+        this.sendLocalSnapshot();
       }
-      case 'update': {
-        const element = msg.payload as CanvasElement;
-        store.updateElement(element.id, element, false);
-        break;
+      return;
+    }
+
+    if (pendingOperations.length > 0) {
+      pendingOperations.push(msg);
+      pendingOperations.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+
+      const nextOp = pendingOperations.shift();
+      if (nextOp) {
+        this.applyOperation(nextOp);
       }
-      case 'delete': {
-        const element = msg.payload as CanvasElement;
-        store.deleteElement(element.id, false);
-        break;
-      }
-      case 'snapshot': {
-        const elements = msg.payload as CanvasElement[];
-        if (elements.length > 0) {
-          store.loadSnapshot(elements);
-        }
-        break;
-      }
+    } else {
+      this.applyOperation(msg);
     }
   }
 
-  private sendSnapshot(): void {
+  private applyOperation(op: CanvasOperation): void {
+    if (processedOperations.has(op.id)) return;
+    processedOperations.add(op.id);
+
+    console.log(`[Sync] Applying remote operation: ${op.type}`, op.id);
+    useCanvasStore.getState().applyRemoteOperation(op);
+  }
+
+  private sendLocalSnapshot(): void {
     const elements = useCanvasStore.getState().elements;
+    const seq = useCanvasStore.getState().getSequence();
+
     if (elements.length === 0) return;
 
     wsManager.send({
       type: 'snapshot',
-      id: 'snapshot_' + Date.now(),
+      id: 'snapshot_' + Date.now() + '_' + Math.random().toString(36).slice(2),
       payload: elements,
+      sequence: seq,
     });
+
+    console.log('[Sync] Sent local snapshot, elements:', elements.length, 'seq:', seq);
   }
 
   broadcastOperation(op: Omit<CanvasOperation, 'clientId' | 'timestamp'>): void {
     if (processedOperations.has(op.id)) return;
     processedOperations.add(op.id);
-    wsManager.send(op);
+    wsManager.send(op as CanvasOperation);
+  }
+
+  bufferLocalOperation(op: Omit<CanvasOperation, 'clientId' | 'timestamp'>): void {
+    this.localOperationBuffer.push(op as CanvasOperation);
+
+    if (!this.flushBufferTimeout) {
+      this.flushBufferTimeout = setTimeout(() => {
+        this.flushBuffer();
+      }, 50);
+    }
+  }
+
+  private flushBuffer(): void {
+    if (this.localOperationBuffer.length === 0) {
+      this.flushBufferTimeout = null;
+      return;
+    }
+
+    const ops = [...this.localOperationBuffer];
+    this.localOperationBuffer = [];
+
+    ops.forEach((op) => {
+      this.broadcastOperation(op);
+    });
+
+    this.flushBufferTimeout = null;
   }
 }
 

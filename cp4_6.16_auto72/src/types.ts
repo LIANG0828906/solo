@@ -17,8 +17,11 @@ export interface BaseElement {
   color: string;
   createdAt: number;
   updatedAt: number;
+  sequence: number;
   isDeleted?: boolean;
-  deleteAnimation?: boolean;
+  deleteAnimationProgress?: number;
+  enterAnimationProgress?: number;
+  undoAnimationProgress?: number;
 }
 
 export interface PencilElement extends BaseElement {
@@ -53,6 +56,14 @@ export interface CanvasOperation {
   payload: CanvasElement | CanvasElement[];
   timestamp: number;
   clientId: string;
+  sequence?: number;
+}
+
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export const COLORS = [
@@ -71,5 +82,8 @@ export const COLORS = [
 ];
 
 export const STICKY_NOTE_COLOR = 'rgba(255, 255, 0, 0.85)';
+export const STICKY_NOTE_BG = '#FFF9C4';
+export const STICKY_NOTE_HEADER = 'rgba(0, 0, 0, 0.06)';
 export const CANVAS_BG = '#F5F0E8';
 export const SELECTION_COLOR = '#4A90D9';
+export const SELECTION_FILL = 'rgba(74, 144, 217, 0.12)';
