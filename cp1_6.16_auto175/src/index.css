@@ -1,0 +1,56 @@
+.aqi-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #00BCD4;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 188, 212, 0.6);
+  border: 2px solid #FFFFFF;
+  transition: transform 0.1s;
+}
+
+.aqi-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.aqi-range-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #00BCD4;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 188, 212, 0.6);
+  border: 2px solid #FFFFFF;
+  transition: transform 0.1s;
+}
+
+.aqi-range-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+}
+
+.aqi-range-slider::-ms-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #00BCD4;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 188, 212, 0.6);
+  border: 2px solid #FFFFFF;
+}
+
+.aqi-range-slider:focus {
+  outline: none;
+}
+
+.aqi-range-slider::-moz-range-track {
+  background: transparent;
+  border: none;
+}
+
+.aqi-range-slider::-ms-track {
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+}
