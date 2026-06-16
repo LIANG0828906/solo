@@ -17,6 +17,8 @@ const GRID_SIZE = 8;
 const TURN_DURATION = 15;
 const MAX_ROUNDS = 5;
 const INITIAL_LIVES = 3;
+const CELL_SIZE = 80;
+const BOARD_SIZE_PX = GRID_SIZE * CELL_SIZE;
 
 function generateRoomCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
@@ -98,9 +100,60 @@ function createInitialElements() {
   return elements;
 }
 
+const MIRROR_NORMALS = {
+  'nw-se': { x: 1, y: -1 },
+  'ne-sw': { x: -1, y: -1 }
+};
+
+function vecNormalize(v) {
+  const len = Math.hypot(v.x, v.y);
+  if (len < 1e-10) return { x: 0, y: 0 };
+  return { x: v.x / len, y: v.y / len };
+}
+
+function vecDot(a, b) {
+  return a.x * b.x + a.y * b.y;
+}
+
+function vecScale(v, s) {
+  return { x: v.x * s, y: v.y * s };
+}
+
+function vecSub(a, b) {
+  return { x: a.x - b.x, y: a.y - b.y };
+}
+
+function reflectVector(incident, normal) {
+  const n = vecNormalize(normal);
+  const d = vecDot(incident, n);
+  return vecSub(incident, vecScale(n, 2 * d));
+}
+
+function rotateVector(v, angleRad) {
+  const cos = Math.cos(angleRad);
+  const sin = Math.sin(angleRad);
+  return {
+    x: v.x * cos - v.y * sin,
+    y: v.x * sin + v.y * cos
+  };
+}
+
+function reflectMirror(incidentDir, orientation) {
+  const normal = vecNormalize(MIRROR_NORMALS[orientation]);
+  const dot = vecDot(incidentDir, normal);
+  const usedNormal = dot < 0 ? normal : vecScale(normal, -1);
+  const result = reflectVector(incidentDir, usedNormal);
+  return vecNormalize(result);
+}
+
+function splitPrism(incidentDir) {
+  const splitAngle = (60 * Math.PI) / 180;
+  const dir1 = vecNormalize(rotateVector(incidentDir, splitAngle));
+  const dir2 = vecNormalize(rotateVector(incidentDir, -splitAngle));
+  return [dir1, dir2];
+}
+
 function simulateLaser(firingPlayer, elements) {
-  const CELL_SIZE = 80;
-  
   function gridToPixel(grid, center = true) {
     return {
       x: grid.x * CELL_SIZE + (center ? CELL_SIZE / 2 : 0),
@@ -140,41 +193,8 @@ function simulateLaser(firingPlayer, elements) {
     }
   }
 
-  const DIRECTION_VECTORS = {
-    up: { x: 0, y: -1 },
-    down: { x: 0, y: 1 },
-    left: { x: -1, y: 0 },
-    right: { x: 1, y: 0 }
-  };
-
-  const MIRROR_REFLECTIONS = {
-    'nw-se-up': 'right',
-    'nw-se-right': 'up',
-    'nw-se-down': 'left',
-    'nw-se-left': 'down',
-    'ne-sw-up': 'left',
-    'ne-sw-left': 'up',
-    'ne-sw-down': 'right',
-    'ne-sw-right': 'down'
-  };
-
-  function reflectDirection(direction, orientation) {
-    const key = `${orientation}-${direction}`;
-    return MIRROR_REFLECTIONS[key] || direction;
-  }
-
-  function splitDirection(direction) {
-    const splits = {
-      up: ['left', 'right'],
-      down: ['left', 'right'],
-      left: ['up', 'down'],
-      right: ['up', 'down']
-    };
-    return splits[direction];
-  }
-
   const startPos = getLaserStartPosition(firingPlayer);
-  const initialDir = firingPlayer === 'playerA' ? 'up' : 'down';
+  const initialDir = firingPlayer === 'playerA' ? { x: 0, y: -1 } : { x: 0, y: 1 };
 
   const segments = [];
   const particles = [];
@@ -183,38 +203,33 @@ function simulateLaser(firingPlayer, elements) {
   let hitBase = null;
   let hitPosition = null;
 
-  while (rays.length > 0 && segments.length < 100) {
+  while (rays.length > 0 && segments.length < 50) {
     const ray = rays.shift();
-    const key = `${ray.position.x},${ray.position.y},${ray.direction}`;
-    
+    const dir = vecNormalize(ray.direction);
+    const posKey = `${ray.position.x.toFixed(1)},${ray.position.y.toFixed(1)}`;
+    const dirKey = `${dir.x.toFixed(3)},${dir.y.toFixed(3)}`;
+    const key = `${posKey}|${dirKey}`;
+
     if (visited.has(key)) continue;
+    if (rays.length > 20) break;
     visited.add(key);
 
-    const dir = DIRECTION_VECTORS[ray.direction];
+    const stepSize = 2;
+    const maxSteps = 1000;
     let currentPos = { ...ray.position };
+    let lastGrid = pixelToGrid(currentPos);
     let hit = false;
 
-    while (!hit) {
-      const nextPos = {
-        x: currentPos.x + dir.x * CELL_SIZE,
-        y: currentPos.y + dir.y * CELL_SIZE
+    for (let step = 0; step < maxSteps && !hit; step++) {
+      currentPos = {
+        x: currentPos.x + dir.x * stepSize,
+        y: currentPos.y + dir.y * stepSize
       };
-
-      const nextGrid = pixelToGrid(nextPos);
-      
-      if (!isInBounds(nextGrid)) {
-        segments.push({
-          start: { ...ray.position },
-          end: { ...nextPos },
-          intensity: ray.intensity
-        });
-        break;
-      }
 
       const baseA = getBasePosition('playerA');
       const baseB = getBasePosition('playerB');
-      
-      if (Math.hypot(nextPos.x - baseA.x, nextPos.y - baseA.y) < 20) {
+
+      if (Math.hypot(currentPos.x - baseA.x, currentPos.y - baseA.y) < 20) {
         segments.push({
           start: { ...ray.position },
           end: { ...baseA },
@@ -225,8 +240,8 @@ function simulateLaser(firingPlayer, elements) {
         hit = true;
         break;
       }
-      
-      if (Math.hypot(nextPos.x - baseB.x, nextPos.y - baseB.y) < 20) {
+
+      if (Math.hypot(currentPos.x - baseB.x, currentPos.y - baseB.y) < 20) {
         segments.push({
           start: { ...ray.position },
           end: { ...baseB },
@@ -238,52 +253,67 @@ function simulateLaser(firingPlayer, elements) {
         break;
       }
 
-      const element = getElementAt(nextGrid, elements);
-      
-      if (element) {
-        const elementCenter = gridToPixel(element.position);
-        
+      if (currentPos.x < -50 || currentPos.x > BOARD_SIZE_PX + 50 ||
+          currentPos.y < -50 || currentPos.y > BOARD_SIZE_PX + 50) {
         segments.push({
           start: { ...ray.position },
-          end: { ...elementCenter },
+          end: { ...currentPos },
           intensity: ray.intensity
         });
-
-        if (element.type === 'mirror' && element.orientation) {
-          const newDir = reflectDirection(ray.direction, element.orientation);
-          rays.push({
-            position: { ...elementCenter },
-            direction: newDir,
-            intensity: ray.intensity
-          });
-        } else if (element.type === 'prism') {
-          const [dir1, dir2] = splitDirection(ray.direction);
-          const newIntensity = ray.intensity * 0.7;
-          rays.push({
-            position: { ...elementCenter },
-            direction: dir1,
-            intensity: newIntensity
-          });
-          rays.push({
-            position: { ...elementCenter },
-            direction: dir2,
-            intensity: newIntensity
-          });
-        } else if (element.type === 'blocker') {
-          particles.push({
-            id: `particle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            position: { ...elementCenter },
-            color: '#87CEEB',
-            createdAt: Date.now(),
-            duration: 500
-          });
-        }
-        
         hit = true;
         break;
       }
 
-      currentPos = nextPos;
+      const currentGrid = pixelToGrid(currentPos);
+      const gridChanged = currentGrid.x !== lastGrid.x || currentGrid.y !== lastGrid.y;
+
+      if (gridChanged && isInBounds(currentGrid)) {
+        const element = getElementAt(currentGrid, elements);
+        if (element) {
+          const elementCenter = gridToPixel(element.position);
+
+          segments.push({
+            start: { ...ray.position },
+            end: { ...elementCenter },
+            intensity: ray.intensity
+          });
+
+          if (element.type === 'mirror' && element.orientation) {
+            const newDir = reflectMirror(vecNormalize(ray.direction), element.orientation);
+            rays.push({
+              position: { ...elementCenter },
+              direction: newDir,
+              intensity: ray.intensity * 0.95
+            });
+          } else if (element.type === 'prism') {
+            const [dir1, dir2] = splitPrism(vecNormalize(ray.direction));
+            const newIntensity = ray.intensity * 0.7;
+            rays.push({
+              position: { ...elementCenter },
+              direction: dir1,
+              intensity: newIntensity
+            });
+            rays.push({
+              position: { ...elementCenter },
+              direction: dir2,
+              intensity: newIntensity
+            });
+          } else if (element.type === 'blocker') {
+            particles.push({
+              id: `particle-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              position: { ...elementCenter },
+              color: '#87CEEB',
+              createdAt: Date.now(),
+              duration: 500
+            });
+          }
+
+          hit = true;
+          break;
+        }
+      }
+
+      lastGrid = currentGrid;
     }
   }
 
@@ -336,6 +366,22 @@ function createRoomState() {
   };
 }
 
+function broadcastFullState(roomCode, room) {
+  const gs = room.gameState;
+  io.to(roomCode).emit('game:state', {
+    phase: gs.phase,
+    currentTurn: gs.currentTurn,
+    turnPhase: gs.turnPhase,
+    round: gs.round,
+    timeRemaining: gs.timeRemaining,
+    players: gs.players,
+    elements: gs.elements,
+    laserResult: gs.laserResult,
+    isFiring: gs.isFiring,
+    winner: gs.winner
+  });
+}
+
 function startTurnTimer(roomCode, room) {
   if (room.turnTimer) {
     clearInterval(room.turnTimer);
@@ -352,6 +398,7 @@ function startTurnTimer(roomCode, room) {
 
     if (room.gameState.timeRemaining <= 0) {
       clearInterval(room.turnTimer);
+      room.turnTimer = null;
       autoFireLaser(roomCode, room);
     }
   }, 1000);
@@ -391,15 +438,12 @@ function handleFireLaser(roomCode, room) {
   }
 
   io.to(roomCode).emit('laser:fired', result);
-  io.to(roomCode).emit('game:state', {
-    turnPhase: 'fire',
-    isFiring: true,
-    laserResult: result,
-    players: room.gameState.players
-  });
+
+  broadcastFullState(roomCode, room);
 
   setTimeout(() => {
     room.gameState.isFiring = false;
+    room.gameState.turnPhase = 'resolve';
     nextTurn(roomCode, room);
   }, 2000);
 }
@@ -428,14 +472,7 @@ function nextTurn(roomCode, room) {
     time: TURN_DURATION
   });
 
-  io.to(roomCode).emit('game:state', {
-    currentTurn: nextPlayer,
-    turnPhase: 'adjust',
-    round: newRound,
-    timeRemaining: TURN_DURATION,
-    laserResult: null,
-    isFiring: false
-  });
+  broadcastFullState(roomCode, room);
 
   startTurnTimer(roomCode, room);
 }
@@ -447,6 +484,9 @@ function endGame(roomCode, room) {
   }
 
   room.gameState.phase = 'ended';
+  room.gameState.laserResult = null;
+  room.gameState.isFiring = false;
+  room.gameState.turnPhase = 'resolve';
   
   const playerA = room.gameState.players.playerA;
   const playerB = room.gameState.players.playerB;
@@ -467,10 +507,8 @@ function endGame(roomCode, room) {
   room.gameState.winner = winner;
 
   io.to(roomCode).emit('game:end', { winner });
-  io.to(roomCode).emit('game:state', {
-    phase: 'ended',
-    winner
-  });
+
+  broadcastFullState(roomCode, room);
 }
 
 function restartGame(roomCode, room) {
@@ -507,6 +545,8 @@ function restartGame(roomCode, room) {
 
   io.to(roomCode).emit('game:start', room.gameState);
   
+  broadcastFullState(roomCode, room);
+
   setTimeout(() => {
     startTurnTimer(roomCode, room);
   }, 500);
@@ -560,9 +600,7 @@ io.on('connection', (socket) => {
 
     socket.emit('room:joined', { roomCode, player });
     
-    io.to(roomCode).emit('game:state', {
-      players: room.gameState.players
-    });
+    broadcastFullState(roomCode, room);
 
     console.log(`Player ${player} joined room ${roomCode}`);
 
@@ -572,6 +610,8 @@ io.on('connection', (socket) => {
       room.gameState.phase = 'playing';
       io.to(roomCode).emit('game:start', room.gameState);
       
+      broadcastFullState(roomCode, room);
+
       setTimeout(() => {
         startTurnTimer(roomCode, room);
       }, 1000);
@@ -590,11 +630,15 @@ io.on('connection', (socket) => {
     if (!element || !element.movable || element.owner !== player) return;
 
     const midpoint = GRID_SIZE / 2;
-    const isInCorrectHalf = player === 'playerA' 
-      ? data.position.y >= midpoint 
-      : data.position.y < midpoint;
     
-    if (!isInCorrectHalf) return;
+    if (player === 'playerA') {
+      if (data.position.y < midpoint || data.position.x >= midpoint) return;
+    } else {
+      if (data.position.y >= midpoint || data.position.x < midpoint) return;
+    }
+
+    if (data.position.x < 0 || data.position.x >= GRID_SIZE || 
+        data.position.y < 0 || data.position.y >= GRID_SIZE) return;
 
     const isOccupied = room.gameState.elements.some(e => 
       e.id !== data.elementId && 
@@ -609,6 +653,10 @@ io.on('connection', (socket) => {
     );
 
     io.to(roomCode).emit('element:moved', data);
+
+    io.to(roomCode).emit('game:state', {
+      elements: room.gameState.elements
+    });
   });
 
   socket.on('laser:fire', () => {
@@ -645,9 +693,7 @@ io.on('connection', (socket) => {
           room.turnTimer = null;
         }
 
-        io.to(roomCode).emit('game:state', {
-          players: room.gameState.players
-        });
+        broadcastFullState(roomCode, room);
 
         if (!room.players.playerA && !room.players.playerB) {
           setTimeout(() => {

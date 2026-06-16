@@ -141,22 +141,47 @@ function createInitialState(): GameState {
   };
 }
 
+function easeOutElastic(t: number): number {
+  const c4 = (2 * Math.PI) / 3;
+  return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+}
+
+function isInPlayerHalf(position: GridCoord, player: 'playerA' | 'playerB' | 'neutral'): boolean {
+  if (player === 'neutral') return true;
+  const midpoint = GRID_SIZE / 2;
+  if (player === 'playerA') {
+    return position.y >= midpoint;
+  } else {
+    return position.y < midpoint;
+  }
+}
+
+function snapToGridImpl(pixelPos: PixelCoord): GridCoord | null {
+  const gridPos = pixelToGrid(pixelPos);
+  const gridCenter = gridToPixel(gridPos);
+  const distance = Math.hypot(pixelPos.x - gridCenter.x, pixelPos.y - gridCenter.y);
+  
+  if (distance <= SNAP_THRESHOLD) {
+    if (gridPos.x >= 0 && gridPos.x < GRID_SIZE && gridPos.y >= 0 && gridPos.y < GRID_SIZE) {
+      return gridPos;
+    }
+  }
+  return null;
+}
+
 interface BoardStore extends GameState {
   animations: DragAnimationState;
   setRoomCode: (code: string) => void;
   setLocalPlayer: (player: 'playerA' | 'playerB') => void;
   setPlayerConnected: (player: 'playerA' | 'playerB', connected: boolean) => void;
   startGame: () => void;
-  moveElement: (elementId: string, position: GridCoord, withAnimation?: boolean) => boolean;
-  tryMoveElementWithSnap: (elementId: string, pixelPos: PixelCoord, localPlayer: 'playerA' | 'playerB' | null) => boolean;
+  moveElement: (elementId: string, targetPosition: GridCoord | PixelCoord, localPlayer?: 'playerA' | 'playerB' | null) => boolean;
   startAnimation: (elementId: string, fromPos: PixelCoord, toPos: PixelCoord) => void;
   updateAnimations: () => void;
   isAnimating: (elementId: string) => boolean;
   getAnimatedPosition: (elementId: string) => PixelCoord | null;
   canMoveElement: (elementId: string, localPlayer: 'playerA' | 'playerB' | null) => boolean;
-  snapToGrid: (pixelPos: PixelCoord) => GridCoord | null;
   isPositionOccupied: (position: GridCoord, excludeId?: string) => boolean;
-  isInPlayerHalf: (position: GridCoord, player: 'playerA' | 'playerB') => boolean;
   setLaserResult: (result: LaserResult | null) => void;
   setIsFiring: (firing: boolean) => void;
   setTurn: (turn: 'playerA' | 'playerB', phase: TurnPhase, time: number) => void;
@@ -166,11 +191,6 @@ interface BoardStore extends GameState {
   endGame: (winner: 'playerA' | 'playerB' | 'draw') => void;
   resetGame: () => void;
   setState: (state: Partial<GameState>) => void;
-}
-
-function easeOutElastic(t: number): number {
-  const c4 = (2 * Math.PI) / 3;
-  return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
 }
 
 export const useBoardStore = create<BoardStore>((set, get) => ({
@@ -203,44 +223,75 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
     animations: {}
   }),
 
-  moveElement: (elementId: string, position: GridCoord, withAnimation: boolean = true): boolean => {
+  moveElement: (elementId: string, targetPosition: GridCoord | PixelCoord, localPlayer?: 'playerA' | 'playerB' | null): boolean => {
     const state = get();
     const element = state.elements.find(e => e.id === elementId);
     
     if (!element || !element.movable) return false;
-    if (state.isPositionOccupied(position, elementId)) return false;
+    
+    if (localPlayer && element.owner !== 'neutral' && element.owner !== localPlayer) return false;
 
-    const oldPixelPos = gridToPixel(element.position);
-    const newPixelPos = gridToPixel(position);
-
-    if (withAnimation && (oldPixelPos.x !== newPixelPos.x || oldPixelPos.y !== newPixelPos.y)) {
-      state.startAnimation(elementId, oldPixelPos, newPixelPos);
+    let gridPos: GridCoord;
+    
+    if ('x' in targetPosition && 'y' in targetPosition) {
+      const hasGridProps = typeof (targetPosition as any).x === 'number' && typeof (targetPosition as any).y === 'number';
+      
+      if (hasGridProps && (targetPosition as any).x < GRID_SIZE && (targetPosition as any).y < GRID_SIZE) {
+        const pixelCenter = gridToPixel(targetPosition as GridCoord);
+        const distance = Math.hypot(
+          (targetPosition as PixelCoord).x - pixelCenter.x,
+          (targetPosition as PixelCoord).y - pixelCenter.y
+        );
+        
+        if (distance > SNAP_THRESHOLD) {
+          const snapped = snapToGridImpl(targetPosition as PixelCoord);
+          if (!snapped) return false;
+          gridPos = snapped;
+        } else {
+          gridPos = targetPosition as GridCoord;
+        }
+      } else {
+        const snapped = snapToGridImpl(targetPosition as PixelCoord);
+        if (!snapped) return false;
+        gridPos = snapped;
+      }
+    } else {
+      return false;
     }
 
-    set(state => ({
-      elements: state.elements.map(e =>
-        e.id === elementId ? { ...e, position } : e
-      )
-    }));
+    if (gridPos.x < 0 || gridPos.x >= GRID_SIZE || gridPos.y < 0 || gridPos.y >= GRID_SIZE) return false;
+    if (!isInPlayerHalf(gridPos, element.owner)) return false;
+    if (state.isPositionOccupied(gridPos, elementId)) return false;
+
+    const oldPixelPos = gridToPixel(element.position);
+    const newPixelPos = gridToPixel(gridPos);
+
+    if (oldPixelPos.x !== newPixelPos.x || oldPixelPos.y !== newPixelPos.y) {
+      const animStart = Date.now();
+      set(s => ({
+        elements: s.elements.map(e =>
+          e.id === elementId ? { ...e, position: gridPos } : e
+        ),
+        animations: {
+          ...s.animations,
+          [elementId]: {
+            elementId,
+            fromPos: oldPixelPos,
+            toPos: newPixelPos,
+            startTime: animStart,
+            duration: 200
+          }
+        }
+      }));
+    } else {
+      set(s => ({
+        elements: s.elements.map(e =>
+          e.id === elementId ? { ...e, position: gridPos } : e
+        )
+      }));
+    }
     
     return true;
-  },
-
-  tryMoveElementWithSnap: (elementId: string, pixelPos: PixelCoord, localPlayer: 'playerA' | 'playerB' | null): boolean => {
-    const state = get();
-    const element = state.elements.find(e => e.id === elementId);
-    
-    if (!element) return false;
-    if (!state.canMoveElement(elementId, localPlayer)) return false;
-    if (state.phase !== 'playing' || state.turnPhase !== 'adjust') return false;
-
-    const snappedPos = state.snapToGrid(pixelPos);
-    if (!snappedPos) return false;
-
-    if (element.owner !== 'neutral' && !state.isInPlayerHalf(snappedPos, element.owner)) return false;
-    if (state.isPositionOccupied(snappedPos, elementId)) return false;
-
-    return state.moveElement(elementId, snappedPos, true);
   },
 
   startAnimation: (elementId: string, fromPos: PixelCoord, toPos: PixelCoord) => {
@@ -307,32 +358,10 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
     return element.owner === localPlayer;
   },
 
-  snapToGrid: (pixelPos: PixelCoord) => {
-    const gridPos = pixelToGrid(pixelPos);
-    const gridCenter = gridToPixel(gridPos);
-    const distance = Math.hypot(pixelPos.x - gridCenter.x, pixelPos.y - gridCenter.y);
-    
-    if (distance <= SNAP_THRESHOLD) {
-      if (gridPos.x >= 0 && gridPos.x < GRID_SIZE && gridPos.y >= 0 && gridPos.y < GRID_SIZE) {
-        return gridPos;
-      }
-    }
-    return null;
-  },
-
   isPositionOccupied: (position: GridCoord, excludeId?: string) => {
     return get().elements.some(e => 
       e.id !== excludeId && e.position.x === position.x && e.position.y === position.y
     );
-  },
-
-  isInPlayerHalf: (position: GridCoord, player: 'playerA' | 'playerB') => {
-    const midpoint = GRID_SIZE / 2;
-    if (player === 'playerA') {
-      return position.y >= midpoint;
-    } else {
-      return position.y < midpoint;
-    }
   },
 
   setLaserResult: (result: LaserResult | null) => set({ laserResult: result }),

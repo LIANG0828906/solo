@@ -1,7 +1,7 @@
 import { useBoardStore } from '../game/board';
 import { moveElement as sendMoveElement, fireLaser as sendFireLaser, restartGame as sendRestartGame } from './roomManager';
-import type { GridCoord, GameState, OpticalElement } from '../game/types';
-import { GRID_SIZE } from '../game/types';
+import type { GridCoord, GameState, OpticalElement, PixelCoord } from '../game/types';
+import { GRID_SIZE, CELL_SIZE } from '../game/types';
 
 let unsubscribe: (() => void) | null = null;
 let lastElementsHash = '';
@@ -27,23 +27,37 @@ export function serializeState(): Partial<GameState> {
     elements: state.elements.map(e => ({
       id: e.id,
       type: e.type,
-      position: { ...e.position },
+      position: { x: e.position.x, y: e.position.y },
       orientation: e.orientation,
       movable: e.movable,
       owner: e.owner
     })) as OpticalElement[],
     players: {
-      playerA: { ...state.players.playerA },
-      playerB: { ...state.players.playerB }
+      playerA: { 
+        id: state.players.playerA.id,
+        name: state.players.playerA.name,
+        lives: state.players.playerA.lives,
+        score: state.players.playerA.score,
+        connected: state.players.playerA.connected
+      },
+      playerB: { 
+        id: state.players.playerB.id,
+        name: state.players.playerB.name,
+        lives: state.players.playerB.lives,
+        score: state.players.playerB.score,
+        connected: state.players.playerB.connected
+      }
     },
     isFiring: state.isFiring,
-    winner: state.winner
+    laserResult: state.laserResult,
+    winner: state.winner,
+    roomCode: state.roomCode,
+    localPlayer: state.localPlayer
   };
 }
 
 export function deserializeState(partialState: Partial<GameState>): void {
   const state = useBoardStore.getState();
-  
   const validUpdates: Partial<GameState> = {};
   
   if (partialState.phase !== undefined && ['matching', 'playing', 'ended'].includes(partialState.phase)) {
@@ -79,8 +93,16 @@ export function deserializeState(partialState: Partial<GameState>): void {
     validUpdates.winner = partialState.winner;
   }
   
+  if (partialState.roomCode !== undefined && typeof partialState.roomCode === 'string') {
+    validUpdates.roomCode = partialState.roomCode;
+  }
+  
+  if (partialState.localPlayer !== undefined) {
+    validUpdates.localPlayer = partialState.localPlayer;
+  }
+  
   if (partialState.players) {
-    validUpdates.players = state.players;
+    validUpdates.players = { ...state.players };
     
     if (partialState.players.playerA) {
       const pA = partialState.players.playerA;
@@ -111,14 +133,14 @@ export function deserializeState(partialState: Partial<GameState>): void {
       if (e.position.x < 0 || e.position.x >= GRID_SIZE) return false;
       if (e.position.y < 0 || e.position.y >= GRID_SIZE) return false;
       return true;
-    });
+    }) as OpticalElement[];
     
     if (validElements.length > 0) {
-      validUpdates.elements = validElements as OpticalElement[];
+      validUpdates.elements = validElements;
     }
   }
   
-  if (partialState.laserResult) {
+  if (partialState.laserResult !== undefined) {
     validUpdates.laserResult = partialState.laserResult;
   }
   
@@ -169,12 +191,21 @@ export function validateElementMove(
   }
   
   const midpoint = GRID_SIZE / 2;
-  const isInCorrectHalf = localPlayer === 'playerA' 
-    ? position.y >= midpoint 
-    : position.y < midpoint;
   
-  if (!isInCorrectHalf) {
-    return { valid: false, reason: '不能移动到对方半场' };
+  if (localPlayer === 'playerA') {
+    if (position.y < midpoint) {
+      return { valid: false, reason: '不能移动到对方半场' };
+    }
+    if (position.x >= midpoint) {
+      return { valid: false, reason: '不能移动到对方半场' };
+    }
+  } else {
+    if (position.y >= midpoint) {
+      return { valid: false, reason: '不能移动到对方半场' };
+    }
+    if (position.x < midpoint) {
+      return { valid: false, reason: '不能移动到对方半场' };
+    }
   }
   
   const isOccupied = state.elements.some(e => 
@@ -232,14 +263,12 @@ export function syncElementMove(elementId: string, position: GridCoord): boolean
     return false;
   }
   
-  const moved = state.tryMoveElementWithSnap(
-    elementId, 
-    { 
-      x: position.x * 80 + 40, 
-      y: position.y * 80 + 40 
-    },
-    localPlayer
-  );
+  const pixelCenter: PixelCoord = {
+    x: position.x * CELL_SIZE + CELL_SIZE / 2,
+    y: position.y * CELL_SIZE + CELL_SIZE / 2
+  };
+  
+  const moved = state.moveElement(elementId, pixelCenter, localPlayer);
   
   if (moved) {
     sendMoveElement(elementId, position);

@@ -1,6 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import GameCanvas from './components/GameCanvas';
-import PlayerPanel from './components/PlayerPanel';
+import HUDPanel from './components/HUDPanel';
 import MatchModal from './components/MatchModal';
 import ResultModal from './components/ResultModal';
 import { useBoardStore } from './game/board';
@@ -91,9 +91,9 @@ const App: React.FC = () => {
         </header>
 
         <main className="flex-1 flex items-center justify-center gap-8 px-8 py-6">
-          <PlayerPanel player="playerA" />
+          <HUDPanel player="playerA" />
           <GameCanvas />
-          <PlayerPanel player="playerB" />
+          <HUDPanel player="playerB" />
         </main>
 
         <footer className="px-8 py-4 border-t border-white/5">

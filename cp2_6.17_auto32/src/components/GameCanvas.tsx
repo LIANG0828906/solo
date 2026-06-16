@@ -63,7 +63,7 @@ const GameCanvas: React.FC = () => {
     phase,
     winner,
     canMoveElement,
-    tryMoveElementWithSnap,
+    moveElement,
     getAnimatedPosition,
     isAnimating,
     updateAnimations,
@@ -681,7 +681,7 @@ const GameCanvas: React.FC = () => {
     const elementId = dragStateRef.current.elementId!;
     const finalPos = dragStateRef.current.currentPosition;
 
-    const moved = tryMoveElementWithSnap(elementId, finalPos, localPlayer);
+    const moved = moveElement(elementId, finalPos, localPlayer);
 
     if (moved) {
       const element = elements.find(e => e.id === elementId);
@@ -696,7 +696,7 @@ const GameCanvas: React.FC = () => {
       offset: { x: 0, y: 0 },
       currentPosition: { x: 0, y: 0 }
     });
-  }, [tryMoveElementWithSnap, localPlayer, elements]);
+  }, [moveElement, localPlayer, elements]);
 
   return (
     <canvas

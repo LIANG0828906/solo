@@ -8,10 +8,77 @@ import type {
 } from './types';
 import { GRID_SIZE, CELL_SIZE, COLORS } from './types';
 
+interface Vec2 {
+  x: number;
+  y: number;
+}
+
 interface Ray {
   position: PixelCoord;
-  angle: number;
+  direction: Vec2;
   intensity: number;
+}
+
+const MIRROR_NORMALS: Record<string, Vec2> = {
+  'nw-se': { x: 1, y: -1 },
+  'ne-sw': { x: -1, y: -1 }
+};
+
+const PRISM_NORMALS: Record<string, Vec2> = {
+  'default-left': { x: -0.5, y: -0.866 },
+  'default-right': { x: 0.5, y: -0.866 }
+};
+
+function vecNormalize(v: Vec2): Vec2 {
+  const len = Math.hypot(v.x, v.y);
+  if (len < 1e-10) return { x: 0, y: 0 };
+  return { x: v.x / len, y: v.y / len };
+}
+
+function vecDot(a: Vec2, b: Vec2): number {
+  return a.x * b.x + a.y * b.y;
+}
+
+function vecScale(v: Vec2, s: number): Vec2 {
+  return { x: v.x * s, y: v.y * s };
+}
+
+function vecAdd(a: Vec2, b: Vec2): Vec2 {
+  return { x: a.x + b.x, y: a.y + b.y };
+}
+
+function vecSub(a: Vec2, b: Vec2): Vec2 {
+  return { x: a.x - b.x, y: a.y - b.y };
+}
+
+function reflectVector(incident: Vec2, normal: Vec2): Vec2 {
+  const n = vecNormalize(normal);
+  const d = vecDot(incident, n);
+  return vecSub(incident, vecScale(n, 2 * d));
+}
+
+function rotateVector(v: Vec2, angleRad: number): Vec2 {
+  const cos = Math.cos(angleRad);
+  const sin = Math.sin(angleRad);
+  return {
+    x: v.x * cos - v.y * sin,
+    y: v.x * sin + v.y * cos
+  };
+}
+
+function reflectMirror(incidentDir: Vec2, orientation: 'nw-se' | 'ne-sw'): Vec2 {
+  const normal = vecNormalize(MIRROR_NORMALS[orientation]);
+  const dot = vecDot(incidentDir, normal);
+  const usedNormal = dot < 0 ? normal : vecScale(normal, -1);
+  const result = reflectVector(incidentDir, usedNormal);
+  return vecNormalize(result);
+}
+
+function splitPrism(incidentDir: Vec2): [Vec2, Vec2] {
+  const splitAngle = (60 * Math.PI) / 180;
+  const dir1 = vecNormalize(rotateVector(incidentDir, splitAngle));
+  const dir2 = vecNormalize(rotateVector(incidentDir, -splitAngle));
+  return [dir1, dir2];
 }
 
 function gridToPixel(grid: GridCoord, center = true): PixelCoord {
@@ -53,21 +120,8 @@ function getLaserStartPosition(player: 'playerA' | 'playerB'): PixelCoord {
   }
 }
 
-function getInitialAngle(player: 'playerA' | 'playerB'): number {
-  return player === 'playerA' ? -Math.PI / 2 : Math.PI / 2;
-}
-
-function reflectMirror(angle: number, orientation: 'nw-se' | 'ne-sw'): number {
-  if (orientation === 'nw-se') {
-    return -angle + Math.PI / 2;
-  } else {
-    return -angle - Math.PI / 2;
-  }
-}
-
-function splitPrism(angle: number): [number, number] {
-  const splitAngle = (60 * Math.PI) / 180;
-  return [angle - splitAngle, angle + splitAngle];
+function getInitialDirection(player: 'playerA' | 'playerB'): Vec2 {
+  return player === 'playerA' ? { x: 0, y: -1 } : { x: 0, y: 1 };
 }
 
 function createParticle(position: PixelCoord): ParticleEffect {
@@ -79,6 +133,8 @@ function createParticle(position: PixelCoord): ParticleEffect {
     duration: 500
   };
 }
+
+const BOARD_SIZE_PX = GRID_SIZE * CELL_SIZE;
 
 interface RayTraceResult {
   endPoint: PixelCoord;
@@ -92,8 +148,7 @@ function traceRaySegment(
   elements: OpticalElement[],
   maxDistance: number = 2000
 ): RayTraceResult {
-  const dx = Math.cos(startRay.angle);
-  const dy = Math.sin(startRay.angle);
+  const dir = vecNormalize(startRay.direction);
   const stepSize = 2;
   const maxSteps = maxDistance / stepSize;
   
@@ -102,39 +157,24 @@ function traceRaySegment(
   
   for (let step = 0; step < maxSteps; step++) {
     currentPos = {
-      x: currentPos.x + dx * stepSize,
-      y: currentPos.y + dy * stepSize
+      x: currentPos.x + dir.x * stepSize,
+      y: currentPos.y + dir.y * stepSize
     };
     
     const baseA = getBasePosition('playerA');
     const baseB = getBasePosition('playerB');
     
     if (Math.hypot(currentPos.x - baseA.x, currentPos.y - baseA.y) < 20) {
-      return {
-        endPoint: { ...baseA },
-        hitElement: null,
-        hitBase: 'playerA',
-        outOfBounds: false
-      };
+      return { endPoint: { ...baseA }, hitElement: null, hitBase: 'playerA', outOfBounds: false };
     }
     
     if (Math.hypot(currentPos.x - baseB.x, currentPos.y - baseB.y) < 20) {
-      return {
-        endPoint: { ...baseB },
-        hitElement: null,
-        hitBase: 'playerB',
-        outOfBounds: false
-      };
+      return { endPoint: { ...baseB }, hitElement: null, hitBase: 'playerB', outOfBounds: false };
     }
     
     if (currentPos.x < -50 || currentPos.x > BOARD_SIZE_PX + 50 ||
         currentPos.y < -50 || currentPos.y > BOARD_SIZE_PX + 50) {
-      return {
-        endPoint: { ...currentPos },
-        hitElement: null,
-        hitBase: null,
-        outOfBounds: true
-      };
+      return { endPoint: { ...currentPos }, hitElement: null, hitBase: null, outOfBounds: true };
     }
     
     const currentGrid = pixelToGrid(currentPos);
@@ -144,27 +184,15 @@ function traceRaySegment(
       const element = getElementAt(currentGrid, elements);
       if (element) {
         const elementCenter = gridToPixel(element.position);
-        return {
-          endPoint: { ...elementCenter },
-          hitElement: element,
-          hitBase: null,
-          outOfBounds: false
-        };
+        return { endPoint: { ...elementCenter }, hitElement: element, hitBase: null, outOfBounds: false };
       }
     }
     
     lastGrid = currentGrid;
   }
   
-  return {
-    endPoint: { ...currentPos },
-    hitElement: null,
-    hitBase: null,
-    outOfBounds: true
-  };
+  return { endPoint: { ...currentPos }, hitElement: null, hitBase: null, outOfBounds: true };
 }
-
-const BOARD_SIZE_PX = GRID_SIZE * CELL_SIZE;
 
 function traceRays(
   startRay: Ray,
@@ -173,13 +201,15 @@ function traceRays(
 ): { segments: LaserSegment[]; hitBase: 'playerA' | 'playerB' | null; particles: ParticleEffect[] } {
   const segments: LaserSegment[] = [];
   const particles: ParticleEffect[] = [];
-  const rays: Ray[] = [{ ...startRay }];
+  const rays: Ray[] = [{ ...startRay, direction: { ...startRay.direction } }];
   let hitBase: 'playerA' | 'playerB' | null = null;
   const visited = new Set<string>();
   
   while (rays.length > 0 && segments.length < maxRays) {
     const ray = rays.shift()!;
-    const key = `${ray.position.x.toFixed(1)},${ray.position.y.toFixed(1)},${ray.angle.toFixed(3)}`;
+    const posKey = `${ray.position.x.toFixed(1)},${ray.position.y.toFixed(1)}`;
+    const dirKey = `${ray.direction.x.toFixed(3)},${ray.direction.y.toFixed(3)}`;
+    const key = `${posKey}|${dirKey}`;
     
     if (visited.has(key)) continue;
     if (rays.length > 20) break;
@@ -205,23 +235,23 @@ function traceRays(
     const element = result.hitElement;
     
     if (element.type === 'mirror' && element.orientation) {
-      const newAngle = reflectMirror(ray.angle, element.orientation);
+      const newDir = reflectMirror(vecNormalize(ray.direction), element.orientation);
       rays.push({
         position: { ...result.endPoint },
-        angle: newAngle,
+        direction: newDir,
         intensity: ray.intensity * 0.95
       });
     } else if (element.type === 'prism') {
-      const [angle1, angle2] = splitPrism(ray.angle);
+      const [dir1, dir2] = splitPrism(vecNormalize(ray.direction));
       const newIntensity = ray.intensity * 0.7;
       rays.push({
         position: { ...result.endPoint },
-        angle: angle1,
+        direction: dir1,
         intensity: newIntensity
       });
       rays.push({
         position: { ...result.endPoint },
-        angle: angle2,
+        direction: dir2,
         intensity: newIntensity
       });
     } else if (element.type === 'blocker') {
@@ -239,16 +269,15 @@ export function simulateLaser(
   const startTime = performance.now();
   
   const startPos = getLaserStartPosition(firingPlayer);
-  const initialAngle = getInitialAngle(firingPlayer);
+  const initialDir = getInitialDirection(firingPlayer);
   
   const initialRay: Ray = {
     position: startPos,
-    angle: initialAngle,
+    direction: initialDir,
     intensity: 1.0
   };
 
   const { segments, hitBase, particles } = traceRays(initialRay, elements);
-  
   const hitPosition = hitBase ? getBasePosition(hitBase) : null;
   
   const elapsed = performance.now() - startTime;
@@ -258,12 +287,7 @@ export function simulateLaser(
     console.debug(`Laser simulation took ${elapsed.toFixed(2)}ms`);
   }
 
-  return {
-    segments,
-    hitBase,
-    hitPosition,
-    particles
-  };
+  return { segments, hitBase, hitPosition, particles };
 }
 
 export function getLaserStartPositions(): { playerA: PixelCoord; playerB: PixelCoord } {
@@ -280,4 +304,4 @@ export function getBasePositions(): { playerA: PixelCoord; playerB: PixelCoord }
   };
 }
 
-export { gridToPixel, pixelToGrid };
+export { gridToPixel, pixelToGrid, reflectMirror, splitPrism };
