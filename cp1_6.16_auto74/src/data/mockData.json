@@ -1,0 +1,452 @@
+[
+  {
+    "id": "art-001",
+    "title": "晨曦微光",
+    "imageUrl": "https://picsum.photos/seed/art01/600/400",
+    "colorTags": ["#E07A5F", "#F2CC8F"],
+    "styleTags": ["水彩"],
+    "keywords": ["清晨", "光线", "温暖"],
+    "createdAt": "2025-12-15T08:30:00Z"
+  },
+  {
+    "id": "art-002",
+    "title": "山间薄雾",
+    "imageUrl": "https://picsum.photos/seed/art02/600/400",
+    "colorTags": ["#81B29A", "#3D405B"],
+    "styleTags": ["水彩"],
+    "keywords": ["山", "雾", "宁静"],
+    "createdAt": "2025-11-20T10:00:00Z"
+  },
+  {
+    "id": "art-003",
+    "title": "海浪之歌",
+    "imageUrl": "https://picsum.photos/seed/art03/600/400",
+    "colorTags": ["#457B9D", "#A8DADC"],
+    "styleTags": ["油画"],
+    "keywords": ["海洋", "波浪", "蓝色"],
+    "createdAt": "2025-10-05T14:20:00Z"
+  },
+  {
+    "id": "art-004",
+    "title": "秋叶纷飞",
+    "imageUrl": "https://picsum.photos/seed/art04/600/400",
+    "colorTags": ["#E07A5F", "#E9C46A", "#F2CC8F"],
+    "styleTags": ["板绘"],
+    "keywords": ["秋天", "落叶", "温暖"],
+    "createdAt": "2025-09-28T16:45:00Z"
+  },
+  {
+    "id": "art-005",
+    "title": "星空幻想",
+    "imageUrl": "https://picsum.photos/seed/art05/600/400",
+    "colorTags": ["#1D3557", "#264653"],
+    "styleTags": ["板绘"],
+    "keywords": ["星空", "夜晚", "梦幻"],
+    "createdAt": "2025-08-12T22:00:00Z"
+  },
+  {
+    "id": "art-006",
+    "title": "花间漫步",
+    "imageUrl": "https://picsum.photos/seed/art06/600/400",
+    "colorTags": ["#E07A5F", "#81B29A", "#F4F1DE"],
+    "styleTags": ["水彩"],
+    "keywords": ["花", "春天", "漫步"],
+    "createdAt": "2025-07-05T09:15:00Z"
+  },
+  {
+    "id": "art-007",
+    "title": "古镇晨曲",
+    "imageUrl": "https://picsum.photos/seed/art07/600/400",
+    "colorTags": ["#3D405B", "#F4F1DE"],
+    "styleTags": ["素描"],
+    "keywords": ["古镇", "建筑", "清晨"],
+    "createdAt": "2025-06-18T07:30:00Z"
+  },
+  {
+    "id": "art-008",
+    "title": "雨后彩虹",
+    "imageUrl": "https://picsum.photos/seed/art08/600/400",
+    "colorTags": ["#E07A5F", "#81B29A", "#457B9D", "#E9C46A"],
+    "styleTags": ["水彩"],
+    "keywords": ["彩虹", "雨后", "希望"],
+    "createdAt": "2025-05-22T15:00:00Z"
+  },
+  {
+    "id": "art-009",
+    "title": "猫咪午后",
+    "imageUrl": "https://picsum.photos/seed/art09/600/400",
+    "colorTags": ["#F2CC8F", "#F4F1DE"],
+    "styleTags": ["板绘"],
+    "keywords": ["猫", "午后", "慵懒"],
+    "createdAt": "2025-04-10T13:00:00Z"
+  },
+  {
+    "id": "art-010",
+    "title": "森林秘境",
+    "imageUrl": "https://picsum.photos/seed/art10/600/400",
+    "colorTags": ["#81B29A", "#264653"],
+    "styleTags": ["油画"],
+    "keywords": ["森林", "神秘", "绿色"],
+    "createdAt": "2025-03-15T11:30:00Z"
+  },
+  {
+    "id": "art-011",
+    "title": "月下独酌",
+    "imageUrl": "https://picsum.photos/seed/art11/600/400",
+    "colorTags": ["#1D3557", "#F1FAEE"],
+    "styleTags": ["素描"],
+    "keywords": ["月光", "独处", "夜晚"],
+    "createdAt": "2025-02-28T21:00:00Z"
+  },
+  {
+    "id": "art-012",
+    "title": "春风拂面",
+    "imageUrl": "https://picsum.photos/seed/art12/600/400",
+    "colorTags": ["#81B29A", "#F1FAEE", "#F2CC8F"],
+    "styleTags": ["水彩"],
+    "keywords": ["春天", "风", "温柔"],
+    "createdAt": "2025-01-20T10:00:00Z"
+  },
+  {
+    "id": "art-013",
+    "title": "城市黄昏",
+    "imageUrl": "https://picsum.photos/seed/art13/600/400",
+    "colorTags": ["#E07A5F", "#3D405B", "#F2CC8F"],
+    "styleTags": ["油画"],
+    "keywords": ["城市", "黄昏", "天际线"],
+    "createdAt": "2024-12-10T18:00:00Z"
+  },
+  {
+    "id": "art-014",
+    "title": "雪山倒影",
+    "imageUrl": "https://picsum.photos/seed/art14/600/400",
+    "colorTags": ["#A8DADC", "#1D3557", "#F1FAEE"],
+    "styleTags": ["板绘"],
+    "keywords": ["雪山", "倒影", "湖面"],
+    "createdAt": "2024-11-25T09:00:00Z"
+  },
+  {
+    "id": "art-015",
+    "title": "荷塘月色",
+    "imageUrl": "https://picsum.photos/seed/art15/600/400",
+    "colorTags": ["#81B29A", "#1D3557", "#F1FAEE"],
+    "styleTags": ["水彩"],
+    "keywords": ["荷花", "月光", "池塘"],
+    "createdAt": "2024-10-15T20:30:00Z"
+  },
+  {
+    "id": "art-016",
+    "title": "溪水潺潺",
+    "imageUrl": "https://picsum.photos/seed/art16/600/400",
+    "colorTags": ["#457B9D", "#81B29A"],
+    "styleTags": ["素描"],
+    "keywords": ["溪流", "石头", "自然"],
+    "createdAt": "2024-09-08T08:00:00Z"
+  },
+  {
+    "id": "art-017",
+    "title": "夕阳西下",
+    "imageUrl": "https://picsum.photos/seed/art17/600/400",
+    "colorTags": ["#E07A5F", "#E9C46A", "#3D405B"],
+    "styleTags": ["油画"],
+    "keywords": ["夕阳", "天际", "壮美"],
+    "createdAt": "2024-08-20T19:00:00Z"
+  },
+  {
+    "id": "art-018",
+    "title": "竹林深处",
+    "imageUrl": "https://picsum.photos/seed/art18/600/400",
+    "colorTags": ["#81B29A", "#264653"],
+    "styleTags": ["水彩"],
+    "keywords": ["竹子", "幽静", "东方"],
+    "createdAt": "2024-07-12T14:00:00Z"
+  },
+  {
+    "id": "art-019",
+    "title": "梦中花园",
+    "imageUrl": "https://picsum.photos/seed/art19/600/400",
+    "colorTags": ["#E07A5F", "#E9C46A", "#81B29A"],
+    "styleTags": ["拼贴"],
+    "keywords": ["花园", "梦境", "色彩"],
+    "createdAt": "2024-06-25T16:00:00Z"
+  },
+  {
+    "id": "art-020",
+    "title": "海边拾贝",
+    "imageUrl": "https://picsum.photos/seed/art20/600/400",
+    "colorTags": ["#A8DADC", "#F2CC8F", "#F1FAEE"],
+    "styleTags": ["水彩"],
+    "keywords": ["海边", "贝壳", "沙滩"],
+    "createdAt": "2024-05-18T11:00:00Z"
+  },
+  {
+    "id": "art-021",
+    "title": "云端漫步",
+    "imageUrl": "https://picsum.photos/seed/art21/600/400",
+    "colorTags": ["#F1FAEE", "#457B9D"],
+    "styleTags": ["板绘"],
+    "keywords": ["云", "天空", "自由"],
+    "createdAt": "2024-04-30T10:30:00Z"
+  },
+  {
+    "id": "art-022",
+    "title": "枫叶红了",
+    "imageUrl": "https://picsum.photos/seed/art22/600/400",
+    "colorTags": ["#E63946", "#E07A5F", "#F2CC8F"],
+    "styleTags": ["油画"],
+    "keywords": ["枫叶", "秋天", "红色"],
+    "createdAt": "2024-03-22T15:30:00Z"
+  },
+  {
+    "id": "art-023",
+    "title": "雨巷幽深",
+    "imageUrl": "https://picsum.photos/seed/art23/600/400",
+    "colorTags": ["#3D405B", "#264653"],
+    "styleTags": ["素描"],
+    "keywords": ["雨巷", "诗意", "江南"],
+    "createdAt": "2024-02-14T13:00:00Z"
+  },
+  {
+    "id": "art-024",
+    "title": "田野牧歌",
+    "imageUrl": "https://picsum.photos/seed/art24/600/400",
+    "colorTags": ["#81B29A", "#E9C46A"],
+    "styleTags": ["水彩"],
+    "keywords": ["田野", "牧歌", "乡村"],
+    "createdAt": "2024-01-08T09:00:00Z"
+  },
+  {
+    "id": "art-025",
+    "title": "湖光山色",
+    "imageUrl": "https://picsum.photos/seed/art25/600/400",
+    "colorTags": ["#457B9D", "#81B29A", "#F1FAEE"],
+    "styleTags": ["油画"],
+    "keywords": ["湖泊", "山", "宁静"],
+    "createdAt": "2023-12-20T14:30:00Z"
+  },
+  {
+    "id": "art-026",
+    "title": "晚霞满天",
+    "imageUrl": "https://picsum.photos/seed/art26/600/400",
+    "colorTags": ["#E07A5F", "#E63946", "#E9C46A"],
+    "styleTags": ["板绘"],
+    "keywords": ["晚霞", "天空", "壮丽"],
+    "createdAt": "2023-11-15T18:30:00Z"
+  },
+  {
+    "id": "art-027",
+    "title": "蝴蝶飞舞",
+    "imageUrl": "https://picsum.photos/seed/art27/600/400",
+    "colorTags": ["#E07A5F", "#F2CC8F", "#81B29A"],
+    "styleTags": ["拼贴"],
+    "keywords": ["蝴蝶", "飞舞", "花丛"],
+    "createdAt": "2023-10-05T10:00:00Z"
+  },
+  {
+    "id": "art-028",
+    "title": "古桥流水",
+    "imageUrl": "https://picsum.photos/seed/art28/600/400",
+    "colorTags": ["#3D405B", "#81B29A", "#F4F1DE"],
+    "styleTags": ["素描"],
+    "keywords": ["古桥", "流水", "古镇"],
+    "createdAt": "2023-09-18T08:30:00Z"
+  },
+  {
+    "id": "art-029",
+    "title": "雪夜归人",
+    "imageUrl": "https://picsum.photos/seed/art29/600/400",
+    "colorTags": ["#1D3557", "#F1FAEE", "#264653"],
+    "styleTags": ["水彩"],
+    "keywords": ["雪夜", "归途", "温暖"],
+    "createdAt": "2023-08-25T22:00:00Z"
+  },
+  {
+    "id": "art-030",
+    "title": "向日葵田",
+    "imageUrl": "https://picsum.photos/seed/art30/600/400",
+    "colorTags": ["#E9C46A", "#E07A5F", "#81B29A"],
+    "styleTags": ["油画"],
+    "keywords": ["向日葵", "阳光", "金色"],
+    "createdAt": "2023-07-10T12:00:00Z"
+  },
+  {
+    "id": "art-031",
+    "title": "紫藤花下",
+    "imageUrl": "https://picsum.photos/seed/art31/600/400",
+    "colorTags": ["#3D405B", "#81B29A", "#F4F1DE"],
+    "styleTags": ["水彩"],
+    "keywords": ["紫藤", "花架", "浪漫"],
+    "createdAt": "2023-06-22T15:00:00Z"
+  },
+  {
+    "id": "art-032",
+    "title": "碧海蓝天",
+    "imageUrl": "https://picsum.photos/seed/art32/600/400",
+    "colorTags": ["#457B9D", "#A8DADC", "#F1FAEE"],
+    "styleTags": ["板绘"],
+    "keywords": ["大海", "蓝天", "清澈"],
+    "createdAt": "2023-05-15T11:00:00Z"
+  },
+  {
+    "id": "art-033",
+    "title": "稻田金浪",
+    "imageUrl": "https://picsum.photos/seed/art33/600/400",
+    "colorTags": ["#E9C46A", "#81B29A"],
+    "styleTags": ["油画"],
+    "keywords": ["稻田", "丰收", "金色"],
+    "createdAt": "2023-04-08T09:30:00Z"
+  },
+  {
+    "id": "art-034",
+    "title": "峡谷晨雾",
+    "imageUrl": "https://picsum.photos/seed/art34/600/400",
+    "colorTags": ["#81B29A", "#264653", "#A8DADC"],
+    "styleTags": ["水彩"],
+    "keywords": ["峡谷", "晨雾", "壮观"],
+    "createdAt": "2023-03-20T07:00:00Z"
+  },
+  {
+    "id": "art-035",
+    "title": "灯塔守望",
+    "imageUrl": "https://picsum.photos/seed/art35/600/400",
+    "colorTags": ["#3D405B", "#E07A5F", "#A8DADC"],
+    "styleTags": ["素描"],
+    "keywords": ["灯塔", "海岸", "守望"],
+    "createdAt": "2023-02-14T16:00:00Z"
+  },
+  {
+    "id": "art-036",
+    "title": "樱花飘落",
+    "imageUrl": "https://picsum.photos/seed/art36/600/400",
+    "colorTags": ["#F4F1DE", "#E07A5F", "#F1FAEE"],
+    "styleTags": ["板绘"],
+    "keywords": ["樱花", "春天", "日本"],
+    "createdAt": "2023-01-28T10:00:00Z"
+  },
+  {
+    "id": "art-037",
+    "title": "沙漠绿洲",
+    "imageUrl": "https://picsum.photos/seed/art37/600/400",
+    "colorTags": ["#E9C46A", "#81B29A"],
+    "styleTags": ["油画"],
+    "keywords": ["沙漠", "绿洲", "生命"],
+    "createdAt": "2022-12-15T14:00:00Z"
+  },
+  {
+    "id": "art-038",
+    "title": "冰川之旅",
+    "imageUrl": "https://picsum.photos/seed/art38/600/400",
+    "colorTags": ["#A8DADC", "#1D3557", "#F1FAEE"],
+    "styleTags": ["板绘"],
+    "keywords": ["冰川", "探险", "蓝色"],
+    "createdAt": "2022-11-10T08:00:00Z"
+  },
+  {
+    "id": "art-039",
+    "title": "热带雨林",
+    "imageUrl": "https://picsum.photos/seed/art39/600/400",
+    "colorTags": ["#81B29A", "#264653", "#E9C46A"],
+    "styleTags": ["拼贴"],
+    "keywords": ["热带", "雨林", "生态"],
+    "createdAt": "2022-10-05T13:00:00Z"
+  },
+  {
+    "id": "art-040",
+    "title": "极光之舞",
+    "imageUrl": "https://picsum.photos/seed/art40/600/400",
+    "colorTags": ["#1D3557", "#81B29A", "#E07A5F"],
+    "styleTags": ["板绘"],
+    "keywords": ["极光", "北极", "奇幻"],
+    "createdAt": "2022-09-18T23:00:00Z"
+  },
+  {
+    "id": "art-041",
+    "title": "火山日出",
+    "imageUrl": "https://picsum.photos/seed/art41/600/400",
+    "colorTags": ["#E63946", "#E07A5F", "#3D405B"],
+    "styleTags": ["油画"],
+    "keywords": ["火山", "日出", "力量"],
+    "createdAt": "2022-08-22T06:00:00Z"
+  },
+  {
+    "id": "art-042",
+    "title": "珊瑚海底",
+    "imageUrl": "https://picsum.photos/seed/art42/600/400",
+    "colorTags": ["#E07A5F", "#457B9D", "#A8DADC"],
+    "styleTags": ["水彩"],
+    "keywords": ["珊瑚", "海底", "多彩"],
+    "createdAt": "2022-07-15T11:30:00Z"
+  },
+  {
+    "id": "art-043",
+    "title": "草原骏马",
+    "imageUrl": "https://picsum.photos/seed/art43/600/400",
+    "colorTags": ["#81B29A", "#3D405B", "#F2CC8F"],
+    "styleTags": ["素描"],
+    "keywords": ["草原", "马", "自由"],
+    "createdAt": "2022-06-08T09:00:00Z"
+  },
+  {
+    "id": "art-044",
+    "title": "梯田晨光",
+    "imageUrl": "https://picsum.photos/seed/art44/600/400",
+    "colorTags": ["#81B29A", "#E9C46A", "#F2CC8F"],
+    "styleTags": ["水彩"],
+    "keywords": ["梯田", "晨光", "乡村"],
+    "createdAt": "2022-05-20T07:00:00Z"
+  },
+  {
+    "id": "art-045",
+    "title": "红叶谷",
+    "imageUrl": "https://picsum.photos/seed/art45/600/400",
+    "colorTags": ["#E63946", "#E07A5F", "#3D405B"],
+    "styleTags": ["油画"],
+    "keywords": ["红叶", "山谷", "秋天"],
+    "createdAt": "2022-04-12T15:00:00Z"
+  },
+  {
+    "id": "art-046",
+    "title": "白桦林",
+    "imageUrl": "https://picsum.photos/seed/art46/600/400",
+    "colorTags": ["#F4F1DE", "#3D405B"],
+    "styleTags": ["素描"],
+    "keywords": ["白桦", "树林", "北方"],
+    "createdAt": "2022-03-05T10:00:00Z"
+  },
+  {
+    "id": "art-047",
+    "title": "水墨江南",
+    "imageUrl": "https://picsum.photos/seed/art47/600/400",
+    "colorTags": ["#3D405B", "#F4F1DE", "#264653"],
+    "styleTags": ["水彩"],
+    "keywords": ["水墨", "江南", "诗意"],
+    "createdAt": "2022-02-18T14:00:00Z"
+  },
+  {
+    "id": "art-048",
+    "title": "塞外风光",
+    "imageUrl": "https://picsum.photos/seed/art48/600/400",
+    "colorTags": ["#E9C46A", "#81B29A", "#3D405B"],
+    "styleTags": ["油画"],
+    "keywords": ["塞外", "风光", "壮阔"],
+    "createdAt": "2022-01-10T08:00:00Z"
+  },
+  {
+    "id": "art-049",
+    "title": "庭院深深",
+    "imageUrl": "https://picsum.photos/seed/art49/600/400",
+    "colorTags": ["#3D405B", "#81B29A", "#F4F1DE"],
+    "styleTags": ["素描"],
+    "keywords": ["庭院", "古典", "幽静"],
+    "createdAt": "2021-12-25T16:00:00Z"
+  },
+  {
+    "id": "art-050",
+    "title": "天涯海角",
+    "imageUrl": "https://picsum.photos/seed/art50/600/400",
+    "colorTags": ["#457B9D", "#A8DADC", "#F1FAEE"],
+    "styleTags": ["水彩"],
+    "keywords": ["海边", "远方", "旅行"],
+    "createdAt": "2021-11-15T12:00:00Z"
+  }
+]
