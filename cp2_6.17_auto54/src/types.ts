@@ -57,6 +57,7 @@ export interface Particle {
   maxLife: number;
   color: string;
   size: number;
+  initialSize: number;
 }
 
 export interface Projectile {
@@ -92,6 +93,15 @@ export interface GameState {
   hexRadius: number;
   gameStatus: 'waiting' | 'playing' | 'ended';
   winnerId: string | null;
+  countdown: number;
+}
+
+export interface AStarNode {
+  hex: HexCoord;
+  parent: AStarNode | null;
+  g: number;
+  h: number;
+  f: number;
 }
 
 export const SKILL_PRESETS: Record<SkillType, Omit<Skill, 'currentCooldown'>> = {
@@ -114,3 +124,17 @@ export const SKILL_PRESETS: Record<SkillType, Omit<Skill, 'currentCooldown'>> = 
     color: '#E74C3C',
   },
 };
+
+export const HEX_DIRECTIONS: HexCoord[] = [
+  { q: 1, r: 0 },
+  { q: 1, r: -1 },
+  { q: 0, r: -1 },
+  { q: -1, r: 0 },
+  { q: -1, r: 1 },
+  { q: 0, r: 1 },
+];
+
+export const MAX_COMBAT_LOGS = 100;
+export const MAX_PARTICLES = 150;
+export const PARTICLE_LIFETIME = 500;
+export const MOVE_DURATION_PER_HEX = 300;
