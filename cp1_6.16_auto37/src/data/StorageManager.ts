@@ -76,17 +76,28 @@ export class StorageManager {
       date.setDate(date.getDate() - i);
 
       const volatility = 0.03;
-      const change = (Math.random() - 0.5) * 2 * volatility * price;
       const open = price;
-      const close = price + change;
-      const high = Math.max(open, close) + Math.random() * volatility * price * 0.5;
-      const low = Math.min(open, close) - Math.random() * volatility * price * 0.5;
+      const change = (Math.random() - 0.5) * 2 * volatility * price;
+      const close = Number((price + change).toFixed(2));
+
+      const bodyHigh = Math.max(open, close);
+      const bodyLow = Math.min(open, close);
+
+      const upperShadow = Math.random() * volatility * price * 0.5;
+      const lowerShadow = Math.random() * volatility * price * 0.5;
+
+      let high = bodyHigh + upperShadow;
+      let low = bodyLow - lowerShadow;
+
+      high = Math.max(high, open, close);
+      low = Math.min(low, open, close);
+
       const volume = Math.floor(Math.random() * 5000000) + 500000;
 
       data.push({
         date: date.toISOString().split('T')[0],
         open: Number(open.toFixed(2)),
-        close: Number(close.toFixed(2)),
+        close: close,
         high: Number(high.toFixed(2)),
         low: Number(low.toFixed(2)),
         volume,

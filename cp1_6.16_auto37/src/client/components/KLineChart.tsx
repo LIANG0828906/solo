@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import type { KLineData } from '../../data/types';
 
 interface KLineChartProps {
@@ -10,6 +10,8 @@ const KLineChart: React.FC<KLineChartProps> = ({ data, stockCode }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const pendingMousePosRef = useRef<{ x: number; y: number } | null>(null);
 
   const CANDLE_WIDTH = 8;
   const CANDLE_GAP = 2;
@@ -56,7 +58,9 @@ const KLineChart: React.FC<KLineChartProps> = ({ data, stockCode }) => {
     const maxPrice = Math.max(...allPrices);
     const minPrice = Math.min(...allPrices);
     const priceRange = maxPrice - minPrice || 1;
-    const maxVolume = Math.max(...data.map((d) => d.volume));
+    const volumes = data.map((d) => d.volume);
+    const maxVolume = volumes.length > 0 ? Math.max(...volumes) : 0;
+    const safeMaxVolume = maxVolume || 1;
 
     const totalDataWidth = data.length * TOTAL_BAR_WIDTH;
     const chartInnerWidth = width - padding.left - padding.right;
@@ -83,8 +87,9 @@ const KLineChart: React.FC<KLineChartProps> = ({ data, stockCode }) => {
     data.forEach((item, i) => {
       const x = startX + i * TOTAL_BAR_WIDTH + CANDLE_GAP / 2;
       const isUp = item.close >= item.open;
-      const color = isUp ? '#ef4444' : '#22c55e';
-      const fillColor = isUp ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)';
+      const strokeColor = isUp ? '#ef4444' : '#22c55e';
+      const fillColor = isUp ? 'rgba(239, 68, 68, 0.4)' : 'rgba(34, 197, 94, 0.4)';
+      const volumeColor = isUp ? 'rgba(239, 68, 68, 0.7)' : 'rgba(34, 197, 94, 0.7)';
 
       const priceToY = (price: number) => {
         return padding.top + klineHeight - ((price - minPrice) / priceRange) * klineHeight;
@@ -98,7 +103,7 @@ const KLineChart: React.FC<KLineChartProps> = ({ data, stockCode }) => {
       ctx.beginPath();
       ctx.moveTo(x + CANDLE_WIDTH / 2, highY);
       ctx.lineTo(x + CANDLE_WIDTH / 2, lowY);
-      ctx.strokeStyle = color;
+      ctx.strokeStyle = strokeColor;
       ctx.lineWidth = 1;
       ctx.stroke();
 
@@ -106,13 +111,16 @@ const KLineChart: React.FC<KLineChartProps> = ({ data, stockCode }) => {
       const bodyHeight = Math.max(Math.abs(closeY - openY), 1);
       ctx.fillStyle = fillColor;
       ctx.fillRect(x, bodyTop, CANDLE_WIDTH, bodyHeight);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 1.5;
       ctx.strokeRect(x, bodyTop, CANDLE_WIDTH, bodyHeight);
 
-      const volHeight = (item.volume / maxVolume) * volumeHeight;
-      ctx.fillStyle = color;
+      const volHeight = maxVolume > 0 ? (item.volume / safeMaxVolume) * volumeHeight : 0;
+      ctx.fillStyle = volumeColor;
       ctx.fillRect(x, volumeTop + volumeHeight - volHeight, CANDLE_WIDTH, volHeight);
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x, volumeTop + volumeHeight - volHeight, CANDLE_WIDTH, volHeight);
     });
 
     if (hoveredIndex !== null && hoveredIndex >= 0 && hoveredIndex < data.length) {
@@ -130,30 +138,60 @@ const KLineChart: React.FC<KLineChartProps> = ({ data, stockCode }) => {
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas || data.length === 0) return;
+  const processMouseMove = useCallback(
+    (clientX: number, clientY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas || data.length === 0) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
 
-    const padding = { left: 10, right: 60 };
-    const chartInnerWidth = rect.width - padding.left - padding.right;
-    const totalDataWidth = data.length * TOTAL_BAR_WIDTH;
-    const startX = padding.left + Math.max(0, (chartInnerWidth - totalDataWidth) / 2);
+      const padding = { left: 10, right: 60 };
+      const chartInnerWidth = rect.width - padding.left - padding.right;
+      const totalDataWidth = data.length * TOTAL_BAR_WIDTH;
+      const startX = padding.left + Math.max(0, (chartInnerWidth - totalDataWidth) / 2);
 
-    const relativeX = x - startX;
-    const index = Math.floor(relativeX / TOTAL_BAR_WIDTH);
+      const relativeX = x - startX;
+      const index = Math.floor(relativeX / TOTAL_BAR_WIDTH);
 
-    if (index >= 0 && index < data.length) {
-      setHoveredIndex(index);
-      setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    } else {
-      setHoveredIndex(null);
-      setTooltip(null);
-    }
-  };
+      if (index >= 0 && index < data.length) {
+        setHoveredIndex(index);
+        setTooltip({ x: x, y: y });
+      } else {
+        setHoveredIndex(null);
+        setTooltip(null);
+      }
+    },
+    [data]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      pendingMousePosRef.current = { x: e.clientX, y: e.clientY };
+
+      if (rafIdRef.current !== null) {
+        return;
+      }
+
+      rafIdRef.current = requestAnimationFrame(() => {
+        if (pendingMousePosRef.current) {
+          const { x, y } = pendingMousePosRef.current;
+          processMouseMove(x, y);
+        }
+        rafIdRef.current = null;
+      });
+    },
+    [processMouseMove]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, []);
 
   const handleMouseLeave = () => {
     setHoveredIndex(null);

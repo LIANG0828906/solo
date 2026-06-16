@@ -30,10 +30,36 @@ const COLUMNS: { key: keyof StockComputed; label: string; align?: 'right' }[] = 
   { key: 'profitPercent', label: '盈亏%', align: 'right' },
 ];
 
+const SORT_STORAGE_KEY = 'stock_table_sort_state';
+
+const loadSortState = (): SortState => {
+  try {
+    const saved = localStorage.getItem(SORT_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.key || parsed.direction) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return { key: null, direction: null };
+};
+
+const saveSortState = (state: SortState) => {
+  try {
+    localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore
+  }
+};
+
 const StockTable: React.FC<StockTableProps> = ({ holdings, onAdd, onEdit, onDelete, onSelect, selectedId }) => {
-  const [sortState, setSortState] = useState<SortState>({ key: null, direction: null });
+  const [sortState, setSortState] = useState<SortState>(() => loadSortState());
   const [showModal, setShowModal] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const [editingStock, setEditingStock] = useState<StockComputed | null>(null);
   const [formData, setFormData] = useState({
     code: '',
@@ -63,18 +89,23 @@ const StockTable: React.FC<StockTableProps> = ({ holdings, onAdd, onEdit, onDele
 
   const handleSort = (key: keyof StockComputed) => {
     setSortState((prev) => {
+      let newState: SortState;
       let direction: SortDirection;
       if (prev.key !== key) {
         direction = 'asc';
+        newState = { key, direction };
       } else if (prev.direction === 'asc') {
         direction = 'desc';
+        newState = { key, direction };
       } else if (prev.direction === 'desc') {
         direction = null;
-        return { key: null, direction: null };
+        newState = { key: null, direction: null };
       } else {
         direction = 'asc';
+        newState = { key, direction };
       }
-      return { key, direction };
+      saveSortState(newState);
+      return newState;
     });
   };
 
@@ -82,8 +113,11 @@ const StockTable: React.FC<StockTableProps> = ({ holdings, onAdd, onEdit, onDele
     setEditingStock(null);
     setFormData({ code: '', name: '', quantity: '', buyPrice: '', currentPrice: '' });
     setErrors({});
-    setShowModal(true);
     setIsClosing(false);
+    setShowModal(true);
+    requestAnimationFrame(() => {
+      setModalVisible(true);
+    });
   };
 
   const openEditModal = (stock: StockComputed) => {
@@ -96,12 +130,16 @@ const StockTable: React.FC<StockTableProps> = ({ holdings, onAdd, onEdit, onDele
       currentPrice: String(stock.currentPrice),
     });
     setErrors({});
-    setShowModal(true);
     setIsClosing(false);
+    setShowModal(true);
+    requestAnimationFrame(() => {
+      setModalVisible(true);
+    });
   };
 
   const closeModal = () => {
     setIsClosing(true);
+    setModalVisible(false);
     setTimeout(() => {
       setShowModal(false);
       setIsClosing(false);
@@ -289,8 +327,11 @@ const StockTable: React.FC<StockTableProps> = ({ holdings, onAdd, onEdit, onDele
       )}
 
       {showModal && (
-        <div className={`modal-overlay ${isClosing ? 'closing' : ''}`} onClick={closeModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className={`modal-overlay ${isClosing ? 'closing' : ''} ${modalVisible && !isClosing ? 'visible' : ''}`}
+          onClick={closeModal}
+        >
+          <div className={`modal ${modalVisible && !isClosing ? 'visible' : ''}`} onClick={(e) => e.stopPropagation()}>
             <h3>{editingStock ? '编辑持仓' : '添加持仓'}</h3>
 
             <div className="form-group">

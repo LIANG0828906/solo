@@ -56,8 +56,29 @@ const PieChart: React.FC<PieChartProps> = ({ holdings }) => {
   }, [holdings, totalValue]);
 
   const interpolateSlices = (oldSlices: SliceData[], newSlices: SliceData[], progress: number): SliceData[] => {
-    const maxLen = Math.max(oldSlices.length, newSlices.length);
     const result: SliceData[] = [];
+    const maxLen = Math.max(oldSlices.length, newSlices.length);
+
+    if (oldSlices.length === 0 && newSlices.length > 0) {
+      let cumulativeAngle = -Math.PI / 2;
+      for (let i = 0; i < newSlices.length; i++) {
+        const newSlice = newSlices[i];
+        const sliceProgress = Math.min(1, progress * (newSlices.length / Math.max(1, i + 1)));
+        const eased = 1 - Math.pow(1 - sliceProgress, 3);
+        const sweep = (newSlice.endAngle - newSlice.startAngle) * eased;
+        result.push({
+          startAngle: cumulativeAngle,
+          endAngle: cumulativeAngle + sweep,
+          value: newSlice.value * eased,
+          percentage: newSlice.percentage * eased,
+          color: newSlice.color,
+          name: newSlice.name,
+          code: newSlice.code,
+        });
+        cumulativeAngle += sweep;
+      }
+      return result;
+    }
 
     for (let i = 0; i < maxLen; i++) {
       const oldSlice = oldSlices[i];
@@ -73,16 +94,30 @@ const PieChart: React.FC<PieChartProps> = ({ holdings }) => {
           name: newSlice.name,
           code: newSlice.code,
         });
-      } else if (newSlice) {
-        const easedProgress = progress;
+      } else if (newSlice && !oldSlice) {
+        const oldStart = oldSlices.length > 0 ? oldSlices[oldSlices.length - 1].endAngle : -Math.PI / 2;
+        const targetSweep = newSlice.endAngle - newSlice.startAngle;
+        const currentSweep = targetSweep * progress;
         result.push({
-          startAngle: newSlice.startAngle,
-          endAngle: newSlice.startAngle + (newSlice.endAngle - newSlice.startAngle) * easedProgress,
-          value: newSlice.value * easedProgress,
-          percentage: newSlice.percentage * easedProgress,
+          startAngle: oldStart,
+          endAngle: oldStart + currentSweep,
+          value: newSlice.value * progress,
+          percentage: newSlice.percentage * progress,
           color: newSlice.color,
           name: newSlice.name,
           code: newSlice.code,
+        });
+      } else if (oldSlice && !newSlice) {
+        const remaining = 1 - progress;
+        const sweep = oldSlice.endAngle - oldSlice.startAngle;
+        result.push({
+          startAngle: oldSlice.startAngle,
+          endAngle: oldSlice.startAngle + sweep * remaining,
+          value: oldSlice.value * remaining,
+          percentage: oldSlice.percentage * remaining,
+          color: oldSlice.color,
+          name: oldSlice.name,
+          code: oldSlice.code,
         });
       }
     }
