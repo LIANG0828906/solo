@@ -7,6 +7,8 @@ interface WaveformEditorProps {
   clips: AudioClip[];
 }
 
+const MAX_TRACKS = 8;
+
 const TRACK_COLORS = [
   '#e74c3c',
   '#3498db',
@@ -18,6 +20,17 @@ const TRACK_COLORS = [
   '#e91e63',
 ];
 
+const TRACK_COLOR_NAMES = [
+  '红色',
+  '蓝色',
+  '绿色',
+  '橙色',
+  '紫色',
+  '青色',
+  '深橙',
+  '粉色',
+];
+
 const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
@@ -27,7 +40,7 @@ const formatTime = (seconds: number): string => {
 
 function WaveformEditor({ clips }: WaveformEditorProps) {
   const [tracks, setTracks] = useState<Track[]>(() =>
-    Array.from({ length: 8 }, (_, i) => ({
+    Array.from({ length: MAX_TRACKS }, (_, i) => ({
       id: i,
       name: `音轨 ${i + 1}`,
       color: TRACK_COLORS[i],
@@ -38,20 +51,26 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [totalDuration, setTotalDuration] = useState(60);
-  const [draggedClip, setDraggedClip] = useState<AudioClip | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
-  const [audioCache, setAudioCache] = useState<Map<string, HTMLAudioElement>>(new Map());
-  const [draggingTrackClip, setDraggingTrackClip] = useState<{
-    clip: TrackClip;
+  const [activeTrackDrop, setActiveTrackDrop] = useState<number | null>(null);
+  const [selectedClip, setSelectedClip] = useState<{
     trackId: number;
+    clipId: string;
   } | null>(null);
+  const [fadeInValue, setFadeInValue] = useState(0.5);
+  const [fadeOutValue, setFadeOutValue] = useState(0.5);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioCacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const audioBuffersRef = useRef<Map<string, AudioBuffer>>(new Map());
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedAtRef = useRef<number>(0);
+  const activeSourceNodesRef = useRef<MediaElementAudioSourceNode[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragClipRef = useRef<AudioClip | null>(null);
+  const dragTrackClipRef = useRef<{ clip: TrackClip; trackId: number } | null>(null);
 
   const getTotalDuration = useCallback(() => {
     let max = 60;
@@ -68,87 +87,151 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     setTotalDuration(getTotalDuration());
   }, [tracks, getTotalDuration]);
 
-  const handleDragStart = (e: React.DragEvent, clip: AudioClip) => {
-    setDraggedClip(clip);
-    e.dataTransfer.effectAllowed = 'copy';
-  };
-
-  const handleTrackClipDragStart = (e: React.DragEvent, clip: TrackClip, trackId: number) => {
-    setDraggingTrackClip({ clip, trackId });
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDropOnTrack = async (e: React.DragEvent, trackId: number, dropX: number) => {
-    e.preventDefault();
-    const trackElement = e.currentTarget as HTMLElement;
-    const rect = trackElement.getBoundingClientRect();
-    const relativeX = e.clientX - rect.left;
-    const trackWidth = rect.width;
-    const dropTime = (relativeX / trackWidth) * totalDuration;
-
-    if (draggedClip) {
-      const clip = draggedClip;
-      const newTrackClip: TrackClip = {
-        id: uuidv4(),
-        clipId: clip.id,
-        clipName: clip.name,
-        fileName: clip.fileName,
-        audioId: clip.audioId,
-        startTime: clip.startTime,
-        endTime: clip.endTime,
-        trackStartTime: Math.max(0, dropTime - (clip.duration / 2)),
-        volume: 100,
-        fadeIn: 0.5,
-        fadeOut: 0.5,
-        color: TRACK_COLORS[trackId],
-      };
-
-      setTracks((prev) =>
-        prev.map((t) =>
-          t.id === trackId ? { ...t, clips: [...t.clips, newTrackClip] } : t
-        )
-      );
-
-      if (!audioCache.has(clip.audioId)) {
+  useEffect(() => {
+    clips.forEach(async (clip) => {
+      if (!audioCacheRef.current.has(clip.audioId)) {
         try {
           const blob = await getAudioFile(clip.audioId);
           if (blob) {
             const url = URL.createObjectURL(blob);
             const audio = new Audio(url);
             audio.preload = 'auto';
-            setAudioCache((prev) => new Map(prev).set(clip.audioId, audio));
+            audioCacheRef.current.set(clip.audioId, audio);
           }
-        } catch (error) {
-          console.error('Failed to load audio:', error);
+        } catch (e) {
+          console.error('Failed to preload audio:', e);
         }
       }
+    });
+  }, [clips]);
 
-      setDraggedClip(null);
-    } else if (draggingTrackClip && draggingTrackClip.trackId !== trackId) {
-      const movedClip = {
-        ...draggingTrackClip.clip,
-        trackStartTime: Math.max(0, dropTime - ((draggingTrackClip.clip.endTime - draggingTrackClip.clip.startTime) / 2)),
-        color: TRACK_COLORS[trackId],
-      };
-
-      setTracks((prev) =>
-        prev.map((t) => {
-          if (t.id === draggingTrackClip.trackId) {
-            return { ...t, clips: t.clips.filter((c) => c.id !== draggingTrackClip.clip.id) };
-          }
-          if (t.id === trackId) {
-            return { ...t, clips: [...t.clips, movedClip] };
-          }
-          return t;
-        })
-      );
-      setDraggingTrackClip(null);
+  const handleClipDragStart = (e: React.DragEvent, clip: AudioClip) => {
+    dragClipRef.current = clip;
+    dragTrackClipRef.current = null;
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/x-audio-clip', JSON.stringify(clip));
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleClipDragEnd = (e: React.DragEvent) => {
+    dragClipRef.current = null;
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+    setActiveTrackDrop(null);
+  };
+
+  const handleTrackClipDragStart = (e: React.DragEvent, clip: TrackClip, trackId: number) => {
+    dragTrackClipRef.current = { clip, trackId };
+    dragClipRef.current = null;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/x-track-clip', JSON.stringify({ clip, trackId }));
+    e.stopPropagation();
+  };
+
+  const handleTrackClipDragEnd = () => {
+    dragTrackClipRef.current = null;
+    setActiveTrackDrop(null);
+  };
+
+  const handleTrackDragOver = (e: React.DragEvent, trackId: number) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = draggedClip ? 'copy' : 'move';
+    e.dataTransfer.dropEffect = dragClipRef.current ? 'copy' : 'move';
+    setActiveTrackDrop(trackId);
+  };
+
+  const handleTrackDragLeave = (e: React.DragEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setActiveTrackDrop(null);
+    }
+  };
+
+  const handleTrackDrop = async (e: React.DragEvent, trackId: number) => {
+    e.preventDefault();
+    setActiveTrackDrop(null);
+
+    const trackElement = e.currentTarget as HTMLElement;
+    const rect = trackElement.getBoundingClientRect();
+    const relativeX = e.clientX - rect.left;
+    const trackWidth = rect.width;
+    const dropTime = (relativeX / trackWidth) * totalDuration;
+
+    if (trackId >= MAX_TRACKS) return;
+
+    const clipDataStr = e.dataTransfer.getData('application/x-audio-clip');
+    const trackClipDataStr = e.dataTransfer.getData('application/x-track-clip');
+
+    if (clipDataStr) {
+      try {
+        const clip = JSON.parse(clipDataStr) as AudioClip;
+        const newTrackClip: TrackClip = {
+          id: uuidv4(),
+          clipId: clip.id,
+          clipName: clip.name,
+          fileName: clip.fileName,
+          audioId: clip.audioId,
+          startTime: clip.startTime,
+          endTime: clip.endTime,
+          trackStartTime: Math.max(0, dropTime - clip.duration / 2),
+          volume: 100,
+          fadeIn: 0.5,
+          fadeOut: 0.5,
+          color: TRACK_COLORS[trackId],
+        };
+
+        setTracks((prev) =>
+          prev.map((t) =>
+            t.id === trackId ? { ...t, clips: [...t.clips, newTrackClip] } : t
+          )
+        );
+
+        if (!audioCacheRef.current.has(clip.audioId)) {
+          const blob = await getAudioFile(clip.audioId);
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audio.preload = 'auto';
+            audioCacheRef.current.set(clip.audioId, audio);
+          }
+        }
+      } catch (err) {
+        console.error('Drop parse error:', err);
+      }
+      dragClipRef.current = null;
+    } else if (trackClipDataStr) {
+      try {
+        const { clip, trackId: srcTrackId } = JSON.parse(trackClipDataStr) as {
+          clip: TrackClip;
+          trackId: number;
+        };
+
+        const movedClip: TrackClip = {
+          ...clip,
+          trackStartTime: Math.max(0, dropTime - (clip.endTime - clip.startTime) / 2),
+          color: TRACK_COLORS[trackId],
+        };
+
+        setTracks((prev) =>
+          prev.map((t) => {
+            if (t.id === srcTrackId) {
+              return { ...t, clips: t.clips.filter((c) => c.id !== clip.id) };
+            }
+            if (t.id === trackId) {
+              return { ...t, clips: [...t.clips, movedClip] };
+            }
+            return t;
+          })
+        );
+      } catch (err) {
+        console.error('Track clip drop error:', err);
+      }
+      dragTrackClipRef.current = null;
+    }
   };
 
   const handleVolumeChange = (trackId: number, volume: number) => {
@@ -163,79 +246,133 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
         t.id === trackId ? { ...t, clips: t.clips.filter((c) => c.id !== clipId) } : t
       )
     );
+    if (selectedClip?.trackId === trackId && selectedClip?.clipId === clipId) {
+      setSelectedClip(null);
+    }
   };
 
-  const handleClipFadeChange = (trackId: number, clipId: string, type: 'fadeIn' | 'fadeOut', value: number) => {
+  const handleClipClick = (trackId: number, clipId: string, clip: TrackClip) => {
+    setSelectedClip({ trackId, clipId });
+    setFadeInValue(clip.fadeIn);
+    setFadeOutValue(clip.fadeOut);
+  };
+
+  const handleFadeInChange = (value: number) => {
+    setFadeInValue(value);
+    if (!selectedClip) return;
+    const { trackId, clipId } = selectedClip;
     setTracks((prev) =>
       prev.map((t) =>
         t.id === trackId
           ? {
               ...t,
-              clips: t.clips.map((c) => (c.id === clipId ? { ...c, [type]: value } : c)),
+              clips: t.clips.map((c) =>
+                c.id === clipId ? { ...c, fadeIn: value } : c
+              ),
             }
           : t
       )
     );
   };
 
+  const handleFadeOutChange = (value: number) => {
+    setFadeOutValue(value);
+    if (!selectedClip) return;
+    const { trackId, clipId } = selectedClip;
+    setTracks((prev) =>
+      prev.map((t) =>
+        t.id === trackId
+          ? {
+              ...t,
+              clips: t.clips.map((c) =>
+                c.id === clipId ? { ...c, fadeOut: value } : c
+              ),
+            }
+          : t
+      )
+    );
+  };
+
+  const stopAllPlayback = useCallback(() => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+    activeSourceNodesRef.current.forEach((node) => {
+      try {
+        const el = (node as any).mediaElement as HTMLAudioElement;
+        if (el) el.pause();
+        node.disconnect();
+      } catch {}
+    });
+    activeSourceNodesRef.current = [];
+    audioCacheRef.current.forEach((audio) => {
+      try { audio.pause(); audio.currentTime = 0; } catch {}
+    });
+  }, []);
+
   const playAllTracks = useCallback(async () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext();
     }
-
     const ctx = audioContextRef.current;
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
+    if (ctx.state === 'suspended') await ctx.resume();
+
+    stopAllPlayback();
 
     const now = ctx.currentTime;
     startTimeRef.current = now - pausedAtRef.current;
+    activeSourceNodesRef.current = [];
 
-    tracks.forEach((track) => {
-      track.clips.forEach(async (clip) => {
+    for (const track of tracks) {
+      for (const clip of track.clips) {
         const clipDuration = clip.endTime - clip.startTime;
-        const clipStartInTimeline = clip.trackStartTime;
-        const clipEndInTimeline = clipStartInTimeline + clipDuration;
+        const clipEndInTimeline = clip.trackStartTime + clipDuration;
+        if (currentTime >= clipEndInTimeline) continue;
 
-        if (currentTime >= clipEndInTimeline) return;
+        const audio = audioCacheRef.current.get(clip.audioId);
+        if (!audio) continue;
 
-        const audio = audioCache.get(clip.audioId);
-        if (!audio) return;
+        try {
+          const cloned = audio.cloneNode() as HTMLAudioElement;
+          cloned.volume = 0;
 
-        const source = ctx.createMediaElementSource(audio.cloneNode() as HTMLAudioElement);
-        const gainNode = ctx.createGain();
-        const trackVolume = (track.volume / 100) * (clip.volume / 100);
+          const source = ctx.createMediaElementSource(cloned);
+          const gainNode = ctx.createGain();
+          const trackVolume = (track.volume / 100) * (clip.volume / 100);
 
-        const offset = Math.max(0, currentTime - clipStartInTimeline);
-        const playDuration = clipDuration - offset;
-        const audioOffset = clip.startTime + offset;
+          const offset = Math.max(0, currentTime - clip.trackStartTime);
+          const playDuration = clipDuration - offset;
+          const audioOffset = clip.startTime + offset;
 
-        gainNode.gain.setValueAtTime(0, now);
+          gainNode.gain.setValueAtTime(0, now);
 
-        const fadeInStart = now;
-        const fadeInDuration = Math.min(clip.fadeIn, playDuration);
-        gainNode.gain.linearRampToValueAtTime(trackVolume, now + fadeInDuration);
+          const fadeInDur = Math.min(clip.fadeIn, playDuration);
+          gainNode.gain.linearRampToValueAtTime(trackVolume, now + fadeInDur);
 
-        const fadeOutDuration = Math.min(clip.fadeOut, playDuration - fadeInDuration);
-        const fadeOutStart = now + playDuration - fadeOutDuration;
-        gainNode.gain.setValueAtTime(trackVolume, fadeOutStart);
-        gainNode.gain.linearRampToValueAtTime(0, now + playDuration);
+          const fadeOutDur = Math.min(clip.fadeOut, playDuration - fadeInDur);
+          if (fadeOutDur > 0) {
+            gainNode.gain.setValueAtTime(trackVolume, now + playDuration - fadeOutDur);
+            gainNode.gain.linearRampToValueAtTime(0, now + playDuration);
+          }
 
-        source.connect(gainNode);
-        gainNode.connect(ctx.destination);
+          source.connect(gainNode);
+          gainNode.connect(ctx.destination);
 
-        const audioEl = (source as any).mediaElement;
-        audioEl.currentTime = audioOffset;
-        audioEl.volume = 0;
-        audioEl.play().catch(console.error);
-      });
-    });
+          cloned.currentTime = audioOffset;
+          await cloned.play();
+
+          activeSourceNodesRef.current.push(source);
+        } catch (err) {
+          console.error('Playback error for clip:', clip.clipName, err);
+        }
+      }
+    }
 
     const updateTime = () => {
       if (audioContextRef.current) {
         const elapsed = audioContextRef.current.currentTime - startTimeRef.current;
         setCurrentTime(elapsed);
-
         if (elapsed < totalDuration) {
           animationRef.current = requestAnimationFrame(updateTime);
         } else {
@@ -245,21 +382,14 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
         }
       }
     };
-
     animationRef.current = requestAnimationFrame(updateTime);
-  }, [tracks, currentTime, audioCache, totalDuration]);
+  }, [tracks, currentTime, totalDuration, stopAllPlayback]);
 
-  const pauseAllTracks = () => {
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-    }
+  const pauseAllTracks = useCallback(() => {
+    stopAllPlayback();
     pausedAtRef.current = currentTime;
     setIsPlaying(false);
-
-    audioCache.forEach((audio) => {
-      audio.pause();
-    });
-  };
+  }, [currentTime, stopAllPlayback]);
 
   const togglePlay = async () => {
     if (isPlaying) {
@@ -274,14 +404,15 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const newTime = (x / rect.width) * totalDuration;
-    setCurrentTime(Math.max(0, Math.min(newTime, totalDuration)));
-    pausedAtRef.current = Math.max(0, Math.min(newTime, totalDuration));
-
+    const clamped = Math.max(0, Math.min(newTime, totalDuration));
+    setCurrentTime(clamped);
+    pausedAtRef.current = clamped;
     if (isPlaying) {
-      pauseAllTracks();
-      setTimeout(() => {
+      stopAllPlayback();
+      setIsPlaying(false);
+      setTimeout(async () => {
         setIsPlaying(true);
-        playAllTracks();
+        await playAllTracks();
       }, 50);
     }
   };
@@ -291,20 +422,6 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     setExportProgress(0);
 
     try {
-      const totalClips = tracks.reduce((acc, t) => acc + t.clips.length, 0);
-      let processed = 0;
-
-      const progressInterval = setInterval(() => {
-        processed += 1;
-        const progress = Math.min(95, (processed / Math.max(totalClips, 10)) * 100);
-        setExportProgress(progress);
-      }, 100);
-
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      clearInterval(progressInterval);
-      setExportProgress(100);
-
       const projectData: ProjectData = {
         version: '1.0',
         createdAt: new Date().toISOString(),
@@ -313,31 +430,137 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
         totalDuration: getTotalDuration(),
       };
 
-      const blob = new Blob([JSON.stringify(projectData, null, 2)], {
-        type: 'application/json',
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `podcast-project-${Date.now()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const progressSim = setInterval(() => {
+        setExportProgress((prev) => {
+          if (prev >= 30) {
+            clearInterval(progressSim);
+            return 30;
+          }
+          return prev + 2;
+        });
+      }, 50);
 
-      const mockMp3 = new Blob(['mock mp3 data'], { type: 'audio/mpeg' });
-      const mp3Url = URL.createObjectURL(mockMp3);
-      const mp3Link = document.createElement('a');
-      mp3Link.href = mp3Url;
-      mp3Link.download = `podcast-export-${Date.now()}.mp3`;
-      mp3Link.click();
-      URL.revokeObjectURL(mp3Url);
+      try {
+        const response = await fetch('/api/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tracks }),
+        });
+
+        clearInterval(progressSim);
+
+        if (response.ok) {
+          setExportProgress(60);
+
+          const contentLength = response.headers.get('content-length');
+          const total = contentLength ? parseInt(contentLength, 10) : 0;
+          let received = 0;
+
+          const reader = response.body?.getReader();
+          const chunks: Uint8Array[] = [];
+
+          if (reader) {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              received += value.length;
+              if (total > 0) {
+                setExportProgress(60 + (received / total) * 35);
+              } else {
+                setExportProgress(Math.min(95, 60 + chunks.length * 5));
+              }
+            }
+          }
+
+          setExportProgress(95);
+
+          const blob = new Blob(chunks as BlobPart[], { type: 'audio/mpeg' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `podcast-export-${Date.now()}.mp3`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          setExportProgress(100);
+        } else {
+          setExportProgress(60);
+          const fallbackBlob = new Blob(
+            [JSON.stringify(projectData, null, 2)],
+            { type: 'application/json' }
+          );
+          const url = URL.createObjectURL(fallbackBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `podcast-project-${Date.now()}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          setExportProgress(100);
+        }
+      } catch {
+        clearInterval(progressSim);
+        setExportProgress(50);
+
+        const jsonBlob = new Blob(
+          [JSON.stringify(projectData, null, 2)],
+          { type: 'application/json' }
+        );
+        const jsonUrl = URL.createObjectURL(jsonBlob);
+        const a = document.createElement('a');
+        a.href = jsonUrl;
+        a.download = `podcast-project-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(jsonUrl);
+
+        for (const track of tracks) {
+          for (const clip of track.clips) {
+            const audio = audioCacheRef.current.get(clip.audioId);
+            if (audio && audio.src) {
+              try {
+                const resp = await fetch(audio.src);
+                const audioBlob = await resp.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const link = document.createElement('a');
+                link.href = audioUrl;
+                link.download = `clip-${clip.clipName}-${Date.now()}.mp3`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(audioUrl);
+              } catch {}
+            }
+          }
+        }
+
+        setExportProgress(100);
+      }
+
+      const jsonStr = JSON.stringify(projectData, null, 2);
+      const projBlob = new Blob([jsonStr], { type: 'application/json' });
+      const projUrl = URL.createObjectURL(projBlob);
+      const projLink = document.createElement('a');
+      projLink.href = projUrl;
+      projLink.download = `podcast-project-${Date.now()}.json`;
+      document.body.appendChild(projLink);
+      projLink.click();
+      document.body.removeChild(projLink);
+      URL.revokeObjectURL(projUrl);
 
       setTimeout(() => {
         setIsExporting(false);
         setExportProgress(0);
-      }, 1000);
+      }, 1500);
     } catch (error) {
       console.error('Export failed:', error);
       setIsExporting(false);
+      setExportProgress(0);
     }
   };
 
@@ -349,8 +572,21 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string) as ProjectData;
-        setTracks(data.tracks);
-        setTotalDuration(data.totalDuration);
+        if (data.tracks && Array.isArray(data.tracks)) {
+          const restoredTracks = Array.from({ length: MAX_TRACKS }, (_, i) => {
+            const imported = data.tracks.find((t) => t.id === i);
+            return imported || {
+              id: i,
+              name: `音轨 ${i + 1}`,
+              color: TRACK_COLORS[i],
+              volume: 100,
+              clips: [],
+            };
+          });
+          setTracks(restoredTracks);
+          setTotalDuration(data.totalDuration || 60);
+        }
+        alert('项目导入成功！');
       } catch (error) {
         alert('导入失败：无效的项目文件');
       }
@@ -372,6 +608,7 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
             fontSize: '10px',
             color: '#8892b0',
             transform: 'translateX(-50%)',
+            fontFamily: 'monospace',
           }}
         >
           {formatTime(t)}
@@ -381,9 +618,15 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
     return marks;
   };
 
+  const getVolumeColor = (volume: number): string => {
+    if (volume <= 100) return '#2ecc71';
+    if (volume <= 150) return '#f39c12';
+    return '#e74c3c';
+  };
+
   return (
-    <div style={styles.container}>
-      <div style={styles.leftPanel}>
+    <div className="main-layout" style={styles.container}>
+      <div className="clip-panel side-panel" style={styles.leftPanel}>
         <div style={styles.clipsCard}>
           <h2 style={styles.cardTitle}>片段库 ({clips.length})</h2>
           <p style={styles.hintText}>拖拽片段到右侧音轨进行编辑</p>
@@ -395,13 +638,15 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
                 <div
                   key={clip.id}
                   draggable
-                  onDragStart={(e) => handleDragStart(e, clip)}
+                  onDragStart={(e) => handleClipDragStart(e, clip)}
+                  onDragEnd={handleClipDragEnd}
                   style={styles.clipCard}
                 >
                   <div style={styles.clipInfo}>
                     <div style={styles.clipName}>{clip.name}</div>
                     <div style={styles.clipMeta}>
                       <span>⏱ {formatTime(clip.duration)}</span>
+                      <span style={styles.clipFileName}>📄 {clip.fileName}</span>
                     </div>
                   </div>
                   <span style={styles.dragHandle}>⋮⋮</span>
@@ -410,26 +655,60 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
             )}
           </div>
         </div>
+
+        {selectedClip && (
+          <div style={styles.fadePanel}>
+            <h3 style={styles.fadePanelTitle}>
+              片段效果
+            </h3>
+            <div style={styles.fadeControl}>
+              <label style={styles.fadeLabel}>淡入</label>
+              <input
+                type="range"
+                min="0"
+                max="5"
+                step="0.1"
+                value={fadeInValue}
+                onChange={(e) => handleFadeInChange(Number(e.target.value))}
+                style={styles.fadeSlider}
+              />
+              <span style={styles.fadeValue}>{fadeInValue.toFixed(1)}s</span>
+            </div>
+            <div style={styles.fadeControl}>
+              <label style={styles.fadeLabel}>淡出</label>
+              <input
+                type="range"
+                min="0"
+                max="5"
+                step="0.1"
+                value={fadeOutValue}
+                onChange={(e) => handleFadeOutChange(Number(e.target.value))}
+                style={styles.fadeSlider}
+              />
+              <span style={styles.fadeValue}>{fadeOutValue.toFixed(1)}s</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={styles.rightPanel}>
         <div style={styles.toolbar}>
           <div style={styles.playControls}>
-            <button
-              style={styles.playButton}
-              onClick={togglePlay}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.filter = 'brightness(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.filter = 'brightness(1)';
-              }}
-            >
+            <button style={styles.playButton} onClick={togglePlay}>
               {isPlaying ? '⏸ 暂停' : '▶ 播放'}
             </button>
-            <span style={styles.currentTime}>
+            <button
+              style={styles.stopButton}
+              onClick={() => {
+                stopAllPlayback();
+                setIsPlaying(false);
+                pausedAtRef.current = 0;
+                setCurrentTime(0);
+              }}
+            >
+              ⏹ 停止
+            </button>
+            <span style={styles.currentTimeDisplay}>
               {formatTime(currentTime)} / {formatTime(totalDuration)}
             </span>
           </div>
@@ -441,37 +720,16 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
               style={{ display: 'none' }}
               onChange={handleImportProject}
             />
-            <button
-              style={styles.secondaryButton}
-              onClick={() => fileInputRef.current?.click()}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.filter = 'brightness(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.filter = 'brightness(1)';
-              }}
-            >
+            <button style={styles.importButton} onClick={() => fileInputRef.current?.click()}>
               📂 导入项目
             </button>
             <button
               style={styles.exportButton}
               onClick={handleExport}
               disabled={isExporting}
-              onMouseEnter={(e) => {
-                if (!e.currentTarget.disabled) {
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                  e.currentTarget.style.filter = 'brightness(1.1)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.filter = 'brightness(1)';
-              }}
             >
               {isExporting ? (
-                <span style={styles.spinner}>
+                <span style={styles.spinnerWrap}>
                   <span style={styles.spinnerIcon}>⚙</span>
                   {' '}导出中 {Math.round(exportProgress)}%
                 </span>
@@ -499,89 +757,153 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
 
         <div style={styles.timeRuler}>{renderTimeRuler()}</div>
 
-        <div style={styles.tracksContainer}>
-          {tracks.map((track) => (
-            <div key={track.id} style={styles.trackRow}>
-              <div style={styles.trackHeader}>
-                <div
-                  style={{
-                    ...styles.trackIndicator,
-                    backgroundColor: track.color,
-                  }}
-                />
-                <span style={styles.trackName}>{track.name}</span>
-                <div style={styles.volumeControl}>
-                  <input
-                    type="range"
-                    min="0"
-                    max="200"
-                    value={track.volume}
-                    onChange={(e) => handleVolumeChange(track.id, Number(e.target.value))}
-                    style={styles.volumeSlider}
-                  />
-                  <span style={styles.volumeValue}>{track.volume}%</span>
-                </div>
-              </div>
-              <div
-                style={{
-                  ...styles.trackTimeline,
-                  borderTop: '1px solid rgba(0,0,0,0.3)',
-                  borderBottom: track.id < tracks.length - 1 ? '1px solid rgba(0,0,0,0.3)' : 'none',
-                }}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDropOnTrack(e, track.id, 0)}
-              >
-                {track.clips.map((clip) => {
-                  const duration = clip.endTime - clip.startTime;
-                  const left = (clip.trackStartTime / totalDuration) * 100;
-                  const width = (duration / totalDuration) * 100;
+        <div className="tracks-container" style={styles.tracksContainer}>
+          {tracks.map((track) => {
+            const isDropTarget = activeTrackDrop === track.id;
+            const hasClips = track.clips.length > 0;
 
-                  return (
-                    <div
-                      key={clip.id}
-                      draggable
-                      onDragStart={(e) => handleTrackClipDragStart(e, clip, track.id)}
-                      onDragEnd={() => setDraggingTrackClip(null)}
+            return (
+              <div key={track.id} style={styles.trackRow}>
+                <div style={{ ...styles.trackHeader, borderLeft: `4px solid ${track.color}` }}>
+                  <div style={styles.trackHeaderTop}>
+                    <span
                       style={{
-                        ...styles.trackClip,
-                        left: `${left}%`,
-                        width: `${width}%`,
-                        backgroundColor: `${track.color}33`,
-                        borderColor: track.color,
+                        ...styles.trackDot,
+                        backgroundColor: track.color,
+                      }}
+                    />
+                    <span style={styles.trackName}>{track.name}</span>
+                    <span style={{ ...styles.trackColorLabel, color: track.color }}>
+                      {TRACK_COLOR_NAMES[track.id]}
+                    </span>
+                  </div>
+                  <div style={styles.volumeRow}>
+                    <span style={styles.volumeIcon}>🔊</span>
+                    <div style={styles.volumeSliderWrap}>
+                      <input
+                        type="range"
+                        min="0"
+                        max="200"
+                        value={track.volume}
+                        onChange={(e) => handleVolumeChange(track.id, Number(e.target.value))}
+                        style={styles.volumeSlider}
+                      />
+                      <div style={styles.volumeMarks}>
+                        <span>0%</span>
+                        <span>100%</span>
+                        <span>200%</span>
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        ...styles.volumeValue,
+                        color: getVolumeColor(track.volume),
                       }}
                     >
-                      <div
-                        style={{
-                          ...styles.fadeHandle,
-                          left: 0,
-                          borderRight: `2px solid ${track.color}`,
-                        }}
-                      />
-                      <div
-                        style={{
-                          ...styles.fadeHandle,
-                          right: 0,
-                          borderLeft: `2px solid ${track.color}`,
-                        }}
-                      />
-                      <span style={styles.trackClipName}>{clip.clipName}</span>
-                      <button
-                        style={styles.removeClipBtn}
-                        onClick={() => handleRemoveClip(track.id, clip.id)}
-                      >
-                        ×
-                      </button>
+                      {track.volume}%
+                    </span>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    ...styles.trackTimeline,
+                    backgroundColor: isDropTarget
+                      ? `${track.color}15`
+                      : 'rgba(0, 0, 0, 0.1)',
+                    borderColor: isDropTarget ? track.color : 'transparent',
+                    borderStyle: isDropTarget ? 'dashed' : 'solid',
+                    borderWidth: isDropTarget ? '2px' : '1px',
+                  }}
+                  onDragOver={(e) => handleTrackDragOver(e, track.id)}
+                  onDragLeave={handleTrackDragLeave}
+                  onDrop={(e) => handleTrackDrop(e, track.id)}
+                >
+                  {!hasClips && !isDropTarget && (
+                    <div style={styles.emptyTrackHint}>
+                      拖拽片段到此处
                     </div>
-                  );
-                })}
+                  )}
+                  {isDropTarget && (
+                    <div style={styles.dropIndicator}>
+                      释放以添加到{track.name}
+                    </div>
+                  )}
+                  {track.clips.map((clip) => {
+                    const duration = clip.endTime - clip.startTime;
+                    const left = (clip.trackStartTime / totalDuration) * 100;
+                    const width = (duration / totalDuration) * 100;
+                    const isSelected =
+                      selectedClip?.trackId === track.id && selectedClip?.clipId === clip.id;
+
+                    return (
+                      <div
+                        key={clip.id}
+                        draggable
+                        onDragStart={(e) => handleTrackClipDragStart(e, clip, track.id)}
+                        onDragEnd={handleTrackClipDragEnd}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleClipClick(track.id, clip.id, clip);
+                        }}
+                        style={{
+                          ...styles.trackClip,
+                          left: `${left}%`,
+                          width: `${Math.max(width, 2)}%`,
+                          backgroundColor: `${track.color}33`,
+                          borderColor: isSelected ? '#00d2ff' : track.color,
+                          borderWidth: isSelected ? '3px' : '2px',
+                          boxShadow: isSelected
+                            ? `0 0 12px rgba(0, 210, 255, 0.5), inset 0 0 20px ${track.color}20`
+                            : `inset 0 0 20px ${track.color}15`,
+                        }}
+                      >
+                        {clip.fadeIn > 0 && (
+                          <div
+                            style={{
+                              ...styles.fadeIndicator,
+                              left: 0,
+                              background: `linear-gradient(90deg, transparent, ${track.color}80)`,
+                              width: `${Math.min((clip.fadeIn / duration) * 100, 40)}%`,
+                            }}
+                          />
+                        )}
+                        {clip.fadeOut > 0 && (
+                          <div
+                            style={{
+                              ...styles.fadeIndicator,
+                              right: 0,
+                              background: `linear-gradient(270deg, transparent, ${track.color}80)`,
+                              width: `${Math.min((clip.fadeOut / duration) * 100, 40)}%`,
+                            }}
+                          />
+                        )}
+                        <div style={styles.clipContent}>
+                          <span style={styles.trackClipName}>{clip.clipName}</span>
+                          <button
+                            style={styles.removeClipBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveClip(track.id, clip.id);
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <div style={styles.clipTimeLabel}>
+                          {formatTime(clip.trackStartTime)} - {formatTime(clip.trackStartTime + duration)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div style={styles.editorFooter}>
           <p style={styles.footerText}>
-            💡 提示：从左侧拖拽片段到音轨，最多支持 8 条音轨叠加，点击进度条可跳转播放位置
+            💡 从左侧拖拽片段到音轨 · 最多 {MAX_TRACKS} 条音轨叠加 · 点击片段调整淡入淡出 · 点击进度条跳转
           </p>
         </div>
       </div>
@@ -589,8 +911,10 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
       {isExporting && (
         <div style={styles.exportOverlay}>
           <div style={styles.exportModal}>
-            <div style={styles.spinnerLarge}>⚙</div>
-            <h3 style={styles.exportTitle}>正在导出...</h3>
+            <div style={styles.spinnerLargeWrap}>
+              <span style={styles.spinnerLarge}>⚙</span>
+            </div>
+            <h3 style={styles.exportTitle}>正在导出混音...</h3>
             <div style={styles.exportProgressBar}>
               <div
                 style={{
@@ -600,6 +924,15 @@ function WaveformEditor({ clips }: WaveformEditorProps) {
               />
             </div>
             <p style={styles.exportPercent}>{Math.round(exportProgress)}%</p>
+            <p style={styles.exportHint}>
+              {exportProgress < 30
+                ? '正在准备音频数据...'
+                : exportProgress < 60
+                ? '正在混音处理...'
+                : exportProgress < 95
+                ? '正在生成MP3文件...'
+                : '导出完成，正在下载...'}
+            </p>
           </div>
         </div>
       )}
@@ -614,10 +947,11 @@ const styles: Record<string, React.CSSProperties> = {
     height: 'calc(100vh - 120px)',
   },
   leftPanel: {
-    width: '300px',
+    width: '320px',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
+    gap: '16px',
   },
   rightPanel: {
     flex: 1,
@@ -674,6 +1008,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #2a3f5f',
     cursor: 'grab',
     transition: 'all 0.2s ease',
+    userSelect: 'none',
   },
   clipInfo: {
     flex: 1,
@@ -689,13 +1024,56 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
   clipMeta: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
     fontSize: '12px',
     color: '#8892b0',
   },
+  clipFileName: {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
   dragHandle: {
     color: '#533483',
-    fontSize: '16px',
+    fontSize: '18px',
     marginLeft: '8px',
+    letterSpacing: '2px',
+  },
+  fadePanel: {
+    backgroundColor: '#16213e',
+    borderRadius: '8px',
+    padding: '16px 20px',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+  },
+  fadePanelTitle: {
+    fontSize: '15px',
+    fontWeight: 600,
+    color: '#00d2ff',
+    marginBottom: '12px',
+  },
+  fadeControl: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '8px',
+  },
+  fadeLabel: {
+    fontSize: '13px',
+    color: '#8892b0',
+    minWidth: '28px',
+  },
+  fadeSlider: {
+    flex: 1,
+    height: '20px',
+  },
+  fadeValue: {
+    fontSize: '12px',
+    color: '#00d2ff',
+    fontFamily: 'monospace',
+    minWidth: '36px',
+    textAlign: 'right',
   },
   toolbar: {
     display: 'flex',
@@ -709,7 +1087,7 @@ const styles: Record<string, React.CSSProperties> = {
   playControls: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
+    gap: '12px',
   },
   playButton: {
     padding: '10px 28px',
@@ -720,7 +1098,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     transition: 'all 0.2s ease',
   },
-  currentTime: {
+  stopButton: {
+    padding: '10px 16px',
+    borderRadius: '8px',
+    backgroundColor: '#0f3460',
+    color: '#ffffff',
+    fontSize: '14px',
+    fontWeight: 500,
+    transition: 'all 0.2s ease',
+  },
+  currentTimeDisplay: {
     fontSize: '14px',
     color: '#8892b0',
     fontFamily: 'monospace',
@@ -729,7 +1116,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: '12px',
   },
-  secondaryButton: {
+  importButton: {
     padding: '10px 20px',
     borderRadius: '8px',
     backgroundColor: '#0f3460',
@@ -746,10 +1133,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontWeight: 600,
     transition: 'all 0.2s ease',
-    position: 'relative',
-    overflow: 'hidden',
   },
-  spinner: {
+  spinnerWrap: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
@@ -798,45 +1183,68 @@ const styles: Record<string, React.CSSProperties> = {
   trackRow: {
     display: 'flex',
     minHeight: '80px',
+    borderBottom: '1px solid rgba(0, 0, 0, 0.3)',
   },
   trackHeader: {
     width: '180px',
-    padding: '12px 16px',
+    padding: '10px 14px',
     backgroundColor: '#0f172a',
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
+    gap: '6px',
     flexShrink: 0,
     borderRight: '1px solid rgba(0, 0, 0, 0.3)',
   },
-  trackIndicator: {
-    width: '4px',
-    height: '20px',
-    borderRadius: '2px',
-    position: 'absolute',
-    left: 0,
-    top: '50%',
-    transform: 'translateY(-50%)',
+  trackHeaderTop: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  trackDot: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    flexShrink: 0,
   },
   trackName: {
     fontSize: '13px',
     fontWeight: 600,
     color: '#ffffff',
-    position: 'relative',
-    paddingLeft: '12px',
   },
-  volumeControl: {
+  trackColorLabel: {
+    fontSize: '11px',
+    fontWeight: 500,
+    marginLeft: 'auto',
+  },
+  volumeRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '6px',
+  },
+  volumeIcon: {
+    fontSize: '14px',
+    flexShrink: 0,
+  },
+  volumeSliderWrap: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
   },
   volumeSlider: {
     flex: 1,
     height: '20px',
   },
+  volumeMarks: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '9px',
+    color: '#5a6a8a',
+    fontFamily: 'monospace',
+  },
   volumeValue: {
     fontSize: '11px',
-    color: '#8892b0',
+    fontWeight: 600,
     minWidth: '36px',
     textAlign: 'right',
     fontFamily: 'monospace',
@@ -845,50 +1253,88 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     position: 'relative',
     minHeight: '80px',
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    transition: 'all 0.2s ease',
+  },
+  emptyTrackHint: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    color: '#3a4a6a',
+    fontSize: '12px',
+    pointerEvents: 'none',
+    whiteSpace: 'nowrap',
+  },
+  dropIndicator: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    color: '#00d2ff',
+    fontSize: '13px',
+    fontWeight: 600,
+    pointerEvents: 'none',
+    whiteSpace: 'nowrap',
+    textShadow: '0 0 10px rgba(0, 210, 255, 0.5)',
   },
   trackClip: {
     position: 'absolute',
-    top: '10px',
-    height: '60px',
+    top: '8px',
+    height: '64px',
     borderRadius: '6px',
-    border: '2px solid',
-    padding: '8px',
+    borderStyle: 'solid',
+    padding: '4px 8px',
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     cursor: 'grab',
     overflow: 'hidden',
     transition: 'all 0.15s ease',
+    userSelect: 'none',
   },
-  fadeHandle: {
+  fadeIndicator: {
     position: 'absolute',
     top: 0,
-    width: '8px',
     height: '100%',
-    cursor: 'ew-resize',
+    pointerEvents: 'none',
+  },
+  clipContent: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flex: 1,
+    minWidth: 0,
   },
   trackClipName: {
-    fontSize: '12px',
-    fontWeight: 500,
+    fontSize: '11px',
+    fontWeight: 600,
     color: '#ffffff',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
     flex: 1,
     zIndex: 1,
+    textShadow: '0 1px 3px rgba(0,0,0,0.5)',
   },
   removeClipBtn: {
-    width: '20px',
-    height: '20px',
+    width: '18px',
+    height: '18px',
     borderRadius: '50%',
     backgroundColor: 'rgba(231, 76, 60, 0.8)',
     color: '#ffffff',
-    fontSize: '14px',
-    lineHeight: '20px',
+    fontSize: '13px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
+    flexShrink: 0,
+    marginLeft: '4px',
+    padding: 0,
+    background: 'rgba(231, 76, 60, 0.8)',
+  },
+  clipTimeLabel: {
+    fontSize: '9px',
+    color: '#8892b0',
+    fontFamily: 'monospace',
     zIndex: 1,
   },
   editorFooter: {
@@ -906,24 +1352,30 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
+    backdropFilter: 'blur(4px)',
   },
   exportModal: {
     backgroundColor: '#16213e',
     borderRadius: '12px',
-    padding: '40px 60px',
+    padding: '48px 64px',
     textAlign: 'center',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-    minWidth: '320px',
+    minWidth: '360px',
+    border: '1px solid #2a3f5f',
+  },
+  spinnerLargeWrap: {
+    marginBottom: '20px',
   },
   spinnerLarge: {
-    fontSize: '48px',
+    fontSize: '56px',
+    display: 'inline-block',
     animation: 'spin 1s linear infinite',
-    marginBottom: '20px',
+    color: '#00d2ff',
   },
   exportTitle: {
     fontSize: '20px',
@@ -932,41 +1384,30 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '24px',
   },
   exportProgressBar: {
-    height: '8px',
+    height: '10px',
     backgroundColor: '#0f172a',
-    borderRadius: '4px',
+    borderRadius: '5px',
     overflow: 'hidden',
     marginBottom: '12px',
+    border: '1px solid #2a3f5f',
   },
   exportProgressFill: {
     height: '100%',
     background: 'linear-gradient(90deg, #00d2ff, #533483)',
-    borderRadius: '4px',
-    transition: 'width 0.2s ease',
+    borderRadius: '5px',
+    transition: 'width 0.3s ease',
   },
   exportPercent: {
-    fontSize: '14px',
+    fontSize: '16px',
     color: '#00d2ff',
-    fontWeight: 600,
+    fontWeight: 700,
     fontFamily: 'monospace',
+    marginBottom: '8px',
+  },
+  exportHint: {
+    fontSize: '13px',
+    color: '#8892b0',
   },
 };
-
-const spinKeyframes = `
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-`;
-
-if (typeof document !== 'undefined') {
-  const styleId = 'podcast-studio-spinner';
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = spinKeyframes;
-    document.head.appendChild(style);
-  }
-}
 
 export default WaveformEditor;
