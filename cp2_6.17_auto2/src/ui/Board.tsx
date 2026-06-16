@@ -184,7 +184,7 @@ export default function Board() {
   }, [gameState.cells, gameState.boardSize]);
   
   const drawBuffs = useCallback((ctx: CanvasRenderingContext2D, time: number) => {
-    const breathe = (Math.sin(time / 1000) + 1) / 2;
+    const breathe = (Math.sin(time * Math.PI / 1000) + 1) / 2;
     const minAlpha = 0.3;
     const maxAlpha = 0.8;
     const alpha = minAlpha + breathe * (maxAlpha - minAlpha);
@@ -289,13 +289,14 @@ export default function Board() {
     time: number
   ) => {
     const colors = ELEMENT_COLORS[rune.element];
-    const radius = RUNE_RADIUS / 2;
+    const outerRadius = 14;
+    const innerRadius = 12;
     
     if (isSelected) {
       const pulse = (Math.sin(time / 150) + 1) / 2;
-      const glowRadius = radius + 6 + pulse * 4;
+      const glowRadius = outerRadius + 6 + pulse * 4;
       
-      const gradient = ctx.createRadialGradient(pos.x, pos.y, radius, pos.x, pos.y, glowRadius);
+      const gradient = ctx.createRadialGradient(pos.x, pos.y, outerRadius, pos.x, pos.y, glowRadius);
       gradient.addColorStop(0, hexToRgba('#FFFFFF', 0.8));
       gradient.addColorStop(1, hexToRgba('#FFFFFF', 0));
       
@@ -306,19 +307,19 @@ export default function Board() {
     }
     
     ctx.beginPath();
-    ctx.arc(pos.x, pos.y, radius + 2, 0, Math.PI * 2);
+    ctx.arc(pos.x, pos.y, outerRadius, 0, Math.PI * 2);
     ctx.fillStyle = colors.border;
     ctx.fill();
     
     const bodyGradient = ctx.createRadialGradient(
-      pos.x - radius / 3, pos.y - radius / 3, 0,
-      pos.x, pos.y, radius
+      pos.x - innerRadius / 3, pos.y - innerRadius / 3, 0,
+      pos.x, pos.y, innerRadius
     );
     bodyGradient.addColorStop(0, colors.secondary);
     bodyGradient.addColorStop(1, colors.primary);
     
     ctx.beginPath();
-    ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+    ctx.arc(pos.x, pos.y, innerRadius, 0, Math.PI * 2);
     ctx.fillStyle = bodyGradient;
     ctx.fill();
     
@@ -328,11 +329,11 @@ export default function Board() {
     ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(`攻${rune.attack}`, pos.x, pos.y + radius - 8);
+    ctx.fillText(`攻${rune.attack}`, pos.x, pos.y + innerRadius - 8);
     
-    const hpBarWidth = radius * 1.6;
+    const hpBarWidth = innerRadius * 1.6;
     const hpBarHeight = 4;
-    const hpBarY = pos.y + radius + 3;
+    const hpBarY = pos.y + innerRadius + 3;
     const hpPercent = rune.currentHp / rune.maxHp;
     
     ctx.fillStyle = '#333333';

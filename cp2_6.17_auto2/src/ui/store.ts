@@ -7,7 +7,8 @@ import {
   selectRune,
   endTurn,
   resetGame,
-  getRuneById
+  getRuneById,
+  canMoveTo
 } from '../game/engine';
 
 interface AnimationState {
@@ -159,22 +160,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     
     const canMove = (() => {
-      if (rune.hasMoved) return false;
-      if (targetPos.x < 0 || targetPos.x >= gameState.boardSize) return false;
-      if (targetPos.y < 0 || targetPos.y >= gameState.boardSize) return false;
-      
-      const cell = gameState.cells[targetPos.y][targetPos.x];
-      if (cell.type === 'obstacle') return false;
-      
-      for (const playerId of ['player1', 'player2'] as const) {
-        const existing = gameState.players[playerId].runes.find(
-          r => r.position.x === targetPos.x && r.position.y === targetPos.y && r.currentHp > 0
-        );
-        if (existing) return false;
-      }
-      
-      const distance = Math.abs(rune.position.x - targetPos.x) + Math.abs(rune.position.y - targetPos.y);
-      return distance > 0 && distance <= 3;
+      return canMoveTo(gameState, rune, targetPos);
     })();
     
     if (canMove) {
