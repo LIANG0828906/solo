@@ -5,7 +5,8 @@ import type {
   GridCoord, 
   LaserResult,
   PlayerState,
-  TurnPhase
+  TurnPhase,
+  PixelCoord
 } from './types';
 import { 
   GRID_SIZE, 
@@ -15,6 +16,18 @@ import {
   SNAP_THRESHOLD
 } from './types';
 import { gridToPixel, pixelToGrid } from './engine';
+
+export interface AnimationState {
+  elementId: string;
+  fromPos: PixelCoord;
+  toPos: PixelCoord;
+  startTime: number;
+  duration: number;
+}
+
+export interface DragAnimationState {
+  [elementId: string]: AnimationState;
+}
 
 function generateId(): string {
   return `elem-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -129,13 +142,19 @@ function createInitialState(): GameState {
 }
 
 interface BoardStore extends GameState {
+  animations: DragAnimationState;
   setRoomCode: (code: string) => void;
   setLocalPlayer: (player: 'playerA' | 'playerB') => void;
   setPlayerConnected: (player: 'playerA' | 'playerB', connected: boolean) => void;
   startGame: () => void;
-  moveElement: (elementId: string, position: GridCoord) => void;
+  moveElement: (elementId: string, position: GridCoord, withAnimation?: boolean) => boolean;
+  tryMoveElementWithSnap: (elementId: string, pixelPos: PixelCoord, localPlayer: 'playerA' | 'playerB' | null) => boolean;
+  startAnimation: (elementId: string, fromPos: PixelCoord, toPos: PixelCoord) => void;
+  updateAnimations: () => void;
+  isAnimating: (elementId: string) => boolean;
+  getAnimatedPosition: (elementId: string) => PixelCoord | null;
   canMoveElement: (elementId: string, localPlayer: 'playerA' | 'playerB' | null) => boolean;
-  snapToGrid: (pixelPos: { x: number; y: number }) => GridCoord | null;
+  snapToGrid: (pixelPos: PixelCoord) => GridCoord | null;
   isPositionOccupied: (position: GridCoord, excludeId?: string) => boolean;
   isInPlayerHalf: (position: GridCoord, player: 'playerA' | 'playerB') => boolean;
   setLaserResult: (result: LaserResult | null) => void;
@@ -149,8 +168,14 @@ interface BoardStore extends GameState {
   setState: (state: Partial<GameState>) => void;
 }
 
+function easeOutElastic(t: number): number {
+  const c4 = (2 * Math.PI) / 3;
+  return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+}
+
 export const useBoardStore = create<BoardStore>((set, get) => ({
   ...createInitialState(),
+  animations: {},
 
   setRoomCode: (code: string) => set({ roomCode: code }),
 
@@ -174,21 +199,105 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
     laserResult: null,
     isFiring: false,
     winner: null,
-    players: createInitialPlayers()
+    players: createInitialPlayers(),
+    animations: {}
   }),
 
-  moveElement: (elementId: string, position: GridCoord) => {
+  moveElement: (elementId: string, position: GridCoord, withAnimation: boolean = true): boolean => {
     const state = get();
     const element = state.elements.find(e => e.id === elementId);
     
-    if (!element || !element.movable) return;
-    if (get().isPositionOccupied(position, elementId)) return;
+    if (!element || !element.movable) return false;
+    if (state.isPositionOccupied(position, elementId)) return false;
+
+    const oldPixelPos = gridToPixel(element.position);
+    const newPixelPos = gridToPixel(position);
+
+    if (withAnimation && (oldPixelPos.x !== newPixelPos.x || oldPixelPos.y !== newPixelPos.y)) {
+      state.startAnimation(elementId, oldPixelPos, newPixelPos);
+    }
 
     set(state => ({
       elements: state.elements.map(e =>
         e.id === elementId ? { ...e, position } : e
       )
     }));
+    
+    return true;
+  },
+
+  tryMoveElementWithSnap: (elementId: string, pixelPos: PixelCoord, localPlayer: 'playerA' | 'playerB' | null): boolean => {
+    const state = get();
+    const element = state.elements.find(e => e.id === elementId);
+    
+    if (!element) return false;
+    if (!state.canMoveElement(elementId, localPlayer)) return false;
+    if (state.phase !== 'playing' || state.turnPhase !== 'adjust') return false;
+
+    const snappedPos = state.snapToGrid(pixelPos);
+    if (!snappedPos) return false;
+
+    if (element.owner !== 'neutral' && !state.isInPlayerHalf(snappedPos, element.owner)) return false;
+    if (state.isPositionOccupied(snappedPos, elementId)) return false;
+
+    return state.moveElement(elementId, snappedPos, true);
+  },
+
+  startAnimation: (elementId: string, fromPos: PixelCoord, toPos: PixelCoord) => {
+    set(state => ({
+      animations: {
+        ...state.animations,
+        [elementId]: {
+          elementId,
+          fromPos,
+          toPos,
+          startTime: Date.now(),
+          duration: 200
+        }
+      }
+    }));
+  },
+
+  updateAnimations: () => {
+    const state = get();
+    const now = Date.now();
+    const newAnimations: DragAnimationState = {};
+    let changed = false;
+
+    Object.entries(state.animations).forEach(([id, anim]) => {
+      const elapsed = now - anim.startTime;
+      if (elapsed < anim.duration) {
+        newAnimations[id] = anim;
+      } else {
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      set({ animations: newAnimations });
+    }
+  },
+
+  isAnimating: (elementId: string) => {
+    const anim = get().animations[elementId];
+    if (!anim) return false;
+    return Date.now() - anim.startTime < anim.duration;
+  },
+
+  getAnimatedPosition: (elementId: string): PixelCoord | null => {
+    const anim = get().animations[elementId];
+    if (!anim) return null;
+    
+    const elapsed = Date.now() - anim.startTime;
+    if (elapsed >= anim.duration) return null;
+    
+    const t = Math.min(elapsed / anim.duration, 1);
+    const easedT = easeOutElastic(t);
+    
+    return {
+      x: anim.fromPos.x + (anim.toPos.x - anim.fromPos.x) * easedT,
+      y: anim.fromPos.y + (anim.toPos.y - anim.fromPos.y) * easedT
+    };
   },
 
   canMoveElement: (elementId: string, localPlayer: 'playerA' | 'playerB' | null) => {
@@ -198,7 +307,7 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
     return element.owner === localPlayer;
   },
 
-  snapToGrid: (pixelPos: { x: number; y: number }) => {
+  snapToGrid: (pixelPos: PixelCoord) => {
     const gridPos = pixelToGrid(pixelPos);
     const gridCenter = gridToPixel(gridPos);
     const distance = Math.hypot(pixelPos.x - gridCenter.x, pixelPos.y - gridCenter.y);
@@ -271,7 +380,8 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
       round: newRound,
       timeRemaining: TURN_DURATION,
       laserResult: null,
-      isFiring: false
+      isFiring: false,
+      animations: {}
     };
   }),
 
@@ -280,7 +390,7 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
     winner
   }),
 
-  resetGame: () => set(createInitialState()),
+  resetGame: () => set({ ...createInitialState(), animations: {} }),
 
   setState: (state: Partial<GameState>) => set(state)
 }));

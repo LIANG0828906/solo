@@ -115,7 +115,9 @@ export function fireLaser(): void {
 }
 
 export function restartGame(): void {
-  if (!socket) return;
+  if (!socket) {
+    socket = initSocket();
+  }
   socket.emit('game:restart');
 }
 
