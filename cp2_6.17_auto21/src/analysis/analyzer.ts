@@ -88,6 +88,116 @@ export function getSampleCode(): string {
   return SAMPLE_CODE;
 }
 
+interface TokenInfo {
+  type: 'keyword' | 'operator' | 'punctuation' | 'identifier' | 'literal' | 'other';
+  value: string;
+}
+
+function tokenizeLine(line: string): TokenInfo[] {
+  const tokens: TokenInfo[] = [];
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+    return tokens;
+  }
+
+  let i = 0;
+  while (i < trimmed.length) {
+    const ch = trimmed[i];
+
+    if (/\s/.test(ch)) {
+      i++;
+      continue;
+    }
+
+    if (/[a-zA-Z_$]/.test(ch)) {
+      let ident = '';
+      while (i < trimmed.length && /[a-zA-Z0-9_$]/.test(trimmed[i])) {
+        ident += trimmed[i];
+        i++;
+      }
+      const keywords = new Set([
+        'function', 'const', 'let', 'var', 'return', 'if', 'else', 'for', 'while',
+        'switch', 'case', 'break', 'continue', 'new', 'typeof', 'instanceof',
+        'try', 'catch', 'finally', 'throw', 'class', 'extends', 'import', 'export',
+        'default', 'async', 'await', 'yield', 'from', 'of', 'in', 'do', 'delete',
+        'void', 'this', 'super', 'static', 'get', 'set', 'true', 'false', 'null', 'undefined',
+      ]);
+      if (keywords.has(ident)) {
+        tokens.push({ type: 'keyword', value: ident });
+      } else {
+        tokens.push({ type: 'identifier', value: 'ID' });
+      }
+      continue;
+    }
+
+    if (/\d/.test(ch)) {
+      let num = '';
+      while (i < trimmed.length && /[\d.eExX]/.test(trimmed[i])) {
+        num += trimmed[i];
+        i++;
+      }
+      tokens.push({ type: 'literal', value: 'NUM' });
+      continue;
+    }
+
+    if (ch === '"' || ch === "'" || ch === '`') {
+      const quote = ch;
+      i++;
+      while (i < trimmed.length && trimmed[i] !== quote) {
+        if (trimmed[i] === '\\') i++;
+        i++;
+      }
+      i++;
+      tokens.push({ type: 'literal', value: 'STR' });
+      continue;
+    }
+
+    const twoCharOps = ['===', '!==', '&&', '||', '=>', '++', '--', '+=', '-=', '*=', '/=', '==', '!=', '<=', '>='];
+    let matched = false;
+    for (const op of twoCharOps) {
+      if (trimmed.substring(i, i + op.length) === op) {
+        tokens.push({ type: 'operator', value: op });
+        i += op.length;
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+
+    if ('+-*/%=<>!&|^~?'.includes(ch)) {
+      tokens.push({ type: 'operator', value: ch });
+      i++;
+      continue;
+    }
+
+    if ('(){}[];:,.'.includes(ch)) {
+      tokens.push({ type: 'punctuation', value: ch });
+      i++;
+      continue;
+    }
+
+    tokens.push({ type: 'other', value: ch });
+    i++;
+  }
+
+  return tokens;
+}
+
+function getStructuralPattern(line: string): string {
+  const tokens = tokenizeLine(line);
+  if (tokens.length === 0) return '';
+  return tokens.map(t => {
+    switch (t.type) {
+      case 'keyword': return `K:${t.value}`;
+      case 'operator': return `O:${t.value}`;
+      case 'punctuation': return `P:${t.value}`;
+      case 'identifier': return 'ID';
+      case 'literal': return 'LIT';
+      default: return '?';
+    }
+  }).join(' ');
+}
+
 function hashString(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -98,53 +208,98 @@ function hashString(str: string): string {
   return hash.toString(36);
 }
 
-function normalizeLine(line: string): string {
-  return line.trim().replace(/\s+/g, ' ');
+interface DuplicationGroup {
+  positions: number[];
+  pattern: string;
 }
 
 function findDuplications(code: string, minLines: number): Issue[] {
   const issues: Issue[] = [];
   const lines = code.split('\n');
-  const normalizedLines = lines.map(normalizeLine);
-  const hashMap = new Map<string, number[]>();
+  const nonEmptyLines: { index: number; pattern: string }[] = [];
 
-  if (lines.length < minLines) return issues;
-
-  for (let i = 0; i <= lines.length - minLines; i++) {
-    const window = normalizedLines.slice(i, i + minLines).join('\n');
-    const hash = hashString(window);
-    
-    if (hashMap.has(hash)) {
-      hashMap.get(hash)!.push(i);
-    } else {
-      hashMap.set(hash, [i]);
+  for (let i = 0; i < lines.length; i++) {
+    const pattern = getStructuralPattern(lines[i]);
+    if (pattern) {
+      nonEmptyLines.push({ index: i, pattern });
     }
   }
 
-  const usedRanges = new Set<string>();
-  
-  for (const [, positions] of hashMap) {
-    if (positions.length >= 2) {
-      for (const pos of positions) {
-        const lineStart = pos + 1;
-        const lineEnd = pos + minLines;
-        const rangeKey = `${lineStart}-${lineEnd}`;
-        
-        if (!usedRanges.has(rangeKey)) {
-          usedRanges.add(rangeKey);
-          
-          const issue: Issue = {
-            id: uuidv4(),
-            type: 'duplication',
-            severity: 'medium',
-            lineStart,
-            lineEnd,
-            message: `第 ${lineStart}-${lineEnd} 行存在重复代码，共 ${positions.length} 处重复`,
-            suggestion: '将重复代码提取为公共函数或工具方法，减少维护成本',
-          };
-          issues.push(issue);
-        }
+  if (nonEmptyLines.length < minLines) return issues;
+
+  const patternHashes = new Map<string, DuplicationGroup>();
+
+  for (let i = 0; i <= nonEmptyLines.length - minLines; i++) {
+    const windowPatterns: string[] = [];
+    for (let j = 0; j < minLines; j++) {
+      windowPatterns.push(nonEmptyLines[i + j].pattern);
+    }
+    const combinedPattern = windowPatterns.join('\n');
+    const hash = hashString(combinedPattern);
+
+    if (patternHashes.has(hash)) {
+      const group = patternHashes.get(hash)!;
+      if (group.pattern === combinedPattern) {
+        group.positions.push(i);
       }
+    } else {
+      patternHashes.set(hash, {
+        positions: [i],
+        pattern: combinedPattern,
+      });
+    }
+  }
+
+  const reportedRanges = new Set<string>();
+
+  for (const [, group] of patternHashes) {
+    if (group.positions.length < 2) continue;
+
+    const uniquePositions: number[] = [];
+    const seenCodeLines = new Set<string>();
+
+    for (const pos of group.positions) {
+      const codeLines = lines.slice(
+        nonEmptyLines[pos].index,
+        nonEmptyLines[Math.min(pos + minLines - 1, nonEmptyLines.length - 1)].index + 1
+      ).join('\n');
+
+      const normalizedCode = codeLines
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0)
+        .join('\n');
+
+      if (!seenCodeLines.has(normalizedCode)) {
+        seenCodeLines.add(normalizedCode);
+        uniquePositions.push(pos);
+      }
+    }
+
+    if (uniquePositions.length < 2) continue;
+
+    for (const pos of uniquePositions) {
+      const startLineIndex = nonEmptyLines[pos].index;
+      const endLineIndex = nonEmptyLines[Math.min(pos + minLines - 1, nonEmptyLines.length - 1)].index;
+
+      const lineStart = startLineIndex + 1;
+      const lineEnd = endLineIndex + 1;
+
+      const rangeKey = `${lineStart}-${lineEnd}`;
+      if (reportedRanges.has(rangeKey)) continue;
+      reportedRanges.add(rangeKey);
+
+      const severity: Severity = uniquePositions.length >= 3 ? 'high' : 'medium';
+
+      issues.push({
+        id: uuidv4(),
+        type: 'duplication',
+        severity,
+        lineStart,
+        lineEnd,
+        message: `第 ${lineStart}-${lineEnd} 行存在结构重复代码，共 ${uniquePositions.length} 处语义相似的重复`,
+        suggestion: '将重复代码提取为公共函数或工具方法，通过参数化差异来减少维护成本',
+      });
     }
   }
 
@@ -161,22 +316,22 @@ interface FunctionRange {
 function findFunctions(code: string): FunctionRange[] {
   const functions: FunctionRange[] = [];
   const lines = code.split('\n');
-  
+
   const functionPatterns = [
+    /^(\s*)(async\s+)?function\s+(\w+)\s*\(/,
     /^(\s*)function\s+(\w+)\s*\(/,
     /^(\s*)(const|let|var)\s+(\w+)\s*=\s*(async\s+)?\([^)]*\)\s*=>/,
-    /^(\s*)(\w+)\s*\([^)]*\)\s*\{/,
-    /^(\s*)(async\s+)?function\s+(\w+)\s*\(/,
   ];
 
   for (let i = 0; i < lines.length; i++) {
     let match: RegExpMatchArray | null = null;
     let funcName = '';
-    
+
     for (const pattern of functionPatterns) {
       match = lines[i].match(pattern);
       if (match) {
-        funcName = match[3] || match[2] || 'anonymous';
+        const groups = match.filter(g => g !== undefined);
+        funcName = groups[groups.length - 1] || 'anonymous';
         break;
       }
     }
@@ -185,7 +340,7 @@ function findFunctions(code: string): FunctionRange[] {
       let braceCount = 0;
       let startLine = i;
       let foundOpen = false;
-      
+
       for (let j = i; j < lines.length; j++) {
         for (const ch of lines[j]) {
           if (ch === '{') {
@@ -195,7 +350,7 @@ function findFunctions(code: string): FunctionRange[] {
             braceCount--;
           }
         }
-        
+
         if (foundOpen && braceCount === 0) {
           const funcContent = lines.slice(startLine, j + 1).join('\n');
           functions.push({
@@ -216,25 +371,38 @@ function findFunctions(code: string): FunctionRange[] {
 
 function calculateComplexity(funcContent: string): number {
   let complexity = 1;
-  
-  const patterns = [
-    /\bif\s*\(/g,
-    /\belse\s+if\s*\(/g,
-    /\bfor\s*\(/g,
-    /\bwhile\s*\(/g,
-    /\bswitch\s*\(/g,
-    /\bcase\s+[^:]+:/g,
-    /\bcatch\s*\(/g,
-    /\?[^:]+:/g,
-    /&&/g,
-    /\|\|/g,
-  ];
 
-  for (const pattern of patterns) {
-    const matches = funcContent.match(pattern);
-    if (matches) {
-      complexity += matches.length;
-    }
+  const lines = funcContent.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) continue;
+
+    const ifMatches = trimmed.match(/\bif\s*\(/g);
+    if (ifMatches) complexity += ifMatches.length;
+
+    const elseIfMatches = trimmed.match(/\belse\s+if\s*\(/g);
+    if (elseIfMatches) complexity += elseIfMatches.length;
+
+    const forMatches = trimmed.match(/\bfor\s*\(/g);
+    if (forMatches) complexity += forMatches.length;
+
+    const whileMatches = trimmed.match(/\bwhile\s*\(/g);
+    if (whileMatches) complexity += whileMatches.length;
+
+    const caseMatches = trimmed.match(/\bcase\s+[^:]+:/g);
+    if (caseMatches) complexity += caseMatches.length;
+
+    const catchMatches = trimmed.match(/\bcatch\s*\(/g);
+    if (catchMatches) complexity += catchMatches.length;
+
+    const andMatches = trimmed.match(/&&/g);
+    if (andMatches) complexity += andMatches.length;
+
+    const orMatches = trimmed.match(/\|\|/g);
+    if (orMatches) complexity += orMatches.length;
+
+    const ternaryMatches = trimmed.match(/\?[^.?]*:/g);
+    if (ternaryMatches) complexity += ternaryMatches.length;
   }
 
   return complexity;
@@ -246,10 +414,10 @@ function findComplexFunctions(code: string, threshold: number): Issue[] {
 
   for (const func of functions) {
     const complexity = calculateComplexity(func.content);
-    
+
     if (complexity > threshold) {
       const severity: Severity = complexity > threshold * 1.5 ? 'high' : 'medium';
-      
+
       issues.push({
         id: uuidv4(),
         type: 'complexity',
@@ -273,10 +441,10 @@ function findLongFunctions(code: string, maxLines: number): Issue[] {
 
   for (const func of functions) {
     const lineCount = func.endLine - func.startLine + 1;
-    
+
     if (lineCount > maxLines) {
       const severity: Severity = lineCount > maxLines * 1.5 ? 'high' : 'low';
-      
+
       issues.push({
         id: uuidv4(),
         type: 'long-function',
@@ -308,17 +476,13 @@ export function analyze(code: string, thresholds: Thresholds): AnalysisResult {
 
   const issues = [...duplicationIssues, ...complexityIssues, ...longFunctionIssues];
 
-  const typeStats = {
-    duplication: duplicationIssues.length,
-    complexity: complexityIssues.length,
-    longFunction: longFunctionIssues.length,
-  };
-
   return {
     issues,
     stats: {
       total: issues.length,
-      ...typeStats,
+      duplication: duplicationIssues.length,
+      complexity: complexityIssues.length,
+      longFunction: longFunctionIssues.length,
     },
     timestamp: Date.now(),
   };
@@ -363,13 +527,13 @@ export function generateMarkdownReport(
   report += `| 🔵 过长函数 | ${result.stats.longFunction} |\n\n`;
 
   report += `## 问题详情\n\n`;
-  
+
   if (result.issues.length === 0) {
     report += `✅ 代码质量良好，未发现问题！\n`;
   } else {
     report += `| 序号 | 类型 | 严重程度 | 位置 | 描述 | 修复建议 |\n`;
     report += `|------|------|----------|------|------|----------|\n`;
-    
+
     result.issues.forEach((issue, index) => {
       report += `| ${index + 1} | ${typeLabels[issue.type]} | ${severityLabels[issue.severity]} | ${filename}:${issue.lineStart} | ${issue.message} | ${issue.suggestion} |\n`;
     });

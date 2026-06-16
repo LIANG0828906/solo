@@ -11,13 +11,13 @@ export default function HistoryList({ onClose }: HistoryListProps) {
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [animatingId, setAnimatingId] = useState<string | null>(null);
-  const { loadFromHistory } = useAnalysisStore();
+  const { loadFromHistory, selectIssue } = useAnalysisStore();
 
   useEffect(() => {
-    loadHistory();
+    loadHistoryRecords();
   }, []);
 
-  const loadHistory = async () => {
+  const loadHistoryRecords = async () => {
     try {
       setLoading(true);
       const records = await loadAllHistory();
@@ -31,9 +31,15 @@ export default function HistoryList({ onClose }: HistoryListProps) {
 
   const handleRecordClick = (record: HistoryRecord) => {
     setAnimatingId(record.id);
-    
+
     setTimeout(() => {
       loadFromHistory(record);
+
+      if (record.result.issues.length > 0) {
+        const firstIssue = record.result.issues[0];
+        selectIssue(firstIssue.id);
+      }
+
       setAnimatingId(null);
       onClose();
     }, 500);
@@ -53,12 +59,12 @@ export default function HistoryList({ onClose }: HistoryListProps) {
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    
+
     if (diff < 60000) return '刚刚';
     if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
     if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`;
-    
+
     return date.toLocaleDateString('zh-CN', {
       month: 'short',
       day: 'numeric',
@@ -77,20 +83,41 @@ export default function HistoryList({ onClose }: HistoryListProps) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-800">📚 历史记录</h2>
-        <div className="flex items-center gap-2">
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#f9fafb' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 16px',
+        backgroundColor: 'white',
+        borderBottom: '1px solid #e5e7eb',
+      }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1a1a2e' }}>📚 历史记录</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
-            onClick={loadHistory}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+            onClick={loadHistoryRecords}
+            style={{
+              padding: '8px',
+              color: '#6b7280',
+              borderRadius: '8px',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6'; e.currentTarget.style.color = '#374151'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
             title="刷新"
           >
             🔄
           </button>
           <button
             onClick={onClose}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+            style={{
+              padding: '8px',
+              color: '#6b7280',
+              borderRadius: '8px',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6'; e.currentTarget.style.color = '#374151'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
             title="关闭"
           >
             ✕
@@ -98,101 +125,131 @@ export default function HistoryList({ onClose }: HistoryListProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-4">
+      <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
         {loading ? (
-          <div className="text-center text-gray-400 py-16">
-            <div className="text-4xl mb-3 animate-spin inline-block">⚙️</div>
+          <div style={{ textAlign: 'center', color: '#9ca3af', padding: '64px 0' }}>
+            <div style={{ fontSize: '36px', marginBottom: '12px', display: 'inline-block', animation: 'spin 1s linear infinite' }}>⚙️</div>
             <p>加载中...</p>
           </div>
         ) : history.length === 0 ? (
-          <div className="text-center text-gray-400 py-16">
-            <div className="text-5xl mb-4">📭</div>
-            <p className="text-lg mb-2">暂无历史记录</p>
-            <p className="text-sm">分析代码后会自动保存到这里</p>
+          <div style={{ textAlign: 'center', color: '#9ca3af', padding: '64px 0' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
+            <p style={{ fontSize: '18px', marginBottom: '8px' }}>暂无历史记录</p>
+            <p style={{ fontSize: '14px' }}>分析代码后会自动保存到这里</p>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-4 justify-start">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'flex-start' }}>
             {history.map(record => {
               const isAnimating = animatingId === record.id;
               const typeStats = getTypeStats(record);
-              
+
               return (
                 <div
                   key={record.id}
                   onClick={() => handleRecordClick(record)}
-                  className="cursor-pointer transition-all duration-300 hover:scale-[1.02] relative group"
                   style={{
                     width: '280px',
                     borderRadius: '12px',
                     boxShadow: '#00000022 0 4px 12px',
-                    backgroundColor: isAnimating ? '#F0F9FF' : 'white',
-                    transform: isAnimating ? 'scale(0.98)' : undefined,
+                    backgroundColor: isAnimating ? '#EFF6FF' : 'white',
+                    transform: isAnimating ? 'scale(0.97)' : undefined,
                     opacity: isAnimating ? 0.7 : 1,
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease, transform 0.5s ease-in-out, opacity 0.5s ease-in-out',
+                    position: 'relative',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isAnimating) {
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                      e.currentTarget.style.boxShadow = '#00000033 0 8px 24px';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isAnimating) {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = '#00000022 0 4px 12px';
+                    }
                   }}
                 >
                   <button
                     onClick={(e) => handleDelete(e, record.id)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center hover:bg-red-600 z-10"
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      opacity: 0,
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '9999px',
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'opacity 0.15s ease',
+                      zIndex: 10,
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.backgroundColor = '#dc2626'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; e.currentTarget.style.backgroundColor = '#ef4444'; }}
                     title="删除记录"
                   >
                     ✕
                   </button>
 
-                  <div className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 
-                          className="font-medium text-gray-800 truncate text-sm"
-                          style={{
-                            textDecoration: isAnimating ? 'underline' : 'none',
-                            textDecorationColor: '#3B82F6',
-                            textDecorationThickness: '2px',
-                            transition: 'all 0.5s ease-in-out',
-                          }}
-                        >
-                          📄 {record.filename}
-                        </h3>
-                        <p className="text-xs text-gray-400 mt-1">
-                          ⏰ {formatDate(record.createdAt)}
-                        </p>
-                      </div>
+                  <div style={{
+                    padding: '16px',
+                  }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <h3 style={{
+                        fontWeight: 500,
+                        color: '#1a1a2e',
+                        fontSize: '14px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        textDecoration: isAnimating ? 'underline' : 'none',
+                        textDecorationColor: '#3B82F6',
+                        textDecorationThickness: '2px',
+                        transition: 'all 0.5s ease-in-out',
+                      }}>
+                        📄 {record.filename}
+                      </h3>
+                      <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                        ⏰ {formatDate(record.createdAt)}
+                      </p>
                     </div>
 
-                    <div className="flex items-center gap-1 mb-3">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '12px' }}>
                       {typeStats.length > 0 ? (
                         typeStats.map((stat, i) => (
-                          <span key={i} className="text-xs">
+                          <span key={i} style={{ fontSize: '12px' }}>
                             {stat.icon} {stat.count}
                           </span>
                         ))
                       ) : (
-                        <span className="text-xs text-green-600 font-medium">✅ 无问题</span>
+                        <span style={{ fontSize: '12px', color: '#059669', fontWeight: 500 }}>✅ 无问题</span>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>
-                        共 {record.result.stats.total} 个问题
-                      </span>
-                      <span>
-                        {record.code.split('\n').length} 行
-                      </span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#6b7280' }}>
+                      <span>共 {record.result.stats.total} 个问题</span>
+                      <span>{record.code.split('\n').length} 行</span>
                     </div>
                   </div>
 
-                  <div 
-                    className="h-1 rounded-b-xl"
-                    style={{
-                      background: `linear-gradient(to right, 
-                        ${record.result.stats.duplication > 0 ? '#FFE0E0' : 'transparent'} 0%,
-                        ${record.result.stats.duplication > 0 ? '#FFE0E0' : 'transparent'} 33%,
-                        ${record.result.stats.complexity > 0 ? '#FFF0D0' : 'transparent'} 33%,
-                        ${record.result.stats.complexity > 0 ? '#FFF0D0' : 'transparent'} 66%,
-                        ${record.result.stats.longFunction > 0 ? '#E0F0FF' : 'transparent'} 66%,
-                        ${record.result.stats.longFunction > 0 ? '#E0F0FF' : 'transparent'} 100%
-                      )`,
-                    }}
-                  />
+                  <div style={{
+                    height: '4px',
+                    borderRadius: '0 0 12px 12px',
+                    background: `linear-gradient(to right, 
+                      ${record.result.stats.duplication > 0 ? '#FFE0E0' : 'transparent'} 0%,
+                      ${record.result.stats.duplication > 0 ? '#FFE0E0' : 'transparent'} 33%,
+                      ${record.result.stats.complexity > 0 ? '#FFF0D0' : 'transparent'} 33%,
+                      ${record.result.stats.complexity > 0 ? '#FFF0D0' : 'transparent'} 66%,
+                      ${record.result.stats.longFunction > 0 ? '#E0F0FF' : 'transparent'} 66%,
+                      ${record.result.stats.longFunction > 0 ? '#E0F0FF' : 'transparent'} 100%
+                    )`,
+                  }} />
                 </div>
               );
             })}
@@ -200,9 +257,23 @@ export default function HistoryList({ onClose }: HistoryListProps) {
         )}
       </div>
 
-      <div className="px-4 py-3 bg-white border-t border-gray-200 text-center text-xs text-gray-400">
+      <div style={{
+        padding: '12px 16px',
+        backgroundColor: 'white',
+        borderTop: '1px solid #e5e7eb',
+        textAlign: 'center',
+        fontSize: '12px',
+        color: '#9ca3af',
+      }}>
         最多保存 100 条记录
       </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

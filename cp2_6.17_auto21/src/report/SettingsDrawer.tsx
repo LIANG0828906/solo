@@ -65,41 +65,88 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
     });
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: '64px',
+    padding: '4px 8px',
+    fontSize: '14px',
+    textAlign: 'center',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    outline: 'none',
+  };
+
+  const rangeStyle = (color: string): React.CSSProperties => ({
+    width: '100%',
+    height: '8px',
+    borderRadius: '8px',
+    appearance: 'none',
+    cursor: 'pointer',
+    background: `linear-gradient(to right, ${color} 0%, ${color} ${100}%, #e5e7eb ${100}%, #e5e7eb 100%)`,
+  });
+
   return (
     <>
       <div
-        className="fixed inset-0 z-40 transition-opacity duration-300"
         style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           backgroundColor: '#00000066',
+          zIndex: 40,
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
+          transition: 'opacity 0.3s cubic-bezier(0.4,0,0.2,1)',
         }}
         onClick={onClose}
       />
 
       <div
         ref={drawerRef}
-        className="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 flex flex-col"
         style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          height: '100%',
+          width: '320px',
+          backgroundColor: 'white',
+          boxShadow: '-4px 0 24px rgba(0,0,0,0.15)',
+          zIndex: 50,
+          display: 'flex',
+          flexDirection: 'column',
           transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
         }}
       >
-        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">⚙️ 审查设置</h2>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px',
+          borderBottom: '1px solid #e5e7eb',
+        }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#1a1a2e' }}>⚙️ 审查设置</h2>
           <button
             onClick={onClose}
-            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+            style={{
+              padding: '8px',
+              color: '#6b7280',
+              borderRadius: '8px',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6'; e.currentTarget.style.color = '#374151'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
           >
             ✕
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto p-4">
-          <div className="space-y-6">
+        <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>
                   🔴 重复代码最小行数
                 </label>
                 <input
@@ -108,7 +155,7 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
                   max="10"
                   value={thresholds.duplicationLines}
                   onChange={(e) => handleDuplicationChange(Number(e.target.value))}
-                  className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={inputStyle}
                 />
               </div>
               <input
@@ -117,16 +164,16 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
                 max="10"
                 value={thresholds.duplicationLines}
                 onChange={(e) => handleDuplicationChange(Number(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-400"
+                style={rangeStyle('#f87171')}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
                 连续 {thresholds.duplicationLines} 行相同代码将被标记为重复
               </p>
             </div>
 
-            <div className="border-t border-gray-100 pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700">
+            <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>
                   🟡 圈复杂度阈值
                 </label>
                 <input
@@ -135,7 +182,7 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
                   max="20"
                   value={thresholds.complexity}
                   onChange={(e) => handleComplexityChange(Number(e.target.value))}
-                  className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={inputStyle}
                 />
               </div>
               <input
@@ -144,22 +191,22 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
                 max="20"
                 value={thresholds.complexity}
                 onChange={(e) => handleComplexityChange(Number(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+                style={rangeStyle('#fbbf24')}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
                 McCabe 圈复杂度超过 {thresholds.complexity} 将被标记
               </p>
-              <div className="mt-2 text-xs bg-yellow-50 p-2 rounded text-yellow-800">
-                <p className="font-medium mb-1">复杂度参考：</p>
+              <div style={{ marginTop: '8px', fontSize: '12px', backgroundColor: '#fffbeb', padding: '8px', borderRadius: '8px', color: '#92400e' }}>
+                <p style={{ fontWeight: 500, marginBottom: '4px' }}>复杂度参考：</p>
                 <p>• 1-10: 简单函数，风险低</p>
                 <p>• 11-20: 中等复杂度，需要关注</p>
                 <p>• 21+: 高复杂度，建议拆分</p>
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-6">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700">
+            <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>
                   🔵 函数最大行数
                 </label>
                 <input
@@ -168,7 +215,7 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
                   max="100"
                   value={thresholds.maxFunctionLines}
                   onChange={(e) => handleMaxLinesChange(Number(e.target.value))}
-                  className="w-16 px-2 py-1 text-sm text-center border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={inputStyle}
                 />
               </div>
               <input
@@ -178,35 +225,45 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
                 step="5"
                 value={thresholds.maxFunctionLines}
                 onChange={(e) => handleMaxLinesChange(Number(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-400"
+                style={rangeStyle('#60a5fa')}
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
                 函数超过 {thresholds.maxFunctionLines} 行将被标记为过长
               </p>
             </div>
 
-            <div className="border-t border-gray-100 pt-6">
+            <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '24px' }}>
               <button
                 onClick={handleReset}
-                className="w-full py-2 px-4 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                style={{
+                  width: '100%',
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  color: '#4b5563',
+                  backgroundColor: '#f3f4f6',
+                  borderRadius: '8px',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e5e7eb'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6'; }}
               >
                 🔄 恢复默认设置
               </button>
             </div>
 
-            <div className="border-t border-gray-100 pt-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">📖 检测说明</h3>
-              <div className="space-y-3 text-xs text-gray-600">
-                <div className="p-3 bg-red-50 rounded-lg">
-                  <p className="font-medium text-red-700 mb-1">🔴 重复代码检测</p>
-                  <p>基于滑动窗口哈希算法，检测连续多行相同的代码片段，建议提取为公共函数。</p>
+            <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '24px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 500, color: '#374151', marginBottom: '12px' }}>📖 检测说明</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', color: '#4b5563' }}>
+                <div style={{ padding: '12px', backgroundColor: '#fef2f2', borderRadius: '8px' }}>
+                  <p style={{ fontWeight: 500, color: '#991b1b', marginBottom: '4px' }}>🔴 重复代码检测</p>
+                  <p>基于语法Token归一化的滑动窗口算法，检测结构相似的代码片段，识别变量重命名后的语义重复。</p>
                 </div>
-                <div className="p-3 bg-yellow-50 rounded-lg">
-                  <p className="font-medium text-yellow-700 mb-1">🟡 圈复杂度计算</p>
+                <div style={{ padding: '12px', backgroundColor: '#fffbeb', borderRadius: '8px' }}>
+                  <p style={{ fontWeight: 500, color: '#92400e', marginBottom: '4px' }}>🟡 圈复杂度计算</p>
                   <p>依据 McCabe 公式，统计 if/for/while/switch/case/&&/||/?: 等决策点数量。</p>
                 </div>
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <p className="font-medium text-blue-700 mb-1">🔵 过长函数检测</p>
+                <div style={{ padding: '12px', backgroundColor: '#eff6ff', borderRadius: '8px' }}>
+                  <p style={{ fontWeight: 500, color: '#1e40af', marginBottom: '4px' }}>🔵 过长函数检测</p>
                   <p>统计函数体的实际代码行数，建议将长函数拆分为多个职责单一的小函数。</p>
                 </div>
               </div>
@@ -214,8 +271,12 @@ export default function SettingsDrawer({ isOpen, onClose }: SettingsDrawerProps)
           </div>
         </div>
 
-        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
-          <p className="text-xs text-gray-500 text-center">
+        <div style={{
+          padding: '12px 16px',
+          borderTop: '1px solid #e5e7eb',
+          backgroundColor: '#f9fafb',
+        }}>
+          <p style={{ fontSize: '12px', color: '#6b7280', textAlign: 'center' }}>
             设置自动保存，下次分析时生效
           </p>
         </div>
