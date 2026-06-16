@@ -46,7 +46,9 @@ function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('map');
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState<{ id: string; seat: number } | null>(null);
+  const [cancelClosing, setCancelClosing] = useState(false);
   const initializedRef = useRef(false);
+  const closeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -74,13 +76,28 @@ function App() {
   };
 
   const handleCancelClick = (id: string, seat: number) => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    setCancelClosing(false);
     setCancelConfirm({ id, seat });
   };
 
+  const closeCancelModal = () => {
+    if (cancelClosing || !cancelConfirm) return;
+    setCancelClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      setCancelConfirm(null);
+      setCancelClosing(false);
+      closeTimerRef.current = null;
+    }, 220);
+  };
+
   const confirmCancel = async () => {
-    if (!cancelConfirm) return;
+    if (!cancelConfirm || cancelClosing) return;
     await cancelReservation(cancelConfirm.id);
-    setCancelConfirm(null);
+    closeCancelModal();
   };
 
   const renderSidebar = () => (
@@ -223,11 +240,11 @@ function App() {
 
       {cancelConfirm && (
         <div
-          className="modal-overlay"
-          onClick={() => setCancelConfirm(null)}
+          className={`modal-overlay ${cancelClosing ? 'overlay-fade-out' : ''}`}
+          onClick={closeCancelModal}
         >
           <div
-            className="modal-content confirm-modal"
+            className={`modal-content confirm-modal ${cancelClosing ? 'closing' : ''}`}
             onClick={e => e.stopPropagation()}
             style={{ minWidth: 320 }}
           >
@@ -236,7 +253,7 @@ function App() {
               您确定要取消座位 #{cancelConfirm.seat} 的预约吗？此操作无法撤销。
             </p>
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setCancelConfirm(null)}>
+              <button className="btn-secondary" onClick={closeCancelModal}>
                 再想想
               </button>
               <button className="btn-danger" onClick={confirmCancel}>

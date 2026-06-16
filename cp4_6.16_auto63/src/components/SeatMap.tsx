@@ -8,7 +8,7 @@ interface SeatMapProps {
 }
 
 const SeatMap = ({ onStartTimer, onOpenCancelConfirm }: SeatMapProps) => {
-  const { seats, reservations, addReservation } = useAppStore();
+  const { seats, reservations, addReservation, updateReservationStatus, timer } = useAppStore();
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
   const [selectedDuration, setSelectedDuration] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -17,9 +17,10 @@ const SeatMap = ({ onStartTimer, onOpenCancelConfirm }: SeatMapProps) => {
   useEffect(() => {
     const interval = setInterval(() => {
       forceTick(t => t + 1);
+      updateReservationStatus();
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [updateReservationStatus]);
 
   const reservationMap = useMemo(() => {
     const map = new Map<string, Reservation>();
@@ -31,6 +32,16 @@ const SeatMap = ({ onStartTimer, onOpenCancelConfirm }: SeatMapProps) => {
     return map;
   }, [reservations]);
 
+  useEffect(() => {
+    const inProgressReservations = reservations.filter(
+      r => r.status === 'in-progress' && !timer.isRunning
+    );
+    if (inProgressReservations.length > 0 && !timer.isRunning) {
+      const latest = inProgressReservations[inProgressReservations.length - 1];
+      onStartTimer(latest.id);
+    }
+  }, [reservations, timer.isRunning, onStartTimer]);
+
   const handleSeatClick = (seat: Seat) => {
     if (seat.status === 'idle') {
       setSelectedSeat(seat);
@@ -38,7 +49,6 @@ const SeatMap = ({ onStartTimer, onOpenCancelConfirm }: SeatMapProps) => {
     } else if (seat.status === 'in-use') {
       const reservation = reservationMap.get(seat.id);
       if (reservation && reservation.status === 'in-progress') {
-        const timer = useAppStore.getState().timer;
         if (!timer.isRunning) {
           onStartTimer(reservation.id);
         }
@@ -55,9 +65,8 @@ const SeatMap = ({ onStartTimer, onOpenCancelConfirm }: SeatMapProps) => {
     if (!selectedSeat) return;
     setIsSubmitting(true);
     try {
-      const reservation = await addReservation(selectedSeat.id, selectedDuration);
+      await addReservation(selectedSeat.id, selectedDuration);
       setSelectedSeat(null);
-      onStartTimer(reservation.id);
     } catch (e) {
       console.error('预约失败', e);
     } finally {
@@ -69,17 +78,17 @@ const SeatMap = ({ onStartTimer, onOpenCancelConfirm }: SeatMapProps) => {
     if (!isSubmitting) setSelectedSeat(null);
   };
 
-  const renderProgressRing = (reservation: Reservation) => {
+  const renderWaitingProgressRing = (reservation: Reservation) => {
     const now = Date.now();
     const elapsed = now - reservation.createdAt;
     const total = reservation.startTime - reservation.createdAt;
-    const progress = total > 0 ? Math.min(1, elapsed / total) : 1;
+    const progress = total > 0 ? Math.min(1, Math.max(0, elapsed / total)) : 1;
     const radius = 7;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference * (1 - progress);
 
     return (
-      <div className="seat-progress-ring">
+      <div className="seat-progress-ring" title={`等待中 ${Math.ceil((total - elapsed) / 1000)}秒`}>
         <svg viewBox="0 0 18 18">
           <circle className="bg" cx="9" cy="9" r={radius} />
           <circle
@@ -95,11 +104,39 @@ const SeatMap = ({ onStartTimer, onOpenCancelConfirm }: SeatMapProps) => {
     );
   };
 
+  const renderInUseProgressRing = (reservation: Reservation) => {
+    const now = Date.now();
+    const endTime = reservation.startTime + reservation.durationMinutes * 60 * 1000;
+    const total = endTime - reservation.startTime;
+    const elapsed = now - reservation.startTime;
+    const progress = total > 0 ? Math.min(1, Math.max(0, elapsed / total)) : 0;
+    const radius = 7;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference * (1 - progress);
+
+    return (
+      <div className="seat-progress-ring">
+        <svg viewBox="0 0 18 18">
+          <circle className="bg" cx="9" cy="9" r={radius} />
+          <circle
+            className="fg"
+            cx="9"
+            cy="9"
+            r={radius}
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            style={{ stroke: '#34d399' }}
+          />
+        </svg>
+      </div>
+    );
+  };
+
   return (
     <div className="seatmap-container">
       <div>
         <h2 className="page-title">楼层座位地图</h2>
-        <p className="page-subtitle">点击空闲座位进行预约，点击使用中座位开始专注计时</p>
+        <p className="page-subtitle">点击空闲座位进行预约，预约后等待15秒自动进入使用状态</p>
       </div>
 
       <div className="legend">
@@ -109,7 +146,7 @@ const SeatMap = ({ onStartTimer, onOpenCancelConfirm }: SeatMapProps) => {
         </div>
         <div className="legend-item">
           <div className="legend-color legend-reserved" />
-          <span>已预约</span>
+          <span>已预约（等待中）</span>
         </div>
         <div className="legend-item">
           <div className="legend-color legend-inuse" />
@@ -132,14 +169,17 @@ const SeatMap = ({ onStartTimer, onOpenCancelConfirm }: SeatMapProps) => {
               onClick={() => handleSeatClick(seat)}
             >
               {seat.number}
-              {seat.status === 'reserved' && (
+              {seat.status === 'reserved' && reservation && (
                 <>
-                  {reservation && renderProgressRing(reservation)}
+                  {renderWaitingProgressRing(reservation)}
                   <span className="seat-icon">⏰</span>
                 </>
               )}
-              {seat.status === 'in-use' && (
-                <span className="seat-icon">●</span>
+              {seat.status === 'in-use' && reservation && (
+                <>
+                  {renderInUseProgressRing(reservation)}
+                  <span className="seat-icon">●</span>
+                </>
               )}
             </div>
           );

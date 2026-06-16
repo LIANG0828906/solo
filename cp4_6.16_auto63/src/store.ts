@@ -143,20 +143,20 @@ export const useAppStore = create<AppState>((zSet, zGet) => ({
     }
 
     const now = Date.now();
+    const WAIT_SECONDS = 15;
     const reservation: Reservation = {
       id: uuidv4(),
       seatId,
       seatNumber: seat.number,
-      startTime: now,
+      startTime: now + WAIT_SECONDS * 1000,
       durationMinutes: Math.round(durationHours * 60),
-      status: 'in-progress',
+      status: 'waiting',
       createdAt: now,
       focusMinutes: 0
     };
 
-    seat.status = 'in-use';
+    seat.status = 'reserved';
     stats.today.totalReservations += 1;
-    stats.today.onTimeCheckIns += 1;
     stats.scores = calculateScores(stats);
 
     reservations.push(reservation);
