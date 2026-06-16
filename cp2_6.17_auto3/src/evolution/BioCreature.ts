@@ -127,8 +127,8 @@ export class BioCreature {
 
   private createHornGeometry(isLeft: boolean): THREE.Mesh {
     const hornLength = 1.5;
-    const segments = 12;
-    const radialSegments = 8;
+    const segments = 16;
+    const radialSegments = 10;
 
     const geometry = new THREE.BufferGeometry();
     const positions: number[] = [];
@@ -136,29 +136,38 @@ export class BioCreature {
     const uvs: number[] = [];
     const indices: number[] = [];
 
-    const baseRadius = 0.12;
-    const tipRadius = 0.02;
+    const baseRadius = 0.14;
+    const tipRadius = 0.015;
+    const curvatureStrength = 0.35;
+    const curvatureFrequency = 0.7;
 
     for (let i = 0; i <= segments; i++) {
       const t = i / segments;
-      const radius = baseRadius * (1 - t) + tipRadius * t;
+
+      const linearRadius = baseRadius * (1 - t) + tipRadius * t;
       const yOffset = t * hornLength;
 
-      const curveOffset = Math.sin(t * Math.PI * 0.8) * 0.3 * (isLeft ? 1 : -1);
+      const bendAngle = t * t * curvatureFrequency * Math.PI;
+      const bendOffsetX = Math.sin(bendAngle) * curvatureStrength * (isLeft ? 1 : -1);
+      const bendOffsetZ = (1 - Math.cos(bendAngle)) * curvatureStrength * 0.15;
 
       for (let j = 0; j <= radialSegments; j++) {
         const angle = (j / radialSegments) * Math.PI * 2;
-        const x = Math.cos(angle) * radius + curveOffset;
-        const y = yOffset;
-        const z = Math.sin(angle) * radius * 0.5;
 
-        positions.push(x, y, z);
+        const baseX = Math.cos(angle) * linearRadius;
+        const baseZ = Math.sin(angle) * linearRadius;
+
+        const vertexX = baseX + bendOffsetX;
+        const vertexY = yOffset;
+        const vertexZ = baseZ + bendOffsetZ;
+
+        positions.push(vertexX, vertexY, vertexZ);
 
         const nx = Math.cos(angle);
-        const ny = Math.sin(t * Math.PI * 0.8) * 0.3;
-        const nz = Math.sin(angle) * 0.5;
+        const nz = Math.sin(angle);
+        const ny = Math.cos(bendAngle) * curvatureStrength * curvatureFrequency * Math.PI * 2 * t;
         const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-        normals.push(nx / len, ny / len, nz / len);
+        normals.push(nx / len, -Math.abs(ny) / len, nz / len);
 
         uvs.push(j / radialSegments, t);
       }
@@ -193,8 +202,8 @@ export class BioCreature {
 
   private createTailGeometry(): THREE.Mesh {
     const tailLength = 2.5;
-    const segments = 20;
-    const radialSegments = 10;
+    const segments = 24;
+    const radialSegments = 12;
 
     const geometry = new THREE.BufferGeometry();
     const positions: number[] = [];
@@ -202,24 +211,38 @@ export class BioCreature {
     const uvs: number[] = [];
     const indices: number[] = [];
 
+    const baseRadius = 0.22;
+    const tipRadius = 0.018;
+    const waveAmplitude = 0.25;
+    const waveFrequency = 1.5;
+    const droopStrength = 0.2;
+
     for (let i = 0; i <= segments; i++) {
       const t = i / segments;
-      const radius = 0.2 * (1 - t) + 0.02 * t;
 
-      const waveOffset = Math.sin(t * Math.PI * 1.5) * 0.2;
-      const dropOffset = -0.15 * t * t;
+      const taperT = Math.pow(t, 0.6);
+      const radialRadius = baseRadius * (1 - taperT) + tipRadius * taperT;
+
+      const waveX = Math.sin(t * Math.PI * waveFrequency) * waveAmplitude;
+      const droopY = -droopStrength * t * t;
+
+      const centerZ = -t * tailLength;
 
       for (let j = 0; j <= radialSegments; j++) {
         const angle = (j / radialSegments) * Math.PI * 2;
-        const x = Math.cos(angle) * radius + waveOffset;
-        const y = dropOffset;
-        const z = -t * tailLength + Math.sin(angle) * radius * 0.5;
 
-        positions.push(x, y, z);
+        const localX = Math.cos(angle) * radialRadius;
+        const localY = Math.sin(angle) * radialRadius;
+
+        const vertexX = localX + waveX;
+        const vertexY = localY + droopY;
+        const vertexZ = centerZ;
+
+        positions.push(vertexX, vertexY, vertexZ);
 
         const nx = Math.cos(angle);
-        const ny = Math.cos(t * Math.PI * 1.5) * 0.2 - 0.3 * t;
-        const nz = Math.sin(angle) * 0.5 - 1;
+        const ny = Math.sin(angle);
+        const nz = -1;
         const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
         normals.push(nx / len, ny / len, nz / len);
 
@@ -312,7 +335,7 @@ export class BioCreature {
   public cubicBezier(t: number): number {
     const p0 = 0;
     const p1 = 0.25;
-    const p2 = 0.46;
+    const p2 = 0.45;
     const p3 = 1;
 
     const t2 = t * t;

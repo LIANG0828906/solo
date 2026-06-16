@@ -161,31 +161,43 @@ export default function App(): JSX.Element {
     if (!sceneRef.current || !population.length) return;
 
     const scene = sceneRef.current;
-
-    creaturesRef.current.forEach((creature) => {
-      scene.remove(creature.group);
-      creature.dispose();
-    });
-    creaturesRef.current.clear();
-
     const radius = 10;
-    population.forEach((individual, index) => {
-      const creature = new BioCreature();
-      creature.update(individual);
 
+    const existingIds = new Set(creaturesRef.current.keys());
+    const newIds = new Set(population.map((ind) => ind.id));
+
+    existingIds.forEach((id) => {
+      if (!newIds.has(id)) {
+        const creature = creaturesRef.current.get(id);
+        if (creature) {
+          scene.remove(creature.group);
+          creature.dispose();
+          creaturesRef.current.delete(id);
+        }
+      }
+    });
+
+    population.forEach((individual, index) => {
       const angle = (index / population.length) * Math.PI * 2 - Math.PI / 2;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
+      const targetPos = new THREE.Vector3(x, 0, z);
 
-      creature.group.position.set(x, 0, z);
-      creature.group.lookAt(0, 0, 0);
-      creature.group.rotation.y += Math.PI;
-      creature.group.userData = { id: individual.id, index };
-
-      creature.setTargetPosition(new THREE.Vector3(x, 0, z));
-
-      scene.add(creature.group);
-      creaturesRef.current.set(individual.id, creature);
+      if (creaturesRef.current.has(individual.id)) {
+        const creature = creaturesRef.current.get(individual.id)!;
+        creature.update(individual);
+        creature.setTargetPosition(targetPos);
+      } else {
+        const creature = new BioCreature();
+        creature.update(individual);
+        creature.group.position.set(x, 0, z);
+        creature.group.lookAt(0, 0, 0);
+        creature.group.rotation.y += Math.PI;
+        creature.group.userData = { id: individual.id, index };
+        creature.setTargetPosition(targetPos);
+        scene.add(creature.group);
+        creaturesRef.current.set(individual.id, creature);
+      }
     });
 
     forceUpdate((n) => n + 1);
@@ -214,42 +226,87 @@ export default function App(): JSX.Element {
 
     if (jumpLineMeshRef.current) {
       scene.remove(jumpLineMeshRef.current);
-      jumpLineMeshRef.current.geometry.dispose();
-      (jumpLineMeshRef.current.material as THREE.Material).dispose();
+      if (jumpLineMeshRef.current instanceof THREE.Line) {
+        jumpLineMeshRef.current.geometry.dispose();
+        (jumpLineMeshRef.current.material as THREE.Material).dispose();
+      } else if (jumpLineMeshRef.current instanceof THREE.Mesh) {
+        jumpLineMeshRef.current.geometry.dispose();
+        (jumpLineMeshRef.current.material as THREE.Material).dispose();
+      }
       jumpLineMeshRef.current = null;
     }
 
     if (jumpLine) {
-      const fromAngle = ((jumpLine.from - 1) / maxGenerations) * Math.PI * 2;
-      const toAngle = ((jumpLine.to - 1) / maxGenerations) * Math.PI * 2;
-      const height = 12;
+      const startAngle = ((jumpLine.from - 1) / maxGenerations) * Math.PI * 2 - Math.PI / 2;
+      const endAngle = ((jumpLine.to - 1) / maxGenerations) * Math.PI * 2 - Math.PI / 2;
 
-      const points: THREE.Vector3[] = [];
-      const segments = 50;
-      for (let i = 0; i <= segments; i++) {
-        const t = i / segments;
-        const angle = fromAngle + (toAngle - fromAngle) * t;
-        const radius = 12;
-        const x = Math.cos(angle) * radius;
-        const z = Math.sin(angle) * radius;
-        const y = Math.sin(t * Math.PI) * height;
-        points.push(new THREE.Vector3(x, y, z));
-      }
+      const arcRadius = 12;
+      const peakHeight = 15;
 
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const material = new THREE.LineBasicMaterial({
+      const fromPos = new THREE.Vector3(
+        Math.cos(startAngle) * arcRadius,
+        0,
+        Math.sin(startAngle) * arcRadius
+      );
+      const endPos = new THREE.Vector3(
+        Math.cos(endAngle) * arcRadius,
+        0,
+        Math.sin(endAngle) * arcRadius
+      );
+
+      const midAngle = (startAngle + endAngle) / 2;
+      const midPos = new THREE.Vector3(
+        Math.cos(midAngle) * arcRadius,
+        peakHeight,
+        Math.sin(midAngle) * arcRadius
+      );
+
+      const curve = new THREE.CatmullRomCurve3([fromPos, midPos, endPos], false, 'catmullrom', 0.5);
+      const sampledPoints = curve.getPoints(60);
+
+      const lineGeometry = new THREE.BufferGeometry().setFromPoints(sampledPoints);
+      const lineMaterial = new THREE.LineBasicMaterial({
         color: 0x7c4dff,
         transparent: true,
-        opacity: 0.5,
+        opacity: 0.6,
         linewidth: 2,
       });
-      const line = new THREE.Line(geometry, material);
+      const line = new THREE.Line(lineGeometry, lineMaterial);
       scene.add(line);
       jumpLineMeshRef.current = line;
 
+      const sphereGeo = new THREE.SphereGeometry(0.4, 12, 8);
+      const sphereMat = new THREE.MeshBasicMaterial({
+        color: 0x7c4dff,
+        transparent: true,
+        opacity: 0.8,
+      });
+
+      const startSphere = new THREE.Mesh(sphereGeo, sphereMat);
+      startSphere.position.copy(fromPos);
+      scene.add(startSphere);
+
+      const endSphere = new THREE.Mesh(sphereGeo.clone(), sphereMat.clone());
+      endSphere.position.copy(endPos);
+      scene.add(endSphere);
+
       setTimeout(() => {
+        if (jumpLineMeshRef.current) {
+          scene.remove(jumpLineMeshRef.current);
+          if (jumpLineMeshRef.current instanceof THREE.Line) {
+            jumpLineMeshRef.current.geometry.dispose();
+            (jumpLineMeshRef.current.material as THREE.Material).dispose();
+          }
+          jumpLineMeshRef.current = null;
+        }
+        scene.remove(startSphere);
+        scene.remove(endSphere);
+        startSphere.geometry.dispose();
+        (startSphere.material as THREE.Material).dispose();
+        endSphere.geometry.dispose();
+        (endSphere.material as THREE.Material).dispose();
         clearJumpLine();
-      }, 2000);
+      }, 2500);
     }
   }, [jumpLine, maxGenerations, clearJumpLine]);
 

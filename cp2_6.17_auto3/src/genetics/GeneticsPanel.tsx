@@ -109,12 +109,21 @@ export default function GeneticsPanel(): JSX.Element {
   return (
     <div className="w-full h-full flex flex-col bg-[#1E1E2E] text-white overflow-y-auto">
       {mutationAlert && mutationAlert.visible && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50
-          bg-gradient-to-r from-[#E74C3C] to-[#FF6B6B]
-          px-6 py-3 rounded-xl shadow-2xl
-          animate-bounce">
+        <div
+          className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50
+            bg-gradient-to-r from-[#E74C3C] to-[#FF6B6B]
+            px-6 py-3 rounded-xl shadow-2xl
+            border-2 border-[#E74C3C]/50"
+          style={{
+            animation: 'pulse-glow 0.5s ease-in-out infinite',
+            transition: 'opacity 0.3s ease-in-out',
+          }}
+        >
           <p className="font-semibold text-sm">
             ⚡ 突变个体 #{mutationAlert.id.slice(0, 8)} 出现！
+          </p>
+          <p className="text-[10px] text-white/70 mt-1">
+            3D场景中该个体正在播放突变动画
           </p>
           <button
             onClick={hideMutationAlert}

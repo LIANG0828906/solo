@@ -157,7 +157,7 @@ export function drawViolinChart(
     const centerX = padding.left + i * slotWidth + slotWidth / 2;
     const maxWidth = slotWidth * 0.8;
 
-    ctx.fillStyle = COLOR_GREEN + '80';
+    ctx.fillStyle = 'rgba(46, 204, 113, 0.5)';
     ctx.strokeStyle = COLOR_GREEN;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -248,7 +248,7 @@ export function drawRadarChart(
   }
 
   if (individual) {
-    ctx.fillStyle = COLOR_PURPLE + '40';
+    ctx.fillStyle = 'rgba(124, 77, 255, 0.25)';
     ctx.strokeStyle = COLOR_PURPLE;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -286,6 +286,15 @@ export function drawRadarChart(
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.lineWidth = 1;
       ctx.stroke();
+
+      const labelOffset = 10;
+      const valueX = centerX + Math.cos(angle) * (r + labelOffset);
+      const valueY = centerY + Math.sin(angle) * (r + labelOffset);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = '9px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(value.toFixed(2), valueX, valueY);
     }
   }
 

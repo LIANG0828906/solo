@@ -50,7 +50,9 @@ export const GENE_LABELS = [
   '脊柱曲度',
 ];
 
-export const GENE_WEIGHTS = [0.15, 0.10, 0.15, 0.10, 0.12, 0.12, 0.13, 0.13];
+export const GENE_WEIGHTS = [0.25, 0.05, 0.20, 0.08, 0.15, 0.12, 0.05, 0.10];
+
+const GENE_WEIGHT_SUM = GENE_WEIGHTS.reduce((a, b) => a + b, 0);
 
 const GENE_COUNT = 8;
 const POPULATION_SIZE = 30;
@@ -114,21 +116,21 @@ export class EvolutionEngine {
   }
 
   calculateFitness(individual: Genotype): number {
-    let totalFitness = 0;
+    let rawFitness = 0;
 
     for (let i = 0; i < GENE_COUNT; i++) {
       const geneName = GENE_NAMES[i];
       const geneValue = individual[geneName];
-      const weight = GENE_WEIGHTS[i];
+      const weight = GENE_WEIGHTS[i] / GENE_WEIGHT_SUM;
 
       const distance = Math.abs(geneValue - TARGET_GENE_VALUE);
       const geneFitness = 1 - distance * 2;
       const scaledFitness = Math.pow(Math.max(0, geneFitness), 1 / this.selectionPressure);
 
-      totalFitness += scaledFitness * weight;
+      rawFitness += scaledFitness * weight;
     }
 
-    return totalFitness;
+    return rawFitness;
   }
 
   calculatePopulationStats(population: Genotype[]): PopulationStats {
