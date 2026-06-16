@@ -1,13 +1,14 @@
+import { forwardRef } from 'react'
 import { useFireflyStore } from '../store/fireflyStore'
 
-export default function ControlPanel() {
+interface ControlPanelProps {}
+
+const ControlPanel = forwardRef<HTMLDivElement, ControlPanelProps>((_, ref) => {
   const count = useFireflyStore((s) => s.fireflies.length)
   const trailsVisible = useFireflyStore((s) => s.trailsVisible)
   const resetFatigue = useFireflyStore((s) => s.resetFatigue)
   const toggleTrails = useFireflyStore((s) => s.toggleTrails)
-  const fps = useFireflyStore((s) => s.fps)
 
-  const fpsColor = fps >= 50 ? '#00FF00' : '#FF0000'
   const textColor = trailsVisible ? '#FFFFFF' : '#95A5A6'
 
   return (
@@ -95,11 +96,12 @@ export default function ControlPanel() {
       </div>
 
       <div
+        ref={ref}
         style={{
           position: 'fixed',
           bottom: 20,
           right: 24,
-          color: fpsColor,
+          color: '#00FF00',
           fontFamily: 'monospace',
           fontSize: 14,
           fontWeight: 700,
@@ -108,8 +110,12 @@ export default function ControlPanel() {
           userSelect: 'none'
         }}
       >
-        FPS: {fps}
+        FPS: 60
       </div>
     </>
   )
-}
+})
+
+ControlPanel.displayName = 'ControlPanel'
+
+export default ControlPanel

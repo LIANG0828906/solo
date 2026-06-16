@@ -41,6 +41,7 @@ interface FireflyState {
   toggleTrails: () => void
   addPulse: (center: THREE.Vector3) => void
   updatePulses: (dt: number) => void
+  removePulse: (id: number) => void
   pulseIdCounter: number
 }
 
@@ -176,5 +177,11 @@ export const useFireflyStore = create<FireflyState>((set, get) => ({
       }
     }
     set({ pulses: updated })
+  },
+
+  removePulse: (id: number) => {
+    set((state) => ({
+      pulses: state.pulses.filter((p) => p.id !== id)
+    }))
   }
 }))

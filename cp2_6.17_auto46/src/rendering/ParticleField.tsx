@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useFireflyStore } from '../store/fireflyStore'
@@ -35,14 +35,24 @@ function createParticleTexture(): THREE.CanvasTexture {
 
 export default function ParticleField() {
   const pointsRef = useRef<THREE.Points>(null)
-  const texture = useMemo(() => createParticleTexture(), [])
+  const textureRef = useRef<THREE.CanvasTexture | null>(null)
   const fireflies = useFireflyStore((s) => s.fireflies)
 
+  if (!textureRef.current) {
+    textureRef.current = createParticleTexture()
+  }
+
   useEffect(() => {
+    const tex = textureRef.current
     return () => {
-      texture.dispose()
+      if (tex) {
+        tex.dispose()
+      }
+      if (textureRef.current === tex) {
+        textureRef.current = null
+      }
     }
-  }, [texture])
+  }, [])
 
   const { positions, colors, sizes } = useMemo(() => {
     const positions = new Float32Array(FIREFLY_COUNT * 3)
@@ -82,6 +92,8 @@ export default function ParticleField() {
     colAttr.needsUpdate = true
     sizeAttr.needsUpdate = true
   })
+
+  const texture = textureRef.current
 
   return (
     <points ref={pointsRef}>

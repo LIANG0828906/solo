@@ -1,7 +1,7 @@
-import { useEffect, useRef, useMemo } from 'react'
+import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useFireflyStore, type Pulse } from '../store/fireflyStore'
+import { useFireflyStore } from '../store/fireflyStore'
 
 const PULSE_COLOR = new THREE.Color('#00FFAA')
 const MAX_PULSES = 20
@@ -17,9 +17,9 @@ const _mat = new THREE.MeshBasicMaterial({
 
 export default function PulseSpheres() {
   const pulses = useFireflyStore((s) => s.pulses)
+  const removePulse = useFireflyStore((s) => s.removePulse)
   const groupRef = useRef<THREE.Group>(null)
   const meshPool = useRef<THREE.Mesh[]>([])
-  const activeCount = useRef(0)
 
   useEffect(() => {
     if (!groupRef.current) return
@@ -44,12 +44,20 @@ export default function PulseSpheres() {
   useFrame(() => {
     const pool = meshPool.current
     const active = Math.min(pulses.length, MAX_PULSES)
-    activeCount.current = active
+
+    const expiredIds: number[] = []
 
     for (let i = 0; i < active; i++) {
       const pulse = pulses[i]
       const mesh = pool[i]
       if (!mesh) continue
+
+      if (pulse.life <= 0 || pulse.radius >= 16) {
+        expiredIds.push(pulse.id)
+        mesh.visible = false
+        continue
+      }
+
       mesh.visible = true
       mesh.position.copy(pulse.center)
       mesh.scale.setScalar(pulse.radius)
@@ -60,6 +68,12 @@ export default function PulseSpheres() {
 
     for (let i = active; i < pool.length; i++) {
       pool[i].visible = false
+    }
+
+    if (expiredIds.length > 0) {
+      for (const id of expiredIds) {
+        removePulse(id)
+      }
     }
   })
 

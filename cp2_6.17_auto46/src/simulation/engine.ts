@@ -11,6 +11,7 @@ const BOUNDARY_RADIUS = 20
 const BOUNDARY_FORCE = 2
 const GRID_CELL_SIZE = 8
 const GRID_EXTENT = 24
+const QUERY_RADIUS = 12
 
 class SpatialGrid {
   private cells: Map<number, number[]> = new Map()
@@ -20,27 +21,34 @@ class SpatialGrid {
   private dimX: number
   private dimY: number
   private dimZ: number
+  private cellSize: number
 
-  constructor() {
-    this.originX = -GRID_EXTENT
-    this.originY = -GRID_EXTENT
-    this.originZ = -GRID_EXTENT
-    this.dimX = Math.ceil((2 * GRID_EXTENT) / GRID_CELL_SIZE)
-    this.dimY = Math.ceil((2 * GRID_EXTENT) / GRID_CELL_SIZE)
-    this.dimZ = Math.ceil((2 * GRID_EXTENT) / GRID_CELL_SIZE)
+  constructor(cellSize: number, extent: number) {
+    this.cellSize = cellSize
+    this.originX = -extent
+    this.originY = -extent
+    this.originZ = -extent
+    this.dimX = Math.ceil((2 * extent) / cellSize)
+    this.dimY = Math.ceil((2 * extent) / cellSize)
+    this.dimZ = Math.ceil((2 * extent) / cellSize)
   }
 
   private key(cx: number, cy: number, cz: number): number {
     return (cx * this.dimY + cy) * this.dimZ + cz
   }
 
+  private posToCell(pos: THREE.Vector3): [number, number, number] {
+    return [
+      Math.floor((pos.x - this.originX) / this.cellSize),
+      Math.floor((pos.y - this.originY) / this.cellSize),
+      Math.floor((pos.z - this.originZ) / this.cellSize)
+    ]
+  }
+
   rebuild(fireflies: Firefly[]) {
     this.cells.clear()
     for (let i = 0; i < fireflies.length; i++) {
-      const p = fireflies[i].position
-      const cx = Math.floor((p.x - this.originX) / GRID_CELL_SIZE)
-      const cy = Math.floor((p.y - this.originY) / GRID_CELL_SIZE)
-      const cz = Math.floor((p.z - this.originZ) / GRID_CELL_SIZE)
+      const [cx, cy, cz] = this.posToCell(fireflies[i].position)
       const k = this.key(cx, cy, cz)
       let cell = this.cells.get(k)
       if (!cell) {
@@ -51,20 +59,20 @@ class SpatialGrid {
     }
   }
 
-  getNeighborIndices(pos: THREE.Vector3): number[] {
-    const cx = Math.floor((pos.x - this.originX) / GRID_CELL_SIZE)
-    const cy = Math.floor((pos.y - this.originY) / GRID_CELL_SIZE)
-    const cz = Math.floor((pos.z - this.originZ) / GRID_CELL_SIZE)
+  queryRadius(pos: THREE.Vector3, radius: number): number[] {
+    const [cx, cy, cz] = this.posToCell(pos)
+    const cellRadius = Math.ceil(radius / this.cellSize)
     const result: number[] = []
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dz = -1; dz <= 1; dz++) {
+    const r2 = radius * radius
+
+    for (let dx = -cellRadius; dx <= cellRadius; dx++) {
+      for (let dy = -cellRadius; dy <= cellRadius; dy++) {
+        for (let dz = -cellRadius; dz <= cellRadius; dz++) {
           const k = this.key(cx + dx, cy + dy, cz + dz)
           const cell = this.cells.get(k)
-          if (cell) {
-            for (let i = 0; i < cell.length; i++) {
-              result.push(cell[i])
-            }
+          if (!cell) continue
+          for (let i = 0; i < cell.length; i++) {
+            result.push(cell[i])
           }
         }
       }
@@ -73,32 +81,50 @@ class SpatialGrid {
   }
 }
 
-const _grid = new SpatialGrid()
+const _grid = new SpatialGrid(GRID_CELL_SIZE, GRID_EXTENT)
+
+function findClosestFireflies(
+  fireflies: Firefly[],
+  index: number,
+  count: number
+): number[] {
+  const self = fireflies[index]
+  const candidates = _grid.queryRadius(self.position, QUERY_RADIUS)
+
+  const distances: { idx: number; d: number }[] = []
+  for (let i = 0; i < candidates.length; i++) {
+    const ci = candidates[i]
+    if (ci === index) continue
+    const d = self.position.distanceToSquared(fireflies[ci].position)
+    if (d <= QUERY_RADIUS * QUERY_RADIUS) {
+      distances.push({ idx: ci, d })
+    }
+  }
+
+  distances.sort((a, b) => a.d - b.d)
+
+  const result: number[] = []
+  const take = Math.min(count, distances.length)
+  for (let i = 0; i < take; i++) {
+    result.push(distances[i].idx)
+  }
+  return result
+}
 
 function computeNeighborAttraction(
   fireflies: Firefly[],
   index: number
 ): THREE.Vector3 {
   const self = fireflies[index]
-  const candidateIndices = _grid.getNeighborIndices(self.position)
-
-  const distances: { idx: number; d: number }[] = []
-  for (let i = 0; i < candidateIndices.length; i++) {
-    const ci = candidateIndices[i]
-    if (ci === index) continue
-    const d = self.position.distanceToSquared(fireflies[ci].position)
-    distances.push({ idx: ci, d })
-  }
-
-  distances.sort((a, b) => a.d - b.d)
+  const closest = findClosestFireflies(fireflies, index, NEIGHBOR_COUNT)
 
   const center = new THREE.Vector3()
-  const take = Math.min(NEIGHBOR_COUNT, distances.length)
-  for (let i = 0; i < take; i++) {
-    center.add(fireflies[distances[i].idx].position)
+  if (closest.length === 0) return center
+
+  for (let i = 0; i < closest.length; i++) {
+    center.add(fireflies[closest[i]].position)
   }
-  if (take === 0) return center
-  center.divideScalar(take)
+  center.divideScalar(closest.length)
 
   const dir = new THREE.Vector3().subVectors(center, self.position)
   if (dir.lengthSq() > 0) {

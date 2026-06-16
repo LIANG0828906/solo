@@ -1,4 +1,5 @@
-import { Canvas } from '@react-three/fiber'
+import { useRef } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import ControlPanel from './components/ControlPanel'
@@ -8,7 +9,29 @@ import TrailLines from './rendering/TrailLines'
 import PulseSpheres from './rendering/PulseSpheres'
 import { useSimulation } from './simulation/engine'
 
-function Scene() {
+function FpsUpdater({ fpsRef }: { fpsRef: React.RefObject<HTMLDivElement> }) {
+  const frameCountRef = useRef(0)
+  const lastTimeRef = useRef(performance.now())
+
+  useFrame(() => {
+    frameCountRef.current++
+    if (frameCountRef.current >= 15) {
+      const now = performance.now()
+      const elapsed = (now - lastTimeRef.current) / 1000
+      const fps = Math.round(frameCountRef.current / elapsed)
+      if (fpsRef.current) {
+        fpsRef.current.textContent = `FPS: ${fps}`
+        fpsRef.current.style.color = fps >= 50 ? '#00FF00' : '#FF0000'
+      }
+      frameCountRef.current = 0
+      lastTimeRef.current = now
+    }
+  })
+
+  return null
+}
+
+function Scene({ fpsRef }: { fpsRef: React.RefObject<HTMLDivElement> }) {
   useSimulation()
 
   return (
@@ -18,6 +41,7 @@ function Scene() {
       <TrailLines />
       <PulseSpheres />
       <InteractionManager />
+      <FpsUpdater fpsRef={fpsRef} />
       <OrbitControls
         enablePan={false}
         enableDamping
@@ -33,6 +57,8 @@ function Scene() {
 }
 
 export default function App() {
+  const fpsRef = useRef<HTMLDivElement>(null)
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div
@@ -49,9 +75,9 @@ export default function App() {
         gl={{ antialias: true, alpha: true }}
         dpr={[1, 2]}
       >
-        <Scene />
+        <Scene fpsRef={fpsRef} />
       </Canvas>
-      <ControlPanel />
+      <ControlPanel ref={fpsRef} />
     </div>
   )
 }
