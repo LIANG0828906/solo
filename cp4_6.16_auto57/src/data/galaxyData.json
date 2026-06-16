@@ -4,525 +4,525 @@
     "name": "天狼A",
     "type": "star",
     "position": [
-      14.0968,
-      -6.0735,
-      40.8251
+      -12.054,
+      -86.5714,
+      -29.0108
     ],
-    "color": "#F7AEF8",
-    "colorDesc": "粉紫",
-    "size": 2.2,
-    "temperature": 10327,
-    "distanceFromSun": 61.79
+    "color": "#FFFFFF",
+    "colorDesc": "纯白",
+    "size": 2.44,
+    "temperature": 6723,
+    "distanceFromSun": 73.13
   },
   {
     "id": "star_002",
     "name": "参宿A",
     "type": "star",
     "position": [
-      -33.7741,
-      -78.5035,
-      -8.5166
+      -13.5604,
+      7.0676,
+      -24.0311
     ],
-    "color": "#FFADAD",
-    "colorDesc": "橙色",
-    "size": 2.05,
-    "temperature": 26263,
-    "distanceFromSun": 60.47
+    "color": "#FAFAD2",
+    "colorDesc": "浅金",
+    "size": 1.58,
+    "temperature": 27959,
+    "distanceFromSun": 37.85
   },
   {
     "id": "star_003",
     "name": "织女A",
     "type": "star",
     "position": [
-      -48.8426,
-      10.7267,
-      -60.1907
+      -29.5001,
+      64.9282,
+      36.7626
     ],
-    "color": "#9BB0FF",
-    "colorDesc": "蓝白色",
-    "size": 1.72,
-    "temperature": 28507,
-    "distanceFromSun": 10.19
+    "color": "#F0F8FF",
+    "colorDesc": "蓝白",
+    "size": 1.75,
+    "temperature": 17464,
+    "distanceFromSun": 25.88
   },
   {
     "id": "star_004",
     "name": "天枢A",
     "type": "star",
     "position": [
-      57.3268,
-      40.1081,
-      59.5438
+      -58.9949,
+      32.3018,
+      -59.195
     ],
-    "color": "#A0C4FF",
-    "colorDesc": "淡蓝",
-    "size": 1.99,
-    "temperature": 25261,
-    "distanceFromSun": 34.17
+    "color": "#FFE4B5",
+    "colorDesc": "浅橙黄",
+    "size": 2.04,
+    "temperature": 8176,
+    "distanceFromSun": 83.46
   },
   {
     "id": "star_005",
     "name": "天璇A",
     "type": "star",
     "position": [
-      -65.1386,
-      1.7375,
-      -6.538
+      69.1725,
+      27.4314,
+      65.7144
     ],
-    "color": "#CAFFBF",
-    "colorDesc": "淡青白",
-    "size": 2.49,
-    "temperature": 6690,
-    "distanceFromSun": 92.51
+    "color": "#87CEFA",
+    "colorDesc": "亮天蓝",
+    "size": 1.56,
+    "temperature": 20513,
+    "distanceFromSun": 62.36
   },
   {
     "id": "star_006",
     "name": "天玑A",
     "type": "star",
     "position": [
-      -23.0938,
-      1.8168,
-      -14.4204
+      77.2397,
+      10.2133,
+      -48.6086
     ],
-    "color": "#E0BBE4",
-    "colorDesc": "淡紫",
-    "size": 1.3,
-    "temperature": 8513,
-    "distanceFromSun": 85.27
+    "color": "#ADD8E6",
+    "colorDesc": "浅蓝",
+    "size": 1.74,
+    "temperature": 26166,
+    "distanceFromSun": 62.47
   },
   {
     "id": "star_007",
     "name": "天权A",
     "type": "star",
     "position": [
-      80.3582,
-      16.9875,
-      -50.2878
+      93.0264,
+      -14.9785,
+      13.0479
     ],
-    "color": "#FFC9DE",
-    "colorDesc": "粉白",
-    "size": 1.35,
-    "temperature": 22115,
-    "distanceFromSun": 5.36
+    "color": "#B0E0E6",
+    "colorDesc": "淡蓝",
+    "size": 1.82,
+    "temperature": 21255,
+    "distanceFromSun": 64.9
   },
   {
     "id": "star_008",
     "name": "玉衡A",
     "type": "star",
     "position": [
-      -43.8095,
-      25.588,
-      -36.5037
+      34.083,
+      -23.4208,
+      28.4777
     ],
-    "color": "#FDFFB6",
-    "colorDesc": "白黄",
-    "size": 1.95,
-    "temperature": 5019,
-    "distanceFromSun": 80.02
+    "color": "#B0E0E6",
+    "colorDesc": "淡蓝",
+    "size": 2.32,
+    "temperature": 18123,
+    "distanceFromSun": 32.83
   },
   {
     "id": "star_009",
     "name": "开阳A",
     "type": "star",
     "position": [
-      -35.3765,
-      -7.5617,
-      -85.6091
+      1.0814,
+      42.1137,
+      87.9495
     ],
-    "color": "#FFE66D",
-    "colorDesc": "黄色",
-    "size": 1.42,
-    "temperature": 21907,
-    "distanceFromSun": 91.11
+    "color": "#FF6347",
+    "colorDesc": "番茄红",
+    "size": 1.77,
+    "temperature": 9707,
+    "distanceFromSun": 53.69
   },
   {
     "id": "star_010",
     "name": "摇光A",
     "type": "star",
     "position": [
-      62.8079,
-      -38.4344,
-      66.9836
+      1.8892,
+      45.0846,
+      66.735
     ],
-    "color": "#BDB2FF",
-    "colorDesc": "蓝紫",
-    "size": 2,
-    "temperature": 17923,
-    "distanceFromSun": 52.24
+    "color": "#FFD700",
+    "colorDesc": "金黄",
+    "size": 2.08,
+    "temperature": 14810,
+    "distanceFromSun": 79.43
   },
   {
     "id": "star_011",
-    "name": "昴宿A",
-    "type": "star",
-    "position": [
-      -27.9375,
-      -20.6211,
-      -75.0297
-    ],
-    "color": "#9BF6FF",
-    "colorDesc": "青白",
-    "size": 1.54,
-    "temperature": 12740,
-    "distanceFromSun": 12.39
-  },
-  {
-    "id": "star_012",
-    "name": "毕宿A",
-    "type": "star",
-    "position": [
-      85.2799,
-      33.2389,
-      29.5063
-    ],
-    "color": "#FDFFB6",
-    "colorDesc": "白黄",
-    "size": 2.2,
-    "temperature": 24739,
-    "distanceFromSun": 7.76
-  },
-  {
-    "id": "star_013",
-    "name": "觜宿A",
-    "type": "star",
-    "position": [
-      22.5549,
-      -75.159,
-      -28.7173
-    ],
-    "color": "#CAFFBF",
-    "colorDesc": "淡青白",
-    "size": 1.56,
-    "temperature": 9454,
-    "distanceFromSun": 82.71
-  },
-  {
-    "id": "star_014",
-    "name": "井宿A",
-    "type": "star",
-    "position": [
-      6.9845,
-      -63.7819,
-      48.0876
-    ],
-    "color": "#A0C4FF",
-    "colorDesc": "淡蓝",
-    "size": 1.68,
-    "temperature": 28468,
-    "distanceFromSun": 24.86
-  },
-  {
-    "id": "star_015",
-    "name": "鬼宿A",
-    "type": "star",
-    "position": [
-      20.6106,
-      -4.9547,
-      -77.3944
-    ],
-    "color": "#FFD6A5",
-    "colorDesc": "淡黄",
-    "size": 2.37,
-    "temperature": 28154,
-    "distanceFromSun": 80.24
-  },
-  {
-    "id": "star_016",
-    "name": "柳宿A",
-    "type": "star",
-    "position": [
-      7.8731,
-      -37.7744,
-      10.9199
-    ],
-    "color": "#FDFFB6",
-    "colorDesc": "白黄",
-    "size": 1.77,
-    "temperature": 23054,
-    "distanceFromSun": 17.27
-  },
-  {
-    "id": "star_017",
-    "name": "星宿A",
-    "type": "star",
-    "position": [
-      -55.142,
-      -72.0455,
-      25.6245
-    ],
-    "color": "#F7AEF8",
-    "colorDesc": "粉紫",
-    "size": 2.28,
-    "temperature": 12312,
-    "distanceFromSun": 21.72
-  },
-  {
-    "id": "star_018",
-    "name": "张宿A",
-    "type": "star",
-    "position": [
-      -67.5331,
-      -23.2072,
-      -63.9546
-    ],
-    "color": "#FF6B6B",
-    "colorDesc": "橙红",
-    "size": 2.22,
-    "temperature": 5516,
-    "distanceFromSun": 34.98
-  },
-  {
-    "id": "star_019",
-    "name": "翼宿A",
-    "type": "star",
-    "position": [
-      4.8299,
-      5.1061,
-      90.2114
-    ],
-    "color": "#FFC9DE",
-    "colorDesc": "粉白",
-    "size": 1.79,
-    "temperature": 13404,
-    "distanceFromSun": 71.2
-  },
-  {
-    "id": "star_020",
-    "name": "轸宿A",
-    "type": "star",
-    "position": [
-      12.3807,
-      -31.1666,
-      81.6702
-    ],
-    "color": "#FFC9DE",
-    "colorDesc": "粉白",
-    "size": 2.26,
-    "temperature": 4261,
-    "distanceFromSun": 76.88
-  },
-  {
-    "id": "star_021",
     "name": "角宿A",
     "type": "star",
     "position": [
-      12.102,
-      41.8411,
-      66.1926
+      13.0427,
+      -89.3165,
+      35.3136
     ],
-    "color": "#A0E7E5",
-    "colorDesc": "蓝青",
-    "size": 1.27,
-    "temperature": 13161,
-    "distanceFromSun": 55.21
+    "color": "#FFE4B5",
+    "colorDesc": "浅橙黄",
+    "size": 1.78,
+    "temperature": 3259,
+    "distanceFromSun": 34.35
   },
   {
-    "id": "star_022",
+    "id": "star_012",
     "name": "亢宿A",
     "type": "star",
     "position": [
-      -52.7493,
-      63.7564,
-      -21.9382
+      -39.1336,
+      -44.649,
+      75.8771
     ],
-    "color": "#FFF1BA",
-    "colorDesc": "暖白",
-    "size": 2.24,
-    "temperature": 8911,
-    "distanceFromSun": 30.25
+    "color": "#FF6347",
+    "colorDesc": "番茄红",
+    "size": 2.2,
+    "temperature": 4797,
+    "distanceFromSun": 46.16
   },
   {
-    "id": "star_023",
+    "id": "star_013",
     "name": "氐宿A",
     "type": "star",
     "position": [
-      67.1408,
-      65.239,
-      25.2282
+      65.9099,
+      -4.9173,
+      -54.6607
     ],
-    "color": "#FFC9DE",
-    "colorDesc": "粉白",
-    "size": 2.18,
-    "temperature": 29351,
-    "distanceFromSun": 30.86
+    "color": "#FF6347",
+    "colorDesc": "番茄红",
+    "size": 1.63,
+    "temperature": 24586,
+    "distanceFromSun": 67.62
   },
   {
-    "id": "star_024",
+    "id": "star_014",
     "name": "房宿A",
     "type": "star",
     "position": [
-      35.0602,
-      -12.8303,
-      88.3055
+      -71.1404,
+      38.2506,
+      52.1412
     ],
-    "color": "#FFADAD",
-    "colorDesc": "橙色",
-    "size": 1.43,
-    "temperature": 22199,
-    "distanceFromSun": 30.24
+    "color": "#FFD700",
+    "colorDesc": "金黄",
+    "size": 2.02,
+    "temperature": 26646,
+    "distanceFromSun": 64.55
   },
   {
-    "id": "star_025",
+    "id": "star_015",
     "name": "心宿A",
     "type": "star",
     "position": [
-      -41.0681,
-      8.6749,
-      -10.9202
+      7.3511,
+      -60.9117,
+      60.8933
     ],
-    "color": "#A0E7E5",
-    "colorDesc": "蓝青",
-    "size": 1.44,
-    "temperature": 24272,
-    "distanceFromSun": 35.43
+    "color": "#FFD700",
+    "colorDesc": "金黄",
+    "size": 2.12,
+    "temperature": 4404,
+    "distanceFromSun": 37.35
   },
   {
-    "id": "star_026",
+    "id": "star_016",
     "name": "尾宿A",
     "type": "star",
     "position": [
-      -49.0689,
-      -58.8064,
-      -14.9352
+      13.957,
+      58.4414,
+      75.3415
     ],
-    "color": "#9BF6FF",
-    "colorDesc": "青白",
-    "size": 2.05,
-    "temperature": 4330,
-    "distanceFromSun": 17.41
+    "color": "#FF6347",
+    "colorDesc": "番茄红",
+    "size": 1.91,
+    "temperature": 9473,
+    "distanceFromSun": 8.66
   },
   {
-    "id": "star_027",
+    "id": "star_017",
     "name": "箕宿A",
     "type": "star",
     "position": [
-      6.7382,
-      -53.5729,
-      -37.445
+      86.3062,
+      -4.648,
+      -6.9465
     ],
-    "color": "#FFF1BA",
-    "colorDesc": "暖白",
-    "size": 2.43,
-    "temperature": 23447,
-    "distanceFromSun": 20.92
+    "color": "#FFFFFF",
+    "colorDesc": "纯白",
+    "size": 2.26,
+    "temperature": 28092,
+    "distanceFromSun": 71.1
   },
   {
-    "id": "star_028",
+    "id": "star_018",
     "name": "斗宿A",
     "type": "star",
     "position": [
-      -77.3702,
-      19.5585,
-      -24.4502
+      -78.2662,
+      48.2653,
+      33.6004
     ],
-    "color": "#FFF1BA",
-    "colorDesc": "暖白",
-    "size": 1.38,
-    "temperature": 26048,
-    "distanceFromSun": 63.54
+    "color": "#E6E6FA",
+    "colorDesc": "淡青紫",
+    "size": 2.4,
+    "temperature": 11093,
+    "distanceFromSun": 52.81
   },
   {
-    "id": "star_029",
+    "id": "star_019",
     "name": "牛宿A",
     "type": "star",
     "position": [
-      59.2152,
-      49.5143,
-      -56.2405
+      50.2468,
+      39.6298,
+      -48.7505
     ],
-    "color": "#CAFFBF",
-    "colorDesc": "淡青白",
-    "size": 1.45,
-    "temperature": 21335,
-    "distanceFromSun": 42.04
+    "color": "#ADD8E6",
+    "colorDesc": "浅蓝",
+    "size": 1.21,
+    "temperature": 23532,
+    "distanceFromSun": 12.56
   },
   {
-    "id": "star_030",
+    "id": "star_020",
     "name": "女宿A",
     "type": "star",
     "position": [
-      -30.3496,
-      -41.2146,
-      -42.3642
+      -23.2551,
+      -30.4297,
+      -15.8834
     ],
-    "color": "#BDB2FF",
-    "colorDesc": "蓝紫",
-    "size": 1.49,
-    "temperature": 14098,
-    "distanceFromSun": 51.99
+    "color": "#B0E0E6",
+    "colorDesc": "淡蓝",
+    "size": 2.17,
+    "temperature": 3608,
+    "distanceFromSun": 41.09
   },
   {
-    "id": "star_031",
+    "id": "star_021",
     "name": "虚宿A",
     "type": "star",
     "position": [
-      19.7499,
-      -36.4053,
-      -43.2811
+      73.1525,
+      58.7888,
+      -9.1468
     ],
-    "color": "#BDB2FF",
-    "colorDesc": "蓝紫",
-    "size": 1.75,
-    "temperature": 4479,
-    "distanceFromSun": 26.04
+    "color": "#FAFAD2",
+    "colorDesc": "浅金",
+    "size": 2.3,
+    "temperature": 25033,
+    "distanceFromSun": 93.62
   },
   {
-    "id": "star_032",
+    "id": "star_022",
     "name": "危宿A",
     "type": "star",
     "position": [
-      51.089,
-      38.5126,
-      -61.1102
+      -39.9427,
+      49.1758,
+      -18.8256
     ],
-    "color": "#BDB2FF",
-    "colorDesc": "蓝紫",
-    "size": 1.64,
-    "temperature": 11543,
-    "distanceFromSun": 59.43
+    "color": "#98FB98",
+    "colorDesc": "淡绿",
+    "size": 1.99,
+    "temperature": 9131,
+    "distanceFromSun": 15.7
   },
   {
-    "id": "star_033",
+    "id": "star_023",
     "name": "室宿A",
     "type": "star",
     "position": [
-      0.5551,
-      -6.3314,
-      87.4101
+      0.1686,
+      94.3077,
+      21.6758
     ],
-    "color": "#FFADAD",
-    "colorDesc": "橙色",
-    "size": 1.27,
-    "temperature": 23305,
-    "distanceFromSun": 83.68
+    "color": "#FF8C00",
+    "colorDesc": "深橙",
+    "size": 1.54,
+    "temperature": 13637,
+    "distanceFromSun": 75.71
   },
   {
-    "id": "star_034",
+    "id": "star_024",
     "name": "壁宿A",
     "type": "star",
     "position": [
-      -6.4257,
-      -21.2801,
-      -55.6267
+      -4.4349,
+      -33.4353,
+      54.5602
     ],
-    "color": "#E0BBE4",
-    "colorDesc": "淡紫",
-    "size": 1.95,
-    "temperature": 5828,
-    "distanceFromSun": 75.19
+    "color": "#87CEFA",
+    "colorDesc": "亮天蓝",
+    "size": 1.7,
+    "temperature": 27297,
+    "distanceFromSun": 13.17
   },
   {
-    "id": "star_035",
+    "id": "star_025",
     "name": "奎宿A",
     "type": "star",
     "position": [
-      64.2113,
-      18.1964,
-      63.5653
+      -41.0299,
+      23.6794,
+      -32.6899
     ],
-    "color": "#FFADAD",
-    "colorDesc": "橙色",
-    "size": 2.06,
-    "temperature": 23586,
-    "distanceFromSun": 7.6
+    "color": "#FFE4B5",
+    "colorDesc": "浅橙黄",
+    "size": 1.57,
+    "temperature": 14637,
+    "distanceFromSun": 36.27
+  },
+  {
+    "id": "star_026",
+    "name": "娄宿A",
+    "type": "star",
+    "position": [
+      -34.5455,
+      58.0406,
+      -14.2531
+    ],
+    "color": "#FF8C00",
+    "colorDesc": "深橙",
+    "size": 1.24,
+    "temperature": 29715,
+    "distanceFromSun": 67.22
+  },
+  {
+    "id": "star_027",
+    "name": "胃宿A",
+    "type": "star",
+    "position": [
+      19.5349,
+      93.3823,
+      -9.0595
+    ],
+    "color": "#B0E0E6",
+    "colorDesc": "淡蓝",
+    "size": 2.4,
+    "temperature": 4367,
+    "distanceFromSun": 56.83
+  },
+  {
+    "id": "star_028",
+    "name": "昴宿A",
+    "type": "star",
+    "position": [
+      33.7923,
+      81.5514,
+      8.0017
+    ],
+    "color": "#FF4500",
+    "colorDesc": "橙红",
+    "size": 1.21,
+    "temperature": 13309,
+    "distanceFromSun": 40.41
+  },
+  {
+    "id": "star_029",
+    "name": "毕宿A",
+    "type": "star",
+    "position": [
+      -7.5963,
+      -16.26,
+      57.3819
+    ],
+    "color": "#DC143C",
+    "colorDesc": "猩红",
+    "size": 1.64,
+    "temperature": 12119,
+    "distanceFromSun": 51.64
+  },
+  {
+    "id": "star_030",
+    "name": "觜宿A",
+    "type": "star",
+    "position": [
+      -24.7006,
+      36.7903,
+      -51.9649
+    ],
+    "color": "#FF4500",
+    "colorDesc": "橙红",
+    "size": 1.36,
+    "temperature": 24923,
+    "distanceFromSun": 53.71
+  },
+  {
+    "id": "star_031",
+    "name": "井宿A",
+    "type": "star",
+    "position": [
+      -33.9536,
+      -73.8444,
+      7.0265
+    ],
+    "color": "#98FB98",
+    "colorDesc": "淡绿",
+    "size": 1.37,
+    "temperature": 21831,
+    "distanceFromSun": 20.66
+  },
+  {
+    "id": "star_032",
+    "name": "鬼宿A",
+    "type": "star",
+    "position": [
+      41.6884,
+      44.0754,
+      -21.2666
+    ],
+    "color": "#87CEFA",
+    "colorDesc": "亮天蓝",
+    "size": 2.44,
+    "temperature": 29060,
+    "distanceFromSun": 47.93
+  },
+  {
+    "id": "star_033",
+    "name": "柳宿A",
+    "type": "star",
+    "position": [
+      -30.8614,
+      -27.4056,
+      -45.6782
+    ],
+    "color": "#E6E6FA",
+    "colorDesc": "淡青紫",
+    "size": 1.28,
+    "temperature": 22956,
+    "distanceFromSun": 17.43
+  },
+  {
+    "id": "star_034",
+    "name": "星宿A",
+    "type": "star",
+    "position": [
+      13.3206,
+      47.7613,
+      18.6792
+    ],
+    "color": "#ADD8E6",
+    "colorDesc": "浅蓝",
+    "size": 1.79,
+    "temperature": 8615,
+    "distanceFromSun": 69.84
+  },
+  {
+    "id": "star_035",
+    "name": "张宿A",
+    "type": "star",
+    "position": [
+      17.5127,
+      -59.3859,
+      -9.9485
+    ],
+    "color": "#98FB98",
+    "colorDesc": "淡绿",
+    "size": 2.27,
+    "temperature": 9403,
+    "distanceFromSun": 54.52
   },
   {
     "id": "planet_001_1",
@@ -530,18 +530,18 @@
     "type": "planet",
     "parentStarId": "star_001",
     "position": [
-      14.0968,
-      -6.0735,
-      40.8251
+      -12.054,
+      -86.5714,
+      -29.0108
     ],
-    "color": "#45B7D1",
-    "colorDesc": "海蓝",
-    "size": 0.55,
-    "temperature": 392,
-    "distanceFromSun": 59.99,
-    "orbitRadius": 7.84,
-    "orbitSpeed": 0.75,
-    "initialAngle": 3.9811
+    "color": "#9932CC",
+    "colorDesc": "暗兰花紫",
+    "size": 0.8,
+    "temperature": 790,
+    "distanceFromSun": 73.16,
+    "orbitRadius": 4.22,
+    "orbitSpeed": 0.795,
+    "initialAngle": 0.1531
   },
   {
     "id": "planet_001_2",
@@ -549,18 +549,18 @@
     "type": "planet",
     "parentStarId": "star_001",
     "position": [
-      14.0968,
-      -6.0735,
-      40.8251
+      -12.054,
+      -86.5714,
+      -29.0108
     ],
-    "color": "#20B2AA",
-    "colorDesc": "浅海",
-    "size": 0.51,
-    "temperature": 639,
-    "distanceFromSun": 62.35,
-    "orbitRadius": 3.19,
-    "orbitSpeed": 0.737,
-    "initialAngle": 3.3763
+    "color": "#D2691E",
+    "colorDesc": "巧克力",
+    "size": 0.3,
+    "temperature": 418,
+    "distanceFromSun": 72.89,
+    "orbitRadius": 5.1,
+    "orbitSpeed": 0.749,
+    "initialAngle": 0.1615
   },
   {
     "id": "planet_001_3",
@@ -568,18 +568,18 @@
     "type": "planet",
     "parentStarId": "star_001",
     "position": [
-      14.0968,
-      -6.0735,
-      40.8251
+      -12.054,
+      -86.5714,
+      -29.0108
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.33,
-    "temperature": 186,
-    "distanceFromSun": 63.7,
-    "orbitRadius": 3.69,
-    "orbitSpeed": 0.124,
-    "initialAngle": 5.4879
+    "color": "#4682B4",
+    "colorDesc": "钢蓝",
+    "size": 0.45,
+    "temperature": 538,
+    "distanceFromSun": 73.76,
+    "orbitRadius": 7.92,
+    "orbitSpeed": 0.464,
+    "initialAngle": 1.3302
   },
   {
     "id": "planet_001_4",
@@ -587,18 +587,18 @@
     "type": "planet",
     "parentStarId": "star_001",
     "position": [
-      14.0968,
-      -6.0735,
-      40.8251
+      -12.054,
+      -86.5714,
+      -29.0108
     ],
-    "color": "#FFEAA7",
-    "colorDesc": "暖黄",
-    "size": 0.42,
-    "temperature": 739,
-    "distanceFromSun": 62.58,
-    "orbitRadius": 4.18,
-    "orbitSpeed": 0.668,
-    "initialAngle": 3.8603
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.37,
+    "temperature": 668,
+    "distanceFromSun": 73.12,
+    "orbitRadius": 7.52,
+    "orbitSpeed": 0.274,
+    "initialAngle": 0.1441
   },
   {
     "id": "planet_002_1",
@@ -606,18 +606,18 @@
     "type": "planet",
     "parentStarId": "star_002",
     "position": [
-      -33.7741,
-      -78.5035,
-      -8.5166
+      -13.5604,
+      7.0676,
+      -24.0311
     ],
-    "color": "#FFB6C1",
-    "colorDesc": "粉红",
-    "size": 0.42,
-    "temperature": 504,
-    "distanceFromSun": 60.89,
-    "orbitRadius": 7.32,
-    "orbitSpeed": 0.475,
-    "initialAngle": 2.5887
+    "color": "#DB7093",
+    "colorDesc": "苍紫红",
+    "size": 0.59,
+    "temperature": 608,
+    "distanceFromSun": 38.15,
+    "orbitRadius": 3.17,
+    "orbitSpeed": 0.545,
+    "initialAngle": 6.1338
   },
   {
     "id": "planet_002_2",
@@ -625,2563 +625,2563 @@
     "type": "planet",
     "parentStarId": "star_002",
     "position": [
-      -33.7741,
-      -78.5035,
-      -8.5166
+      -13.5604,
+      7.0676,
+      -24.0311
     ],
-    "color": "#20B2AA",
-    "colorDesc": "浅海",
-    "size": 0.38,
-    "temperature": 200,
-    "distanceFromSun": 59.05,
-    "orbitRadius": 4.95,
-    "orbitSpeed": 0.609,
-    "initialAngle": 0.546
+    "color": "#6A5ACD",
+    "colorDesc": "板岩蓝",
+    "size": 0.4,
+    "temperature": 103,
+    "distanceFromSun": 38.14,
+    "orbitRadius": 3.19,
+    "orbitSpeed": 0.187,
+    "initialAngle": 5.5619
   },
   {
     "id": "planet_002_3",
-    "name": "紫罗兰",
+    "name": "紫云星",
     "type": "planet",
     "parentStarId": "star_002",
     "position": [
-      -33.7741,
-      -78.5035,
-      -8.5166
+      -13.5604,
+      7.0676,
+      -24.0311
     ],
-    "color": "#FFEAA7",
-    "colorDesc": "暖黄",
-    "size": 0.33,
-    "temperature": 201,
-    "distanceFromSun": 58.72,
-    "orbitRadius": 5.21,
-    "orbitSpeed": 0.306,
-    "initialAngle": 4.4477
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.41,
+    "temperature": 358,
+    "distanceFromSun": 38.28,
+    "orbitRadius": 5,
+    "orbitSpeed": 0.579,
+    "initialAngle": 3.4329
   },
   {
     "id": "planet_002_4",
-    "name": "银辉星",
+    "name": "黑曜星",
     "type": "planet",
     "parentStarId": "star_002",
     "position": [
-      -33.7741,
-      -78.5035,
-      -8.5166
+      -13.5604,
+      7.0676,
+      -24.0311
     ],
-    "color": "#F0E68C",
-    "colorDesc": "金黄",
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
     "size": 0.46,
-    "temperature": 719,
-    "distanceFromSun": 58.6,
-    "orbitRadius": 7.12,
-    "orbitSpeed": 0.543,
-    "initialAngle": 4.9444
+    "temperature": 561,
+    "distanceFromSun": 37.74,
+    "orbitRadius": 4.28,
+    "orbitSpeed": 0.119,
+    "initialAngle": 5.0728
   },
   {
     "id": "planet_003_1",
-    "name": "黑曜石",
+    "name": "银辉星",
     "type": "planet",
     "parentStarId": "star_003",
     "position": [
-      -48.8426,
-      10.7267,
-      -60.1907
+      -29.5001,
+      64.9282,
+      36.7626
     ],
-    "color": "#8B4513",
-    "colorDesc": "棕褐",
-    "size": 0.34,
-    "temperature": 465,
-    "distanceFromSun": 10.99,
-    "orbitRadius": 2.58,
-    "orbitSpeed": 0.361,
-    "initialAngle": 2.6773
+    "color": "#2E8B57",
+    "colorDesc": "海绿",
+    "size": 0.4,
+    "temperature": 227,
+    "distanceFromSun": 26.19,
+    "orbitRadius": 3.1,
+    "orbitSpeed": 0.587,
+    "initialAngle": 2.9226
   },
   {
     "id": "planet_003_2",
-    "name": "赤霞珠",
+    "name": "赤炎星",
     "type": "planet",
     "parentStarId": "star_003",
     "position": [
-      -48.8426,
-      10.7267,
-      -60.1907
+      -29.5001,
+      64.9282,
+      36.7626
     ],
-    "color": "#FF4500",
-    "colorDesc": "橙红",
-    "size": 0.33,
-    "temperature": 109,
-    "distanceFromSun": 10.11,
-    "orbitRadius": 2.4,
-    "orbitSpeed": 0.681,
-    "initialAngle": 1.4776
+    "color": "#4682B4",
+    "colorDesc": "钢蓝",
+    "size": 0.66,
+    "temperature": 712,
+    "distanceFromSun": 26.07,
+    "orbitRadius": 5.51,
+    "orbitSpeed": 0.566,
+    "initialAngle": 1.3085
   },
   {
     "id": "planet_003_3",
-    "name": "翠羽星",
+    "name": "碧波星",
     "type": "planet",
     "parentStarId": "star_003",
     "position": [
-      -48.8426,
-      10.7267,
-      -60.1907
+      -29.5001,
+      64.9282,
+      36.7626
     ],
-    "color": "#4ECDC4",
-    "colorDesc": "青绿",
-    "size": 0.55,
-    "temperature": 687,
-    "distanceFromSun": 9.19,
-    "orbitRadius": 7.7,
-    "orbitSpeed": 0.295,
-    "initialAngle": 1.0235
+    "color": "#C71585",
+    "colorDesc": "中紫红",
+    "size": 0.49,
+    "temperature": 709,
+    "distanceFromSun": 26.08,
+    "orbitRadius": 3.36,
+    "orbitSpeed": 0.116,
+    "initialAngle": 2.6304
   },
   {
     "id": "planet_003_4",
-    "name": "琥珀星",
+    "name": "雪绒星",
     "type": "planet",
     "parentStarId": "star_003",
     "position": [
-      -48.8426,
-      10.7267,
-      -60.1907
+      -29.5001,
+      64.9282,
+      36.7626
     ],
-    "color": "#A0522D",
-    "colorDesc": "赭石",
-    "size": 0.51,
-    "temperature": 776,
-    "distanceFromSun": 9.83,
-    "orbitRadius": 3.36,
-    "orbitSpeed": 0.23,
-    "initialAngle": 5.8385
+    "color": "#CD5C5C",
+    "colorDesc": "印度红",
+    "size": 0.71,
+    "temperature": 729,
+    "distanceFromSun": 25.44,
+    "orbitRadius": 5.64,
+    "orbitSpeed": 0.415,
+    "initialAngle": 2.5053
   },
   {
     "id": "planet_004_1",
-    "name": "琉璃星",
+    "name": "琥珀星",
     "type": "planet",
     "parentStarId": "star_004",
     "position": [
-      57.3268,
-      40.1081,
-      59.5438
+      -58.9949,
+      32.3018,
+      -59.195
     ],
-    "color": "#FFA07A",
-    "colorDesc": "浅鲑",
-    "size": 0.46,
-    "temperature": 563,
-    "distanceFromSun": 32.32,
-    "orbitRadius": 2.71,
-    "orbitSpeed": 0.683,
-    "initialAngle": 0.7192
+    "color": "#DB7093",
+    "colorDesc": "苍紫红",
+    "size": 0.6,
+    "temperature": 288,
+    "distanceFromSun": 83.93,
+    "orbitRadius": 5.19,
+    "orbitSpeed": 0.535,
+    "initialAngle": 0.4427
   },
   {
     "id": "planet_004_2",
-    "name": "珊瑚星",
+    "name": "天青石",
     "type": "planet",
     "parentStarId": "star_004",
     "position": [
-      57.3268,
-      40.1081,
-      59.5438
+      -58.9949,
+      32.3018,
+      -59.195
     ],
-    "color": "#FFEAA7",
-    "colorDesc": "暖黄",
-    "size": 0.59,
-    "temperature": 349,
-    "distanceFromSun": 32.78,
-    "orbitRadius": 6.4,
-    "orbitSpeed": 0.379,
-    "initialAngle": 4.295
+    "color": "#A0522D",
+    "colorDesc": "赭石",
+    "size": 0.78,
+    "temperature": 765,
+    "distanceFromSun": 83.04,
+    "orbitRadius": 6.66,
+    "orbitSpeed": 0.151,
+    "initialAngle": 2.9653
   },
   {
     "id": "planet_004_3",
-    "name": "珍珠星",
+    "name": "橄榄星",
     "type": "planet",
     "parentStarId": "star_004",
     "position": [
-      57.3268,
-      40.1081,
-      59.5438
+      -58.9949,
+      32.3018,
+      -59.195
     ],
-    "color": "#DDA0DD",
-    "colorDesc": "紫罗兰",
-    "size": 0.66,
-    "temperature": 259,
-    "distanceFromSun": 34.48,
-    "orbitRadius": 2.49,
-    "orbitSpeed": 0.322,
-    "initialAngle": 3.0632
+    "color": "#191970",
+    "colorDesc": "午夜蓝",
+    "size": 0.59,
+    "temperature": 296,
+    "distanceFromSun": 83.16,
+    "orbitRadius": 6.98,
+    "orbitSpeed": 0.149,
+    "initialAngle": 6.2603
   },
   {
     "id": "planet_004_4",
-    "name": "星尘",
+    "name": "蔷薇星",
     "type": "planet",
     "parentStarId": "star_004",
     "position": [
-      57.3268,
-      40.1081,
-      59.5438
+      -58.9949,
+      32.3018,
+      -59.195
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.31,
-    "temperature": 422,
-    "distanceFromSun": 35.09,
-    "orbitRadius": 7.39,
-    "orbitSpeed": 0.606,
-    "initialAngle": 6.1255
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.77,
+    "temperature": 602,
+    "distanceFromSun": 82.88,
+    "orbitRadius": 7.03,
+    "orbitSpeed": 0.691,
+    "initialAngle": 2.8276
   },
   {
     "id": "planet_005_1",
-    "name": "碧波星",
+    "name": "极光星",
     "type": "planet",
     "parentStarId": "star_005",
     "position": [
-      -65.1386,
-      1.7375,
-      -6.538
+      69.1725,
+      27.4314,
+      65.7144
     ],
-    "color": "#E6E6FA",
-    "colorDesc": "淡紫",
-    "size": 0.39,
-    "temperature": 535,
-    "distanceFromSun": 90.89,
-    "orbitRadius": 4.92,
-    "orbitSpeed": 0.768,
-    "initialAngle": 0.4675
+    "color": "#00FA9A",
+    "colorDesc": "中春绿",
+    "size": 0.73,
+    "temperature": 426,
+    "distanceFromSun": 62.03,
+    "orbitRadius": 5.33,
+    "orbitSpeed": 0.587,
+    "initialAngle": 0.0976
   },
   {
     "id": "planet_005_2",
-    "name": "焰火星",
+    "name": "流星岩",
     "type": "planet",
     "parentStarId": "star_005",
     "position": [
-      -65.1386,
-      1.7375,
-      -6.538
+      69.1725,
+      27.4314,
+      65.7144
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.34,
-    "temperature": 129,
-    "distanceFromSun": 93.48,
-    "orbitRadius": 2.53,
-    "orbitSpeed": 0.453,
-    "initialAngle": 1.3193
+    "color": "#9932CC",
+    "colorDesc": "暗兰花紫",
+    "size": 0.7,
+    "temperature": 409,
+    "distanceFromSun": 62.68,
+    "orbitRadius": 3.74,
+    "orbitSpeed": 0.755,
+    "initialAngle": 0.9964
   },
   {
     "id": "planet_005_3",
-    "name": "寒霜星",
+    "name": "星尘球",
     "type": "planet",
     "parentStarId": "star_005",
     "position": [
-      -65.1386,
-      1.7375,
-      -6.538
+      69.1725,
+      27.4314,
+      65.7144
     ],
-    "color": "#20B2AA",
-    "colorDesc": "浅海",
-    "size": 0.77,
-    "temperature": 654,
-    "distanceFromSun": 91.89,
-    "orbitRadius": 6.13,
-    "orbitSpeed": 0.229,
-    "initialAngle": 4.5681
+    "color": "#BC8F8F",
+    "colorDesc": "暗褐红",
+    "size": 0.44,
+    "temperature": 491,
+    "distanceFromSun": 62.2,
+    "orbitRadius": 3.3,
+    "orbitSpeed": 0.746,
+    "initialAngle": 3.0405
   },
   {
     "id": "planet_005_4",
-    "name": "晨曦星",
+    "name": "黎明星",
     "type": "planet",
     "parentStarId": "star_005",
     "position": [
-      -65.1386,
-      1.7375,
-      -6.538
+      69.1725,
+      27.4314,
+      65.7144
     ],
-    "color": "#4ECDC4",
-    "colorDesc": "青绿",
-    "size": 0.78,
-    "temperature": 133,
-    "distanceFromSun": 93.25,
-    "orbitRadius": 6.47,
-    "orbitSpeed": 0.351,
-    "initialAngle": 1.1912
+    "color": "#9932CC",
+    "colorDesc": "暗兰花紫",
+    "size": 0.39,
+    "temperature": 532,
+    "distanceFromSun": 62.63,
+    "orbitRadius": 5.05,
+    "orbitSpeed": 0.132,
+    "initialAngle": 1.291
   },
   {
     "id": "planet_006_1",
+    "name": "黄昏星",
+    "type": "planet",
+    "parentStarId": "star_006",
+    "position": [
+      77.2397,
+      10.2133,
+      -48.6086
+    ],
+    "color": "#CD5C5C",
+    "colorDesc": "印度红",
+    "size": 0.78,
+    "temperature": 550,
+    "distanceFromSun": 62.67,
+    "orbitRadius": 4.02,
+    "orbitSpeed": 0.289,
+    "initialAngle": 0.143
+  },
+  {
+    "id": "planet_006_2",
+    "name": "晨曦星",
+    "type": "planet",
+    "parentStarId": "star_006",
+    "position": [
+      77.2397,
+      10.2133,
+      -48.6086
+    ],
+    "color": "#9932CC",
+    "colorDesc": "暗兰花紫",
+    "size": 0.5,
+    "temperature": 631,
+    "distanceFromSun": 62.69,
+    "orbitRadius": 3.12,
+    "orbitSpeed": 0.673,
+    "initialAngle": 1.4971
+  },
+  {
+    "id": "planet_006_3",
     "name": "暮光星",
     "type": "planet",
     "parentStarId": "star_006",
     "position": [
-      -23.0938,
-      1.8168,
-      -14.4204
+      77.2397,
+      10.2133,
+      -48.6086
     ],
-    "color": "#DDA0DD",
-    "colorDesc": "紫罗兰",
-    "size": 0.61,
-    "temperature": 494,
-    "distanceFromSun": 86.3,
-    "orbitRadius": 3.98,
-    "orbitSpeed": 0.181,
-    "initialAngle": 2.8898
-  },
-  {
-    "id": "planet_006_2",
-    "name": "极夜星",
-    "type": "planet",
-    "parentStarId": "star_006",
-    "position": [
-      -23.0938,
-      1.8168,
-      -14.4204
-    ],
-    "color": "#556B2F",
-    "colorDesc": "橄榄",
-    "size": 0.77,
-    "temperature": 568,
-    "distanceFromSun": 84.33,
-    "orbitRadius": 3.2,
-    "orbitSpeed": 0.764,
-    "initialAngle": 2.2369
-  },
-  {
-    "id": "planet_006_3",
-    "name": "苍穹星",
-    "type": "planet",
-    "parentStarId": "star_006",
-    "position": [
-      -23.0938,
-      1.8168,
-      -14.4204
-    ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.73,
-    "temperature": 392,
-    "distanceFromSun": 84.59,
-    "orbitRadius": 6.92,
-    "orbitSpeed": 0.169,
-    "initialAngle": 5.8776
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.78,
+    "temperature": 677,
+    "distanceFromSun": 62.66,
+    "orbitRadius": 2.8,
+    "orbitSpeed": 0.697,
+    "initialAngle": 5.2399
   },
   {
     "id": "planet_006_4",
-    "name": "碧落星",
+    "name": "银河星",
     "type": "planet",
     "parentStarId": "star_006",
     "position": [
-      -23.0938,
-      1.8168,
-      -14.4204
+      77.2397,
+      10.2133,
+      -48.6086
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.72,
-    "temperature": 440,
-    "distanceFromSun": 86.4,
-    "orbitRadius": 5.67,
-    "orbitSpeed": 0.437,
-    "initialAngle": 2.1563
+    "color": "#8B4513",
+    "colorDesc": "鞍棕",
+    "size": 0.38,
+    "temperature": 175,
+    "distanceFromSun": 62.49,
+    "orbitRadius": 4.74,
+    "orbitSpeed": 0.454,
+    "initialAngle": 1.8838
   },
   {
     "id": "planet_007_1",
-    "name": "玄铁星",
+    "name": "星陨星",
     "type": "planet",
     "parentStarId": "star_007",
     "position": [
-      80.3582,
-      16.9875,
-      -50.2878
+      93.0264,
+      -14.9785,
+      13.0479
     ],
-    "color": "#BA55D3",
-    "colorDesc": "紫红",
-    "size": 0.33,
-    "temperature": 511,
-    "distanceFromSun": 4.58,
-    "orbitRadius": 3.04,
-    "orbitSpeed": 0.337,
-    "initialAngle": 0.09
+    "color": "#B22222",
+    "colorDesc": "耐火砖",
+    "size": 0.61,
+    "temperature": 543,
+    "distanceFromSun": 65.15,
+    "orbitRadius": 3.87,
+    "orbitSpeed": 0.407,
+    "initialAngle": 3.5494
   },
   {
     "id": "planet_007_2",
-    "name": "青冥星",
+    "name": "月光星",
     "type": "planet",
     "parentStarId": "star_007",
     "position": [
-      80.3582,
-      16.9875,
-      -50.2878
+      93.0264,
+      -14.9785,
+      13.0479
     ],
-    "color": "#FFEAA7",
-    "colorDesc": "暖黄",
-    "size": 0.49,
-    "temperature": 339,
-    "distanceFromSun": 5.48,
-    "orbitRadius": 4.37,
-    "orbitSpeed": 0.32,
-    "initialAngle": 3.4709
+    "color": "#DAA520",
+    "colorDesc": "金菊",
+    "size": 0.39,
+    "temperature": 480,
+    "distanceFromSun": 64.8,
+    "orbitRadius": 4.22,
+    "orbitSpeed": 0.454,
+    "initialAngle": 1.405
   },
   {
     "id": "planet_007_3",
-    "name": "丹霞星",
+    "name": "日光星",
     "type": "planet",
     "parentStarId": "star_007",
     "position": [
-      80.3582,
-      16.9875,
-      -50.2878
+      93.0264,
+      -14.9785,
+      13.0479
     ],
-    "color": "#98FB98",
-    "colorDesc": "嫩绿",
-    "size": 0.55,
-    "temperature": 171,
-    "distanceFromSun": 6.58,
-    "orbitRadius": 5.75,
-    "orbitSpeed": 0.743,
-    "initialAngle": 6.0224
+    "color": "#5F9EA0",
+    "colorDesc": "暗蓝",
+    "size": 0.39,
+    "temperature": 729,
+    "distanceFromSun": 64.83,
+    "orbitRadius": 3.42,
+    "orbitSpeed": 0.321,
+    "initialAngle": 0.3468
   },
   {
     "id": "planet_007_4",
-    "name": "碧落",
+    "name": "彗星核",
     "type": "planet",
     "parentStarId": "star_007",
     "position": [
-      80.3582,
-      16.9875,
-      -50.2878
+      93.0264,
+      -14.9785,
+      13.0479
     ],
-    "color": "#8B0000",
-    "colorDesc": "暗红",
-    "size": 0.65,
-    "temperature": 445,
-    "distanceFromSun": 5.78,
-    "orbitRadius": 8,
-    "orbitSpeed": 0.167,
-    "initialAngle": 4.0733
+    "color": "#B22222",
+    "colorDesc": "耐火砖",
+    "size": 0.68,
+    "temperature": 498,
+    "distanceFromSun": 64.64,
+    "orbitRadius": 3.07,
+    "orbitSpeed": 0.603,
+    "initialAngle": 2.6545
   },
   {
     "id": "planet_008_1",
-    "name": "银河畔",
+    "name": "小行星带",
     "type": "planet",
     "parentStarId": "star_008",
     "position": [
-      -43.8095,
-      25.588,
-      -36.5037
+      34.083,
+      -23.4208,
+      28.4777
     ],
-    "color": "#FF4500",
-    "colorDesc": "橙红",
-    "size": 0.77,
-    "temperature": 443,
-    "distanceFromSun": 81.44,
-    "orbitRadius": 4.42,
-    "orbitSpeed": 0.315,
-    "initialAngle": 2.5025
+    "color": "#3CB371",
+    "colorDesc": "中海绿",
+    "size": 0.69,
+    "temperature": 506,
+    "distanceFromSun": 32.65,
+    "orbitRadius": 3.77,
+    "orbitSpeed": 0.451,
+    "initialAngle": 3.8237
   },
   {
     "id": "planet_008_2",
-    "name": "天河星",
+    "name": "冥卫星",
     "type": "planet",
     "parentStarId": "star_008",
     "position": [
-      -43.8095,
-      25.588,
-      -36.5037
+      34.083,
+      -23.4208,
+      28.4777
     ],
-    "color": "#96CEB4",
-    "colorDesc": "翠绿",
-    "size": 0.36,
-    "temperature": 290,
-    "distanceFromSun": 79.3,
-    "orbitRadius": 4.63,
-    "orbitSpeed": 0.125,
-    "initialAngle": 0.6171
+    "color": "#9932CC",
+    "colorDesc": "暗兰花紫",
+    "size": 0.56,
+    "temperature": 234,
+    "distanceFromSun": 32.56,
+    "orbitRadius": 6.08,
+    "orbitSpeed": 0.375,
+    "initialAngle": 5.5136
   },
   {
     "id": "planet_008_3",
-    "name": "紫云星",
+    "name": "海王卫",
     "type": "planet",
     "parentStarId": "star_008",
     "position": [
-      -43.8095,
-      25.588,
-      -36.5037
+      34.083,
+      -23.4208,
+      28.4777
     ],
-    "color": "#D3D3D3",
-    "colorDesc": "银灰",
-    "size": 0.62,
-    "temperature": 726,
-    "distanceFromSun": 79.11,
-    "orbitRadius": 2.95,
-    "orbitSpeed": 0.699,
-    "initialAngle": 2.8592
+    "color": "#191970",
+    "colorDesc": "午夜蓝",
+    "size": 0.75,
+    "temperature": 674,
+    "distanceFromSun": 32.49,
+    "orbitRadius": 4.78,
+    "orbitSpeed": 0.242,
+    "initialAngle": 5.1088
   },
   {
     "id": "planet_008_4",
-    "name": "碧落界",
+    "name": "天王卫",
     "type": "planet",
     "parentStarId": "star_008",
     "position": [
-      -43.8095,
-      25.588,
-      -36.5037
+      34.083,
+      -23.4208,
+      28.4777
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.61,
-    "temperature": 354,
-    "distanceFromSun": 81.63,
-    "orbitRadius": 2.92,
-    "orbitSpeed": 0.144,
-    "initialAngle": 0.0286
+    "color": "#6A5ACD",
+    "colorDesc": "板岩蓝",
+    "size": 0.74,
+    "temperature": 166,
+    "distanceFromSun": 33.46,
+    "orbitRadius": 7.53,
+    "orbitSpeed": 0.121,
+    "initialAngle": 3.7519
   },
   {
     "id": "planet_009_1",
-    "name": "苍穹界",
+    "name": "土卫泰坦",
     "type": "planet",
     "parentStarId": "star_009",
     "position": [
-      -35.3765,
-      -7.5617,
-      -85.6091
+      1.0814,
+      42.1137,
+      87.9495
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.77,
-    "temperature": 349,
-    "distanceFromSun": 90.12,
-    "orbitRadius": 2.08,
-    "orbitSpeed": 0.308,
-    "initialAngle": 2.2214
+    "color": "#DB7093",
+    "colorDesc": "苍紫红",
+    "size": 0.65,
+    "temperature": 316,
+    "distanceFromSun": 53.75,
+    "orbitRadius": 5.26,
+    "orbitSpeed": 0.158,
+    "initialAngle": 0.2537
   },
   {
     "id": "planet_009_2",
-    "name": "星辰海",
+    "name": "木卫欧罗巴",
     "type": "planet",
     "parentStarId": "star_009",
     "position": [
-      -35.3765,
-      -7.5617,
-      -85.6091
-    ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.35,
-    "temperature": 263,
-    "distanceFromSun": 91.31,
-    "orbitRadius": 6.15,
-    "orbitSpeed": 0.558,
-    "initialAngle": 4.1308
-  },
-  {
-    "id": "planet_009_3",
-    "name": "星河界",
-    "type": "planet",
-    "parentStarId": "star_009",
-    "position": [
-      -35.3765,
-      -7.5617,
-      -85.6091
-    ],
-    "color": "#2F4F4F",
-    "colorDesc": "深青",
-    "size": 0.5,
-    "temperature": 798,
-    "distanceFromSun": 91.36,
-    "orbitRadius": 6.47,
-    "orbitSpeed": 0.216,
-    "initialAngle": 1.1593
-  },
-  {
-    "id": "planet_009_4",
-    "name": "九天星",
-    "type": "planet",
-    "parentStarId": "star_009",
-    "position": [
-      -35.3765,
-      -7.5617,
-      -85.6091
-    ],
-    "color": "#FFB6C1",
-    "colorDesc": "粉红",
-    "size": 0.44,
-    "temperature": 624,
-    "distanceFromSun": 90.16,
-    "orbitRadius": 3.25,
-    "orbitSpeed": 0.557,
-    "initialAngle": 4.0209
-  },
-  {
-    "id": "planet_010_1",
-    "name": "幽冥星",
-    "type": "planet",
-    "parentStarId": "star_010",
-    "position": [
-      62.8079,
-      -38.4344,
-      66.9836
-    ],
-    "color": "#F0E68C",
-    "colorDesc": "金黄",
-    "size": 0.79,
-    "temperature": 298,
-    "distanceFromSun": 51.95,
-    "orbitRadius": 6.51,
-    "orbitSpeed": 0.11,
-    "initialAngle": 3.4575
-  },
-  {
-    "id": "planet_010_2",
-    "name": "幻海星",
-    "type": "planet",
-    "parentStarId": "star_010",
-    "position": [
-      62.8079,
-      -38.4344,
-      66.9836
-    ],
-    "color": "#8B0000",
-    "colorDesc": "暗红",
-    "size": 0.55,
-    "temperature": 346,
-    "distanceFromSun": 50.83,
-    "orbitRadius": 4.52,
-    "orbitSpeed": 0.187,
-    "initialAngle": 2.9784
-  },
-  {
-    "id": "planet_010_3",
-    "name": "秘境星",
-    "type": "planet",
-    "parentStarId": "star_010",
-    "position": [
-      62.8079,
-      -38.4344,
-      66.9836
-    ],
-    "color": "#87CEEB",
-    "colorDesc": "天蓝",
-    "size": 0.7,
-    "temperature": 249,
-    "distanceFromSun": 51.8,
-    "orbitRadius": 5.89,
-    "orbitSpeed": 0.217,
-    "initialAngle": 1.922
-  },
-  {
-    "id": "planet_010_4",
-    "name": "璇玑星",
-    "type": "planet",
-    "parentStarId": "star_010",
-    "position": [
-      62.8079,
-      -38.4344,
-      66.9836
-    ],
-    "color": "#8B0000",
-    "colorDesc": "暗红",
-    "size": 0.5,
-    "temperature": 452,
-    "distanceFromSun": 53.62,
-    "orbitRadius": 3.19,
-    "orbitSpeed": 0.22,
-    "initialAngle": 5.9913
-  },
-  {
-    "id": "planet_011_1",
-    "name": "木卫α-2",
-    "type": "planet",
-    "parentStarId": "star_011",
-    "position": [
-      -27.9375,
-      -20.6211,
-      -75.0297
-    ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.33,
-    "temperature": 672,
-    "distanceFromSun": 13.08,
-    "orbitRadius": 3.5,
-    "orbitSpeed": 0.771,
-    "initialAngle": 3.7712
-  },
-  {
-    "id": "planet_011_2",
-    "name": "海蓝星-2",
-    "type": "planet",
-    "parentStarId": "star_011",
-    "position": [
-      -27.9375,
-      -20.6211,
-      -75.0297
-    ],
-    "color": "#F4A460",
-    "colorDesc": "沙棕",
-    "size": 0.51,
-    "temperature": 217,
-    "distanceFromSun": 11.31,
-    "orbitRadius": 6.33,
-    "orbitSpeed": 0.755,
-    "initialAngle": 1.6022
-  },
-  {
-    "id": "planet_011_3",
-    "name": "赤岩星-2",
-    "type": "planet",
-    "parentStarId": "star_011",
-    "position": [
-      -27.9375,
-      -20.6211,
-      -75.0297
-    ],
-    "color": "#A0522D",
-    "colorDesc": "赭石",
-    "size": 0.79,
-    "temperature": 709,
-    "distanceFromSun": 13.5,
-    "orbitRadius": 4.12,
-    "orbitSpeed": 0.322,
-    "initialAngle": 4.9298
-  },
-  {
-    "id": "planet_011_4",
-    "name": "冰晶星-2",
-    "type": "planet",
-    "parentStarId": "star_011",
-    "position": [
-      -27.9375,
-      -20.6211,
-      -75.0297
-    ],
-    "color": "#20B2AA",
-    "colorDesc": "浅海",
-    "size": 0.41,
-    "temperature": 578,
-    "distanceFromSun": 11.9,
-    "orbitRadius": 7.06,
-    "orbitSpeed": 0.358,
-    "initialAngle": 5.1997
-  },
-  {
-    "id": "planet_012_1",
-    "name": "翡翠星-2",
-    "type": "planet",
-    "parentStarId": "star_012",
-    "position": [
-      85.2799,
-      33.2389,
-      29.5063
+      1.0814,
+      42.1137,
+      87.9495
     ],
     "color": "#45B7D1",
     "colorDesc": "海蓝",
-    "size": 0.53,
-    "temperature": 195,
-    "distanceFromSun": 8.05,
-    "orbitRadius": 7.49,
-    "orbitSpeed": 0.445,
-    "initialAngle": 4.2452
+    "size": 0.66,
+    "temperature": 761,
+    "distanceFromSun": 53.73,
+    "orbitRadius": 5.62,
+    "orbitSpeed": 0.261,
+    "initialAngle": 2.5386
+  },
+  {
+    "id": "planet_009_3",
+    "name": "火卫福波斯",
+    "type": "planet",
+    "parentStarId": "star_009",
+    "position": [
+      1.0814,
+      42.1137,
+      87.9495
+    ],
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.56,
+    "temperature": 216,
+    "distanceFromSun": 53.58,
+    "orbitRadius": 2.71,
+    "orbitSpeed": 0.325,
+    "initialAngle": 3.4084
+  },
+  {
+    "id": "planet_009_4",
+    "name": "水星影",
+    "type": "planet",
+    "parentStarId": "star_009",
+    "position": [
+      1.0814,
+      42.1137,
+      87.9495
+    ],
+    "color": "#8B4513",
+    "colorDesc": "鞍棕",
+    "size": 0.7,
+    "temperature": 608,
+    "distanceFromSun": 53.54,
+    "orbitRadius": 2.79,
+    "orbitSpeed": 0.505,
+    "initialAngle": 2.4149
+  },
+  {
+    "id": "planet_010_1",
+    "name": "金星曦",
+    "type": "planet",
+    "parentStarId": "star_010",
+    "position": [
+      1.8892,
+      45.0846,
+      66.735
+    ],
+    "color": "#2E8B57",
+    "colorDesc": "海绿",
+    "size": 0.31,
+    "temperature": 648,
+    "distanceFromSun": 79.62,
+    "orbitRadius": 3.13,
+    "orbitSpeed": 0.697,
+    "initialAngle": 2.4936
+  },
+  {
+    "id": "planet_010_2",
+    "name": "火星尘",
+    "type": "planet",
+    "parentStarId": "star_010",
+    "position": [
+      1.8892,
+      45.0846,
+      66.735
+    ],
+    "color": "#00FA9A",
+    "colorDesc": "中春绿",
+    "size": 0.69,
+    "temperature": 386,
+    "distanceFromSun": 79.83,
+    "orbitRadius": 6.97,
+    "orbitSpeed": 0.652,
+    "initialAngle": 1.283
+  },
+  {
+    "id": "planet_010_3",
+    "name": "木星云",
+    "type": "planet",
+    "parentStarId": "star_010",
+    "position": [
+      1.8892,
+      45.0846,
+      66.735
+    ],
+    "color": "#2E8B57",
+    "colorDesc": "海绿",
+    "size": 0.51,
+    "temperature": 373,
+    "distanceFromSun": 79.29,
+    "orbitRadius": 6.6,
+    "orbitSpeed": 0.778,
+    "initialAngle": 1.1755
+  },
+  {
+    "id": "planet_010_4",
+    "name": "土星环",
+    "type": "planet",
+    "parentStarId": "star_010",
+    "position": [
+      1.8892,
+      45.0846,
+      66.735
+    ],
+    "color": "#4682B4",
+    "colorDesc": "钢蓝",
+    "size": 0.47,
+    "temperature": 545,
+    "distanceFromSun": 79.39,
+    "orbitRadius": 6.26,
+    "orbitSpeed": 0.425,
+    "initialAngle": 2.0257
+  },
+  {
+    "id": "planet_011_1",
+    "name": "木卫α 2",
+    "type": "planet",
+    "parentStarId": "star_011",
+    "position": [
+      13.0427,
+      -89.3165,
+      35.3136
+    ],
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.37,
+    "temperature": 666,
+    "distanceFromSun": 34.52,
+    "orbitRadius": 4.25,
+    "orbitSpeed": 0.593,
+    "initialAngle": 1.4248
+  },
+  {
+    "id": "planet_011_2",
+    "name": "海蓝星 2",
+    "type": "planet",
+    "parentStarId": "star_011",
+    "position": [
+      13.0427,
+      -89.3165,
+      35.3136
+    ],
+    "color": "#C71585",
+    "colorDesc": "中紫红",
+    "size": 0.47,
+    "temperature": 281,
+    "distanceFromSun": 34.35,
+    "orbitRadius": 3.94,
+    "orbitSpeed": 0.31,
+    "initialAngle": 0.9188
+  },
+  {
+    "id": "planet_011_3",
+    "name": "赤岩星 2",
+    "type": "planet",
+    "parentStarId": "star_011",
+    "position": [
+      13.0427,
+      -89.3165,
+      35.3136
+    ],
+    "color": "#9932CC",
+    "colorDesc": "暗兰花紫",
+    "size": 0.32,
+    "temperature": 334,
+    "distanceFromSun": 34.28,
+    "orbitRadius": 3.81,
+    "orbitSpeed": 0.441,
+    "initialAngle": 5.1704
+  },
+  {
+    "id": "planet_011_4",
+    "name": "冰晶星 2",
+    "type": "planet",
+    "parentStarId": "star_011",
+    "position": [
+      13.0427,
+      -89.3165,
+      35.3136
+    ],
+    "color": "#9ACD32",
+    "colorDesc": "黄绿",
+    "size": 0.47,
+    "temperature": 599,
+    "distanceFromSun": 34.38,
+    "orbitRadius": 3.13,
+    "orbitSpeed": 0.259,
+    "initialAngle": 0.1794
+  },
+  {
+    "id": "planet_012_1",
+    "name": "翡翠星 2",
+    "type": "planet",
+    "parentStarId": "star_012",
+    "position": [
+      -39.1336,
+      -44.649,
+      75.8771
+    ],
+    "color": "#C71585",
+    "colorDesc": "中紫红",
+    "size": 0.32,
+    "temperature": 342,
+    "distanceFromSun": 45.74,
+    "orbitRadius": 6.06,
+    "orbitSpeed": 0.508,
+    "initialAngle": 2.3927
   },
   {
     "id": "planet_012_2",
-    "name": "金沙星-2",
+    "name": "金沙星 2",
     "type": "planet",
     "parentStarId": "star_012",
     "position": [
-      85.2799,
-      33.2389,
-      29.5063
+      -39.1336,
+      -44.649,
+      75.8771
     ],
-    "color": "#2F4F4F",
-    "colorDesc": "深青",
-    "size": 0.37,
-    "temperature": 238,
-    "distanceFromSun": 6.72,
-    "orbitRadius": 5.15,
-    "orbitSpeed": 0.526,
-    "initialAngle": 4.7065
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.78,
+    "temperature": 505,
+    "distanceFromSun": 46.6,
+    "orbitRadius": 6.11,
+    "orbitSpeed": 0.528,
+    "initialAngle": 3.476
   },
   {
     "id": "planet_012_3",
-    "name": "紫罗兰-2",
+    "name": "紫云星 2",
     "type": "planet",
     "parentStarId": "star_012",
     "position": [
-      85.2799,
-      33.2389,
-      29.5063
+      -39.1336,
+      -44.649,
+      75.8771
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.57,
-    "temperature": 129,
-    "distanceFromSun": 6.36,
-    "orbitRadius": 3.76,
-    "orbitSpeed": 0.504,
-    "initialAngle": 4.2528
+    "color": "#2E8B57",
+    "colorDesc": "海绿",
+    "size": 0.67,
+    "temperature": 716,
+    "distanceFromSun": 46.03,
+    "orbitRadius": 3.67,
+    "orbitSpeed": 0.67,
+    "initialAngle": 4.3699
   },
   {
     "id": "planet_012_4",
-    "name": "银辉星-2",
+    "name": "黑曜星 2",
     "type": "planet",
     "parentStarId": "star_012",
     "position": [
-      85.2799,
-      33.2389,
-      29.5063
+      -39.1336,
+      -44.649,
+      75.8771
     ],
     "color": "#20B2AA",
     "colorDesc": "浅海",
     "size": 0.56,
-    "temperature": 145,
-    "distanceFromSun": 6.91,
-    "orbitRadius": 4.93,
-    "orbitSpeed": 0.243,
-    "initialAngle": 3.1084
+    "temperature": 464,
+    "distanceFromSun": 45.73,
+    "orbitRadius": 7.55,
+    "orbitSpeed": 0.705,
+    "initialAngle": 3.1294
   },
   {
     "id": "planet_013_1",
-    "name": "黑曜石-2",
+    "name": "银辉星 2",
     "type": "planet",
     "parentStarId": "star_013",
     "position": [
-      22.5549,
-      -75.159,
-      -28.7173
+      65.9099,
+      -4.9173,
+      -54.6607
     ],
-    "color": "#A0522D",
-    "colorDesc": "赭石",
-    "size": 0.44,
-    "temperature": 463,
-    "distanceFromSun": 80.87,
-    "orbitRadius": 2.94,
-    "orbitSpeed": 0.351,
-    "initialAngle": 2.6407
+    "color": "#BC8F8F",
+    "colorDesc": "暗褐红",
+    "size": 0.58,
+    "temperature": 125,
+    "distanceFromSun": 68.08,
+    "orbitRadius": 5.43,
+    "orbitSpeed": 0.287,
+    "initialAngle": 4.8571
   },
   {
     "id": "planet_013_2",
-    "name": "赤霞珠-2",
+    "name": "赤炎星 2",
     "type": "planet",
     "parentStarId": "star_013",
     "position": [
-      22.5549,
-      -75.159,
-      -28.7173
+      65.9099,
+      -4.9173,
+      -54.6607
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.63,
-    "temperature": 123,
-    "distanceFromSun": 82.97,
-    "orbitRadius": 6.48,
-    "orbitSpeed": 0.111,
-    "initialAngle": 6.0645
+    "color": "#00FA9A",
+    "colorDesc": "中春绿",
+    "size": 0.67,
+    "temperature": 749,
+    "distanceFromSun": 67.34,
+    "orbitRadius": 4.44,
+    "orbitSpeed": 0.106,
+    "initialAngle": 2.6141
   },
   {
     "id": "planet_013_3",
-    "name": "翠羽星-2",
+    "name": "碧波星 2",
     "type": "planet",
     "parentStarId": "star_013",
     "position": [
-      22.5549,
-      -75.159,
-      -28.7173
+      65.9099,
+      -4.9173,
+      -54.6607
     ],
-    "color": "#98FB98",
-    "colorDesc": "嫩绿",
-    "size": 0.53,
-    "temperature": 537,
-    "distanceFromSun": 80.74,
-    "orbitRadius": 7.13,
-    "orbitSpeed": 0.715,
-    "initialAngle": 0.9936
+    "color": "#3CB371",
+    "colorDesc": "中海绿",
+    "size": 0.68,
+    "temperature": 466,
+    "distanceFromSun": 68.17,
+    "orbitRadius": 5.62,
+    "orbitSpeed": 0.251,
+    "initialAngle": 1.6715
   },
   {
     "id": "planet_013_4",
-    "name": "琥珀星-2",
+    "name": "雪绒星 2",
     "type": "planet",
     "parentStarId": "star_013",
     "position": [
-      22.5549,
-      -75.159,
-      -28.7173
+      65.9099,
+      -4.9173,
+      -54.6607
     ],
-    "color": "#FFA07A",
-    "colorDesc": "浅鲑",
-    "size": 0.35,
-    "temperature": 403,
-    "distanceFromSun": 84.24,
-    "orbitRadius": 4.77,
-    "orbitSpeed": 0.739,
-    "initialAngle": 5.568
+    "color": "#B22222",
+    "colorDesc": "耐火砖",
+    "size": 0.74,
+    "temperature": 416,
+    "distanceFromSun": 67.4,
+    "orbitRadius": 2.72,
+    "orbitSpeed": 0.532,
+    "initialAngle": 1.2847
   },
   {
     "id": "planet_014_1",
-    "name": "琉璃星-2",
+    "name": "琥珀星 2",
     "type": "planet",
     "parentStarId": "star_014",
     "position": [
-      6.9845,
-      -63.7819,
-      48.0876
+      -71.1404,
+      38.2506,
+      52.1412
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.42,
-    "temperature": 207,
-    "distanceFromSun": 25.44,
-    "orbitRadius": 7.69,
-    "orbitSpeed": 0.589,
-    "initialAngle": 0.1771
+    "color": "#BC8F8F",
+    "colorDesc": "暗褐红",
+    "size": 0.61,
+    "temperature": 374,
+    "distanceFromSun": 64.18,
+    "orbitRadius": 5.43,
+    "orbitSpeed": 0.656,
+    "initialAngle": 6.0832
   },
   {
     "id": "planet_014_2",
-    "name": "珊瑚星-2",
+    "name": "天青石 2",
     "type": "planet",
     "parentStarId": "star_014",
     "position": [
-      6.9845,
-      -63.7819,
-      48.0876
+      -71.1404,
+      38.2506,
+      52.1412
     ],
-    "color": "#A0522D",
-    "colorDesc": "赭石",
-    "size": 0.44,
-    "temperature": 376,
-    "distanceFromSun": 25.02,
-    "orbitRadius": 3.88,
-    "orbitSpeed": 0.49,
-    "initialAngle": 0.7302
+    "color": "#CD5C5C",
+    "colorDesc": "印度红",
+    "size": 0.65,
+    "temperature": 552,
+    "distanceFromSun": 64.18,
+    "orbitRadius": 5.19,
+    "orbitSpeed": 0.574,
+    "initialAngle": 5.4574
   },
   {
     "id": "planet_014_3",
-    "name": "珍珠星-2",
+    "name": "橄榄星 2",
     "type": "planet",
     "parentStarId": "star_014",
     "position": [
-      6.9845,
-      -63.7819,
-      48.0876
+      -71.1404,
+      38.2506,
+      52.1412
     ],
-    "color": "#BA55D3",
-    "colorDesc": "紫红",
-    "size": 0.76,
-    "temperature": 411,
-    "distanceFromSun": 24.64,
-    "orbitRadius": 3.58,
-    "orbitSpeed": 0.472,
-    "initialAngle": 5.4096
+    "color": "#5F9EA0",
+    "colorDesc": "暗蓝",
+    "size": 0.73,
+    "temperature": 790,
+    "distanceFromSun": 64.49,
+    "orbitRadius": 6.39,
+    "orbitSpeed": 0.144,
+    "initialAngle": 1.7736
   },
   {
     "id": "planet_014_4",
-    "name": "星尘-2",
+    "name": "蔷薇星 2",
     "type": "planet",
     "parentStarId": "star_014",
     "position": [
-      6.9845,
-      -63.7819,
-      48.0876
+      -71.1404,
+      38.2506,
+      52.1412
     ],
-    "color": "#8B0000",
-    "colorDesc": "暗红",
-    "size": 0.62,
-    "temperature": 189,
-    "distanceFromSun": 25.27,
-    "orbitRadius": 2.81,
-    "orbitSpeed": 0.279,
-    "initialAngle": 1.2563
+    "color": "#00FA9A",
+    "colorDesc": "中春绿",
+    "size": 0.63,
+    "temperature": 420,
+    "distanceFromSun": 64.19,
+    "orbitRadius": 3.91,
+    "orbitSpeed": 0.415,
+    "initialAngle": 6.0965
   },
   {
     "id": "planet_015_1",
-    "name": "碧波星-2",
+    "name": "极光星 2",
     "type": "planet",
     "parentStarId": "star_015",
     "position": [
-      20.6106,
-      -4.9547,
-      -77.3944
+      7.3511,
+      -60.9117,
+      60.8933
     ],
-    "color": "#2F4F4F",
-    "colorDesc": "深青",
-    "size": 0.39,
-    "temperature": 614,
-    "distanceFromSun": 80.55,
-    "orbitRadius": 2.44,
-    "orbitSpeed": 0.255,
-    "initialAngle": 6.0462
+    "color": "#CD853F",
+    "colorDesc": "秘鲁色",
+    "size": 0.33,
+    "temperature": 503,
+    "distanceFromSun": 37.26,
+    "orbitRadius": 5.06,
+    "orbitSpeed": 0.713,
+    "initialAngle": 1.4688
   },
   {
     "id": "planet_015_2",
-    "name": "焰火星-2",
+    "name": "流星岩 2",
     "type": "planet",
     "parentStarId": "star_015",
     "position": [
-      20.6106,
-      -4.9547,
-      -77.3944
+      7.3511,
+      -60.9117,
+      60.8933
     ],
-    "color": "#4ECDC4",
-    "colorDesc": "青绿",
-    "size": 0.72,
-    "temperature": 653,
-    "distanceFromSun": 79.39,
-    "orbitRadius": 6.65,
-    "orbitSpeed": 0.609,
-    "initialAngle": 2.6304
+    "color": "#3CB371",
+    "colorDesc": "中海绿",
+    "size": 0.69,
+    "temperature": 307,
+    "distanceFromSun": 37.94,
+    "orbitRadius": 6.8,
+    "orbitSpeed": 0.775,
+    "initialAngle": 1.353
   },
   {
     "id": "planet_015_3",
-    "name": "寒霜星-2",
+    "name": "星尘球 2",
     "type": "planet",
     "parentStarId": "star_015",
     "position": [
-      20.6106,
-      -4.9547,
-      -77.3944
+      7.3511,
+      -60.9117,
+      60.8933
     ],
-    "color": "#FFA07A",
-    "colorDesc": "浅鲑",
-    "size": 0.35,
-    "temperature": 796,
-    "distanceFromSun": 78.52,
-    "orbitRadius": 5.19,
-    "orbitSpeed": 0.674,
-    "initialAngle": 6.1729
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.53,
+    "temperature": 163,
+    "distanceFromSun": 36.96,
+    "orbitRadius": 4.75,
+    "orbitSpeed": 0.144,
+    "initialAngle": 2.6168
   },
   {
     "id": "planet_015_4",
-    "name": "晨曦星-2",
+    "name": "黎明星 2",
     "type": "planet",
     "parentStarId": "star_015",
     "position": [
-      20.6106,
-      -4.9547,
-      -77.3944
+      7.3511,
+      -60.9117,
+      60.8933
     ],
-    "color": "#D3D3D3",
-    "colorDesc": "银灰",
-    "size": 0.59,
-    "temperature": 768,
-    "distanceFromSun": 81.35,
-    "orbitRadius": 7.5,
-    "orbitSpeed": 0.47,
-    "initialAngle": 2.2445
+    "color": "#BC8F8F",
+    "colorDesc": "暗褐红",
+    "size": 0.67,
+    "temperature": 245,
+    "distanceFromSun": 37.48,
+    "orbitRadius": 6.83,
+    "orbitSpeed": 0.643,
+    "initialAngle": 0.4905
   },
   {
     "id": "planet_016_1",
-    "name": "暮光星-2",
+    "name": "黄昏星 2",
     "type": "planet",
     "parentStarId": "star_016",
     "position": [
-      7.8731,
-      -37.7744,
-      10.9199
+      13.957,
+      58.4414,
+      75.3415
     ],
-    "color": "#FF4500",
-    "colorDesc": "橙红",
-    "size": 0.76,
-    "temperature": 162,
-    "distanceFromSun": 16.75,
-    "orbitRadius": 4.17,
-    "orbitSpeed": 0.188,
-    "initialAngle": 0.2239
+    "color": "#45B7D1",
+    "colorDesc": "海蓝",
+    "size": 0.59,
+    "temperature": 235,
+    "distanceFromSun": 8.6,
+    "orbitRadius": 5.14,
+    "orbitSpeed": 0.272,
+    "initialAngle": 3.1185
   },
   {
     "id": "planet_016_2",
-    "name": "极夜星-2",
+    "name": "晨曦星 2",
     "type": "planet",
     "parentStarId": "star_016",
     "position": [
-      7.8731,
-      -37.7744,
-      10.9199
+      13.957,
+      58.4414,
+      75.3415
     ],
-    "color": "#D3D3D3",
-    "colorDesc": "银灰",
-    "size": 0.33,
-    "temperature": 660,
-    "distanceFromSun": 17.2,
-    "orbitRadius": 5.35,
-    "orbitSpeed": 0.36,
-    "initialAngle": 5.3916
+    "color": "#20B2AA",
+    "colorDesc": "浅海",
+    "size": 0.54,
+    "temperature": 345,
+    "distanceFromSun": 8.22,
+    "orbitRadius": 6.51,
+    "orbitSpeed": 0.395,
+    "initialAngle": 0.4274
   },
   {
     "id": "planet_016_3",
-    "name": "苍穹星-2",
+    "name": "暮光星 2",
     "type": "planet",
     "parentStarId": "star_016",
     "position": [
-      7.8731,
-      -37.7744,
-      10.9199
+      13.957,
+      58.4414,
+      75.3415
     ],
-    "color": "#F4A460",
-    "colorDesc": "沙棕",
-    "size": 0.33,
-    "temperature": 687,
-    "distanceFromSun": 15.43,
-    "orbitRadius": 7.84,
-    "orbitSpeed": 0.215,
-    "initialAngle": 3.6614
+    "color": "#DB7093",
+    "colorDesc": "苍紫红",
+    "size": 0.7,
+    "temperature": 635,
+    "distanceFromSun": 8.35,
+    "orbitRadius": 6.67,
+    "orbitSpeed": 0.354,
+    "initialAngle": 3.6019
   },
   {
     "id": "planet_016_4",
-    "name": "碧落星-2",
+    "name": "银河星 2",
     "type": "planet",
     "parentStarId": "star_016",
     "position": [
-      7.8731,
-      -37.7744,
-      10.9199
+      13.957,
+      58.4414,
+      75.3415
     ],
-    "color": "#D3D3D3",
-    "colorDesc": "银灰",
-    "size": 0.57,
-    "temperature": 367,
-    "distanceFromSun": 16.99,
-    "orbitRadius": 3.78,
-    "orbitSpeed": 0.115,
-    "initialAngle": 4.8029
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.36,
+    "temperature": 129,
+    "distanceFromSun": 8.73,
+    "orbitRadius": 3.61,
+    "orbitSpeed": 0.743,
+    "initialAngle": 6.0652
   },
   {
     "id": "planet_017_1",
-    "name": "玄铁星-2",
+    "name": "星陨星 2",
     "type": "planet",
     "parentStarId": "star_017",
     "position": [
-      -55.142,
-      -72.0455,
-      25.6245
+      86.3062,
+      -4.648,
+      -6.9465
     ],
-    "color": "#20B2AA",
-    "colorDesc": "浅海",
-    "size": 0.46,
-    "temperature": 557,
-    "distanceFromSun": 20.78,
-    "orbitRadius": 2.55,
-    "orbitSpeed": 0.375,
-    "initialAngle": 4.8863
+    "color": "#D2691E",
+    "colorDesc": "巧克力",
+    "size": 0.58,
+    "temperature": 452,
+    "distanceFromSun": 70.52,
+    "orbitRadius": 6.22,
+    "orbitSpeed": 0.1,
+    "initialAngle": 2.2317
   },
   {
     "id": "planet_017_2",
-    "name": "青冥星-2",
+    "name": "月光星 2",
     "type": "planet",
     "parentStarId": "star_017",
     "position": [
-      -55.142,
-      -72.0455,
-      25.6245
+      86.3062,
+      -4.648,
+      -6.9465
     ],
-    "color": "#BA55D3",
-    "colorDesc": "紫红",
-    "size": 0.74,
-    "temperature": 367,
-    "distanceFromSun": 23,
-    "orbitRadius": 2.2,
-    "orbitSpeed": 0.671,
-    "initialAngle": 3.7775
+    "color": "#9932CC",
+    "colorDesc": "暗兰花紫",
+    "size": 0.75,
+    "temperature": 304,
+    "distanceFromSun": 70.71,
+    "orbitRadius": 5.81,
+    "orbitSpeed": 0.385,
+    "initialAngle": 4.0591
   },
   {
     "id": "planet_017_3",
-    "name": "丹霞星-2",
+    "name": "日光星 2",
     "type": "planet",
     "parentStarId": "star_017",
     "position": [
-      -55.142,
-      -72.0455,
-      25.6245
+      86.3062,
+      -4.648,
+      -6.9465
     ],
-    "color": "#FFA07A",
-    "colorDesc": "浅鲑",
-    "size": 0.64,
-    "temperature": 758,
-    "distanceFromSun": 22.35,
-    "orbitRadius": 7.21,
-    "orbitSpeed": 0.48,
-    "initialAngle": 1.0392
+    "color": "#3CB371",
+    "colorDesc": "中海绿",
+    "size": 0.39,
+    "temperature": 546,
+    "distanceFromSun": 71.55,
+    "orbitRadius": 4.59,
+    "orbitSpeed": 0.183,
+    "initialAngle": 3.7124
   },
   {
     "id": "planet_017_4",
-    "name": "碧落-2",
+    "name": "彗星核 2",
     "type": "planet",
     "parentStarId": "star_017",
     "position": [
-      -55.142,
-      -72.0455,
-      25.6245
+      86.3062,
+      -4.648,
+      -6.9465
     ],
-    "color": "#8B4513",
-    "colorDesc": "棕褐",
-    "size": 0.49,
-    "temperature": 775,
-    "distanceFromSun": 22.8,
-    "orbitRadius": 2.5,
-    "orbitSpeed": 0.626,
-    "initialAngle": 5.9835
+    "color": "#DAA520",
+    "colorDesc": "金菊",
+    "size": 0.78,
+    "temperature": 235,
+    "distanceFromSun": 71.26,
+    "orbitRadius": 7.24,
+    "orbitSpeed": 0.385,
+    "initialAngle": 5.1938
   },
   {
     "id": "planet_018_1",
-    "name": "银河畔-2",
+    "name": "小行星带 2",
     "type": "planet",
     "parentStarId": "star_018",
     "position": [
-      -67.5331,
-      -23.2072,
-      -63.9546
+      -78.2662,
+      48.2653,
+      33.6004
     ],
-    "color": "#A0522D",
-    "colorDesc": "赭石",
-    "size": 0.37,
-    "temperature": 189,
-    "distanceFromSun": 34.84,
-    "orbitRadius": 3.72,
-    "orbitSpeed": 0.133,
-    "initialAngle": 5.8087
+    "color": "#CD5C5C",
+    "colorDesc": "印度红",
+    "size": 0.46,
+    "temperature": 789,
+    "distanceFromSun": 53.45,
+    "orbitRadius": 6.47,
+    "orbitSpeed": 0.532,
+    "initialAngle": 3.3781
   },
   {
     "id": "planet_018_2",
-    "name": "天河星-2",
+    "name": "冥卫星 2",
     "type": "planet",
     "parentStarId": "star_018",
     "position": [
-      -67.5331,
-      -23.2072,
-      -63.9546
+      -78.2662,
+      48.2653,
+      33.6004
     ],
-    "color": "#E6E6FA",
-    "colorDesc": "淡紫",
-    "size": 0.76,
-    "temperature": 661,
-    "distanceFromSun": 35.3,
-    "orbitRadius": 5.31,
-    "orbitSpeed": 0.569,
-    "initialAngle": 1.6355
+    "color": "#A0522D",
+    "colorDesc": "赭石",
+    "size": 0.73,
+    "temperature": 632,
+    "distanceFromSun": 53.12,
+    "orbitRadius": 5.3,
+    "orbitSpeed": 0.423,
+    "initialAngle": 2.973
   },
   {
     "id": "planet_018_3",
-    "name": "紫云星-2",
+    "name": "海王卫 2",
     "type": "planet",
     "parentStarId": "star_018",
     "position": [
-      -67.5331,
-      -23.2072,
-      -63.9546
+      -78.2662,
+      48.2653,
+      33.6004
     ],
-    "color": "#96CEB4",
-    "colorDesc": "翠绿",
-    "size": 0.54,
-    "temperature": 300,
-    "distanceFromSun": 34.91,
-    "orbitRadius": 5.08,
-    "orbitSpeed": 0.32,
-    "initialAngle": 5.0004
+    "color": "#CD853F",
+    "colorDesc": "秘鲁色",
+    "size": 0.59,
+    "temperature": 380,
+    "distanceFromSun": 53.18,
+    "orbitRadius": 3.91,
+    "orbitSpeed": 0.112,
+    "initialAngle": 1.911
   },
   {
     "id": "planet_018_4",
-    "name": "碧落界-2",
+    "name": "天王卫 2",
     "type": "planet",
     "parentStarId": "star_018",
     "position": [
-      -67.5331,
-      -23.2072,
-      -63.9546
+      -78.2662,
+      48.2653,
+      33.6004
     ],
-    "color": "#FFEAA7",
-    "colorDesc": "暖黄",
-    "size": 0.76,
-    "temperature": 563,
-    "distanceFromSun": 34.11,
-    "orbitRadius": 6.86,
-    "orbitSpeed": 0.531,
-    "initialAngle": 2.3496
+    "color": "#45B7D1",
+    "colorDesc": "海蓝",
+    "size": 0.35,
+    "temperature": 218,
+    "distanceFromSun": 53.26,
+    "orbitRadius": 4.59,
+    "orbitSpeed": 0.656,
+    "initialAngle": 0.346
   },
   {
     "id": "planet_019_1",
-    "name": "苍穹界-2",
+    "name": "土卫泰坦 2",
     "type": "planet",
     "parentStarId": "star_019",
     "position": [
-      4.8299,
-      5.1061,
-      90.2114
+      50.2468,
+      39.6298,
+      -48.7505
     ],
-    "color": "#FFA07A",
-    "colorDesc": "浅鲑",
-    "size": 0.71,
-    "temperature": 666,
-    "distanceFromSun": 70.6,
-    "orbitRadius": 5.54,
-    "orbitSpeed": 0.769,
-    "initialAngle": 4.3349
+    "color": "#708090",
+    "colorDesc": "石板灰",
+    "size": 0.36,
+    "temperature": 608,
+    "distanceFromSun": 12.43,
+    "orbitRadius": 2.58,
+    "orbitSpeed": 0.703,
+    "initialAngle": 4.7373
   },
   {
     "id": "planet_019_2",
-    "name": "星辰海-2",
+    "name": "木卫欧罗巴 2",
     "type": "planet",
     "parentStarId": "star_019",
     "position": [
-      4.8299,
-      5.1061,
-      90.2114
+      50.2468,
+      39.6298,
+      -48.7505
     ],
-    "color": "#A0522D",
-    "colorDesc": "赭石",
-    "size": 0.5,
-    "temperature": 134,
-    "distanceFromSun": 69.92,
-    "orbitRadius": 4.3,
-    "orbitSpeed": 0.319,
-    "initialAngle": 1.0846
+    "color": "#9932CC",
+    "colorDesc": "暗兰花紫",
+    "size": 0.66,
+    "temperature": 718,
+    "distanceFromSun": 12.73,
+    "orbitRadius": 2.36,
+    "orbitSpeed": 0.631,
+    "initialAngle": 2.0107
   },
   {
     "id": "planet_019_3",
-    "name": "星河界-2",
+    "name": "火卫福波斯 2",
     "type": "planet",
     "parentStarId": "star_019",
     "position": [
-      4.8299,
-      5.1061,
-      90.2114
+      50.2468,
+      39.6298,
+      -48.7505
     ],
-    "color": "#F4A460",
-    "colorDesc": "沙棕",
-    "size": 0.54,
-    "temperature": 140,
-    "distanceFromSun": 71.9,
-    "orbitRadius": 2.43,
-    "orbitSpeed": 0.718,
-    "initialAngle": 2.3783
+    "color": "#B22222",
+    "colorDesc": "耐火砖",
+    "size": 0.45,
+    "temperature": 469,
+    "distanceFromSun": 12.76,
+    "orbitRadius": 3.53,
+    "orbitSpeed": 0.78,
+    "initialAngle": 4.4966
   },
   {
     "id": "planet_019_4",
-    "name": "九天星-2",
+    "name": "水星影 2",
     "type": "planet",
     "parentStarId": "star_019",
     "position": [
-      4.8299,
-      5.1061,
-      90.2114
+      50.2468,
+      39.6298,
+      -48.7505
     ],
-    "color": "#BA55D3",
-    "colorDesc": "紫红",
-    "size": 0.43,
-    "temperature": 304,
-    "distanceFromSun": 69.52,
-    "orbitRadius": 7.28,
-    "orbitSpeed": 0.433,
-    "initialAngle": 0.6336
+    "color": "#20B2AA",
+    "colorDesc": "浅海",
+    "size": 0.42,
+    "temperature": 688,
+    "distanceFromSun": 12.51,
+    "orbitRadius": 2.02,
+    "orbitSpeed": 0.659,
+    "initialAngle": 1.7113
   },
   {
     "id": "planet_020_1",
-    "name": "幽冥星-2",
+    "name": "金星曦 2",
     "type": "planet",
     "parentStarId": "star_020",
     "position": [
-      12.3807,
-      -31.1666,
-      81.6702
+      -23.2551,
+      -30.4297,
+      -15.8834
     ],
-    "color": "#8B0000",
-    "colorDesc": "暗红",
-    "size": 0.59,
-    "temperature": 551,
-    "distanceFromSun": 75.63,
-    "orbitRadius": 6.43,
-    "orbitSpeed": 0.217,
-    "initialAngle": 5.8176
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.35,
+    "temperature": 688,
+    "distanceFromSun": 40.95,
+    "orbitRadius": 3.48,
+    "orbitSpeed": 0.423,
+    "initialAngle": 4.4611
   },
   {
     "id": "planet_020_2",
-    "name": "幻海星-2",
+    "name": "火星尘 2",
     "type": "planet",
     "parentStarId": "star_020",
     "position": [
-      12.3807,
-      -31.1666,
-      81.6702
+      -23.2551,
+      -30.4297,
+      -15.8834
     ],
-    "color": "#96CEB4",
-    "colorDesc": "翠绿",
-    "size": 0.47,
-    "temperature": 178,
-    "distanceFromSun": 76.28,
-    "orbitRadius": 5.22,
-    "orbitSpeed": 0.26,
-    "initialAngle": 0.7736
+    "color": "#5F9EA0",
+    "colorDesc": "暗蓝",
+    "size": 0.72,
+    "temperature": 361,
+    "distanceFromSun": 41.06,
+    "orbitRadius": 3.56,
+    "orbitSpeed": 0.265,
+    "initialAngle": 4.9471
   },
   {
     "id": "planet_020_3",
-    "name": "秘境星-2",
+    "name": "木星云 2",
     "type": "planet",
     "parentStarId": "star_020",
     "position": [
-      12.3807,
-      -31.1666,
-      81.6702
+      -23.2551,
+      -30.4297,
+      -15.8834
     ],
-    "color": "#A0522D",
-    "colorDesc": "赭石",
-    "size": 0.66,
-    "temperature": 214,
-    "distanceFromSun": 76.05,
-    "orbitRadius": 4.49,
-    "orbitSpeed": 0.553,
-    "initialAngle": 5.8387
+    "color": "#9ACD32",
+    "colorDesc": "黄绿",
+    "size": 0.61,
+    "temperature": 463,
+    "distanceFromSun": 41.36,
+    "orbitRadius": 5.66,
+    "orbitSpeed": 0.398,
+    "initialAngle": 0.5951
   },
   {
     "id": "planet_020_4",
-    "name": "璇玑星-2",
+    "name": "土星环 2",
     "type": "planet",
     "parentStarId": "star_020",
     "position": [
-      12.3807,
-      -31.1666,
-      81.6702
+      -23.2551,
+      -30.4297,
+      -15.8834
     ],
-    "color": "#20B2AA",
-    "colorDesc": "浅海",
-    "size": 0.44,
-    "temperature": 177,
-    "distanceFromSun": 75.31,
-    "orbitRadius": 2.93,
-    "orbitSpeed": 0.75,
-    "initialAngle": 1.2664
+    "color": "#D2691E",
+    "colorDesc": "巧克力",
+    "size": 0.49,
+    "temperature": 451,
+    "distanceFromSun": 41.1,
+    "orbitRadius": 4.93,
+    "orbitSpeed": 0.744,
+    "initialAngle": 6.246
   },
   {
     "id": "planet_021_1",
-    "name": "木卫α-3",
+    "name": "木卫α 3",
     "type": "planet",
     "parentStarId": "star_021",
     "position": [
-      12.102,
-      41.8411,
-      66.1926
+      73.1525,
+      58.7888,
+      -9.1468
     ],
-    "color": "#556B2F",
-    "colorDesc": "橄榄",
-    "size": 0.78,
-    "temperature": 240,
-    "distanceFromSun": 54.09,
-    "orbitRadius": 5.27,
-    "orbitSpeed": 0.482,
-    "initialAngle": 0.6214
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.3,
+    "temperature": 329,
+    "distanceFromSun": 93.73,
+    "orbitRadius": 7.51,
+    "orbitSpeed": 0.384,
+    "initialAngle": 4.804
   },
   {
     "id": "planet_021_2",
-    "name": "海蓝星-3",
+    "name": "海蓝星 3",
     "type": "planet",
     "parentStarId": "star_021",
     "position": [
-      12.102,
-      41.8411,
-      66.1926
+      73.1525,
+      58.7888,
+      -9.1468
     ],
-    "color": "#2E8B57",
-    "colorDesc": "海绿",
-    "size": 0.61,
-    "temperature": 109,
-    "distanceFromSun": 53.89,
-    "orbitRadius": 7.52,
-    "orbitSpeed": 0.467,
-    "initialAngle": 0.4821
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.34,
+    "temperature": 775,
+    "distanceFromSun": 93.8,
+    "orbitRadius": 4.62,
+    "orbitSpeed": 0.5,
+    "initialAngle": 1.8843
   },
   {
     "id": "planet_021_3",
-    "name": "赤岩星-3",
+    "name": "赤岩星 3",
     "type": "planet",
     "parentStarId": "star_021",
     "position": [
-      12.102,
-      41.8411,
-      66.1926
+      73.1525,
+      58.7888,
+      -9.1468
     ],
-    "color": "#FFB6C1",
-    "colorDesc": "粉红",
-    "size": 0.76,
-    "temperature": 486,
-    "distanceFromSun": 54,
-    "orbitRadius": 7,
-    "orbitSpeed": 0.495,
-    "initialAngle": 5.1739
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.79,
+    "temperature": 341,
+    "distanceFromSun": 93.9,
+    "orbitRadius": 3.57,
+    "orbitSpeed": 0.283,
+    "initialAngle": 0.065
   },
   {
     "id": "planet_021_4",
-    "name": "冰晶星-3",
+    "name": "冰晶星 3",
     "type": "planet",
     "parentStarId": "star_021",
     "position": [
-      12.102,
-      41.8411,
-      66.1926
+      73.1525,
+      58.7888,
+      -9.1468
     ],
-    "color": "#A0522D",
-    "colorDesc": "赭石",
-    "size": 0.78,
-    "temperature": 781,
-    "distanceFromSun": 53.68,
-    "orbitRadius": 2.52,
-    "orbitSpeed": 0.621,
-    "initialAngle": 3.0002
+    "color": "#00FA9A",
+    "colorDesc": "中春绿",
+    "size": 0.43,
+    "temperature": 202,
+    "distanceFromSun": 93.22,
+    "orbitRadius": 5.47,
+    "orbitSpeed": 0.635,
+    "initialAngle": 0.1653
   },
   {
     "id": "planet_022_1",
-    "name": "翡翠星-3",
+    "name": "翡翠星 3",
     "type": "planet",
     "parentStarId": "star_022",
     "position": [
-      -52.7493,
-      63.7564,
-      -21.9382
+      -39.9427,
+      49.1758,
+      -18.8256
     ],
-    "color": "#FF6B6B",
-    "colorDesc": "赤红",
+    "color": "#45B7D1",
+    "colorDesc": "海蓝",
     "size": 0.31,
-    "temperature": 644,
-    "distanceFromSun": 29.21,
-    "orbitRadius": 5.17,
-    "orbitSpeed": 0.624,
-    "initialAngle": 4.528
+    "temperature": 612,
+    "distanceFromSun": 15.75,
+    "orbitRadius": 3.14,
+    "orbitSpeed": 0.454,
+    "initialAngle": 4.935
   },
   {
     "id": "planet_022_2",
-    "name": "金沙星-3",
+    "name": "金沙星 3",
     "type": "planet",
     "parentStarId": "star_022",
     "position": [
-      -52.7493,
-      63.7564,
-      -21.9382
+      -39.9427,
+      49.1758,
+      -18.8256
     ],
-    "color": "#8B0000",
-    "colorDesc": "暗红",
-    "size": 0.66,
-    "temperature": 155,
-    "distanceFromSun": 28.45,
-    "orbitRadius": 2.27,
-    "orbitSpeed": 0.671,
-    "initialAngle": 0.8174
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.41,
+    "temperature": 376,
+    "distanceFromSun": 15.32,
+    "orbitRadius": 4.9,
+    "orbitSpeed": 0.295,
+    "initialAngle": 5.6571
   },
   {
     "id": "planet_022_3",
-    "name": "紫罗兰-3",
+    "name": "紫云星 3",
     "type": "planet",
     "parentStarId": "star_022",
     "position": [
-      -52.7493,
-      63.7564,
-      -21.9382
+      -39.9427,
+      49.1758,
+      -18.8256
     ],
-    "color": "#A0522D",
-    "colorDesc": "赭石",
-    "size": 0.8,
-    "temperature": 711,
-    "distanceFromSun": 30.3,
-    "orbitRadius": 4.72,
-    "orbitSpeed": 0.159,
-    "initialAngle": 5.7742
+    "color": "#9ACD32",
+    "colorDesc": "黄绿",
+    "size": 0.74,
+    "temperature": 785,
+    "distanceFromSun": 15.48,
+    "orbitRadius": 3.52,
+    "orbitSpeed": 0.793,
+    "initialAngle": 1.5861
   },
   {
     "id": "planet_022_4",
-    "name": "银辉星-3",
+    "name": "黑曜星 3",
     "type": "planet",
     "parentStarId": "star_022",
     "position": [
-      -52.7493,
-      63.7564,
-      -21.9382
+      -39.9427,
+      49.1758,
+      -18.8256
     ],
-    "color": "#45B7D1",
-    "colorDesc": "海蓝",
-    "size": 0.32,
-    "temperature": 216,
-    "distanceFromSun": 29.47,
-    "orbitRadius": 5.09,
-    "orbitSpeed": 0.505,
-    "initialAngle": 2.6786
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.33,
+    "temperature": 737,
+    "distanceFromSun": 15.48,
+    "orbitRadius": 3.81,
+    "orbitSpeed": 0.264,
+    "initialAngle": 3.1405
   },
   {
     "id": "planet_023_1",
-    "name": "黑曜石-3",
+    "name": "银辉星 3",
     "type": "planet",
     "parentStarId": "star_023",
     "position": [
-      67.1408,
-      65.239,
-      25.2282
+      0.1686,
+      94.3077,
+      21.6758
     ],
-    "color": "#D3D3D3",
-    "colorDesc": "银灰",
-    "size": 0.59,
-    "temperature": 235,
-    "distanceFromSun": 31.1,
-    "orbitRadius": 6.84,
-    "orbitSpeed": 0.388,
-    "initialAngle": 4.8212
+    "color": "#DAA520",
+    "colorDesc": "金菊",
+    "size": 0.63,
+    "temperature": 253,
+    "distanceFromSun": 75.61,
+    "orbitRadius": 3.97,
+    "orbitSpeed": 0.31,
+    "initialAngle": 2.1051
   },
   {
     "id": "planet_023_2",
-    "name": "赤霞珠-3",
+    "name": "赤炎星 3",
     "type": "planet",
     "parentStarId": "star_023",
     "position": [
-      67.1408,
-      65.239,
-      25.2282
+      0.1686,
+      94.3077,
+      21.6758
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.69,
-    "temperature": 571,
-    "distanceFromSun": 30.56,
-    "orbitRadius": 3.72,
-    "orbitSpeed": 0.603,
-    "initialAngle": 0.6424
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.31,
+    "temperature": 390,
+    "distanceFromSun": 76.02,
+    "orbitRadius": 3.83,
+    "orbitSpeed": 0.186,
+    "initialAngle": 0.77
   },
   {
     "id": "planet_023_3",
-    "name": "翠羽星-3",
+    "name": "碧波星 3",
     "type": "planet",
     "parentStarId": "star_023",
     "position": [
-      67.1408,
-      65.239,
-      25.2282
+      0.1686,
+      94.3077,
+      21.6758
     ],
-    "color": "#D3D3D3",
-    "colorDesc": "银灰",
-    "size": 0.77,
-    "temperature": 639,
-    "distanceFromSun": 31.99,
-    "orbitRadius": 7.34,
-    "orbitSpeed": 0.395,
-    "initialAngle": 0.8517
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.68,
+    "temperature": 461,
+    "distanceFromSun": 75.8,
+    "orbitRadius": 5.09,
+    "orbitSpeed": 0.69,
+    "initialAngle": 2.2189
   },
   {
     "id": "planet_023_4",
-    "name": "琥珀星-3",
+    "name": "雪绒星 3",
     "type": "planet",
     "parentStarId": "star_023",
     "position": [
-      67.1408,
-      65.239,
-      25.2282
+      0.1686,
+      94.3077,
+      21.6758
     ],
-    "color": "#F0E68C",
-    "colorDesc": "金黄",
-    "size": 0.57,
-    "temperature": 702,
-    "distanceFromSun": 32.83,
-    "orbitRadius": 2.73,
-    "orbitSpeed": 0.623,
-    "initialAngle": 0.8497
+    "color": "#C71585",
+    "colorDesc": "中紫红",
+    "size": 0.59,
+    "temperature": 428,
+    "distanceFromSun": 75.47,
+    "orbitRadius": 5.36,
+    "orbitSpeed": 0.267,
+    "initialAngle": 2.9886
   },
   {
     "id": "planet_024_1",
-    "name": "琉璃星-3",
+    "name": "琥珀星 3",
     "type": "planet",
     "parentStarId": "star_024",
     "position": [
-      35.0602,
-      -12.8303,
-      88.3055
+      -4.4349,
+      -33.4353,
+      54.5602
     ],
-    "color": "#BA55D3",
-    "colorDesc": "紫红",
-    "size": 0.73,
-    "temperature": 650,
-    "distanceFromSun": 29.14,
-    "orbitRadius": 6.82,
-    "orbitSpeed": 0.702,
-    "initialAngle": 5.6407
+    "color": "#DB7093",
+    "colorDesc": "苍紫红",
+    "size": 0.61,
+    "temperature": 749,
+    "distanceFromSun": 13.02,
+    "orbitRadius": 3.84,
+    "orbitSpeed": 0.506,
+    "initialAngle": 4.914
   },
   {
     "id": "planet_024_2",
-    "name": "珊瑚星-3",
+    "name": "天青石 3",
     "type": "planet",
     "parentStarId": "star_024",
     "position": [
-      35.0602,
-      -12.8303,
-      88.3055
+      -4.4349,
+      -33.4353,
+      54.5602
     ],
-    "color": "#556B2F",
-    "colorDesc": "橄榄",
-    "size": 0.38,
-    "temperature": 554,
-    "distanceFromSun": 32.02,
-    "orbitRadius": 6.31,
-    "orbitSpeed": 0.793,
-    "initialAngle": 4.3509
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.46,
+    "temperature": 395,
+    "distanceFromSun": 13.42,
+    "orbitRadius": 4.18,
+    "orbitSpeed": 0.447,
+    "initialAngle": 3.3577
   },
   {
     "id": "planet_024_3",
-    "name": "珍珠星-3",
+    "name": "橄榄星 3",
     "type": "planet",
     "parentStarId": "star_024",
     "position": [
-      35.0602,
-      -12.8303,
-      88.3055
+      -4.4349,
+      -33.4353,
+      54.5602
     ],
-    "color": "#98FB98",
-    "colorDesc": "嫩绿",
-    "size": 0.41,
-    "temperature": 637,
-    "distanceFromSun": 29.61,
-    "orbitRadius": 3.13,
-    "orbitSpeed": 0.221,
-    "initialAngle": 2.3649
+    "color": "#C71585",
+    "colorDesc": "中紫红",
+    "size": 0.43,
+    "temperature": 604,
+    "distanceFromSun": 13.33,
+    "orbitRadius": 4.62,
+    "orbitSpeed": 0.77,
+    "initialAngle": 4.2611
   },
   {
     "id": "planet_024_4",
-    "name": "星尘-3",
+    "name": "蔷薇星 3",
     "type": "planet",
     "parentStarId": "star_024",
     "position": [
-      35.0602,
-      -12.8303,
-      88.3055
+      -4.4349,
+      -33.4353,
+      54.5602
     ],
-    "color": "#DDA0DD",
-    "colorDesc": "紫罗兰",
-    "size": 0.36,
-    "temperature": 697,
-    "distanceFromSun": 31.24,
-    "orbitRadius": 6.78,
-    "orbitSpeed": 0.712,
-    "initialAngle": 1.4049
+    "color": "#5F9EA0",
+    "colorDesc": "暗蓝",
+    "size": 0.39,
+    "temperature": 774,
+    "distanceFromSun": 13.09,
+    "orbitRadius": 3.21,
+    "orbitSpeed": 0.426,
+    "initialAngle": 1.9609
   },
   {
     "id": "planet_025_1",
-    "name": "碧波星-3",
+    "name": "极光星 3",
     "type": "planet",
     "parentStarId": "star_025",
     "position": [
-      -41.0681,
-      8.6749,
-      -10.9202
+      -41.0299,
+      23.6794,
+      -32.6899
     ],
-    "color": "#D3D3D3",
-    "colorDesc": "银灰",
-    "size": 0.36,
-    "temperature": 253,
-    "distanceFromSun": 33.99,
-    "orbitRadius": 5.3,
-    "orbitSpeed": 0.367,
-    "initialAngle": 2.8346
+    "color": "#00FA9A",
+    "colorDesc": "中春绿",
+    "size": 0.35,
+    "temperature": 570,
+    "distanceFromSun": 36.61,
+    "orbitRadius": 3.41,
+    "orbitSpeed": 0.121,
+    "initialAngle": 4.2169
   },
   {
     "id": "planet_025_2",
-    "name": "焰火星-3",
+    "name": "流星岩 3",
     "type": "planet",
     "parentStarId": "star_025",
     "position": [
-      -41.0681,
-      8.6749,
-      -10.9202
+      -41.0299,
+      23.6794,
+      -32.6899
     ],
-    "color": "#FFB6C1",
-    "colorDesc": "粉红",
-    "size": 0.72,
-    "temperature": 185,
-    "distanceFromSun": 33.86,
-    "orbitRadius": 5.61,
-    "orbitSpeed": 0.794,
-    "initialAngle": 3.182
+    "color": "#DAA520",
+    "colorDesc": "金菊",
+    "size": 0.43,
+    "temperature": 219,
+    "distanceFromSun": 35.86,
+    "orbitRadius": 4.81,
+    "orbitSpeed": 0.645,
+    "initialAngle": 1.3945
   },
   {
     "id": "planet_025_3",
-    "name": "寒霜星-3",
+    "name": "星尘球 3",
     "type": "planet",
     "parentStarId": "star_025",
     "position": [
-      -41.0681,
-      8.6749,
-      -10.9202
+      -41.0299,
+      23.6794,
+      -32.6899
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.71,
-    "temperature": 631,
-    "distanceFromSun": 36.99,
-    "orbitRadius": 7.07,
-    "orbitSpeed": 0.383,
-    "initialAngle": 2.2606
+    "color": "#4682B4",
+    "colorDesc": "钢蓝",
+    "size": 0.41,
+    "temperature": 334,
+    "distanceFromSun": 36.47,
+    "orbitRadius": 2.62,
+    "orbitSpeed": 0.147,
+    "initialAngle": 4.1966
   },
   {
     "id": "planet_025_4",
-    "name": "晨曦星-3",
+    "name": "黎明星 3",
     "type": "planet",
     "parentStarId": "star_025",
     "position": [
-      -41.0681,
-      8.6749,
-      -10.9202
+      -41.0299,
+      23.6794,
+      -32.6899
     ],
-    "color": "#20B2AA",
-    "colorDesc": "浅海",
-    "size": 0.44,
-    "temperature": 239,
-    "distanceFromSun": 34.51,
-    "orbitRadius": 5.67,
-    "orbitSpeed": 0.475,
-    "initialAngle": 0.8666
+    "color": "#CD853F",
+    "colorDesc": "秘鲁色",
+    "size": 0.5,
+    "temperature": 350,
+    "distanceFromSun": 36.66,
+    "orbitRadius": 3.94,
+    "orbitSpeed": 0.117,
+    "initialAngle": 2.3681
   },
   {
     "id": "planet_026_1",
-    "name": "暮光星-3",
+    "name": "黄昏星 3",
     "type": "planet",
     "parentStarId": "star_026",
     "position": [
-      -49.0689,
-      -58.8064,
-      -14.9352
+      -34.5455,
+      58.0406,
+      -14.2531
     ],
-    "color": "#45B7D1",
-    "colorDesc": "海蓝",
-    "size": 0.44,
-    "temperature": 724,
-    "distanceFromSun": 18.14,
-    "orbitRadius": 6.69,
-    "orbitSpeed": 0.376,
-    "initialAngle": 5.6071
+    "color": "#3CB371",
+    "colorDesc": "中海绿",
+    "size": 0.52,
+    "temperature": 141,
+    "distanceFromSun": 67.21,
+    "orbitRadius": 1.88,
+    "orbitSpeed": 0.693,
+    "initialAngle": 1.5257
   },
   {
     "id": "planet_026_2",
-    "name": "极夜星-3",
+    "name": "晨曦星 3",
     "type": "planet",
     "parentStarId": "star_026",
     "position": [
-      -49.0689,
-      -58.8064,
-      -14.9352
+      -34.5455,
+      58.0406,
+      -14.2531
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.54,
-    "temperature": 648,
-    "distanceFromSun": 17.03,
-    "orbitRadius": 4.25,
-    "orbitSpeed": 0.543,
-    "initialAngle": 4.5284
+    "color": "#9932CC",
+    "colorDesc": "暗兰花紫",
+    "size": 0.45,
+    "temperature": 261,
+    "distanceFromSun": 67.18,
+    "orbitRadius": 3.75,
+    "orbitSpeed": 0.374,
+    "initialAngle": 3.4055
   },
   {
     "id": "planet_026_3",
-    "name": "苍穹星-3",
+    "name": "暮光星 3",
     "type": "planet",
     "parentStarId": "star_026",
     "position": [
-      -49.0689,
-      -58.8064,
-      -14.9352
+      -34.5455,
+      58.0406,
+      -14.2531
     ],
-    "color": "#4ECDC4",
-    "colorDesc": "青绿",
-    "size": 0.38,
-    "temperature": 499,
-    "distanceFromSun": 16.03,
-    "orbitRadius": 5.22,
-    "orbitSpeed": 0.618,
-    "initialAngle": 3.4844
+    "color": "#C71585",
+    "colorDesc": "中紫红",
+    "size": 0.39,
+    "temperature": 336,
+    "distanceFromSun": 67.41,
+    "orbitRadius": 2.13,
+    "orbitSpeed": 0.38,
+    "initialAngle": 1.8713
   },
   {
     "id": "planet_026_4",
-    "name": "碧落星-3",
+    "name": "银河星 3",
     "type": "planet",
     "parentStarId": "star_026",
     "position": [
-      -49.0689,
-      -58.8064,
-      -14.9352
+      -34.5455,
+      58.0406,
+      -14.2531
     ],
-    "color": "#2F4F4F",
-    "colorDesc": "深青",
-    "size": 0.33,
-    "temperature": 445,
-    "distanceFromSun": 15.64,
-    "orbitRadius": 6.74,
-    "orbitSpeed": 0.445,
-    "initialAngle": 1.8056
+    "color": "#D2691E",
+    "colorDesc": "巧克力",
+    "size": 0.79,
+    "temperature": 643,
+    "distanceFromSun": 67.19,
+    "orbitRadius": 2.55,
+    "orbitSpeed": 0.575,
+    "initialAngle": 4.8667
   },
   {
     "id": "planet_027_1",
-    "name": "玄铁星-3",
+    "name": "星陨星 3",
     "type": "planet",
     "parentStarId": "star_027",
     "position": [
-      6.7382,
-      -53.5729,
-      -37.445
+      19.5349,
+      93.3823,
+      -9.0595
     ],
-    "color": "#A0522D",
-    "colorDesc": "赭石",
-    "size": 0.57,
-    "temperature": 212,
-    "distanceFromSun": 19.17,
-    "orbitRadius": 4.8,
-    "orbitSpeed": 0.708,
-    "initialAngle": 4.5437
+    "color": "#DB7093",
+    "colorDesc": "苍紫红",
+    "size": 0.46,
+    "temperature": 110,
+    "distanceFromSun": 57,
+    "orbitRadius": 4.38,
+    "orbitSpeed": 0.542,
+    "initialAngle": 4.9345
   },
   {
     "id": "planet_027_2",
-    "name": "青冥星-3",
+    "name": "月光星 3",
     "type": "planet",
     "parentStarId": "star_027",
     "position": [
-      6.7382,
-      -53.5729,
-      -37.445
+      19.5349,
+      93.3823,
+      -9.0595
     ],
-    "color": "#FFB6C1",
-    "colorDesc": "粉红",
-    "size": 0.66,
-    "temperature": 326,
-    "distanceFromSun": 19.8,
-    "orbitRadius": 7.72,
-    "orbitSpeed": 0.18,
-    "initialAngle": 1.2075
+    "color": "#DB7093",
+    "colorDesc": "苍紫红",
+    "size": 0.37,
+    "temperature": 531,
+    "distanceFromSun": 57.07,
+    "orbitRadius": 7.08,
+    "orbitSpeed": 0.62,
+    "initialAngle": 4.3402
   },
   {
     "id": "planet_027_3",
-    "name": "丹霞星-3",
+    "name": "日光星 3",
     "type": "planet",
     "parentStarId": "star_027",
     "position": [
-      6.7382,
-      -53.5729,
-      -37.445
+      19.5349,
+      93.3823,
+      -9.0595
     ],
-    "color": "#96CEB4",
-    "colorDesc": "翠绿",
-    "size": 0.64,
-    "temperature": 278,
-    "distanceFromSun": 22.26,
-    "orbitRadius": 2.03,
-    "orbitSpeed": 0.558,
-    "initialAngle": 5.065
+    "color": "#9ACD32",
+    "colorDesc": "黄绿",
+    "size": 0.57,
+    "temperature": 352,
+    "distanceFromSun": 56.43,
+    "orbitRadius": 5.05,
+    "orbitSpeed": 0.676,
+    "initialAngle": 2.93
   },
   {
     "id": "planet_027_4",
-    "name": "碧落-3",
+    "name": "彗星核 3",
     "type": "planet",
     "parentStarId": "star_027",
     "position": [
-      6.7382,
-      -53.5729,
-      -37.445
+      19.5349,
+      93.3823,
+      -9.0595
     ],
-    "color": "#F4A460",
-    "colorDesc": "沙棕",
-    "size": 0.33,
-    "temperature": 211,
-    "distanceFromSun": 21.93,
-    "orbitRadius": 6.56,
-    "orbitSpeed": 0.2,
-    "initialAngle": 6.1162
+    "color": "#CD5C5C",
+    "colorDesc": "印度红",
+    "size": 0.55,
+    "temperature": 572,
+    "distanceFromSun": 57.04,
+    "orbitRadius": 4.39,
+    "orbitSpeed": 0.299,
+    "initialAngle": 1.1645
   },
   {
     "id": "planet_028_1",
-    "name": "银河畔-3",
+    "name": "小行星带 3",
     "type": "planet",
     "parentStarId": "star_028",
     "position": [
-      -77.3702,
-      19.5585,
-      -24.4502
+      33.7923,
+      81.5514,
+      8.0017
     ],
-    "color": "#DDA0DD",
-    "colorDesc": "紫罗兰",
-    "size": 0.76,
-    "temperature": 320,
-    "distanceFromSun": 63.33,
-    "orbitRadius": 4.9,
-    "orbitSpeed": 0.302,
-    "initialAngle": 6.2555
+    "color": "#191970",
+    "colorDesc": "午夜蓝",
+    "size": 0.51,
+    "temperature": 246,
+    "distanceFromSun": 40.76,
+    "orbitRadius": 3.86,
+    "orbitSpeed": 0.727,
+    "initialAngle": 4.0623
   },
   {
     "id": "planet_028_2",
-    "name": "天河星-3",
+    "name": "冥卫星 3",
     "type": "planet",
     "parentStarId": "star_028",
     "position": [
-      -77.3702,
-      19.5585,
-      -24.4502
+      33.7923,
+      81.5514,
+      8.0017
     ],
-    "color": "#FFB6C1",
-    "colorDesc": "粉红",
-    "size": 0.54,
-    "temperature": 236,
-    "distanceFromSun": 62.18,
-    "orbitRadius": 5.22,
-    "orbitSpeed": 0.623,
-    "initialAngle": 4.215
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.62,
+    "temperature": 651,
+    "distanceFromSun": 40.65,
+    "orbitRadius": 3.48,
+    "orbitSpeed": 0.644,
+    "initialAngle": 3.121
   },
   {
     "id": "planet_028_3",
-    "name": "紫云星-3",
+    "name": "海王卫 3",
     "type": "planet",
     "parentStarId": "star_028",
     "position": [
-      -77.3702,
-      19.5585,
-      -24.4502
+      33.7923,
+      81.5514,
+      8.0017
     ],
-    "color": "#98FB98",
-    "colorDesc": "嫩绿",
-    "size": 0.76,
-    "temperature": 563,
-    "distanceFromSun": 62.71,
-    "orbitRadius": 2.48,
-    "orbitSpeed": 0.377,
-    "initialAngle": 6.0774
+    "color": "#DB7093",
+    "colorDesc": "苍紫红",
+    "size": 0.34,
+    "temperature": 734,
+    "distanceFromSun": 40.55,
+    "orbitRadius": 2.95,
+    "orbitSpeed": 0.388,
+    "initialAngle": 4.3949
   },
   {
     "id": "planet_028_4",
-    "name": "碧落界-3",
+    "name": "天王卫 3",
     "type": "planet",
     "parentStarId": "star_028",
     "position": [
-      -77.3702,
-      19.5585,
-      -24.4502
+      33.7923,
+      81.5514,
+      8.0017
     ],
-    "color": "#96CEB4",
-    "colorDesc": "翠绿",
-    "size": 0.44,
-    "temperature": 339,
-    "distanceFromSun": 63.09,
-    "orbitRadius": 3.38,
-    "orbitSpeed": 0.351,
-    "initialAngle": 1.2084
+    "color": "#BC8F8F",
+    "colorDesc": "暗褐红",
+    "size": 0.79,
+    "temperature": 766,
+    "distanceFromSun": 40.48,
+    "orbitRadius": 2.35,
+    "orbitSpeed": 0.576,
+    "initialAngle": 0.897
   },
   {
     "id": "planet_029_1",
-    "name": "苍穹界-3",
+    "name": "土卫泰坦 3",
     "type": "planet",
     "parentStarId": "star_029",
     "position": [
-      59.2152,
-      49.5143,
-      -56.2405
+      -7.5963,
+      -16.26,
+      57.3819
     ],
-    "color": "#F4A460",
-    "colorDesc": "沙棕",
-    "size": 0.47,
-    "temperature": 440,
-    "distanceFromSun": 43.58,
-    "orbitRadius": 2.18,
-    "orbitSpeed": 0.518,
-    "initialAngle": 3.0297
+    "color": "#45B7D1",
+    "colorDesc": "海蓝",
+    "size": 0.68,
+    "temperature": 136,
+    "distanceFromSun": 51.63,
+    "orbitRadius": 2.5,
+    "orbitSpeed": 0.226,
+    "initialAngle": 3.2095
   },
   {
     "id": "planet_029_2",
-    "name": "星辰海-3",
+    "name": "木卫欧罗巴 3",
     "type": "planet",
     "parentStarId": "star_029",
     "position": [
-      59.2152,
-      49.5143,
-      -56.2405
+      -7.5963,
+      -16.26,
+      57.3819
     ],
-    "color": "#D3D3D3",
-    "colorDesc": "银灰",
-    "size": 0.5,
-    "temperature": 326,
-    "distanceFromSun": 43.28,
-    "orbitRadius": 3.68,
-    "orbitSpeed": 0.644,
-    "initialAngle": 5.7714
+    "color": "#3CB371",
+    "colorDesc": "中海绿",
+    "size": 0.42,
+    "temperature": 653,
+    "distanceFromSun": 51.74,
+    "orbitRadius": 2.8,
+    "orbitSpeed": 0.415,
+    "initialAngle": 4.7231
   },
   {
     "id": "planet_029_3",
-    "name": "星河界-3",
+    "name": "火卫福波斯 3",
     "type": "planet",
     "parentStarId": "star_029",
     "position": [
-      59.2152,
-      49.5143,
-      -56.2405
+      -7.5963,
+      -16.26,
+      57.3819
     ],
-    "color": "#FF6B6B",
-    "colorDesc": "赤红",
-    "size": 0.5,
-    "temperature": 199,
-    "distanceFromSun": 40.76,
-    "orbitRadius": 2.21,
-    "orbitSpeed": 0.719,
-    "initialAngle": 5.3504
+    "color": "#A0522D",
+    "colorDesc": "赭石",
+    "size": 0.31,
+    "temperature": 497,
+    "distanceFromSun": 51.17,
+    "orbitRadius": 5.04,
+    "orbitSpeed": 0.124,
+    "initialAngle": 4.5313
   },
   {
     "id": "planet_029_4",
-    "name": "九天星-3",
+    "name": "水星影 3",
     "type": "planet",
     "parentStarId": "star_029",
     "position": [
-      59.2152,
-      49.5143,
-      -56.2405
+      -7.5963,
+      -16.26,
+      57.3819
     ],
-    "color": "#8B0000",
-    "colorDesc": "暗红",
+    "color": "#9932CC",
+    "colorDesc": "暗兰花紫",
     "size": 0.4,
-    "temperature": 586,
-    "distanceFromSun": 41.94,
-    "orbitRadius": 6.52,
-    "orbitSpeed": 0.698,
-    "initialAngle": 3.9541
+    "temperature": 326,
+    "distanceFromSun": 51.81,
+    "orbitRadius": 2.84,
+    "orbitSpeed": 0.317,
+    "initialAngle": 3.2182
   },
   {
     "id": "planet_030_1",
-    "name": "幽冥星-3",
+    "name": "金星曦 3",
     "type": "planet",
     "parentStarId": "star_030",
     "position": [
-      -30.3496,
-      -41.2146,
-      -42.3642
+      -24.7006,
+      36.7903,
+      -51.9649
     ],
-    "color": "#FF4500",
-    "colorDesc": "橙红",
-    "size": 0.73,
-    "temperature": 792,
-    "distanceFromSun": 52.64,
-    "orbitRadius": 2.06,
-    "orbitSpeed": 0.757,
-    "initialAngle": 6.2447
+    "color": "#BC8F8F",
+    "colorDesc": "暗褐红",
+    "size": 0.34,
+    "temperature": 245,
+    "distanceFromSun": 53.71,
+    "orbitRadius": 3.81,
+    "orbitSpeed": 0.553,
+    "initialAngle": 6.0844
   },
   {
     "id": "planet_030_2",
-    "name": "幻海星-3",
+    "name": "火星尘 3",
     "type": "planet",
     "parentStarId": "star_030",
     "position": [
-      -30.3496,
-      -41.2146,
-      -42.3642
+      -24.7006,
+      36.7903,
+      -51.9649
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.36,
-    "temperature": 542,
-    "distanceFromSun": 50.79,
-    "orbitRadius": 6.38,
-    "orbitSpeed": 0.356,
-    "initialAngle": 5.2358
+    "color": "#CD5C5C",
+    "colorDesc": "印度红",
+    "size": 0.63,
+    "temperature": 423,
+    "distanceFromSun": 53.58,
+    "orbitRadius": 2.55,
+    "orbitSpeed": 0.219,
+    "initialAngle": 3.7437
   },
   {
     "id": "planet_030_3",
-    "name": "秘境星-3",
+    "name": "木星云 3",
     "type": "planet",
     "parentStarId": "star_030",
     "position": [
-      -30.3496,
-      -41.2146,
-      -42.3642
+      -24.7006,
+      36.7903,
+      -51.9649
     ],
-    "color": "#556B2F",
-    "colorDesc": "橄榄",
-    "size": 0.72,
-    "temperature": 660,
-    "distanceFromSun": 53.61,
-    "orbitRadius": 2.72,
-    "orbitSpeed": 0.633,
-    "initialAngle": 0.9598
+    "color": "#2E8B57",
+    "colorDesc": "海绿",
+    "size": 0.36,
+    "temperature": 577,
+    "distanceFromSun": 53.59,
+    "orbitRadius": 4.6,
+    "orbitSpeed": 0.25,
+    "initialAngle": 4.0155
   },
   {
     "id": "planet_030_4",
-    "name": "璇玑星-3",
+    "name": "土星环 3",
     "type": "planet",
     "parentStarId": "star_030",
     "position": [
-      -30.3496,
-      -41.2146,
-      -42.3642
+      -24.7006,
+      36.7903,
+      -51.9649
     ],
-    "color": "#F4A460",
-    "colorDesc": "沙棕",
-    "size": 0.42,
-    "temperature": 119,
-    "distanceFromSun": 52.99,
-    "orbitRadius": 2.9,
-    "orbitSpeed": 0.605,
-    "initialAngle": 1.0108
+    "color": "#3CB371",
+    "colorDesc": "中海绿",
+    "size": 0.41,
+    "temperature": 161,
+    "distanceFromSun": 53.51,
+    "orbitRadius": 3.55,
+    "orbitSpeed": 0.24,
+    "initialAngle": 6.024
   },
   {
     "id": "planet_031_1",
-    "name": "木卫α-4",
+    "name": "木卫α 4",
     "type": "planet",
     "parentStarId": "star_031",
     "position": [
-      19.7499,
-      -36.4053,
-      -43.2811
+      -33.9536,
+      -73.8444,
+      7.0265
     ],
-    "color": "#8B0000",
-    "colorDesc": "暗红",
-    "size": 0.45,
-    "temperature": 211,
-    "distanceFromSun": 26.02,
-    "orbitRadius": 4.18,
-    "orbitSpeed": 0.678,
-    "initialAngle": 5.6478
+    "color": "#4682B4",
+    "colorDesc": "钢蓝",
+    "size": 0.4,
+    "temperature": 255,
+    "distanceFromSun": 20.54,
+    "orbitRadius": 2.87,
+    "orbitSpeed": 0.369,
+    "initialAngle": 4.9247
   },
   {
     "id": "planet_031_2",
-    "name": "海蓝星-4",
+    "name": "海蓝星 4",
     "type": "planet",
     "parentStarId": "star_031",
     "position": [
-      19.7499,
-      -36.4053,
-      -43.2811
+      -33.9536,
+      -73.8444,
+      7.0265
     ],
-    "color": "#87CEEB",
-    "colorDesc": "天蓝",
-    "size": 0.35,
-    "temperature": 335,
-    "distanceFromSun": 24.98,
-    "orbitRadius": 2.28,
-    "orbitSpeed": 0.744,
-    "initialAngle": 2.7302
+    "color": "#3CB371",
+    "colorDesc": "中海绿",
+    "size": 0.67,
+    "temperature": 177,
+    "distanceFromSun": 20.54,
+    "orbitRadius": 4.05,
+    "orbitSpeed": 0.594,
+    "initialAngle": 4.9547
   },
   {
     "id": "planet_031_3",
-    "name": "赤岩星-4",
+    "name": "赤岩星 4",
     "type": "planet",
     "parentStarId": "star_031",
     "position": [
-      19.7499,
-      -36.4053,
-      -43.2811
+      -33.9536,
+      -73.8444,
+      7.0265
     ],
-    "color": "#FFB6C1",
-    "colorDesc": "粉红",
-    "size": 0.78,
-    "temperature": 696,
-    "distanceFromSun": 25.48,
-    "orbitRadius": 2.91,
-    "orbitSpeed": 0.126,
-    "initialAngle": 1.2066
+    "color": "#C71585",
+    "colorDesc": "中紫红",
+    "size": 0.32,
+    "temperature": 758,
+    "distanceFromSun": 20.55,
+    "orbitRadius": 2.12,
+    "orbitSpeed": 0.221,
+    "initialAngle": 2.6194
   },
   {
     "id": "planet_031_4",
-    "name": "冰晶星-4",
+    "name": "冰晶星 4",
     "type": "planet",
     "parentStarId": "star_031",
     "position": [
-      19.7499,
-      -36.4053,
-      -43.2811
+      -33.9536,
+      -73.8444,
+      7.0265
     ],
-    "color": "#4ECDC4",
-    "colorDesc": "青绿",
-    "size": 0.8,
-    "temperature": 798,
-    "distanceFromSun": 27.02,
-    "orbitRadius": 5.74,
-    "orbitSpeed": 0.782,
-    "initialAngle": 1.3466
+    "color": "#191970",
+    "colorDesc": "午夜蓝",
+    "size": 0.44,
+    "temperature": 453,
+    "distanceFromSun": 20.96,
+    "orbitRadius": 4.31,
+    "orbitSpeed": 0.472,
+    "initialAngle": 1.0413
   },
   {
     "id": "planet_032_1",
-    "name": "翡翠星-4",
+    "name": "翡翠星 4",
     "type": "planet",
     "parentStarId": "star_032",
     "position": [
-      51.089,
-      38.5126,
-      -61.1102
+      41.6884,
+      44.0754,
+      -21.2666
     ],
-    "color": "#4ECDC4",
-    "colorDesc": "青绿",
+    "color": "#20B2AA",
+    "colorDesc": "浅海",
     "size": 0.74,
-    "temperature": 126,
-    "distanceFromSun": 60.19,
-    "orbitRadius": 7.64,
-    "orbitSpeed": 0.434,
-    "initialAngle": 5.4431
+    "temperature": 560,
+    "distanceFromSun": 47.69,
+    "orbitRadius": 6.42,
+    "orbitSpeed": 0.527,
+    "initialAngle": 4.8687
   },
   {
     "id": "planet_032_2",
-    "name": "金沙星-4",
+    "name": "金沙星 4",
     "type": "planet",
     "parentStarId": "star_032",
     "position": [
-      51.089,
-      38.5126,
-      -61.1102
+      41.6884,
+      44.0754,
+      -21.2666
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.58,
-    "temperature": 561,
-    "distanceFromSun": 58.66,
-    "orbitRadius": 7.9,
-    "orbitSpeed": 0.694,
-    "initialAngle": 1.8106
+    "color": "#4682B4",
+    "colorDesc": "钢蓝",
+    "size": 0.67,
+    "temperature": 735,
+    "distanceFromSun": 48.27,
+    "orbitRadius": 5.76,
+    "orbitSpeed": 0.7,
+    "initialAngle": 1.5093
   },
   {
     "id": "planet_032_3",
-    "name": "紫罗兰-4",
+    "name": "紫云星 4",
     "type": "planet",
     "parentStarId": "star_032",
     "position": [
-      51.089,
-      38.5126,
-      -61.1102
+      41.6884,
+      44.0754,
+      -21.2666
     ],
-    "color": "#8B4513",
-    "colorDesc": "棕褐",
-    "size": 0.44,
-    "temperature": 768,
-    "distanceFromSun": 59.63,
-    "orbitRadius": 4.19,
-    "orbitSpeed": 0.285,
-    "initialAngle": 0.7092
+    "color": "#2E8B57",
+    "colorDesc": "海绿",
+    "size": 0.79,
+    "temperature": 653,
+    "distanceFromSun": 47.48,
+    "orbitRadius": 6.65,
+    "orbitSpeed": 0.616,
+    "initialAngle": 1.7717
   },
   {
     "id": "planet_032_4",
-    "name": "银辉星-4",
+    "name": "黑曜星 4",
     "type": "planet",
     "parentStarId": "star_032",
     "position": [
-      51.089,
-      38.5126,
-      -61.1102
+      41.6884,
+      44.0754,
+      -21.2666
     ],
-    "color": "#45B7D1",
-    "colorDesc": "海蓝",
-    "size": 0.45,
-    "temperature": 549,
-    "distanceFromSun": 58.73,
-    "orbitRadius": 2.25,
-    "orbitSpeed": 0.34,
-    "initialAngle": 4.399
+    "color": "#DB7093",
+    "colorDesc": "苍紫红",
+    "size": 0.6,
+    "temperature": 184,
+    "distanceFromSun": 48.11,
+    "orbitRadius": 4.88,
+    "orbitSpeed": 0.167,
+    "initialAngle": 3.3551
   },
   {
     "id": "planet_033_1",
-    "name": "黑曜石-4",
+    "name": "银辉星 4",
     "type": "planet",
     "parentStarId": "star_033",
     "position": [
-      0.5551,
-      -6.3314,
-      87.4101
+      -30.8614,
+      -27.4056,
+      -45.6782
     ],
-    "color": "#FF6B6B",
-    "colorDesc": "赤红",
-    "size": 0.72,
-    "temperature": 185,
-    "distanceFromSun": 83.05,
-    "orbitRadius": 3.14,
-    "orbitSpeed": 0.796,
-    "initialAngle": 4.1294
+    "color": "#4682B4",
+    "colorDesc": "钢蓝",
+    "size": 0.67,
+    "temperature": 771,
+    "distanceFromSun": 17.27,
+    "orbitRadius": 3.53,
+    "orbitSpeed": 0.356,
+    "initialAngle": 4.921
   },
   {
     "id": "planet_033_2",
-    "name": "赤霞珠-4",
+    "name": "赤炎星 4",
     "type": "planet",
     "parentStarId": "star_033",
     "position": [
-      0.5551,
-      -6.3314,
-      87.4101
+      -30.8614,
+      -27.4056,
+      -45.6782
     ],
-    "color": "#F0E68C",
-    "colorDesc": "金黄",
-    "size": 0.52,
-    "temperature": 409,
-    "distanceFromSun": 83.62,
-    "orbitRadius": 3.58,
-    "orbitSpeed": 0.389,
-    "initialAngle": 3.2804
+    "color": "#CD853F",
+    "colorDesc": "秘鲁色",
+    "size": 0.78,
+    "temperature": 435,
+    "distanceFromSun": 17.45,
+    "orbitRadius": 3.51,
+    "orbitSpeed": 0.583,
+    "initialAngle": 2.942
   },
   {
     "id": "planet_033_3",
-    "name": "翠羽星-4",
+    "name": "碧波星 4",
     "type": "planet",
     "parentStarId": "star_033",
     "position": [
-      0.5551,
-      -6.3314,
-      87.4101
+      -30.8614,
+      -27.4056,
+      -45.6782
     ],
-    "color": "#BA55D3",
-    "colorDesc": "紫红",
-    "size": 0.6,
-    "temperature": 787,
-    "distanceFromSun": 85.4,
-    "orbitRadius": 7.54,
-    "orbitSpeed": 0.774,
-    "initialAngle": 2.6759
+    "color": "#20B2AA",
+    "colorDesc": "浅海",
+    "size": 0.49,
+    "temperature": 533,
+    "distanceFromSun": 17.16,
+    "orbitRadius": 4.07,
+    "orbitSpeed": 0.72,
+    "initialAngle": 4.4972
   },
   {
     "id": "planet_033_4",
-    "name": "琥珀星-4",
+    "name": "雪绒星 4",
     "type": "planet",
     "parentStarId": "star_033",
     "position": [
-      0.5551,
-      -6.3314,
-      87.4101
+      -30.8614,
+      -27.4056,
+      -45.6782
     ],
-    "color": "#FF6B6B",
-    "colorDesc": "赤红",
-    "size": 0.46,
-    "temperature": 105,
-    "distanceFromSun": 85.57,
-    "orbitRadius": 5.8,
-    "orbitSpeed": 0.223,
-    "initialAngle": 5.7968
+    "color": "#CD853F",
+    "colorDesc": "秘鲁色",
+    "size": 0.7,
+    "temperature": 214,
+    "distanceFromSun": 17.42,
+    "orbitRadius": 2.37,
+    "orbitSpeed": 0.196,
+    "initialAngle": 3.7972
   },
   {
     "id": "planet_034_1",
-    "name": "琉璃星-4",
+    "name": "琥珀星 4",
     "type": "planet",
     "parentStarId": "star_034",
     "position": [
-      -6.4257,
-      -21.2801,
-      -55.6267
+      13.3206,
+      47.7613,
+      18.6792
     ],
-    "color": "#191970",
-    "colorDesc": "深蓝",
-    "size": 0.52,
-    "temperature": 526,
-    "distanceFromSun": 75.85,
-    "orbitRadius": 7.57,
-    "orbitSpeed": 0.196,
-    "initialAngle": 0.9827
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.42,
+    "temperature": 671,
+    "distanceFromSun": 69.66,
+    "orbitRadius": 4.86,
+    "orbitSpeed": 0.151,
+    "initialAngle": 2.0255
   },
   {
     "id": "planet_034_2",
-    "name": "珊瑚星-4",
+    "name": "天青石 4",
     "type": "planet",
     "parentStarId": "star_034",
     "position": [
-      -6.4257,
-      -21.2801,
-      -55.6267
+      13.3206,
+      47.7613,
+      18.6792
     ],
-    "color": "#8B0000",
-    "colorDesc": "暗红",
-    "size": 0.49,
-    "temperature": 208,
-    "distanceFromSun": 75.81,
-    "orbitRadius": 2.33,
-    "orbitSpeed": 0.322,
-    "initialAngle": 1.8079
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.36,
+    "temperature": 129,
+    "distanceFromSun": 70.27,
+    "orbitRadius": 5.75,
+    "orbitSpeed": 0.287,
+    "initialAngle": 3.2207
   },
   {
     "id": "planet_034_3",
-    "name": "珍珠星-4",
+    "name": "橄榄星 4",
     "type": "planet",
     "parentStarId": "star_034",
     "position": [
-      -6.4257,
-      -21.2801,
-      -55.6267
+      13.3206,
+      47.7613,
+      18.6792
     ],
-    "color": "#45B7D1",
-    "colorDesc": "海蓝",
-    "size": 0.79,
-    "temperature": 133,
-    "distanceFromSun": 73.69,
-    "orbitRadius": 4.91,
-    "orbitSpeed": 0.594,
-    "initialAngle": 3.5278
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.4,
+    "temperature": 225,
+    "distanceFromSun": 70.14,
+    "orbitRadius": 3.06,
+    "orbitSpeed": 0.703,
+    "initialAngle": 4.2065
   },
   {
     "id": "planet_034_4",
-    "name": "星尘-4",
+    "name": "蔷薇星 4",
     "type": "planet",
     "parentStarId": "star_034",
     "position": [
-      -6.4257,
-      -21.2801,
-      -55.6267
+      13.3206,
+      47.7613,
+      18.6792
     ],
-    "color": "#8B0000",
-    "colorDesc": "暗红",
-    "size": 0.8,
-    "temperature": 608,
-    "distanceFromSun": 75.95,
-    "orbitRadius": 6.94,
-    "orbitSpeed": 0.702,
-    "initialAngle": 2.5608
+    "color": "#20B2AA",
+    "colorDesc": "浅海",
+    "size": 0.63,
+    "temperature": 145,
+    "distanceFromSun": 70.13,
+    "orbitRadius": 4.41,
+    "orbitSpeed": 0.201,
+    "initialAngle": 3.8443
   },
   {
     "id": "planet_035_1",
-    "name": "碧波星-4",
+    "name": "极光星 4",
     "type": "planet",
     "parentStarId": "star_035",
     "position": [
-      64.2113,
-      18.1964,
-      63.5653
+      17.5127,
+      -59.3859,
+      -9.9485
     ],
-    "color": "#96CEB4",
-    "colorDesc": "翠绿",
-    "size": 0.79,
-    "temperature": 476,
-    "distanceFromSun": 8.48,
-    "orbitRadius": 2.99,
-    "orbitSpeed": 0.783,
-    "initialAngle": 5.6142
+    "color": "#8A2BE2",
+    "colorDesc": "蓝紫",
+    "size": 0.68,
+    "temperature": 680,
+    "distanceFromSun": 54.63,
+    "orbitRadius": 6.55,
+    "orbitSpeed": 0.171,
+    "initialAngle": 5.2444
   },
   {
     "id": "planet_035_2",
-    "name": "焰火星-4",
+    "name": "流星岩 4",
     "type": "planet",
     "parentStarId": "star_035",
     "position": [
-      64.2113,
-      18.1964,
-      63.5653
+      17.5127,
+      -59.3859,
+      -9.9485
     ],
-    "color": "#BA55D3",
-    "colorDesc": "紫红",
-    "size": 0.68,
-    "temperature": 269,
-    "distanceFromSun": 9.02,
-    "orbitRadius": 2.07,
-    "orbitSpeed": 0.541,
-    "initialAngle": 0.5042
+    "color": "#6A5ACD",
+    "colorDesc": "板岩蓝",
+    "size": 0.42,
+    "temperature": 629,
+    "distanceFromSun": 54.57,
+    "orbitRadius": 6.1,
+    "orbitSpeed": 0.47,
+    "initialAngle": 0.3873
   },
   {
     "id": "planet_035_3",
-    "name": "寒霜星-4",
+    "name": "星尘球 4",
     "type": "planet",
     "parentStarId": "star_035",
     "position": [
-      64.2113,
-      18.1964,
-      63.5653
+      17.5127,
+      -59.3859,
+      -9.9485
     ],
-    "color": "#96CEB4",
-    "colorDesc": "翠绿",
-    "size": 0.55,
-    "temperature": 227,
-    "distanceFromSun": 9.25,
-    "orbitRadius": 5.17,
-    "orbitSpeed": 0.208,
-    "initialAngle": 2.907
+    "color": "#483D8B",
+    "colorDesc": "暗石板蓝",
+    "size": 0.76,
+    "temperature": 761,
+    "distanceFromSun": 54.05,
+    "orbitRadius": 7.43,
+    "orbitSpeed": 0.395,
+    "initialAngle": 5.5709
   },
   {
     "id": "planet_035_4",
-    "name": "晨曦星-4",
+    "name": "黎明星 4",
     "type": "planet",
     "parentStarId": "star_035",
     "position": [
-      64.2113,
-      18.1964,
-      63.5653
+      17.5127,
+      -59.3859,
+      -9.9485
     ],
-    "color": "#F4A460",
-    "colorDesc": "沙棕",
-    "size": 0.37,
-    "temperature": 441,
-    "distanceFromSun": 5.98,
-    "orbitRadius": 2.16,
-    "orbitSpeed": 0.399,
-    "initialAngle": 0.1677
+    "color": "#D2691E",
+    "colorDesc": "巧克力",
+    "size": 0.32,
+    "temperature": 454,
+    "distanceFromSun": 54.33,
+    "orbitRadius": 5.11,
+    "orbitSpeed": 0.247,
+    "initialAngle": 2.7453
   }
 ]

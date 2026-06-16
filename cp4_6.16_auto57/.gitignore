@@ -1,0 +1,15 @@
+node_modules
+dist
+.DS_Store
+*.log
+.vscode
+.idea
+*.local
+
+# 数据生成脚本与临时文件
+generateGalaxy.cjs
+generateGalaxy.js
+generateGalaxy.mjs
+/prompt_*.json
+/result_*.json
+/temp_*

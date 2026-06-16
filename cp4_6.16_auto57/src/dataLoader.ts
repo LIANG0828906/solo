@@ -1,3 +1,5 @@
+import rawDataModule from './data/galaxyData.json';
+
 export interface CelestialBody {
   id: string;
   name: string;
@@ -41,15 +43,14 @@ function inferTypeFromId(id: string): 'star' | 'planet' | 'nebula' {
 }
 
 function normalizePosition(position: number[]): [number, number, number] {
-  const x = normalizeNumber(position?.[0], 0);
-  const y = normalizeNumber(position?.[1], 0);
-  const z = normalizeNumber(position?.[2], 0);
+  const x = normalizeNumber(position[0], 0);
+  const y = normalizeNumber(position[1], 0);
+  const z = normalizeNumber(position[2], 0);
   return [x, y, z];
 }
 
 export async function loadGalaxyData(): Promise<CelestialBody[]> {
-  const module = await import('./data/galaxyData.json', { assert: { type: 'json' } });
-  const rawData: RawCelestialBody[] = module.default as RawCelestialBody[];
+  const rawData: RawCelestialBody[] = rawDataModule as unknown as RawCelestialBody[];
 
   return rawData.map((raw): CelestialBody => ({
     id: raw.id ?? '',
