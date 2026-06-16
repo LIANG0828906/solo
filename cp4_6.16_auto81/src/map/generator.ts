@@ -207,4 +207,51 @@ function getAdjacentRooms(room: Room, rooms: Room[]): Room[] {
 function getRoomCenter(room: Room): { x: number; y: number } {
   return {
     x: room.gridX + Math.floor(room.width / 2),
-    y: room.gridY + Math.floor(room.height / 2
+    y: room.gridY + Math.floor(room.height / 2)
+  };
+}
+
+function assignRoomTypes(rooms: Room[]): void {
+  rooms[0].type = 'start';
+  rooms[0].visited = true;
+
+  const normalRooms = rooms.filter(r => r.type === 'normal');
+  const shuffled = [...normalRooms].sort(() => Math.random() - 0.5);
+
+  let chestCount = 0;
+  let exitAssigned = false;
+  const farRooms = shuffled.filter(r => r.x + r.y >= 4);
+
+  for (const room of farRooms) {
+    if (!exitAssigned && room.x + room.y >= 5) {
+      room.type = 'exit';
+      exitAssigned = true;
+    } else if (chestCount < 2) {
+      room.type = 'chest';
+      chestCount++;
+    }
+  }
+
+  for (const room of shuffled) {
+    if (room.type === 'normal') {
+      if (!exitAssigned) {
+        room.type = 'exit';
+        exitAssigned = true;
+      } else if (chestCount < 2) {
+        room.type = 'chest';
+        chestCount++;
+      }
+    }
+  }
+}
+
+export function getRoomAt(rooms: Room[], x: number, y: number): Room | undefined {
+  return rooms.find(r => r.x === x && r.y === y);
+}
+
+export function isWalkable(tiles: TileType[][], x: number, y: number): boolean {
+  if (y < 0 || y >= tiles.length || x < 0 || x >= tiles[0].length) {
+    return false;
+  }
+  return tiles[y][x] !== TileType.WALL;
+}
