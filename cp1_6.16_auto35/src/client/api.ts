@@ -11,92 +11,131 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...options,
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: '请求失败' }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+  const data = await response.json().catch(() => ({ success: false, message: '请求失败' }));
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || `HTTP ${response.status}`);
   }
 
-  return response.json();
+  return data;
 }
 
-export interface LoginResponse {
-  user: User;
-  token: string;
-}
-
-export function login(username: string, password: string): Promise<LoginResponse> {
-  return request<LoginResponse>('/auth/login', {
+export function login(
+  username: string,
+  password: string
+): Promise<{ success: boolean; user: User; token: string }> {
+  return request<{ success: boolean; user: User; token: string }>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   });
 }
 
-export function register(username: string, password: string): Promise<LoginResponse> {
-  return request<LoginResponse>('/auth/register', {
+export function register(
+  username: string,
+  password: string
+): Promise<{ success: boolean; user: User; token: string }> {
+  return request<{ success: boolean; user: User; token: string }>('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   });
 }
 
-export function getUser(userId: string): Promise<User> {
-  return request<User>(`/users/${userId}`);
+export function getUser(id: string): Promise<User> {
+  return request<{ success: boolean; user: User }>(`/users/${id}`).then((data) => data.user);
 }
 
 export function searchUsers(query: string): Promise<User[]> {
-  return request<User[]>(`/users/search?q=${encodeURIComponent(query)}`);
+  return request<{ success: boolean; users: User[] }>(
+    `/users/search?q=${encodeURIComponent(query)}`
+  ).then((data) => data.users);
 }
 
-export function addFriend(userId: string, friendId: string): Promise<{ success: boolean; message: string }> {
-  return request<{ success: boolean; message: string }>(`/users/${userId}/friends`, {
+export function addFriend(
+  userId: string,
+  friendId: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/users/${userId}/friends`, {
     method: 'POST',
     body: JSON.stringify({ friendId }),
   });
 }
 
 export function getFriends(userId: string): Promise<User[]> {
-  return request<User[]>(`/users/${userId}/friends`);
+  return request<{ success: boolean; friends: User[] }>(`/users/${userId}/friends`).then(
+    (data) => data.friends
+  );
 }
 
-export function createPlant(ownerId: string, species: PlantSpecies, name: string): Promise<Plant> {
-  return request<Plant>('/plants', {
+export function createPlant(
+  ownerId: string,
+  species: PlantSpecies,
+  name: string
+): Promise<Plant> {
+  return request<{ success: boolean; plant: Plant }>('/plants', {
     method: 'POST',
     body: JSON.stringify({ ownerId, species, name }),
-  });
+  }).then((data) => data.plant);
 }
 
 export function getPlants(userId: string): Promise<Plant[]> {
-  return request<Plant[]>(`/plants?userId=${userId}`);
+  return request<{ success: boolean; plants: Plant[] }>(`/plants?userId=${userId}`).then(
+    (data) => data.plants
+  );
 }
 
 export function getPlantDetail(plantId: string): Promise<Plant> {
-  return request<Plant>(`/plants/${plantId}`);
+  return request<{ success: boolean; plant: Plant }>(`/plants/${plantId}`).then(
+    (data) => data.plant
+  );
 }
 
-export function waterPlant(plantId: string, userId: string): Promise<{ success: boolean; updatedPlant: Plant; diaryEntry: DiaryEntry; message?: string }> {
-  return request<{ success: boolean; updatedPlant: Plant; diaryEntry: DiaryEntry; message?: string }>(`/plants/${plantId}/water`, {
-    method: 'POST',
-    body: JSON.stringify({ userId }),
-  });
+export function waterPlant(
+  plantId: string,
+  userId: string
+): Promise<{ success: boolean; updatedPlant?: Plant; message?: string }> {
+  return request<{ success: boolean; updatedPlant?: Plant; message?: string }>(
+    `/plants/${plantId}/water`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    }
+  );
 }
 
-export function fertilizePlant(plantId: string, userId: string): Promise<{ success: boolean; updatedPlant: Plant; diaryEntry: DiaryEntry; message?: string }> {
-  return request<{ success: boolean; updatedPlant: Plant; diaryEntry: DiaryEntry; message?: string }>(`/plants/${plantId}/fertilize`, {
-    method: 'POST',
-    body: JSON.stringify({ userId }),
-  });
+export function fertilizePlant(
+  plantId: string,
+  userId: string
+): Promise<{ success: boolean; updatedPlant?: Plant; message?: string }> {
+  return request<{ success: boolean; updatedPlant?: Plant; message?: string }>(
+    `/plants/${plantId}/fertilize`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    }
+  );
 }
 
-export function adjustLight(plantId: string, userId: string): Promise<{ success: boolean; updatedPlant: Plant; diaryEntry: DiaryEntry; message?: string }> {
-  return request<{ success: boolean; updatedPlant: Plant; diaryEntry: DiaryEntry; message?: string }>(`/plants/${plantId}/light`, {
-    method: 'POST',
-    body: JSON.stringify({ userId }),
-  });
+export function adjustLight(
+  plantId: string,
+  userId: string
+): Promise<{ success: boolean; updatedPlant?: Plant; message?: string }> {
+  return request<{ success: boolean; updatedPlant?: Plant; message?: string }>(
+    `/plants/${plantId}/light`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    }
+  );
 }
 
 export function getDiary(plantId: string): Promise<DiaryEntry[]> {
-  return request<DiaryEntry[]>(`/plants/${plantId}/diary`);
+  return request<{ success: boolean; diary: DiaryEntry[] }>(`/plants/${plantId}/diary`).then(
+    (data) => data.diary
+  );
 }
 
 export function getLeaderboard(): Promise<LeaderboardEntry[]> {
-  return request<LeaderboardEntry[]>('/leaderboard');
+  return request<{ success: boolean; leaderboard: LeaderboardEntry[] }>('/leaderboard').then(
+    (data) => data.leaderboard
+  );
 }

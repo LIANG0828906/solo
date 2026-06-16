@@ -2,26 +2,21 @@ export type PlantSpecies = 'cactus' | 'sunflower' | 'succulent';
 
 export type PlantStage = 'seed' | 'sprout' | 'adult' | 'flowering';
 
-export enum PlantStatus {
-  HEALTHY = 'healthy',
-  NEEDS_WATER = 'needs_water',
-  NEEDS_LIGHT = 'needs_light',
-  NEEDS_NUTRITION = 'needs_nutrition',
-  CRITICAL = 'critical',
+export type DiaryEntryType = 'water' | 'fertilize' | 'light' | 'stage' | 'create';
+
+export type NotificationType = 'water' | 'fertilize' | 'friend' | 'stage' | 'system';
+
+export interface User {
+  id: string;
+  username: string;
+  avatar: string;
+  friends?: string[];
 }
 
 export interface PlantHealth {
   water: number;
   light: number;
   nutrition: number;
-}
-
-export interface User {
-  id: string;
-  username: string;
-  password: string;
-  avatar: string;
-  friends: string[];
 }
 
 export interface Plant {
@@ -38,8 +33,6 @@ export interface Plant {
   lastHelpers: Array<{ userId: string; username: string; avatar: string; timestamp: number }>;
 }
 
-export type DiaryEntryType = 'water' | 'fertilize' | 'light' | 'stage' | 'create';
-
 export interface DiaryEntry {
   id: string;
   plantId: string;
@@ -47,8 +40,6 @@ export interface DiaryEntry {
   type: DiaryEntryType;
   description: string;
 }
-
-export type NotificationType = 'water' | 'fertilize' | 'friend' | 'stage' | 'system';
 
 export interface Notification {
   id: string;
@@ -70,11 +61,28 @@ export interface LeaderboardEntry {
   previousRank?: number;
 }
 
-export type ActionType = 'water' | 'fertilize' | 'light' | null;
-
-export interface WSMessage {
+export interface WSMessage<T = unknown> {
   type: 'subscribe' | 'unsubscribe' | 'heartbeat' | 'plants_update' | 'notification' | 'leaderboard';
   userId?: string;
   targetUserId?: string;
-  payload?: unknown;
+  payload?: T;
 }
+
+export const STAGE_NAMES: Record<PlantStage, string> = {
+  seed: '种子',
+  sprout: '幼苗',
+  adult: '成株',
+  flowering: '开花',
+};
+
+export const SPECIES_ICONS: Record<PlantSpecies, string> = {
+  cactus: '🌵',
+  sunflower: '🌻',
+  succulent: '🌿',
+};
+
+export const SPECIES_COLORS: Record<PlantSpecies, string> = {
+  cactus: '#228B22',
+  sunflower: '#FFD700',
+  succulent: '#32CD32',
+};

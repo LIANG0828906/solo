@@ -13,6 +13,7 @@ import type {
   LeaderboardEntry,
   WSMessage,
 } from './types';
+import { calculateGrowthStage, calculateProgress } from './types';
 
 const app = express();
 const server = http.createServer(app);
@@ -61,8 +62,10 @@ function createExamplePlants(userId: string, baseTime: number): void {
     const speciesType = species[i];
     const plantName = names[speciesType][i];
     const plant = plantManager.createPlant(userId, speciesType, plantName);
-    plant.createdAt = baseTime - i * 5 * 60 * 1000;
-    plant.stage = plant.createdAt;
+    const adjustedTime = baseTime - i * 5 * 60 * 1000;
+    plant.createdAt = adjustedTime;
+    plant.progress = calculateProgress(adjustedTime, baseTime);
+    plant.stage = calculateGrowthStage(adjustedTime, baseTime);
   }
 }
 
