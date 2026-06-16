@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DataOrbit - 3D数据可视化仪表盘</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0B0E1A;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      color: #E0E0E0;
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    
+    #canvas-container canvas {
+      display: block;
+    }
+    
+    .glass-panel {
+      background: rgba(42, 27, 61, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 12px;
+    }
+    
+    .top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 100;
+      background: rgba(11, 14, 26, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+    }
+    
+    .top-bar-left,
+    .top-bar-center,
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .logo {
+      font-size: 18px;
+      font-weight: bold;
+      background: linear-gradient(135deg, #00D4FF, #007BFF);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.25s ease;
+      color: #E0E0E0;
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+    }
+    
+    .btn:hover {
+      background: rgba(0, 212, 255, 0.25);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #00D4FF, #007BFF);
+      border: none;
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #33E0FF, #3395FF);
+      box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4);
+    }
+    
+    .btn-group {
+      display: flex;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 212, 255, 0.3);
+    }
+    
+    .btn-group .btn {
+      border-radius: 0;
+      border: none;
+      border-right: 1px solid rgba(0, 212, 255, 0.2);
+    }
+    
+    .btn-group .btn:last-child {
+      border-right: none;
+    }
+    
+    .btn-group .btn.active {
+      background: linear-gradient(135deg, #00D4FF, #007BFF);
+      color: #fff;
+    }
+    
+    .snapshot-panel {
+      position: fixed;
+      top: 60px;
+      left: 10px;
+      width: 260px;
+      max-height: calc(100vh - 130px);
+      z-index: 90;
+      padding: 12px;
+      overflow-y: auto;
+      transition: transform 0.3s ease;
+    }
+    
+    .snapshot-panel.collapsed {
+      transform: translateX(-270px);
+    }
+    
+    .snapshot-toggle {
+      position: fixed;
+      top: 65px;
+      left: 10px;
+      z-index: 91;
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      background: rgba(42, 27, 61, 0.7);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+    
+    .snapshot-panel.collapsed + .snapshot-toggle {
+      left: 10px;
+    }
+    
+    .snapshot-toggle:hover {
+      background: rgba(0, 212, 255, 0.2);
+    }
+    
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #00D4FF;
+    }
+    
+    .snapshot-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .snapshot-item {
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(0, 212, 255, 0.05);
+      border: 1px solid rgba(0, 212, 255, 0.1);
+    }
+    
+    .snapshot-item:hover {
+      background: rgba(0, 212, 255, 0.15);
+      transform: translateX(4px);
+    }
+    
+    .snapshot-item.active {
+      background: rgba(0, 212, 255, 0.25);
+      border-color: rgba(0, 212, 255, 0.5);
+    }
+    
+    .snapshot-item-name {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    
+    .snapshot-item-info {
+      font-size: 11px;
+      color: #888;
+    }
+    
+    .snapshot-delete {
+      float: right;
+      color: #ff6b6b;
+      font-size: 16px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .snapshot-item:hover .snapshot-delete {
+      opacity: 1;
+    }
+    
+    .info-card {
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      width: 280px;
+      z-index: 95;
+      padding: 16px;
+      opacity: 0;
+      transform: translateX(20px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+    
+    .info-card.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    
+    .info-card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #00D4FF;
+    }
+    
+    .info-card-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .info-card-label {
+      color: #888;
+    }
+    
+    .info-card-value {
+      font-weight: 500;
+      color: #fff;
+    }
+    
+    .timeline-container {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 70%;
+      max-width: 800px;
+      z-index: 90;
+      padding: 12px 20px;
+    }
+    
+    .timeline-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    
+    .timeline-current {
+      text-align: center;
+      font-size: 13px;
+      color: #00D4FF;
+      margin-bottom: 8px;
+    }
+    
+    .timeline-slider {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(0, 212, 255, 0.2);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+    
+    .timeline-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00D4FF, #007BFF);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 212, 255, 0.5);
+      transition: transform 0.2s;
+    }
+    
+    .timeline-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+    
+    .timeline-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00D4FF, #007BFF);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(0, 212, 255, 0.5);
+    }
+    
+    .bottom-right-controls {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 90;
+    }
+    
+    .control-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      background: rgba(42, 27, 61, 0.7);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      color: #E0E0E0;
+      font-size: 18px;
+    }
+    
+    .control-btn:hover {
+      background: rgba(0, 212, 255, 0.25);
+      transform: scale(1.1);
+    }
+    
+    .control-btn.active {
+      background: linear-gradient(135deg, #00D4FF, #007BFF);
+      color: #fff;
+    }
+    
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(11, 14, 26, 0.8);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    
+    .loading-overlay.visible {
+      display: flex;
+    }
+    
+    .loading-text {
+      font-size: 16px;
+      margin-bottom: 20px;
+      color: #00D4FF;
+    }
+    
+    .loading-bar-container {
+      width: 300px;
+      height: 6px;
+      background: rgba(0, 212, 255, 0.2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .loading-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #00D4FF, #007BFF);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    .scene-fade {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0B0E1A;
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1s ease;
+    }
+    
+    .scene-fade.active {
+      opacity: 1;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 212, 255, 0.15);
+      transition: .3s;
+      border-radius: 24px;
+      border: 1px solid rgba(0, 212, 255, 0.3);
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+      background-color: #E0E0E0;
+      transition: .3s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background: linear-gradient(135deg, #00D4FF, #007BFF);
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+      background-color: #fff;
+    }
+    
+    .control-label {
+      font-size: 12px;
+      color: #888;
+      margin-right: 8px;
+    }
+    
+    .add-snapshot-btn {
+      width: 100%;
+      margin-top: 10px;
+    }
+    
+    .empty-snapshot {
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+
+    @media (max-width: 1366px) {
+      .timeline-container {
+        width: 60%;
+      }
+      .info-card {
+        width: 240px;
+      }
+      .snapshot-panel {
+        width: 220px;
+      }
+      .btn {
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <div class="logo">DataOrbit</div>
+      </div>
+      <div class="top-bar-center">
+        <div class="btn-group" id="chart-mode-group">
+          <button class="btn active" data-mode="bar">柱状图</button>
+          <button class="btn" data-mode="line">折线图</button>
+          <button class="btn" data-mode="scatter">散点图</button>
+        </div>
+      </div>
+      <div class="top-bar-right">
+        <button class="btn btn-primary" id="import-btn">📁 导入数据</button>
+        <input type="file" id="file-input" accept=".json" multiple style="display: none;" />
+      </div>
+    </div>
+    
+    <div class="snapshot-panel glass-panel" id="snapshot-panel">
+      <div class="panel-title">📸 项目快照</div>
+      <div class="snapshot-list" id="snapshot-list">
+        <div class="empty-snapshot">暂无快照</div>
+      </div>
+      <button class="btn btn-primary add-snapshot-btn" id="save-snapshot-btn">+ 保存当前场景</button>
+    </div>
+    <div class="snapshot-toggle" id="snapshot-toggle" title="切换快照面板">◀</div>
+    
+    <div class="info-card glass-panel" id="info-card">
+      <div class="info-card-title" id="info-card-title">数据详情</div>
+      <div class="info-card-row">
+        <span class="info-card-label">数据系列</span>
+        <span class="info-card-value" id="info-series">-</span>
+      </div>
+      <div class="info-card-row">
+        <span class="info-card-label">X 值</span>
+        <span class="info-card-value" id="info-x">-</span>
+      </div>
+      <div class="info-card-row">
+        <span class="info-card-label">Y 值</span>
+        <span class="info-card-value" id="info-y">-</span>
+      </div>
+      <div class="info-card-row" id="info-z-row" style="display: none;">
+        <span class="info-card-label">Z 值</span>
+        <span class="info-card-value" id="info-z">-</span>
+      </div>
+    </div>
+    
+    <div class="timeline-container glass-panel" id="timeline-container">
+      <div class="timeline-current" id="timeline-current">拖动滑块查看时间维度数据</div>
+      <div class="timeline-label">
+        <span id="timeline-start">-</span>
+        <span id="timeline-end">-</span>
+      </div>
+      <input type="range" class="timeline-slider" id="timeline-slider" min="0" max="100" value="100" />
+    </div>
+    
+    <div class="bottom-right-controls">
+      <div class="control-btn" id="reset-view-btn" title="重置视角">⟲</div>
+      <div class="control-btn" id="auto-rotate-btn" title="自动旋转">↻</div>
+    </div>
+    
+    <div class="loading-overlay" id="loading-overlay">
+      <div class="loading-text" id="loading-text">正在加载数据...</div>
+      <div class="loading-bar-container">
+        <div class="loading-bar" id="loading-bar"></div>
+      </div>
+    </div>
+    
+    <div class="scene-fade" id="scene-fade"></div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
