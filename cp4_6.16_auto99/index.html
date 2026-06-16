@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberDash - 赛博朋克跑酷</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a0f;
+      font-family: 'Orbitron', 'Segoe UI', monospace;
+      user-select: none;
+    }
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #game-canvas {
+      display: block;
+      background: #0a0a0f;
+      image-rendering: pixelated;
+    }
+    #start-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 15, 0.95);
+      z-index: 10;
+    }
+    #start-screen h1 {
+      font-size: 4rem;
+      background: linear-gradient(90deg, #ff00ff, #00ffff, #ff6ec7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 30px rgba(255, 0, 255, 0.5);
+      margin-bottom: 1rem;
+      letter-spacing: 0.3rem;
+    }
+    #start-screen .subtitle {
+      color: #888;
+      font-size: 1.1rem;
+      margin-bottom: 3rem;
+      letter-spacing: 0.2rem;
+    }
+    #start-screen .controls {
+      color: #aaa;
+      font-size: 0.95rem;
+      line-height: 2;
+      margin-bottom: 2.5rem;
+      text-align: center;
+    }
+    #start-screen .controls span {
+      color: #00ffff;
+      font-weight: bold;
+    }
+    #start-btn {
+      padding: 1rem 3rem;
+      font-size: 1.2rem;
+      font-family: inherit;
+      background: transparent;
+      border: 2px solid #ff00ff;
+      color: #ff00ff;
+      cursor: pointer;
+      letter-spacing: 0.3rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    #start-btn:hover {
+      background: #ff00ff;
+      color: #0a0a0f;
+      box-shadow: 0 0 30px #ff00ff, inset 0 0 30px rgba(255, 255, 255, 0.2);
+    }
+    #game-over {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 15, 0.92);
+      z-index: 10;
+    }
+    #game-over h2 {
+      font-size: 3rem;
+      color: #ff0066;
+      text-shadow: 0 0 30px rgba(255, 0, 102, 0.8);
+      margin-bottom: 2rem;
+      letter-spacing: 0.3rem;
+    }
+    #game-over .score-display {
+      font-size: 2rem;
+      color: #00ffff;
+      margin-bottom: 0.5rem;
+    }
+    #game-over .best-score {
+      font-size: 1rem;
+      color: #888;
+      margin-bottom: 2.5rem;
+    }
+    #restart-btn {
+      padding: 0.8rem 2.5rem;
+      font-size: 1rem;
+      font-family: inherit;
+      background: transparent;
+      border: 2px solid #00ffff;
+      color: #00ffff;
+      cursor: pointer;
+      letter-spacing: 0.2rem;
+      transition: all 0.3s ease;
+    }
+    #restart-btn:hover {
+      background: #00ffff;
+      color: #0a0a0f;
+      box-shadow: 0 0 30px #00ffff;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="start-screen">
+      <h1>CYBERDASH</h1>
+      <p class="subtitle">赛 博 朋 克 跑 酷</p>
+      <div class="controls">
+        <p><span>← →</span> 或 <span>A D</span> 切换车道</p>
+        <p><span>SPACE</span> 跳跃</p>
+        <p><span>SHIFT</span> 或 <span>E</span> 释放能量技能</p>
+      </div>
+      <button id="start-btn">开 始 游 戏</button>
+    </div>
+    <div id="game-over">
+      <h2>SYSTEM FAILURE</h2>
+      <p class="score-display">得分: <span id="final-score">0</span></p>
+      <p class="best-score">最高记录: <span id="best-score">0</span></p>
+      <button id="restart-btn">重 新 启 动</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
