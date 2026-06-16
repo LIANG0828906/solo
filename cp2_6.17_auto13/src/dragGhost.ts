@@ -17,6 +17,26 @@ function onDragEnd() {
   document.removeEventListener('drop', onDragEnd);
 }
 
+function cleanCloneAttributes(el: HTMLElement) {
+  el.removeAttribute('draggable');
+  el.removeAttribute('onDragStart');
+  el.removeAttribute('onDragEnd');
+  el.removeAttribute('onDragOver');
+  el.removeAttribute('onDragLeave');
+  el.removeAttribute('onDrop');
+  el.removeAttribute('onclick');
+  el.removeAttribute('onClick');
+  el.removeAttribute('ondragstart');
+  el.removeAttribute('ondragend');
+  el.removeAttribute('ondragover');
+  el.removeAttribute('ondragleave');
+  el.removeAttribute('ondrop');
+  const draggableChildren = el.querySelectorAll('[draggable="true"]');
+  draggableChildren.forEach((child) => {
+    (child as HTMLElement).removeAttribute('draggable');
+  });
+}
+
 export function createCustomDragGhost(
   sourceEl: HTMLElement,
   width: number,
@@ -24,6 +44,7 @@ export function createCustomDragGhost(
   dragEvent?: DragEvent
 ) {
   const clone = sourceEl.cloneNode(true) as HTMLElement;
+  cleanCloneAttributes(clone);
   clone.style.width = `${width}px`;
   clone.style.height = `${height}px`;
   clone.style.transform = 'scale(0.8)';

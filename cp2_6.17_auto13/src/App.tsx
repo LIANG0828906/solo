@@ -81,21 +81,13 @@ const App: React.FC = () => {
 
       <div className="mobile-layout">
         <div
-          style={{
-            display: mobileTab === 'map' ? 'block' : 'none',
-            height: '100%',
-            overflow: 'auto',
-          }}
+          className={`mobile-pane ${mobileTab === 'map' ? 'mobile-pane-active' : ''}`}
         >
           <OfficeMap />
           <EmployeeList />
         </div>
         <div
-          style={{
-            display: mobileTab === 'approval' ? 'block' : 'none',
-            height: '100%',
-            overflow: 'auto',
-          }}
+          className={`mobile-pane ${mobileTab === 'approval' ? 'mobile-pane-active' : ''}`}
         >
           <SwapRequestPanel />
         </div>
@@ -190,10 +182,26 @@ const App: React.FC = () => {
             display: none;
           }
           .mobile-layout {
-            display: flex;
+            display: block;
             flex: 1;
             overflow: hidden;
             padding-bottom: 56px;
+            position: relative;
+          }
+          .mobile-pane {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: auto;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+          }
+          .mobile-pane-active {
+            visibility: visible;
+            opacity: 1;
           }
           .mobile-tab-bar {
             display: flex;

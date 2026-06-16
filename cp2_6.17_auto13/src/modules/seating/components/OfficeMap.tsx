@@ -44,12 +44,15 @@ const SeatCard: React.FC<SeatCardProps> = ({
   const isFree = status === 'free';
 
   useEffect(() => {
+    let timer: number | null = null;
     if (animating && animTranslate) {
-      const timer = setTimeout(() => {
+      timer = window.setTimeout(() => {
         swapDone(seatId);
       }, 500);
-      return () => clearTimeout(timer);
     }
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+    };
   }, [animating, animTranslate, seatId, swapDone]);
 
   const handleDragOver = useCallback(
@@ -90,8 +93,9 @@ const SeatCard: React.FC<SeatCardProps> = ({
   );
 
   const handleClick = useCallback(() => {
+    if (animating) return;
     onSeatClick(seatId);
-  }, [seatId, onSeatClick]);
+  }, [seatId, onSeatClick, animating]);
 
   const borderStyle = isDragOver && isFree
     ? '2px solid #4CAF50'
@@ -119,7 +123,7 @@ const SeatCard: React.FC<SeatCardProps> = ({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        cursor: 'pointer',
+        cursor: animating ? 'default' : 'pointer',
         position: 'absolute',
         left: col * CELL_SIZE,
         top: row * CELL_SIZE,
@@ -341,24 +345,25 @@ const SeatDetailModal: React.FC<{
   );
 };
 
-const SwapSeatDialog: React.FC<{
+const ConfirmSwapDialog: React.FC<{
   employeeId: string;
   fromSeatId: string;
-  onClose: () => void;
-}> = ({ employeeId, fromSeatId, onClose }) => {
+  toSeatId: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}> = ({ employeeId, fromSeatId, toSeatId, onConfirm, onCancel }) => {
   const seats = useSeatStore((s) => s.seats);
-  const submitSwap = useSeatStore((s) => s.submitSwap);
+  const employees = useSeatStore((s) => s.employees);
 
-  const freeSeats = seats.filter((s) => s.status === 'free');
+  const employee = employees.find((e) => e.id === employeeId);
+  const fromSeat = seats.find((s) => s.id === fromSeatId);
+  const toSeat = seats.find((s) => s.id === toSeatId);
 
-  const handleSelect = (toSeatId: string) => {
-    submitSwap(employeeId, fromSeatId, toSeatId);
-    onClose();
-  };
+  if (!employee || !fromSeat || !toSeat) return null;
 
   return (
     <div
-      onClick={onClose}
+      onClick={onCancel}
       style={{
         position: 'fixed',
         top: 0,
@@ -369,7 +374,7 @@ const SwapSeatDialog: React.FC<{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1001,
+        zIndex: 1002,
         animation: 'fadeIn 0.2s ease',
       }}
     >
@@ -378,48 +383,194 @@ const SwapSeatDialog: React.FC<{
         style={{
           backgroundColor: '#2D2D44',
           borderRadius: 12,
-          padding: 20,
-          minWidth: 260,
-          maxHeight: 400,
-          overflowY: 'auto',
+          padding: 24,
+          minWidth: 300,
           boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
         }}
       >
-        <h3 style={{ color: '#E0E0E0', fontSize: 16, marginBottom: 16, textAlign: 'center' }}>
-          选择目标座位
+        <h3 style={{ color: '#E0E0E0', fontSize: 16, margin: 0, textAlign: 'center' }}>
+          确认换座申请
         </h3>
-        {freeSeats.length === 0 && (
-          <div style={{ color: '#888888', fontSize: 14, textAlign: 'center', padding: 16 }}>
-            没有可用的空闲座位
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-around',
+            gap: 16,
+            padding: '12px 0',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 13, color: '#888888' }}>当前座位</span>
+            <span style={{ fontSize: 16, color: '#E0E0E0', fontWeight: 600 }}>
+              {fromSeat.seatNumber}
+            </span>
           </div>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {freeSeats.map((seat) => (
-            <div
-              key={seat.id}
-              onClick={() => handleSelect(seat.id)}
-              style={{
-                padding: '10px 16px',
-                backgroundColor: '#3A3A55',
-                borderRadius: 8,
-                cursor: 'pointer',
-                color: '#E0E0E0',
-                fontSize: 14,
-                transition: 'background-color 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = '#4A4A66';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = '#3A3A55';
-              }}
-            >
-              {seat.seatNumber}
-            </div>
-          ))}
+          <span style={{ fontSize: 24, color: '#888888' }}>→</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 13, color: '#888888' }}>目标座位</span>
+            <span style={{ fontSize: 16, color: '#66BB6A', fontWeight: 600 }}>
+              {toSeat.seatNumber}
+            </span>
+          </div>
+        </div>
+        <div style={{ fontSize: 13, color: '#888888', textAlign: 'center' }}>
+          申请人: <span style={{ color: '#E0E0E0' }}>{employee.name}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1,
+              padding: '8px 0',
+              backgroundColor: '#333344',
+              color: '#E0E0E0',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: 14,
+            }}
+          >
+            取消
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              flex: 1,
+              padding: '8px 0',
+              backgroundColor: '#2196F3',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            确认提交
+          </button>
         </div>
       </div>
     </div>
+  );
+};
+
+const SwapSeatDialog: React.FC<{
+  employeeId: string;
+  fromSeatId: string;
+  onClose: () => void;
+}> = ({ employeeId, fromSeatId, onClose }) => {
+  const seats = useSeatStore((s) => s.seats);
+  const submitSwap = useSeatStore((s) => s.submitSwap);
+  const employees = useSeatStore((s) => s.employees);
+  const [pendingSeatId, setPendingSeatId] = useState<string | null>(null);
+
+  const freeSeats = seats.filter((s) => s.status === 'free');
+  const employee = employees.find((e) => e.id === employeeId);
+
+  const handleSelect = (toSeatId: string) => {
+    const targetSeat = seats.find((s) => s.id === toSeatId);
+    if (!targetSeat || targetSeat.status !== 'free') {
+      alert('该座位已被占用，请重新选择');
+      return;
+    }
+    setPendingSeatId(toSeatId);
+  };
+
+  const handleConfirm = () => {
+    if (!pendingSeatId || !employee) return;
+    const targetSeat = seats.find((s) => s.id === pendingSeatId);
+    if (!targetSeat || targetSeat.status !== 'free') {
+      alert('该座位已被占用，请重新选择');
+      setPendingSeatId(null);
+      return;
+    }
+    submitSwap(employeeId, fromSeatId, pendingSeatId);
+    onClose();
+  };
+
+  const handleCancelConfirm = () => {
+    setPendingSeatId(null);
+  };
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#00000066',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1001,
+          animation: 'fadeIn 0.2s ease',
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: '#2D2D44',
+            borderRadius: 12,
+            padding: 20,
+            minWidth: 260,
+            maxHeight: 400,
+            overflowY: 'auto',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          }}
+        >
+          <h3 style={{ color: '#E0E0E0', fontSize: 16, marginBottom: 16, textAlign: 'center' }}>
+            选择目标座位
+          </h3>
+          {freeSeats.length === 0 && (
+            <div style={{ color: '#888888', fontSize: 14, textAlign: 'center', padding: 16 }}>
+              没有可用的空闲座位
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {freeSeats.map((seat) => (
+              <div
+                key={seat.id}
+                onClick={() => handleSelect(seat.id)}
+                style={{
+                  padding: '10px 16px',
+                  backgroundColor: '#3A3A55',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  color: '#E0E0E0',
+                  fontSize: 14,
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = '#4A4A66';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = '#3A3A55';
+                }}
+              >
+                {seat.seatNumber}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {pendingSeatId && (
+        <ConfirmSwapDialog
+          employeeId={employeeId}
+          fromSeatId={fromSeatId}
+          toSeatId={pendingSeatId}
+          onConfirm={handleConfirm}
+          onCancel={handleCancelConfirm}
+        />
+      )}
+    </>
   );
 };
 

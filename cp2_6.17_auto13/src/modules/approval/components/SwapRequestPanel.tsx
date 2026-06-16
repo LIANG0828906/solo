@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useSeatStore } from '../../../stores/seatStore';
 import { getEmployeeColor, getNameInitials } from '../../../assets/data';
 
@@ -22,6 +22,8 @@ const SwapCard: React.FC<SwapCardProps> = ({
   const employees = useSeatStore((s) => s.employees);
   const seats = useSeatStore((s) => s.seats);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isDisabled, setIsDisabled] = useState(false);
+  const removeTimerRef = useRef<number | null>(null);
 
   const employee = employees.find((e) => e.id === employeeId);
   const fromSeat = seats.find((s) => s.id === fromSeatId);
@@ -32,19 +34,34 @@ const SwapCard: React.FC<SwapCardProps> = ({
 
   const color = employee ? getEmployeeColor(employee.id) : '#78909C';
 
+  useEffect(() => {
+    return () => {
+      if (removeTimerRef.current !== null) {
+        window.clearTimeout(removeTimerRef.current);
+        removeTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const handleApprove = useCallback(() => {
+    if (isDisabled || isRemoving) return;
+    setIsDisabled(true);
     setIsRemoving(true);
-    setTimeout(() => {
+    removeTimerRef.current = window.setTimeout(() => {
+      removeTimerRef.current = null;
       onApprove(requestId);
     }, 300);
-  }, [requestId, onApprove]);
+  }, [requestId, onApprove, isDisabled, isRemoving]);
 
   const handleReject = useCallback(() => {
+    if (isDisabled || isRemoving) return;
+    setIsDisabled(true);
     setIsRemoving(true);
-    setTimeout(() => {
+    removeTimerRef.current = window.setTimeout(() => {
+      removeTimerRef.current = null;
       onReject(requestId);
     }, 300);
-  }, [requestId, onReject]);
+  }, [requestId, onReject, isDisabled, isRemoving]);
 
   if (!employee) return null;
 
@@ -102,6 +119,7 @@ const SwapCard: React.FC<SwapCardProps> = ({
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           onClick={handleApprove}
+          disabled={isDisabled}
           style={{
             flex: 1,
             padding: '8px 0',
@@ -109,13 +127,14 @@ const SwapCard: React.FC<SwapCardProps> = ({
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 6,
-            cursor: 'pointer',
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
             fontSize: 18,
             fontWeight: 500,
-            transition: 'transform 0.2s ease',
+            transition: 'transform 0.2s ease, opacity 0.2s ease',
+            opacity: isDisabled ? 0.6 : 1,
           }}
           onMouseDown={(e) => {
-            (e.currentTarget as HTMLElement).style.transform = 'scale(0.92)';
+            if (!isDisabled) (e.currentTarget as HTMLElement).style.transform = 'scale(0.92)';
           }}
           onMouseUp={(e) => {
             (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
@@ -128,6 +147,7 @@ const SwapCard: React.FC<SwapCardProps> = ({
         </button>
         <button
           onClick={handleReject}
+          disabled={isDisabled}
           style={{
             flex: 1,
             padding: '8px 0',
@@ -135,13 +155,14 @@ const SwapCard: React.FC<SwapCardProps> = ({
             color: '#FFFFFF',
             border: 'none',
             borderRadius: 6,
-            cursor: 'pointer',
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
             fontSize: 18,
             fontWeight: 500,
-            transition: 'transform 0.2s ease',
+            transition: 'transform 0.2s ease, opacity 0.2s ease',
+            opacity: isDisabled ? 0.6 : 1,
           }}
           onMouseDown={(e) => {
-            (e.currentTarget as HTMLElement).style.transform = 'scale(0.92)';
+            if (!isDisabled) (e.currentTarget as HTMLElement).style.transform = 'scale(0.92)';
           }}
           onMouseUp={(e) => {
             (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
