@@ -159,9 +159,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
     
-    const canMove = (() => {
-      return canMoveTo(gameState, rune, targetPos);
-    })();
+    const canMove = canMoveTo(gameState, rune, targetPos);
     
     if (canMove) {
       const fromPos = { ...rune.position };

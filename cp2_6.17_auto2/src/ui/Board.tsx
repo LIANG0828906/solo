@@ -10,8 +10,11 @@ import { getRuneById, getValidMoves, getAllRunes } from '../game/engine';
 
 const CELL_SIZE = 60;
 const BOARD_PADDING = 20;
-const RUNE_RADIUS = 28;
+const RUNE_OUTER_RADIUS = 14;
+const RUNE_INNER_RADIUS = 12;
 const BORDER_WIDTH = 30;
+const CELL_LIGHT = '#E8E8E8';
+const CELL_DARK = '#D0D0D0';
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
@@ -112,7 +115,7 @@ export default function Board() {
     for (let y = 0; y < gameState.boardSize; y++) {
       for (let x = 0; x < gameState.boardSize; x++) {
         const isLight = (x + y) % 2 === 0;
-        ctx.fillStyle = isLight ? '#E8E8E8' : '#D0D0D0';
+        ctx.fillStyle = isLight ? CELL_LIGHT : CELL_DARK;
         ctx.fillRect(
           BORDER_WIDTH + x * CELL_SIZE,
           BORDER_WIDTH + y * CELL_SIZE,
@@ -289,8 +292,8 @@ export default function Board() {
     time: number
   ) => {
     const colors = ELEMENT_COLORS[rune.element];
-    const outerRadius = 14;
-    const innerRadius = 12;
+    const outerRadius = RUNE_OUTER_RADIUS;
+    const innerRadius = RUNE_INNER_RADIUS;
     
     if (isSelected) {
       const pulse = (Math.sin(time / 150) + 1) / 2;
@@ -323,17 +326,17 @@ export default function Board() {
     ctx.fillStyle = bodyGradient;
     ctx.fill();
     
-    drawRuneIcon(ctx, rune.element, pos.x, pos.y - 3, 14);
+    drawRuneIcon(ctx, rune.element, pos.x, pos.y - 2, 12);
     
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 9px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(`攻${rune.attack}`, pos.x, pos.y + innerRadius - 8);
+    ctx.fillText(`攻${rune.attack}`, pos.x, pos.y + 5);
     
-    const hpBarWidth = innerRadius * 1.6;
+    const hpBarWidth = outerRadius * 2 - 4;
     const hpBarHeight = 4;
-    const hpBarY = pos.y + innerRadius + 3;
+    const hpBarY = pos.y + outerRadius + 2;
     const hpPercent = rune.currentHp / rune.maxHp;
     
     ctx.fillStyle = '#333333';
@@ -580,7 +583,7 @@ export default function Board() {
       const dx = px - pos.x;
       const dy = py - pos.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist <= RUNE_RADIUS / 2 + 2) {
+      if (dist <= RUNE_OUTER_RADIUS + 2) {
         return rune;
       }
     }
