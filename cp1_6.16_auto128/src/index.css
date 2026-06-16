@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --color-space-dark: #0F3460;
+  --color-space-mid: #1A1A2E;
+  --color-space-light: #16213E;
+  --color-accent-pink: #E94560;
+  --color-warm: #FF6B6B;
+  --color-cool: #00D2FF;
+  --color-text-primary: #E0D9CF;
+  --color-text-secondary: rgba(224, 217, 207, 0.7);
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+
+.leaflet-container {
+  background: var(--color-space-dark);
+  font-family: inherit;
+}
+
+.leaflet-control-attribution {
+  background: rgba(26, 26, 46, 0.8) !important;
+  color: var(--color-text-secondary) !important;
+  backdrop-filter: blur(5px);
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-cool) !important;
+}
+
+.leaflet-control-zoom a {
+  background: rgba(26, 26, 46, 0.85) !important;
+  color: var(--color-text-primary) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px);
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--color-accent-pink) !important;
+}
+
+.leaflet-tile {
+  filter: brightness(0.7) contrast(1.1) saturate(0.8) hue-rotate(200deg) !important;
+}
+
+@keyframes pulse-marker {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.8);
+    opacity: 0.6;
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0.3;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.scent-marker-pulse {
+  animation: pulse-marker 2s ease-in-out infinite;
+}
+
+.scent-marker-ripple {
+  animation: ripple 3s ease-out infinite;
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-flip-container {
+  perspective: 1200px;
+}
+
+.card-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.card-flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+}
+
+.scent-custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scent-custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scent-custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.scent-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
