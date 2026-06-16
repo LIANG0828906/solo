@@ -1,0 +1,245 @@
+.backpack-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+  position: relative;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.backpack-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.item-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  overflow: hidden;
+}
+
+.item-card:hover:not(.disabled) {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(93, 78, 55, 0.15);
+  border-color: var(--accent-primary);
+}
+
+.item-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.item-card.using {
+  animation: itemPulse 0.5s ease-in-out;
+}
+
+@keyframes itemPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.item-icon-wrapper {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  border-radius: 50%;
+}
+
+.item-icon {
+  font-size: 36px;
+}
+
+.item-quantity {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+  background: var(--accent-primary);
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.item-info {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.item-effect {
+  font-size: 12px;
+  color: var(--success);
+  font-weight: 500;
+}
+
+.use-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+}
+
+.empty-backpack {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.empty-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.empty-backpack p {
+  font-size: 14px;
+}
+
+.current-stats {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.stats-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.stat-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(93, 78, 55, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stat-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.stat-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 30px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.particles-container {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  transform: translate(-50%, -50%);
+}
+
+.particle-star {
+  position: absolute;
+  font-size: 16px;
+  animation: particleFly 1s ease-out forwards;
+  transform: rotate(var(--angle)) translateY(0);
+  opacity: 1;
+}
+
+.particle-star:nth-child(1) { --delay: 0s; }
+.particle-star:nth-child(2) { --delay: 0.05s; }
+.particle-star:nth-child(3) { --delay: 0.1s; }
+.particle-star:nth-child(4) { --delay: 0.15s; }
+.particle-star:nth-child(5) { --delay: 0.2s; }
+.particle-star:nth-child(6) { --delay: 0.25s; }
+.particle-star:nth-child(7) { --delay: 0.3s; }
+.particle-star:nth-child(8) { --delay: 0.35s; }
+
+@keyframes particleFly {
+  0% {
+    transform: rotate(var(--angle)) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--angle)) translateY(-80px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .backpack-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .item-card {
+    padding: 16px 12px;
+  }
+  
+  .item-icon {
+    font-size: 32px;
+  }
+}
