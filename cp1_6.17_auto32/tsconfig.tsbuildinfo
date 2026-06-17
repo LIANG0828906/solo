@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/audio-manager/ambientsound.ts","./src/particle-renderer/particlecanvas.tsx","./src/particle-renderer/particleutils.ts","./src/weather-control/weathercontrolpanel.tsx","./src/weather-control/weatherstore.ts"],"version":"5.8.3"}

@@ -1,0 +1,143 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", Helvetica, Arial, sans-serif;
+  color: #FFFFFF;
+}
+
+.app-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  transition: background-color 1s ease;
+}
+
+.sun-container {
+  position: absolute;
+  top: 40px;
+  right: 60px;
+  width: 80px;
+  height: 80px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.sun-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  margin: -40px 0 0 -40px;
+  background-color: #FFD700;
+  border-radius: 50%;
+  box-shadow: 0 0 30px #FFD700;
+}
+
+.sun-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80px;
+  height: 80px;
+  margin: -40px 0 0 -40px;
+  border-radius: 50%;
+  background-color: rgba(255, 215, 0, 0.6);
+  transform: scale(1);
+  animation: sunPulse 4s ease-in-out infinite;
+}
+
+@keyframes sunPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(2);
+    opacity: 0.3;
+  }
+}
+
+.weather-panel {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  height: 60px;
+  padding: 10px 16px;
+  background-color: rgba(44, 44, 44, 0.85);
+  border-radius: 12px;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+
+.weather-btn {
+  width: 90px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  outline: none;
+  letter-spacing: 1px;
+}
+
+.weather-btn:hover {
+  opacity: 0.9;
+}
+
+.weather-btn.btn-press {
+  animation: btnPress 0.15s ease;
+}
+
+@keyframes btnPress {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 600px) {
+  .weather-btn {
+    width: 70px;
+    font-size: 14px;
+  }
+
+  .weather-panel {
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .sun-container {
+    top: 20px;
+    right: 30px;
+    width: 60px;
+    height: 60px;
+  }
+
+  .sun-core, .sun-glow {
+    width: 60px;
+    height: 60px;
+    margin: -30px 0 0 -30px;
+  }
+}
