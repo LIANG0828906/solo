@@ -1,0 +1,42 @@
+.tag-bar {
+  background: #2c3e50;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tag-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.tag-bar__tags {
+  display: flex;
+  gap: 8px;
+}
+
+.tag-bar__tag {
+  padding: 8px 16px;
+  background: #34495e;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.tag-bar__tag:hover {
+  background: #3d566e;
+}
+
+.tag-bar__tag--active {
+  background: #e67e22 !important;
+}
+
+.tag-bar__tag--active:hover {
+  background: #d35400 !important;
+}
