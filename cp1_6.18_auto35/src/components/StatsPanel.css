@@ -1,0 +1,239 @@
+.stats-panel {
+  width: 240px;
+  background: #1E1E2E;
+  border: 1px solid #3A3A5C;
+  border-radius: 16px;
+  padding: 20px 16px;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #3A3A5C;
+}
+
+.header-icon {
+  font-size: 20px;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.stat-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #8888AA;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.weather-block {
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(108, 99, 255, 0.1) 0%, rgba(78, 205, 196, 0.05) 100%);
+  border-radius: 12px;
+  border: 1px solid #3A3A5C;
+}
+
+.weather-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.weather-big-icon {
+  font-size: 36px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.weather-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weather-text .weather-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.weather-text .weather-temp {
+  font-size: 18px;
+  font-weight: 700;
+  color: #6C63FF;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stat-item-box {
+  background: rgba(58, 58, 92, 0.3);
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: center;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.stat-item-box:hover {
+  border-color: #3A3A5C;
+  background: rgba(58, 58, 92, 0.5);
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.stat-value.highlight {
+  color: #FFD93D;
+}
+
+.stat-item-box .stat-label {
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+.health-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(58, 58, 92, 0.2);
+  border-radius: 12px;
+}
+
+.health-section .stat-label {
+  align-self: flex-start;
+}
+
+.health-ring-container {
+  position: relative;
+  width: 60px;
+  height: 60px;
+}
+
+.health-ring {
+  transform: translateZ(0);
+}
+
+.ring-bg {
+  stroke: #3A3A5C;
+}
+
+.ring-progress {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s ease;
+}
+
+.health-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.harvest-all-btn {
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.harvest-all-btn.active {
+  background: linear-gradient(135deg, #FF6B6B 0%, #E74C3C 100%);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+.harvest-all-btn.active:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+}
+
+.harvest-all-btn.active:active {
+  transform: scale(0.98);
+}
+
+.harvest-all-btn.disabled {
+  background: #3A3A5C;
+  color: #8888AA;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  font-size: 18px;
+}
+
+@media (max-width: 1024px) and (min-width: 768px) {
+  .stats-panel {
+    width: 100%;
+    max-width: 520px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .panel-header {
+    width: 100%;
+  }
+
+  .weather-block {
+    width: calc(50% - 8px);
+  }
+
+  .health-section {
+    width: calc(50% - 8px);
+  }
+
+  .stat-grid {
+    width: 100%;
+  }
+
+  .harvest-all-btn {
+    width: 100%;
+  }
+}

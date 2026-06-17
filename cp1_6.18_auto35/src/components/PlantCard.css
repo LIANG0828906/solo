@@ -1,0 +1,249 @@
+.plant-card {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(135deg, #1E1E2E 0%, #252540 100%);
+  border: 1px solid #3A3A5C;
+  border-radius: 12px;
+  padding: 8px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  cursor: default;
+  box-sizing: border-box;
+}
+
+.plant-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(100, 100, 255, 0.3);
+  border-color: #6C63FF;
+}
+
+.plant-card.harvestable {
+  cursor: pointer;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.plant-card.harvestable:hover {
+  border-color: #FFD93D;
+  box-shadow: 0 6px 25px rgba(255, 217, 61, 0.4);
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 217, 61, 0); }
+  50% { box-shadow: 0 0 15px rgba(255, 217, 61, 0.3); }
+}
+
+.health-indicator {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.5s ease;
+}
+
+.plant-visual {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 52px;
+  margin-top: 4px;
+}
+
+.plant-visual svg {
+  overflow: visible;
+}
+
+.plant-grow {
+  animation: grow-in 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: bottom center;
+}
+
+@keyframes grow-in {
+  0% { transform: scaleY(0); opacity: 0; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+
+.plant-sway {
+  transform-origin: bottom right;
+  animation: sway 3s ease-in-out infinite;
+}
+
+@keyframes sway {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(3deg); }
+}
+
+.flower-head {
+  animation: flower-bob 2s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+@keyframes flower-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-1px) rotate(-2deg); }
+  75% { transform: translateY(-1px) rotate(2deg); }
+}
+
+.plant-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  margin-top: 2px;
+}
+
+.plant-stage {
+  font-size: 9px;
+  color: #8888AA;
+  margin-bottom: 2px;
+}
+
+.progress-bar {
+  width: 80px;
+  height: 6px;
+  background: #3A3A5C;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6C63FF 0%, #8B83FF 100%);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.stat-bars {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.stat-bar {
+  flex: 1;
+  height: 4px;
+  background: #3A3A5C;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+.humidity .stat-fill {
+  background: linear-gradient(90deg, #4ECDC4 0%, #7EE8E0 100%);
+}
+
+.nutrients .stat-fill {
+  background: linear-gradient(90deg, #6BCB77 0%, #9FE5A8 100%);
+}
+
+.stat-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 6px;
+  opacity: 0.8;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #6C63FF;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: visible;
+}
+
+.action-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.5);
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+}
+
+.water-btn {
+  background: linear-gradient(135deg, #4ECDC4 0%, #3DB9B1 100%);
+}
+
+.fertilize-btn {
+  background: linear-gradient(135deg, #6BCB77 0%, #5AB868 100%);
+}
+
+.ripple {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: ripple-expand 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.ripple.water {
+  background: rgba(78, 205, 196, 0.6);
+}
+
+.ripple.fertilize {
+  background: rgba(107, 203, 119, 0.6);
+}
+
+@keyframes ripple-expand {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.6;
+  }
+  100% {
+    width: 120px;
+    height: 120px;
+    opacity: 0;
+  }
+}
+
+.harvest-hint {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 8px;
+  color: #FFD93D;
+  background: rgba(255, 217, 61, 0.15);
+  padding: 2px 6px;
+  border-radius: 6px;
+  animation: hint-bounce 1.5s ease-in-out infinite;
+}
+
+@keyframes hint-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
