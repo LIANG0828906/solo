@@ -3,6 +3,15 @@ import type { GameState } from '@/types'
 const CANVAS_W = 800
 const CANVAS_H = 400
 
+const NOISE_DOTS: { x: number; y: number; size: number }[] = []
+for (let i = 0; i < 220; i++) {
+  NOISE_DOTS.push({
+    x: Math.floor(Math.random() * CANVAS_W),
+    y: Math.floor(Math.random() * CANVAS_H),
+    size: Math.random() < 0.75 ? 1 : 2,
+  })
+}
+
 export class LevelRenderer {
   private ctx: CanvasRenderingContext2D
   private canvas: HTMLCanvasElement
@@ -105,16 +114,19 @@ export class LevelRenderer {
 
   private drawBackground(cameraX: number, time: number) {
     const ctx = this.ctx
-    const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H)
-    grad.addColorStop(0, '#2C3E50')
-    grad.addColorStop(1, '#3498DB')
-    ctx.fillStyle = grad
+    ctx.fillStyle = '#E8E8E8'
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H)
+
+    ctx.fillStyle = '#A8A8A8'
+    for (const d of NOISE_DOTS) {
+      const sx = ((d.x - cameraX * 0.15) % CANVAS_W + CANVAS_W) % CANVAS_W
+      ctx.fillRect(sx, d.y, d.size, d.size)
+    }
 
     this.hillOffset = (time * 12) % CANVAS_W
     ctx.save()
-    ctx.globalAlpha = 0.5
-    ctx.fillStyle = '#2C3E50'
+    ctx.globalAlpha = 0.65
+    ctx.fillStyle = '#B0B8BC'
     const hills = [
       { base: 310, amp: 40, freq: 0.006, offset: 0 },
       { base: 330, amp: 30, freq: 0.01, offset: 150 },
@@ -133,22 +145,29 @@ export class LevelRenderer {
     }
     ctx.restore()
 
-    ctx.fillStyle = '#2D2D2D'
+    ctx.fillStyle = '#C8CDD0'
     ctx.fillRect(0, 0, CANVAS_W, 2)
     ctx.fillRect(0, CANVAS_H - 2, CANVAS_W, 2)
   }
 
   private drawPlatform(x: number, y: number, w: number, h: number) {
     const ctx = this.ctx
+    ctx.fillStyle = '#2D5A3D'
+    ctx.fillRect(x + 2, y + 2, w, h)
+    ctx.fillStyle = '#3A6848'
+    ctx.fillRect(x + 1, y + 1, w, h)
     ctx.fillStyle = '#4A7C59'
     ctx.fillRect(x, y, w, h)
-    ctx.strokeStyle = '#000000'
+    ctx.strokeStyle = '#2D5A3D'
     ctx.lineWidth = 1
     ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1)
     ctx.fillStyle = '#3F6B4B'
     for (let i = 0; i < w; i += 12) {
       ctx.fillRect(x + i, y + h - 4, 6, 2)
     }
+    ctx.fillStyle = 'rgba(45, 90, 61, 0.55)'
+    ctx.fillRect(x, y + h, w, 2)
+    ctx.fillRect(x + w, y, 2, h)
   }
 
   private drawSpike(x: number, y: number, w: number, h: number, warnT: number, time: number) {
@@ -193,12 +212,22 @@ export class LevelRenderer {
     ctx.save()
     ctx.globalAlpha = alpha
     ctx.translate(cx, cy)
+
+    const glowR = finalR + 4
+    const glow = ctx.createRadialGradient(0, 0, finalR * 0.5, 0, 0, glowR)
+    glow.addColorStop(0, 'rgba(255, 215, 0, 0.55)')
+    glow.addColorStop(1, 'rgba(255, 215, 0, 0)')
+    ctx.fillStyle = glow
+    ctx.beginPath()
+    ctx.arc(0, 0, glowR, 0, Math.PI * 2)
+    ctx.fill()
+
     ctx.scale(Math.max(0.2, absX), 1)
     ctx.fillStyle = '#FFD700'
     ctx.beginPath()
     ctx.arc(0, 0, finalR, 0, Math.PI * 2)
     ctx.fill()
-    ctx.strokeStyle = '#000000'
+    ctx.strokeStyle = '#B8860B'
     ctx.lineWidth = 1
     ctx.stroke()
     ctx.fillStyle = '#FFEB70'
@@ -220,15 +249,31 @@ export class LevelRenderer {
     const ctx = this.ctx
     ctx.save()
     ctx.globalAlpha = alpha
+    const isDash = color === '#E74C3C'
+    const borderColor = isDash ? '#922B21' : '#1F4E79'
+    const shadowColor = isDash ? 'rgba(146, 43, 33, 0.6)' : 'rgba(31, 78, 121, 0.6)'
+
+    ctx.fillStyle = shadowColor
+    ctx.fillRect(x + 2, y + 2, w, h)
     ctx.fillStyle = color
     ctx.fillRect(x, y, w, h)
+
     if (stroke) {
-      ctx.strokeStyle = '#000000'
+      ctx.strokeStyle = borderColor
       ctx.lineWidth = 1
       ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1)
-      ctx.fillStyle = '#FFFFFF'
+
+      ctx.fillStyle = shadowColor
+      ctx.fillRect(x + w, y, 2, h + 2)
+      ctx.fillRect(x, y + h, w + 2, 2)
+
+      ctx.fillStyle = isDash ? '#FADBD8' : '#FFFFFF'
       ctx.fillRect(x + 5, y + 6, 3, 3)
       ctx.fillRect(x + w - 8, y + 6, 3, 3)
+
+      ctx.fillStyle = borderColor
+      ctx.fillRect(x + 5, y + 8, 3, 1)
+      ctx.fillRect(x + w - 8, y + 8, 3, 1)
     }
     ctx.restore()
   }
