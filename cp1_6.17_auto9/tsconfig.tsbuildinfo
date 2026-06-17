@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/store.ts","./src/types.ts","./src/vite-env.d.ts","./src/modules/camera/cameramodule.tsx","./src/modules/camera/camerautils.ts","./src/modules/texture/texturemodule.tsx","./src/modules/texture/textureengine.ts"],"version":"5.8.3"}
