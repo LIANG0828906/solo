@@ -77,14 +77,6 @@ const useStore = create<AppState & AppActions>((set, get) => ({
       loading: false,
       newEntryIds: newIds
     });
-    result.entries.forEach(entry => {
-      setTimeout(() => {
-        const { newEntryIds: current } = get();
-        const next = new Set(current);
-        next.delete(entry.id);
-        set({ newEntryIds: next });
-      }, 500);
-    });
   },
 
   toggleTag: async (tag: string) => {
@@ -357,14 +349,14 @@ const styles: Record<string, React.CSSProperties> = {
   actions: {
     display: 'flex',
     alignItems: 'center',
-    gap: 24,
+    gap: 12,
     paddingTop: 12,
     borderTop: '1px solid #2D2D4A'
   },
   actionBtn: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     background: 'none',
     border: 'none',
     cursor: 'pointer',
@@ -724,8 +716,8 @@ const DiaryCard: React.FC<{ entry: DiaryEntry; isNew?: boolean }> = ({ entry, is
     }
   };
 
-  const handleAnimationEnd = () => {
-    if (isNew) {
+  const handleAnimationEnd = (e: React.AnimationEvent) => {
+    if (isNew && e.animationName === 'cardSlideIn') {
       clearNewEntry(entry.id);
     }
   };
