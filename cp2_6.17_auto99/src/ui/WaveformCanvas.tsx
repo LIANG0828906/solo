@@ -37,6 +37,21 @@ export function WaveformCanvas({
   const [isDrawing, setIsDrawing] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const animationFrameRef = useRef<number | null>(null);
+  const waveformPointsRef = useRef(waveformPoints);
+  const playbackProgressRef = useRef(playbackProgress);
+  const isPlayingRef = useRef(isPlaying);
+
+  useEffect(() => {
+    waveformPointsRef.current = waveformPoints;
+  }, [waveformPoints]);
+
+  useEffect(() => {
+    playbackProgressRef.current = playbackProgress;
+  }, [playbackProgress]);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
     const updateSize = () => {
@@ -68,7 +83,8 @@ export function WaveformCanvas({
 
     ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
 
-    if (waveformPoints.length > 1) {
+    const points = waveformPointsRef.current;
+    if (points.length > 1) {
       ctx.save();
 
       if (showGlow) {
@@ -82,11 +98,11 @@ export function WaveformCanvas({
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
-      const firstPoint = waveformPoints[0];
+      const firstPoint = points[0];
       ctx.moveTo(firstPoint.x * canvasSize.width, firstPoint.y * canvasSize.height);
 
-      for (let i = 1; i < waveformPoints.length; i++) {
-        const point = waveformPoints[i];
+      for (let i = 1; i < points.length; i++) {
+        const point = points[i];
         ctx.lineTo(point.x * canvasSize.width, point.y * canvasSize.height);
       }
 
@@ -94,8 +110,8 @@ export function WaveformCanvas({
       ctx.restore();
     }
 
-    if (showPlayhead && isPlaying) {
-      const playheadX = playbackProgress * canvasSize.width;
+    if (showPlayhead && isPlayingRef.current) {
+      const playheadX = playbackProgressRef.current * canvasSize.width;
       const centerY = canvasSize.height / 2;
       const playheadHeight = 100;
 
@@ -107,13 +123,16 @@ export function WaveformCanvas({
       ctx.restore();
     }
 
-    if (isPlaying) {
+    if (isPlayingRef.current) {
       animationFrameRef.current = requestAnimationFrame(draw);
     }
-  }, [waveformPoints, playbackProgress, isPlaying, canvasSize, strokeColor, strokeWidth, showGlow, showPlayhead]);
+  }, [canvasSize, strokeColor, strokeWidth, showGlow, showPlayhead]);
 
   useEffect(() => {
     if (isPlaying) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
       animationFrameRef.current = requestAnimationFrame(draw);
     } else {
       draw();
@@ -122,9 +141,10 @@ export function WaveformCanvas({
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
-  }, [draw, isPlaying]);
+  }, [draw, isPlaying, canvasSize.width, canvasSize.height]);
 
   const getNormalizedPoint = useCallback(
     (clientX: number, clientY: number): WaveformPoint | null => {

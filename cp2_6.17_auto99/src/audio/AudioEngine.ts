@@ -29,6 +29,7 @@ export class AudioEngine {
   private onIsPlayingChange: ((isPlaying: boolean) => void) | null = null;
   private animationFrameId: number | null = null;
   private startTime: number = 0;
+  private progressAtBpmChange: number = 0;
   private isPlaying: boolean = false;
   private beatDuration: number = 0;
 
@@ -40,17 +41,18 @@ export class AudioEngine {
   public async init(): Promise<void> {
     if (this.audioContext) return;
 
-    this.audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    this.audioContext = new (window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     this.waveformAnalyzer = new WaveformAnalyzer(this.audioContext);
 
     this.masterGainNode = this.audioContext.createGain();
     this.masterGainNode.gain.value = this.state.volume / 100;
 
     this.dryGainNode = this.audioContext.createGain();
-    this.dryGainNode.gain.value = 1;
+    this.dryGainNode.gain.value = 1.0;
 
     this.reverbGainNode = this.audioContext.createGain();
-    this.reverbGainNode.gain.value = this.state.reverbEnabled ? 0.3 : 0;
+    this.reverbGainNode.gain.value = this.state.reverbEnabled ? 0.6 : 0;
 
     this.reverbNode = this.audioContext.createConvolver();
     this.reverbNode.buffer = this.createReverbImpulseResponse();
@@ -68,14 +70,11 @@ export class AudioEngine {
   }
 
   private createTrackAudioState(trackId: string): void {
-    if (!this.audioContext) return;
+    if (!this.audioContext || !this.dryGainNode) return;
 
     const gainNode = this.audioContext.createGain();
     gainNode.gain.value = 1;
-
-    if (this.dryGainNode) {
-      gainNode.connect(this.dryGainNode);
-    }
+    gainNode.connect(this.dryGainNode);
 
     this.trackAudioStates.set(trackId, {
       trackId,
@@ -91,16 +90,24 @@ export class AudioEngine {
     }
 
     const sampleRate = this.audioContext.sampleRate;
-    const duration = 2;
-    const numSamples = sampleRate * duration;
+    const duration = 2.5;
+    const numSamples = Math.floor(sampleRate * duration);
     const impulseResponse = this.audioContext.createBuffer(2, numSamples, sampleRate);
 
     for (let channel = 0; channel < 2; channel++) {
       const channelData = impulseResponse.getChannelData(channel);
-      for (let i = 0; i < numSamples; i++) {
-        const t = i / numSamples;
-        const decay = Math.pow(1 - t, 2);
-        channelData[i] = (Math.random() * 2 - 1) * decay * 0.5;
+      const delay = channel === 0 ? 0 : Math.floor(sampleRate * 0.015);
+
+      for (let i = 0; i < delay && i < numSamples; i++) {
+        channelData[i] = 0;
+      }
+
+      for (let i = delay; i < numSamples; i++) {
+        const t = (i - delay) / (numSamples - delay);
+        const earlyReflections = Math.exp(-t * 8) * 0.6;
+        const lateReverb = Math.exp(-t * 2.5) * 0.4;
+        const noise = (Math.random() * 2 - 1);
+        channelData[i] = noise * (earlyReflections + lateReverb);
       }
     }
 
@@ -116,28 +123,47 @@ export class AudioEngine {
   }
 
   public updateState(newState: Partial<AudioEngineState>): void {
+    const oldBpm = this.state.bpm;
+    const oldTimbre = this.state.timbre;
+    const wasPlaying = this.isPlaying;
+    const currentProgress = this.getCurrentProgress();
+
     this.state = { ...this.state, ...newState };
 
-    if (newState.volume !== undefined && this.masterGainNode) {
-      this.masterGainNode.gain.setValueAtTime(
-        newState.volume / 100,
-        this.audioContext?.currentTime || 0
-      );
+    if (newState.volume !== undefined && this.masterGainNode && this.audioContext) {
+      this.masterGainNode.gain.setValueAtTime(newState.volume / 100, this.audioContext.currentTime);
     }
 
-    if (newState.reverbEnabled !== undefined && this.reverbGainNode) {
+    if (newState.reverbEnabled !== undefined && this.reverbGainNode && this.audioContext) {
       this.reverbGainNode.gain.setValueAtTime(
-        newState.reverbEnabled ? 0.3 : 0,
-        this.audioContext?.currentTime || 0
+        newState.reverbEnabled ? 0.6 : 0,
+        this.audioContext.currentTime
       );
     }
 
-    if (newState.bpm !== undefined) {
+    if (newState.bpm !== undefined && newState.bpm !== oldBpm) {
       this.beatDuration = 60 / newState.bpm;
+      this.progressAtBpmChange = currentProgress;
+      if (this.audioContext) {
+        this.startTime = this.audioContext.currentTime;
+      }
+      if (wasPlaying) {
+        this.stopAllTracks();
+        this.regenerateAllTrackBuffers();
+        this.scheduleAllTracks(currentProgress);
+      } else {
+        this.regenerateAllTrackBuffers();
+      }
     }
 
-    if (newState.timbre !== undefined) {
-      this.regenerateAllTrackBuffers();
+    if (newState.timbre !== undefined && newState.timbre !== oldTimbre) {
+      if (wasPlaying) {
+        this.stopAllTracks();
+        this.regenerateAllTrackBuffers();
+        this.scheduleAllTracks(currentProgress);
+      } else {
+        this.regenerateAllTrackBuffers();
+      }
     }
 
     if (newState.tracks !== undefined) {
@@ -146,10 +172,10 @@ export class AudioEngine {
           this.createTrackAudioState(track.id);
         }
         const trackState = this.trackAudioStates.get(track.id);
-        if (trackState) {
+        if (trackState && this.audioContext) {
           trackState.gainNode.gain.setValueAtTime(
             track.muted ? 0 : 1,
-            this.audioContext?.currentTime || 0
+            this.audioContext.currentTime
           );
         }
       });
@@ -163,25 +189,43 @@ export class AudioEngine {
     }
   }
 
+  private getCurrentProgress(): number {
+    if (!this.audioContext || !this.isPlaying) {
+      return this.progressAtBpmChange;
+    }
+    const elapsed = this.audioContext.currentTime - this.startTime;
+    const loopDuration = this.beatDuration * 4;
+    return (this.progressAtBpmChange + elapsed / loopDuration) % 1;
+  }
+
   private regenerateAllTrackBuffers(): void {
     this.state.tracks.forEach((track) => {
       if (track.waveformPoints.length > 0) {
-        this.updateTrackBuffer(track.id, track.waveformPoints);
+        this.updateTrackBuffer(track.id, track.waveformPoints, false);
       }
     });
   }
 
-  public updateTrackBuffer(trackId: string, waveformPoints: WaveformPoint[]): void {
+  public updateTrackBuffer(
+    trackId: string,
+    waveformPoints: WaveformPoint[],
+    reschedule: boolean = true
+  ): void {
     if (!this.waveformAnalyzer || !this.audioContext) return;
 
     const trackState = this.trackAudioStates.get(trackId);
     if (!trackState) return;
 
-    const audioBuffer = this.waveformAnalyzer.analyze(waveformPoints, this.beatDuration * 4);
+    const loopDuration = this.beatDuration * 4;
+    const audioBuffer = this.waveformAnalyzer.analyze(
+      waveformPoints,
+      loopDuration,
+      this.state.timbre
+    );
     trackState.audioBuffer = audioBuffer;
 
-    if (this.isPlaying) {
-      this.scheduleTrackPlayback(trackId);
+    if (this.isPlaying && reschedule) {
+      this.scheduleTrackPlayback(trackId, this.getCurrentProgress());
     }
   }
 
@@ -196,13 +240,31 @@ export class AudioEngine {
     const trackState = this.trackAudioStates.get(trackId);
     if (trackState) {
       if (trackState.bufferSource) {
-        trackState.bufferSource.stop();
+        try {
+          trackState.bufferSource.stop();
+        } catch (e) {
+          // noop
+        }
         trackState.bufferSource.disconnect();
       }
       trackState.gainNode.disconnect();
       this.trackAudioStates.delete(trackId);
     }
     this.state.tracks = this.state.tracks.filter((t) => t.id !== trackId);
+  }
+
+  private stopAllTracks(): void {
+    this.trackAudioStates.forEach((trackState) => {
+      if (trackState.bufferSource) {
+        try {
+          trackState.bufferSource.stop();
+        } catch (e) {
+          // noop
+        }
+        trackState.bufferSource.disconnect();
+        trackState.bufferSource = null;
+      }
+    });
   }
 
   public async startPlayback(): Promise<void> {
@@ -216,21 +278,32 @@ export class AudioEngine {
 
     if (this.isPlaying) return;
 
-    this.isPlaying = true;
-    this.startTime = this.audioContext?.currentTime || 0;
-    this.onIsPlayingChange?.(true);
-
     this.state.tracks.forEach((track) => {
       if (track.waveformPoints.length > 0) {
-        this.updateTrackBuffer(track.id, track.waveformPoints);
+        this.updateTrackBuffer(track.id, track.waveformPoints, false);
       }
-      this.scheduleTrackPlayback(track.id);
     });
 
+    this.isPlaying = true;
+    this.progressAtBpmChange = 0;
+    if (this.audioContext) {
+      this.startTime = this.audioContext.currentTime;
+    }
+    this.onIsPlayingChange?.(true);
+
+    this.scheduleAllTracks(0);
     this.startProgressUpdate();
   }
 
-  private scheduleTrackPlayback(trackId: string): void {
+  private scheduleAllTracks(progress: number): void {
+    this.state.tracks.forEach((track) => {
+      if (track.waveformPoints.length > 0) {
+        this.scheduleTrackPlayback(track.id, progress);
+      }
+    });
+  }
+
+  private scheduleTrackPlayback(trackId: string, startProgress: number): void {
     if (!this.audioContext || !this.isPlaying) return;
 
     const trackState = this.trackAudioStates.get(trackId);
@@ -240,7 +313,7 @@ export class AudioEngine {
       try {
         trackState.bufferSource.stop();
       } catch (e) {
-        // Ignore if already stopped
+        // noop
       }
       trackState.bufferSource.disconnect();
     }
@@ -248,41 +321,24 @@ export class AudioEngine {
     const bufferSource = this.audioContext.createBufferSource();
     bufferSource.buffer = trackState.audioBuffer;
     bufferSource.loop = true;
-    bufferSource.loopStart = 0;
-    bufferSource.loopEnd = this.beatDuration * 4;
 
-    if (this.state.timbre === 'square' || this.state.timbre === 'sawtooth') {
-      const oscillator = this.audioContext.createOscillator();
-      oscillator.type = this.state.timbre;
-      const oscillatorGain = this.audioContext.createGain();
-      oscillatorGain.gain.value = 0.3;
-      oscillator.connect(oscillatorGain);
-      oscillatorGain.connect(trackState.gainNode);
-      oscillator.frequency.value = 220;
-      oscillator.start();
-    }
+    const loopDuration = this.beatDuration * 4;
+    bufferSource.loopStart = 0;
+    bufferSource.loopEnd = loopDuration;
 
     bufferSource.connect(trackState.gainNode);
 
-    const currentTime = this.audioContext.currentTime;
-    const elapsed = currentTime - this.startTime;
-    const loopDuration = this.beatDuration * 4;
-    const offset = elapsed % loopDuration;
-
-    bufferSource.start(currentTime, offset);
+    const offset = startProgress * loopDuration;
+    bufferSource.start(this.audioContext.currentTime, offset);
 
     trackState.bufferSource = bufferSource;
   }
 
   private startProgressUpdate(): void {
     const updateProgress = () => {
-      if (!this.isPlaying || !this.audioContext) return;
+      if (!this.isPlaying) return;
 
-      const currentTime = this.audioContext.currentTime;
-      const elapsed = currentTime - this.startTime;
-      const loopDuration = this.beatDuration * 4;
-      const progress = (elapsed % loopDuration) / loopDuration;
-
+      const progress = this.getCurrentProgress();
       this.onPlaybackProgress?.(progress);
 
       this.animationFrameId = requestAnimationFrame(updateProgress);
@@ -300,18 +356,8 @@ export class AudioEngine {
       this.animationFrameId = null;
     }
 
-    this.trackAudioStates.forEach((trackState) => {
-      if (trackState.bufferSource) {
-        try {
-          trackState.bufferSource.stop();
-        } catch (e) {
-          // Ignore if already stopped
-        }
-        trackState.bufferSource.disconnect();
-        trackState.bufferSource = null;
-      }
-    });
-
+    this.stopAllTracks();
+    this.progressAtBpmChange = 0;
     this.onPlaybackProgress?.(0);
   }
 

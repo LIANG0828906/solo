@@ -66,7 +66,14 @@ export function MixerPanel() {
       dragStartIndexRef.current = index;
       setDraggingTrackId(tracks[index].id);
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', index.toString());
+      e.dataTransfer.setData('text/plain', String(index));
+      try {
+        if (e.dataTransfer.setDragImage && e.currentTarget) {
+          e.dataTransfer.setDragImage(e.currentTarget, 20, 20);
+        }
+      } catch {
+        // noop
+      }
     },
     [tracks, setDraggingTrackId]
   );
@@ -75,9 +82,11 @@ export function MixerPanel() {
     (e: React.DragEvent<HTMLDivElement>, index: number) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      setDragOverIndex(index);
+      if (dragOverIndex !== index) {
+        setDragOverIndex(index);
+      }
     },
-    []
+    [dragOverIndex]
   );
 
   const handleDragLeave = useCallback(() => {
@@ -87,9 +96,18 @@ export function MixerPanel() {
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>, toIndex: number) => {
       e.preventDefault();
-      const fromIndex = dragStartIndexRef.current;
+      e.stopPropagation();
 
-      if (fromIndex !== null && fromIndex !== toIndex) {
+      let fromIndex = dragStartIndexRef.current;
+      if (fromIndex === null) {
+        const raw = e.dataTransfer.getData('text/plain');
+        if (raw) {
+          const parsed = parseInt(raw, 10);
+          if (!isNaN(parsed)) fromIndex = parsed;
+        }
+      }
+
+      if (fromIndex !== null && fromIndex !== toIndex && fromIndex >= 0 && toIndex >= 0) {
         reorderTracks(fromIndex, toIndex);
       }
 
@@ -107,7 +125,7 @@ export function MixerPanel() {
   }, [setDraggingTrackId]);
 
   return (
-    <div className="mixer-panel">
+    <div className="mixer-panel" onDragOver={(e) => e.preventDefault()}>
       {tracks.map((track, index) => (
         <div
           key={track.id}
@@ -119,10 +137,12 @@ export function MixerPanel() {
           onDrop={(e) => handleDrop(e, index)}
           onDragEnd={handleDragEnd}
           style={{
-            transform: dragOverIndex === index && draggingTrackId !== track.id ? 'translateY(4px)' : 'none',
+            transform:
+              dragOverIndex === index && draggingTrackId !== track.id ? 'translateY(4px)' : 'none',
+            transition: 'transform 0.15s ease, opacity 0.15s ease',
           }}
         >
-          <div className="drag-handle">
+          <div className="drag-handle" title="Drag to reorder">
             <span />
             <span />
             <span />
@@ -130,16 +150,15 @@ export function MixerPanel() {
           <span className="track-number">{index + 1}</span>
           <button
             className={`mute-btn ${track.muted ? 'muted' : ''}`}
-            onClick={() => toggleMute(track.id)}
-            aria-label={track.muted ? 'Unmute' : 'Mute'}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleMute(track.id);
+            }}
+            aria-label={track.muted ? 'Unmute track' : 'Mute track'}
           >
             {track.muted ? 'M' : ''}
           </button>
-          <TrackMiniCanvas
-            waveformPoints={track.waveformPoints}
-            width={200}
-            height={40}
-          />
+          <TrackMiniCanvas waveformPoints={track.waveformPoints} width={200} height={40} />
         </div>
       ))}
     </div>

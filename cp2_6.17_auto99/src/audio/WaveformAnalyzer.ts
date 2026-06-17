@@ -1,4 +1,7 @@
-import type { WaveformPoint } from '../store';
+import type { WaveformPoint, OscillatorType } from '../store';
+
+const MIN_FREQ = 130.81;
+const MAX_FREQ = 1046.50;
 
 export class WaveformAnalyzer {
   private audioContext: AudioContext;
@@ -7,7 +10,11 @@ export class WaveformAnalyzer {
     this.audioContext = audioContext;
   }
 
-  public analyze(waveformPoints: WaveformPoint[], duration: number = 1): AudioBuffer {
+  public analyze(
+    waveformPoints: WaveformPoint[],
+    duration: number = 1,
+    timbre: OscillatorType = 'sine'
+  ): AudioBuffer {
     const sampleRate = this.audioContext.sampleRate;
     const numSamples = Math.floor(sampleRate * duration);
     const audioBuffer = this.audioContext.createBuffer(1, numSamples, sampleRate);
@@ -21,23 +28,49 @@ export class WaveformAnalyzer {
     }
 
     const sortedPoints = [...waveformPoints].sort((a, b) => a.x - b.x);
-
     const minX = sortedPoints[0].x;
     const maxX = sortedPoints[sortedPoints.length - 1].x;
     const xRange = maxX - minX || 1;
 
+    let phase = 0;
+
     for (let i = 0; i < numSamples; i++) {
       const t = i / numSamples;
       const x = minX + t * xRange;
+      const normalizedY = this.linearInterpolate(sortedPoints, x);
+      const freq = MIN_FREQ + (normalizedY * 0.5 + 0.5) * (MAX_FREQ - MIN_FREQ);
 
-      let sampleValue = this.linearInterpolate(sortedPoints, x);
+      const deltaPhase = (2 * Math.PI * freq) / sampleRate;
+      phase += deltaPhase;
+      if (phase > 2 * Math.PI) {
+        phase -= 2 * Math.PI;
+      }
 
-      sampleValue = Math.max(-1, Math.min(1, sampleValue));
+      let sampleValue = 0;
+      switch (timbre) {
+        case 'sine':
+          sampleValue = Math.sin(phase);
+          break;
+        case 'square':
+          sampleValue = Math.sin(phase) >= 0 ? 0.8 : -0.8;
+          break;
+        case 'sawtooth':
+          sampleValue = 0.8 * (2 * (phase / (2 * Math.PI) - Math.floor(phase / (2 * Math.PI) + 0.5)));
+          break;
+      }
 
       channelData[i] = sampleValue;
     }
 
-    this.applyEnvelope(channelData, sampleRate);
+    this.applyEnvelope(channelData);
+
+    const peak = this.findPeak(channelData);
+    if (peak > 0) {
+      const scale = 0.8 / peak;
+      for (let i = 0; i < numSamples; i++) {
+        channelData[i] *= scale;
+      }
+    }
 
     return audioBuffer;
   }
@@ -63,20 +96,23 @@ export class WaveformAnalyzer {
     return y * 2 - 1;
   }
 
-  private applyEnvelope(channelData: Float32Array, sampleRate: number): void {
-    const attackTime = 0.01;
-    const releaseTime = 0.01;
-    const attackSamples = Math.floor(attackTime * sampleRate);
-    const releaseSamples = Math.floor(releaseTime * sampleRate);
+  private applyEnvelope(channelData: Float32Array): void {
     const totalSamples = channelData.length;
+    const fadeSamples = Math.min(Math.floor(totalSamples * 0.02), 512);
 
-    for (let i = 0; i < attackSamples && i < totalSamples; i++) {
-      channelData[i] *= i / attackSamples;
+    for (let i = 0; i < fadeSamples; i++) {
+      const gain = i / fadeSamples;
+      channelData[i] *= gain;
+      channelData[totalSamples - 1 - i] *= gain;
     }
+  }
 
-    for (let i = 0; i < releaseSamples && i < totalSamples; i++) {
-      const index = totalSamples - 1 - i;
-      channelData[index] *= i / releaseSamples;
+  private findPeak(channelData: Float32Array): number {
+    let peak = 0;
+    for (let i = 0; i < channelData.length; i++) {
+      const abs = Math.abs(channelData[i]);
+      if (abs > peak) peak = abs;
     }
+    return peak;
   }
 }
