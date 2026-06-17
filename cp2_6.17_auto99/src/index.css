@@ -194,6 +194,24 @@ body {
   flex-direction: column;
   gap: 10px;
   overflow-x: auto;
+  position: relative;
+}
+
+.mixer-drag-hint {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #FF6B6B;
+  font-size: 12px;
+  font-family: monospace;
+  z-index: 10;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+.mixer-drag-hint.hidden {
+  opacity: 0;
 }
 
 .track {
@@ -204,16 +222,51 @@ body {
   background-color: #1A1A2E;
   border-radius: 6px;
   padding: 0 12px;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease;
   cursor: grab;
+  position: relative;
 }
 
 .track:active {
   cursor: grabbing;
 }
 
-.track.dragging {
-  opacity: 0.5;
+.track.dragging-source {
+  opacity: 0.6;
+}
+
+.track.drag-over-before {
+  transform: translateY(4px);
+}
+
+.track.drag-over-after {
+  transform: translateY(-4px);
+}
+
+.drop-placeholder {
+  height: 50px;
+  border: 2px dashed #00D4AA;
+  border-radius: 6px;
+  background-color: rgba(0, 212, 170, 0.1);
+  transition: all 0.2s ease;
+}
+
+.drag-floating-layer {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.9;
+  background-color: #1A1A2E;
+  border: 1px solid #00D4AA;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  height: 50px;
+  transform: translate(-50%, -50%);
+  transition: left 0.05s linear, top 0.05s linear;
 }
 
 .track-number {
