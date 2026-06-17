@@ -216,23 +216,65 @@ textarea {
 .note-card {
   position: absolute;
   width: 160px;
-  height: 160px;
+  min-height: 160px;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   cursor: grab;
-  padding: 12px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.2s ease;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease,
+    outline-color 0.3s ease,
+    outline-width 0.3s ease,
+    outline-offset 0.3s ease;
   will-change: transform;
   touch-action: none;
+  overflow: hidden;
+  outline: 2px solid transparent;
+  outline-offset: 0;
+}
+
+.note-card.selected {
+  outline: 2px solid #6C63FF;
+  outline-offset: 2px;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 0 4px rgba(108, 99, 255, 0.15),
+    0 0 24px rgba(108, 99, 255, 0.25);
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease,
+    outline-color 0.3s ease,
+    outline-width 0.3s ease,
+    outline-offset 0.3s ease;
 }
 
 .note-card.dragging {
   cursor: grabbing;
   z-index: 9999 !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.45),
+    0 0 0 4px rgba(108, 99, 255, 0.2),
+    0 0 32px rgba(108, 99, 255, 0.35);
   pointer-events: auto;
+  outline: 2px solid #6C63FF;
+  outline-offset: 2px;
+  transition: box-shadow 0.2s ease, outline-color 0.2s ease;
+}
+
+.note-card.dropping {
+  animation: note-drop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes note-drop {
+  0% {
+    transform: translate3d(var(--drop-x, 0), var(--drop-y, 0), 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(var(--drop-x, 0), var(--drop-y, 0), 0) scale(1);
+  }
 }
 
 .note-card.placing {
@@ -240,13 +282,65 @@ textarea {
 }
 
 @keyframes note-place {
-  0% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0% { transform: scale(1.05); opacity: 0.8; }
+  60% { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .note-card.fading {
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  opacity: 0 !important;
+  transition: opacity 0.3s ease !important;
+  pointer-events: none;
+}
+
+.note-drag-handle {
+  height: 24px;
+  min-height: 24px;
+  background: rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+}
+
+.note-card.dragging .note-drag-handle,
+.note-drag-handle:active {
+  cursor: grabbing;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.note-drag-handle-dots {
+  display: grid;
+  grid-template-columns: repeat(3, 4px);
+  grid-template-rows: repeat(2, 4px);
+  gap: 2px;
+  opacity: 0.45;
+}
+
+.note-drag-handle-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.note-card:hover .note-drag-handle-dots {
+  opacity: 0.7;
+}
+
+.note-content-wrapper {
+  flex: 1;
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
 }
 
 .note-textarea {
@@ -265,21 +359,22 @@ textarea {
 }
 
 .note-card.editing .note-textarea {
-  border-color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.8);
   cursor: text;
 }
 
 .connection-dot {
   position: absolute;
-  right: -6px;
-  bottom: -6px;
+  right: -18px;
+  bottom: -20px;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.6);
   cursor: crosshair;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
   z-index: 10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .connection-dot:hover {

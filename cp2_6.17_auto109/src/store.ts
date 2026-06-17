@@ -28,6 +28,7 @@ interface BoardState {
   present: Note[]
   future: Note[][]
   maxZIndex: number
+  selectedNoteId: string | null
 
   canUndo: boolean
   canRedo: boolean
@@ -40,6 +41,7 @@ interface BoardState {
   editNote: (id: string, text: string) => void
   deleteNote: (id: string) => void
   bringToFront: (id: string) => void
+  selectNote: (id: string | null) => void
   connectNotes: (id1: string, id2: string) => void
   disconnectNotes: (id1: string, id2: string) => void
   clearAll: () => void
@@ -69,6 +71,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   present: [],
   future: [],
   maxZIndex: 0,
+  selectedNoteId: null,
 
   get canUndo() {
     return get().past.length > 0
@@ -149,6 +152,10 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         n.id === id ? { ...n, zIndex: newMaxZ } : n
       ),
     }))
+  },
+
+  selectNote(id: string | null) {
+    set({ selectedNoteId: id })
   },
 
   connectNotes(id1: string, id2: string) {

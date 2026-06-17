@@ -11,6 +11,7 @@ export const Canvas: React.FC = () => {
   const addNote = useBoardStore(s => s.addNote)
   const connectNotes = useBoardStore(s => s.connectNotes)
   const disconnectNotes = useBoardStore(s => s.disconnectNotes)
+  const selectNote = useBoardStore(s => s.selectNote)
 
   const [sidebarDragging, setSidebarDragging] = useState<{ color: NoteColor; x: number; y: number } | null>(null)
   const [connectionState, setConnectionState] = useState<{ fromId: string; from: ConnectionPoint; to: ConnectionPoint } | null>(null)
@@ -63,15 +64,16 @@ export const Canvas: React.FC = () => {
   }, [])
 
   const getNoteEdgePoint = useCallback((note: Note, targetX: number, targetY: number): ConnectionPoint => {
+    const effectiveH = note.h + 24
     const cx = note.x + note.w / 2
-    const cy = note.y + note.h / 2
+    const cy = note.y + effectiveH / 2
     const dx = targetX - cx
     const dy = targetY - cy
 
     if (dx === 0 && dy === 0) return { x: cx, y: cy }
 
     const hw = note.w / 2
-    const hh = note.h / 2
+    const hh = effectiveH / 2
     const scale = Math.min(hw / Math.abs(dx || 0.0001), hh / Math.abs(dy || 0.0001))
 
     return { x: cx + dx * scale, y: cy + dy * scale }
@@ -134,11 +136,17 @@ export const Canvas: React.FC = () => {
     const fromNote = notes.find(n => n.id === state.fromId)
     if (!fromNote) return
 
-    const target = notes.find(n =>
-      n.id !== state.fromId &&
-      pt.x >= n.x && pt.x <= n.x + n.w &&
-      pt.y >= n.y && pt.y <= n.y + n.h
-    )
+    const effectiveH = fromNote.h + 24
+    const backToFrom =
+      pt.x >= fromNote.x && pt.x <= fromNote.x + fromNote.w &&
+      pt.y >= fromNote.y && pt.y <= fromNote.y + effectiveH
+
+    const target = notes.find(n => {
+      if (n.id === state.fromId) return false
+      const nH = n.h + 24
+      return pt.x >= n.x && pt.x <= n.x + n.w &&
+             pt.y >= n.y && pt.y <= n.y + nH
+    })
 
     if (target) {
       if (fromNote.connections.includes(target.id)) {
@@ -146,12 +154,10 @@ export const Canvas: React.FC = () => {
       } else {
         connectNotes(fromNote.id, target.id)
       }
-    } else {
-      const backToFrom =
-        pt.x >= fromNote.x && pt.x <= fromNote.x + fromNote.w &&
-        pt.y >= fromNote.y && pt.y <= fromNote.y + fromNote.h
-      if (backToFrom) {
-        return
+    } else if (backToFrom) {
+      if (fromNote.connections.length > 0) {
+        const lastConnectedId = fromNote.connections[fromNote.connections.length - 1]
+        disconnectNotes(fromNote.id, lastConnectedId)
       }
     }
   }, [connectionState, notes, getCanvasPoint, connectNotes, disconnectNotes])
@@ -207,7 +213,14 @@ export const Canvas: React.FC = () => {
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
     if (e.target !== e.currentTarget) return
-  }, [])
+    selectNote(null)
+  }, [selectNote])
+
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === 'svg' || (e.target as HTMLElement).classList.contains('canvas')) {
+      selectNote(null)
+    }
+  }, [selectNote])
 
   return (
     <div className="canvas-wrapper">
@@ -215,6 +228,7 @@ export const Canvas: React.FC = () => {
         ref={canvasRef}
         className="canvas"
         onClick={handleCanvasClick}
+        onMouseDown={handleCanvasMouseDown}
       >
         <svg className="connections-svg">
           <defs>
