@@ -1,0 +1,137 @@
+:root {
+  --color-primary: #6C63FF;
+  --color-primary-hover: #7B73FF;
+  --color-bg: #FAFAFA;
+  --color-toolbar-bg: #FFFFFF;
+  --color-toolbar-shadow: #E0E0E0;
+  --color-text-primary: #333333;
+  --color-text-secondary: #444444;
+  --color-text-tertiary: #666666;
+  --color-border: #DDDDDD;
+  --color-border-light: #E8E8E8;
+  --color-danger: #FF5252;
+  --color-danger-hover: #FF1744;
+  
+  --tag-creative-bg: #FFE2E2;
+  --tag-creative-text: #C62828;
+  --tag-work-bg: #E2F0FF;
+  --tag-work-text: #1565C0;
+  --tag-study-bg: #FFF3E0;
+  --tag-study-text: #E65100;
+  --tag-life-bg: #E8F5E9;
+  --tag-life-text: #2E7D32;
+  
+  --card-width: 220px;
+  --card-min-height: 120px;
+  --card-radius: 6px;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.12);
+  
+  --toolbar-height: 56px;
+  --modal-radius: 16px;
+  --modal-width: 400px;
+  
+  --transition-fast: 0.15s ease-out;
+  --transition-normal: 0.2s ease-out;
+  --transition-slow: 0.3s ease-out;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  user-select: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+}
+
+input, textarea {
+  font-family: inherit;
+  outline: none;
+}
+
+@keyframes cardPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  70% {
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes borderPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(108, 99, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(108, 99, 255, 0);
+  }
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.card-pop-in {
+  animation: cardPopIn 0.3s ease-out forwards;
+  transform-origin: center center;
+}
+
+.card-highlight {
+  border: 2px solid var(--color-primary) !important;
+  animation: borderPulse 0.5s ease-out 2;
+}
+
+.card-dimmed {
+  opacity: 0.2 !important;
+  pointer-events: none !important;
+}
+
+.modal-enter {
+  animation: modalFadeIn 0.25s ease-out forwards;
+}
+
+.backdrop-enter {
+  animation: backdropFadeIn 0.2s ease-out forwards;
+}
