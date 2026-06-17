@@ -1,9 +1,8 @@
 import { GUI } from 'dat.gui';
 import type { CelestialBody, PhysicsParams } from '../utils/types';
-import { EventBus } from '../utils/eventBus';
+import { EventBus } from '../core/bus';
 
 interface PanelParams extends PhysicsParams {
-  selectedBody: string;
   selectedName: string;
   selectedMass: number;
   selectedOrbit: number;
@@ -13,24 +12,22 @@ export class ControlPanel {
   private gui: GUI;
   private bus: EventBus;
   private params: PanelParams;
-  private bodies: CelestialBody[];
+  private cachedBodies: Map<string, CelestialBody>;
   private mobileToggle: HTMLButtonElement | null;
 
   constructor(bus: EventBus, initialParams: PhysicsParams) {
     this.bus = bus;
-    this.bodies = [];
+    this.cachedBodies = new Map();
     this.mobileToggle = null;
     this.params = {
       gravitationalConstant: initialParams.gravitationalConstant,
       starMass: initialParams.starMass,
-      selectedBody: '—',
       selectedName: '—',
       selectedMass: 0,
       selectedOrbit: 0
     };
 
     this.gui = new GUI({ width: 280 });
-    (this.gui as GUI & { title?: string }).title = '参数控制';
     this.setupGUI();
     this.setupMobileToggle();
     this.subscribeEvents();
@@ -58,8 +55,14 @@ export class ControlPanel {
     infoFolder.open();
 
     infoFolder.add(this.params, 'selectedName').name('名称').listen();
-    (infoFolder.add(this.params, 'selectedMass').name('质量').listen() as unknown as { decimals: (n: number) => void }).decimals(3);
-    (infoFolder.add(this.params, 'selectedOrbit').name('轨道半径').listen() as unknown as { decimals: (n: number) => void }).decimals(2);
+    (infoFolder
+      .add(this.params, 'selectedMass')
+      .name('质量')
+      .listen() as unknown as { decimals: (n: number) => void }).decimals(3);
+    (infoFolder
+      .add(this.params, 'selectedOrbit')
+      .name('轨道半径')
+      .listen() as unknown as { decimals: (n: number) => void }).decimals(2);
   }
 
   private setupMobileToggle(): void {
@@ -79,21 +82,18 @@ export class ControlPanel {
 
   private subscribeEvents(): void {
     this.bus.on('bodies:update', (bodies) => {
-      this.bodies = bodies;
+      this.cachedBodies.clear();
+      for (const body of bodies) {
+        this.cachedBodies.set(body.id, body);
+      }
     });
 
-    this.bus.on('body:select', ({ bodyId }) => {
-      if (bodyId) {
-        const body = this.bodies.find((b) => b.id === bodyId);
-        if (body) {
-          this.params.selectedName = body.name;
-          this.params.selectedMass = body.mass;
-          this.params.selectedOrbit = body.orbitRadius;
-        }
-      } else {
-        this.params.selectedName = '—';
-        this.params.selectedMass = 0;
-        this.params.selectedOrbit = 0;
+    this.bus.on('body:click', ({ body }) => {
+      const fullBody = this.cachedBodies.get(body.id);
+      if (fullBody) {
+        this.params.selectedName = fullBody.name;
+        this.params.selectedMass = fullBody.mass;
+        this.params.selectedOrbit = fullBody.orbitRadius;
       }
     });
   }

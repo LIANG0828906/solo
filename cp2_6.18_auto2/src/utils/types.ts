@@ -23,12 +23,3 @@ export interface PhysicsParams {
   gravitationalConstant: number;
   starMass: number;
 }
-
-export interface EventMap {
-  'params:update': PhysicsParams;
-  'bodies:update': CelestialBody[];
-  'body:hover': { bodyId: string | null };
-  'body:click': { body: CelestialBody };
-  'body:select': { bodyId: string | null };
-  'camera:rotate': { isRotating: boolean };
-}

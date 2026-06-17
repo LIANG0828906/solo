@@ -1,20 +1,30 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { gsap } from 'gsap';
 import type { CelestialBody } from '../utils/types';
-import { EventBus } from '../utils/eventBus';
+import { EventBus } from './bus';
 
 interface BodyMesh {
   bodyId: string;
   mesh: THREE.Mesh;
   glowRing?: THREE.Mesh;
+  glowTimeline?: gsap.core.Timeline;
 }
+
+const STAR_COUNT = 200;
+const BG_COLOR_PURPLE = new THREE.Color('#0A001A');
+const BG_COLOR_BLUE = new THREE.Color('#001A3D');
+const COLOR_HOVER_DEFAULT = new THREE.Color('#00FFAA');
+const COLOR_HOVER_ACTIVE = new THREE.Color('#00CCFF');
+const BG_LERP_SPEED = 0.5;
+const STAR_FLICKER_SPEED = 2.0;
 
 export class SceneRenderer {
   private container: HTMLElement;
   private bus: EventBus;
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
-  private renderer: THREE.WebGLRenderer;
+  private webglRenderer: THREE.WebGLRenderer;
   private controls: OrbitControls;
   private raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2;
@@ -22,12 +32,12 @@ export class SceneRenderer {
   private orbitLines: Map<string, THREE.Line>;
   private planetMeshes: THREE.Mesh[];
   private starField: THREE.Points | null;
+  private starBaseColors: Float32Array;
   private hoveredId: string | null;
   private clock: THREE.Clock;
   private backgroundColor: THREE.Color;
   private targetBgColor: THREE.Color;
-  private colorPurple: THREE.Color;
-  private colorBlue: THREE.Color;
+  private animFrameId: number;
 
   constructor(container: HTMLElement, bus: EventBus) {
     this.container = container;
@@ -37,13 +47,13 @@ export class SceneRenderer {
     this.planetMeshes = [];
     this.hoveredId = null;
     this.clock = new THREE.Clock();
-    this.colorPurple = new THREE.Color('#0A001A');
-    this.colorBlue = new THREE.Color('#001A3D');
-    this.backgroundColor = this.colorPurple.clone();
-    this.targetBgColor = this.colorPurple.clone();
-    this.starField = null;
+    this.backgroundColor = BG_COLOR_PURPLE.clone();
+    this.targetBgColor = BG_COLOR_PURPLE.clone();
+    this.animFrameId = 0;
+    this.starBaseColors = new Float32Array(0);
     this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
+    this.mouse = new THREE.Vector2(-9999, -9999);
+    this.starField = null;
 
     this.scene = new THREE.Scene();
     this.scene.background = this.backgroundColor;
@@ -56,17 +66,20 @@ export class SceneRenderer {
     );
     this.camera.position.set(0, 25, 45);
 
-    this.renderer = new THREE.WebGLRenderer({
+    this.webglRenderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: false
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
-    container.appendChild(this.renderer.domElement);
+    this.webglRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.webglRenderer.setSize(container.clientWidth, container.clientHeight);
+    this.webglRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.webglRenderer.toneMappingExposure = 1.2;
+    container.appendChild(this.webglRenderer.domElement);
 
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls = new OrbitControls(
+      this.camera,
+      this.webglRenderer.domElement
+    );
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
     this.controls.minDistance = 8;
@@ -82,7 +95,7 @@ export class SceneRenderer {
     this.createStarField();
     this.setupEventListeners();
     this.subscribeEvents();
-    this.animate();
+    this.startRenderLoop();
   }
 
   private initLights(): void {
@@ -91,12 +104,11 @@ export class SceneRenderer {
   }
 
   private createStarField(): void {
-    const starCount = 200;
-    const positions = new Float32Array(starCount * 3);
-    const colors = new Float32Array(starCount * 3);
-    const sizes = new Float32Array(starCount);
+    const positions = new Float32Array(STAR_COUNT * 3);
+    const colors = new Float32Array(STAR_COUNT * 3);
+    this.starBaseColors = new Float32Array(STAR_COUNT);
 
-    for (let i = 0; i < starCount; i++) {
+    for (let i = 0; i < STAR_COUNT; i++) {
       const r = 500 + Math.random() * 500;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
@@ -109,13 +121,15 @@ export class SceneRenderer {
       colors[i * 3 + 1] = brightness;
       colors[i * 3 + 2] = brightness + Math.random() * 0.1;
 
-      sizes[i] = 1 + Math.random() * 1;
+      this.starBaseColors[i] = brightness;
     }
 
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(positions, 3)
+    );
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
     const material = new THREE.PointsMaterial({
       size: 1.5,
@@ -129,6 +143,21 @@ export class SceneRenderer {
     this.scene.add(this.starField);
   }
 
+  private updateStarFlicker(elapsed: number): void {
+    if (!this.starField) return;
+    const colors = this.starField.geometry.attributes.color
+      .array as Float32Array;
+    for (let i = 0; i < STAR_COUNT; i++) {
+      const flicker =
+        0.7 + Math.sin(elapsed * STAR_FLICKER_SPEED + i * 1.73) * 0.3;
+      const base = this.starBaseColors[i];
+      colors[i * 3] = base * flicker;
+      colors[i * 3 + 1] = base * flicker;
+      colors[i * 3 + 2] = (base + 0.1) * flicker;
+    }
+    this.starField.geometry.attributes.color.needsUpdate = true;
+  }
+
   public createBodies(bodies: CelestialBody[]): void {
     for (const body of bodies) {
       this.createBodyMesh(body);
@@ -140,10 +169,9 @@ export class SceneRenderer {
 
   private createBodyMesh(body: CelestialBody): void {
     const geometry = new THREE.SphereGeometry(body.radius, 48, 48);
-    let material: THREE.MeshStandardMaterial | THREE.MeshBasicMaterial;
 
     if (body.type === 'star') {
-      material = new THREE.MeshBasicMaterial({
+      const material = new THREE.MeshBasicMaterial({
         color: new THREE.Color(body.color)
       });
       const glowGeo = new THREE.SphereGeometry(body.radius * 1.4, 32, 32);
@@ -169,7 +197,7 @@ export class SceneRenderer {
 
       this.bodyMeshes.set(body.id, { bodyId: body.id, mesh });
     } else {
-      material = new THREE.MeshStandardMaterial({
+      const material = new THREE.MeshStandardMaterial({
         color: new THREE.Color(body.color),
         roughness: 0.7,
         metalness: 0.1
@@ -185,7 +213,7 @@ export class SceneRenderer {
         32
       );
       const ringMat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color('#00FFAA'),
+        color: COLOR_HOVER_DEFAULT.clone(),
         transparent: true,
         opacity: 0.0,
         side: THREE.DoubleSide
@@ -194,7 +222,11 @@ export class SceneRenderer {
       glowRing.rotation.x = -Math.PI / 2;
       mesh.add(glowRing);
 
-      this.bodyMeshes.set(body.id, { bodyId: body.id, mesh, glowRing });
+      this.bodyMeshes.set(body.id, {
+        bodyId: body.id,
+        mesh,
+        glowRing
+      });
       this.planetMeshes.push(mesh);
     }
   }
@@ -212,15 +244,15 @@ export class SceneRenderer {
         )
       );
     }
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineDashedMaterial({
+    const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+    const lineMaterial = new THREE.LineDashedMaterial({
       color: 0xffffff,
       transparent: true,
       opacity: 0.25,
       dashSize: 0.5,
       gapSize: 0.3
     });
-    const line = new THREE.Line(geometry, material);
+    const line = new THREE.Line(lineGeometry, lineMaterial);
     line.computeLineDistances();
     this.scene.add(line);
     this.orbitLines.set(body.id, line);
@@ -246,53 +278,77 @@ export class SceneRenderer {
   }
 
   private setupEventListeners(): void {
-    const canvas = this.renderer.domElement;
-
+    const canvas = this.webglRenderer.domElement;
     window.addEventListener('resize', this.onResize);
     canvas.addEventListener('mousemove', this.onMouseMove);
     canvas.addEventListener('click', this.onClick);
 
-    this.controls.addEventListener('start', () => {
-      this.bus.emit('camera:rotate', { isRotating: true });
-      this.targetBgColor = this.colorBlue.clone();
+    this.controls.addEventListener('change', () => {
+      const azimuth = this.controls.getAzimuthalAngle();
+      this.onCameraAzimuthChange(azimuth);
     });
+  }
 
-    this.controls.addEventListener('end', () => {
-      this.bus.emit('camera:rotate', { isRotating: false });
-      this.targetBgColor = this.colorPurple.clone();
-    });
+  private onCameraAzimuthChange(azimuth: number): void {
+    this.bus.emit('camera:rotate', { azimuthAngle: azimuth });
+
+    const normalizedAngle = Math.abs(azimuth) / Math.PI;
+    this.targetBgColor = BG_COLOR_PURPLE.clone().lerp(
+      BG_COLOR_BLUE,
+      normalizedAngle
+    );
   }
 
   private onResize = (): void => {
     this.camera.aspect =
       this.container.clientWidth / this.container.clientHeight;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(
+    this.webglRenderer.setSize(
       this.container.clientWidth,
       this.container.clientHeight
     );
   };
 
   private onMouseMove = (e: MouseEvent): void => {
-    const rect = this.renderer.domElement.getBoundingClientRect();
+    const rect = this.webglRenderer.domElement.getBoundingClientRect();
     this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     this.checkHover();
   };
 
   private onClick = (): void => {
-    if (this.hoveredId) {
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-      const intersects = this.raycaster.intersectObjects(this.planetMeshes);
-      if (intersects.length > 0) {
-        const bodyId = intersects[0].object.userData.bodyId as string;
-        const bodyMesh = this.bodyMeshes.get(bodyId);
-        if (bodyMesh) {
-          this.bus.emit('body:select', { bodyId });
-        }
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(this.planetMeshes);
+    if (intersects.length > 0) {
+      const bodyId = intersects[0].object.userData.bodyId as string;
+      const body = this.findBodyById(bodyId);
+      if (body) {
+        this.bus.emit('body:click', { body });
       }
     }
   };
+
+  private findBodyById(bodyId: string): CelestialBody | null {
+    for (const [, entry] of this.bodyMeshes) {
+      if (entry.bodyId === bodyId) {
+        const pos = entry.mesh.position;
+        return {
+          id: bodyId,
+          name: '',
+          type: 'planet',
+          mass: 0,
+          radius: 0,
+          color: '',
+          position: { x: pos.x, y: pos.y, z: pos.z },
+          velocity: { x: 0, y: 0, z: 0 },
+          orbitRadius: 0,
+          orbitAngle: 0,
+          orbitSpeed: 0
+        };
+      }
+    }
+    return null;
+  }
 
   private checkHover(): void {
     this.raycaster.setFromCamera(this.mouse, this.camera);
@@ -305,101 +361,101 @@ export class SceneRenderer {
 
     if (newHoveredId !== this.hoveredId) {
       if (this.hoveredId) {
-        this.setHoverState(this.hoveredId, false);
+        this.setHoverStateGSAP(this.hoveredId, false);
       }
       if (newHoveredId) {
-        this.setHoverState(newHoveredId, true);
+        this.setHoverStateGSAP(newHoveredId, true);
       }
       this.hoveredId = newHoveredId;
       this.bus.emit('body:hover', { bodyId: this.hoveredId });
-      document.body.style.cursor = this.hoveredId ? 'pointer' : 'grab';
+      this.webglRenderer.domElement.style.cursor = this.hoveredId
+        ? 'pointer'
+        : 'grab';
     }
   }
 
-  private setHoverState(bodyId: string, isHovered: boolean): void {
+  private setHoverStateGSAP(bodyId: string, isHovered: boolean): void {
     const bodyMesh = this.bodyMeshes.get(bodyId);
     if (!bodyMesh || !bodyMesh.glowRing) return;
 
+    if (bodyMesh.glowTimeline) {
+      bodyMesh.glowTimeline.kill();
+    }
+
     const ring = bodyMesh.glowRing;
     const material = ring.material as THREE.MeshBasicMaterial;
+
     const targetScale = isHovered ? 1.4 : 1.0;
     const targetOpacity = isHovered ? 0.7 : 0.0;
     const targetColor = isHovered
-      ? new THREE.Color('#00CCFF')
-      : new THREE.Color('#00FFAA');
+      ? COLOR_HOVER_ACTIVE.clone()
+      : COLOR_HOVER_DEFAULT.clone();
 
-    const startScale = ring.scale.x;
-    const startOpacity = material.opacity;
-    const startColor = material.color.clone();
-    const duration = 300;
-    const startTime = performance.now();
+    const currentScale = ring.scale.x;
+    const currentOpacity = material.opacity;
+    const currentColor = material.color.clone();
 
-    const animate = () => {
-      const elapsed = performance.now() - startTime;
-      const t = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-
-      ring.scale.setScalar(startScale + (targetScale - startScale) * eased);
-      material.opacity =
-        startOpacity + (targetOpacity - startOpacity) * eased;
-      material.color.lerpColors(startColor, targetColor, eased);
-
-      if (t < 1) {
-        requestAnimationFrame(animate);
-      }
+    const proxy = {
+      scale: currentScale,
+      opacity: currentOpacity,
+      colorR: currentColor.r,
+      colorG: currentColor.g,
+      colorB: currentColor.b
     };
-    animate();
+
+    const tl = gsap.timeline();
+
+    tl.to(proxy, {
+      scale: targetScale,
+      opacity: targetOpacity,
+      colorR: targetColor.r,
+      colorG: targetColor.g,
+      colorB: targetColor.b,
+      duration: 0.3,
+      ease: 'power2.out',
+      onUpdate: () => {
+        ring.scale.setScalar(proxy.scale);
+        material.opacity = proxy.opacity;
+        material.color.setRGB(proxy.colorR, proxy.colorG, proxy.colorB);
+      }
+    });
+
+    bodyMesh.glowTimeline = tl;
   }
 
-  private animate = (): void => {
-    requestAnimationFrame(this.animate);
-    const delta = this.clock.getDelta();
+  private startRenderLoop(): void {
+    const loop = (): void => {
+      this.animFrameId = requestAnimationFrame(loop);
+      const delta = this.clock.getDelta();
+      const elapsed = this.clock.getElapsedTime();
 
-    this.controls.update();
+      this.controls.update();
 
-    if (this.starField) {
-      this.starField.rotation.y += delta * 0.005;
-      const positions = this.starField.geometry.attributes.position
-        .array as Float32Array;
-      const colors = this.starField.geometry.attributes.color
-        .array as Float32Array;
-      for (let i = 0; i < 200; i++) {
-        const flicker = 0.7 + Math.sin(this.clock.elapsedTime * 2 + i) * 0.3;
-        colors[i * 3] = flicker * 0.8 + 0.2;
-        colors[i * 3 + 1] = flicker * 0.8 + 0.2;
-        colors[i * 3 + 2] = flicker * 0.9 + 0.1;
-        void positions;
+      this.updateStarFlicker(elapsed);
+
+      if (this.starField) {
+        this.starField.rotation.y += delta * 0.005;
       }
-      this.starField.geometry.attributes.color.needsUpdate = true;
-    }
 
-    this.backgroundColor.lerp(this.targetBgColor, delta * 0.5);
-    this.scene.background = this.backgroundColor;
+      this.backgroundColor.lerp(this.targetBgColor, delta * BG_LERP_SPEED);
+      this.scene.background = this.backgroundColor.clone();
 
-    this.renderer.render(this.scene, this.camera);
-  };
-
-  public getBodyScreenPosition(bodyId: string): { x: number; y: number } | null {
-    const bodyMesh = this.bodyMeshes.get(bodyId);
-    if (!bodyMesh) return null;
-
-    const pos = bodyMesh.mesh.position.clone();
-    pos.project(this.camera);
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    return {
-      x: (pos.x * 0.5 + 0.5) * rect.width + rect.left,
-      y: (-pos.y * 0.5 + 0.5) * rect.height + rect.top
+      this.webglRenderer.render(this.scene, this.camera);
     };
+    loop();
   }
 
   public dispose(): void {
+    if (this.animFrameId) {
+      cancelAnimationFrame(this.animFrameId);
+    }
     window.removeEventListener('resize', this.onResize);
-    this.renderer.domElement.removeEventListener(
+    this.webglRenderer.domElement.removeEventListener(
       'mousemove',
       this.onMouseMove
     );
-    this.renderer.domElement.removeEventListener('click', this.onClick);
-    this.renderer.dispose();
+    this.webglRenderer.domElement.removeEventListener('click', this.onClick);
+    this.webglRenderer.dispose();
     this.controls.dispose();
   }
 }

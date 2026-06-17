@@ -1,5 +1,5 @@
 import type { CelestialBody, PhysicsParams } from '../utils/types';
-import { EventBus } from '../utils/eventBus';
+import { EventBus } from './bus';
 
 const PLANET_NAMES = ['水星', '金星', '地球', '火星', '木星'];
 const PLANET_COLORS = [
@@ -9,13 +9,17 @@ const PLANET_COLORS = [
   '#D9534F',
   '#E8A060'
 ];
+const FIXED_STEP = 1 / 60;
+const MAX_ACCUMULATOR = 0.1;
 
 export class PhysicsEngine {
   private bodies: CelestialBody[];
   private params: PhysicsParams;
   private bus: EventBus;
   private lastTime: number;
+  private accumulator: number;
   private running: boolean;
+  private animFrameId: number;
 
   constructor(bus: EventBus) {
     this.bus = bus;
@@ -24,8 +28,10 @@ export class PhysicsEngine {
       starMass: 5.0
     };
     this.bodies = this.createInitialBodies();
-    this.lastTime = performance.now();
+    this.lastTime = 0;
+    this.accumulator = 0;
     this.running = false;
+    this.animFrameId = 0;
 
     this.bus.on('params:update', (data) => {
       this.params = { ...data };
@@ -101,22 +107,34 @@ export class PhysicsEngine {
     if (this.running) return;
     this.running = true;
     this.lastTime = performance.now();
+    this.accumulator = 0;
     this.loop();
   }
 
   public stop(): void {
     this.running = false;
+    if (this.animFrameId) {
+      cancelAnimationFrame(this.animFrameId);
+      this.animFrameId = 0;
+    }
   }
 
   private loop = (): void => {
     if (!this.running) return;
+
     const now = performance.now();
-    const dt = Math.min((now - this.lastTime) / 1000, 0.05);
+    const frameTime = Math.min((now - this.lastTime) / 1000, MAX_ACCUMULATOR);
     this.lastTime = now;
+    this.accumulator += frameTime;
 
-    this.update(dt);
+    while (this.accumulator >= FIXED_STEP) {
+      this.update(FIXED_STEP);
+      this.accumulator -= FIXED_STEP;
+    }
 
-    requestAnimationFrame(this.loop);
+    this.bus.emit('bodies:update', this.bodies);
+
+    this.animFrameId = requestAnimationFrame(this.loop);
   };
 
   private update(dt: number): void {
@@ -127,7 +145,6 @@ export class PhysicsEngine {
         body.position.z = Math.sin(body.orbitAngle) * body.orbitRadius;
       }
     }
-    this.bus.emit('bodies:update', this.bodies);
   }
 
   public getBodies(): CelestialBody[] {

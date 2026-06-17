@@ -1,12 +1,10 @@
 import { gsap } from 'gsap';
 import type { CelestialBody } from '../utils/types';
-import { EventBus } from '../utils/eventBus';
-import { PhysicsEngine } from '../core/engine';
+import { EventBus } from '../core/bus';
 
 export class InfoCard {
   private container: HTMLElement;
   private bus: EventBus;
-  private engine: PhysicsEngine;
   private card: HTMLDivElement;
   private headerDot: HTMLDivElement;
   private titleEl: HTMLHeadingElement;
@@ -15,12 +13,13 @@ export class InfoCard {
   private periodEl: HTMLSpanElement;
   private radiusEl: HTMLSpanElement;
   private isVisible: boolean;
+  private cachedBodies: Map<string, CelestialBody>;
 
-  constructor(container: HTMLElement, bus: EventBus, engine: PhysicsEngine) {
+  constructor(container: HTMLElement, bus: EventBus) {
     this.container = container;
     this.bus = bus;
-    this.engine = engine;
     this.isVisible = false;
+    this.cachedBodies = new Map();
 
     this.card = document.createElement('div');
     this.card.className = 'info-card';
@@ -91,20 +90,22 @@ export class InfoCard {
   }
 
   private subscribeEvents(): void {
-    this.bus.on('body:select', ({ bodyId }) => {
-      if (bodyId) {
-        const bodies = this.engine.getBodies();
-        const body = bodies.find((b) => b.id === bodyId);
-        if (body && body.type === 'planet') {
-          this.show(body);
-        }
-      } else {
-        this.hide();
+    this.bus.on('bodies:update', (bodies) => {
+      this.cachedBodies.clear();
+      for (const body of bodies) {
+        this.cachedBodies.set(body.id, body);
+      }
+    });
+
+    this.bus.on('body:click', ({ body }) => {
+      const fullBody = this.cachedBodies.get(body.id);
+      if (fullBody && fullBody.type === 'planet') {
+        this.show(fullBody);
       }
     });
   }
 
-  public show(body: CelestialBody): void {
+  private show(body: CelestialBody): void {
     this.titleEl.textContent = body.name;
     this.headerDot.style.backgroundColor = body.color;
     this.headerDot.style.color = body.color;
@@ -112,17 +113,17 @@ export class InfoCard {
     this.orbitEl.textContent = `${body.orbitRadius.toFixed(2)} AU`;
     this.radiusEl.textContent = `${body.radius.toFixed(2)} R⊕`;
 
-    const period = this.engine.getOrbitalPeriod(body);
+    const period =
+      body.type === 'planet' && body.orbitSpeed > 0
+        ? (2 * Math.PI) / body.orbitSpeed
+        : 0;
     this.periodEl.textContent = period > 0 ? `${period.toFixed(2)} s` : '—';
 
     if (!this.isVisible) {
       this.isVisible = true;
       gsap.fromTo(
         this.card,
-        {
-          opacity: 0,
-          y: 40
-        },
+        { opacity: 0, y: 40 },
         {
           opacity: 1,
           y: 0,
@@ -136,7 +137,7 @@ export class InfoCard {
     }
   }
 
-  public hide(): void {
+  private hide(): void {
     if (!this.isVisible) return;
     this.isVisible = false;
     gsap.to(this.card, {
@@ -146,7 +147,6 @@ export class InfoCard {
       ease: 'power2.in',
       onComplete: () => {
         this.card.classList.remove('visible');
-        this.bus.emit('body:select', { bodyId: null });
       }
     });
   }

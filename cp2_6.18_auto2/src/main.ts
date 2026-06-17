@@ -1,5 +1,5 @@
 import './styles/main.css';
-import { EventBus } from './utils/eventBus';
+import { EventBus } from './core/bus';
 import { PhysicsEngine } from './core/engine';
 import { SceneRenderer } from './core/renderer';
 import { ControlPanel } from './ui/panel';
@@ -29,7 +29,7 @@ class StellarSandbox {
 
     this.panel = new ControlPanel(this.bus, this.engine.getParams());
 
-    this.infoCard = new InfoCard(this.container, this.bus, this.engine);
+    this.infoCard = new InfoCard(this.container, this.bus);
 
     this.engine.start();
 
