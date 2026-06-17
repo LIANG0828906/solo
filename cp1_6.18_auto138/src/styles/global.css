@@ -1,0 +1,102 @@
+:root {
+  --primary: #5B9279;
+  --primary-dark: #4A7A63;
+  --clay: #DDB892;
+  --bg: #F5F0EB;
+  --text-dark: #2D3436;
+  --text-gray: #636E72;
+  --price-red: #E76F51;
+  --tag-warn: #F5A623;
+  --danger: #E74C3C;
+  --danger-dark: #C0392B;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text-dark);
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.btn {
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.1s ease;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+@keyframes toastSuccess {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-success {
+  animation: toastSuccess 0.3s ease forwards;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-fade-in {
+  animation: pageFadeIn 0.3s ease;
+}
+
+.tag-ceramic {
+  background: #DDB892;
+}
+
+.tag-leather {
+  background: #8B5E3C;
+  color: white;
+}
+
+.tag-wood {
+  background: #A68A64;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 16px;
+  }
+  .course-cover-image {
+    width: 100% !important;
+  }
+}
