@@ -90,6 +90,9 @@ export class UIManager {
   }
 
   private createTimer(): HTMLElement {
+    // Inject keyframe animations once
+    UIManager.ensureGlobalStyles();
+
     const wrapper = document.createElement('div');
     wrapper.style.cssText = `
       position: absolute;
@@ -105,12 +108,12 @@ export class UIManager {
     const pulse = document.createElement('div');
     pulse.style.cssText = `
       position: absolute;
-      width: 90px;
-      height: 90px;
+      width: 92px;
+      height: 92px;
       border-radius: 50%;
-      box-shadow: 0 0 0 0 rgba(255, 69, 0, 0.3);
+      border: 2px solid transparent;
       opacity: 0;
-      transition: opacity 0.2s;
+      transition: opacity 0.3s ease;
       pointer-events: none;
     `;
     this.timerPulseEl = pulse;
@@ -186,6 +189,27 @@ export class UIManager {
     return wrapper;
   }
 
+  private static _globalStylesInjected = false;
+  private static ensureGlobalStyles(): void {
+    if (UIManager._globalStylesInjected) return;
+    UIManager._globalStylesInjected = true;
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes chronoblock-timer-pulse {
+        0%   { opacity: 0.3; box-shadow: 0 0 0 0px rgba(255, 69, 0, 0.3); }
+        50%  { opacity: 0.6; box-shadow: 0 0 0 8px rgba(255, 69, 0, 0.5); }
+        100% { opacity: 0.3; box-shadow: 0 0 0 0px rgba(255, 69, 0, 0.3); }
+      }
+      @keyframes chronoblock-celebrate-color {
+        0%   { background-color: #FFD700; box-shadow: 0 0 8px #FFD700; }
+        33%  { background-color: #FFFFFF; box-shadow: 0 0 8px #FFFFFF; }
+        66%  { background-color: #00FFFF; box-shadow: 0 0 8px #00FFFF; }
+        100% { background-color: #FFD700; box-shadow: 0 0 8px #FFD700; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   private createLevelLabel(): HTMLElement {
     const el = document.createElement('div');
     el.style.cssText = `
@@ -216,10 +240,11 @@ export class UIManager {
       padding: 12px;
       pointer-events: auto;
       cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, z-index 0s;
       backdrop-filter: blur(6px);
       border: 1px solid rgba(15, 52, 96, 0.6);
       transform-origin: top right;
+      z-index: 2;
     `;
 
     const title = document.createElement('div');
@@ -229,6 +254,7 @@ export class UIManager {
       margin-bottom: 8px;
       text-transform: uppercase;
       letter-spacing: 1px;
+      font-weight: bold;
     `;
     title.textContent = 'BLUEPRINT / 蓝图';
     panel.appendChild(title);
@@ -242,31 +268,40 @@ export class UIManager {
       height: 176px;
       border-radius: 4px;
       background: #0a0f1f;
+      transition: filter 0.25s ease;
     `;
     panel.appendChild(canvas);
 
     const tooltip = document.createElement('div');
-    tooltip.className = 'tooltip';
     tooltip.style.cssText = `
       margin-top: 8px;
       font-size: 11px;
       color: #FFD700;
       text-align: center;
       opacity: 0;
-      transition: opacity 0.2s ease;
+      transform: translateY(-4px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      font-weight: bold;
+      text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
     `;
-    tooltip.textContent = '点击查看详情';
+    tooltip.textContent = '👁 点击查看详情';
     panel.appendChild(tooltip);
 
     panel.addEventListener('mouseenter', () => {
       panel.style.transform = 'scale(1.2)';
-      panel.style.boxShadow = '0 8px 24px rgba(0, 191, 255, 0.3)';
+      panel.style.zIndex = '100';
+      panel.style.boxShadow = '0 12px 36px rgba(0, 191, 255, 0.35), 0 0 0 1px rgba(0, 191, 255, 0.5)';
+      canvas.style.filter = 'brightness(1.15) saturate(1.2)';
       tooltip.style.opacity = '1';
+      tooltip.style.transform = 'translateY(0)';
     });
     panel.addEventListener('mouseleave', () => {
       panel.style.transform = 'scale(1)';
+      panel.style.zIndex = '2';
       panel.style.boxShadow = 'none';
+      canvas.style.filter = 'none';
       tooltip.style.opacity = '0';
+      tooltip.style.transform = 'translateY(-4px)';
     });
     panel.addEventListener('click', () => {
       this.showBlueprintModal();
@@ -546,16 +581,12 @@ export class UIManager {
   }
 
   private startPulse(): void {
-    if (this.pulseInterval !== null) return;
-    let phase = 0;
-    const step = () => {
-      const alpha = 0.3 + 0.3 * (0.5 - 0.5 * Math.cos(Math.PI * 2 * phase));
-      this.timerPulseEl.style.opacity = '1';
-      this.timerPulseEl.style.boxShadow = `0 0 0 6px rgba(255, 69, 0, ${alpha.toFixed(3)})`;
-      phase = (phase + 0.04) % 1;
-    };
-    step();
-    this.pulseInterval = window.setInterval(step, 20);
+    if (!this.timerPulseEl) return;
+    const pulse = this.timerPulseEl as HTMLElement;
+    if (pulse.dataset.active === '1') return;
+    pulse.dataset.active = '1';
+    pulse.style.opacity = '1';
+    pulse.style.animation = 'chronoblock-timer-pulse 0.5s ease-in-out infinite';
   }
 
   private clearPulse(): void {
@@ -563,8 +594,12 @@ export class UIManager {
       clearInterval(this.pulseInterval);
       this.pulseInterval = null;
     }
-    this.timerPulseEl.style.opacity = '0';
-    this.timerPulseEl.style.boxShadow = '0 0 0 0 rgba(255, 69, 0, 0)';
+    if (!this.timerPulseEl) return;
+    const pulse = this.timerPulseEl as HTMLElement;
+    pulse.dataset.active = '';
+    pulse.style.opacity = '0';
+    pulse.style.animation = 'none';
+    pulse.style.boxShadow = 'none';
   }
 
   private drawBlueprintOn(canvas: HTMLCanvasElement, blueprint: number[][][] | null): void {
@@ -652,22 +687,24 @@ export class UIManager {
     const cy = rect.height / 2;
     for (let i = 0; i < count; i++) {
       const p = document.createElement('div');
-      const color = colors[Math.floor(Math.random() * colors.length)];
       const angle = Math.random() * Math.PI * 2;
       const dist = 80 + Math.random() * 180;
       const tx = cx + Math.cos(angle) * dist;
       const ty = cy + Math.sin(angle) * dist - 40;
+      const animDuration = 0.25 + Math.random() * 0.25;
       p.style.cssText = `
         position: absolute;
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background: ${color};
+        background: ${colors[i % 3]};
         left: ${cx}px;
         top: ${cy}px;
-        box-shadow: 0 0 8px ${color};
+        box-shadow: 0 0 10px ${colors[i % 3]};
         pointer-events: none;
         opacity: 1;
+        animation: chronoblock-celebrate-color ${animDuration}s steps(1, end) infinite;
+        animation-delay: ${(Math.random() * 0.2).toFixed(3)}s;
       `;
       this.celebrateContainer.appendChild(p);
       gsap.to(p, {
@@ -678,12 +715,6 @@ export class UIManager {
         duration: 1.5,
         ease: 'power3.out',
         onComplete: () => p.remove()
-      });
-      gsap.to(p, {
-        backgroundColor: colors[Math.floor(Math.random() * colors.length)],
-        duration: 0.3,
-        repeat: 4,
-        ease: 'none'
       });
     }
 

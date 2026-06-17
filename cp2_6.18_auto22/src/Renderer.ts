@@ -369,16 +369,18 @@ export class Renderer {
     const count = 3 + Math.floor(Math.random() * 3);
     for (let i = 0; i < count; i++) {
       if (this.particlePool.length >= this.MAX_PARTICLES) break;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.01 + Math.random() * 0.02;
       this.particlePool.push({
         position: new THREE.Vector3(
-          pos.x + (Math.random() - 0.5) * 0.4,
-          pos.y - 0.48,
-          pos.z + (Math.random() - 0.5) * 0.4
+          pos.x + (Math.random() - 0.5) * 0.5,
+          pos.y - 0.45,
+          pos.z + (Math.random() - 0.5) * 0.5
         ),
         velocity: new THREE.Vector3(
-          (Math.random() - 0.5) * 0.03,
-          Math.random() * 0.04 + 0.02,
-          (Math.random() - 0.5) * 0.03
+          Math.cos(angle) * speed,
+          0.015 + Math.random() * 0.015,
+          Math.sin(angle) * speed
         ),
         color: new THREE.Color(0xffffff),
         life: 0.3,
@@ -396,12 +398,12 @@ export class Renderer {
       if (this.particlePool.length >= this.MAX_PARTICLES) break;
       const color = colors[Math.floor(Math.random() * colors.length)];
       const angle = Math.random() * Math.PI * 2;
-      const speed = 0.04 + Math.random() * 0.06;
+      const speed = 0.02 + Math.random() * 0.03;
       this.particlePool.push({
         position: new THREE.Vector3(pos.x, pos.y + 0.3, pos.z),
         velocity: new THREE.Vector3(
           Math.cos(angle) * speed,
-          Math.random() * 0.08 + 0.04,
+          0.03 + Math.random() * 0.04,
           Math.sin(angle) * speed
         ),
         color: new THREE.Color(color),
@@ -418,16 +420,16 @@ export class Renderer {
       const geo = new THREE.BufferGeometry();
       const positions = new Float32Array(this.MAX_PARTICLES * 3);
       const colors = new Float32Array(this.MAX_PARTICLES * 3);
-      const sizes = new Float32Array(this.MAX_PARTICLES);
       geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
       const mat = new THREE.PointsMaterial({
-        size: 0.06,
+        size: 12,
         vertexColors: true,
         transparent: true,
-        opacity: 0.9,
-        sizeAttenuation: true
+        opacity: 1,
+        sizeAttenuation: false,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
       });
       this.particles = new THREE.Points(geo, mat);
       this.scene.add(this.particles);
@@ -443,9 +445,9 @@ export class Renderer {
         this.particlePool.splice(i, 1);
         continue;
       }
-      p.velocity.y -= 0.0006;
-      p.position.add(p.velocity);
-      if (p.maxLife > 0.5 && Math.random() < 0.03) {
+      p.velocity.y -= 0.25 * delta;
+      p.position.addScaledVector(p.velocity, delta * 60);
+      if (p.maxLife > 0.5 && Math.random() < 0.06) {
         const c = colors[Math.floor(Math.random() * colors.length)];
         p.color.setHex(c);
       }
@@ -453,23 +455,19 @@ export class Renderer {
     if (this.particles) {
       const posAttr = this.particles.geometry.getAttribute('position') as THREE.BufferAttribute;
       const colorAttr = this.particles.geometry.getAttribute('color') as THREE.BufferAttribute;
-      const sizeAttr = this.particles.geometry.getAttribute('size') as THREE.BufferAttribute;
       for (let i = 0; i < this.MAX_PARTICLES; i++) {
         if (i < this.particlePool.length) {
           const p = this.particlePool[i];
           const alpha = p.life / p.maxLife;
           posAttr.setXYZ(i, p.position.x, p.position.y, p.position.z);
           colorAttr.setXYZ(i, p.color.r * alpha, p.color.g * alpha, p.color.b * alpha);
-          sizeAttr.setX(i, p.size * alpha);
         } else {
-          posAttr.setXYZ(i, -100, -100, -100);
+          posAttr.setXYZ(i, -1000, -1000, -1000);
           colorAttr.setXYZ(i, 0, 0, 0);
-          sizeAttr.setX(i, 0);
         }
       }
       posAttr.needsUpdate = true;
       colorAttr.needsUpdate = true;
-      sizeAttr.needsUpdate = true;
       this.particles.geometry.computeBoundingSphere();
     }
   }
