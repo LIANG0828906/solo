@@ -78,35 +78,35 @@ export class AnimationManager {
     );
   }
 
-  public createFadeIn(duration = 200): Keyframe[] {
+  public createFadeIn(_duration = 200): Keyframe[] {
     return [
       { offset: 0, opacity: 0 },
       { offset: 1, opacity: 1 },
     ];
   }
 
-  public createFadeOut(duration = 200): Keyframe[] {
+  public createFadeOut(_duration = 200): Keyframe[] {
     return [
       { offset: 0, opacity: 1 },
       { offset: 1, opacity: 0 },
     ];
   }
 
-  public createSlideUp(distance = 20, duration = 200): Keyframe[] {
+  public createSlideUp(distance = 20, _duration = 200): Keyframe[] {
     return [
       { offset: 0, opacity: 0, transform: `translateY(${distance}px)` },
       { offset: 1, opacity: 1, transform: 'translateY(0)' },
     ];
   }
 
-  public createScale(from = 0.8, to = 1, duration = 200): Keyframe[] {
+  public createScale(from = 0.8, to = 1, _duration = 200): Keyframe[] {
     return [
       { offset: 0, opacity: 0, transform: `scale(${from})` },
       { offset: 1, opacity: 1, transform: `scale(${to})` },
     ];
   }
 
-  public createPulse(intensity = 1.05, duration = 500): Keyframe[] {
+  public createPulse(intensity = 1.05, _duration = 500): Keyframe[] {
     return [
       { offset: 0, transform: 'scale(1)' },
       { offset: 0.5, transform: `scale(${intensity})` },
@@ -114,7 +114,7 @@ export class AnimationManager {
     ];
   }
 
-  public createShake(intensity = 4, duration = 300): Keyframe[] {
+  public createShake(intensity = 4, _duration = 300): Keyframe[] {
     return [
       { offset: 0, transform: 'translateX(0)' },
       { offset: 0.25, transform: `translateX(-${intensity}px)` },
@@ -124,7 +124,7 @@ export class AnimationManager {
     ];
   }
 
-  public createFloat(yOffset = -10, duration = 2000): Keyframe[] {
+  public createFloat(yOffset = -10, _duration = 2000): Keyframe[] {
     return [
       { offset: 0, transform: 'translateY(0)' },
       { offset: 0.5, transform: `translateY(${yOffset}px)` },
@@ -132,7 +132,7 @@ export class AnimationManager {
     ];
   }
 
-  public createGlow(color = '#6C63FF', intensity = 10, duration = 1500): Keyframe[] {
+  public createGlow(color = '#6C63FF', intensity = 10, _duration = 1500): Keyframe[] {
     return [
       { offset: 0, boxShadow: `0 0 5px ${color}` },
       { offset: 0.5, boxShadow: `0 0 ${intensity}px ${color}, 0 0 ${intensity * 2}px ${color}` },
@@ -140,7 +140,7 @@ export class AnimationManager {
     ];
   }
 
-  public createMistAnimation(colors: string[], duration = 3000): Keyframe[] {
+  public createMistAnimation(colors: string[], _duration = 3000): Keyframe[] {
     const color1 = colors[0] || '#6C63FF';
     const color2 = colors[1] || '#FF6584';
     const color3 = colors[2] || '#36D399';
@@ -183,6 +183,8 @@ export class AnimationManager {
 }
 
 export const animationManager = new AnimationManager();
+
+export default AnimationManager;
 
 export const easeTransition = (properties: string | string[] = 'all', duration = 200) => {
   const props = Array.isArray(properties) ? properties.join(', ') : properties;

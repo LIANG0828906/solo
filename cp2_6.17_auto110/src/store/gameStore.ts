@@ -21,6 +21,7 @@ interface GameStoreState {
   crucibleShaking: boolean;
   lastCraftResult: 'success' | 'failure' | null;
   newlyUnlockedMaterial: string | null;
+  recipeUnlockTimes: Map<string, number>;
 
   addRandomMaterial: () => void;
   addToCrucible: (materialId: string) => boolean;
@@ -179,6 +180,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   crucibleShaking: false,
   lastCraftResult: null,
   newlyUnlockedMaterial: null,
+  recipeUnlockTimes: new Map<string, number>(),
 
   addRandomMaterial: () => {
     const material = MaterialRegistry.getRandomMaterial();
@@ -293,7 +295,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         if (success) {
           set((s) => {
             const newUnlocked = new Set(s.unlockedRecipes);
+            const newUnlockTimes = new Map(s.recipeUnlockTimes);
+            const isNewUnlock = !newUnlocked.has(recipe.id);
             newUnlocked.add(recipe.id);
+            if (isNewUnlock) {
+              newUnlockTimes.set(recipe.id, Date.now());
+            }
             const newDiscovered = new Set(s.discoveredMaterials);
             let newlyUnlocked: string | null = null;
             if (!newDiscovered.has(recipe.output)) {
@@ -315,11 +322,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             return {
               crucible: [],
               unlockedRecipes: newUnlocked,
+              recipeUnlockTimes: newUnlockTimes,
               discoveredMaterials: newDiscovered,
               newlyUnlockedMaterial: newlyUnlocked,
               inventory: newInventory,
               lastCraftResult: 'success',
-              toastMessage: `合成成功：${recipe.name}！`,
+              toastMessage: isNewUnlock ? `🎉 新配方解锁：${recipe.name}！` : `合成成功：${recipe.name}！`,
             };
           });
           return 'success';
@@ -348,6 +356,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       inventory: getInitialInventory(),
       crucible: [],
       unlockedRecipes: new Set<string>(),
+      recipeUnlockTimes: new Map<string, number>(),
       discoveredMaterials: new Set<string>(['water', 'earth', 'fire_ash', 'herb_leaf', 'seed']),
       toastMessage: '游戏已重置',
       showHintPanel: false,

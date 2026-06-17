@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { useGameStore } from './store/gameStore';
 import { MaterialRegistry } from './modules/engine/MaterialRegistry';
 import { Rarity, Material, Recipe } from './types';
+import RecipeBook from './modules/ui/RecipeBook';
 
 const RARITY_COLORS: Record<Rarity, string> = {
   [Rarity.COMMON]: '#9E9E9E',
@@ -68,6 +69,7 @@ const App: React.FC = () => {
   } = useGameStore();
 
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const [currentPage, setCurrentPage] = useState<'game' | 'recipeBook'>('game');
   const [toastVisible, setToastVisible] = useState<boolean>(false);
   const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; color: string; angle: number }>>([]);
   const [mistParticles, setMistParticles] = useState<Array<{ id: number; x: number; y: number }>>([]);
@@ -355,6 +357,29 @@ const App: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: 12, position: 'relative' }}>
+          <button
+            onClick={() => setCurrentPage(currentPage === 'game' ? 'recipeBook' : 'game')}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: currentPage === 'recipeBook' ? '#6C63FF' : '#3A3A5C',
+              border: 'none',
+              color: '#fff',
+              fontSize: 18,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.2s ease',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#6C63FF'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = currentPage === 'recipeBook' ? '#6C63FF' : '#3A3A5C'; }}
+            title="炼金图鉴"
+          >
+            📖
+          </button>
+
           <button
             onClick={toggleHintPanel}
             style={{
