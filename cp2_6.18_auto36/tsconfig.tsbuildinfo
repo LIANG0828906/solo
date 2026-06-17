@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/constants.ts","./src/main.tsx","./src/reducer.ts","./src/types.ts","./src/vite-env.d.ts","./src/components/canvas.tsx","./src/components/stickynote.tsx","./src/components/toolbar.tsx","./src/utils/broadcastsync.ts"],"errors":true,"version":"5.8.3"}
