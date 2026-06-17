@@ -76,7 +76,7 @@ export interface CombatLog {
   id: string;
   timestamp: number;
   message: string;
-  type: 'info' | 'damage' | 'skill' | 'move';
+  type: 'info' | 'move' | 'attack' | 'skill' | 'damage' | 'defeat';
 }
 
 export interface GameState {

@@ -23,7 +23,6 @@ import {
 const BOARD_SIZE = 800;
 const HEX_RADIUS = 32;
 const TURN_DURATION = 15;
-const HEX_SIZE = HEX_RADIUS;
 
 export const getHexCorner = (
   centerX: number,
