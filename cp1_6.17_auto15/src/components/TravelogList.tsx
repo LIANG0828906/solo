@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Empty, Spin } from 'antd';
+import { Empty, Spin, Button, Tag } from 'antd';
+import {
+  EyeOutlined,
+  EnvironmentOutlined,
+  CalendarOutlined,
+  BookOutlined,
+} from '@ant-design/icons';
 import { useTravelogStore } from '../store/travelogStore';
 import { formatDateTime } from '../utils/format';
 import type { Travelog } from '../types';
@@ -17,11 +23,14 @@ const TravelogList: React.FC<TravelogListProps> = ({ onSelectTravelog }) => {
   }, [fetchTravelogs]);
 
   useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
     travelogs.forEach((t, index) => {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setVisibleItems((prev) => new Set([...prev, t.id]));
       }, index * 100);
+      timers.push(timer);
     });
+    return () => timers.forEach(clearTimeout);
   }, [travelogs]);
 
   if (loading && travelogs.length === 0) {
@@ -35,7 +44,14 @@ const TravelogList: React.FC<TravelogListProps> = ({ onSelectTravelog }) => {
   if (travelogs.length === 0) {
     return (
       <div style={styles.emptyContainer}>
-        <Empty description="还没有游记，去地图签到处生成你的第一篇游记吧！" />
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={
+            <span style={{ color: '#999' }}>
+              还没有游记，去地图签到处生成你的第一篇游记吧！
+            </span>
+          }
+        />
       </div>
     );
   }
@@ -43,8 +59,13 @@ const TravelogList: React.FC<TravelogListProps> = ({ onSelectTravelog }) => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h2 style={styles.title}>我的游记</h2>
-        <span style={styles.count}>共 {travelogs.length} 篇</span>
+        <h2 style={styles.title}>
+          <BookOutlined style={{ marginRight: 8 }} />
+          我的游记
+        </h2>
+        <Tag color="blue" style={styles.countTag}>
+          共 {travelogs.length} 篇
+        </Tag>
       </div>
       <div className="travelog-grid" style={styles.grid}>
         {travelogs.map((travelog) => (
@@ -58,7 +79,6 @@ const TravelogList: React.FC<TravelogListProps> = ({ onSelectTravelog }) => {
                 ? 'translateY(0)'
                 : 'translateY(20px)',
             }}
-            onClick={() => onSelectTravelog(travelog)}
           >
             <div style={styles.imageContainer}>
               <img
@@ -68,6 +88,12 @@ const TravelogList: React.FC<TravelogListProps> = ({ onSelectTravelog }) => {
                 style={styles.coverImage}
               />
               <div className="travelog-card-overlay" style={styles.imageOverlay} />
+              {travelog.checkins && travelog.checkins.length > 0 && (
+                <div style={styles.checkinBadge}>
+                  <EnvironmentOutlined style={{ fontSize: 10, marginRight: 3 }} />
+                  {travelog.checkins.length} 个签到点
+                </div>
+              )}
             </div>
             <div style={styles.cardContent}>
               <h3 style={styles.cardTitle}>{travelog.title}</h3>
@@ -78,12 +104,22 @@ const TravelogList: React.FC<TravelogListProps> = ({ onSelectTravelog }) => {
               </p>
               <div style={styles.cardFooter}>
                 <span style={styles.cardDate}>
+                  <CalendarOutlined style={{ marginRight: 4 }} />
                   {formatDateTime(travelog.createdAt)}
                 </span>
-                <span style={styles.cardCheckins}>
-                  {travelog.checkins?.length || 0} 个签到点
-                </span>
               </div>
+              <Button
+                type="primary"
+                icon={<EyeOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectTravelog(travelog);
+                }}
+                style={styles.viewDetailButton}
+                block
+              >
+                查看详情
+              </Button>
             </div>
           </div>
         ))}
@@ -111,9 +147,10 @@ const styles = {
     color: '#1A237E',
     margin: 0,
   },
-  count: {
-    fontSize: 14,
-    color: '#999',
+  countTag: {
+    fontSize: 13,
+    padding: '2px 12px',
+    borderRadius: 12,
   },
   grid: {
     display: 'grid',
@@ -157,6 +194,17 @@ const styles = {
     opacity: 0,
     transition: 'opacity 0.3s ease',
   },
+  checkinBadge: {
+    position: 'absolute' as const,
+    top: 10,
+    right: 10,
+    background: 'rgba(26, 35, 126, 0.8)',
+    color: '#fff',
+    padding: '3px 10px',
+    borderRadius: 12,
+    fontSize: 11,
+    backdropFilter: 'blur(4px)',
+  },
   cardContent: {
     padding: '16px 20px 20px',
   },
@@ -184,16 +232,17 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
-    borderTop: '1px solid #f0f0f0',
+    marginBottom: 12,
   },
   cardDate: {
     fontSize: 12,
     color: '#999',
   },
-  cardCheckins: {
-    fontSize: 12,
-    color: '#1976D2',
+  viewDetailButton: {
+    background: '#1976D2',
+    borderColor: '#1976D2',
+    borderRadius: 4,
+    height: 36,
     fontWeight: 500,
   },
   loadingContainer: {

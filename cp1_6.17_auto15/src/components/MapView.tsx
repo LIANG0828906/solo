@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -7,13 +7,22 @@ import {
   useMapEvents,
   useMap,
 } from 'react-leaflet';
-import { Button, Input, Modal, message, List, Tag } from 'antd';
-import { DeleteOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
+import { Button, Input, Modal, message, List, Tag, Divider } from 'antd';
+import {
+  DeleteOutlined,
+  PlusOutlined,
+  EditOutlined,
+  EnvironmentOutlined,
+  CheckCircleOutlined,
+} from '@ant-design/icons';
 import { useMapStore } from '../store/mapStore';
 import { useTravelogStore } from '../store/travelogStore';
 import { formatDateTime } from '../utils/format';
 import type { Checkin } from '../types';
 import L from 'leaflet';
+
+const DEFAULT_CENTER = { lat: 39.9042, lng: 116.4074 };
+const DEFAULT_ZOOM = 13;
 
 const blueDropIcon = L.divIcon({
   className: 'custom-drop-marker',
@@ -87,10 +96,104 @@ interface MapControllerProps {
 
 const MapController: React.FC<MapControllerProps> = ({ center, zoom }) => {
   const map = useMap();
+  const isFirstRender = useRef(true);
   useEffect(() => {
-    map.setView(center, zoom);
+    if (isFirstRender.current) {
+      map.setView(center, zoom);
+      isFirstRender.current = false;
+    }
   }, [center, zoom, map]);
   return null;
+};
+
+const CheckinPopup: React.FC<{
+  checkin: Checkin;
+  onGenerateTravelog: (checkin: Checkin) => void;
+  onDelete: (id: string, name: string) => void;
+}> = ({ checkin, onGenerateTravelog, onDelete }) => {
+  const [popupVisible, setPopupVisible] = useState(true);
+
+  return (
+    <Popup closeButton={true} maxWidth={240}>
+      <div style={popupStyles.container}>
+        <div style={popupStyles.header}>
+          <EnvironmentOutlined style={popupStyles.headerIcon} />
+          <h3 style={popupStyles.title}>{checkin.name}</h3>
+        </div>
+        <p style={popupStyles.time}>
+          <CheckCircleOutlined style={{ marginRight: 4, color: '#1976D2' }} />
+          {formatDateTime(checkin.createdAt)}
+        </p>
+        <Divider style={{ margin: '8px 0' }} />
+        <div style={popupStyles.buttons}>
+          <Button
+            type="primary"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => onGenerateTravelog(checkin)}
+            style={popupStyles.generateBtn}
+          >
+            生成游记
+          </Button>
+          <Button
+            size="small"
+            icon={<DeleteOutlined />}
+            onClick={() => {
+              onDelete(checkin.id, checkin.name);
+            }}
+            style={popupStyles.deleteBtn}
+            danger
+          >
+            删除
+          </Button>
+        </div>
+      </div>
+    </Popup>
+  );
+};
+
+const popupStyles = {
+  container: {
+    padding: '4px 0',
+    minWidth: 180,
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  headerIcon: {
+    color: '#1976D2',
+    fontSize: 14,
+  },
+  title: {
+    margin: 0,
+    color: '#1A237E',
+    fontSize: 15,
+    fontWeight: 600,
+  },
+  time: {
+    margin: '0 0 4px 0',
+    color: '#666',
+    fontSize: 12,
+  },
+  buttons: {
+    display: 'flex',
+    gap: 8,
+  },
+  generateBtn: {
+    flex: 1,
+    background: '#1976D2',
+    borderColor: '#1976D2',
+    borderRadius: 4,
+  },
+  deleteBtn: {
+    flex: 1,
+    borderRadius: 4,
+    borderColor: '#D32F2F',
+    color: '#D32F2F',
+  },
 };
 
 const MapView: React.FC = () => {
@@ -102,13 +205,13 @@ const MapView: React.FC = () => {
     addCheckin,
     deleteCheckin,
     setUserLocation,
-    setCurrentPosition,
   } = useMapStore();
 
   const { createTravelog, fetchTravelogs } = useTravelogStore();
 
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newCheckinName, setNewCheckinName] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
   const [clickedPosition, setClickedPosition] = useState<{
     lat: number;
     lng: number;
@@ -119,6 +222,9 @@ const MapView: React.FC = () => {
   const [travelogTitle, setTravelogTitle] = useState('');
   const [travelogContent, setTravelogContent] = useState('');
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     fetchCheckins();
@@ -129,11 +235,15 @@ const MapView: React.FC = () => {
         (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation({ lat: latitude, lng: longitude });
+          setMapReady(true);
         },
         () => {
-          console.log('无法获取地理位置，使用默认位置');
-        }
+          setMapReady(true);
+        },
+        { timeout: 5000 }
       );
+    } else {
+      setMapReady(true);
     }
   }, [fetchCheckins, fetchTravelogs, setUserLocation]);
 
@@ -150,14 +260,16 @@ const MapView: React.FC = () => {
     }
     if (!clickedPosition) return;
 
+    setAddLoading(true);
     const result = await addCheckin(
       newCheckinName.trim(),
       clickedPosition.lat,
       clickedPosition.lng
     );
+    setAddLoading(false);
 
     if (result) {
-      message.success('签到成功！');
+      message.success(`签到成功！已在"${result.name}"标记位置`);
       setAddModalVisible(false);
       setNewCheckinName('');
       setClickedPosition(null);
@@ -167,13 +279,14 @@ const MapView: React.FC = () => {
   const handleDeleteCheckin = async (id: string, name: string) => {
     Modal.confirm({
       title: '确认删除',
-      content: `确定要删除签到点"${name}"吗？`,
-      okText: '删除',
+      content: `确定要删除签到点"${name}"吗？删除后该位置标记将从地图上移除。`,
+      okText: '确认删除',
       okType: 'danger',
       cancelText: '取消',
+      okButtonProps: { style: { background: '#D32F2F', borderColor: '#D32F2F' } },
       onOk: async () => {
         await deleteCheckin(id);
-        message.success('删除成功');
+        message.success('签到点已删除');
       },
     });
   };
@@ -196,12 +309,16 @@ const MapView: React.FC = () => {
     }
     if (!selectedCheckin) return;
 
-    const result = await createTravelog(travelogTitle.trim(), travelogContent.trim(), [
-      selectedCheckin.id,
-    ]);
+    setSaveLoading(true);
+    const result = await createTravelog(
+      travelogTitle.trim(),
+      travelogContent.trim(),
+      [selectedCheckin.id]
+    );
+    setSaveLoading(false);
 
     if (result) {
-      message.success('游记创建成功！');
+      message.success('游记创建成功！可在"我的游记"中查看');
       setTravelogModalVisible(false);
       setTravelogTitle('');
       setTravelogContent('');
@@ -221,14 +338,32 @@ const MapView: React.FC = () => {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-  const center: [number, number] = [currentPosition.lat, currentPosition.lng];
+  const center: [number, number] = [
+    currentPosition.lat ?? DEFAULT_CENTER.lat,
+    currentPosition.lng ?? DEFAULT_CENTER.lng,
+  ];
+  const zoom = currentPosition.zoom ?? DEFAULT_ZOOM;
+
+  if (!mapReady) {
+    return (
+      <div style={styles.loadingOverlay}>
+        <div style={styles.loadingContent}>
+          <EnvironmentOutlined style={{ fontSize: 48, color: '#1A237E', marginBottom: 16 }} />
+          <p style={{ color: '#666', fontSize: 16 }}>正在获取您的位置...</p>
+          <p style={{ color: '#999', fontSize: 13, marginTop: 8 }}>
+            默认位置：北京天安门（39.9042, 116.4074）
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
       <div style={styles.mapContainer}>
         <MapContainer
           center={center}
-          zoom={currentPosition.zoom}
+          zoom={zoom}
           style={{ height: '100%', width: '100%' }}
           zoomControl={true}
         >
@@ -236,7 +371,7 @@ const MapView: React.FC = () => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <MapController center={center} zoom={currentPosition.zoom} />
+          <MapController center={center} zoom={zoom} />
           <MapClickHandler onMapClick={handleMapClick} />
 
           {userLocation && (
@@ -245,8 +380,12 @@ const MapView: React.FC = () => {
               icon={userLocationIcon}
             >
               <Popup>
-                <div style={{ textAlign: 'center' }}>
-                  <strong>我的位置</strong>
+                <div style={{ textAlign: 'center', padding: '4px 0' }}>
+                  <strong style={{ color: '#1A237E' }}>📍 我的位置</strong>
+                  <br />
+                  <span style={{ fontSize: 11, color: '#999' }}>
+                    {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                  </span>
                 </div>
               </Popup>
             </Marker>
@@ -258,36 +397,19 @@ const MapView: React.FC = () => {
               position={[checkin.lat, checkin.lng]}
               icon={blueDropIcon}
             >
-              <Popup>
-                <div style={styles.popupContent}>
-                  <h3 style={styles.popupTitle}>{checkin.name}</h3>
-                  <p style={styles.popupTime}>
-                    {formatDateTime(checkin.createdAt)}
-                  </p>
-                  <div style={styles.popupButtons}>
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => handleGenerateTravelog(checkin)}
-                      style={styles.popupButton}
-                    >
-                      生成游记
-                    </Button>
-                    <Button
-                      danger
-                      size="small"
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleDeleteCheckin(checkin.id, checkin.name)}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                </div>
-              </Popup>
+              <CheckinPopup
+                checkin={checkin}
+                onGenerateTravelog={handleGenerateTravelog}
+                onDelete={handleDeleteCheckin}
+              />
             </Marker>
           ))}
         </MapContainer>
+
+        <div style={styles.mapHint}>
+          <EnvironmentOutlined style={{ marginRight: 4 }} />
+          点击地图任意位置添加签到点
+        </div>
       </div>
 
       <div className="sidebar" style={styles.sidebar}>
@@ -302,7 +424,10 @@ const MapView: React.FC = () => {
           {sortedCheckins.length === 0 ? (
             <div style={styles.emptyState}>
               <PlusOutlined style={{ fontSize: 48, color: '#ccc', marginBottom: 16 }} />
-              <p style={{ color: '#999' }}>点击地图添加签到点</p>
+              <p style={{ color: '#999', fontSize: 14 }}>点击地图添加签到点</p>
+              <p style={{ color: '#bbb', fontSize: 12, marginTop: 4 }}>
+                在地图上点击任意位置即可创建签到标记
+              </p>
             </div>
           ) : (
             <List
@@ -310,6 +435,11 @@ const MapView: React.FC = () => {
               renderItem={(item) => (
                 <List.Item key={item.id} className="list-item" style={styles.listItem}>
                   <List.Item.Meta
+                    avatar={
+                      <div style={styles.listItemAvatar}>
+                        <EnvironmentOutlined style={{ color: '#1976D2', fontSize: 16 }} />
+                      </div>
+                    }
                     title={<span style={styles.listItemTitle}>{item.name}</span>}
                     description={
                       <span style={styles.listItemTime}>
@@ -317,14 +447,24 @@ const MapView: React.FC = () => {
                       </span>
                     }
                   />
-                  <Button
-                    type="primary"
-                    size="small"
-                    onClick={() => handleGenerateTravelog(item)}
-                    style={styles.generateButton}
-                  >
-                    生成游记
-                  </Button>
+                  <div style={styles.listItemActions}>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => handleGenerateTravelog(item)}
+                      style={styles.generateButton}
+                    >
+                      生成游记
+                    </Button>
+                    <Button
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleDeleteCheckin(item.id, item.name)}
+                      style={styles.deleteButton}
+                      danger
+                    />
+                  </div>
                 </List.Item>
               )}
             />
@@ -333,13 +473,23 @@ const MapView: React.FC = () => {
       </div>
 
       <Modal
-        title="添加签到点"
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <EnvironmentOutlined style={{ color: '#1976D2' }} />
+            <span>添加签到点</span>
+          </div>
+        }
         open={addModalVisible}
         onOk={handleAddCheckin}
-        onCancel={() => setAddModalVisible(false)}
+        onCancel={() => {
+          setAddModalVisible(false);
+          setClickedPosition(null);
+        }}
         okText="确认签到"
         cancelText="取消"
         centered
+        confirmLoading={addLoading}
+        okButtonProps={{ style: { background: '#1976D2', borderColor: '#1976D2' } }}
       >
         <div style={{ marginTop: 16 }}>
           <Input
@@ -349,33 +499,46 @@ const MapView: React.FC = () => {
             maxLength={20}
             showCount
             size="large"
+            autoFocus
+            prefix={<EnvironmentOutlined style={{ color: '#bbb' }} />}
+            onPressEnter={handleAddCheckin}
           />
           {clickedPosition && (
-            <p style={{ marginTop: 12, color: '#666', fontSize: 12 }}>
-              坐标: {clickedPosition.lat.toFixed(6)},{' '}
-              {clickedPosition.lng.toFixed(6)}
-            </p>
+            <div style={styles.coordInfo}>
+              <span style={styles.coordLabel}>签到坐标</span>
+              <span style={styles.coordValue}>
+                {clickedPosition.lat.toFixed(6)}, {clickedPosition.lng.toFixed(6)}
+              </span>
+            </div>
           )}
         </div>
       </Modal>
 
       <Modal
-        title="生成游记"
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <EditOutlined style={{ color: '#1976D2' }} />
+            <span>生成游记</span>
+          </div>
+        }
         open={travelogModalVisible}
-        onOk={handleSaveTravelog}
         onCancel={() => setTravelogModalVisible(false)}
-        okText="保存"
-        cancelText="取消"
         width={640}
         centered
         footer={[
-          <Button key="preview" onClick={handlePreview}>
+          <Button key="preview" onClick={handlePreview} icon={<EditOutlined />}>
             预览
           </Button>,
           <Button key="cancel" onClick={() => setTravelogModalVisible(false)}>
             取消
           </Button>,
-          <Button key="submit" type="primary" onClick={handleSaveTravelog}>
+          <Button
+            key="submit"
+            type="primary"
+            onClick={handleSaveTravelog}
+            loading={saveLoading}
+            style={{ background: '#1976D2', borderColor: '#1976D2' }}
+          >
             保存
           </Button>,
         ]}
@@ -389,10 +552,10 @@ const MapView: React.FC = () => {
                 style={styles.travelogCheckinImage}
               />
               <div>
-                <p style={{ fontWeight: 600, color: '#1A237E' }}>
+                <p style={{ fontWeight: 600, color: '#1A237E', margin: '0 0 4px 0' }}>
                   {selectedCheckin.name}
                 </p>
-                <p style={{ fontSize: 12, color: '#999' }}>
+                <p style={{ fontSize: 12, color: '#999', margin: 0 }}>
                   {formatDateTime(selectedCheckin.createdAt)}
                 </p>
               </div>
@@ -462,11 +625,36 @@ const styles = {
     width: '100%',
     position: 'relative' as const,
   },
+  loadingOverlay: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    width: '100%',
+    background: '#f5f5f5',
+  },
+  loadingContent: {
+    textAlign: 'center' as const,
+  },
   mapContainer: {
     flex: 1,
     height: '100%',
     position: 'relative' as const,
     minWidth: 0,
+  },
+  mapHint: {
+    position: 'absolute' as const,
+    bottom: 16,
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(26, 35, 126, 0.85)',
+    color: '#fff',
+    padding: '8px 16px',
+    borderRadius: 20,
+    fontSize: 13,
+    zIndex: 1000,
+    pointerEvents: 'none' as const,
+    backdropFilter: 'blur(4px)',
   },
   sidebar: {
     width: 320,
@@ -511,8 +699,17 @@ const styles = {
     marginBottom: 8,
     padding: '12px 16px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-    transition: 'box-shadow 0.2s ease',
+    transition: 'box-shadow 0.2s ease, transform 0.2s ease',
     cursor: 'pointer',
+  },
+  listItemAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: '50%',
+    background: '#E3F2FD',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   listItemTitle: {
     fontWeight: 600,
@@ -523,33 +720,38 @@ const styles = {
     fontSize: 12,
     color: '#999',
   },
+  listItemActions: {
+    display: 'flex',
+    gap: 6,
+    alignItems: 'center',
+  },
   generateButton: {
     background: '#1976D2',
     borderColor: '#1976D2',
     borderRadius: 4,
     fontSize: 12,
   },
-  popupContent: {
-    padding: 8,
-    minWidth: 160,
-  },
-  popupTitle: {
-    margin: '0 0 4px 0',
-    color: '#1A237E',
-    fontSize: 14,
-  },
-  popupTime: {
-    margin: '0 0 8px 0',
-    color: '#666',
+  deleteButton: {
+    borderRadius: 4,
     fontSize: 12,
   },
-  popupButtons: {
+  coordInfo: {
+    marginTop: 12,
+    padding: '8px 12px',
+    background: '#f5f5f5',
+    borderRadius: 6,
     display: 'flex',
-    gap: 8,
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  popupButton: {
-    flex: 1,
+  coordLabel: {
+    fontSize: 12,
+    color: '#999',
+  },
+  coordValue: {
+    fontSize: 12,
+    color: '#333',
+    fontFamily: 'monospace',
   },
   travelogCheckinInfo: {
     display: 'flex',
