@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { StoryNode } from '../story/types';
 
 interface CardProps {
@@ -6,68 +6,102 @@ interface CardProps {
   onChoice: (choiceIndex: 0 | 1, choiceText: string) => void;
   onClose: () => void;
   slideDirection: 'left' | 'right' | null;
+  isExiting: boolean;
   isTransitioning: boolean;
 }
 
-export default function Card({ node, onChoice, onClose, slideDirection, isTransitioning }: CardProps) {
-  const [isEntering, setIsEntering] = useState(true);
-  const [isFading, setIsFading] = useState(false);
-  const [key, setKey] = useState(0);
+const SLIDE_OUT_DURATION = 500;
+const ENTER_DURATION = 600;
+const FADE_DURATION = 400;
+
+export default function Card({ node, onChoice, onClose, slideDirection, isExiting, isTransitioning }: CardProps) {
+  const [phase, setPhase] = useState<'entering' | 'idle' | 'exiting'>('entering');
+  const [contentVisible, setContentVisible] = useState(false);
+  const previousNodeId = useRef<string | null>(null);
 
   useEffect(() => {
-    setIsEntering(true);
-    setIsFading(true);
-    
-    const fadeTimer = setTimeout(() => {
-      setIsFading(false);
-    }, 400);
+    if (node.id !== previousNodeId.current) {
+      previousNodeId.current = node.id;
+      setPhase('entering');
+      setContentVisible(false);
 
-    const enterTimer = setTimeout(() => {
-      setIsEntering(false);
-    }, 600);
+      const fadeTimer = window.setTimeout(() => {
+        setContentVisible(true);
+      }, 50);
 
-    setKey(prev => prev + 1);
+      const enterTimer = window.setTimeout(() => {
+        setPhase('idle');
+      }, ENTER_DURATION);
 
-    return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(enterTimer);
-    };
+      return () => {
+        window.clearTimeout(fadeTimer);
+        window.clearTimeout(enterTimer);
+      };
+    }
   }, [node.id]);
+
+  useEffect(() => {
+    if (isExiting) {
+      setPhase('exiting');
+    }
+  }, [isExiting]);
 
   const handleChoice = useCallback((index: 0 | 1) => {
     if (isTransitioning) return;
     onChoice(index, node.choices[index].text);
   }, [isTransitioning, onChoice, node.choices]);
 
-  const getSlideStyle = () => {
-    if (slideDirection === 'left') {
+  const getCardStyle = (): React.CSSProperties => {
+    const baseStyle: React.CSSProperties = {
+      width: '600px',
+      height: '400px',
+      backgroundColor: '#1A1A2E',
+      borderRadius: '16px',
+      boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.3), 0 10px 40px rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      position: 'relative',
+    };
+
+    if (phase === 'exiting' && slideDirection) {
+      const translateX = slideDirection === 'left' ? '-120%' : '120%';
+      const rotate = slideDirection === 'left' ? '-5deg' : '5deg';
       return {
-        transform: 'translateX(-120%) rotate(-5deg)',
+        ...baseStyle,
+        transform: `translateX(${translateX}) rotate(${rotate})`,
         opacity: 0,
-        transition: 'transform 0.5s ease-in, opacity 0.5s ease-in',
+        transition: `transform ${SLIDE_OUT_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1), opacity ${SLIDE_OUT_DURATION}ms ease-in`,
       };
     }
-    if (slideDirection === 'right') {
+
+    if (phase === 'entering') {
       return {
-        transform: 'translateX(120%) rotate(5deg)',
-        opacity: 0,
-        transition: 'transform 0.5s ease-in, opacity 0.5s ease-in',
-      };
-    }
-    if (isEntering) {
-      return {
+        ...baseStyle,
         transform: 'translateY(80px)',
         opacity: 0,
-        animation: 'slideIn 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
+        animation: `cardSlideIn ${ENTER_DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
       };
     }
-    return {};
+
+    return baseStyle;
+  };
+
+  const getContentStyle = (): React.CSSProperties => {
+    return {
+      opacity: contentVisible ? 1 : 0,
+      transition: `opacity ${FADE_DURATION}ms ease-in-out`,
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      padding: '32px 40px',
+    };
   };
 
   return (
     <>
       <style>{`
-        @keyframes slideIn {
+        @keyframes cardSlideIn {
           0% {
             transform: translateY(80px);
             opacity: 0;
@@ -102,23 +136,11 @@ export default function Card({ node, onChoice, onClose, slideDirection, isTransi
         }
       `}</style>
 
-      <div
-        key={key}
-        style={{
-          width: '600px',
-          height: '400px',
-          backgroundColor: '#1A1A2E',
-          borderRadius: '16px',
-          boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.3), 0 10px 40px rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          position: 'relative',
-          ...getSlideStyle(),
-        }}
-      >
+      <div style={getCardStyle()}>
         <button
           onClick={onClose}
+          disabled={isTransitioning}
+          aria-label="关闭并重置游戏"
           style={{
             position: 'absolute',
             top: '12px',
@@ -129,7 +151,7 @@ export default function Card({ node, onChoice, onClose, slideDirection, isTransi
             border: 'none',
             color: '#888',
             fontSize: '20px',
-            cursor: 'pointer',
+            cursor: isTransitioning ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -139,7 +161,9 @@ export default function Card({ node, onChoice, onClose, slideDirection, isTransi
             zIndex: 10,
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#FF4444';
+            if (!isTransitioning) {
+              e.currentTarget.style.color = '#FF4444';
+            }
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.color = '#888';
@@ -148,16 +172,7 @@ export default function Card({ node, onChoice, onClose, slideDirection, isTransi
           ✕
         </button>
 
-        <div
-          style={{
-            opacity: isFading ? 0 : 1,
-            transition: 'opacity 0.4s ease',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            padding: '32px 40px',
-          }}
-        >
+        <div style={getContentStyle()}>
           <h2
             data-text={node.title}
             className="title-text"
@@ -201,7 +216,7 @@ export default function Card({ node, onChoice, onClose, slideDirection, isTransi
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: isTransitioning ? 'not-allowed' : 'pointer',
-                transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out',
+                transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out, opacity 0.2s ease',
                 opacity: isTransitioning ? 0.5 : 1,
               }}
               onMouseEnter={(e) => {
@@ -231,7 +246,7 @@ export default function Card({ node, onChoice, onClose, slideDirection, isTransi
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: isTransitioning ? 'not-allowed' : 'pointer',
-                transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out',
+                transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out, opacity 0.2s ease',
                 opacity: isTransitioning ? 0.5 : 1,
               }}
               onMouseEnter={(e) => {

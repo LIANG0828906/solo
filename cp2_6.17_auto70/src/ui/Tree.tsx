@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import type { HistoryEntry } from '../story/types';
+import { useStoryStore } from '../store';
 
-interface TreeProps {
-  history: HistoryEntry[];
-  onNodeClick: (historyIndex: number) => void;
-  onClear: () => void;
-}
-
-export default function Tree({ history, onNodeClick, onClear }: TreeProps) {
+export default function Tree() {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  const history = useStoryStore((state) => state.history);
+  const jumpToNode = useStoryStore((state) => state.jumpToNode);
+  const clearHistory = useStoryStore((state) => state.clearHistory);
+
   const handleNodeClick = (index: number) => {
-    onNodeClick(index);
+    jumpToNode(index);
+    setIsExpanded(false);
+  };
+
+  const handleClear = () => {
+    clearHistory();
   };
 
   const renderNode = (entry: HistoryEntry, index: number, isLast: boolean) => {
@@ -120,8 +124,8 @@ export default function Tree({ history, onNodeClick, onClear }: TreeProps) {
         style={{
           backgroundColor: 'rgba(15, 52, 96, 0.9)',
           backdropFilter: 'blur(10px)',
-          borderTopLeftRadius: isExpanded ? '12px' : '12px',
-          borderTopRightRadius: isExpanded ? '12px' : '12px',
+          borderTopLeftRadius: '12px',
+          borderTopRightRadius: '12px',
           borderBottomLeftRadius: isExpanded ? '0' : '12px',
           borderBottomRightRadius: isExpanded ? '0' : '12px',
           padding: '12px 20px',
@@ -176,7 +180,7 @@ export default function Tree({ history, onNodeClick, onClear }: TreeProps) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onClear();
+              handleClear();
             }}
             style={{
               position: 'absolute',

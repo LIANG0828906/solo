@@ -7,13 +7,14 @@ interface StoryState {
   history: HistoryEntry[];
   isLoading: boolean;
   slideDirection: 'left' | 'right' | null;
+  isExiting: boolean;
   isTransitioning: boolean;
 
   dispatchChoice: (choiceIndex: 0 | 1, choiceText: string) => void;
   jumpToNode: (historyIndex: number) => void;
   clearHistory: () => void;
   setSlideDirection: (direction: 'left' | 'right' | null) => void;
-  setTransitioning: (value: boolean) => void;
+  setIsExiting: (value: boolean) => void;
 }
 
 export const useStoryStore = create<StoryState>((set, get) => ({
@@ -21,12 +22,17 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   history: [],
   isLoading: false,
   slideDirection: null,
+  isExiting: false,
   isTransitioning: false,
 
   dispatchChoice: (choiceIndex: 0 | 1, choiceText: string) => {
-    const { currentNodeId, history } = get();
-    
-    set({ isLoading: true, isTransitioning: true });
+    const { currentNodeId, history, slideDirection } = get();
+
+    set({
+      isTransitioning: true,
+      isExiting: true,
+      slideDirection: slideDirection ?? (choiceIndex === 0 ? 'left' : 'right'),
+    });
 
     const entry: HistoryEntry = {
       nodeId: currentNodeId,
@@ -37,12 +43,15 @@ export const useStoryStore = create<StoryState>((set, get) => ({
 
     const nextNode = getNextNode(currentNodeId, choiceIndex);
 
+    set({ isLoading: true });
+
     setTimeout(() => {
       set({
         currentNodeId: nextNode.id,
         history: [...history, entry],
         isLoading: false,
         slideDirection: null,
+        isExiting: false,
         isTransitioning: false,
       });
     }, 500);
@@ -50,7 +59,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
 
   jumpToNode: (historyIndex: number) => {
     const { history } = get();
-    
+
     if (historyIndex < 0 || historyIndex >= history.length) {
       return;
     }
@@ -63,6 +72,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       history: newHistory,
       isLoading: false,
       slideDirection: null,
+      isExiting: false,
       isTransitioning: false,
     });
   },
@@ -75,6 +85,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
       history: [],
       isLoading: false,
       slideDirection: null,
+      isExiting: false,
       isTransitioning: false,
     });
   },
@@ -83,7 +94,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     set({ slideDirection: direction });
   },
 
-  setTransitioning: (value: boolean) => {
-    set({ isTransitioning: value });
+  setIsExiting: (value: boolean) => {
+    set({ isExiting: value });
   },
 }));

@@ -10,32 +10,19 @@ export default function App() {
     history,
     isLoading,
     slideDirection,
+    isExiting,
     isTransitioning,
     dispatchChoice,
-    jumpToNode,
     clearHistory,
-    setSlideDirection,
   } = useStoryStore();
 
   const currentNode = getNodeById(currentNodeId) || getInitialNode();
 
   const handleChoice = useCallback((choiceIndex: 0 | 1, choiceText: string) => {
-    setSlideDirection(choiceIndex === 0 ? 'left' : 'right');
-    
-    setTimeout(() => {
-      dispatchChoice(choiceIndex, choiceText);
-    }, 100);
-  }, [dispatchChoice, setSlideDirection]);
+    dispatchChoice(choiceIndex, choiceText);
+  }, [dispatchChoice]);
 
   const handleClose = useCallback(() => {
-    clearHistory();
-  }, [clearHistory]);
-
-  const handleNodeClick = useCallback((historyIndex: number) => {
-    jumpToNode(historyIndex);
-  }, [jumpToNode]);
-
-  const handleClear = useCallback(() => {
     clearHistory();
   }, [clearHistory]);
 
@@ -95,7 +82,7 @@ export default function App() {
         你的每一个选择，都在书写命运
       </p>
 
-      {isLoading && !isTransitioning && (
+      {isLoading && !isExiting && (
         <div
           style={{
             position: 'absolute',
@@ -116,14 +103,11 @@ export default function App() {
         onChoice={handleChoice}
         onClose={handleClose}
         slideDirection={slideDirection}
+        isExiting={isExiting}
         isTransitioning={isTransitioning}
       />
 
-      <Tree
-        history={history}
-        onNodeClick={handleNodeClick}
-        onClear={handleClear}
-      />
+      <Tree />
 
       <div
         style={{
