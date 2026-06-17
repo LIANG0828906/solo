@@ -1,0 +1,51 @@
+.braille-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 16px;
+  padding: 40px;
+}
+
+.braille-grid.shake {
+  animation: shake 0.2s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.braille-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #E0E0E0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.braille-dot.raised {
+  background-color: #4A90D9;
+  box-shadow: inset 2px 2px 4px #00000040;
+  transform: scale(1);
+}
+
+.braille-dot.depressed {
+  background-color: #F0F0F0;
+  transform: scale(0.9);
+}
+
+.braille-dot.pressing {
+  animation: bounce 0.15s ease;
+}
+
+@keyframes bounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
