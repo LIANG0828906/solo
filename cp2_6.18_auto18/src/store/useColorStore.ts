@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
 import { generateColorScheme } from '@/modules/colorHarmony'
+import chroma from 'chroma-js'
 
 export type SchemeType = 'triadic' | 'complementary' | 'analogous' | 'splitComplementary'
 
@@ -16,6 +17,9 @@ export interface SavedScheme {
   primary: string
   secondary: string[]
   type: SchemeType
+  hue: number
+  saturation: number
+  lightness: number
 }
 
 interface ColorStoreState {
@@ -32,7 +36,7 @@ interface ColorStoreState {
   setSaturation: (sat: number) => void
   setLightness: (light: number) => void
   setSchemeType: (type: SchemeType) => void
-  saveScheme: (name: string) => void
+  saveScheme: (name?: string) => void
   removeScheme: (id: string) => void
   applyScheme: (scheme: SavedScheme) => void
   toggleStar: () => void
@@ -41,6 +45,15 @@ interface ColorStoreState {
 
 function buildScheme(hue: number, sat: number, light: number, type: SchemeType): ColorScheme {
   return generateColorScheme(hue, sat, light, type)
+}
+
+function hslFromHex(hex: string): [number, number, number] {
+  try {
+    const [h, s, l] = chroma(hex).hsl()
+    return [isNaN(h) ? 0 : h, s * 100, l * 100]
+  } catch {
+    return [0, 70, 55]
+  }
 }
 
 export const useColorStore = create<ColorStoreState>((set, get) => ({
@@ -70,14 +83,17 @@ export const useColorStore = create<ColorStoreState>((set, get) => ({
     const s = get()
     set({ schemeType, colorScheme: buildScheme(s.hue, s.saturation, s.lightness, schemeType), isStarred: false })
   },
-  saveScheme: (name: string) => {
+  saveScheme: (name?: string) => {
     const s = get()
     const scheme: SavedScheme = {
       id: uuidv4(),
-      name,
+      name: name || `${s.schemeType} ${Math.round(s.hue)}°`,
       primary: s.colorScheme.primary,
       secondary: s.colorScheme.secondary,
       type: s.colorScheme.type,
+      hue: s.hue,
+      saturation: s.saturation,
+      lightness: s.lightness,
     }
     set({ savedSchemes: [...s.savedSchemes, scheme], isStarred: true })
   },
@@ -86,8 +102,14 @@ export const useColorStore = create<ColorStoreState>((set, get) => ({
     set({ savedSchemes: s.savedSchemes.filter(sc => sc.id !== id) })
   },
   applyScheme: (scheme: SavedScheme) => {
+    const [h, sat, light] = hslFromHex(scheme.primary)
+    const hue = scheme.hue != null ? scheme.hue : Math.round(h)
+    const saturation = scheme.saturation != null ? scheme.saturation : Math.round(sat)
+    const lightness = scheme.lightness != null ? scheme.lightness : Math.round(light)
     set({
-      hue: parseInt(scheme.primary.match(/\d+/)?.[0] || '0', 10),
+      hue,
+      saturation,
+      lightness,
       schemeType: scheme.type,
       colorScheme: { primary: scheme.primary, secondary: scheme.secondary, type: scheme.type },
       isStarred: true,
@@ -104,6 +126,9 @@ export const useColorStore = create<ColorStoreState>((set, get) => ({
         primary: s.colorScheme.primary,
         secondary: s.colorScheme.secondary,
         type: s.colorScheme.type,
+        hue: s.hue,
+        saturation: s.saturation,
+        lightness: s.lightness,
       }
       set({ savedSchemes: [...s.savedSchemes, scheme], isStarred: true })
     }
