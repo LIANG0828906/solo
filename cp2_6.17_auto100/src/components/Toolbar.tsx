@@ -1,16 +1,102 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useCanvasStore, ToolType } from '../store/useCanvasStore';
 
-const COLORS = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
-  '#BB8FCE', '#85C1E9', '#F8B500', '#000000', '#FFFFFF', '#7F8C8D', '#E74C3C', '#2ECC71',
-  '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4', '#009688',
-  '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722', '#795548',
-  '#607D8B', '#9E9E9E', '#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3',
-  '#03A9F4', '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107',
-  '#FF9800', '#FF5722', '#795548', '#607D8B', '#9E9E9E', '#F44336', '#FF0000', '#00FF00',
-  '#0000FF', '#FFFF00', '#00FFFF', '#FF00FF', '#C0C0C0', '#808080', '#800000', '#808000',
-];
+interface ColorScheme {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+  text: string;
+}
+
+const DEFAULT_COLOR_SCHEME: ColorScheme = {
+  primary: '#6C63FF',
+  secondary: '#FF6B6B',
+  accent: '#4ECDC4',
+  background: '#1E1E2E',
+  text: '#FFFFFF',
+};
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : null;
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return (
+    '#' +
+    [r, g, b]
+      .map((x) => {
+        const hex = Math.min(255, Math.max(0, Math.round(x))).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      })
+      .join('')
+  );
+}
+
+function generateAnalogousColors(baseColor: string, count: number): string[] {
+  const rgb = hexToRgb(baseColor);
+  if (!rgb) return Array(count).fill(baseColor);
+  const colors: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const t = (i - (count - 1) / 2) * 0.15;
+    colors.push(
+      rgbToHex(
+        rgb.r + t * 255,
+        rgb.g + t * 255,
+        rgb.b + t * 255
+      )
+    );
+  }
+  return colors;
+}
+
+function generateSaturationVariants(baseColor: string, count: number): string[] {
+  const rgb = hexToRgb(baseColor);
+  if (!rgb) return Array(count).fill(baseColor);
+  const gray = (rgb.r + rgb.g + rgb.b) / 3;
+  const colors: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const t = i / (count - 1);
+    colors.push(
+      rgbToHex(
+        gray + (rgb.r - gray) * t,
+        gray + (rgb.g - gray) * t,
+        gray + (rgb.b - gray) * t
+      )
+    );
+  }
+  return colors;
+}
+
+function generateColorPalette(scheme: ColorScheme): string[] {
+  const palette: string[] = [];
+
+  palette.push(...generateAnalogousColors(scheme.primary, 8));
+  palette.push(...generateAnalogousColors(scheme.secondary, 8));
+  palette.push(...generateAnalogousColors(scheme.accent, 8));
+  palette.push(...generateAnalogousColors(scheme.primary, 8).reverse());
+
+  palette.push(...generateSaturationVariants('#FF0000', 8));
+  palette.push(...generateSaturationVariants('#00FF00', 8));
+  palette.push(...generateSaturationVariants('#0000FF', 8));
+  palette.push(...generateSaturationVariants('#FFFF00', 8));
+
+  for (let i = 0; i < 8; i++) {
+    const v = Math.round((i / 7) * 255);
+    palette.push(rgbToHex(v, v, v));
+  }
+
+  return palette.slice(0, 64);
+}
+
+export { DEFAULT_COLOR_SCHEME, generateColorPalette };
 
 interface ToolbarProps {
   onUndo: () => void;
@@ -27,6 +113,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onRedo, onExport }) =>
   const [redoScale, setRedoScale] = useState(false);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const colorPalette = useMemo(() => {
+    return generateColorPalette(DEFAULT_COLOR_SCHEME);
+  }, []);
 
   const closeColorPicker = useCallback(() => {
     setShowColorPicker(false);
@@ -46,17 +136,20 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onRedo, onExport }) =>
     setLineWidth(Number(e.target.value));
     setSliderTooltipVisible(true);
     setSliderTooltipOpacity(1);
-    
+
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
     }
-    
+
     tooltipTimeoutRef.current = setTimeout(() => {
       setSliderTooltipOpacity(0);
-      setTimeout(() => {
-        setSliderTooltipVisible(false);
-      }, 300);
     }, 1500);
+  };
+
+  const handleTooltipTransitionEnd = () => {
+    if (sliderTooltipOpacity === 0) {
+      setSliderTooltipVisible(false);
+    }
   };
 
   const handleUndoClick = () => {
@@ -109,9 +202,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onRedo, onExport }) =>
         />
         {showColorPicker && (
           <div className="color-picker-panel">
-            {COLORS.map((c) => (
+            {colorPalette.map((c, idx) => (
               <button
-                key={c}
+                key={`${c}-${idx}`}
                 className="color-option"
                 style={{ backgroundColor: c }}
                 onClick={() => {
@@ -134,9 +227,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onRedo, onExport }) =>
           onChange={handleSliderChange}
         />
         {sliderTooltipVisible && (
-          <div 
+          <div
             className="slider-tooltip"
             style={{ opacity: sliderTooltipOpacity }}
+            onTransitionEnd={handleTooltipTransitionEnd}
           >
             {lineWidth}px
           </div>

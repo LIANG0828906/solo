@@ -164,18 +164,17 @@ export function useCanvasDraw({ canvasRef, onRedrawNeeded }: UseCanvasDrawOption
 
     currentPoints.current.push(point);
 
+    const now = performance.now();
+    if (now - lastDrawTime.current < 20) {
+      return;
+    }
+    lastDrawTime.current = now;
+
     if (animationFrameId.current) {
       cancelAnimationFrame(animationFrameId.current);
     }
 
-    const rafId = requestAnimationFrame((timestamp) => {
-      if (timestamp - lastDrawTime.current < 20) {
-        lastDrawTime.current = timestamp;
-        animationFrameId.current = null;
-        return;
-      }
-      lastDrawTime.current = timestamp;
-
+    animationFrameId.current = requestAnimationFrame(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -186,8 +185,6 @@ export function useCanvasDraw({ canvasRef, onRedrawNeeded }: UseCanvasDrawOption
       lastPoint.current = point;
       animationFrameId.current = null;
     });
-
-    animationFrameId.current = rafId;
   }, [canvasRef, getCanvasPoint, drawSegment, tool, color, lineWidth]);
 
   const stopDrawing = useCallback(() => {
@@ -233,14 +230,38 @@ export function useCanvasDraw({ canvasRef, onRedrawNeeded }: UseCanvasDrawOption
 
   const exportToPNG = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      console.warn('导出失败：画布元素不存在');
+      alert('导出失败：画布元素不存在');
+      return;
+    }
 
-    const dataURL = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `sketchpulse-export-${Date.now()}.png`;
-    link.href = dataURL;
-    link.click();
-  }, [canvasRef]);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.warn('导出失败：无法获取画布上下文');
+      alert('导出失败：无法获取画布上下文');
+      return;
+    }
+
+    const actions = getUndoStack();
+    if (actions.length === 0) {
+      const shouldExport = confirm('画布当前为空，是否仍然导出？');
+      if (!shouldExport) return;
+    }
+
+    try {
+      const dataURL = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `sketchpulse-export-${Date.now()}.png`;
+      link.href = dataURL;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('导出PNG失败：', error);
+      alert('导出PNG失败，请重试');
+    }
+  }, [canvasRef, getUndoStack]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
