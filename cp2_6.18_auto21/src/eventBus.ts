@@ -12,6 +12,7 @@ export enum EventType {
   RECORD_RESTORE_REQUESTED = 'record:restoreRequested',
   RECORD_SAVED = 'record:saved',
   RECORD_RESTORED = 'record:restored',
+  THUMBNAIL_READY = 'thumbnail:ready',
   STATE_SNAPSHOT_REQUESTED = 'state:snapshotRequested',
   STATE_SNAPSHOT_RESPONSE = 'state:snapshotResponse',
   SCENE_CELL_CLICKED = 'scene:cellClicked',

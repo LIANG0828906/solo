@@ -24,6 +24,16 @@ interface CellMeshGroup {
   cellId: string;
   ring?: THREE.Mesh;
   data: CellData;
+  baseGeometry?: THREE.BufferGeometry;
+  currentType?: CellType;
+}
+
+interface StarData {
+  mesh: THREE.Mesh;
+  baseOpacity: number;
+  size: number;
+  period: number;
+  phase: number;
 }
 
 export class Renderer3D {
@@ -36,9 +46,8 @@ export class Renderer3D {
   private raycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
   private animationId: number = 0;
-  private stars: { mesh: THREE.Mesh; baseOpacity: number; period: number; phase: number }[] = [];
+  private stars: StarData[] = [];
   private selectedCellId: string | null = null;
-  private ringTime: number = 0;
   private splitAnimations: {
     parentGroup: THREE.Group;
     child1Data: CellData;
@@ -46,15 +55,18 @@ export class Renderer3D {
     parentPos: THREE.Vector3;
     startTime: number;
     duration: number;
+    parentColor: THREE.Color;
+    stretchAxis: THREE.Vector3;
   }[] = [];
   private diffAnimations: {
     cellId: string;
     targetColor: THREE.Color;
-    targetScale: THREE.Vector3;
     startColor: THREE.Color;
-    startScale: THREE.Vector3;
     startTime: number;
     duration: number;
+    startVertices?: Float32Array;
+    targetVertices?: Float32Array;
+    type: CellType;
   }[] = [];
   private fadeOverlay: HTMLDivElement | null = null;
   private disposed = false;
@@ -72,7 +84,7 @@ export class Renderer3D {
     );
     this.camera.position.set(0, 8, 18);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearColor(0x000000, 0);
@@ -144,12 +156,13 @@ export class Renderer3D {
       const size = 0.1 + Math.random() * 0.2;
       const period = 3 + Math.random() * 2;
       const phase = Math.random() * Math.PI * 2;
+      const baseOpacity = 0.3 + Math.random() * 0.5;
 
       const geo = new THREE.SphereGeometry(size, 6, 6);
       const mat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
-        opacity: 0.4 + Math.random() * 0.4,
+        opacity: baseOpacity,
       });
       const mesh = new THREE.Mesh(geo, mat);
 
@@ -162,7 +175,8 @@ export class Renderer3D {
       this.scene.add(mesh);
       this.stars.push({
         mesh,
-        baseOpacity: mat.opacity,
+        baseOpacity,
+        size,
         period,
         phase,
       });
@@ -175,51 +189,70 @@ export class Renderer3D {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: #0A0A1A; opacity: 0; pointer-events: none;
       transition: opacity 0.25s ease;
+      z-index: 10;
     `;
     this.container.style.position = 'relative';
     this.container.appendChild(this.fadeOverlay);
   }
 
-  private createCellMesh(cellData: CellData, visible: boolean = true): CellMeshGroup {
-    const group = new THREE.Group();
-    group.visible = visible;
+  private createSphereGeometry(radius: number, segments: number): THREE.BufferGeometry {
+    const geo = new THREE.SphereGeometry(radius, segments, segments);
+    this.applyNoiseVertices(geo);
+    return geo;
+  }
 
-    const outerGeo = new THREE.SphereGeometry(1.25, 32, 32);
-    const outerMat = new THREE.MeshPhongMaterial({
-      color: hexToThreeColor(cellData.color),
-      transparent: true,
-      opacity: 0.65,
-      shininess: 40,
-      specular: 0x333333,
-    });
-    this.applyNoiseVertices(outerGeo);
-    const outer = new THREE.Mesh(outerGeo, outerMat);
-    group.add(outer);
+  private createEllipsoidGeometry(radius: number, ratioX: number, ratioY: number, ratioZ: number): THREE.BufferGeometry {
+    const geo = new THREE.SphereGeometry(radius, 32, 32);
+    const pos = geo.attributes.position;
+    const arr = pos.array as Float32Array;
+    for (let i = 0; i < arr.length; i += 3) {
+      arr[i] *= ratioX;
+      arr[i + 1] *= ratioY;
+      arr[i + 2] *= ratioZ;
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+    this.applyNoiseVertices(geo);
+    return geo;
+  }
 
-    const innerGeo = new THREE.SphereGeometry(0.35, 16, 16);
-    const innerMat = new THREE.MeshPhongMaterial({
-      color: 0x1a0a2e,
-      transparent: true,
-      opacity: 0.9,
-    });
-    const inner = new THREE.Mesh(innerGeo, innerMat);
-    group.add(inner);
+  private createSpindleGeometry(radius: number): THREE.BufferGeometry {
+    const geo = new THREE.SphereGeometry(radius, 32, 32);
+    const pos = geo.attributes.position;
+    const arr = pos.array as Float32Array;
+    for (let i = 0; i < arr.length; i += 3) {
+      const y = arr[i + 1];
+      const absY = Math.abs(y);
+      const normY = absY / radius;
+      const taper = 1 - Math.pow(normY, 1.8);
+      const stretch = 1 + normY * 0.25;
+      arr[i] *= taper;
+      arr[i + 2] *= taper;
+      arr[i + 1] = y * stretch;
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+    this.applyNoiseVertices(geo);
+    return geo;
+  }
 
-    group.position.set(cellData.position.x, cellData.position.y, cellData.position.z);
-    group.scale.set(cellData.scale.x, cellData.scale.y, cellData.scale.z);
-
-    this.scene.add(group);
-
-    const entry: CellMeshGroup = {
-      outer,
-      inner,
-      group,
-      cellId: cellData.id,
-      data: cellData,
-    };
-
-    this.cellMeshes.set(cellData.id, entry);
-    return entry;
+  private createFlatGeometry(radius: number, heightRatio: number): THREE.BufferGeometry {
+    const geo = new THREE.SphereGeometry(radius, 32, 32);
+    const pos = geo.attributes.position;
+    const arr = pos.array as Float32Array;
+    for (let i = 0; i < arr.length; i += 3) {
+      const y = arr[i + 1];
+      const absY = Math.abs(y);
+      const normY = absY / radius;
+      const flatness = 1 - normY * 0.3;
+      arr[i] *= flatness;
+      arr[i + 2] *= flatness;
+      arr[i + 1] *= heightRatio;
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+    this.applyNoiseVertices(geo);
+    return geo;
   }
 
   private applyNoiseVertices(geometry: THREE.BufferGeometry): void {
@@ -241,20 +274,75 @@ export class Renderer3D {
     geometry.computeVertexNormals();
   }
 
-  private createSpindleGeometry(): THREE.BufferGeometry {
-    const geo = new THREE.SphereGeometry(1.25, 32, 32);
-    const pos = geo.attributes.position;
-    const arr = pos.array as Float32Array;
-    for (let i = 0; i < arr.length; i += 3) {
-      const y = arr[i + 1];
-      const absY = Math.abs(y);
-      const taper = 1 - Math.pow(absY / 1.25, 1.8);
-      arr[i] *= taper;
-      arr[i + 2] *= taper;
+  private createGeometryForType(type: CellType, radius: number = 1.25): THREE.BufferGeometry {
+    switch (type) {
+      case 'neuron':
+        return this.createEllipsoidGeometry(radius, 1.5, 1, 1);
+      case 'muscle':
+        return this.createSpindleGeometry(radius);
+      case 'epithelial':
+        return this.createFlatGeometry(radius, 0.4);
+      default:
+        return this.createSphereGeometry(radius, 32);
     }
-    pos.needsUpdate = true;
-    geo.computeVertexNormals();
-    return geo;
+  }
+
+  private createCellMesh(cellData: CellData, visible: boolean = true): CellMeshGroup {
+    const group = new THREE.Group();
+    group.visible = visible;
+
+    const outerGeo = this.createGeometryForType(cellData.type);
+    const outerMat = new THREE.MeshPhongMaterial({
+      color: hexToThreeColor(cellData.color),
+      transparent: true,
+      opacity: 0.65,
+      shininess: 40,
+      specular: 0x333333,
+    });
+    const outer = new THREE.Mesh(outerGeo, outerMat);
+    group.add(outer);
+
+    const innerRadius = 0.35;
+    const innerGeo = new THREE.SphereGeometry(innerRadius, 16, 16);
+    const innerMat = new THREE.MeshPhongMaterial({
+      color: 0x1a0a2e,
+      transparent: true,
+      opacity: 0.9,
+    });
+    const inner = new THREE.Mesh(innerGeo, innerMat);
+    group.add(inner);
+
+    group.position.set(cellData.position.x, cellData.position.y, cellData.position.z);
+
+    this.scene.add(group);
+
+    const entry: CellMeshGroup = {
+      outer,
+      inner,
+      group,
+      cellId: cellData.id,
+      data: { ...cellData },
+      currentType: cellData.type,
+    };
+
+    this.cellMeshes.set(cellData.id, entry);
+    return entry;
+  }
+
+  private morphGeometry(entry: CellMeshGroup, targetType: CellType): { start: Float32Array; target: Float32Array } {
+    const currentGeo = entry.outer.geometry;
+    const currentPos = currentGeo.attributes.position.array as Float32Array;
+    const startVertices = new Float32Array(currentPos.length);
+    startVertices.set(currentPos);
+
+    const targetGeo = this.createGeometryForType(targetType);
+    const targetPos = targetGeo.attributes.position.array as Float32Array;
+    const targetVertices = new Float32Array(targetPos.length);
+    targetVertices.set(targetPos);
+
+    targetGeo.dispose();
+
+    return { start: startVertices, target: targetVertices };
   }
 
   private listenEvents(): void {
@@ -283,8 +371,6 @@ export class Renderer3D {
       this.startSplitAnimation(data);
     });
 
-    eventBus.on(EventType.SPLIT_COMPLETED, () => {});
-
     eventBus.on(EventType.DIFFERENTIATE_COMPLETED, (payload) => {
       const data = payload as DifferentiatePayload;
       this.startDifferentiationAnimation(data);
@@ -301,8 +387,53 @@ export class Renderer3D {
 
     eventBus.on(EventType.RECORD_SAVED, (payload) => {
       const { recordId } = payload as { recordId: string };
-      this.generateThumbnail(recordId);
+      if (recordId) {
+        this.captureThumbnailForSave(recordId);
+      }
     });
+  }
+
+  private captureThumbnailForSave(recordId: string): void {
+    this.renderer.render(this.scene, this.camera);
+    const dataUrl = this.renderer.domElement.toDataURL('image/png', 0.6);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 60;
+    canvas.height = 60;
+    const ctx = canvas.getContext('2d')!;
+
+    ctx.fillStyle = '#2C2C3A';
+    if (typeof ctx.roundRect === 'function') {
+      ctx.beginPath();
+      ctx.roundRect(0, 0, 60, 60, 8);
+      ctx.fill();
+    } else {
+      ctx.fillRect(0, 0, 60, 60);
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      const aspect = img.width / img.height;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (aspect > 1) {
+        sx = (img.width - img.height) / 2;
+        sw = img.height;
+      } else {
+        sy = (img.height - img.width) / 2;
+        sh = img.width;
+      }
+      ctx.save();
+      if (typeof ctx.beginPath === 'function' && typeof ctx.roundRect === 'function') {
+        ctx.beginPath();
+        ctx.roundRect(4, 4, 52, 52, 6);
+        ctx.clip();
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, 4, 4, 52, 52);
+      ctx.restore();
+      const thumbnail = canvas.toDataURL('image/png');
+      eventBus.emit(EventType.THUMBNAIL_READY, { recordId, thumbnail });
+    };
+    img.src = dataUrl;
   }
 
   private removeCellMesh(cellId: string): void {
@@ -325,16 +456,16 @@ export class Renderer3D {
     const entry = this.cellMeshes.get(cell.id);
     if (!entry) return;
 
-    entry.data = cell;
+    entry.data = { ...cell };
 
-    if (cell.type === 'muscle') {
-      const newGeo = this.createSpindleGeometry();
-      this.applyNoiseVertices(newGeo);
+    if (entry.currentType !== cell.type) {
+      const newGeo = this.createGeometryForType(cell.type);
       entry.outer.geometry.dispose();
       entry.outer.geometry = newGeo;
+      entry.currentType = cell.type;
     }
 
-    entry.group.scale.set(cell.scale.x, cell.scale.y, cell.scale.z);
+    (entry.outer.material as THREE.MeshPhongMaterial).color.set(cell.color);
   }
 
   private updateSelection(cellId: string | null): void {
@@ -354,7 +485,7 @@ export class Renderer3D {
     if (cellId) {
       const entry = this.cellMeshes.get(cellId);
       if (entry && !entry.ring) {
-        const ringGeo = new THREE.RingGeometry(1.6, 1.85, 48);
+        const ringGeo = new THREE.RingGeometry(1.7, 2.0, 48);
         const ringMat = new THREE.MeshBasicMaterial({
           color: 0xffa500,
           transparent: true,
@@ -373,24 +504,22 @@ export class Renderer3D {
     const parentEntry = this.cellMeshes.get(data.parentId);
     if (!parentEntry) return;
 
-    const parentGroup = parentEntry.group;
     const parentPos = new THREE.Vector3(
       data.parentPosition.x,
       data.parentPosition.y,
       data.parentPosition.z
     );
 
-    parentGroup.scale.set(1, 1, 1);
+    const parentColor = (parentEntry.outer.material as THREE.MeshPhongMaterial).color.clone();
 
     this.removeCellMesh(data.parentId);
 
     const tempGroup = new THREE.Group();
     tempGroup.position.copy(parentPos);
 
-    const tempOuterGeo = new THREE.SphereGeometry(1.25, 32, 32);
-    this.applyNoiseVertices(tempOuterGeo);
+    const tempOuterGeo = this.createGeometryForType('default');
     const tempOuterMat = new THREE.MeshPhongMaterial({
-      color: hexToThreeColor(data.parentColor),
+      color: parentColor.clone(),
       transparent: true,
       opacity: 0.65,
       shininess: 40,
@@ -410,16 +539,24 @@ export class Renderer3D {
 
     this.scene.add(tempGroup);
 
-    const child1Entry = this.createCellMesh(data.child1, false);
-    const child2Entry = this.createCellMesh(data.child2, false);
+    this.createCellMesh(data.child1, false);
+    this.createCellMesh(data.child2, false);
+
+    const stretchAxis = new THREE.Vector3(
+      data.child1.position.x - data.child2.position.x,
+      data.child1.position.y - data.child2.position.y,
+      data.child1.position.z - data.child2.position.z
+    ).normalize();
 
     this.splitAnimations.push({
       parentGroup: tempGroup,
       child1Data: data.child1,
       child2Data: data.child2,
-      parentPos,
+      parentPos: parentPos.clone(),
       startTime: performance.now(),
       duration: 2000,
+      parentColor: parentColor.clone(),
+      stretchAxis,
     });
   }
 
@@ -428,29 +565,19 @@ export class Renderer3D {
     if (!entry) return;
 
     const startColor = (entry.outer.material as THREE.MeshPhongMaterial).color.clone();
-    const startScale = entry.group.scale.clone();
     const targetColor = hexToThreeColor(data.targetColor);
-    const targetScale = new THREE.Vector3(
-      data.targetScale.x,
-      data.targetScale.y,
-      data.targetScale.z
-    );
 
-    if (data.cellType === 'muscle') {
-      const newGeo = this.createSpindleGeometry();
-      this.applyNoiseVertices(newGeo);
-      entry.outer.geometry.dispose();
-      entry.outer.geometry = newGeo;
-    }
+    const { start, target } = this.morphGeometry(entry, data.cellType);
 
     this.diffAnimations.push({
       cellId: data.cellId,
       targetColor,
-      targetScale,
       startColor,
-      startScale,
       startTime: performance.now(),
       duration: 800,
+      startVertices: start,
+      targetVertices: target,
+      type: data.cellType,
     });
   }
 
@@ -480,20 +607,14 @@ export class Renderer3D {
       const existing = this.cellMeshes.get(cell.id);
       if (existing) {
         (existing.outer.material as THREE.MeshPhongMaterial).color.set(cell.color);
-        existing.group.scale.set(cell.scale.x, cell.scale.y, cell.scale.z);
         existing.group.position.set(cell.position.x, cell.position.y, cell.position.z);
-        existing.data = cell;
+        existing.data = { ...cell };
 
-        if (cell.type === 'muscle' && existing.data.type !== 'muscle') {
-          const newGeo = this.createSpindleGeometry();
-          this.applyNoiseVertices(newGeo);
+        if (existing.currentType !== cell.type) {
+          const newGeo = this.createGeometryForType(cell.type);
           existing.outer.geometry.dispose();
           existing.outer.geometry = newGeo;
-        } else if (cell.type !== 'muscle' && existing.data.type === 'muscle') {
-          const newGeo = new THREE.SphereGeometry(1.25, 32, 32);
-          this.applyNoiseVertices(newGeo);
-          existing.outer.geometry.dispose();
-          existing.outer.geometry = newGeo;
+          existing.currentType = cell.type;
         }
       } else {
         this.createCellMesh(cell, true);
@@ -502,38 +623,6 @@ export class Renderer3D {
 
     this.selectedCellId = null;
     this.fadeIn();
-  }
-
-  private generateThumbnail(recordId: string): void {
-    this.renderer.render(this.scene, this.camera);
-    const dataUrl = this.renderer.domElement.toDataURL('image/png', 0.5);
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 60;
-    canvas.height = 60;
-    const ctx = canvas.getContext('2d')!;
-
-    ctx.fillStyle = '#2C2C3A';
-    ctx.beginPath();
-    ctx.roundRect(0, 0, 60, 60, 8);
-    ctx.fill();
-
-    const img = new Image();
-    img.onload = () => {
-      const aspect = img.width / img.height;
-      let sx = 0, sy = 0, sw = img.width, sh = img.height;
-      if (aspect > 1) {
-        sx = (img.width - img.height) / 2;
-        sw = img.height;
-      } else {
-        sy = (img.height - img.width) / 2;
-        sh = img.width;
-      }
-      ctx.drawImage(img, sx, sy, sw, sh, 4, 4, 52, 52);
-      const thumbnail = canvas.toDataURL('image/png');
-      eventBus.emit(EventType.RECORD_SAVED, { recordId, thumbnail });
-    };
-    img.src = dataUrl;
   }
 
   private animate = (): void => {
@@ -569,7 +658,7 @@ export class Renderer3D {
     const pulse = 0.5 + 0.5 * Math.sin(t * freq * Math.PI * 2);
     const mat = entry.ring.material as THREE.MeshBasicMaterial;
     mat.opacity = 0.3 + 0.5 * pulse;
-    const s = 1 + 0.08 * Math.sin(t * freq * Math.PI * 2);
+    const s = 1 + 0.08 * pulse;
     entry.ring.scale.set(s, s, s);
   }
 
@@ -580,76 +669,80 @@ export class Renderer3D {
       const anim = this.splitAnimations[i];
       const elapsed = now - anim.startTime;
       const rawProgress = Math.min(elapsed / anim.duration, 1);
-      const progress = easeInOutCubic(rawProgress);
+      const easedProgress = easeInOutCubic(rawProgress);
 
-      const stretchPhase = Math.min(progress * 2, 1);
-      const separatePhase = Math.max((progress - 0.5) * 2, 0);
+      const stretchProgress = easeInOutCubic(Math.min(rawProgress * 2.5, 1));
+      const separateProgress = easeInOutCubic(Math.max((rawProgress - 0.35) / 0.65, 0));
 
-      const scaleX = 1 + stretchPhase * 0.6;
-      const scaleY = 1 - stretchPhase * 0.15;
-      const scaleZ = 1 - stretchPhase * 0.15;
-      anim.parentGroup.scale.set(scaleX, scaleY, scaleZ);
+      const scaleX = 1 + stretchProgress * 0.7;
+      const scaleY = 1 - stretchProgress * 0.25;
+      const scaleZ = 1 - stretchProgress * 0.25;
 
-      if (progress >= 0.5) {
+      if (rawProgress < 0.6) {
+        anim.parentGroup.scale.set(scaleX, scaleY, scaleZ);
+      } else {
+        const fadeProgress = easeInOutCubic((rawProgress - 0.6) / 0.4);
+        const fadeScale = 1 - fadeProgress * 0.3;
         anim.parentGroup.scale.set(
-          scaleX * (1 - separatePhase),
-          scaleY * (1 - separatePhase * 0.5),
-          scaleZ * (1 - separatePhase * 0.5)
+          scaleX * fadeScale,
+          scaleY * fadeScale,
+          scaleZ * fadeScale
         );
+        const parentOuter = anim.parentGroup.children[0] as THREE.Mesh;
+        const parentInner = anim.parentGroup.children[1] as THREE.Mesh;
+        (parentOuter.material as THREE.MeshPhongMaterial).opacity = 0.65 * (1 - fadeProgress);
+      }
 
-        const child1Entry = this.cellMeshes.get(anim.child1Data.id);
-        const child2Entry = this.cellMeshes.get(anim.child2Data.id);
+      const child1Entry = this.cellMeshes.get(anim.child1Data.id);
+      const child2Entry = this.cellMeshes.get(anim.child2Data.id);
 
-        if (child1Entry && child2Entry) {
-          child1Entry.group.visible = true;
-          child2Entry.group.visible = true;
+      if (child1Entry && child2Entry && separateProgress > 0) {
+        child1Entry.group.visible = true;
+        child2Entry.group.visible = true;
 
-          const childScaleVal = separatePhase;
-          child1Entry.group.scale.set(
-            anim.child1Data.scale.x * childScaleVal,
-            anim.child1Data.scale.y * childScaleVal,
-            anim.child1Data.scale.z * childScaleVal
-          );
-          child2Entry.group.scale.set(
-            anim.child2Data.scale.x * childScaleVal,
-            anim.child2Data.scale.y * childScaleVal,
-            anim.child2Data.scale.z * childScaleVal
-          );
+        const appearProgress = easeInOutCubic(Math.min(separateProgress * 1.5, 1)) ;
+        child1Entry.group.scale.setScalar(appearProgress);
+        child2Entry.group.scale.setScalar(appearProgress);
 
-          const offset1 = new THREE.Vector3(
-            anim.child1Data.position.x - anim.parentPos.x,
-            anim.child1Data.position.y - anim.parentPos.y,
-            anim.child1Data.position.z - anim.parentPos.z
-          ).multiplyScalar(separatePhase);
+        const offset1 = new THREE.Vector3(
+          anim.child1Data.position.x - anim.parentPos.x,
+          anim.child1Data.position.y - anim.parentPos.y,
+          anim.child1Data.position.z - anim.parentPos.z
+        ).multiplyScalar(separateProgress);
 
-          const offset2 = new THREE.Vector3(
-            anim.child2Data.position.x - anim.parentPos.x,
-            anim.child2Data.position.y - anim.parentPos.y,
-            anim.child2Data.position.z - anim.parentPos.z
-          ).multiplyScalar(separatePhase);
+        const offset2 = new THREE.Vector3(
+          anim.child2Data.position.x - anim.parentPos.x,
+          anim.child2Data.position.y - anim.parentPos.y,
+          anim.child2Data.position.z - anim.parentPos.z
+        ).multiplyScalar(separateProgress);
 
-          child1Entry.group.position.copy(anim.parentPos).add(offset1);
-          child2Entry.group.position.copy(anim.parentPos).add(offset2);
-        }
+        child1Entry.group.position.copy(anim.parentPos).add(offset1);
+        child2Entry.group.position.copy(anim.parentPos).add(offset2);
+
+        const childMat1 = child1Entry.outer.material as THREE.MeshPhongMaterial;
+        const childMat2 = child2Entry.outer.material as THREE.MeshPhongMaterial;
+        childMat1.opacity = 0.65 * appearProgress;
+        childMat2.opacity = 0.65 * appearProgress;
       }
 
       if (rawProgress >= 1) {
         completed.push(i);
         this.scene.remove(anim.parentGroup);
+        const parentOuter = anim.parentGroup.children[0] as THREE.Mesh;
+        const parentInner = anim.parentGroup.children[1] as THREE.Mesh;
+        parentOuter.geometry.dispose();
+        (parentOuter.material as THREE.Material).dispose();
+        parentInner.geometry.dispose();
+        (parentInner.material as THREE.Material).dispose();
 
-        const child1Entry = this.cellMeshes.get(anim.child1Data.id);
-        const child2Entry = this.cellMeshes.get(anim.child2Data.id);
         if (child1Entry) {
           child1Entry.group.position.set(
             anim.child1Data.position.x,
             anim.child1Data.position.y,
             anim.child1Data.position.z
           );
-          child1Entry.group.scale.set(
-            anim.child1Data.scale.x,
-            anim.child1Data.scale.y,
-            anim.child1Data.scale.z
-          );
+          child1Entry.group.scale.set(1, 1, 1);
+          (child1Entry.outer.material as THREE.MeshPhongMaterial).opacity = 0.65;
         }
         if (child2Entry) {
           child2Entry.group.position.set(
@@ -657,11 +750,8 @@ export class Renderer3D {
             anim.child2Data.position.y,
             anim.child2Data.position.z
           );
-          child2Entry.group.scale.set(
-            anim.child2Data.scale.x,
-            anim.child2Data.scale.y,
-            anim.child2Data.scale.z
-          );
+          child2Entry.group.scale.set(1, 1, 1);
+          (child2Entry.outer.material as THREE.MeshPhongMaterial).opacity = 0.65;
         }
       }
     }
@@ -677,26 +767,32 @@ export class Renderer3D {
     for (let i = 0; i < this.diffAnimations.length; i++) {
       const anim = this.diffAnimations[i];
       const entry = this.cellMeshes.get(anim.cellId);
-      if (!entry) {
+      if (!entry || !anim.startVertices || !anim.targetVertices) {
         completed.push(i);
         continue;
       }
 
       const elapsed = now - anim.startTime;
       const rawProgress = Math.min(elapsed / anim.duration, 1);
-      const progress = easeInOutCubic(rawProgress);
+      const easedProgress = easeInOutCubic(rawProgress);
 
       const mat = entry.outer.material as THREE.MeshPhongMaterial;
-      mat.color.copy(anim.startColor).lerp(anim.targetColor, progress);
+      mat.color.copy(anim.startColor).lerp(anim.targetColor, easedProgress);
 
-      entry.group.scale.set(
-        anim.startScale.x + (anim.targetScale.x - anim.startScale.x) * progress,
-        anim.startScale.y + (anim.targetScale.y - anim.startScale.y) * progress,
-        anim.startScale.z + (anim.targetScale.z - anim.startScale.z) * progress
-      );
+      const posAttr = entry.outer.geometry.attributes.position;
+      const arr = posAttr.array as Float32Array;
+      const start = anim.startVertices;
+      const target = anim.targetVertices;
+
+      for (let j = 0; j < arr.length; j++) {
+        arr[j] = start[j] + (target[j] - start[j]) * easedProgress;
+      }
+      posAttr.needsUpdate = true;
+      entry.outer.geometry.computeVertexNormals();
 
       if (rawProgress >= 1) {
         completed.push(i);
+        entry.currentType = anim.type;
       }
     }
 

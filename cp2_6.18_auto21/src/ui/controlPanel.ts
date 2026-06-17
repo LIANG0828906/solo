@@ -2,7 +2,6 @@ import {
   eventBus,
   EventType,
   CellType,
-  RecordData,
 } from '../eventBus';
 
 const CELL_TYPE_CONFIG: { type: CellType; label: string; color: string; icon: string }[] = [
@@ -21,16 +20,30 @@ export class ControlPanel {
   private timelineContainer!: HTMLDivElement;
   private cellCountLabel!: HTMLSpanElement;
   private selectedCellLabel!: HTMLSpanElement;
-  private thumbnails: Map<string, HTMLDivElement> = new Map();
+  private thumbnails: Map<string, { wrapper: HTMLDivElement; img: HTMLDivElement }> = new Map();
+  private pendingThumbnails: string[] = [];
+  private recordList: string[] = [];
+  private selectedCellId: string | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
     this.render();
     this.listenEvents();
+    this.setupResponsive();
   }
 
   private render(): void {
     this.container.innerHTML = '';
+    this.applyPanelStyle();
+
+    this.renderActionSection();
+    this.renderDivider();
+    this.renderTypeSection();
+    this.renderDivider();
+    this.renderTimelineSection();
+  }
+
+  private applyPanelStyle(): void {
     this.container.style.cssText = `
       background: #1E1E2E;
       border-radius: 12px;
@@ -41,13 +54,27 @@ export class ControlPanel {
       color: #e0e0e0;
       font-family: 'Segoe UI', system-ui, sans-serif;
       user-select: none;
+      transition: all 0.3s ease;
     `;
+  }
 
-    this.renderActionSection();
-    this.renderDivider();
-    this.renderTypeSection();
-    this.renderDivider();
-    this.renderTimelineSection();
+  private setupResponsive(): void {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        this.container.style.width = '100%';
+        this.container.style.flex = '1 1 auto';
+        this.container.style.overflowY = 'auto';
+        this.container.style.overflowX = 'hidden';
+      } else {
+        this.container.style.width = '340px';
+        this.container.style.flex = '0 0 340px';
+        this.container.style.overflow = 'hidden';
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
   }
 
   private renderActionSection(): void {
@@ -160,6 +187,7 @@ export class ControlPanel {
       height: 1px;
       background: #3C3C4C;
       margin: 0 16px;
+      flex-shrink: 0;
     `;
     this.container.appendChild(div);
   }
@@ -172,6 +200,7 @@ export class ControlPanel {
       flex-direction: column;
       align-items: center;
       gap: 10px;
+      flex-shrink: 0;
     `;
 
     const label = document.createElement('div');
@@ -230,7 +259,6 @@ export class ControlPanel {
       });
       btn.addEventListener('click', () => {
         this.selectType(cfg.type);
-        eventBus.emit(EventType.STATE_SNAPSHOT_REQUESTED);
       });
 
       this.typeButtons.push(btn);
@@ -282,6 +310,18 @@ export class ControlPanel {
         indicator.style.width = '0';
       }
     }
+
+    const selectedCellId = this.getSelectedCellId();
+    if (selectedCellId && this.selectedType) {
+      eventBus.emit(EventType.DIFFERENTIATE_REQUESTED, {
+        cellId: selectedCellId,
+        cellType: this.selectedType,
+      });
+    }
+  }
+
+  private getSelectedCellId(): string | null {
+    return this.selectedCellId;
   }
 
   private renderTimelineSection(): void {
@@ -300,6 +340,7 @@ export class ControlPanel {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-shrink: 0;
     `;
 
     const label = document.createElement('span');
@@ -340,18 +381,41 @@ export class ControlPanel {
       overflow-x: auto;
       overflow-y: hidden;
       padding: 4px 0;
-      flex: 1;
       min-height: 80px;
-      align-items: center;
+      align-items: flex-start;
+      flex: 1;
     `;
     this.timelineContainer.style.scrollbarWidth = 'thin';
     this.timelineContainer.style.scrollbarColor = '#555 transparent';
+
+    const placeholder = document.createElement('div');
+    placeholder.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      color: #555;
+      font-size: 12px;
+      min-height: 60px;
+    `;
+    placeholder.textContent = '暂无记录，点击"保存"记录当前状态';
+    placeholder.id = 'timeline-placeholder';
+    this.timelineContainer.appendChild(placeholder);
 
     section.appendChild(this.timelineContainer);
     this.container.appendChild(section);
   }
 
-  private addThumbnail(recordId: string, thumbnailDataUrl: string): void {
+  private addThumbnailPlaceholder(recordId: string): void {
+    const placeholder = this.timelineContainer.querySelector('#timeline-placeholder');
+    if (placeholder) {
+      placeholder.remove();
+    }
+
+    if (this.thumbnails.has(recordId)) {
+      return;
+    }
+
     const wrapper = document.createElement('div');
     wrapper.style.cssText = `
       min-width: 80px;
@@ -360,7 +424,9 @@ export class ControlPanel {
       align-items: center;
       gap: 4px;
       cursor: pointer;
+      flex-shrink: 0;
     `;
+    wrapper.dataset.recordId = recordId;
 
     const img = document.createElement('div');
     img.style.cssText = `
@@ -368,30 +434,79 @@ export class ControlPanel {
       height: 60px;
       border-radius: 8px;
       background: #2C2C3A;
-      background-image: url(${thumbnailDataUrl});
-      background-size: cover;
-      background-position: center;
-      border: 1px solid #444;
-      transition: border-color 0.2s ease, transform 0.2s ease;
+      border: 2px solid #444;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      font-size: 20px;
+      transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     `;
+    img.textContent = '⏳';
 
     img.addEventListener('mouseenter', () => {
       img.style.borderColor = '#673AB7';
       img.style.transform = 'scale(1.05)';
+      img.style.boxShadow = '0 2px 8px rgba(103, 58, 183, 0.3)';
     });
     img.addEventListener('mouseleave', () => {
       img.style.borderColor = '#444';
       img.style.transform = 'scale(1)';
+      img.style.boxShadow = 'none';
     });
     img.addEventListener('click', () => {
       eventBus.emit(EventType.RECORD_RESTORE_REQUESTED, { recordId });
     });
 
+    const indexLabel = document.createElement('span');
+    indexLabel.style.cssText = `
+      font-size: 10px;
+      color: #666;
+    `;
+    indexLabel.textContent = `#${this.thumbnails.size + 1}`;
+
     wrapper.appendChild(img);
+    wrapper.appendChild(indexLabel);
     this.timelineContainer.appendChild(wrapper);
-    this.thumbnails.set(recordId, wrapper);
+    this.thumbnails.set(recordId, { wrapper, img });
+    this.recordList.push(recordId);
 
     this.timelineContainer.scrollLeft = this.timelineContainer.scrollWidth;
+
+    if (this.thumbnails.size >= 10) {
+      const firstId = this.recordList[0];
+      const first = this.thumbnails.get(firstId);
+      if (first) {
+        first.wrapper.remove();
+        this.thumbnails.delete(firstId);
+        this.recordList.shift();
+        this.updateThumbnailIndexes();
+      }
+    }
+  }
+
+  private updateThumbnailWithImage(recordId: string, thumbnailDataUrl: string): void {
+    const entry = this.thumbnails.get(recordId);
+    if (!entry) return;
+
+    entry.img.style.backgroundImage = `url(${thumbnailDataUrl})`;
+    entry.img.style.backgroundSize = 'cover';
+    entry.img.style.backgroundPosition = 'center';
+    entry.img.textContent = '';
+  }
+
+  private updateThumbnailIndexes(): void {
+    let idx = 1;
+    for (const recordId of this.recordList) {
+      const entry = this.thumbnails.get(recordId);
+      if (entry) {
+        const label = entry.wrapper.querySelector('span');
+        if (label) {
+          label.textContent = `#${idx}`;
+        }
+      }
+      idx++;
+    }
   }
 
   private listenEvents(): void {
@@ -402,16 +517,22 @@ export class ControlPanel {
 
     eventBus.on(EventType.CELL_SELECTED, (payload) => {
       const { cellId, cells } = payload as { cellId: string | null; cells: { length: number } };
+      this.selectedCellId = cellId;
       this.selectedCellLabel.textContent = cellId ? `已选中: ${cellId.slice(0, 8)}` : '未选中';
       this.cellCountLabel.textContent = `细胞: ${cells.length}/32`;
     });
 
-    eventBus.on(EventType.DIFFERENTIATE_REQUESTED, () => {});
-
     eventBus.on(EventType.RECORD_SAVED, (payload) => {
-      const { recordId, thumbnail } = payload as { recordId: string; thumbnail: string };
-      if (thumbnail && thumbnail.startsWith('data:')) {
-        this.addThumbnail(recordId, thumbnail);
+      const p = payload as { recordId: string; record?: unknown };
+      if (p.recordId) {
+        this.addThumbnailPlaceholder(p.recordId);
+      }
+    });
+
+    eventBus.on(EventType.THUMBNAIL_READY, (payload) => {
+      const p = payload as { recordId: string; thumbnail: string };
+      if (p.recordId && p.thumbnail) {
+        this.updateThumbnailWithImage(p.recordId, p.thumbnail);
       }
     });
 
@@ -420,6 +541,18 @@ export class ControlPanel {
       this.cellCountLabel.textContent = `细胞: ${data.cells.length}/32`;
       this.selectedCellLabel.textContent = '未选中';
     });
+
+    eventBus.on(EventType.CELL_CREATED, () => {
+      this.updateCellCount();
+    });
+
+    eventBus.on(EventType.CELL_REMOVED, () => {
+      this.updateCellCount();
+    });
+  }
+
+  private updateCellCount(): void {
+    eventBus.emit(EventType.STATE_SNAPSHOT_REQUESTED);
   }
 
   getSelectedType(): CellType | null {
