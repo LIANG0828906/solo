@@ -34,6 +34,8 @@ interface FitTrackyStore {
   getDailyStats: (date: string) => DailyStats;
   getTodayDuration: () => number;
   getCurrentWeekPlan: () => WeeklyPlan | null;
+  getWorkoutRecordsByDate: (date: string) => WorkoutRecord[];
+  getMealRecordsByDate: (date: string) => MealRecord[];
 }
 
 const defaultUserSettings: UserSettings = {
@@ -212,5 +214,13 @@ export const useFitTrackyStore = create<FitTrackyStore>((set, get) => ({
   getCurrentWeekPlan: () => {
     const weekStart = getWeekStartDate();
     return get().weeklyPlans.find((p) => p.weekStartDate === weekStart) || null;
+  },
+
+  getWorkoutRecordsByDate: (date: string) => {
+    return get().workoutRecords.filter((r) => r.date === date);
+  },
+
+  getMealRecordsByDate: (date: string) => {
+    return get().mealRecords.filter((r) => r.date === date);
   },
 }));

@@ -5,6 +5,153 @@
   gap: 16px;
 }
 
+.heatmap-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.heatmap-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings-btn {
+  padding: 8px 16px;
+  background-color: var(--bg-sidebar);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-btn:hover {
+  border-color: var(--accent-primary);
+  background-color: rgba(233, 69, 96, 0.1);
+}
+
+.threshold-settings {
+  background-color: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 20px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.threshold-inputs {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.threshold-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-sidebar);
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.threshold-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.threshold-label .heatmap-cell {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px;
+  min-height: 16px;
+}
+
+.threshold-input {
+  width: 70px;
+  height: 32px;
+  padding: 0 8px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: center;
+  transition: border-color 0.2s ease;
+}
+
+.threshold-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.threshold-suffix {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.settings-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.apply-btn {
+  padding: 8px 20px;
+  background-color: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.apply-btn:hover {
+  background-color: var(--accent-primary-hover);
+}
+
+.apply-btn:active {
+  transform: scale(0.95);
+}
+
+.reset-btn {
+  padding: 8px 20px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
 .heatmap-scroll-wrapper {
   overflow-x: auto;
   overflow-y: hidden;
@@ -75,6 +222,12 @@
   position: relative;
 }
 
+.heatmap-cell.selected {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+  transform: scale(1.1);
+}
+
 .heatmap-cell.empty {
   background: transparent;
   cursor: default;
@@ -129,4 +282,191 @@
 .legend-cells .heatmap-cell {
   width: 16px;
   height: 16px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background-color: var(--bg-secondary);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: modalPopIn 0.3s ease;
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin: 0;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.modal-summary {
+  display: flex;
+  gap: 24px;
+  padding: 20px 24px;
+  justify-content: space-around;
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.modal-summary .summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.modal-summary .summary-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.modal-summary .summary-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.modal-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.records-section h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.no-records {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 16px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  margin: 0;
+}
+
+.records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.record-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.record-item:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.record-icon {
+  font-size: 20px;
+}
+
+.record-info {
+  flex: 1;
+}
+
+.record-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.record-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.record-calories {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.record-calories.positive {
+  color: var(--warning);
+}
+
+/* Scrollbar styling for modal */
+.modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
 }

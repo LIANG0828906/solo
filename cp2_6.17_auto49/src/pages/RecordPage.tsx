@@ -15,6 +15,8 @@ const RecordPage: React.FC = () => {
     getDailyTotalCalories,
     getTodayDuration,
     workoutRecords,
+    getWorkoutRecordsByDate,
+    getMealRecordsByDate,
   } = useFitTrackyStore();
 
   const todayDuration = getTodayDuration();
@@ -103,8 +105,11 @@ const RecordPage: React.FC = () => {
       </div>
 
       <div className="heatmap-section">
-        <h3 className="section-title">📅 运动日历</h3>
-        <CalendarHeatmap getDailyCalories={getDailyCalories} />
+        <CalendarHeatmap
+          getDailyCalories={getDailyCalories}
+          getWorkoutRecordsByDate={getWorkoutRecordsByDate}
+          getMealRecordsByDate={getMealRecordsByDate}
+        />
       </div>
 
       <div className="chart-section">
