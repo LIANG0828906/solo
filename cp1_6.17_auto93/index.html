@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D 地质剖面查看器</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+
+      #app {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        background: linear-gradient(135deg, #0B0E17 0%, #1A1F30 100%);
+      }
+
+      #control-panel {
+        width: 260px;
+        background: #1E293B;
+        border-radius: 0 10px 10px 0;
+        padding: 20px 16px;
+        display: flex;
+        flex-direction: column;
+        z-index: 10;
+        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3);
+      }
+
+      #panel-title {
+        color: #F9FAFB;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #334155;
+        letter-spacing: 0.5px;
+      }
+
+      .section-title {
+        color: #94A3B8;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin: 14px 0 10px 0;
+        font-weight: 500;
+      }
+
+      #stratum-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        overflow-y: auto;
+        flex: 1;
+        padding-right: 4px;
+      }
+
+      .stratum-item {
+        background: #0F172A;
+        border-radius: 6px;
+        padding: 10px 12px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: all 0.2s ease;
+      }
+
+      .stratum-item:hover {
+        background: #1E293B;
+        border-color: #334155;
+      }
+
+      .stratum-item.selected {
+        border-color: #3B82F6;
+        background: #1E3A5F;
+      }
+
+      .stratum-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+
+      .stratum-color {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        flex-shrink: 0;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+      }
+
+      .stratum-name {
+        color: #F9FAFB;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .opacity-slider-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .opacity-label {
+        color: #94A3B8;
+        font-size: 11px;
+        white-space: nowrap;
+        width: 36px;
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 4px;
+        border-radius: 2px;
+        background: #475569;
+        outline: none;
+        flex: 1;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #3B82F6;
+        cursor: pointer;
+        border: none;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #3B82F6;
+        cursor: pointer;
+        border: none;
+      }
+
+      #cut-slider-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      #cut-slider-container input[type="range"] {
+        width: 200px;
+      }
+
+      .cut-value {
+        color: #F9FAFB;
+        font-size: 12px;
+      }
+
+      #reset-btn {
+        margin-top: 16px;
+        padding: 10px 16px;
+        background: #3B82F6;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.15s ease;
+      }
+
+      #reset-btn:hover {
+        background: #2563EB;
+      }
+
+      #reset-btn:active {
+        transform: scale(0.95);
+      }
+
+      #viewport {
+        flex: 1;
+        position: relative;
+      }
+
+      #canvas-container {
+        width: 100%;
+        height: 100%;
+      }
+
+      #info-card {
+        position: absolute;
+        display: none;
+        width: 200px;
+        background: #111827E6;
+        color: #F9FAFB;
+        border-radius: 8px;
+        padding: 12px 14px;
+        box-shadow: 0 4px 12px #00000060;
+        z-index: 20;
+        pointer-events: none;
+        backdrop-filter: blur(4px);
+      }
+
+      #info-card.visible {
+        display: block;
+      }
+
+      .info-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #374151;
+      }
+
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin: 4px 0;
+        line-height: 1.5;
+      }
+
+      .info-label {
+        color: #9CA3AF;
+      }
+
+      .info-value {
+        color: #F9FAFB;
+        font-weight: 500;
+      }
+
+      .info-minerals {
+        font-size: 11px;
+        color: #D1D5DB;
+        margin-top: 8px;
+        padding-top: 6px;
+        border-top: 1px solid #374151;
+        line-height: 1.5;
+      }
+
+      #stratum-list::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      #stratum-list::-webkit-scrollbar-track {
+        background: #0F172A;
+        border-radius: 2px;
+      }
+
+      #stratum-list::-webkit-scrollbar-thumb {
+        background: #475569;
+        border-radius: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="control-panel">
+        <div id="panel-title">地质剖面控制台</div>
+
+        <div class="section-title">岩层列表</div>
+        <div id="stratum-list"></div>
+
+        <div class="section-title">切割深度</div>
+        <div id="cut-slider-container">
+          <input type="range" id="cut-slider" min="0" max="100" step="1" value="0" />
+          <div class="cut-value">当前深度: <span id="cut-value">0</span>%</div>
+        </div>
+
+        <button id="reset-btn">重置视角</button>
+      </div>
+
+      <div id="viewport">
+        <div id="canvas-container"></div>
+        <div id="info-card">
+          <div class="info-title" id="info-name"></div>
+          <div class="info-row">
+            <span class="info-label">深度范围</span>
+            <span class="info-value" id="info-depth"></span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">预估密度</span>
+            <span class="info-value" id="info-density"></span>
+          </div>
+          <div class="info-minerals" id="info-minerals"></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
