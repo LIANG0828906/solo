@@ -131,15 +131,16 @@ body {
   width: 100%;
   margin: 0 auto;
   padding: 32px 24px;
+  min-height: 400px;
+  position: relative;
 }
 
 .fade-in {
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.3s ease forwards;
 }
 
 .fade-out {
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  animation: fadeOut 0.3s ease forwards;
 }
 
 @keyframes fadeIn {
@@ -150,6 +151,17 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
   }
 }
 

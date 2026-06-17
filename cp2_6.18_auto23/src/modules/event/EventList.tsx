@@ -77,13 +77,26 @@ const EventCard = memo(function EventCard({
 });
 
 function EventList({ onEventClick }: EventListProps) {
-  const { events, loading, searchEvents } = useEventStore();
+  const { events, loading } = useEventStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<EventStatus | 'all'>('all');
 
   const filteredEvents = useMemo(() => {
-    return searchEvents(searchQuery, statusFilter);
-  }, [events, searchQuery, statusFilter, searchEvents]);
+    const startTime = performance.now();
+    const query = searchQuery.toLowerCase().trim();
+    const result = events.filter((event) => {
+      const matchesQuery = !query ||
+        event.title.toLowerCase().includes(query) ||
+        event.description.toLowerCase().includes(query);
+      const matchesStatus = statusFilter === 'all' || event.status === statusFilter;
+      return matchesQuery && matchesStatus;
+    });
+    const duration = performance.now() - startTime;
+    if (duration > 50) {
+      console.warn(`搜索耗时: ${duration.toFixed(2)}ms`);
+    }
+    return result;
+  }, [events, searchQuery, statusFilter]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);

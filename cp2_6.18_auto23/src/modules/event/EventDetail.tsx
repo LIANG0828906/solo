@@ -73,7 +73,10 @@ function EventDetail({ eventId, onBack }: EventDetailProps) {
     );
   }
 
-  const chartData = event.registrationTrend.slice(-14);
+  const chartData = useMemo(() => {
+    if (!event) return [];
+    return event.registrationTrend.slice(-14);
+  }, [event]);
 
   return (
     <div className="event-detail-page">
@@ -169,53 +172,64 @@ function EventDetail({ eventId, onBack }: EventDetailProps) {
           <section className="detail-section">
             <h2 className="section-title">报名趋势</h2>
             <div className="chart-container">
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6C63FF" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6C63FF" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="date"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#9CA3AF', fontSize: 12 }}
-                    tickFormatter={(value) => {
-                      const parts = value.split('-');
-                      return `${parts[1]}/${parts[2]}`;
-                    }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#9CA3AF', fontSize: 12 }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      padding: '10px 14px',
-                    }}
-                    labelStyle={{ color: '#1F2937', fontWeight: 600, marginBottom: '4px' }}
-                    formatter={(value: number) => [`${value} 人`, '报名人数']}
-                    itemStyle={{ color: '#6C63FF' }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="#6C63FF"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorCount)"
-                    dot={{ r: 4, fill: '#6C63FF', strokeWidth: 2, stroke: '#fff' }}
-                    activeDot={{ r: 6, fill: '#6C63FF', strokeWidth: 2, stroke: '#fff' }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6C63FF" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#6C63FF" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                      tickFormatter={(value) => {
+                        const parts = value.split('-');
+                        return `${parts[1]}/${parts[2]}`;
+                      }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                        padding: '12px 16px',
+                        minWidth: '120px',
+                      }}
+                      labelStyle={{ color: '#1F2937', fontWeight: 600, marginBottom: '6px' }}
+                      formatter={(value: number) => [`${value} 人`, '报名人数']}
+                      itemStyle={{ color: '#6C63FF', fontWeight: 500 }}
+                      cursor={{ stroke: '#6C63FF', strokeDasharray: '5 5', strokeOpacity: 0.5 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#6C63FF"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#colorCount)"
+                      dot={{ r: 4, fill: '#6C63FF', strokeWidth: 2, stroke: '#FFFFFF' }}
+                      activeDot={{ r: 7, fill: '#6C63FF', strokeWidth: 3, stroke: '#FFFFFF' }}
+                      isAnimationActive={true}
+                      animationDuration={800}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="chart-empty">
+                  <p>暂无报名数据</p>
+                </div>
+              )}
             </div>
           </section>
         </div>

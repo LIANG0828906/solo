@@ -25,10 +25,12 @@ function App() {
       if (eventId) {
         setSelectedEventId(eventId);
       }
-      setTimeout(() => {
-        setIsTransitioning(false);
-      }, 50);
-    }, 150);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsTransitioning(false);
+        });
+      });
+    }, 300);
   }, []);
 
   const goToList = useCallback(() => {

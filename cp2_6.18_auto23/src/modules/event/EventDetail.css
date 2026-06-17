@@ -267,14 +267,30 @@
 }
 
 .chart-container {
-  background: var(--bg-white);
+  background: #FFFFFF;
   border-radius: 8px;
   padding: 16px;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-empty {
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+  width: 100%;
+}
+
+.chart-empty p {
+  margin: 0;
 }
 
 .registration-panel {
   width: 320px;
   flex-shrink: 0;
+  transition: all 0.3s ease;
 }
 
 .panel-sticky {
