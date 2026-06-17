@@ -27,6 +27,206 @@ const emptyForm: FormData = {
   maxParticipants: 20,
 }
 
+function MenuItem({
+  icon,
+  label,
+  active,
+  expanded,
+  onClick,
+}: {
+  icon: React.ReactNode
+  label: string
+  active: boolean
+  expanded: boolean
+  onClick: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        height: 48,
+        display: 'flex',
+        alignItems: 'center',
+        padding: expanded ? '0 20px' : '0',
+        justifyContent: expanded ? 'flex-start' : 'center',
+        gap: expanded ? 12 : 0,
+        cursor: 'pointer',
+        backgroundColor: active ? '#2A2A4E' : hovered ? '#1E1E36' : 'transparent',
+        borderLeft: active ? '4px solid #6C63FF' : '4px solid transparent',
+        color: active ? '#ffffff' : '#B0B0C3',
+        transition: 'all 0.2s ease-out',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+      }}
+    >
+      <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>{icon}</span>
+      {expanded && <span style={{ fontSize: 14, fontWeight: active ? 500 : 400 }}>{label}</span>}
+    </div>
+  )
+}
+
+function TableRow({
+  activity,
+  regCount,
+  onEdit,
+  onDelete,
+}: {
+  activity: Activity
+  regCount: number
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+  const [editHovered, setEditHovered] = useState(false)
+  const [deleteHovered, setDeleteHovered] = useState(false)
+
+  return (
+    <tr
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        backgroundColor: 'transparent',
+        transition: 'all 0.2s ease-out',
+      }}
+    >
+      <td
+        style={{
+          padding: '14px 20px',
+          fontSize: 14,
+          color: hovered ? '#FFFFFF' : '#B0B0C3',
+          transition: 'color 0.2s ease-out',
+          borderBottom: '0.5px solid #2A2A3E',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {activity.poster ? (
+            <img
+              src={activity.poster}
+              alt=""
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 6,
+                objectFit: 'cover',
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 6,
+                background: 'linear-gradient(135deg, #6C63FF 0%, #E94560 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#ffffff',
+                opacity: 0.6,
+              }}
+            >
+              {activity.title.charAt(0)}
+            </div>
+          )}
+          <span style={{ fontWeight: 500 }}>{activity.title}</span>
+        </div>
+      </td>
+      <td
+        style={{
+          padding: '14px 20px',
+          fontSize: 14,
+          color: hovered ? '#FFFFFF' : '#B0B0C3',
+          transition: 'color 0.2s ease-out',
+          borderBottom: '0.5px solid #2A2A3E',
+        }}
+      >
+        {activity.date}
+      </td>
+      <td
+        style={{
+          padding: '14px 20px',
+          fontSize: 14,
+          color: hovered ? '#FFFFFF' : '#B0B0C3',
+          transition: 'color 0.2s ease-out',
+          borderBottom: '0.5px solid #2A2A3E',
+        }}
+      >
+        {activity.time}
+      </td>
+      <td
+        style={{
+          padding: '14px 20px',
+          fontSize: 14,
+          color: hovered ? '#FFFFFF' : '#B0B0C3',
+          transition: 'color 0.2s ease-out',
+          borderBottom: '0.5px solid #2A2A3E',
+        }}
+      >
+        {activity.location}
+      </td>
+      <td
+        style={{
+          padding: '14px 20px',
+          fontSize: 14,
+          textAlign: 'center',
+          color: hovered ? '#FFFFFF' : '#B0B0C3',
+          transition: 'color 0.2s ease-out',
+          borderBottom: '0.5px solid #2A2A3E',
+        }}
+      >
+        {regCount}/{activity.maxParticipants}
+      </td>
+      <td
+        style={{
+          padding: '14px 20px',
+          textAlign: 'right',
+          borderBottom: '0.5px solid #2A2A3E',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
+          <button
+            onClick={onEdit}
+            onMouseEnter={() => setEditHovered(true)}
+            onMouseLeave={() => setEditHovered(false)}
+            style={{
+              background: 'none',
+              padding: 4,
+              color: editHovered ? '#6C63FF' : '#B0B0C3',
+              transition: 'color 0.2s ease-out',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <FaEdit size={20} />
+          </button>
+          <button
+            onClick={onDelete}
+            onMouseEnter={() => setDeleteHovered(true)}
+            onMouseLeave={() => setDeleteHovered(false)}
+            style={{
+              background: 'none',
+              padding: 4,
+              color: deleteHovered ? '#E94560' : '#B0B0C3',
+              transition: 'color 0.2s ease-out',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <FaTrash size={20} />
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 function AdminDashboard() {
   const navigate = useNavigate()
   const activities = useStore((state) => state.activities)
@@ -434,6 +634,7 @@ function AdminDashboard() {
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = '#3A3A5C'
                   }}
+                  onClick={() => document.getElementById('poster-upload')?.click()}
                 >
                   {formData.poster ? (
                     <div>
@@ -458,18 +659,6 @@ function AdminDashboard() {
                     id="poster-upload"
                   />
                 </div>
-                <label
-                  htmlFor="poster-upload"
-                  style={{
-                    position: 'absolute',
-                    width: '100%',
-                    height: '100%',
-                    top: 0,
-                    left: 0,
-                    cursor: 'pointer',
-                    opacity: 0,
-                  }}
-                />
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
@@ -660,53 +849,68 @@ function AdminDashboard() {
               >
                 <thead>
                   <tr style={{ backgroundColor: '#3A3A5C' }}>
-                    <th
-                      style={{
-                        padding: '16px 20px',
-                        textAlign: 'left',
-                        color: '#ffffff',
-                        fontSize: 13,
-                        fontWeight: 600,
-                      }}
-                    >
+                    <th style={{ padding: '16px 20px', textAlign: 'left', color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
                       活动名称
                     </th>
-                    <th
-                      style={{
-                        padding: '16px 20px',
-                        textAlign: 'left',
-                        color: '#ffffff',
-                        fontSize: 13,
-                        fontWeight: 600,
-                      }}
-                    >
+                    <th style={{ padding: '16px 20px', textAlign: 'left', color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
                       日期
                     </th>
-                    <th
-                      style={{
-                        padding: '16px 20px',
-                        textAlign: 'left',
-                        color: '#ffffff',
-                        fontSize: 13,
-                        fontWeight: 600,
-                      }}
-                    >
+                    <th style={{ padding: '16px 20px', textAlign: 'left', color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
                       时间
                     </th>
-                    <th
-                      style={{
-                        padding: '16px 20px',
-                        textAlign: 'left',
-                        color: '#ffffff',
-                        fontSize: 13,
-                        fontWeight: 600,
-                      }}
-                    >
+                    <th style={{ padding: '16px 20px', textAlign: 'left', color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
                       地点
                     </th>
-                    <th
-                      style={{
-                        padding: '16px 20px',
-                        textAlign: 'center',
-                        color: '#ffffff',
-                        fontSize: 1
+                    <th style={{ padding: '16px 20px', textAlign: 'center', color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
+                      报名情况
+                    </th>
+                    <th style={{ padding: '16px 20px', textAlign: 'right', color: '#ffffff', fontSize: 13, fontWeight: 600 }}>
+                      操作
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activities.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        style={{
+                          padding: '48px 20px',
+                          textAlign: 'center',
+                          color: '#808095',
+                          fontSize: 14,
+                        }}
+                      >
+                        暂无活动，点击右上角"创建活动"按钮添加
+                      </td>
+                    </tr>
+                  ) : (
+                    activities.map((activity) => (
+                      <TableRow
+                        key={activity.id}
+                        activity={activity}
+                        regCount={getRegistrationCount(activity.id)}
+                        onEdit={() => openEditPanel(activity)}
+                        onDelete={() => setDeleteConfirm(activity.id)}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeMenu === 'stats' && (
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <p style={{ color: '#808095', fontSize: 14 }}>
+                请在左侧菜单点击"参与统计"查看详细数据
+              </p>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  )
+}
+
+export default AdminDashboard

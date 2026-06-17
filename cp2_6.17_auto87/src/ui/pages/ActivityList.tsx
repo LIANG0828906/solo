@@ -372,9 +372,8 @@ function ActivityList() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 320px)',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
                 gap: 24,
-                justifyContent: 'flex-start',
                 marginBottom: 48,
               }}
             >

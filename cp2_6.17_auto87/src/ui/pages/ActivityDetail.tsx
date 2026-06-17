@@ -70,13 +70,13 @@ function ActivityDetail() {
     circle.style.borderRadius = '50%'
     circle.style.pointerEvents = 'none'
     circle.style.transform = 'scale(0)'
-    circle.style.animation = 'ripple 0.4s ease-out forwards'
+    circle.style.animation = 'ripple 0.3s ease-out forwards'
 
     button.appendChild(circle)
 
     setTimeout(() => {
       circle.remove()
-    }, 400)
+    }, 300)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -453,7 +453,7 @@ function ActivityDetail() {
                     fontWeight: 600,
                     transition: 'all 0.3s ease-out',
                     position: 'relative',
-                    overflow: 'hidden',
+                    overflow: 'visible',
                     cursor: isFull ? 'not-allowed' : 'pointer',
                     opacity: isFull ? 0.6 : 1,
                     display: 'block',
