@@ -23,10 +23,13 @@ export function Tree({ history, onNodeClick, currentHistoryIndex, onClear }: Tre
     height: isExpanded ? '300px' : '44px',
     cursor: isExpanded ? 'default' : 'pointer',
     border: '1px solid rgba(255, 255, 255, 0.1)',
+    display: 'flex',
+    flexDirection: 'column',
   };
 
   const headerStyle: React.CSSProperties = {
-    height: '44px',
+    minHeight: '44px',
+    flexShrink: 0,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -48,9 +51,11 @@ export function Tree({ history, onNodeClick, currentHistoryIndex, onClear }: Tre
   };
 
   const treeContainerStyle: React.CSSProperties = {
-    height: '256px',
+    flex: 1,
+    minHeight: 0,
     overflow: 'auto',
-    padding: '20px',
+    padding: '16px 20px',
+    display: 'block',
   };
 
   const nodeStyle = (isCurrent: boolean): React.CSSProperties => ({
@@ -62,16 +67,19 @@ export function Tree({ history, onNodeClick, currentHistoryIndex, onClear }: Tre
     flexShrink: 0,
     transition: 'transform 0.2s ease, box-shadow 0.2s ease',
     boxShadow: isCurrent ? '0 0 8px rgba(233, 69, 96, 0.6)' : 'none',
+    display: 'inline-block',
   });
 
   const nodeLabelStyle: React.CSSProperties = {
     fontSize: '11px',
     color: 'rgba(255, 255, 255, 0.7)',
-    marginLeft: '8px',
+    marginLeft: '6px',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    maxWidth: '150px',
+    maxWidth: '120px',
+    display: 'inline-block',
+    verticalAlign: 'middle',
   };
 
   const toggleArrowStyle: React.CSSProperties = {
@@ -79,39 +87,59 @@ export function Tree({ history, onNodeClick, currentHistoryIndex, onClear }: Tre
     transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
     marginLeft: '8px',
     fontSize: '12px',
+    display: 'inline-block',
   };
 
-  const depthColumnStyle: React.CSSProperties = {
+  const rowStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: '0',
+    width: 'max-content',
+    minWidth: '100%',
+  };
+
+  const columnStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-start',
-    gap: '8px',
-    minWidth: '80px',
-  };
-
-  const nodeRowStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    height: '24px',
+    gap: '12px',
+    paddingRight: '28px',
     position: 'relative',
   };
 
-  const connectorStyle: React.CSSProperties = {
-    position: 'absolute',
-    right: '-20px',
-    top: '50%',
-    width: '20px',
-    height: '1px',
-    backgroundColor: '#444444',
+  const nodeWrapperStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    height: '20px',
+    position: 'relative',
+    whiteSpace: 'nowrap',
   };
 
-  const buildTreeColumns = (): React.ReactNode[] => {
+  const horizontalConnectorStyle: React.CSSProperties = {
+    position: 'absolute',
+    right: '-28px',
+    top: '50%',
+    width: '28px',
+    height: '1px',
+    backgroundColor: '#555555',
+  };
+
+  const buildTreeColumns = (): React.ReactNode => {
     if (history.length === 0) {
-      return [
-        <div key="empty" style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '12px', textAlign: 'center', padding: '40px 0', width: '100%' }}>
+      return (
+        <div
+          style={{
+            color: 'rgba(255, 255, 255, 0.4)',
+            fontSize: '12px',
+            textAlign: 'center',
+            padding: '40px 0',
+            width: '100%',
+          }}
+        >
           暂无历史记录
-        </div>,
-      ];
+        </div>
+      );
     }
 
     const maxDepth = Math.max(...history.map((h) => h.depth));
@@ -128,8 +156,8 @@ export function Tree({ history, onNodeClick, currentHistoryIndex, onClear }: Tre
         const label = node.choiceText || '起点';
 
         return (
-          <div key={`node-${index}`} style={nodeRowStyle}>
-            <div
+          <div key={`node-${index}`} style={nodeWrapperStyle}>
+            <span
               style={nodeStyle(isCurrent)}
               onClick={() => onNodeClick(index)}
               onMouseEnter={(e) => {
@@ -141,32 +169,25 @@ export function Tree({ history, onNodeClick, currentHistoryIndex, onClear }: Tre
               title={`节点 ${index + 1}: ${label}`}
             />
             <span style={nodeLabelStyle}>{label}</span>
-            {hasChildren && <div style={connectorStyle} />}
+            {hasChildren && <span style={horizontalConnectorStyle} />}
           </div>
         );
       });
 
       columns.push(
-        <div key={`depth-${d}`} style={depthColumnStyle}>
+        <div key={`depth-${d}`} style={columnStyle}>
           {nodes}
         </div>
       );
     }
 
-    return columns;
-  };
-
-  const treeRowStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '20px',
-    minWidth: 'max-content',
+    return <div style={rowStyle}>{columns}</div>;
   };
 
   return (
     <div
       style={panelStyle}
-      onClick={(e) => {
+      onClick={() => {
         if (!isExpanded) {
           setIsExpanded(true);
         }
@@ -207,11 +228,7 @@ export function Tree({ history, onNodeClick, currentHistoryIndex, onClear }: Tre
         </button>
       </div>
 
-      {isExpanded && (
-        <div style={treeContainerStyle}>
-          <div style={treeRowStyle}>{buildTreeColumns()}</div>
-        </div>
-      )}
+      {isExpanded && <div style={treeContainerStyle}>{buildTreeColumns()}</div>}
     </div>
   );
 }

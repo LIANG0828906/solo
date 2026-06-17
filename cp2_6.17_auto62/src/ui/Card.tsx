@@ -67,15 +67,41 @@ export function Card({ node, onChoice, onExit, isLoading }: CardProps) {
     animation: `fadeIn 0.4s ease-out`,
   };
 
+  const titleWrapperStyle: React.CSSProperties = {
+    position: 'relative',
+    textAlign: 'center',
+    marginBottom: '20px',
+  };
+
   const titleStyle: React.CSSProperties = {
     fontSize: '22px',
     fontWeight: 'bold',
     color: 'white',
-    textAlign: 'center',
-    marginBottom: '20px',
     letterSpacing: '1px',
-    textShadow: '0 0 2px #16213E, 0 0 4px #16213E, 0 0 8px rgba(233, 69, 96, 0.5)',
     position: 'relative',
+    margin: 0,
+    zIndex: 2,
+    textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+  };
+
+  const titleStrokeStyle: React.CSSProperties = {
+    fontSize: '22px',
+    fontWeight: 'bold',
+    letterSpacing: '1px',
+    margin: 0,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    background: 'linear-gradient(135deg, #E94560 0%, #533483 50%, #0F3460 100%)',
+    WebkitBackgroundClip: 'text',
+    backgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    WebkitTextStroke: '0.8px transparent',
+    filter: 'blur(0.3px)',
+    zIndex: 1,
+    transform: 'scale(1.02)',
   };
 
   const descStyle: React.CSSProperties = {
@@ -120,9 +146,6 @@ export function Card({ node, onChoice, onExit, isLoading }: CardProps) {
   };
 
   const exitButtonStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: '12px',
-    right: '16px',
     width: '24px',
     height: '24px',
     backgroundColor: 'transparent',
@@ -136,7 +159,14 @@ export function Card({ node, onChoice, onExit, isLoading }: CardProps) {
     padding: 0,
     lineHeight: 1,
     transition: 'color 0.2s ease',
-    zIndex: 10,
+  };
+
+  const exitButtonContainerStyle: React.CSSProperties = {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '8px 0 12px',
+    width: '100%',
   };
 
   const loadingStyle: React.CSSProperties = {
@@ -150,25 +180,14 @@ export function Card({ node, onChoice, onExit, isLoading }: CardProps) {
 
   return (
     <div style={cardStyle}>
-      <button
-        style={exitButtonStyle}
-        onClick={onExit}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = '#FF4757';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)';
-        }}
-        aria-label="退出"
-      >
-        ×
-      </button>
-
       {isLoading || !node ? (
         <div style={loadingStyle}>加载中...</div>
       ) : (
         <div key={contentKey} style={contentStyle}>
-          <h2 style={titleStyle}>{node.title}</h2>
+          <div style={titleWrapperStyle}>
+            <h2 style={titleStrokeStyle}>{node.title}</h2>
+            <h2 style={titleStyle}>{node.title}</h2>
+          </div>
           <p style={descStyle}>{node.description}</p>
         </div>
       )}
@@ -203,6 +222,22 @@ export function Card({ node, onChoice, onExit, isLoading }: CardProps) {
           disabled={isLoading || !node}
         >
           {node ? node.choices[1].text : '...'}
+        </button>
+      </div>
+
+      <div style={exitButtonContainerStyle}>
+        <button
+          style={exitButtonStyle}
+          onClick={onExit}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#FF4757';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.6)';
+          }}
+          aria-label="退出"
+        >
+          ×
         </button>
       </div>
 
