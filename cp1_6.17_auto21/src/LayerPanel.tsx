@@ -159,10 +159,38 @@ function LayerPanel() {
                       <img
                         src={layer.imageUrl}
                         alt={layer.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          filter: `brightness(${layer.brightness}%) contrast(${layer.contrast}%) hue-rotate(${layer.hue}deg) saturate(${layer.saturate}%)`,
+                          opacity: layer.opacity,
+                        }}
                       />
                     ) : (
-                      <Type size={18} className="text-gray-400" />
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textAlign: 'center',
+                          background: '#EBEBEB',
+                          fontFamily: layer.fontFamily,
+                          fontSize: '14px',
+                          fontWeight: layer.fontWeight,
+                          color: layer.color,
+                          filter: `brightness(${layer.brightness}%) contrast(${layer.contrast}%) hue-rotate(${layer.hue}deg) saturate(${layer.saturate}%)`,
+                          opacity: layer.opacity,
+                          padding: '2px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {layer.text || 'T'}
+                      </div>
                     )}
                   </div>
                   <span className="flex-1 text-sm text-gray-700 truncate">{layer.name}</span>

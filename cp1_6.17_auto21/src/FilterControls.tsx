@@ -20,6 +20,26 @@ export default function FilterControls() {
 
   const presets = FILTER_PRESETS.filter((p) => p.key !== 'none');
 
+  const presetBackgrounds: Record<string, string> = {
+    'warm-yellow': 'linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%)',
+    'black-white': 'linear-gradient(135deg, #E0E0E0 0%, #9E9E9E 100%)',
+    'retro-film': 'linear-gradient(135deg, #EFEBE9 0%, #D7CCC8 100%)',
+    'fresh-blue': 'linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%)',
+    'high-saturation': 'linear-gradient(135deg, #FCE4EC 0%, #F8BBD9 100%)',
+    'soft-light': 'linear-gradient(135deg, #FAFAFA 0%, #F5F5F5 100%)',
+    'sharpen': 'linear-gradient(135deg, #FFFFFF 0%, #EEEEEE 100%)',
+    'dark-tone': 'linear-gradient(135deg, #424242 0%, #212121 100%)',
+  };
+
+  const sliderGradients: Record<string, string> = {
+    brightness: 'linear-gradient(to right, #000000 0%, #808080 50%, #FFFFFF 100%)',
+    contrast: 'linear-gradient(to right, #666666 0%, #AAAAAA 50%, #FFFFFF 100%)',
+    hue: 'linear-gradient(to right, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%))',
+    saturate: 'linear-gradient(to right, #888888 0%, #FFFFFF 100%)',
+  };
+
+  const fontSizeOptions = [12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72];
+
   const applyPreset = (preset: (typeof presets)[number]) => {
     updateLayer(selectedLayer.id, {
       filterPreset: preset.key,
@@ -47,7 +67,7 @@ export default function FilterControls() {
             <div
               key={preset.key}
               onClick={() => applyPreset(preset)}
-              className="flex items-center justify-center cursor-pointer rounded-[8px] text-xs text-gray-600"
+              className="flex items-center justify-center cursor-pointer rounded-[8px] text-xs relative"
               style={{
                 width: 60,
                 height: 60,
@@ -55,9 +75,20 @@ export default function FilterControls() {
                   selectedLayer.filterPreset === preset.key
                     ? '2px solid #1976D2'
                     : '1px solid #E0E0E0',
+                background: presetBackgrounds[preset.key],
+                fontWeight: 500,
+                color: preset.key === 'dark-tone' ? '#FFFFFF' : '#424242',
               }}
             >
               {preset.label}
+              {selectedLayer.filterPreset === preset.key && (
+                <span
+                  className="absolute top-1 right-1 text-xs"
+                  style={{ color: '#1976D2', fontWeight: 700 }}
+                >
+                  ✓
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -77,7 +108,7 @@ export default function FilterControls() {
             <div key={item.key} className="flex flex-col gap-1">
               <div className="flex justify-between text-xs text-gray-600">
                 <span>{item.label}</span>
-                <span>{selectedLayer[item.key]}</span>
+                <span>{Math.round(selectedLayer[item.key])}</span>
               </div>
               <input
                 type="range"
@@ -87,7 +118,17 @@ export default function FilterControls() {
                 onChange={(e) =>
                   updateLayer(selectedLayer.id, { [item.key]: Number(e.target.value) })
                 }
+                onInput={(e) =>
+                  updateLayer(selectedLayer.id, { [item.key]: Number(e.target.value) })
+                }
                 className="w-full"
+                style={{
+                  background: sliderGradients[item.key],
+                  WebkitAppearance: 'none',
+                  appearance: 'none',
+                  height: 6,
+                  borderRadius: 3,
+                }}
               />
             </div>
           ))}
@@ -109,6 +150,33 @@ export default function FilterControls() {
             </div>
 
             <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-600">字号选择</label>
+              <select
+                value={selectedLayer.fontSize ?? 32}
+                onChange={(e) =>
+                  updateLayer(selectedLayer.id, { fontSize: Number(e.target.value) })
+                }
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded outline-none"
+              >
+                {fontSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size}px
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-600">文字颜色</label>
+              <input
+                type="color"
+                value={selectedLayer.color ?? '#FFFFFF'}
+                onChange={(e) => updateLayer(selectedLayer.id, { color: e.target.value })}
+                style={{ width: '100%', height: 36, border: '1px solid #E0E0E0', borderRadius: 4, background: 'transparent' }}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
               <label className="text-xs text-gray-600">字体</label>
               <select
                 value={selectedLayer.fontFamily ?? "'Noto Sans SC', sans-serif"}
@@ -126,7 +194,7 @@ export default function FilterControls() {
             <div className="flex flex-col gap-1">
               <div className="flex justify-between text-xs text-gray-600">
                 <span>字号</span>
-                <span>{selectedLayer.fontSize}</span>
+                <span>{Math.round(selectedLayer.fontSize ?? 32)}</span>
               </div>
               <input
                 type="range"
@@ -206,7 +274,7 @@ export default function FilterControls() {
             <div className="flex flex-col gap-1">
               <div className="flex justify-between text-xs text-gray-600">
                 <span>旋转角度</span>
-                <span>{selectedLayer.rotation}°</span>
+                <span>{Math.round(selectedLayer.rotation)}°</span>
               </div>
               <input
                 type="range"
@@ -214,6 +282,9 @@ export default function FilterControls() {
                 max={90}
                 value={selectedLayer.rotation}
                 onChange={(e) =>
+                  updateLayer(selectedLayer.id, { rotation: Number(e.target.value) })
+                }
+                onInput={(e) =>
                   updateLayer(selectedLayer.id, { rotation: Number(e.target.value) })
                 }
                 className="w-full"
