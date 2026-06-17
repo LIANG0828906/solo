@@ -1,15 +1,27 @@
 .vote-list-page {
   width: 100%;
+  background-color: #1a1a2e;
+  min-height: calc(100vh - 60px);
+  padding: 24px;
+  border-radius: 16px;
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .page-title {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: #FFFFFF;
+  margin-bottom: 12px;
+}
+
+.page-divider {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+  border: none;
+  margin-bottom: 24px;
 }
 
 .create-form {
@@ -72,7 +84,7 @@
 
 .submit-btn {
   align-self: flex-start;
-  background-color: #6C63FF;
+  background-color: #0f3460;
   color: #FFFFFF;
   border: none;
   border-radius: 8px;
@@ -85,7 +97,7 @@
 }
 
 .submit-btn:hover {
-  background-color: #5A52E0;
+  background-color: #1a4a85;
   transform: translateY(-1px);
 }
 
@@ -151,13 +163,13 @@
 .vote-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 24px;
+  gap: 16px;
   transition: all 0.2s ease;
 }
 
 .vote-card {
-  background-color: #1E1E2E;
-  border-radius: 16px;
+  background-color: #16213e;
+  border-radius: 12px;
   padding: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
@@ -186,8 +198,8 @@
 .option-btn {
   width: 100%;
   padding: 12px 16px;
-  background-color: #3A3A4D;
-  border: none;
+  background-color: #0f3460;
+  border: 1px solid transparent;
   border-radius: 8px;
   color: #E0E0E0;
   font-size: 14px;
@@ -196,15 +208,28 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: all 0.2s ease;
 }
 
-.option-btn:hover:not(.disabled) {
-  background-color: #4A4A5D;
+.option-btn:hover:not(.disabled):not(.voted) {
+  background-color: #1a4a85;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
-.option-btn:active:not(.disabled) {
+.option-btn:active:not(.disabled):not(.voted) {
   transform: scale(0.98);
+}
+
+.option-btn.voted {
+  background-color: #1a4a2e;
+  border-color: #4CAF50;
+  cursor: not-allowed;
+}
+
+.option-btn.voted .option-text::after {
+  content: ' ✓';
+  color: #4CAF50;
+  font-weight: 600;
 }
 
 .option-btn.disabled {

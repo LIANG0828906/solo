@@ -18,22 +18,22 @@ function saveVotesToStorage(votes: Vote[]): void {
   localStorage.setItem(VOTES_KEY, JSON.stringify(votes));
 }
 
-function loadVotedIdsFromStorage(): string[] {
+function loadVotedIdsFromStorage(): Record<string, string> {
   try {
     const data = localStorage.getItem(VOTED_KEY);
-    return data ? JSON.parse(data) : [];
+    return data ? JSON.parse(data) : {};
   } catch {
-    return [];
+    return {};
   }
 }
 
-function saveVotedIdsToStorage(ids: string[]): void {
+function saveVotedIdsToStorage(ids: Record<string, string>): void {
   localStorage.setItem(VOTED_KEY, JSON.stringify(ids));
 }
 
 export interface VoteSlice {
   votes: Vote[];
-  votedIds: string[];
+  votedIds: Record<string, string>;
   searchQuery: string;
   sortType: SortType;
   createVote: (title: string, optionTexts: string[]) => void;
@@ -42,6 +42,7 @@ export interface VoteSlice {
   setSortType: (sort: SortType) => void;
   getFilteredAndSortedVotes: () => Vote[];
   hasVoted: (voteId: string) => boolean;
+  getVotedOption: (voteId: string) => string | null;
 }
 
 export const createVoteSlice: StateCreator<VoteSlice> = (set, get) => ({
@@ -73,7 +74,7 @@ export const createVoteSlice: StateCreator<VoteSlice> = (set, get) => ({
 
   castVote: (voteId: string, optionId: string) => {
     set((state) => {
-      if (state.votedIds.includes(voteId)) return state;
+      if (state.votedIds[voteId]) return state;
 
       const newVotes = state.votes.map((vote) => {
         if (vote.id !== voteId) return vote;
@@ -85,7 +86,7 @@ export const createVoteSlice: StateCreator<VoteSlice> = (set, get) => ({
         };
       });
 
-      const newVotedIds = [...state.votedIds, voteId];
+      const newVotedIds = { ...state.votedIds, [voteId]: optionId };
       saveVotesToStorage(newVotes);
       saveVotedIdsToStorage(newVotedIds);
 
@@ -130,6 +131,10 @@ export const createVoteSlice: StateCreator<VoteSlice> = (set, get) => ({
   },
 
   hasVoted: (voteId: string) => {
-    return get().votedIds.includes(voteId);
+    return !!get().votedIds[voteId];
+  },
+
+  getVotedOption: (voteId: string) => {
+    return get().votedIds[voteId] || null;
   },
 });

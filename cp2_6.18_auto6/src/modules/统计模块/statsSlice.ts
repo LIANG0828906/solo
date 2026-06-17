@@ -16,17 +16,12 @@ export interface StatsSlice {
   getTotalVotesCount: () => number;
 }
 
-export const createStatsSlice: StateCreator<
-  StatsSlice,
-  [],
-  [],
-  StatsSlice & VoteSlice
-> = (_set, get) => ({
+export const createStatsSlice = ((_set, get) => ({
   getVoteStats: (): VoteStats[] => {
-    const votes = get().votes;
-    return votes.map((vote, index) => {
-      const totalVotes = vote.options.reduce((sum, o) => sum + o.votes, 0);
-      const options = vote.options.map((opt, optIndex) => ({
+    const votes = (get() as StatsSlice & VoteSlice).votes;
+    return votes.map((vote: Vote, index: number) => {
+      const totalVotes = vote.options.reduce((sum: number, o: any) => sum + o.votes, 0);
+      const options = vote.options.map((opt, optIndex: number) => ({
         name: opt.text,
         value: opt.votes,
         color: COLORS[(index + optIndex) % COLORS.length],
@@ -41,10 +36,10 @@ export const createStatsSlice: StateCreator<
   },
 
   getTotalVotesCount: (): number => {
-    const votes = get().votes;
+    const votes = (get() as StatsSlice & VoteSlice).votes;
     return votes.reduce(
-      (total, vote) => total + vote.options.reduce((sum, o) => sum + o.votes, 0),
+      (total: number, vote: Vote) => total + vote.options.reduce((sum: number, o: any) => sum + o.votes, 0),
       0
     );
   },
-});
+})) as StateCreator<StatsSlice, [], [], StatsSlice & VoteSlice>;

@@ -12,6 +12,7 @@ function VoteList() {
   const castVote = useAppStore((state) => state.castVote);
   const setSearchQuery = useAppStore((state) => state.setSearchQuery);
   const setSortType = useAppStore((state) => state.setSortType);
+  const getVotedOption = useAppStore((state) => state.getVotedOption);
 
   const [title, setTitle] = useState('');
   const [optionsText, setOptionsText] = useState('');
@@ -53,8 +54,13 @@ function VoteList() {
   }, [votes, searchQuery, sortType]);
 
   const hasVoted = useCallback(
-    (voteId: string) => votedIds.includes(voteId),
+    (voteId: string) => !!votedIds[voteId],
     [votedIds]
+  );
+
+  const getVotedOptionId = useCallback(
+    (voteId: string) => getVotedOption(voteId),
+    [getVotedOption]
   );
 
   const handleSubmit = useCallback(
@@ -119,7 +125,8 @@ function VoteList() {
   return (
     <div className="vote-list-page">
       <div className="page-header">
-        <h1 className="page-title">投票列表</h1>
+        <h1 className="page-title">功能投票</h1>
+        <hr className="page-divider" />
       </div>
 
       <form className="create-form" onSubmit={handleSubmit}>
@@ -175,17 +182,21 @@ function VoteList() {
             <div key={vote.id} className="vote-card">
               <h3 className="vote-title">{vote.title}</h3>
               <div className="vote-options">
-                {vote.options.map((option) => (
-                  <button
-                    key={option.id}
-                    className={`option-btn ${voted ? 'disabled' : ''}`}
-                    onClick={() => !voted && handleVote(vote.id, option.id)}
-                    disabled={voted}
-                  >
-                    <span className="option-text">{option.text}</span>
-                    <span className="option-votes">{option.votes}票</span>
-                  </button>
-                ))}
+                {vote.options.map((option) => {
+                  const votedOptionId = getVotedOptionId(vote.id);
+                  const isVotedOption = votedOptionId === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      className={`option-btn ${voted ? 'disabled' : ''} ${isVotedOption ? 'voted' : ''}`}
+                      onClick={() => !voted && handleVote(vote.id, option.id)}
+                      disabled={voted}
+                    >
+                      <span className="option-text">{option.text}</span>
+                      <span className="option-votes">{option.votes}票</span>
+                    </button>
+                  );
+                })}
               </div>
               <div className="vote-footer">
                 <span className="total-votes">总票数：{total}</span>
