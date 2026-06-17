@@ -1,0 +1,128 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0b0c10 0%, #1f2833 100%);
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.grid-cell {
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.grid-cell:hover {
+  transition: background-color 0.1s ease;
+}
+
+.sprite {
+  will-change: left, top, transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.sprite-appear {
+  animation: spriteAppear 0.3s ease forwards;
+}
+
+@keyframes spriteAppear {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.sprite-fade {
+  animation: spriteFade 0.5s ease forwards;
+}
+
+@keyframes spriteFade {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.8);
+  }
+}
+
+.sprite-shake {
+  animation: spriteShakeAnim 0.2s ease;
+}
+
+@keyframes spriteShakeAnim {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(5px);
+  }
+  40% {
+    transform: translateX(-5px);
+  }
+  60% {
+    transform: translateX(5px);
+  }
+  80% {
+    transform: translateX(-5px);
+  }
+}
+
+.card-item {
+  will-change: transform, opacity;
+  -webkit-user-drag: element;
+}
+
+.card-item:active {
+  cursor: grabbing;
+}
+
+.particle {
+  will-change: transform, opacity;
+}
+
+button {
+  font-family: inherit;
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid #6c63ff;
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .game-container {
+    padding: 12px !important;
+  }
+
+  .board {
+    transform-origin: top center;
+  }
+}
