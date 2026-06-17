@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/engine.ts","./src/main.tsx","./src/store.ts","./src/types.ts","./src/vite-env.d.ts","./src/components/gameboard.tsx","./src/components/gameoveroverlay.tsx","./src/components/icon.tsx","./src/components/statusbar.tsx","./src/components/targetindicator.tsx"],"version":"5.8.3"}
