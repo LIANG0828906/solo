@@ -129,7 +129,11 @@ export const ControlPanel = memo(function ControlPanel() {
   })
 
   const [draggingValueId, setDraggingValueId] = useState<string | null>(null)
-  const valueDragState = useRef<{ startX: number; startValue: number } | null>(null)
+  const valueDragState = useRef<{
+    startClientX: number
+    startHandleLeft: number
+    startValue: number
+  } | null>(null)
 
   const handleValueDragStart = useCallback(
     (e: React.PointerEvent, bp: Breakpoint) => {
@@ -137,8 +141,10 @@ export const ControlPanel = memo(function ControlPanel() {
       e.preventDefault()
       const target = e.currentTarget as HTMLElement
       target.setPointerCapture(e.pointerId)
+      const rect = target.getBoundingClientRect()
       valueDragState.current = {
-        startX: e.clientX,
+        startClientX: e.clientX,
+        startHandleLeft: rect.left,
         startValue: bp.value,
       }
       setDraggingValueId(bp.id)
@@ -149,8 +155,11 @@ export const ControlPanel = memo(function ControlPanel() {
   const handleValueDragMove = useCallback(
     (e: React.PointerEvent, bpId: string) => {
       if (!valueDragState.current || draggingValueId !== bpId) return
-      const deltaX = e.clientX - valueDragState.current.startX
-      const newVal = Math.max(100, Math.min(4000, valueDragState.current.startValue + deltaX))
+      const { startClientX, startHandleLeft, startValue } = valueDragState.current
+      const currentOffsetFromHandle = e.clientX - startHandleLeft
+      const initialOffset = startClientX - startHandleLeft
+      const deltaX = currentOffsetFromHandle - initialOffset
+      const newVal = Math.max(100, Math.min(4000, startValue + deltaX))
       updateBreakpoint(bpId, { value: Math.floor(newVal) })
     },
     [draggingValueId, updateBreakpoint]

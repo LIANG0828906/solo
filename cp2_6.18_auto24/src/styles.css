@@ -310,7 +310,7 @@ input[type="range"]::-moz-range-thumb {
   cursor: grabbing;
 }
 
-.bp-drag-handle { width:6px; height:20px; border-radius:3px; flex-shrink:0; cursor:ew-resize; transition: transform .1s ease; }
+.bp-drag-handle { width:6px; height:20px; border-radius:3px; flex-shrink:0; cursor:ew-resize; transition: transform .1s ease; user-select:none; touch-action:none; -webkit-user-select:none; }
 .bp-drag-handle:hover { transform: scaleX(1.4); }
 .bp-drag-handle:active { opacity: 0.8; }
 .breakpoint-item.dragging-value { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
@@ -926,14 +926,18 @@ input[type="range"]::-moz-range-thumb {
   animation: bounce-in 0.3s ease;
 }
 
-/* -------- Preset switch animation -------- */
-.preview-preset-switch {
-  opacity: 0;
-  transform: scale(0.98);
-  transition: opacity .2s ease, transform .2s ease;
+/* -------- Preset switch animation (keyframe based) -------- */
+@keyframes preset-switch-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-.preview-preset-switch.active {
-  opacity: 1;
-  transform: scale(1);
+.preset-switching {
+  animation: preset-switch-in 0.2s ease both;
 }

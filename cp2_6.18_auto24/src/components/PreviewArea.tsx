@@ -66,17 +66,25 @@ export const PreviewArea = memo(function PreviewArea() {
   } | null>(null)
 
   const [enterAnimation, setEnterAnimation] = useState(false)
+  const animTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (lastTransitionKeyRef.current !== transitionKey) {
-      console.log('[PreviewArea] transitionKey changed:', lastTransitionKeyRef.current, '->', transitionKey, ', triggering enterAnimation')
       lastTransitionKeyRef.current = transitionKey
       setEnterAnimation(true)
-      const t = window.setTimeout(() => {
+      if (animTimerRef.current != null) {
+        window.clearTimeout(animTimerRef.current)
+      }
+      animTimerRef.current = window.setTimeout(() => {
         setEnterAnimation(false)
-        console.log('[PreviewArea] enterAnimation ended')
-      }, 250)
-      return () => window.clearTimeout(t)
+        animTimerRef.current = null
+      }, 200)
+    }
+    return () => {
+      if (animTimerRef.current != null) {
+        window.clearTimeout(animTimerRef.current)
+        animTimerRef.current = null
+      }
     }
   }, [transitionKey])
 
@@ -98,31 +106,52 @@ export const PreviewArea = memo(function PreviewArea() {
     }
   }
 
+  const rafIdRef = useRef<number | null>(null)
+  const pendingSyncRef = useRef<{ source: DeviceKey; scrollTop: number } | null>(null)
+
+  const performSync = useCallback(() => {
+    const pending = pendingSyncRef.current
+    rafIdRef.current = null
+    if (!pending) return
+    const { source, scrollTop } = pending
+    pendingSyncRef.current = null
+    const others = (['mobile', 'tablet', 'desktop'] as DeviceKey[]).filter(
+      (k) => k !== source
+    )
+    for (const key of others) {
+      const ref = scrollRefByKey(key)
+      if (ref.current && Math.abs(ref.current.scrollTop - scrollTop) > 1) {
+        ref.current.scrollTop = scrollTop
+      }
+    }
+    window.setTimeout(() => {
+      syncingRef.current = false
+    }, 45)
+  }, [])
+
   const handleScroll = useCallback(
     (device: DeviceKey) => (e: React.UIEvent<HTMLDivElement>) => {
       if (syncingRef.current) {
-        syncingRef.current = false
         return
       }
       const scrollTop = (e.target as HTMLDivElement).scrollTop
-      console.log('[PreviewArea] handleScroll source:', device, 'scrollTop:', scrollTop)
       syncingRef.current = true
-      const others = (['mobile', 'tablet', 'desktop'] as DeviceKey[]).filter(
-        (k) => k !== device
-      )
-      for (const key of others) {
-        const ref = scrollRefByKey(key)
-        if (ref.current && ref.current.scrollTop !== scrollTop) {
-          ref.current.scrollTop = scrollTop
-          console.log('[PreviewArea] synced', key, 'to scrollTop:', scrollTop)
-        }
+      pendingSyncRef.current = { source: device, scrollTop }
+      if (rafIdRef.current == null) {
+        rafIdRef.current = window.requestAnimationFrame(performSync)
       }
-      window.setTimeout(() => {
-        syncingRef.current = false
-      }, 5)
     },
-    []
+    [performSync]
   )
+
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current != null) {
+        window.cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
+    }
+  }, [])
 
   const containerStyleFor = useCallback(
     (deviceWidth: number): React.CSSProperties => {
@@ -254,7 +283,7 @@ export const PreviewArea = memo(function PreviewArea() {
     const list: Card[] = cardsMap[device] ?? []
     const width = DEVICE_SPECS[deviceType].width
     const style = containerStyleFor(width)
-    const animClass = `preview-preset-switch${enterAnimation ? ' active' : ''}`
+    const animClass = enterAnimation ? 'preset-switching' : ''
 
     const draggingThis = drag.active && drag.device === device
 

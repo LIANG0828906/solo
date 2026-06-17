@@ -47,7 +47,7 @@ const LOREM_PARAGRAPHS = [
 ]
 
 function randomInRange(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min
+  return Math.round(Math.floor(Math.random() * (max - min + 1)) + min)
 }
 
 function pickRandom<T>(arr: T[]): T {

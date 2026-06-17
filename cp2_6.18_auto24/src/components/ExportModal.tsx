@@ -3,16 +3,18 @@ import { X, Copy, Check, FileCode } from 'lucide-react'
 import { useLayoutStore } from '../store'
 import { generateFullCss } from '../layoutEngine'
 
-const KEYWORDS = ['@media', 'grid', 'flex', 'repeat', 'minmax', 'auto', 'min-width', 'max-width']
+const KEYWORDS = ['@media', 'grid', 'flex', 'repeat', 'minmax', 'auto', 'min-width', 'max-width', 'calc']
 
 const RE_COMMENT = /^\/\*[\s\S]*?\*\//
 const RE_STRING = /^"[^"]*"/
-const RE_PROP = /^[a-zA-Z][a-zA-Z0-9-]*(?=\s*:)/
+const RE_PROP = /^-?[a-zA-Z][a-zA-Z0-9-]*(?=\s*:)/
 const RE_KEYWORD = new RegExp(
   '^(' + KEYWORDS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![a-zA-Z0-9-])'
 )
-const RE_NUMBER = /^-?\d+(?:\.\d+)?(?:px|fr|em|rem|%|s|ms)?(?![a-zA-Z0-9])/
-const RE_PUNCT = /^[:;{}(),]/
+const RE_NUMBER = /^-?\d+(?:\.\d+)?(?:px|fr|em|rem|%|s|ms|vh|vw|vmin|vmax|deg)?(?![a-zA-Z0-9#-])/
+const RE_COLOR = /^#(?:[0-9a-fA-F]{3}){1,2}\b/
+const RE_OP = /^[+\-*/](?=\s)/
+const RE_PUNCT = /^[:;{}(),\[\]]/
 
 function highlightCss(code: string): React.ReactNode[] {
   const tokens: React.ReactNode[] = []
@@ -33,6 +35,13 @@ function highlightCss(code: string): React.ReactNode[] {
     const mComment = remaining.match(RE_COMMENT)
     if (mComment) {
       matched = { text: mComment[0], cls: 'code-comment' }
+    }
+
+    if (!matched) {
+      const mColor = remaining.match(RE_COLOR)
+      if (mColor) {
+        matched = { text: mColor[0], cls: 'code-number' }
+      }
     }
 
     if (!matched) {
@@ -60,6 +69,13 @@ function highlightCss(code: string): React.ReactNode[] {
       const mNum = remaining.match(RE_NUMBER)
       if (mNum && mNum[0].length > 0) {
         matched = { text: mNum[0], cls: 'code-number' }
+      }
+    }
+
+    if (!matched) {
+      const mOp = remaining.match(RE_OP)
+      if (mOp) {
+        matched = { text: mOp[0], cls: 'code-punct' }
       }
     }
 
