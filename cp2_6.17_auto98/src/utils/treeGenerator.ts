@@ -16,6 +16,8 @@ export interface BranchData {
 export interface LeafData {
   position: THREE.Vector3;
   radius: number;
+  scale: THREE.Vector3;
+  quaternion: THREE.Quaternion;
 }
 
 export interface TreeData {
@@ -33,11 +35,31 @@ interface LSystemState {
 }
 
 const TRUNK_COLOR = new THREE.Color('#4A3728');
+const COLOR_STAGE_1 = new THREE.Color('#5C4433');
+const COLOR_STAGE_2 = new THREE.Color('#6B5A3D');
+const COLOR_STAGE_3 = new THREE.Color('#4A6B33');
+const COLOR_STAGE_4 = new THREE.Color('#3A7A2D');
 const TOP_COLOR = new THREE.Color('#2D5A27');
 const LEAF_COLOR = new THREE.Color('#2D5A27');
 
-const lerpColor = (c1: THREE.Color, c2: THREE.Color, t: number): THREE.Color => {
-  return c1.clone().lerp(c2, Math.min(1, Math.max(0, t)));
+const lerpMultiColor = (t: number): THREE.Color => {
+  const clampedT = Math.min(1, Math.max(0, t));
+  const stages = [
+    { pos: 0.0, color: TRUNK_COLOR },
+    { pos: 0.25, color: COLOR_STAGE_1 },
+    { pos: 0.45, color: COLOR_STAGE_2 },
+    { pos: 0.65, color: COLOR_STAGE_3 },
+    { pos: 0.82, color: COLOR_STAGE_4 },
+    { pos: 1.0, color: TOP_COLOR },
+  ];
+
+  for (let i = 0; i < stages.length - 1; i++) {
+    if (clampedT >= stages[i].pos && clampedT <= stages[i + 1].pos) {
+      const localT = (clampedT - stages[i].pos) / (stages[i + 1].pos - stages[i].pos);
+      return stages[i].color.clone().lerp(stages[i + 1].color, localT);
+    }
+  }
+  return TOP_COLOR.clone();
 };
 
 export const generateLSystemString = (axiom: string, rules: Record<string, string>, iterations: number): string => {
@@ -161,9 +183,32 @@ export const generateTree = (params: TreeParams): TreeData => {
             leafPos.y += (Math.random() - 0.5) * 0.1;
             leafPos.z += (Math.random() - 0.5) * 0.15;
 
+            const baseRadius = 0.05 + Math.random() * 0.1;
+            const scaleX = baseRadius * (0.8 + Math.random() * 0.4);
+            const scaleY = baseRadius * (1.2 + Math.random() * 0.8);
+            const scaleZ = baseRadius * (0.8 + Math.random() * 0.4);
+
+            const baseDir = dir.clone();
+            const tiltAxisX = new THREE.Vector3(1, 0, 0);
+            const tiltAxisY = new THREE.Vector3(0, 1, 0);
+            const tiltAxisZ = new THREE.Vector3(0, 0, 1);
+            const leafQuat = new THREE.Quaternion();
+            leafQuat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), baseDir);
+            const extraQuat = new THREE.Quaternion();
+            extraQuat.setFromEuler(
+              new THREE.Euler(
+                (Math.random() - 0.5) * Math.PI * 0.6,
+                (Math.random() - 0.5) * Math.PI * 0.6,
+                (Math.random() - 0.5) * Math.PI * 0.6
+              )
+            );
+            leafQuat.multiply(extraQuat);
+
             leaves.push({
               position: leafPos,
-              radius: 0.05 + Math.random() * 0.1,
+              radius: baseRadius,
+              scale: new THREE.Vector3(scaleX, scaleY, scaleZ),
+              quaternion: leafQuat,
             });
           }
         }
@@ -292,7 +337,7 @@ export const generateTree = (params: TreeParams): TreeData => {
 
   for (const tb of tempBranches) {
     const colorT = maxLevel === 0 ? 0 : tb.level / maxLevel;
-    const branchColor = lerpColor(TRUNK_COLOR, TOP_COLOR, colorT);
+    const branchColor = lerpMultiColor(colorT);
     branches.push({
       id: tb.id,
       level: tb.level,

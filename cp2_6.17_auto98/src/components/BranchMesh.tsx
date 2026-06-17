@@ -116,7 +116,7 @@ export const BranchMesh: React.FC<BranchMeshProps> = ({ branches, selectedId, on
 };
 
 interface LeafMeshProps {
-  leaves: Array<{ position: THREE.Vector3; radius: number }>;
+  leaves: Array<{ position: THREE.Vector3; radius: number; scale: THREE.Vector3; quaternion: THREE.Quaternion }>;
 }
 
 export const LeafMesh: React.FC<LeafMeshProps> = ({ leaves }) => {
@@ -128,7 +128,8 @@ export const LeafMesh: React.FC<LeafMeshProps> = ({ leaves }) => {
     const mesh = instancedRef.current;
     for (let i = 0; i < leaves.length; i++) {
       dummy.position.copy(leaves[i].position);
-      dummy.scale.setScalar(leaves[i].radius);
+      dummy.scale.copy(leaves[i].scale);
+      dummy.quaternion.copy(leaves[i].quaternion);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     }
