@@ -22,9 +22,9 @@ function Particle({ color, angle }: { color: string; angle: number }) {
   );
 }
 
-function Ball({ color, isExploding }: { color: ColorValue; isExploding: boolean }) {
+function Ball({ color, isExploding, isCelebrating }: { color: ColorValue; isExploding: boolean; isCelebrating: boolean }) {
   return (
-    <div className={`ball ${isExploding ? 'ball-exploding' : ''}`}>
+    <div className={`ball ${isExploding ? 'ball-exploding' : ''} ${isCelebrating ? 'ball-celebrating' : ''}`}>
       <div
         className="ball-inner"
         style={{ background: color }}
@@ -45,6 +45,7 @@ export default function Grid() {
   const grid = useGameStore(s => s.grid);
   const explodingCells = useGameStore(s => s.explodingCells);
   const isAnimating = useGameStore(s => s.isAnimating);
+  const celebrating = useGameStore(s => s.celebrating);
   const handleCellClick = useGameStore(s => s.handleCellClick);
 
   const cellSize = useMemo(() => {
@@ -92,7 +93,7 @@ export default function Grid() {
               onClick={() => handleCellClick(r, c)}
             >
               {cell.color && (
-                <Ball color={cell.color} isExploding={isExploding} />
+                <Ball color={cell.color} isExploding={isExploding} isCelebrating={celebrating} />
               )}
             </div>
           );

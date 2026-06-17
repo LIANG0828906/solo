@@ -60,6 +60,43 @@
   50% { background: #00D2D3; }
 }
 
+@keyframes bannerSlideIn {
+  0% {
+    transform: translateX(-50%) translateY(-150px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes bannerFadeOut {
+  0% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+  }
+}
+
+@keyframes ballPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.12);
+    filter: brightness(1.4) saturate(1.2);
+  }
+}
+
+.ball-celebrating .ball-inner {
+  animation: ballPulse 0.5s ease-in-out 2;
+}
+
 .ball {
   position: relative;
   width: 80%;
@@ -111,7 +148,7 @@
 
 .next-level-btn {
   width: 100%;
-  padding: '14px 24px';
+  padding: 14px 24px;
   background: #00D2D3;
   color: #fff;
   font-size: 20px;

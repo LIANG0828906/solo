@@ -8,9 +8,12 @@ export default function App() {
   const level = useGameStore(s => s.level);
   const isWin = useGameStore(s => s.isWin);
   const winAnimating = useGameStore(s => s.winAnimating);
+  const celebrating = useGameStore(s => s.celebrating);
   const setWinAnimating = useGameStore(s => s.setWinAnimating);
+  const setCelebrating = useGameStore(s => s.setCelebrating);
   const [flashOn, setFlashOn] = useState(false);
-  const [flashCount, setFlashCount] = useState(0);
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const [bannerFading, setBannerFading] = useState(false);
 
   useEffect(() => {
     if (!winAnimating) return;
@@ -20,13 +23,11 @@ export default function App() {
     let on = true;
 
     setFlashOn(true);
-    setFlashCount(0);
 
     const interval = setInterval(() => {
       on = !on;
       setFlashOn(on);
       count++;
-      setFlashCount(count);
 
       if (count >= maxFlashes * 2) {
         clearInterval(interval);
@@ -37,6 +38,32 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, [winAnimating, setWinAnimating]);
+
+  useEffect(() => {
+    if (celebrating && !bannerVisible) {
+      setBannerVisible(true);
+      setBannerFading(false);
+
+      const fadeTimer = setTimeout(() => {
+        setBannerFading(true);
+      }, 2000);
+
+      const hideTimer = setTimeout(() => {
+        setBannerVisible(false);
+        setCelebrating(false);
+      }, 2400);
+
+      return () => {
+        clearTimeout(fadeTimer);
+        clearTimeout(hideTimer);
+      };
+    }
+
+    if (!isWin) {
+      setBannerVisible(false);
+      setBannerFading(false);
+    }
+  }, [celebrating, bannerVisible, isWin, setCelebrating]);
 
   return (
     <div
@@ -87,6 +114,50 @@ export default function App() {
           position: 'relative',
         }}
       >
+        {bannerVisible && (
+          <div
+            className={bannerFading ? 'victory-banner fading' : 'victory-banner'}
+            style={{
+              position: 'absolute',
+              top: '0',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%)',
+              padding: '16px 48px',
+              borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(255, 215, 0, 0.4), 0 0 60px rgba(255, 165, 0, 0.3)',
+              zIndex: 100,
+              animation: bannerFading ? 'bannerFadeOut 0.4s ease-in forwards' : 'bannerSlideIn 0.5s ease-out forwards',
+              textAlign: 'center',
+              minWidth: '280px',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '32px',
+                fontWeight: 800,
+                color: '#fff',
+                textShadow: '0 0 10px rgba(255, 215, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.3)',
+                letterSpacing: '3px',
+                marginBottom: '4px',
+              }}
+            >
+              🏆 Victory!
+            </div>
+            <div
+              style={{
+                fontSize: '16px',
+                fontWeight: 600,
+                color: 'rgba(255, 255, 255, 0.95)',
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+              }}
+            >
+              Final Score: <span style={{ color: '#1A1A2E', fontWeight: 800 }}>{score.toLocaleString()}</span>
+            </div>
+          </div>
+        )}
+
         <div
           style={{
             position: 'relative',

@@ -22,12 +22,14 @@ interface GameState {
   isWin: boolean;
   explodingCells: Set<string>;
   winAnimating: boolean;
+  celebrating: boolean;
 
   handleCellClick: (row: number, col: number) => void;
   nextLevel: () => void;
   resetGame: () => void;
   clearExplosion: () => void;
   setWinAnimating: (v: boolean) => void;
+  setCelebrating: (v: boolean) => void;
 }
 
 function initLevel(level: number) {
@@ -49,6 +51,7 @@ export const useGameStore = create<GameState>((set, get) => {
     isWin: false,
     explodingCells: new Set<string>(),
     winAnimating: false,
+    celebrating: false,
 
     handleCellClick: (row: number, col: number) => {
       const state = get();
@@ -87,6 +90,7 @@ export const useGameStore = create<GameState>((set, get) => {
         });
 
         if (isLevelWin) {
+          set({ celebrating: true });
           get().setWinAnimating(true);
         }
 
@@ -109,6 +113,7 @@ export const useGameStore = create<GameState>((set, get) => {
         winAnimating: false,
         isAnimating: false,
         explodingCells: new Set<string>(),
+        celebrating: false,
       });
     },
 
@@ -124,6 +129,7 @@ export const useGameStore = create<GameState>((set, get) => {
         isWin: false,
         winAnimating: false,
         explodingCells: new Set<string>(),
+        celebrating: false,
       });
     },
 
@@ -134,5 +140,13 @@ export const useGameStore = create<GameState>((set, get) => {
     setWinAnimating: (v: boolean) => {
       set({ winAnimating: v });
     },
+
+    setCelebrating: (v: boolean) => {
+      set({ celebrating: v });
+    },
   };
 });
+
+if (import.meta.env.DEV) {
+  (window as unknown as { __gameStore: typeof useGameStore }).__gameStore = useGameStore;
+}
