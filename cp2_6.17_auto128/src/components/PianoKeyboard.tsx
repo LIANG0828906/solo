@@ -229,9 +229,8 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
           cursor: pointer;
           transition: background-color 0.1s ease;
           display: flex;
-          align-items: flex-end;
+          align-items: center;
           justify-content: center;
-          padding-bottom: 8px;
           position: relative;
           z-index: 1;
         }
@@ -259,9 +258,8 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
           cursor: pointer;
           transition: background-color 0.1s ease;
           display: flex;
-          align-items: flex-end;
+          align-items: center;
           justify-content: center;
-          padding-bottom: 6px;
           z-index: 2;
           pointer-events: auto;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
@@ -284,7 +282,7 @@ export const PianoKeyboard: React.FC<PianoKeyboardProps> = ({
         }
 
         .white-key .key-label {
-          color: rgba(0, 0, 0, 0.4);
+          color: rgba(255, 255, 255, 0.7);
         }
       `}</style>
     </div>

@@ -125,29 +125,32 @@ export const Visualizer: React.FC = () => {
       return NOTE_NAMES.indexOf(noteName)
     })
 
-    const rootSemitone = semitonesList[0]
-    const intervals = semitonesList
-      .map(s => (s - rootSemitone + 12) % 12)
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .sort((a, b) => a - b)
+    const uniqueSemitones = [...new Set(semitonesList)]
+    
+    let bestChordName: string | null = null
+    let bestMatchCount = 0
 
-    let bestMatch: string | null = null
-    let bestMatchLength = 0
+    for (let rootIdx = 0; rootIdx < uniqueSemitones.length; rootIdx++) {
+      const rootSemitone = uniqueSemitones[rootIdx]
+      const intervals = uniqueSemitones
+        .map(s => (s - rootSemitone + 12) % 12)
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .sort((a, b) => a - b)
 
-    for (const [name, pattern] of Object.entries(CHORD_PATTERNS)) {
-      const match = pattern.every(p => intervals.includes(p % 12))
-      if (match && pattern.length > bestMatchLength) {
-        bestMatch = name
-        bestMatchLength = pattern.length
+      for (const [name, pattern] of Object.entries(CHORD_PATTERNS)) {
+        if (pattern.length > intervals.length) continue
+        
+        const matchCount = pattern.filter(p => intervals.includes(p % 12)).length
+        if (matchCount === pattern.length && matchCount > bestMatchCount) {
+          bestChordName = name
+          bestMatchCount = matchCount
+          const rootNoteName = NOTE_NAMES[rootSemitone]
+          bestChordName = `${rootNoteName}${name === 'maj' ? '' : name}`
+        }
       }
     }
 
-    if (bestMatch) {
-      const rootNoteName = NOTE_NAMES[rootSemitone]
-      return `${rootNoteName}${bestMatch === 'maj' ? '' : bestMatch}`
-    }
-
-    return null
+    return bestChordName
   }, [activeNotes])
 
   return (

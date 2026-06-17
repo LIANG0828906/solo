@@ -24,10 +24,16 @@ const App: React.FC = () => {
   const playbackIndexRef = useRef<number>(0)
   const isPausedRef = useRef<boolean>(false)
   const pausedAtRef = useRef<number>(0)
+  const rafIdRef = useRef<number | null>(null)
+  const activeNotesDuringPlaybackRef = useRef<Set<string>>(new Set())
 
   const clearAllTimeouts = useCallback(() => {
     playbackTimeoutsRef.current.forEach(id => clearTimeout(id))
     playbackTimeoutsRef.current = []
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = null
+    }
   }, [])
 
   const handleRecordToggle = useCallback(() => {
@@ -39,27 +45,13 @@ const App: React.FC = () => {
     }
   }, [recording, startRecording, stopRecording, initAudioContext])
 
-  const scheduleEvent = useCallback((event: typeof recordedEvents[0], delay: number) => {
-    const timeoutId = window.setTimeout(() => {
-      if (event.type === 'noteOn') {
-        const color = getColorForNote(event.note)
-        playNote(event.freq, 0.5)
-        addNote(event.note, event.freq, color, 80)
-      } else {
-        stopNote(event.freq)
-        removeNote(event.note)
-      }
-      playbackIndexRef.current++
-    }, delay)
-    playbackTimeoutsRef.current.push(timeoutId)
-  }, [playNote, stopNote, addNote, removeNote])
-
   const startPlayback = useCallback(() => {
     if (recordedEvents.length === 0) return
 
     initAudioContext()
     clearAllTimeouts()
     clearAllNotes()
+    activeNotesDuringPlaybackRef.current.clear()
     
     const isResuming = isPausedRef.current
     const startTime = isResuming ? pausedAtRef.current : 0
@@ -67,24 +59,49 @@ const App: React.FC = () => {
     playbackIndexRef.current = 0
     isPausedRef.current = false
 
-    recordedEvents.forEach((event) => {
-      if (event.timestamp >= startTime) {
-        const delay = event.timestamp - startTime
-        scheduleEvent(event, delay)
+    const sortedEvents = [...recordedEvents].sort((a, b) => a.timestamp - b.timestamp)
+    playbackIndexRef.current = sortedEvents.findIndex(e => e.timestamp >= startTime)
+    if (playbackIndexRef.current === -1) playbackIndexRef.current = sortedEvents.length
+
+    const totalDuration = Math.max(...sortedEvents.map(e => e.timestamp)) + 1000
+
+    const playbackLoop = () => {
+      const elapsed = performance.now() - playbackStartTimeRef.current
+      
+      while (
+        playbackIndexRef.current < sortedEvents.length &&
+        sortedEvents[playbackIndexRef.current].timestamp <= elapsed
+      ) {
+        const event = sortedEvents[playbackIndexRef.current]
+        if (event.type === 'noteOn') {
+          if (!activeNotesDuringPlaybackRef.current.has(event.note)) {
+            activeNotesDuringPlaybackRef.current.add(event.note)
+            const color = getColorForNote(event.note)
+            playNote(event.freq, 0.5)
+            addNote(event.note, event.freq, color, 80)
+          }
+        } else {
+          activeNotesDuringPlaybackRef.current.delete(event.note)
+          stopNote(event.freq)
+          removeNote(event.note)
+        }
+        playbackIndexRef.current++
       }
-    })
 
-    const totalDuration = Math.max(...recordedEvents.map(e => e.timestamp)) + 1000
-    const endTimeout = window.setTimeout(() => {
-      setIsPlaying(false)
-      clearAllNotes()
-      isPausedRef.current = false
-      pausedAtRef.current = 0
-    }, totalDuration - startTime)
-    playbackTimeoutsRef.current.push(endTimeout)
+      if (elapsed < totalDuration && isPausedRef.current === false) {
+        rafIdRef.current = requestAnimationFrame(playbackLoop)
+      } else if (elapsed >= totalDuration) {
+        setIsPlaying(false)
+        clearAllNotes()
+        isPausedRef.current = false
+        pausedAtRef.current = 0
+        activeNotesDuringPlaybackRef.current.clear()
+      }
+    }
 
+    rafIdRef.current = requestAnimationFrame(playbackLoop)
     setIsPlaying(true)
-  }, [recordedEvents, clearAllTimeouts, clearAllNotes, scheduleEvent, setIsPlaying, initAudioContext])
+  }, [recordedEvents, clearAllTimeouts, clearAllNotes, setIsPlaying, initAudioContext, playNote, stopNote, addNote, removeNote])
 
   const pausePlayback = useCallback(() => {
     const elapsed = performance.now() - playbackStartTimeRef.current
@@ -92,8 +109,15 @@ const App: React.FC = () => {
     isPausedRef.current = true
     clearAllTimeouts()
     clearAllNotes()
+    activeNotesDuringPlaybackRef.current.forEach(note => {
+      const event = recordedEvents.find(e => e.note === note && e.type === 'noteOn')
+      if (event) {
+        stopNote(event.freq)
+      }
+    })
+    activeNotesDuringPlaybackRef.current.clear()
     setIsPlaying(false)
-  }, [clearAllTimeouts, clearAllNotes, setIsPlaying])
+  }, [clearAllTimeouts, clearAllNotes, setIsPlaying, recordedEvents, stopNote])
 
   const handlePlayToggle = useCallback(() => {
     if (isPlaying) {

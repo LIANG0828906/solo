@@ -8,8 +8,20 @@ export interface PianoKey {
 }
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-const WHITE_KEY_BINDINGS = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', "'", 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '/', 'Q', 'W', 'E', 'R']
-const BLACK_KEY_BINDINGS = ['W', 'E', 'T', 'Y', 'U', 'O', 'P', ']', '\\', '1', '2', '4', '5', '6', '8', '9', '-', '=']
+
+const WHITE_KEY_BINDINGS = [
+  'Z', 'X', 'C', 'V', 'B', 'N', 'M',
+  'A', 'S', 'D', 'F', 'G', 'H', 'J',
+  'K', 'L', ';', "'", 'Q', 'W', 'E',
+  'R', 'T', 'Y', 'U'
+]
+
+const BLACK_KEY_BINDINGS = [
+  'S', 'D', 'G', 'H', 'J', 'L', ';', '2',
+  'W', 'E', 'T', 'Y', 'U', 'O', 'P', ']',
+  '3', '4'
+]
+
 const WHITE_KEY_WIDTH = 30
 const BLACK_KEY_WIDTH = 18
 const BLACK_KEY_HEIGHT = 75
