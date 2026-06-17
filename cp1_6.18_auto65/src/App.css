@@ -1,0 +1,53 @@
+.app {
+  min-height: 100vh;
+  background: #FCFAF7;
+}
+
+.app-main {
+  min-height: calc(100vh - 60px);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #FCFAF7;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F5F0EB;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D4C9B8;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B0A090;
+}
+
+::selection {
+  background: rgba(200, 122, 90, 0.2);
+  color: #3D3329;
+}
+
+input, textarea, button, select {
+  font-family: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #C87A5A;
+  outline-offset: 2px;
+}

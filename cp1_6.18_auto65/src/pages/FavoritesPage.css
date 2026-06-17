@@ -1,0 +1,236 @@
+.favorites-page {
+  min-height: calc(100vh - 60px);
+  background: #FCFAF7;
+  padding: 24px 0 64px;
+}
+
+.favorites-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.favorites-header {
+  margin-bottom: 32px;
+}
+
+.fav-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid #E8E0D4;
+  border-radius: 20px;
+  color: #6B5B4E;
+  text-decoration: none;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.fav-back-link:hover {
+  color: #C87A5A;
+  border-color: #C87A5A;
+  background: #FFF5F0;
+}
+
+.fav-back-link:active {
+  transform: scale(0.97);
+}
+
+.favorites-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.fav-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #FDECEA, #F8D5CF);
+  border-radius: 20px;
+  color: #E74C3C;
+  box-shadow: 0 4px 16px rgba(231, 76, 60, 0.15);
+  flex-shrink: 0;
+}
+
+.favorites-title {
+  margin: 0 0 4px;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: #3D3329;
+}
+
+.favorites-count {
+  margin: 0;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 15px;
+  color: #8B7D6E;
+}
+
+.favorites-empty {
+  text-align: center;
+  padding: 80px 24px;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.empty-illustration {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 28px;
+}
+
+.empty-emoji {
+  position: relative;
+  z-index: 2;
+  font-size: 72px;
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.empty-decoration {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(200, 122, 90, 0.12), transparent 60%);
+  border-radius: 50%;
+}
+
+.empty-title {
+  margin: 0 0 12px;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #3D3329;
+}
+
+.empty-desc {
+  margin: 0 0 28px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 15px;
+  color: #8B7D6E;
+  line-height: 1.6;
+}
+
+.empty-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 36px;
+  background: linear-gradient(135deg, #C87A5A, #B56949);
+  color: #fff;
+  text-decoration: none;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 28px;
+  box-shadow: 0 6px 20px rgba(200, 122, 90, 0.3);
+  transition: all 0.2s ease;
+}
+
+.empty-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(200, 122, 90, 0.4);
+}
+
+.empty-action-btn:active {
+  transform: scale(0.97);
+}
+
+.favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  justify-items: center;
+}
+
+.favorites-tips {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 32px;
+  padding: 10px 18px;
+  background: #fff;
+  border: 1px solid #E8E0D4;
+  border-radius: 20px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  color: #8B7D6E;
+}
+
+.favorites-tips svg {
+  color: #E74C3C;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+  .favorites-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .favorites-page {
+    padding: 16px 0 40px;
+  }
+
+  .favorites-container {
+    padding: 0 16px;
+  }
+
+  .favorites-header {
+    margin-bottom: 24px;
+  }
+
+  .fav-icon-badge {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+  }
+
+  .fav-icon-badge svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .favorites-title {
+    font-size: 24px;
+  }
+
+  .favorites-count {
+    font-size: 13px;
+  }
+
+  .favorites-empty {
+    padding: 48px 16px;
+  }
+
+  .empty-emoji {
+    font-size: 56px;
+  }
+
+  .empty-title {
+    font-size: 20px;
+  }
+
+  .favorites-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
