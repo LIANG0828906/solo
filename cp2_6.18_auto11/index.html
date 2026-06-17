@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AetherWing - 3D Flight Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000000;
+      font-family: monospace, sans-serif;
+    }
+
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      background-color: #0A0A1A;
+    }
+
+    #game-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .start-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 10, 26, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      pointer-events: auto;
+    }
+
+    .start-screen h1 {
+      font-family: monospace;
+      font-size: 48px;
+      color: #00FF88;
+      text-shadow: 0 0 20px rgba(0, 255, 136, 0.8), 0 0 40px rgba(0, 255, 136, 0.4);
+      margin-bottom: 20px;
+      letter-spacing: 8px;
+    }
+
+    .start-screen .subtitle {
+      font-family: monospace;
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 40px;
+      letter-spacing: 2px;
+    }
+
+    .start-screen .instructions {
+      font-family: monospace;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      text-align: center;
+      line-height: 2;
+      margin-bottom: 40px;
+    }
+
+    .start-button {
+      width: 160px;
+      height: 50px;
+      background-color: #00FF88;
+      color: #0A0A1A;
+      border: none;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 2px;
+    }
+
+    .start-button:hover {
+      background-color: #33FFAA;
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+    }
+
+    @media (max-width: 768px) {
+      .start-screen h1 {
+        font-size: 32px;
+        letter-spacing: 4px;
+      }
+
+      .start-screen .subtitle {
+        font-size: 14px;
+      }
+
+      .start-screen .instructions {
+        font-size: 12px;
+        padding: 0 20px;
+      }
+
+      .start-button {
+        width: 140px;
+        height: 44px;
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div class="start-screen" id="start-screen">
+      <h1>AETHERWING</h1>
+      <p class="subtitle">MECHANICAL PTERODACTYL FLIGHT</p>
+      <div class="instructions">
+        MOUSE MOVE: CONTROL DIRECTION<br/>
+        MOVE UP: CLIMB / SLOW DOWN<br/>
+        MOVE DOWN: DIVE / SPEED UP<br/>
+        COLLECT ENERGY SHARDS TO SURVIVE
+      </div>
+      <button class="start-button" id="start-button">START</button>
+    </div>
+  </div>
+  <script type="module">
+    import { game } from '/src/main.ts';
+    
+    document.getElementById('start-button').addEventListener('click', function() {
+      var startScreen = document.getElementById('start-screen');
+      startScreen.style.transition = 'opacity 0.5s ease';
+      startScreen.style.opacity = '0';
+      setTimeout(function() {
+        startScreen.style.display = 'none';
+      }, 500);
+      
+      game.start();
+    });
+  </script>
+</body>
+</html>
