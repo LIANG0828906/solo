@@ -1,1 +1,24 @@
-{"checkins":[],"travelogs":[]}
+{
+  "checkins": [
+    {
+      "id": "test-checkin-1",
+      "name": "北京故宫",
+      "lat": 39.9163,
+      "lng": 116.3972,
+      "createdAt": "2026-06-17T01:33:23.640Z",
+      "photo": "https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=800"
+    }
+  ],
+  "travelogs": [
+    {
+      "id": "test-travelog-1",
+      "title": "故宫一日游",
+      "content": "今天来到了向往已久的北京故宫，红墙黄瓦，气势恢宏。沿着中轴线一路前行，仿佛穿越回了古代帝王的生活场景。太和殿的威严，御花园的幽静，都让人流连忘返。",
+      "checkinIds": [
+        "test-checkin-1"
+      ],
+      "coverPhoto": "https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=800",
+      "createdAt": "2026-06-17T01:33:23.654Z"
+    }
+  ]
+}

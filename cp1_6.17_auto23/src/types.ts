@@ -30,7 +30,9 @@ export interface MapState {
 
 export interface TravelogState {
   travelogs: Travelog[];
+  favorites: string[];
   loading: boolean;
   fetchTravelogs: () => Promise<void>;
   addTravelog: (travelog: Omit<Travelog, 'id' | 'createdAt' | 'coverPhoto'>) => Promise<void>;
+  toggleFavorite: (travelogId: string) => void;
 }

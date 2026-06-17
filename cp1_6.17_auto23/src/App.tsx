@@ -1,19 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Tabs, ConfigProvider, Spin } from 'antd';
-import { EnvironmentOutlined, ReadOutlined } from '@ant-design/icons';
+import { Tabs, ConfigProvider, Spin, Button } from 'antd';
+import { EnvironmentOutlined, ReadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import MapView from './components/MapView';
 import TravelogList from './components/TravelogList';
 import TravelogDetail from './components/TravelogDetail';
 import { useMapStore } from './store/mapStore';
 import { useTravelogStore } from './store/travelogStore';
-import type { Travelog } from './types';
 
 function App() {
   const [activeTab, setActiveTab] = useState('map');
-  const [selectedTravelog, setSelectedTravelog] = useState<Travelog | null>(null);
+  const [selectedTravelogId, setSelectedTravelogId] = useState<string | null>(null);
   const [animating, setAnimating] = useState(false);
   const { fetchCheckins, userPosition, setUserPosition } = useMapStore();
-  const { fetchTravelogs } = useTravelogStore();
+  const { fetchTravelogs, travelogs } = useTravelogStore();
 
   useEffect(() => {
     fetchCheckins();
@@ -58,18 +57,22 @@ function App() {
     setAnimating(true);
     setTimeout(() => {
       setActiveTab(key);
-      setSelectedTravelog(null);
+      setSelectedTravelogId(null);
       setAnimating(false);
     }, 150);
   };
 
-  const handleTravelogClick = (travelog: Travelog) => {
-    setSelectedTravelog(travelog);
+  const handleTravelogClick = (travelogId: string) => {
+    setSelectedTravelogId(travelogId);
   };
 
   const handleBackToList = () => {
-    setSelectedTravelog(null);
+    setSelectedTravelogId(null);
   };
+
+  const selectedTravelog = selectedTravelogId
+    ? travelogs.find((t) => t.id === selectedTravelogId) || null
+    : null;
 
   const tabItems = [
     {
@@ -115,7 +118,31 @@ function App() {
     }
 
     if (selectedTravelog) {
-      return <TravelogDetail travelog={selectedTravelog} onBack={handleBackToList} />;
+      return (
+        <div>
+          <div
+            style={{
+              position: 'absolute',
+              top: 110,
+              left: 24,
+              zIndex: 100,
+            }}
+          >
+            <Button
+              type="default"
+              icon={<ArrowLeftOutlined />}
+              onClick={handleBackToList}
+              style={{
+                background: 'rgba(255,255,255,0.95)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              }}
+            >
+              返回列表
+            </Button>
+          </div>
+          <TravelogDetail travelog={selectedTravelog} onBack={handleBackToList} />
+        </div>
+      );
     }
     return <TravelogList onTravelogClick={handleTravelogClick} />;
   };

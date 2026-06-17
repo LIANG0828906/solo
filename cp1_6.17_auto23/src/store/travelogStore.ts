@@ -5,6 +5,7 @@ import { useMapStore } from './mapStore';
 
 export const useTravelogStore = create<TravelogState>((set) => ({
   travelogs: [],
+  favorites: [],
   loading: false,
 
   fetchTravelogs: async () => {
@@ -48,5 +49,16 @@ export const useTravelogStore = create<TravelogState>((set) => ({
     } catch (error) {
       console.error('Failed to add travelog:', error);
     }
+  },
+
+  toggleFavorite: (travelogId) => {
+    set((state) => {
+      const exists = state.favorites.includes(travelogId);
+      return {
+        favorites: exists
+          ? state.favorites.filter((id) => id !== travelogId)
+          : [...state.favorites, travelogId],
+      };
+    });
   },
 }));
