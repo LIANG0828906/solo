@@ -1,0 +1,28 @@
+{
+  "name": "team-voting-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "node server/index.js"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "uuid": "^10.0.0",
+    "zustand": "^4.5.5",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8",
+    "@vitejs/plugin-react": "^4.3.2",
+    "recharts": "^2.13.3"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@types/uuid": "^10.0.0",
+    "concurrently": "^9.0.1"
+  }
+}
