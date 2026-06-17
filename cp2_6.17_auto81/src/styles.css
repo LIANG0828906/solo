@@ -68,8 +68,8 @@ body {
   position: absolute;
   top: 40px;
   right: 40px;
-  width: 200px;
-  height: 180px;
+  width: 260px;
+  height: auto;
   background-color: #1a1a2e;
   border-radius: 12px;
   padding: 16px;
@@ -100,12 +100,18 @@ body {
   flex: 1;
 }
 
+.stats-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .stats-bar-bg {
+  flex: 1;
   height: 6px;
   background-color: #2d2d3f;
   border-radius: 3px;
   overflow: hidden;
-  margin-bottom: 4px;
 }
 
 .stats-bar {
@@ -129,9 +135,10 @@ body {
 }
 
 .stats-count {
-  font-size: 11px;
-  color: #7a7a9a;
-  display: block;
+  font-size: 12px;
+  white-space: nowrap;
+  min-width: 60px;
+  text-align: right;
 }
 
 .stats-count.flash-num {

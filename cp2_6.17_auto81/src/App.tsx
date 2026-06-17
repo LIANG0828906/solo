@@ -71,6 +71,19 @@ function App() {
   const getPercent = (count: number) =>
     total === 0 ? 0 : Math.round((count / total) * 100);
 
+  const EMOTION_COLORS: Record<EmotionType, string> = {
+    happy: '#4ECDC4',
+    neutral: '#FFD166',
+    sad: '#FF6584',
+  };
+
+  const getBorderColor = (feedback: typeof feedbacks[0]): string => {
+    if (feedback.emotion) {
+      return EMOTION_COLORS[feedback.emotion];
+    }
+    return feedback.borderColor;
+  };
+
   if (!isLoaded) {
     return (
       <div className="app loading">
@@ -93,18 +106,23 @@ function App() {
             😊
           </div>
           <div className="stats-info">
-            <div className="stats-bar-bg">
-              <div
-                className={`stats-bar ${statsFlash ? 'flash' : ''}`}
-                style={{
-                  width: `${getPercent(emotionStats.happy)}%`,
-                  backgroundColor: '#4ECDC4',
-                }}
-              />
+            <div className="stats-bar-wrapper">
+              <div className="stats-bar-bg">
+                <div
+                  className={`stats-bar ${statsFlash ? 'flash' : ''}`}
+                  style={{
+                    width: `${getPercent(emotionStats.happy)}%`,
+                    backgroundColor: '#4ECDC4',
+                  }}
+                />
+              </div>
+              <span
+                className={`stats-count ${statsFlash ? 'flash-num' : ''}`}
+                style={{ color: '#4ECDC4' }}
+              >
+                {emotionStats.happy} ({getPercent(emotionStats.happy)}%)
+              </span>
             </div>
-            <span className={`stats-count ${statsFlash ? 'flash-num' : ''}`}>
-              {emotionStats.happy} ({getPercent(emotionStats.happy)}%)
-            </span>
           </div>
         </div>
         <div className="stats-row">
@@ -112,18 +130,23 @@ function App() {
             😐
           </div>
           <div className="stats-info">
-            <div className="stats-bar-bg">
-              <div
-                className={`stats-bar ${statsFlash ? 'flash' : ''}`}
-                style={{
-                  width: `${getPercent(emotionStats.neutral)}%`,
-                  backgroundColor: '#FFD166',
-                }}
-              />
+            <div className="stats-bar-wrapper">
+              <div className="stats-bar-bg">
+                <div
+                  className={`stats-bar ${statsFlash ? 'flash' : ''}`}
+                  style={{
+                    width: `${getPercent(emotionStats.neutral)}%`,
+                    backgroundColor: '#FFD166',
+                  }}
+                />
+              </div>
+              <span
+                className={`stats-count ${statsFlash ? 'flash-num' : ''}`}
+                style={{ color: '#FFD166' }}
+              >
+                {emotionStats.neutral} ({getPercent(emotionStats.neutral)}%)
+              </span>
             </div>
-            <span className={`stats-count ${statsFlash ? 'flash-num' : ''}`}>
-              {emotionStats.neutral} ({getPercent(emotionStats.neutral)}%)
-            </span>
           </div>
         </div>
         <div className="stats-row">
@@ -131,18 +154,23 @@ function App() {
             😢
           </div>
           <div className="stats-info">
-            <div className="stats-bar-bg">
-              <div
-                className={`stats-bar ${statsFlash ? 'flash' : ''}`}
-                style={{
-                  width: `${getPercent(emotionStats.sad)}%`,
-                  backgroundColor: '#FF6584',
-                }}
-              />
+            <div className="stats-bar-wrapper">
+              <div className="stats-bar-bg">
+                <div
+                  className={`stats-bar ${statsFlash ? 'flash' : ''}`}
+                  style={{
+                    width: `${getPercent(emotionStats.sad)}%`,
+                    backgroundColor: '#FF6584',
+                  }}
+                />
+              </div>
+              <span
+                className={`stats-count ${statsFlash ? 'flash-num' : ''}`}
+                style={{ color: '#FF6584' }}
+              >
+                {emotionStats.sad} ({getPercent(emotionStats.sad)}%)
+              </span>
             </div>
-            <span className={`stats-count ${statsFlash ? 'flash-num' : ''}`}>
-              {emotionStats.sad} ({getPercent(emotionStats.sad)}%)
-            </span>
           </div>
         </div>
       </div>
@@ -171,7 +199,7 @@ function App() {
               key={feedback.id}
               className="feedback-card"
               style={{
-                borderLeftColor: feedback.borderColor,
+                borderLeftColor: getBorderColor(feedback),
                 animationDelay: `${index * 0.05}s`,
               }}
             >
