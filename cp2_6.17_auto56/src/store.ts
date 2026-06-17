@@ -46,15 +46,14 @@ export const COLS = 8;
 
 export const calculateColor = (col: number, row: number): string => {
   let h = col * 45 + 30;
-  while (h < 0) h += 360;
-  h = h % 360;
+  h = ((h % 360) + 360) % 360;
   const s = 80;
-  const l = Math.min(60 + row * 10, 100);
+  const l = Math.min(60 + row * 20, 100);
   return `hsl(${h}, ${s}%, ${l}%)`;
 };
 
 const saveToHistory = (notes: Note[]): HistoryEntry => ({
-  notes: JSON.parse(JSON.stringify(notes)),
+  notes: notes.map(note => ({ ...note })),
 });
 
 const MAX_HISTORY = 10;
@@ -153,7 +152,7 @@ export const useStore = create<StoreState>((set, get) => ({
       const newIndex = state.historyIndex - 1;
       const previousState = state.history[newIndex];
       set({
-        notes: JSON.parse(JSON.stringify(previousState.notes)),
+        notes: previousState.notes.map(note => ({ ...note })),
         historyIndex: newIndex,
         canUndo: newIndex > 0,
       });

@@ -68,7 +68,7 @@ export class AudioEngine {
     const beatDuration = 60 / bpm / 2;
     const noteDuration = beatDuration * 0.5;
     let stopped = false;
-    let animationFrameId: number | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const notesByCol: NoteData[][] = Array.from({ length: cols }, () => []);
     notes.forEach((note) => {
@@ -81,85 +81,87 @@ export class AudioEngine {
     const startDelay = 0.05;
     const baseTime = ctx.currentTime + startDelay;
     const scheduleAheadTime = 0.3;
-    const highlightAheadThreshold = 0.003;
-
-    let nextColToSchedule = 0;
-    let nextColToHighlight = 0;
-    const highlightedCols = new Set<number>();
 
     const colTimes: number[] = [];
     for (let col = 0; col < cols; col++) {
       colTimes.push(baseTime + col * beatDuration);
     }
 
-    const scheduleAudioEvents = () => {
-      if (stopped) return;
+    let currentCol = 0;
+    let lastDrift = 0;
+    const scheduledCols = new Set<number>();
 
-      const now = ctx.currentTime;
-
-      while (nextColToSchedule < cols) {
-        const colTime = colTimes[nextColToSchedule];
-        if (colTime > now + scheduleAheadTime) {
-          break;
-        }
-
-        notesByCol[nextColToSchedule].forEach((note) => {
-          this.playNote(note.frequency, note.type, noteDuration, colTime);
-        });
-
-        nextColToSchedule++;
-      }
+    const scheduleAudioForCol = (col: number, colTime: number) => {
+      if (scheduledCols.has(col)) return;
+      scheduledCols.add(col);
+      notesByCol[col].forEach((note) => {
+        this.playNote(note.frequency, note.type, noteDuration, colTime);
+      });
     };
 
-    const schedulerLoop = () => {
-      if (stopped) return;
-
-      const now = ctx.currentTime;
-
-      scheduleAudioEvents();
-
-      for (let col = nextColToHighlight; col < cols; col++) {
-        const colTime = colTimes[col];
-        const timeUntilCol = colTime - now;
-
-        if (timeUntilCol <= highlightAheadThreshold && !highlightedCols.has(col)) {
-          highlightedCols.add(col);
-
-          const drift = (now - colTime) * 1000;
-          const absDrift = Math.abs(drift);
-
-          if (absDrift > 5) {
-            console.warn(`节拍 ${col} 漂移: ${drift.toFixed(2)}ms`);
-          }
-
-          columnCallback(col);
-          nextColToHighlight = col + 1;
-          break;
-        }
-
-        if (timeUntilCol > highlightAheadThreshold) {
-          break;
-        }
-      }
-
-      const sequenceEnd = colTimes[cols - 1] + beatDuration;
-      if (now >= sequenceEnd) {
-        const totalDrift = Math.abs(now - sequenceEnd) * 1000;
+    const scheduleNextCol = () => {
+      if (stopped || currentCol >= cols) {
+        const sequenceEnd = colTimes[cols - 1] + beatDuration;
+        const actualEndTime = ctx.currentTime;
+        const totalDrift = Math.abs(actualEndTime - sequenceEnd) * 1000;
         console.log(`序列结束 - 预期: ${(sequenceEnd - baseTime) * 1000}ms, 总漂移: ${totalDrift.toFixed(2)}ms`);
         columnCallback(null);
         return;
       }
 
-      animationFrameId = requestAnimationFrame(schedulerLoop);
+      const colTime = colTimes[currentCol];
+      const now = ctx.currentTime;
+      const timeUntilCol = colTime - now;
+
+      if (timeUntilCol <= scheduleAheadTime) {
+        scheduleAudioForCol(currentCol, colTime);
+      }
+
+      let delayMs = (colTime - now) * 1000 - lastDrift;
+      delayMs = Math.max(0, delayMs);
+
+      timeoutId = setTimeout(() => {
+        const actualTime = ctx.currentTime;
+        const drift = (actualTime - colTime) * 1000;
+        const absDrift = Math.abs(drift);
+
+        if (absDrift > 5) {
+          console.warn(`节拍 ${currentCol} 漂移: ${drift.toFixed(2)}ms, 上次漂移: ${lastDrift.toFixed(2)}ms`);
+        }
+
+        lastDrift = drift;
+
+        columnCallback(currentCol);
+
+        currentCol++;
+
+        if (currentCol < cols) {
+          const nextColTime = colTimes[currentCol];
+          const nextNow = ctx.currentTime;
+          const timeUntilNextCol = nextColTime - nextNow;
+
+          if (timeUntilNextCol <= scheduleAheadTime) {
+            scheduleAudioForCol(currentCol, nextColTime);
+          }
+        }
+
+        scheduleNextCol();
+      }, delayMs);
     };
 
-    scheduleAudioEvents();
-    animationFrameId = requestAnimationFrame(schedulerLoop);
+    const firstColTime = colTimes[0];
+    const initialNow = ctx.currentTime;
+    const timeUntilFirstCol = firstColTime - initialNow;
+    if (timeUntilFirstCol <= scheduleAheadTime) {
+      scheduleAudioForCol(0, firstColTime);
+    }
+
+    scheduleNextCol();
 
     return () => {
       stopped = true;
-      if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId);
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
       }
       columnCallback(null);
     };

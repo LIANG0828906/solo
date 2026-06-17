@@ -376,13 +376,20 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
         if (dirtyCellsRef.current.size > 0) {
           dirtyCellsRef.current.forEach((key) => {
             const [row, col] = key.split('-').map(Number);
+            const cellRect = getCellRect(row, col, metrics);
+            ctx.clearRect(
+              cellRect.x - 5,
+              cellRect.y - 5,
+              cellRect.width + 10,
+              cellRect.height + 10
+            );
             drawCell(ctx, row, col, metrics);
           });
           dirtyCellsRef.current.clear();
         }
       }
     },
-    [getMetrics, drawBorder, drawCell]
+    [getMetrics, drawBorder, drawCell, getCellRect]
   );
 
   useEffect(() => {
@@ -470,16 +477,28 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
       const action = existingNote ? 'remove' : 'add';
       setDragAction(action);
       setIsDragging(true);
-      lastDragProcessTimeRef.current = performance.now();
 
-      if (action === 'add') {
-        addNote(cell.row, cell.col);
+      const now = performance.now();
+      const timeSinceLastDrag = now - lastDragProcessTimeRef.current;
+      const shouldDelay = timeSinceLastDrag < DRAG_THROTTLE_MS;
+      lastDragProcessTimeRef.current = now;
+
+      const executeAction = () => {
+        if (action === 'add') {
+          addNote(cell.row, cell.col);
+        } else {
+          removeNote(cell.row, cell.col);
+        }
+        dragCellsRef.current.add(`${cell.row}-${cell.col}`);
+        setLastFilledCell(cell);
+        setSelectedCell(cell);
+      };
+
+      if (shouldDelay) {
+        setTimeout(executeAction, DRAG_THROTTLE_MS - timeSinceLastDrag);
       } else {
-        removeNote(cell.row, cell.col);
+        executeAction();
       }
-      dragCellsRef.current.add(`${cell.row}-${cell.col}`);
-      setLastFilledCell(cell);
-      setSelectedCell(cell);
     },
     [getCellFromPosition, noteAt, addNote, removeNote]
   );
@@ -512,6 +531,7 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
         }
         setDragAction(null);
         dragCellsRef.current = new Set();
+        lastDragProcessTimeRef.current = 0;
         onActionComplete?.();
       }
     },
@@ -527,6 +547,7 @@ const GridCanvas: React.FC<GridCanvasProps> = ({ onActionComplete }) => {
         }
         setDragAction(null);
         dragCellsRef.current = new Set();
+        lastDragProcessTimeRef.current = 0;
         onActionComplete?.();
       }
     },
