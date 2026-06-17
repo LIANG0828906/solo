@@ -23,7 +23,7 @@ export function Scene({ params, isPlaying }: SceneProps) {
   const wireframeRef = useRef<THREE.Mesh>(null)
   const controlsRef = useRef<any>(null)
   const groupRef = useRef<THREE.Group>(null)
-  const { gl, scene, camera } = useThree()
+  const { gl, camera } = useThree()
 
   const resetTrigger = useStore((state) => state.resetTrigger)
   const screenshotTrigger = useStore((state) => state.screenshotTrigger)
@@ -68,20 +68,17 @@ export function Scene({ params, isPlaying }: SceneProps) {
     link.click()
   }
 
-  let lastTime = performance.now()
-  let frameCount = 0
-  let fpsAccumulator = 0
+  const fpsRef = useRef({ frameCount: 0, accumulator: 0 })
 
   useFrame((state, delta) => {
-    const currentTime = performance.now()
-    frameCount++
-    fpsAccumulator += delta
+    fpsRef.current.frameCount++
+    fpsRef.current.accumulator += delta
 
-    if (fpsAccumulator >= 1) {
-      const fps = Math.round(frameCount / fpsAccumulator)
+    if (fpsRef.current.accumulator >= 1) {
+      const fps = Math.round(fpsRef.current.frameCount / fpsRef.current.accumulator)
       setFps(fps)
-      frameCount = 0
-      fpsAccumulator = 0
+      fpsRef.current.frameCount = 0
+      fpsRef.current.accumulator = 0
     }
 
     if (wireframeRef.current) {
@@ -130,10 +127,14 @@ export function Scene({ params, isPlaying }: SceneProps) {
         makeDefault
         enableDamping
         dampingFactor={0.05}
-        rotateSpeed={0.5}
+        rotateSpeed={1}
         panSpeed={1}
-        minDistance={2.5}
-        maxDistance={25}
+        zoomSpeed={1}
+        minDistance={4}
+        maxDistance={45}
+        enablePan={true}
+        enableZoom={true}
+        enableRotate={true}
         mouseButtons={{
           LEFT: THREE.MOUSE.ROTATE,
           MIDDLE: THREE.MOUSE.DOLLY,
