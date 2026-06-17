@@ -58,6 +58,9 @@ interface CanvasState {
   isSpacePressed: boolean;
   isPanning: boolean;
   lastPanPoint: Point | null;
+  panVelocity: Point;
+  lastPanTime: number;
+  isInertiaPanning: boolean;
   zIndexCounter: number;
 
   setCurrentTool: (tool: ToolType) => void;
@@ -84,6 +87,7 @@ interface CanvasState {
   startPanning: (point: Point) => void;
   updatePanning: (point: Point) => void;
   stopPanning: () => void;
+  stopInertia: () => void;
 
   hitTest: (worldX: number, worldY: number) => string | null;
   getElementAt: (worldX: number, worldY: number) => CanvasElement | null;
@@ -130,6 +134,67 @@ function eraserHitTestStroke(stroke: StrokeElement, worldX: number, worldY: numb
   return hitTestStroke(stroke, worldX, worldY, radius);
 }
 
+let inertiaAnimationId: number | null = null;
+
+function clearInertiaAnimation(): void {
+  if (inertiaAnimationId !== null) {
+    cancelAnimationFrame(inertiaAnimationId);
+    inertiaAnimationId = null;
+  }
+}
+
+const FRICTION = 0.94;
+const MIN_SPEED = 0.3;
+
+function startInertiaAnimation(): void {
+  let lastTime = performance.now();
+
+  function step(currentTime: number) {
+    const dt = currentTime - lastTime;
+    lastTime = currentTime;
+
+    const state = useCanvasStore.getState();
+    if (!state.isInertiaPanning) {
+      clearInertiaAnimation();
+      return;
+    }
+
+    const velocity = state.panVelocity;
+    const speed = Math.hypot(velocity.x, velocity.y);
+
+    if (speed < MIN_SPEED) {
+      clearInertiaAnimation();
+      useCanvasStore.setState({
+        isInertiaPanning: false,
+        panVelocity: { x: 0, y: 0 }
+      });
+      return;
+    }
+
+    const timeScale = Math.min(dt / 16.67, 2);
+    const decay = Math.pow(FRICTION, timeScale);
+
+    const newVx = velocity.x * decay;
+    const newVy = velocity.y * decay;
+
+    const dx = newVx * timeScale;
+    const dy = newVy * timeScale;
+
+    useCanvasStore.setState((s) => ({
+      panVelocity: { x: newVx, y: newVy },
+      viewport: {
+        ...s.viewport,
+        offsetX: s.viewport.offsetX + dx,
+        offsetY: s.viewport.offsetY + dy
+      }
+    }));
+
+    inertiaAnimationId = requestAnimationFrame(step);
+  }
+
+  inertiaAnimationId = requestAnimationFrame(step);
+}
+
 export const useCanvasStore = create<CanvasState>((set, get) => ({
   elements: [],
   selectedId: null,
@@ -141,12 +206,22 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   isSpacePressed: false,
   isPanning: false,
   lastPanPoint: null,
+  panVelocity: { x: 0, y: 0 },
+  lastPanTime: 0,
+  isInertiaPanning: false,
   zIndexCounter: 0,
 
-  setCurrentTool: (tool) => set({ currentTool: tool, selectedId: null }),
+  setCurrentTool: (tool) => {
+    get().stopInertia();
+    set({ currentTool: tool, selectedId: null });
+  },
   setPenColor: (color) => set({ penColor: color }),
   setPenWidth: (width) => set({ penWidth: width }),
-  setSpacePressed: (pressed) => set({ isSpacePressed: pressed }),
+  setSpacePressed: (pressed) => {
+    if (!pressed && get().isInertiaPanning) {
+    }
+    set({ isSpacePressed: pressed });
+  },
 
   addStroke: (points, color, lineWidth) => {
     const id = uuidv4();
@@ -307,16 +382,38 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 
   startPanning: (point) => {
-    set({ isPanning: true, lastPanPoint: point });
+    clearInertiaAnimation();
+    set({
+      isPanning: true,
+      isInertiaPanning: false,
+      lastPanPoint: point,
+      lastPanTime: performance.now(),
+      panVelocity: { x: 0, y: 0 }
+    });
   },
 
   updatePanning: (point) => {
-    const { lastPanPoint, isPanning } = get();
+    const { lastPanPoint, isPanning, lastPanTime } = get();
     if (!isPanning || !lastPanPoint) return;
     const dx = point.x - lastPanPoint.x;
     const dy = point.y - lastPanPoint.y;
+    const now = performance.now();
+    const dt = now - lastPanTime;
+
+    let vx = 0, vy = 0;
+    if (dt > 0) {
+      vx = dx / dt * 16.67;
+      vy = dy / dt * 16.67;
+    }
+
+    const prevVel = get().panVelocity;
+    const smoothVx = prevVel.x * 0.6 + vx * 0.4;
+    const smoothVy = prevVel.y * 0.6 + vy * 0.4;
+
     set((state) => ({
       lastPanPoint: point,
+      lastPanTime: now,
+      panVelocity: { x: smoothVx, y: smoothVy },
       viewport: {
         ...state.viewport,
         offsetX: state.viewport.offsetX + dx,
@@ -326,7 +423,28 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 
   stopPanning: () => {
-    set({ isPanning: false, lastPanPoint: null });
+    const { panVelocity } = get();
+    const speed = Math.hypot(panVelocity.x, panVelocity.y);
+
+    if (speed > 1.5) {
+      set({ isPanning: false, lastPanPoint: null, isInertiaPanning: true });
+      startInertiaAnimation();
+    } else {
+      clearInertiaAnimation();
+      set({
+        isPanning: false,
+        isInertiaPanning: false,
+        lastPanPoint: null,
+        panVelocity: { x: 0, y: 0 }
+      });
+    }
+  },
+
+  stopInertia: () => {
+    clearInertiaAnimation();
+    if (get().isInertiaPanning) {
+      set({ isInertiaPanning: false, panVelocity: { x: 0, y: 0 } });
+    }
   },
 
   hitTest: (worldX, worldY) => {

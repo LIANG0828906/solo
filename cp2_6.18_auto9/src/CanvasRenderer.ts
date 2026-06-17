@@ -2,35 +2,77 @@ import { CanvasElement, ViewportState, StrokeElement, StickyElement, RectangleEl
 
 const BASE_GRID_SPACING = 40;
 const MIN_GRID_SPACING = 10;
-const MAX_GRID_SPACING = 160;
-const BASE_LINE_ALPHA = 0.9;
-const CENTER_BRIGHTNESS_BOOST = 0.12;
+const MAX_GRID_SPACING = 320;
+const BASE_LINE_ALPHA = 0.75;
 
-function getGridParams(zoom: number) {
-  let spacing = BASE_GRID_SPACING / zoom;
+const PREFERRED_SPACINGS = [10, 20, 40, 80, 160, 320];
 
-  const preferredSpacings = [10, 20, 40, 80, 160, 320];
-  let bestSpacing = BASE_GRID_SPACING;
-  let bestDiff = Infinity;
-  for (const ps of preferredSpacings) {
-    const diff = Math.abs(ps - spacing);
-    if (diff < bestDiff) {
-      bestDiff = diff;
-      bestSpacing = ps;
+const GRID_LINE_THRESHOLD = 250;
+const PERF_GRID_LINE_THRESHOLD = 400;
+
+let lastFrameTime = 0;
+let frameCount = 0;
+let fps = 60;
+let currentQuality: 'high' | 'medium' | 'low' = 'high';
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function getGridParams(zoom: number, quality: 'high' | 'medium' | 'low' = 'high') {
+  const rawSpacing = BASE_GRID_SPACING / zoom;
+
+  let lowerIdx = 0;
+  let upperIdx = PREFERRED_SPACINGS.length - 1;
+  for (let i = 0; i < PREFERRED_SPACINGS.length - 1; i++) {
+    if (rawSpacing >= PREFERRED_SPACINGS[i] && rawSpacing <= PREFERRED_SPACINGS[i + 1]) {
+      lowerIdx = i;
+      upperIdx = i + 1;
+      break;
     }
   }
-  spacing = bestSpacing;
-  spacing = Math.max(MIN_GRID_SPACING, Math.min(MAX_GRID_SPACING, spacing));
+  if (rawSpacing < PREFERRED_SPACINGS[0]) {
+    lowerIdx = 0;
+    upperIdx = 0;
+  }
+  if (rawSpacing > PREFERRED_SPACINGS[PREFERRED_SPACINGS.length - 1]) {
+    lowerIdx = PREFERRED_SPACINGS.length - 1;
+    upperIdx = PREFERRED_SPACINGS.length - 1;
+  }
 
-  const ratio = spacing / BASE_GRID_SPACING;
+  const lower = PREFERRED_SPACINGS[lowerIdx];
+  const upper = PREFERRED_SPACINGS[upperIdx];
+  const range = upper - lower;
+
+  let t = range > 0 ? (rawSpacing - lower) / range : 0;
+  t = Math.max(0, Math.min(1, t));
+
+  const softT = easeInOutCubic(t);
+  const spacing = lerp(lower, upper, softT);
+
+  const clampedSpacing = Math.max(MIN_GRID_SPACING, Math.min(MAX_GRID_SPACING, spacing));
+
+  const ratio = clampedSpacing / BASE_GRID_SPACING;
   let alpha = BASE_LINE_ALPHA / Math.sqrt(ratio);
-  alpha = Math.max(0.3, Math.min(1.0, alpha));
+  alpha = Math.max(0.25, Math.min(0.9, alpha));
 
-  if (zoom < 0.6) alpha *= 1.1;
-  if (zoom > 2.0) alpha *= 0.85;
-  alpha = Math.max(0.25, Math.min(1.0, alpha));
+  if (zoom < 0.6) alpha *= 1.15;
+  if (zoom > 2.0) alpha *= 0.8;
+  alpha = Math.max(0.2, Math.min(0.95, alpha));
 
-  return { spacing, alpha };
+  if (quality === 'medium') alpha *= 0.85;
+  if (quality === 'low') alpha *= 0.65;
+
+  let displaySpacing = clampedSpacing;
+  if (quality === 'medium') displaySpacing = clampedSpacing * 2;
+  if (quality === 'low') displaySpacing = clampedSpacing * 4;
+  displaySpacing = Math.min(MAX_GRID_SPACING, displaySpacing);
+
+  return { spacing: displaySpacing, alpha, baseAlpha: alpha };
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -44,6 +86,30 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
     : { r: 232, g: 232, b: 232 };
 }
 
+export function updateFpsMetric(): void {
+  frameCount++;
+  const now = performance.now();
+  if (now - lastFrameTime >= 500) {
+    fps = (frameCount * 1000) / (now - lastFrameTime);
+    frameCount = 0;
+    lastFrameTime = now;
+
+    if (fps < 45 && currentQuality === 'high') {
+      currentQuality = 'medium';
+    } else if (fps < 30 && currentQuality === 'medium') {
+      currentQuality = 'low';
+    } else if (fps > 55 && currentQuality === 'medium') {
+      currentQuality = 'high';
+    } else if (fps > 40 && currentQuality === 'low') {
+      currentQuality = 'medium';
+    }
+  }
+}
+
+export function getCurrentGridQuality(): 'high' | 'medium' | 'low' {
+  return currentQuality;
+}
+
 export function drawGrid(
   ctx: CanvasRenderingContext2D,
   viewport: ViewportState,
@@ -52,13 +118,21 @@ export function drawGrid(
   gridColor: string = '#E8E8E8'
 ): void {
   const { offsetX, offsetY, zoom } = viewport;
-  const { spacing, alpha } = getGridParams(zoom);
+  const quality = currentQuality;
+  const { spacing, alpha } = getGridParams(zoom, quality);
 
   const rgb = hexToRgb(gridColor);
 
   const viewportCenterX = canvasWidth / 2;
   const viewportCenterY = canvasHeight / 2;
-  const maxDistance = Math.hypot(canvasWidth / 2, canvasHeight / 2);
+  const viewportMin = Math.min(canvasWidth, canvasHeight);
+  const viewportMax = Math.max(canvasWidth, canvasHeight);
+
+  const innerRadius = viewportMin * 0.2;
+  const outerRadius = viewportMax * 0.75;
+
+  const centerBoostMax = 0.08 + (viewportMin / 2000) * 0.06;
+  const edgeDarken = 0.12 + (viewportMin / 3000) * 0.08;
 
   const worldStartX = -offsetX / zoom;
   const worldStartY = -offsetY / zoom;
@@ -68,102 +142,60 @@ export function drawGrid(
   const startX = Math.floor(worldStartX / spacing) * spacing;
   const startY = Math.floor(worldStartY / spacing) * spacing;
 
+  const horizontalCount = Math.ceil((worldEndX - startX) / spacing) + 1;
+  const verticalCount = Math.ceil((worldEndY - startY) / spacing) + 1;
+  const totalLines = horizontalCount + verticalCount;
+
+  let renderSpacing = spacing;
+  let renderAlpha = alpha;
+  if (totalLines > PERF_GRID_LINE_THRESHOLD && quality === 'high') {
+    renderSpacing = spacing * 2;
+    renderAlpha = alpha * 1.2;
+  } else if (totalLines > GRID_LINE_THRESHOLD && quality === 'medium') {
+    renderSpacing = spacing * 2;
+    renderAlpha = alpha * 1.2;
+  }
+  renderSpacing = Math.min(MAX_GRID_SPACING, renderSpacing);
+
+  const gridStartX = Math.floor(worldStartX / renderSpacing) * renderSpacing;
+  const gridStartY = Math.floor(worldStartY / renderSpacing) * renderSpacing;
+
+  ctx.save();
+
   ctx.lineWidth = 1;
+  ctx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${renderAlpha * 0.85})`;
 
-  for (let wx = startX; wx <= worldEndX + spacing; wx += spacing) {
+  ctx.beginPath();
+  for (let wx = gridStartX; wx <= worldEndX + renderSpacing; wx += renderSpacing) {
     const screenX = wx * zoom + offsetX;
-
-    ctx.beginPath();
-    const segments = 16;
-    for (let seg = 0; seg <= segments; seg++) {
-      const screenY = (seg / segments) * canvasHeight;
-      const worldY = (screenY - offsetY) / zoom;
-
-      const distFromCenter = Math.hypot(screenX - viewportCenterX, screenY - viewportCenterY);
-      const distFactor = Math.min(1, distFromCenter / maxDistance);
-      const centerBoost = (1 - distFactor) * CENTER_BRIGHTNESS_BOOST;
-      const lineAlpha = Math.min(1.0, alpha * (0.85 + centerBoost));
-
-      const currentR = rgb.r;
-      const currentG = rgb.g;
-      const currentB = rgb.b;
-
-      ctx.strokeStyle = `rgba(${currentR},${currentG},${currentB},${lineAlpha})`;
-
-      if (seg === 0) {
-        ctx.moveTo(screenX, screenY);
-      } else {
-        const prevSeg = seg - 1;
-        const prevY = (prevSeg / segments) * canvasHeight;
-        const prevDist = Math.hypot(screenX - viewportCenterX, prevY - viewportCenterY);
-        const prevFactor = Math.min(1, prevDist / maxDistance);
-        const prevBoost = (1 - prevFactor) * CENTER_BRIGHTNESS_BOOST;
-        const prevAlpha = Math.min(1.0, alpha * (0.85 + prevBoost));
-
-        const midY = (prevY + screenY) / 2;
-        const midAlpha = (prevAlpha + lineAlpha) / 2;
-        const midR = rgb.r;
-        const midG = rgb.g;
-        const midB = rgb.b;
-
-        ctx.strokeStyle = `rgba(${midR},${midG},${midB},${midAlpha})`;
-        ctx.lineTo(screenX, midY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(screenX, midY);
-        ctx.strokeStyle = `rgba(${currentR},${currentG},${currentB},${lineAlpha})`;
-        ctx.lineTo(screenX, screenY);
-      }
-    }
-    ctx.stroke();
+    ctx.moveTo(screenX, 0);
+    ctx.lineTo(screenX, canvasHeight);
   }
-
-  for (let wy = startY; wy <= worldEndY + spacing; wy += spacing) {
+  for (let wy = gridStartY; wy <= worldEndY + renderSpacing; wy += renderSpacing) {
     const screenY = wy * zoom + offsetY;
-
-    ctx.beginPath();
-    const segments = 16;
-    for (let seg = 0; seg <= segments; seg++) {
-      const screenX = (seg / segments) * canvasWidth;
-
-      const distFromCenter = Math.hypot(screenX - viewportCenterX, screenY - viewportCenterY);
-      const distFactor = Math.min(1, distFromCenter / maxDistance);
-      const centerBoost = (1 - distFactor) * CENTER_BRIGHTNESS_BOOST;
-      const lineAlpha = Math.min(1.0, alpha * (0.85 + centerBoost));
-
-      const currentR = rgb.r;
-      const currentG = rgb.g;
-      const currentB = rgb.b;
-
-      ctx.strokeStyle = `rgba(${currentR},${currentG},${currentB},${lineAlpha})`;
-
-      if (seg === 0) {
-        ctx.moveTo(screenX, screenY);
-      } else {
-        const prevSeg = seg - 1;
-        const prevX = (prevSeg / segments) * canvasWidth;
-        const prevDist = Math.hypot(prevX - viewportCenterX, screenY - viewportCenterY);
-        const prevFactor = Math.min(1, prevDist / maxDistance);
-        const prevBoost = (1 - prevFactor) * CENTER_BRIGHTNESS_BOOST;
-        const prevAlpha = Math.min(1.0, alpha * (0.85 + prevBoost));
-
-        const midX = (prevX + screenX) / 2;
-        const midAlpha = (prevAlpha + lineAlpha) / 2;
-        const midR = rgb.r;
-        const midG = rgb.g;
-        const midB = rgb.b;
-
-        ctx.strokeStyle = `rgba(${midR},${midG},${midB},${midAlpha})`;
-        ctx.lineTo(midX, screenY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(midX, screenY);
-        ctx.strokeStyle = `rgba(${currentR},${currentG},${currentB},${lineAlpha})`;
-        ctx.lineTo(screenX, screenY);
-      }
-    }
-    ctx.stroke();
+    ctx.moveTo(0, screenY);
+    ctx.lineTo(canvasWidth, screenY);
   }
+  ctx.stroke();
+
+  const gradient = ctx.createRadialGradient(
+    viewportCenterX, viewportCenterY, innerRadius,
+    viewportCenterX, viewportCenterY, outerRadius
+  );
+
+  const centerAlpha = renderAlpha * (0.85 + centerBoostMax);
+  const midAlpha = renderAlpha * 0.85;
+  const edgeAlpha = renderAlpha * (0.85 - edgeDarken);
+
+  gradient.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},${centerAlpha})`);
+  gradient.addColorStop(0.4, `rgba(${rgb.r},${rgb.g},${rgb.b},${midAlpha})`);
+  gradient.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},${Math.max(0.15, edgeAlpha)})`);
+
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  ctx.restore();
 }
 
 export function drawVignette(
@@ -273,6 +305,7 @@ export function drawStickyText(
   const x = sticky.x * zoom + offsetX;
   const y = sticky.y * zoom + offsetY;
   const w = sticky.width * zoom;
+  const h = sticky.height * zoom;
   const padding = 16 * zoom;
   const fontSize = 14 * zoom;
   const lineHeight = fontSize * 1.5;
@@ -479,6 +512,8 @@ export function renderCanvas(
   canvasWidth: number,
   canvasHeight: number
 ): void {
+  updateFpsMetric();
+
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
   ctx.fillStyle = '#FAFAFA';

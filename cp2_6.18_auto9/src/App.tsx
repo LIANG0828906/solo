@@ -196,6 +196,11 @@ function App() {
     const canvasScreenY = e.clientY - rect.top;
     const worldPoint = screenToWorld(screenX, screenY);
 
+    const canvasStore = useCanvasStore.getState();
+    if (canvasStore.isInertiaPanning) {
+      canvasStore.stopInertia();
+    }
+
     if (editingStickyId) {
       setEditingStickyId(null);
     }
@@ -226,8 +231,6 @@ function App() {
     if (hitId) {
       const el = elements.find((e) => e.id === hitId);
       if (el && (el.type === 'sticky' || el.type === 'rectangle')) {
-        const worldElX = el.x;
-        const worldElY = el.y;
         const worldElRight = el.x + (el as StickyElement | RectangleElement).width;
         const worldElBottom = el.y + (el as StickyElement | RectangleElement).height;
 
@@ -292,7 +295,7 @@ function App() {
     }
   };
 
-  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseUp = (_e: React.MouseEvent<HTMLCanvasElement>) => {
     if (isPanning) {
       stopPanning();
     }
