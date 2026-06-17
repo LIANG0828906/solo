@@ -1,19 +1,43 @@
 import * as THREE from 'three';
 import { SceneManager, GRID_SIZE, CELL_SIZE, PRESET_COLORS } from './sceneManager';
-import { InteractionManager, type EditMode } from './interaction';
+import { InteractionManager, type EditMode, type HoverInfo } from './interaction';
 import { GUIManager, type GUIState } from './gui';
 
-const app = {
-  scene: null as THREE.Scene | null,
-  camera: null as THREE.PerspectiveCamera | null,
-  renderer: null as THREE.WebGLRenderer | null,
-  sceneManager: null as SceneManager | null,
-  interaction: null as InteractionManager | null,
-  gui: null as GUIManager | null,
-  clock: null as THREE.Clock | null,
-  previewMesh: null as THREE.Mesh | null,
-  gridHelper: null as THREE.GridHelper | null,
+interface AppState {
+  scene: THREE.Scene | null;
+  camera: THREE.PerspectiveCamera | null;
+  renderer: THREE.WebGLRenderer | null;
+  sceneManager: SceneManager | null;
+  interaction: InteractionManager | null;
+  gui: GUIManager | null;
+  clock: THREE.Clock | null;
+  previewMesh: THREE.Mesh | null;
+  previewBorder: THREE.LineSegments | null;
+  gridHelper: THREE.GridHelper | null;
+  animating: boolean;
+  lastHoverCache: string;
+  init: () => void;
+  setupLighting: () => void;
+  setupGridHelper: () => void;
+  createPreviewMesh: () => void;
+  setupResizeHandler: (container: HTMLElement) => void;
+  animate: () => void;
+  dispose: () => void;
+}
+
+const app: AppState = {
+  scene: null,
+  camera: null,
+  renderer: null,
+  sceneManager: null,
+  interaction: null,
+  gui: null,
+  clock: null,
+  previewMesh: null,
+  previewBorder: null,
+  gridHelper: null,
   animating: true,
+  lastHoverCache: '',
 
   init(): void {
     const container = document.getElementById('app');
@@ -97,7 +121,6 @@ const app = {
         if (this.interaction) {
           this.interaction.updateOptions({ currentColor: color });
         }
-        this.updatePreviewColor(color);
       },
       onBrushSizeChange: (size: number) => {
         editState.brushSize = size;
@@ -110,7 +133,6 @@ const app = {
         if (this.interaction) {
           this.interaction.updateOptions({ mode });
         }
-        this.updatePreviewMode(mode);
       }
     });
 
@@ -197,15 +219,17 @@ const app = {
   createPreviewMesh(): void {
     if (!this.scene) return;
 
+    const initialColor = new THREE.Color(PRESET_COLORS[5]);
+
     const geometry = new THREE.BoxGeometry(
-      CELL_SIZE * 0.98,
-      CELL_SIZE * 0.98,
-      CELL_SIZE * 0.98
+      CELL_SIZE * 0.96,
+      CELL_SIZE * 0.96,
+      CELL_SIZE * 0.96
     );
     const material = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(PRESET_COLORS[5]),
+      color: initialColor,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.4,
       depthTest: true,
       depthWrite: false,
       side: THREE.DoubleSide
@@ -215,27 +239,23 @@ const app = {
     this.previewMesh.visible = false;
     this.previewMesh.renderOrder = 999;
     this.scene.add(this.previewMesh);
-  },
 
-  updatePreviewColor(color: string): void {
-    if (!this.previewMesh) return;
-    const material = this.previewMesh.material as THREE.MeshBasicMaterial;
-    material.color.set(color);
-  },
-
-  updatePreviewMode(mode: EditMode): void {
-    if (!this.previewMesh) return;
-    const material = this.previewMesh.material as THREE.MeshBasicMaterial;
-    if (mode === 'remove') {
-      material.color.set(0xFF3B30);
-      material.opacity = 0.3;
-      material.wireframe = true;
-    } else if (mode === 'place') {
-      material.opacity = 0.5;
-      material.wireframe = false;
-    } else {
-      this.previewMesh.visible = false;
-    }
+    const borderEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(
+      CELL_SIZE * 0.98,
+      CELL_SIZE * 0.98,
+      CELL_SIZE * 0.98
+    ));
+    const borderMat = new THREE.LineBasicMaterial({
+      color: 0xFFFFFF,
+      transparent: true,
+      opacity: 0.9,
+      depthTest: true,
+      depthWrite: false
+    });
+    this.previewBorder = new THREE.LineSegments(borderEdges, borderMat);
+    this.previewBorder.visible = false;
+    this.previewBorder.renderOrder = 999;
+    this.scene.add(this.previewBorder);
   },
 
   setupResizeHandler(container: HTMLElement): void {
@@ -265,6 +285,26 @@ const app = {
     }
     if (this.interaction) {
       this.interaction.update(deltaTime);
+
+      const hover: HoverInfo = this.interaction.getHoverInfo();
+      const cacheKey = `${hover.x},${hover.y},${hover.z},${hover.displayX},${hover.displayY},${hover.displayZ}`;
+      if (cacheKey !== this.lastHoverCache) {
+        this.lastHoverCache = cacheKey;
+        if (this.gui) {
+          this.gui.updateHoverCoords(
+            hover.displayX,
+            hover.displayY,
+            hover.displayZ
+          );
+        }
+      }
+    }
+
+    if (this.previewMesh && this.previewBorder) {
+      this.previewBorder.visible = this.previewMesh.visible;
+      if (this.previewMesh.visible) {
+        this.previewBorder.position.copy(this.previewMesh.position);
+      }
     }
 
     this.renderer.render(this.scene, this.camera);
@@ -281,6 +321,12 @@ const app = {
       this.scene?.remove(this.previewMesh);
       (this.previewMesh.material as THREE.Material).dispose();
       this.previewMesh.geometry.dispose();
+    }
+
+    if (this.previewBorder) {
+      this.scene?.remove(this.previewBorder);
+      (this.previewBorder.material as THREE.Material).dispose();
+      this.previewBorder.geometry.dispose();
     }
 
     if (this.gridHelper) {

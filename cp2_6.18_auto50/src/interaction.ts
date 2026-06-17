@@ -20,6 +20,15 @@ interface PickResult {
   hitObject: THREE.Object3D;
 }
 
+export interface HoverInfo {
+  x: number | null;
+  y: number | null;
+  z: number | null;
+  displayX: number | null;
+  displayY: number | null;
+  displayZ: number | null;
+}
+
 export class InteractionManager {
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
@@ -36,6 +45,10 @@ export class InteractionManager {
   private activeMouseButton: number = -1;
   private isEditing: boolean = false;
   public previewMesh?: THREE.Mesh;
+  private lastHoverInfo: HoverInfo = {
+    x: null, y: null, z: null,
+    displayX: null, displayY: null, displayZ: null
+  };
 
   constructor(
     camera: THREE.PerspectiveCamera,
@@ -71,6 +84,10 @@ export class InteractionManager {
 
   public updateOptions(options: Partial<InteractionOptions>): void {
     Object.assign(this.options, options);
+    if (options.currentColor !== undefined && this.previewMesh) {
+      const mat = this.previewMesh.material as THREE.MeshBasicMaterial;
+      mat.color.set(options.currentColor);
+    }
   }
 
   public getControls(): OrbitControls {
@@ -81,13 +98,17 @@ export class InteractionManager {
     this.previewMesh = mesh;
   }
 
+  public getHoverInfo(): HoverInfo {
+    return { ...this.lastHoverInfo };
+  }
+
   private bindEvents(): void {
     const dom = this.renderer.domElement;
 
     dom.addEventListener('pointerdown', this.onPointerDown);
     dom.addEventListener('pointermove', this.onPointerMove);
     dom.addEventListener('pointerup', this.onPointerUp);
-    dom.addEventListener('pointerleave', this.onPointerUp);
+    dom.addEventListener('pointerleave', this.onPointerLeave);
     dom.addEventListener('contextmenu', this.onContextMenu);
     window.addEventListener('resize', this.onResize);
   }
@@ -147,6 +168,18 @@ export class InteractionManager {
     this.controls.enabled = true;
   };
 
+  private onPointerLeave = (_e: PointerEvent): void => {
+    this.isEditing = false;
+    this.isDragging = false;
+    this.activeMouseButton = -1;
+    this.controls.enabled = true;
+    this.lastHoverInfo = {
+      x: null, y: null, z: null,
+      displayX: null, displayY: null, displayZ: null
+    };
+    if (this.previewMesh) this.previewMesh.visible = false;
+  };
+
   private updateMouse(e: PointerEvent): void {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -154,27 +187,40 @@ export class InteractionManager {
   }
 
   private updatePreview(): void {
-    if (!this.previewMesh || this.options.mode === 'view') {
+    const pick = this.pick();
+
+    if (!pick) {
+      this.lastHoverInfo = {
+        x: null, y: null, z: null,
+        displayX: null, displayY: null, displayZ: null
+      };
       if (this.previewMesh) this.previewMesh.visible = false;
       return;
     }
 
-    const pick = this.pick();
-    if (pick) {
+    this.lastHoverInfo = {
+      x: pick.voxelX,
+      y: pick.voxelY,
+      z: pick.voxelZ,
+      displayX: pick.adjacentX,
+      displayY: pick.adjacentY,
+      displayZ: pick.adjacentZ
+    };
+
+    if (!this.previewMesh) return;
+
+    if (this.options.mode === 'place') {
       this.previewMesh.visible = true;
-      if (this.options.mode === 'place') {
-        this.previewMesh.position.set(
-          pick.adjacentX * CELL_SIZE,
-          pick.adjacentY * CELL_SIZE,
-          pick.adjacentZ * CELL_SIZE
-        );
-      } else {
-        this.previewMesh.position.set(
-          pick.voxelX * CELL_SIZE,
-          pick.voxelY * CELL_SIZE,
-          pick.voxelZ * CELL_SIZE
-        );
-      }
+      this.previewMesh.position.set(
+        pick.adjacentX * CELL_SIZE,
+        pick.adjacentY * CELL_SIZE,
+        pick.adjacentZ * CELL_SIZE
+      );
+      const mat = this.previewMesh.material as THREE.MeshBasicMaterial;
+      mat.color.set(this.options.currentColor);
+      mat.opacity = 0.55;
+      mat.wireframe = false;
+      mat.transparent = true;
     } else {
       this.previewMesh.visible = false;
     }
@@ -299,7 +345,7 @@ export class InteractionManager {
     dom.removeEventListener('pointerdown', this.onPointerDown);
     dom.removeEventListener('pointermove', this.onPointerMove);
     dom.removeEventListener('pointerup', this.onPointerUp);
-    dom.removeEventListener('pointerleave', this.onPointerUp);
+    dom.removeEventListener('pointerleave', this.onPointerLeave);
     dom.removeEventListener('contextmenu', this.onContextMenu);
     window.removeEventListener('resize', this.onResize);
     this.controls.dispose();
