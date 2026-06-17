@@ -49,6 +49,7 @@ interface CrystalStore {
   isExploded: boolean;
   isTransitioning: boolean;
   loadingStructure: CrystalType | null;
+  isSwitching: boolean;
 
   atoms: AtomData[];
   bonds: BondData[];
@@ -67,6 +68,7 @@ interface CrystalStore {
   toggleExploded: () => void;
   setIsTransitioning: (value: boolean) => void;
   setLoadingStructure: (value: CrystalType | null) => void;
+  setIsSwitching: (value: boolean) => void;
 
   setAtoms: (atoms: AtomData[]) => void;
   setBonds: (bonds: BondData[]) => void;
@@ -88,6 +90,7 @@ export const useCrystalStore = create<CrystalStore>((set, get) => ({
   isExploded: false,
   isTransitioning: false,
   loadingStructure: null,
+  isSwitching: false,
 
   atoms: [],
   bonds: [],
@@ -110,6 +113,7 @@ export const useCrystalStore = create<CrystalStore>((set, get) => ({
   toggleExploded: () => set((state) => ({ isExploded: !state.isExploded })),
   setIsTransitioning: (value: boolean) => set({ isTransitioning: value }),
   setLoadingStructure: (value: CrystalType | null) => set({ loadingStructure: value }),
+  setIsSwitching: (value: boolean) => set({ isSwitching: value }),
 
   setAtoms: (atoms: AtomData[]) => set({ atoms }),
   setBonds: (bonds: BondData[]) => set({ bonds }),

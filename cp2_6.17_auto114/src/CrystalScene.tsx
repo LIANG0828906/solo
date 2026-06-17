@@ -7,6 +7,43 @@ import { generateCrystal, getCrystalDescription } from './CrystalGenerator';
 
 const EXPLODE_FACTOR = 0.6;
 
+function RulerIconSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="3" y1="19" x2="21" y2="5" />
+      <polyline points="16 5 21 5 21 10" />
+      <polyline points="3 14 3 19 8 19" />
+      <line x1="8" y1="14" x2="10" y2="16" />
+      <line x1="12" y1="10" x2="14" y2="12" />
+      <line x1="16" y1="6" x2="18" y2="8" />
+    </svg>
+  );
+}
+
+function ProtractorIconSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 20 L4 8 L20 8" />
+      <path d="M8 12 Q8 8 12 8" />
+      <path d="M15 4 L17 6 L19 4 L21 6 L19 8" />
+    </svg>
+  );
+}
+
 function easeOut(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -425,14 +462,9 @@ export default function CrystalScene() {
             }}
           >
             <div className="measurement-label">
-              <svg className="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="3" y1="19" x2="21" y2="5" />
-                <polyline points="16 5 21 5 21 10" />
-                <polyline points="3 14 3 19 8 19" />
-                <line x1="8" y1="14" x2="10" y2="16" />
-                <line x1="12" y1="10" x2="14" y2="12" />
-                <line x1="16" y1="6" x2="18" y2="8" />
-              </svg>
+              <span className="label-icon">
+                <RulerIconSvg />
+              </span>
               <span className="label-text">{m.length.toFixed(2)}</span>
               <span className="label-unit">Å</span>
             </div>
@@ -453,11 +485,9 @@ export default function CrystalScene() {
             }}
           >
             <div className="measurement-label" style={{ borderColor: 'rgba(255, 215, 0, 0.5)' }}>
-              <svg className="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M4 20 L4 8 L20 8" />
-                <path d="M8 12 Q8 8 12 8" />
-                <path d="M15 4 L17 6 L19 4 L21 6 L19 8" />
-              </svg>
+              <span className="label-icon">
+                <ProtractorIconSvg />
+              </span>
               <span className="label-text">{m.angle.toFixed(1)}</span>
               <span className="label-unit">°</span>
             </div>

@@ -22,36 +22,80 @@ function SliderWithInput({
 }: SliderWithInputProps) {
   const [inputValue, setInputValue] = useState(value.toString());
   const [isDragging, setIsDragging] = useState(false);
+  const [lastValidValue, setLastValidValue] = useState(value.toString());
 
   useEffect(() => {
     if (!isDragging) {
-      setInputValue(step < 1 ? value.toFixed(1) : value.toString());
+      const formatted = step < 1 ? value.toFixed(1) : value.toString();
+      setInputValue(formatted);
+      setLastValidValue(formatted);
     }
   }, [value, step, isDragging]);
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = parseFloat(e.target.value);
-    onChange(newValue);
-    setInputValue(step < 1 ? newValue.toFixed(1) : newValue.toString());
+    if (!isNaN(newValue) && isFinite(newValue)) {
+      onChange(newValue);
+      const formatted = step < 1 ? newValue.toFixed(1) : newValue.toString();
+      setInputValue(formatted);
+      setLastValidValue(formatted);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
+    const rawValue = e.target.value;
+
+    if (rawValue === '' || rawValue === '-') {
+      setInputValue(rawValue);
+      return;
+    }
+
+    const hasValidPrefix = /^-?\d*\.?\d*$/.test(rawValue);
+
+    if (!hasValidPrefix) {
+      setInputValue(lastValidValue);
+      return;
+    }
+
+    const numValue = parseFloat(rawValue);
+
+    if (isNaN(numValue) || !isFinite(numValue)) {
+      setInputValue(lastValidValue);
+      return;
+    }
+
+    if (numValue < min || numValue > max) {
+      setInputValue(rawValue);
+      return;
+    }
+
+    setInputValue(rawValue);
+    setLastValidValue(rawValue);
   };
 
   const handleInputBlur = () => {
     let newValue = parseFloat(inputValue);
-    if (isNaN(newValue)) {
+
+    if (isNaN(newValue) || !isFinite(newValue)) {
       newValue = value;
     }
+
     newValue = Math.max(min, Math.min(max, newValue));
     newValue = Math.round(newValue / step) * step;
+    newValue = parseFloat(newValue.toFixed(10));
+
     onChange(newValue);
-    setInputValue(step < 1 ? newValue.toFixed(1) : newValue.toString());
+
+    const formatted = step < 1 ? newValue.toFixed(1) : newValue.toString();
+    setInputValue(formatted);
+    setLastValidValue(formatted);
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
+      (e.target as HTMLInputElement).blur();
+    } else if (e.key === 'Escape') {
+      setInputValue(lastValidValue);
       (e.target as HTMLInputElement).blur();
     }
   };
@@ -150,6 +194,7 @@ export default function ControlPanel() {
     isExploded,
     isTransitioning,
     loadingStructure,
+    isSwitching,
     bondMeasurements,
     angleMeasurements,
     panelExpanded,
@@ -161,50 +206,86 @@ export default function ControlPanel() {
     toggleExploded,
     setIsTransitioning,
     setLoadingStructure,
+    setIsSwitching,
     togglePanel,
   } = useCrystalStore();
 
   const [showPulse, setShowPulse] = useState(false);
   const pulseTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPulseAnimating = React.useRef(false);
+  const switchingTimeoutRefs = React.useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const handleCrystalTypeChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const newType = e.target.value as CrystalType;
-      if (newType === crystalType) return;
+  const FADE_IN_DURATION = 300;
+  const FADE_OUT_DURATION = 300;
+  const SWITCH_DELAY = FADE_IN_DURATION;
 
-      setLoadingStructure(newType);
-      setIsTransitioning(true);
-
-      setTimeout(() => {
-        setCrystalType(newType);
-      }, 250);
-
-      setTimeout(() => {
-        setIsTransitioning(false);
-        setLoadingStructure(null);
-      }, 750);
-    },
-    [crystalType, setCrystalType, setIsTransitioning, setLoadingStructure]
-  );
-
-  const handleExplodeClick = () => {
-    setShowPulse(true);
-    if (pulseTimeoutRef.current) {
-      clearTimeout(pulseTimeoutRef.current);
-    }
-    pulseTimeoutRef.current = setTimeout(() => {
-      setShowPulse(false);
-    }, 300);
-    toggleExploded();
-  };
+  const clearAllSwitchingTimeouts = useCallback(() => {
+    switchingTimeoutRefs.current.forEach((timeout) => clearTimeout(timeout));
+    switchingTimeoutRefs.current = [];
+  }, []);
 
   useEffect(() => {
     return () => {
+      clearAllSwitchingTimeouts();
       if (pulseTimeoutRef.current) {
         clearTimeout(pulseTimeoutRef.current);
       }
     };
-  }, []);
+  }, [clearAllSwitchingTimeouts]);
+
+  const handleCrystalTypeChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const newType = e.target.value as CrystalType;
+
+      if (isSwitching || newType === crystalType) {
+        e.target.value = crystalType;
+        return;
+      }
+
+      setIsSwitching(true);
+      setLoadingStructure(newType);
+      setIsTransitioning(true);
+
+      clearAllSwitchingTimeouts();
+
+      const switchTimeout = setTimeout(() => {
+        setCrystalType(newType);
+
+        const finishTimeout = setTimeout(() => {
+          setIsTransitioning(false);
+          setLoadingStructure(null);
+          setIsSwitching(false);
+        }, FADE_OUT_DURATION + 100);
+
+        switchingTimeoutRefs.current.push(finishTimeout);
+      }, SWITCH_DELAY);
+
+      switchingTimeoutRefs.current.push(switchTimeout);
+    },
+    [crystalType, isSwitching, setCrystalType, setIsTransitioning, setLoadingStructure, setIsSwitching, clearAllSwitchingTimeouts]
+  );
+
+  const handleExplodeClick = () => {
+    if (isPulseAnimating.current) {
+      if (pulseTimeoutRef.current) {
+        clearTimeout(pulseTimeoutRef.current);
+      }
+      setShowPulse(false);
+      isPulseAnimating.current = false;
+    }
+
+    requestAnimationFrame(() => {
+      setShowPulse(true);
+      isPulseAnimating.current = true;
+
+      pulseTimeoutRef.current = setTimeout(() => {
+        setShowPulse(false);
+        isPulseAnimating.current = false;
+      }, 300);
+    });
+
+    toggleExploded();
+  };
 
   const structureOptions: { value: CrystalType; label: string; description: string }[] = [
     { value: 'NaCl', label: 'NaCl 氯化钠', description: '面心立方' },
@@ -240,7 +321,7 @@ export default function ControlPanel() {
               className="structure-select"
               value={crystalType}
               onChange={handleCrystalTypeChange}
-              disabled={isTransitioning}
+              disabled={isSwitching || isTransitioning}
             >
               {structureOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -297,10 +378,11 @@ export default function ControlPanel() {
           <div className="section-title">视图效果</div>
           <div className="button-row">
             <button
-              className={`explode-button ${isExploded ? 'active' : ''}`}
+              className={`explode-button ${isExploded ? 'active' : ''} ${isTransitioning ? 'disabled' : ''}`}
               onClick={handleExplodeClick}
+              disabled={isSwitching}
             >
-              <span className={`explode-pulse ${showPulse ? 'animate' : ''}`} />
+              <span className={`explode-pulse ${showPulse && !isSwitching ? 'animate' : ''}`} />
               {isExploded ? (
                 <>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
