@@ -39,7 +39,7 @@
         from { transform: translateY(-16px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
-      #gui-container .lil-gui {
+      html body #app ~ #gui-container .lil-gui {
         --title-background-color: transparent;
         --title-color: #CCCCCC;
         --title-font-size: 14px;
@@ -59,15 +59,15 @@
         --widget-height: 20px;
         width: 260px;
       }
-      #gui-container .lil-gui .title {
+      html body #gui-container .lil-gui .title {
         font-weight: 600;
         letter-spacing: 0.3px;
         margin-bottom: 4px;
-        color: #CCCCCC !important;
-        font-size: 14px !important;
+        color: #CCCCCC;
+        font-size: 14px;
       }
-      #gui-container .lil-gui .name {
-        color: #AAAAAA !important;
+      html body #gui-container .lil-gui .controller .name {
+        color: #AAAAAA;
       }
       #height-label {
         position: fixed;

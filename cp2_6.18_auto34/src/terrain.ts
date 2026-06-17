@@ -266,26 +266,14 @@ export class TerrainGenerator {
     const mid = this.midColorRgb;
     const colors = new Float32Array(count * 3);
 
-    let minH = Infinity;
-    let maxH = -Infinity;
-    for (let i = 0; i < count; i++) {
-      if (heights[i] < minH) minH = heights[i];
-      if (heights[i] > maxH) maxH = heights[i];
-    }
+    const amplitude = Math.max(this.params.amplitude, 0.0001);
+    const minH = -amplitude * 1.2;
+    const maxH = amplitude * 1.2;
     const range = maxH - minH;
-    if (range < 0.001) {
-      for (let idx = 0; idx < count; idx++) {
-        colors[idx * 3 + 0] = mid.r;
-        colors[idx * 3 + 1] = mid.g;
-        colors[idx * 3 + 2] = mid.b;
-      }
-      this.data.colors = colors;
-      return;
-    }
 
     for (let idx = 0; idx < count; idx++) {
       const h = heights[idx];
-      const t = (h - minH) / range;
+      const t = Math.max(0, Math.min(1, (h - minH) / range));
       const eased = easeInOutCubic(t);
 
       let c: { r: number; g: number; b: number };

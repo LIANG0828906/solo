@@ -149,9 +149,16 @@ class App {
   }
 
   private showLabel(height: number): void {
-    const sign = height >= 0 ? '+' : '-';
-    const abs = Math.abs(height).toFixed(2);
-    this.heightLabel.textContent = `Height: ${sign}${abs}`;
+    const eps = 0.001;
+    let text: string;
+    if (Math.abs(height) < eps) {
+      text = 'Height: 0.00';
+    } else if (height > 0) {
+      text = `Height: +${height.toFixed(2)}`;
+    } else {
+      text = `Height: -${Math.abs(height).toFixed(2)}`;
+    }
+    this.heightLabel.textContent = text;
     if (!this.isLabelVisible) {
       this.heightLabel.style.display = 'block';
       this.isLabelVisible = true;
