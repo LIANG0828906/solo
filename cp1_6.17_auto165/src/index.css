@@ -1,0 +1,78 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: 'Courier New', Courier, monospace;
+  line-height: 1.4;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: #0B0C10;
+  color: #C5C6C7;
+  overflow: hidden;
+}
+
+#root {
+  width: 900px;
+  height: 700px;
+  margin: 0 auto;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+button:hover:not(:disabled) {
+  transform: scale(1.05);
+  filter: brightness(0.85);
+}
+
+button:active:not(:disabled) {
+  animation: pulse 0.1s ease-out;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0C10;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #45A29E;
+  border-radius: 2px;
+}
+
+@media (max-width: 800px) and (min-width: 640px) {
+  #root {
+    width: 100%;
+    max-width: 800px;
+  }
+}
