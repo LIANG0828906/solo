@@ -203,7 +203,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
     return get().completeTask(taskId);
   },
 
-  rateAndFinalize: (taskId: string, rating: 1 | 2 | 3 | 4 | 5) => {
+  rateAndFinalize: (taskId: string, rating: number) => {
     const { tasks, currentUser } = get();
     const task = tasks.find((t) => t.id === taskId);
     if (!task || task.status !== 'completed') return false;
