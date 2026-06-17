@@ -11,11 +11,13 @@ interface MagicLoomState {
   vortex: VortexState
   pulses: PulseEvent[]
   reducedQuality: boolean
+  breathingEnabled: boolean
   initLines: () => void
   togglePause: () => void
   setPaused: (p: boolean) => void
   reset: () => void
   toggleTheme: () => void
+  toggleBreathing: () => void
   setVortexActive: (active: boolean, x?: number, y?: number) => void
   setVortexPosition: (x: number, y: number) => void
   triggerPulse: (timestamp: number) => void
@@ -42,6 +44,7 @@ export const useMagicLoomStore = create<MagicLoomState>((set, get) => ({
   vortex: { ...initialVortex },
   pulses: [],
   reducedQuality: false,
+  breathingEnabled: true,
 
   initLines: () => {
     const { theme } = get()
@@ -69,6 +72,8 @@ export const useMagicLoomStore = create<MagicLoomState>((set, get) => ({
       lines: createLinesFn(newTheme),
     })
   },
+
+  toggleBreathing: () => set((state) => ({ breathingEnabled: !state.breathingEnabled })),
 
   setVortexActive: (active, x, y) => {
     const { vortex } = get()

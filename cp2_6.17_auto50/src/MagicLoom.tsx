@@ -8,6 +8,16 @@ const FPS_CHECK_INTERVAL = 500
 const FPS_THRESHOLD = 55
 const NEBULA_UPDATE_INTERVAL = 2
 
+const BREATHING_CONFIG = {
+  brightnessCycle: 2500,
+  brightnessMin: 0.85,
+  brightnessMax: 1.0,
+  scaleCycle: 2500,
+  scaleMin: 1.0,
+  scaleMax: 1.01,
+  scalePhaseOffset: 300,
+}
+
 interface NebulaBand {
   y: number
   height: number
@@ -78,6 +88,7 @@ export default function MagicLoom() {
   const vortex = useMagicLoomStore((s) => s.vortex)
   const pulses = useMagicLoomStore((s) => s.pulses)
   const reducedQuality = useMagicLoomStore((s) => s.reducedQuality)
+  const breathingEnabled = useMagicLoomStore((s) => s.breathingEnabled)
 
   const updateLinesState = useMagicLoomStore((s) => s.updateLinesState)
   const setVortexActive = useMagicLoomStore((s) => s.setVortexActive)
@@ -88,6 +99,7 @@ export default function MagicLoom() {
   const saveSnapshot = useMagicLoomStore((s) => s.saveSnapshot)
   const toggleTheme = useMagicLoomStore((s) => s.toggleTheme)
   const setReducedQuality = useMagicLoomStore((s) => s.setReducedQuality)
+  const toggleBreathing = useMagicLoomStore((s) => s.toggleBreathing)
 
   const [viewportSize, setViewportSize] = useState({
     w: window.innerWidth,
@@ -314,15 +326,49 @@ export default function MagicLoom() {
     ctx.clearRect(0, 0, viewportSize.w, viewportSize.h)
 
     const { tapestryX, tapestryY, tapestryW, tapestryH } = getTapestryBounds()
+
+    let breathBrightness = 1.0
+    let breathScale = 1.0
+
+    if (breathingEnabled) {
+      const brightnessPhase = (ts % BREATHING_CONFIG.brightnessCycle) / BREATHING_CONFIG.brightnessCycle
+      breathBrightness = BREATHING_CONFIG.brightnessMin +
+        (BREATHING_CONFIG.brightnessMax - BREATHING_CONFIG.brightnessMin) *
+        (0.5 + 0.5 * Math.cos(brightnessPhase * Math.PI * 2))
+
+      const scaleTs = ts - BREATHING_CONFIG.scalePhaseOffset
+      const scalePhase = (scaleTs % BREATHING_CONFIG.scaleCycle) / BREATHING_CONFIG.scaleCycle
+      breathScale = BREATHING_CONFIG.scaleMin +
+        (BREATHING_CONFIG.scaleMax - BREATHING_CONFIG.scaleMin) *
+        (0.5 + 0.5 * Math.cos(scalePhase * Math.PI * 2))
+    }
+
+    ctx.save()
+
+    if (breathingEnabled && breathScale !== 1.0) {
+      const cx = tapestryX + tapestryW / 2
+      const cy = tapestryY + tapestryH / 2
+      ctx.translate(cx, cy)
+      ctx.scale(breathScale, breathScale)
+      ctx.translate(-cx, -cy)
+    }
+
     ctx.fillStyle = 'rgba(15, 15, 20, 0.5)'
     ctx.fillRect(tapestryX, tapestryY, tapestryW, tapestryH)
+
+    if (breathingEnabled && breathBrightness < 1.0) {
+      ctx.filter = `brightness(${breathBrightness})`
+    }
 
     const phase = (ts % RUNE_BLINK_PERIOD) / RUNE_BLINK_PERIOD * Math.PI * 2
     drawBorder(ctx, phase)
 
     const sorted = sortLinesForRender(lines)
     drawLines(ctx, sorted)
-  }, [viewportSize, getTapestryBounds, drawBorder, drawLines, lines])
+
+    ctx.filter = 'none'
+    ctx.restore()
+  }, [viewportSize, getTapestryBounds, drawBorder, drawLines, lines, breathingEnabled])
 
   useEffect(() => {
     const tick = (ts: number) => {
@@ -379,7 +425,7 @@ export default function MagicLoom() {
         cancelAnimationFrame(rafRef.current)
       }
     }
-  }, [lines, paused, theme, vortex, pulses, reducedQuality, viewportSize, getTapestryBounds, render, renderBackground, updateLinesState, setReducedQuality])
+  }, [lines, paused, theme, vortex, pulses, reducedQuality, breathingEnabled, viewportSize, getTapestryBounds, render, renderBackground, updateLinesState, setReducedQuality])
 
   const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current
@@ -515,6 +561,14 @@ export default function MagicLoom() {
         >
           切换主题
         </button>
+        <button
+          onClick={toggleBreathing}
+          style={breathingButtonStyle(breathingEnabled)}
+          onMouseEnter={(e) => applyHover(e.currentTarget)}
+          onMouseLeave={(e) => removeHover(e.currentTarget)}
+        >
+          {breathingEnabled ? '☀️' : '🌙'}
+        </button>
       </div>
     </div>
   )
@@ -533,6 +587,21 @@ const buttonStyle = (bg: string, text: string): React.CSSProperties => ({
   fontFamily: 'inherit',
   outline: 'none',
   userSelect: 'none',
+})
+
+const breathingButtonStyle = (enabled: boolean): React.CSSProperties => ({
+  padding: '8px 12px',
+  borderRadius: 8,
+  border: 'none',
+  background: enabled ? '#6C5CE7' : '#2D3436',
+  color: '#FFFFFF',
+  fontSize: 18,
+  cursor: 'pointer',
+  transition: 'transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease',
+  fontFamily: 'inherit',
+  outline: 'none',
+  userSelect: 'none',
+  lineHeight: 1,
 })
 
 const applyHover = (el: HTMLElement) => {
