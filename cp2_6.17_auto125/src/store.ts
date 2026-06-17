@@ -18,6 +18,12 @@ export interface Event {
   createdAt: string
 }
 
+export interface EventStats {
+  total: number
+  signedIn: number
+  percentage: number
+}
+
 interface EventStore {
   events: Event[]
   currentEventId: string | null
@@ -28,6 +34,7 @@ interface EventStore {
   signIn: (eventId: string, participantId: string) => void
   addParticipant: (eventId: string, name: string, email: string) => Participant | null
   addParticipantsBatch: (eventId: string, participants: Array<{ name: string; email: string }>) => Participant[]
+  getEventStats: (eventId: string) => EventStats
 }
 
 const STORAGE_KEY = 'eventpulse_data'
@@ -152,5 +159,24 @@ export const useEventStore = create<EventStore>((set, get) => ({
     saveToStorage(events)
     set({ events })
     return validParticipants
+  },
+
+  getEventStats: (eventId) => {
+    const event = get().events.find(e => e.id === eventId)
+    if (!event) {
+      return { total: 0, signedIn: 0, percentage: 0 }
+    }
+    const total = event.participants.length
+    let signedIn = 0
+    for (let i = 0; i < total; i++) {
+      if (event.participants[i].signedIn) {
+        signedIn++
+      }
+    }
+    return {
+      total,
+      signedIn,
+      percentage: total > 0 ? (signedIn / total) * 100 : 0
+    }
   }
 }))

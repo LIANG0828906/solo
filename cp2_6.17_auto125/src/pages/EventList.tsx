@@ -1,10 +1,19 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useEventStore, Event } from '../store'
 
 const EventList: React.FC = () => {
-  const { events, setCurrentEvent, deleteEvent } = useEventStore()
+  const { events, setCurrentEvent, deleteEvent, getEventStats } = useEventStore()
   const [deleteTarget, setDeleteTarget] = useState<Event | null>(null)
   const [animatingDelete, setAnimatingDelete] = useState<string | null>(null)
+
+  const statsMap = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof getEventStats>>()
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i]
+      map.set(event.id, getEventStats(event.id))
+    }
+    return map
+  }, [events, getEventStats])
 
   const handleDeleteClick = (e: React.MouseEvent, event: Event) => {
     e.stopPropagation()
@@ -250,8 +259,6 @@ const EventList: React.FC = () => {
     transition: 'background-color 0.2s'
   }
 
-  const signedInCount = (event: Event) => event.participants.filter(p => p.signedIn).length
-
   return (
     <>
       <div style={pageHeaderStyle}>
@@ -290,8 +297,8 @@ const EventList: React.FC = () => {
         ) : (
           events.map(event => {
             const isDeleting = animatingDelete === event.id
-            const signedIn = signedInCount(event)
-            const total = event.participants.length
+            const stats = statsMap.get(event.id) || { total: 0, signedIn: 0, percentage: 0 }
+            const { total, signedIn, percentage } = stats
             return (
               <div
                 key={event.id}
@@ -332,7 +339,7 @@ const EventList: React.FC = () => {
                   </div>
                   <div style={statItemStyle}>
                     <span style={{ ...statValueStyle, color: total > 0 ? '#6C63FF' : '#999' }}>
-                      {total > 0 ? Math.round((signedIn / total) * 100) : 0}%
+                      {Math.round(percentage)}%
                     </span>
                     <span style={statLabelStyle}>签到率</span>
                   </div>

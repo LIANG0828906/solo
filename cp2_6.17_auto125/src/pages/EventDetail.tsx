@@ -3,20 +3,21 @@ import { useEventStore } from '../store'
 import { generateQRCode } from '../utils/qrGenerator'
 
 const EventDetail: React.FC = () => {
-  const { events, currentEventId, setCurrentEvent, deleteEvent, signIn, addParticipantsBatch } = useEventStore()
+  const { events, currentEventId, setCurrentEvent, deleteEvent, signIn, addParticipantsBatch, getEventStats } = useEventStore()
   const event = currentEventId ? events.find(e => e.id === currentEventId) : null
 
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
   const [showCopied, setShowCopied] = useState(false)
+  const [copyError, setCopyError] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [animatingDelete, setAnimatingDelete] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [newParticipants, setNewParticipants] = useState<string[]>([])
+  const [signingInIds, setSigningInIds] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const signedIn = event?.participants.filter(p => p.signedIn).length || 0
-  const total = event?.participants.length || 0
-  const percentage = total > 0 ? (signedIn / total) * 100 : 0
+  const stats = event ? getEventStats(event.id) : { total: 0, signedIn: 0, percentage: 0 }
+  const { total, signedIn, percentage } = stats
 
   useEffect(() => {
     if (event) {
@@ -49,11 +50,35 @@ const EventDetail: React.FC = () => {
   const handleCopyLink = async () => {
     const link = `eventpulse://checkin/${event.id}`
     try {
-      await navigator.clipboard.writeText(link)
-      setShowCopied(true)
-      setTimeout(() => setShowCopied(false), 2000)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(link)
+        setCopyError(false)
+        setShowCopied(true)
+        setTimeout(() => setShowCopied(false), 2000)
+      } else {
+        const textArea = document.createElement('textarea')
+        textArea.value = link
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-9999px'
+        textArea.style.top = '-9999px'
+        document.body.appendChild(textArea)
+        textArea.focus()
+        textArea.select()
+        try {
+          document.execCommand('copy')
+          setCopyError(false)
+          setShowCopied(true)
+          setTimeout(() => setShowCopied(false), 2000)
+        } catch (fallbackErr) {
+          throw fallbackErr
+        } finally {
+          document.body.removeChild(textArea)
+        }
+      }
     } catch (err) {
       console.error('Copy failed:', err)
+      setCopyError(true)
+      setTimeout(() => setCopyError(false), 3000)
     }
   }
 
@@ -99,6 +124,19 @@ const EventDetail: React.FC = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
+  }
+
+  const handleSignIn = (participantId: string) => {
+    if (signingInIds.has(participantId)) return
+    setSigningInIds(prev => new Set(prev).add(participantId))
+    signIn(event.id, participantId)
+    setTimeout(() => {
+      setSigningInIds(prev => {
+        const next = new Set(prev)
+        next.delete(participantId)
+        return next
+      })
+    }, 300)
   }
 
   const confirmDelete = () => {
@@ -628,20 +666,20 @@ const EventDetail: React.FC = () => {
                         <td style={{ ...tdStyle, textAlign: 'right' }}>
                           <button
                             style={p.signedIn ? signedBtnStyle : signBtnStyle}
-                            onClick={() => !p.signedIn && signIn(event.id, p.id)}
+                            onClick={() => !p.signedIn && handleSignIn(p.id)}
                             onMouseOver={(e) => {
-                              if (!p.signedIn) {
+                              if (!p.signedIn && !signingInIds.has(p.id)) {
                                 e.currentTarget.style.backgroundColor = '#6C63FF'
                                 e.currentTarget.style.color = '#FFFFFF'
                               }
                             }}
                             onMouseOut={(e) => {
-                              if (!p.signedIn) {
+                              if (!p.signedIn && !signingInIds.has(p.id)) {
                                 e.currentTarget.style.backgroundColor = '#EEEEF5'
                                 e.currentTarget.style.color = '#999'
                               }
                             }}
-                            disabled={p.signedIn}
+                            disabled={p.signedIn && !signingInIds.has(p.id)}
                           >
                             {p.signedIn ? '已签到' : '签到'}
                           </button>
@@ -743,7 +781,16 @@ const EventDetail: React.FC = () => {
                 }}
               />
             )}
-            <div style={copiedTextStyle}>✓ 已复制签到链接</div>
+            <div style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              transition: 'opacity 0.5s',
+              opacity: showCopied || copyError ? 1 : 0,
+              height: '18px',
+              color: copyError ? '#E74C3C' : '#4CAF50'
+            }}>
+              {copyError ? '✗ 复制失败，请手动复制链接' : '✓ 已复制签到链接'}
+            </div>
             <div style={qrHintStyle}>点击二维码复制签到链接</div>
           </div>
         </div>

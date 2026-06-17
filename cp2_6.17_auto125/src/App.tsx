@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useEffect } from 'react'
+import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react'
 import { useEventStore } from './store'
 
 const EventList = lazy(() => import('./pages/EventList'))
@@ -15,16 +15,25 @@ const App: React.FC = () => {
     init()
   }, [init])
 
+  const openCreateModal = useCallback(() => {
+    setNewEventName('')
+    setNewEventDate('')
+    setNewEventDescription('')
+    setShowCreateModal(true)
+  }, [])
+
   const currentEvent = currentEventId ? events.find(e => e.id === currentEventId) : null
 
-  const handleCreateEvent = () => {
-    if (!newEventName.trim() || !newEventDate) return
+  const isFormValid = newEventName.trim().length > 0 && newEventDate.length > 0
+
+  const handleCreateEvent = useCallback(() => {
+    if (!isFormValid) return
     createEvent(newEventName.trim(), newEventDate, newEventDescription.trim())
     setNewEventName('')
     setNewEventDate('')
     setNewEventDescription('')
     setShowCreateModal(false)
-  }
+  }, [isFormValid, newEventName, newEventDate, newEventDescription, createEvent])
 
   const sidebarStyle: React.CSSProperties = {
     width: '240px',
@@ -205,7 +214,7 @@ const App: React.FC = () => {
 
         <button
           style={createBtnStyle}
-          onClick={() => setShowCreateModal(true)}
+          onClick={openCreateModal}
           onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#5A52D5')}
           onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#6C63FF')}
         >
@@ -337,11 +346,19 @@ const App: React.FC = () => {
                 取消
               </button>
               <button
-                style={submitBtnStyle}
+                style={{
+                  ...submitBtnStyle,
+                  opacity: isFormValid ? 1 : 0.5,
+                  cursor: isFormValid ? 'pointer' : 'not-allowed'
+                }}
                 onClick={handleCreateEvent}
-                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#5A52D5')}
-                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#6C63FF')}
-                disabled={!newEventName.trim() || !newEventDate}
+                onMouseOver={(e) => {
+                  if (isFormValid) e.currentTarget.style.backgroundColor = '#5A52D5'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#6C63FF'
+                }}
+                disabled={!isFormValid}
               >
                 创建
               </button>
