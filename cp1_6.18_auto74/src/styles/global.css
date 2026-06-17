@@ -1,0 +1,396 @@
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: linear-gradient(180deg, #0A0A2A 0%, #000011 100%);
+  color: #ffffff;
+}
+
+.app-layout {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  position: relative;
+}
+
+.left-panel {
+  width: 200px;
+  min-width: 200px;
+  background: #1A1A2E;
+  border-radius: 12px;
+  border: 1px solid #2A2A44;
+  margin: 12px;
+  margin-right: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 10;
+}
+
+.left-panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4ECDC4;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #2A2A44;
+}
+
+.dataset-btn {
+  width: 120px;
+  height: 40px;
+  border-radius: 8px;
+  background: #2D2D44;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  position: relative;
+  padding-left: 12px;
+  text-align: left;
+  transition: background 0.2s, transform 0.1s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dataset-btn:hover {
+  background: #4A4A6A;
+}
+
+.dataset-btn:active {
+  transform: scale(0.95);
+}
+
+.dataset-btn.selected {
+  background: #4A4A6A;
+}
+
+.dataset-btn.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  background: #4ECDC4;
+  border-radius: 2px;
+}
+
+.dataset-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.dataset-desc {
+  font-size: 12px;
+  color: #888899;
+  line-height: 1.5;
+  margin-top: -4px;
+}
+
+.scene-container {
+  flex: 1;
+  position: relative;
+  margin: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.right-panel {
+  width: 70px;
+  min-width: 70px;
+  background: #1A1A2E;
+  border-radius: 12px;
+  border: 1px solid #2A2A44;
+  margin: 12px;
+  margin-left: 0;
+  padding: 16px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+}
+
+.altitude-label {
+  font-size: 14px;
+  color: #ffffff;
+  text-align: center;
+  writing-mode: horizontal-tb;
+}
+
+.altitude-value {
+  font-size: 12px;
+  color: #4ECDC4;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.altitude-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 40px;
+  height: 300px;
+  background: transparent;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  cursor: pointer;
+}
+
+.altitude-slider::-webkit-slider-runnable-track {
+  width: 6px;
+  height: 100%;
+  background: #2D2D44;
+  border-radius: 3px;
+}
+
+.altitude-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4ECDC4;
+  cursor: pointer;
+  margin-left: -5px;
+}
+
+.mode-panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+
+.mode-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #2D2D44;
+  border: 1px solid #2A2A44;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s, transform 0.1s ease;
+  position: relative;
+}
+
+.mode-btn:hover {
+  background: #4A4A6A;
+}
+
+.mode-btn:active {
+  transform: scale(0.95);
+}
+
+.mode-btn.active {
+  background: #4ECDC4;
+}
+
+.mode-btn.active::after {
+  filter: brightness(0);
+}
+
+.mode-icon-vector {
+  width: 16px;
+  height: 16px;
+  position: relative;
+}
+
+.mode-icon-vector::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid #ffffff;
+  border-right: 5px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-top: 3px solid transparent;
+}
+
+.mode-icon-vector::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 2px;
+  width: 8px;
+  height: 2px;
+  background: #ffffff;
+}
+
+.mode-icon-heatmap {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+}
+
+.mode-icon-heatmap::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  background: #4ECDC4;
+  border-radius: 1px;
+}
+
+.mode-icon-heatmap::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  background: #FF6B6B;
+  border-radius: 1px;
+}
+
+.mode-icon-pressure {
+  width: 16px;
+  height: 16px;
+  position: relative;
+}
+
+.mode-icon-pressure::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 0;
+  width: 16px;
+  height: 2px;
+  background: #6BCB77;
+  border-radius: 1px;
+}
+
+.mode-icon-pressure::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 2px;
+  width: 12px;
+  height: 2px;
+  background: #6BCB77;
+  border-radius: 1px;
+  opacity: 0.7;
+}
+
+.hover-tooltip {
+  position: fixed;
+  width: 200px;
+  background: #151528;
+  border-radius: 8px;
+  border: 1px solid #2A2A44;
+  padding: 12px;
+  pointer-events: none;
+  z-index: 100;
+  font-size: 12px;
+  color: #ffffff;
+  transition: opacity 0.15s;
+}
+
+.hover-tooltip.hidden {
+  display: none;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.tooltip-label {
+  color: #888899;
+}
+
+.tooltip-value {
+  color: #4ECDC4;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+
+  .left-panel {
+    width: 100%;
+    min-width: unset;
+    margin: 0;
+    border-radius: 0;
+    padding: 8px;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 8px;
+  }
+
+  .left-panel-title {
+    display: none;
+  }
+
+  .dataset-desc {
+    display: none;
+  }
+
+  .scene-container {
+    margin: 0;
+    border-radius: 0;
+    flex: 1;
+  }
+
+  .right-panel {
+    width: 100%;
+    min-width: unset;
+    height: 60px;
+    margin: 0;
+    border-radius: 0;
+    flex-direction: row;
+    padding: 8px 16px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .altitude-slider {
+    writing-mode: horizontal-tb;
+    direction: ltr;
+    width: 200px;
+    height: 40px;
+  }
+
+  .altitude-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    background: #2D2D44;
+    border-radius: 3px;
+  }
+
+  .altitude-slider::-webkit-slider-thumb {
+    margin-top: -5px;
+    margin-left: 0;
+  }
+}
