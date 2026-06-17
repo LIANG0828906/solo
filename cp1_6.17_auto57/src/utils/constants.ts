@@ -1,0 +1,94 @@
+export const COLORS = {
+  BACKGROUND: '#2D1B2E',
+  FLOOR_BOTTOM: '#3A1C3E',
+  FLOOR_TOP: '#8B5CF6',
+  GOLD_HELMET: '#FFD700',
+  BLUE_SWORD: '#3B82F6',
+  SWORD_GLOW: '#60A5FA',
+  HP_BAR_START: '#EF4444',
+  HP_BAR_END: '#DC2626',
+  GOLD: '#F59E0B',
+  EXP_BAR: '#3B82F6',
+  TEXT: '#E2E8F0',
+  PANEL_BG: '#1A1A2E',
+  INVENTORY_BG: '#16213E',
+  GRID_BORDER: '#334155',
+  SLIME: '#4ADE80',
+  SKELETON: '#9CA3AF',
+  BAT: '#991B1B',
+  WOODEN_CHEST: '#92400E',
+  SILVER_CHEST: '#9CA3AF',
+  ROCK: '#6B7280',
+  SPIKE: '#DC2626',
+  HURT_FLASH: '#EF4444',
+  WARNING: '#7F1D1D',
+  WHITE: '#F8FAFC',
+  BONE: '#F8FAFC',
+} as const;
+
+export const DIMENSIONS = {
+  CANVAS_MIN_WIDTH: 800,
+  CANVAS_MIN_HEIGHT: 480,
+  FLOOR_HEIGHT: 64,
+  PLAYER_SIZE: 16,
+  INFO_PANEL_WIDTH: 200,
+  INVENTORY_PANEL_WIDTH: 200,
+  INVENTORY_ROWS: 3,
+  INVENTORY_COLS: 4,
+  GRID_GAP: 2,
+} as const;
+
+export const PHYSICS = {
+  PLAYER_SPEED: 2,
+  GRAVITY: 0.3,
+  MAX_FALL_SPEED: 8,
+} as const;
+
+export const ANIMATION = {
+  BOUNCE_AMPLITUDE: 2,
+  BOUNCE_PERIOD: 200,
+  ATTACK_DURATION: 150,
+  CHEST_OPEN_DURATION: 400,
+  CHEST_GLOW_DURATION: 300,
+  PARTICLE_DURATION: 500,
+  PARTICLE_MAX_DISTANCE: 60,
+  HURT_FLASH_DURATION: 100,
+  HURT_FLASH_COUNT: 3,
+  WARNING_TRANSITION: 1000,
+  WARNING_TEXT_SCALE_PERIOD: 500,
+} as const;
+
+export const GAME = {
+  TOTAL_FLOORS: 5,
+  TIME_PER_FLOOR: 60,
+  WARNING_TIME_THRESHOLD: 10,
+  INVINCIBLE_DURATION: 1000,
+  TRAP_DAMAGE: 5,
+  BASE_ENEMY_COUNT: 3,
+  BASE_CHEST_COUNT: 1,
+  BASE_TRAP_COUNT: 2,
+  WOODEN_CHEST_GOLD_MIN: 10,
+  WOODEN_CHEST_GOLD_MAX: 30,
+  ENEMY_GOLD_REWARD: 5,
+  ENEMY_EXP_REWARD: 10,
+} as const;
+
+export const AI = {
+  SLIME_JUMP_INTERVAL: 2000,
+  SKELETON_SHOOT_INTERVAL: 1500,
+  SKELETON_PROJECTILE_SPEED: 2,
+  BAT_AMPLITUDE: 30,
+  BAT_PERIOD: 1000,
+} as const;
+
+export const RARITY_COLORS: Record<string, string> = {
+  common: '#9CA3AF',
+  rare: '#3B82F6',
+  epic: '#8B5CF6',
+} as const;
+
+export const ITEM_NAMES = {
+  weapon: ['铁剑', '钢剑', '魔剑', '烈焰剑', '寒冰剑'],
+  armor: ['皮甲', '锁子甲', '板甲', '龙鳞甲', '暗影甲'],
+  accessory: ['力量戒指', '守护项链', '生命护符', '敏捷手镯', '幸运徽章'],
+} as const;
