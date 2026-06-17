@@ -1,0 +1,429 @@
+:root {
+  --bg-main: #2B2B3D;
+  --bg-secondary: #1E1E2E;
+  --primary: #6C63FF;
+  --border-subtle: #3A3A5C;
+  --text-main: #FFFFFF;
+  --text-muted: #AAAAAA;
+  --danger: #FF6B6B;
+  --note-colors: #FF6B6B, #4ECDC4, #FFE66D, #A29BFE, #FD79A8;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-main);
+  background: var(--bg-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  outline: none;
+}
+
+button:active:not(:disabled) {
+  animation: btn-press 0.15s ease;
+}
+
+@keyframes btn-press {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+textarea {
+  font-family: inherit;
+  outline: none;
+  resize: none;
+  border: none;
+}
+
+.app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  background: rgba(30, 30, 46, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+  z-index: 1000;
+}
+
+.toolbar-title {
+  font-weight: 700;
+  font-size: 16px;
+  margin-right: auto;
+  background: linear-gradient(90deg, #6C63FF, #FD79A8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.2s ease;
+}
+
+.toolbar-btn:enabled {
+  color: #6C63FF;
+  background: rgba(108, 99, 255, 0.1);
+}
+
+.toolbar-btn:hover:enabled {
+  background: rgba(108, 99, 255, 0.2);
+}
+
+.toolbar-btn.danger {
+  color: #555;
+}
+
+.toolbar-btn.danger:enabled {
+  color: #FF6B6B;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.toolbar-btn.danger:hover:enabled {
+  background: rgba(255, 107, 107, 0.2);
+}
+
+.canvas-wrapper {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding-top: 50px;
+}
+
+.canvas {
+  position: absolute;
+  top: 50px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-main);
+  overflow: hidden;
+  cursor: default;
+}
+
+.canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.sidebar {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 60px;
+  background: rgba(30, 30, 46, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  gap: 12px;
+  z-index: 900;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.note-draggable {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: rgba(0, 0, 0, 0.4);
+  font-weight: 700;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.note-draggable:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.note-draggable:active {
+  cursor: grabbing;
+}
+
+.note-card {
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: grab;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s ease;
+  will-change: transform;
+  touch-action: none;
+}
+
+.note-card.dragging {
+  cursor: grabbing;
+  z-index: 9999 !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+
+.note-card.placing {
+  animation: note-place 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes note-place {
+  0% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.note-card.fading {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.note-textarea {
+  flex: 1;
+  width: 100%;
+  background: transparent;
+  border: 1px dashed transparent;
+  border-radius: 4px;
+  padding: 4px;
+  font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+  font-size: 16px;
+  color: #FFFFFF;
+  line-height: 1.4;
+  cursor: default;
+  overflow: hidden;
+}
+
+.note-card.editing .note-textarea {
+  border-color: rgba(255, 255, 255, 0.6);
+  cursor: text;
+}
+
+.connection-dot {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  cursor: crosshair;
+  transition: transform 0.15s ease, background 0.15s ease;
+  z-index: 10;
+}
+
+.connection-dot:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.2);
+}
+
+.connection-dot.dragging {
+  background: #6C63FF;
+  transform: scale(1.3);
+}
+
+.connections-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.connection-line {
+  fill: none;
+  stroke: #6C63FF;
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s ease;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.connection-line:hover {
+  stroke: #FF6B6B;
+  stroke-width: 3;
+}
+
+.connection-endpoint {
+  fill: #6C63FF;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: fill 0.15s ease, r 0.15s ease;
+}
+
+.connection-endpoint:hover {
+  fill: #FF6B6B;
+  r: 8;
+}
+
+.temp-line {
+  fill: none;
+  stroke: #6C63FF;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+
+.confirm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fade-in 0.2s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirm-modal {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  width: 360px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-subtle);
+  animation: modal-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.9) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.confirm-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #FF6B6B;
+}
+
+.confirm-modal-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.confirm-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.confirm-btn.cancel {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.confirm-btn.cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.confirm-btn.confirm {
+  background: #FF6B6B;
+  color: #FFFFFF;
+}
+
+.confirm-btn.confirm:hover {
+  background: #FF5252;
+}
+
+.canvas-drop-preview {
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  border-radius: 12px;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 9999;
+  border: 2px dashed #6C63FF;
+  transform: scale(1.05);
+}
