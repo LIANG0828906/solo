@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Camera, RotateCcw, Play, Pause, Settings } from 'lucide-react'
 import { useStore } from '@/store/useStore'
-import { parametricEquationText, type SurfaceParams } from '@/utils/surfaceGeometry'
+import { getDynamicEquationText, type SurfaceParams } from '@/utils/surfaceGeometry'
 
 const sliderKeys: (keyof SurfaceParams)[] = ['a', 'b', 'c', 'd', 'e', 'f']
 
@@ -26,11 +26,26 @@ export function Controls() {
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
   const [activeSlider, setActiveSlider] = useState<keyof SurfaceParams | null>(null)
 
+  const clearActiveSlider = useCallback(() => {
+    setActiveSlider(null)
+  }, [])
+
+  useEffect(() => {
+    const handleMouseUp = () => clearActiveSlider()
+    const handleTouchEnd = () => clearActiveSlider()
+    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('touchend', handleTouchEnd)
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [clearActiveSlider])
+
   return (
     <>
       <div className="status-bar">
         <div className="equation-display">
-          <pre>{parametricEquationText}</pre>
+          <pre>{getDynamicEquationText(params)}</pre>
         </div>
         <div className="fps-counter">FPS: {fps}</div>
       </div>
@@ -64,9 +79,7 @@ export function Controls() {
                   value={params[key]}
                   onChange={(e) => updateParam(key, parseFloat(e.target.value))}
                   onMouseDown={() => setActiveSlider(key)}
-                  onMouseUp={() => setActiveSlider(null)}
                   onTouchStart={() => setActiveSlider(key)}
-                  onTouchEnd={() => setActiveSlider(null)}
                   className={`slider ${activeSlider === key ? 'active' : ''}`}
                 />
                 <span className="slider-value">{params[key].toFixed(1)}</span>
@@ -215,10 +228,20 @@ export function Controls() {
           flex: 1;
           height: 6px;
           border-radius: 3px;
-          background: #4A4A6E;
+          background: transparent;
           outline: none;
           cursor: pointer;
-          transition: all 0.2s ease;
+        }
+
+        .slider::-webkit-slider-runnable-track {
+          height: 6px;
+          border-radius: 3px;
+          background: #4A4A6E;
+          transition: background-color 0.3s ease;
+        }
+
+        .slider.active::-webkit-slider-runnable-track {
+          background: #00E5FF;
         }
 
         .slider::-webkit-slider-thumb {
@@ -229,6 +252,7 @@ export function Controls() {
           border-radius: 50%;
           background: #6C63FF;
           cursor: pointer;
+          margin-top: -6px;
           transition: all 0.2s ease;
           box-shadow: 0 0 0 0 rgba(108, 99, 255, 0);
         }
@@ -239,6 +263,17 @@ export function Controls() {
 
         .slider.active::-webkit-slider-thumb {
           box-shadow: 0 0 0 8px rgba(108, 99, 255, 0.3);
+        }
+
+        .slider::-moz-range-track {
+          height: 6px;
+          border-radius: 3px;
+          background: #4A4A6E;
+          transition: background-color 0.3s ease;
+        }
+
+        .slider.active::-moz-range-track {
+          background: #00E5FF;
         }
 
         .slider::-moz-range-thumb {

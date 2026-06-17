@@ -100,13 +100,20 @@ export function Scene({ params, isPlaying }: SceneProps) {
       <gridHelper args={[20, 20, '#2D2D3F', '#1A1A2E']} position={[0, -3, 0]} />
 
       <group ref={groupRef}>
-        <mesh ref={meshRef} geometry={geometry}>
+        <mesh ref={meshRef} geometry={geometry} renderOrder={0}>
           <meshStandardMaterial
             vertexColors
             transparent
             opacity={0.85}
-            side={THREE.DoubleSide}
-            flatShading
+            side={THREE.BackSide}
+          />
+        </mesh>
+        <mesh geometry={geometry} renderOrder={1}>
+          <meshStandardMaterial
+            vertexColors
+            transparent
+            opacity={0.85}
+            side={THREE.FrontSide}
           />
         </mesh>
 

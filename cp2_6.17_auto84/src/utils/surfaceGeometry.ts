@@ -129,6 +129,20 @@ y = (a + b·v·cos(u/2)) · sin(u)
 z = c·v·sin(u/2)
 u ∈ [0, 2π], v ∈ [-1, 1]`
 
+export function getDynamicEquationText(params: SurfaceParams): string {
+  const fmt = (n: number): string => {
+    const rounded = Math.round(n * 10) / 10
+    return rounded >= 0 ? rounded.toFixed(1) : `(${rounded.toFixed(1)})`
+  }
+  const a = fmt(params.a)
+  const b = fmt(params.b)
+  const c = fmt(params.c)
+  return `x = (${a} + ${b}·v·cos(u/2)) · cos(u)
+y = (${a} + ${b}·v·cos(u/2)) · sin(u)
+z = ${c}·v·sin(u/2)
+u ∈ [0, 2π], v ∈ [-1, 1]`
+}
+
 export const wireframeVertexShader = `
   varying vec2 vUv;
   void main() {
