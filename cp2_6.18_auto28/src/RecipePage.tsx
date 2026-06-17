@@ -1,54 +1,24 @@
-import { useState, KeyboardEvent, useEffect, useRef } from 'react';
+import { useState, KeyboardEvent } from 'react';
 import { useAppStore } from './store';
 import { MatchedRecipe } from './engine';
 
-function getProgressClass(percentage: number): string {
-  if (percentage >= 90) return 'progress-purple';
-  if (percentage >= 70) return 'progress-blue';
-  if (percentage >= 50) return 'progress-green';
-  return 'progress-gray';
-}
-
 function RecipeCard({ recipe, animKey }: { recipe: MatchedRecipe; animKey: number }) {
   const { favoriteRecipes, saveRecipe, removeRecipe, setDetailRecipe } = useAppStore();
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [displayProgress, setDisplayProgress] = useState(0);
-  const frameRef = useRef<number | null>(null);
+  const [heartPlay, setHeartPlay] = useState(false);
   const isFavorited = favoriteRecipes.includes(recipe.id);
-
-  useEffect(() => {
-    setDisplayProgress(0);
-    const start = performance.now();
-    const duration = 500;
-    const target = recipe.matchPercentage;
-
-    const animate = (now: number) => {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(eased * target);
-      setDisplayProgress(current);
-      if (progress < 1) {
-        frameRef.current = requestAnimationFrame(animate);
-      }
-    };
-
-    frameRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-      }
-    };
-  }, [animKey, recipe.matchPercentage]);
+  const progressScale = recipe.matchPercentage / 100;
 
   const handleFavoriteClick = () => {
-    setIsAnimating(true);
+    setHeartPlay(false);
+    requestAnimationFrame(() => {
+      setHeartPlay(true);
+    });
     if (isFavorited) {
       removeRecipe(recipe.id);
     } else {
       saveRecipe(recipe.id);
     }
-    setTimeout(() => setIsAnimating(false), 400);
+    setTimeout(() => setHeartPlay(false), 410);
   };
 
   return (
@@ -56,7 +26,7 @@ function RecipeCard({ recipe, animKey }: { recipe: MatchedRecipe; animKey: numbe
       <div className="card-header">
         <div className="recipe-name">{recipe.name}</div>
         <button
-          className={`favorite-btn ${isAnimating ? 'active' : ''}`}
+          className={`favorite-btn ${heartPlay ? 'active' : ''}`}
           onClick={handleFavoriteClick}
         >
           <span className={isFavorited ? 'heart-red' : 'heart-gray'}>❤</span>
@@ -66,12 +36,13 @@ function RecipeCard({ recipe, animKey }: { recipe: MatchedRecipe; animKey: numbe
       <div className="match-section">
         <div className="match-label">
           <span>匹配度</span>
-          <span>{displayProgress}%</span>
+          <span>{recipe.matchPercentage}%</span>
         </div>
         <div className="progress-bar">
           <div
-            className={`progress-fill ${getProgressClass(displayProgress)}`}
-            style={{ width: `${displayProgress}%` }}
+            key={`progress-${animKey}-${recipe.id}`}
+            className="progress-fill"
+            style={{ ['--progress-scale' as any]: progressScale }}
           />
         </div>
       </div>
