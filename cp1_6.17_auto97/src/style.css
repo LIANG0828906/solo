@@ -1,0 +1,243 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  min-width: 1024px;
+  background: #060D17;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+  color: #E0E0E0;
+  user-select: none;
+}
+
+#scene {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #060D17;
+}
+
+.panel {
+  position: fixed;
+  background: rgba(26, 26, 46, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 140, 0, 0.15);
+  z-index: 10;
+}
+
+.info-panel {
+  top: 20px;
+  left: 20px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  min-width: 190px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.info-label {
+  color: #9CA3AF;
+}
+
+.info-value {
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.info-speed {
+  color: #00FFFF;
+}
+
+.info-distance {
+  color: #FFFF00;
+}
+
+.info-orbit {
+  color: #FF69B4;
+}
+
+.control-panel {
+  top: 0;
+  right: 0;
+  width: 280px;
+  height: 100%;
+  padding: 28px 24px;
+  border-radius: 12px 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  overflow-y: auto;
+}
+
+.panel-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #FF8C00;
+  letter-spacing: 1px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 140, 0, 0.2);
+}
+
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.slider-header label {
+  color: #E0E0E0;
+}
+
+.slider-value {
+  color: #E0E0E0;
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.2s ease;
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: right;
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #333;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #FF8C00;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 16px rgba(255, 140, 0, 0.8);
+  background: #FFA500;
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #FF8C00;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 16px rgba(255, 140, 0, 0.8);
+  background: #FFA500;
+}
+
+.reset-btn {
+  margin-top: auto;
+  padding: 12px 20px;
+  background: #FF8C00;
+  color: #0B132B;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 14px rgba(255, 140, 0, 0.25);
+}
+
+.reset-btn:hover {
+  background: #FFA500;
+  box-shadow: 0 6px 20px rgba(255, 165, 0, 0.4);
+}
+
+.reset-btn:active {
+  transform: scale(0.95);
+}
+
+.success-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 16px 40px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #00FF88;
+  text-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+  letter-spacing: 4px;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 20;
+  animation: fadeInToast 0.5s ease forwards;
+}
+
+.success-toast.hidden {
+  display: none;
+}
+
+@keyframes fadeInToast {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 140, 0, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 140, 0, 0.5);
+}
