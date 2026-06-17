@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/securitymodule.ts","./src/spectrumengine.ts","./src/main.tsx","./src/vite-env.d.ts","./src/components/controlpanel.tsx","./src/components/statusdisplay.tsx","./src/store/gamestore.ts"],"version":"5.8.3"}
