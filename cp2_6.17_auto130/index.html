@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StellarSandbox - 3D星体运动模拟</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0A001A;
+      color: #E0E0E0;
+    }
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+    }
+    #info-card {
+      position: fixed;
+      width: 300px;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 20px;
+      color: #E0E0E0;
+      opacity: 0;
+      transform: translateY(30px);
+      pointer-events: none;
+      z-index: 1000;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 229, 255, 0.2);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+    }
+    #info-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    #info-card .arrow {
+      position: absolute;
+      width: 0;
+      height: 0;
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      border-right: 12px solid rgba(0, 229, 255, 0.5);
+      left: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    #info-card h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #00E5FF;
+      text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+    }
+    #info-card .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 14px;
+    }
+    #info-card .info-row:last-child {
+      border-bottom: none;
+    }
+    #info-card .info-label {
+      color: #888;
+    }
+    #info-card .info-value {
+      color: #E0E0E0;
+      font-weight: 500;
+    }
+    #mobile-menu-btn {
+      display: none;
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      width: 44px;
+      height: 44px;
+      background: rgba(20, 20, 40, 0.85);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      border-radius: 10px;
+      color: #00E5FF;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 2000;
+      backdrop-filter: blur(10px);
+    }
+    @media (max-width: 768px) {
+      #mobile-menu-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .dg.ac {
+        display: none !important;
+      }
+      .dg.ac.mobile-visible {
+        display: block !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <button id="mobile-menu-btn" aria-label="菜单">☰</button>
+    <div id="info-card">
+      <div class="arrow"></div>
+      <h3 id="card-title">星体信息</h3>
+      <div class="info-row">
+        <span class="info-label">名称</span>
+        <span class="info-value" id="card-name">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">质量</span>
+        <span class="info-value" id="card-mass">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">轨道半径</span>
+        <span class="info-value" id="card-orbit">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">公转周期</span>
+        <span class="info-value" id="card-period">-</span>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
