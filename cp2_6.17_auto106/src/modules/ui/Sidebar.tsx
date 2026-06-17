@@ -1,4 +1,4 @@
-import type { Snippet } from '@/types';
+import type { Snippet, Theme } from '@/types';
 
 interface SidebarProps {
   snippets: Snippet[];
@@ -6,9 +6,19 @@ interface SidebarProps {
   onDelete: (id: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  theme: Theme;
 }
 
-export function Sidebar({ snippets, onSelect, onDelete, isOpen, onClose }: SidebarProps) {
+export function Sidebar({ snippets, onSelect, onDelete, isOpen, onClose, theme }: SidebarProps) {
+  const isDark = theme === 'dark';
+  const bg = isDark ? '#16162D' : '#F0F0F5';
+  const border = isDark ? '#2D2D4A' : '#E0E0E0';
+  const headerText = isDark ? '#E0E0F0' : '#333333';
+  const subText = isDark ? '#6A6A8E' : '#999999';
+  const itemBg = isDark ? '#1E1E2E' : '#E8E8F0';
+  const itemText = isDark ? '#E0E0F0' : '#333333';
+  const itemBorder = isDark ? '#1E1E2E' : '#E8E8F0';
+
   const formatTime = (iso: string) => {
     const d = new Date(iso);
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -32,11 +42,11 @@ export function Sidebar({ snippets, onSelect, onDelete, isOpen, onClose }: Sideb
         style={{
           width: '240px',
           height: '100%',
-          backgroundColor: '#16162D',
-          borderRight: '1px solid #2D2D4A',
+          backgroundColor: bg,
+          borderRight: `1px solid ${border}`,
           overflowY: 'auto',
           flexShrink: 0,
-          transition: 'transform 0.3s ease-out, opacity 0.3s ease-out',
+          transition: 'transform 0.3s ease-out, opacity 0.3s ease-out, background-color 0.3s ease, border-color 0.3s ease',
           transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
           opacity: isOpen ? 1 : 0,
           position: 'relative',
@@ -46,26 +56,29 @@ export function Sidebar({ snippets, onSelect, onDelete, isOpen, onClose }: Sideb
         <div
           style={{
             padding: '16px',
-            borderBottom: '1px solid #2D2D4A',
+            borderBottom: `1px solid ${border}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            transition: 'border-color 0.3s ease',
           }}
         >
           <span
             style={{
-              color: '#E0E0F0',
+              color: headerText,
               fontSize: '14px',
               fontWeight: 600,
               letterSpacing: '0.5px',
+              transition: 'color 0.3s ease',
             }}
           >
             已保存片段
           </span>
           <span
             style={{
-              color: '#6A6A8E',
+              color: subText,
               fontSize: '11px',
+              transition: 'color 0.3s ease',
             }}
           >
             {snippets.length} 个
@@ -76,9 +89,10 @@ export function Sidebar({ snippets, onSelect, onDelete, isOpen, onClose }: Sideb
           <div
             style={{
               padding: '24px 16px',
-              color: '#6A6A8E',
+              color: subText,
               fontSize: '13px',
               textAlign: 'center',
+              transition: 'color 0.3s ease',
             }}
           >
             暂无保存的片段
@@ -94,12 +108,12 @@ export function Sidebar({ snippets, onSelect, onDelete, isOpen, onClose }: Sideb
                 alignItems: 'center',
                 cursor: 'pointer',
                 transition: 'background-color 0.2s ease',
-                borderBottom: '1px solid #1E1E2E',
+                borderBottom: `1px solid ${itemBorder}`,
                 position: 'relative',
               }}
               onClick={() => onSelect(snippet.id)}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#1E1E2E';
+                e.currentTarget.style.backgroundColor = itemBg;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -108,19 +122,21 @@ export function Sidebar({ snippets, onSelect, onDelete, isOpen, onClose }: Sideb
               <div style={{ flex: 1, overflow: 'hidden' }}>
                 <div
                   style={{
-                    color: '#E0E0F0',
+                    color: itemText,
                     fontSize: '13px',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
+                    transition: 'color 0.3s ease',
                   }}
                 >
                   {snippet.name}
                 </div>
                 <div
                   style={{
-                    color: '#6A6A8E',
+                    color: subText,
                     fontSize: '12px',
+                    transition: 'color 0.3s ease',
                   }}
                 >
                   {formatTime(snippet.lastModified)}
@@ -147,7 +163,7 @@ export function Sidebar({ snippets, onSelect, onDelete, isOpen, onClose }: Sideb
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  color: '#6A6A8E',
+                  color: subText,
                   fontSize: '14px',
                   padding: '2px 4px',
                   marginLeft: '8px',
@@ -160,7 +176,7 @@ export function Sidebar({ snippets, onSelect, onDelete, isOpen, onClose }: Sideb
                   e.currentTarget.style.color = '#FF6B6B';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#6A6A8E';
+                  e.currentTarget.style.color = subText;
                 }}
                 title="删除片段"
               >

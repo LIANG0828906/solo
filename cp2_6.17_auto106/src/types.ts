@@ -1,4 +1,5 @@
 export type Language = 'python' | 'javascript';
+export type Theme = 'dark' | 'light';
 
 export interface Snippet {
   id: string;

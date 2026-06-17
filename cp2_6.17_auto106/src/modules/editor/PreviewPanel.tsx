@@ -1,15 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
+import type { Theme } from '@/types';
 
 interface PreviewPanelProps {
   output: string;
   isError: boolean;
   isRunning: boolean;
+  theme: Theme;
 }
 
-export function PreviewPanel({ output, isError, isRunning }: PreviewPanelProps) {
+export function PreviewPanel({ output, isError, isRunning, theme }: PreviewPanelProps) {
   const [displayedOutput, setDisplayedOutput] = useState('');
   const [showPlaceholder, setShowPlaceholder] = useState(true);
   const prevOutputRef = useRef('');
+  const isDark = theme === 'dark';
+  const caretColor = isDark ? '#6C63FF' : '#6C63FF';
+  const placeholderColor = isDark ? '#6A6A8E' : '#999999';
 
   useEffect(() => {
     if (!output) return;
@@ -47,24 +52,25 @@ export function PreviewPanel({ output, isError, isRunning }: PreviewPanelProps) 
       style={{
         height: '100%',
         width: '100%',
-        backgroundColor: '#0F0F23',
+        backgroundColor: isDark ? '#0F0F23' : '#FFFFFF',
         borderRadius: '8px',
         padding: '16px',
         overflow: 'auto',
         fontFamily: "'Consolas', monospace",
         fontSize: '16px',
         lineHeight: '1.6',
-        color: isError ? '#FF6B6B' : '#FFFFFF',
+        color: isError ? '#FF6B6B' : (isDark ? '#FFFFFF' : '#444444'),
         whiteSpace: 'pre-wrap',
         wordBreak: 'break-word',
-        border: '1px solid #2D2D4A',
+        border: `1px solid ${isDark ? '#2D2D4A' : '#DDDDDD'}`,
         position: 'relative',
+        transition: 'all 0.3s ease',
       }}
     >
       {showPlaceholder && !isRunning && (
         <span
           style={{
-            color: '#6A6A8E',
+            color: placeholderColor,
             fontStyle: 'italic',
             animation: 'placeholderFadeIn 0.5s ease forwards',
           }}
@@ -79,7 +85,7 @@ export function PreviewPanel({ output, isError, isRunning }: PreviewPanelProps) 
             display: 'inline-block',
             width: '8px',
             height: '16px',
-            backgroundColor: '#6C63FF',
+            backgroundColor: caretColor,
             marginLeft: '2px',
             animation: 'blink 1s infinite',
             verticalAlign: 'text-bottom',

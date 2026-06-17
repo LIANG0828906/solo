@@ -1,12 +1,28 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { create } from 'zustand';
-import { Loader2 } from 'lucide-react';
-import type { Language, Snippet } from '@/types';
+import { Loader2, Sun, Moon } from 'lucide-react';
+import type { Language, Snippet, Theme } from '@/types';
 import { EditorPanel } from '@/modules/editor/EditorPanel';
 import { PreviewPanel } from '@/modules/editor/PreviewPanel';
 import { CodeExecutor } from '@/modules/executor/CodeExecutor';
 import { StorageManager } from '@/modules/storage/StorageManager';
 import { Sidebar } from '@/modules/ui/Sidebar';
+
+const THEME_STORAGE_KEY = 'codecanvas_theme';
+
+function loadSavedTheme(): Theme {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === 'dark' || saved === 'light') return saved;
+  } catch {}
+  return 'dark';
+}
+
+function saveThemeToStorage(theme: Theme) {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {}
+}
 
 interface CodeCanvasState {
   code: string;
@@ -18,6 +34,7 @@ interface CodeCanvasState {
   snippets: Snippet[];
   sidebarOpen: boolean;
   isMobile: boolean;
+  theme: Theme;
   setCode: (code: string) => void;
   setLanguage: (language: Language) => void;
   setOutput: (output: string, isError: boolean) => void;
@@ -29,6 +46,8 @@ interface CodeCanvasState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setIsMobile: (mobile: boolean) => void;
+  toggleTheme: () => void;
+  setTheme: (theme: Theme) => void;
 }
 
 const useStore = create<CodeCanvasState>((set) => ({
@@ -41,6 +60,7 @@ const useStore = create<CodeCanvasState>((set) => ({
   snippets: [],
   sidebarOpen: true,
   isMobile: false,
+  theme: loadSavedTheme(),
   setCode: (code) => set({ code }),
   setLanguage: (language) => set({ language }),
   setOutput: (output, isError) => set({ output, isError }),
@@ -56,6 +76,16 @@ const useStore = create<CodeCanvasState>((set) => ({
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setIsMobile: (isMobile) => set({ isMobile }),
+  toggleTheme: () =>
+    set((state) => {
+      const newTheme = state.theme === 'dark' ? 'light' : 'dark';
+      saveThemeToStorage(newTheme);
+      return { theme: newTheme };
+    }),
+  setTheme: (theme) => {
+    saveThemeToStorage(theme);
+    set({ theme });
+  },
 }));
 
 interface ToastItem {
@@ -96,11 +126,21 @@ function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
 function SaveModal({
   onConfirm,
   onCancel,
+  theme,
 }: {
   onConfirm: (name: string) => void;
   onCancel: () => void;
+  theme: Theme;
 }) {
   const [name, setName] = useState('');
+  const isDark = theme === 'dark';
+  const bg = isDark ? '#1A1A2E' : '#FFFFFF';
+  const border = isDark ? '#2D2D4A' : '#E0E0E0';
+  const text = isDark ? '#E0E0F0' : '#333333';
+  const inputBg = isDark ? '#2D2D3F' : '#F5F5F7';
+  const inputBorder = isDark ? '#4A4A6E' : '#D0D0D8';
+  const cancelText = isDark ? '#A0A0C0' : '#666666';
+  const cancelBorder = isDark ? '#4A4A6E' : '#D0D0D8';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,21 +164,23 @@ function SaveModal({
     >
       <div
         style={{
-          backgroundColor: '#1A1A2E',
+          backgroundColor: bg,
           borderRadius: '12px',
-          border: '1px solid #2D2D4A',
+          border: `1px solid ${border}`,
           padding: '24px',
           width: '360px',
           maxWidth: '90vw',
+          transition: 'all 0.3s ease',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <h3
           style={{
-            color: '#E0E0F0',
+            color: text,
             fontSize: '16px',
             fontWeight: 600,
             marginBottom: '16px',
+            transition: 'color 0.3s ease',
           }}
         >
           保存代码片段
@@ -153,21 +195,21 @@ function SaveModal({
             autoFocus
             style={{
               width: '100%',
-              backgroundColor: '#2D2D3F',
-              border: '1px solid #4A4A6E',
+              backgroundColor: inputBg,
+              border: `1px solid ${inputBorder}`,
               borderRadius: '6px',
               padding: '10px 12px',
-              color: '#E0E0F0',
+              color: text,
               fontSize: '14px',
               outline: 'none',
-              transition: 'border-color 0.3s ease',
+              transition: 'border-color 0.3s ease, background-color 0.3s ease',
               boxSizing: 'border-box',
             }}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = '#6C63FF';
             }}
             onBlur={(e) => {
-              e.currentTarget.style.borderColor = '#4A4A6E';
+              e.currentTarget.style.borderColor = inputBorder;
             }}
           />
           <div
@@ -183,8 +225,8 @@ function SaveModal({
               onClick={onCancel}
               style={{
                 backgroundColor: 'transparent',
-                color: '#A0A0C0',
-                border: '1px solid #4A4A6E',
+                color: cancelText,
+                border: `1px solid ${cancelBorder}`,
                 borderRadius: '6px',
                 padding: '8px 16px',
                 cursor: 'pointer',
@@ -196,8 +238,8 @@ function SaveModal({
                 e.currentTarget.style.color = '#6C63FF';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#4A4A6E';
-                e.currentTarget.style.color = '#A0A0C0';
+                e.currentTarget.style.borderColor = cancelBorder;
+                e.currentTarget.style.color = cancelText;
               }}
             >
               取消
@@ -206,7 +248,7 @@ function SaveModal({
               type="submit"
               disabled={!name.trim()}
               style={{
-                backgroundColor: name.trim() ? '#6C63FF' : '#4A4A6E',
+                backgroundColor: name.trim() ? '#6C63FF' : '#AAAAAA',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '6px',
@@ -228,16 +270,28 @@ function SaveModal({
 function ResizableDivider({
   isMobile,
   onResize,
+  theme,
 }: {
   isMobile: boolean;
   onResize: (delta: number) => void;
+  theme: Theme;
 }) {
   const dragging = useRef(false);
   const startPos = useRef(0);
+  const isDark = theme === 'dark';
+  const defaultBg = isDark ? '#3A3A5C' : '#CCCCCC';
+  const [bg, setBg] = useState(defaultBg);
+
+  useEffect(() => {
+    if (!dragging.current) {
+      setBg(defaultBg);
+    }
+  }, [defaultBg]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     dragging.current = true;
     startPos.current = isMobile ? e.clientY : e.clientX;
+    setBg('#6C63FF');
     e.preventDefault();
   };
 
@@ -251,7 +305,10 @@ function ResizableDivider({
     };
 
     const handleMouseUp = () => {
-      dragging.current = false;
+      if (dragging.current) {
+        dragging.current = false;
+        setBg(defaultBg);
+      }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -260,7 +317,7 @@ function ResizableDivider({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isMobile, onResize]);
+  }, [isMobile, onResize, defaultBg]);
 
   return (
     <div
@@ -268,18 +325,16 @@ function ResizableDivider({
       style={{
         width: isMobile ? '100%' : '6px',
         height: isMobile ? '6px' : '100%',
-        backgroundColor: '#3A3A5C',
+        backgroundColor: bg,
         cursor: isMobile ? 'row-resize' : 'col-resize',
         transition: 'background-color 0.2s ease',
         flexShrink: 0,
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = '#6C63FF';
+      onMouseEnter={() => {
+        if (!dragging.current) setBg('#6C63FF');
       }}
-      onMouseLeave={(e) => {
-        if (!dragging.current) {
-          e.currentTarget.style.backgroundColor = '#3A3A5C';
-        }
+      onMouseLeave={() => {
+        if (!dragging.current) setBg(defaultBg);
       }}
     />
   );
@@ -291,6 +346,27 @@ export default function App() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [splitRatio, setSplitRatio] = useState(0.5);
   const mainRef = useRef<HTMLDivElement>(null);
+
+  const isDark = store.theme === 'dark';
+  const isMobile = store.isMobile;
+  const sidebarOpen = store.sidebarOpen;
+
+  const rootBg = isDark ? '#0F0F23' : '#F5F5F7';
+  const rootText = isDark ? '#E0E0F0' : '#333333';
+  const toolbarBg = isDark ? '#1A1A2E' : '#FFFFFF';
+  const toolbarBorder = isDark ? '#2D2D4A' : '#E0E0E0';
+  const timeColor = isDark ? '#6A6A8E' : '#888888';
+  const saveIconColor = isDark ? '#A0A0C0' : '#666666';
+  const hamburgerColor = isDark ? '#A0A0C0' : '#666666';
+  const brandColor = '#6C63FF';
+  const langSwitchBg = isDark ? '#2D2D3F' : '#F0F0F5';
+  const langSwitchBorder = isDark ? '#4A4A6E' : '#D0D0D8';
+  const langInactiveText = isDark ? '#A0A0C0' : '#666666';
+  const langHoverBg = isDark ? '#3A3A5C' : '#E0E0E8';
+  const langHoverText = isDark ? '#E0E0F0' : '#333333';
+  const langInactiveDot = isDark ? '#6A6A8E' : '#BBBBBB';
+  const scrollbarTrack = isDark ? '#1A1A2E' : '#F0F0F0';
+  const scrollbarThumb = isDark ? '#3A3A5C' : '#CCCCCC';
 
   useEffect(() => {
     store.loadSnippets();
@@ -379,11 +455,12 @@ export default function App() {
 
   const handleDeleteSnippet = useCallback(
     (id: string) => {
-      const updated = StorageManager.delete(id);
+      StorageManager.delete(id);
       store.removeSnippet(id);
+      showToast('已删除片段');
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [showToast]
   );
 
   const handleResize = useCallback(
@@ -400,8 +477,11 @@ export default function App() {
     [splitRatio, store.isMobile]
   );
 
-  const isMobile = store.isMobile;
-  const sidebarOpen = store.sidebarOpen;
+  const handleToggleTheme = useCallback(() => {
+    store.toggleTheme();
+    showToast(`已切换至${store.theme === 'dark' ? '浅色' : '深色'}模式`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.theme, showToast]);
 
   return (
     <div
@@ -409,10 +489,11 @@ export default function App() {
         height: '100vh',
         width: '100vw',
         display: 'flex',
-        backgroundColor: '#0F0F23',
-        color: '#E0E0F0',
+        backgroundColor: rootBg,
+        color: rootText,
         fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
         overflow: 'hidden',
+        transition: 'background-color 0.3s ease, color 0.3s ease',
       }}
     >
       {!isMobile && sidebarOpen && (
@@ -422,6 +503,7 @@ export default function App() {
           onDelete={handleDeleteSnippet}
           isOpen={true}
           onClose={() => store.setSidebarOpen(false)}
+          theme={store.theme}
         />
       )}
 
@@ -432,6 +514,7 @@ export default function App() {
           onDelete={handleDeleteSnippet}
           isOpen={sidebarOpen}
           onClose={() => store.setSidebarOpen(false)}
+          theme={store.theme}
         />
       )}
 
@@ -447,13 +530,14 @@ export default function App() {
         <div
           style={{
             height: '48px',
-            backgroundColor: '#1A1A2E',
-            borderBottom: '1px solid #2D2D4A',
+            backgroundColor: toolbarBg,
+            borderBottom: `1px solid ${toolbarBorder}`,
             display: 'flex',
             alignItems: 'center',
             padding: '0 16px',
             gap: '12px',
             flexShrink: 0,
+            transition: 'all 0.3s ease',
           }}
         >
           {isMobile && (
@@ -468,15 +552,10 @@ export default function App() {
                 alignItems: 'center',
               }}
             >
-              <svg
-                width="30"
-                height="30"
-                viewBox="0 0 30 30"
-                fill="none"
-              >
-                <rect x="6" y="7" width="18" height="2" rx="1" fill="#A0A0C0" />
-                <rect x="6" y="14" width="18" height="2" rx="1" fill="#A0A0C0" />
-                <rect x="6" y="21" width="18" height="2" rx="1" fill="#A0A0C0" />
+              <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                <rect x="6" y="7" width="18" height="2" rx="1" fill={hamburgerColor} />
+                <rect x="6" y="14" width="18" height="2" rx="1" fill={hamburgerColor} />
+                <rect x="6" y="21" width="18" height="2" rx="1" fill={hamburgerColor} />
               </svg>
             </button>
           )}
@@ -491,8 +570,9 @@ export default function App() {
                 padding: '4px',
                 display: 'flex',
                 alignItems: 'center',
-                color: '#A0A0C0',
+                color: hamburgerColor,
                 fontSize: '16px',
+                transition: 'color 0.3s ease',
               }}
               title="显示侧边栏"
             >
@@ -505,17 +585,17 @@ export default function App() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              color: '#6C63FF',
+              color: brandColor,
               fontSize: '15px',
               fontWeight: 700,
               letterSpacing: '0.5px',
             }}
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <rect x="1" y="1" width="7" height="7" rx="1.5" stroke="#6C63FF" strokeWidth="1.5" />
-              <rect x="10" y="1" width="7" height="7" rx="1.5" stroke="#6C63FF" strokeWidth="1.5" />
-              <rect x="1" y="10" width="7" height="7" rx="1.5" stroke="#6C63FF" strokeWidth="1.5" />
-              <rect x="10" y="10" width="7" height="7" rx="1.5" stroke="#6C63FF" strokeWidth="1.5" />
+              <rect x="1" y="1" width="7" height="7" rx="1.5" stroke={brandColor} strokeWidth="1.5" />
+              <rect x="10" y="1" width="7" height="7" rx="1.5" stroke={brandColor} strokeWidth="1.5" />
+              <rect x="1" y="10" width="7" height="7" rx="1.5" stroke={brandColor} strokeWidth="1.5" />
+              <rect x="10" y="10" width="7" height="7" rx="1.5" stroke={brandColor} strokeWidth="1.5" />
             </svg>
             CodeCanvas
           </div>
@@ -525,10 +605,11 @@ export default function App() {
               display: 'flex',
               alignItems: 'center',
               gap: '0',
-              backgroundColor: '#2D2D3F',
+              backgroundColor: langSwitchBg,
               borderRadius: '6px',
-              border: '1px solid #4A4A6E',
+              border: `1px solid ${langSwitchBorder}`,
               overflow: 'hidden',
+              transition: 'all 0.3s ease',
             }}
           >
             {(['python', 'javascript'] as const).map((lang) => {
@@ -539,7 +620,7 @@ export default function App() {
                   onClick={() => handleLanguageChange(lang)}
                   style={{
                     backgroundColor: isActive ? '#6C63FF' : 'transparent',
-                    color: isActive ? '#FFFFFF' : '#A0A0C0',
+                    color: isActive ? '#FFFFFF' : langInactiveText,
                     border: 'none',
                     borderBottom: isActive ? '2px solid #FFFFFF' : '2px solid transparent',
                     padding: '6px 14px',
@@ -553,14 +634,14 @@ export default function App() {
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
-                      e.currentTarget.style.backgroundColor = '#3A3A5C';
-                      e.currentTarget.style.color = '#E0E0F0';
+                      e.currentTarget.style.backgroundColor = langHoverBg;
+                      e.currentTarget.style.color = langHoverText;
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isActive) {
                       e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#A0A0C0';
+                      e.currentTarget.style.color = langInactiveText;
                     }
                   }}
                 >
@@ -572,7 +653,7 @@ export default function App() {
                       borderRadius: '50%',
                       backgroundColor: isActive
                         ? (lang === 'python' ? '#FFD93D' : '#FF6B6B')
-                        : '#6A6A8E',
+                        : langInactiveDot,
                     }}
                   />
                   {lang === 'python' ? 'Python' : 'JavaScript'}
@@ -586,9 +667,10 @@ export default function App() {
           {store.lastSavedTime && (
             <span
               style={{
-                color: '#6A6A8E',
+                color: timeColor,
                 fontSize: '12px',
                 fontFamily: "'Consolas', monospace",
+                transition: 'color 0.3s ease',
               }}
             >
               {(() => {
@@ -600,6 +682,34 @@ export default function App() {
           )}
 
           <button
+            onClick={handleToggleTheme}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              color: saveIconColor,
+              transition: 'color 0.2s ease',
+              borderRadius: '6px',
+            }}
+            title={isDark ? '切换至浅色模式' : '切换至深色模式'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#6C63FF';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = saveIconColor;
+            }}
+          >
+            {isDark ? (
+              <Sun size={20} strokeWidth={1.8} />
+            ) : (
+              <Moon size={20} strokeWidth={1.8} />
+            )}
+          </button>
+
+          <button
             onClick={handleSave}
             style={{
               background: 'none',
@@ -608,7 +718,7 @@ export default function App() {
               padding: '8px',
               display: 'flex',
               alignItems: 'center',
-              color: '#A0A0C0',
+              color: saveIconColor,
               transition: 'color 0.2s ease',
             }}
             title="保存代码片段"
@@ -616,7 +726,7 @@ export default function App() {
               e.currentTarget.style.color = '#6C63FF';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#A0A0C0';
+              e.currentTarget.style.color = saveIconColor;
             }}
           >
             <svg
@@ -726,11 +836,12 @@ export default function App() {
             <EditorPanel
               code={store.code}
               language={store.language}
+              theme={store.theme}
               onCodeChange={store.setCode}
             />
           </div>
 
-          <ResizableDivider isMobile={isMobile} onResize={handleResize} />
+          <ResizableDivider isMobile={isMobile} onResize={handleResize} theme={store.theme} />
 
           <div
             style={{
@@ -744,6 +855,7 @@ export default function App() {
               output={store.output}
               isError={store.isError}
               isRunning={store.isRunning}
+              theme={store.theme}
             />
           </div>
         </div>
@@ -753,6 +865,7 @@ export default function App() {
         <SaveModal
           onConfirm={handleSaveConfirm}
           onCancel={() => setSaveModalOpen(false)}
+          theme={store.theme}
         />
       )}
 
@@ -781,18 +894,16 @@ export default function App() {
           height: 6px;
         }
         ::-webkit-scrollbar-track {
-          background: #1A1A2E;
+          background: ${scrollbarTrack};
+          transition: background-color 0.3s ease;
         }
         ::-webkit-scrollbar-thumb {
-          background: #3A3A5C;
+          background: ${scrollbarThumb};
           border-radius: 3px;
+          transition: background-color 0.3s ease;
         }
         ::-webkit-scrollbar-thumb:hover {
           background: #6C63FF;
-        }
-        select option {
-          background: #2D2D3F;
-          color: #E0E0F0;
         }
       `}</style>
     </div>

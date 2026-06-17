@@ -30,14 +30,14 @@ export class CodeExecutor {
         return { output: 'Failed to create sandbox iframe', error: true };
       }
 
-      win.console.log = (...args: unknown[]) => {
+      (win as any).console.log = (...args: unknown[]) => {
         output.push(
           args
             .map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a)))
             .join(' ')
         );
       };
-      win.console.error = (...args: unknown[]) => {
+      (win as any).console.error = (...args: unknown[]) => {
         output.push(
           args
             .map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a)))
@@ -45,7 +45,7 @@ export class CodeExecutor {
         );
       };
 
-      const result = win.eval(code);
+      const result = (win as any).eval(code);
       if (result !== undefined && result !== null) {
         output.push(String(result));
       }
@@ -62,7 +62,7 @@ export class CodeExecutor {
   }
 
   private static executePython(code: string): ExecuteResponse {
-    const brython = (window as Record<string, unknown>).__BRYTHON__ as
+    const brython = (window as unknown as Record<string, unknown>).__BRYTHON__ as
       | Record<string, unknown>
       | undefined;
 
