@@ -111,6 +111,24 @@ export const PATH_POINTS: { x: number; y: number }[] = [
   { x: 840, y: 300 },
 ];
 
+export const PATH_GRIDS: { gridX: number; gridY: number }[] = (() => {
+  const grids: { gridX: number; gridY: number }[] = [];
+  for (let gx = 0; gx <= 5; gx++) grids.push({ gridX: gx, gridY: 7 });
+  for (let gy = 2; gy <= 7; gy++) grids.push({ gridX: 5, gridY: gy });
+  for (let gx = 5; gx <= 10; gx++) grids.push({ gridX: gx, gridY: 2 });
+  for (let gy = 2; gy <= 12; gy++) grids.push({ gridX: 10, gridY: gy });
+  for (let gx = 10; gx <= 15; gx++) grids.push({ gridX: gx, gridY: 12 });
+  for (let gy = 7; gy <= 12; gy++) grids.push({ gridX: 15, gridY: gy });
+  for (let gx = 15; gx <= 19; gx++) grids.push({ gridX: gx, gridY: 7 });
+  const unique = new Set<string>();
+  return grids.filter((g) => {
+    const key = `${g.gridX},${g.gridY}`;
+    if (unique.has(key)) return false;
+    unique.add(key);
+    return true;
+  });
+})();
+
 export const INITIAL_GOLD = 200;
 export const INITIAL_LIVES = 5;
 export const WAVE_COMPLETE_BONUS = 30;

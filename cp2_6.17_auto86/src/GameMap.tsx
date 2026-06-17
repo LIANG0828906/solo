@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useGameStore } from './store';
 import {
   TOWER_CONFIGS,
@@ -9,32 +9,14 @@ import {
   MAP_WIDTH,
   MAP_HEIGHT,
   PATH_POINTS,
+  PATH_GRIDS,
   MAX_TOWER_LEVEL,
 } from './gameConfig';
 
+const pathGridSet = new Set(PATH_GRIDS.map((g) => `${g.gridX},${g.gridY}`));
+
 const isOnPath = (gridX: number, gridY: number): boolean => {
-  const cellCenterX = gridX * GRID_SIZE + GRID_SIZE / 2;
-  const cellCenterY = gridY * GRID_SIZE + GRID_SIZE / 2;
-
-  for (let i = 0; i < PATH_POINTS.length - 1; i++) {
-    const p1 = PATH_POINTS[i];
-    const p2 = PATH_POINTS[i + 1];
-
-    const minX = Math.min(p1.x, p2.x) - GRID_SIZE / 2;
-    const maxX = Math.max(p1.x, p2.x) + GRID_SIZE / 2;
-    const minY = Math.min(p1.y, p2.y) - GRID_SIZE / 2;
-    const maxY = Math.max(p1.y, p2.y) + GRID_SIZE / 2;
-
-    if (
-      cellCenterX >= minX &&
-      cellCenterX <= maxX &&
-      cellCenterY >= minY &&
-      cellCenterY <= maxY
-    ) {
-      return true;
-    }
-  }
-  return false;
+  return pathGridSet.has(`${gridX},${gridY}`);
 };
 
 interface TowerSelectionPanelProps {
@@ -286,6 +268,60 @@ const TowerUpgradePanel: React.FC<TowerUpgradePanelProps> = ({
   );
 };
 
+const EntryMarker: React.FC = () => (
+  <div
+    style={{
+      position: 'absolute',
+      left: -2,
+      top: 7 * GRID_SIZE,
+      width: GRID_SIZE,
+      height: GRID_SIZE,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      pointerEvents: 'none',
+      zIndex: 10,
+    }}
+  >
+    <svg width="30" height="30" viewBox="0 0 30 30">
+      <polygon
+        points="5,15 20,5 20,12 28,12 28,18 20,18 20,25"
+        fill="#00E676"
+        stroke="#00C853"
+        strokeWidth="1.5"
+      />
+    </svg>
+  </div>
+);
+
+const ExitMarker: React.FC = () => (
+  <div
+    style={{
+      position: 'absolute',
+      left: MAP_WIDTH - GRID_SIZE + 2,
+      top: 7 * GRID_SIZE,
+      width: GRID_SIZE,
+      height: GRID_SIZE,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      pointerEvents: 'none',
+      zIndex: 10,
+    }}
+  >
+    <svg width="30" height="30" viewBox="0 0 30 30">
+      <rect x="6" y="3" width="2" height="24" fill="#8B4513" />
+      <polygon
+        points="8,3 26,7 8,13"
+        fill="#FF5252"
+        stroke="#D32F2F"
+        strokeWidth="1"
+      />
+      <circle cx="6" cy="27" r="3" fill="#8B4513" />
+    </svg>
+  </div>
+);
+
 export const GameMap: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
@@ -303,6 +339,14 @@ export const GameMap: React.FC = () => {
     clearSelection,
     buildTower,
   } = useGameStore();
+
+  const pathGridLookup = useMemo(() => {
+    const map = new Map<string, { gridX: number; gridY: number }>();
+    for (const g of PATH_GRIDS) {
+      map.set(`${g.gridX},${g.gridY}`, g);
+    }
+    return map;
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -333,8 +377,22 @@ export const GameMap: React.FC = () => {
         ctx.stroke();
       }
 
-      ctx.strokeStyle = '#3D5A80';
-      ctx.lineWidth = GRID_SIZE - 4;
+      for (const grid of PATH_GRIDS) {
+        const px = grid.gridX * GRID_SIZE;
+        const py = grid.gridY * GRID_SIZE;
+
+        ctx.fillStyle = '#3D5A80';
+        ctx.fillRect(px + 1, py + 1, GRID_SIZE - 2, GRID_SIZE - 2);
+
+        ctx.strokeStyle = 'rgba(100, 140, 180, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(px + 2, py + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+        ctx.setLineDash([]);
+      }
+
+      ctx.strokeStyle = 'rgba(120, 160, 200, 0.25)';
+      ctx.lineWidth = GRID_SIZE - 10;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -348,10 +406,14 @@ export const GameMap: React.FC = () => {
         const gx = hoveredCell.x;
         const gy = hoveredCell.y;
         const hasTower = towers.some((t) => t.gridX === gx && t.gridY === gy);
-        const onPath = isOnPath(gx, gy);
-        if (!hasTower && !onPath) {
+        const onPath = pathGridLookup.has(`${gx},${gy}`);
+        if (!hasTower && !onPath && gx >= 0 && gx < COLS && gy >= 0 && gy < ROWS) {
           ctx.fillStyle = 'rgba(0, 230, 118, 0.2)';
           ctx.fillRect(gx * GRID_SIZE, gy * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+          ctx.strokeStyle = 'rgba(0, 230, 118, 0.5)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([]);
+          ctx.strokeRect(gx * GRID_SIZE + 1, gy * GRID_SIZE + 1, GRID_SIZE - 2, GRID_SIZE - 2);
         } else if (hasTower) {
           ctx.fillStyle = 'rgba(233, 69, 96, 0.2)';
           ctx.fillRect(gx * GRID_SIZE, gy * GRID_SIZE, GRID_SIZE, GRID_SIZE);
@@ -529,7 +591,7 @@ export const GameMap: React.FC = () => {
 
     animationId = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animationId);
-  }, [towers, enemies, projectiles, effects, hitParticles, hoveredCell]);
+  }, [towers, enemies, projectiles, effects, hitParticles, hoveredCell, pathGridLookup]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -552,13 +614,18 @@ export const GameMap: React.FC = () => {
       return;
     }
 
-    if (isOnPath(gridX, gridY)) {
+    if (gridX < 0 || gridX >= COLS || gridY < 0 || gridY >= ROWS) {
+      clearSelection();
+      return;
+    }
+
+    if (pathGridLookup.has(`${gridX},${gridY}`)) {
       clearSelection();
       return;
     }
 
     const hasTower = towers.some((t) => t.gridX === gridX && t.gridY === gridY);
-    if (!hasTower && gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
+    if (!hasTower) {
       selectGridCell(gridX, gridY);
     } else {
       clearSelection();
@@ -577,7 +644,9 @@ export const GameMap: React.FC = () => {
     const gridY = Math.floor(y / GRID_SIZE);
 
     if (gridX >= 0 && gridX < COLS && gridY >= 0 && gridY < ROWS) {
-      setHoveredCell({ x: gridX, y: gridY });
+      if (!hoveredCell || hoveredCell.x !== gridX || hoveredCell.y !== gridY) {
+        setHoveredCell({ x: gridX, y: gridY });
+      }
     } else {
       setHoveredCell(null);
     }
@@ -621,6 +690,9 @@ export const GameMap: React.FC = () => {
           cursor: 'crosshair',
         }}
       />
+
+      <EntryMarker />
+      <ExitMarker />
 
       {enemies.map((enemy) => (
         <div
@@ -675,3 +747,5 @@ export const GameMap: React.FC = () => {
     </div>
   );
 };
+
+void isOnPath;
