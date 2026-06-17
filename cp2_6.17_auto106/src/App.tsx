@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { create } from 'zustand';
+import { Loader2 } from 'lucide-react';
 import type { Language, Snippet } from '@/types';
 import { EditorPanel } from '@/modules/editor/EditorPanel';
 import { PreviewPanel } from '@/modules/editor/PreviewPanel';
@@ -57,25 +58,38 @@ const useStore = create<CodeCanvasState>((set) => ({
   setIsMobile: (isMobile) => set({ isMobile }),
 }));
 
-function Toast({ message }: { message: string }) {
+interface ToastItem {
+  id: number;
+  message: string;
+}
+
+let toastIdCounter = 0;
+
+function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '16px',
-        right: '16px',
-        backgroundColor: '#2ECC71',
-        color: '#FFFFFF',
-        fontSize: '12px',
-        padding: '8px 16px',
-        borderRadius: '6px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        zIndex: 10000,
-        animation: 'toastIn 0.3s ease forwards',
-      }}
-    >
-      {message}
-    </div>
+    <>
+      {toasts.map((toast, index) => (
+        <div
+          key={toast.id}
+          style={{
+            position: 'fixed',
+            top: `${16 + index * 44}px`,
+            right: '16px',
+            backgroundColor: '#2ECC71',
+            color: '#FFFFFF',
+            fontSize: '12px',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            zIndex: 10000,
+            animation: 'toastIn 0.3s ease forwards',
+            transition: 'top 0.3s ease',
+          }}
+        >
+          {toast.message}
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -274,10 +288,9 @@ function ResizableDivider({
 export default function App() {
   const store = useStore();
   const [saveModalOpen, setSaveModalOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [splitRatio, setSplitRatio] = useState(0.5);
   const mainRef = useRef<HTMLDivElement>(null);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     store.loadSnippets();
@@ -297,9 +310,11 @@ export default function App() {
   }, []);
 
   const showToast = useCallback((message: string) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToastMessage(message);
-    toastTimerRef.current = setTimeout(() => setToastMessage(null), 2000);
+    const id = ++toastIdCounter;
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 2000);
   }, []);
 
   const handleRun = useCallback(async () => {
@@ -505,24 +520,66 @@ export default function App() {
             CodeCanvas
           </div>
 
-          <select
-            value={store.language}
-            onChange={(e) => handleLanguageChange(e.target.value as Language)}
+          <div
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0',
               backgroundColor: '#2D2D3F',
-              color: '#E0E0F0',
-              border: '1px solid #4A4A6E',
               borderRadius: '6px',
-              padding: '4px 12px',
-              fontSize: '13px',
-              cursor: 'pointer',
-              outline: 'none',
-              transition: 'border-color 0.2s ease',
+              border: '1px solid #4A4A6E',
+              overflow: 'hidden',
             }}
           >
-            <option value="python">Python</option>
-            <option value="javascript">JavaScript</option>
-          </select>
+            {(['python', 'javascript'] as const).map((lang) => {
+              const isActive = store.language === lang;
+              return (
+                <button
+                  key={lang}
+                  onClick={() => handleLanguageChange(lang)}
+                  style={{
+                    backgroundColor: isActive ? '#6C63FF' : 'transparent',
+                    color: isActive ? '#FFFFFF' : '#A0A0C0',
+                    border: 'none',
+                    borderBottom: isActive ? '2px solid #FFFFFF' : '2px solid transparent',
+                    padding: '6px 14px',
+                    fontSize: '13px',
+                    fontWeight: isActive ? 600 : 400,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.backgroundColor = '#3A3A5C';
+                      e.currentTarget.style.color = '#E0E0F0';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#A0A0C0';
+                    }
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: isActive
+                        ? (lang === 'python' ? '#FFD93D' : '#FF6B6B')
+                        : '#6A6A8E',
+                    }}
+                  />
+                  {lang === 'python' ? 'Python' : 'JavaScript'}
+                </button>
+              );
+            })}
+          </div>
 
           <div style={{ flex: 1 }} />
 
@@ -635,16 +692,9 @@ export default function App() {
           >
             {store.isRunning ? (
               <>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: '14px',
-                    height: '14px',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    borderTopColor: '#FFFFFF',
-                    borderRadius: '50%',
-                    animation: 'spin 0.6s linear infinite',
-                  }}
+                <Loader2
+                  size={14}
+                  style={{ animation: 'spin 0.6s linear infinite' }}
                 />
                 运行中
               </>
@@ -706,7 +756,7 @@ export default function App() {
         />
       )}
 
-      {toastMessage && <Toast message={toastMessage} />}
+      {toasts.length > 0 && <ToastContainer toasts={toasts} />}
 
       <style>{`
         @keyframes spin {

@@ -62,7 +62,13 @@ export function PreviewPanel({ output, isError, isRunning }: PreviewPanelProps) 
       }}
     >
       {showPlaceholder && !isRunning && (
-        <span style={{ color: '#6A6A8E', fontStyle: 'italic' }}>
+        <span
+          style={{
+            color: '#6A6A8E',
+            fontStyle: 'italic',
+            animation: 'placeholderFadeIn 0.5s ease forwards',
+          }}
+        >
           请运行代码
         </span>
       )}
@@ -84,6 +90,10 @@ export function PreviewPanel({ output, isError, isRunning }: PreviewPanelProps) 
         @keyframes blink {
           0%, 50% { opacity: 1; }
           51%, 100% { opacity: 0; }
+        }
+        @keyframes placeholderFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>

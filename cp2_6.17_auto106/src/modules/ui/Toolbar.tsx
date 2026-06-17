@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
+import type { Language } from '@/types';
 
-interface ToastState {
+interface ToastItem {
+  id: number;
   message: string;
-  visible: boolean;
 }
 
+let toolbarToastIdCounter = 0;
+
 interface ToolbarProps {
-  language: 'python' | 'javascript';
+  language: Language;
   lastSavedTime: string | null;
   isRunning: boolean;
   onRun: () => void;
   onSave: () => void;
-  onLanguageChange: (lang: 'python' | 'javascript') => void;
+  onLanguageChange: (lang: Language) => void;
   onToggleSidebar: () => void;
   isMobile: boolean;
 }
@@ -26,24 +30,17 @@ export function Toolbar({
   onToggleSidebar,
   isMobile,
 }: ToolbarProps) {
-  const [toast, setToast] = useState<ToastState>({ message: '', visible: false });
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    };
+    return () => {};
   }, []);
 
-  const handleRun = () => {
-    onRun();
-  };
-
   const showToast = (message: string) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast({ message, visible: true });
-    toastTimerRef.current = setTimeout(() => {
-      setToast((prev) => ({ ...prev, visible: false }));
+    const id = ++toolbarToastIdCounter;
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 2000);
   };
 
@@ -80,13 +77,7 @@ export function Toolbar({
               alignItems: 'center',
             }}
           >
-            <svg
-              width="30"
-              height="30"
-              viewBox="0 0 30 30"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
               <rect x="6" y="7" width="18" height="2" rx="1" fill="#A0A0C0" />
               <rect x="6" y="14" width="18" height="2" rx="1" fill="#A0A0C0" />
               <rect x="6" y="21" width="18" height="2" rx="1" fill="#A0A0C0" />
@@ -94,25 +85,66 @@ export function Toolbar({
           </button>
         )}
 
-        <select
-          value={language}
-          onChange={(e) => onLanguageChange(e.target.value as 'python' | 'javascript')}
+        <div
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0',
             backgroundColor: '#2D2D3F',
-            color: '#E0E0F0',
-            border: '1px solid #4A4A6E',
             borderRadius: '6px',
-            padding: '4px 12px',
-            fontSize: '13px',
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-            outline: 'none',
-            transition: 'border-color 0.2s ease',
+            border: '1px solid #4A4A6E',
+            overflow: 'hidden',
           }}
         >
-          <option value="python">Python</option>
-          <option value="javascript">JavaScript</option>
-        </select>
+          {(['python', 'javascript'] as const).map((lang) => {
+            const isActive = language === lang;
+            return (
+              <button
+                key={lang}
+                onClick={() => onLanguageChange(lang)}
+                style={{
+                  backgroundColor: isActive ? '#6C63FF' : 'transparent',
+                  color: isActive ? '#FFFFFF' : '#A0A0C0',
+                  border: 'none',
+                  borderBottom: isActive ? '2px solid #FFFFFF' : '2px solid transparent',
+                  padding: '6px 14px',
+                  fontSize: '13px',
+                  fontWeight: isActive ? 600 : 400,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.backgroundColor = '#3A3A5C';
+                    e.currentTarget.style.color = '#E0E0F0';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#A0A0C0';
+                  }
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: isActive
+                      ? (lang === 'python' ? '#FFD93D' : '#FF6B6B')
+                      : '#6A6A8E',
+                  }}
+                />
+                {lang === 'python' ? 'Python' : 'JavaScript'}
+              </button>
+            );
+          })}
+        </div>
 
         <div style={{ flex: 1 }} />
 
@@ -137,6 +169,7 @@ export function Toolbar({
             padding: '8px',
             display: 'flex',
             alignItems: 'center',
+            color: '#A0A0C0',
             transition: 'color 0.2s ease',
           }}
           title="保存代码片段"
@@ -152,7 +185,6 @@ export function Toolbar({
             height="20"
             viewBox="0 0 20 20"
             fill="none"
-            xmlns="http://www.w3.org/2000/svg"
             style={{ color: 'currentColor' }}
           >
             <path
@@ -180,7 +212,10 @@ export function Toolbar({
         </button>
 
         <button
-          onClick={handleRun}
+          onClick={() => {
+            onRun();
+            showToast('运行中...');
+          }}
           disabled={isRunning}
           style={{
             backgroundColor: isRunning ? '#5A52D5' : '#6C63FF',
@@ -222,16 +257,9 @@ export function Toolbar({
         >
           {isRunning ? (
             <>
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: '14px',
-                  height: '14px',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  borderTopColor: '#FFFFFF',
-                  borderRadius: '50%',
-                  animation: 'spin 0.3s linear infinite',
-                }}
+              <Loader2
+                size={14}
+                style={{ animation: 'spin 0.6s linear infinite' }}
               />
               运行中
             </>
@@ -241,11 +269,12 @@ export function Toolbar({
         </button>
       </div>
 
-      {toast.visible && (
+      {toasts.map((toast, index) => (
         <div
+          key={toast.id}
           style={{
             position: 'fixed',
-            top: '16px',
+            top: `${16 + index * 44}px`,
             right: '16px',
             backgroundColor: '#2ECC71',
             color: '#FFFFFF',
@@ -254,65 +283,23 @@ export function Toolbar({
             borderRadius: '6px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
             zIndex: 10000,
-            animation: 'fadeInOut 2s ease forwards',
+            animation: 'toastIn 0.3s ease forwards',
+            transition: 'top 0.3s ease',
           }}
         >
           {toast.message}
         </div>
-      )}
+      ))}
 
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
-        @keyframes fadeInOut {
-          0% { opacity: 0; transform: translateY(-10px); }
-          15% { opacity: 1; transform: translateY(0); }
-          85% { opacity: 1; transform: translateY(0); }
-          100% { opacity: 0; transform: translateY(-10px); }
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </>
   );
-}
-
-export function useToast() {
-  const [toast, setToast] = useState<ToastState>({ message: '', visible: false });
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
-
-  const showToast = (message: string) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setToast({ message, visible: true });
-    timerRef.current = setTimeout(() => {
-      setToast((prev) => ({ ...prev, visible: false }));
-    }, 2000);
-  };
-
-  const ToastComponent = toast.visible ? (
-    <div
-      style={{
-        position: 'fixed',
-        top: '16px',
-        right: '16px',
-        backgroundColor: '#2ECC71',
-        color: '#FFFFFF',
-        fontSize: '12px',
-        padding: '8px 16px',
-        borderRadius: '6px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        zIndex: 10000,
-        animation: 'fadeInOut 2s ease forwards',
-      }}
-    >
-      {toast.message}
-    </div>
-  ) : null;
-
-  return { showToast, ToastComponent };
 }
