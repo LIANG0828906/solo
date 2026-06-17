@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { PortfolioItem, BlogPost, Message } from '@/types';
+import type { PortfolioItem, BlogPost, Message, AppStats } from '@/types';
 import { computeStats } from '@/utils/stats';
 
 const STORAGE_KEYS = {
@@ -328,6 +328,7 @@ interface AppState {
   theme: 'light' | 'dark';
   sidebarOpen: boolean;
   initialized: boolean;
+  stats: AppStats;
   init: () => void;
   addPortfolioItem: (item: Omit<PortfolioItem, 'id'>) => void;
   addBlogPost: (post: Omit<BlogPost, 'id'>) => void;
@@ -337,7 +338,6 @@ interface AppState {
   toggleTheme: () => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
-  computeStats: () => ReturnType<typeof computeStats>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -347,6 +347,11 @@ export const useStore = create<AppState>((set, get) => ({
   theme: 'light',
   sidebarOpen: false,
   initialized: false,
+  stats: {
+    monthlyPosts: [],
+    monthlyMessages: [],
+    techStackFreq: [],
+  },
 
   init: () => {
     const state = get();
@@ -355,21 +360,30 @@ export const useStore = create<AppState>((set, get) => ({
     const blog = loadFromStorage<BlogPost[]>(STORAGE_KEYS.blog, SEED_BLOG);
     const messages = loadFromStorage<Message[]>(STORAGE_KEYS.messages, SEED_MESSAGES);
     const theme = loadFromStorage<'light' | 'dark'>(STORAGE_KEYS.theme, 'light');
-    set({ portfolio, blog, messages, theme, initialized: true });
+    const stats = computeStats(blog, messages, portfolio);
+    set({ portfolio, blog, messages, theme, initialized: true, stats });
   },
 
   addPortfolioItem: (item) => {
     const newItem: PortfolioItem = { ...item, id: uuidv4() };
-    const portfolio = [...get().portfolio, newItem];
-    set({ portfolio });
-    saveToStorage(STORAGE_KEYS.portfolio, portfolio);
+    const { portfolio, blog, messages } = get();
+    const next = [...portfolio, newItem];
+    set({
+      portfolio: next,
+      stats: computeStats(blog, messages, next),
+    });
+    saveToStorage(STORAGE_KEYS.portfolio, next);
   },
 
   addBlogPost: (post) => {
     const newPost: BlogPost = { ...post, id: uuidv4() };
-    const blog = [...get().blog, newPost];
-    set({ blog });
-    saveToStorage(STORAGE_KEYS.blog, blog);
+    const { portfolio, blog, messages } = get();
+    const next = [...blog, newPost];
+    set({
+      blog: next,
+      stats: computeStats(next, messages, portfolio),
+    });
+    saveToStorage(STORAGE_KEYS.blog, next);
   },
 
   addMessage: (msg) => {
@@ -379,23 +393,35 @@ export const useStore = create<AppState>((set, get) => ({
       createdAt: new Date().toISOString(),
       isRead: false,
     };
-    const messages = [...get().messages, newMsg];
-    set({ messages });
-    saveToStorage(STORAGE_KEYS.messages, messages);
+    const { portfolio, blog, messages } = get();
+    const next = [...messages, newMsg];
+    set({
+      messages: next,
+      stats: computeStats(blog, next, portfolio),
+    });
+    saveToStorage(STORAGE_KEYS.messages, next);
   },
 
   markMessageRead: (id) => {
-    const messages = get().messages.map((m) =>
+    const { portfolio, blog, messages } = get();
+    const next = messages.map((m) =>
       m.id === id ? { ...m, isRead: true } : m
     );
-    set({ messages });
-    saveToStorage(STORAGE_KEYS.messages, messages);
+    set({
+      messages: next,
+      stats: computeStats(blog, next, portfolio),
+    });
+    saveToStorage(STORAGE_KEYS.messages, next);
   },
 
   deleteMessage: (id) => {
-    const messages = get().messages.filter((m) => m.id !== id);
-    set({ messages });
-    saveToStorage(STORAGE_KEYS.messages, messages);
+    const { portfolio, blog, messages } = get();
+    const next = messages.filter((m) => m.id !== id);
+    set({
+      messages: next,
+      stats: computeStats(blog, next, portfolio),
+    });
+    saveToStorage(STORAGE_KEYS.messages, next);
   },
 
   toggleTheme: () => {
@@ -406,9 +432,4 @@ export const useStore = create<AppState>((set, get) => ({
 
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-
-  computeStats: () => {
-    const { blog, messages, portfolio } = get();
-    return computeStats(blog, messages, portfolio);
-  },
 }));

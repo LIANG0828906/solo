@@ -14,19 +14,32 @@ const BAR_COLORS = [
 ];
 
 interface TechStackChartProps {
-  techStack: string[];
+  techStack?: string[];
 }
 
-export default function TechStackChart({ techStack }: TechStackChartProps) {
+export default function TechStackChart({ techStack = [] }: TechStackChartProps) {
+  const safeStack = Array.isArray(techStack) ? techStack : [];
   const data = useMemo(() => {
-    const total = techStack.length;
-    return techStack.map((name, index) => ({
+    if (safeStack.length === 0) return [];
+    const total = safeStack.length;
+    return safeStack.map((name, index) => ({
       name: name.length > 6 ? name.slice(0, 6) : name,
       fullName: name,
       value: Math.max(1, Math.round((1 - index * 0.15) * 100)),
       percent: total > 0 ? Math.round(((total - index) / total) * 100) : 0,
     }));
-  }, [techStack]);
+  }, [safeStack]);
+
+  if (data.length === 0) {
+    return (
+      <div
+        className="w-full h-[100px] mt-2 flex items-center justify-center rounded text-xs"
+        style={{ color: 'var(--color-text-secondary)', backgroundColor: 'var(--color-sidebar)' }}
+      >
+        暂无技术栈数据
+      </div>
+    );
+  }
 
   const tooltipStyle = {
     backgroundColor: 'var(--color-card)',

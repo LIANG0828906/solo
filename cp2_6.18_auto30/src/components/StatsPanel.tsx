@@ -11,9 +11,9 @@ const PIE_COLORS = [
   '#FFB74D', '#64B5F6',
 ];
 
-function ChartCard({ title, children, delay = 0 }: { title: string; children: React.ReactNode; delay?: number }) {
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="card p-5 animate-fade-up" style={{ animationDelay: `${delay}ms` }}>
+    <div className="card p-5 animate-fade-up">
       <h3 className="font-display font-semibold text-base mb-4" style={{ color: 'var(--color-text)' }}>
         {title}
       </h3>
@@ -23,7 +23,7 @@ function ChartCard({ title, children, delay = 0 }: { title: string; children: Re
 }
 
 export default function StatsPanel() {
-  const stats = useStore((s) => s.computeStats());
+  const stats = useStore((s) => s.stats);
 
   const tooltipStyle = useMemo(() => ({
     backgroundColor: 'var(--color-card)',
@@ -42,7 +42,7 @@ export default function StatsPanel() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="每月博客发布数" delay={0}>
+        <ChartCard title="每月博客发布数">
           {stats.monthlyPosts.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={stats.monthlyPosts}>
@@ -57,7 +57,7 @@ export default function StatsPanel() {
           )}
         </ChartCard>
 
-        <ChartCard title="每月留言数" delay={100}>
+        <ChartCard title="每月留言数">
           {stats.monthlyMessages.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={stats.monthlyMessages}>
@@ -73,7 +73,7 @@ export default function StatsPanel() {
         </ChartCard>
       </div>
 
-      <ChartCard title="技术栈使用频次" delay={200}>
+      <ChartCard title="技术栈使用频次">
         {stats.techStackFreq.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>

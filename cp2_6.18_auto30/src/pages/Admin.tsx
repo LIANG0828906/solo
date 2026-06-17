@@ -7,9 +7,17 @@ type Tab = 'messages' | 'stats';
 
 export default function Admin() {
   const [tab, setTab] = useState<Tab>('messages');
+  const [statsMountKey, setStatsMountKey] = useState(0);
   const messages = useStore((s) => s.messages);
   const markMessageRead = useStore((s) => s.markMessageRead);
   const deleteMessage = useStore((s) => s.deleteMessage);
+
+  const handleTabSwitch = (next: Tab) => {
+    setTab(next);
+    if (next === 'stats') {
+      setStatsMountKey((k) => k + 1);
+    }
+  };
 
   const sorted = [...messages].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -22,7 +30,7 @@ export default function Admin() {
 
       <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setTab('messages')}
+          onClick={() => handleTabSwitch('messages')}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           style={{
             backgroundColor: tab === 'messages' ? '#6C63FF' : 'var(--color-sidebar)',
@@ -40,7 +48,7 @@ export default function Admin() {
           )}
         </button>
         <button
-          onClick={() => setTab('stats')}
+          onClick={() => handleTabSwitch('stats')}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           style={{
             backgroundColor: tab === 'stats' ? '#6C63FF' : 'var(--color-sidebar)',
@@ -119,7 +127,7 @@ export default function Admin() {
         </div>
       )}
 
-      {tab === 'stats' && <StatsPanel />}
+      {tab === 'stats' && <StatsPanel key={statsMountKey} />}
     </div>
   );
 }
