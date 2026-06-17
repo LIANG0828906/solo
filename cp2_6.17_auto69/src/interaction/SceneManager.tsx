@@ -200,7 +200,14 @@ export default function SceneManager() {
         addCollision({ position: collision.position, type: 'flash' })
         addCollision({ position: collision.position, type: 'marker' })
         incrementFusion()
-        addCollisionLog(collision.position)
+        const { x, y, z } = collision.position
+        const radial = Math.sqrt(x * x + y * y)
+        const r = Math.abs(radial - TORUS_MAJOR_RADIUS)
+        const theta = Math.atan2(y, x)
+        addCollisionLog({
+          position: collision.position,
+          torusPosition: { r, theta, z },
+        })
         collisionTimestampsRef.current.push(now)
       }
     }

@@ -19,10 +19,17 @@ export interface CollisionEvent {
   type: 'flash' | 'marker';
 }
 
+export interface TorusPosition {
+  r: number;
+  theta: number;
+  z: number;
+}
+
 export interface CollisionLogEntry {
   id: string;
   timestamp: number;
   position: { x: number; y: number; z: number };
+  torusPosition: TorusPosition;
 }
 
 export interface SimulationParams {
@@ -54,7 +61,7 @@ export interface SimulationState {
   setParams: (params: Partial<SimulationParams>) => void;
   setCamera: (camera: Partial<CameraState>) => void;
   addCollision: (event: Omit<CollisionEvent, 'id' | 'timestamp'>) => void;
-  addCollisionLog: (position: { x: number; y: number; z: number }) => void;
+  addCollisionLog: (data: { position: { x: number; y: number; z: number }; torusPosition: TorusPosition }) => void;
   incrementFusion: () => void;
   updateFusionRate: (rate: number) => void;
   addTemperatureSample: (temp: number) => void;
@@ -114,12 +121,13 @@ export const useSimulationStore = create<SimulationState>((set) => ({
     }));
   },
 
-  addCollisionLog: (position) => {
+  addCollisionLog: (data) => {
     const now = Date.now();
     const entry: CollisionLogEntry = {
       id: uuidv4(),
       timestamp: now,
-      position,
+      position: data.position,
+      torusPosition: data.torusPosition,
     };
     set((state) => {
       const logs = [...state.collisionLogs, entry];

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useSimulationStore } from '../store/store';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useSimulationStore, type TorusPosition } from '../store/store';
 
 interface SliderConfig {
   label: string;
@@ -13,9 +14,16 @@ interface SliderConfig {
   formatValue?: (value: number) => string;
 }
 
+type SampleRate = 100 | 50 | 30;
+
 const UIPanel: React.FC = () => {
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [isLogExpanded, setIsLogExpanded] = useState(true);
+  const [sampleRate, setSampleRate] = useState<SampleRate>(100);
+  const [fps, setFps] = useState(60);
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const frameCountRef = useRef(0);
+  const lastFpsCheckRef = useRef(performance.now());
 
   const { params, setParams, fusionRate, temperatureHistory, totalFusions, collisionLogs } =
     useSimulationStore();
@@ -24,7 +32,37 @@ const UIPanel: React.FC = () => {
     if (logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
-  }, [collisionLogs]);
+  }, [collisionLogs, isLogExpanded]);
+
+  useEffect(() => {
+    let animationId: number;
+
+    const monitorFps = () => {
+      frameCountRef.current++;
+      const now = performance.now();
+      const elapsed = now - lastFpsCheckRef.current;
+
+      if (elapsed >= 1000) {
+        const currentFps = Math.round((frameCountRef.current * 1000) / elapsed);
+        setFps(currentFps);
+        frameCountRef.current = 0;
+        lastFpsCheckRef.current = now;
+
+        if (currentFps < 30 && sampleRate > 30) {
+          setSampleRate(30);
+        } else if (currentFps < 45 && currentFps >= 30 && sampleRate > 50) {
+          setSampleRate(50);
+        } else if (currentFps >= 45 && sampleRate < 100) {
+          setSampleRate(100);
+        }
+      }
+
+      animationId = requestAnimationFrame(monitorFps);
+    };
+
+    animationId = requestAnimationFrame(monitorFps);
+    return () => cancelAnimationFrame(animationId);
+  }, [sampleRate]);
 
   const formatScientific = (value: number): string => {
     if (value >= 1e6) {
@@ -35,12 +73,17 @@ const UIPanel: React.FC = () => {
 
   const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
-    const ms = date.getMilliseconds().toString().padStart(3, '0');
-    return `${date.toLocaleTimeString('zh-CN', { hour12: false })}.${ms}`;
+    const pad = (n: number, len: number = 2) => n.toString().padStart(len, '0');
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const seconds = pad(date.getSeconds());
+    const ms = pad(date.getMilliseconds(), 3);
+    return `${hours}:${minutes}:${seconds}.${ms}`;
   };
 
-  const formatPosition = (pos: { x: number; y: number; z: number }): string => {
-    return `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`;
+  const formatTorusPosition = (pos: TorusPosition): string => {
+    const thetaDeg = ((pos.theta * 180) / Math.PI).toFixed(0);
+    return `R${pos.r.toFixed(2)} θ${thetaDeg}° Z${pos.z.toFixed(2)}`;
   };
 
   const sliders: SliderConfig[] = [
@@ -121,7 +164,9 @@ const UIPanel: React.FC = () => {
   };
 
   const chartData = useMemo(() => {
-    const data = temperatureHistory.slice(-100);
+    const step = Math.ceil(100 / sampleRate);
+    const data = temperatureHistory.slice(-100).filter((_, i) => i % step === 0);
+
     if (data.length === 0) return { points: '', area: '', maxTemp: 0, minTemp: 0, avgTemp: 0 };
 
     const maxTemp = Math.max(...data);
@@ -144,7 +189,9 @@ const UIPanel: React.FC = () => {
     const areaPoints = `${padding},${height - padding} ${points} ${width - padding},${height - padding}`;
 
     return { points, area: areaPoints, maxTemp, minTemp, avgTemp };
-  }, [temperatureHistory]);
+  }, [temperatureHistory, sampleRate]);
+
+  const logHeight = isLogExpanded ? '240px' : '60px';
 
   return (
     <div className="fixed inset-0 pointer-events-none">
@@ -190,83 +237,105 @@ const UIPanel: React.FC = () => {
 
       <div className="absolute bottom-4 left-4 pointer-events-auto">
         <div
-          className="rounded-lg border-2 overflow-hidden animate-border-pulse"
+          className="breathing-border overflow-hidden"
           style={{
             width: '320px',
-            height: '260px',
-            backgroundColor: '#0D1117',
           }}
         >
-          <div className="p-4" style={{ height: '200px' }}>
-            <div className="mb-3">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-400 text-xs uppercase tracking-wider">聚变反应速率</span>
-                <span className="text-cyan text-xs font-mono">{fusionRate.toFixed(2)} /s</span>
-              </div>
-              <div className="w-[280px] h-3 bg-gray-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-100"
-                  style={{
-                    width: `${Math.min(fusionRate * 10, 100)}%`,
-                    background: 'linear-gradient(to right, #00E5FF, #FF3366)',
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="mb-3">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-400 text-xs uppercase tracking-wider">等离子体平均温度</span>
-                <span className="text-green text-xs font-mono">{formatScientific(chartData.avgTemp)} K</span>
-              </div>
-              <svg width="280" height="60" className="block">
-                <defs>
-                  <linearGradient id="tempGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#00FF88" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#00FF88" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                {chartData.area && (
-                  <polygon points={chartData.area} fill="url(#tempGradient)" opacity="0.15" />
-                )}
-                {chartData.points && (
-                  <polyline
-                    points={chartData.points}
-                    fill="none"
-                    stroke="#00FF88"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+          <div className="relative z-10">
+            <div className="p-4" style={{ height: '200px' }}>
+              <div className="mb-3">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-400 text-xs uppercase tracking-wider">聚变反应速率</span>
+                  <span className="text-cyan text-xs font-mono">{fusionRate.toFixed(2)} /s</span>
+                </div>
+                <div className="w-[280px] h-3 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-100"
+                    style={{
+                      width: `${Math.min(fusionRate * 10, 100)}%`,
+                      background: 'linear-gradient(to right, #00E5FF, #FF3366)',
+                    }}
                   />
-                )}
-              </svg>
-            </div>
+                </div>
+              </div>
 
-            <div>
-              <span className="text-gray-400 text-xs uppercase tracking-wider">累计聚变次数</span>
-              <div className="font-consolas text-[20px] font-bold text-white">
-                {totalFusions.toLocaleString()}
+              <div className="mb-3">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-400 text-xs uppercase tracking-wider">
+                    等离子体平均温度
+                    <span className="ml-2 text-gray-500">
+                      ({sampleRate}帧 {fps >= 45 ? '✓' : fps >= 30 ? '○' : '↓'} {fps}fps)
+                    </span>
+                  </span>
+                  <span className="text-green text-xs font-mono">{formatScientific(chartData.avgTemp)} K</span>
+                </div>
+                <svg width="280" height="60" className="block">
+                  <defs>
+                    <linearGradient id="tempGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#00FF88" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#00FF88" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {chartData.area && (
+                    <polygon points={chartData.area} fill="url(#tempGradient)" opacity="0.15" />
+                  )}
+                  {chartData.points && (
+                    <polyline
+                      points={chartData.points}
+                      fill="none"
+                      stroke="#00FF88"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  )}
+                </svg>
+              </div>
+
+              <div>
+                <span className="text-gray-400 text-xs uppercase tracking-wider">累计聚变次数</span>
+                <div className="font-consolas text-[20px] font-bold text-white">
+                  {totalFusions.toLocaleString()}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div
-            className="log-scrollbar overflow-y-auto"
-            ref={logContainerRef}
-            style={{
-              height: '60px',
-              backgroundColor: '#0A0E15',
-            }}
-          >
-            {collisionLogs.map((log) => (
-              <div
-                key={log.id}
-                className="font-consolas text-[12px] px-3 py-0.5 leading-5 truncate"
-                style={{ color: '#88CCFF' }}
+            <div className="flex items-center justify-between px-3 py-1" style={{ backgroundColor: '#0A0E15', borderTop: '1px solid #1a2332' }}>
+              <span className="text-gray-500 text-xs font-mono">碰撞日志 ({collisionLogs.length}/20)</span>
+              <button
+                onClick={() => setIsLogExpanded(!isLogExpanded)}
+                className="text-gray-400 hover:text-white transition-colors p-1"
+                title={isLogExpanded ? '收起' : '展开'}
               >
-                碰撞 [{formatTimestamp(log.timestamp)}] {formatPosition(log.position)}
-              </div>
-            ))}
+                {isLogExpanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+              </button>
+            </div>
+
+            <div
+              className="log-scrollbar overflow-y-auto transition-all duration-300 ease-out"
+              ref={logContainerRef}
+              style={{
+                height: logHeight,
+                backgroundColor: '#0A0E15',
+              }}
+            >
+              {collisionLogs.length === 0 ? (
+                <div className="font-consolas text-[12px] px-3 py-2 text-gray-600 italic">
+                  等待聚变碰撞事件...
+                </div>
+              ) : (
+                collisionLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="font-consolas text-[12px] px-3 py-0.5 leading-5"
+                    style={{ color: '#88CCFF' }}
+                  >
+                    碰撞 [{formatTimestamp(log.timestamp)}] {formatTorusPosition(log.torusPosition)}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

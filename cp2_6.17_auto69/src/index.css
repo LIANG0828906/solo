@@ -14,11 +14,42 @@
 
 @keyframes borderPulse {
   0%, 100% {
-    border-color: #00E5FF;
+    background-position: 0% 50%;
   }
   50% {
-    border-color: #00FF88;
+    background-position: 100% 50%;
   }
+}
+
+.breathing-border {
+  position: relative;
+  border-radius: 8px;
+  z-index: 0;
+}
+
+.breathing-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 10px;
+  background: linear-gradient(
+    90deg,
+    #00E5FF 0%,
+    #00FF88 50%,
+    #00E5FF 100%
+  );
+  background-size: 200% 200%;
+  animation: borderPulse 2s ease-in-out infinite;
+  z-index: -1;
+}
+
+.breathing-border::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: #0D1117;
+  z-index: -1;
 }
 
 input[type="range"] {
