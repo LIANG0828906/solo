@@ -7,8 +7,7 @@ class AssessmentEngine {
     if (this.initialized) return;
     this.initialized = true;
 
-    eventBridge.on('application', (data: unknown) => {
-      const appData = data as ApplicationData;
+    eventBridge.on('application', (appData) => {
       setTimeout(() => {
         const result = this.assess(appData);
         eventBridge.emit('result', result);

@@ -25,46 +25,70 @@ type ValidationStatus = 'untouched' | 'valid' | 'error';
 interface FieldState {
   status: ValidationStatus;
   message: string;
+  shakeKey: number;
 }
 
 const initialFieldStates: Record<keyof FormData, FieldState> = {
-  name: { status: 'untouched', message: '' },
-  idNumber: { status: 'untouched', message: '' },
-  phone: { status: 'untouched', message: '' },
-  companyName: { status: 'untouched', message: '' },
-  avgRevenue: { status: 'untouched', message: '' },
-  hasCollateral: { status: 'valid', message: '' },
+  name: { status: 'untouched', message: '', shakeKey: 0 },
+  idNumber: { status: 'untouched', message: '', shakeKey: 0 },
+  phone: { status: 'untouched', message: '', shakeKey: 0 },
+  companyName: { status: 'untouched', message: '', shakeKey: 0 },
+  avgRevenue: { status: 'untouched', message: '', shakeKey: 0 },
+  hasCollateral: { status: 'valid', message: '', shakeKey: 0 },
 };
 
-function validateField(field: keyof FormData, value: string): FieldState {
+function validateField(
+  field: keyof FormData,
+  value: string,
+  currentShakeKey: number
+): FieldState {
   switch (field) {
     case 'name':
-      if (!value.trim()) return { status: 'error', message: '请输入姓名' };
-      if (value.trim().length < 2) return { status: 'error', message: '姓名至少2个字符' };
-      return { status: 'valid', message: '' };
+      if (!value.trim())
+        return { status: 'error', message: '请输入姓名', shakeKey: currentShakeKey + 1 };
+      if (value.trim().length < 2)
+        return { status: 'error', message: '姓名至少2个字符', shakeKey: currentShakeKey + 1 };
+      return { status: 'valid', message: '', shakeKey: currentShakeKey };
     case 'idNumber':
-      if (!value.trim()) return { status: 'error', message: '请输入身份证号' };
+      if (!value.trim())
+        return { status: 'error', message: '请输入身份证号', shakeKey: currentShakeKey + 1 };
       if (!/^\d{17}[\dXx]$/.test(value.trim()))
-        return { status: 'error', message: '请输入18位有效身份证号' };
-      return { status: 'valid', message: '' };
+        return {
+          status: 'error',
+          message: '请输入18位有效身份证号',
+          shakeKey: currentShakeKey + 1,
+        };
+      return { status: 'valid', message: '', shakeKey: currentShakeKey };
     case 'phone':
-      if (!value.trim()) return { status: 'error', message: '请输入手机号' };
+      if (!value.trim())
+        return { status: 'error', message: '请输入手机号', shakeKey: currentShakeKey + 1 };
       if (!/^1\d{10}$/.test(value.trim()))
-        return { status: 'error', message: '请输入11位有效手机号' };
-      return { status: 'valid', message: '' };
+        return {
+          status: 'error',
+          message: '请输入11位有效手机号',
+          shakeKey: currentShakeKey + 1,
+        };
+      return { status: 'valid', message: '', shakeKey: currentShakeKey };
     case 'companyName':
-      if (!value.trim()) return { status: 'error', message: '请输入公司名称' };
-      return { status: 'valid', message: '' };
+      if (!value.trim())
+        return { status: 'error', message: '请输入公司名称', shakeKey: currentShakeKey + 1 };
+      return { status: 'valid', message: '', shakeKey: currentShakeKey };
     case 'avgRevenue': {
-      if (!value.trim()) return { status: 'error', message: '请输入平均流水' };
+      if (!value.trim())
+        return { status: 'error', message: '请输入平均流水', shakeKey: currentShakeKey + 1 };
       const num = parseFloat(value);
-      if (isNaN(num) || num <= 0) return { status: 'error', message: '请输入有效的正数' };
-      return { status: 'valid', message: '' };
+      if (isNaN(num) || num <= 0)
+        return {
+          status: 'error',
+          message: '请输入有效的正数',
+          shakeKey: currentShakeKey + 1,
+        };
+      return { status: 'valid', message: '', shakeKey: currentShakeKey };
     }
     case 'hasCollateral':
-      return { status: 'valid', message: '' };
+      return { status: 'valid', message: '', shakeKey: currentShakeKey };
     default:
-      return { status: 'untouched', message: '' };
+      return { status: 'untouched', message: '', shakeKey: currentShakeKey };
   }
 }
 
@@ -94,15 +118,16 @@ export function ApplicationForm() {
   const handleFieldChange = useCallback((field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setFieldStates((prev) => {
-      if (prev[field].status === 'untouched') return prev;
-      const result = validateField(field, value);
+      const result = validateField(field, value, prev[field].shakeKey);
       return { ...prev, [field]: result };
     });
   }, []);
 
   const handleFieldBlur = useCallback((field: keyof FormData) => {
-    const result = validateField(field, formData[field]);
-    setFieldStates((prev) => ({ ...prev, [field]: result }));
+    setFieldStates((prev) => {
+      const result = validateField(field, formData[field], prev[field].shakeKey);
+      return { ...prev, [field]: result };
+    });
   }, [formData]);
 
   const progress = useMemo(() => {
@@ -126,7 +151,7 @@ export function ApplicationForm() {
       const newStates = { ...fieldStates };
       let allValid = true;
       for (const key of Object.keys(formData) as (keyof FormData)[]) {
-        const result = validateField(key, formData[key]);
+        const result = validateField(key, formData[key], newStates[key].shakeKey);
         newStates[key] = result;
         if (result.status !== 'valid') allValid = false;
       }
@@ -166,6 +191,7 @@ export function ApplicationForm() {
                 </label>
                 <div className="input-wrapper">
                   <input
+                    key={`${key}-${fieldStates[key].shakeKey}`}
                     className={`form-input ${fieldStates[key].status === 'error' ? 'error' : ''} ${fieldStates[key].status === 'valid' ? 'valid' : ''}`}
                     type={type}
                     placeholder={placeholder}
@@ -179,9 +205,9 @@ export function ApplicationForm() {
                     </span>
                   )}
                 </div>
-                {fieldStates[key].status === 'error' && fieldStates[key].message && (
-                  <div className="error-message">{fieldStates[key].message}</div>
-                )}
+                <div className="error-message">
+                  {fieldStates[key].status === 'error' && fieldStates[key].message}
+                </div>
               </div>
             ))}
             <div className="form-group">

@@ -13,6 +13,11 @@ export interface AssessmentResult {
   riskLevel: 'low' | 'medium' | 'high';
 }
 
+interface EventMap {
+  application: ApplicationData;
+  result: AssessmentResult;
+}
+
 class EventBridge {
   private target: EventTarget;
 
@@ -20,13 +25,16 @@ class EventBridge {
     this.target = new EventTarget();
   }
 
-  emit(event: string, detail?: unknown): void {
-    this.target.dispatchEvent(new CustomEvent(event, { detail }));
+  emit<K extends keyof EventMap>(event: K, detail: EventMap[K]): void {
+    this.target.dispatchEvent(new CustomEvent<EventMap[K]>(event, { detail }));
   }
 
-  on(event: string, callback: (detail?: unknown) => void): () => void {
+  on<K extends keyof EventMap>(
+    event: K,
+    callback: (detail: EventMap[K]) => void
+  ): () => void {
     const handler = (e: Event) => {
-      callback((e as CustomEvent).detail);
+      callback((e as CustomEvent<EventMap[K]>).detail);
     };
     this.target.addEventListener(event, handler);
     return () => this.target.removeEventListener(event, handler);

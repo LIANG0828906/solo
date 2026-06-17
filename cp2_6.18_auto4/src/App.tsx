@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { eventBridge, AssessmentResult } from './EventBridge';
+import { eventBridge } from './EventBridge';
 import { useAppStore } from './store';
 import { ApplicationForm } from './application/ApplicationForm';
 import { ResultDashboard } from './result/ResultDashboard';
@@ -62,8 +62,7 @@ export default function App() {
   const setCurrentPage = useAppStore((s) => s.setCurrentPage);
 
   useEffect(() => {
-    const unsubscribe = eventBridge.on('result', (data: unknown) => {
-      const result = data as AssessmentResult;
+    const unsubscribe = eventBridge.on('result', (result) => {
       setAssessmentResult(result);
       setCurrentPage('result');
     });

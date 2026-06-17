@@ -25,7 +25,6 @@ function formatAmount(amount: number): string {
 
 function Gauge({ score }: { score: number }) {
   const [animatedScore, setAnimatedScore] = useState(0);
-  const arcColor = getArcColor(score);
   const animatedArcColor = getArcColor(animatedScore);
 
   useEffect(() => {

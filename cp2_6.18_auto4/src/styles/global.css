@@ -200,12 +200,12 @@ body {
 }
 
 .form-section {
-  flex: 6;
+  width: 60%;
   min-width: 0;
 }
 
 .guide-section {
-  flex: 4;
+  width: 40%;
   min-width: 320px;
   background: var(--color-bg-light);
   border-radius: var(--radius-lg);
