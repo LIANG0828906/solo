@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { WeatherData, WeatherType } from '../weatherEngine';
 
 interface InfoCardProps {
@@ -26,6 +26,23 @@ const TOOLTIP_TEXTS: Record<string, string> = {
   风速: '单位时间内空气流动的速度',
   降水概率: '未来出现降雨或降雪的可能性'
 };
+
+const RING_SIZE = 40;
+const RING_STROKE_WIDTH = 4;
+const RING_RADIUS = (RING_SIZE - RING_STROKE_WIDTH) / 2;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+const WIND_SPEED_MAX = 50;
+
+function clampPercent(value: number, min = 0, max = 100): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function windSpeedToPercent(windSpeed: number): number {
+  if (windSpeed <= 0) return 0;
+  if (windSpeed >= WIND_SPEED_MAX) return 100;
+  return clampPercent((windSpeed / WIND_SPEED_MAX) * 100);
+}
 
 const InfoCard: React.FC<InfoCardProps> = ({ weather, useCelsius, visible }) => {
   const [fadeKey, setFadeKey] = useState(0);
@@ -79,21 +96,21 @@ const InfoCard: React.FC<InfoCardProps> = ({ weather, useCelsius, visible }) => 
         <RingDataItem
           label="湿度"
           value={`${displayWeather.humidity}%`}
-          percent={displayWeather.humidity}
+          percent={clampPercent(displayWeather.humidity)}
           type={type}
           tooltip={TOOLTIP_TEXTS['湿度']}
         />
         <RingDataItem
           label="风速"
           value={`${displayWeather.windSpeed} km/h`}
-          percent={Math.min(100, (displayWeather.windSpeed / 50) * 100)}
+          percent={windSpeedToPercent(displayWeather.windSpeed)}
           type={type}
           tooltip={TOOLTIP_TEXTS['风速']}
         />
         <RingDataItem
           label="降水概率"
           value={`${displayWeather.precipitationChance}%`}
-          percent={displayWeather.precipitationChance}
+          percent={clampPercent(displayWeather.precipitationChance)}
           type={type}
           tooltip={TOOLTIP_TEXTS['降水概率']}
         />
@@ -111,74 +128,143 @@ interface RingDataItemProps {
 }
 
 const RingDataItem: React.FC<RingDataItemProps> = ({ label, value, percent, type, tooltip }) => {
-  const [displayPercent, setDisplayPercent] = useState(0);
   const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipTimeoutRef = useRef<number | null>(null);
+  const isTouchInteractingRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const color = RING_COLORS[type];
+  const safePercent = clampPercent(percent);
+  const dashOffset = RING_CIRCUMFERENCE * (1 - safePercent / 100);
+
+  const clearTooltipTimer = () => {
+    if (tooltipTimeoutRef.current !== null) {
+      window.clearTimeout(tooltipTimeoutRef.current);
+      tooltipTimeoutRef.current = null;
+    }
+  };
 
   useEffect(() => {
-    let raf: number;
-    const start = performance.now();
-    const duration = 300;
-    const from = displayPercent;
-    const to = percent;
-    const animate = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setDisplayPercent(from + (to - from) * eased);
-      if (t < 1) raf = requestAnimationFrame(animate);
+    if (!tooltip || !showTooltip) return;
+    const handleGlobalClick = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowTooltip(false);
+      }
     };
-    raf = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [percent]);
+    document.addEventListener('click', handleGlobalClick, true);
+    document.addEventListener('touchstart', handleGlobalClick, true);
+    return () => {
+      document.removeEventListener('click', handleGlobalClick, true);
+      document.removeEventListener('touchstart', handleGlobalClick, true);
+    };
+  }, [tooltip, showTooltip]);
 
-  const color = RING_COLORS[type];
+  const hideTooltipWithDelay = () => {
+    clearTooltipTimer();
+    tooltipTimeoutRef.current = window.setTimeout(() => {
+      setShowTooltip(false);
+      tooltipTimeoutRef.current = null;
+    }, 150);
+  };
 
-  const ringSize = 40;
-  const strokeWidth = 4;
-  const radius = (ringSize - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference * (1 - displayPercent / 100);
+  const toggleTooltip = () => {
+    clearTooltipTimer();
+    setShowTooltip(prev => !prev);
+  };
+
+  const showTooltipNow = () => {
+    clearTooltipTimer();
+    if (tooltip) setShowTooltip(true);
+  };
+
+  const handleMouseEnter = () => {
+    if (isTouchInteractingRef.current) return;
+    showTooltipNow();
+  };
+
+  const handleMouseLeave = () => {
+    if (isTouchInteractingRef.current) return;
+    hideTooltipWithDelay();
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isTouchInteractingRef.current) {
+      isTouchInteractingRef.current = false;
+      return;
+    }
+    if (!tooltip) return;
+    e.stopPropagation();
+    toggleTooltip();
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!tooltip) return;
+    e.stopPropagation();
+    isTouchInteractingRef.current = true;
+    toggleTooltip();
+  };
 
   return (
     <div
+      ref={containerRef}
       className="ring-data-item"
-      onMouseEnter={() => tooltip && setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
+      onTouchStart={handleTouchStart}
+      role={tooltip ? 'button' : undefined}
+      tabIndex={tooltip ? 0 : undefined}
+      onKeyDown={e => {
+        if (!tooltip) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleTooltip();
+        }
+      }}
     >
       <span className="ring-data-label">{label}</span>
       <div className="ring-data-right">
         <span className="ring-data-value">{value}</span>
         <svg
-          width={ringSize}
-          height={ringSize}
+          width={RING_SIZE}
+          height={RING_SIZE}
           className="ring-progress"
-          viewBox={`0 0 ${ringSize} ${ringSize}`}
+          viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+          aria-hidden="true"
         >
           <circle
-            cx={ringSize / 2}
-            cy={ringSize / 2}
-            r={radius}
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
             fill="none"
             stroke="rgba(255,255,255,0.2)"
-            strokeWidth={strokeWidth}
+            strokeWidth={RING_STROKE_WIDTH}
           />
           <circle
-            cx={ringSize / 2}
-            cy={ringSize / 2}
-            r={radius}
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
             fill="none"
             stroke={color}
-            strokeWidth={strokeWidth}
+            strokeWidth={RING_STROKE_WIDTH}
             strokeLinecap="round"
-            strokeDasharray={circumference}
+            strokeDasharray={RING_CIRCUMFERENCE}
             strokeDashoffset={dashOffset}
-            transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
-            style={{ transition: 'stroke 0.3s ease' }}
+            transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+            className="ring-progress-fill"
           />
         </svg>
       </div>
       {tooltip && (
-        <div className={`data-tooltip ${showTooltip ? 'visible' : ''}`}>
+        <div
+          className="data-tooltip"
+          role="tooltip"
+          style={{
+            opacity: showTooltip ? 1 : 0,
+            transform: showTooltip
+              ? 'translateX(-50%) translateY(0)'
+              : 'translateX(-50%) translateY(4px)'
+          }}
+        >
           {tooltip}
         </div>
       )}
