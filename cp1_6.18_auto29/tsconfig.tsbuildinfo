@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/api/shortlinkapi.ts","./src/components/sidebar.tsx","./src/components/toolbar.tsx","./src/modules/export/exportmanager.ts","./src/modules/map/mapcontainer.tsx","./src/modules/map/markerform.tsx","./src/modules/planner/routeplanner.tsx","./src/stores/usemapstore.ts"],"errors":true,"version":"5.8.3"}
