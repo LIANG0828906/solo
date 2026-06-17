@@ -17,6 +17,7 @@ function ActivityCard({ activity, index }: { activity: Activity; index: number }
   }, [activity.id, getRegistrationCount])
 
   const progress = Math.min((registered / activity.maxParticipants) * 100, 100)
+  const progressRounded = Math.round(progress)
   const isFull = registered >= activity.maxParticipants
 
   return (
@@ -34,16 +35,17 @@ function ActivityCard({ activity, index }: { activity: Activity; index: number }
         animation: `fadeInUp 0.5s ease-out ${index * 0.1}s both`,
         display: 'flex',
         flexDirection: 'column',
+        boxShadow: '0px 0px 0px rgba(108, 99, 255, 0)',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = '#6C63FF'
         e.currentTarget.style.transform = 'translateY(-4px)'
-        e.currentTarget.style.boxShadow = '0 12px 32px rgba(108, 99, 255, 0.15)'
+        e.currentTarget.style.boxShadow = '0px 8px 24px rgba(108, 99, 255, 0.3)'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = '#3A3A5C'
         e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = 'none'
+        e.currentTarget.style.boxShadow = '0px 0px 0px rgba(108, 99, 255, 0)'
       }}
     >
       {activity.poster ? (
@@ -82,6 +84,12 @@ function ActivityCard({ activity, index }: { activity: Activity; index: number }
             fontWeight: 600,
             marginBottom: 12,
             lineHeight: 1.4,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            minHeight: 50,
           }}
         >
           {activity.title}
@@ -122,24 +130,38 @@ function ActivityCard({ activity, index }: { activity: Activity; index: number }
               {isFull && ' 已满'}
             </span>
           </div>
-          <div
-            style={{
-              width: '100%',
-              height: 6,
-              backgroundColor: '#3A3A5C',
-              borderRadius: 3,
-              overflow: 'hidden',
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div
               style={{
-                height: '100%',
-                width: `${progress}%`,
-                background: 'linear-gradient(90deg, #6C63FF 0%, #E94560 100%)',
+                flex: 1,
+                height: 6,
+                backgroundColor: '#3A3A5C',
                 borderRadius: 3,
-                transition: 'width 0.5s ease-out',
+                overflow: 'hidden',
               }}
-            />
+            >
+              <div
+                style={{
+                  height: '100%',
+                  width: `${progress}%`,
+                  background: 'linear-gradient(90deg, #6C63FF 0%, #E94560 100%)',
+                  borderRadius: 3,
+                  transition: 'width 0.5s ease-out',
+                }}
+              />
+            </div>
+            <span
+              style={{
+                color: '#B0B0C3',
+                fontSize: 12,
+                fontWeight: 500,
+                minWidth: 32,
+                textAlign: 'right',
+                flexShrink: 0,
+              }}
+            >
+              {progressRounded}%
+            </span>
           </div>
         </div>
       </div>
