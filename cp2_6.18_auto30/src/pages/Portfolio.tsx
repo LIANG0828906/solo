@@ -1,4 +1,5 @@
 import { useStore } from '@/store';
+import TechStackChart from '@/components/TechStackChart';
 
 export default function Portfolio() {
   const portfolio = useStore((s) => s.portfolio);
@@ -30,11 +31,7 @@ export default function Portfolio() {
                   <span key={tag} className="tag">{tag}</span>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-1">
-                {item.techStack.map((tech) => (
-                  <span key={tech} className="tech-tag text-xs">{tech}</span>
-                ))}
-              </div>
+              <TechStackChart techStack={item.techStack} />
               {item.link && (
                 <a
                   href={item.link}

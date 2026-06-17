@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Clock, ArrowRight } from 'lucide-react';
 import { useStore } from '@/store';
 import ReactMarkdown from 'react-markdown';
+import TechStackChart from '@/components/TechStackChart';
 
 const PROFILE_TAGLINE = `**Crafting digital experiences** with clean code and creative design. Passionate about *open source*, *developer tools*, and pushing the boundaries of web technology.`;
 
@@ -59,11 +60,7 @@ export default function Home() {
                     <span key={tag} className="tag">{tag}</span>
                   ))}
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {item.techStack.map((tech) => (
-                    <span key={tech} className="tech-tag text-xs">{tech}</span>
-                  ))}
-                </div>
+                <TechStackChart techStack={item.techStack} />
               </div>
             </div>
           ))}
