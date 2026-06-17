@@ -13,7 +13,7 @@ export class TerrainGenerator {
   public size: number;
   public gridSize: number;
   public brushRadius: number = 3;
-  public brushStrength: number = 0.3;
+  public brushStrength: number = 1.0;
   public textureIndex: number = 0;
 
   private geometry: THREE.PlaneGeometry;
@@ -500,7 +500,7 @@ export class TerrainGenerator {
   }
 
   public setBrushStrength(strength: number): void {
-    this.brushStrength = Math.max(0.05, Math.min(1, strength));
+    this.brushStrength = Math.max(0.1, Math.min(2.0, strength));
   }
 
   public dispose(): void {

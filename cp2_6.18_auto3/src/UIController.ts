@@ -18,6 +18,7 @@ export class UIController {
   private brushStrengthSlider?: HTMLInputElement;
   private brushRadiusValue?: HTMLSpanElement;
   private brushStrengthValue?: HTMLSpanElement;
+  private brushStrengthHeaderValue?: HTMLSpanElement;
   private textureSelect?: HTMLSelectElement;
 
   constructor(
@@ -45,6 +46,17 @@ export class UIController {
     sizeInfo.textContent = `地形尺寸：${this.terrainGenerator.size} × ${this.terrainGenerator.size} 格`;
     this.container.appendChild(sizeInfo);
 
+    const strengthInfo = document.createElement('div');
+    strengthInfo.className = 'panel-header';
+    strengthInfo.style.marginBottom = '16px';
+    strengthInfo.textContent = '笔刷强度：';
+    this.brushStrengthHeaderValue = document.createElement('span');
+    this.brushStrengthHeaderValue.textContent = this.terrainGenerator.brushStrength.toFixed(1) + 'x';
+    this.brushStrengthHeaderValue.style.color = '#6C63FF';
+    this.brushStrengthHeaderValue.style.fontWeight = '600';
+    strengthInfo.appendChild(this.brushStrengthHeaderValue);
+    this.container.appendChild(strengthInfo);
+
     const divider1 = document.createElement('div');
     divider1.className = 'section-divider';
     this.container.appendChild(divider1);
@@ -62,6 +74,13 @@ export class UIController {
     const divider3 = document.createElement('div');
     divider3.className = 'section-divider';
     this.container.appendChild(divider3);
+
+    const strengthSliderGroup = this.createStrengthSliderGroup();
+    this.container.appendChild(strengthSliderGroup);
+
+    const divider4 = document.createElement('div');
+    divider4.className = 'section-divider';
+    this.container.appendChild(divider4);
 
     const actionsGroup = this.createActionsGroup();
     this.container.appendChild(actionsGroup);
@@ -117,25 +136,41 @@ export class UIController {
     });
     group.appendChild(this.brushRadiusSlider);
 
+    return group;
+  }
+
+  private createStrengthSliderGroup(): HTMLElement {
+    const group = document.createElement('div');
+    group.className = 'control-group';
+
+    const label = document.createElement('div');
+    label.className = 'control-label';
+    label.textContent = '笔刷强度';
+    group.appendChild(label);
+
     const strengthContainer = document.createElement('div');
     strengthContainer.className = 'brush-indicator';
     strengthContainer.innerHTML = '<span>强度</span>';
     this.brushStrengthValue = document.createElement('span');
-    this.brushStrengthValue.textContent = this.terrainGenerator.brushStrength.toFixed(2);
+    this.brushStrengthValue.textContent = this.terrainGenerator.brushStrength.toFixed(1) + 'x';
     strengthContainer.appendChild(this.brushStrengthValue);
     group.appendChild(strengthContainer);
 
     this.brushStrengthSlider = document.createElement('input');
     this.brushStrengthSlider.type = 'range';
-    this.brushStrengthSlider.min = '0.05';
-    this.brushStrengthSlider.max = '1';
-    this.brushStrengthSlider.step = '0.05';
+    this.brushStrengthSlider.min = '0.1';
+    this.brushStrengthSlider.max = '2.0';
+    this.brushStrengthSlider.step = '0.1';
     this.brushStrengthSlider.value = this.terrainGenerator.brushStrength.toString();
     this.brushStrengthSlider.addEventListener('input', () => {
       const value = parseFloat(this.brushStrengthSlider!.value);
       this.callbacks.onBrushStrengthChange(value);
+      const displayText = value.toFixed(1) + 'x';
       if (this.brushStrengthValue) {
-        this.brushStrengthValue.textContent = value.toFixed(2);
+        this.brushStrengthValue.textContent = displayText;
+      }
+      if (this.brushStrengthHeaderValue) {
+        this.brushStrengthHeaderValue.textContent = displayText;
       }
     });
     group.appendChild(this.brushStrengthSlider);
@@ -230,11 +265,15 @@ export class UIController {
   }
 
   public updateBrushStrength(strength: number): void {
+    const displayText = strength.toFixed(1) + 'x';
     if (this.brushStrengthSlider) {
       this.brushStrengthSlider.value = strength.toString();
     }
     if (this.brushStrengthValue) {
-      this.brushStrengthValue.textContent = strength.toFixed(2);
+      this.brushStrengthValue.textContent = displayText;
+    }
+    if (this.brushStrengthHeaderValue) {
+      this.brushStrengthHeaderValue.textContent = displayText;
     }
   }
 }
