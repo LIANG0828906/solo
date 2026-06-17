@@ -15,6 +15,39 @@ export function formatRemainingTime(deadline: number): string {
   return `${seconds}秒`;
 }
 
+export interface CountdownData {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  isExpired: boolean;
+  isUrgent: boolean;
+  label: string;
+}
+
+export function getCountdown(deadline: number): CountdownData {
+  const now = Date.now();
+  const diff = deadline - now;
+  const isExpired = diff <= 0;
+  const isUrgent = !isExpired && diff < 60 * 60 * 1000;
+
+  const days = Math.floor(Math.max(0, diff) / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((Math.max(0, diff) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((Math.max(0, diff) % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((Math.max(0, diff) % (1000 * 60)) / 1000);
+
+  let label: string;
+  if (isExpired) {
+    label = '投票已结束';
+  } else if (days > 0) {
+    label = `${days}天 ${hours}小时 ${minutes}分 ${seconds}秒`;
+  } else {
+    label = `${hours}小时 ${minutes}分 ${seconds}秒`;
+  }
+
+  return { days, hours, minutes, seconds, isExpired, isUrgent, label };
+}
+
 export function formatDateTime(timestamp: number): string {
   const date = new Date(timestamp);
   const year = date.getFullYear();

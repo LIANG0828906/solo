@@ -1,6 +1,6 @@
-import { Check, Clock } from 'lucide-react';
+import { Check } from 'lucide-react';
 import type { VoteTopic } from '../types';
-import { formatRemainingTime } from '../utils/time';
+import { CountdownTimer } from './CountdownTimer';
 
 interface VoteCardProps {
   topic: VoteTopic;
@@ -120,22 +120,7 @@ export function VoteCard({ topic, hasVoted, onClick }: VoteCardProps) {
           borderTop: '1px solid var(--border-default)',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '12px',
-            color: isOngoing ? 'var(--accent-success)' : 'var(--accent-danger)',
-          }}
-        >
-          <Clock size={14} />
-          <span>
-            {isOngoing
-              ? `剩余 ${formatRemainingTime(topic.deadline)}`
-              : '已结束'}
-          </span>
-        </div>
+        <CountdownTimer deadline={topic.deadline} variant="card" />
 
         <div
           style={{

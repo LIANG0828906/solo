@@ -11,7 +11,8 @@ import {
 import { useVoteApi } from '../hooks/useVoteApi';
 import { BarChart } from './BarChart';
 import { PieChart } from './PieChart';
-import { formatRemainingTime, formatDateTime } from '../utils/time';
+import { CountdownTimer } from './CountdownTimer';
+import { formatDateTime } from '../utils/time';
 
 interface VoteDetailProps {
   topicId: string;
@@ -204,6 +205,8 @@ export function VoteDetail({ topicId, onBack }: VoteDetailProps) {
           width: '100%',
         }}
       >
+        <CountdownTimer deadline={topicMeta.deadline} variant="detail" />
+
         <div
           style={{
             backgroundColor: 'var(--bg-card)',
@@ -305,6 +308,7 @@ export function VoteDetail({ topicId, onBack }: VoteDetailProps) {
               borderTop: '1px solid var(--border-default)',
             }}
           >
+            <CountdownTimer deadline={topicMeta.deadline} variant="card" />
             <div
               style={{
                 display: 'flex',
@@ -322,9 +326,7 @@ export function VoteDetail({ topicId, onBack }: VoteDetailProps) {
                   color: 'var(--text-secondary)',
                 }}
               >
-                {isOngoing
-                  ? `剩余 ${formatRemainingTime(topicMeta.deadline)}`
-                  : `截止于 ${formatDateTime(topicMeta.deadline)}`}
+                截止于 {formatDateTime(topicMeta.deadline)}
               </span>
             </div>
             <div
