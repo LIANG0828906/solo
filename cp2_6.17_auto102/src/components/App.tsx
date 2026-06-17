@@ -15,6 +15,7 @@ interface AppState {
   expandedComments: Set<string>;
   likeAnimating: Set<string>;
   ripple: { x: number; y: number; id: number } | null;
+  newEntryIds: Set<string>;
 }
 
 interface AppActions {
@@ -29,6 +30,7 @@ interface AppActions {
   setShowFullContent: (entry: DiaryEntry | null) => void;
   toggleComments: (id: string) => void;
   setRipple: (ripple: { x: number; y: number; id: number } | null) => void;
+  clearNewEntry: (id: string) => void;
 }
 
 const useStore = create<AppState & AppActions>((set, get) => ({
@@ -43,6 +45,7 @@ const useStore = create<AppState & AppActions>((set, get) => ({
   expandedComments: new Set(),
   likeAnimating: new Set(),
   ripple: null,
+  newEntryIds: new Set(),
 
   init: async () => {
     await dataManager.init();
@@ -60,16 +63,27 @@ const useStore = create<AppState & AppActions>((set, get) => ({
   },
 
   loadMore: async () => {
-    const { loading, hasMore, page, selectedTags, entries } = get();
+    const { loading, hasMore, page, selectedTags, entries, newEntryIds } = get();
     if (loading || !hasMore) return;
     set({ loading: true });
     const nextPage = page + 1;
     const result = await dataManager.getDiaries(nextPage, selectedTags);
+    const newIds = new Set(newEntryIds);
+    result.entries.forEach(entry => newIds.add(entry.id));
     set({
       entries: [...entries, ...result.entries],
       hasMore: result.hasMore,
       page: nextPage,
-      loading: false
+      loading: false,
+      newEntryIds: newIds
+    });
+    result.entries.forEach(entry => {
+      setTimeout(() => {
+        const { newEntryIds: current } = get();
+        const next = new Set(current);
+        next.delete(entry.id);
+        set({ newEntryIds: next });
+      }, 500);
     });
   },
 
@@ -160,7 +174,14 @@ const useStore = create<AppState & AppActions>((set, get) => ({
     set({ expandedComments: next });
   },
 
-  setRipple: (ripple) => set({ ripple })
+  setRipple: (ripple) => set({ ripple }),
+
+  clearNewEntry: (id: string) => {
+    const { newEntryIds } = get();
+    const next = new Set(newEntryIds);
+    next.delete(id);
+    set({ newEntryIds: next });
+  }
 }));
 
 function formatRelativeTime(timestamp: number): string {
@@ -260,12 +281,17 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 12,
     padding: 20,
     border: '1px solid #2D2D4A',
-    transition: 'border-color 0.25s ease-out, transform 0.25s ease-out',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+    transition: 'border-color 0.25s ease-out, transform 0.25s ease-out, box-shadow 0.25s ease-out',
     cursor: 'pointer'
   },
   cardHover: {
     borderColor: '#6C63FF',
-    transform: 'translateY(-4px)'
+    transform: 'translateY(-4px)',
+    boxShadow: '0 4px 16px rgba(108, 99, 255, 0.3)'
+  },
+  cardEnter: {
+    animation: 'cardSlideIn 0.4s ease-out forwards'
   },
   cardHeader: {
     display: 'flex',
@@ -331,14 +357,14 @@ const styles: Record<string, React.CSSProperties> = {
   actions: {
     display: 'flex',
     alignItems: 'center',
-    gap: 16,
+    gap: 24,
     paddingTop: 12,
     borderTop: '1px solid #2D2D4A'
   },
   actionBtn: {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     background: 'none',
     border: 'none',
     cursor: 'pointer',
@@ -666,9 +692,9 @@ const FilterBar: React.FC = () => {
   );
 };
 
-const DiaryCard: React.FC<{ entry: DiaryEntry }> = ({ entry }) => {
+const DiaryCard: React.FC<{ entry: DiaryEntry; isNew?: boolean }> = ({ entry, isNew }) => {
   const [hovered, setHovered] = useState(false);
-  const { toggleLike, toggleComments, expandedComments, likeAnimating, setShowFullContent, addComment } = useStore();
+  const { toggleLike, toggleComments, expandedComments, likeAnimating, setShowFullContent, addComment, clearNewEntry } = useStore();
   const [commentText, setCommentText] = useState('');
   const isExpanded = expandedComments.has(entry.id);
   const isLikeAnimating = likeAnimating.has(entry.id);
@@ -698,9 +724,16 @@ const DiaryCard: React.FC<{ entry: DiaryEntry }> = ({ entry }) => {
     }
   };
 
+  const handleAnimationEnd = () => {
+    if (isNew) {
+      clearNewEntry(entry.id);
+    }
+  };
+
   const cardStyle: React.CSSProperties = {
     ...styles.card,
-    ...(hovered ? styles.cardHover : {})
+    ...(hovered ? styles.cardHover : {}),
+    ...(isNew ? styles.cardEnter : {})
   };
 
   const likeStyle: React.CSSProperties = {
@@ -716,6 +749,7 @@ const DiaryCard: React.FC<{ entry: DiaryEntry }> = ({ entry }) => {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={handleReadMore}
+      onAnimationEnd={handleAnimationEnd}
     >
       <div style={styles.cardHeader}>
         <img src={entry.avatar} alt={entry.nickname} style={styles.avatar} />
@@ -790,7 +824,7 @@ const DiaryCard: React.FC<{ entry: DiaryEntry }> = ({ entry }) => {
   );
 };
 
-const Masonry: React.FC<{ entries: DiaryEntry[] }> = ({ entries }) => {
+const Masonry: React.FC<{ entries: DiaryEntry[]; newEntryIds: Set<string> }> = ({ entries, newEntryIds }) => {
   const [columns, setColumns] = useState(3);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -845,7 +879,7 @@ const Masonry: React.FC<{ entries: DiaryEntry[] }> = ({ entries }) => {
       {columnItems.map((col, colIndex) => (
         <div key={colIndex} style={{ ...styles.masonryColumn, flex: 1 }}>
           {col.map(entry => (
-            <DiaryCard key={entry.id} entry={entry} />
+            <DiaryCard key={entry.id} entry={entry} isNew={newEntryIds.has(entry.id)} />
           ))}
         </div>
       ))}
@@ -1081,7 +1115,7 @@ const LoadMoreSpinner: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const { init, loadMore, entries, loading } = useStore();
+  const { init, loadMore, entries, loading, newEntryIds } = useStore();
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const initializedRef = useRef(false);
 
@@ -1119,7 +1153,7 @@ const App: React.FC = () => {
       </div>
 
       <div style={styles.masonryContainer}>
-        <Masonry entries={entries} />
+        <Masonry entries={entries} newEntryIds={newEntryIds} />
         <div ref={loadMoreRef}>
           <LoadMoreSpinner />
         </div>
@@ -1156,6 +1190,16 @@ const App: React.FC = () => {
           to {
             transform: scale(4);
             opacity: 0;
+          }
+        }
+        @keyframes cardSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
         * {
