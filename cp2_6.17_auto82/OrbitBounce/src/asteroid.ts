@@ -11,6 +11,8 @@ export class Asteroid {
   trail: { x: number; y: number }[] = [];
   alive: boolean = true;
   orbitRadius: number;
+  private trailDirty: boolean = true;
+  private lastDrawnTrailIndex: number = 0;
 
   constructor(
     starX: number,
@@ -33,7 +35,7 @@ export class Asteroid {
     this.vy = Math.cos(angle) * speed * direction;
   }
 
-  update(dt: number, starX: number, starY: number): void {
+  update(dt: number, starX: number, starY: number, pulses?: { x: number; y: number; radius: number; maxRadius: number }[]): void {
     if (!this.alive) return;
 
     const dx = starX - this.x;
@@ -48,13 +50,28 @@ export class Asteroid {
       this.vy += (dy / dist) * cappedGravity;
     }
 
+    if (pulses) {
+      for (const pulse of pulses) {
+        const pdx = pulse.x - this.x;
+        const pdy = pulse.y - this.y;
+        const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
+        if (pdist < pulse.radius && pdist > 0) {
+          const accel = Math.min(3, 600 / pdist);
+          this.vx += (pdx / pdist) * accel * 0.3;
+          this.vy += (pdy / pdist) * accel * 0.3;
+        }
+      }
+    }
+
     this.x += this.vx * dt * 60;
     this.y += this.vy * dt * 60;
 
     this.trail.push({ x: this.x, y: this.y });
     if (this.trail.length > TRAIL_LENGTH) {
       this.trail.shift();
+      this.lastDrawnTrailIndex = Math.max(0, this.lastDrawnTrailIndex - 1);
     }
+    this.trailDirty = true;
   }
 
   applyPulse(px: number, py: number): void {
@@ -74,12 +91,23 @@ export class Asteroid {
     if (this.trail.length > 1) {
       ctx.strokeStyle = 'rgba(255,255,255,0.2)';
       ctx.lineWidth = 1;
+      ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(this.trail[0].x, this.trail[0].y);
-      for (let i = 1; i < this.trail.length; i++) {
-        ctx.lineTo(this.trail[i].x, this.trail[i].y);
+      const startIdx = Math.max(0, this.lastDrawnTrailIndex);
+      if (this.trailDirty || startIdx === 0) {
+        ctx.moveTo(this.trail[0].x, this.trail[0].y);
+        for (let i = 1; i < this.trail.length; i++) {
+          ctx.lineTo(this.trail[i].x, this.trail[i].y);
+        }
+      } else {
+        ctx.moveTo(this.trail[startIdx].x, this.trail[startIdx].y);
+        for (let i = startIdx + 1; i < this.trail.length; i++) {
+          ctx.lineTo(this.trail[i].x, this.trail[i].y);
+        }
       }
       ctx.stroke();
+      this.lastDrawnTrailIndex = this.trail.length - 1;
+      this.trailDirty = false;
     }
 
     ctx.shadowColor = this.color;
@@ -97,6 +125,8 @@ export class Asteroid {
     this.color = color;
     this.alive = true;
     this.trail = [];
+    this.trailDirty = true;
+    this.lastDrawnTrailIndex = 0;
 
     const angle = Math.random() * Math.PI * 2;
     this.x = starX + Math.cos(angle) * orbitRadius;
@@ -109,14 +139,16 @@ export class Asteroid {
   }
 }
 
-const ASTEROID_POOL_SIZE = 25;
+const ASTEROID_POOL_SIZE = 50;
 export class AsteroidPool {
   pool: Asteroid[] = [];
   activeCount: number = 0;
+  private activeIndices: number[] = [];
 
   init(starX: number, starY: number, minOrbit: number, maxOrbit: number): void {
     this.pool = [];
     this.activeCount = 0;
+    this.activeIndices = [];
 
     for (let i = 0; i < ASTEROID_POOL_SIZE; i++) {
       const orbitRadius = minOrbit + Math.random() * (maxOrbit - minOrbit);
@@ -138,6 +170,7 @@ export class AsteroidPool {
         const color = lerpColor('#00BFFF', '#FF6347', t);
         this.pool[i].reset(starX, starY, orbitRadius, radius, color);
         this.activeCount++;
+        this.activeIndices.push(i);
         return this.pool[i];
       }
     }
@@ -145,13 +178,34 @@ export class AsteroidPool {
   }
 
   getActive(): Asteroid[] {
-    return this.pool.filter(a => a.alive);
+    const result: Asteroid[] = [];
+    for (let i = 0; i < this.pool.length; i++) {
+      if (this.pool[i].alive) {
+        result.push(this.pool[i]);
+      }
+    }
+    return result;
+  }
+
+  forEachActive(fn: (a: Asteroid) => void): void {
+    for (let i = 0; i < this.pool.length; i++) {
+      if (this.pool[i].alive) {
+        fn(this.pool[i]);
+      }
+    }
   }
 
   deactivate(asteroid: Asteroid): void {
     asteroid.alive = false;
     asteroid.trail = [];
+    (asteroid as any).trailDirty = true;
+    (asteroid as any).lastDrawnTrailIndex = 0;
     this.activeCount--;
+    const idx = this.pool.indexOf(asteroid);
+    const aiIdx = this.activeIndices.indexOf(idx);
+    if (aiIdx >= 0) {
+      this.activeIndices.splice(aiIdx, 1);
+    }
   }
 }
 

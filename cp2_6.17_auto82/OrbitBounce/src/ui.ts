@@ -110,7 +110,8 @@ export class UI {
       color: '#FFFFFF',
       fontSize: '18px',
       cursor: 'pointer',
-      transition: 'all 0.1s ease',
+      transition: 'background 0.1s ease, box-shadow 0.1s ease, transform 0.1s ease',
+      transform: 'scale(1)',
       boxShadow: '0 0 4px rgba(108,99,255,0.6)',
       fontFamily: "'Segoe UI', Arial, sans-serif",
       letterSpacing: '1px'
@@ -123,11 +124,15 @@ export class UI {
     this.restartBtn.addEventListener('mouseleave', () => {
       (this.restartBtn as HTMLElement).style.background = '#6C63FF';
       (this.restartBtn as HTMLElement).style.boxShadow = '0 0 4px rgba(108,99,255,0.6)';
+      (this.restartBtn as HTMLElement).style.transform = 'scale(1)';
     });
     this.restartBtn.addEventListener('mousedown', () => {
       (this.restartBtn as HTMLElement).style.transform = 'scale(0.95)';
     });
     this.restartBtn.addEventListener('mouseup', () => {
+      (this.restartBtn as HTMLElement).style.transform = 'scale(1)';
+    });
+    this.restartBtn.addEventListener('blur', () => {
       (this.restartBtn as HTMLElement).style.transform = 'scale(1)';
     });
 

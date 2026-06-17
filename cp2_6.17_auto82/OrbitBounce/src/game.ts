@@ -152,10 +152,9 @@ class Game {
       elapsed: 0
     });
 
-    const asteroids = this.asteroidPool.getActive();
-    for (const asteroid of asteroids) {
+    this.asteroidPool.forEachActive(asteroid => {
       asteroid.applyPulse(x, y);
-    }
+    });
   }
 
   private loop = (timestamp: number): void => {
@@ -176,9 +175,9 @@ class Game {
 
     this.star.update(dt);
 
-    const asteroids = this.asteroidPool.getActive();
-    for (const asteroid of asteroids) {
-      asteroid.update(dt, this.star.x, this.star.y);
+    const pulseList = this.pulses.length > 0 ? this.pulses : undefined;
+    this.asteroidPool.forEachActive(asteroid => {
+      asteroid.update(dt, this.star.x, this.star.y, pulseList);
 
       if (this.star.isColliding(asteroid.x, asteroid.y, asteroid.radius)) {
         this.score += 10;
@@ -186,6 +185,7 @@ class Game {
         this.ui.flashScore();
         this.spawnExplosion(this.star.x, this.star.y);
         this.asteroidPool.deactivate(asteroid);
+        return;
       }
 
       for (const bh of this.blackHoles) {
@@ -196,7 +196,7 @@ class Game {
           break;
         }
       }
-    }
+    });
 
     this.blackholeTimer += dt;
     if (this.blackholeTimer >= this.blackholeInterval) {
@@ -302,10 +302,9 @@ class Game {
 
     this.star.draw(ctx);
 
-    const asteroids = this.asteroidPool.getActive();
-    for (const asteroid of asteroids) {
+    this.asteroidPool.forEachActive(asteroid => {
       asteroid.draw(ctx);
-    }
+    });
 
     for (const pulse of this.pulses) {
       const progress = pulse.elapsed / pulse.duration;
