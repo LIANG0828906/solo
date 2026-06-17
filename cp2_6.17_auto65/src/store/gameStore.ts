@@ -115,19 +115,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (newProgress >= 1) {
         set({ breakAnimation: false, breakAnimationProgress: 1, gamePhase: 'aiming' });
       } else {
+        const rackCenterX = 690;
+        const rackCenterY = 225;
         const balls = state.balls.map((b) => {
           if (b.number === 0) return b;
-          const centerX = 690;
-          const centerY = 225;
-          const dx = b.x - centerX;
-          const dy = b.y - centerY;
+          const dx = b.x - rackCenterX;
+          const dy = b.y - rackCenterY;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist === 0) return b;
-          const spreadFactor = newProgress * 2;
+          const spreadAmount = newProgress * 15;
           return {
             ...b,
-            x: centerX + (dx / dist) * (dist + spreadFactor * 5),
-            y: centerY + (dy / dist) * (dist + spreadFactor * 5),
+            x: b.x + (dx / dist) * spreadAmount,
+            y: b.y + (dy / dist) * spreadAmount,
           };
         });
         set({ breakAnimationProgress: newProgress, balls });

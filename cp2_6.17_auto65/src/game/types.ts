@@ -100,17 +100,13 @@ export const BALL_COLORS: Record<number, string> = {
 
 export function getPockets(): Pocket[] {
   const { width, height, borderWidth, pocketRadius } = TABLE_CONFIG;
-  const innerLeft = borderWidth + pocketRadius;
-  const innerRight = width - borderWidth - pocketRadius;
-  const innerTop = borderWidth + pocketRadius;
-  const innerBottom = height - borderWidth - pocketRadius;
   return [
-    { x: innerLeft, y: innerTop, radius: pocketRadius },
-    { x: width / 2, y: innerTop, radius: pocketRadius },
-    { x: innerRight, y: innerTop, radius: pocketRadius },
-    { x: innerLeft, y: innerBottom, radius: pocketRadius },
-    { x: width / 2, y: innerBottom, radius: pocketRadius },
-    { x: innerRight, y: innerBottom, radius: pocketRadius },
+    { x: borderWidth, y: borderWidth, radius: pocketRadius },
+    { x: width / 2, y: borderWidth, radius: pocketRadius },
+    { x: width - borderWidth, y: borderWidth, radius: pocketRadius },
+    { x: borderWidth, y: height - borderWidth, radius: pocketRadius },
+    { x: width / 2, y: height - borderWidth, radius: pocketRadius },
+    { x: width - borderWidth, y: height - borderWidth, radius: pocketRadius },
   ];
 }
 

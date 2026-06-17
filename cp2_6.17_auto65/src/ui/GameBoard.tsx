@@ -20,252 +20,8 @@ export function GameBoard() {
 
   useEffect(() => {
     initGame();
+    (window as any).gameStore = useGameStore;
   }, [initGame]);
-
-  const drawTable = useCallback((ctx: CanvasRenderingContext2D) => {
-    const { width, height, borderWidth, borderColor, feltColor, pocketRadius } = TABLE_CONFIG;
-
-    ctx.fillStyle = borderColor;
-    ctx.fillRect(0, 0, width, height);
-
-    const gradient = ctx.createLinearGradient(
-      borderWidth,
-      borderWidth,
-      borderWidth,
-      height - borderWidth
-    );
-    gradient.addColorStop(0, '#1a7a1a');
-    gradient.addColorStop(0.5, '#228B22');
-    gradient.addColorStop(1, '#1a7a1a');
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(borderWidth, borderWidth, width - 2 * borderWidth, height - 2 * borderWidth);
-
-    ctx.fillStyle = '#2C1810';
-    for (const pocket of POCKETS) {
-      ctx.beginPath();
-      ctx.arc(pocket.x, pocket.y, pocketRadius, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.fillStyle = '#D4AF37';
-    const cornerSize = 12;
-    const corners = [
-      { x: borderWidth, y: borderWidth },
-      { x: width - borderWidth, y: borderWidth },
-      { x: borderWidth, y: height - borderWidth },
-      { x: width - borderWidth, y: height - borderWidth },
-    ];
-    for (const corner of corners) {
-      ctx.beginPath();
-      ctx.arc(corner.x, corner.y, 5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }, []);
-
-  const drawBall = useCallback((ctx: CanvasRenderingContext2D, ball: { x: number; y: number; radius: number; color: string; number: number }) => {
-    const gradient = ctx.createRadialGradient(
-      ball.x - ball.radius * 0.3,
-      ball.y - ball.radius * 0.3,
-      ball.radius * 0.1,
-      ball.x,
-      ball.y,
-      ball.radius
-    );
-
-    if (ball.color === '#FFFFFF') {
-      gradient.addColorStop(0, '#FFFFFF');
-      gradient.addColorStop(0.7, '#E8E8E8');
-      gradient.addColorStop(1, '#CCCCCC');
-    } else if (ball.color === '#000000') {
-      gradient.addColorStop(0, '#444444');
-      gradient.addColorStop(0.7, '#222222');
-      gradient.addColorStop(1, '#000000');
-    } else {
-      gradient.addColorStop(0, lightenColor(ball.color, 30));
-      gradient.addColorStop(0.7, ball.color);
-      gradient.addColorStop(1, darkenColor(ball.color, 30));
-    }
-
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-    ctx.fillStyle = gradient;
-    ctx.fill();
-
-    if (ball.number > 0 && ball.number <= 8) {
-      ctx.fillStyle = '#FFFFFF';
-      ctx.beginPath();
-      ctx.arc(ball.x, ball.y, ball.radius * 0.4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#000000';
-      ctx.font = `bold ${ball.radius * 0.5}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(ball.number.toString(), ball.x, ball.y);
-    } else if (ball.number >= 9 && ball.number <= 15) {
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(
-        ball.x - ball.radius * 0.7,
-        ball.y - ball.radius * 0.25,
-        ball.radius * 1.4,
-        ball.radius * 0.5
-      );
-
-      ctx.fillStyle = '#000000';
-      ctx.font = `bold ${ball.radius * 0.45}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(ball.number.toString(), ball.x, ball.y);
-    }
-
-    ctx.beginPath();
-    ctx.arc(ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, ball.radius * 0.2, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.fill();
-  }, []);
-
-  const drawAimLine = useCallback((ctx: CanvasRenderingContext2D, cueBall: { x: number; y: number }, angle: number, power: number) => {
-    const lineLength = 200;
-    const dashLength = 8;
-    const gapLength = 8;
-
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([dashLength, gapLength]);
-
-    const endX = cueBall.x + Math.cos(angle) * lineLength;
-    const endY = cueBall.y + Math.sin(angle) * lineLength;
-
-    ctx.beginPath();
-    ctx.moveTo(cueBall.x + Math.cos(angle) * (BALL_RADIUS + 2), cueBall.y + Math.sin(angle) * (BALL_RADIUS + 2));
-    ctx.lineTo(endX, endY);
-    ctx.stroke();
-    ctx.restore();
-  }, []);
-
-  const drawCue = useCallback((ctx: CanvasRenderingContext2D, cueBall: { x: number; y: number }, angle: number, backOffset: number) => {
-    const cueLength = 200;
-    const tipWidth = 2;
-    const buttWidth = 8;
-
-    const cueStartX = cueBall.x - Math.cos(angle) * (BALL_RADIUS + 5 + backOffset);
-    const cueStartY = cueBall.y - Math.sin(angle) * (BALL_RADIUS + 5 + backOffset);
-    const cueEndX = cueStartX - Math.cos(angle) * cueLength;
-    const cueEndY = cueStartY - Math.sin(angle) * cueLength;
-
-    const perpAngle = angle + Math.PI / 2;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(
-      cueStartX + Math.cos(perpAngle) * tipWidth,
-      cueStartY + Math.sin(perpAngle) * tipWidth
-    );
-    ctx.lineTo(
-      cueEndX + Math.cos(perpAngle) * buttWidth,
-      cueEndY + Math.sin(perpAngle) * buttWidth
-    );
-    ctx.lineTo(
-      cueEndX - Math.cos(perpAngle) * buttWidth,
-      cueEndY - Math.sin(perpAngle) * buttWidth
-    );
-    ctx.lineTo(
-      cueStartX - Math.cos(perpAngle) * tipWidth,
-      cueStartY - Math.sin(perpAngle) * tipWidth
-    );
-    ctx.closePath();
-
-    const gradient = ctx.createLinearGradient(cueStartX, cueStartY, cueEndX, cueEndY);
-    gradient.addColorStop(0, '#F5DEB3');
-    gradient.addColorStop(0.3, '#D4A76A');
-    gradient.addColorStop(0.7, '#B8860B');
-    gradient.addColorStop(1, '#8B6914');
-
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    ctx.restore();
-  }, []);
-
-  const drawPowerBar = useCallback((ctx: CanvasRenderingContext2D, cueBall: { x: number; y: number }, power: number) => {
-    const barWidth = 80;
-    const barHeight = 10;
-    const barX = cueBall.x - barWidth / 2;
-    const barY = cueBall.y - 40;
-
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
-
-    const powerRatio = power / MAX_POWER;
-    const gradient = ctx.createLinearGradient(barX, barY + barHeight, barX, barY);
-    gradient.addColorStop(0, '#FF0000');
-    gradient.addColorStop(1, '#FFFF00');
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(barX, barY + barHeight * (1 - powerRatio), barWidth, barHeight * powerRatio);
-
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(barX, barY, barWidth, barHeight);
-  }, []);
-
-  const drawParticles = useCallback((ctx: CanvasRenderingContext2D, particles: { x: number; y: number; size: number; opacity: number; color: string }[]) => {
-    for (const p of particles) {
-      ctx.save();
-      ctx.globalAlpha = p.opacity;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-  }, []);
-
-  const drawRipples = useCallback((ctx: CanvasRenderingContext2D, ripples: { x: number; y: number; radius: number; opacity: number }[]) => {
-    for (const r of ripples) {
-      ctx.save();
-      ctx.strokeStyle = `rgba(255, 255, 255, ${r.opacity})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }, []);
-
-  const drawTrail = useCallback((ctx: CanvasRenderingContext2D, trail: { x: number; y: number; opacity: number }[]) => {
-    for (const t of trail) {
-      ctx.save();
-      ctx.globalAlpha = t.opacity * 0.5;
-      ctx.fillStyle = '#FFFFFF';
-      ctx.beginPath();
-      ctx.arc(t.x, t.y, BALL_RADIUS * 0.8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-  }, []);
-
-  const drawWoodBackground = useCallback((ctx: CanvasRenderingContext2D, width: number, height: number) => {
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, '#5D4037');
-    gradient.addColorStop(0.5, '#3E2723');
-    gradient.addColorStop(1, '#5D4037');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-
-    for (let i = 0; i < 20; i++) {
-      const y = (height / 20) * i + Math.random() * 10;
-      ctx.strokeStyle = `rgba(62, 39, 35, ${0.3 + Math.random() * 0.3})`;
-      ctx.lineWidth = 2 + Math.random() * 3;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      for (let x = 0; x < width; x += 50) {
-        ctx.lineTo(x, y + Math.sin(x * 0.02 + i) * 3);
-      }
-      ctx.stroke();
-    }
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -273,6 +29,272 @@ export function GameBoard() {
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    function lightenColor(color: string, percent: number): string {
+      const num = parseInt(color.replace('#', ''), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = (num >> 16) + amt;
+      const G = ((num >> 8) & 0x00ff) + amt;
+      const B = (num & 0x0000ff) + amt;
+      return (
+        '#' +
+        (0x1000000 +
+          (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+          (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+          (B < 255 ? (B < 1 ? 0 : B) : 255)
+        )
+          .toString(16)
+          .slice(1)
+      );
+    }
+
+    function darkenColor(color: string, percent: number): string {
+      return lightenColor(color, -percent);
+    }
+
+    function drawTable() {
+      const { width, height, borderWidth, borderColor, feltColor, pocketRadius } = TABLE_CONFIG;
+
+      ctx.fillStyle = borderColor;
+      ctx.fillRect(0, 0, width, height);
+
+      const gradient = ctx.createLinearGradient(
+        borderWidth,
+        borderWidth,
+        borderWidth,
+        height - borderWidth
+      );
+      gradient.addColorStop(0, '#1a7a1a');
+      gradient.addColorStop(0.5, '#228B22');
+      gradient.addColorStop(1, '#1a7a1a');
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(borderWidth, borderWidth, width - 2 * borderWidth, height - 2 * borderWidth);
+
+      ctx.fillStyle = '#2C1810';
+      for (const pocket of POCKETS) {
+        ctx.beginPath();
+        ctx.arc(pocket.x, pocket.y, pocketRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = '#D4AF37';
+      const corners = [
+        { x: borderWidth, y: borderWidth },
+        { x: width - borderWidth, y: borderWidth },
+        { x: borderWidth, y: height - borderWidth },
+        { x: width - borderWidth, y: height - borderWidth },
+      ];
+      for (const corner of corners) {
+        ctx.beginPath();
+        ctx.arc(corner.x, corner.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawBall(ball: { x: number; y: number; radius: number; color: string; number: number }) {
+      const gradient = ctx.createRadialGradient(
+        ball.x - ball.radius * 0.3,
+        ball.y - ball.radius * 0.3,
+        ball.radius * 0.1,
+        ball.x,
+        ball.y,
+        ball.radius
+      );
+
+      if (ball.color === '#FFFFFF') {
+        gradient.addColorStop(0, '#FFFFFF');
+        gradient.addColorStop(0.7, '#E8E8E8');
+        gradient.addColorStop(1, '#CCCCCC');
+      } else if (ball.color === '#000000') {
+        gradient.addColorStop(0, '#444444');
+        gradient.addColorStop(0.7, '#222222');
+        gradient.addColorStop(1, '#000000');
+      } else {
+        gradient.addColorStop(0, lightenColor(ball.color, 30));
+        gradient.addColorStop(0.7, ball.color);
+        gradient.addColorStop(1, darkenColor(ball.color, 30));
+      }
+
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      if (ball.number > 0 && ball.number <= 8) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#000000';
+        ctx.font = `bold ${ball.radius * 0.5}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ball.number.toString(), ball.x, ball.y);
+      } else if (ball.number >= 9 && ball.number <= 15) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(
+          ball.x - ball.radius * 0.7,
+          ball.y - ball.radius * 0.25,
+          ball.radius * 1.4,
+          ball.radius * 0.5
+        );
+
+        ctx.fillStyle = '#000000';
+        ctx.font = `bold ${ball.radius * 0.45}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ball.number.toString(), ball.x, ball.y);
+      }
+
+      ctx.beginPath();
+      ctx.arc(ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, ball.radius * 0.2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.fill();
+    }
+
+    function drawAimLine(cueBall: { x: number; y: number }, angle: number) {
+      const lineLength = 200;
+      const dashLength = 8;
+      const gapLength = 8;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([dashLength, gapLength]);
+
+      const endX = cueBall.x + Math.cos(angle) * lineLength;
+      const endY = cueBall.y + Math.sin(angle) * lineLength;
+
+      ctx.beginPath();
+      ctx.moveTo(cueBall.x + Math.cos(angle) * (BALL_RADIUS + 2), cueBall.y + Math.sin(angle) * (BALL_RADIUS + 2));
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawCue(cueBall: { x: number; y: number }, angle: number, backOffset: number) {
+      const cueLength = 200;
+      const tipWidth = 2;
+      const buttWidth = 8;
+
+      const cueStartX = cueBall.x - Math.cos(angle) * (BALL_RADIUS + 5 + backOffset);
+      const cueStartY = cueBall.y - Math.sin(angle) * (BALL_RADIUS + 5 + backOffset);
+      const cueEndX = cueStartX - Math.cos(angle) * cueLength;
+      const cueEndY = cueStartY - Math.sin(angle) * cueLength;
+
+      const perpAngle = angle + Math.PI / 2;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(
+        cueStartX + Math.cos(perpAngle) * tipWidth,
+        cueStartY + Math.sin(perpAngle) * tipWidth
+      );
+      ctx.lineTo(
+        cueEndX + Math.cos(perpAngle) * buttWidth,
+        cueEndY + Math.sin(perpAngle) * buttWidth
+      );
+      ctx.lineTo(
+        cueEndX - Math.cos(perpAngle) * buttWidth,
+        cueEndY - Math.sin(perpAngle) * buttWidth
+      );
+      ctx.lineTo(
+        cueStartX - Math.cos(perpAngle) * tipWidth,
+        cueStartY - Math.sin(perpAngle) * tipWidth
+      );
+      ctx.closePath();
+
+      const gradient = ctx.createLinearGradient(cueStartX, cueStartY, cueEndX, cueEndY);
+      gradient.addColorStop(0, '#F5DEB3');
+      gradient.addColorStop(0.3, '#D4A76A');
+      gradient.addColorStop(0.7, '#B8860B');
+      gradient.addColorStop(1, '#8B6914');
+
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawPowerBar(cueBall: { x: number; y: number }, power: number) {
+      const barWidth = 80;
+      const barHeight = 10;
+      const barX = cueBall.x - barWidth / 2;
+      const barY = cueBall.y - 40;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
+
+      const powerRatio = power / MAX_POWER;
+      const gradient = ctx.createLinearGradient(barX, barY + barHeight, barX, barY);
+      gradient.addColorStop(0, '#FF0000');
+      gradient.addColorStop(1, '#FFFF00');
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(barX, barY + barHeight * (1 - powerRatio), barWidth, barHeight * powerRatio);
+
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(barX, barY, barWidth, barHeight);
+    }
+
+    function drawParticles(particles: { x: number; y: number; size: number; opacity: number; color: string }[]) {
+      for (const p of particles) {
+        ctx.save();
+        ctx.globalAlpha = p.opacity;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawRipples(ripples: { x: number; y: number; radius: number; opacity: number }[]) {
+      for (const r of ripples) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${r.opacity})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawTrail(trail: { x: number; y: number; opacity: number }[]) {
+      for (const t of trail) {
+        ctx.save();
+        ctx.globalAlpha = t.opacity * 0.5;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, BALL_RADIUS * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawWoodBackground(width: number, height: number) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, '#5D4037');
+      gradient.addColorStop(0.5, '#3E2723');
+      gradient.addColorStop(1, '#5D4037');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      for (let i = 0; i < 20; i++) {
+        const y = (height / 20) * i + Math.random() * 10;
+        ctx.strokeStyle = `rgba(62, 39, 35, ${0.3 + Math.random() * 0.3})`;
+        ctx.lineWidth = 2 + Math.random() * 3;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        for (let x = 0; x < width; x += 50) {
+          ctx.lineTo(x, y + Math.sin(x * 0.02 + i) * 3);
+        }
+        ctx.stroke();
+      }
+    }
 
     const gameLoop = (timestamp: number) => {
       if (!lastTimeRef.current) lastTimeRef.current = timestamp;
@@ -286,26 +308,26 @@ export function GameBoard() {
 
       ctx.clearRect(0, 0, width, height);
 
-      drawWoodBackground(ctx, width, height);
-      drawTable(ctx);
-      drawRipples(ctx, state.ripples);
-      drawTrail(ctx, state.trail);
+      drawWoodBackground(width, height);
+      drawTable();
+      drawRipples(state.ripples);
+      drawTrail(state.trail);
 
       for (const ball of state.balls) {
         if (!ball.pocketed) {
-          drawBall(ctx, ball);
+          drawBall(ball);
         }
       }
 
-      drawParticles(ctx, state.particles);
+      drawParticles(state.particles);
 
       const cueBall = state.balls.find((b) => b.number === 0 && !b.pocketed);
       if (cueBall && state.gamePhase === 'aiming' && state.isAiming) {
-        drawAimLine(ctx, cueBall, state.aimAngle, state.power);
-        drawCue(ctx, cueBall, state.aimAngle, state.cueBackOffset);
-        drawPowerBar(ctx, cueBall, state.power);
+        drawAimLine(cueBall, state.aimAngle);
+        drawCue(cueBall, state.aimAngle, state.cueBackOffset);
+        drawPowerBar(cueBall, state.power);
       } else if (cueBall && state.gamePhase === 'aiming') {
-        drawCue(ctx, cueBall, state.aimAngle, 0);
+        drawCue(cueBall, state.aimAngle, 0);
       }
 
       animationRef.current = requestAnimationFrame(gameLoop);
@@ -316,7 +338,7 @@ export function GameBoard() {
     return () => {
       cancelAnimationFrame(animationRef.current);
     };
-  }, [updateGame, drawTable, drawBall, drawAimLine, drawCue, drawPowerBar, drawParticles, drawRipples, drawTrail, drawWoodBackground]);
+  }, [updateGame]);
 
   const getMousePosition = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -383,6 +405,8 @@ export function GameBoard() {
         alignItems: 'center',
         flex: 1,
         padding: 20,
+        minWidth: 940,
+        minHeight: 510,
       }}
     >
       <canvas
@@ -401,26 +425,4 @@ export function GameBoard() {
       />
     </div>
   );
-}
-
-function lightenColor(color: string, percent: number): string {
-  const num = parseInt(color.replace('#', ''), 16);
-  const amt = Math.round(2.55 * percent);
-  const R = (num >> 16) + amt;
-  const G = ((num >> 8) & 0x00ff) + amt;
-  const B = (num & 0x0000ff) + amt;
-  return (
-    '#' +
-    (0x1000000 +
-      (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
-      (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
-      (B < 255 ? (B < 1 ? 0 : B) : 255)
-    )
-      .toString(16)
-      .slice(1)
-  );
-}
-
-function darkenColor(color: string, percent: number): string {
-  return lightenColor(color, -percent);
 }

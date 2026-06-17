@@ -10,7 +10,7 @@ export default function App() {
         display: 'flex',
         flexDirection: 'column',
         background: '#1a1a2e',
-        overflow: 'hidden',
+        overflow: 'auto',
       }}
     >
       <ScorePanel />
