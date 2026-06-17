@@ -274,6 +274,28 @@ export function Canvas({ state, dispatch }: CanvasProps) {
     [state.connections, state.notes, state.transform.scale]
   );
 
+  const updateCursor = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    if (isPanningRef.current) {
+      document.body.style.cursor = 'grabbing';
+      canvas.style.cursor = 'grabbing';
+    } else if (isSpacePressedRef.current) {
+      document.body.style.cursor = 'grab';
+      canvas.style.cursor = 'grab';
+    } else {
+      document.body.style.cursor = '';
+      if (hoveredConnectionId) {
+        canvas.style.cursor = 'pointer';
+      } else if (state.currentTool === 'eraser') {
+        canvas.style.cursor = 'cell';
+      } else {
+        canvas.style.cursor = 'crosshair';
+      }
+    }
+  }, [hoveredConnectionId, state.currentTool]);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
 
@@ -287,6 +309,7 @@ export function Canvas({ state, dispatch }: CanvasProps) {
         transformX: state.transform.x,
         transformY: state.transform.y,
       };
+      updateCursor();
       return;
     }
 
@@ -308,21 +331,27 @@ export function Canvas({ state, dispatch }: CanvasProps) {
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleWindowMouseMove = useCallback((e: MouseEvent) => {
     if (isPanningRef.current && panStartRef.current) {
       const dx = e.clientX - panStartRef.current.x;
       const dy = e.clientY - panStartRef.current.y;
+
+      const scale = state.transform.scale;
+      const sensitivity = scale > 1 ? 1 / scale : 1;
 
       dispatch({
         type: 'SET_TRANSFORM',
         payload: {
           ...state.transform,
-          x: panStartRef.current.transformX + dx,
-          y: panStartRef.current.transformY + dy,
+          x: panStartRef.current.transformX + dx * sensitivity,
+          y: panStartRef.current.transformY + dy * sensitivity,
         },
       });
-      return;
     }
+  }, [state.transform, dispatch]);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanningRef.current) return;
 
     if (isDrawingRef.current && currentStrokeRef.current) {
       const point = screenToWorld(e.clientX, e.clientY);
@@ -340,13 +369,17 @@ export function Canvas({ state, dispatch }: CanvasProps) {
 
     const point = screenToWorld(e.clientX, e.clientY);
     const hitConnection = hitTestConnection(point.x, point.y);
-    setHoveredConnectionId(hitConnection ? hitConnection.id : null);
+    const newHoveredId = hitConnection ? hitConnection.id : null;
+    if (newHoveredId !== hoveredConnectionId) {
+      setHoveredConnectionId(newHoveredId);
+    }
   };
 
-  const handleMouseUp = () => {
+  const handleWindowMouseUp = useCallback(() => {
     if (isPanningRef.current) {
       isPanningRef.current = false;
       panStartRef.current = null;
+      updateCursor();
       return;
     }
 
@@ -361,7 +394,7 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       currentStrokeRef.current = null;
       dirtyRef.current = true;
     }
-  };
+  }, [dispatch, updateCursor]);
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -428,7 +461,7 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       if (e.code === 'Space') {
         e.preventDefault();
         isSpacePressedRef.current = true;
-        document.body.style.cursor = 'grab';
+        updateCursor();
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedConnectionId) {
         dispatch({ type: 'DELETE_CONNECTION', payload: state.selectedConnectionId });
@@ -438,7 +471,7 @@ export function Canvas({ state, dispatch }: CanvasProps) {
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         isSpacePressedRef.current = false;
-        document.body.style.cursor = '';
+        updateCursor();
       }
     };
 
@@ -449,7 +482,28 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [state.selectedConnectionId, dispatch]);
+  }, [state.selectedConnectionId, dispatch, updateCursor]);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, [handleWindowMouseMove, handleWindowMouseUp]);
+
+  useEffect(() => {
+    updateCursor();
+  }, [hoveredConnectionId, state.currentTool, updateCursor]);
+
+  useEffect(() => {
+    updateCursor();
+    return () => {
+      document.body.style.cursor = '';
+    };
+  }, [updateCursor]);
 
   const handleNoteUpdate = (note: StickyNote) => {
     dispatch({ type: 'UPDATE_NOTE', payload: note });
@@ -506,18 +560,9 @@ export function Canvas({ state, dispatch }: CanvasProps) {
           left: 0,
           width: '100%',
           height: '100%',
-          cursor: isSpacePressedRef.current
-            ? 'grab'
-            : hoveredConnectionId
-            ? 'pointer'
-            : state.currentTool === 'eraser'
-            ? 'cell'
-            : 'crosshair',
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
         onDoubleClick={handleDoubleClick}
         onClick={handleCanvasClick}
