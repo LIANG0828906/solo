@@ -1,0 +1,14 @@
+.particle-container {
+  position: absolute;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  left: -1px;
+  top: -1px;
+  animation: particleExplode 0.8s ease-out forwards;
+  box-shadow: 0 0 6px currentColor;
+}
