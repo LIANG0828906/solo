@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import { Wish, Priority, useWishStore } from '../store';
 
 interface WishCardProps {
@@ -65,23 +65,50 @@ const HeartIcon = memo(function HeartIcon({
 function WishCardComponent({ wish, isDragging = false, onDelete, showProgress = true }: WishCardProps) {
   const { toggleFavorite, isFavorite } = useWishStore();
   const favorite = isFavorite(wish.id);
+  const [daysLeft, setDaysLeft] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const calculateDaysLeft = () => {
+      const target = new Date(wish.targetDate).getTime();
+      const now = Date.now();
+      const diff = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+      return diff;
+    };
+
+    setDaysLeft(calculateDaysLeft());
+
+    const interval = setInterval(() => {
+      setDaysLeft(calculateDaysLeft());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [wish.targetDate]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
 
-  const getDaysLeft = () => {
-    const target = new Date(wish.targetDate).getTime();
-    const now = Date.now();
-    const diff = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
-    return diff;
-  };
+  const isExpired = daysLeft < 0;
+  const isUrgent = daysLeft >= 0 && daysLeft <= 7;
 
-  const daysLeft = getDaysLeft();
+  const countdownColor = isExpired
+    ? '#E74C3C'
+    : isUrgent
+    ? '#F39C12'
+    : '#27AE60';
+
+  const countdownBgColor = isExpired
+    ? 'rgba(231, 76, 60, 0.12)'
+    : isUrgent
+    ? 'rgba(243, 156, 18, 0.12)'
+    : 'rgba(39, 174, 96, 0.12)';
 
   return (
     <div
+      ref={cardRef}
       style={{
         width: 280,
         height: 220,
@@ -99,16 +126,22 @@ function WishCardComponent({ wish, isDragging = false, onDelete, showProgress = 
         opacity: isDragging ? 0.85 : 1,
         boxSizing: 'border-box'
       }}
-      onMouseEnter={(e) => {
+      onMouseEnter={() => {
         if (!isDragging) {
-          (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)';
-          (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)';
+          setIsHovered(true);
+          if (cardRef.current) {
+            cardRef.current.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)';
+            cardRef.current.style.transform = 'translateY(-3px)';
+          }
         }
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={() => {
         if (!isDragging) {
-          (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-          (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+          setIsHovered(false);
+          if (cardRef.current) {
+            cardRef.current.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+            cardRef.current.style.transform = 'translateY(0)';
+          }
         }
       }}
     >
@@ -214,13 +247,13 @@ function WishCardComponent({ wish, isDragging = false, onDelete, showProgress = 
       </p>
 
       {showProgress && (
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 'auto' }}>
           <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: 6
+              marginBottom: 8
             }}
           >
             <span style={{ fontSize: 11, color: '#95a5a6' }}>
@@ -228,12 +261,24 @@ function WishCardComponent({ wish, isDragging = false, onDelete, showProgress = 
             </span>
             <span
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '3px 8px',
+                borderRadius: 4,
                 fontSize: 11,
-                color: daysLeft < 0 ? '#E74C3C' : daysLeft <= 7 ? '#F39C12' : '#95a5a6',
-                fontWeight: daysLeft <= 7 ? 600 : 400
+                fontWeight: 600,
+                color: countdownColor,
+                backgroundColor: countdownBgColor,
+                transition: 'all 0.25s ease',
+                transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+                cursor: 'default'
               }}
             >
-              {daysLeft < 0 ? `已逾期 ${Math.abs(daysLeft)} 天` : `还剩 ${daysLeft} 天`}
+              {isExpired ? '⏰' : isUrgent ? '⚡' : '📅'}
+              {isExpired
+                ? `已逾期${Math.abs(daysLeft)}天`
+                : `剩余${daysLeft}天`}
             </span>
           </div>
           <div
