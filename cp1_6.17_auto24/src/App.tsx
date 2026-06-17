@@ -18,6 +18,8 @@ const App: React.FC = () => {
         transition: 'background-color 1s ease'
       }}
     >
+      <div className="pixel-border" />
+
       {isSunny && (
         <div className="sun-container">
           <div className="sun" />

@@ -5,55 +5,239 @@
   transform: translateX(-50%);
   display: flex;
   flex-direction: row;
-  gap: 12px;
+  gap: 8px;
   width: auto;
-  height: 60px;
-  padding: 10px;
-  background-color: rgba(44, 44, 44, 0.9);
-  border-radius: 12px;
+  height: auto;
+  padding: 8px;
+  background-color: #1a1a1a;
   z-index: 100;
-  backdrop-filter: blur(4px);
+  image-rendering: pixelated;
+  box-shadow:
+    0 0 0 3px #555,
+    0 0 0 6px #222,
+    0 0 0 9px #555;
 }
 
 .weather-btn {
-  width: 90px;
-  height: 40px;
-  border-radius: 8px;
+  width: 100px;
+  height: auto;
   border: none;
-  font-size: 16px;
-  color: white;
+  font-size: 10px;
+  color: #cccccc;
   cursor: pointer;
-  background-color: rgba(255, 255, 255, 0.1);
-  transition: all 0.15s ease-out;
-  font-family: 'Courier New', monospace;
+  background-color: #333;
+  font-family: 'Press Start 2P', monospace;
   font-weight: bold;
-  letter-spacing: 1px;
+  letter-spacing: 0px;
+  padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  image-rendering: pixelated;
+  box-shadow:
+    3px 3px 0 #111,
+    -3px -3px 0 #555,
+    3px -3px 0 #111,
+    -3px 3px 0 #555;
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out, background-color 0.15s ease-out;
 }
 
 .weather-btn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: #444;
+  color: #ffffff;
 }
 
 .weather-btn.active {
   background-color: var(--button-color);
   color: #1a1a1a;
   transform: scale(1.1);
+  box-shadow:
+    3px 3px 0 #111,
+    -3px -3px 0 #777,
+    3px -3px 0 #111,
+    -3px 3px 0 #777;
 }
 
 .weather-btn:active {
-  transform: scale(1.05);
+  transform: scale(1.02);
+}
+
+.weather-btn-label {
+  font-size: 9px;
+  letter-spacing: 0px;
+  white-space: nowrap;
+}
+
+.pixel-icon {
+  width: 20px;
+  height: 20px;
+  position: relative;
+  image-rendering: pixelated;
+}
+
+.px-sun-core {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 8px;
+  height: 8px;
+  background-color: #FFD700;
+}
+
+.px-sun-ray {
+  position: absolute;
+  background-color: #FFD700;
+}
+
+.px-sun-ray-t {
+  top: 2px;
+  left: 8px;
+  width: 4px;
+  height: 4px;
+}
+
+.px-sun-ray-r {
+  top: 8px;
+  right: 2px;
+  width: 4px;
+  height: 4px;
+}
+
+.px-sun-ray-b {
+  bottom: 2px;
+  left: 8px;
+  width: 4px;
+  height: 4px;
+}
+
+.px-sun-ray-l {
+  top: 8px;
+  left: 2px;
+  width: 4px;
+  height: 4px;
+}
+
+.pixel-rain-icon .px-cloud {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 8px;
+  background-color: #aaaaaa;
+}
+
+.pixel-rain-icon .px-cloud::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 4px;
+  width: 8px;
+  height: 8px;
+  background-color: #aaaaaa;
+}
+
+.px-rain-drop {
+  position: absolute;
+  width: 2px;
+  height: 4px;
+  background-color: #4682B4;
+}
+
+.px-rain-1 {
+  top: 13px;
+  left: 5px;
+}
+
+.px-rain-2 {
+  top: 15px;
+  left: 10px;
+}
+
+.px-rain-3 {
+  top: 13px;
+  left: 15px;
+}
+
+.pixel-snow-icon .px-snowflake {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background-color: #ffffff;
+}
+
+.pixel-snow-icon .px-snowflake:first-child {
+  top: 4px;
+  left: 2px;
+}
+
+.px-snowflake-2 {
+  top: 10px;
+  left: 10px;
+}
+
+.px-snowflake-3 {
+  top: 4px;
+  left: 14px;
+}
+
+.pixel-storm-icon .px-cloud {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 7px;
+  background-color: #666;
+}
+
+.pixel-storm-icon .px-cloud::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 4px;
+  width: 8px;
+  height: 6px;
+  background-color: #666;
+}
+
+.px-lightning-bolt {
+  position: absolute;
+  top: 8px;
+  left: 9px;
+  width: 0;
+  height: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 8px solid #FFD700;
+}
+
+.px-storm-rain-1 {
+  top: 14px;
+  left: 4px;
+}
+
+.px-storm-rain-2 {
+  top: 15px;
+  left: 14px;
 }
 
 @media (max-width: 600px) {
   .weather-control-panel {
-    gap: 8px;
-    padding: 8px;
-    height: 52px;
+    gap: 4px;
+    padding: 6px;
   }
 
   .weather-btn {
-    width: 70px;
-    height: 36px;
-    font-size: 14px;
+    width: 76px;
+    padding: 4px 2px;
+  }
+
+  .weather-btn-label {
+    font-size: 7px;
+  }
+
+  .pixel-icon {
+    width: 16px;
+    height: 16px;
   }
 }

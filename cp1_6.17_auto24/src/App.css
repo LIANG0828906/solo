@@ -10,7 +10,7 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
-  font-family: 'Courier New', monospace;
+  font-family: 'Press Start 2P', 'Courier New', monospace;
 }
 
 .app-container {
@@ -19,6 +19,42 @@ body,
   position: relative;
   overflow: hidden;
   transition: background-color 1s ease;
+}
+
+.pixel-border {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 50;
+  pointer-events: none;
+  border: 4px solid rgba(255, 255, 255, 0.25);
+  image-rendering: pixelated;
+  box-shadow:
+    0 0 0 4px rgba(0, 0, 0, 0.4),
+    0 0 0 8px rgba(255, 255, 255, 0.1),
+    inset 0 0 0 4px rgba(0, 0, 0, 0.2);
+}
+
+.pixel-border::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  border: 2px dashed rgba(255, 255, 255, 0.12);
+}
+
+.pixel-border::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  border: 2px solid rgba(255, 255, 255, 0.08);
 }
 
 .sun-container {
@@ -32,9 +68,16 @@ body,
   width: 60px;
   height: 60px;
   background-color: #FFD700;
-  border-radius: 50%;
   position: relative;
   z-index: 3;
+  image-rendering: pixelated;
+  clip-path: polygon(
+    50% 0%, 56% 18%, 72% 6%, 68% 24%, 88% 18%, 76% 34%,
+    96% 40%, 80% 46%, 92% 60%, 74% 56%, 80% 74%, 64% 64%,
+    58% 82%, 50% 68%, 42% 82%, 36% 64%, 20% 74%, 26% 56%,
+    8% 60%, 20% 46%, 4% 40%, 24% 34%, 12% 18%, 32% 24%,
+    28% 6%, 44% 18%
+  );
   box-shadow: 0 0 20px #FFD700;
 }
 
@@ -73,20 +116,29 @@ body,
 }
 
 .game-title {
-  font-size: 48px;
+  font-size: 36px;
   font-weight: bold;
+  font-family: 'Press Start 2P', monospace;
   color: #FFFFFF;
-  text-shadow: 3px 3px 0 #1a1a1a, -1px -1px 0 #1a1a1a, 1px -1px 0 #1a1a1a, -1px 1px 0 #1a1a1a;
-  letter-spacing: 4px;
-  margin-bottom: 8px;
+  text-shadow:
+    4px 4px 0 #1a1a1a,
+    -2px -2px 0 #1a1a1a,
+    2px -2px 0 #1a1a1a,
+    -2px 2px 0 #1a1a1a,
+    0 0 20px rgba(255, 255, 255, 0.15);
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+  image-rendering: pixelated;
 }
 
 .game-subtitle {
-  font-size: 18px;
+  font-size: 14px;
+  font-family: 'Press Start 2P', monospace;
   color: #FFFFFF;
   text-shadow: 2px 2px 0 #1a1a1a;
-  letter-spacing: 8px;
+  letter-spacing: 4px;
   opacity: 0.9;
+  image-rendering: pixelated;
 }
 
 .particle-canvas {
@@ -101,13 +153,13 @@ body,
 
 @media (max-width: 600px) {
   .game-title {
-    font-size: 32px;
-    letter-spacing: 2px;
+    font-size: 22px;
+    letter-spacing: 1px;
   }
 
   .game-subtitle {
-    font-size: 14px;
-    letter-spacing: 4px;
+    font-size: 10px;
+    letter-spacing: 2px;
   }
 
   .sun-container {
@@ -123,5 +175,12 @@ body,
   .sun-glow {
     width: 60px;
     height: 60px;
+  }
+
+  .pixel-border {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
   }
 }
