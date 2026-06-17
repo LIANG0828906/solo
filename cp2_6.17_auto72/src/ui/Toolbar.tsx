@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Trash2, Download } from 'lucide-react';
+import { Trash2, Download, Grid3X3, Palette } from 'lucide-react';
 import { useEditorStore } from '@/store/editorStore';
 import { getMaterialConfig } from '@/materials/materialStore';
 import { downloadJSON } from '@/utils/modelExporter';
@@ -35,8 +35,8 @@ export default function Toolbar() {
   }, [showMaterialPanel, setShowMaterialPanel]);
 
   return (
-    <div className="flex flex-col gap-4 p-4 md:p-5">
-      <div className="text-center">
+    <div className="flex flex-col gap-3 p-4 h-full md:h-auto">
+      <div className="text-center md:block">
         <h1
           className="text-lg font-bold tracking-wider"
           style={{
@@ -48,16 +48,16 @@ export default function Toolbar() {
         >
           VoxelForge
         </h1>
-        <p className="text-[10px] text-gray-500 mt-0.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+        <p className="text-[10px] text-gray-500 mt-0.5 hidden md:block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           3D 体素构建工具
         </p>
       </div>
 
-      <div className="w-full h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+      <div className="w-full h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent hidden md:block" />
 
-      <div>
+      <div className="md:block">
         <label
-          className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 block"
+          className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 block hidden md:block"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           工具模式
@@ -86,12 +86,12 @@ export default function Toolbar() {
             删除
           </button>
         </div>
-        <p className="text-[9px] text-gray-500 mt-1.5" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-          {toolMode === 'add' ? '左键放置 · 右键旋转' : '左键点击体素删除'}
+        <p className="text-[9px] text-gray-500 mt-1.5 hidden md:block" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          {toolMode === 'add' ? '左键放置 · 右键删除' : '左键/右键点击删除'}
         </p>
       </div>
 
-      <div>
+      <div className="hidden md:block">
         <label
           className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 block"
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
@@ -100,17 +100,31 @@ export default function Toolbar() {
         </label>
         <div className="flex items-center gap-3">
           <div
-            className="w-[50px] h-[50px] rounded-lg border-2 border-white/20 shadow-lg"
+            className="w-[50px] h-[50px] rounded-lg border-2 border-white/20 relative overflow-hidden shadow-lg"
             style={{
               backgroundColor: config.color,
               opacity: config.opacity,
               boxShadow:
                 config.emissiveIntensity > 0
-                  ? `0 0 12px ${config.color}40, inset 0 0 8px ${config.color}30`
-                  : '0 2px 8px rgba(0,0,0,0.3)',
-              animation: 'pulse-glow 0.5s ease-in-out infinite',
+                  ? `0 0 16px ${config.color}60, inset 0 0 10px ${config.color}40, 0 4px 12px rgba(0,0,0,0.3)`
+                  : '0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
             }}
-          />
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(135deg, rgba(255,255,255,${config.roughness > 0.5 ? '0.08' : '0.25'}) 0%, transparent 50%, rgba(0,0,0,${config.roughness > 0.5 ? '0.15' : '0.05'}) 100%)`,
+              }}
+            />
+            {config.emissiveIntensity > 0 && (
+              <div
+                className="absolute inset-0 animate-pulse"
+                style={{
+                  background: `radial-gradient(circle at 30% 30%, ${config.color}30, transparent 60%)`,
+                }}
+              />
+            )}
+          </div>
           <div>
             <p className="text-sm font-medium text-white" style={{ fontFamily: "'Outfit', sans-serif" }}>
               {config.name}
@@ -122,71 +136,67 @@ export default function Toolbar() {
         </div>
       </div>
 
-      <div className="w-full h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+      <div className="w-full h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent hidden md:block" />
 
-      <div>
-        <label
-          className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 block"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          网格辅助
-        </label>
-        <button
-          onClick={handleToggleGrid}
-          className="flex items-center gap-2 w-full group"
-        >
-          <div
-            className={`relative w-10 h-5 rounded-full transition-colors duration-300 ${
-              showGrid ? 'bg-[#2ECC71]' : 'bg-gray-600'
-            }`}
+      <div className="hidden md:block space-y-3">
+        <div>
+          <button
+            onClick={handleToggleGrid}
+            className="flex items-center justify-between w-full group"
           >
+            <div className="flex items-center gap-2">
+              <Grid3X3 size={14} className="text-gray-400" />
+              <span className="text-xs text-gray-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                网格辅助
+              </span>
+            </div>
             <div
-              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md toggle-slider ${
-                showGrid ? 'translate-x-5' : 'translate-x-0.5'
+              className={`relative w-10 h-5 rounded-full transition-colors duration-300 ${
+                showGrid ? 'bg-[#2ECC71]' : 'bg-gray-600'
               }`}
-            />
-          </div>
-          <span className="text-xs text-gray-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            {showGrid ? '显示' : '隐藏'}
-          </span>
-        </button>
+            >
+              <div
+                className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md toggle-slider ${
+                  showGrid ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+              />
+            </div>
+          </button>
+        </div>
+
+        <div>
+          <button
+            onClick={handleToggleMaterialPanel}
+            className="flex items-center justify-between w-full group"
+          >
+            <div className="flex items-center gap-2">
+              <Palette size={14} className="text-gray-400" />
+              <span className="text-xs text-gray-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                材质面板
+              </span>
+            </div>
+            <div
+              className={`relative w-10 h-5 rounded-full transition-colors duration-300 ${
+                showMaterialPanel ? 'bg-[#2ECC71]' : 'bg-gray-600'
+              }`}
+            >
+              <div
+                className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md toggle-slider ${
+                  showMaterialPanel ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+              />
+            </div>
+          </button>
+        </div>
       </div>
 
-      <div>
-        <label
-          className="text-[10px] uppercase tracking-widest text-gray-400 mb-2 block"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          材质面板
-        </label>
-        <button
-          onClick={handleToggleMaterialPanel}
-          className="flex items-center gap-2 w-full group"
-        >
-          <div
-            className={`relative w-10 h-5 rounded-full transition-colors duration-300 ${
-              showMaterialPanel ? 'bg-[#2ECC71]' : 'bg-gray-600'
-            }`}
-          >
-            <div
-              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md toggle-slider ${
-                showMaterialPanel ? 'translate-x-5' : 'translate-x-0.5'
-              }`}
-            />
-          </div>
-          <span className="text-xs text-gray-300" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            {showMaterialPanel ? '显示' : '隐藏'}
-          </span>
-        </button>
-      </div>
+      <div className="w-full h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent hidden md:block" />
 
-      <div className="w-full h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
-
-      <div className="flex flex-col gap-2">
+      <div className="flex md:flex-col gap-2 flex-1 md:flex-none">
         <button
           onClick={handleExport}
           disabled={voxels.length === 0}
-          className={`w-full py-2.5 px-3 rounded-xl text-xs font-semibold transition-all duration-200 border
+          className={`flex-1 md:w-full py-2.5 px-3 rounded-xl text-xs font-semibold transition-all duration-200 border
             ${
               voxels.length === 0
                 ? 'bg-gray-700/50 border-gray-600/30 text-gray-500 cursor-not-allowed'
@@ -196,14 +206,14 @@ export default function Toolbar() {
         >
           <span className="flex items-center justify-center gap-2">
             <Download size={14} />
-            导出 JSON
+            <span className="hidden md:inline">导出 JSON</span>
           </span>
         </button>
 
         <button
           onClick={handleClear}
           disabled={voxels.length === 0}
-          className={`w-full py-2.5 px-3 rounded-xl text-xs font-semibold transition-all duration-200 border
+          className={`flex-1 md:w-full py-2.5 px-3 rounded-xl text-xs font-semibold transition-all duration-200 border
             ${
               voxels.length === 0
                 ? 'bg-gray-700/50 border-gray-600/30 text-gray-500 cursor-not-allowed'
@@ -213,12 +223,12 @@ export default function Toolbar() {
         >
           <span className="flex items-center justify-center gap-2">
             <Trash2 size={14} />
-            清空世界
+            <span className="hidden md:inline">清空世界</span>
           </span>
         </button>
       </div>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto pt-2 hidden md:block">
         <div className="text-[9px] text-gray-500 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           <p>体素: {voxels.length}</p>
           <p className="mt-1">左键操作 · 右键旋转</p>

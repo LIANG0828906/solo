@@ -2,7 +2,7 @@ import type { Voxel } from '@/store/editorStore';
 
 export interface ExportModel {
   version: string;
-  voxels: Array<{
+  coordinates: Array<{
     x: number;
     y: number;
     z: number;
@@ -13,7 +13,7 @@ export interface ExportModel {
 export function exportToJSON(voxels: Voxel[]): string {
   const model: ExportModel = {
     version: '1.0',
-    voxels: voxels.map((v) => ({
+    coordinates: voxels.map((v) => ({
       x: v.x,
       y: v.y,
       z: v.z,

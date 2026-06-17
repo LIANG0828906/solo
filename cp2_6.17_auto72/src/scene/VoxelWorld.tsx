@@ -1,4 +1,4 @@
-import { useRef, useMemo, useCallback, useState } from 'react';
+import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Grid, Line } from '@react-three/drei';
 import * as THREE from 'three';
@@ -14,16 +14,18 @@ interface Particle {
   position: THREE.Vector3;
   velocity: THREE.Vector3;
   life: number;
+  maxLife: number;
   color: THREE.Color;
   size: number;
 }
 
 function VoxelMesh({ gx, gy, gz, material }: { gx: number; gy: number; gz: number; material: MaterialType }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const edgesRef = useRef<THREE.LineSegments>(null);
   const config = getMaterialConfig(material);
   const [hovered, setHovered] = useState(false);
   const removeVoxelAt = useEditorStore((s) => s.removeVoxelAt);
-  const toolMode = useEditorStore((s) => s.toolMode);
+  const addParticle = useParticleSystem((s) => s.addParticles);
 
   const worldPos = useMemo(
     () => VoxelBuilder.gridToWorld(gx, gy, gz),
@@ -45,23 +47,55 @@ function VoxelMesh({ gx, gy, gz, material }: { gx: number; gy: number; gz: numbe
 
   useFrame(() => {
     if (!meshRef.current) return;
-    if (hovered && toolMode === 'add') {
+    if (hovered) {
       const t = (Math.sin(performance.now() * 0.004 * Math.PI) + 1) / 2;
       const scale = 1 + 0.05 * t;
       meshRef.current.scale.setScalar(scale);
     } else {
-      meshRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+      meshRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.15);
     }
   });
 
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
+      const face = e.face;
+      if (!face) return;
+
+      const toolMode = useEditorStore.getState().toolMode;
       if (toolMode === 'remove') {
+        const pos = VoxelBuilder.gridToWorld(gx, gy, gz);
+        const color = getMaterialConfig(material).color;
+        addParticle(pos, color);
         removeVoxelAt(gx, gy, gz);
+      } else if (toolMode === 'add') {
+        const normal = face.normal.clone();
+        const placePos = VoxelBuilder.getPlacementPosition(e.point, normal);
+        if (placePos) {
+          const store = useEditorStore.getState();
+          if (!store.hasVoxelAt(placePos.x, placePos.y, placePos.z)) {
+            store.addVoxel(placePos.x, placePos.y, placePos.z);
+            const wpos = VoxelBuilder.gridToWorld(placePos.x, placePos.y, placePos.z);
+            addParticle(wpos, getMaterialConfig(store.currentMaterial).color);
+          }
+        }
       }
     },
-    [gx, gy, gz, removeVoxelAt, toolMode]
+    [gx, gy, gz, material, removeVoxelAt, addParticle]
+  );
+
+  const handleContextMenu = useCallback(
+    (e: ThreeEvent<MouseEvent>) => {
+      e.stopPropagation();
+      if (e.nativeEvent) {
+        e.nativeEvent.preventDefault();
+      }
+      const pos = VoxelBuilder.gridToWorld(gx, gy, gz);
+      const color = getMaterialConfig(material).color;
+      addParticle(pos, color);
+      removeVoxelAt(gx, gy, gz);
+    },
+    [gx, gy, gz, material, removeVoxelAt, addParticle]
   );
 
   const handlePointerOver = useCallback(() => setHovered(true), []);
@@ -73,16 +107,17 @@ function VoxelMesh({ gx, gy, gz, material }: { gx: number; gy: number; gz: numbe
       position={worldPos}
       material={mat}
       onClick={handleClick}
+      onContextMenu={handleContextMenu}
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
       castShadow
       receiveShadow
     >
       <boxGeometry args={[1, 1, 1]} />
-      {hovered && toolMode === 'add' && (
-        <lineSegments>
-          <edgesGeometry args={[new THREE.BoxGeometry(1.02, 1.02, 1.02)]} />
-          <lineBasicMaterial color="#00E5FF" transparent opacity={0.8} />
+      {hovered && (
+        <lineSegments ref={edgesRef}>
+          <edgesGeometry args={[new THREE.BoxGeometry(1.03, 1.03, 1.03)]} />
+          <lineBasicMaterial color="#00E5FF" transparent opacity={0.9} />
         </lineSegments>
       )}
     </mesh>
@@ -121,6 +156,22 @@ function VoxelGridHelper() {
           ]}
           color={color}
           lineWidth={1}
+        />
+      );
+    }
+
+    for (let y = 1; y <= size; y += 5) {
+      result.push(
+        <Line
+          key={`yh-${y}`}
+          points={[
+            [-half, y, -half],
+            [half, y, -half],
+          ]}
+          color="#444466"
+          lineWidth={0.5}
+          transparent
+          opacity={0.4}
         />
       );
     }
@@ -177,7 +228,8 @@ function Skybox() {
           uniform float exponent;
           varying vec3 vWorldPosition;
           void main() {
-            float h = normalize(vWorldPosition + offset).y;
+            vec3 pos = vWorldPosition + vec3(0.0, offset, 0.0);
+            float h = normalize(pos).y;
             gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
           }
         `,
@@ -194,6 +246,20 @@ function Skybox() {
   );
 }
 
+interface ParticleSystemState {
+  particles: Particle[];
+  addParticles: (position: THREE.Vector3, color: string) => void;
+}
+
+const particleSystemState: ParticleSystemState = {
+  particles: [],
+  addParticles: () => {},
+};
+
+function useParticleSystem<T>(selector: (state: ParticleSystemState) => T): T {
+  return selector(particleSystemState);
+}
+
 function ParticleSystem() {
   const particlesRef = useRef<Particle[]>([]);
   const maxParticles = 100;
@@ -202,36 +268,41 @@ function ParticleSystem() {
   const colorsRef = useRef(new Float32Array(maxParticles * 3));
   const sizesRef = useRef(new Float32Array(maxParticles));
 
-  const addParticles = useCallback((position: THREE.Vector3, color: string) => {
-    const rgb = hexToRgb(color);
-    const threeColor = new THREE.Color(rgb.r, rgb.g, rgb.b);
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      if (particlesRef.current.length >= maxParticles) {
-        particlesRef.current.shift();
+  useEffect(() => {
+    particleSystemState.addParticles = (position: THREE.Vector3, color: string) => {
+      const rgb = hexToRgb(color);
+      const threeColor = new THREE.Color(rgb.r, rgb.g, rgb.b);
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        if (particlesRef.current.length >= maxParticles) {
+          particlesRef.current.shift();
+        }
+        const velocity = new THREE.Vector3(
+          (Math.random() - 0.5) * 2,
+          Math.random() * 2 + 0.5,
+          (Math.random() - 0.5) * 2
+        ).multiplyScalar(PARTICLE_SPREAD);
+        particlesRef.current.push({
+          position: position.clone(),
+          velocity,
+          life: PARTICLE_LIFETIME,
+          maxLife: PARTICLE_LIFETIME,
+          color: threeColor.clone(),
+          size: 0.06 + Math.random() * 0.06,
+        });
       }
-      const velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 2 * PARTICLE_SPREAD,
-        (Math.random() - 0.5) * 2 * PARTICLE_SPREAD,
-        (Math.random() - 0.5) * 2 * PARTICLE_SPREAD
-      ).normalize().multiplyScalar(PARTICLE_SPREAD / PARTICLE_LIFETIME);
-      particlesRef.current.push({
-        position: position.clone(),
-        velocity,
-        life: PARTICLE_LIFETIME,
-        color: threeColor.clone(),
-        size: 0.02 + Math.random() * 0.02,
-      });
-    }
+    };
   }, []);
 
   useFrame((_state, delta) => {
     const particles = particlesRef.current;
     for (let i = particles.length - 1; i >= 0; i--) {
-      particles[i].life -= delta;
-      if (particles[i].life <= 0) {
+      const p = particles[i];
+      p.life -= delta;
+      if (p.life <= 0) {
         particles.splice(i, 1);
       } else {
-        particles[i].position.add(particles[i].velocity.clone().multiplyScalar(delta));
+        p.position.add(p.velocity.clone().multiplyScalar(delta));
+        p.velocity.y -= delta * 3;
       }
     }
 
@@ -244,7 +315,7 @@ function ParticleSystem() {
     for (let i = 0; i < maxParticles; i++) {
       if (i < particles.length) {
         const p = particles[i];
-        const alpha = p.life / PARTICLE_LIFETIME;
+        const alpha = Math.max(0, p.life / p.maxLife);
         positions[i * 3] = p.position.x;
         positions[i * 3 + 1] = p.position.y;
         positions[i * 3 + 2] = p.position.z;
@@ -262,7 +333,6 @@ function ParticleSystem() {
 
     geometryRef.current.attributes.position.needsUpdate = true;
     geometryRef.current.attributes.color.needsUpdate = true;
-    geometryRef.current.attributes.size.needsUpdate = true;
   });
 
   const particleMaterial = useMemo(
@@ -278,8 +348,6 @@ function ParticleSystem() {
       }),
     []
   );
-
-  void addParticles;
 
   return (
     <points material={particleMaterial}>
@@ -309,12 +377,11 @@ function ParticleSystem() {
 
 function InteractionPlane() {
   const addVoxel = useEditorStore((s) => s.addVoxel);
-  const removeVoxelAt = useEditorStore((s) => s.removeVoxelAt);
   const currentMaterial = useEditorStore((s) => s.currentMaterial);
   const toolMode = useEditorStore((s) => s.toolMode);
   const hasVoxelAt = useEditorStore((s) => s.hasVoxelAt);
   const [previewPos, setPreviewPos] = useState<{ x: number; y: number; z: number } | null>(null);
-
+  const addParticle = useParticleSystem((s) => s.addParticles);
   const config = useMemo(() => getMaterialConfig(currentMaterial), [currentMaterial]);
 
   const previewMaterial = useMemo(() => {
@@ -340,8 +407,8 @@ function InteractionPlane() {
 
       const point = e.point;
       const normal = e.face?.normal?.clone() ?? new THREE.Vector3(0, 1, 0);
-
       const placePos = VoxelBuilder.getPlacementPosition(point, normal);
+
       if (placePos && !hasVoxelAt(placePos.x, placePos.y, placePos.z)) {
         setPreviewPos(placePos);
       } else {
@@ -361,31 +428,28 @@ function InteractionPlane() {
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
-      if (e.button !== 0) return;
+      if (e.button !== 0 || toolMode !== 'add') return;
 
       const point = e.point;
       const normal = e.face?.normal?.clone() ?? new THREE.Vector3(0, 1, 0);
+      const placePos = VoxelBuilder.getPlacementPosition(point, normal);
 
-      if (toolMode === 'add') {
-        const placePos = VoxelBuilder.getPlacementPosition(point, normal);
-        if (placePos && !hasVoxelAt(placePos.x, placePos.y, placePos.z)) {
-          addVoxel(placePos.x, placePos.y, placePos.z);
-        } else {
-          const gx = Math.floor(point.x + VoxelBuilder.getHalfGrid());
-          const gz = Math.floor(point.z + VoxelBuilder.getHalfGrid());
-          const size = VoxelBuilder.getGridSize();
-          if (gx >= 0 && gx < size && gz >= 0 && gz < size) {
-            addVoxel(gx, 0, gz);
-          }
-        }
-      } else if (toolMode === 'remove') {
-        const removePos = VoxelBuilder.getRemovalPosition(point, normal);
-        if (removePos) {
-          removeVoxelAt(removePos.x, removePos.y, removePos.z);
+      if (placePos && !hasVoxelAt(placePos.x, placePos.y, placePos.z)) {
+        addVoxel(placePos.x, placePos.y, placePos.z);
+        const wpos = VoxelBuilder.gridToWorld(placePos.x, placePos.y, placePos.z);
+        addParticle(wpos, getMaterialConfig(currentMaterial).color);
+      } else {
+        const gx = Math.floor(point.x + VoxelBuilder.getHalfGrid());
+        const gz = Math.floor(point.z + VoxelBuilder.getHalfGrid());
+        const size = VoxelBuilder.getGridSize();
+        if (gx >= 0 && gx < size && gz >= 0 && gz < size && !hasVoxelAt(gx, 0, gz)) {
+          addVoxel(gx, 0, gz);
+          const wpos = VoxelBuilder.gridToWorld(gx, 0, gz);
+          addParticle(wpos, getMaterialConfig(currentMaterial).color);
         }
       }
     },
-    [toolMode, addVoxel, removeVoxelAt, hasVoxelAt]
+    [toolMode, addVoxel, hasVoxelAt, currentMaterial, addParticle]
   );
 
   const handlePointerLeave = useCallback(() => {
@@ -441,6 +505,7 @@ function Scene() {
         shadow-camera-bottom={-15}
       />
       <directionalLight position={[-5, 8, -5]} intensity={0.2} />
+      <pointLight position={[0, 8, 0]} intensity={0.3} color="#7C4DFF" distance={30} />
 
       <Skybox />
       <GroundGrid />
@@ -477,7 +542,7 @@ function Scene() {
 export default function VoxelWorld() {
   return (
     <Canvas
-      camera={{ position: [12, 12, 12], fov: 50, near: 0.1, far: 100 }}
+      camera={{ position: [12, 10, 12], fov: 50, near: 0.1, far: 100 }}
       shadows
       gl={{ antialias: true, alpha: false }}
       style={{ background: '#0A0A1A' }}
