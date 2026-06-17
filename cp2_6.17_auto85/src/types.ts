@@ -63,6 +63,8 @@ export interface Particle {
   curveOffsetY: number
   velocityX: number
   velocityY: number
+  shakeOffsetX: number
+  shakeOffsetY: number
 }
 
 export type AnimationDirection = 'encrypt' | 'decrypt'

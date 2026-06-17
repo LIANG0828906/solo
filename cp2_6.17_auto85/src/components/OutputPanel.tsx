@@ -7,7 +7,7 @@ interface OutputPanelProps {
 }
 
 export function OutputPanel({ canvasRef }: OutputPanelProps) {
-  const { ciphertext, isAnimating, direction, decrypt, particles } = useAppStore()
+  const { ciphertext, direction, decrypt } = useAppStore()
   const [displayText, setDisplayText] = useState('')
   const [showCopied, setShowCopied] = useState(false)
   const [isDecryptPressed, setIsDecryptPressed] = useState(false)
@@ -75,8 +75,6 @@ export function OutputPanel({ canvasRef }: OutputPanelProps) {
     }
   }
 
-  const allReached = particles.length > 0 && particles.every((p) => p.isReached)
-
   return (
     <div className="output-panel">
       <h2 className="panel-title">密文输出</h2>
@@ -106,7 +104,7 @@ export function OutputPanel({ canvasRef }: OutputPanelProps) {
         <button
           className={`decrypt-btn ${isDecryptPressed ? 'pressed' : ''}`}
           onClick={handleDecrypt}
-          disabled={!ciphertext || isAnimating}
+          disabled={!ciphertext}
         >
           解密
         </button>

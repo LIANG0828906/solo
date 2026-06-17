@@ -19,6 +19,7 @@ import {
 } from './ciphers'
 
 const COLORS: string[] = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
+const GRID_CELL_SIZE = 100
 
 function hexToRgb(hex: string): ParticleColor {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
@@ -173,18 +174,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     if (!state.particlesStarted) {
       particles = particles.map((p) => ({ ...p, startTime: timestamp }))
-      set({ particlesStarted: true })
     }
 
     const updatedParticles: Particle[] = []
-    let allFlyingDone = true
 
     for (const p of particles) {
       const particle = { ...p, trail: [...p.trail] }
 
       if (particle.isFlying) {
-        allFlyingDone = false
-
         const elapsed = timestamp - particle.startTime
         const t = Math.min(elapsed / particle.duration, 1)
         const eased = easeOutCubic(t)
@@ -226,58 +223,93 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
 
+      if (particle.isReached && particle.bounceStartTime > 0) {
+        const bounceElapsed = timestamp - particle.bounceStartTime
+        if (bounceElapsed <= particle.bounceDuration) {
+          const bt = bounceElapsed / particle.bounceDuration
+          const bounceOffset = elasticOut(bt) * particle.bounceAmplitude
+          const angle = (parseInt(particle.id.slice(-4), 16) * 137.5) * (Math.PI / 180)
+          particle.shakeOffsetX = Math.cos(angle) * bounceOffset
+          particle.shakeOffsetY = Math.sin(angle) * bounceOffset
+        } else {
+          particle.shakeOffsetX = 0
+          particle.shakeOffsetY = 0
+        }
+      }
+
       updatedParticles.push(particle)
     }
 
-    for (let i = 0; i < updatedParticles.length; i++) {
-      const p = updatedParticles[i]
-      if (!p.isReached || p.bounceStartTime === 0) continue
-
-      const bounceElapsed = timestamp - p.bounceStartTime
-      if (bounceElapsed <= p.bounceDuration) {
-        const bt = bounceElapsed / p.bounceDuration
-        const bounceOffset = elasticOut(bt) * p.bounceAmplitude
-        const angle = (i * 137.5) * (Math.PI / 180)
-        p.x = p.targetX + Math.cos(angle) * bounceOffset
-        p.y = p.targetY + Math.sin(angle) * bounceOffset
-      } else {
-        p.x = p.targetX
-        p.y = p.targetY
-      }
+    const flyingParticles: Particle[] = []
+    for (const p of updatedParticles) {
+      if (p.isFlying) flyingParticles.push(p)
     }
 
-    const flyingParticles = updatedParticles.filter((p) => p.isFlying)
     const flashCooldown = 200
+    if (flyingParticles.length > 0) {
+      const grid = new Map<string, Particle[]>()
+      let minX = Infinity, minY = Infinity
+      for (const p of flyingParticles) {
+        if (p.x < minX) minX = p.x
+        if (p.y < minY) minY = p.y
+      }
 
-    for (let i = 0; i < flyingParticles.length; i++) {
-      for (let j = i + 1; j < flyingParticles.length; j++) {
+      for (const p of flyingParticles) {
+        const gx = Math.floor((p.x - minX) / GRID_CELL_SIZE)
+        const gy = Math.floor((p.y - minY) / GRID_CELL_SIZE)
+        const key = `${gx},${gy}`
+        if (!grid.has(key)) grid.set(key, [])
+        grid.get(key)!.push(p)
+      }
+
+      const checked = new Set<string>()
+
+      for (let i = 0; i < flyingParticles.length; i++) {
         const p1 = flyingParticles[i]
-        const p2 = flyingParticles[j]
-        const dx = p2.x - p1.x
-        const dy = p2.y - p1.y
-        const distSq = dx * dx + dy * dy
-        const minDist = p1.size + p2.size + 10
-        const minDistSq = minDist * minDist
+        const gx = Math.floor((p1.x - minX) / GRID_CELL_SIZE)
+        const gy = Math.floor((p1.y - minY) / GRID_CELL_SIZE)
 
-        if (distSq < minDistSq && distSq > 0) {
-          const dist = Math.sqrt(distSq)
-          const overlap = minDist - dist
-          const nx = dx / dist
-          const ny = dy / dist
-          p1.x -= (nx * overlap) / 2
-          p1.y -= (ny * overlap) / 2
-          p2.x += (nx * overlap) / 2
-          p2.y += (ny * overlap) / 2
+        for (let dxg = -1; dxg <= 1; dxg++) {
+          for (let dyg = -1; dyg <= 1; dyg++) {
+            const neighborKey = `${gx + dxg},${gy + dyg}`
+            const cellParticles = grid.get(neighborKey)
+            if (!cellParticles) continue
 
-          const flashDist = p1.size + p2.size + 8
-          if (dist < flashDist) {
-            const p1CanFlash = !p1.isFlashing || timestamp - p1.flashStartTime > flashCooldown
-            const p2CanFlash = !p2.isFlashing || timestamp - p2.flashStartTime > flashCooldown
-            if (p1CanFlash && p2CanFlash) {
-              p1.isFlashing = true
-              p1.flashStartTime = timestamp
-              p2.isFlashing = true
-              p2.flashStartTime = timestamp
+            for (const p2 of cellParticles) {
+              if (p1.id >= p2.id) continue
+              const pairKey = `${p1.id}|${p2.id}`
+              if (checked.has(pairKey)) continue
+              checked.add(pairKey)
+
+              const dx = p2.x - p1.x
+              const dy = p2.y - p1.y
+              const distSq = dx * dx + dy * dy
+
+              const collideDist = p1.size + p2.size + 10
+              const collideDistSq = collideDist * collideDist
+
+              if (distSq < collideDistSq && distSq > 0) {
+                const dist = Math.sqrt(distSq)
+                const overlap = collideDist - dist
+                const nx = dx / dist
+                const ny = dy / dist
+                p1.x -= (nx * overlap) / 2
+                p1.y -= (ny * overlap) / 2
+                p2.x += (nx * overlap) / 2
+                p2.y += (ny * overlap) / 2
+
+                const flashThreshold = (p1.size + p2.size) * 0.5
+                if (dist < flashThreshold) {
+                  const p1CanFlash = !p1.isFlashing || timestamp - p1.flashStartTime > flashCooldown
+                  const p2CanFlash = !p2.isFlashing || timestamp - p2.flashStartTime > flashCooldown
+                  if (p1CanFlash && p2CanFlash) {
+                    p1.isFlashing = true
+                    p1.flashStartTime = timestamp
+                    p2.isFlashing = true
+                    p2.flashStartTime = timestamp
+                  }
+                }
+              }
             }
           }
         }
@@ -299,12 +331,20 @@ export const useAppStore = create<AppState>((set, get) => ({
         ...updatedParticles.map((p) => p.bounceStartTime + p.bounceDuration)
       )
       if (timestamp >= maxBounceEnd) {
-        set({ particles: updatedParticles, isAnimating: false })
+        for (const p of updatedParticles) {
+          p.shakeOffsetX = 0
+          p.shakeOffsetY = 0
+        }
+        set({ particles: updatedParticles, isAnimating: false, particlesStarted: false })
         return
       }
     }
 
-    set({ particles: updatedParticles })
+    if (!state.particlesStarted) {
+      set({ particles: updatedParticles, particlesStarted: true })
+    } else {
+      set({ particles: updatedParticles })
+    }
   },
 
   setPaused: (paused: boolean) => set({ isPaused: paused })
@@ -347,7 +387,6 @@ function createParticles(
 
   for (let i = 0; i < charCount; i++) {
     const char = chars[i]
-    const targetChar = targetChars[i] || char
     const size = 6 + Math.random() * 8
     const startX = direction === 'encrypt' ? leftX : rightX
     const endX = direction === 'encrypt' ? rightX : leftX
@@ -361,7 +400,7 @@ function createParticles(
 
     particles.push({
       id: uuidv4(),
-      char: direction === 'encrypt' ? targetChar : char,
+      char,
       x: startX,
       y: yPos,
       startX,
@@ -390,7 +429,9 @@ function createParticles(
       curveOffsetX,
       curveOffsetY,
       velocityX: 0,
-      velocityY: 0
+      velocityY: 0,
+      shakeOffsetX: 0,
+      shakeOffsetY: 0
     })
   }
 

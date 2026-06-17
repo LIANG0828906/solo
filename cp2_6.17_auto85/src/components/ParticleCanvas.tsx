@@ -39,10 +39,18 @@ export function ParticleCanvas({ canvasRef }: ParticleCanvasProps) {
     }
   }, [canvasRef])
 
+  const getRenderPos = (p: Particle) => {
+    let px = p.x
+    let py = p.y
+    if (p.isReached) {
+      px += p.shakeOffsetX || 0
+      py += p.shakeOffsetY || 0
+    }
+    return { px, py }
+  }
+
   const drawParticle = useCallback((ctx: CanvasRenderingContext2D, p: Particle, now: number) => {
-    ctx.save()
-    ctx.translate(p.x, p.y)
-    ctx.rotate(p.rotation)
+    const { px, py } = getRenderPos(p)
 
     let glowIntensity = 0.6
     let glowSize = p.size * 1.5
@@ -54,30 +62,35 @@ export function ParticleCanvas({ canvasRef }: ParticleCanvasProps) {
       glowSize = p.size * (1.5 + flashEase * 1.5)
     }
 
-    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize)
+    ctx.save()
+    ctx.translate(px, py)
+    ctx.rotate(p.rotation)
+    ctx.translate(-px, -py)
+
+    const gradient = ctx.createRadialGradient(px, py, 0, px, py, glowSize)
     gradient.addColorStop(0, `rgba(${p.currentColor.r}, ${p.currentColor.g}, ${p.currentColor.b}, 1)`)
     gradient.addColorStop(0.4, `rgba(${p.currentColor.r}, ${p.currentColor.g}, ${p.currentColor.b}, ${glowIntensity})`)
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
 
     ctx.fillStyle = gradient
     ctx.beginPath()
-    ctx.arc(0, 0, glowSize, 0, Math.PI * 2)
+    ctx.arc(px, py, glowSize, 0, Math.PI * 2)
     ctx.fill()
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
     ctx.beginPath()
-    ctx.arc(-p.size * 0.2, -p.size * 0.2, p.size * 0.25, 0, Math.PI * 2)
+    ctx.arc(px - p.size * 0.2, py - p.size * 0.2, p.size * 0.25, 0, Math.PI * 2)
     ctx.fill()
 
     if (p.isFlashing) {
       const flashProgress = (now - p.flashStartTime) / p.flashDuration
       const flashEase = 1 - flashProgress
-      const ringSize = p.size * (2 + flashEase * 3)
+      const flashRingRadius = p.size * 2
 
       ctx.strokeStyle = `rgba(255, 255, 255, ${flashEase * 0.8})`
       ctx.lineWidth = 2
       ctx.beginPath()
-      ctx.arc(0, 0, ringSize, 0, Math.PI * 2)
+      ctx.arc(px, py, flashRingRadius, 0, Math.PI * 2)
       ctx.stroke()
     }
 
