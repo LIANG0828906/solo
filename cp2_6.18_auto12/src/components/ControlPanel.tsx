@@ -66,16 +66,16 @@ const CollapsiblePanel: React.FC<CollapsiblePanelProps> = ({ title, isOpen, onTo
       <div
         onClick={onToggle}
         style={{
-          height: isOpen ? 'auto' : '40px',
+          height: '40px',
           backgroundColor: '#25253A',
-          borderRadius: '8px',
-          padding: isOpen ? '12px 16px' : '0 16px',
+          borderRadius: isOpen ? '8px 8px 0 0' : '8px',
+          padding: '0 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           cursor: 'pointer',
           userSelect: 'none',
-          minHeight: '40px',
+          transition: 'border-radius 0.25s ease-in-out',
         }}
       >
         <span style={{
@@ -85,34 +85,37 @@ const CollapsiblePanel: React.FC<CollapsiblePanelProps> = ({ title, isOpen, onTo
         }}>
           {title}
         </span>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#B0B0C0"
-          strokeWidth="2"
+        <div
           style={{
-            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s ease',
+            width: 0,
+            height: 0,
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderTop: isOpen ? 'none' : '10px solid #7C6FFF',
+            borderBottom: isOpen ? '10px solid #7C6FFF' : 'none',
             flexShrink: 0,
+            transition: 'all 0.25s ease-in-out',
           }}
-        >
-          <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
+        />
       </div>
       <div
         style={{
-          maxHeight: isOpen ? '2000px' : '0',
-          overflow: 'hidden',
-          transition: 'max-height 0.3s ease',
-          backgroundColor: '#1F1F35',
-          borderRadius: isOpen ? '0 0 8px 8px' : '0',
-          marginTop: isOpen ? '-4px' : '0',
-          padding: isOpen ? '16px 16px 4px 16px' : '0 16px',
+          display: 'grid',
+          gridTemplateRows: isOpen ? '1fr' : '0fr',
+          transition: 'grid-template-rows 0.25s ease-in-out',
         }}
       >
-        {children}
+        <div
+          style={{
+            overflow: 'hidden',
+            backgroundColor: '#1F1F35',
+            borderRadius: '0 0 8px 8px',
+          }}
+        >
+          <div style={{ padding: '16px 16px 4px 16px' }}>
+            {children}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -582,27 +585,16 @@ const ControlPanel: React.FC = () => {
               key={preset.id}
               onClick={() => applyPreset(preset.id)}
               title={preset.name}
+              className={`preset-btn ${ui.activePreset === preset.id ? 'preset-btn-active' : ''}`}
               style={{
                 width: '100%',
                 height: '36px',
                 borderRadius: '8px',
-                backgroundColor: ui.activePreset === preset.id ? '#7C6FFF' : '#30304A',
-                color: ui.activePreset === preset.id ? '#FFFFFF' : '#C0C0D0',
                 border: 'none',
                 cursor: 'pointer',
                 fontSize: '12px',
                 fontWeight: 500,
                 transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (ui.activePreset !== preset.id) {
-                  e.currentTarget.style.backgroundColor = '#40406A';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (ui.activePreset !== preset.id) {
-                  e.currentTarget.style.backgroundColor = '#30304A';
-                }
               }}
             >
               {preset.shortName}
