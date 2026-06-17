@@ -445,6 +445,17 @@ body {
   background: rgba(255, 255, 255, 0.1);
 }
 
+.kb-card.expanded {
+  height: auto !important;
+  z-index: 10;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.kb-card.expanded:hover {
+  transform: none;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
 .kb-card.selected {
   border-color: rgba(108, 99, 255, 0.6);
   box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.25), 0 4px 20px rgba(0, 0, 0, 0.3);
@@ -500,6 +511,35 @@ body {
   z-index: 1;
 }
 
+.card-copy-btn {
+  position: absolute;
+  top: 12px;
+  right: 72px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #6C6C80;
+  cursor: pointer;
+  z-index: 1;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.kb-card:hover .card-copy-btn {
+  opacity: 1;
+}
+
+.card-copy-btn:hover {
+  background: rgba(108, 99, 255, 0.15);
+  border-color: rgba(108, 99, 255, 0.3);
+  color: #6C63FF;
+}
+
 .card-title {
   font-size: 15px;
   font-weight: 600;
@@ -521,7 +561,23 @@ body {
   flex: 1;
   overflow: hidden;
   word-break: break-word;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+.card-content-expanded {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 8px;
+}
+
+.card-content-expanded::-webkit-scrollbar {
+  width: 4px;
+}
+
+.card-content-expanded::-webkit-scrollbar-thumb {
+  background: rgba(108, 99, 255, 0.25);
+  border-radius: 2px;
 }
 
 .card-content h2,
@@ -541,6 +597,52 @@ body {
 
 .card-content a {
   text-decoration: none;
+}
+
+.card-content pre {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 8px 0;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.card-content pre code {
+  color: #B0B0C0;
+}
+
+.card-content ul {
+  margin: 4px 0;
+  padding-left: 4px;
+}
+
+.card-content li {
+  margin: 3px 0;
+  padding-left: 4px;
+}
+
+.card-expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(108, 99, 255, 0.08);
+  border: 1px solid rgba(108, 99, 255, 0.15);
+  border-radius: 6px;
+  color: #A8A0FF;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  margin-bottom: 10px;
+  transition: all 0.2s ease;
+}
+
+.card-expand-btn:hover {
+  background: rgba(108, 99, 255, 0.15);
+  border-color: rgba(108, 99, 255, 0.3);
+  color: #FFFFFF;
 }
 
 .card-tags {

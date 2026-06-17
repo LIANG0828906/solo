@@ -10,6 +10,7 @@ import {
   estimateCardHeight,
   formatDate,
   renderMarkdownShort,
+  stripMarkdown,
   getCardTypeLabel,
   getAnimationDelay,
   truncateText,
@@ -64,6 +65,15 @@ const Icon = ({ name, style }: { name: string; style?: React.CSSProperties }) =>
     ),
     empty: (
       <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+    ),
+    copy: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+    ),
+    expand: (
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    ),
+    collapse: (
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
     ),
   };
   return <span style={{ display: 'inline-flex', ...style }}>{icons[name] || null}</span>;
@@ -476,6 +486,7 @@ const App: React.FC = () => {
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [searchValue, setSearchValue] = useState(filters.keyword);
+  const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(new Set());
   const searchTimerRef = useRef<number | null>(null);
 
   const masonryContainerRef = useRef<HTMLDivElement>(null);
@@ -509,6 +520,24 @@ const App: React.FC = () => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3000);
   }, []);
+
+  const toggleCardExpand = useCallback((cardId: string) => {
+    setExpandedCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  }, []);
+
+  const handleCopyContent = useCallback((text: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(() => {
+      addToast('已复制到剪贴板', 'success');
+    }).catch(() => {
+      addToast('复制失败', 'error');
+    });
+  }, [addToast]);
 
   const handleSearchChange = (val: string) => {
     setSearchValue(val);
@@ -815,19 +844,23 @@ const App: React.FC = () => {
                       if (!pos) return null;
                       const typeInfo = getCardTypeLabel(card.type);
                       const isSelected = selectedCardIds.has(card.id);
+                      const isExpanded = expandedCardIds.has(card.id);
+                      const plainContent = stripMarkdown(card.content);
+                      const isLongContent = plainContent.length > 120;
                       return (
                         <div
                           key={card.id}
-                          className={`kb-card ${isSelected ? 'selected' : ''}`}
+                          className={`kb-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}`}
                           style={{
                             left: pos.left,
                             top: pos.top,
                             width: masonry.columnWidth,
-                            height: pos.height,
+                            height: isExpanded ? 'auto' : pos.height,
                             animationDelay: getAnimationDelay(idx, 30),
                           }}
-                          draggable
+                          draggable={!isExpanded}
                           onDragStart={(e) => {
+                            if (isExpanded) { e.preventDefault(); return; }
                             setDraggedCardId(card.id);
                             e.dataTransfer.effectAllowed = 'link';
                           }}
@@ -837,7 +870,9 @@ const App: React.FC = () => {
                             if (
                               !target.closest('.card-checkbox') &&
                               !target.closest('.card-action-btn') &&
-                              !target.closest('.card-tag-remove')
+                              !target.closest('.card-tag-remove') &&
+                              !target.closest('.card-expand-btn') &&
+                              !target.closest('.card-copy-btn')
                             ) {
                               openEditEditor(card);
                             }
@@ -861,13 +896,40 @@ const App: React.FC = () => {
                           >
                             {typeInfo.label}
                           </div>
+                          <button
+                            className="card-copy-btn"
+                            title="复制内容"
+                            onClick={(e) => handleCopyContent(card.content, e)}
+                          >
+                            <Icon name="copy" />
+                          </button>
                           <div className="card-title">{card.title}</div>
-                          <div
-                            className="card-content"
-                            dangerouslySetInnerHTML={{
-                              __html: renderMarkdownShort(truncateText(card.content, 300)),
-                            }}
-                          />
+                          {isExpanded ? (
+                            <div
+                              className="card-content card-content-expanded"
+                              dangerouslySetInnerHTML={{
+                                __html: renderMarkdownShort(card.content),
+                              }}
+                            />
+                          ) : (
+                            <div className="card-content">
+                              {isLongContent
+                                ? truncateText(plainContent, 120)
+                                : plainContent}
+                            </div>
+                          )}
+                          {isLongContent && (
+                            <button
+                              className="card-expand-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleCardExpand(card.id);
+                              }}
+                            >
+                              <Icon name={isExpanded ? 'collapse' : 'expand'} />
+                              <span>{isExpanded ? '收起预览' : '展开预览'}</span>
+                            </button>
+                          )}
                           {card.tags.length > 0 && (
                             <div className="card-tags">
                               {card.tags.map((tid) => {

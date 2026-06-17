@@ -88,8 +88,25 @@ export function formatDate(timestamp: number): string {
   return `${y}-${m}-${d} ${hh}:${mm}`;
 }
 
+export function stripMarkdown(text: string): string {
+  let result = text;
+  result = result.replace(/```[\s\S]*?```/g, (m) => m.replace(/```\w*\n?/g, '').replace(/```/g, ''));
+  result = result.replace(/`(.+?)`/g, '$1');
+  result = result.replace(/\*\*(.+?)\*\*/g, '$1');
+  result = result.replace(/\*(.+?)\*/g, '$1');
+  result = result.replace(/\[(.+?)\]\((.+?)\)/g, '$1');
+  result = result.replace(/^#{1,6}\s+(.+)$/gm, '$1');
+  result = result.replace(/^[-*+]\s+/gm, '• ');
+  result = result.replace(/^\d+\.\s+/gm, '');
+  result = result.replace(/^>\s+/gm, '');
+  return result.trim();
+}
+
 export function renderMarkdownShort(text: string): string {
   let result = text;
+  result = result.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, _lang, code) => {
+    return `<pre style="background:rgba(0,0,0,0.3);padding:10px 12px;border-radius:8px;overflow-x:auto;margin:8px 0;font-size:0.85em;line-height:1.5;"><code style="font-family:'SF Mono',Monaco,Consolas,monospace;color:#B0B0C0;">${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`;
+  });
   result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   result = result.replace(/\*(.+?)\*/g, '<em>$1</em>');
   result = result.replace(/`(.+?)`/g, '<code style="background:rgba(108,99,255,0.15);padding:2px 6px;border-radius:4px;font-size:0.9em;">$1</code>');
@@ -97,6 +114,9 @@ export function renderMarkdownShort(text: string): string {
   result = result.replace(/^### (.+)$/gm, '<h4 style="margin:8px 0 4px;font-size:1em;color:#E0E0F0;">$1</h4>');
   result = result.replace(/^## (.+)$/gm, '<h3 style="margin:10px 0 6px;font-size:1.1em;color:#E0E0F0;">$1</h3>');
   result = result.replace(/^# (.+)$/gm, '<h2 style="margin:12px 0 8px;font-size:1.2em;color:#E0E0F0;">$1</h2>');
+  result = result.replace(/^[-*+]\s+(.+)$/gm, '<li style="margin:3px 0 3px 16px;list-style:disc;">$1</li>');
+  result = result.replace(/^\d+\.\s+(.+)$/gm, '<li style="margin:3px 0 3px 16px;list-style:decimal;">$1</li>');
+  result = result.replace(/(<li[^>]*>.*?<\/li>\n?)+/g, (match) => `<ul style="margin:4px 0;padding:0;list-style:none;">${match}</ul>`);
   result = result.replace(/\n/g, '<br/>');
   return result;
 }
