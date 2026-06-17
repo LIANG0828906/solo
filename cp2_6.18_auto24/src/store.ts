@@ -22,9 +22,9 @@ export interface PreviewCards {
 
 function createInitialCards(): PreviewCards {
   return {
-    mobile: generateRandomCards(18),
-    tablet: generateRandomCards(20),
-    desktop: generateRandomCards(22),
+    mobile: generateRandomCards(),
+    tablet: generateRandomCards(),
+    desktop: generateRandomCards(),
   }
 }
 

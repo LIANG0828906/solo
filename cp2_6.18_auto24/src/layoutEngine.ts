@@ -147,7 +147,6 @@ export function getContainerStyles(params: ContainerStyleParams): CSSProperties 
   else if (deviceWidth < 1024) columns = Math.min(3, columns)
 
   return {
-    // @ts-expect-error css custom property
     '--container-columns': columns,
     '--container-gap': `${grid.gap}px`,
     '--container-margin': `${grid.margin}px`,

@@ -310,6 +310,11 @@ input[type="range"]::-moz-range-thumb {
   cursor: grabbing;
 }
 
+.bp-drag-handle { width:6px; height:20px; border-radius:3px; flex-shrink:0; cursor:ew-resize; transition: transform .1s ease; }
+.bp-drag-handle:hover { transform: scaleX(1.4); }
+.bp-drag-handle:active { opacity: 0.8; }
+.breakpoint-item.dragging-value { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+
 .breakpoint-color {
   width: 22px;
   height: 22px;
@@ -908,4 +913,27 @@ input[type="range"]::-moz-range-thumb {
   opacity: 1;
   transform: scale(1);
   transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* -------- Bounce-in keyframe -------- */
+@keyframes bounce-in {
+  0% { transform: scale(0.95); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.bounce-in {
+  animation: bounce-in 0.3s ease;
+}
+
+/* -------- Preset switch animation -------- */
+.preview-preset-switch {
+  opacity: 0;
+  transform: scale(0.98);
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+.preview-preset-switch.active {
+  opacity: 1;
+  transform: scale(1);
 }

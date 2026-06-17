@@ -4,127 +4,88 @@ import { useLayoutStore } from '../store'
 import { generateFullCss } from '../layoutEngine'
 
 const KEYWORDS = ['@media', 'grid', 'flex', 'repeat', 'minmax', 'auto', 'min-width', 'max-width']
-const PROPS = [
-  'display',
-  'grid-template-columns',
-  'gap',
-  'padding',
-  'margin',
-  'flex',
-  'flex-grow',
-  'flex-shrink',
-  'flex-basis',
-  'background',
-  'border-radius',
-  'box-shadow',
-  'overflow',
-  'transition',
-  'transform',
-  'min-width',
-  'max-width',
-  'width',
-  'height',
-  'opacity',
-  'cursor',
-  'position',
-]
+
+const RE_COMMENT = /^\/\*[\s\S]*?\*\//
+const RE_STRING = /^"[^"]*"/
+const RE_PROP = /^[a-zA-Z][a-zA-Z0-9-]*(?=\s*:)/
+const RE_KEYWORD = new RegExp(
+  '^(' + KEYWORDS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![a-zA-Z0-9-])'
+)
+const RE_NUMBER = /^-?\d+(?:\.\d+)?(?:px|fr|em|rem|%|s|ms)?(?![a-zA-Z0-9])/
+const RE_PUNCT = /^[:;{}(),]/
 
 function highlightCss(code: string): React.ReactNode[] {
-  const lines = code.split('\n')
-  return lines.map((line, i) => {
-    const tokens: React.ReactNode[] = []
-    let remaining = line
-    let key = 0
+  const tokens: React.ReactNode[] = []
+  let remaining = code
+  let key = 0
+  let plainBuffer = ''
 
-    const pushPlain = (text: string) => {
-      if (text) tokens.push(<React.Fragment key={key++}>{text}</React.Fragment>)
+  const flushPlain = () => {
+    if (plainBuffer) {
+      tokens.push(<React.Fragment key={key++}>{plainBuffer}</React.Fragment>)
+      plainBuffer = ''
+    }
+  }
+
+  while (remaining.length > 0) {
+    let matched: { text: string; cls: string } | null = null
+
+    const mComment = remaining.match(RE_COMMENT)
+    if (mComment) {
+      matched = { text: mComment[0], cls: 'code-comment' }
     }
 
-    if (remaining.trim().startsWith('/*') || remaining.trim().startsWith('*')) {
+    if (!matched) {
+      const mStr = remaining.match(RE_STRING)
+      if (mStr) {
+        matched = { text: mStr[0], cls: 'code-string' }
+      }
+    }
+
+    if (!matched) {
+      const mProp = remaining.match(RE_PROP)
+      if (mProp) {
+        matched = { text: mProp[0], cls: 'code-prop' }
+      }
+    }
+
+    if (!matched) {
+      const mKw = remaining.match(RE_KEYWORD)
+      if (mKw) {
+        matched = { text: mKw[0], cls: 'code-keyword' }
+      }
+    }
+
+    if (!matched) {
+      const mNum = remaining.match(RE_NUMBER)
+      if (mNum && mNum[0].length > 0) {
+        matched = { text: mNum[0], cls: 'code-number' }
+      }
+    }
+
+    if (!matched) {
+      const mPunct = remaining.match(RE_PUNCT)
+      if (mPunct) {
+        matched = { text: mPunct[0], cls: 'code-punct' }
+      }
+    }
+
+    if (matched) {
+      flushPlain()
       tokens.push(
-        <span key={key++} className="code-comment">
-          {remaining}
+        <span key={key++} className={matched.cls}>
+          {matched.text}
         </span>
       )
-      return (
-        <React.Fragment key={i}>
-          {tokens}
-          {'\n'}
-        </React.Fragment>
-      )
+      remaining = remaining.slice(matched.text.length)
+    } else {
+      plainBuffer += remaining[0]
+      remaining = remaining.slice(1)
     }
+  }
 
-    while (remaining.length > 0) {
-      let matched: { text: string; cls: string; len: number } | null = null
-
-      const commentMatch = remaining.match(/^\/\*[\s\S]*?\*\//)
-      if (commentMatch) {
-        matched = { text: commentMatch[0], cls: 'code-comment', len: commentMatch[0].length }
-      }
-
-      if (!matched) {
-        for (const kw of KEYWORDS) {
-          if (remaining.startsWith(kw)) {
-            matched = { text: kw, cls: 'code-keyword', len: kw.length }
-            break
-          }
-        }
-      }
-
-      if (!matched) {
-        const numMatch = remaining.match(/^-?\d+(\.\d+)?(px|fr|em|rem|%|s|ms)?/)
-        if (numMatch && numMatch.index === 0 && !/[A-Za-z#]/.test(remaining[numMatch[0].length] ?? '')) {
-          const prev = line.slice(0, line.length - remaining.length)
-          const before = prev.slice(-1)
-          if (!/[a-zA-Z-]/.test(before)) {
-            matched = { text: numMatch[0], cls: 'code-number', len: numMatch[0].length }
-          }
-        }
-      }
-
-      if (!matched) {
-        const strMatch = remaining.match(/^"[^"]*"/)
-        if (strMatch) {
-          matched = { text: strMatch[0], cls: 'code-string', len: strMatch[0].length }
-        }
-      }
-
-      if (!matched) {
-        for (const prop of PROPS) {
-          if (remaining.startsWith(prop) && remaining[prop.length] === ':') {
-            matched = { text: prop, cls: 'code-prop', len: prop.length }
-            break
-          }
-        }
-      }
-
-      if (!matched) {
-        const punctMatch = remaining.match(/^[:;{}()[\],]/)
-        if (punctMatch) {
-          matched = { text: punctMatch[0], cls: 'code-punct', len: 1 }
-        }
-      }
-
-      if (matched) {
-        tokens.push(
-          <span key={key++} className={matched.cls}>
-            {matched.text}
-          </span>
-        )
-        remaining = remaining.slice(matched.len)
-      } else {
-        pushPlain(remaining[0])
-        remaining = remaining.slice(1)
-      }
-    }
-
-    return (
-      <React.Fragment key={i}>
-        {tokens}
-        {'\n'}
-      </React.Fragment>
-    )
-  })
+  flushPlain()
+  return tokens
 }
 
 export const ExportModal = memo(function ExportModal() {

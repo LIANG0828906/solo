@@ -7,6 +7,7 @@ interface CardItemProps {
   deviceKey: 'mobile' | 'tablet' | 'desktop'
   isDragging: boolean
   isRemoving: boolean
+  isNewlyPlaced?: boolean
   onDragStart: (index: number, deviceKey: 'mobile' | 'tablet' | 'desktop', e: React.PointerEvent) => void
   onDragMove: (x: number, y: number) => void
   onDragEnd: () => void
@@ -22,6 +23,7 @@ export const CardItem = memo(function CardItem(props: CardItemProps) {
     deviceKey,
     isDragging,
     isRemoving,
+    isNewlyPlaced,
     onDragStart,
     onDragMove,
     onDragEnd,
@@ -36,12 +38,21 @@ export const CardItem = memo(function CardItem(props: CardItemProps) {
   const startPos = useRef({ x: 0, y: 0 })
 
   const [localRemoving, setLocalRemoving] = useState(false)
+  const [bounceAnim, setBounceAnim] = useState(false)
 
   useEffect(() => {
     if (isRemoving && !localRemoving) {
       setLocalRemoving(true)
     }
   }, [isRemoving, localRemoving])
+
+  useEffect(() => {
+    if (isNewlyPlaced) {
+      setBounceAnim(true)
+      const t = window.setTimeout(() => setBounceAnim(false), 300)
+      return () => window.clearTimeout(t)
+    }
+  }, [isNewlyPlaced])
 
   const clearLongPressTimer = useCallback(() => {
     if (longPressTimer.current != null) {
@@ -62,6 +73,11 @@ export const CardItem = memo(function CardItem(props: CardItemProps) {
         longPressTriggered.current = true
         onLongPressTrigger(index, deviceKey)
         onDragStart(index, deviceKey, e)
+        try {
+          ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+        } catch {
+          /* ignore */
+        }
       }, 500)
     },
     [index, deviceKey, clearLongPressTimer, onLongPressTrigger, onDragStart]
@@ -71,26 +87,33 @@ export const CardItem = memo(function CardItem(props: CardItemProps) {
     (e: React.PointerEvent) => {
       const dx = Math.abs(e.clientX - startPos.current.x)
       const dy = Math.abs(e.clientY - startPos.current.y)
-      if (dx > 5 || dy > 5) {
+      if (!longPressTriggered.current && (dx > 5 || dy > 5)) {
         moveDetected.current = true
-        if (!longPressTriggered.current) {
-          clearLongPressTimer()
-        }
+        clearLongPressTimer()
       }
       if (longPressTriggered.current) {
+        e.preventDefault()
         onDragMove(e.clientX, e.clientY)
       }
     },
     [clearLongPressTimer, onDragMove]
   )
 
-  const handlePointerUp = useCallback(() => {
-    clearLongPressTimer()
-    if (longPressTriggered.current) {
-      onDragEnd()
-    }
-    longPressTriggered.current = false
-  }, [clearLongPressTimer, onDragEnd])
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      clearLongPressTimer()
+      if (longPressTriggered.current) {
+        try {
+          ;(e.target as HTMLElement).releasePointerCapture?.(e.pointerId)
+        } catch {
+          /* ignore */
+        }
+        onDragEnd()
+      }
+      longPressTriggered.current = false
+    },
+    [clearLongPressTimer, onDragEnd]
+  )
 
   const handlePointerCancel = useCallback(() => {
     clearLongPressTimer()
@@ -110,19 +133,25 @@ export const CardItem = memo(function CardItem(props: CardItemProps) {
     'card-item',
     isDragging ? 'dragging' : '',
     localRemoving ? 'removing' : '',
+    bounceAnim ? 'bounce-in' : '',
   ]
     .filter(Boolean)
     .join(' ')
 
-  const flexStyle =
-    flexBasis > 0
-      ? { flex: `1 1 ${flexBasis}px`, minWidth: 0 }
-      : undefined
+  const sizeStyle: React.CSSProperties = {
+    width: '100%',
+    minHeight: `${card.height}px`,
+  }
+
+  if (flexBasis > 0) {
+    sizeStyle.flex = `1 1 ${flexBasis}px`
+    sizeStyle.minWidth = 0
+  }
 
   return (
     <div
       className={classes}
-      style={flexStyle}
+      style={sizeStyle}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -132,6 +161,20 @@ export const CardItem = memo(function CardItem(props: CardItemProps) {
       data-card-index={index}
       data-device={deviceKey}
     >
+      <div
+        style={{
+          width: '100%',
+          height: Math.max(20, Math.floor((card.height ?? 80) / 4)),
+          borderRadius: 4,
+          background:
+            'linear-gradient(135deg, ' +
+            (card.width > 180 ? '#DBEAFE' : '#FCE7F3') +
+            ', ' +
+            (card.height > 120 ? '#E0E7FF' : '#ECFCCB') +
+            ')',
+          marginBottom: 6,
+        }}
+      />
       <div className="card-title">{card.title}</div>
       <div className="card-content">{card.content}</div>
     </div>

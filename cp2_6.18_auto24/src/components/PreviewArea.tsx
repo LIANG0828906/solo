@@ -2,11 +2,9 @@ import React, {
   memo,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react'
-import debounce from 'lodash.debounce'
 import type { DeviceKey } from '../store'
 import { useLayoutStore } from '../store'
 import { getContainerStyles } from '../layoutEngine'
@@ -46,12 +44,12 @@ export const PreviewArea = memo(function PreviewArea() {
   const transitionKey = useLayoutStore((s) => s.presetTransitionKey)
   const setMobilePanelOpen = useLayoutStore((s) => s.setMobilePanelOpen)
 
-  const mobileRef = useRef<HTMLDivElement>(null)
-  const tabletRef = useRef<HTMLDivElement>(null)
-  const desktopRef = useRef<HTMLDivElement>(null)
+  const mobileScrollRef = useRef<HTMLDivElement>(null)
+  const tabletScrollRef = useRef<HTMLDivElement>(null)
+  const desktopScrollRef = useRef<HTMLDivElement>(null)
 
-  const syncSourceRef = useRef<'mobile' | 'tablet' | 'desktop' | null>(null)
   const syncingRef = useRef(false)
+  const lastTransitionKeyRef = useRef(transitionKey)
 
   const [drag, setDrag] = useState<DragState>(INITIAL_DRAG)
   const dragRef = useRef<DragState>(INITIAL_DRAG)
@@ -67,13 +65,19 @@ export const PreviewArea = memo(function PreviewArea() {
     items: ContextMenuItem[]
   } | null>(null)
 
-  const [presetAnim, setPresetAnim] = useState(false)
+  const [enterAnimation, setEnterAnimation] = useState(false)
 
   useEffect(() => {
-    if (transitionKey === 0) return
-    setPresetAnim(true)
-    const t = window.setTimeout(() => setPresetAnim(false), 250)
-    return () => window.clearTimeout(t)
+    if (lastTransitionKeyRef.current !== transitionKey) {
+      console.log('[PreviewArea] transitionKey changed:', lastTransitionKeyRef.current, '->', transitionKey, ', triggering enterAnimation')
+      lastTransitionKeyRef.current = transitionKey
+      setEnterAnimation(true)
+      const t = window.setTimeout(() => {
+        setEnterAnimation(false)
+        console.log('[PreviewArea] enterAnimation ended')
+      }, 250)
+      return () => window.clearTimeout(t)
+    }
   }, [transitionKey])
 
   useEffect(() => {
@@ -83,44 +87,41 @@ export const PreviewArea = memo(function PreviewArea() {
     }
   })
 
-  const deviceRefByKey = (key: DeviceKey): React.RefObject<HTMLDivElement> => {
+  const scrollRefByKey = (key: DeviceKey): React.RefObject<HTMLDivElement> => {
     switch (key) {
       case 'mobile':
-        return mobileRef
+        return mobileScrollRef
       case 'tablet':
-        return tabletRef
+        return tabletScrollRef
       case 'desktop':
-        return desktopRef
+        return desktopScrollRef
     }
   }
 
-  const debouncedSync = useMemo(
-    () =>
-      debounce((src: DeviceKey, targetScroll: number) => {
-        const syncOthers = (['mobile', 'tablet', 'desktop'] as DeviceKey[]).filter(
-          (k) => k !== src
-        )
-        for (const key of syncOthers) {
-          const ref = deviceRefByKey(key)
-          if (ref.current) {
-            ref.current.scrollTop = targetScroll
-          }
-        }
-        syncSourceRef.current = null
-        syncingRef.current = false
-      }, 30),
-    []
-  )
-
   const handleScroll = useCallback(
     (device: DeviceKey) => (e: React.UIEvent<HTMLDivElement>) => {
-      if (syncingRef.current && syncSourceRef.current !== device) return
-      syncSourceRef.current = device
-      syncingRef.current = true
+      if (syncingRef.current) {
+        syncingRef.current = false
+        return
+      }
       const scrollTop = (e.target as HTMLDivElement).scrollTop
-      debouncedSync(device, scrollTop)
+      console.log('[PreviewArea] handleScroll source:', device, 'scrollTop:', scrollTop)
+      syncingRef.current = true
+      const others = (['mobile', 'tablet', 'desktop'] as DeviceKey[]).filter(
+        (k) => k !== device
+      )
+      for (const key of others) {
+        const ref = scrollRefByKey(key)
+        if (ref.current && ref.current.scrollTop !== scrollTop) {
+          ref.current.scrollTop = scrollTop
+          console.log('[PreviewArea] synced', key, 'to scrollTop:', scrollTop)
+        }
+      }
+      window.setTimeout(() => {
+        syncingRef.current = false
+      }, 5)
     },
-    [debouncedSync]
+    []
   )
 
   const containerStyleFor = useCallback(
@@ -253,7 +254,7 @@ export const PreviewArea = memo(function PreviewArea() {
     const list: Card[] = cardsMap[device] ?? []
     const width = DEVICE_SPECS[deviceType].width
     const style = containerStyleFor(width)
-    const animClass = presetAnim ? 'preview-transition-enter-active' : ''
+    const animClass = `preview-preset-switch${enterAnimation ? ' active' : ''}`
 
     const draggingThis = drag.active && drag.device === device
 
@@ -303,18 +304,11 @@ export const PreviewArea = memo(function PreviewArea() {
       <div className="preview-section single">
         <DeviceFrame
           device="mobile"
-          ref={mobileRef}
+          scrollRef={mobileScrollRef}
+          onScroll={handleScroll('mobile')}
           onAddCard={() => addCard('mobile')}
         >
-          <div onScroll={handleScroll('mobile')} style={{ height: '100%', overflow: 'auto' }}>
-            <div
-              ref={mobileRef}
-              onScroll={handleScroll('mobile')}
-              style={{ minHeight: '100%' }}
-            >
-              {renderDeviceCards('mobile', 'mobile')}
-            </div>
-          </div>
+          {renderDeviceCards('mobile', 'mobile')}
         </DeviceFrame>
       </div>
 
@@ -322,16 +316,11 @@ export const PreviewArea = memo(function PreviewArea() {
         <div style={{ position: 'relative' }}>
           <DeviceFrame
             device="tablet"
-            ref={tabletRef}
+            scrollRef={tabletScrollRef}
+            onScroll={handleScroll('tablet')}
             onAddCard={() => addCard('tablet')}
           >
-            <div
-              ref={tabletRef}
-              onScroll={handleScroll('tablet')}
-              style={{ height: '100%', overflow: 'auto' }}
-            >
-              {renderDeviceCards('tablet', 'tablet')}
-            </div>
+            {renderDeviceCards('tablet', 'tablet')}
           </DeviceFrame>
         </div>
         <div
@@ -355,16 +344,11 @@ export const PreviewArea = memo(function PreviewArea() {
         <div style={{ position: 'relative' }}>
           <DeviceFrame
             device="desktop"
-            ref={desktopRef}
+            scrollRef={desktopScrollRef}
+            onScroll={handleScroll('desktop')}
             onAddCard={() => addCard('desktop')}
           >
-            <div
-              ref={desktopRef}
-              onScroll={handleScroll('desktop')}
-              style={{ height: '100%', overflow: 'auto' }}
-            >
-              {renderDeviceCards('desktop', 'desktop')}
-            </div>
+            {renderDeviceCards('desktop', 'desktop')}
           </DeviceFrame>
         </div>
       </div>

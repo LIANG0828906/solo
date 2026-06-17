@@ -128,6 +128,47 @@ export const ControlPanel = memo(function ControlPanel() {
     overIndex: null,
   })
 
+  const [draggingValueId, setDraggingValueId] = useState<string | null>(null)
+  const valueDragState = useRef<{ startX: number; startValue: number } | null>(null)
+
+  const handleValueDragStart = useCallback(
+    (e: React.PointerEvent, bp: Breakpoint) => {
+      e.stopPropagation()
+      e.preventDefault()
+      const target = e.currentTarget as HTMLElement
+      target.setPointerCapture(e.pointerId)
+      valueDragState.current = {
+        startX: e.clientX,
+        startValue: bp.value,
+      }
+      setDraggingValueId(bp.id)
+    },
+    []
+  )
+
+  const handleValueDragMove = useCallback(
+    (e: React.PointerEvent, bpId: string) => {
+      if (!valueDragState.current || draggingValueId !== bpId) return
+      const deltaX = e.clientX - valueDragState.current.startX
+      const newVal = Math.max(100, Math.min(4000, valueDragState.current.startValue + deltaX))
+      updateBreakpoint(bpId, { value: Math.floor(newVal) })
+    },
+    [draggingValueId, updateBreakpoint]
+  )
+
+  const handleValueDragEnd = useCallback(
+    (e: React.PointerEvent, bpId: string) => {
+      if (!valueDragState.current || draggingValueId !== bpId) return
+      const target = e.currentTarget as HTMLElement
+      if (target.hasPointerCapture(e.pointerId)) {
+        target.releasePointerCapture(e.pointerId)
+      }
+      valueDragState.current = null
+      setDraggingValueId(null)
+    },
+    [draggingValueId]
+  )
+
   const handleBpValueChange = useCallback(
     (id: string, val: string) => {
       const num = Number(val)
@@ -188,8 +229,8 @@ export const ControlPanel = memo(function ControlPanel() {
   const handleWheelNum = (
     e: React.WheelEvent<HTMLInputElement>,
     val: number,
-    setter: (p: Partial<GridConfig>) => void | ((p: Partial<FlexConfig>) => void),
-    key: keyof GridConfig | keyof FlexConfig,
+    setter: (p: Record<string, number>) => void,
+    key: string,
     min: number,
     max: number,
     step = 1
@@ -197,7 +238,7 @@ export const ControlPanel = memo(function ControlPanel() {
     e.preventDefault()
     const delta = e.deltaY < 0 ? step : -step
     const next = Math.max(min, Math.min(max, Number((val + delta).toFixed(2))))
-    ;(setter as (p: Record<string, number>) => void)({ [key]: next })
+    setter({ [key]: next })
   }
 
   const panelClasses = [
@@ -243,8 +284,8 @@ export const ControlPanel = memo(function ControlPanel() {
             {breakpoints.map((bp, index) => (
               <div
                 key={bp.id}
-                className="breakpoint-item"
-                draggable
+                className={`breakpoint-item ${draggingValueId === bp.id ? 'dragging-value' : ''}`}
+                draggable={draggingValueId !== bp.id}
                 onDragStart={() => handleBpDragStart(index)}
                 onDragOver={(e) => handleBpDragOver(e, index)}
                 onDrop={(e) => handleBpDrop(e, index)}
@@ -267,6 +308,16 @@ export const ControlPanel = memo(function ControlPanel() {
                     onChange={(e) => handleBpLabelChange(bp.id, e.target.value)}
                   />
                 </div>
+                <div
+                  className="bp-drag-handle"
+                  style={{ background: bp.color }}
+                  onPointerDown={(e) => handleValueDragStart(e, bp)}
+                  onPointerMove={(e) => handleValueDragMove(e, bp.id)}
+                  onPointerUp={(e) => handleValueDragEnd(e, bp.id)}
+                  onPointerCancel={(e) => handleValueDragEnd(e, bp.id)}
+                  onDragStart={(e) => e.preventDefault()}
+                  title="拖拽调整断点值"
+                />
                 <div className="breakpoint-input">
                   <input
                     type="number"

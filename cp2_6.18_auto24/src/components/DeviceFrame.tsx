@@ -1,4 +1,4 @@
-import React, { forwardRef, memo } from 'react'
+import React, { memo } from 'react'
 import { Smartphone, Tablet, Monitor, Plus } from 'lucide-react'
 
 export type DeviceType = 'mobile' | 'tablet' | 'desktop'
@@ -20,49 +20,53 @@ interface DeviceFrameProps {
   addCardTooltip?: string
   onAddCard: () => void
   children: React.ReactNode
+  scrollRef?: React.RefObject<HTMLDivElement>
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void
 }
 
-export const DeviceFrame = memo(
-  forwardRef<HTMLDivElement, DeviceFrameProps>(function DeviceFrame(props, ref) {
-    const { device, onAddCard, children } = props
-    const specs = DEVICE_SPECS[device]
+export const DeviceFrame = memo(function DeviceFrame(props: DeviceFrameProps) {
+  const { device, onAddCard, children, scrollRef, onScroll } = props
+  const specs = DEVICE_SPECS[device]
 
-    const heightMap: Record<DeviceType, number> = {
-      mobile: 480,
-      tablet: 520,
-      desktop: 560,
-    }
+  const heightMap: Record<DeviceType, number> = {
+    mobile: 480,
+    tablet: 520,
+    desktop: 560,
+  }
 
-    return (
-      <div className="device-wrapper">
-        <div className="device-toolbar">
-          <div className="device-label">
-            <span className="dot" style={{ background: specs.dotColor }} />
-            {DEVICE_ICONS[device]}
-            <span>{specs.label}</span>
-          </div>
-          <button
-            type="button"
-            className="add-card-btn"
-            onClick={onAddCard}
-            title="添加卡片"
-          >
-            <Plus size={16} />
-          </button>
+  return (
+    <div className="device-wrapper">
+      <div className="device-toolbar">
+        <div className="device-label">
+          <span className="dot" style={{ background: specs.dotColor }} />
+          {DEVICE_ICONS[device]}
+          <span>{specs.label}</span>
         </div>
-        <div
-          className="device-frame"
-          style={{
-            width: specs.width,
-            height: heightMap[device],
-            maxWidth: '100%',
-          }}
+        <button
+          type="button"
+          className="add-card-btn"
+          onClick={onAddCard}
+          title="添加卡片"
         >
-          <div className="device-scroll" ref={ref}>
-            {children}
-          </div>
+          <Plus size={16} />
+        </button>
+      </div>
+      <div
+        className="device-frame"
+        style={{
+          width: specs.width,
+          height: heightMap[device],
+          maxWidth: '100%',
+        }}
+      >
+        <div
+          className="device-scroll"
+          ref={scrollRef}
+          onScroll={onScroll}
+        >
+          {children}
         </div>
       </div>
-    )
-  })
-)
+    </div>
+  )
+})

@@ -59,10 +59,12 @@ export function generateRandomCards(count?: number): Card[] {
   const cards: Card[] = []
 
   for (let i = 0; i < n; i++) {
+    const width = randomInRange(120, 240)
+    const height = randomInRange(80, 160)
     cards.push({
       id: uuidv4(),
-      width: randomInRange(120, 240),
-      height: randomInRange(80, 160),
+      width,
+      height,
       title: pickRandom(LOREM_TITLES),
       content: pickRandom(LOREM_PARAGRAPHS),
     })
@@ -72,10 +74,12 @@ export function generateRandomCards(count?: number): Card[] {
 }
 
 export function generateSingleCard(): Card {
+  const width = randomInRange(120, 240)
+  const height = randomInRange(80, 160)
   return {
     id: uuidv4(),
-    width: randomInRange(120, 240),
-    height: randomInRange(80, 160),
+    width,
+    height,
     title: pickRandom(LOREM_TITLES),
     content: pickRandom(LOREM_PARAGRAPHS),
   }
