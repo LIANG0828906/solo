@@ -35,7 +35,7 @@ export const CurveEditor: React.FC<Props> = () => {
     (e: MouseEvent) => {
       if (!dragging) return;
       const { x, y } = getMousePos(e);
-      const nx = fromSvgX(x);
+      const nx = Math.max(0, Math.min(1, fromSvgX(x)));
       const ny = fromSvgY(y);
 
       if (dragging === 'p1') {

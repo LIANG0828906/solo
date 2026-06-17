@@ -60,11 +60,17 @@ export const useAnimationStore = create<AnimationState>((set, get) => ({
   updateKeyframe: (id: string, updates: Partial<Keyframe>) => {
     set((state) => ({
       keyframes: sortKeyframes(
-        state.keyframes.map((k) =>
-          k.id === id
-            ? { ...k, ...updates, time: updates.time !== undefined ? clampTime(updates.time) : k.time }
-            : k
-        )
+        state.keyframes.map((k) => {
+          if (k.id !== id) return k;
+          const merged = { ...k, ...updates };
+          if (updates.transform) {
+            merged.transform = { ...k.transform, ...updates.transform };
+          }
+          if (updates.time !== undefined) {
+            merged.time = clampTime(updates.time);
+          }
+          return merged;
+        })
       ),
     }));
   },

@@ -7,28 +7,57 @@ export const ExportModal: React.FC = () => {
   const setOpen = useAnimationStore((s) => s.setExportModalOpen);
   const generateCSS = useAnimationStore((s) => s.generateCSS);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const codeRef = useRef<HTMLDivElement>(null);
 
   const cssCode = generateCSS();
 
   useEffect(() => {
-    if (!isOpen) setCopied(false);
+    if (!isOpen) {
+      setCopied(false);
+      setCopyFailed(false);
+    }
   }, [isOpen]);
 
-  const handleCopy = async () => {
+  const fallbackCopy = (text: string): boolean => {
     try {
-      await navigator.clipboard.writeText(cssCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
       const textarea = document.createElement('textarea');
-      textarea.value = cssCode;
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '-9999px';
+      textarea.style.opacity = '0';
       document.body.appendChild(textarea);
+      textarea.focus();
       textarea.select();
-      document.execCommand('copy');
+      const success = document.execCommand('copy');
       document.body.removeChild(textarea);
+      return success;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleCopy = async () => {
+    setCopyFailed(false);
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(cssCode);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        return;
+      }
+    } catch {
+      // clipboard API failed, try fallback
+    }
+
+    const success = fallbackCopy(cssCode);
+    if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } else {
+      setCopyFailed(true);
+      setTimeout(() => setCopyFailed(false), 3000);
     }
   };
 
@@ -132,7 +161,7 @@ export const ExportModal: React.FC = () => {
               padding: '8px 20px',
               borderRadius: 8,
               border: 'none',
-              backgroundColor: copied ? '#4CAF50' : '#2196F3',
+              backgroundColor: copyFailed ? '#f44336' : copied ? '#4CAF50' : '#2196F3',
               color: '#fff',
               fontSize: 14,
               cursor: 'pointer',
@@ -142,14 +171,14 @@ export const ExportModal: React.FC = () => {
               transition: 'background-color 0.2s ease-out',
             }}
             onMouseEnter={(e) => {
-              if (!copied) e.currentTarget.style.backgroundColor = '#1976D2';
+              if (!copied && !copyFailed) e.currentTarget.style.backgroundColor = '#1976D2';
             }}
             onMouseLeave={(e) => {
-              if (!copied) e.currentTarget.style.backgroundColor = '#2196F3';
+              if (!copied && !copyFailed) e.currentTarget.style.backgroundColor = '#2196F3';
             }}
           >
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            {copied ? '已复制' : '复制代码'}
+            {copyFailed ? <X size={16} /> : copied ? <Check size={16} /> : <Copy size={16} />}
+            {copyFailed ? '复制失败，请手动选择' : copied ? '已复制' : '复制代码'}
           </button>
         </div>
       </div>

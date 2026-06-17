@@ -51,33 +51,48 @@ export const EditorPanel: React.FC = () => {
     []
   );
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!draggingId || !timelineRef.current) return;
+  const draggingIdRef = useRef<string | null>(null);
+  const dragTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    draggingIdRef.current = draggingId;
+  }, [draggingId]);
+
+  useEffect(() => {
+    dragTimeRef.current = dragTime;
+  }, [dragTime]);
+
+  useEffect(() => {
+    if (!draggingId) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      const currentDraggingId = draggingIdRef.current;
+      if (!currentDraggingId || !timelineRef.current) return;
       const rect = timelineRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const t = positionToTime(x, rect.width);
       setDragTime(t);
-      updateKeyframe(draggingId, { time: t });
-    },
-    [draggingId, updateKeyframe, positionToTime]
-  );
+      dragTimeRef.current = t;
+      updateKeyframe(currentDraggingId, { time: t });
+    };
 
-  const handleMouseUp = useCallback(() => {
-    setDraggingId(null);
-    setDragTime(null);
-  }, []);
+    const onMouseUp = () => {
+      setDraggingId(null);
+      setDragTime(null);
+      draggingIdRef.current = null;
+      dragTimeRef.current = null;
+    };
 
-  useEffect(() => {
-    if (draggingId) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [draggingId, handleMouseMove, handleMouseUp]);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    document.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [draggingId, updateKeyframe, positionToTime]);
 
   const ticks = [];
   for (let i = 0; i <= TICK_COUNT; i++) {

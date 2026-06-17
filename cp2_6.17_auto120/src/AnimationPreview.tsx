@@ -116,10 +116,17 @@ ${frames}
     } as React.CSSProperties;
   }, [isPlaying, sortedKeyframes, currentTime, config, playbackSpeed]);
 
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
   useEffect(() => {
     if (isPlaying) {
+      timeRef.current = currentTime;
       lastTsRef.current = null;
       const tick = (ts: number) => {
+        if (!isPlayingRef.current) return;
         if (lastTsRef.current === null) lastTsRef.current = ts;
         const delta = (ts - lastTsRef.current) / 1000;
         lastTsRef.current = ts;
