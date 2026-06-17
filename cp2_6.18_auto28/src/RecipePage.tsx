@@ -1,17 +1,45 @@
-import { useState, KeyboardEvent } from 'react';
+import { useState, KeyboardEvent, useEffect, useRef } from 'react';
 import { useAppStore } from './store';
 import { MatchedRecipe } from './engine';
 
 function getProgressClass(percentage: number): string {
   if (percentage >= 90) return 'progress-purple';
   if (percentage >= 70) return 'progress-blue';
-  return 'progress-green';
+  if (percentage >= 50) return 'progress-green';
+  return 'progress-gray';
 }
 
-function RecipeCard({ recipe }: { recipe: MatchedRecipe }) {
+function RecipeCard({ recipe, animKey }: { recipe: MatchedRecipe; animKey: number }) {
   const { favoriteRecipes, saveRecipe, removeRecipe, setDetailRecipe } = useAppStore();
   const [isAnimating, setIsAnimating] = useState(false);
+  const [displayProgress, setDisplayProgress] = useState(0);
+  const frameRef = useRef<number | null>(null);
   const isFavorited = favoriteRecipes.includes(recipe.id);
+
+  useEffect(() => {
+    setDisplayProgress(0);
+    const start = performance.now();
+    const duration = 500;
+    const target = recipe.matchPercentage;
+
+    const animate = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(eased * target);
+      setDisplayProgress(current);
+      if (progress < 1) {
+        frameRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    frameRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+      }
+    };
+  }, [animKey, recipe.matchPercentage]);
 
   const handleFavoriteClick = () => {
     setIsAnimating(true);
@@ -20,7 +48,7 @@ function RecipeCard({ recipe }: { recipe: MatchedRecipe }) {
     } else {
       saveRecipe(recipe.id);
     }
-    setTimeout(() => setIsAnimating(false), 300);
+    setTimeout(() => setIsAnimating(false), 400);
   };
 
   return (
@@ -38,12 +66,12 @@ function RecipeCard({ recipe }: { recipe: MatchedRecipe }) {
       <div className="match-section">
         <div className="match-label">
           <span>匹配度</span>
-          <span>{recipe.matchPercentage}%</span>
+          <span>{displayProgress}%</span>
         </div>
         <div className="progress-bar">
           <div
-            className={`progress-fill ${getProgressClass(recipe.matchPercentage)}`}
-            style={{ width: `${recipe.matchPercentage}%` }}
+            className={`progress-fill ${getProgressClass(displayProgress)}`}
+            style={{ width: `${displayProgress}%` }}
           />
         </div>
       </div>
@@ -74,12 +102,18 @@ export default function RecipePage() {
   const { ingredients, addIngredient, removeIngredient, calculateRecommendations, recommendedRecipes } =
     useAppStore();
   const [inputValue, setInputValue] = useState('');
+  const [animKey, setAnimKey] = useState(0);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputValue.trim()) {
       addIngredient(inputValue.trim());
       setInputValue('');
     }
+  };
+
+  const handleRecommend = () => {
+    calculateRecommendations();
+    setAnimKey((k) => k + 1);
   };
 
   return (
@@ -108,7 +142,7 @@ export default function RecipePage() {
 
         <button
           className="recommend-btn"
-          onClick={calculateRecommendations}
+          onClick={handleRecommend}
           disabled={ingredients.length === 0}
         >
           推荐菜谱
@@ -128,7 +162,7 @@ export default function RecipePage() {
         ) : (
           <div className="recipe-list">
             {recommendedRecipes.map((recipe) => (
-              <RecipeCard key={recipe.id} recipe={recipe} />
+              <RecipeCard key={recipe.id} recipe={recipe} animKey={animKey} />
             ))}
           </div>
         )}

@@ -284,7 +284,7 @@ input {
   border-radius: var(--radius-xl);
   padding: 20px;
   box-shadow: var(--shadow-card);
-  transition: all var(--transition-normal);
+  transition: box-shadow 0.35s ease-in-out, transform 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -341,12 +341,12 @@ input {
 }
 
 .favorite-btn.active {
-  animation: heartBeat var(--transition-normal);
+  animation: heartBeat 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
 }
 
 @keyframes heartBeat {
   0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+  50% { transform: scale(1.25); }
   100% { transform: scale(1); }
 }
 
@@ -382,13 +382,11 @@ input {
   height: 100%;
   border-radius: 4px;
   width: 0;
-  animation: progressFill var(--transition-slow) ease-out forwards;
+  transition: width 0.5s ease-out, background-color 0.2s ease;
 }
 
-@keyframes progressFill {
-  from {
-    width: 0;
-  }
+.progress-gray {
+  background-color: var(--color-gray);
 }
 
 .progress-green {
