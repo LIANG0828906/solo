@@ -28,6 +28,14 @@ function TextureModule() {
     setSensitivity(Number(e.target.value))
   }
 
+  const handleDecrease = () => {
+    setSensitivity(Math.max(0, sensitivity - 1))
+  }
+
+  const handleIncrease = () => {
+    setSensitivity(Math.min(100, sensitivity + 1))
+  }
+
   const handleDownload = () => {
     triggerDownload()
   }
@@ -59,19 +67,56 @@ function TextureModule() {
       <div style={styles.controls}>
         <div style={styles.sliderContainer}>
           <label style={styles.sliderLabel}>
-            纹理敏感度: <span style={styles.sliderValue}>{sensitivity}</span>
+            纹理敏感度
           </label>
-          <div style={styles.sliderWrapper}>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={sensitivity}
-              onChange={handleSensitivityChange}
-              style={styles.slider}
-              disabled={!capturedImage}
-            />
+          <div style={styles.sliderRow}>
+            <button
+              style={{
+                ...styles.adjustButton,
+                opacity: capturedImage && sensitivity > 0 ? 1 : 0.5,
+                cursor: capturedImage && sensitivity > 0 ? 'pointer' : 'not-allowed',
+              }}
+              onClick={handleDecrease}
+              disabled={!capturedImage || sensitivity <= 0}
+              onMouseEnter={(e) => {
+                if (capturedImage && sensitivity > 0) e.currentTarget.style.backgroundColor = '#42A5F5'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#64B5F6'
+              }}
+            >
+              −
+            </button>
+            <div style={styles.sliderWrapper}>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={sensitivity}
+                onChange={handleSensitivityChange}
+                style={styles.slider}
+                disabled={!capturedImage}
+              />
+            </div>
+            <button
+              style={{
+                ...styles.adjustButton,
+                opacity: capturedImage && sensitivity < 100 ? 1 : 0.5,
+                cursor: capturedImage && sensitivity < 100 ? 'pointer' : 'not-allowed',
+              }}
+              onClick={handleIncrease}
+              disabled={!capturedImage || sensitivity >= 100}
+              onMouseEnter={(e) => {
+                if (capturedImage && sensitivity < 100) e.currentTarget.style.backgroundColor = '#42A5F5'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#64B5F6'
+              }}
+            >
+              +
+            </button>
+            <span style={styles.sliderValueLabel}>{sensitivity}</span>
           </div>
           <div style={styles.sliderLegend}>
             <span style={styles.legendLow}>低</span>
@@ -212,17 +257,32 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 500,
     color: '#546E7A',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  sliderValue: {
-    color: '#0D47A1',
-    fontWeight: 700,
-    fontSize: 16,
+  sliderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  adjustButton: {
+    backgroundColor: '#64B5F6',
+    color: '#FFFFFF',
+    border: 'none',
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    fontSize: 18,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'background-color 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+    lineHeight: 1,
   },
   sliderWrapper: {
-    width: '100%',
+    flex: 1,
   },
   slider: {
     width: '100%',
@@ -235,17 +295,26 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     transition: 'background 0.3s ease',
   },
+  sliderValueLabel: {
+    minWidth: 32,
+    textAlign: 'center',
+    color: '#0D47A1',
+    fontSize: 14,
+    fontWeight: 700,
+  },
   sliderLegend: {
     display: 'flex',
     justifyContent: 'space-between',
     fontSize: 12,
     color: '#90A4AE',
+    paddingLeft: 42,
+    paddingRight: 42,
   },
   legendLow: {
-    marginLeft: 4,
+    marginLeft: 0,
   },
   legendHigh: {
-    marginRight: 4,
+    marginRight: 0,
   },
   downloadButton: {
     backgroundColor: '#64B5F6',

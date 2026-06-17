@@ -1,7 +1,88 @@
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import CameraModule from './modules/camera/CameraModule'
 import TextureModule from './modules/texture/TextureModule'
 import { useStore } from './store'
+import type { WrinkleStats } from './types'
+
+function AnimatedStatValue({ value, format }: { value: number | string; format?: (v: number) => string }) {
+  const [isAnimating, setIsAnimating] = useState(false)
+  const prevValueRef = useRef(value)
+
+  useEffect(() => {
+    if (prevValueRef.current !== value) {
+      setIsAnimating(true)
+      const timer = setTimeout(() => setIsAnimating(false), 100)
+      prevValueRef.current = value
+      return () => clearTimeout(timer)
+    }
+  }, [value])
+
+  const displayValue = typeof value === 'number' && format ? format(value) : value
+
+  return (
+    <span
+      style={{
+        color: '#0D47A1',
+        fontSize: 16,
+        fontWeight: 600,
+        transition: 'opacity 0.1s ease, transform 0.1s ease',
+        opacity: isAnimating ? 0.6 : 1,
+        transform: isAnimating ? 'scale(1.08)' : 'scale(1)',
+        display: 'inline-block',
+      }}
+    >
+      {displayValue}
+    </span>
+  )
+}
+
+function AnimatedCoordValue({ x, y }: { x: number; y: number }) {
+  const [isAnimating, setIsAnimating] = useState(false)
+  const prevXRef = useRef(x)
+  const prevYRef = useRef(y)
+
+  useEffect(() => {
+    if (prevXRef.current !== x || prevYRef.current !== y) {
+      setIsAnimating(true)
+      const timer = setTimeout(() => setIsAnimating(false), 100)
+      prevXRef.current = x
+      prevYRef.current = y
+      return () => clearTimeout(timer)
+    }
+  }, [x, y])
+
+  return (
+    <span
+      style={{
+        color: '#0D47A1',
+        fontSize: 16,
+        fontWeight: 600,
+        transition: 'opacity 0.1s ease, transform 0.1s ease',
+        opacity: isAnimating ? 0.6 : 1,
+        transform: isAnimating ? 'scale(1.08)' : 'scale(1)',
+        display: 'inline-block',
+      }}
+    >
+      ({x}, {y})
+    </span>
+  )
+}
+
+function StatsPanel({ stats }: { stats: WrinkleStats }) {
+  return (
+    <div style={styles.statsPanel}>
+      <div style={styles.statItem}>
+        <span style={styles.statLabel}>平均褶皱强度:</span>
+        <AnimatedStatValue value={stats.averageIntensity} format={(v) => `${v.toFixed(1)}%`} />
+      </div>
+      <div style={styles.statItem}>
+        <span style={styles.statLabel}>最大褶皱区域:</span>
+        <AnimatedCoordValue x={stats.maxWrinkleX} y={stats.maxWrinkleY} />
+      </div>
+    </div>
+  )
+}
 
 function App() {
   const { stats } = useStore()
@@ -16,18 +97,7 @@ function App() {
       <div className="main-layout">
         <div className="left-panel">
           <CameraModule />
-          <div style={styles.statsPanel}>
-            <div style={styles.statItem}>
-              <span style={styles.statLabel}>平均褶皱强度:</span>
-              <span style={styles.statValue}>{stats.averageIntensity.toFixed(1)}%</span>
-            </div>
-            <div style={styles.statItem}>
-              <span style={styles.statLabel}>最大褶皱区域:</span>
-              <span style={styles.statValue}>
-                ({stats.maxWrinkleX}, {stats.maxWrinkleY})
-              </span>
-            </div>
-          </div>
+          <StatsPanel stats={stats} />
         </div>
 
         <div className="divider" />
@@ -63,11 +133,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#546E7A',
     fontSize: 14,
     fontWeight: 500,
-  },
-  statValue: {
-    color: '#0D47A1',
-    fontSize: 16,
-    fontWeight: 600,
   },
 }
 
