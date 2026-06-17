@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useStore,
   computeFilteredBooks,
@@ -21,6 +21,9 @@ const BrowsePage = () => {
     setCurrentPage,
   } = useStore();
 
+  const [inputValue, setInputValue] = useState(searchQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const filteredBooks = useMemo(
     () => computeFilteredBooks(books, searchQuery, sortOrder),
     [books, searchQuery, sortOrder]
@@ -36,19 +39,27 @@ const BrowsePage = () => {
     [filteredBooks, pageSize]
   );
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   useEffect(() => {
     loadBooks();
   }, [loadBooks]);
 
-  const handleSearchChange = (value: string) => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+  useEffect(() => {
+    setInputValue(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
     debounceRef.current = setTimeout(() => {
-      setSearchQuery(value);
+      setSearchQuery(inputValue);
     }, 200);
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [inputValue, setSearchQuery]);
+
+  const handleSearchChange = (value: string) => {
+    setInputValue(value);
   };
 
   return (
@@ -58,7 +69,7 @@ const BrowsePage = () => {
           type="text"
           className="search-input"
           placeholder="搜索书名或作者..."
-          defaultValue={searchQuery}
+          value={inputValue}
           onChange={(e) => handleSearchChange(e.target.value)}
         />
         <div style={{ display: 'flex', gap: '8px' }}>

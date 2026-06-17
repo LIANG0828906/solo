@@ -18,36 +18,59 @@ const BookCard = ({ book }: BookCardProps) => {
   const colorIndex = book.title.charCodeAt(0) % coverColors.length;
   const placeholderColor = coverColors[colorIndex];
 
+  const hasValidCover = book.coverUrl && book.coverUrl.trim() !== '';
+  const showPlaceholder = imageError || !hasValidCover;
+
   return (
     <div
       className="book-card"
       style={{ minWidth: '200px' }}
       onClick={handleClick}
     >
-      <div className="book-cover">
-        {!imageError ? (
+      <div
+        className="book-cover"
+        style={{
+          height: '70%',
+          minHeight: '180px',
+        }}
+      >
+        {!showPlaceholder ? (
           <img
             src={book.coverUrl}
             alt={book.title}
             onError={() => setImageError(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
           <div
             style={{
               width: '100%',
               height: '100%',
+              minHeight: '180px',
               background: placeholderColor,
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              fontSize: '18px',
-              fontWeight: 'bold',
               textAlign: 'center',
-              padding: '8px',
+              padding: '12px',
+              boxSizing: 'border-box',
             }}
           >
-            {book.title}
+            <div
+              style={{
+                fontSize: '14px',
+                fontWeight: 'bold',
+                marginBottom: '8px',
+                lineHeight: 1.3,
+              }}
+            >
+              {book.title}
+            </div>
+            <div style={{ fontSize: '12px', opacity: 0.85 }}>
+              暂无封面
+            </div>
           </div>
         )}
       </div>
