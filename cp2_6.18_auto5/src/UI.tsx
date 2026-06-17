@@ -15,6 +15,7 @@ const UI: React.FC = () => {
     score,
     lives,
     blurAmount,
+    whiteFadeAmount,
     setInput,
     setCanvasSize,
     reset,
@@ -129,7 +130,7 @@ const UI: React.FC = () => {
     }
 
     {
-      const { centerX: cx, centerY: cy, radius, initialRadius } = s.safeZone
+      const { centerX: cx, centerY: cy, radius } = s.safeZone
       ctx.save()
       ctx.beginPath()
       ctx.arc(cx, cy, radius, 0, Math.PI * 2)
@@ -144,35 +145,37 @@ const UI: React.FC = () => {
       ctx.shadowBlur = 12
       ctx.stroke()
       ctx.restore()
-      void initialRadius
     }
 
     for (const n of s.notes) {
-      const flash = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(n.flashPhase))
+      const flashT = (n.flashPhase % (Math.PI * 2)) / (Math.PI * 2)
+      const flash = 0.4 + 0.6 * Math.abs(Math.sin(flashT * Math.PI))
       ctx.save()
       ctx.translate(n.x, n.y)
       ctx.rotate(n.rotation)
+      ctx.shadowColor = '#FFD700'
+      ctx.shadowBlur = 10 + 8 * flash
       ctx.beginPath()
       ctx.arc(0, 0, 5, 0, Math.PI * 2)
       ctx.fillStyle = `rgba(255, 215, 0, ${flash})`
-      ctx.shadowColor = '#FFD700'
-      ctx.shadowBlur = 10
       ctx.fill()
       ctx.beginPath()
       ctx.arc(0, 0, 2, 0, Math.PI * 2)
       ctx.fillStyle = '#FFFFFF'
+      ctx.shadowBlur = 0
       ctx.fill()
       ctx.restore()
     }
 
     for (const p of s.pulses) {
+      ctx.save()
       ctx.beginPath()
       ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
       ctx.fillStyle = p.color
       ctx.shadowColor = p.color
       ctx.shadowBlur = 8
       ctx.fill()
-      ctx.shadowBlur = 0
+      ctx.restore()
     }
 
     for (const p of s.particles) {
@@ -185,13 +188,14 @@ const UI: React.FC = () => {
 
     {
       const b = s.ball
+      ctx.save()
       ctx.beginPath()
       ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2)
       ctx.fillStyle = '#FFD700'
       ctx.shadowColor = '#FFD700'
       ctx.shadowBlur = 4
       ctx.fill()
-      ctx.shadowBlur = 0
+      ctx.restore()
     }
 
     if (s.flashAlpha > 0) {
@@ -221,12 +225,14 @@ const UI: React.FC = () => {
     reset()
   }
 
-  const countdownProgress = Math.min(1, countdownTimer / 1)
+  const countdownProgress = Math.min(1, (countdownTimer % 1))
   const showCountdown = phase === 'countdown'
 
-  const showGameOver = phase === 'gameover' && blurAmount >= 1
+  const showGameOverPanel = phase === 'gameover' && whiteFadeAmount >= 1
 
   const safeProgress = Math.max(0, Math.min(1, safeZone.radius / safeZone.initialRadius))
+
+  const combinedFade = Math.max(blurAmount * 0.6, whiteFadeAmount)
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -307,7 +313,7 @@ const UI: React.FC = () => {
             color: '#00E5FF',
             textShadow: '0 0 30px #00E5FF, 0 0 60px rgba(0,229,255,0.5)',
             opacity: countdownProgress,
-            transition: 'opacity 0.3s ease-out',
+            transition: 'opacity 0.15s ease-out',
           }}>
             {countdown}
           </div>
@@ -315,79 +321,89 @@ const UI: React.FC = () => {
       )}
 
       {phase === 'gameover' && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: `rgba(255, 255, 255, ${blurAmount})`,
-          backdropFilter: `blur(${blurAmount * 20}px)`,
-          WebkitBackdropFilter: `blur(${blurAmount * 20}px)`,
-          pointerEvents: showGameOver ? 'auto' : 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: blurAmount,
-          transition: 'opacity 0.3s',
-        }}>
-          {showGameOver && (
-            <div style={{
-              textAlign: 'center',
-              padding: 48,
-              borderRadius: 16,
-              background: 'rgba(10, 10, 26, 0.95)',
-              border: '1px solid rgba(0, 229, 255, 0.3)',
-              boxShadow: '0 0 40px rgba(0, 229, 255, 0.2)',
-            }}>
+        <>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backdropFilter: `blur(${blurAmount * 30}px)`,
+            WebkitBackdropFilter: `blur(${blurAmount * 30}px)`,
+            backgroundColor: `rgba(255, 255, 255, ${whiteFadeAmount})`,
+            pointerEvents: showGameOverPanel ? 'auto' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background-color 0.2s linear',
+            zIndex: 10,
+          }}>
+            {showGameOverPanel && (
               <div style={{
-                fontSize: 48,
-                fontFamily: 'monospace',
-                fontWeight: 'bold',
-                color: '#FF6B6B',
-                marginBottom: 16,
-                textShadow: '0 0 20px rgba(255,107,107,0.6)',
+                textAlign: 'center',
+                padding: 48,
+                borderRadius: 16,
+                background: 'rgba(10, 10, 26, 0.95)',
+                border: '1px solid rgba(0, 229, 255, 0.3)',
+                boxShadow: '0 0 40px rgba(0, 229, 255, 0.2)',
+                animation: 'fadeInScale 0.4s ease-out',
               }}>
-                GAME OVER
-              </div>
-              <div style={{
-                fontSize: 24,
-                fontFamily: 'monospace',
-                color: '#FFFFFF',
-                marginBottom: 32,
-              }}>
-                Final Score: <span style={{ color: '#FFD700', textShadow: '0 0 10px #FFD700' }}>{score}</span>
-              </div>
-              <button
-                onClick={handleRestart}
-                style={{
-                  padding: '14px 40px',
-                  fontSize: 20,
+                <div style={{
+                  fontSize: 48,
                   fontFamily: 'monospace',
                   fontWeight: 'bold',
-                  color: '#0A0A1A',
-                  backgroundColor: '#00E5FF',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  boxShadow: '0 0 20px rgba(0, 229, 255, 0.5)',
-                  transition: 'transform 0.15s, box-shadow 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.05)'
-                  e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 229, 255, 0.8)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)'
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 229, 255, 0.5)'
-                }}
-              >
-                RESTART
-              </button>
-            </div>
-          )}
-        </div>
+                  color: '#FF6B6B',
+                  marginBottom: 16,
+                  textShadow: '0 0 20px rgba(255,107,107,0.6)',
+                }}>
+                  GAME OVER
+                </div>
+                <div style={{
+                  fontSize: 24,
+                  fontFamily: 'monospace',
+                  color: '#FFFFFF',
+                  marginBottom: 32,
+                }}>
+                  Final Score: <span style={{ color: '#FFD700', textShadow: '0 0 10px #FFD700' }}>{score}</span>
+                </div>
+                <button
+                  onClick={handleRestart}
+                  style={{
+                    padding: '14px 40px',
+                    fontSize: 20,
+                    fontFamily: 'monospace',
+                    fontWeight: 'bold',
+                    color: '#0A0A1A',
+                    backgroundColor: '#00E5FF',
+                    border: 'none',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    boxShadow: '0 0 20px rgba(0, 229, 255, 0.5)',
+                    transition: 'transform 0.15s, box-shadow 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.05)'
+                    e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 229, 255, 0.8)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)'
+                    e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 229, 255, 0.5)'
+                  }}
+                >
+                  RESTART
+                </button>
+              </div>
+            )}
+          </div>
+          <style>{`
+            @keyframes fadeInScale {
+              0% { opacity: 0; transform: scale(0.85); }
+              100% { opacity: 1; transform: scale(1); }
+            }
+          `}</style>
+        </>
       )}
+      {combinedFade > 0 && phase === 'gameover' && !showGameOverPanel && null}
     </div>
   )
 }
