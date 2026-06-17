@@ -57,8 +57,10 @@ function App() {
   const handleConfirmClear = async () => {
     setShowConfirm(false);
     setIsClearing(true);
-    await clearAll();
-    setTimeout(() => setIsClearing(false), 400);
+    setTimeout(async () => {
+      await clearAll();
+      setIsClearing(false);
+    }, 800);
   };
 
   const handleCancelClear = () => {
@@ -78,7 +80,7 @@ function App() {
   }
 
   return (
-    <div className={`app ${isClearing ? 'clearing' : ''}`}>
+    <div className="app">
       <div className="header">
         <h1 className="title">匿名反馈</h1>
         <p className="subtitle">说说你的真实想法，完全匿名</p>
@@ -160,7 +162,7 @@ function App() {
         </button>
       </div>
 
-      <div className="feedback-stream">
+      <div className={`feedback-stream ${isClearing ? 'clearing' : ''}`}>
         {feedbacks.length === 0 ? (
           <div className="empty-state">暂无反馈，来说点什么吧～</div>
         ) : (

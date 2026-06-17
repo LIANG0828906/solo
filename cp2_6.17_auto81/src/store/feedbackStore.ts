@@ -48,7 +48,10 @@ export const useFeedbackStore = create<FeedbackState>((set, get) => ({
 
   init: async () => {
     await initDB();
-    const feedbacks = await getAllFeedbacks();
+    const feedbacks = (await getAllFeedbacks()).map((f) => ({
+      ...f,
+      borderColor: f.borderColor || getRandomBorderColor(),
+    }));
     const emotionStats = await dbGetEmotionStats();
     const anonymousId = generateAnonymousId();
     set({ feedbacks, emotionStats, anonymousId, isLoaded: true });
@@ -95,7 +98,16 @@ export const useFeedbackStore = create<FeedbackState>((set, get) => ({
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
-    const timestamp = Date.now();
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const timestamp =
+      now.getFullYear().toString() +
+      pad(now.getMonth() + 1) +
+      pad(now.getDate()) +
+      '_' +
+      pad(now.getHours()) +
+      pad(now.getMinutes()) +
+      pad(now.getSeconds());
     const a = document.createElement('a');
     a.href = url;
     a.download = `feedback_export_${timestamp}.json`;
