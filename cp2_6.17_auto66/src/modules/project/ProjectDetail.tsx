@@ -1,18 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { formatRelative } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { ArrowLeft, ChevronLeft, ChevronRight, Heart, Send } from 'lucide-react'
 import { useProjectStore } from './store'
 import { useActivityStore } from '@/modules/activity/store'
-import { CURRENT_USER_NAME } from '@/shared/types'
+import { useAuthStore } from '@/modules/auth/store'
+import { parseTimestamp } from '@/utils/time'
 
 function getInitials(name: string): string {
   return name.charAt(0).toUpperCase()
 }
 
 function formatTime(timestamp: number): string {
-  return formatRelative(timestamp, Date.now(), { locale: zhCN })
+  return formatRelative(parseTimestamp(timestamp), Date.now(), { locale: zhCN })
 }
 
 export default function ProjectDetail() {
@@ -24,6 +25,7 @@ export default function ProjectDetail() {
   const toggleLike = useProjectStore(s => s.toggleLike)
   const addComment = useProjectStore(s => s.addComment)
   const addActivity = useActivityStore(s => s.addActivity)
+  const currentUser = useAuthStore(s => s.user)
 
   const project = id ? projects.find(p => p.id === id) : undefined
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -31,17 +33,18 @@ export default function ProjectDetail() {
   const [commentText, setCommentText] = useState('')
 
   const likeCount = id ? (likesMap[id]?.length ?? 0) : 0
-  const liked = id ? (likesMap[id]?.includes('current_user') ?? false) : false
+  const liked = id ? (likesMap[id]?.includes(currentUser.id) ?? false) : false
   const comments = id ? (commentsMap[id] ?? []) : []
-  const isOwnProject = project?.author === CURRENT_USER_NAME
+  const isOwnProject = project?.author === currentUser.name
 
-  const [prevImageIndex, setPrevImageIndex] = useState(0)
-  const [transitioning, setTransitioning] = useState(false)
-
-  useEffect(() => {
-    setCurrentImageIndex(0)
-    setPrevImageIndex(0)
-  }, [id])
+  const visibleImageIndices = useMemo(() => {
+    if (!project) return []
+    const total = project.images.length
+    if (total <= 2) return project.images.map((_, i) => i)
+    const prev = currentImageIndex === 0 ? total - 1 : currentImageIndex - 1
+    const next = currentImageIndex === total - 1 ? 0 : currentImageIndex + 1
+    return [prev, currentImageIndex, next]
+  }, [project, currentImageIndex])
 
   if (!project || !id) {
     return (
@@ -58,13 +61,9 @@ export default function ProjectDetail() {
   }
 
   const switchImage = (newIndex: number) => {
-    if (project.images.length <= 1 || transitioning) return
-    setTransitioning(true)
-    setPrevImageIndex(currentImageIndex)
+    if (project.images.length <= 1) return
+    if (newIndex === currentImageIndex) return
     setCurrentImageIndex(newIndex)
-    setTimeout(() => {
-      setTransitioning(false)
-    }, 300)
   }
 
   const handlePrevImage = () => {
@@ -87,7 +86,7 @@ export default function ProjectDetail() {
         type: 'like',
         projectId: id,
         projectTitle: project.title,
-        user: CURRENT_USER_NAME,
+        user: currentUser.name,
       })
     }
   }
@@ -98,14 +97,15 @@ export default function ProjectDetail() {
     if (!trimmed) return
     if (trimmed.length > 200) return
 
-    await addComment(id, CURRENT_USER_NAME, trimmed)
+    const comment = await addComment(id, trimmed)
     await addActivity({
       type: 'comment',
       projectId: id,
       projectTitle: project.title,
-      user: CURRENT_USER_NAME,
+      user: currentUser.name,
       content: trimmed,
     })
+    console.info('[ProjectDetail] 评论已保存:', comment.id)
     setCommentText('')
   }
 
@@ -128,16 +128,17 @@ export default function ProjectDetail() {
 
       <div className="bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden">
         <div className="relative bg-[#ECF0F1] aspect-[16/9] max-h-[500px] overflow-hidden">
-          {project.images.map((img, idx) => (
+          {visibleImageIndices.map(idx => (
             <img
               key={idx}
-              src={img}
-              alt={project.title}
+              src={project.images[idx]}
+              alt={`${project.title} - ${idx + 1}`}
               className="absolute inset-0 w-full h-full object-contain transition-opacity duration-300"
               style={{
                 opacity: idx === currentImageIndex ? 1 : 0,
                 zIndex: idx === currentImageIndex ? 1 : 0,
               }}
+              loading={idx === currentImageIndex ? 'eager' : 'lazy'}
             />
           ))}
           {project.images.length > 1 && (
@@ -145,12 +146,14 @@ export default function ProjectDetail() {
               <button
                 onClick={handlePrevImage}
                 className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/60 backdrop-blur hover:bg-white flex items-center justify-center transition-all z-10"
+                aria-label="上一张"
               >
                 <ChevronLeft size={22} className="text-gray-700" />
               </button>
               <button
                 onClick={handleNextImage}
                 className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/60 backdrop-blur hover:bg-white flex items-center justify-center transition-all z-10"
+                aria-label="下一张"
               >
                 <ChevronRight size={22} className="text-gray-700" />
               </button>
@@ -162,8 +165,12 @@ export default function ProjectDetail() {
                     className={`w-2 h-2 rounded-full transition-colors ${
                       idx === currentImageIndex ? 'bg-white' : 'bg-white/50'
                     }`}
+                    aria-label={`第 ${idx + 1} 张图片`}
                   />
                 ))}
+              </div>
+              <div className="absolute top-4 right-4 px-2.5 py-1 rounded-full bg-black/40 text-white text-xs z-10">
+                {currentImageIndex + 1} / {project.images.length}
               </div>
             </>
           )}
@@ -214,8 +221,8 @@ export default function ProjectDetail() {
             </h2>
 
             <form onSubmit={handleSubmitComment} className="flex gap-3 mb-6">
-              <div className="w-9 h-9 rounded-full bg-gray-400 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
-                {getInitials(CURRENT_USER_NAME)}
+              <div className="w-9 h-9 rounded-full bg-[#27AE60] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                {getInitials(currentUser.name)}
               </div>
               <div className="flex-1 flex gap-2">
                 <input

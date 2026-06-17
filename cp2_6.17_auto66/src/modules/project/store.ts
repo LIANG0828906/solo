@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '@/utils/db'
 import type { Project, Comment, Like } from '@/shared/types'
-import { CURRENT_USER_ID } from '@/shared/types'
+import { useAuthStore } from '@/modules/auth/store'
 
 interface ProjectState {
   projects: Project[]
@@ -10,7 +10,7 @@ interface ProjectState {
   comments: Record<string, Comment[]>
   loading: boolean
   init: () => Promise<void>
-  addProject: (data: Omit<Project, 'id' | 'createdAt'>) => Promise<Project>
+  addProject: (data: Omit<Project, 'id' | 'createdAt' | 'author'>) => Promise<Project>
   updateProject: (id: string, data: Partial<Project>) => Promise<void>
   deleteProject: (id: string) => Promise<void>
   getProject: (id: string) => Project | undefined
@@ -18,7 +18,7 @@ interface ProjectState {
   isLiked: (projectId: string) => boolean
   toggleLike: (projectId: string) => Promise<boolean>
   getComments: (projectId: string) => Comment[]
-  addComment: (projectId: string, user: string, content: string) => Promise<Comment>
+  addComment: (projectId: string, content: string) => Promise<Comment>
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -54,9 +54,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   addProject: async (data) => {
+    const currentUser = useAuthStore.getState().user
     const project: Project = {
       ...data,
       id: uuidv4(),
+      author: currentUser.name,
       createdAt: Date.now(),
     }
     await db.saveProject(project)
@@ -95,28 +97,32 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   getLikeCount: (projectId) => get().likes[projectId]?.length ?? 0,
 
-  isLiked: (projectId) => (get().likes[projectId] ?? []).includes(CURRENT_USER_ID),
+  isLiked: (projectId) => {
+    const currentUserId = useAuthStore.getState().user.id
+    return (get().likes[projectId] ?? []).includes(currentUserId)
+  },
 
   toggleLike: async (projectId) => {
+    const currentUserId = useAuthStore.getState().user.id
     const currentLikes = get().likes[projectId] ?? []
-    const isCurrentlyLiked = currentLikes.includes(CURRENT_USER_ID)
+    const isCurrentlyLiked = currentLikes.includes(currentUserId)
 
     if (isCurrentlyLiked) {
-      await db.deleteLike(projectId, CURRENT_USER_ID)
+      await db.deleteLike(projectId, currentUserId)
       set(state => ({
         likes: {
           ...state.likes,
-          [projectId]: state.likes[projectId].filter(id => id !== CURRENT_USER_ID),
+          [projectId]: state.likes[projectId].filter(id => id !== currentUserId),
         },
       }))
       return false
     } else {
-      const like: Like = { projectId, userId: CURRENT_USER_ID }
+      const like: Like = { projectId, userId: currentUserId }
       await db.saveLike(like)
       set(state => ({
         likes: {
           ...state.likes,
-          [projectId]: [...(state.likes[projectId] ?? []), CURRENT_USER_ID],
+          [projectId]: [...(state.likes[projectId] ?? []), currentUserId],
         },
       }))
       return true
@@ -125,11 +131,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   getComments: (projectId) => get().comments[projectId] ?? [],
 
-  addComment: async (projectId, user, content) => {
+  addComment: async (projectId, content) => {
+    const currentUser = useAuthStore.getState().user
     const comment: Comment = {
       id: uuidv4(),
       projectId,
-      user,
+      user: currentUser.name,
       content,
       createdAt: Date.now(),
     }

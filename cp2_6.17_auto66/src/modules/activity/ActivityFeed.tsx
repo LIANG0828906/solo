@@ -4,16 +4,20 @@ import { formatRelative } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { Heart, MessageCircle } from 'lucide-react'
 import { useActivityStore } from './store'
+import { parseTimestamp } from '@/utils/time'
 
 function formatTime(timestamp: number): string {
-  return formatRelative(timestamp, Date.now(), { locale: zhCN })
+  return formatRelative(parseTimestamp(timestamp), Date.now(), { locale: zhCN })
 }
 
 export default function ActivityFeed() {
   const navigate = useNavigate()
   const allActivities = useActivityStore(s => s.activities)
   const activities = useMemo(
-    () => [...allActivities].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
+    () =>
+      [...allActivities]
+        .sort((a, b) => parseTimestamp(b.createdAt) - parseTimestamp(a.createdAt))
+        .slice(0, 5),
     [allActivities]
   )
 

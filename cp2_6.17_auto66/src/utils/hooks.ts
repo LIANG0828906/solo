@@ -2,13 +2,35 @@ import { useEffect, useRef, useState } from 'react'
 
 export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value)
+  const timerRef = useRef<number | null>(null)
+  const isMountedRef = useRef(true)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedValue(value)
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+
+    timerRef.current = window.setTimeout(() => {
+      if (isMountedRef.current) {
+        setDebouncedValue(value)
+      }
+      timerRef.current = null
     }, delay)
 
-    return () => clearTimeout(timer)
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+    }
   }, [value, delay])
 
   return debouncedValue

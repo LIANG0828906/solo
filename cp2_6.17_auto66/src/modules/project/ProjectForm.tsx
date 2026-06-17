@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { X, Upload } from 'lucide-react'
 import { useProjectStore } from './store'
-import { CURRENT_USER_NAME } from '@/shared/types'
 
 interface ProjectFormProps {
   onClose: () => void
@@ -101,11 +100,14 @@ export default function ProjectForm({ onClose }: ProjectFormProps) {
     setErrors(validationErrors)
     if (Object.keys(validationErrors).length > 0) return
 
-    await addProject({
+    const project = await addProject({
       title: title.trim(),
       description: description.trim(),
       images,
-      author: CURRENT_USER_NAME,
+    })
+    console.info('[ProjectForm] 项目已创建并持久化到 IndexedDB:', project.id, {
+      title: project.title,
+      imageCount: project.images.length,
     })
     onClose()
   }
