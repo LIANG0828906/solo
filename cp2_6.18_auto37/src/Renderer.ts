@@ -174,9 +174,9 @@ class SceneRenderer {
     this.ground.position.y = -1.5;
     this.scene.add(this.ground);
 
-    this.gridHelper = new THREE.GridHelper(20, 10, 0x3a4a5a, 0x2a3a4a);
+    this.gridHelper = new THREE.GridHelper(20, 10, 0x253040, 0x1a2330);
     this.gridHelper.position.y = -1.5;
-    (this.gridHelper.material as THREE.Material).opacity = 0.25;
+    (this.gridHelper.material as THREE.Material).opacity = 0.12;
     (this.gridHelper.material as THREE.Material).transparent = true;
     this.scene.add(this.gridHelper);
   }
@@ -479,8 +479,8 @@ class SceneRenderer {
       positions[idx + 2] = 0;
 
       colors[idx] = 1.0;
-      colors[idx + 1] = 1.0;
-      colors[idx + 2] = 0.9;
+      colors[idx + 1] = 0.9;
+      colors[idx + 2] = 0.2;
     }
 
     if (!this.flowPoints) {
@@ -489,7 +489,7 @@ class SceneRenderer {
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
       const material = new THREE.PointsMaterial({
-        size: 0.25,
+        size: 0.15,
         vertexColors: true,
         transparent: true,
         opacity: 1.0,
@@ -523,7 +523,8 @@ class SceneRenderer {
 
     for (let i = 0; i < this.currentRays.length; i++) {
       const ray = this.currentRays[i];
-      const rayOffset = (i * 0.37) % 1.0;
+      const GOLDEN_RATIO_CONJUGATE = 0.618033988749895;
+      const rayOffset = (i * GOLDEN_RATIO_CONJUGATE) % 1.0;
       const t = ((this.flowTime + rayOffset) % 1.0);
 
       const smoothT = t * t * (3 - 2 * t);
