@@ -199,7 +199,7 @@ const CardHand: React.FC<CardHandProps> = ({
   const cardWidth = isSmallScreen ? CARD_WIDTH_SMALL : CARD_WIDTH;
   const cardHeight = isSmallScreen ? CARD_HEIGHT_SMALL : CARD_HEIGHT;
   const canAfford = playerGold >= 2;
-  const isDisabled = phase !== 'placing' || !canAfford;
+  const isDisabled = phase !== 'preparation' || !canAfford;
 
   return (
     <div
@@ -241,7 +241,7 @@ const CardHand: React.FC<CardHandProps> = ({
         ))
       )}
 
-      {!canAfford && phase === 'placing' && (
+      {!canAfford && phase === 'preparation' && (
         <div
           className="hand-warning"
           style={{

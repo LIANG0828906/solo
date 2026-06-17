@@ -2,7 +2,7 @@ export type ElementType = 'fire' | 'water' | 'nature';
 
 export type Owner = 'player' | 'enemy';
 
-export type GamePhase = 'placing' | 'battling' | 'enemyTurn' | 'gameOver';
+export type GamePhase = 'preparation' | 'battling' | 'finished';
 
 export interface Card {
   id: string;
@@ -59,6 +59,7 @@ export interface GameState {
 export const GRID_SIZE = 6;
 export const PLAYER_ROWS = [4, 5];
 export const ENEMY_ROWS = [0, 1];
+export const MAX_BATTLE_ROUNDS = 20;
 
 export const ELEMENT_EMOJI: Record<ElementType, string> = {
   fire: '🔥',

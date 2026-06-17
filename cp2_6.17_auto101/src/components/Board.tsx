@@ -134,7 +134,16 @@ interface BoardProps {
 }
 
 const Board: React.FC<BoardProps> = ({ draggedCardId, onDragEnd }) => {
-  const { grid, sprites, placeCard, phase, playerGold } = useGameStore();
+  const {
+    grid,
+    sprites,
+    placeCard,
+    phase,
+    playerGold,
+    startBattle,
+    battleRound,
+    maxBattleRounds,
+  } = useGameStore();
   const [hoveredCell, setHoveredCell] = useState<{
     x: number;
     y: number;
@@ -154,15 +163,16 @@ const Board: React.FC<BoardProps> = ({ draggedCardId, onDragEnd }) => {
   const cellSize = isSmallScreen ? CELL_SIZE_SMALL : CELL_SIZE;
   const spriteSize = isSmallScreen ? SPRITE_SIZE_SMALL : SPRITE_SIZE;
   const boardSize = cellSize * GRID_SIZE;
+  const canDrag = phase === 'preparation' && playerGold >= 2;
 
   const handleDragOver = useCallback(
     (e: React.DragEvent, x: number, y: number) => {
       e.preventDefault();
-      if (draggedCardId && phase === 'placing' && playerGold >= 2) {
+      if (draggedCardId && canDrag) {
         setHoveredCell({ x, y });
       }
     },
-    [draggedCardId, phase, playerGold]
+    [draggedCardId, canDrag]
   );
 
   const handleDragLeave = useCallback(() => {
@@ -173,12 +183,12 @@ const Board: React.FC<BoardProps> = ({ draggedCardId, onDragEnd }) => {
     (e: React.DragEvent, x: number, y: number) => {
       e.preventDefault();
       setHoveredCell(null);
-      if (draggedCardId) {
+      if (draggedCardId && phase === 'preparation') {
         placeCard(draggedCardId, x, y);
         onDragEnd();
       }
     },
-    [draggedCardId, placeCard, onDragEnd]
+    [draggedCardId, phase, placeCard, onDragEnd]
   );
 
   const isValidPlacement = (x: number, y: number): boolean => {
@@ -187,114 +197,227 @@ const Board: React.FC<BoardProps> = ({ draggedCardId, onDragEnd }) => {
     );
   };
 
+  const handleStartBattle = () => {
+    startBattle();
+  };
+
+  const hasPlayerSprites = sprites.some((s) => s.owner === 'player');
+
   return (
     <div
-      className="board-container"
+      className="board-wrapper-outer"
       style={{
         display: 'flex',
-        justifyContent: 'center',
+        flexDirection: 'column',
         alignItems: 'center',
+        gap: isSmallScreen ? '12px' : '16px',
       }}
     >
+      {phase === 'preparation' && (
+        <div
+          className="battle-controls"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: isSmallScreen ? '10px' : '16px',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+          }}
+        >
+          <button
+            className="start-battle-btn"
+            onClick={handleStartBattle}
+            disabled={!hasPlayerSprites}
+            style={{
+              padding: isSmallScreen ? '12px 24px' : '14px 32px',
+              fontSize: isSmallScreen ? '14px' : '16px',
+              fontWeight: 'bold',
+              color: '#fff',
+              backgroundColor: hasPlayerSprites ? '#FF6347' : '#555',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: hasPlayerSprites ? 'pointer' : 'not-allowed',
+              transition:
+                'background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
+              boxShadow: hasPlayerSprites
+                ? '0 4px 20px rgba(255, 99, 71, 0.4)'
+                : 'none',
+              letterSpacing: '1px',
+            }}
+            onMouseEnter={(e) => {
+              if (hasPlayerSprites) {
+                e.currentTarget.style.backgroundColor = '#FF8367';
+                e.currentTarget.style.boxShadow =
+                  '0 0 8px rgba(255, 99, 71, 0.6), 0 6px 25px rgba(255, 99, 71, 0.5)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = hasPlayerSprites
+                ? '#FF6347'
+                : '#555';
+              e.currentTarget.style.boxShadow = hasPlayerSprites
+                ? '0 4px 20px rgba(255, 99, 71, 0.4)'
+                : 'none';
+            }}
+            onMouseDown={(e) => {
+              if (hasPlayerSprites) {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            ⚔️ 开始战斗
+          </button>
+          {!hasPlayerSprites && (
+            <span
+              style={{
+                fontSize: isSmallScreen ? '11px' : '13px',
+                color: '#FF6347',
+              }}
+            >
+              请先放置至少一个精灵
+            </span>
+          )}
+        </div>
+      )}
+
+      {phase === 'battling' && (
+        <div
+          className="battle-progress"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: isSmallScreen ? '13px' : '15px',
+            color: '#FFD700',
+            fontWeight: 'bold',
+            letterSpacing: '1px',
+            textShadow: '0 0 8px rgba(255, 215, 0, 0.4)',
+          }}
+        >
+          <span className="battle-icon">⚔️</span>
+          <span>
+            战斗进行中 - 第 {battleRound}/{maxBattleRounds} 回合
+          </span>
+          <span className="battle-icon">⚔️</span>
+        </div>
+      )}
+
       <div
-        className="board"
+        className="board-container"
         style={{
-          position: 'relative',
-          width: `${boardSize}px`,
-          height: `${boardSize}px`,
-          backgroundColor: '#1E2A3A',
-          borderRadius: '8px',
-          padding: '4px',
-          boxShadow: '0 0 30px rgba(108, 99, 255, 0.2)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
         }}
       >
         <div
-          className="grid"
+          className="board"
           style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${GRID_SIZE}, ${cellSize}px)`,
-            gridTemplateRows: `repeat(${GRID_SIZE}, ${cellSize}px)`,
-            gap: '0',
+            position: 'relative',
+            width: `${boardSize}px`,
+            height: `${boardSize}px`,
+            backgroundColor: '#1E2A3A',
+            borderRadius: '8px',
+            padding: '4px',
+            boxShadow: '0 0 30px rgba(108, 99, 255, 0.2)',
           }}
         >
-          {grid.flat().map((cell) => {
-            const isHovered =
-              hoveredCell?.x === cell.x && hoveredCell?.y === cell.y;
-            const isValid = isValidPlacement(cell.x, cell.y);
-            const isPlayerRow = PLAYER_ROWS.includes(cell.y);
-            const isEnemyRow = cell.y <= 1;
+          <div
+            className="grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${GRID_SIZE}, ${cellSize}px)`,
+              gridTemplateRows: `repeat(${GRID_SIZE}, ${cellSize}px)`,
+              gap: '0',
+            }}
+          >
+            {grid.flat().map((cell) => {
+              const isHovered =
+                hoveredCell?.x === cell.x && hoveredCell?.y === cell.y;
+              const isValid = isValidPlacement(cell.x, cell.y);
+              const isPlayerRow = PLAYER_ROWS.includes(cell.y);
+              const isEnemyRow = cell.y <= 1;
 
-            return (
-              <div
-                key={`${cell.x}-${cell.y}`}
-                className={`grid-cell ${isHovered && isValid ? 'cell-hovered' : ''} ${
-                  isPlayerRow ? 'player-zone' : ''
-                } ${isEnemyRow ? 'enemy-zone' : ''}`}
-                style={{
-                  width: `${cellSize}px`,
-                  height: `${cellSize}px`,
-                  backgroundColor: '#1E2A3A',
-                  border: '1px solid #3A4A5C',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  cursor:
-                    draggedCardId && phase === 'placing'
-                      ? isValid
-                        ? 'pointer'
-                        : 'not-allowed'
-                      : 'default',
-                  transition: 'background-color 0.15s ease, border-color 0.15s ease',
-                  ...(isPlayerRow
-                    ? { backgroundColor: 'rgba(108, 99, 255, 0.08)' }
-                    : {}),
-                  ...(isEnemyRow
-                    ? { backgroundColor: 'rgba(255, 69, 69, 0.08)' }
-                    : {}),
-                  ...(isHovered && isValid
-                    ? {
-                        backgroundColor: 'rgba(108, 99, 255, 0.3)',
-                        borderColor: '#6C63FF',
-                        boxShadow: 'inset 0 0 15px rgba(108, 99, 255, 0.4)',
-                      }
-                    : {}),
-                  ...(isHovered && !isValid && draggedCardId
-                    ? {
-                        backgroundColor: 'rgba(255, 69, 69, 0.2)',
-                        borderColor: '#FF4545',
-                      }
-                    : {}),
-                }}
-                onDragOver={(e) => handleDragOver(e, cell.x, cell.y)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, cell.x, cell.y)}
-              >
-                {isPlayerRow && cell.spriteId === null && phase === 'placing' && (
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      color: 'rgba(108, 99, 255, 0.3)',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    +
-                  </span>
-                )}
-              </div>
-            );
-          })}
+              return (
+                <div
+                  key={`${cell.x}-${cell.y}`}
+                  className={`grid-cell ${
+                    isHovered && isValid && canDrag ? 'cell-hovered' : ''
+                  } ${isPlayerRow ? 'player-zone' : ''} ${
+                    isEnemyRow ? 'enemy-zone' : ''
+                  }`}
+                  style={{
+                    width: `${cellSize}px`,
+                    height: `${cellSize}px`,
+                    backgroundColor: '#1E2A3A',
+                    border: '1px solid #3A4A5C',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    cursor:
+                      draggedCardId && canDrag
+                        ? isValid
+                          ? 'pointer'
+                          : 'not-allowed'
+                        : 'default',
+                    transition:
+                      'background-color 0.15s ease, border-color 0.15s ease',
+                    ...(isPlayerRow
+                      ? { backgroundColor: 'rgba(108, 99, 255, 0.08)' }
+                      : {}),
+                    ...(isEnemyRow
+                      ? { backgroundColor: 'rgba(255, 69, 69, 0.08)' }
+                      : {}),
+                    ...(isHovered && isValid && canDrag
+                      ? {
+                          backgroundColor: 'rgba(108, 99, 255, 0.3)',
+                          borderColor: '#6C63FF',
+                          boxShadow: 'inset 0 0 15px rgba(108, 99, 255, 0.4)',
+                        }
+                      : {}),
+                    ...(isHovered && !isValid && draggedCardId && canDrag
+                      ? {
+                          backgroundColor: 'rgba(255, 69, 69, 0.2)',
+                          borderColor: '#FF4545',
+                        }
+                      : {}),
+                  }}
+                  onDragOver={(e) => handleDragOver(e, cell.x, cell.y)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, cell.x, cell.y)}
+                >
+                  {isPlayerRow &&
+                    cell.spriteId === null &&
+                    phase === 'preparation' && (
+                      <span
+                        style={{
+                          fontSize: '12px',
+                          color: 'rgba(108, 99, 255, 0.3)',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        +
+                      </span>
+                    )}
+                </div>
+              );
+            })}
+          </div>
+
+          {sprites.map((sprite) => (
+            <SpriteRenderer
+              key={sprite.id}
+              sprite={sprite}
+              cellSize={cellSize}
+              spriteSize={spriteSize}
+            />
+          ))}
         </div>
-
-        {sprites.map((sprite) => (
-          <SpriteRenderer
-            key={sprite.id}
-            sprite={sprite}
-            cellSize={cellSize}
-            spriteSize={spriteSize}
-          />
-        ))}
       </div>
     </div>
   );

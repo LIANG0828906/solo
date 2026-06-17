@@ -4,6 +4,7 @@ import {
   Sprite,
   GamePhase,
   Owner,
+  MAX_BATTLE_ROUNDS,
 } from '../types';
 import {
   createEmptyGrid,
@@ -14,53 +15,55 @@ import {
   resetSpriteAnimations,
   placeEnemyCards,
   checkWinner,
-  ensureHandSize,
   updateParticles,
 } from '../gameLogic';
 
 interface GameStore extends GameState {
+  battleRound: number;
+  maxBattleRounds: number;
   placeCard: (cardId: string, x: number, y: number) => void;
-  triggerBattle: () => void;
-  endTurn: () => void;
-  startPlacingPhase: () => void;
-  startEnemyTurn: () => void;
-  startBattlePhase: () => void;
-  finalizeBattle: () => void;
+  startBattle: () => void;
   resetGame: () => void;
-  updateTurnTimer: (seconds: number) => void;
   tickParticles: () => void;
+  stopBattleLoop: () => void;
 }
+
+let battleIntervalId: ReturnType<typeof setInterval> | null = null;
 
 const createInitialState = (): Omit<
   GameStore,
   | 'placeCard'
-  | 'triggerBattle'
-  | 'endTurn'
-  | 'startPlacingPhase'
-  | 'startEnemyTurn'
-  | 'startBattlePhase'
-  | 'finalizeBattle'
+  | 'startBattle'
   | 'resetGame'
-  | 'updateTurnTimer'
   | 'tickParticles'
+  | 'stopBattleLoop'
 > => ({
   hand: createInitialHand(3),
   grid: createEmptyGrid(),
   sprites: [] as Sprite[],
   playerGold: 6,
   enemyGold: 6,
-  phase: 'placing' as GamePhase,
+  phase: 'preparation' as GamePhase,
   turnCount: 1,
-  turnTimer: 30,
+  turnTimer: 0,
   winner: null as Owner | null,
+  battleRound: 0,
+  maxBattleRounds: MAX_BATTLE_ROUNDS,
 });
+
+const clearBattleInterval = () => {
+  if (battleIntervalId !== null) {
+    clearInterval(battleIntervalId);
+    battleIntervalId = null;
+  }
+};
 
 export const useGameStore = create<GameStore>((set, get) => ({
   ...createInitialState(),
 
   placeCard: (cardId: string, x: number, y: number) => {
     const state = get();
-    if (state.phase !== 'placing') return;
+    if (state.phase !== 'preparation') return;
 
     const newState = placeCardOnBoard(state, cardId, x, y);
     if (newState) {
@@ -68,120 +71,76 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  triggerBattle: () => {
+  startBattle: () => {
     const state = get();
-    if (state.phase !== 'placing') return;
+    if (state.phase !== 'preparation') return;
 
-    set({ phase: 'battling', turnTimer: 5 });
+    clearBattleInterval();
 
-    setTimeout(() => {
-      get().startBattlePhase();
-    }, 100);
-  },
-
-  endTurn: () => {
-    const state = get();
-    if (state.phase !== 'placing') return;
-    set({ phase: 'battling', turnTimer: 5 });
-    setTimeout(() => get().startBattlePhase(), 100);
-  },
-
-  startPlacingPhase: () => {
-    const state = get();
-    const winner = checkWinner(state.sprites);
-    if (winner) {
-      set({ winner, phase: 'gameOver' });
-      return;
-    }
-
+    let stateWithEnemies = placeEnemyCards(state);
     set({
-      phase: 'placing',
-      turnTimer: 30,
-      turnCount: state.turnCount + 1,
-      playerGold: state.playerGold + 2,
-      enemyGold: state.enemyGold + 2,
-      hand: ensureHandSize(state.hand, 3),
+      ...stateWithEnemies,
+      phase: 'battling' as GamePhase,
+      battleRound: 0,
     });
-  },
 
-  startEnemyTurn: () => {
-    const state = get();
-    const winner = checkWinner(state.sprites);
-    if (winner) {
-      set({ winner, phase: 'gameOver' });
-      return;
-    }
+    let currentRound = 0;
 
-    let newState = placeEnemyCards(state);
-    set({ ...newState, phase: 'enemyTurn' });
-
-    setTimeout(() => {
-      get().startBattlePhase();
-    }, 800);
-  },
-
-  startBattlePhase: () => {
-    const state = get();
-    if (state.phase === 'gameOver') return;
-
-    set({ phase: 'battling' });
-
-    let battleRounds = 0;
-    const maxRounds = 5;
-
-    const executeRound = () => {
-      battleRounds++;
+    battleIntervalId = setInterval(() => {
+      currentRound++;
       const currentState = get();
 
-      if (currentState.phase === 'gameOver') return;
+      if (currentState.phase !== 'battling') {
+        clearBattleInterval();
+        return;
+      }
 
       const { sprites, grid } = moveAllSprites(
         resetSpriteAnimations(currentState.sprites),
         currentState.grid
       );
 
-      set({ sprites, grid });
-
       const winner = checkWinner(sprites);
-      if (winner || battleRounds >= maxRounds) {
+
+      if (winner || currentRound >= MAX_BATTLE_ROUNDS) {
+        clearBattleInterval();
+
         setTimeout(() => {
-          get().finalizeBattle();
-        }, 600);
+          const fadeState = get();
+          const { sprites: finalSprites, grid: finalGrid } = clearFadedSprites(
+            fadeState.sprites,
+            fadeState.grid
+          );
+          const finalWinner = checkWinner(finalSprites) ?? winner;
+
+          set({
+            sprites: resetSpriteAnimations(finalSprites),
+            grid: finalGrid,
+            winner: finalWinner,
+            phase: 'finished' as GamePhase,
+            battleRound: currentRound,
+          });
+        }, 700);
+
+        set({
+          sprites,
+          grid,
+          battleRound: currentRound,
+        });
         return;
       }
 
-      setTimeout(executeRound, 700);
-    };
-
-    setTimeout(executeRound, 300);
-  },
-
-  finalizeBattle: () => {
-    const state = get();
-    const { sprites, grid } = clearFadedSprites(state.sprites, state.grid);
-    const winner = checkWinner(sprites);
-
-    if (winner) {
-      set({ sprites, grid, winner, phase: 'gameOver' });
-      return;
-    }
-
-    set({
-      sprites: resetSpriteAnimations(sprites),
-      grid,
-    });
-
-    setTimeout(() => {
-      get().startEnemyTurn();
-    }, 500);
+      set({
+        sprites,
+        grid,
+        battleRound: currentRound,
+      });
+    }, 1000);
   },
 
   resetGame: () => {
-    set(createInitialState());
-  },
-
-  updateTurnTimer: (seconds: number) => {
-    set({ turnTimer: seconds });
+    clearBattleInterval();
+    set({ ...createInitialState() });
   },
 
   tickParticles: () => {
@@ -190,5 +149,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (hasParticles) {
       set({ sprites: updateParticles(state.sprites) });
     }
+  },
+
+  stopBattleLoop: () => {
+    clearBattleInterval();
   },
 }));

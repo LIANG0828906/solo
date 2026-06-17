@@ -8,14 +8,12 @@ const App: React.FC = () => {
     playerGold,
     phase,
     turnCount,
-    turnTimer,
     winner,
-    updateTurnTimer,
-    endTurn,
     resetGame,
-    startPlacingPhase,
     tickParticles,
-    finalizeBattle,
+    battleRound,
+    maxBattleRounds,
+    sprites,
   } = useGameStore();
 
   const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
@@ -32,47 +30,11 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (phase !== 'placing') return;
-
-    const interval = setInterval(() => {
-      const currentTimer = useGameStore.getState().turnTimer;
-      if (currentTimer <= 1) {
-        endTurn();
-      } else {
-        updateTurnTimer(currentTimer - 1);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [phase, endTurn, updateTurnTimer]);
-
-  useEffect(() => {
     const interval = setInterval(() => {
       tickParticles();
     }, 50);
     return () => clearInterval(interval);
   }, [tickParticles]);
-
-  useEffect(() => {
-    if (phase === 'enemyTurn') {
-      const timer = setTimeout(() => {
-        startPlacingPhase();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [phase, startPlacingPhase]);
-
-  useEffect(() => {
-    if (phase === 'battling') {
-      const timer = setTimeout(() => {
-        const state = useGameStore.getState();
-        if (state.phase === 'battling') {
-          finalizeBattle();
-        }
-      }, 6000);
-      return () => clearTimeout(timer);
-    }
-  }, [phase, finalizeBattle]);
 
   const handleDragStart = useCallback((cardId: string) => {
     setDraggedCardId(cardId);
@@ -84,20 +46,36 @@ const App: React.FC = () => {
 
   const getPhaseText = (): string => {
     switch (phase) {
-      case 'placing':
-        return '放置阶段';
+      case 'preparation':
+        return '🎯 准备阶段 - 布置你的精灵';
       case 'battling':
-        return '战斗阶段';
-      case 'enemyTurn':
-        return '敌方回合';
-      case 'gameOver':
-        return '游戏结束';
+        return '⚔️ 战斗进行中';
+      case 'finished':
+        return '🏁 战斗结束';
       default:
         return '';
     }
   };
 
-  const isTimerLow = turnTimer <= 10 && phase === 'placing';
+  const getPhaseColor = (): string => {
+    switch (phase) {
+      case 'preparation':
+        return '#6C63FF';
+      case 'battling':
+        return '#FF6347';
+      case 'finished':
+        return '#FFD700';
+      default:
+        return '#fff';
+    }
+  };
+
+  const playerSpriteCount = sprites.filter(
+    (s) => s.owner === 'player' && s.currentHealth > 0 && !s.isFading
+  ).length;
+  const enemySpriteCount = sprites.filter(
+    (s) => s.owner === 'enemy' && s.currentHealth > 0 && !s.isFading
+  ).length;
 
   return (
     <div
@@ -164,13 +142,13 @@ const App: React.FC = () => {
                 color: '#888',
               }}
             >
-              第 {turnCount} 回合
+              回合 {turnCount}
             </div>
             <div
               className="phase-text"
               style={{
-                fontSize: isSmallScreen ? '14px' : '16px',
-                color: phase === 'placing' ? '#6C63FF' : '#FF6347',
+                fontSize: isSmallScreen ? '13px' : '15px',
+                color: getPhaseColor(),
                 fontWeight: 'bold',
               }}
             >
@@ -179,19 +157,20 @@ const App: React.FC = () => {
           </div>
 
           <div
-            className="turn-timer"
+            className="sprite-counts"
             style={{
-              fontSize: isSmallScreen ? '14px' : '16px',
-              color: isTimerLow ? '#FF0000' : '#FF6347',
-              fontWeight: 'bold',
-              animation: isTimerLow ? 'blink 0.8s ease-in-out infinite' : 'none',
               display: 'flex',
+              gap: '12px',
               alignItems: 'center',
-              gap: '6px',
+              fontSize: isSmallScreen ? '12px' : '14px',
             }}
           >
-            <span>⏱️</span>
-            <span>{turnTimer}s</span>
+            <span style={{ color: '#6C63FF', fontWeight: 'bold' }}>
+              🔵 己方: {playerSpriteCount}
+            </span>
+            <span style={{ color: '#FF4545', fontWeight: 'bold' }}>
+              🔴 敌方: {enemySpriteCount}
+            </span>
           </div>
         </div>
 
@@ -206,7 +185,8 @@ const App: React.FC = () => {
             style={{
               fontSize: isSmallScreen ? '20px' : '28px',
               margin: 0,
-              background: 'linear-gradient(135deg, #6C63FF 0%, #FFD700 50%, #FF4500 100%)',
+              background:
+                'linear-gradient(135deg, #6C63FF 0%, #FFD700 50%, #FF4500 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -227,6 +207,34 @@ const App: React.FC = () => {
             元素对决 · 魔法自动战斗卡牌
           </div>
         </div>
+
+        {phase === 'battling' && (
+          <div
+            className="battle-progress-bar-container"
+            style={{
+              width: '100%',
+              maxWidth: '400px',
+              margin: '0 auto 12px auto',
+              height: '8px',
+              backgroundColor: '#1E2A3A',
+              borderRadius: '4px',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              className="battle-progress-bar"
+              style={{
+                height: '100%',
+                width: `${(battleRound / maxBattleRounds) * 100}%`,
+                background:
+                  'linear-gradient(90deg, #FF6347 0%, #FFD700 100%)',
+                borderRadius: '4px',
+                transition: 'width 0.5s ease',
+                boxShadow: '0 0 10px rgba(255, 99, 71, 0.5)',
+              }}
+            />
+          </div>
+        )}
 
         <div
           className="board-wrapper"
@@ -284,53 +292,6 @@ const App: React.FC = () => {
           }}
         >
           <button
-            className="action-btn end-turn-btn"
-            onClick={endTurn}
-            disabled={phase !== 'placing'}
-            style={{
-              padding: isSmallScreen ? '10px 20px' : '12px 28px',
-              fontSize: isSmallScreen ? '13px' : '15px',
-              fontWeight: 'bold',
-              color: '#fff',
-              backgroundColor: phase === 'placing' ? '#6C63FF' : '#444',
-              border: 'none',
-              borderRadius: '12px',
-              cursor: phase === 'placing' ? 'pointer' : 'not-allowed',
-              transition:
-                'background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
-              boxShadow:
-                phase === 'placing'
-                  ? '0 4px 15px rgba(108, 99, 255, 0.4)'
-                  : 'none',
-            }}
-            onMouseEnter={(e) => {
-              if (phase === 'placing') {
-                e.currentTarget.style.backgroundColor = '#8B83FF';
-                e.currentTarget.style.boxShadow =
-                  '0 0 8px rgba(108, 99, 255, 0.6), 0 6px 20px rgba(108, 99, 255, 0.5)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor =
-                phase === 'placing' ? '#6C63FF' : '#444';
-              e.currentTarget.style.boxShadow =
-                phase === 'placing'
-                  ? '0 4px 15px rgba(108, 99, 255, 0.4)'
-                  : 'none';
-            }}
-            onMouseDown={(e) => {
-              if (phase === 'placing') {
-                e.currentTarget.style.transform = 'scale(0.95)';
-              }
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            ⚔️ 结束回合
-          </button>
-
-          <button
             className="action-btn reset-btn"
             onClick={resetGame}
             style={{
@@ -381,11 +342,25 @@ const App: React.FC = () => {
             borderTop: '1px solid #2A2A2A',
           }}
         >
-          💡 提示：拖拽卡牌到下方紫色区域放置精灵，每放置一张消耗 2 金币
+          {phase === 'preparation' && (
+            <span>
+              💡 提示：拖拽卡牌到下方紫色区域放置精灵，布置完成后点击"开始战斗"按钮
+            </span>
+          )}
+          {phase === 'battling' && (
+            <span>
+              ⚔️ 战斗中：双方精灵自动移动并碰撞，最多进行 {maxBattleRounds} 回合
+            </span>
+          )}
+          {phase === 'finished' && (
+            <span>
+              🏁 战斗已结束，点击"重新开始"再来一局
+            </span>
+          )}
         </div>
       </div>
 
-      {phase === 'gameOver' && winner && (
+      {phase === 'finished' && (
         <div
           className="victory-overlay"
           style={{
@@ -404,6 +379,8 @@ const App: React.FC = () => {
             style={{
               textAlign: 'center',
               animation: 'scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              maxWidth: '500px',
+              padding: isSmallScreen ? '24px' : '40px',
             }}
           >
             <div
@@ -411,36 +388,63 @@ const App: React.FC = () => {
               style={{
                 fontSize: isSmallScreen ? '32px' : '48px',
                 fontWeight: 'bold',
-                color: '#FFD700',
-                textShadow:
-                  '0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4)',
+                color: winner ? '#FFD700' : '#AAAAAA',
+                textShadow: winner
+                  ? '0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4)'
+                  : 'none',
                 marginBottom: '16px',
                 letterSpacing: '4px',
               }}
             >
-              {winner === 'player' ? '🏆 胜 利 🏆' : '💀 失 败 💀'}
+              {winner === 'player' && '🏆 胜 利 🏆'}
+              {winner === 'enemy' && '💀 失 败 💀'}
+              {!winner && '⚖️ 平 局 ⚖️'}
             </div>
             <div
               className="victory-subtext"
               style={{
                 fontSize: isSmallScreen ? '14px' : '18px',
                 color: '#aaa',
-                marginBottom: isSmallScreen ? '24px' : '32px',
+                marginBottom: isSmallScreen ? '16px' : '24px',
+                lineHeight: 1.6,
               }}
             >
-              {winner === 'player'
-                ? '恭喜！你消灭了所有敌方精灵！'
-                : '你的精灵全部阵亡了...'}
+              {winner === 'player' && '恭喜！你消灭了所有敌方精灵！'}
+              {winner === 'enemy' && '你的精灵全部阵亡了...'}
+              {!winner && `达到最大回合数(${maxBattleRounds})，双方势均力敌！`}
             </div>
             <div
-              className="turn-summary"
+              className="battle-summary"
               style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: isSmallScreen ? '20px' : '40px',
                 fontSize: isSmallScreen ? '12px' : '14px',
                 color: '#888',
-                marginBottom: isSmallScreen ? '24px' : '32px',
+                marginBottom: isSmallScreen ? '20px' : '28px',
+                padding: isSmallScreen ? '12px' : '16px',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: '8px',
               }}
             >
-              共用时 {turnCount} 回合
+              <div>
+                <div style={{ color: '#666', marginBottom: '4px' }}>战斗回合</div>
+                <div style={{ color: '#FFD700', fontWeight: 'bold' }}>
+                  {battleRound}
+                </div>
+              </div>
+              <div>
+                <div style={{ color: '#666', marginBottom: '4px' }}>己方存活</div>
+                <div style={{ color: '#6C63FF', fontWeight: 'bold' }}>
+                  {playerSpriteCount}
+                </div>
+              </div>
+              <div>
+                <div style={{ color: '#666', marginBottom: '4px' }}>敌方存活</div>
+                <div style={{ color: '#FF4545', fontWeight: 'bold' }}>
+                  {enemySpriteCount}
+                </div>
+              </div>
             </div>
             <button
               className="play-again-btn"
