@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { Play, Heart, Headphones } from 'lucide-react';
 import { useAudioStore, AudioClip } from '@/stores/audioStore';
 import { audioEngine } from '@/utils/audioEngine';
@@ -22,93 +22,60 @@ const getHeatColor = (_intensity: number, likeCount: number): string => {
 
 interface AudioCardProps {
   audio: AudioClip;
-  index: number;
   onPlay: (audio: AudioClip) => void;
 }
 
-const AudioCard: React.FC<AudioCardProps> = memo(({ audio, index, onPlay }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
+const AudioCard: React.FC<AudioCardProps> = memo(({ audio, onPlay }) => {
   const [isHovered, setIsHovered] = useState(false);
   const currentAudioId = useAudioStore((state) => state.currentAudio?.id);
   const isPlaying = useAudioStore((state) => state.isPlaying);
   const isCurrentPlaying = currentAudioId === audio.id && isPlaying;
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (cardRef.current) {
-      observer.observe(cardRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
-
   const handleClick = () => {
     onPlay(audio);
   };
 
-  const staggerOffset = (index % 5) * 4;
-  const cardStagger = index % 3 === 0 ? 0 : (index % 3 === 1 ? 8 : 16);
+  const contentDensity = audio.tags.length + Math.floor(audio.comments.length / 2);
+  const baseSpacing = 14;
+  const dynamicSpacing = Math.min(22, baseSpacing + contentDensity * 2);
 
   return (
     <div
-      ref={cardRef}
       onClick={handleClick}
       className="audio-card cursor-pointer break-inside-avoid"
       style={{
         backgroundColor: '#1E1E2E',
         borderRadius: '16px',
         padding: '16px',
-        marginBottom: `${16 + staggerOffset}px`,
-        marginTop: `${cardStagger}px`,
+        marginBottom: `${dynamicSpacing}px`,
         boxShadow: isHovered
-          ? '0 12px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(108, 99, 255, 0.15)'
+          ? '0 10px 28px rgba(0,0,0,0.45)'
           : '0 4px 12px rgba(0,0,0,0.3)',
-        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible
-          ? (isHovered ? 'translateY(-6px) scale(1.01)' : 'translateY(0) scale(1)')
-          : 'translateY(20px)',
+        transition: 'all 0.25s ease-out',
+        transform: isHovered ? 'translateY(-6px)' : 'translateY(0)',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="relative mb-3">
-        <div className="flex items-end justify-center gap-1 h-16 overflow-visible">
-          {audio.waveformData.map((height, i) => {
-            const baseHeight = Math.max(8, height * 64);
-            const breatheHeight = isCurrentPlaying
-              ? baseHeight
-              : baseHeight;
-            return (
-              <div
-                key={i}
-                className="flex-1 rounded-full"
-                style={{
-                  height: isVisible ? `${breatheHeight}px` : '0px',
-                  backgroundColor: isCurrentPlaying
-                    ? getHeatColor(height, audio.likeCount + 100)
-                    : getHeatColor(height, audio.likeCount),
-                  transition: 'height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  transitionDelay: isVisible ? `${i * 0.06}s` : `${(9 - i) * 0.03}s`,
-                  animation: isVisible && !isCurrentPlaying
-                    ? `breathe-${i} 2.5s ease-in-out ${0.3 + i * 0.1}s infinite`
-                    : (isCurrentPlaying ? `pulse-bar-${i} 0.5s ease-in-out infinite alternate` : 'none'),
-                  opacity: isVisible ? 1 : 0,
-                  transformOrigin: 'bottom',
-                }}
-              />
-            );
-          })}
+        <div className="flex items-end justify-center gap-1 h-16">
+          {audio.waveformData.map((height, i) => (
+            <div
+              key={i}
+              className="flex-1 rounded-full"
+              style={{
+                height: `${Math.max(8, height * 64)}px`,
+                backgroundColor: isCurrentPlaying
+                  ? getHeatColor(height, audio.likeCount + 100)
+                  : getHeatColor(height, audio.likeCount),
+                animation: isCurrentPlaying
+                  ? `pulse-bar-${i} 0.5s ease-in-out infinite alternate`
+                  : 'waveform-pulse 2s ease-in-out infinite',
+                animationDelay: `${i * 0.08}s`,
+                transformOrigin: 'bottom',
+              }}
+            />
+          ))}
         </div>
         <div
           className="absolute inset-0 flex items-center justify-center"
@@ -326,8 +293,8 @@ const AudioList: React.FC = () => {
         className="columns-1 md:columns-2 gap-4"
         style={{ columnGap: '16px' }}
       >
-        {audioList.map((audio, index) => (
-          <AudioCard key={audio.id} audio={audio} index={index} onPlay={handlePlay} />
+        {audioList.map((audio) => (
+          <AudioCard key={audio.id} audio={audio} onPlay={handlePlay} />
         ))}
       </div>
 
@@ -339,6 +306,17 @@ const AudioList: React.FC = () => {
       )}
 
       <style>{`
+        @keyframes waveform-pulse {
+          0%, 100% {
+            transform: scaleY(1);
+            opacity: 0.9;
+          }
+          50% {
+            transform: scaleY(1.06);
+            opacity: 1;
+          }
+        }
+
         @keyframes pulse-bar-0 {
           0% { height: 20px; }
           100% { height: 52px; }
@@ -378,107 +356,6 @@ const AudioList: React.FC = () => {
         @keyframes pulse-bar-9 {
           0% { height: 50px; }
           100% { height: 24px; }
-        }
-
-        @keyframes breathe-0 {
-          0%, 100% {
-            opacity: 0.85;
-            transform: scaleY(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleY(1.08);
-          }
-        }
-        @keyframes breathe-1 {
-          0%, 100% {
-            opacity: 0.9;
-            transform: scaleY(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleY(1.06);
-          }
-        }
-        @keyframes breathe-2 {
-          0%, 100% {
-            opacity: 0.82;
-            transform: scaleY(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleY(1.1);
-          }
-        }
-        @keyframes breathe-3 {
-          0%, 100% {
-            opacity: 0.88;
-            transform: scaleY(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleY(1.05);
-          }
-        }
-        @keyframes breathe-4 {
-          0%, 100% {
-            opacity: 0.83;
-            transform: scaleY(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleY(1.09);
-          }
-        }
-        @keyframes breathe-5 {
-          0%, 100% {
-            opacity: 0.87;
-            transform: scaleY(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleY(1.07);
-          }
-        }
-        @keyframes breathe-6 {
-          0%, 100% {
-            opacity: 0.84;
-            transform: scaleY(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleY(1.08);
-          }
-        }
-        @keyframes breathe-7 {
-          0%, 100% {
-            opacity: 0.89;
-            transform: scaleY(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleY(1.04);
-          }
-        }
-        @keyframes breathe-8 {
-          0%, 100% {
-            opacity: 0.86;
-            transform: scaleY(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleY(1.06);
-          }
-        }
-        @keyframes breathe-9 {
-          0%, 100% {
-            opacity: 0.81;
-            transform: scaleY(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scaleY(1.09);
-          }
         }
       `}</style>
     </div>
