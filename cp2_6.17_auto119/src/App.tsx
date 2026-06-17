@@ -51,7 +51,7 @@ export default function App() {
       const hideTimer = setTimeout(() => {
         setBannerVisible(false);
         setCelebrating(false);
-      }, 2400);
+      }, 2500);
 
       return () => {
         clearTimeout(fadeTimer);
@@ -126,7 +126,7 @@ export default function App() {
               padding: '16px 48px',
               borderRadius: '12px',
               boxShadow: '0 8px 32px rgba(255, 215, 0, 0.4), 0 0 60px rgba(255, 165, 0, 0.3)',
-              zIndex: 100,
+              zIndex: 9999,
               animation: bannerFading ? 'bannerFadeOut 0.4s ease-in forwards' : 'bannerSlideIn 0.5s ease-out forwards',
               textAlign: 'center',
               minWidth: '280px',

@@ -146,7 +146,3 @@ export const useGameStore = create<GameState>((set, get) => {
     },
   };
 });
-
-if (import.meta.env.DEV) {
-  (window as unknown as { __gameStore: typeof useGameStore }).__gameStore = useGameStore;
-}

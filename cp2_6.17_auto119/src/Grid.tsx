@@ -22,12 +22,12 @@ function Particle({ color, angle }: { color: string; angle: number }) {
   );
 }
 
-function Ball({ color, isExploding, isCelebrating }: { color: ColorValue; isExploding: boolean; isCelebrating: boolean }) {
+function Ball({ color, isExploding, isCelebrating, pulseScale }: { color: ColorValue; isExploding: boolean; isCelebrating: boolean; pulseScale: number }) {
   return (
     <div className={`ball ${isExploding ? 'ball-exploding' : ''} ${isCelebrating ? 'ball-celebrating' : ''}`}>
       <div
         className="ball-inner"
-        style={{ background: color }}
+        style={{ background: color, '--ball-pulse-scale': pulseScale } as React.CSSProperties}
       />
       {isExploding && (
         <>
@@ -48,12 +48,15 @@ export default function Grid() {
   const celebrating = useGameStore(s => s.celebrating);
   const handleCellClick = useGameStore(s => s.handleCellClick);
 
-  const cellSize = useMemo(() => {
+  const { cellSize, pulseScale } = useMemo(() => {
     const minSize = 40;
     const maxSize = 70;
     const available = Math.min(window.innerWidth - 280, window.innerHeight - 160);
     const calculated = Math.floor(available / 8);
-    return Math.max(minSize, Math.min(maxSize, calculated));
+    const size = Math.max(minSize, Math.min(maxSize, calculated));
+    const ballFillRatio = 0.8;
+    const safeScale = (1 / ballFillRatio) * 0.9;
+    return { cellSize: size, pulseScale: safeScale };
   }, []);
 
   return (
@@ -93,7 +96,7 @@ export default function Grid() {
               onClick={() => handleCellClick(r, c)}
             >
               {cell.color && (
-                <Ball color={cell.color} isExploding={isExploding} isCelebrating={celebrating} />
+                <Ball color={cell.color} isExploding={isExploding} isCelebrating={celebrating} pulseScale={pulseScale} />
               )}
             </div>
           );
