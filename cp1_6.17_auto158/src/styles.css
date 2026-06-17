@@ -1,0 +1,382 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0D1117;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Microsoft YaHei', sans-serif;
+}
+
+.app-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.canvas-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-wrapper canvas {
+  display: block;
+}
+
+.app-title {
+  position: absolute;
+  top: 2vh;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.app-title h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #E0E0E0;
+  letter-spacing: 4px;
+  text-shadow: 0 0 20px rgba(74, 144, 217, 0.5);
+}
+
+.app-title p {
+  font-size: 12px;
+  color: #8899AA;
+  letter-spacing: 2px;
+  margin-top: 4px;
+}
+
+.controls-hint {
+  position: absolute;
+  bottom: 3vh;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.controls-hint span {
+  font-size: 12px;
+  color: #667788;
+  padding: 6px 12px;
+  background: rgba(26, 26, 46, 0.6);
+  border: 1px solid rgba(204, 204, 204, 0.1);
+  border-radius: 4px;
+}
+
+.control-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  min-height: 150px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  border: 1px solid rgba(204, 204, 204, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+  animation: panelFadeIn 0.2s ease-out;
+}
+
+@keyframes panelFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(74, 144, 217, 0.1);
+  border-bottom: 1px solid rgba(204, 204, 204, 0.3);
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1A1A2E;
+}
+
+.close-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: #666;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  background: rgba(231, 76, 60, 0.2);
+  color: #E74C3C;
+}
+
+.panel-body {
+  padding: 14px;
+}
+
+.value-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.value-label {
+  font-size: 12px;
+  color: #555;
+}
+
+.value-number {
+  font-size: 16px;
+  font-weight: 600;
+  color: #4A90D9;
+  font-family: monospace;
+}
+
+.slider-container {
+  margin-bottom: 14px;
+}
+
+.custom-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #DDD;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #4A90D9;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(74, 144, 217, 0.4);
+}
+
+.custom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 2px 10px rgba(74, 144, 217, 0.6);
+}
+
+.custom-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #4A90D9;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(74, 144, 217, 0.4);
+}
+
+.custom-slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 2px 10px rgba(74, 144, 217, 0.6);
+}
+
+.confirm-btn {
+  width: 100%;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #4A90D9, #357ABD);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confirm-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 144, 217, 0.4);
+}
+
+.confirm-btn:active {
+  transform: translateY(0);
+}
+
+.data-summary-panel {
+  position: absolute;
+  top: 2vh;
+  right: 1.5vw;
+  width: 200px;
+  min-height: auto;
+  background: rgba(26, 26, 46, 0.85);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  border: 1px solid rgba(204, 204, 204, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.summary-title {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #E0E0E0;
+  background: rgba(74, 144, 217, 0.2);
+  border-bottom: 1px solid rgba(204, 204, 204, 0.1);
+  letter-spacing: 1px;
+}
+
+.summary-content {
+  padding: 12px 14px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.summary-row:last-child {
+  margin-bottom: 0;
+}
+
+.summary-label {
+  font-size: 12px;
+  color: #8899AA;
+}
+
+.summary-value {
+  font-size: 12px;
+  color: #E0E0E0;
+  font-weight: 500;
+}
+
+.summary-value.highlight {
+  color: #50E3C2;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.summary-divider {
+  height: 1px;
+  background: rgba(204, 204, 204, 0.1);
+  margin: 10px 0;
+}
+
+.summary-empty {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.summary-empty p {
+  font-size: 12px;
+  color: #667788;
+  line-height: 1.8;
+}
+
+.summary-footer {
+  padding: 10px 14px;
+  border-top: 1px solid rgba(204, 204, 204, 0.1);
+}
+
+.legend {
+  display: flex;
+  justify-content: space-around;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.legend-color.val.val-valve-color {
+  background: #E74C3C;
+}
+
+.valve-color {
+  background: #E74C3C;
+}
+
+.pump-color {
+  background: #9B59B6;
+}
+
+.node-color {
+  background: #F5A623;
+}
+
+.legend-text {
+  font-size: 10px;
+  color: #8899AA;
+}
+
+@media (max-width: 1440px) {
+  .app-title h1 {
+    font-size: 20px;
+  }
+
+  .data-summary-panel {
+    width: 180px;
+  }
+
+  .control-panel {
+    width: 180px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-title h1 {
+    font-size: 18px;
+    letter-spacing: 2px;
+  }
+
+  .controls-hint {
+    gap: 10px;
+  }
+
+  .controls-hint span {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+}
