@@ -2,6 +2,8 @@ export interface Particle {
   id: string;
   position: Float32Array;
   velocity: Float32Array;
+  trail: Float32Array;
+  trailLength: number;
   age: number;
   life: number;
   active: boolean;
@@ -11,6 +13,7 @@ export interface ControlParams {
   particleCount: number;
   noiseStrength: number;
   particleLife: number;
+  trailFrameCount: number;
 }
 
 export interface GestureForce {
@@ -27,4 +30,6 @@ export interface ParticleState {
   z: number;
   age: number;
   life: number;
+  trail: Float32Array;
+  trailLength: number;
 }

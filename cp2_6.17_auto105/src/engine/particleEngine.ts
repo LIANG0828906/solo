@@ -17,11 +17,14 @@ export class ParticleEngine {
 
   private initializePool(): void {
     const maxParticles = 10000;
+    const maxTrailFrames = 60;
     for (let i = 0; i < maxParticles; i++) {
       this.particles.push({
         id: uuidv4(),
         position: new Float32Array(3),
         velocity: new Float32Array(3),
+        trail: new Float32Array(maxTrailFrames * 3),
+        trailLength: 0,
         age: 0,
         life: 0,
         active: false,
@@ -33,6 +36,8 @@ export class ParticleEngine {
         z: 0,
         age: 0,
         life: 0,
+        trail: new Float32Array(maxTrailFrames * 3),
+        trailLength: 0,
       });
     }
   }
@@ -71,6 +76,7 @@ export class ParticleEngine {
 
     particle.age = 0;
     particle.life = this.controlParams.particleLife * (0.8 + Math.random() * 0.4);
+    particle.trailLength = 0;
     particle.active = true;
   }
 
@@ -81,6 +87,8 @@ export class ParticleEngine {
     const noiseScale = 0.1;
     const noiseStrength = this.controlParams.noiseStrength;
     const damping = 0.95;
+    const maxTrailFrames = 60;
+    const trailFrameCount = this.controlParams.trailFrameCount;
 
     for (let i = 0; i < this.particles.length; i++) {
       const particle = this.particles[i];
@@ -117,6 +125,12 @@ export class ParticleEngine {
       particle.position[1] += particle.velocity[1] * deltaTime * 60;
       particle.position[2] += particle.velocity[2] * deltaTime * 60;
 
+      const trailIndex = (particle.trailLength % maxTrailFrames) * 3;
+      particle.trail[trailIndex] = particle.position[0];
+      particle.trail[trailIndex + 1] = particle.position[1];
+      particle.trail[trailIndex + 2] = particle.position[2];
+      particle.trailLength = Math.min(particle.trailLength + 1, trailFrameCount);
+
       const state = this.particleStatePool[this.activeCount];
       state.id = particle.id;
       state.x = particle.position[0];
@@ -124,6 +138,8 @@ export class ParticleEngine {
       state.z = particle.position[2];
       state.age = particle.age;
       state.life = particle.life;
+      state.trail.set(particle.trail);
+      state.trailLength = particle.trailLength;
 
       this.activeCount++;
     }

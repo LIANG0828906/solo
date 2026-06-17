@@ -30,6 +30,7 @@ export const useStore = create<Store>((set) => ({
     particleCount: 3000,
     noiseStrength: 0.2,
     particleLife: 3,
+    trailFrameCount: 30,
   },
   gestureForce: {
     x: 0,

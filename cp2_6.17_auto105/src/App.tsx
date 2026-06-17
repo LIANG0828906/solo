@@ -23,6 +23,7 @@ export default function App() {
     particleCount: 3000,
     noiseStrength: 0.2,
     particleLife: 3,
+    trailFrameCount: 30,
   };
 
   const handleEmitParticles = useCallback((count: number, position?: [number, number, number]) => {
