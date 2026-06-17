@@ -48,4 +48,7 @@ export interface FieldLineData {
   points: Vec3[];
   startPoleId: string;
   endPoleId: string | null;
+  speedFactors: number[];
+  colors: string[];
+  baseSpeedRandom: number;
 }

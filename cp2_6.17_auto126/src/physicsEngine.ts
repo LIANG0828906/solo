@@ -4,6 +4,9 @@ const K = 1.0;
 const STEP_SIZE = 0.08;
 const MAX_STEPS = 500;
 const BOUNDARY = 8.0;
+const SPEED_RANDOM_RANGE = 0.2;
+const COLOR_SATURATION_ZONE = 0.2;
+const MIN_FIELD_MAG = 1e-6;
 
 export class PhysicsEngine {
   private poles: MagneticPole[] = [];
@@ -93,7 +96,14 @@ export class PhysicsEngine {
     for (const northPole of northPoles) {
       const startPoints = this.generateStartPoints(northPole, linesPerPole);
       for (let i = 0; i < startPoints.length && lines.length < adjustedParams.totalLines; i++) {
-        const line = this.traceFieldLine(startPoints[i], northPole.id, adjustedParams.verticesPerLine);
+        const baseSpeedRandom = 1.0 + (Math.random() * 2 - 1) * SPEED_RANDOM_RANGE;
+        const line = this.traceFieldLine(
+          startPoints[i],
+          northPole.id,
+          adjustedParams.verticesPerLine,
+          baseSpeedRandom,
+          params
+        );
         if (line && line.points.length >= 3) {
           lines.push(line);
         }
@@ -140,15 +150,98 @@ export class PhysicsEngine {
     return points;
   }
 
-  private traceFieldLine(start: Vec3, startPoleId: string, verticesPerLine: number): FieldLineData | null {
+  private getMinDistanceToAnyPole(pos: Vec3, excludeId?: string): number {
+    let minDist = Infinity;
+    for (const pole of this.poles) {
+      if (excludeId && pole.id === excludeId) continue;
+      const dx = pos.x - pole.position.x;
+      const dy = pos.y - pole.position.y;
+      const dz = pos.z - pole.position.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      minDist = Math.min(minDist, dist);
+    }
+    return minDist;
+  }
+
+  private computeSpeedFactor(pos: Vec3, fieldMag: number): number {
+    const minDist = this.getMinDistanceToAnyPole(pos);
+    const distFactor = Math.max(0.5, Math.min(1.5, 1.0 / Math.sqrt(Math.max(0.1, minDist))));
+    const normMag = Math.min(1.0, Math.max(0.3, Math.log10(fieldMag + 1.0) * 0.5 + 0.5));
+    return 0.7 + distFactor * 0.3 + normMag * 0.3;
+  }
+
+  private parseColor(hex: string): { r: number; g: number; b: number } {
+    const h = hex.replace('#', '');
+    return {
+      r: parseInt(h.substring(0, 2), 16),
+      g: parseInt(h.substring(2, 4), 16),
+      b: parseInt(h.substring(4, 6), 16)
+    };
+  }
+
+  private toHex(r: number, g: number, b: number): string {
+    const toHex = (n: number) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  }
+
+  private interpolateColor(t: number, colorN: string, colorS: string): string {
+    const cN = this.parseColor(colorN);
+    const cS = this.parseColor(colorS);
+    const satZone = COLOR_SATURATION_ZONE;
+
+    let factor: number;
+    if (t < satZone) {
+      factor = 0.0;
+    } else if (t > 1 - satZone) {
+      factor = 1.0;
+    } else {
+      const innerT = (t - satZone) / (1 - 2 * satZone);
+      factor = innerT * innerT * (3 - 2 * innerT);
+    }
+
+    let boostFactor = 1.0;
+    if (t < satZone) {
+      boostFactor = 1.0 + 0.25 * (1 - t / satZone);
+    } else if (t > 1 - satZone) {
+      boostFactor = 1.0 + 0.25 * ((t - (1 - satZone)) / satZone);
+    }
+
+    const r = cN.r + (cS.r - cN.r) * factor;
+    const g = cN.g + (cS.g - cN.g) * factor;
+    const b = cN.b + (cS.b - cN.b) * factor;
+
+    return this.toHex(r * boostFactor, g * boostFactor, b * boostFactor);
+  }
+
+  private computeColors(points: Vec3[], params: FieldLineParams): string[] {
+    const colors: string[] = [];
+    const len = points.length;
+    for (let i = 0; i < len; i++) {
+      const t = i / Math.max(1, len - 1);
+      colors.push(this.interpolateColor(t, params.colorN, params.colorS));
+    }
+    return colors;
+  }
+
+  private traceFieldLine(
+    start: Vec3,
+    startPoleId: string,
+    verticesPerLine: number,
+    baseSpeedRandom: number,
+    params: FieldLineParams
+  ): FieldLineData | null {
     const points: Vec3[] = [{ ...start }];
+    const speedFactors: number[] = [];
     let current = { ...start };
     let endPoleId: string | null = null;
 
     for (let step = 0; step < MAX_STEPS && points.length < verticesPerLine; step++) {
       const field = this.computeFieldAt(current);
       const mag = Math.sqrt(field.x ** 2 + field.y ** 2 + field.z ** 2);
-      if (mag < 1e-6) break;
+      if (mag < MIN_FIELD_MAG) break;
+
+      const speedFactor = this.computeSpeedFactor(current, mag);
+      speedFactors.push(speedFactor * baseSpeedRandom);
 
       const nx = field.x / mag;
       const ny = field.y / mag;
@@ -188,6 +281,21 @@ export class PhysicsEngine {
     }
 
     if (points.length < 2) return null;
-    return { points, startPoleId, endPoleId };
+
+    while (speedFactors.length < points.length) {
+      const lastSpeed = speedFactors[speedFactors.length - 1] || baseSpeedRandom;
+      speedFactors.push(lastSpeed);
+    }
+
+    const colors = this.computeColors(points, params);
+
+    return {
+      points,
+      startPoleId,
+      endPoleId,
+      speedFactors,
+      colors,
+      baseSpeedRandom
+    };
   }
 }
