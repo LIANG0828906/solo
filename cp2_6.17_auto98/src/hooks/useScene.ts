@@ -1,8 +1,36 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
+import * as THREE from 'three';
 import { TreeParams } from '../store/useStore';
+import { generateTree, TreeData } from '../utils/treeGenerator';
 
 export const useScene = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const [treeData, setTreeData] = useState<TreeData | null>(null);
+
+  const setCanvas = useCallback((canvas: HTMLCanvasElement) => {
+    canvasRef.current = canvas;
+  }, []);
+
+  const setScene = useCallback((scene: THREE.Scene) => {
+    sceneRef.current = scene;
+  }, []);
+
+  const setCamera = useCallback((camera: THREE.PerspectiveCamera) => {
+    cameraRef.current = camera;
+  }, []);
+
+  const setRenderer = useCallback((renderer: THREE.WebGLRenderer) => {
+    rendererRef.current = renderer;
+  }, []);
+
+  const updateTree = useCallback((params: TreeParams) => {
+    const data = generateTree(params);
+    setTreeData(data);
+    return data;
+  }, []);
 
   const exportScreenshot = useCallback(() => {
     if (!canvasRef.current) return;
@@ -10,7 +38,9 @@ export const useScene = () => {
     const link = document.createElement('a');
     link.download = `ltree-${Date.now()}.png`;
     link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   }, []);
 
   const copyParamLink = useCallback(
@@ -41,8 +71,25 @@ export const useScene = () => {
     []
   );
 
-  const setCanvas = useCallback((canvas: HTMLCanvasElement) => {
-    canvasRef.current = canvas;
+  const computeBranchLOD = useCallback((cameraDistance: number, level: number): number => {
+    const levelFactor = 1 + (7 - Math.min(level, 7)) * 0.15;
+    const adjustedDistance = cameraDistance * levelFactor;
+    if (adjustedDistance < 3) return 8;
+    if (adjustedDistance < 6) return 6;
+    if (adjustedDistance < 10) return 4;
+    return 3;
+  }, []);
+
+  const computeLeafLOD = useCallback((cameraDistance: number): number => {
+    if (cameraDistance < 3) return 8;
+    if (cameraDistance < 6) return 6;
+    if (cameraDistance < 10) return 4;
+    return 3;
+  }, []);
+
+  const getCameraDistance = useCallback((): number => {
+    if (!cameraRef.current) return 8;
+    return cameraRef.current.position.length();
   }, []);
 
   useEffect(() => {
@@ -70,20 +117,21 @@ export const useScene = () => {
     }
   }, []);
 
-  return { exportScreenshot, copyParamLink, setCanvas };
-};
-
-export const computeLOD = (cameraDistance: number, depth: number): number => {
-  if (depth <= 3) return 8;
-  if (cameraDistance < 3) return 6;
-  if (cameraDistance < 6) return 4;
-  if (cameraDistance < 10) return 3;
-  return 2;
-};
-
-export const computeLeafLOD = (cameraDistance: number): number => {
-  if (cameraDistance < 3) return 8;
-  if (cameraDistance < 6) return 6;
-  if (cameraDistance < 10) return 4;
-  return 3;
+  return {
+    canvasRef,
+    sceneRef,
+    cameraRef,
+    rendererRef,
+    treeData,
+    setCanvas,
+    setScene,
+    setCamera,
+    setRenderer,
+    updateTree,
+    exportScreenshot,
+    copyParamLink,
+    computeBranchLOD,
+    computeLeafLOD,
+    getCameraDistance,
+  };
 };

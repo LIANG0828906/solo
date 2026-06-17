@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ControlPanel } from './components/ControlPanel';
 import { SceneViewer } from './components/SceneViewer';
+import { BranchInfoPanel } from './components/BranchInfoPanel';
 import { useScene } from './hooks/useScene';
 import { useStore, TreeParams } from './store/useStore';
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -6,23 +6,28 @@ import { useStore } from '../store/useStore';
 import { generateTree, BranchData } from '../utils/treeGenerator';
 import { BranchMesh, LeafMesh } from './BranchMesh';
 import { StarField } from './StarField';
+import { useScene } from '../hooks/useScene';
 
 interface SceneContentProps {
   onCanvasReady: (canvas: HTMLCanvasElement) => void;
+  onSceneReady?: (scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer) => void;
 }
 
-const SceneContent: React.FC<SceneContentProps> = ({ onCanvasReady }) => {
+const SceneContent: React.FC<SceneContentProps> = ({ onCanvasReady, onSceneReady }) => {
   const params = useStore((state) => state.params);
   const selectedBranch = useStore((state) => state.selectedBranch);
   const setSelectedBranch = useStore((state) => state.setSelectedBranch);
   const setHighlightInfo = useStore((state) => state.setHighlightInfo);
-  const { gl } = useThree();
+  const { scene, camera, gl } = useThree();
+
+  const treeData = React.useMemo(() => generateTree(params), [params]);
 
   useEffect(() => {
     onCanvasReady(gl.domElement);
-  }, [gl, onCanvasReady]);
-
-  const treeData = useMemo(() => generateTree(params), [params]);
+    if (onSceneReady) {
+      onSceneReady(scene, camera as THREE.PerspectiveCamera, gl);
+    }
+  }, [gl, scene, camera, onCanvasReady, onSceneReady]);
 
   const handleSelect = useCallback(
     (branch: BranchData) => {
@@ -47,7 +52,7 @@ const SceneContent: React.FC<SceneContentProps> = ({ onCanvasReady }) => {
   return (
     <>
       <ambientLight intensity={0.4} />
-      <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
+      <directionalLight position={[5, 10, 5]} intensity={1} />
       <directionalLight position={[-5, 5, -5]} intensity={0.3} />
 
       <BranchMesh
@@ -75,7 +80,17 @@ interface SceneViewerProps {
 }
 
 export const SceneViewer: React.FC<SceneViewerProps> = ({ onCanvasReady }) => {
+  const { setScene, setCamera, setRenderer } = useScene();
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+
+  const handleSceneReady = useCallback(
+    (scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer) => {
+      setScene(scene);
+      setCamera(camera);
+      setRenderer(renderer);
+    },
+    [setScene, setCamera, setRenderer]
+  );
 
   return (
     <Canvas
@@ -99,7 +114,7 @@ export const SceneViewer: React.FC<SceneViewerProps> = ({ onCanvasReady }) => {
     >
       <color attach="background" args={['#0B0B1E']} />
       <fog attach="fog" args={['#0B0B1E', 15, 50]} />
-      <SceneContent onCanvasReady={onCanvasReady} />
+      <SceneContent onCanvasReady={onCanvasReady} onSceneReady={handleSceneReady} />
     </Canvas>
   );
 };

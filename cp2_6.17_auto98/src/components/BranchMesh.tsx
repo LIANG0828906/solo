@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { BranchData } from '../utils/treeGenerator';
 
@@ -9,6 +10,61 @@ interface BranchMeshProps {
 }
 
 export const BranchMesh: React.FC<BranchMeshProps> = ({ branches, selectedId, onSelect }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const [flashActive, setFlashActive] = useState(false);
+  const flashStartTime = useRef(0);
+
+  useEffect(() => {
+    if (selectedId) {
+      setFlashActive(true);
+      flashStartTime.current = performance.now();
+      const timer = setTimeout(() => {
+        setFlashActive(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedId]);
+
+  useFrame(() => {
+    if (!groupRef.current || !selectedId || !flashActive) return;
+
+    const elapsed = performance.now() - flashStartTime.current;
+    const flashDuration = 250;
+    const flashCycle = Math.floor(elapsed / flashDuration);
+    const flashProgress = (elapsed % flashDuration) / flashDuration;
+    const isOn = flashCycle % 2 === 0;
+    const intensity = isOn ? 1 - flashProgress * 0.5 : 0.3 + flashProgress * 0.3;
+
+    groupRef.current.children.forEach((child) => {
+      const mesh = child as THREE.Mesh;
+      const userDataBranchId = mesh.userData.branchId as string;
+      if (userDataBranchId === selectedId) {
+        const material = mesh.material as THREE.MeshStandardMaterial;
+        if (material.emissive) {
+          material.emissive.setHex(0xffd700);
+          material.emissiveIntensity = intensity * 0.8;
+        }
+        if (material.color) {
+          const targetColor = new THREE.Color('#FFD700');
+          const baseColor = new THREE.Color('#4A3728');
+          material.color.lerpColors(baseColor, targetColor, intensity * 0.7);
+        }
+      }
+    });
+  });
+
+  useEffect(() => {
+    if (!groupRef.current) return;
+    groupRef.current.children.forEach((child) => {
+      const mesh = child as THREE.Mesh;
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      if (material.emissive && !selectedId) {
+        material.emissive.setHex(0x000000);
+        material.emissiveIntensity = 0;
+      }
+    });
+  }, [selectedId, branches]);
+
   const meshData = useMemo(() => {
     return branches.map((branch) => {
       const direction = new THREE.Vector3()
@@ -27,10 +83,10 @@ export const BranchMesh: React.FC<BranchMeshProps> = ({ branches, selectedId, on
   }, [branches]);
 
   return (
-    <group>
+    <group ref={groupRef}>
       {meshData.map(({ branch, mid, length, quaternion }) => {
-        const isSelected = selectedId === branch.id;
         const segments = branch.level < 2 ? 8 : branch.level < 4 ? 6 : 4;
+        const isSelected = selectedId === branch.id;
         return (
           <mesh
             key={branch.id}
@@ -40,33 +96,18 @@ export const BranchMesh: React.FC<BranchMeshProps> = ({ branches, selectedId, on
               e.stopPropagation();
               onSelect(branch);
             }}
+            userData={{ branchId: branch.id }}
           >
             <cylinderGeometry
               args={[branch.thickness, branch.thickness * 0.85, length, segments, 1]}
             />
             <meshStandardMaterial
-              color={isSelected ? '#FFD700' : branch.color}
+              color={branch.color}
               roughness={0.8}
               metalness={0.1}
+              emissive={isSelected ? '#FFD700' : '#000000'}
+              emissiveIntensity={isSelected ? 0.5 : 0}
             />
-            {isSelected && (
-              <mesh>
-                <cylinderGeometry
-                  args={[
-                    branch.thickness * 1.3,
-                    branch.thickness * 1.1,
-                    length * 1.02,
-                    segments,
-                    1,
-                  ]}
-                />
-                <meshBasicMaterial
-                  color="#FFD700"
-                  transparent
-                  opacity={0.4}
-                />
-              </mesh>
-            )}
           </mesh>
         );
       })}
