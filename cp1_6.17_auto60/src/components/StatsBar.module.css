@@ -1,0 +1,60 @@
+.bar {
+  height: var(--stats-height);
+  background: var(--ctp-surface1);
+  border-bottom-left-radius: var(--radius-panel);
+  border-bottom-right-radius: var(--radius-panel);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 22px;
+  font-size: 12px;
+  color: var(--ctp-subtext0);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.value {
+  color: var(--ctp-text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cycleValue {
+  color: var(--ctp-pink);
+  font-weight: 700;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: transform var(--transition-fast);
+}
+
+.cycleValue:hover {
+  color: var(--ctp-mauve);
+  transform: translateY(-1px);
+}
+
+.cycleValue.blink {
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+.label {
+  opacity: 0.8;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.demoBadge {
+  padding: 2px 8px;
+  background: rgba(203, 166, 247, 0.15);
+  color: var(--ctp-mauve);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
