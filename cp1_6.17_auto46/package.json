@@ -1,0 +1,40 @@
+{
+  "name": "team-task-board",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
+    "client:dev": "vite",
+    "server:dev": "nodemon --watch server --ext ts --exec \"tsx server/index.ts\"",
+    "build": "tsc -b && vite build",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "antd": "^5.21.0",
+    "@ant-design/icons": "^5.5.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.5",
+    "uuid": "^9.0.1",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "lowdb": "^7.0.1",
+    "dayjs": "^1.11.13",
+    "@hello-pangea/dnd": "^16.6.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.8",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.4",
+    "tsx": "^4.16.2",
+    "typescript": "^5.4.5",
+    "vite": "^5.3.1"
+  }
+}
