@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { Stroke, Doodle, BrushSettings, Viewport, BlendMode } from '../types';
 
+(window as any).__fs_store_init_count = ((window as any).__fs_store_init_count || 0) + 1;
+
 const PRESET_COLORS = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
   '#FFEAA7', '#DDA0DD', '#FF8C42', '#6C5CE7',

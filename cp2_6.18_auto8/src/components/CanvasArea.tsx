@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useCanvasStore } from '../store/canvasStore';
 import { CanvasEngine } from '../modules/canvasEngine';
@@ -6,7 +6,7 @@ import { storageManager } from '../modules/storageManager';
 import type { Stroke, Doodle } from '../types';
 
 export default function CanvasArea() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null) as React.MutableRefObject<HTMLCanvasElement | null>;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<CanvasEngine | null>(null);
   const isDrawingRef = useRef(false);
@@ -15,8 +15,6 @@ export default function CanvasArea() {
   const viewportRef = useRef({ offsetX: 0, offsetY: 0 });
   const wheelRafRef = useRef<number | null>(null);
   const pendingWheelDeltaRef = useRef({ x: 0, y: 0 });
-  const wheelCleanupRef = useRef<(() => void) | null>(null);
-  const [canvasReady, setCanvasReady] = useState(0);
 
   const {
     brushSettings,
@@ -32,52 +30,39 @@ export default function CanvasArea() {
     viewportRef.current = viewport;
   }, [viewport]);
 
-  const canvasCallbackRef = useCallback((node: HTMLCanvasElement | null) => {
-    canvasRef.current = node;
-    if (node) setCanvasReady((n) => n + 1);
-  }, []);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || engineRef.current) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
     engineRef.current = new CanvasEngine(canvas);
     engineRef.current.setViewport(viewportRef.current);
     engineRef.current.setSavedStrokes(currentStrokes);
     engineRef.current.forceRender();
 
-    const flushWheel = () => {
-      wheelRafRef.current = null;
-      const delta = pendingWheelDeltaRef.current;
-      if (delta.x === 0 && delta.y === 0) return;
-      pendingWheelDeltaRef.current = { x: 0, y: 0 };
-      const vp = viewportRef.current;
-      setViewport(vp.offsetX - delta.x, vp.offsetY - delta.y);
-    };
-
     const handleNativeWheel = (e: WheelEvent) => {
       e.preventDefault();
-      pendingWheelDeltaRef.current.x += e.deltaX;
-      pendingWheelDeltaRef.current.y += e.deltaY;
-      if (wheelRafRef.current === null) {
-        wheelRafRef.current = requestAnimationFrame(flushWheel);
-      }
+      (window as any).__fs_wheel_fired = ((window as any).__fs_wheel_fired || 0) + 1;
+      const vp = viewportRef.current;
+      (window as any).__fs_wheel_vp_before = vp;
+      (window as any).__fs_wheel_dx = e.deltaX;
+      (window as any).__fs_wheel_dy = e.deltaY;
+      setViewport(vp.offsetX - e.deltaX, vp.offsetY - e.deltaY);
+      (window as any).__fs_wheel_vp_after = viewportRef.current;
     };
 
-    canvas.addEventListener('wheel', handleNativeWheel, { passive: false });
+    container.addEventListener('wheel', handleNativeWheel, { passive: false });
+    (window as any).__fs_wheel_bound = true;
+    (window as any).__fs_set_viewport = setViewport;
 
-    wheelCleanupRef.current = () => {
-      canvas.removeEventListener('wheel', handleNativeWheel);
-      if (wheelRafRef.current !== null) {
-        cancelAnimationFrame(wheelRafRef.current);
-        wheelRafRef.current = null;
-      }
+    return () => {
+      container.removeEventListener('wheel', handleNativeWheel);
       if (engineRef.current) {
         engineRef.current.destroy();
         engineRef.current = null;
       }
     };
-  }, [canvasReady, currentStrokes, setViewport]);
+  }, [currentStrokes, setViewport]);
 
   useEffect(() => {
     if (engineRef.current) {
@@ -90,15 +75,6 @@ export default function CanvasArea() {
       engineRef.current.setSavedStrokes(currentStrokes);
     }
   }, [currentStrokes]);
-
-  useEffect(() => {
-    return () => {
-      if (wheelCleanupRef.current) {
-        wheelCleanupRef.current();
-        wheelCleanupRef.current = null;
-      }
-    };
-  }, []);
 
   const getCanvasPoint = (clientX: number, clientY: number) => {
     if (!canvasRef.current || !engineRef.current) return null;
@@ -226,7 +202,7 @@ export default function CanvasArea() {
     >
       <div style={styles.scrollWrapper}>
         <canvas
-          ref={canvasCallbackRef}
+          ref={canvasRef}
           style={styles.canvas}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
