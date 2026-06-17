@@ -1,0 +1,138 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Playfair+Display:wght@700;900&display=swap');
+
+:root {
+  --bg-primary: #1E1E2E;
+  --bg-secondary: #2A2A3A;
+  --bg-tertiary: #3A3A4A;
+  --border-subtle: #3A3A4A;
+  --text-primary: #E8E8F0;
+  --text-secondary: #A0A0B8;
+  --text-muted: #6E6E88;
+  --accent-blue: #42A5F5;
+  --accent-orange: #FFA726;
+  --accent-green: #69F0AE;
+  --accent-red: #FF5252;
+  --accent-purple: #B388FF;
+  --color-positive: #69F0AE;
+  --color-neutral: #42A5F5;
+  --color-negative: #FF5252;
+  --color-dot-gray: #9E9E9E;
+  --color-dot-blue: #42A5F5;
+  --color-dot-orange: #FFA726;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --radius-pill: 9999px;
+  --transition-default: 300ms ease-out;
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Noto Sans SC', system-ui, sans-serif;
+  --glass-blur: 10px;
+  --panel-width: 420px;
+  --timeline-height: 80px;
+  --card-width: 280px;
+  --grid-gap: 24px;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes flipIn {
+  0% {
+    opacity: 0;
+    transform: perspective(800px) rotateY(360deg) translateY(-60px) scale(0.6);
+  }
+  60% {
+    opacity: 0.8;
+    transform: perspective(800px) rotateY(30deg) translateY(10px) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(800px) rotateY(0deg) translateY(0) scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    width: 0;
+    opacity: 0;
+  }
+  to {
+    width: var(--panel-width);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
