@@ -1,0 +1,122 @@
+[
+  {
+    "id": "warrior_1",
+    "name": "重击",
+    "class": "warrior",
+    "cost": 1,
+    "effectType": "damage",
+    "value": 6
+  },
+  {
+    "id": "warrior_2",
+    "name": "劈斩",
+    "class": "warrior",
+    "cost": 2,
+    "effectType": "damage",
+    "value": 10
+  },
+  {
+    "id": "warrior_3",
+    "name": "盾墙",
+    "class": "warrior",
+    "cost": 1,
+    "effectType": "shield",
+    "value": 5
+  },
+  {
+    "id": "warrior_4",
+    "name": "战吼",
+    "class": "warrior",
+    "cost": 2,
+    "effectType": "damage",
+    "value": 8
+  },
+  {
+    "id": "warrior_5",
+    "name": "坚守",
+    "class": "warrior",
+    "cost": 1,
+    "effectType": "shield",
+    "value": 7
+  },
+  {
+    "id": "mage_1",
+    "name": "火球术",
+    "class": "mage",
+    "cost": 2,
+    "effectType": "damage",
+    "value": 8
+  },
+  {
+    "id": "mage_2",
+    "name": "冰霜新星",
+    "class": "mage",
+    "cost": 1,
+    "effectType": "damage",
+    "value": 5
+  },
+  {
+    "id": "mage_3",
+    "name": "奥术护盾",
+    "class": "mage",
+    "cost": 1,
+    "effectType": "shield",
+    "value": 4
+  },
+  {
+    "id": "mage_4",
+    "name": "治愈之光",
+    "class": "mage",
+    "cost": 2,
+    "effectType": "heal",
+    "value": 6
+  },
+  {
+    "id": "mage_5",
+    "name": "秘法冲击",
+    "class": "mage",
+    "cost": 3,
+    "effectType": "damage",
+    "value": 12
+  },
+  {
+    "id": "rogue_1",
+    "name": "背刺",
+    "class": "rogue",
+    "cost": 1,
+    "effectType": "damage",
+    "value": 5
+  },
+  {
+    "id": "rogue_2",
+    "name": "毒刃",
+    "class": "rogue",
+    "cost": 2,
+    "effectType": "damage",
+    "value": 7
+  },
+  {
+    "id": "rogue_3",
+    "name": "疾风步",
+    "class": "rogue",
+    "cost": 1,
+    "effectType": "damage",
+    "value": 4
+  },
+  {
+    "id": "rogue_4",
+    "name": "暗影闪避",
+    "class": "rogue",
+    "cost": 1,
+    "effectType": "shield",
+    "value": 3
+  },
+  {
+    "id": "rogue_5",
+    "name": "致命一击",
+    "class": "rogue",
+    "cost": 3,
+    "effectType": "damage",
+    "value": 11
+  }
+]
