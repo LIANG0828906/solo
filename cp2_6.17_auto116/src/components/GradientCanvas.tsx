@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGradientStore, ColorStop, GradientType, RadialShape } from '../stores/gradientStore'
 
 interface GradientCanvasProps {
@@ -8,6 +8,8 @@ interface GradientCanvasProps {
 function GradientCanvas({ style }: GradientCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationRef = useRef<number | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [hoverPosition, setHoverPosition] = useState<number | null>(null)
   const stateRef = useRef({
     colorStops: [] as ColorStop[],
     gradientType: 'linear' as GradientType,
@@ -15,6 +17,7 @@ function GradientCanvas({ style }: GradientCanvasProps) {
     radialShape: 'circle' as RadialShape,
     ellipseScaleX: 1,
     ellipseScaleY: 1,
+    hoverPosition: null as number | null,
   })
 
   const colorStops = useGradientStore((s) => s.colorStops)
@@ -32,6 +35,7 @@ function GradientCanvas({ style }: GradientCanvasProps) {
       radialShape,
       ellipseScaleX,
       ellipseScaleY,
+      hoverPosition,
     }
 
     if (animationRef.current) {
@@ -47,7 +51,7 @@ function GradientCanvas({ style }: GradientCanvasProps) {
         cancelAnimationFrame(animationRef.current)
       }
     }
-  }, [colorStops, gradientType, angle, radialShape, ellipseScaleX, ellipseScaleY])
+  }, [colorStops, gradientType, angle, radialShape, ellipseScaleX, ellipseScaleY, hoverPosition])
 
   const render = () => {
     const canvas = canvasRef.current
@@ -67,7 +71,7 @@ function GradientCanvas({ style }: GradientCanvasProps) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, rect.width, rect.height)
 
-    const { colorStops, gradientType, angle, radialShape, ellipseScaleX, ellipseScaleY } =
+    const { colorStops, gradientType, angle, radialShape, ellipseScaleX, ellipseScaleY, hoverPosition } =
       stateRef.current
 
     if (colorStops.length === 0) return
@@ -119,6 +123,90 @@ function GradientCanvas({ style }: GradientCanvasProps) {
     if (gradientType === 'radial' && radialShape === 'ellipse') {
       ctx.restore()
     }
+
+    if (gradientType === 'linear') {
+      const indicatorY = rect.height - 20
+      sortedStops.forEach((stop) => {
+        const x = (stop.position / 100) * rect.width
+
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(x, indicatorY)
+        ctx.lineTo(x - 7, indicatorY - 12)
+        ctx.lineTo(x + 7, indicatorY - 12)
+        ctx.closePath()
+        ctx.fillStyle = stop.color
+        ctx.fill()
+        ctx.strokeStyle = '#FFFFFF'
+        ctx.lineWidth = 2
+        ctx.stroke()
+        ctx.restore()
+
+        ctx.save()
+        ctx.beginPath()
+        ctx.arc(x, indicatorY + 8, 5, 0, Math.PI * 2)
+        ctx.fillStyle = stop.color
+        ctx.fill()
+        ctx.strokeStyle = '#FFFFFF'
+        ctx.lineWidth = 2
+        ctx.stroke()
+        ctx.restore()
+      })
+    } else {
+      const centerX = rect.width / 2
+      const centerY = rect.height / 2
+      sortedStops.forEach((stop) => {
+        const radius = (stop.position / 100) * (Math.min(rect.width, rect.height) / 2 - 10)
+
+        ctx.save()
+        ctx.beginPath()
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+        ctx.strokeStyle = stop.color
+        ctx.lineWidth = 2
+        ctx.setLineDash([4, 4])
+        ctx.stroke()
+        ctx.restore()
+
+        ctx.save()
+        ctx.beginPath()
+        ctx.arc(centerX + radius, centerY, 6, 0, Math.PI * 2)
+        ctx.fillStyle = stop.color
+        ctx.fill()
+        ctx.strokeStyle = '#FFFFFF'
+        ctx.lineWidth = 2
+        ctx.stroke()
+        ctx.restore()
+      })
+    }
+
+    if (hoverPosition !== null && gradientType === 'linear') {
+      const x = (hoverPosition / 100) * rect.width
+
+      ctx.save()
+      ctx.beginPath()
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x, rect.height)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'
+      ctx.lineWidth = 1
+      ctx.setLineDash([4, 4])
+      ctx.stroke()
+      ctx.restore()
+
+      const labelText = `${hoverPosition.toFixed(1)}%`
+      ctx.save()
+      ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, sans-serif'
+      const labelWidth = ctx.measureText(labelText).width
+      const labelX = Math.max(5, Math.min(rect.width - labelWidth - 10, x - labelWidth / 2))
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+      ctx.beginPath()
+      ctx.roundRect(labelX - 4, 8, labelWidth + 8, 20, 4)
+      ctx.fill()
+
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillText(labelText, labelX, 23)
+      ctx.restore()
+    }
   }
 
   useEffect(() => {
@@ -133,19 +221,47 @@ function GradientCanvas({ style }: GradientCanvasProps) {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    let position = ((e.clientX - rect.left) / rect.width) * 100
+    position = Math.max(0, Math.min(100, position))
+    position = Math.round(position * 10) / 10
+    setHoverPosition(position)
+  }
+
+  const handleMouseLeave = () => {
+    setHoverPosition(null)
+  }
+
+  const canvasStyle: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    borderRadius: '16px',
+    border: '2px solid #E0E0E0',
+    background: '#FAFAFA',
+    display: 'block',
+    cursor: 'crosshair',
+    ...style,
+  }
+
   return (
-    <canvas
-      ref={canvasRef}
+    <div
+      ref={containerRef}
       style={{
         width: '80%',
         height: '400px',
-        borderRadius: '16px',
-        border: '2px solid #E0E0E0',
-        background: '#FAFAFA',
-        display: 'block',
-        ...style,
+        position: 'relative',
       }}
-    />
+    >
+      <canvas
+        ref={canvasRef}
+        style={canvasStyle}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      />
+    </div>
   )
 }
 
