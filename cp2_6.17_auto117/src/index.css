@@ -259,12 +259,17 @@ body {
   background: #2D2D44;
   border-radius: 10px;
   padding: 10px 16px;
-  border: 1px solid transparent;
-  transition: border-color 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .search-bar:focus-within {
   border-color: #6C63FF;
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+}
+
+.search-input:focus {
+  outline: none;
 }
 
 .search-icon {
