@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/appstore.ts","./src/main.tsx","./src/vite-env.d.ts","./src/ecosystemmodule/ecosystemcontainer.tsx","./src/ecosystemmodule/ecosystemservice.ts","./src/glitchmodule/glitchengine.ts","./src/glitchmodule/userintervention.tsx"],"version":"5.8.3"}
