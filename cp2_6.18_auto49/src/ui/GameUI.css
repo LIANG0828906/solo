@@ -1,0 +1,385 @@
+.game-ui-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.score-display {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease-out;
+}
+
+.score-display.has-combo {
+  top: 12px;
+}
+
+.score-value {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 32px;
+  color: white;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8),
+               0 0 20px rgba(108, 92, 231, 0.6);
+  letter-spacing: 2px;
+  transition: all 0.25s ease-out;
+}
+
+.combo-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  animation: comboAppear 0.2s ease-out;
+}
+
+@keyframes comboAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.combo-display.combo-flash {
+  animation: comboFlash 0.2s ease-out;
+}
+
+@keyframes comboFlash {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.combo-label {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.combo-value {
+  font-family: 'Press Start 2P', cursive;
+  font-weight: bold;
+  transition: all 0.25s ease-out;
+}
+
+.combo-x {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.health-display {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  gap: 6px;
+}
+
+.heart {
+  font-size: 28px;
+  transition: all 0.3s ease-out;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.heart-full {
+  color: #FF4B4B;
+  animation: heartBeat 1s ease-in-out infinite;
+}
+
+@keyframes heartBeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.heart-empty {
+  color: #444444;
+}
+
+.pause-btn {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  background: rgba(45, 45, 74, 0.9);
+  color: white;
+  border: 2px solid #6C5CE7;
+  border-radius: 12px;
+  font-size: 14px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.25s ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Press Start 2P', cursive;
+  margin-top: 60px;
+}
+
+.pause-btn:hover {
+  background: #4A4A7A;
+  transform: scale(1.05);
+}
+
+.pause-btn-mobile {
+  top: auto;
+  bottom: 20px;
+  left: 20px;
+  right: auto;
+  margin-top: 0;
+}
+
+.section-indicator {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  background: rgba(231, 76, 60, 0.2);
+  border: 2px solid #E74C3C;
+  border-radius: 8px;
+  animation: sectionPulse 0.5s ease-in-out infinite;
+}
+
+@keyframes sectionPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.section-label {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 12px;
+  color: #E74C3C;
+}
+
+.section-bonus {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 10px;
+  color: #FFD700;
+}
+
+.beat-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  border: 4px solid transparent;
+  transition: box-shadow 0.2s ease-out, border-color 0.2s ease-out;
+  z-index: 90;
+  box-sizing: border-box;
+}
+
+.beat-pulse.active {
+  animation: pulseEffect 0.2s ease-out;
+}
+
+@keyframes pulseEffect {
+  0% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.combo-break-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 200;
+  animation: comboBreakAnim 1s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes comboBreakAnim {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+}
+
+.combo-break-text {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 36px;
+  color: #E74C3C;
+  text-shadow: 0 0 20px rgba(231, 76, 60, 0.8),
+               0 0 40px rgba(231, 76, 60, 0.5);
+  letter-spacing: 2px;
+}
+
+.combo-milestone-overlay {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: milestoneAnim 1.5s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes milestoneAnim {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(-10deg);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.3) rotate(5deg);
+  }
+  40% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8) rotate(0deg);
+  }
+}
+
+.milestone-number {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 72px;
+  text-shadow: 0 0 30px currentColor,
+               0 0 60px currentColor;
+  line-height: 1;
+}
+
+.milestone-label {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 24px;
+  text-shadow: 0 0 20px currentColor;
+  margin-top: 8px;
+}
+
+.pause-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.pause-menu {
+  background: #1A1A2E;
+  border: 3px solid #6C5CE7;
+  border-radius: 16px;
+  padding: 40px 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  box-shadow: 0 0 40px rgba(108, 92, 231, 0.5);
+}
+
+.pause-title {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 24px;
+  color: #A29BFE;
+  margin: 0;
+  letter-spacing: 2px;
+}
+
+.pause-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.pause-menu-btn {
+  width: 200px;
+  height: 44px;
+  background: #2D2D4A;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+}
+
+.pause-menu-btn:hover {
+  background: #4A4A7A;
+  transform: translateX(5px);
+}
+
+@media (max-width: 900px) {
+  .score-value {
+    font-size: 26px;
+  }
+  
+  .combo-value {
+    font-size: 22px;
+  }
+  
+  .health-display {
+    top: 16px;
+    right: 16px;
+  }
+  
+  .heart {
+    font-size: 22px;
+  }
+  
+  .combo-break-text {
+    font-size: 28px;
+  }
+  
+  .milestone-number {
+    font-size: 56px;
+  }
+  
+  .milestone-label {
+    font-size: 18px;
+  }
+}

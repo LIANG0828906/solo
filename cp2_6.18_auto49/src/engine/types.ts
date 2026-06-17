@@ -45,6 +45,9 @@ export interface GameState {
   isGameOver: boolean;
   scrollSpeed: number;
   bgFlash: boolean;
+  combo: number;
+  comboBreak: boolean;
+  comboFlash: boolean;
 }
 
 export type GameEventType =
@@ -54,7 +57,10 @@ export type GameEventType =
   | 'gameOver'
   | 'pauseToggle'
   | 'restart'
-  | 'backToMenu';
+  | 'backToMenu'
+  | 'comboIncrement'
+  | 'comboBreak'
+  | 'comboMilestone';
 
 export interface LeaderboardEntry {
   rank?: number;
