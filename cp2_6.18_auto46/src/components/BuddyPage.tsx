@@ -2,10 +2,12 @@ import { useState, useMemo } from 'react';
 import { useAppStore } from '../store/appStore';
 import { calculateStreak } from '../modules/progressTracker';
 import ProgressChart from './ProgressChart';
+import WeeklyCalendar from './WeeklyCalendar';
 
 export default function BuddyPage() {
   const { currentUser, users, buddies, skills } = useAppStore();
   const [selectedBuddyId, setSelectedBuddyId] = useState<string | null>(null);
+  const [calendarViewUserId, setCalendarViewUserId] = useState<string>('me');
 
   const myBuddies = useMemo(() => {
     return buddies
@@ -24,6 +26,13 @@ export default function BuddyPage() {
   }, [buddies, currentUser.id, users, skills]);
 
   const selectedBuddy = myBuddies.find(b => b.userId === selectedBuddyId);
+
+  const calendarUserId =
+    calendarViewUserId === 'me' ? currentUser.id : calendarViewUserId;
+  const calendarUserName =
+    calendarViewUserId === 'me'
+      ? '我'
+      : (users.find(u => u.id === calendarViewUserId)?.nickname || '伙伴');
 
   return (
     <div>
@@ -87,6 +96,45 @@ export default function BuddyPage() {
                 userName2={selectedBuddy.user!.nickname}
                 days={7}
               />
+
+              <div className="weekly-calendar-toggle">
+                <button
+                  className={`weekly-toggle-btn ${calendarViewUserId === 'me' ? 'active' : ''}`}
+                  onClick={() => setCalendarViewUserId('me')}
+                >
+                  我的日历
+                </button>
+                <button
+                  className={`weekly-toggle-btn ${calendarViewUserId === selectedBuddy.userId ? 'active' : ''}`}
+                  onClick={() => setCalendarViewUserId(selectedBuddy.userId)}
+                >
+                  {selectedBuddy.user!.nickname}的日历
+                </button>
+                <button
+                  className={`weekly-toggle-btn ${calendarViewUserId === 'both' ? 'active' : ''}`}
+                  onClick={() => setCalendarViewUserId('both')}
+                >
+                  并排对比
+                </button>
+              </div>
+
+              {calendarViewUserId === 'both' ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <WeeklyCalendar
+                    userId={currentUser.id}
+                    userName="我"
+                  />
+                  <WeeklyCalendar
+                    userId={selectedBuddy.userId}
+                    userName={selectedBuddy.user!.nickname}
+                  />
+                </div>
+              ) : (
+                <WeeklyCalendar
+                  userId={calendarUserId}
+                  userName={calendarUserName}
+                />
+              )}
             </div>
           )}
         </div>

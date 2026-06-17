@@ -132,3 +132,65 @@ export const validateCheckinDuration = (duration: number): boolean => {
 export const validateCheckinNotes = (notes: string): boolean => {
   return notes.length <= 200;
 };
+
+export type DayStatus = 'completed' | 'missed' | 'pending';
+
+export interface WeeklyDayData {
+  dateKey: string;
+  dayName: string;
+  dayNumber: number;
+  status: DayStatus;
+  duration: number;
+  isToday: boolean;
+}
+
+export const WEEKDAY_NAMES = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+export const getWeeklyCalendarData = (
+  checkins: Checkin[],
+  userId: string
+): WeeklyDayData[] => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dayOfWeek = today.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
+
+  const result: WeeklyDayData[] = [];
+  const todayKey = formatDateKey(today);
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    const dateKey = formatDateKey(date);
+
+    const dayCheckins = checkins.filter(
+      c => c.userId === userId && c.date === dateKey
+    );
+    const totalDuration = dayCheckins.reduce((sum, c) => sum + c.duration, 0);
+
+    let status: DayStatus;
+    if (totalDuration > 0) {
+      status = 'completed';
+    } else if (date < today) {
+      status = 'missed';
+    } else if (dateKey === todayKey) {
+      status = 'pending';
+    } else {
+      status = 'pending';
+    }
+
+    result.push({
+      dateKey,
+      dayName: WEEKDAY_NAMES[i],
+      dayNumber: date.getDate(),
+      status,
+      duration: totalDuration,
+      isToday: dateKey === todayKey,
+    });
+  }
+
+  return result;
+};

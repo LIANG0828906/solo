@@ -660,3 +660,185 @@ body {
     font-size: 20px;
   }
 }
+
+.weekly-calendar-card {
+  background: #F1F5F9;
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.weekly-calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.weekly-calendar-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.weekly-calendar-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.weekly-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.weekly-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.weekly-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.completed-dot {
+  background: var(--success);
+}
+
+.missed-dot {
+  background: #94A3B8;
+}
+
+.pending-dot {
+  background: #FFFFFF;
+  border: 2px solid #CBD5E1;
+}
+
+.weekly-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.weekly-day-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.weekly-day-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.weekly-cell {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.weekly-cell.completed {
+  background: var(--success);
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
+}
+
+.weekly-cell.missed {
+  background: #FFFFFF;
+  color: #94A3B8;
+  border: 2px solid #E2E8F0;
+}
+
+.weekly-cell.pending {
+  background: #FFFFFF;
+  color: #CBD5E1;
+  border: 2px dashed #CBD5E1;
+}
+
+.weekly-cell.is-today {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.weekly-cell-icon {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.weekly-cell.completed .weekly-cell-icon {
+  color: #FFFFFF;
+}
+
+.weekly-cell.missed .weekly-cell-icon {
+  color: #94A3B8;
+}
+
+.weekly-day-number {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.weekly-day-duration {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.weekly-calendar-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.weekly-toggle-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.weekly-toggle-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.weekly-toggle-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #FFFFFF;
+}
+
+@media (max-width: 768px) {
+  .weekly-grid {
+    gap: 4px;
+  }
+
+  .weekly-cell {
+    width: 38px;
+    height: 38px;
+  }
+
+  .weekly-cell-icon {
+    font-size: 14px;
+  }
+}
