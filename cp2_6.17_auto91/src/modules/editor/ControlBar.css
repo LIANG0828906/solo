@@ -1,0 +1,52 @@
+.control-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background-color: var(--color-bg-panel);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-inner);
+  width: 100%;
+}
+
+.control-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-button);
+  color: var(--color-text-primary);
+  transition: background-color var(--transition-normal), transform var(--transition-fast);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.control-btn:hover {
+  background-color: #3D3D5F;
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+.control-btn.active {
+  background-color: var(--color-accent);
+  color: #fff;
+}
+
+.control-btn.active:hover {
+  background-color: var(--color-accent-hover);
+}
+
+.control-status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.status-text {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
