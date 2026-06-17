@@ -37,16 +37,25 @@ export interface Tower {
 export type MonsterType = 'normal' | 'elite' | 'boss';
 
 export interface MonsterDef {
-  type: MonsterType;
-  color: string;
-  hp: number;
-  speed: number;
-  defense: number;
-  goldReward: number;
-  size: number;
+  readonly type: MonsterType;
+  readonly color: string;
+  readonly hp: number;
+  readonly speed: number;
+  readonly defense: number;
+  readonly goldReward: number;
+  readonly size: number;
 }
 
-export interface BurnEffect {
+export type StatusEffectType = 'burn';
+
+export interface StatusEffect {
+  type: StatusEffectType;
+  damage: number;
+  remainingTime: number;
+}
+
+export interface BurnEffect extends StatusEffect {
+  type: 'burn';
   damage: number;
   remainingTime: number;
 }
@@ -65,7 +74,7 @@ export interface Monster {
   progress: number;
   x: number;
   y: number;
-  burnEffect: BurnEffect | null;
+  effects: StatusEffect[];
 }
 
 export interface WaveConfig {

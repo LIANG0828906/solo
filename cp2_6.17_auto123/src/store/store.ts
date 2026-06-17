@@ -44,6 +44,17 @@ export type GameStore = GameStoreState & GameStoreActions;
 const initialCells: Cell[][] = [];
 const initialPath: Cell[] = [];
 
+function isValidUpgradePanelPosition(screenX: number, screenY: number): boolean {
+  return (
+    typeof screenX === 'number' &&
+    typeof screenY === 'number' &&
+    screenX >= 0 &&
+    screenX <= window.innerWidth &&
+    screenY >= 0 &&
+    screenY <= window.innerHeight
+  );
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
   engine: null,
   cells: initialCells,
@@ -80,11 +91,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { engine } = get();
     if (!engine) return;
 
+    const newMonsters = engine.getMonsters();
+    const currentMonsters = get().monsters;
+
+    let monstersUpdated = false;
+    if (currentMonsters.length !== newMonsters.length) {
+      monstersUpdated = true;
+    } else {
+      const currentIds = new Set(currentMonsters.map((m) => m.id));
+      for (const m of newMonsters) {
+        if (!currentIds.has(m.id)) {
+          monstersUpdated = true;
+          break;
+        }
+      }
+    }
+
     set({
       cells: engine.getCells(),
       path: engine.getPath(),
       towers: engine.getAllTowers(),
-      monsters: engine.getMonsters(),
+      monsters: monstersUpdated ? [...newMonsters] : currentMonsters,
       gold: engine.getGold(),
       lives: engine.getLives(),
       wave: engine.getWave(),
@@ -161,6 +188,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   showUpgradePanel: (towerId: string, screenX: number, screenY: number) => {
+    if (!towerId) {
+      console.error('[Store] showUpgradePanel: towerId is required');
+      return;
+    }
+
+    if (!isValidUpgradePanelPosition(screenX, screenY)) {
+      console.error(
+        `[Store] showUpgradePanel: invalid screen coordinates (${screenX}, ${screenY})`
+      );
+      return;
+    }
+
+    const { towers } = get();
+    const tower = towers.find((t) => t.id === towerId);
+    if (!tower) {
+      console.error(`[Store] showUpgradePanel: tower ${towerId} not found`);
+      return;
+    }
+
     set({
       selectedTowerType: null,
       upgradePanel: {

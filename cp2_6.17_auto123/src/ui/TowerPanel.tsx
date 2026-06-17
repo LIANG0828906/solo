@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/store';
 import { TOWER_DEFS, getTowerStats, getUpgradeCost, getSellValue } from '../engine/gameEngine';
 import type { TowerType } from '../types';
@@ -14,9 +15,37 @@ export function TowerPanel() {
   const sellTower = useGameStore((state) => state.sellTower);
   const hideUpgradePanel = useGameStore((state) => state.hideUpgradePanel);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+
   const selectedTower = upgradePanel.towerId
     ? towers.find((t) => t.id === upgradePanel.towerId)
     : null;
+
+  useEffect(() => {
+    if (!upgradePanel.visible) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        hideUpgradePanel();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        hideUpgradePanel();
+      }
+    };
+
+    setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }, 0);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [upgradePanel.visible, hideUpgradePanel]);
 
   return (
     <>
@@ -94,6 +123,7 @@ export function TowerPanel() {
 
       {upgradePanel.visible && selectedTower && (
         <UpgradePanelOverlay
+          ref={panelRef}
           tower={selectedTower}
           gold={gold}
           screenX={upgradePanel.screenX}
@@ -117,15 +147,10 @@ interface UpgradePanelOverlayProps {
   onClose: () => void;
 }
 
-function UpgradePanelOverlay({
-  tower,
-  gold,
-  screenX,
-  screenY,
-  onUpgrade,
-  onSell,
-  onClose,
-}: UpgradePanelOverlayProps) {
+const UpgradePanelOverlay = function UpgradePanelOverlay(
+  props: UpgradePanelOverlayProps & { ref?: React.Ref<HTMLDivElement> }
+) {
+  const { tower, gold, screenX, screenY, onUpgrade, onSell, onClose, ref } = props;
   const def = TOWER_DEFS[tower.type];
   const currentStats = getTowerStats(tower.type, tower.level);
   const nextStats = tower.level < 3 ? getTowerStats(tower.type, tower.level + 1) : null;
@@ -160,6 +185,7 @@ function UpgradePanelOverlay({
         }}
       />
       <div
+        ref={ref}
         style={{
           position: 'fixed',
           left,
@@ -168,6 +194,7 @@ function UpgradePanelOverlay({
           backgroundColor: 'rgba(0,0,0,0.75)',
           backdropFilter: 'blur(8px)',
           WebkitBackdropFilter: 'blur(8px)',
+          MozBackdropFilter: 'blur(8px)',
           borderRadius: 8,
           padding: 12,
           fontFamily: 'monospace',
@@ -178,7 +205,7 @@ function UpgradePanelOverlay({
           display: 'flex',
           flexDirection: 'column',
           gap: 8,
-        }}
+        } as React.CSSProperties}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div
@@ -271,4 +298,4 @@ function UpgradePanelOverlay({
       </div>
     </>
   );
-}
+};

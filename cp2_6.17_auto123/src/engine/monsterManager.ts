@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Monster, MonsterType, MonsterDef, WaveConfig, Cell, BurnEffect } from '../types';
+import type { Monster, MonsterType, MonsterDef, WaveConfig, Cell, StatusEffect, StatusEffectType } from '../types';
 
-export const MONSTER_DEFS: Record<MonsterType, MonsterDef> = {
+export const MONSTER_DEFS: Readonly<Record<MonsterType, Readonly<MonsterDef>>> = {
   normal: {
     type: 'normal',
     color: '#8B4513',
@@ -31,8 +31,74 @@ export const MONSTER_DEFS: Record<MonsterType, MonsterDef> = {
   },
 };
 
+class StatusEffectManager {
+  private effects: Map<string, StatusEffect[]> = new Map();
+
+  addEffect(monsterId: string, effect: StatusEffect): void {
+    if (!this.effects.has(monsterId)) {
+      this.effects.set(monsterId, []);
+    }
+    const monsterEffects = this.effects.get(monsterId)!;
+
+    const existingIndex = monsterEffects.findIndex((e) => e.type === effect.type);
+    if (existingIndex >= 0) {
+      monsterEffects[existingIndex] = { ...effect };
+    } else {
+      monsterEffects.push({ ...effect });
+    }
+  }
+
+  update(deltaTime: number, monsters: Map<string, Monster>): number {
+    let totalDamage = 0;
+
+    for (const [monsterId, effects] of this.effects.entries()) {
+      const monster = monsters.get(monsterId);
+      if (!monster) continue;
+
+      for (let i = effects.length - 1; i >= 0; i--) {
+        const effect = effects[i];
+        effect.remainingTime -= deltaTime;
+
+        if (effect.remainingTime <= 0) {
+          effects.splice(i, 1);
+          continue;
+        }
+
+        const damagePerSecond = effect.damage;
+        const tickDamage = damagePerSecond * deltaTime;
+        const actualDamage = tickDamage * (1 - monster.defense);
+        monster.hp -= actualDamage;
+        totalDamage += actualDamage;
+      }
+
+      if (effects.length === 0) {
+        this.effects.delete(monsterId);
+      }
+    }
+
+    return totalDamage;
+  }
+
+  getEffects(monsterId: string): StatusEffect[] {
+    return this.effects.get(monsterId) || [];
+  }
+
+  hasEffect(monsterId: string, type: StatusEffectType): boolean {
+    return this.getEffects(monsterId).some((e) => e.type === type);
+  }
+
+  removeMonster(monsterId: string): void {
+    this.effects.delete(monsterId);
+  }
+
+  clearAll(): void {
+    this.effects.clear();
+  }
+}
+
 export class MonsterManager {
   private monsters: Map<string, Monster> = new Map();
+  private effectManager: StatusEffectManager = new StatusEffectManager();
   private spawnQueue: MonsterType[] = [];
   private spawnTimer: number = 0;
   private spawnInterval: number = 0.8;
@@ -81,15 +147,10 @@ export class MonsterManager {
       }
     }
 
+    this.effectManager.update(deltaTime, this.monsters);
+
     for (const monster of this.monsters.values()) {
-      if (monster.burnEffect) {
-        monster.burnEffect.remainingTime -= deltaTime;
-        const burnDamage = monster.burnEffect.damage * deltaTime;
-        monster.hp -= burnDamage * (1 - monster.defense);
-        if (monster.burnEffect.remainingTime <= 0) {
-          monster.burnEffect = null;
-        }
-      }
+      monster.effects = this.effectManager.getEffects(monster.id);
 
       this.moveMonster(monster, deltaTime);
 
@@ -126,7 +187,7 @@ export class MonsterManager {
       progress: 0,
       x: startCell.x,
       y: startCell.y,
-      burnEffect: null,
+      effects: [],
     };
 
     this.monsters.set(monster.id, monster);
@@ -161,24 +222,32 @@ export class MonsterManager {
     return monster.pathIndex >= this.path.length - 1 && monster.progress >= 1;
   }
 
-  applyDamage(monsterId: string, damage: number, burnEffect?: BurnEffect): void {
+  applyDamage(monsterId: string, damage: number, effect?: StatusEffect): void {
     const monster = this.monsters.get(monsterId);
     if (!monster) return;
 
     const actualDamage = damage * (1 - monster.defense);
     monster.hp -= actualDamage;
 
-    if (burnEffect) {
-      monster.burnEffect = { ...burnEffect };
+    if (effect) {
+      this.effectManager.addEffect(monsterId, effect);
     }
   }
 
   getMonster(monsterId: string): Monster | undefined {
-    return this.monsters.get(monsterId);
+    const monster = this.monsters.get(monsterId);
+    if (monster) {
+      monster.effects = this.effectManager.getEffects(monsterId);
+    }
+    return monster;
   }
 
   getAllMonsters(): Monster[] {
-    return Array.from(this.monsters.values());
+    const monsters = Array.from(this.monsters.values());
+    for (const monster of monsters) {
+      monster.effects = this.effectManager.getEffects(monster.id);
+    }
+    return monsters;
   }
 
   getActiveCount(): number {
@@ -195,10 +264,12 @@ export class MonsterManager {
 
   private removeMonster(monsterId: string): void {
     this.monsters.delete(monsterId);
+    this.effectManager.removeMonster(monsterId);
   }
 
   clearAll(): void {
     this.monsters.clear();
+    this.effectManager.clearAll();
     this.spawnQueue = [];
     this.spawnTimer = 0;
   }

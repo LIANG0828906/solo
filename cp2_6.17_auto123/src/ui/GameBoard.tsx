@@ -1,7 +1,14 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { useGameStore } from '../store/store';
 import { TOWER_DEFS, getTowerStats } from '../engine/gameEngine';
 import type { Particle } from '../types';
+
+interface FeedbackCell {
+  x: number;
+  y: number;
+  startTime: number;
+  type: 'invalid' | 'success';
+}
 
 export function GameBoard() {
   const cells = useGameStore((state) => state.cells);
@@ -18,6 +25,7 @@ export function GameBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const particlesRef = useRef<Particle[]>([]);
+  const [feedbackCells, setFeedbackCells] = useState<FeedbackCell[]>([]);
 
   const boardWidth = gridCols * cellSize;
   const boardHeight = gridRows * cellSize;
@@ -59,6 +67,7 @@ export function GameBoard() {
       drawCells(ctx);
       drawTowers(ctx);
       drawMonsters(ctx);
+      drawFeedback(ctx);
       drawParticles(ctx);
 
       animationId = requestAnimationFrame(render);
@@ -125,6 +134,12 @@ export function GameBoard() {
         const size = monster.size;
         const half = size / 2;
 
+        const hasBurnEffect = monster.effects?.some((e) => e.type === 'burn');
+        if (hasBurnEffect) {
+          ctx.fillStyle = 'rgba(255, 100, 0, 0.5)';
+          ctx.fillRect(px - half - 2, py - half - 2, size + 4, size + 4);
+        }
+
         ctx.fillStyle = monster.color;
         ctx.fillRect(px - half, py - half, size, size);
 
@@ -147,11 +162,25 @@ export function GameBoard() {
 
         ctx.fillStyle = hpRatio > 0.5 ? '#4CAF50' : hpRatio > 0.25 ? '#FFC107' : '#F44336';
         ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+      }
+    };
 
-        if (monster.burnEffect) {
-          ctx.fillStyle = 'rgba(255, 100, 0, 0.5)';
-          ctx.fillRect(px - half - 2, py - half - 2, size + 4, size + 4);
-        }
+    const drawFeedback = (ctx: CanvasRenderingContext2D) => {
+      const now = performance.now();
+      const feedbackDuration = 200;
+
+      for (const feedback of feedbackCells) {
+        const elapsed = now - feedback.startTime;
+        if (elapsed > feedbackDuration) continue;
+
+        const alpha = 1 - elapsed / feedbackDuration;
+        const px = feedback.x * cellSize;
+        const py = feedback.y * cellSize;
+
+        ctx.fillStyle = feedback.type === 'invalid'
+          ? `rgba(255, 0, 0, ${alpha * 0.4})`
+          : `rgba(0, 255, 0, ${alpha * 0.4})`;
+        ctx.fillRect(px, py, cellSize, cellSize);
       }
     };
 
@@ -194,7 +223,25 @@ export function GameBoard() {
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [cells, towers, monsters, cellSize, gridCols, gridRows, boardWidth, boardHeight, fps]);
+  }, [cells, towers, monsters, cellSize, gridCols, gridRows, boardWidth, boardHeight, fps, feedbackCells]);
+
+  useEffect(() => {
+    if (feedbackCells.length === 0) return;
+
+    const timer = setTimeout(() => {
+      const now = performance.now();
+      setFeedbackCells((prev) => prev.filter((f) => now - f.startTime < 200));
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [feedbackCells]);
+
+  const showFeedback = (x: number, y: number, type: 'invalid' | 'success') => {
+    setFeedbackCells((prev) => [
+      ...prev,
+      { x, y, startTime: performance.now(), type },
+    ]);
+  };
 
   const handleCellClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!containerRef.current) return;
@@ -203,21 +250,38 @@ export function GameBoard() {
     const x = Math.floor((e.clientX - rect.left) / cellSize);
     const y = Math.floor((e.clientY - rect.top) / cellSize);
 
-    if (x < 0 || x >= gridCols || y < 0 || y >= gridRows) return;
+    if (x < 0 || x >= gridCols || y < 0 || y >= gridRows) {
+      showFeedback(x, y, 'invalid');
+      return;
+    }
 
     const cell = cells[y]?.[x];
-    if (!cell) return;
+    if (!cell) {
+      showFeedback(x, y, 'invalid');
+      return;
+    }
 
     const existingTower = towerMap.get(`${x},${y}`);
     if (existingTower) {
       showUpgradePanel(existingTower.id, e.clientX, e.clientY);
+      showFeedback(x, y, 'success');
       return;
     }
 
-    if (cell.type === 'path') return;
+    if (cell.type === 'path') {
+      showFeedback(x, y, 'invalid');
+      return;
+    }
 
     if (selectedTowerType) {
+      const beforeGold = useGameStore.getState().gold;
       placeTower(x, y);
+      const afterGold = useGameStore.getState().gold;
+      if (afterGold < beforeGold) {
+        showFeedback(x, y, 'success');
+      } else {
+        showFeedback(x, y, 'invalid');
+      }
     }
   };
 

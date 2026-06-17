@@ -1,5 +1,5 @@
-import type { Cell, Monster, Tower, TowerType, TowerStats, WaveConfig } from '../types';
-import { MonsterManager, MONSTER_DEFS } from './monsterManager';
+import type { Cell, Monster, Tower, TowerType, TowerStats, WaveConfig, StatusEffect } from '../types';
+import { MonsterManager } from './monsterManager';
 import { v4 as uuidv4 } from 'uuid';
 
 export const TOWER_DEFS: Record<TowerType, {
@@ -49,6 +49,74 @@ interface PathNode {
   parent: PathNode | null;
 }
 
+class MinHeap<T> {
+  private heap: T[] = [];
+  private compare: (a: T, b: T) => number;
+
+  constructor(compare: (a: T, b: T) => number) {
+    this.compare = compare;
+  }
+
+  push(item: T): void {
+    this.heap.push(item);
+    this.bubbleUp(this.heap.length - 1);
+  }
+
+  pop(): T | undefined {
+    if (this.heap.length === 0) return undefined;
+    const top = this.heap[0];
+    const last = this.heap.pop()!;
+    if (this.heap.length > 0) {
+      this.heap[0] = last;
+      this.bubbleDown(0);
+    }
+    return top;
+  }
+
+  size(): number {
+    return this.heap.length;
+  }
+
+  clear(): void {
+    this.heap = [];
+  }
+
+  private bubbleUp(index: number): void {
+    while (index > 0) {
+      const parentIndex = Math.floor((index - 1) / 2);
+      if (this.compare(this.heap[index], this.heap[parentIndex]) < 0) {
+        [this.heap[index], this.heap[parentIndex]] = [this.heap[parentIndex], this.heap[index]];
+        index = parentIndex;
+      } else {
+        break;
+      }
+    }
+  }
+
+  private bubbleDown(index: number): void {
+    const length = this.heap.length;
+    while (true) {
+      let smallest = index;
+      const left = 2 * index + 1;
+      const right = 2 * index + 2;
+
+      if (left < length && this.compare(this.heap[left], this.heap[smallest]) < 0) {
+        smallest = left;
+      }
+      if (right < length && this.compare(this.heap[right], this.heap[smallest]) < 0) {
+        smallest = right;
+      }
+
+      if (smallest !== index) {
+        [this.heap[index], this.heap[smallest]] = [this.heap[smallest], this.heap[index]];
+        index = smallest;
+      } else {
+        break;
+      }
+    }
+  }
+}
+
 export function generateSPath(cols: number, rows: number): Cell[] {
   const path: Cell[] = [];
 
@@ -92,11 +160,28 @@ export function findPathAStar(
   end: { x: number; y: number },
   isBlocked: (x: number, y: number) => boolean
 ): Cell[] {
+  if (start.x < 0 || start.x >= cols || start.y < 0 || start.y >= rows) {
+    console.error(`[AStar] 起点坐标超出范围: (${start.x}, ${start.y}), 网格大小: ${cols}x${rows}`);
+    return [];
+  }
+  if (end.x < 0 || end.x >= cols || end.y < 0 || end.y >= rows) {
+    console.error(`[AStar] 终点坐标超出范围: (${end.x}, ${end.y}), 网格大小: ${cols}x${rows}`);
+    return [];
+  }
+  if (isBlocked(start.x, start.y)) {
+    console.error(`[AStar] 起点 (${start.x}, ${start.y}) 是障碍物`);
+    return [];
+  }
+  if (isBlocked(end.x, end.y)) {
+    console.error(`[AStar] 终点 (${end.x}, ${end.y}) 是障碍物`);
+    return [];
+  }
+
   const heuristic = (a: PathNode, b: PathNode): number => {
     return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
   };
 
-  const openList: PathNode[] = [];
+  const openList = new MinHeap<PathNode>((a, b) => a.f - b.f);
   const closedList: Set<string> = new Set();
   const nodeMap: Map<string, PathNode> = new Map();
 
@@ -129,10 +214,18 @@ export function findPathAStar(
     { dx: 0, dy: -1 },
   ];
 
-  while (openList.length > 0) {
-    openList.sort((a, b) => a.f - b.f);
-    const current = openList.shift()!;
+  let exploredNodes = 0;
+  const maxExplored = cols * rows * 2;
+
+  while (openList.size() > 0) {
+    const current = openList.pop()!;
     const currentKey = `${current.x},${current.y}`;
+    exploredNodes++;
+
+    if (exploredNodes > maxExplored) {
+      console.error(`[AStar] 探索节点数超过上限 ${maxExplored}，可能存在异常`);
+      return [];
+    }
 
     if (current.x === end.x && current.y === end.y) {
       const path: Cell[] = [];
@@ -176,11 +269,14 @@ export function findPathAStar(
 
         if (!existingNode) {
           openList.push(neighbor);
+        } else {
+          openList.push(neighbor);
         }
       }
     }
   }
 
+  console.error(`[AStar] 未找到路径: 从 (${start.x}, ${start.y}) 到 (${end.x}, ${end.y}), 已探索 ${exploredNodes} 个节点`);
   return [];
 }
 
@@ -432,11 +528,11 @@ export class GameEngine {
     tower.targetId = target.id;
     tower.lastAttackTime = currentTime;
 
-    const burnEffect = stats.burnDamage && stats.burnDuration
-      ? { damage: stats.burnDamage, remainingTime: stats.burnDuration }
+    const effect: StatusEffect | undefined = stats.burnDamage && stats.burnDuration
+      ? { type: 'burn', damage: stats.burnDamage, remainingTime: stats.burnDuration }
       : undefined;
 
-    this.monsterManager.applyDamage(target.id, stats.damage, burnEffect);
+    this.monsterManager.applyDamage(target.id, stats.damage, effect);
   }
 
   getMonsters(): Monster[] {

@@ -4,6 +4,9 @@ import { GameBoard } from './GameBoard';
 import { TowerPanel } from './TowerPanel';
 import { useGameStore } from '../store/store';
 
+const FPS_WINDOW_SIZE = 10;
+const LOW_PASS_ALPHA = 0.2;
+
 export function App() {
   const initEngine = useGameStore((state) => state.initEngine);
   const updateEngine = useGameStore((state) => state.updateEngine);
@@ -16,6 +19,8 @@ export function App() {
   const frameCountRef = useRef<number>(0);
   const fpsTimerRef = useRef<number>(0);
   const skipFrameRef = useRef<number>(0);
+  const smoothedFpsRef = useRef<number>(60);
+  const fpsWindowRef = useRef<number[]>([]);
 
   useEffect(() => {
     initEngine();
@@ -39,14 +44,24 @@ export function App() {
       frameCountRef.current++;
       fpsTimerRef.current += deltaTimeMs;
       if (fpsTimerRef.current >= 500) {
-        const currentFps = (frameCountRef.current * 1000) / fpsTimerRef.current;
-        setFps(currentFps);
+        const instantFps = (frameCountRef.current * 1000) / fpsTimerRef.current;
+
+        fpsWindowRef.current.push(instantFps);
+        if (fpsWindowRef.current.length > FPS_WINDOW_SIZE) {
+          fpsWindowRef.current.shift();
+        }
+
+        const windowAvg = fpsWindowRef.current.reduce((a, b) => a + b, 0) / fpsWindowRef.current.length;
+
+        smoothedFpsRef.current = LOW_PASS_ALPHA * windowAvg + (1 - LOW_PASS_ALPHA) * smoothedFpsRef.current;
+
+        setFps(smoothedFpsRef.current);
         frameCountRef.current = 0;
         fpsTimerRef.current = 0;
 
-        if (currentFps < 25) {
+        if (smoothedFpsRef.current < 25) {
           skipFrameRef.current = 1;
-        } else if (currentFps < 30) {
+        } else if (smoothedFpsRef.current < 30) {
           skipFrameRef.current = 0;
         } else {
           skipFrameRef.current = 0;
