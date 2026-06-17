@@ -1,6 +1,6 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useRef, useEffect } from 'react';
 import { useEventStore } from '../../store/eventStore';
-import { Event, EventStatus } from '../../types';
+import { Event as EventType, EventStatus } from '../../types';
 import { formatDate } from '../../utils/helpers';
 import './EventList.css';
 
@@ -12,7 +12,7 @@ const EventCard = memo(function EventCard({
   event,
   onClick,
 }: {
-  event: Event;
+  event: EventType;
   onClick: () => void;
 }) {
   const statusText = {
@@ -80,6 +80,27 @@ function EventList({ onEventClick }: EventListProps) {
   const { events, loading } = useEventStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<EventStatus | 'all'>('all');
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const inputEl = searchInputRef.current;
+    if (!inputEl) return;
+
+    const handleNativeInput = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (target.value !== searchQuery) {
+        setSearchQuery(target.value);
+      }
+    };
+
+    inputEl.addEventListener('input', handleNativeInput);
+    inputEl.addEventListener('change', handleNativeInput);
+
+    return () => {
+      inputEl.removeEventListener('input', handleNativeInput);
+      inputEl.removeEventListener('change', handleNativeInput);
+    };
+  }, [searchQuery]);
 
   const filteredEvents = useMemo(() => {
     const startTime = performance.now();
@@ -121,6 +142,7 @@ function EventList({ onEventClick }: EventListProps) {
           </svg>
           <input
             type="text"
+            ref={searchInputRef}
             className="search-input"
             placeholder="搜索活动名称..."
             value={searchQuery}

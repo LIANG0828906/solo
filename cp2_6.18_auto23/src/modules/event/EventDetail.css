@@ -495,7 +495,7 @@
 @media (max-width: 768px) {
   .detail-content {
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
   }
 
   .detail-main {
@@ -508,6 +508,59 @@
 
   .panel-sticky {
     position: static;
+    padding: 20px;
+    border-radius: 14px;
+  }
+
+  .panel-title {
+    font-size: 17px;
+    margin-bottom: 16px;
+  }
+
+  .panel-stats {
+    padding: 14px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+  }
+
+  .stat-number {
+    font-size: 18px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .stat-divider {
+    height: 28px;
+  }
+
+  .registration-form {
+    gap: 14px;
+  }
+
+  .form-label {
+    font-size: 12px;
+    margin-bottom: 5px;
+  }
+
+  .form-input {
+    padding: 9px 12px;
+    font-size: 13px;
+    border-radius: 7px;
+  }
+
+  .submit-btn {
+    padding: 12px;
+    font-size: 14px;
+    margin-top: 4px;
+    width: 100%;
+  }
+
+  .panel-tip {
+    margin-top: 14px;
+    font-size: 11px;
+    line-height: 1.5;
   }
 
   .detail-title {
@@ -522,11 +575,86 @@
     padding: 20px;
   }
 
+  .detail-section {
+    padding: 18px;
+    margin-bottom: 18px;
+    border-radius: 14px;
+  }
+
   .timeline-time {
     width: 70px;
   }
 
   .section-title {
     font-size: 16px;
+    margin-bottom: 14px;
+  }
+
+  .detail-meta-row {
+    gap: 14px;
+  }
+
+  .detail-meta-item {
+    font-size: 13px;
+    gap: 6px;
+  }
+
+  .detail-meta-item svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .back-btn {
+    padding: 7px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  .status-banner {
+    height: 36px;
+    font-size: 13px;
+    margin-bottom: 18px;
+    border-radius: 10px;
+  }
+
+  .chart-container {
+    padding: 12px;
+    min-height: 240px;
+  }
+
+  .timeline-item {
+    gap: 12px;
+    padding-bottom: 20px;
+  }
+
+  .timeline-title {
+    font-size: 14px;
+  }
+
+  .timeline-desc {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .location-map {
+    border-radius: 10px;
+  }
+
+  .map-placeholder {
+    height: 150px;
+    border-radius: 10px;
+  }
+
+  .map-placeholder svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .map-placeholder p {
+    font-size: 13px;
+  }
+
+  .map-placeholder span {
+    font-size: 11px;
   }
 }

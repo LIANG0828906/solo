@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import EventList from './modules/event/EventList';
 import EventDetail from './modules/event/EventDetail';
 import UserDashboard from './modules/user/UserDashboard';
@@ -12,22 +12,46 @@ function App() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { fetchEvents, fetchRegistrations } = useEventStore();
+  const transitionTimerRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetchEvents();
     fetchRegistrations();
+    return () => {
+      if (transitionTimerRef.current !== null) {
+        clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = null;
+      }
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
   }, [fetchEvents, fetchRegistrations]);
 
   const navigateTo = useCallback((view: View, eventId?: string) => {
+    if (transitionTimerRef.current !== null) {
+      clearTimeout(transitionTimerRef.current);
+      transitionTimerRef.current = null;
+    }
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+
     setIsTransitioning(true);
-    setTimeout(() => {
+
+    transitionTimerRef.current = window.setTimeout(() => {
       setCurrentView(view);
       if (eventId) {
         setSelectedEventId(eventId);
       }
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = requestAnimationFrame(() => {
           setIsTransitioning(false);
+          transitionTimerRef.current = null;
+          rafRef.current = null;
         });
       });
     }, 300);

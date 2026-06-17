@@ -73,6 +73,10 @@ function EventDetail({ eventId, onBack }: EventDetailProps) {
     );
   }
 
+  const chartGradientId = useMemo(() => {
+    return `chart-gradient-${eventId}`;
+  }, [eventId]);
+
   const chartData = useMemo(() => {
     if (!event) return [];
     return event.registrationTrend.slice(-14);
@@ -176,9 +180,10 @@ function EventDetail({ eventId, onBack }: EventDetailProps) {
                 <ResponsiveContainer width="100%" height={280}>
                   <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6C63FF" stopOpacity={1} />
-                        <stop offset="100%" stopColor="#6C63FF" stopOpacity={0} />
+                      <linearGradient id={chartGradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6C63FF" stopOpacity={0.9} />
+                        <stop offset="50%" stopColor="#6C63FF" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="#6C63FF" stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
                     <XAxis
@@ -216,8 +221,8 @@ function EventDetail({ eventId, onBack }: EventDetailProps) {
                       dataKey="count"
                       stroke="#6C63FF"
                       strokeWidth={2.5}
+                      fill={`url(#${chartGradientId})`}
                       fillOpacity={1}
-                      fill="url(#colorCount)"
                       dot={{ r: 4, fill: '#6C63FF', strokeWidth: 2, stroke: '#FFFFFF' }}
                       activeDot={{ r: 7, fill: '#6C63FF', strokeWidth: 3, stroke: '#FFFFFF' }}
                       isAnimationActive={true}
