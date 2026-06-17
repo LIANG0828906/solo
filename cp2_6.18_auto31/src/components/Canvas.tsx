@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useMoodStore } from '../store';
 import { MoodType, MOOD_THEME, MoodEntry } from '../types';
+import MoodIcon from './MoodIcon';
 
 interface CanvasProps {
   gradientStart: string;
@@ -39,9 +40,10 @@ export default function Canvas({ gradientStart, gradientEnd, selectedEntry }: Ca
   }, [gradientStart, gradientEnd, animatingGradient]);
 
   const animateGradient = useCallback((targetStart: string, targetEnd: string, centerX: number, centerY: number) => {
+    const rippleId = rippleIdRef.current++;
     setRipples((prev) => [
       ...prev,
-      { id: rippleIdRef.current++, x: centerX, y: centerY, color: targetStart },
+      { id: rippleId, x: centerX, y: centerY, color: targetStart },
     ]);
 
     setTimeout(() => {
@@ -50,8 +52,11 @@ export default function Canvas({ gradientStart, gradientEnd, selectedEntry }: Ca
     }, 150);
 
     setTimeout(() => {
+      setRipples((prev) => prev.filter((r) => r.id !== rippleId));
+    }, 300);
+
+    setTimeout(() => {
       setAnimatingGradient(false);
-      setRipples([]);
     }, 500);
   }, []);
 
@@ -309,7 +314,6 @@ export default function Canvas({ gradientStart, gradientEnd, selectedEntry }: Ca
                       border: isSelected
                         ? `2px solid ${theme.color}`
                         : '2px solid transparent',
-                      fontSize: '24px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -326,8 +330,9 @@ export default function Canvas({ gradientStart, gradientEnd, selectedEntry }: Ca
                       e.currentTarget.style.boxShadow = 'none';
                     }}
                     title={theme.label}
+                    type="button"
                   >
-                    {theme.icon}
+                    <MoodIcon mood={mood} size={28} />
                   </button>
                 );
               })}

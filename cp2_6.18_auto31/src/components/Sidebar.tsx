@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useMoodStore } from '../store';
 import { MoodEntry, MOOD_THEME } from '../types';
+import MoodIcon from './MoodIcon';
 
 interface SidebarProps {
   entries: MoodEntry[];
@@ -9,7 +10,6 @@ interface SidebarProps {
   currentColor: string;
 }
 
-const ITEM_HEIGHT = 92;
 const BUFFER_ITEMS = 3;
 
 function formatTimestamp(timestamp: number): string {
@@ -33,21 +33,43 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
   const toggleSidebar = useMoodStore((s) => s.toggleSidebar);
   const selectEntry = useMoodStore((s) => s.selectEntry);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
+  const [itemHeight, setItemHeight] = useState(92);
+
+  const selectedEntry = entries.find((e) => e.id === selectedId) || null;
+  const currentMood = selectedEntry?.mood || null;
+  const currentMoodLabel = currentMood ? MOOD_THEME[currentMood].label : '暂无记录';
 
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    const updateHeight = () => {
+    const updateDimensions = () => {
       setContainerHeight(container.clientHeight);
+      if (measureRef.current) {
+        setItemHeight(measureRef.current.offsetHeight);
+      }
     };
 
-    updateHeight();
-    const resizeObserver = new ResizeObserver(updateHeight);
+    updateDimensions();
+    const resizeObserver = new ResizeObserver(updateDimensions);
     resizeObserver.observe(container);
-    return () => resizeObserver.disconnect();
+    if (measureRef.current) {
+      resizeObserver.observe(measureRef.current);
+    }
+
+    const measureInterval = setInterval(() => {
+      if (measureRef.current) {
+        setItemHeight(measureRef.current.offsetHeight);
+      }
+    }, 500);
+
+    return () => {
+      resizeObserver.disconnect();
+      clearInterval(measureInterval);
+    };
   }, [open]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -55,22 +77,21 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
   }, []);
 
   const virtualItems = useMemo(() => {
-    const totalHeight = entries.length * ITEM_HEIGHT;
-    const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_ITEMS);
-    const visibleCount = Math.ceil(containerHeight / ITEM_HEIGHT) + BUFFER_ITEMS * 2;
+    const totalHeight = entries.length * itemHeight;
+    const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - BUFFER_ITEMS);
+    const visibleCount = Math.ceil(containerHeight / itemHeight) + BUFFER_ITEMS * 2;
     const endIndex = Math.min(entries.length, startIndex + visibleCount);
 
-    const items: { entry: MoodEntry; index: number; offsetY: number }[] = [];
+    const items: { entry: MoodEntry; offsetY: number }[] = [];
     for (let i = startIndex; i < endIndex; i++) {
       items.push({
         entry: entries[i],
-        index: i,
-        offsetY: i * ITEM_HEIGHT,
+        offsetY: i * itemHeight,
       });
     }
 
-    return { items, totalHeight, topPadding: startIndex * ITEM_HEIGHT };
-  }, [entries, scrollTop, containerHeight]);
+    return { items, totalHeight };
+  }, [entries, scrollTop, containerHeight, itemHeight]);
 
   const scrollbarStyle = useMemo(
     () => ({
@@ -81,6 +102,7 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
 
   return (
     <div
+      title={open ? undefined : currentMoodLabel}
       style={{
         width: open ? '280px' : '12px',
         height: '100%',
@@ -92,6 +114,7 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
         position: 'relative',
         overflow: 'hidden',
         flexShrink: 0,
+        cursor: open ? 'default' : 'pointer',
       }}
     >
       <style>{`
@@ -199,7 +222,47 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
               </div>
             ) : (
               <div style={{ height: virtualItems.totalHeight, position: 'relative' }}>
-                {virtualItems.items.map(({ entry, index, offsetY }) => {
+                {entries.length > 0 && (
+                  <div
+                    ref={measureRef}
+                    style={{
+                      position: 'absolute',
+                      top: -9999,
+                      left: 0,
+                      right: 0,
+                      padding: '12px 16px 12px 20px',
+                      visibility: 'hidden',
+                      pointerEvents: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '12px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '12px',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '12px', marginBottom: '4px' }}>
+                          {formatTimestamp(Date.now())}
+                        </div>
+                        <div style={{ fontSize: '13px', lineHeight: 1.5 }}>
+                          测试文本测试文本测试文本
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {virtualItems.items.map(({ entry, offsetY }) => {
                   const theme = MOOD_THEME[entry.mood];
                   const isSelected = selectedId === entry.id;
                   return (
@@ -211,7 +274,7 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
                         top: offsetY,
                         left: 0,
                         right: 0,
-                        height: ITEM_HEIGHT,
+                        height: itemHeight,
                         padding: '12px 16px 12px 20px',
                         cursor: 'pointer',
                         background: isSelected ? `${entry.color}10` : 'transparent',
@@ -247,11 +310,10 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '22px',
                             flexShrink: 0,
                           }}
                         >
-                          {theme.icon}
+                          <MoodIcon mood={entry.mood} size={24} />
                         </div>
                         <div
                           style={{
