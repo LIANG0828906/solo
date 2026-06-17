@@ -36,8 +36,8 @@ class RayTracer {
       rayCount: 8,
       maxBounces: 1,
       maxDistance: 15,
-      warmColor: new THREE.Color(0xffaa00),
-      coolColor: new THREE.Color(0x4488ff),
+      warmColor: new THREE.Color(0xff8800),
+      coolColor: new THREE.Color(0x2255cc),
       reflectionDecay: 0.6,
     };
 

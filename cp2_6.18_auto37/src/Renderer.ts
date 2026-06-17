@@ -23,6 +23,7 @@ class SceneRenderer {
   private raysGroup: THREE.Group;
   private rayLines: THREE.LineSegments | null = null;
   private rayPoints: THREE.Points | null = null;
+  private flowPoints: THREE.Points | null = null;
 
   private ground: THREE.Mesh | null = null;
   private gridHelper: THREE.GridHelper | null = null;
@@ -42,6 +43,7 @@ class SceneRenderer {
 
   private clock: THREE.Clock;
   private pulsePhase: number = 0;
+  private flowTime: number = 0;
 
   private raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2;
@@ -163,7 +165,7 @@ class SceneRenderer {
     const groundMaterial = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.4,
       side: THREE.DoubleSide,
     });
 
@@ -174,7 +176,7 @@ class SceneRenderer {
 
     this.gridHelper = new THREE.GridHelper(20, 10, 0x3a4a5a, 0x2a3a4a);
     this.gridHelper.position.y = -1.5;
-    (this.gridHelper.material as THREE.Material).opacity = 0.6;
+    (this.gridHelper.material as THREE.Material).opacity = 0.25;
     (this.gridHelper.material as THREE.Material).transparent = true;
     this.scene.add(this.gridHelper);
   }
@@ -398,6 +400,7 @@ class SceneRenderer {
     }
 
     this.updateRayPoints(rays);
+    this.updateFlowPointsGeometry(rays);
   }
 
   private updateRayPoints(rays: RaySegment[]): void {
@@ -464,6 +467,76 @@ class SceneRenderer {
     }
   }
 
+  private updateFlowPointsGeometry(rays: RaySegment[]): void {
+    const flowPointCount = rays.length;
+    const positions = new Float32Array(flowPointCount * 3);
+    const colors = new Float32Array(flowPointCount * 3);
+
+    for (let i = 0; i < flowPointCount; i++) {
+      const idx = i * 3;
+      positions[idx] = 0;
+      positions[idx + 1] = 0;
+      positions[idx + 2] = 0;
+
+      colors[idx] = 1.0;
+      colors[idx + 1] = 1.0;
+      colors[idx + 2] = 0.9;
+    }
+
+    if (!this.flowPoints) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const material = new THREE.PointsMaterial({
+        size: 0.25,
+        vertexColors: true,
+        transparent: true,
+        opacity: 1.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        sizeAttenuation: true,
+      });
+
+      this.flowPoints = new THREE.Points(geometry, material);
+      this.raysGroup.add(this.flowPoints);
+    } else {
+      this.flowPoints.geometry.setAttribute(
+        'position',
+        new THREE.BufferAttribute(positions, 3)
+      );
+      this.flowPoints.geometry.setAttribute(
+        'color',
+        new THREE.BufferAttribute(colors, 3)
+      );
+      this.flowPoints.geometry.computeBoundingSphere();
+    }
+  }
+
+  private updateFlowPoints(deltaTime: number): void {
+    if (!this.flowPoints || this.currentRays.length === 0) return;
+
+    this.flowTime += deltaTime * 0.5;
+
+    const posAttr = this.flowPoints.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const positions = posAttr.array as Float32Array;
+
+    for (let i = 0; i < this.currentRays.length; i++) {
+      const ray = this.currentRays[i];
+      const rayOffset = (i * 0.37) % 1.0;
+      const t = ((this.flowTime + rayOffset) % 1.0);
+
+      const smoothT = t * t * (3 - 2 * t);
+
+      const idx = i * 3;
+      positions[idx] = ray.start.x + (ray.end.x - ray.start.x) * smoothT;
+      positions[idx + 1] = ray.start.y + (ray.end.y - ray.start.y) * smoothT;
+      positions[idx + 2] = ray.start.z + (ray.end.z - ray.start.z) * smoothT;
+    }
+
+    posAttr.needsUpdate = true;
+  }
+
   private updateRayMaterials(): void {
     if (this.rayLines) {
       (this.rayLines.material as THREE.Material).opacity = this.rayOpacity;
@@ -487,6 +560,8 @@ class SceneRenderer {
     if (this.pointLight) {
       this.pointLight.intensity = 1 + Math.sin(this.pulsePhase) * 0.2;
     }
+
+    this.updateFlowPoints(deltaTime);
 
     this.composer.render();
   }

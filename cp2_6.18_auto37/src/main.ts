@@ -30,8 +30,8 @@ class LightRayExplorer {
     const height = this.container.clientHeight;
 
     this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
-    this.camera.position.set(0, 6, 10);
-    this.camera.lookAt(0, 6, 0);
+    this.camera.position.set(12, 8, 14);
+    this.camera.lookAt(2, 2, 2);
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -45,7 +45,7 @@ class LightRayExplorer {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
-    this.controls.target.set(0, 6, 0);
+    this.controls.target.set(2, 3, 2);
     this.controls.minDistance = 3;
     this.controls.maxDistance = 30;
     this.controls.maxPolarAngle = Math.PI * 0.85;
