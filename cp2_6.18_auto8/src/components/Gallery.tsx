@@ -9,6 +9,7 @@ export default function Gallery() {
     setGalleryOpen,
     doodles,
     setDoodles,
+    appendDoodles,
     deleteDoodle,
     loadDoodle,
     galleryPage,
@@ -21,6 +22,9 @@ export default function Gallery() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [cssInjected, setCssInjected] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     if (cssInjected) return;
@@ -136,6 +140,34 @@ export default function Gallery() {
         transform: translateY(-1px);
         box-shadow: 0 4px 14px rgba(255, 107, 107, 0.4);
       }
+      .fs-load-more-btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(78, 205, 196, 0.1);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+      .fs-load-more-btn:hover:not(:disabled) {
+        background: rgba(78, 205, 196, 0.25);
+        border-color: #4ECDC4;
+        transform: translateY(-1px);
+      }
+      .fs-load-more-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .fs-pagination-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 8px 16px 4px;
+      }
     `;
     const style = document.createElement('style');
     style.setAttribute('data-fs-gallery', 'true');
@@ -145,19 +177,34 @@ export default function Gallery() {
   }, [cssInjected]);
 
   useEffect(() => {
+    if (!isGalleryOpen) return;
+
     const load = async () => {
       try {
-        setLoading(true);
-        const all = await storageManager.getAllDoodles();
-        setDoodles(all);
+        if (galleryPage === 1) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        const { doodles: pageData, total } = await storageManager.getDoodlesPaged(galleryPage, galleryPageSize);
+        setTotalCount(total);
+        setHasMore(galleryPage * galleryPageSize < total);
+
+        if (galleryPage === 1) {
+          setDoodles(pageData);
+        } else {
+          appendDoodles(pageData);
+        }
       } catch (e) {
         console.error('Load gallery failed:', e);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     };
     load();
-  }, [setDoodles]);
+  }, [isGalleryOpen, galleryPage, galleryPageSize, setDoodles, appendDoodles]);
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -170,6 +217,7 @@ export default function Gallery() {
     try {
       await storageManager.deleteDoodle(deleteConfirmId);
       deleteDoodle(deleteConfirmId);
+      setTotalCount((prev) => Math.max(0, prev - 1));
     } catch (e) {
       console.error('Delete doodle failed:', e);
     } finally {
@@ -239,7 +287,7 @@ export default function Gallery() {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(doodles.length / galleryPageSize));
+  const totalPages = Math.max(1, Math.ceil(totalCount / galleryPageSize));
   const startIdx = (galleryPage - 1) * galleryPageSize;
   const pagedDoodles = doodles.slice(startIdx, startIdx + galleryPageSize);
 
@@ -262,7 +310,7 @@ export default function Gallery() {
               <polyline points="21 15 16 10 5 21" />
             </svg>
             <span>画廊</span>
-            <span style={styles.countBadge}>{doodles.length}</span>
+            <span style={styles.countBadge}>{totalCount}</span>
           </div>
           <button className="fs-close-btn" onClick={() => setGalleryOpen(false)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -345,25 +393,49 @@ export default function Gallery() {
           )}
         </div>
 
-        {totalPages > 1 && (
-          <div style={styles.pagination}>
-            <button
-              className="fs-page-btn"
-              disabled={galleryPage <= 1}
-              onClick={() => setGalleryPage(galleryPage - 1)}
-            >
-              ←
-            </button>
-            <span style={styles.pageLabel}>
-              {galleryPage} / {totalPages}
-            </span>
-            <button
-              className="fs-page-btn"
-              disabled={galleryPage >= totalPages}
-              onClick={() => setGalleryPage(galleryPage + 1)}
-            >
-              →
-            </button>
+        {totalCount > 0 && (
+          <div style={styles.paginationWrapper}>
+            {totalPages > 1 && (
+              <div style={styles.pagination}>
+                <button
+                  className="fs-page-btn"
+                  disabled={galleryPage <= 1 || loadingMore}
+                  onClick={() => setGalleryPage(galleryPage - 1)}
+                >
+                  ←
+                </button>
+                <span style={styles.pageLabel}>
+                  {galleryPage} / {totalPages}
+                </span>
+                <button
+                  className="fs-page-btn"
+                  disabled={galleryPage >= totalPages || loadingMore}
+                  onClick={() => setGalleryPage(galleryPage + 1)}
+                >
+                  →
+                </button>
+              </div>
+            )}
+            <div className="fs-pagination-row">
+              <button
+                className="fs-load-more-btn"
+                disabled={!hasMore || loadingMore || loading}
+                onClick={() => setGalleryPage(galleryPage + 1)}
+              >
+                {loadingMore ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'fs-spin 0.8s linear infinite' }}>
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    加载中...
+                  </span>
+                ) : hasMore ? (
+                  '加载更多'
+                ) : (
+                  '已加载全部'
+                )}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -505,13 +577,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'rgba(255,255,255,0.5)',
     marginTop: 2
   },
+  paginationWrapper: {
+    borderTop: '1px solid rgba(255,255,255,0.08)',
+    paddingBottom: 12
+  },
   pagination: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    padding: '12px 16px',
-    borderTop: '1px solid rgba(255,255,255,0.08)',
+    padding: '12px 16px 4px',
     color: '#fff'
   },
   pageLabel: {

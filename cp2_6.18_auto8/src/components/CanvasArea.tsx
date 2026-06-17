@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useCanvasStore } from '../store/canvasStore';
 import { CanvasEngine } from '../modules/canvasEngine';
@@ -6,12 +6,17 @@ import { storageManager } from '../modules/storageManager';
 import type { Stroke, Doodle } from '../types';
 
 export default function CanvasArea() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null) as React.MutableRefObject<HTMLCanvasElement | null>;
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<CanvasEngine | null>(null);
   const isDrawingRef = useRef(false);
   const wheelPanningRef = useRef(false);
   const lastPanPosRef = useRef({ x: 0, y: 0 });
+  const viewportRef = useRef({ offsetX: 0, offsetY: 0 });
+  const wheelRafRef = useRef<number | null>(null);
+  const pendingWheelDeltaRef = useRef({ x: 0, y: 0 });
+  const wheelCleanupRef = useRef<(() => void) | null>(null);
+  const [canvasReady, setCanvasReady] = useState(0);
 
   const {
     brushSettings,
@@ -23,23 +28,56 @@ export default function CanvasArea() {
     addDoodle
   } = useCanvasStore();
 
-  const initEngine = useCallback(() => {
-    if (!canvasRef.current || engineRef.current) return;
-    engineRef.current = new CanvasEngine(canvasRef.current);
-    engineRef.current.setViewport(viewport);
-    engineRef.current.setSavedStrokes(currentStrokes);
-    engineRef.current.forceRender();
-  }, [viewport, currentStrokes]);
+  useEffect(() => {
+    viewportRef.current = viewport;
+  }, [viewport]);
+
+  const canvasCallbackRef = useCallback((node: HTMLCanvasElement | null) => {
+    canvasRef.current = node;
+    if (node) setCanvasReady((n) => n + 1);
+  }, []);
 
   useEffect(() => {
-    initEngine();
-    return () => {
+    const canvas = canvasRef.current;
+    if (!canvas || engineRef.current) return;
+
+    engineRef.current = new CanvasEngine(canvas);
+    engineRef.current.setViewport(viewportRef.current);
+    engineRef.current.setSavedStrokes(currentStrokes);
+    engineRef.current.forceRender();
+
+    const flushWheel = () => {
+      wheelRafRef.current = null;
+      const delta = pendingWheelDeltaRef.current;
+      if (delta.x === 0 && delta.y === 0) return;
+      pendingWheelDeltaRef.current = { x: 0, y: 0 };
+      const vp = viewportRef.current;
+      setViewport(vp.offsetX - delta.x, vp.offsetY - delta.y);
+    };
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      pendingWheelDeltaRef.current.x += e.deltaX;
+      pendingWheelDeltaRef.current.y += e.deltaY;
+      if (wheelRafRef.current === null) {
+        wheelRafRef.current = requestAnimationFrame(flushWheel);
+      }
+    };
+
+    canvas.addEventListener('wheel', handleNativeWheel, { passive: false });
+
+    wheelCleanupRef.current = () => {
+      canvas.removeEventListener('wheel', handleNativeWheel);
+      if (wheelRafRef.current !== null) {
+        cancelAnimationFrame(wheelRafRef.current);
+        wheelRafRef.current = null;
+      }
       if (engineRef.current) {
         engineRef.current.destroy();
         engineRef.current = null;
       }
     };
-  }, [initEngine]);
+  }, [canvasReady, currentStrokes, setViewport]);
 
   useEffect(() => {
     if (engineRef.current) {
@@ -53,6 +91,15 @@ export default function CanvasArea() {
     }
   }, [currentStrokes]);
 
+  useEffect(() => {
+    return () => {
+      if (wheelCleanupRef.current) {
+        wheelCleanupRef.current();
+        wheelCleanupRef.current = null;
+      }
+    };
+  }, []);
+
   const getCanvasPoint = (clientX: number, clientY: number) => {
     if (!canvasRef.current || !engineRef.current) return null;
     const rect = canvasRef.current.getBoundingClientRect();
@@ -62,7 +109,7 @@ export default function CanvasArea() {
   const saveDoodleAsync = useCallback(async (strokes: Stroke[]) => {
     if (!engineRef.current) return;
     try {
-      const thumbnail = engineRef.current.generateThumbnail();
+      const thumbnail = await engineRef.current.generateThumbnailAsync();
       const now = Date.now();
       const doodle: Doodle = {
         id: currentDoodleId || uuidv4(),
@@ -130,7 +177,8 @@ export default function CanvasArea() {
       const dx = e.clientX - lastPanPosRef.current.x;
       const dy = e.clientY - lastPanPosRef.current.y;
       lastPanPosRef.current = { x: e.clientX, y: e.clientY };
-      setViewport(viewport.offsetX + dx, viewport.offsetY + dy);
+      const vp = viewportRef.current;
+      setViewport(vp.offsetX + dx, vp.offsetY + dy);
       return;
     }
     continueDrawing(e.clientX, e.clientY);
@@ -147,11 +195,6 @@ export default function CanvasArea() {
   const handleMouseLeave = () => {
     if (isDrawingRef.current) endDrawing();
     if (wheelPanningRef.current) wheelPanningRef.current = false;
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    setViewport(viewport.offsetX - e.deltaX, viewport.offsetY - e.deltaY);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -183,13 +226,12 @@ export default function CanvasArea() {
     >
       <div style={styles.scrollWrapper}>
         <canvas
-          ref={canvasRef}
+          ref={canvasCallbackRef}
           style={styles.canvas}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}
-          onWheel={handleWheel}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -213,14 +255,19 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    overflow: 'auto',
+    overflow: 'hidden',
     background: '#1A1A2E',
     cursor: 'crosshair'
   },
   scrollWrapper: {
-    position: 'relative',
-    width: 'max-content',
-    height: 'max-content',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
     padding: 40
   },
   canvas: {
@@ -230,7 +277,8 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#1A1A2E',
     boxShadow: '0 8px 40px rgba(0,0,0,0.4)',
     borderRadius: 4,
-    touchAction: 'none'
+    touchAction: 'none',
+    flexShrink: 0
   },
   hint: {
     position: 'fixed',

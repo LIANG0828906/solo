@@ -51,6 +51,9 @@ export class CanvasEngine {
 
   private drawStroke(stroke: Stroke): void {
     if (stroke.points.length < 1) return;
+    if (!this.isValidBlendMode(stroke.blendMode)) {
+      stroke.blendMode = 'normal';
+    }
     const { ctx } = this;
     ctx.save();
     ctx.globalCompositeOperation = this.mapBlendMode(stroke.blendMode);
@@ -86,7 +89,14 @@ export class CanvasEngine {
     ctx.restore();
   }
 
+  private isValidBlendMode(mode: unknown): mode is BlendMode {
+    return mode === 'normal' || mode === 'multiply' || mode === 'screen' || mode === 'overlay';
+  }
+
   private mapBlendMode(mode: BlendMode): GlobalCompositeOperation {
+    if (!this.isValidBlendMode(mode)) {
+      return 'source-over';
+    }
     switch (mode) {
       case 'normal': return 'source-over';
       case 'multiply': return 'multiply';
@@ -157,7 +167,8 @@ export class CanvasEngine {
     tctx.translate(offsetX, offsetY);
     tctx.scale(scale, scale);
     for (const stroke of this.savedStrokes) {
-      tctx.globalCompositeOperation = this.mapBlendMode(stroke.blendMode);
+      const validBlendMode = this.isValidBlendMode(stroke.blendMode) ? stroke.blendMode : 'normal';
+      tctx.globalCompositeOperation = this.mapBlendMode(validBlendMode);
       tctx.strokeStyle = stroke.color;
       tctx.fillStyle = stroke.color;
       tctx.lineWidth = stroke.size;
@@ -189,6 +200,14 @@ export class CanvasEngine {
     return thumbCanvas.toDataURL('image/png');
   }
 
+  generateThumbnailAsync(): Promise<string> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(this.generateThumbnail());
+      }, 0);
+    });
+  }
+
   exportPNG(): string {
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = CANVAS_WIDTH;
@@ -198,7 +217,8 @@ export class CanvasEngine {
     ectx.fillStyle = BG_COLOR;
     ectx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     for (const stroke of this.savedStrokes) {
-      ectx.globalCompositeOperation = this.mapBlendMode(stroke.blendMode);
+      const validBlendMode = this.isValidBlendMode(stroke.blendMode) ? stroke.blendMode : 'normal';
+      ectx.globalCompositeOperation = this.mapBlendMode(validBlendMode);
       ectx.strokeStyle = stroke.color;
       ectx.fillStyle = stroke.color;
       ectx.lineWidth = stroke.size;

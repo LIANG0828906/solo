@@ -30,6 +30,7 @@ interface CanvasState {
   redo: () => void;
   clearCanvas: () => void;
   setDoodles: (doodles: Doodle[]) => void;
+  appendDoodles: (doodles: Doodle[]) => void;
   addDoodle: (doodle: Doodle) => void;
   deleteDoodle: (id: string) => void;
   loadDoodle: (doodle: Doodle) => void;
@@ -117,6 +118,12 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   })),
 
   setDoodles: (doodles) => set({ doodles }),
+
+  appendDoodles: (newDoodles) => set((state) => {
+    const existingIds = new Set(state.doodles.map(d => d.id));
+    const toAdd = newDoodles.filter(d => !existingIds.has(d.id));
+    return { doodles: [...state.doodles, ...toAdd] };
+  }),
 
   addDoodle: (doodle) => set((state) => ({
     doodles: [doodle, ...state.doodles]
