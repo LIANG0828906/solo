@@ -16,24 +16,26 @@ interface Particle {
 export class ParticleSystem {
   particles: Particle[];
   maxParticles: number;
+  readonly HARD_LIMIT: number = 5000;
   solver: FluidSolver;
   frameCount: number = 0;
   skipUpdate: boolean = false;
 
   constructor(solver: FluidSolver, count: number = 2000) {
     this.solver = solver;
-    this.maxParticles = count;
+    this.maxParticles = Math.min(count, this.HARD_LIMIT);
     this.particles = [];
-    this.initParticles(count);
+    this.initParticles(this.maxParticles);
 
     eventBus.on('particleCountChange', (c: unknown) => {
-      const newCount = c as number;
+      let newCount = c as number;
+      newCount = Math.max(500, Math.min(this.HARD_LIMIT, newCount));
       this.maxParticles = newCount;
       this.skipUpdate = newCount > 3000;
       if (this.particles.length < newCount) {
         this.addParticles(newCount - this.particles.length);
       } else if (this.particles.length > newCount) {
-        this.particles.length = newCount;
+        this.recycleOldest(this.particles.length - newCount);
       }
     });
 
@@ -47,15 +49,28 @@ export class ParticleSystem {
 
   private initParticles(count: number): void {
     this.particles = [];
-    for (let i = 0; i < count; i++) {
+    const actual = Math.min(count, this.HARD_LIMIT);
+    for (let i = 0; i < actual; i++) {
       this.particles.push(this.createParticle());
     }
   }
 
   private addParticles(count: number): void {
     for (let i = 0; i < count; i++) {
+      if (this.particles.length >= this.HARD_LIMIT) {
+        break;
+      }
       this.particles.push(this.createParticle());
     }
+  }
+
+  private recycleOldest(n: number): void {
+    if (this.particles.length <= n) {
+      this.particles.length = 0;
+      return;
+    }
+    this.particles.sort((a, b) => (a.life / a.maxLife) - (b.life / b.maxLife));
+    this.particles.length = this.particles.length - n;
   }
 
   private createParticle(nx?: number, ny?: number): Particle {
@@ -133,12 +148,22 @@ export class ParticleSystem {
       p.x = p.nx * canvasW;
       p.y = p.ny * canvasH;
     }
+
+    if (this.particles.length > this.HARD_LIMIT) {
+      const excess = this.particles.length - this.HARD_LIMIT;
+      this.recycleOldest(excess);
+    } else if (this.particles.length > this.maxParticles) {
+      const excess = this.particles.length - this.maxParticles;
+      this.recycleOldest(excess);
+    }
   }
 
   render(p: p5): void {
     p.push();
-    p.blendMode(p.BLEND);
+    p.blendMode(p.ADD);
     p.noStroke();
+
+    const ctx = p.drawingContext as CanvasRenderingContext2D;
 
     for (let i = 0; i < this.particles.length; i++) {
       const pt = this.particles[i];
@@ -152,30 +177,41 @@ export class ParticleSystem {
       let r: number, g: number, b: number;
       if (hasDens) {
         const totalDens = Math.max(0.01, dens.r + dens.g + dens.b);
-        r = Math.min(255, (dens.r / totalDens) * 255 + dens.r * 80);
-        g = Math.min(255, (dens.g / totalDens) * 255 + dens.g * 80);
-        b = Math.min(255, (dens.b / totalDens) * 255 + dens.b * 80);
+        r = Math.min(255, (dens.r / totalDens) * 255 + dens.r * 120);
+        g = Math.min(255, (dens.g / totalDens) * 255 + dens.g * 120);
+        b = Math.min(255, (dens.b / totalDens) * 255 + dens.b * 120);
       } else {
-        r = 60;
-        g = 70;
-        b = 120;
+        r = 80;
+        g = 100;
+        b = 160;
       }
 
-      const a = (pt.alpha / 255) * 0.6;
+      const baseAlpha = (pt.alpha / 255) * 0.55;
+      const glowSize = pt.size * 6;
+      const midGlowSize = pt.size * 3;
 
-      const glowSize = pt.size * 3;
-      const gradient = p.drawingContext as CanvasRenderingContext2D;
-      const radGrad = gradient.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, glowSize);
-      radGrad.addColorStop(0, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${a})`);
-      radGrad.addColorStop(0.4, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${a * 0.4})`);
+      const radGrad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, glowSize);
+      radGrad.addColorStop(0, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${baseAlpha})`);
+      radGrad.addColorStop(0.3, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${baseAlpha * 0.6})`);
+      radGrad.addColorStop(0.6, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${baseAlpha * 0.2})`);
       radGrad.addColorStop(1, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},0)`);
 
-      gradient.fillStyle = radGrad;
-      gradient.beginPath();
-      gradient.arc(pt.x, pt.y, glowSize, 0, Math.PI * 2);
-      gradient.fill();
+      ctx.fillStyle = radGrad;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, glowSize, 0, Math.PI * 2);
+      ctx.fill();
 
-      p.fill(r, g, b, pt.alpha * 0.8);
+      const coreGrad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, midGlowSize);
+      coreGrad.addColorStop(0, `rgba(255,255,255,${baseAlpha * 0.5})`);
+      coreGrad.addColorStop(0.5, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${baseAlpha * 0.8})`);
+      coreGrad.addColorStop(1, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},0)`);
+
+      ctx.fillStyle = coreGrad;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, midGlowSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      p.fill(r, g, b, pt.alpha * 0.9);
       p.ellipse(pt.x, pt.y, pt.size, pt.size);
     }
     p.pop();

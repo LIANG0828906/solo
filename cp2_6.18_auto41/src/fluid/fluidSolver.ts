@@ -59,18 +59,48 @@ export class FluidSolver {
   }
 
   private resizeGrid(newN: number): void {
+    const oldN = this.N;
+    if (oldN === newN) return;
+
+    const cloneField = (src: Float32Array, oldGrid: number): Float32Array => {
+      const newSize = (newN + 2) * (newN + 2);
+      const dst = new Float32Array(newSize);
+      const scale = oldGrid / newN;
+      for (let j = 1; j <= newN; j++) {
+        for (let i = 1; i <= newN; i++) {
+          const si = (i - 0.5) * scale + 0.5;
+          const sj = (j - 0.5) * scale + 0.5;
+          const i0 = Math.max(1, Math.min(oldGrid, Math.floor(si)));
+          const j0 = Math.max(1, Math.min(oldGrid, Math.floor(sj)));
+          const i1 = Math.max(1, Math.min(oldGrid, i0 + 1));
+          const j1 = Math.max(1, Math.min(oldGrid, j0 + 1));
+          const fi = si - i0;
+          const fj = sj - j0;
+          const v00 = src[i0 + (oldGrid + 2) * j0];
+          const v10 = src[i1 + (oldGrid + 2) * j0];
+          const v01 = src[i0 + (oldGrid + 2) * j1];
+          const v11 = src[i1 + (oldGrid + 2) * j1];
+          const val = (1 - fi) * (1 - fj) * v00 + fi * (1 - fj) * v10 +
+            (1 - fi) * fj * v01 + fi * fj * v11;
+          dst[i + (newN + 2) * j] = val;
+        }
+      }
+      return dst;
+    };
+
+    this.u = cloneField(this.u, oldN);
+    this.v = cloneField(this.v, oldN);
+    this.uPrev = cloneField(this.uPrev, oldN);
+    this.vPrev = cloneField(this.vPrev, oldN);
+    this.densR = cloneField(this.densR, oldN);
+    this.densG = cloneField(this.densG, oldN);
+    this.densB = cloneField(this.densB, oldN);
+    this.densRPrev = cloneField(this.densRPrev, oldN);
+    this.densGPrev = cloneField(this.densGPrev, oldN);
+    this.densBPrev = cloneField(this.densBPrev, oldN);
+
     this.N = newN;
     this.size = (this.N + 2) * (this.N + 2);
-    this.u = new Float32Array(this.size);
-    this.v = new Float32Array(this.size);
-    this.uPrev = new Float32Array(this.size);
-    this.vPrev = new Float32Array(this.size);
-    this.densR = new Float32Array(this.size);
-    this.densG = new Float32Array(this.size);
-    this.densB = new Float32Array(this.size);
-    this.densRPrev = new Float32Array(this.size);
-    this.densGPrev = new Float32Array(this.size);
-    this.densBPrev = new Float32Array(this.size);
   }
 
   private IX(i: number, j: number): number {

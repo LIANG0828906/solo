@@ -81,45 +81,82 @@ export class UIController {
 
     const style = document.createElement('style');
     style.textContent = `
-      #fluid-ui-panel input[type="range"] {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 100%;
-        height: 4px;
-        border-radius: 2px;
-        background: rgba(255,255,255,0.2);
-        outline: none;
-        cursor: pointer;
+      #fluid-ui-panel input[type="range"].fluid-custom-slider {
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        width: 100% !important;
+        height: 4px !important;
+        border-radius: 2px !important;
+        background: rgba(255,255,255,0.2) !important;
+        outline: none !important;
+        cursor: pointer !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
       }
-      #fluid-ui-panel input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: #4A90D9;
-        cursor: pointer;
-        transition: background 0.2s;
+      #fluid-ui-panel input[type="range"].fluid-custom-slider:focus {
+        outline: none !important;
       }
-      #fluid-ui-panel input[type="range"]::-webkit-slider-thumb:hover {
-        background: #5BA3E6;
+      #fluid-ui-panel input[type="range"].fluid-custom-slider::-webkit-slider-runnable-track {
+        height: 4px !important;
+        border-radius: 2px !important;
+        background: rgba(255,255,255,0.2) !important;
       }
-      #fluid-ui-panel input[type="range"]::-moz-range-thumb {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: #4A90D9;
-        cursor: pointer;
-        border: none;
-        transition: background 0.2s;
+      #fluid-ui-panel input[type="range"].fluid-custom-slider::-webkit-slider-thumb {
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        width: 14px !important;
+        height: 14px !important;
+        border-radius: 50% !important;
+        background: #4A90D9 !important;
+        cursor: pointer !important;
+        border: none !important;
+        margin-top: -5px !important;
+        transition: background 0.2s ease, transform 0.15s ease !important;
+        box-shadow: 0 0 4px rgba(74,144,217,0.4) !important;
       }
-      #fluid-ui-panel input[type="range"]::-moz-range-thumb:hover {
-        background: #5BA3E6;
+      #fluid-ui-panel input[type="range"].fluid-custom-slider::-webkit-slider-thumb:hover {
+        background: #5BA3E6 !important;
+        transform: scale(1.1) !important;
+        box-shadow: 0 0 8px rgba(91,163,230,0.6) !important;
       }
-      #fluid-ui-panel input[type="range"]::-moz-range-track {
-        height: 4px;
-        border-radius: 2px;
-        background: rgba(255,255,255,0.2);
+      #fluid-ui-panel input[type="range"].fluid-custom-slider::-moz-range-track {
+        height: 4px !important;
+        border-radius: 2px !important;
+        background: rgba(255,255,255,0.2) !important;
+        border: none !important;
+      }
+      #fluid-ui-panel input[type="range"].fluid-custom-slider::-moz-range-thumb {
+        width: 14px !important;
+        height: 14px !important;
+        border-radius: 50% !important;
+        background: #4A90D9 !important;
+        cursor: pointer !important;
+        border: none !important;
+        transition: background 0.2s ease, transform 0.15s ease !important;
+        box-shadow: 0 0 4px rgba(74,144,217,0.4) !important;
+      }
+      #fluid-ui-panel input[type="range"].fluid-custom-slider::-moz-range-thumb:hover {
+        background: #5BA3E6 !important;
+        transform: scale(1.1) !important;
+        box-shadow: 0 0 8px rgba(91,163,230,0.6) !important;
+      }
+      #fluid-ui-panel input[type="range"].fluid-custom-slider::-ms-track {
+        height: 4px !important;
+        border-radius: 2px !important;
+        background: rgba(255,255,255,0.2) !important;
+        border: none !important;
+      }
+      #fluid-ui-panel input[type="range"].fluid-custom-slider::-ms-thumb {
+        width: 14px !important;
+        height: 14px !important;
+        border-radius: 50% !important;
+        background: #4A90D9 !important;
+        cursor: pointer !important;
+        border: none !important;
+      }
+      #fluid-ui-panel input[type="range"].fluid-custom-slider::-ms-thumb:hover {
+        background: #5BA3E6 !important;
       }
     `;
     document.head.appendChild(style);
@@ -166,6 +203,19 @@ export class UIController {
     slider.max = String(max);
     slider.step = String(step);
     slider.value = String(value);
+    slider.className = 'fluid-custom-slider';
+    Object.assign(slider.style, {
+      WebkitAppearance: 'none',
+      appearance: 'none',
+      width: '100%',
+      height: '4px',
+      borderRadius: '2px',
+      background: 'rgba(255,255,255,0.2)',
+      outline: 'none',
+      cursor: 'pointer',
+      padding: '0',
+      margin: '0',
+    });
     slider.addEventListener('input', () => {
       const v = parseFloat(slider.value);
       valueEl.textContent = String(v);

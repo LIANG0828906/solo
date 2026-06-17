@@ -71,9 +71,20 @@ const sketch = (p: p5) => {
       const dx = p.mouseX - prevMouseX;
       const dy = p.mouseY - prevMouseY;
       const speed = Math.sqrt(dx * dx + dy * dy);
-      const maxSpeed = 10;
-      const clampedDx = speed > maxSpeed ? (dx / speed) * maxSpeed : dx;
-      const clampedDy = speed > maxSpeed ? (dy / speed) * maxSpeed : dy;
+      const EPS = 1e-5;
+      const MAX_VELOCITY = 10;
+      const SPEED_SCALE = 0.35;
+
+      let velX = 0;
+      let velY = 0;
+
+      if (speed > EPS) {
+        const dirX = dx / speed;
+        const dirY = dy / speed;
+        const magnitude = Math.min(speed * SPEED_SCALE, MAX_VELOCITY);
+        velX = dirX * magnitude;
+        velY = dirY * magnitude;
+      }
 
       const gridI = Math.floor((p.mouseX / p.width) * solver.N) + 1;
       const gridJ = Math.floor((p.mouseY / p.height) * solver.N) + 1;
@@ -82,7 +93,7 @@ const sketch = (p: p5) => {
       const color = ui.getSelectedColor();
       const strength = ui.getDensityStrength();
 
-      solver.injectVelocity(gridI, gridJ, radius, clampedDx * 0.5, clampedDy * 0.5);
+      solver.injectVelocity(gridI, gridJ, radius, velX, velY);
       solver.injectDensity(
         gridI, gridJ, radius,
         color.r / 255, color.g / 255, color.b / 255,
