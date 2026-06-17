@@ -1,0 +1,181 @@
+.shape-panel {
+  width: 200px;
+  background: rgba(43, 45, 66, 0.85);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.shape-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.shape-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.shape-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.shape-item.selected {
+  border-color: var(--accent-primary);
+  background: rgba(108, 99, 255, 0.15);
+  box-shadow: 0 0 15px rgba(108, 99, 255, 0.3);
+}
+
+.shape-icon {
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
+}
+
+.shape-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.section-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 16px 0;
+}
+
+.texture-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.texture-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.texture-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.texture-item.selected {
+  border-color: var(--accent-primary);
+  background: rgba(108, 99, 255, 0.15);
+}
+
+.texture-preview {
+  width: 50px;
+  height: 50px;
+  border-radius: 6px;
+  image-rendering: pixelated;
+}
+
+.texture-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.gradient-mode-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.gradient-mode-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(108, 99, 255, 0.4);
+}
+
+.gradient-mode-btn.active {
+  box-shadow: 0 0 20px rgba(108, 99, 255, 0.6);
+  animation: pulse-scale 1.5s ease-in-out infinite;
+}
+
+.gradient-icon {
+  font-size: 16px;
+}
+
+.gradient-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--accent-primary);
+  text-align: center;
+  animation: fade-in 0.3s ease-out;
+}
+
+.tip-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tip-title {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.tip-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tip-list li {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.tip-list li::before {
+  content: '•';
+  position: absolute;
+  left: 4px;
+  color: var(--accent-primary);
+}
