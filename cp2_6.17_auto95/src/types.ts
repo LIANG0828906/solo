@@ -26,7 +26,6 @@ export interface PaletteStore {
   isLoading: boolean;
   isSidebarOpen: boolean;
   isExportModalOpen: boolean;
-  selectedPalette: Palette | null;
   init: () => Promise<void>;
   createPalette: (name: string) => Promise<Palette>;
   selectPalette: (id: string | null) => void;

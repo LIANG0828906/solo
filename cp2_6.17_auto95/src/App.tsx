@@ -26,11 +26,18 @@ function useMediaQuery(query: string): boolean {
   return matches;
 }
 
+function useSelectedPalette() {
+  return usePaletteStore(
+    useCallback((state) => {
+      return state.palettes.find((p) => p.id === state.selectedPaletteId) || null;
+    }, [])
+  );
+}
+
 function App() {
   const {
     palettes,
     selectedPaletteId,
-    selectedPalette,
     versions,
     isSidebarOpen,
     isExportModalOpen,
@@ -48,6 +55,8 @@ function App() {
     setSidebarOpen,
     setExportModalOpen,
   } = usePaletteStore();
+
+  const selectedPalette = useSelectedPalette();
 
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [newColor, setNewColor] = useState('#4A90D9');
@@ -176,8 +185,8 @@ function App() {
   const handleRestoreVersion = useCallback(
     async (versionId: string) => {
       if (selectedPaletteId && confirm('确定要恢复到此版本吗？当前颜色将被替换。')) {
-        setRestoredVersionId(versionId);
         await restoreVersion(selectedPaletteId, versionId);
+        setRestoredVersionId(versionId);
         setTimeout(() => setRestoredVersionId(null), 300);
       }
     },

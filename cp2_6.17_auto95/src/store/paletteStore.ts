@@ -11,11 +11,6 @@ export const usePaletteStore = create<PaletteStore>((set, get) => ({
   isSidebarOpen: true,
   isExportModalOpen: false,
 
-  get selectedPalette() {
-    const { palettes, selectedPaletteId } = get();
-    return palettes.find((p) => p.id === selectedPaletteId) || null;
-  },
-
   init: async () => {
     set({ isLoading: true });
     try {

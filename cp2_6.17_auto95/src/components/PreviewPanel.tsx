@@ -6,6 +6,16 @@ interface PreviewPanelProps {
   palette: Palette | null;
 }
 
+function areEqual(prev: PreviewPanelProps, next: PreviewPanelProps) {
+  if (prev.palette === next.palette) return true;
+  if (!prev.palette || !next.palette) return false;
+  if (prev.palette.id !== next.palette.id) return false;
+  if (prev.palette.colors.length !== next.palette.colors.length) return false;
+  return prev.palette.colors.every(
+    (c, i) => c.hex === next.palette!.colors[i].hex
+  );
+}
+
 const PreviewPanelInner = ({ palette }: PreviewPanelProps) => {
   if (!palette || palette.colors.length === 0) {
     return (
@@ -80,4 +90,4 @@ const PreviewPanelInner = ({ palette }: PreviewPanelProps) => {
   );
 };
 
-export const PreviewPanel = memo(PreviewPanelInner);
+export const PreviewPanel = memo(PreviewPanelInner, areEqual);
