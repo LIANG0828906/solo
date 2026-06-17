@@ -1,8 +1,7 @@
 import { memo } from 'react'
-import { MessageCircle, Flame } from 'lucide-react'
+import { MessageCircle, Star, Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { BookListWithStats } from '@/types'
-import StarRating from './StarRating'
 
 interface BookCardProps {
   bookList: BookListWithStats
@@ -12,6 +11,9 @@ interface BookCardProps {
 
 function BookCard({ bookList, rank, onClick }: BookCardProps) {
   const isTopRank = rank === 1
+  const hasRating = bookList.averageRating > 0
+  const hasComments = bookList.commentCount > 0
+  const hasAnyActivity = hasRating || hasComments
 
   return (
     <div
@@ -55,7 +57,7 @@ function BookCard({ bookList, rank, onClick }: BookCardProps) {
         {bookList.description}
       </p>
 
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      <div className="flex flex-wrap gap-1.5 mb-4">
         {bookList.tags.slice(0, 3).map((tag) => (
           <span
             key={tag}
@@ -67,13 +69,22 @@ function BookCard({ bookList, rank, onClick }: BookCardProps) {
       </div>
 
       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-        <StarRating value={Math.round(bookList.averageRating)} readonly size="sm" />
-        <div className="flex items-center gap-3 text-gray-500 text-sm">
-          <div className="flex items-center gap-1">
-            <MessageCircle className="w-4 h-4" />
-            <span>{bookList.commentCount}</span>
-          </div>
-        </div>
+        {hasAnyActivity ? (
+          <>
+            <div className="flex items-center gap-1 text-gray-500 text-sm">
+              <Star className={cn('w-4 h-4', hasRating && 'text-amber-500 fill-amber-500')} />
+              <span className={cn('font-medium', hasRating ? 'text-amber-600' : 'text-gray-400')}>
+                {hasRating ? bookList.averageRating.toFixed(1) : '--'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-gray-500 text-sm">
+              <MessageCircle className="w-4 h-4" />
+              <span>{bookList.commentCount}</span>
+            </div>
+          </>
+        ) : (
+          <span className="text-xs text-gray-400 italic">暂无评价</span>
+        )}
       </div>
     </div>
   )
