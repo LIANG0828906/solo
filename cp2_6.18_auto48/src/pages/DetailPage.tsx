@@ -1,17 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppStore } from '../store';
-import {
-  getClaimsByItemId,
-  formatRelativeTime,
-} from '../utils/dataManager';
+import { formatRelativeTime } from '../utils/dataManager';
 import { RippleButton } from './HomePage';
 
 const ItemDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { items, loadData, claimItem, completeDonation } = useAppStore();
-  const [claims, setClaims] = useState(getClaimsByItemId(id || ''));
+  const { items, claims, loadData, claimItem, completeDonation } = useAppStore();
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [claimantName, setClaimantName] = useState('');
   const [claimantContact, setClaimantContact] = useState('');
@@ -20,11 +16,10 @@ const ItemDetailPage: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  useEffect(() => {
-    if (id) {
-      setClaims(getClaimsByItemId(id));
-    }
-  }, [id, items]);
+  const itemClaims = useMemo(() => {
+    if (!id) return [];
+    return claims.filter((c) => c.itemId === id);
+  }, [claims, id]);
 
   const item = items.find((i) => i.id === id);
 
@@ -66,10 +61,9 @@ const ItemDetailPage: React.FC = () => {
     setShowClaimModal(false);
     setClaimantName('');
     setClaimantContact('');
-    setClaims(getClaimsByItemId(item.id));
   };
 
-  const pendingClaims = claims.filter((c) => c.status === '待确认');
+  const pendingClaims = itemClaims.filter((c) => c.status === '待确认');
 
   return (
     <div style={{ padding: '24px 0', maxWidth: '800px', margin: '0 auto' }}>

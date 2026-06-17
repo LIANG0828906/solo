@@ -501,7 +501,7 @@ const HomePage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <div className="category-filter-container" style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           <span style={{ fontSize: '13px', color: '#6B7280', alignSelf: 'center', marginRight: '4px' }}>
             分类：
           </span>
@@ -511,17 +511,7 @@ const HomePage: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => toggleCategory(cat)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  backgroundColor: isSelected ? '#D1FAE5' : '#F3F4F6',
-                  color: isSelected ? '#065F46' : '#6B7280',
-                  transition: 'all 0.2s ease-out',
-                }}
+                className={`category-tag ${isSelected ? 'category-tag--selected' : ''}`}
               >
                 {cat}
               </button>
@@ -530,15 +520,7 @@ const HomePage: React.FC = () => {
           {selectedCategories.length > 0 && (
             <button
               onClick={() => setSelectedCategories([])}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '20px',
-                border: 'none',
-                fontSize: '13px',
-                cursor: 'pointer',
-                backgroundColor: 'transparent',
-                color: '#6B7280',
-              }}
+              className="category-clear-btn"
             >
               清除
             </button>
@@ -553,6 +535,39 @@ const HomePage: React.FC = () => {
       <div key={listKey}>
         <WaterfallGrid items={filteredItems} />
       </div>
+
+      <style>{`
+        .category-tag {
+          padding: 6px 14px;
+          border-radius: 20px;
+          border: none;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          background-color: #F3F4F6;
+          color: #6B7280;
+          transition: all 0.2s ease-out;
+        }
+        .category-tag:hover {
+          background-color: #E5E7EB;
+        }
+        .category-tag--selected {
+          background-color: #D1FAE5 !important;
+          color: #065F46 !important;
+        }
+        .category-clear-btn {
+          padding: 6px 12px;
+          border-radius: 20px;
+          border: none;
+          font-size: 13px;
+          cursor: pointer;
+          background-color: transparent;
+          color: #6B7280;
+        }
+        .category-clear-btn:hover {
+          color: #374151;
+        }
+      `}</style>
     </div>
   );
 };
