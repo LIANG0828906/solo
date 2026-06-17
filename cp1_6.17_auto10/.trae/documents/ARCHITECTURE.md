@@ -52,21 +52,24 @@ auto10/
 ├── tsconfig.json
 ├── index.html
 ├── src/
-│   ├── main.tsx              # 应用入口
-│   ├── App.tsx               # 主布局组件
+│   ├── main.tsx                 # 应用入口
+│   ├── App.tsx                  # 主布局组件
 │   ├── stores/
-│   │   └── dashboardStore.ts # Zustand 状态管理
+│   │   └── dashboardStore.ts    # Zustand 状态管理
 │   ├── components/
-│   │   ├── GiftPanel.tsx     # 礼物动态区域
-│   │   ├── DanmakuPanel.tsx  # 弹幕流组件
-│   │   ├── RankingTable.tsx  # 贡献排行榜
-│   │   ├── TestTool.tsx      # 测试工具模态框
-│   │   └── GiftManager.tsx   # 礼物管理（新增/编辑/删除）
-│   └── api/
-│       └── index.ts          # 前端 API 封装
+│   │   ├── GiftPanel.tsx        # 礼物动态区域
+│   │   ├── DanmakuPanel.tsx     # 弹幕流组件
+│   │   ├── RankingTable.tsx     # 贡献排行榜
+│   │   ├── TestTool.tsx         # 测试工具模态框
+│   │   ├── GiftManager.tsx      # 礼物管理（新增/编辑/删除）
+│   │   └── GiftCard.tsx         # 礼物卡片（用于列表和实时预览复用）
+│   ├── api/
+│   │   └── index.ts             # 前端 API 封装
+│   └── utils/
+│       └── colorHash.ts         # 根据昵称生成固定色值的工具函数
 ├── api/
-│   └── mockServer.ts         # Express 模拟服务器
-└── db.json                   # lowdb 数据文件
+│   └── mockServer.ts            # Express 模拟服务器
+└── db.json                      # lowdb 数据文件
 ```
 
 ## 4. API 定义
@@ -110,6 +113,8 @@ interface RankingItem {
 }
 
 type RankingPeriod = 'today' | 'week' | 'all';
+
+function generateColorFromName(name: string): string; // 根据昵称生成固定 HSL 颜色字符串（色相0-360°，固定饱和度60%、亮度60%）
 ```
 
 ### 4.2 接口清单
