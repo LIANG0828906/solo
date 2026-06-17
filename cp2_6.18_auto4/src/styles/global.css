@@ -4,11 +4,11 @@
   --color-secondary: #7B61FF;
   --color-dark: #2E3A6E;
   --color-success: #52C41A;
-  --color-success-bg: #F6FFED;
+  --color-success-bg: rgba(82, 196, 26, 0.18);
   --color-warning: #FFA940;
-  --color-warning-bg: #FFF7E6;
+  --color-warning-bg: rgba(255, 169, 64, 0.18);
   --color-error: #FF4D4F;
-  --color-error-bg: #FFF2F0;
+  --color-error-bg: rgba(255, 77, 79, 0.18);
   --color-text: #333333;
   --color-text-secondary: #666666;
   --color-text-muted: #999999;
@@ -510,6 +510,22 @@ body {
   transition: filter var(--transition-normal);
 }
 
+.gauge-svg path:nth-child(2) {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+              stroke 0.8s ease-out;
+}
+
+.gauge-container .gauge-score {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.6s ease-out 0.2s, transform 0.6s ease-out 0.2s;
+}
+
+.gauge-container.visible .gauge-score {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .gauge-score {
   text-align: center;
   margin-top: -12px;
@@ -530,12 +546,12 @@ body {
 
 .indicator-cards {
   display: flex;
-  gap: 8%;
+  justify-content: space-between;
   margin-bottom: 32px;
 }
 
 .indicator-card {
-  flex: 0 0 46%;
+  width: 46%;
   background: var(--color-bg-white);
   border-radius: var(--radius-lg);
   padding: 24px;

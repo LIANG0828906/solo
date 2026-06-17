@@ -25,9 +25,11 @@ function formatAmount(amount: number): string {
 
 function Gauge({ score }: { score: number }) {
   const [animatedScore, setAnimatedScore] = useState(0);
+  const [visible, setVisible] = useState(false);
   const animatedArcColor = getArcColor(animatedScore);
 
   useEffect(() => {
+    const timeout = setTimeout(() => setVisible(true), 50);
     const duration = 800;
     const startTime = performance.now();
     const startScore = 0;
@@ -42,15 +44,19 @@ function Gauge({ score }: { score: number }) {
       }
     }
 
-    requestAnimationFrame(animate);
+    const rafId = requestAnimationFrame(animate);
+    return () => {
+      clearTimeout(timeout);
+      cancelAnimationFrame(rafId);
+    };
   }, [score]);
 
   const radius = 80;
   const arcLength = Math.PI * radius;
-  const offset = arcLength * (1 - animatedScore / 1000);
+  const targetOffset = arcLength * (1 - animatedScore / 1000);
 
   return (
-    <div className="gauge-container" style={{ '--gauge-color': animatedArcColor } as React.CSSProperties}>
+    <div className={`gauge-container ${visible ? 'visible' : ''}`} style={{ '--gauge-color': animatedArcColor } as React.CSSProperties}>
       <svg
         className="gauge-svg"
         width="200"
@@ -71,8 +77,7 @@ function Gauge({ score }: { score: number }) {
           strokeWidth="12"
           strokeLinecap="round"
           strokeDasharray={`${arcLength} ${arcLength}`}
-          strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 0.05s linear, stroke 0.05s linear' }}
+          strokeDashoffset={targetOffset}
         />
       </svg>
       <div className="gauge-score">

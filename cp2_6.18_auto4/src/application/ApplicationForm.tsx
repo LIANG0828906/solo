@@ -255,22 +255,36 @@ export function ApplicationForm() {
           <div className="guide-item">
             <div className="guide-item-number">2</div>
             <div className="guide-item-content">
-              <h4>企业经营数据</h4>
-              <p>填写公司全称及近6个月银行流水均值，数据越准确评估越精准</p>
+              <h4>身份证号格式</h4>
+              <p>请确保身份证号为18位，最后一位可以是X或数字</p>
             </div>
           </div>
           <div className="guide-item">
             <div className="guide-item-number">3</div>
             <div className="guide-item-content">
-              <h4>抵押物信息</h4>
-              <p>拥有抵押物可显著提升信用评分和预估额度</p>
+              <h4>企业经营数据</h4>
+              <p>流水请填写近6个月银行账户的平均流水，数据越准确评估越精准</p>
             </div>
           </div>
           <div className="guide-item">
             <div className="guide-item-number">4</div>
             <div className="guide-item-content">
-              <h4>提交与评估</h4>
+              <h4>抵押物信息</h4>
+              <p>如有房产、车辆、设备等抵押物请选择"是"，可显著提升信用评分和预估额度</p>
+            </div>
+          </div>
+          <div className="guide-item">
+            <div className="guide-item-number">5</div>
+            <div className="guide-item-content">
+              <h4>评估时长</h4>
               <p>提交后系统将自动进行信用评估，通常在3秒内完成</p>
+            </div>
+          </div>
+          <div className="guide-item">
+            <div className="guide-item-number">6</div>
+            <div className="guide-item-content">
+              <h4>隐私保护</h4>
+              <p>您提交的信息仅用于信用评估，严格遵守隐私保护法律法规</p>
             </div>
           </div>
         </div>
