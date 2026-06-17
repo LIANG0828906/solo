@@ -16,6 +16,8 @@ const sketch = (p: p5) => {
 
   let fpsValues: number[] = [];
   let currentFps = 60;
+  let perfLastLogTime = 0;
+  const PERF_LOG_INTERVAL = 5000;
 
   p.setup = () => {
     const canvas = p.createCanvas(p.windowWidth, p.windowHeight);
@@ -29,9 +31,16 @@ const sketch = (p: p5) => {
 
     smoothMouseX = p.width / 2;
     smoothMouseY = p.height / 2;
+
+    console.log('[FluidCanvas] Performance baseline starting...');
+    console.log('[FluidCanvas] Grid size:', solver.N, 'x', solver.N);
+    console.log('[FluidCanvas] Particle count:', particles.particles.length);
+    perfLastLogTime = performance.now();
   };
 
   p.draw = () => {
+    const frameStart = performance.now();
+
     drawBackground();
 
     handleMouseInput();
@@ -44,8 +53,24 @@ const sketch = (p: p5) => {
 
     drawMouseGlow();
 
-    updateAndDrawFps();
+    updateAndDrawFps(frameStart);
+
+    const now = performance.now();
+    if (now - perfLastLogTime > PERF_LOG_INTERVAL) {
+      logPerformanceMetrics(now);
+      perfLastLogTime = now;
+    }
   };
+
+  function logPerformanceMetrics(now: number): void {
+    const avgFps = currentFps;
+    const gridSize = solver.N;
+    const pCount = particles.particles.length;
+    const mode = particles.skipUpdate ? 'half-rate' : 'full-rate';
+    console.log(
+      `[Perf] FPS: ${avgFps.toFixed(1)} | Grid: ${gridSize}x${gridSize} | Particles: ${pCount} | Update: ${mode}`
+    );
+  }
 
   function drawBackground(): void {
     const ctx = p.drawingContext as CanvasRenderingContext2D;
@@ -71,17 +96,18 @@ const sketch = (p: p5) => {
       const dx = p.mouseX - prevMouseX;
       const dy = p.mouseY - prevMouseY;
       const speed = Math.sqrt(dx * dx + dy * dy);
-      const EPS = 1e-5;
       const MAX_VELOCITY = 10;
+      const MIN_VELOCITY = 0.5;
       const SPEED_SCALE = 0.35;
 
       let velX = 0;
       let velY = 0;
 
-      if (speed > EPS) {
+      if (speed > 0.1) {
         const dirX = dx / speed;
         const dirY = dy / speed;
-        const magnitude = Math.min(speed * SPEED_SCALE, MAX_VELOCITY);
+        let magnitude = speed * SPEED_SCALE;
+        magnitude = Math.max(MIN_VELOCITY, Math.min(magnitude, MAX_VELOCITY));
         velX = dirX * magnitude;
         velY = dirY * magnitude;
       }
@@ -102,7 +128,7 @@ const sketch = (p: p5) => {
 
       const injectNx = p.mouseX / p.width;
       const injectNy = p.mouseY / p.height;
-      const numToReset = Math.min(5, Math.ceil(speed / 3));
+      const numToReset = Math.max(1, Math.min(5, Math.ceil(speed / 3)));
       for (let i = 0; i < numToReset; i++) {
         const offsetNx = injectNx + (Math.random() - 0.5) * 0.02;
         const offsetNy = injectNy + (Math.random() - 0.5) * 0.02;
@@ -176,18 +202,30 @@ const sketch = (p: p5) => {
     ctx.fill();
   }
 
-  function updateAndDrawFps(): void {
+  function updateAndDrawFps(frameStart: number): void {
     const fps = p.frameRate();
     fpsValues.push(fps);
     if (fpsValues.length > 30) fpsValues.shift();
     currentFps = fpsValues.reduce((a, b) => a + b, 0) / fpsValues.length;
+
+    const frameMs = performance.now() - frameStart;
 
     p.push();
     p.noStroke();
     p.fill(255, 255, 255, 128);
     p.textSize(12);
     p.textAlign(p.RIGHT, p.BOTTOM);
-    p.text(`FPS: ${Math.round(currentFps)}`, p.width - 10, p.height - 10);
+
+    const lines = [
+      `FPS: ${Math.round(currentFps)}`,
+      `Frame: ${frameMs.toFixed(1)}ms`,
+      `Particles: ${particles.particles.length}`,
+      `Grid: ${solver.N}x${solver.N}`,
+    ];
+
+    for (let i = 0; i < lines.length; i++) {
+      p.text(lines[i], p.width - 10, p.height - 10 - i * 14);
+    }
     p.pop();
   }
 

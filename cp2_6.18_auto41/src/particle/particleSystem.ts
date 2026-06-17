@@ -20,6 +20,7 @@ export class ParticleSystem {
   solver: FluidSolver;
   frameCount: number = 0;
   skipUpdate: boolean = false;
+  private recyclePtr: number = 0;
 
   constructor(solver: FluidSolver, count: number = 2000) {
     this.solver = solver;
@@ -35,7 +36,7 @@ export class ParticleSystem {
       if (this.particles.length < newCount) {
         this.addParticles(newCount - this.particles.length);
       } else if (this.particles.length > newCount) {
-        this.recycleOldest(this.particles.length - newCount);
+        this.truncateParticles(this.particles.length - newCount);
       }
     });
 
@@ -53,6 +54,7 @@ export class ParticleSystem {
     for (let i = 0; i < actual; i++) {
       this.particles.push(this.createParticle());
     }
+    this.recyclePtr = 0;
   }
 
   private addParticles(count: number): void {
@@ -64,13 +66,25 @@ export class ParticleSystem {
     }
   }
 
-  private recycleOldest(n: number): void {
-    if (this.particles.length <= n) {
-      this.particles.length = 0;
-      return;
+  private truncateParticles(n: number): void {
+    if (n <= 0) return;
+    const removeFromEnd = Math.min(n, this.particles.length - this.recyclePtr);
+    const remaining = n - removeFromEnd;
+    if (removeFromEnd > 0) {
+      this.particles.splice(this.recyclePtr, removeFromEnd);
     }
-    this.particles.sort((a, b) => (a.life / a.maxLife) - (b.life / b.maxLife));
-    this.particles.length = this.particles.length - n;
+    if (remaining > 0 && this.particles.length > 0) {
+      this.particles.splice(0, remaining);
+      this.recyclePtr = 0;
+    }
+    if (this.recyclePtr >= this.particles.length) {
+      this.recyclePtr = 0;
+    }
+  }
+
+  private advanceRecyclePtr(n: number = 1): void {
+    if (this.particles.length === 0) return;
+    this.recyclePtr = (this.recyclePtr + n) % this.particles.length;
   }
 
   private createParticle(nx?: number, ny?: number): Particle {
@@ -90,23 +104,10 @@ export class ParticleSystem {
   }
 
   resetParticleAt(nx: number, ny: number): void {
-    const oldestIdx = this.findOldestParticle();
-    if (oldestIdx >= 0) {
-      this.particles[oldestIdx] = this.createParticle(nx, ny);
-    }
-  }
-
-  private findOldestParticle(): number {
-    let maxLife = -1;
-    let idx = -1;
-    for (let i = 0; i < this.particles.length; i++) {
-      const ratio = this.particles[i].life / this.particles[i].maxLife;
-      if (ratio > maxLife) {
-        maxLife = ratio;
-        idx = i;
-      }
-    }
-    return idx;
+    if (this.particles.length === 0) return;
+    const idx = this.recyclePtr;
+    this.particles[idx] = this.createParticle(nx, ny);
+    this.advanceRecyclePtr(1);
   }
 
   update(canvasW: number, canvasH: number): void {
@@ -118,8 +119,7 @@ export class ParticleSystem {
       p.life++;
 
       if (p.life >= p.maxLife) {
-        const newP = this.createParticle();
-        this.particles[i] = newP;
+        this.particles[i] = this.createParticle();
         continue;
       }
 
@@ -151,10 +151,10 @@ export class ParticleSystem {
 
     if (this.particles.length > this.HARD_LIMIT) {
       const excess = this.particles.length - this.HARD_LIMIT;
-      this.recycleOldest(excess);
+      this.truncateParticles(excess);
     } else if (this.particles.length > this.maxParticles) {
       const excess = this.particles.length - this.maxParticles;
-      this.recycleOldest(excess);
+      this.truncateParticles(excess);
     }
   }
 
@@ -187,32 +187,18 @@ export class ParticleSystem {
       }
 
       const baseAlpha = (pt.alpha / 255) * 0.55;
-      const glowSize = pt.size * 6;
-      const midGlowSize = pt.size * 3;
+      const glowSize = pt.size * 5;
 
       const radGrad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, glowSize);
-      radGrad.addColorStop(0, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${baseAlpha})`);
-      radGrad.addColorStop(0.3, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${baseAlpha * 0.6})`);
-      radGrad.addColorStop(0.6, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${baseAlpha * 0.2})`);
+      radGrad.addColorStop(0, `rgba(255,255,255,${baseAlpha * 0.7})`);
+      radGrad.addColorStop(0.25, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${baseAlpha})`);
+      radGrad.addColorStop(0.6, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${baseAlpha * 0.35})`);
       radGrad.addColorStop(1, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},0)`);
 
       ctx.fillStyle = radGrad;
       ctx.beginPath();
       ctx.arc(pt.x, pt.y, glowSize, 0, Math.PI * 2);
       ctx.fill();
-
-      const coreGrad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, midGlowSize);
-      coreGrad.addColorStop(0, `rgba(255,255,255,${baseAlpha * 0.5})`);
-      coreGrad.addColorStop(0.5, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},${baseAlpha * 0.8})`);
-      coreGrad.addColorStop(1, `rgba(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)},0)`);
-
-      ctx.fillStyle = coreGrad;
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, midGlowSize, 0, Math.PI * 2);
-      ctx.fill();
-
-      p.fill(r, g, b, pt.alpha * 0.9);
-      p.ellipse(pt.x, pt.y, pt.size, pt.size);
     }
     p.pop();
   }
