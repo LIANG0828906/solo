@@ -223,6 +223,16 @@ export default function ControlPanel() {
           onChange={(v) => handleParamChange('particleLife', v)}
         />
 
+        <Slider
+          label="尾迹长度"
+          value={controlParams.trailFrameCount}
+          min={10}
+          max={60}
+          step={1}
+          unit="帧"
+          onChange={(v) => handleParamChange('trailFrameCount', v)}
+        />
+
         <div style={{ marginBottom: '16px' }}>
           <Button onClick={handleEmit}>发射粒子</Button>
         </div>
