@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { getRecipeById, toggleFavorite, getRandomRecipes, type Recipe } from '../data/recipes'
+import { getRecipeById, toggleFavorite, getRelatedRecipes, type Recipe } from '../data/recipes'
 
-const CARD_WIDTH = 220
+const CARD_WIDTH = 200
 const CARD_GAP = 16
 
 function RecipeDetail() {
@@ -23,7 +23,7 @@ function RecipeDetail() {
     setRecipe(found)
 
     if (found) {
-      setRecommendations(getRandomRecipes(4, id))
+      setRecommendations(getRelatedRecipes(found, 4))
     }
   }, [id])
 
@@ -175,7 +175,7 @@ function RecipeDetail() {
 
       {recommendations.length > 0 && (
         <div className="recommend-section">
-          <h2 className="recommend-title">你可能也喜欢</h2>
+          <h2 className="recommend-title">你可能还喜欢</h2>
           <div className="recommend-wrapper">
             <div
               ref={scrollRef}
@@ -186,11 +186,11 @@ function RecipeDetail() {
                 <Link
                   key={rec.id}
                   to={`/recipe/${rec.id}`}
-                  className="recommend-card"
+                  className="recommend-card recommend-card-compact"
                 >
-                  <img src={rec.cover} alt={rec.name} loading="lazy" />
+                  <img src={rec.cover} alt={rec.name} loading="lazy" className="recommend-card-img-compact" />
                   <div className="recommend-card-info">
-                    <div className="recommend-card-name">{rec.name}</div>
+                    <div className="recommend-card-name recommend-card-name-compact">{rec.name}</div>
                     <div className="recommend-card-author">{rec.author}</div>
                   </div>
                 </Link>

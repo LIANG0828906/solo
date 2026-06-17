@@ -224,3 +224,53 @@ export function getRandomRecipes(count: number, excludeId?: string): Recipe[] {
   const shuffled = [...recipes].sort(() => Math.random() - 0.5)
   return shuffled.slice(0, count)
 }
+
+function extractKeywords(recipe: Recipe): Set<string> {
+  const keywords = new Set<string>()
+  const addKeyword = (text: string) => {
+    const clean = text.toLowerCase().trim()
+    if (clean.length >= 2) {
+      keywords.add(clean)
+      clean.split(/[\s,，。、]+/).forEach(word => {
+        if (word.length >= 2) keywords.add(word)
+      })
+    }
+  }
+  recipe.ingredients.forEach(addKeyword)
+  recipe.name && addKeyword(recipe.name)
+  return keywords
+}
+
+export function getRelatedRecipes(recipe: Recipe, count: number): Recipe[] {
+  const allRecipes = getRecipes().filter(r => r.id !== recipe.id)
+  const currentKeywords = extractKeywords(recipe)
+
+  const scored = allRecipes.map(r => {
+    const rKeywords = extractKeywords(r)
+    let score = 0
+    currentKeywords.forEach(kw => {
+      if (rKeywords.has(kw)) score += 1
+      for (const rkw of rKeywords) {
+        if (rkw.includes(kw) || kw.includes(rkw)) score += 0.5
+      }
+    })
+    return { recipe: r, score }
+  })
+
+  scored.sort((a, b) => b.score - a.score)
+
+  const matched = scored.filter(s => s.score > 0)
+  if (matched.length >= count) {
+    return matched.slice(0, count).map(s => s.recipe)
+  }
+
+  const matchedIds = new Set(matched.map(s => s.recipe.id))
+  const remaining = allRecipes
+    .filter(r => !matchedIds.has(r.id))
+    .sort(() => Math.random() - 0.5)
+
+  return [
+    ...matched.map(s => s.recipe),
+    ...remaining.slice(0, count - matched.length)
+  ]
+}

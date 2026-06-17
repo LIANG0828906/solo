@@ -63,6 +63,10 @@ function RecipeCard({ recipe, onFavoriteChange, visible = true }: RecipeCardProp
     }, 150)
   }
 
+  const handleDetailClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+  }
+
   return (
     <div className="masonry-item" ref={cardRef}>
       <Link
@@ -96,6 +100,15 @@ function RecipeCard({ recipe, onFavoriteChange, visible = true }: RecipeCardProp
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
           </button>
+        </div>
+        <div className="recipe-card-footer" style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+          <Link
+            to={`/recipe/${recipe.id}`}
+            className="view-detail-link"
+            onClick={handleDetailClick}
+          >
+            查看详情 →
+          </Link>
         </div>
       </Link>
     </div>
