@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Home, Plus, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/store'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 interface SidebarProps {
   activeTab: 'hot' | 'create'
@@ -11,6 +12,13 @@ interface SidebarProps {
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { currentUser } = useStore()
+  const isMobile = useMediaQuery('(max-width: 767px)')
+
+  useEffect(() => {
+    if (!isMobile) {
+      setMobileMenuOpen(false)
+    }
+  }, [isMobile])
 
   const menuItems = [
     { id: 'hot' as const, label: '热度排行', icon: Home },

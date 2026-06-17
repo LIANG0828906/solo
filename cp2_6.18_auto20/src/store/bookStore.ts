@@ -11,7 +11,7 @@ interface BookStore {
   currentUser: User
   rankedBookLists: BookListWithStats[]
 
-  createBookList: (data: Omit<BookList, 'id' | 'userId' | 'createdAt'>) => void
+  createBookList: (data: Omit<BookList, 'id' | 'userId' | 'createdAt' | 'likedBy'>) => void
   addComment: (bookListId: string, content: string) => void
   addRating: (bookListId: string, value: 1 | 2 | 3 | 4 | 5) => void
   toggleLike: (bookListId: string) => void
@@ -46,6 +46,7 @@ const getMockData = () => {
       tags: ['科幻', '科技'],
       userId: 'user-2',
       createdAt: now - 86400000 * 7,
+      likedBy: ['user-1', 'user-3', 'user-4'],
     },
     {
       id: 'list-2',
@@ -54,6 +55,7 @@ const getMockData = () => {
       tags: ['文学', '艺术'],
       userId: 'user-3',
       createdAt: now - 86400000 * 5,
+      likedBy: ['user-1', 'user-2'],
     },
     {
       id: 'list-3',
@@ -62,6 +64,7 @@ const getMockData = () => {
       tags: ['历史', '哲学'],
       userId: 'user-4',
       createdAt: now - 86400000 * 3,
+      likedBy: ['user-1'],
     },
   ]
 
@@ -165,6 +168,7 @@ export const useBookStore = create<BookStore>((set, get) => ({
       id: uuidv4(),
       userId: currentUser.id,
       createdAt: Date.now(),
+      likedBy: [],
     }
 
     set((state) => {

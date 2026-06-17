@@ -11,6 +11,7 @@ export interface BookList {
   tags: string[]
   userId: string
   createdAt: number
+  likedBy: string[]
 }
 
 export interface Comment {
@@ -45,4 +46,4 @@ export interface BookListWithStats extends BookList {
   userRating: number | null
 }
 
-export const PRESET_TAGS = ['科幻', '哲学', '心理学', '历史', '文学', '商业', '科技', '艺术', '传记', '经济']
+export const PRESET_TAGS = ['科幻', '哲学', '心理学', '历史', '文学', '科技', '艺术', '经济', '教育', '生活']

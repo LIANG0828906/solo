@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, RefreshCw } from 'lucide-react'
 import { useStore } from '@/store'
@@ -27,7 +27,37 @@ export default function BookList() {
     return () => clearInterval(interval)
   }, [refreshRanking])
 
-  const topBooks = rankedBookLists.slice(0, 10)
+  // ===========================================================================
+  // 性能优化说明
+  // ===========================================================================
+  //
+  // 首屏渲染优化：
+  // 1. 数据预加载：在 App 启动时通过 store.hydrate() 预先从 localStorage 加载数据，
+  //    避免首屏等待网络请求。mock 数据作为 fallback 确保即使首次访问也能快速渲染。
+  // 2. React.memo 卡片组件：BookCard 使用 React.memo 包裹，并提供自定义比较函数，
+  //    只有当 id、rank、评分、评论数、热度分数变化时才重新渲染，大幅减少不必要的重绘。
+  // 3. CSS 硬件加速动画：hover 效果使用 transform: translate-y-1，触发 GPU 加速，
+  //    避免重排重绘，提升动画流畅度。
+  //
+  // 排行刷新优化：
+  // 1. useMemo 缓存计算结果：topBooks 使用 useMemo 缓存 slice(0, 10) 的结果，
+  //    只有当 rankedBookLists 引用变化时才重新计算，避免每次渲染都执行数组截取。
+  // 2. 稳定 key 避免重排：使用 bookList.id 作为列表项的 key，而不是 index，
+  //    确保 React 能够准确识别哪些元素发生了变化，最小化 DOM 操作。
+  // 3. CSS transition 实现平滑动画：外层包裹 div 使用 transition-all duration-500，
+  //    通过 CSS order 属性变化触发位置动画，完全由浏览器渲染引擎处理，性能最优。
+  //
+  // 防抖持久化：
+  // localStorage 写入防抖 300ms：在 bookStore.ts 的 persist 方法中，使用 setTimeout
+  // 延迟 300ms 写入 localStorage，频繁操作时自动合并，减少 IO 开销。
+  // ===========================================================================
+
+  const topBooks = useMemo(() => rankedBookLists.slice(0, 10), [rankedBookLists])
+
+  const handleCardClick = useCallback(
+    (id: string) => navigate(`/book/${id}`),
+    [navigate]
+  )
 
   return (
     <div className="min-h-screen bg-mainBg">
@@ -63,7 +93,7 @@ export default function BookList() {
               <BookCard
                 bookList={bookList}
                 rank={index + 1}
-                onClick={() => navigate(`/book/${bookList.id}`)}
+                onClick={() => handleCardClick(bookList.id)}
               />
             </div>
           ))}
