@@ -108,15 +108,35 @@ function DataBar({ point, isHovered, isSelected, isLOD, onHover, onClick }: Data
       </mesh>
 
       {isSelected && (
-        <mesh scale={[1.15, 1.02, 1.15]}>
-          <cylinderGeometry args={[6, 6, animatedHeight, segments]} />
-          <meshBasicMaterial
-            color="#FFD700"
-            transparent
-            opacity={0.15}
-            side={THREE.BackSide}
-          />
-        </mesh>
+        <>
+          <mesh scale={[1.25, 1.03, 1.25]}>
+            <cylinderGeometry args={[6, 6, animatedHeight, segments]} />
+            <meshBasicMaterial
+              color="#FFD700"
+              transparent
+              opacity={0.12}
+              side={THREE.BackSide}
+            />
+          </mesh>
+          <mesh scale={[1.18, 1.02, 1.18]}>
+            <cylinderGeometry args={[6, 6, animatedHeight, segments]} />
+            <meshBasicMaterial
+              color="#FFD700"
+              transparent
+              opacity={0.25}
+              side={THREE.BackSide}
+            />
+          </mesh>
+          <mesh scale={[1.12, 1.01, 1.12]}>
+            <cylinderGeometry args={[6, 6, animatedHeight, segments]} />
+            <meshBasicMaterial
+              color="#FFD700"
+              transparent
+              opacity={0.45}
+              side={THREE.BackSide}
+            />
+          </mesh>
+        </>
       )}
 
       <pointLight
