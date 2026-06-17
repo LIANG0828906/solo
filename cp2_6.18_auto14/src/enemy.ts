@@ -143,8 +143,9 @@ export class EnemyManager {
   }
 
   private destroyAsteroid(asteroid: Asteroid): void {
-    if (!asteroid.isFragment && asteroid.radius > 4) {
-      const fragmentRadius = asteroid.radius / 2;
+    const fragmentRadius = asteroid.radius / 2;
+    
+    if (fragmentRadius >= 1) {
       const speed = Math.sqrt(asteroid.vx * asteroid.vx + asteroid.vy * asteroid.vy);
       
       const angle1 = Math.atan2(asteroid.vy, asteroid.vx) + Math.PI / 4;

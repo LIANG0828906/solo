@@ -67,6 +67,8 @@ export function createLaserPool(): ObjectPool<Laser> {
       laser.y = 0;
       laser.dx = 0;
       laser.dy = 0;
+      laser.length = 20;
+      laser.width = 4;
       laser.active = false;
     },
     30,

@@ -25,6 +25,9 @@ class Game {
   private lastTime: number = 0;
   private energyDrainTimer: number = 0;
   private animationFrameId: number | null = null;
+  private readonly TARGET_FPS: number = 60;
+  private readonly FRAME_DURATION: number = 1000 / this.TARGET_FPS;
+  private accumulator: number = 0;
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -108,11 +111,20 @@ class Game {
 
   private gameLoop = (): void => {
     const currentTime = performance.now();
-    const deltaTime = currentTime - this.lastTime;
+    let deltaTime = currentTime - this.lastTime;
+    
+    if (deltaTime > 100) {
+      deltaTime = this.FRAME_DURATION;
+    }
+    
     this.lastTime = currentTime;
+    this.accumulator += deltaTime;
 
-    if (!this.gameOver) {
-      this.update(deltaTime, currentTime);
+    while (this.accumulator >= this.FRAME_DURATION) {
+      if (!this.gameOver) {
+        this.update(this.FRAME_DURATION, currentTime);
+      }
+      this.accumulator -= this.FRAME_DURATION;
     }
 
     this.renderer.updateHoverEffects(deltaTime);
@@ -197,6 +209,7 @@ class Game {
     this.score = 0;
     this.gameOver = false;
     this.energyDrainTimer = 0;
+    this.accumulator = 0;
     
     this.player.reset();
     this.enemyManager.reset();
