@@ -1,8 +1,9 @@
 import type { Laser } from './collision';
 import { ObjectPool } from './objectPool';
 import type { AITeammate, Asteroid } from './types';
+import { GAME_CONFIG } from './config';
 
-const AI_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1'];
+const AI_COLORS: readonly string[] = GAME_CONFIG.AI.COLORS;
 
 export class AIManager {
   private teammates: AITeammate[];
@@ -10,13 +11,11 @@ export class AIManager {
   private canvasWidth: number;
   private canvasHeight: number;
   private fireCooldown: number;
-  private laserSpeed: number;
-  private laserLength: number;
-  private laserWidth: number;
   private aiSpeed: number;
   private broadcastTargetPosition: { x: number; y: number } | null;
   private broadcastTargetTimer: number;
   private broadcastTargetDuration: number;
+  private broadcastResponseRange: number;
 
   constructor(
     laserPool: ObjectPool<Laser>,
@@ -27,25 +26,24 @@ export class AIManager {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
     this.teammates = [];
-    this.fireCooldown = 800;
-    this.laserSpeed = 7;
-    this.laserLength = 20;
-    this.laserWidth = 3;
-    this.aiSpeed = 2.5;
+    this.fireCooldown = GAME_CONFIG.AI.FIRE_COOLDOWN;
+    this.aiSpeed = GAME_CONFIG.AI.SPEED;
     this.broadcastTargetPosition = null;
     this.broadcastTargetTimer = 0;
-    this.broadcastTargetDuration = 5000;
+    this.broadcastTargetDuration = GAME_CONFIG.AI.BROADCAST_RESPONSE_DURATION;
+    this.broadcastResponseRange = GAME_CONFIG.AI.BROADCAST_RESPONSE_RANGE;
 
-    this.initTeammates(3);
+    this.initTeammates(GAME_CONFIG.AI.COUNT);
   }
 
   private initTeammates(count: number): void {
     for (let i = 0; i < count; i++) {
+      const color = AI_COLORS[i % AI_COLORS.length];
       this.teammates.push({
         id: i,
         x: 200 + i * 100,
         y: 150 + i * 80,
-        color: AI_COLORS[i % AI_COLORS.length],
+        color: color,
         targetId: null,
         fireCooldown: 0,
         angle: 0
@@ -83,7 +81,7 @@ export class AIManager {
           asteroids,
           this.broadcastTargetPosition.x,
           this.broadcastTargetPosition.y,
-          150
+          this.broadcastResponseRange
         );
       }
 
@@ -183,13 +181,24 @@ export class AIManager {
     laser.y = teammate.y;
     laser.dx = Math.cos(teammate.angle);
     laser.dy = Math.sin(teammate.angle);
-    laser.length = this.laserLength;
-    laser.width = this.laserWidth;
+    laser.length = GAME_CONFIG.AI.LASER_LENGTH;
+    laser.width = GAME_CONFIG.AI.LASER_WIDTH;
     laser.active = true;
   }
 
   getTeammates(): AITeammate[] {
     return this.teammates;
+  }
+
+  validateColors(): boolean {
+    if (this.teammates.length < 3) return false;
+    const expectedColors = ['#FF6B6B', '#4ECDC4', '#45B7D1'];
+    for (let i = 0; i < 3; i++) {
+      if (this.teammates[i].color !== expectedColors[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   reset(): void {
@@ -199,6 +208,7 @@ export class AIManager {
       this.teammates[i].targetId = null;
       this.teammates[i].fireCooldown = 0;
       this.teammates[i].angle = 0;
+      this.teammates[i].color = AI_COLORS[i % AI_COLORS.length];
     }
     this.broadcastTargetPosition = null;
     this.broadcastTargetTimer = 0;

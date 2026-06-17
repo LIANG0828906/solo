@@ -1,0 +1,83 @@
+export const GAME_CONFIG = {
+  CANVAS_WIDTH: 800,
+  CANVAS_HEIGHT: 600,
+
+  PLAYER: {
+    START_X: 100,
+    START_Y: 500,
+    SPEED: 4,
+    MAX_ENERGY: 100,
+    ENERGY_DRAIN_PER_SECOND: 1,
+    FIRE_COOLDOWN: 200,
+    BROADCAST_COOLDOWN: 2000,
+    RADIUS: 15
+  },
+
+  LASER: {
+    LENGTH: 20,
+    WIDTH: 4,
+    SPEED: 8,
+    COLOR: '#00FF00'
+  },
+
+  ASTEROID: {
+    MIN_RADIUS: 8,
+    MAX_RADIUS: 15,
+    MIN_SPEED: 1,
+    MAX_SPEED: 2,
+    MIN_FRAGMENT_RADIUS: 1,
+    SPAWN_INTERVAL: 2000,
+    SCORE_MOTHER: 10,
+    SCORE_FRAGMENT: 5
+  },
+
+  CAPSULE: {
+    RADIUS: 6,
+    ENERGY_RESTORE: 20,
+    DROP_PROBABILITY: 0.3
+  },
+
+  AI: {
+    COUNT: 3,
+    FIRE_COOLDOWN: 800,
+    LASER_LENGTH: 20,
+    LASER_WIDTH: 3,
+    LASER_SPEED: 7,
+    SPEED: 2.5,
+    BROADCAST_RESPONSE_DURATION: 5000,
+    BROADCAST_RESPONSE_RANGE: 150,
+    COLORS: ['#FF6B6B', '#4ECDC4', '#45B7D1'] as const
+  },
+
+  STARS: {
+    FAR_COUNT: 80,
+    NEAR_COUNT: 40,
+    FAR_SIZE: 1,
+    NEAR_SIZE: 2,
+    FAR_SPEED: 0.2,
+    NEAR_SPEED: 0.5,
+    MIN_OPACITY: 0.3,
+    MAX_OPACITY: 0.7
+  },
+
+  MINIMAP: {
+    WIDTH: 200,
+    HEIGHT: 150,
+    X: 10,
+    Y: 10,
+    BORDER_RADIUS: 8
+  },
+
+  BROADCAST: {
+    RADIUS: 40,
+    DURATION: 300,
+    COLOR: '#FFD93D'
+  },
+
+  FRAME: {
+    TARGET_FPS: 60,
+    MAX_DELTA_TIME: 250
+  }
+} as const;
+
+export type AIColor = typeof GAME_CONFIG.AI.COLORS[number];

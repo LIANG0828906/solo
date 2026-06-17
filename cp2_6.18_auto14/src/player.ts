@@ -1,6 +1,7 @@
 import type { Laser } from './collision';
 import { ObjectPool } from './objectPool';
 import type { BroadcastSignal } from './types';
+import { GAME_CONFIG } from './config';
 
 export interface PlayerConfig {
   startX: number;
@@ -25,6 +26,8 @@ export class Player {
   laserWidth: number;
   fireCooldown: number;
   lastFireTime: number;
+  private readonly initialX: number;
+  private readonly initialY: number;
   private laserPool: ObjectPool<Laser>;
   private keys: Set<string>;
   private canvasWidth: number;
@@ -39,6 +42,8 @@ export class Player {
     canvasWidth: number,
     canvasHeight: number
   ) {
+    this.initialX = config.startX;
+    this.initialY = config.startY;
     this.x = config.startX;
     this.y = config.startY;
     this.angle = 0;
@@ -55,7 +60,7 @@ export class Player {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
     this.broadcastSignal = null;
-    this.broadcastCooldown = 2000;
+    this.broadcastCooldown = GAME_CONFIG.PLAYER.BROADCAST_COOLDOWN;
     this.lastBroadcastTime = 0;
   }
 
@@ -95,7 +100,7 @@ export class Player {
     this.x += dx * moveSpeed;
     this.y += dy * moveSpeed;
 
-    const shipRadius = 15;
+    const shipRadius = GAME_CONFIG.PLAYER.RADIUS;
     this.x = Math.max(shipRadius, Math.min(this.canvasWidth - shipRadius, this.x));
     this.y = Math.max(shipRadius, Math.min(this.canvasHeight - shipRadius, this.y));
 
@@ -148,8 +153,8 @@ export class Player {
       x: this.x,
       y: this.y,
       radius: 0,
-      maxRadius: 40,
-      duration: 300,
+      maxRadius: GAME_CONFIG.BROADCAST.RADIUS,
+      duration: GAME_CONFIG.BROADCAST.DURATION,
       elapsed: 0,
       active: true
     };
@@ -174,8 +179,8 @@ export class Player {
   }
 
   reset(): void {
-    this.x = 100;
-    this.y = 500;
+    this.x = this.initialX;
+    this.y = this.initialY;
     this.angle = 0;
     this.energy = this.maxEnergy;
     this.lastFireTime = 0;

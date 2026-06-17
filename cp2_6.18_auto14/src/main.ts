@@ -5,9 +5,7 @@ import { Renderer } from './renderer';
 import { circleCircleCollision } from './collision';
 import { createLaserPool, createAsteroidPool, createCapsulePool } from './objectPool';
 import type { Star } from './types';
-
-const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 600;
+import { GAME_CONFIG } from './config';
 
 class Game {
   private canvas: HTMLCanvasElement;
@@ -25,52 +23,60 @@ class Game {
   private lastTime: number = 0;
   private energyDrainTimer: number = 0;
   private animationFrameId: number | null = null;
-  private readonly TARGET_FPS: number = 60;
+  private readonly TARGET_FPS: number = GAME_CONFIG.FRAME.TARGET_FPS;
   private readonly FRAME_DURATION: number = 1000 / this.TARGET_FPS;
+  private readonly MAX_DELTA_TIME: number = GAME_CONFIG.FRAME.MAX_DELTA_TIME;
   private accumulator: number = 0;
+  private fpsCounter: { frames: number; lastUpdate: number; currentFps: number } = {
+    frames: 0,
+    lastUpdate: 0,
+    currentFps: 60
+  };
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
     if (!this.canvas) {
       throw new Error('Canvas element not found');
     }
-    this.canvas.width = CANVAS_WIDTH;
-    this.canvas.height = CANVAS_HEIGHT;
+    this.canvas.width = GAME_CONFIG.CANVAS_WIDTH;
+    this.canvas.height = GAME_CONFIG.CANVAS_HEIGHT;
 
     this.renderer = new Renderer(this.canvas);
 
     this.player = new Player(
       {
-        startX: 100,
-        startY: 500,
-        speed: 4,
-        maxEnergy: 100,
-        laserSpeed: 8,
-        laserLength: 20,
-        laserWidth: 4,
-        fireCooldown: 200
+        startX: GAME_CONFIG.PLAYER.START_X,
+        startY: GAME_CONFIG.PLAYER.START_Y,
+        speed: GAME_CONFIG.PLAYER.SPEED,
+        maxEnergy: GAME_CONFIG.PLAYER.MAX_ENERGY,
+        laserSpeed: GAME_CONFIG.LASER.SPEED,
+        laserLength: GAME_CONFIG.LASER.LENGTH,
+        laserWidth: GAME_CONFIG.LASER.WIDTH,
+        fireCooldown: GAME_CONFIG.PLAYER.FIRE_COOLDOWN
       },
       this.laserPool,
-      CANVAS_WIDTH,
-      CANVAS_HEIGHT
+      GAME_CONFIG.CANVAS_WIDTH,
+      GAME_CONFIG.CANVAS_HEIGHT
     );
 
     this.enemyManager = new EnemyManager(
       this.asteroidPool,
       this.capsulePool,
-      CANVAS_WIDTH,
-      CANVAS_HEIGHT
+      GAME_CONFIG.CANVAS_WIDTH,
+      GAME_CONFIG.CANVAS_HEIGHT
     );
 
     this.aiManager = new AIManager(
       this.laserPool,
-      CANVAS_WIDTH,
-      CANVAS_HEIGHT
+      GAME_CONFIG.CANVAS_WIDTH,
+      GAME_CONFIG.CANVAS_HEIGHT
     );
 
     this.renderer.generateStars(this.starsFar, this.starsNear);
 
     this.setupEventListeners();
+
+    console.log('AI颜色验证:', this.aiManager.validateColors() ? '通过' : '失败');
   }
 
   private setupEventListeners(): void {
@@ -106,25 +112,41 @@ class Game {
 
   start(): void {
     this.lastTime = performance.now();
+    this.fpsCounter.lastUpdate = this.lastTime;
     this.gameLoop();
   }
 
   private gameLoop = (): void => {
     const currentTime = performance.now();
     let deltaTime = currentTime - this.lastTime;
-    
-    if (deltaTime > 100) {
+
+    if (deltaTime > this.MAX_DELTA_TIME) {
       deltaTime = this.FRAME_DURATION;
     }
-    
+
     this.lastTime = currentTime;
     this.accumulator += deltaTime;
 
-    while (this.accumulator >= this.FRAME_DURATION) {
+    this.fpsCounter.frames++;
+    if (currentTime - this.fpsCounter.lastUpdate >= 1000) {
+      this.fpsCounter.currentFps = this.fpsCounter.frames;
+      this.fpsCounter.frames = 0;
+      this.fpsCounter.lastUpdate = currentTime;
+    }
+
+    let steps = 0;
+    const maxSteps = 5;
+
+    while (this.accumulator >= this.FRAME_DURATION && steps < maxSteps) {
       if (!this.gameOver) {
         this.update(this.FRAME_DURATION, currentTime);
       }
       this.accumulator -= this.FRAME_DURATION;
+      steps++;
+    }
+
+    if (steps >= maxSteps && this.accumulator >= this.FRAME_DURATION) {
+      this.accumulator = 0;
     }
 
     this.renderer.updateHoverEffects(deltaTime);
@@ -161,7 +183,7 @@ class Game {
     this.energyDrainTimer += deltaTime;
     if (this.energyDrainTimer >= 1000) {
       this.energyDrainTimer -= 1000;
-      this.player.consumeEnergy(1);
+      this.player.consumeEnergy(GAME_CONFIG.PLAYER.ENERGY_DRAIN_PER_SECOND);
       if (this.player.energy <= 0) {
         this.gameOver = true;
       }
@@ -170,12 +192,12 @@ class Game {
     const capsules = this.enemyManager.getCapsules();
     for (const capsule of capsules) {
       if (!capsule.active) continue;
-      
+
       if (circleCircleCollision(
-        { x: this.player.x, y: this.player.y, radius: 15 },
+        { x: this.player.x, y: this.player.y, radius: GAME_CONFIG.PLAYER.RADIUS },
         { x: capsule.x, y: capsule.y, radius: capsule.radius }
       )) {
-        this.player.addEnergy(20);
+        this.player.addEnergy(GAME_CONFIG.CAPSULE.ENERGY_RESTORE);
         this.enemyManager.collectCapsule(capsule);
       }
     }
@@ -210,15 +232,13 @@ class Game {
     this.gameOver = false;
     this.energyDrainTimer = 0;
     this.accumulator = 0;
-    
+
     this.player.reset();
     this.enemyManager.reset();
     this.aiManager.reset();
-    
-    for (const laser of this.laserPool.getAll()) {
-      this.laserPool.release(laser);
-    }
-    
+
+    this.laserPool.resetAll();
+
     this.renderer.generateStars(this.starsFar, this.starsNear);
     this.lastTime = performance.now();
   }
@@ -227,6 +247,10 @@ class Game {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
     }
+  }
+
+  getCurrentFps(): number {
+    return this.fpsCounter.currentFps;
   }
 }
 

@@ -1,6 +1,7 @@
 import type { Laser } from './collision';
 import type { AITeammate, Asteroid, BroadcastSignal, EnergyCapsule, Star } from './types';
 import { Player } from './player';
+import { GAME_CONFIG } from './config';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -21,10 +22,10 @@ export class Renderer {
     this.ctx = canvas.getContext('2d')!;
     this.width = canvas.width;
     this.height = canvas.height;
-    this.minimapWidth = 200;
-    this.minimapHeight = 150;
-    this.minimapX = 10;
-    this.minimapY = 10;
+    this.minimapWidth = GAME_CONFIG.MINIMAP.WIDTH;
+    this.minimapHeight = GAME_CONFIG.MINIMAP.HEIGHT;
+    this.minimapX = GAME_CONFIG.MINIMAP.X;
+    this.minimapY = GAME_CONFIG.MINIMAP.Y;
   }
 
   clear(): void {
@@ -111,10 +112,10 @@ export class Renderer {
       if (!laser.active) continue;
 
       this.ctx.save();
-      this.ctx.strokeStyle = '#00FF00';
+      this.ctx.strokeStyle = GAME_CONFIG.LASER.COLOR;
       this.ctx.lineWidth = laser.width;
       this.ctx.lineCap = 'round';
-      this.ctx.shadowColor = '#00FF00';
+      this.ctx.shadowColor = GAME_CONFIG.LASER.COLOR;
       this.ctx.shadowBlur = 8;
 
       this.ctx.beginPath();
@@ -200,9 +201,9 @@ export class Renderer {
     if (!signal || !signal.active) return;
 
     this.ctx.save();
-    this.ctx.strokeStyle = '#FFD93D';
+    this.ctx.strokeStyle = GAME_CONFIG.BROADCAST.COLOR;
     this.ctx.lineWidth = 3;
-    this.ctx.shadowColor = '#FFD93D';
+    this.ctx.shadowColor = GAME_CONFIG.BROADCAST.COLOR;
     this.ctx.shadowBlur = 12;
     this.ctx.globalAlpha = 1 - signal.elapsed / signal.duration;
 
@@ -414,23 +415,25 @@ export class Renderer {
     starsFar.length = 0;
     starsNear.length = 0;
 
-    for (let i = 0; i < 80; i++) {
+    const opacityRange = GAME_CONFIG.STARS.MAX_OPACITY - GAME_CONFIG.STARS.MIN_OPACITY;
+
+    for (let i = 0; i < GAME_CONFIG.STARS.FAR_COUNT; i++) {
       starsFar.push({
         x: Math.random() * this.width,
         y: Math.random() * this.height,
-        size: 1,
-        speed: 0.2,
-        opacity: 0.3 + Math.random() * 0.4
+        size: GAME_CONFIG.STARS.FAR_SIZE,
+        speed: GAME_CONFIG.STARS.FAR_SPEED,
+        opacity: GAME_CONFIG.STARS.MIN_OPACITY + Math.random() * opacityRange
       });
     }
 
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < GAME_CONFIG.STARS.NEAR_COUNT; i++) {
       starsNear.push({
         x: Math.random() * this.width,
         y: Math.random() * this.height,
-        size: 2,
-        speed: 0.5,
-        opacity: 0.5 + Math.random() * 0.2
+        size: GAME_CONFIG.STARS.NEAR_SIZE,
+        speed: GAME_CONFIG.STARS.NEAR_SPEED,
+        opacity: GAME_CONFIG.STARS.MIN_OPACITY + Math.random() * opacityRange
       });
     }
   }

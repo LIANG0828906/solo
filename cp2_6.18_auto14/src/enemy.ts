@@ -2,6 +2,7 @@ import type { Laser } from './collision';
 import { laserCircleCollision } from './collision';
 import { ObjectPool } from './objectPool';
 import type { Asteroid, EnergyCapsule } from './types';
+import { GAME_CONFIG } from './config';
 
 let asteroidIdCounter = 0;
 let capsuleIdCounter = 0;
@@ -29,11 +30,11 @@ export class EnemyManager {
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
     this.spawnTimer = 0;
-    this.spawnInterval = 2000;
-    this.minAsteroidRadius = 8;
-    this.maxAsteroidRadius = 15;
-    this.minSpeed = 1;
-    this.maxSpeed = 2;
+    this.spawnInterval = GAME_CONFIG.ASTEROID.SPAWN_INTERVAL;
+    this.minAsteroidRadius = GAME_CONFIG.ASTEROID.MIN_RADIUS;
+    this.maxAsteroidRadius = GAME_CONFIG.ASTEROID.MAX_RADIUS;
+    this.minSpeed = GAME_CONFIG.ASTEROID.MIN_SPEED;
+    this.maxSpeed = GAME_CONFIG.ASTEROID.MAX_SPEED;
   }
 
   update(deltaTime: number): void {
@@ -81,12 +82,12 @@ export class EnemyManager {
     asteroid.radius = this.minAsteroidRadius + Math.random() * (this.maxAsteroidRadius - this.minAsteroidRadius);
     asteroid.x = this.canvasWidth + asteroid.radius;
     asteroid.y = asteroid.radius + Math.random() * (this.canvasHeight - asteroid.radius * 2);
-    
+
     const speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
     const angle = (Math.random() - 0.5) * 0.5;
     asteroid.vx = -speed * Math.cos(angle);
     asteroid.vy = speed * Math.sin(angle);
-    
+
     asteroid.isFragment = false;
     asteroid.rotation = Math.random() * Math.PI * 2;
     asteroid.rotationSpeed = (Math.random() - 0.5) * 0.1;
@@ -114,7 +115,7 @@ export class EnemyManager {
     capsule.y = y;
     capsule.vx = -0.5;
     capsule.vy = (Math.random() - 0.5) * 0.5;
-    capsule.radius = 6;
+    capsule.radius = GAME_CONFIG.CAPSULE.RADIUS;
     capsule.active = true;
   }
 
@@ -133,7 +134,7 @@ export class EnemyManager {
           laser.active = false;
           destroyed.push(asteroid);
           this.destroyAsteroid(asteroid);
-          score += asteroid.isFragment ? 5 : 10;
+          score += asteroid.isFragment ? GAME_CONFIG.ASTEROID.SCORE_FRAGMENT : GAME_CONFIG.ASTEROID.SCORE_MOTHER;
           break;
         }
       }
@@ -143,32 +144,34 @@ export class EnemyManager {
   }
 
   private destroyAsteroid(asteroid: Asteroid): void {
-    const fragmentRadius = asteroid.radius / 2;
-    
-    if (fragmentRadius >= 1) {
-      const speed = Math.sqrt(asteroid.vx * asteroid.vx + asteroid.vy * asteroid.vy);
-      
-      const angle1 = Math.atan2(asteroid.vy, asteroid.vx) + Math.PI / 4;
-      const angle2 = Math.atan2(asteroid.vy, asteroid.vx) - Math.PI / 4;
-      
-      this.spawnFragment(
-        asteroid.x,
-        asteroid.y,
-        fragmentRadius,
-        Math.cos(angle1) * speed * 1.2,
-        Math.sin(angle1) * speed * 1.2
-      );
-      this.spawnFragment(
-        asteroid.x,
-        asteroid.y,
-        fragmentRadius,
-        Math.cos(angle2) * speed * 1.2,
-        Math.sin(angle2) * speed * 1.2
-      );
-    }
+    if (!asteroid.isFragment) {
+      const fragmentRadius = asteroid.radius / 2;
 
-    if (!asteroid.isFragment && Math.random() < 0.3) {
-      this.spawnCapsule(asteroid.x, asteroid.y);
+      if (fragmentRadius >= GAME_CONFIG.ASTEROID.MIN_FRAGMENT_RADIUS) {
+        const speed = Math.sqrt(asteroid.vx * asteroid.vx + asteroid.vy * asteroid.vy);
+
+        const angle1 = Math.atan2(asteroid.vy, asteroid.vx) + Math.PI / 4;
+        const angle2 = Math.atan2(asteroid.vy, asteroid.vx) - Math.PI / 4;
+
+        this.spawnFragment(
+          asteroid.x,
+          asteroid.y,
+          fragmentRadius,
+          Math.cos(angle1) * speed * 1.2,
+          Math.sin(angle1) * speed * 1.2
+        );
+        this.spawnFragment(
+          asteroid.x,
+          asteroid.y,
+          fragmentRadius,
+          Math.cos(angle2) * speed * 1.2,
+          Math.sin(angle2) * speed * 1.2
+        );
+      }
+
+      if (Math.random() < GAME_CONFIG.CAPSULE.DROP_PROBABILITY) {
+        this.spawnCapsule(asteroid.x, asteroid.y);
+      }
     }
 
     this.asteroidPool.release(asteroid);
@@ -187,12 +190,8 @@ export class EnemyManager {
   }
 
   reset(): void {
-    for (const asteroid of this.asteroidPool.getAll()) {
-      this.asteroidPool.release(asteroid);
-    }
-    for (const capsule of this.capsulePool.getAll()) {
-      this.capsulePool.release(capsule);
-    }
+    this.asteroidPool.resetAll();
+    this.capsulePool.resetAll();
     this.spawnTimer = 0;
   }
 }
