@@ -308,7 +308,6 @@ export function VoteDetail({ topicId, onBack }: VoteDetailProps) {
               borderTop: '1px solid var(--border-default)',
             }}
           >
-            <CountdownTimer deadline={topicMeta.deadline} variant="card" />
             <div
               style={{
                 display: 'flex',

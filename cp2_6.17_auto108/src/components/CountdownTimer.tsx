@@ -6,20 +6,30 @@ import type { CountdownData } from '../utils/time';
 type CountdownVariant = 'detail' | 'card';
 
 interface CountdownTimerProps {
-  deadline: number;
+  deadline?: number | null;
   variant?: CountdownVariant;
 }
 
 export function CountdownTimer({ deadline, variant = 'detail' }: CountdownTimerProps) {
-  const [countdown, setCountdown] = useState<CountdownData>(() => getCountdown(deadline));
+  const [countdown, setCountdown] = useState<CountdownData | null>(() =>
+    deadline != null ? getCountdown(deadline) : null,
+  );
 
   useEffect(() => {
+    if (deadline == null) {
+      setCountdown(null);
+      return;
+    }
     setCountdown(getCountdown(deadline));
     const interval = setInterval(() => {
       setCountdown(getCountdown(deadline));
     }, 1000);
     return () => clearInterval(interval);
   }, [deadline]);
+
+  if (deadline == null || countdown == null) {
+    return null;
+  }
 
   const getColor = (): string => {
     if (countdown.isExpired) return 'var(--text-secondary)';
@@ -43,13 +53,16 @@ export function CountdownTimer({ deadline, variant = 'detail' }: CountdownTimerP
       >
         <Clock size={14} />
         {countdown.isExpired ? (
-          <span>已结束</span>
+          <span style={{ color: 'var(--text-secondary)' }}>已结束</span>
         ) : countdown.isUrgent ? (
-          <span style={{ fontWeight: 600 }}>
+          <span style={{ fontWeight: 600, color }}>
             {countdown.hours}时{countdown.minutes}分{countdown.seconds}秒
           </span>
         ) : (
-          <span>剩余 {countdown.label}</span>
+          <span style={{ color }}>
+            {countdown.days > 0 && `${countdown.days}天 `}
+            {countdown.hours}时{countdown.minutes}分{countdown.seconds}秒
+          </span>
         )}
       </div>
     );
@@ -135,16 +148,19 @@ function TimeUnit({ value, unit, color }: { value: number; unit: string; color: 
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          minWidth: '36px',
-          height: '32px',
-          padding: '0 8px',
+          textAlign: 'center',
+          minWidth: '42px',
+          width: '42px',
+          height: '36px',
+          padding: '0',
           backgroundColor: 'var(--bg-component)',
-          borderRadius: '6px',
-          fontSize: '16px',
+          borderRadius: '8px',
+          fontSize: '18px',
           fontWeight: 700,
           color,
           fontVariantNumeric: 'tabular-nums',
           transition: 'color 0.3s',
+          flexShrink: 0,
         }}
       >
         {String(value).padStart(2, '0')}
@@ -154,6 +170,8 @@ function TimeUnit({ value, unit, color }: { value: number; unit: string; color: 
           fontSize: '12px',
           color: 'var(--text-secondary)',
           fontWeight: 500,
+          minWidth: '16px',
+          textAlign: 'center',
         }}
       >
         {unit}
