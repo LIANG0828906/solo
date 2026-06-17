@@ -342,9 +342,9 @@ export class PlantRenderer {
       }
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const material = new THREE.LineBasicMaterial({
-        color: 0xaaaaaa,
+        color: 0xcccccc,
         transparent: true,
-        opacity: 0.5,
+        opacity: 0.25,
       });
       const line = new THREE.Line(geometry, material);
       line.renderOrder = 10;
@@ -354,8 +354,7 @@ export class PlantRenderer {
     for (let i = 0; i < this.stemData.layers.length - 1; i++) {
       const outerLayer = this.stemData.layers[i];
       const innerLayer = this.stemData.layers[i + 1];
-      const midRadius = (outerLayer.innerRadius + innerLayer.outerRadius) / 2;
-      const gapRadius = midRadius;
+      const gapRadius = (outerLayer.innerRadius + innerLayer.outerRadius) / 2;
 
       const topRing = createRingAtHeight(gapRadius, halfHeight);
       const bottomRing = createRingAtHeight(gapRadius, -halfHeight);
@@ -363,20 +362,6 @@ export class PlantRenderer {
       this.boundaryRingLines.push(topRing, bottomRing);
       this.stemGroup.add(topRing);
       this.stemGroup.add(bottomRing);
-    }
-
-    for (let i = 0; i < this.stemData.layers.length; i++) {
-      const layer = this.stemData.layers[i];
-      const topOuterRing = createRingAtHeight(layer.outerRadius, halfHeight);
-      const bottomOuterRing = createRingAtHeight(layer.outerRadius, -halfHeight);
-      const topInnerRing = createRingAtHeight(layer.innerRadius, halfHeight);
-      const bottomInnerRing = createRingAtHeight(layer.innerRadius, -halfHeight);
-
-      this.boundaryRingLines.push(topOuterRing, bottomOuterRing, topInnerRing, bottomInnerRing);
-      this.stemGroup.add(topOuterRing);
-      this.stemGroup.add(bottomOuterRing);
-      this.stemGroup.add(topInnerRing);
-      this.stemGroup.add(bottomInnerRing);
     }
   }
 
@@ -433,11 +418,11 @@ export class PlantRenderer {
     const epidermisLayer = this.stemData.layers[0];
     if (!epidermisLayer) return;
 
-    const glowRadius = epidermisLayer.outerRadius + 0.08;
+    const glowRadius = epidermisLayer.outerRadius + 0.025;
     const geometry = new THREE.CylinderGeometry(
       glowRadius,
       glowRadius,
-      this.stemData.height + 0.1,
+      this.stemData.height + 0.05,
       64,
       1,
       true
@@ -722,24 +707,10 @@ export class PlantRenderer {
       this.outerGlowWireframe.visible = currentLayer <= 1;
     }
 
-    const gapLinesCount = (this.stemData.layers.length - 1) * 2;
-    const layerLinesPerLayer = 4;
     for (let i = 0; i < this.boundaryRingLines.length; i++) {
-      let visible = false;
-      if (i < gapLinesCount) {
-        const gapIndex = Math.floor(i / 2);
-        visible = currentLayer <= gapIndex + 1;
-      } else {
-        const lineOffset = i - gapLinesCount;
-        const layerIndex = Math.floor(lineOffset / layerLinesPerLayer);
-        visible = currentLayer <= layerIndex + 1;
-      }
-      this.boundaryRingLines[i].visible = visible;
+      const gapIndex = Math.floor(i / 2);
+      this.boundaryRingLines[i].visible = currentLayer <= gapIndex + 1;
     }
-
-    this.vascularParticleSystems.forEach((points) => {
-      points.visible = currentLayer >= 3;
-    });
   }
 
   public setLayerOpacity(layerId: string, opacity: number): void {
