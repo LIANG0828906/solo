@@ -3,8 +3,8 @@ import { useStore, ColorTheme, colorPalettes } from '../store/useStore'
 
 const themes: { id: ColorTheme; name: string; color: string }[] = [
   { id: 'aurora', name: '极光', color: '#00FF87' },
-  { id: 'flame', name: '火焰', color: '#FF6B6B' },
-  { id: 'ocean', name: '海洋', color: '#60EFFF' }
+  { id: 'flame', name: '火焰', color: '#FF4500' },
+  { id: 'ocean', name: '海洋', color: '#00BFFF' }
 ]
 
 const particleTicks = [1000, 3000, 5000, 7000, 10000]
@@ -153,7 +153,9 @@ export default function ControlPanel() {
               }}
             >
               <span>粒子数量</span>
-              <span style={{ color: '#00FF87', fontWeight: 500 }}>{particleCount}</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                {particleCount}颗
+              </span>
             </div>
             <div style={{ position: 'relative', paddingTop: 2, paddingBottom: 8 }}>
               <input
@@ -235,7 +237,9 @@ export default function ControlPanel() {
               }}
             >
               <span>流动速度</span>
-              <span style={{ color: '#60EFFF', fontWeight: 500 }}>{flowSpeed.toFixed(1)}</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                {flowSpeed.toFixed(1)}单位/秒
+              </span>
             </div>
             <input
               type="range"
@@ -267,7 +271,9 @@ export default function ControlPanel() {
               }}
             >
               <span>力场强度</span>
-              <span style={{ color: '#D4A5FF', fontWeight: 500 }}>{forceFieldStrength}</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                {forceFieldStrength}
+              </span>
             </div>
             <input
               type="range"

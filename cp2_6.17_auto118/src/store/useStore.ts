@@ -28,8 +28,8 @@ interface AppState {
 
 export const colorPalettes: Record<ColorTheme, string[]> = {
   aurora: ['#00FF87', '#60EFFF', '#D4A5FF'],
-  flame: ['#FF6B6B', '#FFE66D', '#FF8C42'],
-  ocean: ['#60EFFF', '#0066FF', '#003366']
+  flame: ['#FF4500', '#FF6347', '#FFD700'],
+  ocean: ['#00BFFF', '#1E90FF', '#87CEEB']
 }
 
 export const useStore = create<AppState>((set) => ({
