@@ -239,6 +239,14 @@
       0%, 100% { opacity: 0.5; transform: translateX(-50%) translateY(0); }
       50% { opacity: 0.95; transform: translateX(-50%) translateY(-4px); }
     }
+    @keyframes fuelWarn {
+      0%, 100% { opacity: 0.55; filter: brightness(1); }
+      50% { opacity: 1; filter: brightness(1.6); }
+    }
+    .fuel-low {
+      animation: fuelWarn 0.7s ease-in-out infinite;
+      background: linear-gradient(90deg,#E53935,#FF5252) !important;
+    }
   </style>
 </head>
 <body>
@@ -248,7 +256,14 @@
       <h3>◆ 状态面板</h3>
       <div><span class="label">速度:</span><span id="stat-speed">0.00</span> px/s</div>
       <div><span class="label">航向:</span><span id="stat-angle">0.0</span>°</div>
-      <div><span class="label">燃料:</span><span id="stat-fuel">100</span>%</div>
+      <div id="fuel-row" style="display: flex; align-items: center; justify-content: space-between;">
+        <span style="display: flex; align-items: center;">
+          <span class="label">燃料:</span><span id="stat-fuel">100</span>%
+        </span>
+        <span id="fuel-bar-wrap" style="width:80px; height:6px; background:#2A2A3A; border-radius:3px; overflow:hidden; margin-left:8px; position:relative;">
+          <span id="fuel-bar" style="display:block; height:100%; width:100%; background:linear-gradient(90deg,#4CAF50,#8BC34A); border-radius:3px; transition: width 0.3s ease, background 0.3s ease;"></span>
+        </span>
+      </div>
       <div><span class="label">机动:</span><span id="stat-maneuver">0</span> 次</div>
       <div><span class="label">路径:</span><span id="stat-traillength">0</span> px</div>
       <div id="stat-gravity" style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.08);">

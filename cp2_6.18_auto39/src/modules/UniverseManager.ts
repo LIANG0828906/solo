@@ -20,6 +20,7 @@ export interface Planet {
   radius: number;
   influenceRadius: number;
   mass: number;
+  pulsePhase: number;
   x: number; y: number;
 }
 
@@ -27,6 +28,7 @@ export interface Target {
   x: number; y: number;
   radius: number;
   blinkPhase: number;
+  ringPhase: number;
 }
 
 const WARM_COLORS: string[] = ['#E74C3C', '#F39C12', '#1ABC9C'];
@@ -56,7 +58,7 @@ export class UniverseManager {
       baseHaloRadius: 60,
       pulsePhase: 0
     };
-    this.target = { x: 0, y: 0, radius: 20, blinkPhase: 0 };
+    this.target = { x: 0, y: 0, radius: 20, blinkPhase: 0, ringPhase: 0 };
   }
 
   setViewport(w: number, h: number): void {
@@ -73,7 +75,7 @@ export class UniverseManager {
     this.hoveredPlanetId = null;
     this.nextOrbitColorIdx = 0;
     this.usedNames.clear();
-    this.target = { x: 0, y: 0, radius: 20, blinkPhase: 0 };
+    this.target = { x: 0, y: 0, radius: 20, blinkPhase: 0, ringPhase: 0 };
     this.spawnDefaultPlanet();
     this.spawnTarget();
   }
@@ -99,6 +101,7 @@ export class UniverseManager {
       radius: 14,
       influenceRadius: 40,
       mass: 320,
+      pulsePhase: Math.random() * Math.PI * 2,
       x: 0, y: 0
     };
     this.updatePlanetPosition(p);
@@ -127,6 +130,7 @@ export class UniverseManager {
       radius: 10 + Math.random() * 6,
       influenceRadius: influenceDiameter,
       mass: 260 + influenceDiameter * 6,
+      pulsePhase: Math.random() * Math.PI * 2,
       x: 0, y: 0
     };
     this.updatePlanetPosition(p);
@@ -145,6 +149,7 @@ export class UniverseManager {
     this.target.x = this.centerX + Math.cos(angle) * r;
     this.target.y = this.centerY + Math.sin(angle) * r;
     this.target.blinkPhase = 0;
+    this.target.ringPhase = 0;
   }
 
   randomCraftStart(): { x: number; y: number } {
@@ -178,8 +183,10 @@ export class UniverseManager {
       }
     }
     this.target.blinkPhase += (Math.PI * 2 / blinkPeriod) * dt;
+    this.target.ringPhase += (Math.PI * 2 / 3) * dt;
     for (const p of this.planets) {
       p.orbitAngle += p.orbitSpeed * dt * 60;
+      p.pulsePhase += (Math.PI * 2 / 2) * dt;
       this.updatePlanetPosition(p);
     }
   }
@@ -274,15 +281,17 @@ export class UniverseManager {
 
   private renderInfluenceRanges(ctx: CanvasRenderingContext2D): void {
     for (const p of this.planets) {
-      const grad = ctx.createRadialGradient(p.x, p.y, p.radius, p.x, p.y, p.influenceRadius);
-      grad.addColorStop(0, 'rgba(255,221,68,0.28)');
+      const pulse = 1 + 0.125 * Math.sin(p.pulsePhase);
+      const effR = p.influenceRadius * pulse;
+      const grad = ctx.createRadialGradient(p.x, p.y, p.radius, p.x, p.y, effR);
+      grad.addColorStop(0, 'rgba(255,221,68,0.30)');
       grad.addColorStop(1, 'rgba(255,221,68,0.02)');
       ctx.save();
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.influenceRadius, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, effR, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,221,68,0.22)';
+      ctx.strokeStyle = `rgba(255,221,68,${0.18 + 0.08 * (0.5 + 0.5 * Math.sin(p.pulsePhase))})`;
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 5]);
       ctx.stroke();
@@ -345,6 +354,24 @@ export class UniverseManager {
     ctx.arc(t.x, t.y, t.radius + 16, 0, Math.PI * 2);
     ctx.fillStyle = '#FFD700';
     ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    const ringR = t.radius + 10;
+    const numDots = 8;
+    for (let i = 0; i < numDots; i++) {
+      const a = t.ringPhase + (Math.PI * 2 / numDots) * i;
+      const dx = Math.cos(a) * ringR;
+      const dy = Math.sin(a) * ringR;
+      const dotAlpha = 0.45 + 0.35 * Math.sin(t.blinkPhase + i * 0.4);
+      ctx.globalAlpha = dotAlpha * 0.85;
+      ctx.fillStyle = '#FFD700';
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(t.x + dx, t.y + dy, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 

@@ -217,13 +217,13 @@ export class SimulationEngine {
     }
 
     if (inRangeId) {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 4; i++) {
         this.pushParticle(
           craft.x - movedDx * Math.random(),
           craft.y - movedDy * Math.random(),
           -craft.vx * 0.05 + (Math.random() - 0.5) * 0.4,
           -craft.vy * 0.05 + (Math.random() - 0.5) * 0.4,
-          1.5
+          2.0
         );
       }
     }
@@ -374,8 +374,8 @@ export class SimulationEngine {
     ctx.globalCompositeOperation = 'lighter';
     for (const p of this.particles) {
       const t = p.life / p.maxLife;
-      const r = 1.5 + t * 2.2;
-      const alpha = 0.15 + t * 0.55;
+      const r = 2 + (1 - t) * 4;
+      const alpha = 0.12 + t * 0.5;
       const rC = Math.round(255);
       const gC = Math.round(180 + (t - 0.5) * 120);
       const bC = Math.round(40 + (1 - t) * 80);

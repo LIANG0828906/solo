@@ -15,6 +15,7 @@ const statFuel = $('stat-fuel') as HTMLElement;
 const statManeuver = $('stat-maneuver') as HTMLElement;
 const statTrailLength = $('stat-traillength') as HTMLElement;
 const statGravityStatus = $('stat-gravity-status') as HTMLElement;
+const fuelBar = $('fuel-bar') as HTMLElement;
 const addPlanetBtn = $('add-planet-btn') as HTMLButtonElement;
 const planetTooltip = $('planet-tooltip') as HTMLElement;
 const maneuverMenu = $('maneuver-menu') as HTMLElement;
@@ -95,6 +96,12 @@ function updateStatusPanel(s: { speed: number; angle: number; fuel: number; mane
   statFuel.textContent = s.fuel.toFixed(0);
   statManeuver.textContent = String(s.maneuverCount);
   statTrailLength.textContent = Math.round(s.trailLength).toString();
+  fuelBar.style.width = Math.max(0, Math.min(100, s.fuel)) + '%';
+  if (s.fuel < 30) {
+    fuelBar.classList.add('fuel-low');
+  } else {
+    fuelBar.classList.remove('fuel-low');
+  }
   if (s.inGravityRange) {
     statGravityStatus.textContent = '引力影响中';
     statGravityStatus.style.color = '#FFD700';
