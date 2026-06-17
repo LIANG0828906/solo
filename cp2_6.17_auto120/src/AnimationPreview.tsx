@@ -119,14 +119,14 @@ ${frames}
   const isPlayingRef = useRef(isPlaying);
   useEffect(() => {
     isPlayingRef.current = isPlaying;
+    if (!isPlaying) {
+      lastTsRef.current = null;
+    }
   }, [isPlaying]);
 
   useEffect(() => {
-    if (isPlaying) {
-      timeRef.current = currentTime;
-      lastTsRef.current = null;
-      const tick = (ts: number) => {
-        if (!isPlayingRef.current) return;
+    const tick = (ts: number) => {
+      if (isPlayingRef.current) {
         if (lastTsRef.current === null) lastTsRef.current = ts;
         const delta = (ts - lastTsRef.current) / 1000;
         lastTsRef.current = ts;
@@ -139,20 +139,22 @@ ${frames}
             setPlaying(false);
             setCurrentTime(MAX_DURATION);
             timeRef.current = MAX_DURATION;
-            return;
+            lastTsRef.current = null;
           }
         } else {
           setCurrentTime(newTime);
           timeRef.current = newTime;
         }
-        rafRef.current = requestAnimationFrame(tick);
-      };
+      } else {
+        lastTsRef.current = null;
+      }
       rafRef.current = requestAnimationFrame(tick);
-      return () => {
-        if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-      };
-    }
-  }, [isPlaying, config.iterations, setCurrentTime, setPlaying]);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [config.iterations, setCurrentTime, setPlaying]);
 
   const progressPercent = (currentTime / MAX_DURATION) * 100;
 

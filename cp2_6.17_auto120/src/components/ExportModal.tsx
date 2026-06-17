@@ -23,13 +23,14 @@ export const ExportModal: React.FC = () => {
     try {
       const textarea = document.createElement('textarea');
       textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.left = '-9999px';
+      textarea.style.position = 'absolute';
       textarea.style.top = '-9999px';
-      textarea.style.opacity = '0';
+      textarea.style.left = '0';
+      textarea.readOnly = true;
       document.body.appendChild(textarea);
       textarea.focus();
       textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
       const success = document.execCommand('copy');
       document.body.removeChild(textarea);
       return success;
@@ -178,7 +179,7 @@ export const ExportModal: React.FC = () => {
             }}
           >
             {copyFailed ? <X size={16} /> : copied ? <Check size={16} /> : <Copy size={16} />}
-            {copyFailed ? '复制失败，请手动选择' : copied ? '已复制' : '复制代码'}
+            {copyFailed ? '复制失败，按 Ctrl+C 或右键复制' : copied ? '已复制' : '复制代码'}
           </button>
         </div>
       </div>

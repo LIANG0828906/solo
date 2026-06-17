@@ -100,7 +100,12 @@ export const PropertyPanel: React.FC = () => {
           value={selected.transform.translateX}
           onChange={(e) =>
             updateKeyframe(selected.id, {
-              transform: { ...selected.transform, translateX: parseFloat(e.target.value) || 0 },
+              transform: {
+                translateX: parseFloat(e.target.value) || 0,
+                translateY: selected.transform.translateY,
+                rotate: selected.transform.rotate,
+                scale: selected.transform.scale,
+              },
             })
           }
           style={inputWrapperStyle}
@@ -116,7 +121,12 @@ export const PropertyPanel: React.FC = () => {
           value={selected.transform.translateY}
           onChange={(e) =>
             updateKeyframe(selected.id, {
-              transform: { ...selected.transform, translateY: parseFloat(e.target.value) || 0 },
+              transform: {
+                translateX: selected.transform.translateX,
+                translateY: parseFloat(e.target.value) || 0,
+                rotate: selected.transform.rotate,
+                scale: selected.transform.scale,
+              },
             })
           }
           style={inputWrapperStyle}
@@ -132,7 +142,12 @@ export const PropertyPanel: React.FC = () => {
           value={selected.transform.rotate}
           onChange={(e) =>
             updateKeyframe(selected.id, {
-              transform: { ...selected.transform, rotate: parseFloat(e.target.value) || 0 },
+              transform: {
+                translateX: selected.transform.translateX,
+                translateY: selected.transform.translateY,
+                rotate: parseFloat(e.target.value) || 0,
+                scale: selected.transform.scale,
+              },
             })
           }
           style={inputWrapperStyle}
@@ -150,7 +165,12 @@ export const PropertyPanel: React.FC = () => {
           value={selected.transform.scale}
           onChange={(e) =>
             updateKeyframe(selected.id, {
-              transform: { ...selected.transform, scale: parseFloat(e.target.value) || 0 },
+              transform: {
+                translateX: selected.transform.translateX,
+                translateY: selected.transform.translateY,
+                rotate: selected.transform.rotate,
+                scale: parseFloat(e.target.value) || 0,
+              },
             })
           }
           style={inputWrapperStyle}

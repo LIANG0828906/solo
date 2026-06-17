@@ -36,7 +36,7 @@ export const CurveEditor: React.FC<Props> = () => {
       if (!dragging) return;
       const { x, y } = getMousePos(e);
       const nx = Math.max(0, Math.min(1, fromSvgX(x)));
-      const ny = fromSvgY(y);
+      const ny = Math.max(0, Math.min(1, fromSvgY(y)));
 
       if (dragging === 'p1') {
         setEasing({ ...easing, x1: nx, y1: ny });
@@ -48,8 +48,15 @@ export const CurveEditor: React.FC<Props> = () => {
   );
 
   const handleMouseUp = useCallback(() => {
+    const current = useAnimationStore.getState().animationConfig.easing;
+    setEasing({
+      x1: Math.max(0, Math.min(1, current.x1)),
+      y1: Math.max(0, Math.min(1, current.y1)),
+      x2: Math.max(0, Math.min(1, current.x2)),
+      y2: Math.max(0, Math.min(1, current.y2)),
+    });
     setDragging(null);
-  }, []);
+  }, [setEasing]);
 
   useEffect(() => {
     if (dragging) {
