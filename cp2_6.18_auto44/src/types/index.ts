@@ -24,10 +24,29 @@ export interface Project {
   createdAt: string;
 }
 
+export interface ActivityLog {
+  id: string;
+  projectId: string;
+  taskId: string;
+  taskTitle: string;
+  operatorId: string;
+  operatorName: string;
+  oldStatus: TaskStatus;
+  newStatus: TaskStatus;
+  createdAt: string;
+}
+
+export const STATUS_LABELS: Record<TaskStatus, string> = {
+  'todo': '待办',
+  'in-progress': '进行中',
+  'done': '已完成',
+};
+
 export interface TaskStore {
   projects: Project[];
   tasks: Task[];
   members: TeamMember[];
+  activityLogs: ActivityLog[];
   currentProjectId: string | null;
   searchQuery: string;
   filterPriority: Priority | 'all';

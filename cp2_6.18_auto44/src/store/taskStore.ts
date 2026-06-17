@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { Task, Project, TeamMember, Priority, TaskStatus, TaskStore } from '@/types';
+import type { Task, Project, TeamMember, Priority, TaskStatus, TaskStore, ActivityLog } from '@/types';
 import { saveToStorage, loadFromStorage, STORAGE_KEYS } from '@/utils/dataPersistence';
 
 const defaultMembers: TeamMember[] = [
@@ -15,8 +15,14 @@ const createMockData = () => {
   const today = new Date();
   const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
   const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  const twoDaysAgo = new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000);
   const twoDaysLater = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
   const fiveDaysLater = new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+  const task1Id = uuidv4();
+  const task2Id = uuidv4();
+  const task3Id = uuidv4();
+  const task5Id = uuidv4();
 
   const projects: Project[] = [
     {
@@ -28,27 +34,27 @@ const createMockData = () => {
 
   const tasks: Task[] = [
     {
-      id: uuidv4(),
+      id: task1Id,
       title: '设计首页UI界面',
       assigneeId: 'member-1',
       dueDate: fiveDaysLater.toISOString().split('T')[0],
       priority: 'high',
       status: 'in-progress',
       projectId,
-      createdAt: today.toISOString(),
+      createdAt: twoDaysAgo.toISOString(),
     },
     {
-      id: uuidv4(),
+      id: task2Id,
       title: '编写技术方案文档',
       assigneeId: 'member-2',
       dueDate: twoDaysLater.toISOString().split('T')[0],
       priority: 'medium',
       status: 'done',
       projectId,
-      createdAt: today.toISOString(),
+      createdAt: twoDaysAgo.toISOString(),
     },
     {
-      id: uuidv4(),
+      id: task3Id,
       title: '后端API接口开发',
       assigneeId: 'member-3',
       dueDate: nextWeek.toISOString().split('T')[0],
@@ -68,14 +74,14 @@ const createMockData = () => {
       createdAt: today.toISOString(),
     },
     {
-      id: uuidv4(),
+      id: task5Id,
       title: '数据库表结构设计',
       assigneeId: 'member-2',
       dueDate: twoDaysLater.toISOString().split('T')[0],
       priority: 'low',
       status: 'done',
       projectId,
-      createdAt: today.toISOString(),
+      createdAt: twoDaysAgo.toISOString(),
     },
     {
       id: uuidv4(),
@@ -89,13 +95,89 @@ const createMockData = () => {
     },
   ];
 
-  return { projects, tasks, currentProjectId: projectId };
+  const threeHoursAgo = new Date(today.getTime() - 3 * 60 * 60 * 1000);
+  const sixHoursAgo = new Date(today.getTime() - 6 * 60 * 60 * 1000);
+  const twelveHoursAgo = new Date(today.getTime() - 12 * 60 * 60 * 1000);
+  const oneDayAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  const twoDaysAgo2 = new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000);
+
+  const activityLogs: ActivityLog[] = [
+    {
+      id: uuidv4(),
+      projectId,
+      taskId: task1Id,
+      taskTitle: '设计首页UI界面',
+      operatorId: 'member-1',
+      operatorName: '用户自己',
+      oldStatus: 'todo',
+      newStatus: 'in-progress',
+      createdAt: threeHoursAgo.toISOString(),
+    },
+    {
+      id: uuidv4(),
+      projectId,
+      taskId: task2Id,
+      taskTitle: '编写技术方案文档',
+      operatorId: 'member-2',
+      operatorName: '张三',
+      oldStatus: 'in-progress',
+      newStatus: 'done',
+      createdAt: sixHoursAgo.toISOString(),
+    },
+    {
+      id: uuidv4(),
+      projectId,
+      taskId: task5Id,
+      taskTitle: '数据库表结构设计',
+      operatorId: 'member-2',
+      operatorName: '张三',
+      oldStatus: 'todo',
+      newStatus: 'in-progress',
+      createdAt: twelveHoursAgo.toISOString(),
+    },
+    {
+      id: uuidv4(),
+      projectId,
+      taskId: task5Id,
+      taskTitle: '数据库表结构设计',
+      operatorId: 'member-2',
+      operatorName: '张三',
+      oldStatus: 'in-progress',
+      newStatus: 'done',
+      createdAt: oneDayAgo.toISOString(),
+    },
+    {
+      id: uuidv4(),
+      projectId,
+      taskId: task1Id,
+      taskTitle: '设计首页UI界面',
+      operatorId: 'member-1',
+      operatorName: '用户自己',
+      oldStatus: 'todo',
+      newStatus: 'todo',
+      createdAt: twoDaysAgo2.toISOString(),
+    },
+    {
+      id: uuidv4(),
+      projectId,
+      taskId: task3Id,
+      taskTitle: '后端API接口开发',
+      operatorId: 'member-3',
+      operatorName: '李四',
+      oldStatus: 'todo',
+      newStatus: 'todo',
+      createdAt: twoDaysAgo2.toISOString(),
+    },
+  ];
+
+  return { projects, tasks, currentProjectId: projectId, activityLogs };
 };
 
 const getInitialState = () => {
   const storedProjects = loadFromStorage<Project[]>(STORAGE_KEYS.PROJECTS, []);
   const storedTasks = loadFromStorage<Task[]>(STORAGE_KEYS.TASKS, []);
   const storedCurrentProjectId = loadFromStorage<string | null>(STORAGE_KEYS.CURRENT_PROJECT_ID, null);
+  const storedActivityLogs = loadFromStorage<ActivityLog[]>(STORAGE_KEYS.ACTIVITY_LOGS, []);
   
   const members = loadFromStorage<TeamMember[]>(STORAGE_KEYS.MEMBERS, defaultMembers);
 
@@ -104,6 +186,7 @@ const getInitialState = () => {
       projects: storedProjects,
       tasks: storedTasks,
       members,
+      activityLogs: storedActivityLogs,
       currentProjectId: storedCurrentProjectId,
       searchQuery: '',
       filterPriority: 'all' as Priority | 'all',
@@ -115,11 +198,13 @@ const getInitialState = () => {
   saveToStorage(STORAGE_KEYS.TASKS, mockData.tasks);
   saveToStorage(STORAGE_KEYS.CURRENT_PROJECT_ID, mockData.currentProjectId);
   saveToStorage(STORAGE_KEYS.MEMBERS, members);
+  saveToStorage(STORAGE_KEYS.ACTIVITY_LOGS, mockData.activityLogs);
 
   return {
     projects: mockData.projects,
     tasks: mockData.tasks,
     members,
+    activityLogs: mockData.activityLogs,
     currentProjectId: mockData.currentProjectId,
     searchQuery: '',
     filterPriority: 'all' as Priority | 'all',
@@ -144,13 +229,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   deleteProject: (id: string) => {
     const projects = get().projects.filter((p) => p.id !== id);
     const tasks = get().tasks.filter((t) => t.projectId !== id);
+    const activityLogs = get().activityLogs.filter((l) => l.projectId !== id);
     const currentProjectId = get().currentProjectId === id
       ? (projects.length > 0 ? projects[0].id : null)
       : get().currentProjectId;
 
-    set({ projects, tasks, currentProjectId });
+    set({ projects, tasks, activityLogs, currentProjectId });
     saveToStorage(STORAGE_KEYS.PROJECTS, projects);
     saveToStorage(STORAGE_KEYS.TASKS, tasks);
+    saveToStorage(STORAGE_KEYS.ACTIVITY_LOGS, activityLogs);
     saveToStorage(STORAGE_KEYS.CURRENT_PROJECT_ID, currentProjectId);
   },
 
@@ -171,25 +258,72 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   updateTask: (id: string, updates: Partial<Task>) => {
-    const tasks = get().tasks.map((t) =>
+    const state = get();
+    const oldTask = state.tasks.find((t) => t.id === id);
+    const tasks = state.tasks.map((t) =>
       t.id === id ? { ...t, ...updates } : t
     );
-    set({ tasks });
-    saveToStorage(STORAGE_KEYS.TASKS, tasks);
+    
+    if (oldTask && updates.status && updates.status !== oldTask.status) {
+      const member = state.members.find((m) => m.id === oldTask.assigneeId);
+      const log: ActivityLog = {
+        id: uuidv4(),
+        projectId: oldTask.projectId,
+        taskId: oldTask.id,
+        taskTitle: oldTask.title,
+        operatorId: oldTask.assigneeId,
+        operatorName: member?.name || '未知用户',
+        oldStatus: oldTask.status,
+        newStatus: updates.status,
+        createdAt: new Date().toISOString(),
+      };
+      const activityLogs = [log, ...state.activityLogs];
+      set({ tasks, activityLogs });
+      saveToStorage(STORAGE_KEYS.TASKS, tasks);
+      saveToStorage(STORAGE_KEYS.ACTIVITY_LOGS, activityLogs);
+    } else {
+      set({ tasks });
+      saveToStorage(STORAGE_KEYS.TASKS, tasks);
+    }
   },
 
   deleteTask: (id: string) => {
-    const tasks = get().tasks.filter((t) => t.id !== id);
-    set({ tasks });
+    const state = get();
+    const tasks = state.tasks.filter((t) => t.id !== id);
+    const activityLogs = state.activityLogs.filter((l) => l.taskId !== id);
+    set({ tasks, activityLogs });
     saveToStorage(STORAGE_KEYS.TASKS, tasks);
+    saveToStorage(STORAGE_KEYS.ACTIVITY_LOGS, activityLogs);
   },
 
   moveTask: (taskId: string, newStatus: TaskStatus) => {
-    const tasks = get().tasks.map((t) =>
+    const state = get();
+    const oldTask = state.tasks.find((t) => t.id === taskId);
+    const tasks = state.tasks.map((t) =>
       t.id === taskId ? { ...t, status: newStatus } : t
     );
-    set({ tasks });
-    saveToStorage(STORAGE_KEYS.TASKS, tasks);
+    
+    if (oldTask && oldTask.status !== newStatus) {
+      const member = state.members.find((m) => m.id === oldTask.assigneeId);
+      const log: ActivityLog = {
+        id: uuidv4(),
+        projectId: oldTask.projectId,
+        taskId: oldTask.id,
+        taskTitle: oldTask.title,
+        operatorId: oldTask.assigneeId,
+        operatorName: member?.name || '未知用户',
+        oldStatus: oldTask.status,
+        newStatus,
+        createdAt: new Date().toISOString(),
+      };
+      const activityLogs = [log, ...state.activityLogs];
+      set({ tasks, activityLogs });
+      saveToStorage(STORAGE_KEYS.TASKS, tasks);
+      saveToStorage(STORAGE_KEYS.ACTIVITY_LOGS, activityLogs);
+    } else {
+      set({ tasks });
+      saveToStorage(STORAGE_KEYS.TASKS, tasks);
+    }
   },
 
   setSearchQuery: (query: string) => {
@@ -252,4 +386,13 @@ export const useProjectStats = () => {
     completionRate,
     memberStats,
   };
+};
+
+export const useRecentActivities = (limit: number = 5) => {
+  const { activityLogs, currentProjectId } = useTaskStore();
+  
+  return activityLogs
+    .filter((log) => log.projectId === currentProjectId && log.oldStatus !== log.newStatus)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, limit);
 };

@@ -37,7 +37,7 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ onEditTask }) => {
   const handleDragStart = () => {
   };
 
-  const handleDragUpdate = (update: { destination?: { droppableId: string } }) => {
+  const handleDragUpdate = (update: { destination?: { droppableId: string } | null }) => {
     if (update.destination) {
       setDragOverColumn(update.destination.droppableId as TaskStatus);
     }

@@ -161,23 +161,35 @@ body {
   color: #334155;
 }
 
-.stats-dashboard {
+.stats-section {
   padding: 24px 32px;
-  display: flex;
-  gap: 24px;
-  align-items: center;
   border-bottom: 1px solid #E2E8F0;
+}
+
+.stats-top-row {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
   flex-wrap: wrap;
+  margin-bottom: 28px;
 }
 
 .progress-ring-container {
   flex-shrink: 0;
 }
 
+.progress-ring-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
 .progress-ring {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
+  filter: drop-shadow(0 4px 12px rgba(16, 185, 129, 0.15));
 }
 
 .progress-ring svg {
@@ -185,7 +197,7 @@ body {
 }
 
 .progress-ring-circle {
-  transition: stroke-dashoffset 0.5s ease;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .progress-ring-text {
@@ -193,46 +205,266 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 20px;
-  font-weight: 700;
-  color: #334155;
+  text-align: center;
 }
 
-.stats-cards {
+.progress-ring-percentage {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0F172A;
+  line-height: 1.1;
+}
+
+.progress-ring-subtitle {
+  font-size: 11px;
+  color: #64748B;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.progress-ring-info {
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background-color: #F0FDF4;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #166534;
+}
+
+.progress-info-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.progress-info-text strong {
+  font-weight: 700;
+  color: #10B981;
+}
+
+.stats-cards-row {
+  display: flex;
+  gap: 20px;
   flex: 1;
   flex-wrap: wrap;
 }
 
-.stat-card {
-  background-color: #F8FAFC;
-  border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  padding: 16px 20px;
-  min-width: 140px;
+.enhanced-stat-card {
+  flex: 1;
+  min-width: 160px;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+  border: 1px solid #F1F5F9;
+  transition: all 0.3s ease;
+}
+
+.enhanced-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.stat-card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-card-total .stat-card-icon {
+  background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+  color: #4F46E5;
+}
+
+.stat-card-completed .stat-card-icon {
+  background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+  color: #059669;
+}
+
+.stat-card-overdue .stat-card-icon {
+  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+  color: #DC2626;
+}
+
+.stat-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-card-total .stat-card-value {
+  color: #4F46E5;
+}
+
+.stat-card-completed .stat-card-value {
+  color: #059669;
+}
+
+.stat-card-overdue .stat-card-value {
+  color: #DC2626;
 }
 
 .stat-card-label {
   font-size: 13px;
   color: #64748B;
-  margin-bottom: 4px;
+  font-weight: 500;
 }
 
 .stat-card-value {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 800;
   color: #334155;
+  line-height: 1.1;
 }
 
-.stat-card.overdue .stat-card-value {
-  color: #EF4444;
+.stats-bottom-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.member-chart-wrapper {
+  flex: 1;
+  min-width: 380px;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 20px 24px 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+  border: 1px solid #F1F5F9;
+}
+
+.chart-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1E293B;
+  margin-bottom: 12px;
 }
 
 .member-chart-container {
+  width: 100%;
+  height: 180px;
+}
+
+.recent-activities {
   flex: 1;
-  min-width: 300px;
-  height: 160px;
+  min-width: 380px;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+  border: 1px solid #F1F5F9;
+  max-height: 252px;
+  overflow-y: auto;
+}
+
+.recent-activities-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1E293B;
+  margin-bottom: 16px;
+}
+
+.recent-activities-empty {
+  text-align: center;
+  color: #94A3B8;
+  font-size: 14px;
+  padding: 32px 0;
+}
+
+.activity-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.activity-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.activity-avatar {
+  flex-shrink: 0;
+}
+
+.activity-avatar-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-text {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.activity-operator {
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.activity-task-title {
+  font-weight: 600;
+  color: #334155;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
+.activity-status {
+  font-weight: 600;
+}
+
+.activity-arrow {
+  flex-shrink: 0;
+  margin: 0 2px;
+  color: #94A3B8;
+}
+
+.activity-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #94A3B8;
 }
 
 .toolbar {
@@ -703,26 +935,49 @@ body {
     padding: 16px 20px;
   }
 
-  .stats-dashboard {
+  .stats-section {
     padding: 16px 20px;
+  }
+
+  .stats-top-row {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    gap: 20px;
   }
 
   .progress-ring-container {
     align-self: center;
   }
 
-  .stats-cards {
+  .stats-cards-row {
     width: 100%;
   }
 
-  .stat-card {
-    flex: 1;
+  .enhanced-stat-card {
     min-width: auto;
+    padding: 16px;
   }
 
-  .member-chart-container {
+  .stat-card-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .stat-card-value {
+    font-size: 26px;
+  }
+
+  .stats-bottom-row {
+    flex-direction: column;
+  }
+
+  .member-chart-wrapper {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .recent-activities {
+    min-width: auto;
     width: 100%;
   }
 

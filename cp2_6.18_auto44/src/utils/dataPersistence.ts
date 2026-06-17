@@ -3,6 +3,7 @@ const STORAGE_KEYS = {
   TASKS: 'collabtask_tasks',
   MEMBERS: 'collabtask_members',
   CURRENT_PROJECT_ID: 'collabtask_currentProjectId',
+  ACTIVITY_LOGS: 'collabtask_activityLogs',
 };
 
 export function saveToStorage<T>(key: string, data: T): void {
