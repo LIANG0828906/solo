@@ -100,7 +100,7 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({ onResultsChange }) =
           </button>
 
           {showTagDropdown && (
-            <div className="tag-dropdown">
+            <div className="tag-dropdown" onMouseDown={(e) => e.preventDefault()}>
               <div className="tag-dropdown-group">
                 <div className="tag-dropdown-label">正面情绪</div>
                 <div className="tag-dropdown-list">
@@ -108,7 +108,10 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({ onResultsChange }) =
                     <button
                       key={tag.name}
                       className={`tag-dropdown-item ${selectedTags.includes(tag.name) ? 'selected' : ''}`}
-                      onClick={() => toggleTag(tag.name)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleTag(tag.name)
+                      }}
                     >
                       #{tag.name}
                     </button>
@@ -122,7 +125,10 @@ export const SearchFilter: React.FC<SearchFilterProps> = ({ onResultsChange }) =
                     <button
                       key={tag.name}
                       className={`tag-dropdown-item ${selectedTags.includes(tag.name) ? 'selected' : ''}`}
-                      onClick={() => toggleTag(tag.name)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleTag(tag.name)
+                      }}
                     >
                       #{tag.name}
                     </button>

@@ -101,12 +101,21 @@ export const MoodChart: React.FC = () => {
   }
 
   const getSegmentColor = (ctx: any): string => {
-    const p0 = ctx.p0.parsed.y
-    const p1 = ctx.p1.parsed.y
-    if (p0 === null || p1 === null) return 'rgba(169, 169, 169, 0.3)'
-    const avg = (p0 + p1) / 2
-    if (avg > 0) return '#4ECDC4'
-    if (avg < 0) return '#FF6B6B'
+    const y0 = ctx.p0.parsed.y
+    const y1 = ctx.p1.parsed.y
+    if (y0 === null || y1 === null) return 'rgba(169, 169, 169, 0.3)'
+    if (y0 > 0 && y1 > 0) return '#4ECDC4'
+    if (y0 < 0 && y1 < 0) return '#FF6B6B'
+    if (y0 === 0 && y1 === 0) return '#A9A9A9'
+    if ((y0 > 0 && y1 < 0) || (y0 < 0 && y1 > 0)) {
+      const absY0 = Math.abs(y0)
+      const absY1 = Math.abs(y1)
+      return absY0 >= absY1
+        ? (y0 > 0 ? '#4ECDC4' : '#FF6B6B')
+        : (y1 > 0 ? '#4ECDC4' : '#FF6B6B')
+    }
+    if (y0 === 0) return y1 > 0 ? '#4ECDC4' : y1 < 0 ? '#FF6B6B' : '#A9A9A9'
+    if (y1 === 0) return y0 > 0 ? '#4ECDC4' : y0 < 0 ? '#FF6B6B' : '#A9A9A9'
     return '#A9A9A9'
   }
 
@@ -116,22 +125,14 @@ export const MoodChart: React.FC = () => {
       {
         label: '情感分数',
         data: scores,
-        borderColor: (ctx: any) => {
-          if (!ctx.chart.chartArea) return '#6C63FF'
-          const { ctx: canvasCtx, chartArea } = ctx.chart
-          const gradient = canvasCtx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-          gradient.addColorStop(0, '#4ECDC4')
-          gradient.addColorStop(0.5, '#A9A9A9')
-          gradient.addColorStop(1, '#FF6B6B')
-          return gradient
-        },
+        borderColor: '#A9A9A9',
         backgroundColor: (ctx: any) => {
-          if (!ctx.chart.chartArea) return 'rgba(108, 99, 255, 0.1)'
+          if (!ctx.chart.chartArea) return 'rgba(169, 169, 169, 0.05)'
           const { ctx: canvasCtx, chartArea } = ctx.chart
           const gradient = canvasCtx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-          gradient.addColorStop(0, 'rgba(78, 205, 196, 0.2)')
-          gradient.addColorStop(0.5, 'rgba(169, 169, 169, 0.05)')
-          gradient.addColorStop(1, 'rgba(255, 107, 107, 0.2)')
+          gradient.addColorStop(0, 'rgba(78, 205, 196, 0.15)')
+          gradient.addColorStop(0.5, 'rgba(169, 169, 169, 0.03)')
+          gradient.addColorStop(1, 'rgba(255, 107, 107, 0.15)')
           return gradient
         },
         borderWidth: 3,
@@ -209,13 +210,16 @@ export const MoodChart: React.FC = () => {
   const keyEvents = diaries.filter(d => Math.abs(d.score) >= 2)
 
   const sortedTags = Array.from(tagFrequency.entries()).sort((a, b) => b[1] - a[1])
-  const maxFreq = sortedTags.length > 0 ? sortedTags[0][1] : 1
+  const freqValues = sortedTags.map(([, f]) => f)
+  const maxFreq = Math.max(...freqValues)
+  const minFreq = Math.min(...freqValues)
 
   const getTagFontSize = (freq: number): number => {
     const minSize = 14
     const maxSize = 32
-    if (maxFreq === 1) return 20
-    return minSize + ((freq / maxFreq) * (maxSize - minSize))
+    if (maxFreq === minFreq) return Math.round((minSize + maxSize) / 2)
+    const ratio = (freq - minFreq) / (maxFreq - minFreq)
+    return Math.round(minSize + ratio * (maxSize - minSize))
   }
 
   return (
