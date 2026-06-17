@@ -33,6 +33,10 @@ class TerrainEditorApp {
 
   private raycaster!: THREE.Raycaster;
 
+  private hoverPoint: THREE.Vector3 | null = null;
+  private isHoveringTerrain: boolean = false;
+  private heightLabel!: HTMLDivElement;
+
   private clock!: THREE.Clock;
   private animationId: number = 0;
 
@@ -43,6 +47,7 @@ class TerrainEditorApp {
     this.clock = new THREE.Clock();
     this.raycaster = new THREE.Raycaster();
 
+    this.initHeightLabel();
     this.initScene();
     this.initCamera();
     this.initRenderer();
@@ -52,6 +57,24 @@ class TerrainEditorApp {
     this.initEvents();
 
     this.animate();
+  }
+
+  private initHeightLabel(): void {
+    this.heightLabel = document.createElement('div');
+    this.heightLabel.style.position = 'absolute';
+    this.heightLabel.style.pointerEvents = 'none';
+    this.heightLabel.style.background = 'rgba(0, 0, 0, 0.7)';
+    this.heightLabel.style.color = '#FFFFFF';
+    this.heightLabel.style.padding = '6px 10px';
+    this.heightLabel.style.borderRadius = '6px';
+    this.heightLabel.style.fontSize = '12px';
+    this.heightLabel.style.fontFamily = 'monospace';
+    this.heightLabel.style.whiteSpace = 'nowrap';
+    this.heightLabel.style.zIndex = '100';
+    this.heightLabel.style.display = 'none';
+    this.heightLabel.style.transform = 'translate(-50%, -100%)';
+    this.heightLabel.style.marginTop = '-10px';
+    this.container.appendChild(this.heightLabel);
   }
 
   private initScene(): void {
@@ -138,6 +161,10 @@ class TerrainEditorApp {
     this.terrainGenerator = new TerrainGenerator(30, 1);
     this.terrainGenerator.mesh.position.set(0, 0, 0);
     this.scene.add(this.terrainGenerator.mesh);
+
+    if (this.terrainGenerator.gridHelper) {
+      this.scene.add(this.terrainGenerator.gridHelper);
+    }
 
     const gridHelper = new THREE.GridHelper(30, 30, 0x444466, 0x333344);
     gridHelper.position.y = -0.01;
@@ -241,6 +268,8 @@ class TerrainEditorApp {
   private onMouseMove(event: MouseEvent): void {
     this.updateMousePosition(event);
 
+    this.updateHoverInfo();
+
     if (this.isEditing) {
       this.terrainGenerator.moveEdit(this.mouse, this.camera);
     }
@@ -260,6 +289,53 @@ class TerrainEditorApp {
       this.handlePan(event);
       this.lastMousePosition = { x: event.clientX, y: event.clientY };
     }
+  }
+
+  private updateHoverInfo(): void {
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObject(this.terrainGenerator.mesh);
+
+    if (intersects.length > 0) {
+      this.isHoveringTerrain = true;
+      this.hoverPoint = intersects[0].point.clone();
+
+      const gridPos = this.terrainGenerator.getGridPosition(
+        this.hoverPoint.x,
+        this.hoverPoint.z
+      );
+      const height = this.terrainGenerator.getHeightAt(
+        this.hoverPoint.x,
+        this.hoverPoint.z
+      );
+
+      if (gridPos) {
+        this.uiController.updateHoverInfo(gridPos.x, gridPos.z, height);
+        this.heightLabel.textContent = `高度: ${height.toFixed(2)}`;
+        this.heightLabel.style.display = 'block';
+        this.updateHeightLabelPosition();
+      } else {
+        this.uiController.updateHoverInfo(null, null, null);
+        this.heightLabel.style.display = 'none';
+      }
+    } else {
+      this.isHoveringTerrain = false;
+      this.hoverPoint = null;
+      this.uiController.updateHoverInfo(null, null, null);
+      this.heightLabel.style.display = 'none';
+    }
+  }
+
+  private updateHeightLabelPosition(): void {
+    if (!this.hoverPoint) return;
+
+    const screenPos = this.hoverPoint.clone().project(this.camera);
+    const rect = this.container.getBoundingClientRect();
+
+    const x = (screenPos.x * 0.5 + 0.5) * rect.width;
+    const y = (-screenPos.y * 0.5 + 0.5) * rect.height;
+
+    this.heightLabel.style.left = `${x}px`;
+    this.heightLabel.style.top = `${y}px`;
   }
 
   private handlePan(event: MouseEvent): void {
@@ -317,6 +393,10 @@ class TerrainEditorApp {
     }
 
     this.terrainGenerator.update(delta);
+
+    if (this.isHoveringTerrain && this.hoverPoint) {
+      this.updateHeightLabelPosition();
+    }
 
     this.renderer.render(this.scene, this.camera);
   };

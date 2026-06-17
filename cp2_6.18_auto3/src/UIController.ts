@@ -19,6 +19,9 @@ export class UIController {
   private brushRadiusValue?: HTMLSpanElement;
   private brushStrengthValue?: HTMLSpanElement;
   private brushStrengthHeaderValue?: HTMLSpanElement;
+  private hoverHeightInfo?: HTMLDivElement;
+  private hoverPositionValue?: HTMLSpanElement;
+  private hoverHeightValue?: HTMLSpanElement;
   private textureSelect?: HTMLSelectElement;
 
   constructor(
@@ -45,6 +48,13 @@ export class UIController {
     sizeInfo.className = 'panel-header';
     sizeInfo.textContent = `地形尺寸：${this.terrainGenerator.size} × ${this.terrainGenerator.size} 格`;
     this.container.appendChild(sizeInfo);
+
+    this.hoverHeightInfo = document.createElement('div');
+    this.hoverHeightInfo.className = 'panel-header';
+    this.hoverHeightInfo.style.marginBottom = '16px';
+    this.hoverHeightInfo.style.color = '#888888';
+    this.hoverHeightInfo.textContent = '位置: -- | 高度: --';
+    this.container.appendChild(this.hoverHeightInfo);
 
     const strengthInfo = document.createElement('div');
     strengthInfo.className = 'panel-header';
@@ -274,6 +284,16 @@ export class UIController {
     }
     if (this.brushStrengthHeaderValue) {
       this.brushStrengthHeaderValue.textContent = displayText;
+    }
+  }
+
+  public updateHoverInfo(gridX: number | null, gridZ: number | null, height: number | null): void {
+    if (!this.hoverHeightInfo) return;
+
+    if (gridX === null || gridZ === null || height === null) {
+      this.hoverHeightInfo.textContent = '位置: -- | 高度: --';
+    } else {
+      this.hoverHeightInfo.innerHTML = `位置: (${gridX}, ${gridZ}) | 高度: ${height.toFixed(2)}`;
     }
   }
 }

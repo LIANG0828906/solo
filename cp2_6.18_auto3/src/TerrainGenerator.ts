@@ -40,13 +40,17 @@ export class TerrainGenerator {
   private targetTextureIndex: number = 0;
   private transitioning: boolean = false;
 
+  public gridHelper: THREE.LineSegments | null = null;
+
   private tempVec = new THREE.Vector3();
   private tempColor = new THREE.Color();
+  private unitSize: number = 1;
 
   constructor(gridSize: number = 30, unitSize: number = 1) {
     this.size = gridSize;
     this.gridSize = gridSize;
     this.brushRadius = 3;
+    this.unitSize = unitSize;
 
     this.geometry = new THREE.PlaneGeometry(
       gridSize * unitSize,
@@ -78,6 +82,8 @@ export class TerrainGenerator {
 
     this.generateTextures();
     this.applyTexture(0);
+
+    this.createGridHelper();
   }
 
   private generateBaseTerrain(): void {
@@ -419,6 +425,7 @@ export class TerrainGenerator {
     this.updateColors();
     this.geometry.computeVertexNormals();
     positions.needsUpdate = true;
+    this.updateGridHelper();
   }
 
   public smoothTerrain(): void {
@@ -464,10 +471,12 @@ export class TerrainGenerator {
     this.updateColors();
     this.geometry.computeVertexNormals();
     positions.needsUpdate = true;
+    this.updateGridHelper();
   }
 
   public resetTerrain(): void {
     this.generateBaseTerrain();
+    this.updateGridHelper();
   }
 
   public getHeightData(): TerrainHeightData {
@@ -503,10 +512,104 @@ export class TerrainGenerator {
     this.brushStrength = Math.max(0.1, Math.min(2.0, strength));
   }
 
+  private createGridHelper(): void {
+    const gridGeometry = new THREE.BufferGeometry();
+    const vertices: number[] = [];
+
+    const halfSize = (this.size * this.unitSize) / 2;
+    const step = this.unitSize;
+
+    for (let i = 0; i <= this.size; i++) {
+      const pos = -halfSize + i * step;
+      vertices.push(pos, 0.05, -halfSize);
+      vertices.push(pos, 0.05, halfSize);
+      vertices.push(-halfSize, 0.05, pos);
+      vertices.push(halfSize, 0.05, pos);
+    }
+
+    gridGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+
+    const gridMaterial = new THREE.LineBasicMaterial({
+      color: 0xCCCCCC,
+      transparent: true,
+      opacity: 0.3
+    });
+
+    this.gridHelper = new THREE.LineSegments(gridGeometry, gridMaterial);
+    this.updateGridHelper();
+  }
+
+  public updateGridHelper(): void {
+    if (!this.gridHelper) return;
+
+    const positions = this.gridHelper.geometry.attributes.position;
+    const terrainPositions = this.geometry.attributes.position;
+
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i);
+      const z = positions.getZ(i);
+
+      const height = this.getHeightAt(x, z);
+      positions.setY(i, height + 0.05);
+    }
+
+    positions.needsUpdate = true;
+  }
+
+  public getHeightAt(worldX: number, worldZ: number): number {
+    const halfSize = (this.size * this.unitSize) / 2;
+    const localX = worldX + halfSize;
+    const localZ = worldZ + halfSize;
+
+    const gridX = Math.floor(localX / this.unitSize);
+    const gridZ = Math.floor(localZ / this.unitSize);
+
+    if (gridX < 0 || gridX >= this.size - 1 || gridZ < 0 || gridZ >= this.size - 1) {
+      return 0;
+    }
+
+    const fx = (localX % this.unitSize) / this.unitSize;
+    const fz = (localZ % this.unitSize) / this.unitSize;
+
+    const idx00 = gridZ * this.size + gridX;
+    const idx10 = gridZ * this.size + (gridX + 1);
+    const idx01 = (gridZ + 1) * this.size + gridX;
+    const idx11 = (gridZ + 1) * this.size + (gridX + 1);
+
+    const h00 = this.geometry.attributes.position.getY(idx00);
+    const h10 = this.geometry.attributes.position.getY(idx10);
+    const h01 = this.geometry.attributes.position.getY(idx01);
+    const h11 = this.geometry.attributes.position.getY(idx11);
+
+    const h0 = h00 * (1 - fx) + h10 * fx;
+    const h1 = h01 * (1 - fx) + h11 * fx;
+
+    return h0 * (1 - fz) + h1 * fz;
+  }
+
+  public getGridPosition(worldX: number, worldZ: number): { x: number; z: number } | null {
+    const halfSize = (this.size * this.unitSize) / 2;
+    const localX = worldX + halfSize;
+    const localZ = worldZ + halfSize;
+
+    const gridX = Math.floor(localX / this.unitSize);
+    const gridZ = Math.floor(localZ / this.unitSize);
+
+    if (gridX < 0 || gridX >= this.size || gridZ < 0 || gridZ >= this.size) {
+      return null;
+    }
+
+    return { x: gridX, z: gridZ };
+  }
+
   public dispose(): void {
     this.finishTransition();
     this.geometry.dispose();
     this.material.dispose();
     this.textures.forEach(t => t.dispose());
+    if (this.gridHelper) {
+      this.gridHelper.geometry.dispose();
+      (this.gridHelper.material as THREE.Material).dispose();
+    }
   }
 }
