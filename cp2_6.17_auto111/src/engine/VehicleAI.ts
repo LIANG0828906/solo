@@ -7,7 +7,9 @@ import {
   DECELERATION,
   STOP_LINE_DISTANCE,
   TURN_INDICATOR_LEAD_TIME,
-  LANE_WIDTH
+  LANE_WIDTH,
+  TURN_RADIUS,
+  TURN_SPEED
 } from './types';
 
 export class VehicleAI {
@@ -138,6 +140,14 @@ export class VehicleAI {
 
     const shouldStop = this.shouldStopForLight(vehicle, trafficLight, distanceToStopLine);
 
+    if (vehicle.isTurning) {
+      const targetSpeed = TURN_SPEED;
+      if (vehicle.speed > targetSpeed) {
+        return this.calculateSmoothDeceleration(vehicle.speed, targetSpeed, 0.8, deltaTime);
+      }
+      return 0;
+    }
+
     if (shouldStop && distanceToStopLine < 50) {
       const stopDistance = distanceToStopLine - 2;
       if (stopDistance <= 0) {
@@ -147,6 +157,14 @@ export class VehicleAI {
       const targetSpeed = Math.min(vehicle.targetSpeed, idealStopSpeed);
       const smoothTime = this.smoothStep(2, 20, stopDistance) * 1.5 + 0.3;
       return this.calculateSmoothDeceleration(vehicle.speed, targetSpeed, smoothTime, deltaTime);
+    }
+
+    if (vehicle.nextTurn !== 'straight' && intersectionCenter && distanceToStopLine < 30) {
+      const targetSpeed = TURN_SPEED * 1.5;
+      if (vehicle.speed > targetSpeed) {
+        const smoothTime = this.smoothStep(5, 30, distanceToStopLine) * 1.5 + 0.5;
+        return this.calculateSmoothDeceleration(vehicle.speed, targetSpeed, smoothTime, deltaTime);
+      }
     }
 
     if (vehicleAhead) {
@@ -167,6 +185,15 @@ export class VehicleAI {
           const smoothTime = this.lerp(2.0, 0.5, urgency);
           return this.calculateSmoothDeceleration(vehicle.speed, targetSpeed, smoothTime, deltaTime);
         }
+
+        if (distance > FOLLOW_DISTANCE && vehicle.speed < vehicle.targetSpeed) {
+          const accelProgress = this.smoothStep(FOLLOW_DISTANCE, FOLLOW_DISTANCE * 1.8, distance);
+          const targetAccel = ACCELERATION * this.lerp(0.3, 1.0, accelProgress);
+          return targetAccel;
+        }
+      } else if (distance > FOLLOW_DISTANCE * 3 && vehicle.speed < vehicle.targetSpeed) {
+        const accelProgress = this.smoothStep(0, vehicle.targetSpeed, vehicle.speed);
+        return ACCELERATION * this.lerp(1.0, 0.6, accelProgress);
       }
     }
 
@@ -224,5 +251,71 @@ export class VehicleAI {
   static isTurnIndicatorBlinkOn(vehicle: VehicleState): boolean {
     if (!vehicle.turnIndicatorActive) return false;
     return Math.floor(vehicle.turnIndicatorTimer * 2) % 2 === 0;
+  }
+
+  static getTurnCenter(
+    vehicle: VehicleState,
+    intersectionCenter: { x: number; z: number },
+    turn: 'left' | 'right'
+  ): { x: number; z: number } {
+    const dirVec = this.getDirectionVector(vehicle.direction);
+    const perpX = -dirVec.z;
+    const perpZ = dirVec.x;
+
+    const lateralOffset = TURN_RADIUS + LANE_WIDTH * 0.5;
+    const sign = turn === 'left' ? -1 : 1;
+
+    return {
+      x: intersectionCenter.x + perpX * lateralOffset * sign,
+      z: intersectionCenter.z + perpZ * lateralOffset * sign
+    };
+  }
+
+  static getTurnAngles(
+    currentDirection: LaneDirection,
+    turn: 'left' | 'right'
+  ): { startAngle: number; endAngle: number } {
+    const startAngle = this.getRotationForDirection(currentDirection);
+    const newDirection = this.getTurnDirection(currentDirection, turn);
+    const endAngle = this.getRotationForDirection(newDirection);
+
+    return { startAngle, endAngle };
+  }
+
+  static updateTurnPosition(
+    vehicle: VehicleState,
+    deltaTime: number
+  ): void {
+    if (!vehicle.isTurning || !vehicle.turnCenter) return;
+
+    const angularSpeed = TURN_SPEED / TURN_RADIUS;
+    const angleDelta = angularSpeed * deltaTime;
+
+    const { turnStartAngle, turnEndAngle } = vehicle;
+    const angleDiff = turnEndAngle - turnStartAngle;
+    const turnDirection = angleDiff > 0 ? 1 : -1;
+
+    vehicle.turnProgress += angleDelta * turnDirection;
+
+    const currentAngle = turnStartAngle + vehicle.turnProgress;
+    const normalizedAngleDiff = Math.abs(angleDiff);
+    const progress = Math.abs(vehicle.turnProgress) / normalizedAngleDiff;
+
+    vehicle.rotation = currentAngle;
+
+    const radius = TURN_RADIUS + LANE_WIDTH * 0.5;
+    const angleFromCenter = currentAngle - Math.PI / 2 * turnDirection;
+    vehicle.position.x = vehicle.turnCenter.x + Math.cos(angleFromCenter) * radius;
+    vehicle.position.z = vehicle.turnCenter.z + Math.sin(angleFromCenter) * radius;
+
+    if (progress >= 1.0) {
+      vehicle.isTurning = false;
+      vehicle.turnProgress = 0;
+      vehicle.turnCenter = null;
+      vehicle.rotation = turnEndAngle;
+      vehicle.direction = vehicle.turnDirection;
+      vehicle.turnIndicatorActive = false;
+      vehicle.turnIndicatorTimer = 0;
+    }
   }
 }

@@ -169,9 +169,8 @@ export const CityGrid: React.FC<CityGridProps> = ({ config }) => {
               </mesh>
               <mesh position={[0, 6, 0]}>
                 <sphereGeometry args={[0.5, 16, 16]} />
-                <meshBasicMaterial color="#FFFF99" />
+                <meshStandardMaterial color="#FFFF99" emissive="#FFFF99" emissiveIntensity={1.5} />
               </mesh>
-              <pointLight position={[0, 6, 0]} color="#FFFF99" intensity={0.8} distance={30} />
             </group>
           );
 
@@ -183,9 +182,8 @@ export const CityGrid: React.FC<CityGridProps> = ({ config }) => {
               </mesh>
               <mesh position={[0, 6, 0]}>
                 <sphereGeometry args={[0.5, 16, 16]} />
-                <meshBasicMaterial color="#FFFF99" />
+                <meshStandardMaterial color="#FFFF99" emissive="#FFFF99" emissiveIntensity={1.5} />
               </mesh>
-              <pointLight position={[0, 6, 0]} color="#FFFF99" intensity={0.8} distance={30} />
             </group>
           );
         }
@@ -212,9 +210,8 @@ export const CityGrid: React.FC<CityGridProps> = ({ config }) => {
               </mesh>
               <mesh position={[0, 6, 0]}>
                 <sphereGeometry args={[0.5, 16, 16]} />
-                <meshBasicMaterial color="#FFFF99" />
+                <meshStandardMaterial color="#FFFF99" emissive="#FFFF99" emissiveIntensity={1.5} />
               </mesh>
-              <pointLight position={[0, 6, 0]} color="#FFFF99" intensity={0.8} distance={30} />
             </group>
           );
 
@@ -226,9 +223,8 @@ export const CityGrid: React.FC<CityGridProps> = ({ config }) => {
               </mesh>
               <mesh position={[0, 6, 0]}>
                 <sphereGeometry args={[0.5, 16, 16]} />
-                <meshBasicMaterial color="#FFFF99" />
+                <meshStandardMaterial color="#FFFF99" emissive="#FFFF99" emissiveIntensity={1.5} />
               </mesh>
-              <pointLight position={[0, 6, 0]} color="#FFFF99" intensity={0.8} distance={30} />
             </group>
           );
         }

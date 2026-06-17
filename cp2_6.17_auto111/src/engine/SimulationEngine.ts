@@ -27,11 +27,17 @@ export class SimulationEngine {
   private vehicleSpawned: number = 0;
   private vehiclesPassedLastInterval: number = 0;
   private intervalElapsed: number = 0;
+  private directionSpawnCount: Map<LaneDirection, number> = new Map();
+  private lastVehicleColors: string[] = [];
 
   constructor(gridConfig: GridConfig, greenDuration: number = 30) {
     this.gridConfig = gridConfig;
     this.trafficLightController = new TrafficLightController(greenDuration);
     this.initializeIntersections();
+    this.directionSpawnCount.set('east', 0);
+    this.directionSpawnCount.set('west', 0);
+    this.directionSpawnCount.set('north', 0);
+    this.directionSpawnCount.set('south', 0);
   }
 
   private initializeIntersections(): void {
@@ -76,6 +82,50 @@ export class SimulationEngine {
     this.onStatsUpdate = callback;
   }
 
+  private getBalancedDirection(): LaneDirection {
+    const directions: LaneDirection[] = ['east', 'west', 'north', 'south'];
+    const totalSpawned = Array.from(this.directionSpawnCount.values())
+      .reduce((a, b) => a + b, 0);
+
+    if (totalSpawned === 0) {
+      return directions[Math.floor(Math.random() * 4)];
+    }
+
+    const weights = directions.map(dir => {
+      const count = this.directionSpawnCount.get(dir) || 0;
+      const expectedRatio = 0.25;
+      const actualRatio = count / totalSpawned;
+      return expectedRatio - actualRatio;
+    });
+
+    const maxWeight = Math.max(...weights);
+    const candidates = directions.filter((_, i) => weights[i] === maxWeight);
+
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  private getBalancedColor(): string {
+    let color: string;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    do {
+      color = VEHICLE_COLORS[Math.floor(Math.random() * VEHICLE_COLORS.length)];
+      attempts++;
+    } while (
+      this.lastVehicleColors.length >= 2 &&
+      this.lastVehicleColors.every(c => c === color) &&
+      attempts < maxAttempts
+    );
+
+    this.lastVehicleColors.push(color);
+    if (this.lastVehicleColors.length > 2) {
+      this.lastVehicleColors.shift();
+    }
+
+    return color;
+  }
+
   spawnVehicle(): void {
     const { sizeX, sizeZ, roadLength } = this.gridConfig;
     const totalWidth = (sizeX - 1) * roadLength;
@@ -83,29 +133,27 @@ export class SimulationEngine {
     const offsetX = -totalWidth / 2;
     const offsetZ = -totalDepth / 2;
 
-    const edge = Math.floor(Math.random() * 4);
-    let gx: number, gz: number, direction: LaneDirection;
+    const direction = this.getBalancedDirection();
+    this.directionSpawnCount.set(direction, (this.directionSpawnCount.get(direction) || 0) + 1);
 
-    switch (edge) {
-      case 0:
+    let gx: number, gz: number;
+
+    switch (direction) {
+      case 'south':
         gx = Math.floor(Math.random() * sizeX);
         gz = 0;
-        direction = 'south';
         break;
-      case 1:
+      case 'west':
         gx = sizeX - 1;
         gz = Math.floor(Math.random() * sizeZ);
-        direction = 'west';
         break;
-      case 2:
+      case 'north':
         gx = Math.floor(Math.random() * sizeX);
         gz = sizeZ - 1;
-        direction = 'north';
         break;
       default:
         gx = 0;
         gz = Math.floor(Math.random() * sizeZ);
-        direction = 'east';
         break;
     }
 
@@ -129,7 +177,7 @@ export class SimulationEngine {
       rotation: VehicleAI.getRotationForDirection(direction),
       speed: 0,
       targetSpeed: kmhToMs(20 + Math.random() * 40),
-      color: VEHICLE_COLORS[Math.floor(Math.random() * VEHICLE_COLORS.length)],
+      color: this.getBalancedColor(),
       direction,
       nextTurn: this.randomTurn(),
       turnIndicatorActive: false,
@@ -138,7 +186,14 @@ export class SimulationEngine {
       isWaiting: false,
       currentIntersectionId: null,
       path,
-      pathIndex: 0
+      pathIndex: 0,
+      isTurning: false,
+      turnProgress: 0,
+      turnCenter: null,
+      turnStartAngle: 0,
+      turnEndAngle: 0,
+      turnDirection: direction,
+      lastColors: []
     };
 
     this.vehicles.set(vehicle.id, vehicle);
@@ -225,6 +280,7 @@ export class SimulationEngine {
     const vehiclesArray = Array.from(this.vehicles.values());
 
     for (const vehicle of this.vehicles.values()) {
+      const wasTurning = vehicle.isTurning;
       const nextIntersection = this.findNextIntersection(vehicle);
       const trafficLight = nextIntersection
         ? this.trafficLightController.getLightState(nextIntersection.id)
@@ -232,6 +288,17 @@ export class SimulationEngine {
       const intersectionCenter = nextIntersection
         ? { x: nextIntersection.centerX, z: nextIntersection.centerZ }
         : null;
+
+      if (vehicle.isTurning) {
+        VehicleAI.updateTurnPosition(vehicle, deltaTime);
+        if (wasTurning && !vehicle.isTurning) {
+          vehicle.pathIndex++;
+          if (vehicle.pathIndex < vehicle.path.length) {
+            vehicle.nextTurn = this.randomTurn();
+          }
+        }
+        continue;
+      }
 
       const acceleration = VehicleAI.calculateAcceleration(
         vehicle,
@@ -287,6 +354,17 @@ export class SimulationEngine {
         const distance = Math.sqrt(dx * dx + dz * dz);
 
         if (distance < 3) {
+          if (vehicle.nextTurn !== 'straight' && vehicle.pathIndex < vehicle.path.length - 1) {
+            const turnAngles = VehicleAI.getTurnAngles(vehicle.direction, vehicle.nextTurn);
+            vehicle.isTurning = true;
+            vehicle.turnProgress = 0;
+            vehicle.turnCenter = VehicleAI.getTurnCenter(vehicle, intersectionCenter, vehicle.nextTurn);
+            vehicle.turnStartAngle = turnAngles.startAngle;
+            vehicle.turnEndAngle = turnAngles.endAngle;
+            vehicle.turnDirection = VehicleAI.getTurnDirection(vehicle.direction, vehicle.nextTurn);
+            continue;
+          }
+
           vehicle.pathIndex++;
           if (vehicle.pathIndex < vehicle.path.length) {
             vehicle.direction = VehicleAI.getTurnDirection(

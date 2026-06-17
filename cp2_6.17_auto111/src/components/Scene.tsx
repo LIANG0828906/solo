@@ -112,28 +112,20 @@ const VehicleMesh: React.FC<VehicleMeshProps> = ({ vehicle, useLOD, onClick, isF
         <group>
           <mesh position={[CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, -CAR_WIDTH * 0.52]}>
             <boxGeometry args={[0.3, 0.3, 0.1]} />
-            <meshBasicMaterial color={indicatorOn ? '#FFFFCC' : '#444433'} />
+            <meshStandardMaterial
+              color={indicatorOn ? '#FFFFCC' : '#444433'}
+              emissive={indicatorOn ? '#FFFF99' : '#000000'}
+              emissiveIntensity={indicatorOn ? 2 : 0}
+            />
           </mesh>
           <mesh position={[-CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, -CAR_WIDTH * 0.52]}>
             <boxGeometry args={[0.3, 0.3, 0.1]} />
-            <meshBasicMaterial color={indicatorOn ? '#FFFFCC' : '#444433'} />
+            <meshStandardMaterial
+              color={indicatorOn ? '#FFFFCC' : '#444433'}
+              emissive={indicatorOn ? '#FFFF99' : '#000000'}
+              emissiveIntensity={indicatorOn ? 2 : 0}
+            />
           </mesh>
-          {indicatorOn && (
-            <>
-              <pointLight
-                position={[CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, -CAR_WIDTH * 0.52]}
-                color="#FFFF99"
-                intensity={0.6}
-                distance={4}
-              />
-              <pointLight
-                position={[-CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, -CAR_WIDTH * 0.52]}
-                color="#FFFF99"
-                intensity={0.6}
-                distance={4}
-              />
-            </>
-          )}
         </group>
       )}
 
@@ -141,28 +133,20 @@ const VehicleMesh: React.FC<VehicleMeshProps> = ({ vehicle, useLOD, onClick, isF
         <group>
           <mesh position={[CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, CAR_WIDTH * 0.52]}>
             <boxGeometry args={[0.3, 0.3, 0.1]} />
-            <meshBasicMaterial color={indicatorOn ? '#FFFFCC' : '#444433'} />
+            <meshStandardMaterial
+              color={indicatorOn ? '#FFFFCC' : '#444433'}
+              emissive={indicatorOn ? '#FFFF99' : '#000000'}
+              emissiveIntensity={indicatorOn ? 2 : 0}
+            />
           </mesh>
           <mesh position={[-CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, CAR_WIDTH * 0.52]}>
             <boxGeometry args={[0.3, 0.3, 0.1]} />
-            <meshBasicMaterial color={indicatorOn ? '#FFFFCC' : '#444433'} />
+            <meshStandardMaterial
+              color={indicatorOn ? '#FFFFCC' : '#444433'}
+              emissive={indicatorOn ? '#FFFF99' : '#000000'}
+              emissiveIntensity={indicatorOn ? 2 : 0}
+            />
           </mesh>
-          {indicatorOn && (
-            <>
-              <pointLight
-                position={[CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, CAR_WIDTH * 0.52]}
-                color="#FFFF99"
-                intensity={0.6}
-                distance={4}
-              />
-              <pointLight
-                position={[-CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, CAR_WIDTH * 0.52]}
-                color="#FFFF99"
-                intensity={0.6}
-                distance={4}
-              />
-            </>
-          )}
         </group>
       )}
 
@@ -216,34 +200,25 @@ const TrafficLight: React.FC<TrafficLightProps> = ({ intersection }) => {
                 <meshStandardMaterial
                   color={lights.red ? '#FF0000' : '#660000'}
                   emissive={lights.red ? '#FF0000' : '#000000'}
-                  emissiveIntensity={lights.red ? 0.5 : 0}
+                  emissiveIntensity={lights.red ? 1 : 0}
                 />
               </mesh>
-              {lights.red && (
-                <pointLight position={[0, 1, 0.5]} color="#FF0000" intensity={0.3} distance={5} />
-              )}
               <mesh position={[0, 0, 0.3]}>
                 <sphereGeometry args={[0.2, 16, 16]} />
                 <meshStandardMaterial
                   color={lights.yellow ? '#FFD700' : '#665500'}
                   emissive={lights.yellow ? '#FFD700' : '#000000'}
-                  emissiveIntensity={lights.yellow ? 0.5 : 0}
+                  emissiveIntensity={lights.yellow ? 1 : 0}
                 />
               </mesh>
-              {lights.yellow && (
-                <pointLight position={[0, 0, 0.5]} color="#FFD700" intensity={0.3} distance={5} />
-              )}
               <mesh position={[0, -1, 0.3]}>
                 <sphereGeometry args={[0.2, 16, 16]} />
                 <meshStandardMaterial
                   color={lights.green ? '#00FF00' : '#006600'}
                   emissive={lights.green ? '#00FF00' : '#000000'}
-                  emissiveIntensity={lights.green ? 0.5 : 0}
+                  emissiveIntensity={lights.green ? 1 : 0}
                 />
               </mesh>
-              {lights.green && (
-                <pointLight position={[0, -1, 0.5]} color="#00FF00" intensity={0.3} distance={5} />
-              )}
             </group>
           </group>
         );

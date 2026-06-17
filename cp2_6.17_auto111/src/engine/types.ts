@@ -16,6 +16,13 @@ export interface VehicleState {
   currentIntersectionId: string | null;
   path: { x: number; z: number }[];
   pathIndex: number;
+  isTurning: boolean;
+  turnProgress: number;
+  turnCenter: { x: number; z: number } | null;
+  turnStartAngle: number;
+  turnEndAngle: number;
+  turnDirection: LaneDirection;
+  lastColors: string[];
 }
 
 export type TrafficLightPhase = 'GREEN_EW' | 'YELLOW_EW' | 'GREEN_NS' | 'YELLOW_NS';
@@ -77,10 +84,12 @@ export const CAR_WIDTH = 1.8;
 export const CAR_HEIGHT = 1.5;
 export const LANE_WIDTH = 3;
 export const FOLLOW_DISTANCE = 5;
-export const ACCELERATION = 5;
-export const DECELERATION = 8;
+export const ACCELERATION = 2.5;
+export const DECELERATION = 5;
 export const GREEN_LIGHT_REACTION_TIME = 1;
 export const TURN_INDICATOR_LEAD_TIME = 3;
+export const TURN_RADIUS = 8;
+export const TURN_SPEED = 15 / 3.6;
 
 export function kmhToMs(kmh: number): number {
   return kmh / 3.6;
