@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   LineChart,
   Line,
@@ -25,7 +26,19 @@ const lineTooltipStyle: React.CSSProperties = {
   boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
 };
 
-export const HealthLineChart = ({ data }: { data: LineChartPoint[] }) => {
+const areLineDataEqual = (prev: { data: LineChartPoint[] }, next: { data: LineChartPoint[] }) => {
+  if (prev.data.length !== next.data.length) return false;
+  for (let i = 0; i < prev.data.length; i++) {
+    const a = prev.data[i], b = next.data[i];
+    if (a.date !== b.date || a.systolic !== b.systolic ||
+        a.diastolic !== b.diastolic || a.bloodSugar !== b.bloodSugar) {
+      return false;
+    }
+  }
+  return true;
+};
+
+export const HealthLineChart = memo(({ data }: { data: LineChartPoint[] }) => {
   return (
     <div style={{ width: '65%', height: 300, background: '#F3F4F6', borderRadius: 12, padding: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 600, color: '#1F2937', marginBottom: 8 }}>
@@ -103,9 +116,18 @@ export const HealthLineChart = ({ data }: { data: LineChartPoint[] }) => {
       </ResponsiveContainer>
     </div>
   );
+}, areLineDataEqual);
+
+const areBarDataEqual = (prev: { data: BarChartItem[] }, next: { data: BarChartItem[] }) => {
+  if (prev.data.length !== next.data.length) return false;
+  for (let i = 0; i < prev.data.length; i++) {
+    const a = prev.data[i], b = next.data[i];
+    if (a.name !== b.name || a.count !== b.count) return false;
+  }
+  return true;
 };
 
-export const MedicationBarChart = ({ data }: { data: BarChartItem[] }) => {
+export const MedicationBarChart = memo(({ data }: { data: BarChartItem[] }) => {
   const renderBar = (props: any) => {
     const { x, y, width, height } = props;
     const gradId = `bar-grad-${Math.round(x)}-${Math.round(y)}`;
@@ -195,4 +217,4 @@ export const MedicationBarChart = ({ data }: { data: BarChartItem[] }) => {
       </ResponsiveContainer>
     </div>
   );
-};
+}, areBarDataEqual);

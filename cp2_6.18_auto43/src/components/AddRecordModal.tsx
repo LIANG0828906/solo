@@ -142,7 +142,7 @@ export const AddRecordModal = ({ open, onClose, editRecord }: Props) => {
       else addRecord(record);
       setStage('success');
       setTimeout(() => { onClose(); }, 900);
-    }, 280);
+    }, 320);
   };
 
   if (!open) return null;
@@ -159,12 +159,7 @@ export const AddRecordModal = ({ open, onClose, editRecord }: Props) => {
 
   return (
     <div style={styles.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{
-        ...styles.panel,
-        transform: stage !== 'form' ? 'translateY(0) scale(0.98)' : 'translateY(0)',
-        opacity: stage === 'fadeOut' ? 0 : 1,
-        transition: stage === 'fadeOut' ? 'opacity 0.28s ease, transform 0.28s ease' : 'none'
-      }}>
+      <div style={styles.panel}>
         {stage === 'success' ? (
           <div style={styles.successWrap}>
             <div style={styles.checkCircle}>
@@ -176,11 +171,19 @@ export const AddRecordModal = ({ open, onClose, editRecord }: Props) => {
           </div>
         ) : (
           <>
-            <div style={styles.panelHeader}>
+            <div style={{
+              ...styles.panelHeader,
+              opacity: stage === 'fadeOut' ? 0 : 1,
+              transition: 'opacity 0.3s ease'
+            }}>
               <div style={styles.panelTitle}>{isEdit ? '编辑记录' : '添加健康记录'}</div>
               <button style={styles.closeBtn} onClick={onClose}>×</button>
             </div>
-            <div style={styles.panelBody}>
+            <div style={{
+              ...styles.panelBody,
+              opacity: stage === 'fadeOut' ? 0 : 1,
+              transition: 'opacity 0.3s ease'
+            }}>
               {field('药物名称', errors.medicationName)}
               <div ref={dropdownRef} style={styles.selectWrap}>
                 <div
@@ -339,7 +342,11 @@ export const AddRecordModal = ({ open, onClose, editRecord }: Props) => {
                 <span>我已按时服药</span>
               </label>
             </div>
-            <div style={styles.footer}>
+            <div style={{
+              ...styles.footer,
+              opacity: stage === 'fadeOut' ? 0 : 1,
+              transition: 'opacity 0.3s ease'
+            }}>
               <button style={styles.cancelBtn} onClick={onClose}>取消</button>
               <button style={styles.submitBtn} onClick={handleSubmit}>
                 {isEdit ? '保存修改' : '提交记录'}

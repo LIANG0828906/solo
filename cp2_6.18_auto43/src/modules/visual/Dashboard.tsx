@@ -90,21 +90,7 @@ export const Dashboard = () => {
           ) : (
             <div style={styles.cardRow}>
               {cards.map((c, i) => (
-                <div
-                  key={i}
-                  style={{
-                    transform: hoverCard === i ? 'translateY(-4px)' : 'translateY(0)',
-                    boxShadow: hoverCard === i
-                      ? '0 8px 24px rgba(0,0,0,0.1)'
-                      : '0 4px 12px rgba(0,0,0,0.06)',
-                    borderRadius: 12,
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={() => setHoverCard(i)}
-                  onMouseLeave={() => setHoverCard(null)}
-                >
-                  <SummaryCard data={c} />
-                </div>
+                <SummaryCard key={i} data={c} />
               ))}
             </div>
           )}

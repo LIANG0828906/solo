@@ -51,15 +51,18 @@ export const deleteRecord = (id: string): HealthRecord[] => {
   return all;
 };
 
-export const queryByDateRange = (
+export const getRecordsByDateRange = (
   records: HealthRecord[],
   startISO: string,
   endISO: string
 ): HealthRecord[] => {
+  if (startISO > endISO) return [];
   return records.filter(
     (r) => r.date >= startISO && r.date <= endISO
   );
 };
+
+export const queryByDateRange = getRecordsByDateRange;
 
 export const queryByMedication = (
   records: HealthRecord[],
@@ -126,13 +129,19 @@ export const computeWeeklyStats = (records: HealthRecord[]): WeeklyStats => {
   };
 };
 
-export const getMonthlyAverageDoses = (records: HealthRecord[]): number => {
+export const calculateMonthlyStats = (records: HealthRecord[]): number => {
   if (records.length === 0) return 0;
   const dates = new Set(records.map((r) => r.date));
   const days = Math.max(dates.size, 1);
-  const months = days / 30;
-  return Math.round(records.filter((r) => r.medication.taken).length / Math.max(months, 1 / 30));
+  const monthsDiff = days / 30;
+  if (monthsDiff === 0) {
+    const takenCount = records.filter((r) => r.medication.taken).length;
+    return takenCount;
+  }
+  return Math.round(records.filter((r) => r.medication.taken).length / monthsDiff);
 };
+
+export const getMonthlyAverageDoses = calculateMonthlyStats;
 
 export const getAbnormalRatio = (records: HealthRecord[]): number => {
   const withBP = records.filter(
