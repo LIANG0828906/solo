@@ -30,6 +30,7 @@ export class Panel {
   private sections: SectionConfig[] = [
     {
       title: '场景设置',
+      collapsed: false,
       sliders: [
         {
           id: 'particleCount',
@@ -57,6 +58,7 @@ export class Panel {
     },
     {
       title: '风场设置',
+      collapsed: true,
       sliders: [
         {
           id: 'windStrength',
