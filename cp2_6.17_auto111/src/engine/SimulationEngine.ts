@@ -23,6 +23,10 @@ export class SimulationEngine {
   private statsTimer: number = 0;
   private onVehiclesUpdate?: (vehicles: VehicleState[]) => void;
   private onStatsUpdate?: (stats: Statistics) => void;
+  private completedTrips: number = 0;
+  private vehicleSpawned: number = 0;
+  private vehiclesPassedLastInterval: number = 0;
+  private intervalElapsed: number = 0;
 
   constructor(gridConfig: GridConfig, greenDuration: number = 30) {
     this.gridConfig = gridConfig;
@@ -138,6 +142,7 @@ export class SimulationEngine {
     };
 
     this.vehicles.set(vehicle.id, vehicle);
+    this.vehicleSpawned++;
   }
 
   private randomTurn(): 'left' | 'right' | 'straight' {
@@ -232,7 +237,8 @@ export class SimulationEngine {
         vehicle,
         vehiclesArray,
         trafficLight,
-        intersectionCenter
+        intersectionCenter,
+        deltaTime
       );
 
       vehicle.speed += acceleration * deltaTime;
@@ -297,10 +303,13 @@ export class SimulationEngine {
 
       if (this.isOutOfBounds(vehicle)) {
         this.vehicles.delete(vehicle.id);
+        this.completedTrips++;
+        this.vehiclesPassedLastInterval++;
       }
     }
 
     this.statsTimer += deltaTime;
+    this.intervalElapsed += deltaTime;
     if (this.statsTimer >= 2) {
       this.statsTimer = 0;
       const stats = this.calculateStatistics();
@@ -328,16 +337,77 @@ export class SimulationEngine {
     );
   }
 
+  private calculateQueueLengths(): { average: number; max: number } {
+    let totalQueue = 0;
+    let maxQueue = 0;
+    let count = 0;
+
+    for (const intersection of this.intersections.values()) {
+      const { centerX, centerZ } = intersection;
+      const queueThreshold = 40;
+
+      type EWDirection = { dir: LaneDirection; startX: number; endX: number; z: number; startZ?: undefined; endZ?: undefined; x?: undefined };
+      type NSDirection = { dir: LaneDirection; x: number; startZ: number; endZ: number; startX?: undefined; endX?: undefined; z?: undefined };
+      const directions: (EWDirection | NSDirection)[] = [
+        { dir: 'east', startX: centerX - queueThreshold, endX: centerX - 10, z: centerZ },
+        { dir: 'west', startX: centerX + 10, endX: centerX + queueThreshold, z: centerZ },
+        { dir: 'north', x: centerX, startZ: centerZ + 10, endZ: centerZ + queueThreshold },
+        { dir: 'south', x: centerX, startZ: centerZ - queueThreshold, endZ: centerZ - 10 }
+      ];
+
+      let intersectionQueue = 0;
+
+      for (const d of directions) {
+        for (const vehicle of this.vehicles.values()) {
+          if (vehicle.direction !== d.dir) continue;
+          if (vehicle.speed > 1.0) continue;
+
+          if (d.dir === 'east' || d.dir === 'west') {
+            const dirData = d as EWDirection;
+            const minX = Math.min(dirData.startX, dirData.endX);
+            const maxX = Math.max(dirData.startX, dirData.endX);
+            if (vehicle.position.x >= minX && vehicle.position.x <= maxX &&
+                Math.abs(vehicle.position.z - dirData.z) < 8) {
+              intersectionQueue++;
+            }
+          } else {
+            const dirData = d as NSDirection;
+            const minZ = Math.min(dirData.startZ, dirData.endZ);
+            const maxZ = Math.max(dirData.startZ, dirData.endZ);
+            if (vehicle.position.z >= minZ && vehicle.position.z <= maxZ &&
+                Math.abs(vehicle.position.x - dirData.x) < 8) {
+              intersectionQueue++;
+            }
+          }
+        }
+      }
+
+      if (intersectionQueue > 0) {
+        totalQueue += intersectionQueue;
+        maxQueue = Math.max(maxQueue, intersectionQueue);
+        count++;
+      }
+    }
+
+    const average = count > 0 ? totalQueue / count : 0;
+    return { average, max: maxQueue };
+  }
+
   calculateStatistics(): Statistics {
     const vehicles = Array.from(this.vehicles.values());
     const totalVehicles = vehicles.length;
 
     if (totalVehicles === 0) {
+      const queueData = this.calculateQueueLengths();
       return {
         totalVehicles: 0,
         averageSpeed: 0,
         congestionIndex: 0,
-        averageWaitingTime: 0
+        averageWaitingTime: 0,
+        averageQueueLength: queueData.average,
+        maxQueueLength: queueData.max,
+        trafficFlow: 0,
+        completedTrips: this.completedTrips
       };
     }
 
@@ -360,11 +430,26 @@ export class SimulationEngine {
     const averageWaitingTime =
       intersectionsWithWaits > 0 ? totalWaitingTime / intersectionsWithWaits : 0;
 
+    const queueData = this.calculateQueueLengths();
+
+    const trafficFlow = this.intervalElapsed > 0
+      ? (this.vehiclesPassedLastInterval / this.intervalElapsed) * 3600
+      : 0;
+
+    if (this.intervalElapsed >= 300) {
+      this.vehiclesPassedLastInterval = 0;
+      this.intervalElapsed = 0;
+    }
+
     return {
       totalVehicles,
       averageSpeed,
       congestionIndex,
-      averageWaitingTime
+      averageWaitingTime,
+      averageQueueLength: queueData.average,
+      maxQueueLength: queueData.max,
+      trafficFlow,
+      completedTrips: this.completedTrips
     };
   }
 
@@ -383,6 +468,10 @@ export class SimulationEngine {
     this.vehicles.clear();
     this.spawnTimer = 0;
     this.statsTimer = 0;
+    this.completedTrips = 0;
+    this.vehicleSpawned = 0;
+    this.vehiclesPassedLastInterval = 0;
+    this.intervalElapsed = 0;
     this.intersections.forEach((i) => {
       i.totalWaitingTime = 0;
       i.vehiclesWaited = 0;

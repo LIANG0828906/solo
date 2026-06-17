@@ -52,6 +52,10 @@ export interface Statistics {
   averageSpeed: number;
   congestionIndex: number;
   averageWaitingTime: number;
+  averageQueueLength: number;
+  maxQueueLength: number;
+  trafficFlow: number;
+  completedTrips: number;
 }
 
 export const VEHICLE_COLORS = [

@@ -32,7 +32,11 @@ const defaultStatistics: Statistics = {
   totalVehicles: 0,
   averageSpeed: 0,
   congestionIndex: 0,
-  averageWaitingTime: 0
+  averageWaitingTime: 0,
+  averageQueueLength: 0,
+  maxQueueLength: 0,
+  trafficFlow: 0,
+  completedTrips: 0
 };
 
 export const useSimulationStore = create<SimulationState>((set, get) => ({

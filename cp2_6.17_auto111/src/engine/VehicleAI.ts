@@ -92,11 +92,44 @@ export class VehicleAI {
     return false;
   }
 
+  static smoothStep(edge0: number, edge1: number, x: number): number {
+    const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
+  }
+
+  static lerp(a: number, b: number, t: number): number {
+    return a + (b - a) * t;
+  }
+
+  static calculateSmoothDeceleration(
+    currentSpeed: number,
+    targetSpeed: number,
+    smoothTime: number,
+    deltaTime: number
+  ): number {
+    const speedDiff = targetSpeed - currentSpeed;
+    if (Math.abs(speedDiff) < 0.01) return 0;
+
+    const maxChange = (DECELERATION * 0.8) * deltaTime;
+    const smoothedChange = this.lerp(
+      -maxChange,
+      maxChange,
+      this.smoothStep(-1, 1, speedDiff / Math.max(Math.abs(speedDiff), 0.1))
+    );
+
+    const desiredAccel = speedDiff / Math.max(smoothTime, deltaTime);
+    const clampedAccel = Math.max(-DECELERATION, Math.min(ACCELERATION, desiredAccel));
+
+    const progress = this.smoothStep(0, smoothTime * 2, Math.abs(speedDiff) / Math.max(currentSpeed, 1));
+    return this.lerp(smoothedChange, clampedAccel, 0.3 + progress * 0.7);
+  }
+
   static calculateAcceleration(
     vehicle: VehicleState,
     allVehicles: VehicleState[],
     trafficLight: TrafficLightState | undefined,
-    intersectionCenter: { x: number; z: number } | null
+    intersectionCenter: { x: number; z: number } | null,
+    deltaTime: number
   ): number {
     const vehicleAhead = this.findVehicleAhead(vehicle, allVehicles);
     const distanceToStopLine = intersectionCenter
@@ -108,35 +141,44 @@ export class VehicleAI {
     if (shouldStop && distanceToStopLine < 50) {
       const stopDistance = distanceToStopLine - 2;
       if (stopDistance <= 0) {
-        return -DECELERATION * 2;
+        return this.calculateSmoothDeceleration(vehicle.speed, 0, 0.5, deltaTime);
       }
-      const decelerationNeeded = (vehicle.speed * vehicle.speed) / (2 * stopDistance);
-      return -Math.min(decelerationNeeded, DECELERATION * 1.5);
+      const idealStopSpeed = Math.sqrt(Math.max(0, 2 * DECELERATION * 0.6 * stopDistance));
+      const targetSpeed = Math.min(vehicle.targetSpeed, idealStopSpeed);
+      const smoothTime = this.smoothStep(2, 20, stopDistance) * 1.5 + 0.3;
+      return this.calculateSmoothDeceleration(vehicle.speed, targetSpeed, smoothTime, deltaTime);
     }
 
     if (vehicleAhead) {
       const distance = this.calculateDistance(vehicle, vehicleAhead);
-      if (distance < FOLLOW_DISTANCE) {
-        const relativeSpeed = vehicle.speed - vehicleAhead.speed;
-        if (relativeSpeed > 0 || distance < FOLLOW_DISTANCE * 0.5) {
-          const targetSpeed = vehicleAhead.speed * 0.9;
-          if (vehicle.speed > targetSpeed) {
-            return -DECELERATION * 0.5;
-          }
-        }
+
+      if (distance < FOLLOW_DISTANCE * 2) {
+        const distanceProgress = this.smoothStep(FOLLOW_DISTANCE * 2, FOLLOW_DISTANCE * 0.3, distance);
+        const targetSpeed = vehicleAhead.speed * (0.85 + distanceProgress * 0.1);
+
         if (distance < FOLLOW_DISTANCE * 0.3) {
-          return -DECELERATION;
+          return this.calculateSmoothDeceleration(vehicle.speed, Math.min(vehicleAhead.speed * 0.5, 2), 0.4, deltaTime);
+        }
+
+        if (vehicle.speed > targetSpeed) {
+          const speedDiff = vehicle.speed - vehicleAhead.speed;
+          const urgency = this.smoothStep(FOLLOW_DISTANCE, FOLLOW_DISTANCE * 0.4, distance) *
+                          this.smoothStep(0, 10, speedDiff * 3.6);
+          const smoothTime = this.lerp(2.0, 0.5, urgency);
+          return this.calculateSmoothDeceleration(vehicle.speed, targetSpeed, smoothTime, deltaTime);
         }
       }
     }
 
-    if (vehicle.speed < vehicle.targetSpeed) {
-      return ACCELERATION;
+    if (vehicle.speed < vehicle.targetSpeed * 0.95) {
+      const accelProgress = this.smoothStep(0, vehicle.targetSpeed, vehicle.speed);
+      return ACCELERATION * this.lerp(1.0, 0.6, accelProgress);
     } else if (vehicle.speed > vehicle.targetSpeed * 1.1) {
-      return -DECELERATION * 0.3;
+      return this.calculateSmoothDeceleration(vehicle.speed, vehicle.targetSpeed, 1.5, deltaTime);
     }
 
-    return 0;
+    const speedError = vehicle.targetSpeed - vehicle.speed;
+    return speedError * 0.5;
   }
 
   static checkTurnIndicator(

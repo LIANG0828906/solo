@@ -201,6 +201,38 @@ export const ControlPanel: React.FC = () => {
       </div>
 
       <div style={sectionStyle}>
+        <h3 style={{ ...sectionTitleStyle, color: '#FF8844' }}>交通分析</h3>
+        <div style={statRowStyle}>
+          <span style={statLabelStyle}>平均排队长度</span>
+          <AnimatedValue
+            value={statistics.averageQueueLength}
+            format={(v) => `${v.toFixed(1)} 辆`}
+          />
+        </div>
+        <div style={statRowStyle}>
+          <span style={statLabelStyle}>最大排队长度</span>
+          <AnimatedValue
+            value={statistics.maxQueueLength}
+            format={(v) => `${v.toFixed(0)} 辆`}
+          />
+        </div>
+        <div style={statRowStyle}>
+          <span style={statLabelStyle}>交通流量</span>
+          <AnimatedValue
+            value={statistics.trafficFlow}
+            format={(v) => `${v.toFixed(0)} 辆/h`}
+          />
+        </div>
+        <div style={statRowStyle}>
+          <span style={statLabelStyle}>已完成行程</span>
+          <AnimatedValue
+            value={statistics.completedTrips}
+            format={(v) => v.toFixed(0)}
+          />
+        </div>
+      </div>
+
+      <div style={sectionStyle}>
         <h3 style={sectionTitleStyle}>信号灯控制</h3>
         <div style={statRowStyle}>
           <span style={statLabelStyle}>绿灯时长</span>

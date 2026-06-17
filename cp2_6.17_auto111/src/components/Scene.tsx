@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -30,17 +30,33 @@ interface VehicleMeshProps {
 
 const VehicleMesh: React.FC<VehicleMeshProps> = ({ vehicle, useLOD, onClick, isFollowed }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const blinkOn = VehicleAI.isTurnIndicatorBlinkOn(vehicle);
+  const blinkTimerRef = useRef(0);
+  const [blinkState, setBlinkState] = useState(true);
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (groupRef.current) {
       groupRef.current.position.x = vehicle.position.x;
       groupRef.current.position.z = vehicle.position.z;
       groupRef.current.rotation.y = vehicle.rotation;
     }
+
+    if (vehicle.turnIndicatorActive) {
+      blinkTimerRef.current += delta;
+      const blinkPeriod = 0.5;
+      if (blinkTimerRef.current >= blinkPeriod) {
+        blinkTimerRef.current = 0;
+        setBlinkState((prev: boolean) => !prev);
+      }
+    } else {
+      blinkTimerRef.current = 0;
+      setBlinkState(true);
+    }
   });
 
-  const turnIndicatorColor = vehicle.turnIndicatorActive && blinkOn ? '#FFFF99' : '#333333';
+  const indicatorOn = vehicle.turnIndicatorActive && blinkState;
+
+  const showLeftIndicator = vehicle.nextTurn === 'left';
+  const showRightIndicator = vehicle.nextTurn === 'right';
 
   if (useLOD) {
     return (
@@ -91,22 +107,65 @@ const VehicleMesh: React.FC<VehicleMeshProps> = ({ vehicle, useLOD, onClick, isF
         <sphereGeometry args={[0.15, 8, 8]} />
         <meshBasicMaterial color="#FF0000" />
       </mesh>
-      {vehicle.nextTurn !== 'straight' && (
+
+      {showLeftIndicator && (
         <group>
-          <mesh position={[0, CAR_HEIGHT * 0.1, (vehicle.nextTurn === 'left' ? -1 : 1) * CAR_WIDTH * 0.55]}>
+          <mesh position={[CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, -CAR_WIDTH * 0.52]}>
             <boxGeometry args={[0.3, 0.3, 0.1]} />
-            <meshBasicMaterial color={turnIndicatorColor} />
+            <meshBasicMaterial color={indicatorOn ? '#FFFFCC' : '#444433'} />
           </mesh>
-          {blinkOn && vehicle.turnIndicatorActive && (
-            <pointLight
-              position={[0, CAR_HEIGHT * 0.1, (vehicle.nextTurn === 'left' ? -1 : 1) * CAR_WIDTH * 0.55]}
-              color="#FFFF99"
-              intensity={0.5}
-              distance={3}
-            />
+          <mesh position={[-CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, -CAR_WIDTH * 0.52]}>
+            <boxGeometry args={[0.3, 0.3, 0.1]} />
+            <meshBasicMaterial color={indicatorOn ? '#FFFFCC' : '#444433'} />
+          </mesh>
+          {indicatorOn && (
+            <>
+              <pointLight
+                position={[CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, -CAR_WIDTH * 0.52]}
+                color="#FFFF99"
+                intensity={0.6}
+                distance={4}
+              />
+              <pointLight
+                position={[-CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, -CAR_WIDTH * 0.52]}
+                color="#FFFF99"
+                intensity={0.6}
+                distance={4}
+              />
+            </>
           )}
         </group>
       )}
+
+      {showRightIndicator && (
+        <group>
+          <mesh position={[CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, CAR_WIDTH * 0.52]}>
+            <boxGeometry args={[0.3, 0.3, 0.1]} />
+            <meshBasicMaterial color={indicatorOn ? '#FFFFCC' : '#444433'} />
+          </mesh>
+          <mesh position={[-CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, CAR_WIDTH * 0.52]}>
+            <boxGeometry args={[0.3, 0.3, 0.1]} />
+            <meshBasicMaterial color={indicatorOn ? '#FFFFCC' : '#444433'} />
+          </mesh>
+          {indicatorOn && (
+            <>
+              <pointLight
+                position={[CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, CAR_WIDTH * 0.52]}
+                color="#FFFF99"
+                intensity={0.6}
+                distance={4}
+              />
+              <pointLight
+                position={[-CAR_LENGTH * 0.42, CAR_HEIGHT * 0.25, CAR_WIDTH * 0.52]}
+                color="#FFFF99"
+                intensity={0.6}
+                distance={4}
+              />
+            </>
+          )}
+        </group>
+      )}
+
       {isFollowed && (
         <mesh position={[0, CAR_HEIGHT + 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <ringGeometry args={[1.5, 2, 32]} />
@@ -193,10 +252,7 @@ const TrafficLight: React.FC<TrafficLightProps> = ({ intersection }) => {
   );
 };
 
-interface CameraControllerProps {
-  intersections: Map<string, IntersectionState>;
-  engineRef: React.MutableRefObject<any>;
-}
+interface CameraControllerProps {}
 
 const CameraController: React.FC<CameraControllerProps> = () => {
   const { camera } = useThree();
@@ -367,7 +423,7 @@ const SceneContent: React.FC<SceneContentProps> = ({ gridConfig, engineRef }) =>
 
   return (
     <>
-      <CameraController intersections={intersections} engineRef={engineRef} />
+      <CameraController />
       <ambientLight intensity={0.3} />
       <directionalLight
         position={[100, 100, 50]}
