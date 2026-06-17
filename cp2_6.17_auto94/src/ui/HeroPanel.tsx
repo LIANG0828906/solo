@@ -69,7 +69,12 @@ const HeroListItem: React.FC<HeroListItemProps> = ({ hero, isSelected, onClick }
               skill.currentCooldown > 0 ? 'opacity-50' : 'opacity-100'
             }`}
             style={{
-              backgroundColor: skill.type === 'damage' ? '#E74C3C' : skill.type === 'heal' ? '#27AE60' : '#F39C12'
+              backgroundColor:
+                skill.type === 'damage'
+                  ? '#E74C3C'
+                  : skill.type === 'heal'
+                  ? '#27AE60'
+                  : '#F39C12',
             }}
             title={skill.name}
           >
@@ -85,9 +90,9 @@ export const HeroPanel: React.FC = () => {
   const { heroes, selectedHeroId, selectHero } = useGameStore()
 
   return (
-    <div className="hero-panel w-[240px] flex flex-col gap-1 p-3 bg-[var(--app-bg)] border-r border-[var(--cell-border)]">
+    <aside className="hero-panel w-[240px] flex flex-col p-3 bg-[var(--app-bg)] border-r border-[var(--cell-border)]">
       <h2 className="text-white text-lg font-bold mb-2 px-1">英雄小队</h2>
-      <div className="flex flex-col gap-[4px]">
+      <div className="hero-list flex flex-col gap-[4px]">
         {heroes.map((hero) => (
           <HeroListItem
             key={hero.id}
@@ -97,7 +102,7 @@ export const HeroPanel: React.FC = () => {
           />
         ))}
       </div>
-    </div>
+    </aside>
   )
 }
 

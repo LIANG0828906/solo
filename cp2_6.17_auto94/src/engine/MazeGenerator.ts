@@ -5,6 +5,7 @@ interface MazeGeneratorResult {
   maze: CellType[][]
   monsters: Monster[]
   startPositions: Position[]
+  exitPosition: Position
 }
 
 export class MazeGenerator {
@@ -69,17 +70,19 @@ export class MazeGenerator {
       { x: 2, y: 1 },
     ]
 
+    const exitPos = this.findFarthestFloor(floorCells, startPositions[0])
+    maze[exitPos.y][exitPos.x] = 'exit'
+
     const availableCells = floorCells.filter(
       (cell) =>
-        !startPositions.some(
-          (sp) => sp.x === cell.x && sp.y === cell.y
-        ) &&
+        !startPositions.some((sp) => sp.x === cell.x && sp.y === cell.y) &&
+        !(cell.x === exitPos.x && cell.y === exitPos.y) &&
         Math.abs(cell.x - 1) + Math.abs(cell.y - 1) > 3
     )
 
     const shuffledCells = [...availableCells].sort(() => Math.random() - 0.5)
 
-    const treasureCount = Math.min(2, Math.floor(shuffledCells.length / 10))
+    const treasureCount = Math.min(2, Math.max(1, Math.floor(shuffledCells.length / 12)))
     for (let i = 0; i < treasureCount && i < shuffledCells.length; i++) {
       const pos = shuffledCells[i]
       maze[pos.y][pos.x] = 'treasure'
@@ -90,9 +93,9 @@ export class MazeGenerator {
     const monsters: Monster[] = []
     const monsterCount = Math.min(5, Math.max(3, Math.floor(remainingCells.length / 8)))
     const monsterTemplates = [
-      { name: 'Goblin', hp: 40, attack: 8, defense: 3, speed: 6 },
-      { name: 'Orc', hp: 60, attack: 12, defense: 5, speed: 4 },
-      { name: 'Skeleton', hp: 35, attack: 10, defense: 2, speed: 7 },
+      { name: '哥布林', hp: 40, attack: 8, defense: 3, speed: 6 },
+      { name: '兽人', hp: 60, attack: 12, defense: 5, speed: 4 },
+      { name: '骷髅', hp: 35, attack: 10, defense: 2, speed: 7 },
     ]
 
     for (let i = 0; i < monsterCount && i < remainingCells.length; i++) {
@@ -116,6 +119,21 @@ export class MazeGenerator {
       })
     }
 
-    return { maze, monsters, startPositions }
+    return { maze, monsters, startPositions, exitPosition: exitPos }
+  }
+
+  private static findFarthestFloor(floorCells: Position[], from: Position): Position {
+    let farthest = from
+    let maxDist = 0
+
+    for (const cell of floorCells) {
+      const dist = Math.abs(cell.x - from.x) + Math.abs(cell.y - from.y)
+      if (dist > maxDist) {
+        maxDist = dist
+        farthest = cell
+      }
+    }
+
+    return farthest
   }
 }

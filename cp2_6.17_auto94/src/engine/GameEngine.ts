@@ -1,4 +1,4 @@
-import type { Position, Item, Hero, CellType } from '@/types'
+import type { Position, Item, Hero, CellType, Monster, Unit } from '@/types'
 import { useGameStore } from '@/stores/gameStore'
 import { MazeGenerator } from './MazeGenerator'
 import { AIController } from './AIController'
@@ -12,7 +12,13 @@ export class GameEngine {
   private readonly frameBudget: number = 16
   private phase: GamePhase = 'idle'
   private pendingHeroMove: { heroId: string; position: Position } | null = null
+  private pendingHeroAttack: { heroId: string; monsterId: string } | null = null
   private isRunning: boolean = false
+  private battleSystem: BattleSystem
+
+  constructor() {
+    this.battleSystem = new BattleSystem()
+  }
 
   start(): void {
     if (this.isRunning) return
@@ -20,13 +26,14 @@ export class GameEngine {
     this.initGame()
     this.lastTime = performance.now()
     this.gameLoop()
-    useGameStore.getState().setEngineResetCallback(() => this.reset())
+    useGameStore.getState().setEngineResetCallback?.(() => this.reset())
   }
 
   reset(): void {
     this.stop()
     this.phase = 'idle'
     this.pendingHeroMove = null
+    this.pendingHeroAttack = null
     this.start()
   }
 
@@ -53,8 +60,12 @@ export class GameEngine {
       }
     })
 
+    if (heroes.length > 0) {
+      store.selectHero(heroes[0].id)
+    }
+
     this.phase = 'player_turn'
-    store.addBattleLog('Explore the maze and defeat all monsters!')
+    store.addBattleLog('游戏开始！探索迷宫，击败所有怪物！')
   }
 
   requestHeroMove(heroId: string, position: Position): void {
@@ -81,8 +92,7 @@ export class GameEngine {
     if (!hero || !monster || hero.hp <= 0) return
     if (!this.isAdjacent(hero.position, monster.position)) return
 
-    this.executeHeroAttack(heroId, monsterId)
-    this.endPlayerTurn()
+    this.pendingHeroAttack = { heroId, monsterId }
   }
 
   private gameLoop = (): void => {
@@ -107,9 +117,15 @@ export class GameEngine {
       return
     }
 
-    if (this.phase === 'player_turn' && this.pendingHeroMove) {
-      this.executeHeroMove(this.pendingHeroMove)
-      this.pendingHeroMove = null
+    if (this.phase === 'player_turn') {
+      if (this.pendingHeroAttack) {
+        this.executeHeroAttack(this.pendingHeroAttack.heroId, this.pendingHeroAttack.monsterId)
+        this.pendingHeroAttack = null
+        this.endPlayerTurn()
+      } else if (this.pendingHeroMove) {
+        this.executeHeroMove(this.pendingHeroMove)
+        this.pendingHeroMove = null
+      }
     }
 
     if (this.phase === 'enemy_turn') {
@@ -125,9 +141,9 @@ export class GameEngine {
     if (!hero) return
 
     store.moveHero(move.heroId, move.position)
-    store.addBattleLog(`${hero.name} moves to (${move.position.x}, ${move.position.y})`)
+    store.addBattleLog(`${hero.name} 移动到 (${move.position.x}, ${move.position.y})`)
 
-    this.handleItemPickup(move.heroId, move.position)
+    this.handleItemPickup(move.position)
 
     const autoAttacked = this.tryAutoAttack(move.heroId)
     if (!autoAttacked) {
@@ -137,24 +153,34 @@ export class GameEngine {
     }
   }
 
-  private handleItemPickup(heroId: string, position: Position): void {
+  private handleItemPickup(position: Position): void {
     const store = useGameStore.getState()
-    const { maze } = store
+    const { maze, selectedHeroId } = store
 
-    if (maze[position.y]?.[position.x] === 'treasure') {
-      const items: Item[] = [
-        { type: 'heal_potion', value: 30 },
-        { type: 'power_potion', value: 10, duration: 3 },
-        { type: 'shield_potion', value: 10, duration: 3 },
-      ]
-      const randomItem = items[Math.floor(Math.random() * items.length)]
+    if (maze[position.y]?.[position.x] !== 'treasure') return
+    if (!selectedHeroId) return
 
-      store.applyItem(heroId, randomItem)
+    const items: Item[] = [
+      { type: 'heal_potion', value: 30 },
+      { type: 'power_potion', value: 10, duration: 3 },
+      { type: 'shield_potion', value: 10, duration: 3 },
+    ]
+    const randomItem = items[Math.floor(Math.random() * items.length)]
 
-      const newMaze = maze.map((row) => [...row])
-      newMaze[position.y][position.x] = 'floor'
-      store.setMaze(newMaze)
-    }
+    const selectedHero = store.heroes.find((h) => h.id === selectedHeroId)
+    if (!selectedHero) return
+
+    store.applyItem(selectedHeroId, randomItem)
+
+    store.addAnimationEffect({
+      type: 'item',
+      position,
+      targetId: selectedHeroId,
+    })
+
+    const newMaze = maze.map((row) => [...row])
+    newMaze[position.y][position.x] = 'floor'
+    store.setMaze(newMaze)
   }
 
   private tryAutoAttack(heroId: string): boolean {
@@ -184,9 +210,9 @@ export class GameEngine {
     const result = BattleSystem.resolveHeroAttack(hero, monster)
 
     if (result.isCritical) {
-      state.addBattleLog(`Critical hit! ${hero.name} attacks ${monster.name} for ${result.damage} damage!`)
+      state.addBattleLog(`暴击！${hero.name} 对 ${monster.name} 造成 ${result.damage} 点伤害！`)
     } else {
-      state.addBattleLog(`${hero.name} attacks ${monster.name} for ${result.damage} damage!`)
+      state.addBattleLog(`${hero.name} 攻击 ${monster.name}，造成 ${result.damage} 点伤害！`)
     }
 
     state.addAnimationEffect({
@@ -198,7 +224,7 @@ export class GameEngine {
 
     if (result.targetDefeated) {
       state.removeMonster(monsterId)
-      state.addBattleLog(`${monster.name} has been defeated!`)
+      state.addBattleLog(`${monster.name} 被击败了！`)
     } else {
       state.updateMonster(monsterId, { hp: result.targetHp })
     }
@@ -219,16 +245,19 @@ export class GameEngine {
     const { monsters, maze } = state
 
     const aliveMonsters = monsters.filter((m) => m.hp > 0)
-    const sortedMonsters = [...aliveMonsters].sort((a, b) => b.speed - a.speed)
+    const allUnits: Unit[] = [...aliveMonsters]
+    const sortedMonsters = this.battleSystem.getTurnOrder(allUnits) as Monster[]
 
     for (const monster of sortedMonsters) {
-      if (state.gameStatus !== 'playing') break
+      if (useGameStore.getState().gameStatus !== 'playing') break
 
       const currentMonster = useGameStore.getState().monsters.find((m) => m.id === monster.id)
       if (!currentMonster || currentMonster.hp <= 0) continue
 
       const currentHeroes = useGameStore.getState().heroes
       const action = AIController.getAction(currentMonster, currentHeroes, maze)
+
+      useGameStore.getState().updateMonster(monster.id, { aiState: action.aiState })
 
       if (action.type === 'move') {
         useGameStore.getState().updateMonster(monster.id, { position: action.position })
@@ -241,7 +270,7 @@ export class GameEngine {
       }
     }
 
-    if (state.gameStatus === 'playing') {
+    if (useGameStore.getState().gameStatus === 'playing') {
       this.phase = 'player_turn'
       useGameStore.getState().incrementTurn()
     }
@@ -257,9 +286,9 @@ export class GameEngine {
     const result = BattleSystem.resolveMonsterAttack(monster, hero)
 
     if (result.isCritical) {
-      state.addBattleLog(`Critical hit! ${monster.name} attacks ${hero.name} for ${result.damage} damage!`)
+      state.addBattleLog(`暴击！${monster.name} 对 ${hero.name} 造成 ${result.damage} 点伤害！`)
     } else {
-      state.addBattleLog(`${monster.name} attacks ${hero.name} for ${result.damage} damage!`)
+      state.addBattleLog(`${monster.name} 攻击 ${hero.name}，造成 ${result.damage} 点伤害！`)
     }
 
     state.addAnimationEffect({
@@ -271,7 +300,7 @@ export class GameEngine {
 
     if (result.targetDefeated) {
       state.updateHero(heroId, { hp: 0 })
-      state.addBattleLog(`${hero.name} has fallen!`)
+      state.addBattleLog(`${hero.name} 倒下了！`)
 
       const aliveHeroes = state.heroes.filter((h) => h.hp > 0)
       if (aliveHeroes.length > 0 && state.selectedHeroId === heroId) {
@@ -288,7 +317,7 @@ export class GameEngine {
 
     if (aliveMonsters.length === 0) {
       state.updateGameStatus('won')
-      state.addBattleLog('Victory! All monsters have been defeated!')
+      state.addBattleLog('胜利！所有怪物已被击败！')
       this.phase = 'game_over'
       return true
     }
@@ -302,7 +331,7 @@ export class GameEngine {
 
     if (aliveHeroes.length === 0) {
       state.updateGameStatus('lost')
-      state.addBattleLog('Defeat! All heroes have fallen...')
+      state.addBattleLog('失败...英雄小队全军覆没。')
       this.phase = 'game_over'
       return true
     }
@@ -346,7 +375,7 @@ export class GameEngine {
   private cleanupAnimationEffects(): void {
     const state = useGameStore.getState()
     const now = Date.now()
-    const effects = state.animationEffects.filter((e) => now - e.createdAt < 1000)
+    const effects = state.animationEffects.filter((e) => now - e.createdAt < 1500)
 
     if (effects.length !== state.animationEffects.length) {
       useGameStore.setState({ animationEffects: effects })
