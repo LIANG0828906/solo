@@ -30,6 +30,7 @@ html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 #root {
@@ -46,6 +47,11 @@ button {
   border: none;
   outline: none;
   font-family: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 input, textarea {
@@ -167,13 +173,21 @@ input, textarea {
 }
 
 .masonry-grid {
-  column-count: 3;
-  column-gap: 20px;
+  display: flex;
+  gap: 20px;
+}
+
+.masonry-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
 }
 
 .masonry-item {
-  break-inside: avoid;
-  margin-bottom: 20px;
+  width: 100%;
+  min-width: 280px;
 }
 
 .recipe-card {
@@ -182,9 +196,11 @@ input, textarea {
   border-radius: 12px;
   padding: 20px;
   box-shadow: var(--shadow-card);
-  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, opacity 0.3s ease, transform-scale 0.3s ease;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, opacity 0.3s ease, scale 0.3s ease;
   cursor: pointer;
   display: block;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 .recipe-card:hover {
@@ -194,12 +210,22 @@ input, textarea {
 
 .recipe-card.fade-out {
   opacity: 0;
-  transform: scale(0.95);
+  scale: 0.95;
+  pointer-events: none;
 }
 
 .recipe-card.fade-in {
   opacity: 1;
-  transform: scale(1);
+  scale: 1;
+}
+
+.recipe-cover-wrapper {
+  width: 100%;
+  height: 180px;
+  border-radius: 8px;
+  background-color: var(--bg-input);
+  overflow: hidden;
+  position: relative;
 }
 
 .recipe-cover {
@@ -208,6 +234,15 @@ input, textarea {
   border-radius: 8px;
   object-fit: cover;
   display: block;
+  transition: opacity 0.3s ease;
+}
+
+.recipe-cover.img-loading {
+  opacity: 0;
+}
+
+.recipe-cover.img-loaded {
+  opacity: 1;
 }
 
 .recipe-info {
@@ -246,6 +281,7 @@ input, textarea {
   justify-content: center;
   transition: transform 0.15s ease;
   flex-shrink: 0;
+  border-radius: 50%;
 }
 
 .favorite-btn svg {
@@ -312,6 +348,10 @@ input, textarea {
   transform: scale(0);
   animation: rippleEffect 0.6s ease-out;
   pointer-events: none;
+  width: 56px;
+  height: 56px;
+  left: 0;
+  top: 0;
 }
 
 @keyframes rippleEffect {
@@ -330,6 +370,12 @@ input, textarea {
   justify-content: center;
   z-index: 100;
   padding: 20px;
+  animation: overlayFadeIn 0.2s ease;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal-content {
@@ -373,10 +419,17 @@ input, textarea {
   padding: 4px;
   transition: color 0.2s ease;
   line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
 }
 
 .modal-close:hover {
   color: var(--text-primary);
+  background-color: var(--bg-input);
 }
 
 .form-group {
@@ -428,6 +481,10 @@ input, textarea {
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.dynamic-item.slide-in {
   animation: slideInUp 0.2s ease;
 }
 
@@ -452,10 +509,16 @@ input, textarea {
   color: var(--text-muted);
   user-select: none;
   transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 
 .drag-handle:hover {
   color: var(--text-primary);
+  background-color: var(--bg-input);
 }
 
 .drag-handle:active {
@@ -463,11 +526,8 @@ input, textarea {
 }
 
 .dynamic-item.dragging {
-  opacity: 0.5;
-}
-
-.dynamic-item.drag-over {
-  border-top: 2px solid var(--accent);
+  opacity: 0.4;
+  transform: scale(0.98);
 }
 
 .remove-btn {
@@ -525,12 +585,16 @@ input, textarea {
   color: white;
   font-size: 16px;
   font-weight: 600;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.1s ease;
   margin-top: 8px;
 }
 
 .submit-btn:hover {
   background-color: var(--accent-hover);
+}
+
+.submit-btn:active {
+  transform: scale(0.98);
 }
 
 .detail-container {
@@ -560,10 +624,13 @@ input, textarea {
   margin-bottom: 20px;
   background: none;
   transition: color 0.2s ease;
+  padding: 6px 10px;
+  border-radius: 8px;
 }
 
 .detail-back:hover {
   color: var(--accent-hover);
+  background-color: var(--bg-card);
 }
 
 .detail-back svg {
@@ -631,6 +698,7 @@ input, textarea {
   font-size: 14px;
   line-height: 1.7;
   color: var(--text-primary);
+  transition: background-color 0.15s ease;
 }
 
 .step-item:nth-child(odd) {
@@ -660,12 +728,16 @@ input, textarea {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.1s ease;
   margin: 0 auto;
 }
 
 .detail-favorite-btn:hover {
   background-color: var(--accent-hover);
+}
+
+.detail-favorite-btn:active {
+  transform: scale(0.98);
 }
 
 .detail-favorite-btn.animating {
@@ -701,6 +773,7 @@ input, textarea {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 16px;
+  scroll-padding: 0 0 0 0;
 }
 
 .recommend-scroll::-webkit-scrollbar {
@@ -712,6 +785,7 @@ input, textarea {
   width: 220px;
   height: 300px;
   scroll-snap-align: start;
+  scroll-snap-stop: always;
   background-color: var(--bg-card);
   border-radius: 8px;
   overflow: hidden;
@@ -763,13 +837,19 @@ input, textarea {
   height: 8px;
   border-radius: 50%;
   background-color: var(--bg-input);
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, transform 0.2s ease;
   cursor: pointer;
   padding: 0;
+  border: none;
+}
+
+.recommend-dot:hover {
+  transform: scale(1.2);
 }
 
 .recommend-dot.active {
   background-color: var(--accent);
+  transform: scale(1.2);
 }
 
 .empty-state {
@@ -791,13 +871,29 @@ input, textarea {
 
 @media (max-width: 1024px) {
   .masonry-grid {
-    column-count: 2;
+    display: flex;
+  }
+  .masonry-grid > .masonry-column:nth-child(n+3) {
+    display: none;
+  }
+  .masonry-item {
+    min-width: 0;
   }
 }
 
 @media (max-width: 768px) {
   .masonry-grid {
-    column-count: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .masonry-grid > .masonry-column:nth-child(n+2) {
+    display: none;
+  }
+  .masonry-column {
+    width: 100%;
+  }
+  .masonry-item {
+    min-width: 0;
   }
 
   .search-box {
@@ -831,5 +927,11 @@ input, textarea {
   .fab {
     right: 20px;
     bottom: 20px;
+  }
+
+  .recommend-card {
+    flex: 0 0 200px;
+    width: 200px;
+    height: 280px;
   }
 }

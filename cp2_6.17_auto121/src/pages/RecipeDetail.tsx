@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getRecipeById, toggleFavorite, getRandomRecipes, type Recipe } from '../data/recipes'
+
+const CARD_WIDTH = 220
+const CARD_GAP = 16
 
 function RecipeDetail() {
   const { id } = useParams<{ id: string }>()
@@ -9,45 +12,83 @@ function RecipeDetail() {
   const [recommendations, setRecommendations] = useState<Recipe[]>([])
   const [isAnimating, setIsAnimating] = useState(false)
   const [activeDot, setActiveDot] = useState(0)
+  const [totalDots, setTotalDots] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const isLockedRef = useRef(false)
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!id) return
     const found = getRecipeById(id)
     setRecipe(found)
-    
+
     if (found) {
       setRecommendations(getRandomRecipes(4, id))
     }
   }, [id])
 
-  const handleFavoriteClick = () => {
-    if (!recipe || isAnimating) return
+  useEffect(() => {
+    const updateDots = () => {
+      if (!scrollRef.current || recommendations.length === 0) {
+        setTotalDots(0)
+        setActiveDot(0)
+        return
+      }
+      const containerWidth = scrollRef.current.clientWidth
+      const itemTotalWidth = CARD_WIDTH + CARD_GAP
+      const visibleCount = Math.max(1, Math.floor((containerWidth + CARD_GAP) / itemTotalWidth))
+      const pages = Math.max(1, Math.ceil(recommendations.length / visibleCount))
+      setTotalDots(pages)
+      setActiveDot(prev => Math.min(prev, pages - 1))
+    }
 
+    updateDots()
+    window.addEventListener('resize', updateDots)
+    return () => window.removeEventListener('resize', updateDots)
+  }, [recommendations.length])
+
+  const handleFavoriteClick = () => {
+    if (!recipe || isLockedRef.current || isAnimating) return
+
+    isLockedRef.current = true
     setIsAnimating(true)
     const newState = toggleFavorite(recipe.id)
     setRecipe({ ...recipe, isFavorited: newState })
 
     setTimeout(() => {
       setIsAnimating(false)
+      isLockedRef.current = false
     }, 150)
   }
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!scrollRef.current) return
-    const { scrollLeft, clientWidth } = scrollRef.current
-    const index = Math.round(scrollLeft / (220 + 16))
-    setActiveDot(index)
-  }
 
-  const scrollToIndex = (index: number) => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current)
+    }
+
+    scrollTimeoutRef.current = setTimeout(() => {
+      if (!scrollRef.current) return
+      const { scrollLeft, clientWidth } = scrollRef.current
+      const itemTotalWidth = CARD_WIDTH + CARD_GAP
+      const visibleCount = Math.max(1, Math.floor((clientWidth + CARD_GAP) / itemTotalWidth))
+      const index = Math.round(scrollLeft / (itemTotalWidth * visibleCount))
+      setActiveDot(index)
+    }, 100)
+  }, [])
+
+  const scrollToIndex = (pageIndex: number) => {
     if (!scrollRef.current) return
-    const itemWidth = 220 + 16
+    const containerWidth = scrollRef.current.clientWidth
+    const itemTotalWidth = CARD_WIDTH + CARD_GAP
+    const visibleCount = Math.max(1, Math.floor((containerWidth + CARD_GAP) / itemTotalWidth))
+    const targetScroll = pageIndex * itemTotalWidth * visibleCount
     scrollRef.current.scrollTo({
-      left: index * itemWidth,
+      left: targetScroll,
       behavior: 'smooth'
     })
-    setActiveDot(index)
+    setActiveDot(pageIndex)
   }
 
   if (!recipe) {
@@ -80,7 +121,7 @@ function RecipeDetail() {
         alt={recipe.name}
         className="detail-cover"
       />
-      
+
       <div className="detail-content">
         <button className="detail-back" onClick={() => navigate('/')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -123,6 +164,7 @@ function RecipeDetail() {
         <button
           className={`detail-favorite-btn ${isAnimating ? 'animating' : ''}`}
           onClick={handleFavoriteClick}
+          disabled={isLockedRef.current}
         >
           <svg viewBox="0 0 24 24" fill={recipe.isFavorited ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -154,14 +196,14 @@ function RecipeDetail() {
                 </Link>
               ))}
             </div>
-            {recommendations.length > 1 && (
+            {totalDots > 1 && (
               <div className="recommend-dots">
-                {recommendations.map((_, index) => (
+                {Array.from({ length: totalDots }, (_, i) => (
                   <button
-                    key={index}
-                    className={`recommend-dot ${activeDot === index ? 'active' : ''}`}
-                    onClick={() => scrollToIndex(index)}
-                    aria-label={`滚动到第 ${index + 1} 个推荐`}
+                    key={i}
+                    className={`recommend-dot ${activeDot === i ? 'active' : ''}`}
+                    onClick={() => scrollToIndex(i)}
+                    aria-label={`滚动到第 ${i + 1} 页推荐`}
                   />
                 ))}
               </div>

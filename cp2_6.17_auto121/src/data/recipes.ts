@@ -135,7 +135,6 @@ export function getRecipeById(id: string): Recipe | undefined {
 }
 
 export function createRecipe(data: Omit<Recipe, 'id' | 'isFavorited' | 'createdAt'>): Recipe {
-  const recipes = getRecipes()
   const newRecipe: Recipe = {
     ...data,
     id: uuidv4(),
@@ -209,6 +208,15 @@ export function toggleFavorite(id: string): boolean {
   
   localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites))
   return index === -1
+}
+
+function removeFavorite(id: string): void {
+  const favorites = getFavorites()
+  const index = favorites.indexOf(id)
+  if (index !== -1) {
+    favorites.splice(index, 1)
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites))
+  }
 }
 
 export function getRandomRecipes(count: number, excludeId?: string): Recipe[] {

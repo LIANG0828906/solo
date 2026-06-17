@@ -7,21 +7,36 @@ interface CreateModalProps {
   onRecipeCreated: (recipe: Recipe) => void
 }
 
+interface StepItem {
+  id: string
+  value: string
+}
+
+interface IngredientItem {
+  id: string
+  value: string
+}
+
 function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
   const [name, setName] = useState('')
   const [cover, setCover] = useState('')
   const [description, setDescription] = useState('')
-  const [ingredients, setIngredients] = useState<string[]>([''])
-  const [steps, setSteps] = useState<string[]>([''])
+  const [ingredients, setIngredients] = useState<IngredientItem[]>([
+    { id: Date.now().toString(), value: '' }
+  ])
+  const [steps, setSteps] = useState<StepItem[]>([
+    { id: Date.now().toString(), value: '' }
+  ])
   const dragIndex = useRef<number | null>(null)
   const dragOverIndex = useRef<number | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   const resetForm = () => {
     setName('')
     setCover('')
     setDescription('')
-    setIngredients([''])
-    setSteps([''])
+    setIngredients([{ id: Date.now().toString(), value: '' }])
+    setSteps([{ id: Date.now().toString(), value: '' }])
   }
 
   const handleClose = () => {
@@ -30,12 +45,12 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
   }
 
   const handleAddIngredient = () => {
-    setIngredients([...ingredients, ''])
+    setIngredients([...ingredients, { id: Date.now().toString() + Math.random(), value: '' }])
   }
 
   const handleRemoveIngredient = (index: number) => {
     if (ingredients.length === 1) {
-      setIngredients([''])
+      setIngredients([{ id: Date.now().toString(), value: '' }])
     } else {
       setIngredients(ingredients.filter((_, i) => i !== index))
     }
@@ -43,17 +58,17 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
 
   const handleIngredientChange = (index: number, value: string) => {
     const newIngredients = [...ingredients]
-    newIngredients[index] = value
+    newIngredients[index] = { ...newIngredients[index], value }
     setIngredients(newIngredients)
   }
 
   const handleAddStep = () => {
-    setSteps([...steps, ''])
+    setSteps([...steps, { id: Date.now().toString() + Math.random(), value: '' }])
   }
 
   const handleRemoveStep = (index: number) => {
     if (steps.length === 1) {
-      setSteps([''])
+      setSteps([{ id: Date.now().toString(), value: '' }])
     } else {
       setSteps(steps.filter((_, i) => i !== index))
     }
@@ -61,40 +76,51 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
 
   const handleStepChange = (index: number, value: string) => {
     const newSteps = [...steps]
-    newSteps[index] = value
+    newSteps[index] = { ...newSteps[index], value }
     setSteps(newSteps)
   }
 
-  const handleDragStart = (index: number) => {
+  const handleDragStart = (index: number, e: React.DragEvent) => {
     dragIndex.current = index
+    setDraggingId(steps[index].id)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', index.toString())
   }
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
     dragOverIndex.current = index
   }
 
-  const handleDragEnd = () => {
-    if (dragIndex.current !== null && dragOverIndex.current !== null && dragIndex.current !== dragOverIndex.current) {
+  const handleDragEnter = (index: number) => {
+    if (dragIndex.current !== null && dragIndex.current !== index) {
       const newSteps = [...steps]
-      const [removed] = newSteps.splice(dragIndex.current, 1)
-      newSteps.splice(dragOverIndex.current, 0, removed)
+      const from = dragIndex.current
+      const to = index
+      const [removed] = newSteps.splice(from, 1)
+      newSteps.splice(to, 0, removed)
       setSteps(newSteps)
+      dragIndex.current = to
     }
+  }
+
+  const handleDragEnd = () => {
     dragIndex.current = null
     dragOverIndex.current = null
+    setDraggingId(null)
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!name.trim()) return
-    
-    const filteredIngredients = ingredients.filter(i => i.trim())
-    const filteredSteps = steps.filter(s => s.trim())
-    
+
+    const filteredIngredients = ingredients.filter(i => i.value.trim()).map(i => i.value.trim())
+    const filteredSteps = steps.filter(s => s.value.trim()).map(s => s.value.trim())
+
     if (filteredIngredients.length === 0 || filteredSteps.length === 0) return
-    
+
     const newRecipe = createRecipe({
       name: name.trim(),
       cover: cover.trim() || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600',
@@ -103,7 +129,7 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
       ingredients: filteredIngredients,
       steps: filteredSteps
     })
-    
+
     onRecipeCreated(newRecipe)
     handleClose()
   }
@@ -119,7 +145,7 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
             ×
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">菜名</label>
@@ -132,7 +158,7 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
               required
             />
           </div>
-          
+
           <div className="form-group">
             <label className="form-label">封面图 URL</label>
             <input
@@ -143,7 +169,7 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
               onChange={e => setCover(e.target.value)}
             />
           </div>
-          
+
           <div className="form-group">
             <label className="form-label">描述</label>
             <textarea
@@ -153,17 +179,17 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
               onChange={e => setDescription(e.target.value)}
             />
           </div>
-          
+
           <div className="form-group">
             <label className="form-label">材料列表</label>
             <div className="dynamic-list">
               {ingredients.map((ingredient, index) => (
-                <div key={index} className="dynamic-item">
+                <div key={ingredient.id} className="dynamic-item slide-in">
                   <input
                     type="text"
                     className="form-input"
                     placeholder={`材料 ${index + 1}`}
-                    value={ingredient}
+                    value={ingredient.value}
                     onChange={e => handleIngredientChange(index, e.target.value)}
                   />
                   <button
@@ -188,18 +214,20 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
               添加材料
             </button>
           </div>
-          
+
           <div className="form-group">
             <label className="form-label">步骤列表</label>
             <div className="dynamic-list">
               {steps.map((step, index) => (
                 <div
-                  key={index}
-                  className={`dynamic-item ${dragIndex.current === index ? 'dragging' : ''}`}
+                  key={step.id}
+                  className={`dynamic-item slide-in ${draggingId === step.id ? 'dragging' : ''}`}
                   draggable
-                  onDragStart={() => handleDragStart(index)}
+                  onDragStart={e => handleDragStart(index, e)}
                   onDragOver={e => handleDragOver(e, index)}
+                  onDragEnter={() => handleDragEnter(index)}
                   onDragEnd={handleDragEnd}
+                  style={{ transition: 'transform 0.15s ease, opacity 0.15s ease' }}
                 >
                   <span className="drag-handle" title="拖拽排序">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -214,7 +242,7 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
                   <textarea
                     className="form-textarea"
                     placeholder={`步骤 ${index + 1}`}
-                    value={step}
+                    value={step.value}
                     onChange={e => handleStepChange(index, e.target.value)}
                     style={{ minHeight: '60px' }}
                   />
@@ -240,7 +268,7 @@ function CreateModal({ isOpen, onClose, onRecipeCreated }: CreateModalProps) {
               添加步骤
             </button>
           </div>
-          
+
           <button type="submit" className="submit-btn">
             创建菜谱
           </button>

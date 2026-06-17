@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import RecipeCard from '../components/RecipeCard'
 import CreateModal from '../components/CreateModal'
 import { getRecipes, type Recipe } from '../data/recipes'
@@ -8,10 +8,32 @@ function HomePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [rippleKey, setRippleKey] = useState(0)
+  const [animatingRecipes, setAnimatingRecipes] = useState<Recipe[]>([])
+  const [isFadingOut, setIsFadingOut] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(15)
+  const [columnCount, setColumnCount] = useState(3)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setRecipes(getRecipes())
   }, [])
+
+  const getColumnCount = useCallback(() => {
+    const width = window.innerWidth
+    if (width < 768) return 1
+    if (width < 1024) return 2
+    return 3
+  }, [])
+
+  useEffect(() => {
+    const handleResize = () => {
+      setColumnCount(getColumnCount())
+    }
+    setColumnCount(getColumnCount())
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [getColumnCount])
 
   const filteredRecipes = useMemo(() => {
     if (!searchQuery.trim()) return recipes
@@ -25,11 +47,54 @@ function HomePage() {
     )
   }, [recipes, searchQuery])
 
-  const visibleMap = useMemo(() => {
-    const map = new Map<string, boolean>()
-    filteredRecipes.forEach(r => map.set(r.id, true))
-    return map
+  useEffect(() => {
+    setIsFadingOut(true)
+    const timer = setTimeout(() => {
+      setAnimatingRecipes(filteredRecipes)
+      setIsFadingOut(false)
+      setVisibleCount(15)
+    }, 300)
+    return () => clearTimeout(timer)
   }, [filteredRecipes])
+
+  const displayedRecipes = useMemo(() => {
+    return animatingRecipes.slice(0, visibleCount)
+  }, [animatingRecipes, visibleCount])
+
+  const masonryColumns = useMemo(() => {
+    const columns: Recipe[][] = Array.from({ length: columnCount }, () => [])
+    const columnHeights = new Array(columnCount).fill(0)
+
+    displayedRecipes.forEach(recipe => {
+      let minIndex = 0
+      for (let i = 1; i < columnCount; i++) {
+        if (columnHeights[i] < columnHeights[minIndex]) {
+          minIndex = i
+        }
+      }
+      columns[minIndex].push(recipe)
+      columnHeights[minIndex] += recipe.steps.length * 20 + 280
+    })
+
+    return columns
+  }, [displayedRecipes, columnCount])
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => Math.min(prev + 10, animatingRecipes.length))
+        }
+      },
+      { rootMargin: '200px' }
+    )
+
+    if (sentinelRef.current) {
+      observer.observe(sentinelRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [animatingRecipes.length])
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -38,13 +103,16 @@ function HomePage() {
   }
 
   const handleFavoriteChange = (id: string, isFavorited: boolean) => {
-    setRecipes(prev =>
+    const updater = (prev: Recipe[]) =>
       prev.map(r => (r.id === id ? { ...r, isFavorited } : r))
-    )
+    setRecipes(updater)
+    setAnimatingRecipes(updater)
   }
 
   const handleRecipeCreated = (newRecipe: Recipe) => {
-    setRecipes(prev => [newRecipe, ...prev])
+    const updater = (prev: Recipe[]) => [newRecipe, ...prev]
+    setRecipes(updater)
+    setAnimatingRecipes(updater)
   }
 
   const handleFabClick = () => {
@@ -53,7 +121,7 @@ function HomePage() {
   }
 
   return (
-    <div className="home-container">
+    <div className="home-container" ref={containerRef}>
       <h1 className="app-title">RecipeForge</h1>
       <p className="app-subtitle">你的个人食谱管家</p>
 
@@ -80,7 +148,7 @@ function HomePage() {
         </div>
       </div>
 
-      {filteredRecipes.length === 0 ? (
+      {animatingRecipes.length === 0 && !isFadingOut ? (
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
@@ -92,16 +160,25 @@ function HomePage() {
           <p>没有找到匹配的菜谱</p>
         </div>
       ) : (
-        <div className="masonry-grid">
-          {recipes.map(recipe => (
-            <RecipeCard
-              key={recipe.id}
-              recipe={recipe}
-              visible={visibleMap.get(recipe.id) ?? false}
-              onFavoriteChange={handleFavoriteChange}
-            />
-          ))}
-        </div>
+        <>
+          <div className="masonry-grid" style={{ display: 'flex', gap: '20px' }}>
+            {masonryColumns.map((column, colIndex) => (
+              <div key={colIndex} className="masonry-column" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
+                {column.map(recipe => (
+                  <RecipeCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    visible={!isFadingOut}
+                    onFavoriteChange={handleFavoriteChange}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+          {visibleCount < animatingRecipes.length && (
+            <div ref={sentinelRef} style={{ height: '1px' }} />
+          )}
+        </>
       )}
 
       <button className="fab" onClick={handleFabClick} aria-label="创建新菜谱">
