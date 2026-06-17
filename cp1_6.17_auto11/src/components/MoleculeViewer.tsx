@@ -3,7 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Html, PerspectiveCamera } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
-import { useViewerStore } from '../store'
+import { useViewerStore, AUTO_ROTATE_SPEED } from '../store'
 import moleculesData from '../data/molecules.json'
 import { getAtomsAndBonds } from '../utils/renderAtoms'
 import type { Molecule } from '../types'
@@ -16,7 +16,9 @@ function Atom({
   radius,
   element,
   showLabel,
-  scale
+  scale,
+  labelFontSize,
+  labelColor
 }: {
   position: [number, number, number]
   color: string
@@ -24,6 +26,8 @@ function Atom({
   element: string
   showLabel: boolean
   scale: number
+  labelFontSize: number
+  labelColor: string
 }) {
   return (
     <group position={position}>
@@ -47,14 +51,14 @@ function Atom({
           <div
             style={{
               background: 'rgba(0, 0, 0, 0.7)',
-              color: '#ffffff',
+              color: labelColor,
               padding: '2px 8px',
               borderRadius: '4px',
-              fontSize: `${16 * scale}px`,
+              fontSize: `${labelFontSize * scale}px`,
               fontFamily: 'sans-serif',
               whiteSpace: 'nowrap',
               fontWeight: 'bold',
-              border: '1px solid rgba(0, 212, 255, 0.3)'
+              border: `1px solid ${labelColor}33`
             }}
           >
             {element}
@@ -92,7 +96,9 @@ function MoleculeMesh({ moleculeKey }: { moleculeKey: string }) {
     () => getAtomsAndBonds(molecule.atoms, molecule.bonds),
     [molecule]
   )
-  const showLabels = useViewerStore((s) => s.showLabels)
+  const labelVisibility = useViewerStore((s) => s.labelVisibility)
+  const labelFontSize = useViewerStore((s) => s.labelFontSize)
+  const labelColor = useViewerStore((s) => s.labelColor)
   const cameraDistance = useViewerStore((s) => s.cameraDistance)
   const labelScale = useMemo(() => Math.max(0.5, 10 / cameraDistance), [cameraDistance])
 
@@ -105,8 +111,10 @@ function MoleculeMesh({ moleculeKey }: { moleculeKey: string }) {
           color={atom.color}
           radius={atom.radius}
           element={atom.element}
-          showLabel={showLabels}
+          showLabel={labelVisibility[atom.element] ?? false}
           scale={labelScale}
+          labelFontSize={labelFontSize}
+          labelColor={labelColor}
         />
       ))}
       {bonds.map((bond, idx) => (
@@ -130,7 +138,7 @@ function AutoRotateGroup({ children }: { children: React.ReactNode }) {
   useFrame((_, delta) => {
     if (groupRef.current) {
       if (autoRotate) {
-        groupRef.current.rotation.y += delta * 0.5
+        groupRef.current.rotation.y += delta * AUTO_ROTATE_SPEED * 100
       } else {
         groupRef.current.rotation.y = (rotationY * Math.PI) / 180
       }
