@@ -1,13 +1,24 @@
 import { useEffect, useRef } from 'react';
 import { useGameStore } from '../stores/gameStore';
-import { CellType, Direction } from '../types';
+import { CellType, Direction, PowerUpEffectType } from '../types';
 
 const WALL_COLOR = '#16213E';
 const PATH_COLOR = '#0F3460';
 const DOT_COLOR = '#E94560';
 const BG_COLOR = '#1A1A2E';
-const POWER_UP_COLOR = '#FFD700';
 const SCARED_GHOST_COLOR = '#9B59B6';
+
+const EFFECT_COLORS: Record<PowerUpEffectType, { inner: string; outer: string }> = {
+  [PowerUpEffectType.SPEED_BOOST]: { inner: 'rgba(0, 150, 255, 0.5)', outer: 'rgba(0, 150, 255, 0)' },
+  [PowerUpEffectType.GHOST_FREEZE]: { inner: 'rgba(255, 255, 255, 0.5)', outer: 'rgba(200, 230, 255, 0)' },
+  [PowerUpEffectType.SCORE_MULTIPLIER]: { inner: 'rgba(255, 215, 0, 0.5)', outer: 'rgba(255, 215, 0, 0)' },
+};
+
+const SHOCKWAVE_COLORS: Record<PowerUpEffectType, { mid: string; outer: string }> = {
+  [PowerUpEffectType.SPEED_BOOST]: { mid: 'rgba(0, 150, 255,', outer: 'rgba(0, 100, 200,' },
+  [PowerUpEffectType.GHOST_FREEZE]: { mid: 'rgba(200, 230, 255,', outer: 'rgba(150, 200, 255,' },
+  [PowerUpEffectType.SCORE_MULTIPLIER]: { mid: 'rgba(255, 215, 0,', outer: 'rgba(255, 180, 0,' },
+};
 
 export const GameCanvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -69,13 +80,13 @@ export const GameCanvas = () => {
         update(deltaTime);
       }
 
-      render(ctx, state);
+      render(ctx, useGameStore.getState());
 
       animationRef.current = requestAnimationFrame(gameLoop);
     };
 
     const render = (ctx: CanvasRenderingContext2D, state: any) => {
-      const { maze, players, ghosts, shockwaves } = state;
+      const { maze, players, ghosts, shockwaves, powerUpEffects } = state;
       const cellSize = cellSizeRef.current;
       const totalSize = cellSize * mazeSize;
 
@@ -108,15 +119,15 @@ export const GameCanvas = () => {
               );
               ctx.fill();
             } else if (cell === CellType.POWER_UP) {
-              const blink = Math.sin(powerUpBlinkRef.current / 150) > 0;
-              ctx.fillStyle = blink ? POWER_UP_COLOR : '#FFFFFF';
-              const starSize = cellSize * 0.35;
-              drawStar(
+              const key = `${x},${y}`;
+              const effectType = powerUpEffects[key];
+              drawPowerUp(
                 ctx,
                 px + cellSize / 2,
                 py + cellSize / 2,
-                starSize,
-                5
+                cellSize * 0.38,
+                effectType,
+                powerUpBlinkRef.current
               );
             }
           }
@@ -128,10 +139,17 @@ export const GameCanvas = () => {
         const sy = sw.y * cellSize + cellSize / 2;
         const radius = sw.radius * (cellSize / 32);
 
+        let colorMid = 'rgba(255, 215, 0,';
+        let colorOuter = 'rgba(155, 89, 182,';
+        if (sw.effectType && SHOCKWAVE_COLORS[sw.effectType]) {
+          colorMid = SHOCKWAVE_COLORS[sw.effectType].mid;
+          colorOuter = SHOCKWAVE_COLORS[sw.effectType].outer;
+        }
+
         const gradient = ctx.createRadialGradient(sx, sy, 0, sx, sy, radius);
-        gradient.addColorStop(0, 'rgba(255, 215, 0, 0)');
-        gradient.addColorStop(0.5, `rgba(255, 215, 0, ${sw.alpha * 0.6})`);
-        gradient.addColorStop(1, 'rgba(155, 89, 182, 0)');
+        gradient.addColorStop(0, `${colorMid} 0)`);
+        gradient.addColorStop(0.5, `${colorMid} ${sw.alpha * 0.7})`);
+        gradient.addColorStop(1, `${colorOuter} 0)`);
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -145,6 +163,33 @@ export const GameCanvas = () => {
         const px = player.x * cellSize + cellSize / 2;
         const py = player.y * cellSize + cellSize / 2;
         const radius = cellSize * 0.4;
+
+        if (player.activeBuffs && player.activeBuffs.length > 0) {
+          for (const buff of player.activeBuffs) {
+            const colors = EFFECT_COLORS[buff.type];
+            if (colors) {
+              const glowSize = radius * 1.6;
+              const gradient = ctx.createRadialGradient(px, py, 0, px, py, glowSize);
+              gradient.addColorStop(0, colors.inner);
+              gradient.addColorStop(1, colors.outer);
+              ctx.fillStyle = gradient;
+              ctx.beginPath();
+              ctx.arc(px, py, glowSize, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+
+        if (player.isPowered) {
+          const glowSize = radius * 1.3;
+          const gradient = ctx.createRadialGradient(px, py, 0, px, py, glowSize);
+          gradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
+          gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(px, py, glowSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         let mouthAngle = 0.2;
         if (player.direction !== Direction.NONE) {
@@ -172,17 +217,6 @@ export const GameCanvas = () => {
             startAngle = (0.5 + mouthAngle) * Math.PI;
             endAngle = (0.5 - mouthAngle) * Math.PI;
             break;
-        }
-
-        if (player.isPowered) {
-          const glowSize = radius * 1.3;
-          const gradient = ctx.createRadialGradient(px, py, 0, px, py, glowSize);
-          gradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
-          gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
-          ctx.fillStyle = gradient;
-          ctx.beginPath();
-          ctx.arc(px, py, glowSize, 0, Math.PI * 2);
-          ctx.fill();
         }
 
         ctx.fillStyle = player.color;
@@ -288,6 +322,92 @@ export const GameCanvas = () => {
           }
           ctx.stroke();
         }
+      }
+    };
+
+    const drawPowerUp = (
+      ctx: CanvasRenderingContext2D,
+      cx: number,
+      cy: number,
+      size: number,
+      effectType: PowerUpEffectType | undefined,
+      time: number
+    ) => {
+      const blink = Math.sin(time / 150) > 0;
+      const scale = 1 + Math.sin(time / 250) * 0.1;
+      const s = size * scale;
+
+      switch (effectType) {
+        case PowerUpEffectType.SPEED_BOOST:
+          drawLightning(ctx, cx, cy, s, blink ? '#0096FF' : '#87CEEB');
+          break;
+        case PowerUpEffectType.GHOST_FREEZE:
+          drawSnowflake(ctx, cx, cy, s, blink ? '#FFFFFF' : '#B0E0E6');
+          break;
+        case PowerUpEffectType.SCORE_MULTIPLIER:
+        default:
+          ctx.fillStyle = blink ? '#FFD700' : '#FFFFFF';
+          drawStar(ctx, cx, cy, s, 5);
+          break;
+      }
+    };
+
+    const drawLightning = (
+      ctx: CanvasRenderingContext2D,
+      cx: number,
+      cy: number,
+      size: number,
+      color: string
+    ) => {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(cx - size * 0.2, cy - size * 0.6);
+      ctx.lineTo(cx + size * 0.3, cy - size * 0.1);
+      ctx.lineTo(cx - size * 0.05, cy - size * 0.1);
+      ctx.lineTo(cx + size * 0.2, cy + size * 0.6);
+      ctx.lineTo(cx - size * 0.3, cy + size * 0.1);
+      ctx.lineTo(cx + size * 0.05, cy + size * 0.1);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(0, 150, 255, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    };
+
+    const drawSnowflake = (
+      ctx: CanvasRenderingContext2D,
+      cx: number,
+      cy: number,
+      size: number,
+      color: string
+    ) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(2, size * 0.18);
+      ctx.lineCap = 'round';
+
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * Math.PI) / 3;
+        const ex = cx + Math.cos(angle) * size;
+        const ey = cy + Math.sin(angle) * size;
+
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        const mx = cx + Math.cos(angle) * size * 0.55;
+        const my = cy + Math.sin(angle) * size * 0.55;
+        const branchSize = size * 0.3;
+        const angle1 = angle + Math.PI / 4;
+        const angle2 = angle - Math.PI / 4;
+
+        ctx.beginPath();
+        ctx.moveTo(mx, my);
+        ctx.lineTo(mx + Math.cos(angle1) * branchSize, my + Math.sin(angle1) * branchSize);
+        ctx.moveTo(mx, my);
+        ctx.lineTo(mx + Math.cos(angle2) * branchSize, my + Math.sin(angle2) * branchSize);
+        ctx.stroke();
       }
     };
 

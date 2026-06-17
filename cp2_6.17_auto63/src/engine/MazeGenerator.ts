@@ -1,20 +1,27 @@
-import { CellType } from '../types';
+import { CellType, PowerUpEffectType, PowerUpEffectsMap } from '../types';
 
 export class MazeGenerator {
   private size: number;
   private grid: CellType[][];
+  private powerUpEffects: PowerUpEffectsMap;
+  private effectTypes: PowerUpEffectType[] = [
+    PowerUpEffectType.SPEED_BOOST,
+    PowerUpEffectType.GHOST_FREEZE,
+    PowerUpEffectType.SCORE_MULTIPLIER,
+  ];
 
   constructor(size: number = 15) {
     this.size = size % 2 === 0 ? size + 1 : size;
     this.grid = [];
+    this.powerUpEffects = {};
   }
 
-  public generate(): CellType[][] {
+  public generate(): { maze: CellType[][]; effects: PowerUpEffectsMap } {
     this.initializeGrid();
     this.carvePassages(1, 1);
     this.placeDots();
     this.placePowerUps();
-    return this.grid;
+    return { maze: this.grid, effects: { ...this.powerUpEffects } };
   }
 
   private initializeGrid(): void {
@@ -73,6 +80,7 @@ export class MazeGenerator {
   }
 
   private placePowerUps(): void {
+    this.powerUpEffects = {};
     const pathCells: { x: number; y: number }[] = [];
 
     for (let y = 0; y < this.size; y++) {
@@ -93,6 +101,8 @@ export class MazeGenerator {
     for (let i = 0; i < powerUpCount; i++) {
       const cell = shuffled[i];
       this.grid[cell.y][cell.x] = CellType.POWER_UP;
+      const effectType = this.effectTypes[Math.floor(Math.random() * this.effectTypes.length)];
+      this.powerUpEffects[`${cell.x},${cell.y}`] = effectType;
     }
   }
 
@@ -108,8 +118,9 @@ export class MazeGenerator {
     return count;
   }
 
-  public respawnPowerUps(maze: CellType[][]): CellType[][] {
+  public respawnPowerUps(maze: CellType[][]): { maze: CellType[][]; effects: PowerUpEffectsMap } {
     const newMaze = maze.map(row => [...row]);
+    const newEffects: PowerUpEffectsMap = {};
     const pathCells: { x: number; y: number }[] = [];
 
     for (let y = 0; y < newMaze.length; y++) {
@@ -141,9 +152,11 @@ export class MazeGenerator {
     for (let i = 0; i < powerUpCount; i++) {
       const cell = shuffled[i];
       newMaze[cell.y][cell.x] = CellType.POWER_UP;
+      const effectType = this.effectTypes[Math.floor(Math.random() * this.effectTypes.length)];
+      newEffects[`${cell.x},${cell.y}`] = effectType;
     }
 
-    return newMaze;
+    return { maze: newMaze, effects: newEffects };
   }
 
   public getStartPosition(): { x: number; y: number } {

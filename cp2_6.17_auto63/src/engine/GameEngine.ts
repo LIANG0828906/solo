@@ -6,6 +6,9 @@ import {
   Ghost,
   Shockwave,
   GameStatus,
+  PowerUpEffectType,
+  PowerUpEffectsMap,
+  ActiveBuff,
 } from '../types';
 import { MazeGenerator } from './MazeGenerator';
 import { GhostAI } from './GhostAI';
@@ -21,15 +24,27 @@ const POWER_UP_RESPAWN_INTERVAL = 30000;
 const SHOCKWAVE_DURATION = 500;
 const SHOCKWAVE_MAX_RADIUS = 80;
 
+const SPEED_BOOST_DURATION = 5000;
+const GHOST_FREEZE_DURATION = 3000;
+const SCORE_MULTIPLIER_DURATION = 8000;
+
+const EFFECT_DURATION_MAP: Record<PowerUpEffectType, number> = {
+  [PowerUpEffectType.SPEED_BOOST]: SPEED_BOOST_DURATION,
+  [PowerUpEffectType.GHOST_FREEZE]: GHOST_FREEZE_DURATION,
+  [PowerUpEffectType.SCORE_MULTIPLIER]: SCORE_MULTIPLIER_DURATION,
+};
+
 export class GameEngine {
   private mazeGenerator: MazeGenerator;
   private ghostAI: GhostAI;
   private mazeSize: number;
+  private globalGhostFreezeTimer: number;
 
   constructor(mazeSize: number = 15) {
     this.mazeSize = mazeSize;
     this.mazeGenerator = new MazeGenerator(mazeSize);
     this.ghostAI = new GhostAI([]);
+    this.globalGhostFreezeTimer = 0;
   }
 
   public initializeGame(twoPlayer: boolean): {
@@ -37,12 +52,14 @@ export class GameEngine {
     players: Player[];
     ghosts: Ghost[];
     shockwaves: Shockwave[];
+    powerUpEffects: PowerUpEffectsMap;
     totalDots: number;
     remainingDots: number;
     powerUpRespawnTimer: number;
   } {
-    const maze = this.mazeGenerator.generate();
+    const { maze, effects } = this.mazeGenerator.generate();
     this.ghostAI.updateMaze(maze);
+    this.globalGhostFreezeTimer = 0;
 
     const startPos = this.mazeGenerator.getStartPosition();
     const ghostPositions = this.mazeGenerator.getGhostStartPositions(4);
@@ -59,6 +76,7 @@ export class GameEngine {
         color: PLAYER1_COLOR,
         isPowered: false,
         powerTimer: 0,
+        activeBuffs: [],
       },
     ];
 
@@ -75,6 +93,7 @@ export class GameEngine {
         color: PLAYER2_COLOR,
         isPowered: false,
         powerTimer: 0,
+        activeBuffs: [],
       });
     }
 
@@ -97,6 +116,7 @@ export class GameEngine {
       players,
       ghosts,
       shockwaves: [],
+      powerUpEffects: effects,
       totalDots,
       remainingDots: totalDots,
       powerUpRespawnTimer: POWER_UP_RESPAWN_INTERVAL,
@@ -118,6 +138,7 @@ export class GameEngine {
     players: Player[],
     ghosts: Ghost[],
     shockwaves: Shockwave[],
+    powerUpEffects: PowerUpEffectsMap,
     deltaTime: number,
     status: GameStatus,
     powerUpRespawnTimer: number
@@ -126,6 +147,7 @@ export class GameEngine {
     players: Player[];
     ghosts: Ghost[];
     shockwaves: Shockwave[];
+    powerUpEffects: PowerUpEffectsMap;
     status: GameStatus;
     remainingDots: number;
     powerUpRespawnTimer: number;
@@ -136,6 +158,7 @@ export class GameEngine {
         players,
         ghosts,
         shockwaves,
+        powerUpEffects,
         status,
         remainingDots: this.countRemainingDots(maze),
         powerUpRespawnTimer,
@@ -143,29 +166,45 @@ export class GameEngine {
     }
 
     let newMaze = maze.map((row) => [...row]);
-    let newPlayers = players.map((p) => ({ ...p }));
+    let newPlayers = players.map((p) => ({ ...p, activeBuffs: p.activeBuffs.map(b => ({...b})) }));
     let newGhosts = ghosts.map((g) => ({ ...g }));
     let newShockwaves = [...shockwaves];
+    let newPowerUpEffects = { ...powerUpEffects };
     let newStatus: GameStatus = status;
     let newPowerUpRespawnTimer = powerUpRespawnTimer;
 
+    if (this.globalGhostFreezeTimer > 0) {
+      this.globalGhostFreezeTimer -= deltaTime;
+      if (this.globalGhostFreezeTimer < 0) this.globalGhostFreezeTimer = 0;
+    }
+
     newPowerUpRespawnTimer -= deltaTime;
     if (newPowerUpRespawnTimer <= 0) {
-      newMaze = this.mazeGenerator.respawnPowerUps(newMaze);
+      const result = this.mazeGenerator.respawnPowerUps(newMaze);
+      newMaze = result.maze;
+      newPowerUpEffects = result.effects;
       this.ghostAI.updateMaze(newMaze);
       newPowerUpRespawnTimer = POWER_UP_RESPAWN_INTERVAL;
     }
 
     for (let i = 0; i < newPlayers.length; i++) {
+      newPlayers[i] = this.updatePlayerBuffs(newPlayers[i], deltaTime);
+
       const result = this.updatePlayer(
         newMaze,
         newPlayers[i],
         deltaTime,
-        newShockwaves
+        newShockwaves,
+        newPowerUpEffects
       );
       newMaze = result.maze;
       newPlayers[i] = result.player;
       newShockwaves = result.shockwaves;
+      newPowerUpEffects = result.effects;
+
+      if (result.triggeredGhostFreeze) {
+        this.globalGhostFreezeTimer = GHOST_FREEZE_DURATION;
+      }
     }
 
     const activePlayers = newPlayers.filter((p) => p.lives > 0);
@@ -182,6 +221,8 @@ export class GameEngine {
       }
       return nearest;
     };
+
+    const ghostsFrozen = this.globalGhostFreezeTimer > 0;
 
     for (let i = 0; i < newGhosts.length; i++) {
       const ghost = newGhosts[i];
@@ -204,6 +245,11 @@ export class GameEngine {
         if (ghost.scaredTimer <= 0) {
           ghost.isScared = false;
         }
+      }
+
+      if (ghostsFrozen) {
+        ghost.direction = Direction.NONE;
+        continue;
       }
 
       const player = nearestPlayer(ghost.x, ghost.y);
@@ -297,31 +343,84 @@ export class GameEngine {
       players: newPlayers,
       ghosts: newGhosts,
       shockwaves: newShockwaves,
+      powerUpEffects: newPowerUpEffects,
       status: newStatus,
       remainingDots,
       powerUpRespawnTimer: newPowerUpRespawnTimer,
     };
   }
 
+  private updatePlayerBuffs(player: Player, deltaTime: number): Player {
+    if (player.activeBuffs.length === 0) return player;
+
+    const newBuffs: ActiveBuff[] = [];
+    for (const buff of player.activeBuffs) {
+      const remaining = buff.remainingTime - deltaTime;
+      if (remaining > 0) {
+        newBuffs.push({
+          ...buff,
+          remainingTime: remaining,
+        });
+      }
+    }
+
+    return { ...player, activeBuffs: newBuffs };
+  }
+
+  private hasBuff(player: Player, type: PowerUpEffectType): boolean {
+    return player.activeBuffs.some((b) => b.type === type);
+  }
+
+  private addBuff(player: Player, type: PowerUpEffectType): Player {
+    const duration = EFFECT_DURATION_MAP[type];
+    const existingIndex = player.activeBuffs.findIndex((b) => b.type === type);
+
+    const newBuffs = [...player.activeBuffs];
+    if (existingIndex >= 0) {
+      newBuffs[existingIndex] = {
+        type,
+        remainingTime: duration,
+        totalTime: duration,
+      };
+    } else {
+      newBuffs.push({
+        type,
+        remainingTime: duration,
+        totalTime: duration,
+      });
+    }
+
+    return { ...player, activeBuffs: newBuffs };
+  }
+
   private updatePlayer(
     maze: CellType[][],
     player: Player,
     deltaTime: number,
-    shockwaves: Shockwave[]
+    shockwaves: Shockwave[],
+    effects: PowerUpEffectsMap
   ): {
     maze: CellType[][];
     player: Player;
     shockwaves: Shockwave[];
+    effects: PowerUpEffectsMap;
+    triggeredGhostFreeze: boolean;
   } {
     if (player.lives <= 0) {
-      return { maze, player, shockwaves };
+      return { maze, player, shockwaves, effects, triggeredGhostFreeze: false };
     }
 
     const newMaze = maze.map((row) => [...row]);
-    const newPlayer = { ...player };
+    let newPlayer = { ...player, activeBuffs: [...player.activeBuffs.map(b => ({...b}))] };
     let newShockwaves = [...shockwaves];
+    let newEffects = { ...effects };
+    let triggeredGhostFreeze = false;
 
-    const moveAmount = (PLAYER_SPEED * deltaTime) / 1000;
+    const hasSpeedBoost = this.hasBuff(newPlayer, PowerUpEffectType.SPEED_BOOST);
+    const hasScoreMultiplier = this.hasBuff(newPlayer, PowerUpEffectType.SCORE_MULTIPLIER);
+    const baseSpeed = PLAYER_SPEED * (hasSpeedBoost ? 2 : 1);
+    const moveAmount = (baseSpeed * deltaTime) / 1000;
+    const scoreMultiplier = hasScoreMultiplier ? 2 : 1;
 
     if (newPlayer.nextDirection !== Direction.NONE) {
       const gridX = Math.round(newPlayer.x);
@@ -361,17 +460,41 @@ export class GameEngine {
         );
         if (dist < 0.3) {
           newMaze[gridY][gridX] = CellType.EMPTY;
-          newPlayer.score += 10;
+          newPlayer.score += 10 * scoreMultiplier;
         }
       } else if (cell === CellType.POWER_UP) {
         const dist = Math.sqrt(
           Math.pow(newPlayer.x - gridX, 2) + Math.pow(newPlayer.y - gridY, 2)
         );
         if (dist < 0.4) {
+          const key = `${gridX},${gridY}`;
+          const effectType = newEffects[key];
+
           newMaze[gridY][gridX] = CellType.EMPTY;
-          newPlayer.score += 50;
+          delete newEffects[key];
+
+          newPlayer.score += 50 * scoreMultiplier;
           newPlayer.isPowered = true;
           newPlayer.powerTimer = POWER_DURATION;
+
+          let shockwaveType: PowerUpEffectType | undefined;
+
+          if (effectType) {
+            switch (effectType) {
+              case PowerUpEffectType.SPEED_BOOST:
+                newPlayer = this.addBuff(newPlayer, PowerUpEffectType.SPEED_BOOST);
+                shockwaveType = PowerUpEffectType.SPEED_BOOST;
+                break;
+              case PowerUpEffectType.GHOST_FREEZE:
+                triggeredGhostFreeze = true;
+                shockwaveType = PowerUpEffectType.GHOST_FREEZE;
+                break;
+              case PowerUpEffectType.SCORE_MULTIPLIER:
+                newPlayer = this.addBuff(newPlayer, PowerUpEffectType.SCORE_MULTIPLIER);
+                shockwaveType = PowerUpEffectType.SCORE_MULTIPLIER;
+                break;
+            }
+          }
 
           newShockwaves.push({
             id: uuidv4(),
@@ -380,12 +503,19 @@ export class GameEngine {
             radius: 0,
             maxRadius: SHOCKWAVE_MAX_RADIUS,
             alpha: 1,
+            effectType: shockwaveType,
           });
         }
       }
     }
 
-    return { maze: newMaze, player: newPlayer, shockwaves: newShockwaves };
+    return {
+      maze: newMaze,
+      player: newPlayer,
+      shockwaves: newShockwaves,
+      effects: newEffects,
+      triggeredGhostFreeze,
+    };
   }
 
   private moveEntity(

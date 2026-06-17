@@ -13,9 +13,21 @@ export enum Direction {
   NONE = 'NONE',
 }
 
+export enum PowerUpEffectType {
+  SPEED_BOOST = 'speedBoost',
+  GHOST_FREEZE = 'ghostFreeze',
+  SCORE_MULTIPLIER = 'scoreMultiplier',
+}
+
 export interface Position {
   x: number;
   y: number;
+}
+
+export interface ActiveBuff {
+  type: PowerUpEffectType;
+  remainingTime: number;
+  totalTime: number;
 }
 
 export interface Player {
@@ -29,6 +41,7 @@ export interface Player {
   color: string;
   isPowered: boolean;
   powerTimer: number;
+  activeBuffs: ActiveBuff[];
 }
 
 export interface Ghost {
@@ -50,7 +63,10 @@ export interface Shockwave {
   radius: number;
   maxRadius: number;
   alpha: number;
+  effectType?: PowerUpEffectType;
 }
+
+export type PowerUpEffectsMap = { [key: string]: PowerUpEffectType };
 
 export type GameStatus = 'menu' | 'playing' | 'paused' | 'gameover' | 'win';
 
@@ -59,6 +75,7 @@ export interface GameState {
   players: Player[];
   ghosts: Ghost[];
   shockwaves: Shockwave[];
+  powerUpEffects: PowerUpEffectsMap;
   status: GameStatus;
   twoPlayerMode: boolean;
   powerUpRespawnTimer: number;

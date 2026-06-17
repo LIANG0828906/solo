@@ -1,12 +1,7 @@
 import { create } from 'zustand';
 import { GameEngine } from '../engine/GameEngine';
 import {
-  CellType,
   Direction,
-  Player,
-  Ghost,
-  Shockwave,
-  GameStatus,
   GameState,
   GameActions,
 } from '../types';
@@ -24,6 +19,7 @@ const getInitialState = (): GameState => {
     players: init.players,
     ghosts: init.ghosts,
     shockwaves: init.shockwaves,
+    powerUpEffects: init.powerUpEffects,
     status: 'menu',
     twoPlayerMode: false,
     powerUpRespawnTimer: init.powerUpRespawnTimer,
@@ -51,6 +47,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       players: init.players,
       ghosts: init.ghosts,
       shockwaves: init.shockwaves,
+      powerUpEffects: init.powerUpEffects,
       status: 'playing',
       twoPlayerMode: twoPlayer,
       powerUpRespawnTimer: init.powerUpRespawnTimer,
@@ -81,6 +78,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       players: init.players,
       ghosts: init.ghosts,
       shockwaves: init.shockwaves,
+      powerUpEffects: init.powerUpEffects,
       status: 'playing',
       powerUpRespawnTimer: init.powerUpRespawnTimer,
       totalDots: init.totalDots,
@@ -99,6 +97,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       players,
       ghosts,
       shockwaves,
+      powerUpEffects,
       status,
       powerUpRespawnTimer,
     } = get();
@@ -110,6 +109,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       players,
       ghosts,
       shockwaves,
+      powerUpEffects,
       deltaTime,
       status,
       powerUpRespawnTimer
@@ -120,6 +120,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       players: result.players,
       ghosts: result.ghosts,
       shockwaves: result.shockwaves,
+      powerUpEffects: result.powerUpEffects,
       status: result.status,
       remainingDots: result.remainingDots,
       powerUpRespawnTimer: result.powerUpRespawnTimer,
