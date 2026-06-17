@@ -127,17 +127,18 @@ const LayerPanel: React.FC = () => {
               >
                 <div
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: 60,
+                    height: 60,
                     borderRadius: 4,
                     border: '1px solid #E0E0E0',
                     backgroundColor: '#f5f5f5',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 20,
+                    fontSize: 24,
                     overflow: 'hidden',
                     flexShrink: 0,
+                    position: 'relative',
                   }}
                 >
                   {layer.type === 'image' && layer.src ? (
@@ -149,6 +150,26 @@ const LayerPanel: React.FC = () => {
                   ) : (
                     getLayerIcon(layer)
                   )}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: 0,
+                      bottom: 0,
+                      width: 18,
+                      height: 18,
+                      backgroundColor: '#fff',
+                      border: '1px solid #E0E0E0',
+                      borderRadius: '3px 0 0 0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      fontWeight: 'bold',
+                      color: layer.type === 'image' ? '#1976D2' : '#4CAF50',
+                    }}
+                  >
+                    {layer.type === 'image' ? '📷' : 'T'}
+                  </div>
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>

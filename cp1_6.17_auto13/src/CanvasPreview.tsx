@@ -45,11 +45,14 @@ const imageCache = new Map<string, HTMLImageElement>();
 const CanvasPreview: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const [fitScale, setFitScale] = useState(1);
+  const [userZoom, setUserZoom] = useState(1);
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [canvasPixelWidth, setCanvasPixelWidth] = useState(0);
   const [canvasPixelHeight, setCanvasPixelHeight] = useState(0);
+
+  const scale = fitScale * userZoom;
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
     handleType: null,
@@ -246,9 +249,7 @@ const CanvasPreview: React.FC = () => {
     const pixelWidth = container.clientWidth * dpr;
     const pixelHeight = container.clientHeight * dpr;
 
-    setScale(newScale);
-    setOffsetX((container.clientWidth - displayWidth) / 2);
-    setOffsetY((container.clientHeight - displayHeight) / 2);
+    setFitScale(newScale);
 
     canvasRef.current.width = pixelWidth;
     canvasRef.current.height = pixelHeight;
@@ -276,6 +277,15 @@ const CanvasPreview: React.FC = () => {
       window.removeEventListener('resize', updateSize);
     };
   }, [updateSize]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    const displayWidth = canvas.width * scale;
+    const displayHeight = canvas.height * scale;
+    setOffsetX((container.clientWidth - displayWidth) / 2);
+    setOffsetY((container.clientHeight - displayHeight) / 2 - 30);
+  }, [fitScale, userZoom, canvas.width, canvas.height, scale]);
 
   const getHandleAtPosition = useCallback((x: number, y: number): HandleType => {
     if (!selectedLayerId) return null;
@@ -453,41 +463,140 @@ const CanvasPreview: React.FC = () => {
 
   return (
     <div
-      ref={containerRef}
       style={{
         flex: 1,
-        background: `
-          linear-gradient(45deg, #EBEBEB 25%, transparent 25%),
-          linear-gradient(-45deg, #EBEBEB 25%, transparent 25%),
-          linear-gradient(45deg, transparent 75%, #EBEBEB 75%),
-          linear-gradient(-45deg, transparent 75%, #EBEBEB 75%)
-        `,
-        backgroundSize: '20px 20px',
-        backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
-        backgroundColor: '#fff',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        cursor: getCursor(),
-        position: 'relative',
+        flexDirection: 'column',
         minWidth: 0,
       }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
     >
-      <canvas
-        ref={canvasRef}
+      <div
+        ref={containerRef}
         style={{
-          display: 'block',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-          position: 'absolute',
-          left: 0,
-          top: 0,
+          flex: 1,
+          background: `
+            linear-gradient(45deg, #EBEBEB 25%, transparent 25%),
+            linear-gradient(-45deg, #EBEBEB 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, #EBEBEB 75%),
+            linear-gradient(-45deg, transparent 75%, #EBEBEB 75%)
+          `,
+          backgroundSize: '20px 20px',
+          backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+          backgroundColor: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          cursor: getCursor(),
+          position: 'relative',
+          minWidth: 0,
         }}
-      />
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        <canvas
+          ref={canvasRef}
+          style={{
+            display: 'block',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            position: 'absolute',
+            left: 0,
+            top: 0,
+          }}
+        />
+      </div>
+      <div
+        style={{
+          height: 44,
+          backgroundColor: '#fff',
+          borderTop: '1px solid #E0E0E0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 12,
+          padding: '0 20px',
+          flexShrink: 0,
+        }}
+      >
+        <button
+          onClick={() => setUserZoom(Math.max(0.25, userZoom - 0.25))}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            backgroundColor: '#f0f0f0',
+            border: '1px solid #E0E0E0',
+            fontSize: 16,
+            fontWeight: 'bold',
+            color: '#333',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          −
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: 200 }}>
+          <input
+            type="range"
+            min={25}
+            max={200}
+            value={Math.round(userZoom * 100)}
+            onChange={(e) => setUserZoom(Number(e.target.value) / 100)}
+            style={{ flex: 1 }}
+          />
+          <span
+            style={{
+              fontSize: 12,
+              color: '#616161',
+              minWidth: 45,
+              textAlign: 'right',
+              fontWeight: 500,
+            }}
+          >
+            {Math.round(userZoom * 100)}%
+          </span>
+        </div>
+        <button
+          onClick={() => setUserZoom(Math.min(2, userZoom + 0.25)}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            backgroundColor: '#f0f0f0',
+            border: '1px solid #E0E0E0',
+            fontSize: 16,
+            fontWeight: 'bold',
+            color: '#333',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          +
+        </button>
+        <button
+          onClick={() => setUserZoom(1)}
+          style={{
+            padding: '4px 12px',
+            fontSize: 12,
+            color: '#1976D2',
+            backgroundColor: '#E3F2FD',
+            border: '1px solid #BBDEFB',
+            borderRadius: 4,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          重置
+        </button>
+      </div>
     </div>
   );
 };
