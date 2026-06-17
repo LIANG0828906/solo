@@ -12,10 +12,10 @@ interface StatsDashboardProps {
 
 const categoryColors: Record<string, string> = {
   '书籍': '#10B981',
-  '衣物': '#3B82F6',
-  '文具': '#F59E0B',
-  '玩具': '#EC4899',
-  '其他': '#8B5CF6',
+  '衣物': '#34D399',
+  '文具': '#059669',
+  '玩具': '#6EE7B7',
+  '其他': '#A7F3D0',
 };
 
 const StatsDashboard: React.FC<StatsDashboardProps> = ({ items }) => {
@@ -112,7 +112,10 @@ const StatsDashboard: React.FC<StatsDashboardProps> = ({ items }) => {
         ctx.fillStyle = '#6B7280';
         ctx.font = '10px sans-serif';
         ctx.textAlign = 'center';
-        const dateLabel = point.date.slice(5);
+        const dateParts = point.date.split('-');
+        const dateLabel = dateParts.length >= 3
+          ? `${dateParts[1]}-${dateParts[2]}`
+          : point.date.slice(5);
         ctx.fillText(dateLabel, x, height - padding.bottom + 20);
       }
     });
