@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTimelineStore } from '../store';
-import { COLOR_PRESETS, formatDate, darkenColor, lightenColor } from '../constants';
+import { COLOR_PRESETS, formatDate, darkenColor, lightenColor, hexToRgba } from '../constants';
 import type { Event } from '../types';
 
 const TimelinePage = () => {
@@ -624,10 +624,10 @@ const TimelinePage = () => {
             <div style={{ fontSize: '16px' }}>还没有事件，点击上方按钮添加第一个事件吧</div>
           </div>
         ) : (
-          <div style={{ position: 'relative', paddingLeft: '20px' }}>
+          <div style={{ position: 'relative', paddingLeft: '28px' }}>
             <div style={{
               position: 'absolute',
-              left: '9px',
+              left: '13px',
               top: '0',
               bottom: '0',
               width: '2px',
@@ -645,20 +645,21 @@ const TimelinePage = () => {
               >
                 <div style={{
                   position: 'absolute',
-                  left: '-23px',
-                  top: '24px',
+                  left: '-22px',
+                  top: '28px',
                   width: '12px',
                   height: '12px',
                   borderRadius: '50%',
                   backgroundColor: event.color,
                   border: '3px solid #121221',
-                  zIndex: 1,
+                  boxShadow: `0 0 0 1px ${event.color}`,
+                  zIndex: 2,
                 }} />
 
                 <div
                   style={{
                     width: '100%',
-                    backgroundColor: '#2A2A3E',
+                    background: `linear-gradient(to right, ${hexToRgba(event.color, 0.1)} 0%, transparent 60%), #2A2A3E`,
                     borderRadius: '10px',
                     borderLeft: `4px solid ${event.color}`,
                     padding: '20px',
@@ -667,7 +668,7 @@ const TimelinePage = () => {
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateX(4px)';
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.3)';
+                    e.currentTarget.style.boxShadow = `0 4px 16px ${hexToRgba(event.color, 0.15)}`;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateX(0)';

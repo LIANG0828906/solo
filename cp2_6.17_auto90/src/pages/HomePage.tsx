@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTimelineStore } from '../store';
-import { truncateText, darkenColor } from '../constants';
+import { truncateText, darkenColor, formatRelativeTime } from '../constants';
 import type { Timeline } from '../types';
 
 const HomePage = () => {
@@ -185,11 +185,23 @@ const HomePage = () => {
                   {truncateText(timeline.description, 60)}
                 </p>
                 <div style={{
-                  fontSize: '12px',
-                  color: '#6C63FF',
-                  fontWeight: 500,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-end',
                 }}>
-                  {eventCount} 个事件
+                  <div style={{
+                    fontSize: '12px',
+                    color: '#6C63FF',
+                    fontWeight: 500,
+                  }}>
+                    {eventCount} 个事件
+                  </div>
+                  <div style={{
+                    fontSize: '11px',
+                    color: '#666677',
+                  }}>
+                    {formatRelativeTime(timeline.updatedAt)}
+                  </div>
                 </div>
               </div>
             );
