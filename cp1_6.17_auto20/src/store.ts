@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 
 export type CharacterType = 'swordsman' | 'mage';
-export type LogType = 'attack' | 'defense' | 'special' | 'system';
+export type LogType = 'attack' | 'defense' | 'special' | 'system' | 'normal' | 'critical';
 export type SwordsmanSkill = 'heavySlash' | 'whirlwind' | 'block';
 export type MageSkill = 'fireball' | 'iceSpike' | 'shield';
 
@@ -190,8 +190,8 @@ export const useFightStore = create<FightState>((set, get) => ({
         timestamp: Date.now(),
       };
       const newLogs = [newLog, ...state.logs];
-      if (newLogs.length > 30) {
-        newLogs.length = 30;
+      if (newLogs.length > 50) {
+        newLogs.length = 50;
       }
       return { logs: newLogs };
     }),
