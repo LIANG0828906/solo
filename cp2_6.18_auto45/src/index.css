@@ -10,6 +10,8 @@
   --green-dark: #059669;
   --orange: #F97316;
   --blue: #3B82F6;
+  --card-bg: #F9FAFB;
+  --card-border: #E5E7EB;
 }
 
 *,
@@ -43,13 +45,38 @@ body {
   }
 }
 
-.animate-spin {
+.spinner {
   animation: spin 1s linear infinite;
 }
 
 @keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -62,6 +89,7 @@ body {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
+  justify-items: center;
 }
 
 @media (max-width: 1023px) {
@@ -74,6 +102,84 @@ body {
   .task-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.task-card {
+  width: 320px;
+  max-width: 100%;
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  cursor: default;
+  overflow: hidden;
+}
+
+.task-card:hover:not(.task-card-disabled) {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.task-card-disabled {
+  opacity: 0.6;
+  filter: grayscale(30%);
+}
+
+.task-card-inner {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.claim-btn {
+  background-color: var(--green);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.claim-btn:hover {
+  background-color: var(--green-dark);
+}
+
+.status-badge-claimed {
+  background-color: #9CA3AF;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.status-badge-completed {
+  background-color: #F59E0B;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.status-badge-reviewed {
+  background-color: var(--blue);
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.publish-form {
+  background-color: white;
+  border-radius: 12px;
+  padding: 20px;
 }
 
 .drawer-enter {

@@ -36,6 +36,7 @@ function TaskCardComponent({
 }: TaskCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     const element = cardRef.current;
@@ -59,9 +60,12 @@ function TaskCardComponent({
 
   const handleClaim = () => {
     if (!onClaim || task.status !== 'open') return;
-    if (window.confirm(`确定要认领任务"${task.title}"吗？`)) {
-      onClaim(task.id);
-    }
+    setShowConfirm(true);
+  };
+
+  const confirmClaim = () => {
+    setShowConfirm(false);
+    if (onClaim) onClaim(task.id);
   };
 
   const handleComplete = () => {
@@ -86,210 +90,182 @@ function TaskCardComponent({
     showActions && role === 'claimant' && task.status === 'claimed';
 
   return (
-    <div
-      ref={cardRef}
-      className="fade-in-card"
-      style={{
-        animationDelay: `${index * 0.1}s`,
-        width: 320,
-        background: '#F9FAFB',
-        border: '1px solid #E5E7EB',
-        borderRadius: 12,
-        boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-        transition: 'all 0.3s ease',
-        opacity: isDisabled ? 0.6 : 1,
-        filter: isDisabled ? 'grayscale(30%)' : 'none',
-        cursor: 'default',
-      }}
-      onMouseEnter={(e) => {
-        if (!isDisabled) {
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-          e.currentTarget.style.transform = 'translateY(-2px)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)';
-        e.currentTarget.style.transform = 'translateY(0)';
-      }}
-    >
-      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div
-          style={{
-            fontSize: 16,
-            fontWeight: 600,
-            color: '#1E293B',
-            lineHeight: 1.4,
-          }}
-        >
-          {task.title}
-        </div>
-
-        <div
-          style={{
-            fontSize: 14,
-            color: '#64748B',
-            lineHeight: 1.5,
-            minHeight: 42,
-          }}
-        >
-          {descriptionText}
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-          }}
-        >
-          <Coins size={18} style={{ color: '#F97316' }} />
-          <span
+    <>
+      <div
+        ref={cardRef}
+        className={`fade-in-card task-card ${isDisabled ? 'task-card-disabled' : ''}`}
+        style={{
+          animationDelay: `${index * 0.1}s`,
+          opacity: isVisible ? undefined : 0,
+        }}
+      >
+        <div className="task-card-inner">
+          <div
             style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: '#F97316',
+              fontSize: 16,
+              fontWeight: 600,
+              color: '#1E293B',
+              lineHeight: 1.4,
             }}
           >
-            {task.reward}
-          </span>
-          <span style={{ fontSize: 14, color: '#64748B', marginLeft: 4 }}>
-            积分
-          </span>
-          <span
+            {task.title}
+          </div>
+
+          <div
             style={{
-              marginLeft: 'auto',
+              fontSize: 14,
+              color: '#64748B',
+              lineHeight: 1.5,
+              minHeight: 42,
+            }}
+          >
+            {descriptionText}
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            <Coins size={18} style={{ color: '#F97316' }} />
+            <span
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: '#F97316',
+              }}
+            >
+              {task.reward}
+            </span>
+            <span style={{ fontSize: 14, color: '#64748B', marginLeft: 4 }}>
+              积分
+            </span>
+            <span
+              style={{
+                marginLeft: 'auto',
+                fontSize: 12,
+                color: '#64748B',
+                background: '#F1F5F9',
+                padding: '2px 8px',
+                borderRadius: 4,
+              }}
+            >
+              {task.category}
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
               fontSize: 12,
               color: '#64748B',
-              background: '#F1F5F9',
-              padding: '2px 8px',
-              borderRadius: 4,
+              paddingTop: 4,
+              borderTop: '1px solid #F1F5F9',
+              marginTop: 4,
             }}
           >
-            {task.category}
-          </span>
-        </div>
+            <span>{task.publisherName}</span>
+            <span>{formatRelativeTime(task.createdAt)}</span>
+          </div>
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: 12,
-            color: '#64748B',
-            paddingTop: 4,
-            borderTop: '1px solid #F1F5F9',
-            marginTop: 4,
-          }}
-        >
-          <span>{task.publisherName}</span>
-          <span>{formatRelativeTime(task.createdAt)}</span>
-        </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              marginTop: 8,
+              gap: 8,
+            }}
+          >
+            {displayClaimBtn && task.status === 'open' && (
+              <button className="claim-btn" onClick={handleClaim}>
+                认领任务
+              </button>
+            )}
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            marginTop: 8,
-            gap: 8,
-          }}
-        >
-          {displayClaimBtn && task.status === 'open' && (
-            <button
-              onClick={handleClaim}
-              style={{
-                background: '#10B981',
-                color: 'white',
-                border: 'none',
-                borderRadius: 8,
-                padding: '8px 16px',
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'background 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#059669';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#10B981';
-              }}
-            >
-              认领任务
-            </button>
-          )}
+            {displayClaimBtn && task.status === 'claimed' && (
+              <span className="status-badge-claimed">已认领</span>
+            )}
 
-          {displayClaimBtn && task.status === 'claimed' && (
-            <span
-              style={{
-                background: '#9CA3AF',
-                color: 'white',
-                borderRadius: 8,
-                padding: '8px 16px',
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            >
-              已认领
-            </span>
-          )}
+            {displayCompleteBtn && (
+              <button className="claim-btn" onClick={handleComplete}>
+                标记完成
+              </button>
+            )}
 
-          {displayCompleteBtn && (
-            <button
-              onClick={handleComplete}
-              style={{
-                background: '#10B981',
-                color: 'white',
-                border: 'none',
-                borderRadius: 8,
-                padding: '8px 16px',
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'background 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#059669';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#10B981';
-              }}
-            >
-              标记完成
-            </button>
-          )}
+            {task.status === 'completed' && (
+              <span className="status-badge-completed">待评价</span>
+            )}
 
-          {task.status === 'completed' && (
-            <span
-              style={{
-                background: '#F59E0B',
-                color: 'white',
-                borderRadius: 8,
-                padding: '8px 16px',
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            >
-              待评价
-            </span>
-          )}
-
-          {task.status === 'reviewed' && (
-            <span
-              style={{
-                background: '#3B82F6',
-                color: 'white',
-                borderRadius: 8,
-                padding: '8px 16px',
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            >
-              已评价
-            </span>
-          )}
+            {task.status === 'reviewed' && (
+              <span className="status-badge-reviewed">已评价</span>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {showConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.31)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowConfirm(false)}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 16,
+              padding: 24,
+              minWidth: 320,
+              maxWidth: '90%',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1E293B', marginBottom: 12 }}>
+              确认认领
+            </h3>
+            <p style={{ fontSize: 14, color: '#64748B', marginBottom: 20 }}>
+              确定要认领任务「{task.title}」吗？
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowConfirm(false)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  border: '1px solid #E5E7EB',
+                  background: 'white',
+                  color: '#64748B',
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#F9FAFB')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmClaim}
+                className="claim-btn"
+              >
+                确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

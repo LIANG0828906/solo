@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X, User, ArrowLeft, CheckCircle, Star } from 'lucide-react';
 import { useStore } from '../store';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 import { cn } from '../lib/utils';
 import type { Task, TaskStatus } from '../types';
 
@@ -147,7 +148,9 @@ export default function MyTasksPage() {
           </div>
           <div className="min-w-0">
             <div className="text-sm font-medium truncate">{currentUser.nickname}</div>
-            <div className="text-xs text-blue-400 font-medium mt-0.5">{currentUser.points} 积分</div>
+            <div className="text-xs font-medium mt-0.5" style={{ color: '#60A5FA' }}>
+              <AnimatedNumber value={currentUser.points} /> 积分
+            </div>
           </div>
         </div>
       </div>
@@ -332,7 +335,7 @@ export default function MyTasksPage() {
                             <StarRating
                               value={0}
                               onChange={(rating) => {
-                                rateAndFinalize(task.id, rating);
+                                rateAndFinalize(task.id, rating as 1 | 2 | 3 | 4 | 5);
                               }}
                             />
                           </div>

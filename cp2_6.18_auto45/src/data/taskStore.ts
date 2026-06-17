@@ -193,3 +193,7 @@ export function deleteTask(id: string): boolean {
   writeToStorage(tasks);
   return true;
 }
+
+export function saveTasks(tasks: Task[]): void {
+  writeToStorage(tasks);
+}

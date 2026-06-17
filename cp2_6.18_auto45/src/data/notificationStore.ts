@@ -123,7 +123,18 @@ export function markAsRead(id: string): Notification | undefined {
   return notifications[index];
 }
 
-export function markAllAsRead(): void {
-  const notifications = getNotifications().map((n) => ({ ...n, read: true }));
+export function markAllAsRead(userId?: string): void {
+  let notifications = getNotifications();
+  if (userId) {
+    notifications = notifications.map((n) =>
+      n.userId === userId ? { ...n, read: true } : n
+    );
+  } else {
+    notifications = notifications.map((n) => ({ ...n, read: true }));
+  }
+  writeToStorage(notifications);
+}
+
+export function saveNotifications(notifications: Notification[]): void {
   writeToStorage(notifications);
 }

@@ -6,6 +6,7 @@ import { filterByCategory, filterByKeyword, filterByStatus } from '../logic/filt
 import { TaskCard } from '../components/TaskCard';
 import { TaskForm } from '../components/TaskForm';
 import { NotificationPanel } from '../components/NotificationPanel';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 import { cn } from '../lib/utils';
 import type { TaskCategory } from '../types';
 
@@ -81,7 +82,9 @@ export default function HomePage() {
                 </div>
                 <div className="hidden sm:flex flex-col items-start">
                   <span className="text-sm font-medium text-slate-800 leading-tight">{currentUser.nickname}</span>
-                  <span className="text-xs text-blue-600 font-medium leading-tight">{currentUser.points}积分</span>
+                  <span className="text-xs font-medium leading-tight" style={{ color: '#3B82F6' }}>
+                    <AnimatedNumber value={currentUser.points} />积分
+                  </span>
                 </div>
               </Link>
 
@@ -157,12 +160,7 @@ export default function HomePage() {
             <p className="text-lg text-slate-500">暂无任务，快来发布第一个吧！</p>
           </div>
         ) : (
-          <div
-            className="task-grid grid gap-5"
-            style={{
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-            }}
-          >
+          <div className="task-grid">
             {filteredTasks.map((task, index) => (
               <TaskCard
                 key={task.id}

@@ -21,12 +21,6 @@ function formatTime(date: Date): string {
   return `${days}天前`;
 }
 
-const typeColors: Record<string, string> = {
-  completed: 'border-l-emerald-500 bg-emerald-50/40',
-  reviewed: 'border-l-blue-500 bg-blue-50/40',
-  claimed: 'border-l-amber-500 bg-amber-50/40',
-};
-
 export function NotificationPanel({
   notifications,
   currentUserId,
@@ -48,31 +42,82 @@ export function NotificationPanel({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleToggle = () => {
+    setOpen((prev) => !prev);
+  };
+
   return (
     <div className="relative" ref={panelRef}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
         className={cn(
           'relative p-2 rounded-lg transition-colors',
           'hover:bg-slate-100 text-slate-600 hover:text-slate-800',
         )}
+        aria-label="通知"
       >
         <Bell size={20} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center shadow-sm">
+          <span
+            style={{
+              position: 'absolute',
+              top: -2,
+              right: -2,
+              minWidth: 18,
+              height: 18,
+              paddingLeft: 4,
+              paddingRight: 4,
+              borderRadius: 9999,
+              background: '#EF4444',
+              color: 'white',
+              fontSize: 11,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+              lineHeight: 1,
+            }}
+          >
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-200 z-50 overflow-hidden origin-top-right">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="font-semibold text-slate-800 text-sm">通知消息</h3>
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            marginTop: 8,
+            width: 320,
+            background: 'white',
+            borderRadius: 12,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+            border: '1px solid #E5E7EB',
+            zIndex: 50,
+            overflow: 'hidden',
+            transformOrigin: 'top right',
+            animation: 'fadeInDown 0.2s ease-out',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 16px',
+              borderBottom: '1px solid #F3F4F6',
+              background: '#F9FAFB',
+            }}
+          >
+            <h3 style={{ fontWeight: 600, color: '#1E293B', fontSize: 14 }}>
+              通知消息
+            </h3>
             {unreadCount > 0 && (
               <button
                 onClick={onMarkAllRead}
-                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
               >
                 <CheckCheck size={14} />
                 全部已读
@@ -80,9 +125,18 @@ export function NotificationPanel({
             )}
           </div>
 
-          <div className="max-h-80 overflow-y-auto">
+          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
             {userNotifications.length === 0 ? (
-              <div className="py-12 text-center text-slate-400 text-sm">暂无通知</div>
+              <div
+                style={{
+                  padding: '48px 16px',
+                  textAlign: 'center',
+                  color: '#94A3B8',
+                  fontSize: 14,
+                }}
+              >
+                暂无通知
+              </div>
             ) : (
               userNotifications.map((n) => (
                 <div
@@ -90,38 +144,80 @@ export function NotificationPanel({
                   onClick={() => {
                     if (!n.read) onMarkRead(n.id);
                   }}
-                  className={cn(
-                    'px-4 py-3 border-b border-slate-50 cursor-pointer transition-colors',
-                    'border-l-4 hover:bg-slate-50/80',
-                    typeColors[n.type] || 'border-l-slate-200',
-                    n.read ? 'opacity-70' : '',
-                  )}
+                  style={{
+                    padding: '12px 16px',
+                    borderBottom: '1px solid #F9FAFB',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s',
+                    background: n.read ? 'transparent' : '#EFF6FF',
+                    borderRadius: 8,
+                    margin: 4,
+                    boxShadow: n.read ? 'none' : '0 1px 3px rgba(0,0,0,0.1)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = n.read ? '#F9FAFB' : '#DBEAFE';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = n.read ? 'transparent' : '#EFF6FF';
+                  }}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <p
-                      className={cn(
-                        'text-sm leading-relaxed',
-                        n.read ? 'text-slate-600' : 'text-slate-800 font-medium',
-                      )}
-                    >
-                      {n.content}
-                    </p>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                          color: n.read ? '#64748B' : '#1E293B',
+                          fontWeight: n.read ? 400 : 500,
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        {n.content}
+                      </p>
+                      <div style={{ marginTop: 4, fontSize: 12, color: '#94A3B8' }}>
+                        {formatTime(n.createdAt)}
+                      </div>
+                    </div>
                     {!n.read && (
-                      <span className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: '#EF4444',
+                          marginTop: 6,
+                          flexShrink: 0,
+                        }}
+                      />
                     )}
-                  </div>
-                  <div className="mt-1.5 text-xs text-slate-400">
-                    {formatTime(n.createdAt)}
                   </div>
                 </div>
               ))
             )}
           </div>
 
-          <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/50">
+          <div
+            style={{
+              padding: '8px 16px',
+              borderTop: '1px solid #F3F4F6',
+              background: '#F9FAFB',
+            }}
+          >
             <button
               onClick={() => setOpen(false)}
-              className="w-full py-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+              style={{
+                width: '100%',
+                padding: '6px 0',
+                fontSize: 12,
+                color: '#64748B',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                borderRadius: 6,
+                transition: 'color 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#1E293B')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#64748B')}
             >
               关闭
             </button>

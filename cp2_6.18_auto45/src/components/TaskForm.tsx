@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PlusCircle, X, Loader2 } from 'lucide-react';
+import { PlusCircle, X } from 'lucide-react';
 import type { TaskCategory } from '../types';
 import { cn } from '../lib/utils';
 
@@ -11,6 +11,33 @@ const categories: TaskCategory[] = [
   '宠物照料',
   '其他',
 ];
+
+const TITLE_MAX = 200;
+const DESC_MAX = 500;
+
+function SpinnerSVG({ size = 24 }: { size?: number }) {
+  return (
+    <svg
+      className="spinner"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeDasharray="32 64"
+        style={{ color: 'white' }}
+      />
+    </svg>
+  );
+}
 
 interface TaskFormProps {
   onPublish: (title: string, description: string, reward: number, category: TaskCategory) => boolean;
@@ -34,6 +61,37 @@ export function TaskForm({ onPublish, currentPoints }: TaskFormProps) {
     setError('');
   };
 
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val.length <= TITLE_MAX) {
+      setTitle(val);
+    } else {
+      setTitle(val.slice(0, TITLE_MAX));
+    }
+    if (error) setError('');
+  };
+
+  const handleDescChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    if (val.length <= DESC_MAX) {
+      setDescription(val);
+    } else {
+      setDescription(val.slice(0, DESC_MAX));
+    }
+    if (error) setError('');
+  };
+
+  const handleRewardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (raw === '') {
+      setReward(1);
+      return;
+    }
+    const parsed = parseInt(raw, 10);
+    if (Number.isNaN(parsed)) return;
+    setReward(Math.min(999, Math.max(1, parsed)));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -42,19 +100,19 @@ export function TaskForm({ onPublish, currentPoints }: TaskFormProps) {
       setError('请填写任务标题');
       return;
     }
-    if (title.length > 200) {
-      setError('标题不能超过200字');
+    if (title.length > TITLE_MAX) {
+      setError(`标题不能超过${TITLE_MAX}字`);
       return;
     }
     if (!description.trim()) {
       setError('请填写任务描述');
       return;
     }
-    if (description.length > 500) {
-      setError('描述不能超过500字');
+    if (description.length > DESC_MAX) {
+      setError(`描述不能超过${DESC_MAX}字`);
       return;
     }
-    if (reward < 1 || reward > 999) {
+    if (!Number.isInteger(reward) || reward < 1 || reward > 999) {
       setError('奖励积分应在1-999之间');
       return;
     }
@@ -94,8 +152,8 @@ export function TaskForm({ onPublish, currentPoints }: TaskFormProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+    <div className="publish-form shadow-sm border border-slate-100">
+      <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
         <h3 className="font-semibold text-slate-800 text-lg">发布新任务</h3>
         <button
           onClick={() => {
@@ -108,7 +166,7 @@ export function TaskForm({ onPublish, currentPoints }: TaskFormProps) {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-5 space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
             任务标题
@@ -116,8 +174,8 @@ export function TaskForm({ onPublish, currentPoints }: TaskFormProps) {
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
+            onChange={handleTitleChange}
+            maxLength={TITLE_MAX}
             placeholder="简要描述任务，如：帮忙取快递到3号楼"
             className={cn(
               'w-full px-4 py-2.5 rounded-lg border border-slate-200',
@@ -125,8 +183,11 @@ export function TaskForm({ onPublish, currentPoints }: TaskFormProps) {
               'text-sm text-slate-800 placeholder:text-slate-400',
             )}
           />
-          <div className="text-xs text-slate-400 mt-1 text-right">
-            {title.length}/200
+          <div
+            className="text-xs mt-1 text-right"
+            style={{ color: title.length >= TITLE_MAX ? '#EF4444' : '#94A3B8' }}
+          >
+            {title.length}/{TITLE_MAX}
           </div>
         </div>
 
@@ -136,8 +197,8 @@ export function TaskForm({ onPublish, currentPoints }: TaskFormProps) {
           </label>
           <textarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={500}
+            onChange={handleDescChange}
+            maxLength={DESC_MAX}
             rows={4}
             placeholder="详细说明任务要求、时间、地点等信息"
             className={cn(
@@ -146,8 +207,11 @@ export function TaskForm({ onPublish, currentPoints }: TaskFormProps) {
               'text-sm text-slate-800 placeholder:text-slate-400',
             )}
           />
-          <div className="text-xs text-slate-400 mt-1 text-right">
-            {description.length}/500
+          <div
+            className="text-xs mt-1 text-right"
+            style={{ color: description.length >= DESC_MAX ? '#EF4444' : '#94A3B8' }}
+          >
+            {description.length}/{DESC_MAX}
           </div>
         </div>
 
@@ -183,11 +247,7 @@ export function TaskForm({ onPublish, currentPoints }: TaskFormProps) {
               min={1}
               max={999}
               value={reward}
-              onChange={(e) =>
-                setReward(
-                  Math.min(999, Math.max(1, parseInt(e.target.value) || 1)),
-                )
-              }
+              onChange={handleRewardChange}
               className={cn(
                 'w-full px-4 py-2.5 rounded-lg border border-slate-200',
                 'focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition',
@@ -226,8 +286,8 @@ export function TaskForm({ onPublish, currentPoints }: TaskFormProps) {
               'disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2',
             )}
           >
-            {loading && <Loader2 size={16} className="animate-spin" />}
-            {loading ? '发布中...' : '确认发布'}
+            {loading && <SpinnerSVG size={24} />}
+            <span>{loading ? '发布中...' : '确认发布'}</span>
           </button>
         </div>
       </form>

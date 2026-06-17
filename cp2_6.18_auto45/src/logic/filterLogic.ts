@@ -2,9 +2,9 @@ import type { Task, TaskCategory, TaskStatus } from '../data/taskStore';
 
 export function filterByCategory(
   tasks: Task[],
-  category: TaskCategory | 'all'
+  category: TaskCategory | 'all' | '全部'
 ): Task[] {
-  if (category === 'all') return tasks;
+  if (category === 'all' || category === '全部') return tasks;
   return tasks.filter((task) => task.category === category);
 }
 

@@ -1,64 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, User, Star } from 'lucide-react';
 import { useStore } from '../store';
 import { TaskCard } from '../components/TaskCard';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 import { cn } from '../lib/utils';
-
-function usePointsAnimation(target: number, trigger: { old: number; new: number; timestamp: number } | null, onDone: () => void) {
-  const [display, setDisplay] = useState(target);
-  const rafRef = useRef<number | null>(null);
-  const lastTriggerRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (!trigger) {
-      setDisplay(target);
-      return;
-    }
-    if (trigger.timestamp === lastTriggerRef.current) return;
-    lastTriggerRef.current = trigger.timestamp;
-
-    const { old: from, new: to } = trigger;
-    const duration = 500;
-    const start = performance.now();
-
-    const tick = (now: number) => {
-      const elapsed = now - start;
-      const progress = Math.min(1, elapsed / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(from + (to - from) * eased);
-      setDisplay(current);
-      if (progress < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        setDisplay(to);
-        const t = setTimeout(onDone, 100);
-        return () => clearTimeout(t);
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [trigger, target, onDone]);
-
-  return display;
-}
 
 export default function UserProfilePage() {
   const currentUser = useStore((s) => s.currentUser);
   const tasks = useStore((s) => s.tasks);
-  const lastPointsChange = useStore((s) => s.lastPointsChange);
   const clearPointsAnimation = useStore((s) => s.clearPointsAnimation);
 
   const [activeTab, setActiveTab] = useState<'published' | 'claimed'>('published');
-
-  const displayedPoints = usePointsAnimation(currentUser.points, lastPointsChange, clearPointsAnimation);
-
-  useEffect(() => {
-    return () => clearPointsAnimation();
-  }, [clearPointsAnimation]);
 
   const publishedTasks = tasks.filter((t) => t.publisherId === currentUser.id);
   const claimedTasks = tasks.filter((t) => t.claimantId === currentUser.id);
@@ -140,15 +93,15 @@ export default function UserProfilePage() {
                 </div>
 
                 <div className="flex items-baseline gap-1 bg-blue-50 px-4 py-2 rounded-xl">
-                  <span
+                  <AnimatedNumber
+                    value={currentUser.points}
+                    duration={500}
                     className="font-bold tabular-nums"
                     style={{
                       fontSize: '28px',
                       color: '#3B82F6',
                     }}
-                  >
-                    {displayedPoints}
-                  </span>
+                  />
                   <span className="text-sm text-slate-500 ml-1">积分</span>
                 </div>
               </div>

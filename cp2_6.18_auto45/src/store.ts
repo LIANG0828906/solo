@@ -44,12 +44,11 @@ interface StoreState {
   initialized: boolean;
   init: () => void;
   initialize: () => void;
-  publishTask: ((data: PublishTaskData) => boolean) &
-    ((title: string, description: string, reward: number, category: TaskCategory) => Task | null);
-  claimTask: ((taskId: string, claimant?: User) => boolean) & ((taskId: string) => boolean);
+  publishTask: (data: PublishTaskData | string, description?: string, reward?: number, category?: TaskCategory) => boolean | Task | null;
+  claimTask: (taskId: string, claimant?: User) => boolean;
   completeTask: (taskId: string) => boolean;
   markCompleted: (taskId: string) => boolean;
-  rateAndFinalize: (taskId: string, rating: 1 | 2 | 3 | 4 | 5) => boolean;
+  rateAndFinalize: (taskId: string, rating: number) => boolean;
   clearPointsAnimation: () => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
@@ -85,16 +84,25 @@ export const useAppStore = create<StoreState>((set, get) => ({
     get().init();
   },
 
-  publishTask: (...args: unknown[]) => {
-    let title: string, description: string, reward: number, category: TaskCategory;
+  publishTask: (data: PublishTaskData | string, description?: string, reward?: number, category?: TaskCategory) => {
+    let title: string;
+    let desc: string;
+    let rwd: number;
+    let cat: TaskCategory;
     let isObjectCall = false;
 
-    if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
-      const data = args[0] as PublishTaskData;
-      ({ title, description, reward, category } = data);
+    if (typeof data === 'object' && data !== null) {
+      const d = data as PublishTaskData;
+      title = d.title;
+      desc = d.description;
+      rwd = d.reward;
+      cat = d.category;
       isObjectCall = true;
-    } else if (args.length === 4) {
-      [title, description, reward, category] = args as [string, string, number, TaskCategory];
+    } else if (typeof data === 'string' && description !== undefined && reward !== undefined && category !== undefined) {
+      title = data;
+      desc = description;
+      rwd = reward;
+      cat = category;
     } else {
       return isObjectCall ? false : null;
     }
@@ -102,22 +110,22 @@ export const useAppStore = create<StoreState>((set, get) => ({
     const { currentUser } = get();
 
     if (!title.trim() || title.length > 200) return isObjectCall ? false : null;
-    if (!description.trim() || description.length > 500) return isObjectCall ? false : null;
-    if (!Number.isInteger(reward) || reward < 1 || reward > 999) return isObjectCall ? false : null;
-    if (!category) return isObjectCall ? false : null;
-    if (!canAfford(currentUser, reward)) return isObjectCall ? false : null;
+    if (!desc.trim() || desc.length > 500) return isObjectCall ? false : null;
+    if (!Number.isInteger(rwd) || rwd < 1 || rwd > 999) return isObjectCall ? false : null;
+    if (!cat) return isObjectCall ? false : null;
+    if (!canAfford(currentUser, rwd)) return isObjectCall ? false : null;
 
     const newTask = createTaskStore({
       title: title.trim(),
-      description: description.trim(),
-      reward,
-      category,
+      description: desc.trim(),
+      reward: rwd,
+      category: cat,
       publisherId: currentUser.id,
       publisherName: currentUser.nickname,
     });
 
     const oldPoints = currentUser.points;
-    const newPoints = currentUser.points - reward;
+    const newPoints = currentUser.points - rwd;
 
     set((state) => ({
       tasks: [newTask, ...state.tasks],
@@ -227,6 +235,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
       { ...claimantUser, points: claimantAfterTransfer.points },
       rating
     );
+    // repResult 本身就是 User 类型
 
     const notif = createNotifStore({
       userId: task.claimantId!,
@@ -243,7 +252,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
     set((state) => {
       const newCurrentUser = state.currentUser.id === task.claimantId
         ? {
-            ...repResult.user,
+            ...repResult,
             points: state.currentUser.points + task.reward,
           }
         : { ...state.currentUser, points: newPublisherPoints };
