@@ -12,7 +12,10 @@ function formatTime(timestamp: number): string {
 export default function ActivityFeed() {
   const navigate = useNavigate()
   const allActivities = useActivityStore(s => s.activities)
-  const activities = useMemo(() => allActivities.slice(0, 5), [allActivities])
+  const activities = useMemo(
+    () => [...allActivities].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5),
+    [allActivities]
+  )
 
   return (
     <div className="w-[320px] max-md:w-full flex-shrink-0 bg-[#F5F6FA] p-5 max-md:rounded-2xl max-md:mb-6 h-fit">

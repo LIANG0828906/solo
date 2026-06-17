@@ -27,13 +27,21 @@ export default function ProjectDetail() {
 
   const project = id ? projects.find(p => p.id === id) : undefined
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [fading, setFading] = useState(false)
   const [likeAnimating, setLikeAnimating] = useState(false)
   const [commentText, setCommentText] = useState('')
 
   const likeCount = id ? (likesMap[id]?.length ?? 0) : 0
   const liked = id ? (likesMap[id]?.includes('current_user') ?? false) : false
   const comments = id ? (commentsMap[id] ?? []) : []
+  const isOwnProject = project?.author === CURRENT_USER_NAME
+
+  const [prevImageIndex, setPrevImageIndex] = useState(0)
+  const [transitioning, setTransitioning] = useState(false)
+
+  useEffect(() => {
+    setCurrentImageIndex(0)
+    setPrevImageIndex(0)
+  }, [id])
 
   if (!project || !id) {
     return (
@@ -49,30 +57,28 @@ export default function ProjectDetail() {
     )
   }
 
-  const handlePrevImage = () => {
-    if (project.images.length <= 1) return
-    setFading(true)
+  const switchImage = (newIndex: number) => {
+    if (project.images.length <= 1 || transitioning) return
+    setTransitioning(true)
+    setPrevImageIndex(currentImageIndex)
+    setCurrentImageIndex(newIndex)
     setTimeout(() => {
-      setCurrentImageIndex((prev) =>
-        prev === 0 ? project.images.length - 1 : prev - 1
-      )
-      setFading(false)
-    }, 150)
+      setTransitioning(false)
+    }, 300)
+  }
+
+  const handlePrevImage = () => {
+    const newIndex = currentImageIndex === 0 ? project.images.length - 1 : currentImageIndex - 1
+    switchImage(newIndex)
   }
 
   const handleNextImage = () => {
-    if (project.images.length <= 1) return
-    setFading(true)
-    setTimeout(() => {
-      setCurrentImageIndex((prev) =>
-        prev === project.images.length - 1 ? 0 : prev + 1
-      )
-      setFading(false)
-    }, 150)
+    const newIndex = currentImageIndex === project.images.length - 1 ? 0 : currentImageIndex + 1
+    switchImage(newIndex)
   }
 
   const handleLike = async () => {
-    if (project.author === CURRENT_USER_NAME) return
+    if (isOwnProject) return
     setLikeAnimating(true)
     setTimeout(() => setLikeAnimating(false), 200)
     const nowLiked = await toggleLike(id)
@@ -122,38 +128,37 @@ export default function ProjectDetail() {
 
       <div className="bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden">
         <div className="relative bg-[#ECF0F1] aspect-[16/9] max-h-[500px] overflow-hidden">
-          <img
-            src={project.images[currentImageIndex]}
-            alt={project.title}
-            className={`w-full h-full object-contain transition-opacity duration-300 ${
-              fading ? 'opacity-0' : 'opacity-100'
-            }`}
-          />
+          {project.images.map((img, idx) => (
+            <img
+              key={idx}
+              src={img}
+              alt={project.title}
+              className="absolute inset-0 w-full h-full object-contain transition-opacity duration-300"
+              style={{
+                opacity: idx === currentImageIndex ? 1 : 0,
+                zIndex: idx === currentImageIndex ? 1 : 0,
+              }}
+            />
+          ))}
           {project.images.length > 1 && (
             <>
               <button
                 onClick={handlePrevImage}
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/60 backdrop-blur hover:bg-white flex items-center justify-center transition-all"
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/60 backdrop-blur hover:bg-white flex items-center justify-center transition-all z-10"
               >
                 <ChevronLeft size={22} className="text-gray-700" />
               </button>
               <button
                 onClick={handleNextImage}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/60 backdrop-blur hover:bg-white flex items-center justify-center transition-all"
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/60 backdrop-blur hover:bg-white flex items-center justify-center transition-all z-10"
               >
                 <ChevronRight size={22} className="text-gray-700" />
               </button>
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
                 {project.images.map((_, idx) => (
                   <button
                     key={idx}
-                    onClick={() => {
-                      setFading(true)
-                      setTimeout(() => {
-                        setCurrentImageIndex(idx)
-                        setFading(false)
-                      }, 150)
-                    }}
+                    onClick={() => switchImage(idx)}
                     className={`w-2 h-2 rounded-full transition-colors ${
                       idx === currentImageIndex ? 'bg-white' : 'bg-white/50'
                     }`}
@@ -169,25 +174,27 @@ export default function ProjectDetail() {
             <h1 className="text-2xl font-bold text-gray-800">{project.title}</h1>
             <button
               onClick={handleLike}
-              disabled={project.author === CURRENT_USER_NAME}
+              disabled={isOwnProject}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
-                project.author === CURRENT_USER_NAME
-                  ? 'opacity-50 cursor-not-allowed border-gray-200'
-                  : 'border-gray-200 hover:border-gray-300'
+                isOwnProject
+                  ? 'opacity-40 cursor-not-allowed border-gray-200 bg-gray-50'
+                  : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
               } ${likeAnimating ? 'scale-110' : 'scale-100'}`}
               style={{ transition: 'transform 0.2s ease-out' }}
-              title={project.author === CURRENT_USER_NAME ? '不能给自己点赞' : ''}
+              title={isOwnProject ? '不能给自己的项目点赞' : liked ? '取消点赞' : '点赞'}
             >
               <Heart
                 size={20}
                 fill={liked ? '#E74C3C' : 'none'}
                 color={liked ? '#E74C3C' : '#ccc'}
-                className={likeAnimating ? 'scale-110' : 'scale-100'}
                 style={{ transition: 'all 0.2s ease-out' }}
               />
               <span className={`text-sm font-medium ${liked ? 'text-[#E74C3C]' : 'text-gray-600'}`}>
                 {likeCount}
               </span>
+              {isOwnProject && (
+                <span className="text-xs text-gray-400 ml-1">自己的项目</span>
+              )}
             </button>
           </div>
 

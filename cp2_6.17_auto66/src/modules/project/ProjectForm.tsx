@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { X, Upload } from 'lucide-react'
 import { useProjectStore } from './store'
 import { CURRENT_USER_NAME } from '@/shared/types'
@@ -26,59 +26,68 @@ export default function ProjectForm({ onClose }: ProjectFormProps) {
   const [description, setDescription] = useState('')
   const [images, setImages] = useState<string[]>([])
   const [errors, setErrors] = useState<FormErrors>({})
+  const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const validate = () => {
+  const validateField = useCallback((t: string, d: string, imgs: string[]) => {
     const newErrors: FormErrors = {}
-    if (!title.trim()) newErrors.title = '请输入项目名称'
-    else if (title.length > MAX_TITLE_LEN) newErrors.title = `名称不能超过${MAX_TITLE_LEN}字`
+    if (!t.trim()) newErrors.title = '请输入项目名称'
+    else if (t.length > MAX_TITLE_LEN) newErrors.title = `名称不能超过${MAX_TITLE_LEN}字`
 
-    if (!description.trim()) newErrors.description = '请输入项目描述'
-    else if (description.length > MAX_DESC_LEN) newErrors.description = `描述不能超过${MAX_DESC_LEN}字`
+    if (!d.trim()) newErrors.description = '请输入项目描述'
+    else if (d.length > MAX_DESC_LEN) newErrors.description = `描述不能超过${MAX_DESC_LEN}字`
 
-    if (images.length < MIN_IMAGES) newErrors.images = `请上传至少${MIN_IMAGES}张图片`
-    else if (images.length > MAX_IMAGES) newErrors.images = `最多上传${MAX_IMAGES}张图片`
+    if (imgs.length < MIN_IMAGES) newErrors.images = `请上传至少${MIN_IMAGES}张图片`
+    else if (imgs.length > MAX_IMAGES) newErrors.images = `最多上传${MAX_IMAGES}张图片`
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    return newErrors
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      validate()
+      setErrors(validateField(title, description, images))
     }, 80)
     return () => clearTimeout(timer)
-  }, [title, description, images])
+  }, [title, description, images, validateField])
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (!files) return
+    if (!files || files.length === 0) return
 
+    setUploading(true)
     const newImages: string[] = [...images]
-    const newErrors: FormErrors = { ...errors }
+    const validationErrors: string[] = []
 
     for (let i = 0; i < files.length && newImages.length < MAX_IMAGES; i++) {
       const file = files[i]
+
       if (!ACCEPTED_TYPES.includes(file.type)) {
-        newErrors.images = '仅支持 JPG 和 PNG 格式'
+        validationErrors.push('仅支持 JPG 和 PNG 格式')
         continue
       }
       if (file.size > MAX_IMG_SIZE) {
-        newErrors.images = '每张图片不能超过 2MB'
+        validationErrors.push('每张图片不能超过 2MB')
         continue
       }
-      const reader = new FileReader()
-      await new Promise<void>((resolve) => {
-        reader.onload = () => {
-          newImages.push(reader.result as string)
-          resolve()
-        }
-        reader.readAsDataURL(file)
-      })
+
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = () => reject(new Error('文件读取失败'))
+          reader.readAsDataURL(file)
+        })
+        newImages.push(dataUrl)
+      } catch {
+        validationErrors.push('图片读取失败，请重试')
+      }
     }
 
     setImages(newImages)
-    if (newErrors.images) setErrors(newErrors)
+    if (validationErrors.length > 0) {
+      setErrors(prev => ({ ...prev, images: validationErrors[0] }))
+    }
+    setUploading(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -88,7 +97,9 @@ export default function ProjectForm({ onClose }: ProjectFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validate()) return
+    const validationErrors = validateField(title, description, images)
+    setErrors(validationErrors)
+    if (Object.keys(validationErrors).length > 0) return
 
     await addProject({
       title: title.trim(),
@@ -171,10 +182,11 @@ export default function ProjectForm({ onClose }: ProjectFormProps) {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-green-500 hover:text-green-500 transition-colors"
+                  disabled={uploading}
+                  className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-green-500 hover:text-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Upload size={24} />
-                  <span className="text-xs mt-1">上传</span>
+                  <span className="text-xs mt-1">{uploading ? '上传中...' : '上传'}</span>
                 </button>
               )}
             </div>
