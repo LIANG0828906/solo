@@ -1,0 +1,384 @@
+[
+  {
+    "id": "1",
+    "name": "西红柿炒鸡蛋",
+    "author": "厨神小王",
+    "authorAvatar": "https://i.pravatar.cc/100?img=1",
+    "images": [
+      "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=512&h=384&fit=crop",
+    "description": "经典家常美食，酸甜可口，营养丰富，十分钟搞定！",
+    "ingredients": [
+      { "name": "西红柿", "amount": 2, "unit": "个" },
+      { "name": "鸡蛋", "amount": 3, "unit": "个" },
+      { "name": "葱花", "amount": 10, "unit": "克" },
+      { "name": "盐", "amount": 3, "unit": "克" },
+      { "name": "白糖", "amount": 5, "unit": "克" }
+    ],
+    "steps": [
+      "西红柿洗净切块，鸡蛋打散备用",
+      "热锅下油，倒入鸡蛋炒至金黄盛出",
+      "锅中再加油，放入西红柿翻炒出汁",
+      "加入盐和白糖调味",
+      "倒入炒好的鸡蛋翻炒均匀",
+      "撒上葱花即可出锅"
+    ],
+    "cookingTime": 15,
+    "difficulty": "简单",
+    "category": "家常菜"
+  },
+  {
+    "id": "2",
+    "name": "红烧肉",
+    "author": "美食达人",
+    "authorAvatar": "https://i.pravatar.cc/100?img=2",
+    "images": [
+      "https://images.unsplash.com/photo-1623689046286-4bf4e7355efd?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1544025162-d76694265947?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1623689046286-4bf4e7355efd?w=512&h=384&fit=crop",
+    "description": "肥而不腻，入口即化的经典红烧肉，过年必备硬菜！",
+    "ingredients": [
+      { "name": "五花肉", "amount": 500, "unit": "克" },
+      { "name": "生抽", "amount": 20, "unit": "毫升" },
+      { "name": "老抽", "amount": 10, "unit": "毫升" },
+      { "name": "冰糖", "amount": 30, "unit": "克" },
+      { "name": "料酒", "amount": 15, "unit": "毫升" },
+      { "name": "生姜", "amount": 3, "unit": "片" },
+      { "name": "八角", "amount": 2, "unit": "个" }
+    ],
+    "steps": [
+      "五花肉切成2厘米见方的块",
+      "冷水下锅焯水，去除血沫后捞出",
+      "锅中放少许油，加入冰糖小火炒糖色",
+      "糖色呈枣红色时放入五花肉翻炒上色",
+      "加入生抽、老抽、料酒调味",
+      "加入没过肉的热水，放入生姜和八角",
+      "大火烧开后转小火炖60分钟",
+      "大火收汁至浓稠即可"
+    ],
+    "cookingTime": 90,
+    "difficulty": "中等",
+    "category": "硬菜"
+  },
+  {
+    "id": "3",
+    "name": "意大利肉酱面",
+    "author": "西餐大厨",
+    "authorAvatar": "https://i.pravatar.cc/100?img=3",
+    "images": [
+      "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=512&h=384&fit=crop",
+    "description": "浓郁番茄肉酱配上弹牙意面，在家也能做出餐厅级美味！",
+    "ingredients": [
+      { "name": "意大利面", "amount": 200, "unit": "克" },
+      { "name": "牛肉末", "amount": 200, "unit": "克" },
+      { "name": "番茄酱", "amount": 100, "unit": "克" },
+      { "name": "洋葱", "amount": 0.5, "unit": "个" },
+      { "name": "大蒜", "amount": 3, "unit": "瓣" },
+      { "name": "橄榄油", "amount": 20, "unit": "毫升" },
+      { "name": "盐", "amount": 5, "unit": "克" },
+      { "name": "黑胡椒", "amount": 3, "unit": "克" }
+    ],
+    "steps": [
+      "洋葱和大蒜切末备用",
+      "锅中加橄榄油，炒香洋葱和大蒜",
+      "加入牛肉末炒至变色",
+      "倒入番茄酱小火熬煮20分钟",
+      "另起一锅煮意面至八分熟",
+      "将意面加入肉酱中拌匀",
+      "撒上盐和黑胡椒调味",
+      "装盘即可享用"
+    ],
+    "cookingTime": 40,
+    "difficulty": "中等",
+    "category": "西餐"
+  },
+  {
+    "id": "4",
+    "name": "蛋炒饭",
+    "author": "快手厨房",
+    "authorAvatar": "https://i.pravatar.cc/100?img=4",
+    "images": [
+      "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=512&h=384&fit=crop",
+    "description": "粒粒分明、金黄诱人的经典蛋炒饭，宵夜首选！",
+    "ingredients": [
+      { "name": "隔夜米饭", "amount": 300, "unit": "克" },
+      { "name": "鸡蛋", "amount": 2, "unit": "个" },
+      { "name": "葱花", "amount": 15, "unit": "克" },
+      { "name": "盐", "amount": 4, "unit": "克" },
+      { "name": "生抽", "amount": 5, "unit": "毫升" }
+    ],
+    "steps": [
+      "鸡蛋打散，米饭提前打散",
+      "热锅下油，倒入蛋液快速翻炒",
+      "蛋液半凝固时加入米饭",
+      "大火翻炒至米粒分明",
+      "加入盐和生抽调味",
+      "撒上葱花翻匀出锅"
+    ],
+    "cookingTime": 10,
+    "difficulty": "简单",
+    "category": "主食"
+  },
+  {
+    "id": "5",
+    "name": "麻婆豆腐",
+    "author": "川菜大师",
+    "authorAvatar": "https://i.pravatar.cc/100?img=5",
+    "images": [
+      "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?w=512&h=384&fit=crop",
+    "description": "麻辣鲜香，嫩滑入味的经典川菜，超级下饭！",
+    "ingredients": [
+      { "name": "嫩豆腐", "amount": 400, "unit": "克" },
+      { "name": "猪肉末", "amount": 100, "unit": "克" },
+      { "name": "豆瓣酱", "amount": 20, "unit": "克" },
+      { "name": "花椒粉", "amount": 3, "unit": "克" },
+      { "name": "生抽", "amount": 10, "unit": "毫升" },
+      { "name": "淀粉", "amount": 10, "unit": "克" },
+      { "name": "葱花", "amount": 10, "unit": "克" }
+    ],
+    "steps": [
+      "豆腐切成2厘米方块，用盐水浸泡",
+      "锅中下油，炒香肉末",
+      "加入豆瓣酱炒出红油",
+      "加入适量水烧开",
+      "放入豆腐轻轻推动",
+      "加入生抽调味，小火煮5分钟",
+      "水淀粉勾芡，撒上花椒粉和葱花"
+    ],
+    "cookingTime": 20,
+    "difficulty": "中等",
+    "category": "川菜"
+  },
+  {
+    "id": "6",
+    "name": "日式咖喱饭",
+    "author": "樱花料理",
+    "authorAvatar": "https://i.pravatar.cc/100?img=6",
+    "images": [
+      "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1585032226651-759b368d7246?w=512&h=384&fit=crop",
+    "description": "浓郁醇香的日式咖喱，配上白米饭，幸福感满满！",
+    "ingredients": [
+      { "name": "咖喱块", "amount": 100, "unit": "克" },
+      { "name": "土豆", "amount": 2, "unit": "个" },
+      { "name": "胡萝卜", "amount": 1, "unit": "根" },
+      { "name": "洋葱", "amount": 1, "unit": "个" },
+      { "name": "鸡肉", "amount": 300, "unit": "克" },
+      { "name": "米饭", "amount": 400, "unit": "克" }
+    ],
+    "steps": [
+      "土豆、胡萝卜、洋葱切块，鸡肉切丁",
+      "锅中下油，炒香洋葱",
+      "加入鸡肉翻炒至变色",
+      "加入土豆和胡萝卜翻炒",
+      "加入没过食材的水，大火烧开转小火煮20分钟",
+      "关火，放入咖喱块搅拌至融化",
+      "再开火煮至浓稠，浇在米饭上即可"
+    ],
+    "cookingTime": 45,
+    "difficulty": "简单",
+    "category": "日料"
+  },
+  {
+    "id": "7",
+    "name": "凉拌黄瓜",
+    "author": "清爽小菜",
+    "authorAvatar": "https://i.pravatar.cc/100?img=7",
+    "images": [
+      "https://images.unsplash.com/photo-1604909052743-94e838986d24?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1604909052743-94e838986d24?w=512&h=384&fit=crop",
+    "description": "清脆爽口，酸辣开胃的夏日必备凉菜！",
+    "ingredients": [
+      { "name": "黄瓜", "amount": 2, "unit": "根" },
+      { "name": "大蒜", "amount": 3, "unit": "瓣" },
+      { "name": "香醋", "amount": 15, "unit": "毫升" },
+      { "name": "生抽", "amount": 10, "unit": "毫升" },
+      { "name": "辣椒油", "amount": 10, "unit": "毫升" },
+      { "name": "盐", "amount": 3, "unit": "克" },
+      { "name": "白糖", "amount": 5, "unit": "克" }
+    ],
+    "steps": [
+      "黄瓜洗净拍碎切段",
+      "大蒜切末",
+      "黄瓜放入碗中，加入蒜末",
+      "加入香醋、生抽、辣椒油",
+      "加盐和白糖调味",
+      "搅拌均匀，腌制10分钟即可"
+    ],
+    "cookingTime": 15,
+    "difficulty": "简单",
+    "category": "凉菜"
+  },
+  {
+    "id": "8",
+    "name": "可乐鸡翅",
+    "author": "甜蜜厨房",
+    "authorAvatar": "https://i.pravatar.cc/100?img=8",
+    "images": [
+      "https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=512&h=384&fit=crop",
+    "description": "色泽红亮，甜香四溢，小朋友最爱的鸡翅做法！",
+    "ingredients": [
+      { "name": "鸡翅中", "amount": 500, "unit": "克" },
+      { "name": "可乐", "amount": 250, "unit": "毫升" },
+      { "name": "生抽", "amount": 20, "unit": "毫升" },
+      { "name": "老抽", "amount": 5, "unit": "毫升" },
+      { "name": "生姜", "amount": 3, "unit": "片" },
+      { "name": "料酒", "amount": 10, "unit": "毫升" }
+    ],
+    "steps": [
+      "鸡翅两面划几刀便于入味",
+      "冷水下锅焯水，去除血沫",
+      "锅中下油，煎鸡翅至两面金黄",
+      "加入生抽、老抽、料酒调味",
+      "倒入可乐没过鸡翅",
+      "放入生姜片，大火烧开",
+      "转小火炖20分钟",
+      "大火收汁至浓稠即可"
+    ],
+    "cookingTime": 35,
+    "difficulty": "简单",
+    "category": "家常菜"
+  },
+  {
+    "id": "9",
+    "name": "蒜蓉西兰花",
+    "author": "健康轻食",
+    "authorAvatar": "https://i.pravatar.cc/100?img=9",
+    "images": [
+      "https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?w=512&h=384&fit=crop",
+    "description": "翠绿爽脆，蒜香浓郁的健康素菜！",
+    "ingredients": [
+      { "name": "西兰花", "amount": 400, "unit": "克" },
+      { "name": "大蒜", "amount": 5, "unit": "瓣" },
+      { "name": "盐", "amount": 4, "unit": "克" },
+      { "name": "蚝油", "amount": 10, "unit": "毫升" }
+    ],
+    "steps": [
+      "西兰花切小朵，用盐水浸泡10分钟",
+      "大蒜切末",
+      "烧开水，加少许盐和油",
+      "西兰花焯水2分钟捞出",
+      "热锅下油，爆香蒜末",
+      "加入西兰花快速翻炒",
+      "加盐和蚝油调味即可"
+    ],
+    "cookingTime": 15,
+    "difficulty": "简单",
+    "category": "素菜"
+  },
+  {
+    "id": "10",
+    "name": "糖醋排骨",
+    "author": "家乡味道",
+    "authorAvatar": "https://i.pravatar.cc/100?img=10",
+    "images": [
+      "https://images.unsplash.com/photo-1544025162-d76694265947?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1544025162-d76694265947?w=512&h=384&fit=crop",
+    "description": "酸甜可口，外酥里嫩的经典糖醋排骨！",
+    "ingredients": [
+      { "name": "猪小排", "amount": 500, "unit": "克" },
+      { "name": "番茄酱", "amount": 30, "unit": "克" },
+      { "name": "白糖", "amount": 30, "unit": "克" },
+      { "name": "香醋", "amount": 20, "unit": "毫升" },
+      { "name": "生抽", "amount": 10, "unit": "毫升" },
+      { "name": "料酒", "amount": 15, "unit": "毫升" },
+      { "name": "淀粉", "amount": 30, "unit": "克" }
+    ],
+    "steps": [
+      "排骨剁成小段，冷水浸泡30分钟去血水",
+      "加料酒和生抽腌制20分钟",
+      "裹上干淀粉",
+      "油温六成热下排骨炸至金黄捞出",
+      "油温升高复炸至酥脆",
+      "锅中留底油，加入番茄酱、白糖、香醋调酱汁",
+      "倒入排骨快速翻炒裹匀酱汁"
+    ],
+    "cookingTime": 50,
+    "difficulty": "中等",
+    "category": "硬菜"
+  },
+  {
+    "id": "11",
+    "name": "紫菜蛋花汤",
+    "author": "暖心汤品",
+    "authorAvatar": "https://i.pravatar.cc/100?img=11",
+    "images": [
+      "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=512&h=384&fit=crop",
+    "description": "清淡鲜美，简单快手的家常汤品！",
+    "ingredients": [
+      { "name": "紫菜", "amount": 5, "unit": "克" },
+      { "name": "鸡蛋", "amount": 1, "unit": "个" },
+      { "name": "虾皮", "amount": 5, "unit": "克" },
+      { "name": "葱花", "amount": 5, "unit": "克" },
+      { "name": "盐", "amount": 3, "unit": "克" },
+      { "name": "香油", "amount": 3, "unit": "毫升" }
+    ],
+    "steps": [
+      "紫菜撕碎放入汤碗",
+      "鸡蛋打散",
+      "锅中烧开水，加入虾皮",
+      "淋入蛋液形成蛋花",
+      "加盐调味",
+      "冲入放有紫菜的碗中",
+      "撒上葱花，淋入香油即可"
+    ],
+    "cookingTime": 10,
+    "difficulty": "简单",
+    "category": "汤品"
+  },
+  {
+    "id": "12",
+    "name": "宫保鸡丁",
+    "author": "川菜大师",
+    "authorAvatar": "https://i.pravatar.cc/100?img=12",
+    "images": [
+      "https://images.unsplash.com/photo-1525755662778-989d0524087e?w=800&h=600&fit=crop"
+    ],
+    "thumbnail": "https://images.unsplash.com/photo-1525755662778-989d0524087e?w=512&h=384&fit=crop",
+    "description": "鸡肉滑嫩，花生酥脆，酸甜微辣的经典川菜！",
+    "ingredients": [
+      { "name": "鸡胸肉", "amount": 300, "unit": "克" },
+      { "name": "花生米", "amount": 50, "unit": "克" },
+      { "name": "干辣椒", "amount": 10, "unit": "个" },
+      { "name": "花椒", "amount": 3, "unit": "克" },
+      { "name": "葱姜蒜", "amount": 20, "unit": "克" },
+      { "name": "生抽", "amount": 15, "unit": "毫升" },
+      { "name": "香醋", "amount": 10, "unit": "毫升" },
+      { "name": "白糖", "amount": 15, "unit": "克" },
+      { "name": "淀粉", "amount": 10, "unit": "克" }
+    ],
+    "steps": [
+      "鸡胸肉切丁，加料酒、生抽、淀粉腌制15分钟",
+      "调碗汁：生抽、香醋、白糖、淀粉、水",
+      "花生米炸至酥脆备用",
+      "热锅下油，爆香干辣椒和花椒",
+      "加入鸡丁快速翻炒至变色",
+      "加入葱姜蒜炒香",
+      "倒入碗汁翻炒至浓稠",
+      "加入花生米翻匀出锅"
+    ],
+    "cookingTime": 25,
+    "difficulty": "中等",
+    "category": "川菜"
+  }
+]
