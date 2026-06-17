@@ -1,0 +1,479 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #0F172A;
+  color: #E2E8F0;
+  min-height: 100vh;
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.stats-panel {
+  height: 120px;
+  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin: 24px 0;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stat-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: bold;
+  color: #F97316;
+  transition: transform 0.3s ease;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #94A3B8;
+}
+
+.book-shelf-container {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.search-box {
+  width: 400px;
+  height: 40px;
+  border-radius: 8px;
+  background-color: #334155;
+  border: none;
+  color: #E2E8F0;
+  padding: 0 16px;
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 24px;
+}
+
+.search-box::placeholder {
+  color: #64748B;
+}
+
+.shelf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.add-book-btn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #F97316;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+  position: fixed;
+  top: 24px;
+  right: 40px;
+  z-index: 100;
+}
+
+.add-book-btn:hover {
+  transform: rotate(90deg);
+}
+
+.shelf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  justify-content: flex-start;
+  transition: all 0.5s ease-in-out;
+}
+
+.book-spine {
+  width: 60px;
+  height: 180px;
+  border-radius: 4px;
+  margin: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.book-spine:hover {
+  transform: scale(1.05) translateY(-10px);
+  z-index: 10;
+}
+
+.book-spine.highlighted {
+  border: 2px solid #F97316;
+}
+
+.book-spine-novel {
+  background: linear-gradient(180deg, #8B5CF6 0%, #6D28D9 100%);
+}
+
+.book-spine-science {
+  background: linear-gradient(180deg, #06B6D4 0%, #0891B2 100%);
+}
+
+.book-spine-history {
+  background: linear-gradient(180deg, #F59E0B 0%, #D97706 100%);
+}
+
+.book-spine-philosophy {
+  background: linear-gradient(180deg, #10B981 0%, #059669 100%);
+}
+
+.book-spine-art {
+  background: linear-gradient(180deg, #EC4899 0%, #DB2777 100%);
+}
+
+.book-spine-other {
+  background: linear-gradient(180deg, #64748B 0%, #475569 100%);
+}
+
+.book-title-abbr {
+  color: white;
+  font-size: 10px;
+  font-weight: 500;
+  text-align: center;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.book-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1E293B;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  z-index: 20;
+  min-width: 150px;
+}
+
+.book-popup-title {
+  font-size: 14px;
+  color: #E2E8F0;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.book-popup-author {
+  font-size: 12px;
+  color: #94A3B8;
+}
+
+.no-results {
+  color: #94A3B8;
+  font-size: 14px;
+  margin-top: 16px;
+  text-align: center;
+}
+
+.no-results-link {
+  color: #F97316;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-left: 8px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  width: 540px;
+  background: #1E293B;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  padding: 32px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #E2E8F0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #94A3B8;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  color: #E2E8F0;
+  margin-bottom: 8px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background-color: #334155;
+  border: 1px solid #475569;
+  color: #E2E8F0;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: #F97316;
+}
+
+.form-textarea {
+  resize: none;
+  height: 120px;
+}
+
+.rating-stars {
+  display: flex;
+  gap: 8px;
+}
+
+.star {
+  font-size: 28px;
+  cursor: pointer;
+  color: #475569;
+  transition: color 0.2s ease;
+}
+
+.star.active {
+  color: #FBBF24;
+}
+
+.form-submit {
+  width: 100%;
+  padding: 12px;
+  background-color: #F97316;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.form-submit:hover {
+  background-color: #EA580C;
+}
+
+.social-feed {
+  width: 100%;
+  max-height: 400px;
+  overflow-y: auto;
+  background-color: #0F172A;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 40px;
+}
+
+.feed-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #E2E8F0;
+  margin-bottom: 16px;
+}
+
+.feed-card {
+  height: 140px;
+  background-color: transparent;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  display: flex;
+  gap: 16px;
+  transition: background-color 0.2s ease;
+  border-left: 4px solid;
+}
+
+.feed-card:hover {
+  background-color: #1E293B;
+}
+
+.feed-card:active {
+  background-color: #334155;
+}
+
+.feed-card-novel {
+  border-left-color: #8B5CF6;
+}
+
+.feed-card-science {
+  border-left-color: #06B6D4;
+}
+
+.feed-card-history {
+  border-left-color: #F59E0B;
+}
+
+.feed-card-philosophy {
+  border-left-color: #10B981;
+}
+
+.feed-card-art {
+  border-left-color: #EC4899;
+}
+
+.feed-card-other {
+  border-left-color: #64748B;
+}
+
+.feed-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.feed-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.feed-user-name {
+  font-size: 16px;
+  color: #E2E8F0;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.feed-book-title {
+  font-size: 14px;
+  color: #94A3B8;
+  margin-bottom: 8px;
+}
+
+.feed-review {
+  font-size: 12px;
+  color: #CBD5E1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    padding: 0 20px;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .add-book-btn {
+    right: 20px;
+    top: 20px;
+  }
+
+  .shelf {
+    justify-content: flex-start;
+  }
+
+  .stats-panel {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 16px;
+    gap: 24px;
+  }
+
+  .stat-item {
+    width: 45%;
+  }
+
+  .stat-item:last-child {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .modal {
+    width: 95%;
+    padding: 20px;
+  }
+
+  .feed-card {
+    height: auto;
+    min-height: 120px;
+  }
+}
