@@ -21,6 +21,7 @@ export interface CoinData {
   distance: number;
   active: boolean;
   collected: boolean;
+  startTime: number;
   collectAnimProgress: number;
   rotation: number;
 }
@@ -97,6 +98,7 @@ export class RiverGenerator {
           distance: d,
           active: true,
           collected: false,
+          startTime: 0,
           collectAnimProgress: 0,
           rotation: 0,
         });
@@ -163,8 +165,7 @@ export class RiverGenerator {
 
     for (const coin of this.coins) {
       if (coin.collected && coin.collectAnimProgress < 1) {
-        coin.collectAnimProgress += dt / 0.3;
-        if (coin.collectAnimProgress > 1) coin.collectAnimProgress = 1;
+        coin.collectAnimProgress = Math.min((elapsedTime - coin.startTime) / 0.3, 1);
       }
       if (coin.active && !coin.collected) {
         coin.rotation += COIN_ROTATION_SPEED * dt;
@@ -197,5 +198,90 @@ export class RiverGenerator {
       this.addSegment(80);
     }
     this.generateObstaclesAndCoins(80);
+  }
+
+  drawRiver(
+    ctx: CanvasRenderingContext2D,
+    W: number,
+    H: number,
+    cameraDistance: number,
+    elapsedTime: number,
+    ripplePhase: number
+  ) {
+    const riverWidth = this.getRiverWidth(elapsedTime);
+    const step = 4;
+
+    const leftPoints: { x: number; y: number }[] = [];
+    const rightPoints: { x: number; y: number }[] = [];
+
+    for (let sy = 0; sy <= H; sy += step) {
+      const worldDist = cameraDistance + (H - sy);
+      const centerOff = this.getCenterOffset(worldDist);
+
+      const rippleOffset = Math.sin(ripplePhase * 0.5 + sy * 0.02) * 3;
+
+      const cx = W / 2 + centerOff;
+      const hw = riverWidth / 2;
+
+      leftPoints.push({ x: cx - hw + rippleOffset, y: sy });
+      rightPoints.push({ x: cx + hw + rippleOffset, y: sy });
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
+    for (let i = 1; i < leftPoints.length; i++) {
+      ctx.lineTo(leftPoints[i].x, leftPoints[i].y);
+    }
+    for (let i = rightPoints.length - 1; i >= 0; i--) {
+      ctx.lineTo(rightPoints[i].x, rightPoints[i].y);
+    }
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#10487A');
+    grad.addColorStop(1, '#0A2E5A');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.save();
+    ctx.shadowColor = '#00E5FF';
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = '#00E5FF';
+    ctx.lineWidth = 4;
+
+    ctx.beginPath();
+    ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
+    for (let i = 1; i < leftPoints.length; i++) {
+      ctx.lineTo(leftPoints[i].x, leftPoints[i].y);
+    }
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(rightPoints[0].x, rightPoints[0].y);
+    for (let i = 1; i < rightPoints.length; i++) {
+      ctx.lineTo(rightPoints[i].x, rightPoints[i].y);
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.strokeStyle = '#00E5FF';
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i < leftPoints.length; i += 12) {
+      if (i >= rightPoints.length) break;
+      const ly = leftPoints[i].y;
+      const lx = leftPoints[i].x;
+      const rx = rightPoints[i].x;
+      const waveOff = Math.sin(ripplePhase * 0.5 + i * 0.3) * 10;
+
+      ctx.beginPath();
+      ctx.moveTo(lx + 10, ly);
+      ctx.quadraticCurveTo((lx + rx) / 2 + waveOff, ly + 6, rx - 10, ly);
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 }

@@ -10,8 +10,8 @@ const DRIFTWOOD_HALF_W = 8;
 const DRIFTWOOD_HALF_H = 12;
 const COIN_RADIUS = 8;
 const TOTAL_LIVES = 3;
-const FLASH_COUNT = 3;
-const FLASH_DURATION_PER = 0.1;
+const FLASH_COUNT = 6;
+const FLASH_DURATION_PER = 0.05;
 const GAME_OVER_FADE_DURATION = 2;
 const SCORE_PER_COIN = 10;
 const MILESTONE_INTERVAL = 100;
@@ -26,6 +26,7 @@ export class Engine {
 
   private cameraDistance = 0;
   private elapsedTime = 0;
+  private gameTime = 0;
   private speedMultiplier = 1;
 
   private playerX = 0;
@@ -151,6 +152,7 @@ export class Engine {
   restart() {
     this.cameraDistance = 0;
     this.elapsedTime = 0;
+    this.gameTime = 0;
     this.speedMultiplier = 1;
     this.playerX = 0;
     this.playerTilt = 0;
@@ -193,12 +195,10 @@ export class Engine {
 
   private update(dt: number) {
     this.elapsedTime += dt;
+    this.gameTime += dt;
     useGameStore.getState().setElapsedTime(this.elapsedTime);
 
-    // Fix #4: speed multiplier with cap of 2.5x
-    const newSpeed = 1 + Math.floor(this.elapsedTime / 15) * 0.1;
-    this.speedMultiplier = Math.min(newSpeed, 2.5);
-    useGameStore.getState().setSpeedMultiplier(this.speedMultiplier);
+    this.updateSpeed();
 
     this.cameraDistance += BASE_SCROLL_SPEED * this.speedMultiplier * dt;
 
@@ -210,6 +210,16 @@ export class Engine {
     this.updateFlashing(dt);
     this.updateFlashEffect(dt);
     this.ripplePhase += dt * Math.PI;
+  }
+
+  private updateSpeed() {
+    const speedIncrease = Math.floor(this.elapsedTime / 15) * 0.1;
+    let newSpeed = 1 + speedIncrease;
+    if (newSpeed > 2.5) {
+      newSpeed = 2.5;
+    }
+    this.speedMultiplier = newSpeed;
+    useGameStore.getState().setSpeedMultiplier(this.speedMultiplier);
   }
 
   private updatePlayer(dt: number) {
@@ -283,18 +293,23 @@ export class Engine {
 
       const dx = Math.abs(boatWorldX - coinWorldX);
       if (dx < BOAT_HALF_WIDTH + COIN_RADIUS && dy < BOAT_HALF_HEIGHT + COIN_RADIUS) {
-        coin.collected = true;
-        coin.collectAnimProgress = 0;
-        useGameStore.getState().addScore(SCORE_PER_COIN);
-
-        const score = useGameStore.getState().score;
-        const milestone = Math.floor(score / MILESTONE_INTERVAL) * MILESTONE_INTERVAL;
-        if (milestone > this.lastMilestone) {
-          this.lastMilestone = milestone;
-          this.flashOpacity = 0.2;
-          this.flashTimer2 = 0.15;
-        }
+        this.collectCoin(coin);
       }
+    }
+  }
+
+  private collectCoin(coin: import('./RiverGenerator').CoinData) {
+    coin.collected = true;
+    coin.startTime = this.gameTime;
+    coin.collectAnimProgress = 0;
+    useGameStore.getState().addScore(SCORE_PER_COIN);
+
+    const score = useGameStore.getState().score;
+    const milestone = Math.floor(score / MILESTONE_INTERVAL) * MILESTONE_INTERVAL;
+    if (milestone > this.lastMilestone) {
+      this.lastMilestone = milestone;
+      this.flashOpacity = 0.2;
+      this.flashTimer2 = 0.15;
     }
   }
 
@@ -367,100 +382,11 @@ export class Engine {
     ctx.fillStyle = '#0A0A1A';
     ctx.fillRect(0, 0, W, H);
 
-    this.renderRiver(ctx, W, H);
+    this.riverGen.drawRiver(ctx, W, H, this.cameraDistance, this.elapsedTime, this.ripplePhase);
     this.renderObstacles(ctx, W, H);
     this.renderCoins(ctx, W, H);
     this.renderPlayer(ctx, W, H);
     this.renderFlashEffect(ctx, W, H);
-  }
-
-  private renderRiver(ctx: CanvasRenderingContext2D, W: number, H: number) {
-    const riverWidth = this.riverGen.getRiverWidth(this.elapsedTime);
-    const step = 4;
-
-    const leftPoints: { x: number; y: number }[] = [];
-    const rightPoints: { x: number; y: number }[] = [];
-
-    for (let sy = 0; sy <= H; sy += step) {
-      const worldDist = this.cameraDistance + (H - sy);
-      const centerOff = this.riverGen.getCenterOffset(worldDist);
-
-      const rippleOffset = Math.sin(this.ripplePhase * 0.5 + sy * 0.02) * 3;
-
-      const cx = W / 2 + centerOff;
-      const hw = riverWidth / 2;
-
-      leftPoints.push({ x: cx - hw + rippleOffset, y: sy });
-      rightPoints.push({ x: cx + hw + rippleOffset, y: sy });
-    }
-
-    ctx.beginPath();
-    ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
-    for (let i = 1; i < leftPoints.length; i++) {
-      ctx.lineTo(leftPoints[i].x, leftPoints[i].y);
-    }
-    for (let i = rightPoints.length - 1; i >= 0; i--) {
-      ctx.lineTo(rightPoints[i].x, rightPoints[i].y);
-    }
-    ctx.closePath();
-
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, '#10487A');
-    grad.addColorStop(1, '#0A2E5A');
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    // Fix #5: River border glow with shadowBlur
-    ctx.save();
-    ctx.shadowColor = '#00E5FF';
-    ctx.shadowBlur = 8;
-    ctx.strokeStyle = '#00E5FF';
-    ctx.lineWidth = 4;
-
-    ctx.beginPath();
-    ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
-    for (let i = 1; i < leftPoints.length; i++) {
-      ctx.lineTo(leftPoints[i].x, leftPoints[i].y);
-    }
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(rightPoints[0].x, rightPoints[0].y);
-    for (let i = 1; i < rightPoints.length; i++) {
-      ctx.lineTo(rightPoints[i].x, rightPoints[i].y);
-    }
-    ctx.stroke();
-    ctx.restore();
-
-    this.renderWaterRipples(ctx, W, H, leftPoints, rightPoints);
-  }
-
-  private renderWaterRipples(
-    ctx: CanvasRenderingContext2D,
-    W: number,
-    H: number,
-    leftPoints: { x: number; y: number }[],
-    rightPoints: { x: number; y: number }[]
-  ) {
-    ctx.save();
-    ctx.globalAlpha = 0.08;
-    ctx.strokeStyle = '#00E5FF';
-    ctx.lineWidth = 1;
-
-    for (let i = 0; i < leftPoints.length; i += 12) {
-      if (i >= rightPoints.length) break;
-      const ly = leftPoints[i].y;
-      const lx = leftPoints[i].x;
-      const rx = rightPoints[i].x;
-      const waveOff = Math.sin(this.ripplePhase * 0.5 + i * 0.3) * 10;
-
-      ctx.beginPath();
-      ctx.moveTo(lx + 10, ly);
-      ctx.quadraticCurveTo((lx + rx) / 2 + waveOff, ly + 6, rx - 10, ly);
-      ctx.stroke();
-    }
-
-    ctx.restore();
   }
 
   private worldToScreen(worldX: number, worldDist: number): { x: number; y: number } {
