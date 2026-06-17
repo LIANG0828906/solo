@@ -14,7 +14,8 @@ interface StatsPanelProps {
 }
 
 export default function StatsPanel({ projectId }: StatsPanelProps) {
-  const tasks = useTaskStore((state) => state.getProjectTasks(projectId));
+  const allTasks = useTaskStore((state) => state.tasks);
+  const tasks = allTasks.filter((t) => t.projectId === projectId);
   const users = useTaskStore((state) => state.users);
 
   const data = users.map((user) => {

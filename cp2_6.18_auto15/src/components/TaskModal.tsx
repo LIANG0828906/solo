@@ -21,7 +21,7 @@ export default function TaskModal({ task, onClose, onSave }: TaskModalProps) {
       setTitle(task.title);
       setDescription(task.description);
       setAssignee(task.assignee);
-      setDueDate(task.dueDate);
+      setDueDate(task.dueDate || '');
     } else {
       setTitle('');
       setDescription('');

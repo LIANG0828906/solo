@@ -23,7 +23,8 @@ const columns: ColumnConfig[] = [
 ];
 
 export default function Board({ projectId }: BoardProps) {
-  const tasks = useTaskStore((state) => state.getProjectTasks(projectId));
+  const allTasks = useTaskStore((state) => state.tasks);
+  const tasks = allTasks.filter((t) => t.projectId === projectId);
   const moveTask = useTaskStore((state) => state.moveTask);
   const addTask = useTaskStore((state) => state.addTask);
   const updateTask = useTaskStore((state) => state.updateTask);

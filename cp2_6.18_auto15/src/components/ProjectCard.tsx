@@ -7,8 +7,8 @@ interface ProjectCardProps {
 }
 
 export default function ProjectCard({ project, onClick }: ProjectCardProps) {
-  const getProjectTasks = useTaskStore((state) => state.getProjectTasks);
-  const tasks = getProjectTasks(project.id);
+  const allTasks = useTaskStore((state) => state.tasks);
+  const tasks = allTasks.filter((t) => t.projectId === project.id);
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter((t) => t.status === 'done').length;
   const percentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
