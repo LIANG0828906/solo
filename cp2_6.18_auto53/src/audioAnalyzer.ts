@@ -13,55 +13,95 @@ export interface SongInfo {
   beats: BeatNote[];
 }
 
+const DIRECTIONS: Array<'up' | 'down' | 'left' | 'right'> = ['up', 'down', 'left', 'right'];
+const COLORS: Array<'red' | 'blue'> = ['red', 'blue'];
+
+const SONG_PRESET_BEATS: Record<string, Array<{ t: number; lane: number; dir: 'up' | 'down' | 'left' | 'right'; color: 'red' | 'blue' }>> = {};
+
+function buildNeonPulse(): Array<{ t: number; lane: number; dir: 'up' | 'down' | 'left' | 'right'; color: 'red' | 'blue' }> {
+  const arr: Array<{ t: number; lane: number; dir: 'up' | 'down' | 'left' | 'right'; color: 'red' | 'blue' }> = [];
+  const bpm = 120;
+  const bi = 60 / bpm;
+  let idx = 0;
+  for (let bar = 0; bar < 120; bar++) {
+    const baseT = 2.0 + bar * bi * 4;
+    const laneSeq = [-1.5, -0.5, 0.5, 1.5, -0.5, 1.5, -1.5, 0.5];
+    const dirSeq = ['up', 'right', 'down', 'left', 'up', 'left', 'down', 'right'];
+    const colorSeq = ['red', 'blue', 'red', 'blue', 'blue', 'red', 'blue', 'red'];
+    for (let step = 0; step < 8; step++) {
+      arr.push({
+        t: baseT + step * bi * 0.5,
+        lane: laneSeq[step],
+        dir: (dirSeq[step] as any),
+        color: (colorSeq[step] as any),
+      });
+      idx++;
+    }
+  }
+  return arr;
+}
+
+function buildCyberStorm(): Array<{ t: number; lane: number; dir: 'up' | 'down' | 'left' | 'right'; color: 'red' | 'blue' }> {
+  const arr: Array<{ t: number; lane: number; dir: 'up' | 'down' | 'left' | 'right'; color: 'red' | 'blue' }> = [];
+  const bpm = 140;
+  const bi = 60 / bpm;
+  for (let bar = 0; bar < 135; bar++) {
+    const baseT = 2.0 + bar * bi * 4;
+    for (let step = 0; step < 16; step++) {
+      const beatType = step % 4;
+      const t = baseT + step * bi * 0.25;
+      const lane = (step % 4 === 0 ? -1.5 : step % 4 === 1 ? -0.5 : step % 4 === 2 ? 0.5 : 1.5);
+      const dir = beatType === 0 ? 'up' : beatType === 1 ? 'right' : beatType === 2 ? 'down' : 'left';
+      const color = step % 2 === 0 ? 'red' : 'blue';
+      arr.push({ t, lane, dir: (dir as any), color: (color as any) });
+    }
+  }
+  return arr;
+}
+
+function buildQuantumBeat(): Array<{ t: number; lane: number; dir: 'up' | 'down' | 'left' | 'right'; color: 'red' | 'blue' }> {
+  const arr: Array<{ t: number; lane: number; dir: 'up' | 'down' | 'left' | 'right'; color: 'red' | 'blue' }> = [];
+  const bpm = 160;
+  const bi = 60 / bpm;
+  for (let bar = 0; bar < 140; bar++) {
+    const baseT = 2.0 + bar * bi * 4;
+    for (let step = 0; step < 16; step++) {
+      const t = baseT + step * bi * 0.25;
+      if (step % 2 === 0 || (bar % 2 === 1 && step % 1 === 0)) {
+        const laneIdx = (bar * 4 + step) % 4;
+        const lane = -1.5 + laneIdx;
+        const dirs: any[] = ['up', 'down', 'left', 'right', 'up', 'left', 'down', 'right'];
+        const dir = dirs[(bar * 16 + step) % 8];
+        const color = (bar + step) % 2 === 0 ? 'blue' : 'red';
+        arr.push({ t, lane, dir, color });
+      }
+    }
+  }
+  return arr;
+}
+
+SONG_PRESET_BEATS['neon-pulse'] = buildNeonPulse();
+SONG_PRESET_BEATS['cyber-storm'] = buildCyberStorm();
+SONG_PRESET_BEATS['quantum-beat'] = buildQuantumBeat();
+
+function generateBeatsFromPresets(songId: string): BeatNote[] {
+  const preset = SONG_PRESET_BEATS[songId] || [];
+  return preset.map(p => ({
+    time: p.t,
+    color: p.color,
+    direction: p.dir,
+    lane: p.lane,
+  }));
+}
+
 const SONGS: SongInfo[] = [
   { id: 'neon-pulse', name: 'Neon Pulse', duration: 62, bpm: 120, beats: [] },
   { id: 'cyber-storm', name: 'Cyber Storm', duration: 58, bpm: 140, beats: [] },
   { id: 'quantum-beat', name: 'Quantum Beat', duration: 55, bpm: 160, beats: [] },
 ];
 
-function generateBeats(bpm: number, duration: number): BeatNote[] {
-  const beatInterval = 60 / bpm;
-  const notes: BeatNote[] = [];
-  const colors: Array<'red' | 'blue'> = ['red', 'blue'];
-  const directions: Array<'up' | 'down' | 'left' | 'right'> = ['up', 'down', 'left', 'right'];
-  let id = 0;
-
-  for (let t = 2.0; t < duration - 3; t += beatInterval) {
-    const swing = Math.sin(t * 0.5);
-    if (swing > 0.3) {
-      notes.push({
-        time: t,
-        color: colors[Math.floor(Math.random() * 2)],
-        direction: directions[Math.floor(Math.random() * 4)],
-        lane: Math.floor(Math.random() * 4) - 1.5,
-      });
-      id++;
-    }
-    if (swing > 0.7 && Math.random() > 0.5) {
-      notes.push({
-        time: t + beatInterval * 0.5,
-        color: colors[Math.floor(Math.random() * 2)],
-        direction: directions[Math.floor(Math.random() * 4)],
-        lane: Math.floor(Math.random() * 4) - 1.5,
-      });
-      id++;
-    }
-    if (swing < -0.2 && Math.random() > 0.6) {
-      notes.push({
-        time: t + beatInterval * 0.25,
-        color: colors[Math.floor(Math.random() * 2)],
-        direction: directions[Math.floor(Math.random() * 4)],
-        lane: Math.floor(Math.random() * 4) - 1.5,
-      });
-      id++;
-    }
-  }
-
-  return notes;
-}
-
 SONGS.forEach(song => {
-  song.beats = generateBeats(song.bpm, song.duration);
+  song.beats = generateBeatsFromPresets(song.id);
 });
 
 export function getSongs(): SongInfo[] {
@@ -75,21 +115,26 @@ export function getSongById(id: string): SongInfo | undefined {
 export class AudioPlayer {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
-  private gainNode: GainNode | null = null;
   private masterGain: GainNode | null = null;
   private oscillators: OscillatorNode[] = [];
   private scheduledNodes: { osc: OscillatorNode; gain: GainNode }[] = [];
   private isPlaying = false;
   private startTime = 0;
-  private frequencyData: Uint8Array = new Uint8Array(0);
+  private frequencyData: Uint8Array<ArrayBuffer> = new Uint8Array(new ArrayBuffer(0));
+  private beatHistory: number[] = [];
+  private lastBeatTime = -1;
+  private beatCallbacks: Array<() => void> = [];
   private songInfo: SongInfo | null = null;
   private nextNoteIndex = 0;
+  private energyHistory: number[] = [];
+  private spectrumSnapshots: Array<number[]> = [];
 
   async init(): Promise<void> {
     this.audioContext = new AudioContext();
     this.analyser = this.audioContext.createAnalyser();
-    this.analyser.fftSize = 64;
-    this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
+    this.analyser.fftSize = 128;
+    this.analyser.smoothingTimeConstant = 0.7;
+    this.frequencyData = new Uint8Array(new ArrayBuffer(this.analyser.frequencyBinCount));
 
     this.masterGain = this.audioContext.createGain();
     this.masterGain.gain.value = 0.3;
@@ -105,6 +150,10 @@ export class AudioPlayer {
     this.isPlaying = true;
     this.startTime = this.audioContext.currentTime;
     this.nextNoteIndex = 0;
+    this.lastBeatTime = -1;
+    this.beatHistory = [];
+    this.energyHistory = [];
+    this.spectrumSnapshots = [];
 
     this.scheduleMusic(song);
   }
@@ -130,12 +179,13 @@ export class AudioPlayer {
       osc.type = pattern < 2 ? 'sawtooth' : 'square';
       osc.frequency.value = freq * (1 + pattern * 0.5);
 
-      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.setValueAtTime(0.0, t - 0.001);
+      gain.gain.linearRampToValueAtTime(0.18, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + beatInterval * 0.8);
 
       osc.connect(gain);
-      gain.connect(this.masterGain!);
-      osc.start(t);
+      gain.connect(this.masterGain);
+      osc.start(t - 0.001);
       osc.stop(t + beatInterval * 0.9);
 
       this.scheduledNodes.push({ osc, gain });
@@ -146,11 +196,12 @@ export class AudioPlayer {
         const bassGain = ctx.createGain();
         bassOsc.type = 'sine';
         bassOsc.frequency.value = freq / 4;
-        bassGain.gain.setValueAtTime(0.2, t);
+        bassGain.gain.setValueAtTime(0.0, t - 0.001);
+        bassGain.gain.linearRampToValueAtTime(0.25, t);
         bassGain.gain.exponentialRampToValueAtTime(0.001, t + beatInterval * 0.6);
         bassOsc.connect(bassGain);
-        bassGain.connect(this.masterGain!);
-        bassOsc.start(t);
+        bassGain.connect(this.masterGain);
+        bassOsc.start(t - 0.001);
         bassOsc.stop(t + beatInterval * 0.7);
         this.scheduledNodes.push({ osc: bassOsc, gain: bassGain });
         this.oscillators.push(bassOsc);
@@ -160,16 +211,33 @@ export class AudioPlayer {
         const percOsc = ctx.createOscillator();
         const percGain = ctx.createGain();
         percOsc.type = 'triangle';
-        percOsc.frequency.setValueAtTime(800, t);
-        percOsc.frequency.exponentialRampToValueAtTime(100, t + 0.05);
-        percGain.gain.setValueAtTime(0.12, t);
+        percOsc.frequency.setValueAtTime(1200, t);
+        percOsc.frequency.exponentialRampToValueAtTime(80, t + 0.05);
+        percGain.gain.setValueAtTime(0.0, t - 0.001);
+        percGain.gain.linearRampToValueAtTime(0.15, t);
         percGain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
         percOsc.connect(percGain);
-        percGain.connect(this.masterGain!);
-        percOsc.start(t);
+        percGain.connect(this.masterGain);
+        percOsc.start(t - 0.001);
         percOsc.stop(t + 0.1);
         this.scheduledNodes.push({ osc: percOsc, gain: percGain });
         this.oscillators.push(percOsc);
+      }
+
+      if (i % 8 === 0) {
+        const hiOsc = ctx.createOscillator();
+        const hiGain = ctx.createGain();
+        hiOsc.type = 'square';
+        hiOsc.frequency.setValueAtTime(freq * 4, t);
+        hiGain.gain.setValueAtTime(0.0, t - 0.001);
+        hiGain.gain.linearRampToValueAtTime(0.08, t);
+        hiGain.gain.exponentialRampToValueAtTime(0.001, t + beatInterval * 0.4);
+        hiOsc.connect(hiGain);
+        hiGain.connect(this.masterGain);
+        hiOsc.start(t - 0.001);
+        hiOsc.stop(t + beatInterval * 0.5);
+        this.scheduledNodes.push({ osc: hiOsc, gain: hiGain });
+        this.oscillators.push(hiOsc);
       }
     }
   }
@@ -208,6 +276,52 @@ export class AudioPlayer {
     return this.frequencyData;
   }
 
+  detectBeat(): boolean {
+    if (!this.analyser) return false;
+
+    this.analyser.getByteFrequencyData(this.frequencyData);
+
+    const lowEnd = Math.floor(this.frequencyData.length * 0.1);
+    let bassEnergy = 0;
+    for (let i = 0; i < lowEnd; i++) {
+      bassEnergy += this.frequencyData[i];
+    }
+    bassEnergy = bassEnergy / lowEnd / 255;
+
+    this.energyHistory.push(bassEnergy);
+    if (this.energyHistory.length > 43) {
+      this.energyHistory.shift();
+    }
+
+    if (this.energyHistory.length < 43) return false;
+
+    const avg = this.energyHistory.reduce((a, b) => a + b, 0) / this.energyHistory.length;
+    const variance = this.energyHistory.reduce((a, b) => a + (b - avg) * (b - avg), 0) / this.energyHistory.length;
+    const stdDev = Math.sqrt(variance);
+    const threshold = avg + stdDev * 1.2 + 0.08;
+
+    const currentTime = this.getCurrentTime();
+    if (bassEnergy > threshold && currentTime - this.lastBeatTime > 0.25) {
+      this.lastBeatTime = currentTime;
+      this.beatHistory.push(currentTime);
+      if (this.beatHistory.length > 50) this.beatHistory.shift();
+      this.beatCallbacks.forEach(cb => cb());
+      return true;
+    }
+    return false;
+  }
+
+  getBPM(): number {
+    if (this.songInfo) return this.songInfo.bpm;
+    if (this.beatHistory.length < 4) return 120;
+    let total = 0;
+    for (let i = 1; i < this.beatHistory.length; i++) {
+      total += this.beatHistory[i] - this.beatHistory[i - 1];
+    }
+    const avgInterval = total / (this.beatHistory.length - 1);
+    return 60 / avgInterval;
+  }
+
   getIsPlaying(): boolean {
     return this.isPlaying;
   }
@@ -218,27 +332,50 @@ export class AudioPlayer {
     const now = ctx.currentTime;
 
     if (grade === 'perfect') {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.2);
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.value = 880;
+      gain1.gain.setValueAtTime(0.18, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.2);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.value = 1320;
+      gain2.gain.setValueAtTime(0.1, now);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now);
+      osc2.stop(now + 0.15);
     } else if (grade === 'good') {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = 660;
-      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.setValueAtTime(0.12, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
       osc.stop(now + 0.15);
+    } else {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.22);
     }
   }
 
@@ -249,27 +386,35 @@ export class AudioPlayer {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'square';
-    osc.frequency.value = 100;
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.1);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(now);
-    osc.stop(now + 0.12);
+    osc.stop(now + 0.15);
+  }
+
+  registerBeatCallback(cb: () => void): void {
+    this.beatCallbacks.push(cb);
   }
 
   getUpcomingBeats(currentTime: number, windowSeconds: number): BeatNote[] {
     if (!this.songInfo) return [];
     const result: BeatNote[] = [];
     const end = currentTime + windowSeconds;
+
+    while (this.nextNoteIndex < this.songInfo.beats.length
+      && this.songInfo.beats[this.nextNoteIndex].time < currentTime) {
+      this.nextNoteIndex++;
+    }
+
     for (let i = this.nextNoteIndex; i < this.songInfo.beats.length; i++) {
       const beat = this.songInfo.beats[i];
-      if (beat.time >= currentTime && beat.time <= end) {
-        result.push(beat);
-      }
       if (beat.time > end) break;
-      if (beat.time < currentTime) {
-        this.nextNoteIndex = i + 1;
+      if (beat.time >= currentTime) {
+        result.push(beat);
       }
     }
     return result;

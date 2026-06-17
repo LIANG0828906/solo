@@ -12,6 +12,9 @@ class EchoArenaApp {
   private currentSong: SongInfo | null = null;
   private isRunning = false;
   private animFrameId = 0;
+  private lastFrameTime = 0;
+  private deltaAccumulator = 0;
+  private frameCount = 0;
 
   async init(): Promise<void> {
     const container = document.getElementById('app')!;
@@ -33,8 +36,29 @@ class EchoArenaApp {
     this.setupUICallbacks();
     this.setupInputHandlers();
     this.setupResizeHandler();
+    this.injectKeyframes();
 
     this.ui.showMenu();
+  }
+
+  private injectKeyframes(): void {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.15); opacity: 0.85; }
+      }
+      @keyframes comboPulse {
+        0% { transform: scale(0.8); opacity: 0; }
+        30% { transform: scale(1.05); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.8; }
+      }
+      @keyframes floatUp {
+        0% { transform: translateY(0) scale(1); opacity: 1; }
+        100% { transform: translateY(-60px) scale(1.1); opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
   }
 
   private setupEngineCallbacks(): void {
@@ -48,11 +72,11 @@ class EchoArenaApp {
     };
 
     this.engine.onFeverStart = (playerIndex) => {
-      console.log(`Player ${playerIndex + 1} FEVER!`);
+      console.log(`[EchoArena] Player ${playerIndex + 1} FEVER MODE activated!`);
     };
 
     this.engine.onFeverEnd = (playerIndex) => {
-      console.log(`Player ${playerIndex + 1} fever ended`);
+      console.log(`[EchoArena] Player ${playerIndex + 1} fever ended`);
     };
 
     this.engine.onGameEnd = () => {
@@ -65,12 +89,19 @@ class EchoArenaApp {
     this.engine.onStateUpdate = (states) => {
       this.ui.updateHUD(states);
     };
+
+    this.engine.onBeatDetected = (_playerIndex) => {
+    };
   }
 
   private setupUICallbacks(): void {
     this.ui.setCallbacks({
       onModeSelect: (mode) => {
         this.currentMode = mode;
+        if (window.innerWidth < 480) {
+          alert('分屏需更大屏幕');
+          this.currentMode = 'single';
+        }
         this.ui.showSongSelect(getSongs());
       },
       onSongSelect: (song) => {
@@ -79,6 +110,7 @@ class EchoArenaApp {
       },
       onResume: () => {
         this.audioPlayer.resume();
+        this.lastFrameTime = performance.now();
         this.isRunning = true;
         this.gameLoop();
       },
@@ -95,7 +127,7 @@ class EchoArenaApp {
   }
 
   private setupInputHandlers(): void {
-    const keyMap: Record<string, { player: number; direction: string }> = {
+    const keyMap: Record<string, { player: number; direction: 'up' | 'down' | 'left' | 'right' }> = {
       KeyW: { player: 0, direction: 'up' },
       KeyS: { player: 0, direction: 'down' },
       KeyA: { player: 0, direction: 'left' },
@@ -121,93 +153,92 @@ class EchoArenaApp {
       if (!mapping) return;
 
       if (this.currentMode === 'single') {
-        this.engine.handleInput(0, mapping.direction);
+        if (mapping.player === 0) {
+          this.engine.handleInput(0, mapping.direction);
+        }
       } else {
         this.engine.handleInput(mapping.player, mapping.direction);
       }
     });
 
-    let mouseDown = false;
-    let mouseStart = { x: 0, y: 0 };
-    let mousePlayer = 0;
+    let inputStart: {
+      x: number; y: number; t: number; player: number;
+    } | null = null;
+
+    const determinePlayer = (x: number): number => {
+      if (this.currentMode === 'single') return 0;
+      const isHorizontal = window.innerWidth >= 960;
+      if (isHorizontal) {
+        return x < window.innerWidth / 2 ? 0 : 1;
+      } else {
+        return 0;
+      }
+    };
+
+    const onPointerDown = (x: number, y: number) => {
+      if (!this.isRunning) return;
+      inputStart = {
+        x, y,
+        t: performance.now(),
+        player: determinePlayer(x),
+      };
+    };
+
+    const onPointerUp = (x: number, y: number) => {
+      if (!inputStart || !this.isRunning) return;
+
+      const dx = x - inputStart.x;
+      const dy = y - inputStart.y;
+      const dt = performance.now() - inputStart.t;
+      const player = inputStart.player;
+      inputStart = null;
+
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 20) return;
+
+      this.engine.handleSwipe(player, dx, dy, 15);
+    };
 
     this.renderer.domElement.addEventListener('mousedown', (e) => {
-      mouseDown = true;
-      mouseStart = { x: e.clientX, y: e.clientY };
-      if (this.currentMode === 'dual') {
-        mousePlayer = e.clientX < window.innerWidth / 2 ? 0 : 1;
-      } else {
-        mousePlayer = 0;
-      }
+      onPointerDown(e.clientX, e.clientY);
     });
 
     this.renderer.domElement.addEventListener('mouseup', (e) => {
-      if (!mouseDown) return;
-      mouseDown = false;
-
-      const dx = e.clientX - mouseStart.x;
-      const dy = e.clientY - mouseStart.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < 20) return;
-
-      let direction: string;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        direction = dx > 0 ? 'right' : 'left';
-      } else {
-        direction = dy > 0 ? 'down' : 'up';
-      }
-
-      this.engine.handleInput(mousePlayer, direction);
+      onPointerUp(e.clientX, e.clientY);
     });
 
     this.renderer.domElement.addEventListener('touchstart', (e) => {
-      const touch = e.touches[0];
-      mouseDown = true;
-      mouseStart = { x: touch.clientX, y: touch.clientY };
-      if (this.currentMode === 'dual') {
-        mousePlayer = touch.clientX < window.innerWidth / 2 ? 0 : 1;
-      } else {
-        mousePlayer = 0;
-      }
-    });
+      const t = e.touches[0];
+      if (t) onPointerDown(t.clientX, t.clientY);
+      e.preventDefault();
+    }, { passive: false });
 
     this.renderer.domElement.addEventListener('touchend', (e) => {
-      if (!mouseDown) return;
-      mouseDown = false;
-
-      const touch = e.changedTouches[0];
-      const dx = touch.clientX - mouseStart.x;
-      const dy = touch.clientY - mouseStart.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < 20) return;
-
-      let direction: string;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        direction = dx > 0 ? 'right' : 'left';
-      } else {
-        direction = dy > 0 ? 'down' : 'up';
-      }
-
-      this.engine.handleInput(mousePlayer, direction);
-    });
+      const t = e.changedTouches[0];
+      if (t) onPointerUp(t.clientX, t.clientY);
+      e.preventDefault();
+    }, { passive: false });
   }
 
   private setupResizeHandler(): void {
     window.addEventListener('resize', () => {
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      this.renderer.setSize(w, h);
 
       const playerCount = this.currentMode === 'dual' ? 2 : 1;
-      const isHorizontal = window.innerWidth >= 960;
+      const isHorizontal = w >= 960;
+      const isSingle = playerCount === 1;
 
       for (let i = 0; i < playerCount; i++) {
         const camera = this.engine.getCamera(i);
         if (camera) {
-          if (isHorizontal) {
-            camera.aspect = (window.innerWidth / 2) / window.innerHeight;
+          if (isSingle) {
+            camera.aspect = w / h;
+          } else if (isHorizontal) {
+            camera.aspect = (w / 2) / h;
           } else {
-            camera.aspect = window.innerWidth / (window.innerHeight / 2);
+            camera.aspect = w / (h / 2);
           }
           camera.updateProjectionMatrix();
         }
@@ -222,26 +253,34 @@ class EchoArenaApp {
 
     this.engine.stopGame();
     cancelAnimationFrame(this.animFrameId);
+    this.isRunning = false;
 
     this.engine.init(this.currentMode, this.renderer);
 
+    const w = window.innerWidth;
+    const h = window.innerHeight;
     const playerCount = this.currentMode === 'dual' ? 2 : 1;
-    const isHorizontal = window.innerWidth >= 960;
+    const isHorizontal = w >= 960;
+    const isSingle = playerCount === 1;
 
     for (let i = 0; i < playerCount; i++) {
       const camera = this.engine.getCamera(i)!;
-      if (isHorizontal) {
-        camera.aspect = (window.innerWidth / 2) / window.innerHeight;
-      } else if (this.currentMode === 'dual') {
-        camera.aspect = window.innerWidth / (window.innerHeight / 2);
+      if (isSingle) {
+        camera.aspect = w / h;
+      } else if (isHorizontal) {
+        camera.aspect = (w / 2) / h;
       } else {
-        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.aspect = w / (h / 2);
       }
       camera.updateProjectionMatrix();
     }
 
     this.ui.showHUD(playerCount);
     this.engine.startGame(this.currentSong);
+
+    this.lastFrameTime = performance.now();
+    this.deltaAccumulator = 0;
+    this.frameCount = 0;
     this.isRunning = true;
     this.gameLoop();
   }
@@ -251,51 +290,77 @@ class EchoArenaApp {
 
     this.animFrameId = requestAnimationFrame(() => this.gameLoop());
 
-    const delta = Math.min(1 / 30, this.engine.getScene(0) ? 1 / 60 : 0);
+    const now = performance.now();
+    let delta = (now - this.lastFrameTime) / 1000;
+    this.lastFrameTime = now;
+
+    if (delta > 0.1) delta = 0.1;
+    if (delta < 0) delta = 0;
 
     this.engine.update(delta);
-    this.render();
+    this.renderSplitScreen();
 
     const freqData = this.audioPlayer.getFrequencyData();
     this.ui.updateSpectrum(freqData, this.currentMode === 'dual' ? 2 : 1);
+
+    this.frameCount++;
+    this.deltaAccumulator += delta;
+    if (this.deltaAccumulator >= 2.0) {
+      const fps = this.frameCount / this.deltaAccumulator;
+      if (fps < 25) {
+        console.warn(`[EchoArena] Low FPS: ${fps.toFixed(1)}`);
+      }
+      this.frameCount = 0;
+      this.deltaAccumulator = 0;
+    }
   }
 
-  private render(): void {
+  private renderSplitScreen(): void {
+    const w = this.renderer.domElement.width;
+    const h = this.renderer.domElement.height;
     const playerCount = this.currentMode === 'dual' ? 2 : 1;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const isHorizontal = w >= 960;
+    const isHorizontal = w >= h;
 
-    this.renderer.clear();
+    this.renderer.setScissorTest(false);
+    this.renderer.clear(true, true, true);
+    this.renderer.setScissorTest(true);
 
     for (let i = 0; i < playerCount; i++) {
       const scene = this.engine.getScene(i);
       const camera = this.engine.getCamera(i);
       if (!scene || !camera) continue;
 
-      this.renderer.setScissorTest(true);
+      let viewportX = 0;
+      let viewportY = 0;
+      let viewportW = w;
+      let viewportH = h;
 
-      if (playerCount === 1) {
-        this.renderer.setViewport(0, 0, w, h);
-        this.renderer.setScissor(0, 0, w, h);
-      } else if (isHorizontal) {
-        const halfW = w / 2;
-        if (i === 0) {
-          this.renderer.setViewport(0, 0, halfW, h);
-          this.renderer.setScissor(0, 0, halfW, h);
+      if (playerCount === 2) {
+        if (isHorizontal) {
+          const halfW = Math.floor(w / 2);
+          viewportW = halfW;
+          viewportX = i === 0 ? 0 : halfW;
+
+          if (i === 1 && halfW * 2 < w) {
+            viewportW = w - halfW;
+          }
         } else {
-          this.renderer.setViewport(halfW, 0, halfW, h);
-          this.renderer.setScissor(halfW, 0, halfW, h);
+          const halfH = Math.floor(h / 2);
+          viewportH = halfH;
+          viewportY = i === 0 ? halfH : 0;
+
+          if (i === 0 && halfH * 2 < h) {
+            viewportH = h - halfH;
+          }
         }
-      } else {
-        const halfH = h / 2;
-        if (i === 0) {
-          this.renderer.setViewport(0, halfH, w, halfH);
-          this.renderer.setScissor(0, halfH, w, halfH);
-        } else {
-          this.renderer.setViewport(0, 0, w, halfH);
-          this.renderer.setScissor(0, 0, w, halfH);
-        }
+      }
+
+      this.renderer.setViewport(viewportX, viewportY, viewportW, viewportH);
+      this.renderer.setScissor(viewportX, viewportY, viewportW, viewportH);
+
+      const bgColor = i === 0 ? 0x000018 : 0x180008;
+      if (scene.background instanceof THREE.Color) {
+        scene.background.setHex(bgColor);
       }
 
       this.renderer.render(scene, camera);
@@ -308,28 +373,36 @@ class EchoArenaApp {
     const camera = this.engine.getCamera(playerIndex);
     if (!camera) return { x: 0, y: 0 };
 
+    const w = this.renderer.domElement.width;
+    const h = this.renderer.domElement.height;
+    const playerCount = this.currentMode === 'dual' ? 2 : 1;
+    const isHorizontal = w >= h;
+
     const vec = worldPos.clone().project(camera);
 
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const isHorizontal = w >= 960;
-    const playerCount = this.currentMode === 'dual' ? 2 : 1;
+    let ndcX = (vec.x + 1) / 2;
+    let ndcY = (1 - vec.y) / 2;
 
-    let screenX = (vec.x * 0.5 + 0.5) * w;
-    let screenY = (-vec.y * 0.5 + 0.5) * h;
+    let screenX: number;
+    let screenY: number;
 
-    if (playerCount === 2) {
-      if (isHorizontal) {
-        const halfW = w / 2;
-        screenX = playerIndex === 0
-          ? (vec.x * 0.5 + 0.5) * halfW
-          : halfW + (vec.x * 0.5 + 0.5) * halfW;
-      } else {
-        const halfH = h / 2;
-        screenY = playerIndex === 0
-          ? halfH + (1 - (vec.y * 0.5 + 0.5)) * halfH
-          : (1 - (vec.y * 0.5 + 0.5)) * halfH;
-      }
+    if (playerCount === 1) {
+      screenX = ndcX * w;
+      screenY = ndcY * h;
+    } else if (isHorizontal) {
+      const halfW = Math.floor(w / 2);
+      const viewportW = playerIndex === 0 ? halfW : (w - halfW);
+      const viewportX = playerIndex === 0 ? 0 : halfW;
+
+      screenX = viewportX + ndcX * viewportW;
+      screenY = ndcY * h;
+    } else {
+      const halfH = Math.floor(h / 2);
+      const viewportH = playerIndex === 0 ? (h - halfH) : halfH;
+      const viewportY = playerIndex === 0 ? halfH : 0;
+
+      screenX = ndcX * w;
+      screenY = viewportY + ndcY * viewportH;
     }
 
     return { x: screenX, y: screenY };
