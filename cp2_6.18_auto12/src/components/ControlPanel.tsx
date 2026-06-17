@@ -56,13 +56,16 @@ const Slider: React.FC<SliderProps> = ({ label, value, min, max, step, unit = ''
 interface CollapsiblePanelProps {
   title: string;
   isOpen: boolean;
+  isNextOpen?: boolean;
   onToggle: () => void;
   children: React.ReactNode;
 }
 
-const CollapsiblePanel: React.FC<CollapsiblePanelProps> = ({ title, isOpen, onToggle, children }) => {
+const CollapsiblePanel: React.FC<CollapsiblePanelProps> = ({ title, isOpen, isNextOpen = false, onToggle, children }) => {
+  const marginBottom = isOpen && !isNextOpen ? '12px' : '8px';
+
   return (
-    <div style={{ marginBottom: '12px' }}>
+    <div style={{ marginBottom }}>
       <div
         onClick={onToggle}
         style={{
@@ -72,37 +75,44 @@ const CollapsiblePanel: React.FC<CollapsiblePanelProps> = ({ title, isOpen, onTo
           padding: '0 16px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-start',
           cursor: 'pointer',
           userSelect: 'none',
-          transition: 'border-radius 0.25s ease-in-out',
+          transition: 'border-radius 0.25s ease',
+          gap: '8px',
         }}
       >
+        <div
+          style={{
+            width: '12px',
+            height: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#7C6FFF',
+            fontSize: '16px',
+            fontWeight: 700,
+            lineHeight: 1,
+            flexShrink: 0,
+            transition: 'transform 0.25s ease',
+          }}
+        >
+          {isOpen ? '−' : '+'}
+        </div>
         <span style={{
           fontSize: '14px',
           fontWeight: 700,
           color: '#B0B0C0',
+          flex: 1,
         }}>
           {title}
         </span>
-        <div
-          style={{
-            width: 0,
-            height: 0,
-            borderLeft: '6px solid transparent',
-            borderRight: '6px solid transparent',
-            borderTop: isOpen ? 'none' : '10px solid #7C6FFF',
-            borderBottom: isOpen ? '10px solid #7C6FFF' : 'none',
-            flexShrink: 0,
-            transition: 'all 0.25s ease-in-out',
-          }}
-        />
       </div>
       <div
         style={{
           display: 'grid',
           gridTemplateRows: isOpen ? '1fr' : '0fr',
-          transition: 'grid-template-rows 0.25s ease-in-out',
+          transition: 'grid-template-rows 0.25s ease',
         }}
       >
         <div
@@ -289,6 +299,7 @@ const ControlPanel: React.FC = () => {
       <CollapsiblePanel
         title="字体设置"
         isOpen={ui.fontPanelOpen}
+        isNextOpen={ui.spacingPanelOpen}
         onToggle={toggleFontPanel}
       >
         <Select
@@ -344,6 +355,7 @@ const ControlPanel: React.FC = () => {
       <CollapsiblePanel
         title="间距设置"
         isOpen={ui.spacingPanelOpen}
+        isNextOpen={ui.alignPanelOpen}
         onToggle={toggleSpacingPanel}
       >
         <Slider
