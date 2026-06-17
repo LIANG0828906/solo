@@ -1,0 +1,59 @@
+.weather-control-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  width: auto;
+  height: 60px;
+  padding: 10px;
+  background-color: rgba(44, 44, 44, 0.9);
+  border-radius: 12px;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+.weather-btn {
+  width: 90px;
+  height: 40px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
+  color: white;
+  cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.1);
+  transition: all 0.15s ease-out;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.weather-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.weather-btn.active {
+  background-color: var(--button-color);
+  color: #1a1a1a;
+  transform: scale(1.1);
+}
+
+.weather-btn:active {
+  transform: scale(1.05);
+}
+
+@media (max-width: 600px) {
+  .weather-control-panel {
+    gap: 8px;
+    padding: 8px;
+    height: 52px;
+  }
+
+  .weather-btn {
+    width: 70px;
+    height: 36px;
+    font-size: 14px;
+  }
+}
