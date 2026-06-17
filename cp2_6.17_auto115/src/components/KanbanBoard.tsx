@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { DragDropContext, Droppable, DropResult } from 'react-beautiful-dnd';
+import { Circle, Clock, Check } from 'lucide-react';
 import TaskCard from './TaskCard';
 import Modal from './Modal';
 import { useTaskStore, Task, TaskStatus } from '../data/taskStore';
@@ -7,12 +8,13 @@ import { useTaskStore, Task, TaskStatus } from '../data/taskStore';
 interface ColumnConfig {
   id: TaskStatus;
   title: string;
+  icon: React.ReactNode;
 }
 
 const columns: ColumnConfig[] = [
-  { id: 'todo', title: '待办' },
-  { id: 'in-progress', title: '进行中' },
-  { id: 'done', title: '已完成' },
+  { id: 'todo', title: '待办', icon: <Circle size={16} color="#333" /> },
+  { id: 'in-progress', title: '进行中', icon: <Clock size={16} color="#333" /> },
+  { id: 'done', title: '已完成', icon: <Check size={16} color="#333" /> },
 ];
 
 const KanbanBoard: React.FC = () => {
@@ -137,9 +139,32 @@ const KanbanBoard: React.FC = () => {
                       fontSize: '14px',
                       fontWeight: 700,
                       color: '#333',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
                     }}
                   >
-                    {column.title} ({tasksByStatus[column.id].length})
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {column.icon}
+                      <span>{column.title}</span>
+                    </div>
+                    <span
+                      style={{
+                        backgroundColor: '#E0E0E8',
+                        color: '#666',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        borderRadius: '12px',
+                        padding: '4px 10px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minWidth: '24px',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {tasksByStatus[column.id].length}
+                    </span>
                   </div>
                   <Droppable droppableId={column.id}>
                     {(provided) => (
