@@ -1,5 +1,5 @@
-import React, { useCallback, useRef, useState, useEffect } from 'react';
-import { useDrag, useDrop } from 'react-dnd';
+import React, { useCallback, useRef, useState, useMemo } from 'react';
+import { useDrag, useDrop, DragLayerMonitor, XYCoord, useDragLayer } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { DndProvider } from 'react-dnd';
 import {
@@ -8,6 +8,7 @@ import {
   ComponentType,
   COMPONENT_COLORS,
   GRID_SIZE,
+  COMPONENT_DEFAULTS,
 } from '../store';
 import { useDragAndDrop } from '../modules/dragNest';
 import { getEffectiveLayout } from '../modules/responsiveStrategy';
@@ -25,6 +26,14 @@ interface DragItem {
   offsetY: number;
 }
 
+interface InsertIndicator {
+  x: number;
+  y: number;
+  width: number;
+  targetId?: string;
+  isBefore: boolean;
+}
+
 const CanvasComponent: React.FC<{
   component: ComponentData;
   breakpointId: string;
@@ -34,9 +43,6 @@ const CanvasComponent: React.FC<{
   const selectedComponentId = useStore(s => s.selectedComponentId);
   const setHighlight = useStore(s => s.setHighlight);
   const setSelected = useStore(s => s.setSelected);
-  const handleDragStart = useDragAndDrop().handleDragStart;
-  const handleCanvasComponentDrop = useDragAndDrop().handleCanvasComponentDrop;
-  const canvasZoom = useStore(s => s.canvasZoom);
 
   const isHighlighted = highlightedComponentId === component.id;
   const isSelected = selectedComponentId === component.id;
@@ -46,7 +52,19 @@ const CanvasComponent: React.FC<{
 
   const [{ isDragging }, dragRef] = useDrag({
     type: 'CANVAS_COMPONENT',
-    item: { type: 'CANVAS_COMPONENT', id: component.id },
+    item: (monitor) => {
+      const clientOffset = monitor.getClientOffset();
+      return {
+        type: 'CANVAS_COMPONENT',
+        id: component.id,
+        startX: component.x,
+        startY: component.y,
+        offsetX: 0,
+        offsetY: 0,
+        _clientStartX: clientOffset?.x ?? 0,
+        _clientStartY: clientOffset?.y ?? 0,
+      };
+    },
     canDrag: !simulationMode,
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
@@ -158,6 +176,7 @@ const CanvasComponent: React.FC<{
   return (
     <div
       ref={dragRef as unknown as React.Ref<HTMLDivElement>}
+      data-component-id={component.id}
       style={style}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
@@ -196,6 +215,95 @@ const CanvasComponent: React.FC<{
 
 CanvasComponent.displayName = 'CanvasComponent';
 
+const DragThumbnail: React.FC = () => {
+  const { itemType, isDragging, item, initialOffset, currentOffset } = useDragLayer(
+    (monitor: DragLayerMonitor<DragItem>) => ({
+      item: monitor.getItem() as DragItem | null,
+      itemType: monitor.getItemType() as string | null,
+      initialOffset: monitor.getInitialSourceClientOffset(),
+      currentOffset: monitor.getSourceClientOffset(),
+      isDragging: monitor.isDragging(),
+    })
+  );
+
+  const components = useStore(s => s.components);
+
+  if (!isDragging || !item) return null;
+
+  let compType: ComponentType | null = null;
+  let label: string = '';
+
+  if (item.type === 'NEW_COMPONENT' && item.componentType) {
+    compType = item.componentType;
+    label = COMPONENT_DEFAULTS[compType].label;
+  } else if (item.type === 'CANVAS_COMPONENT' && item.id) {
+    const comp = components.find(c => c.id === item.id);
+    if (comp) {
+      compType = comp.type;
+      label = comp.label;
+    }
+  }
+
+  if (!compType) return null;
+
+  const color = COMPONENT_COLORS[compType];
+  const icons: Record<ComponentType, string> = {
+    container: '📦',
+    button: '🔘',
+    textblock: '📝',
+    image: '🖼',
+  };
+
+  const transform = currentOffset
+    ? `translate(${currentOffset.x + 15}px, ${currentOffset.y + 15}px)`
+    : 'translate(-1000px, -1000px)';
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        pointerEvents: 'none',
+        zIndex: 99999,
+        left: 0,
+        top: 0,
+        transform,
+        transition: 'transform 0.02s linear',
+      }}
+    >
+      <div
+        style={{
+          width: 60,
+          height: 40,
+          borderRadius: 6,
+          border: `2px solid ${color}`,
+          background: '#fff',
+          opacity: 0.8,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          overflow: 'hidden',
+        }}
+      >
+        <span style={{ fontSize: 14 }}>{icons[compType]}</span>
+        <span style={{
+          fontSize: 8,
+          color: '#333',
+          marginTop: 2,
+          maxWidth: '100%',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          padding: '0 2px',
+        }}>
+          {label}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const CanvasInner: React.FC = () => {
   const components = useStore(s => s.components);
   const canvasZoom = useStore(s => s.canvasZoom);
@@ -209,7 +317,7 @@ const CanvasInner: React.FC = () => {
   const handleCanvasComponentDrop = useDragAndDrop().handleCanvasComponentDrop;
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [insertLine, setInsertLine] = useState<{ x: number; y: number; horizontal: boolean } | null>(null);
+  const [insertIndicator, setInsertIndicator] = useState<InsertIndicator | null>(null);
 
   const getCanvasCoords = useCallback((clientX: number, clientY: number) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
@@ -223,6 +331,70 @@ const CanvasInner: React.FC = () => {
     return Math.round(val / GRID_SIZE) * GRID_SIZE;
   }, []);
 
+  const computeInsertIndicator = useCallback(
+    (canvasX: number, canvasY: number, draggingId?: string): InsertIndicator | null => {
+      const canvasWidth = simulationMode && simulationDevice ? simulationDevice.width : CANVAS_WIDTH;
+
+      let nearest: {
+        comp: ComponentData;
+        distance: number;
+        isBefore: boolean;
+        absY: number;
+      } | null = null;
+
+      for (const comp of components) {
+        if (comp.id === draggingId) continue;
+        if (comp.parentId !== null) continue;
+        const layout = getEffectiveLayout(comp, activeBreakpoint);
+        if (!layout.visible) continue;
+
+        const effectiveWidth =
+          typeof layout.width === 'string' && layout.width.endsWith('%')
+            ? (parseFloat(layout.width) / 100) * canvasWidth
+            : Number(layout.width);
+
+        const x = comp.x;
+        const y = comp.y;
+        const w = effectiveWidth;
+        const h = comp.height;
+
+        if (canvasX < x - 40 || canvasX > x + w + 40) continue;
+
+        const midY = y + h / 2;
+        const isBefore = canvasY < midY;
+        const insertY = isBefore ? y : y + h;
+        const distance = Math.abs(canvasY - insertY);
+
+        if (!nearest || distance < nearest.distance) {
+          nearest = { comp, distance, isBefore, absY: insertY };
+        }
+      }
+
+      if (nearest && nearest.distance <= 60) {
+        const layout = getEffectiveLayout(nearest.comp, activeBreakpoint);
+        const effectiveWidth =
+          typeof layout.width === 'string' && layout.width.endsWith('%')
+            ? (parseFloat(layout.width) / 100) * canvasWidth
+            : Number(layout.width);
+        return {
+          x: nearest.comp.x,
+          y: snapPosition(nearest.absY),
+          width: effectiveWidth,
+          targetId: nearest.comp.id,
+          isBefore: nearest.isBefore,
+        };
+      }
+
+      return {
+        x: 0,
+        y: snapPosition(canvasY),
+        width: canvasWidth,
+        isBefore: false,
+      };
+    },
+    [components, activeBreakpoint, simulationMode, simulationDevice, snapPosition]
+  );
+
   const [{ isOver, canDrop }, dropRef] = useDrop({
     accept: ['NEW_COMPONENT', 'CANVAS_COMPONENT'],
     drop: (item: DragItem, monitor) => {
@@ -230,27 +402,39 @@ const CanvasInner: React.FC = () => {
       if (!offset) return;
       const coords = getCanvasCoords(offset.x, offset.y);
       if (item.type === 'NEW_COMPONENT' && item.componentType) {
-        const defaults = { container: { w: 300, h: 200 }, button: { w: 120, h: 40 }, textblock: { w: 200, h: 60 }, image: { w: 160, h: 120 } };
-        const d = defaults[item.componentType];
+        const d = COMPONENT_DEFAULTS[item.componentType];
         handleNewComponentDrop(
           item.componentType,
-          snapPosition(coords.x - d.w / 2),
-          snapPosition(coords.y - d.h / 2)
+          snapPosition(coords.x - d.width / 2),
+          snapPosition(coords.y - d.height / 2)
         );
       } else if (item.type === 'CANVAS_COMPONENT' && item.id) {
-        handleCanvasComponentDrop(item.id, snapPosition(coords.x - item.offsetX), snapPosition(coords.y - item.offsetY));
+        const diff = monitor.getDifferenceFromInitialOffset();
+        const draggedComp = components.find(c => c.id === item.id);
+        let targetX, targetY;
+        if (diff && draggedComp) {
+          const dx = diff.x / canvasZoom;
+          const dy = diff.y / canvasZoom;
+          targetX = draggedComp.x + dx;
+          targetY = draggedComp.y + dy;
+        } else {
+          targetX = coords.x - item.offsetX;
+          targetY = coords.y - item.offsetY;
+        }
+        handleCanvasComponentDrop(item.id, snapPosition(targetX), snapPosition(targetY));
       }
-      setInsertLine(null);
+      setInsertIndicator(null);
     },
     hover: (item: DragItem, monitor) => {
       const offset = monitor.getClientOffset();
       if (!offset || !canvasRef.current) return;
       const coords = getCanvasCoords(offset.x, offset.y);
-      setInsertLine({
-        x: snapPosition(coords.x),
-        y: snapPosition(coords.y),
-        horizontal: false,
-      });
+      const indicator = computeInsertIndicator(
+        coords.x,
+        coords.y,
+        item.type === 'CANVAS_COMPONENT' ? item.id : undefined
+      );
+      setInsertIndicator(indicator);
     },
     collect: (monitor) => ({
       isOver: monitor.isOver(),
@@ -272,34 +456,6 @@ const CanvasInner: React.FC = () => {
   };
 
   const rootComponents = components.filter(c => c.parentId === null).sort((a, b) => a.zIndex - b.zIndex);
-  const childComponents = (parentId: string) =>
-    components.filter(c => c.parentId === parentId)
-      .sort((a, b) => {
-        const parent = components.find(p => p.id === parentId);
-        if (parent) {
-          const ai = parent.childrenOrder.indexOf(a.id);
-          const bi = parent.childrenOrder.indexOf(b.id);
-          if (ai !== -1 && bi !== -1) return ai - bi;
-        }
-        return 0;
-      });
-
-  const renderComponent = (comp: ComponentData): React.ReactNode => {
-    const children = childComponents(comp.id);
-    return (
-      <CanvasComponent
-        key={comp.id}
-        component={{
-          ...comp,
-          childrenOrder: comp.childrenOrder,
-        }}
-        breakpointId={activeBreakpoint}
-        simulationMode={simulationMode}
-      >
-        {comp.type === 'container' && children.map(renderComponent)}
-      </CanvasComponent>
-    );
-  };
 
   const effectiveCanvasWidth = simulationMode && simulationDevice ? simulationDevice.width : CANVAS_WIDTH;
   const effectiveCanvasHeight = simulationMode && simulationDevice ? simulationDevice.height : CANVAS_HEIGHT;
@@ -385,28 +541,53 @@ const CanvasInner: React.FC = () => {
             borderRadius: simulationMode ? 8 : 0,
           }}
         >
-          {rootComponents.map(comp => {
-            const children = childComponents(comp.id);
-            return (
-              <CanvasComponent
-                key={comp.id}
-                component={comp}
-                breakpointId={activeBreakpoint}
-                simulationMode={simulationMode}
-              />
-            );
-          })}
-          {insertLine && isOver && (
-            <div style={{
-              position: 'absolute',
-              left: insertLine.x,
-              top: 0,
-              width: 2,
-              height: '100%',
-              background: '#2196F3',
-              pointerEvents: 'none',
-              zIndex: 9999,
-            }} />
+          {rootComponents.map(comp => (
+            <CanvasComponent
+              key={comp.id}
+              component={comp}
+              breakpointId={activeBreakpoint}
+              simulationMode={simulationMode}
+            />
+          ))}
+
+          {insertIndicator && isOver && (
+            <>
+              <div style={{
+                position: 'absolute',
+                left: Math.max(0, insertIndicator.x - 4),
+                top: insertIndicator.y - 8,
+                width: 0,
+                height: 0,
+                borderTop: '8px solid transparent',
+                borderBottom: '8px solid transparent',
+                borderLeft: '8px solid #2196F3',
+                pointerEvents: 'none',
+                zIndex: 9999,
+              }} />
+              <div style={{
+                position: 'absolute',
+                left: insertIndicator.x,
+                right: Math.max(0, effectiveCanvasWidth - (insertIndicator.x + insertIndicator.width)),
+                top: insertIndicator.y - 1,
+                height: 2,
+                background: '#2196F3',
+                pointerEvents: 'none',
+                zIndex: 9999,
+                boxShadow: '0 0 8px rgba(33,150,243,0.6)',
+              }} />
+              <div style={{
+                position: 'absolute',
+                left: Math.min(effectiveCanvasWidth - 8, insertIndicator.x + insertIndicator.width - 4),
+                top: insertIndicator.y - 8,
+                width: 0,
+                height: 0,
+                borderTop: '8px solid transparent',
+                borderBottom: '8px solid transparent',
+                borderRight: '8px solid #2196F3',
+                pointerEvents: 'none',
+                zIndex: 9999,
+              }} />
+            </>
           )}
         </div>
       </div>
@@ -433,6 +614,7 @@ export const Canvas: React.FC = () => {
   return (
     <DndProvider backend={HTML5Backend}>
       <CanvasInner />
+      <DragThumbnail />
     </DndProvider>
   );
 };
