@@ -1,0 +1,114 @@
+{
+  "gifts": [
+    {
+      "id": "1ed72ddc-8ece-4e98-a82e-af0e69b73cca",
+      "name": "小心心",
+      "iconUrl": "https://api.dicebear.com/7.x/icons/svg?seed=heart",
+      "price": 1,
+      "sales": 128
+    },
+    {
+      "id": "2daaa3ce-1fcd-4415-91ac-b3fdc6e631c7",
+      "name": "棒棒糖",
+      "iconUrl": "https://api.dicebear.com/7.x/icons/svg?seed=candy",
+      "price": 5,
+      "sales": 86
+    },
+    {
+      "id": "9e0ea3e9-8e78-4ae5-98e1-c81e540005d5",
+      "name": "鲜花",
+      "iconUrl": "https://api.dicebear.com/7.x/icons/svg?seed=flower",
+      "price": 10,
+      "sales": 52
+    },
+    {
+      "id": "c267c082-6add-446e-91f8-4128e6755139",
+      "name": "蛋糕",
+      "iconUrl": "https://api.dicebear.com/7.x/icons/svg?seed=cake",
+      "price": 50,
+      "sales": 23
+    },
+    {
+      "id": "eef1baa8-f8ef-4302-b6f5-97a771d7e62d",
+      "name": "火箭",
+      "iconUrl": "https://api.dicebear.com/7.x/icons/svg?seed=rocket",
+      "price": 100,
+      "sales": 12
+    },
+    {
+      "id": "126490b9-1857-47a2-8334-6c65a195e6f8",
+      "name": "皇冠",
+      "iconUrl": "https://api.dicebear.com/7.x/icons/svg?seed=crown",
+      "price": 500,
+      "sales": 3
+    }
+  ],
+  "danmakus": [],
+  "giftRecords": [],
+  "users": [
+    {
+      "id": "user-1",
+      "nickname": "土豪大哥",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=rich",
+      "totalCoins": 9999,
+      "todayCoins": 2580,
+      "weekCoins": 6666
+    },
+    {
+      "id": "user-2",
+      "nickname": "神秘观众",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=mystery",
+      "totalCoins": 5200,
+      "todayCoins": 1200,
+      "weekCoins": 3500
+    },
+    {
+      "id": "user-3",
+      "nickname": "快乐水",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=happy",
+      "totalCoins": 3680,
+      "todayCoins": 880,
+      "weekCoins": 2100
+    },
+    {
+      "id": "user-4",
+      "nickname": "小明同学",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming",
+      "totalCoins": 2100,
+      "todayCoins": 500,
+      "weekCoins": 1200
+    },
+    {
+      "id": "user-5",
+      "nickname": "路过的老王",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=laowang",
+      "totalCoins": 1580,
+      "todayCoins": 200,
+      "weekCoins": 800
+    },
+    {
+      "id": "user-6",
+      "nickname": "直播间常客",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=regular",
+      "totalCoins": 980,
+      "todayCoins": 100,
+      "weekCoins": 450
+    },
+    {
+      "id": "user-7",
+      "nickname": "新来的粉丝",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=newfan",
+      "totalCoins": 520,
+      "todayCoins": 50,
+      "weekCoins": 200
+    },
+    {
+      "id": "user-8",
+      "nickname": "默默围观",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=silent",
+      "totalCoins": 280,
+      "todayCoins": 30,
+      "weekCoins": 120
+    }
+  ]
+}

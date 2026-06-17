@@ -1,0 +1,101 @@
+.test-tool-modal .ant-modal-content {
+  border-radius: 16px;
+  background-color: var(--bg-card);
+}
+
+.test-tool-modal .ant-modal-header {
+  background-color: var(--bg-card);
+  border-radius: 16px 16px 0 0;
+  border-bottom: 1px solid var(--border-dark);
+}
+
+.test-tool-modal .ant-modal-title {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.test-tool-modal .ant-modal-close-x {
+  color: var(--text-secondary);
+}
+
+.test-tool-modal .ant-modal-body {
+  padding: 20px;
+}
+
+.test-tool-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  background-color: var(--accent);
+  color: white;
+  font-weight: 500;
+}
+
+.test-tool-form .ant-form-item-label > label {
+  color: var(--text-primary);
+}
+
+.test-tool-form .ant-input,
+.test-tool-form .ant-input-number,
+.test-tool-form .ant-select-selector {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-dark);
+  color: var(--text-primary);
+}
+
+.test-tool-form .ant-input:hover,
+.test-tool-form .ant-input-number:hover,
+.test-tool-form .ant-select-selector:hover {
+  border-color: var(--accent);
+}
+
+.test-tool-form .ant-input:focus,
+.test-tool-form .ant-input-number:focus,
+.test-tool-form .ant-select-focused .ant-select-selector {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.2);
+}
+
+.test-tool-form .ant-input::placeholder,
+.test-tool-form .ant-select-selection-placeholder {
+  color: var(--text-secondary);
+}
+
+.test-tool-form .ant-btn-primary {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  height: 40px;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+.test-tool-form .ant-btn-primary:hover {
+  background-color: #FF8A33;
+  border-color: #FF8A33;
+}
+
+.test-tool-form .ant-input-textarea-show-count::after {
+  color: var(--text-secondary);
+}
