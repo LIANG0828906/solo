@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/engine/bookingengine.ts","./src/engine/layoutengine.ts","./src/stores/theaterstore.ts","./src/ui/seatgrid.tsx","./src/ui/ticketcard.tsx"],"version":"5.8.3"}
