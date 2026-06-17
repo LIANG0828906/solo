@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import type { Palette } from '../types';
 import { Edit2, Trash2, GripVertical } from 'lucide-react';
 
@@ -11,6 +11,33 @@ interface PaletteCardProps {
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent, targetId: string) => void;
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSeconds < 60) {
+    return '刚刚';
+  }
+  if (diffMinutes < 60) {
+    return `${diffMinutes}分钟前`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours}小时前`;
+  }
+  if (diffDays === 1) {
+    return '昨天';
+  }
+  if (diffDays < 7) {
+    return `${diffDays}天前`;
+  }
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 export function PaletteCard({
@@ -117,20 +144,16 @@ export function PaletteCard({
 
       <div className="palette-colors-preview">
         {palette.colors.length > 0 ? (
-          palette.colors.slice(0, 6).map((color, idx) => (
-            <div
-              key={color.id}
-              className="preview-color-dot"
-              style={{
-                backgroundColor: color.hex,
-                flexGrow: 1,
-                borderTopLeftRadius: idx === 0 ? '6px' : '0',
-                borderBottomLeftRadius: idx === 0 ? '6px' : '0',
-                borderTopRightRadius: idx === Math.min(palette.colors.length, 6) - 1 ? '6px' : '0',
-                borderBottomRightRadius: idx === Math.min(palette.colors.length, 6) - 1 ? '6px' : '0',
-              }}
-            />
-          ))
+          <div className="mini-color-swatches">
+            {palette.colors.map((color) => (
+              <div
+                key={color.id}
+                className="mini-color-swatch"
+                style={{ backgroundColor: color.hex }}
+                title={color.hex}
+              />
+            ))}
+          </div>
         ) : (
           <div className="empty-colors">暂无颜色</div>
         )}
@@ -138,7 +161,7 @@ export function PaletteCard({
 
       <div className="palette-card-footer">
         <span className="color-count">{palette.colors.length} 种颜色</span>
-        <span className="create-time">{formatDate(palette.createdAt)}</span>
+        <span className="create-time">{formatRelativeTime(palette.createdAt)}</span>
       </div>
     </div>
   );
