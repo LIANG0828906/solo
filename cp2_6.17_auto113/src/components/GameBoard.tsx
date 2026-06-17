@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { Position, PlayerId } from '../types';
-import { GRID_SIZE, getReachableCells, canAttack, isAdjacent } from '../engine/gameEngine';
+import { GRID_SIZE, getReachableCells, canAttack } from '../engine/gameEngine';
 
 const CELL_SIZE = 80;
 const BORDER_SIZE = 2;
@@ -11,43 +11,49 @@ interface HeroSpriteProps {
   heroId: PlayerId;
   displayPos: Position;
   actualPos: Position;
-  onAnimationEnd: () => void;
+  onAnimationEnd: (heroId: PlayerId) => void;
 }
 
 const HeroSprite: React.FC<HeroSpriteProps> = ({ heroId, displayPos, actualPos, onAnimationEnd }) => {
   const [currentPos, setCurrentPos] = useState<Position>(displayPos);
   const animRef = useRef<number | null>(null);
-  const startRef = useRef<Position | null>(null);
-  const targetRef = useRef<Position | null>(null);
-  const startTimeRef = useRef<number>(0);
+  const hasAnimatedRef = useRef(false);
+
+  const handleAnimEnd = useCallback(() => {
+    if (!hasAnimatedRef.current) {
+      hasAnimatedRef.current = true;
+      onAnimationEnd(heroId);
+    }
+  }, [heroId, onAnimationEnd]);
 
   useEffect(() => {
+    hasAnimatedRef.current = false;
+
     if (displayPos.x === actualPos.x && displayPos.y === actualPos.y) {
       setCurrentPos(actualPos);
       return;
     }
 
-    startRef.current = { ...displayPos };
-    targetRef.current = { ...actualPos };
-    startTimeRef.current = performance.now();
+    const start = { ...displayPos };
+    const target = { ...actualPos };
+    const startTime = performance.now();
 
     const animate = (now: number) => {
-      if (!startRef.current || !targetRef.current) return;
-      const elapsed = now - startTimeRef.current;
+      const elapsed = now - startTime;
       const duration = 300;
       const t = Math.min(elapsed / duration, 1);
       const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
       setCurrentPos({
-        x: startRef.current.x + (targetRef.current.x - startRef.current.x) * easeT,
-        y: startRef.current.y + (targetRef.current.y - startRef.current.y) * easeT,
+        x: start.x + (target.x - start.x) * easeT,
+        y: start.y + (target.y - start.y) * easeT,
       });
 
       if (t < 1) {
         animRef.current = requestAnimationFrame(animate);
       } else {
-        setCurrentPos(targetRef.current);
-        onAnimationEnd();
+        setCurrentPos(target);
+        handleAnimEnd();
       }
     };
 
@@ -56,16 +62,9 @@ const HeroSprite: React.FC<HeroSpriteProps> = ({ heroId, displayPos, actualPos, 
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
-  }, [actualPos.x, actualPos.y, displayPos.x, displayPos.y, onAnimationEnd]);
+  }, [actualPos.x, actualPos.y, displayPos.x, displayPos.y, handleAnimEnd]);
 
   const hero = useGameStore((s) => s.heroes[heroId]);
-  const updateDisplayPosition = useGameStore((s) => s.updateDisplayPosition);
-
-  useEffect(() => {
-    if (currentPos.x === actualPos.x && currentPos.y === actualPos.y) {
-      updateDisplayPosition(heroId, actualPos);
-    }
-  }, [currentPos, actualPos, heroId, updateDisplayPosition]);
 
   const bgColor = heroId === 'player' ? '#4A90D9' : '#E74C3C';
   const hpPercent = (hero.currentHp / hero.maxHp) * 100;
@@ -137,10 +136,9 @@ const HeroSprite: React.FC<HeroSpriteProps> = ({ heroId, displayPos, actualPos, 
 };
 
 export const GameBoard: React.FC = () => {
-  const { heroes, currentPlayer, phase, selectedSkill, selectSkill, moveHero, attack, useSkill, isAnimating, setIsAnimating, updateDisplayPosition } = useGameStore(
+  const { heroes, phase, selectedSkill, selectSkill, moveHero, attack, useSkill, isAnimating, setIsAnimating, updateDisplayPosition } = useGameStore(
     useShallow((s) => ({
       heroes: s.heroes,
-      currentPlayer: s.currentPlayer,
       phase: s.phase,
       selectedSkill: s.selectedSkill,
       selectSkill: s.selectSkill,
@@ -185,19 +183,14 @@ export const GameBoard: React.FC = () => {
 
     const isReachable = reachableCells.some((c) => c.x === x && c.y === y);
     if (isReachable && !playerHero.hasMoved) {
-      const success = moveHero('player', { x, y });
-      if (success) {
-        setTimeout(() => {
-          setIsAnimating(false);
-        }, 350);
-      }
+      moveHero('player', { x, y });
     }
   };
 
-  const handleAnimEnd = (playerId: PlayerId) => {
+  const handleAnimEnd = useCallback((playerId: PlayerId) => {
     updateDisplayPosition(playerId, heroes[playerId].position);
     setIsAnimating(false);
-  };
+  }, [heroes, updateDisplayPosition, setIsAnimating]);
 
   const boardWidth = GRID_SIZE * CELL_SIZE + (GRID_SIZE - 1) * BORDER_SIZE;
   const boardHeight = GRID_SIZE * CELL_SIZE + (GRID_SIZE - 1) * BORDER_SIZE;
@@ -225,7 +218,6 @@ export const GameBoard: React.FC = () => {
           const x = idx % GRID_SIZE;
           const y = Math.floor(idx / GRID_SIZE);
           const isReachable = reachableCells.some((c) => c.x === x && c.y === y);
-          const isPlayerPos = playerHero.position.x === x && playerHero.position.y === y;
           const isAiPos = aiHero.position.x === x && aiHero.position.y === y;
           const isAttackable = canAttack(playerHero, aiHero) && isAiPos && !playerHero.hasActed;
 
@@ -248,9 +240,7 @@ export const GameBoard: React.FC = () => {
                 justifyContent: 'center',
                 transition: 'background 0.2s ease',
               }}
-            >
-              {isPlayerPos || isAiPos ? null : null}
-            </div>
+            />
           );
         })}
       </div>
@@ -259,13 +249,13 @@ export const GameBoard: React.FC = () => {
         heroId="player"
         displayPos={playerHero.displayPosition}
         actualPos={playerHero.position}
-        onAnimationEnd={() => handleAnimEnd('player')}
+        onAnimationEnd={handleAnimEnd}
       />
       <HeroSprite
         heroId="ai"
         displayPos={aiHero.displayPosition}
         actualPos={aiHero.position}
-        onAnimationEnd={() => handleAnimEnd('ai')}
+        onAnimationEnd={handleAnimEnd}
       />
     </div>
   );

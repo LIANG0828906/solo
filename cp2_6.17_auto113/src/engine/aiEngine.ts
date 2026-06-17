@@ -118,7 +118,7 @@ export function getAIAction(state: GameState): AIAction {
     if (!aiHero.hasActed) {
       const attackPos = canReachPositionForAttack(state, aiHero, playerHero.position);
       if (attackPos && !(attackPos.x === aiHero.position.x && attackPos.y === aiHero.position.y)) {
-        if (canMoveTo(aiHero, attackPos, obstacles)) {
+        if (canMoveTo(aiHero, attackPos, playerHero.position)) {
           return { type: 'move', target: attackPos };
         }
       }

@@ -1,41 +1,40 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { PlayerId } from '../types';
+import { canUseSkill } from '../engine/gameEngine';
 
 interface HeroPanelProps {
   heroId: PlayerId;
 }
 
 export const HeroPanel: React.FC<HeroPanelProps> = ({ heroId }) => {
-  const { hero, currentPlayer, phase, selectedSkill, selectSkill, canUseSkillCheck } = useGameStore(
-    useShallow((s) => ({
-      hero: s.heroes[heroId],
-      currentPlayer: s.currentPlayer,
-      phase: s.phase,
-      selectedSkill: s.selectedSkill,
-      selectSkill: s.selectSkill,
-      canUseSkillCheck: (skId: string) => {
-        const target = heroId === 'player' ? 'ai' : 'player';
-        const sk = s.heroes[heroId].skills.find((x) => x.id === skId);
-        if (!sk || sk.currentCooldown > 0) return false;
-        if (s.heroes[heroId].hasActed) return false;
-        if (s.heroes[heroId].stunned > 0) return false;
-        const dist = Math.abs(s.heroes[heroId].position.x - s.heroes[target].position.x) +
-          Math.abs(s.heroes[heroId].position.y - s.heroes[target].position.y);
-        if (dist > sk.range) return false;
-        if (sk.type === 'damage') {
-          return s.heroes[heroId].position.x === s.heroes[target].position.x ||
-            s.heroes[heroId].position.y === s.heroes[target].position.y;
-        }
-        return true;
-      },
-    }))
+  const { hero, otherHero, currentPlayer, phase, selectedSkill, selectSkill } = useGameStore(
+    useShallow((s) => {
+      const otherId = heroId === 'player' ? 'ai' : 'player';
+      return {
+        hero: s.heroes[heroId],
+        otherHero: s.heroes[otherId],
+        currentPlayer: s.currentPlayer,
+        phase: s.phase,
+        selectedSkill: s.selectedSkill,
+        selectSkill: s.selectSkill,
+      };
+    })
   );
 
   const isOwnTurn = currentPlayer === heroId && phase !== 'game_over';
   const bgColor = heroId === 'player' ? '#4A90D9' : '#E74C3C';
   const hpPercent = (hero.currentHp / hero.maxHp) * 100;
+
+  const skillUsableMap = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const skill of hero.skills) {
+      const check = canUseSkill(hero, otherHero, skill.id);
+      map[skill.id] = check.valid;
+    }
+    return map;
+  }, [hero, otherHero]);
 
   const handleSkillClick = (skillId: string) => {
     if (heroId !== 'player') return;
@@ -49,7 +48,7 @@ export const HeroPanel: React.FC<HeroPanelProps> = ({ heroId }) => {
     if (selectedSkill === skillId) {
       selectSkill(null);
     } else {
-      if (canUseSkillCheck(skillId)) {
+      if (skillUsableMap[skillId]) {
         selectSkill(skillId);
       }
     }
@@ -121,7 +120,7 @@ export const HeroPanel: React.FC<HeroPanelProps> = ({ heroId }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {hero.skills.map((skill) => {
             const onCooldown = skill.currentCooldown > 0;
-            const canUse = heroId === 'player' && isOwnTurn && !onCooldown && !hero.hasActed && hero.stunned === 0 && canUseSkillCheck(skill.id);
+            const canUse = heroId === 'player' && isOwnTurn && !onCooldown && !hero.hasActed && hero.stunned === 0 && skillUsableMap[skill.id];
             const isSelected = selectedSkill === skill.id;
 
             return (
@@ -135,8 +134,6 @@ export const HeroPanel: React.FC<HeroPanelProps> = ({ heroId }) => {
                     ? 'rgba(74, 144, 217, 0.5)'
                     : onCooldown
                     ? '#333'
-                    : heroId === 'player'
-                    ? '#2D2D44'
                     : '#2D2D44',
                   border: isSelected ? '1px solid #4A90D9' : '1px solid #3A3A5A',
                   borderRadius: 8,
