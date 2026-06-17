@@ -100,14 +100,40 @@ export const MoodChart: React.FC = () => {
     return '#A9A9A9'
   }
 
+  const getSegmentColor = (ctx: any): string => {
+    const p0 = ctx.p0.parsed.y
+    const p1 = ctx.p1.parsed.y
+    if (p0 === null || p1 === null) return 'rgba(169, 169, 169, 0.3)'
+    const avg = (p0 + p1) / 2
+    if (avg > 0) return '#4ECDC4'
+    if (avg < 0) return '#FF6B6B'
+    return '#A9A9A9'
+  }
+
   const chartData = {
     labels,
     datasets: [
       {
         label: '情感分数',
         data: scores,
-        borderColor: '#6C63FF',
-        backgroundColor: 'rgba(108, 99, 255, 0.1)',
+        borderColor: (ctx: any) => {
+          if (!ctx.chart.chartArea) return '#6C63FF'
+          const { ctx: canvasCtx, chartArea } = ctx.chart
+          const gradient = canvasCtx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
+          gradient.addColorStop(0, '#4ECDC4')
+          gradient.addColorStop(0.5, '#A9A9A9')
+          gradient.addColorStop(1, '#FF6B6B')
+          return gradient
+        },
+        backgroundColor: (ctx: any) => {
+          if (!ctx.chart.chartArea) return 'rgba(108, 99, 255, 0.1)'
+          const { ctx: canvasCtx, chartArea } = ctx.chart
+          const gradient = canvasCtx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
+          gradient.addColorStop(0, 'rgba(78, 205, 196, 0.2)')
+          gradient.addColorStop(0.5, 'rgba(169, 169, 169, 0.05)')
+          gradient.addColorStop(1, 'rgba(255, 107, 107, 0.2)')
+          return gradient
+        },
         borderWidth: 3,
         pointRadius: 6,
         pointBackgroundColor: scores.map(s => getPointColor(s)),
@@ -116,6 +142,9 @@ export const MoodChart: React.FC = () => {
         tension: 0.3,
         fill: true,
         spanGaps: false,
+        segment: {
+          borderColor: (ctx: any) => getSegmentColor(ctx),
+        },
       },
     ],
   }
