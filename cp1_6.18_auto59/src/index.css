@@ -1,0 +1,31 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+body {
+  background-color: #F5F0E1;
+  font-family: 'STKaiti', 'KaiTi', serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  outline: none;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:active {
+  outline: none;
+}
