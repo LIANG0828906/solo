@@ -183,7 +183,7 @@ const CardHand: React.FC<CardHandProps> = ({
   onDragEnd,
   draggedCardId,
 }) => {
-  const { hand, playerGold, phase } = useGameStore();
+  const { hand, playerGold, phase, gamePhase } = useGameStore();
   const [isSmallScreen, setIsSmallScreen] = useState<boolean>(
     typeof window !== 'undefined' ? window.innerWidth < 600 : false
   );
@@ -199,7 +199,8 @@ const CardHand: React.FC<CardHandProps> = ({
   const cardWidth = isSmallScreen ? CARD_WIDTH_SMALL : CARD_WIDTH;
   const cardHeight = isSmallScreen ? CARD_HEIGHT_SMALL : CARD_HEIGHT;
   const canAfford = playerGold >= 2;
-  const isDisabled = phase !== 'preparation' || !canAfford;
+  const isDisabled =
+    phase !== 'preparation' || gamePhase !== 'preparation' || !canAfford;
 
   return (
     <div

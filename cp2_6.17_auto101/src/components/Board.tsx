@@ -139,6 +139,7 @@ const Board: React.FC<BoardProps> = ({ draggedCardId, onDragEnd }) => {
     sprites,
     placeCard,
     phase,
+    gamePhase,
     playerGold,
     startBattle,
     battleRound,
@@ -163,16 +164,24 @@ const Board: React.FC<BoardProps> = ({ draggedCardId, onDragEnd }) => {
   const cellSize = isSmallScreen ? CELL_SIZE_SMALL : CELL_SIZE;
   const spriteSize = isSmallScreen ? SPRITE_SIZE_SMALL : SPRITE_SIZE;
   const boardSize = cellSize * GRID_SIZE;
-  const canDrag = phase === 'preparation' && playerGold >= 2;
+  const canDrag =
+    phase === 'preparation' &&
+    gamePhase === 'preparation' &&
+    playerGold >= 2;
+  const isBattling = phase === 'battling' || gamePhase === 'battling';
 
   const handleDragOver = useCallback(
     (e: React.DragEvent, x: number, y: number) => {
       e.preventDefault();
+      if (isBattling) {
+        e.stopPropagation();
+        return;
+      }
       if (draggedCardId && canDrag) {
         setHoveredCell({ x, y });
       }
     },
-    [draggedCardId, canDrag]
+    [draggedCardId, canDrag, isBattling]
   );
 
   const handleDragLeave = useCallback(() => {
@@ -183,25 +192,50 @@ const Board: React.FC<BoardProps> = ({ draggedCardId, onDragEnd }) => {
     (e: React.DragEvent, x: number, y: number) => {
       e.preventDefault();
       setHoveredCell(null);
-      if (draggedCardId && phase === 'preparation') {
-        placeCard(draggedCardId, x, y);
-        onDragEnd();
+
+      if (isBattling) {
+        console.warn('⚠️ 战斗阶段无法放置精灵');
+        e.stopPropagation();
+        return;
+      }
+
+      if (
+        draggedCardId &&
+        phase === 'preparation' &&
+        gamePhase === 'preparation'
+      ) {
+        const success = placeCard(draggedCardId, x, y);
+        if (success) {
+          onDragEnd();
+        }
       }
     },
-    [draggedCardId, phase, placeCard, onDragEnd]
+    [draggedCardId, phase, gamePhase, placeCard, onDragEnd, isBattling]
   );
 
   const isValidPlacement = (x: number, y: number): boolean => {
     return (
-      PLAYER_ROWS.includes(y) && grid[y][x].spriteId === null && playerGold >= 2
+      PLAYER_ROWS.includes(y) &&
+      grid[y][x].spriteId === null &&
+      playerGold >= 2 &&
+      !isBattling
     );
   };
 
   const handleStartBattle = () => {
-    startBattle();
+    const success = startBattle();
+    if (!success) {
+      console.warn('⚠️ 开始战斗失败，请检查是否已放置精灵');
+    }
   };
 
-  const hasPlayerSprites = sprites.some((s) => s.owner === 'player');
+  const hasPlayerSprites = sprites.some(
+    (s) => s.owner === 'player' && s.currentHealth > 0 && !s.isFading
+  );
+  const canStartBattle =
+    phase === 'preparation' &&
+    gamePhase === 'preparation' &&
+    hasPlayerSprites;
 
   return (
     <div
@@ -227,40 +261,41 @@ const Board: React.FC<BoardProps> = ({ draggedCardId, onDragEnd }) => {
           <button
             className="start-battle-btn"
             onClick={handleStartBattle}
-            disabled={!hasPlayerSprites}
+            disabled={!canStartBattle}
             style={{
               padding: isSmallScreen ? '12px 24px' : '14px 32px',
               fontSize: isSmallScreen ? '14px' : '16px',
               fontWeight: 'bold',
               color: '#fff',
-              backgroundColor: hasPlayerSprites ? '#FF6347' : '#555',
+              backgroundColor: canStartBattle ? '#FF6347' : '#555',
               border: 'none',
               borderRadius: '12px',
-              cursor: hasPlayerSprites ? 'pointer' : 'not-allowed',
+              cursor: canStartBattle ? 'pointer' : 'not-allowed',
               transition:
                 'background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
-              boxShadow: hasPlayerSprites
+              boxShadow: canStartBattle
                 ? '0 4px 20px rgba(255, 99, 71, 0.4)'
                 : 'none',
               letterSpacing: '1px',
+              opacity: canStartBattle ? 1 : 0.6,
             }}
             onMouseEnter={(e) => {
-              if (hasPlayerSprites) {
+              if (canStartBattle) {
                 e.currentTarget.style.backgroundColor = '#FF8367';
                 e.currentTarget.style.boxShadow =
                   '0 0 8px rgba(255, 99, 71, 0.6), 0 6px 25px rgba(255, 99, 71, 0.5)';
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = hasPlayerSprites
+              e.currentTarget.style.backgroundColor = canStartBattle
                 ? '#FF6347'
                 : '#555';
-              e.currentTarget.style.boxShadow = hasPlayerSprites
+              e.currentTarget.style.boxShadow = canStartBattle
                 ? '0 4px 20px rgba(255, 99, 71, 0.4)'
                 : 'none';
             }}
             onMouseDown={(e) => {
-              if (hasPlayerSprites) {
+              if (canStartBattle) {
                 e.currentTarget.style.transform = 'scale(0.95)';
               }
             }}
@@ -270,7 +305,7 @@ const Board: React.FC<BoardProps> = ({ draggedCardId, onDragEnd }) => {
           >
             ⚔️ 开始战斗
           </button>
-          {!hasPlayerSprites && (
+          {!hasPlayerSprites && phase === 'preparation' && (
             <span
               style={{
                 fontSize: isSmallScreen ? '11px' : '13px',

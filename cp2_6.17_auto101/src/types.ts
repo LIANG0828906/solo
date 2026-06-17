@@ -51,6 +51,7 @@ export interface GameState {
   playerGold: number;
   enemyGold: number;
   phase: GamePhase;
+  gamePhase: GamePhase;
   turnCount: number;
   turnTimer: number;
   winner: Owner | null;

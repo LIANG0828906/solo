@@ -7,6 +7,7 @@ const App: React.FC = () => {
   const {
     playerGold,
     phase,
+    gamePhase,
     turnCount,
     winner,
     resetGame,
