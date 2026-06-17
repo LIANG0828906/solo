@@ -1,240 +1,166 @@
-import { useRef, useMemo, useEffect, useState } from 'react'
+import { useRef, useMemo, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useAudioAnalyzer } from '../hooks/useAudioAnalyzer'
 import { useGameStore, PRESET_BEATMAP } from '../stores/gameStore'
 
 const TRACK_WIDTH = 6
-const TRACK_LENGTH = 800
+const SEGMENT_LENGTH = 5
+const TOTAL_SEGMENTS = 160
 const PLAYER_Z = -8
 const SCROLL_SPEED = 10
 const PERFECT_WINDOW = 150
 const NORMAL_WINDOW = 300
 
-function Starfield() {
-  const meshRef = useRef<THREE.InstancedMesh>(null)
-  const count = 200
+function Track() {
+  const groupRef = useRef<THREE.InstancedMesh>(null)
+  const gameTime = useGameStore(s => s.gameTime)
+  const status = useGameStore(s => s.status)
   const dummy = useMemo(() => new THREE.Object3D(), [])
 
-  const positions = useMemo(() => {
-    const arr: [number, number, number, number][] = []
-    for (let i = 0; i < count; i++) {
-      const r = 80 + Math.random() * 120
-      const theta = Math.random() * Math.PI * 2
-      const phi = Math.random() * Math.PI * 2
-      arr.push([
-        r * Math.sin(phi) * Math.cos(theta),
-        r * Math.cos(phi) * 0.5 + 20,
-        r * Math.sin(phi) * Math.sin(theta),
-        2 + Math.random() * 3,
-      ])
+  const segmentColors = useMemo(() => {
+    const colors: THREE.Color[] = []
+    const start = new THREE.Color('#0A1628')
+    const end = new THREE.Color('#3A1A5C')
+    for (let i = 0; i < TOTAL_SEGMENTS; i++) {
+      const t = i / TOTAL_SEGMENTS
+      const c = start.clone().lerp(end, t)
+      colors.push(c)
     }
-    return arr
-  }, [])
-
-  useFrame(({ clock }) => {
-    if (!meshRef.current) return
-    const t = clock.getElapsedTime() * 0.02
-    for (let i = 0; i < count; i++) {
-      const [x, y, z, size] = positions[i]
-      const rotT = t + i * 0.01
-      const nx = x * Math.cos(rotT) - z * Math.sin(rotT)
-      const nz = x * Math.sin(rotT) + z * Math.cos(rotT)
-      dummy.position.set(nx, y, nz)
-      dummy.scale.setScalar(size)
-      dummy.updateMatrix()
-      meshRef.current.setMatrixAt(i, dummy.matrix)
-    }
-    meshRef.current.instanceMatrix.needsUpdate = true
-  })
-
-  return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
-      <sphereGeometry args={[0.1, 8, 8]} />
-      <meshBasicMaterial color="#ffffff" transparent opacity={0.9} />
-    </instancedMesh>
-  )
-}
-
-function Track() {
-  const materialRef = useRef<THREE.MeshStandardMaterial>(null)
-  const gridRef = useRef<THREE.GridHelper>(null)
-
-  const neonPhase = useGameStore(s => s.neonPhase)
-
-  const { leftNeonLine, rightNeonLine, leftMaterial, rightMaterial } = useMemo(() => {
-    const points: THREE.Vector3[] = []
-    for (let z = 0; z <= TRACK_LENGTH; z += 2) {
-      points.push(new THREE.Vector3(0, 0.01, -z))
-    }
-    const geo = new THREE.BufferGeometry().setFromPoints(points)
-    const matL = new THREE.LineBasicMaterial({ color: '#FF69B4', transparent: true, opacity: 0.8 })
-    const matR = new THREE.LineBasicMaterial({ color: '#00BFFF', transparent: true, opacity: 0.8 })
-    const lineL = new THREE.Line(geo, matL)
-    const lineR = new THREE.Line(geo.clone(), matR)
-    lineL.position.set(-TRACK_WIDTH / 2 - 0.05, 0.02, 0)
-    lineR.position.set(TRACK_WIDTH / 2 + 0.05, 0.02, 0)
-    return { leftNeonLine: lineL, rightNeonLine: lineR, leftMaterial: matL, rightMaterial: matR }
+    return colors
   }, [])
 
   useFrame(() => {
-    if (!materialRef.current) return
-    const intensity = (Math.sin(neonPhase) + 1) / 2
-    const pink = new THREE.Color('#FF69B4')
-    const blue = new THREE.Color('#00BFFF')
-    const mix = (Math.sin(neonPhase) + 1) / 2
-    leftMaterial.color.copy(pink).lerp(blue, mix)
-    rightMaterial.color.copy(blue).lerp(pink, mix)
-    leftMaterial.opacity = 0.6 + intensity * 0.4
-    rightMaterial.opacity = 0.6 + intensity * 0.4
-    if (gridRef.current) {
-      const g = gridRef.current.material as THREE.Material
-      if (g) g.opacity = 0.15
+    if (!groupRef.current) return
+    if (status !== 'playing' && status !== 'paused') return
+
+    const offset = ((gameTime / 1000) * SCROLL_SPEED) % SEGMENT_LENGTH
+
+    for (let i = 0; i < TOTAL_SEGMENTS; i++) {
+      const zPos = -i * SEGMENT_LENGTH + offset
+      dummy.position.set(0, 0, zPos)
+      dummy.scale.set(1, 0.2 + Math.sin(i * 0.3) * 0.05, 1)
+      dummy.rotation.set(0, 0, 0)
+      dummy.updateMatrix()
+      groupRef.current.setMatrixAt(i, dummy.matrix)
     }
+    groupRef.current.instanceMatrix.needsUpdate = true
   })
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -TRACK_LENGTH / 2]}>
-        <planeGeometry args={[TRACK_WIDTH, TRACK_LENGTH, 1, 200]} />
+      <instancedMesh
+        ref={groupRef}
+        args={[undefined, undefined, TOTAL_SEGMENTS]}
+        receiveShadow
+      >
+        <boxGeometry args={[TRACK_WIDTH, 0.3, SEGMENT_LENGTH - 0.1]} />
         <meshStandardMaterial
-          ref={materialRef}
+          vertexColors={false}
           color="#1A2A4A"
-          transparent
-          opacity={0.6}
-          side={THREE.DoubleSide}
-          metalness={0.3}
-          roughness={0.5}
+          metalness={0.4}
+          roughness={0.6}
         />
-      </mesh>
+      </instancedMesh>
+
+      {Array.from({ length: TOTAL_SEGMENTS }).map((_, i) => {
+        const color = segmentColors[i]
+        const scrollOffset = status === 'playing' || status === 'paused'
+          ? ((gameTime / 1000) * SCROLL_SPEED) % SEGMENT_LENGTH
+          : 0
+        return (
+          <mesh
+            key={`seg-${i}`}
+            position={[0, 0.01, -i * SEGMENT_LENGTH + scrollOffset]}
+            receiveShadow
+          >
+            <boxGeometry args={[TRACK_WIDTH * 0.98, 0.05, SEGMENT_LENGTH - 0.2]} />
+            <meshStandardMaterial
+              color={color}
+              transparent
+              opacity={0.95}
+              metalness={0.3}
+              roughness={0.5}
+              emissive={color}
+              emissiveIntensity={0.05}
+            />
+          </mesh>
+        )
+      })}
 
       <gridHelper
-        ref={gridRef}
-        args={[TRACK_LENGTH * 1.5, 80, '#2A4A7A', '#1A3A5A']}
-        position={[0, -0.05, -TRACK_LENGTH / 2]}
+        args={[TOTAL_SEGMENTS * SEGMENT_LENGTH * 1.2, 200, '#2A4A7A', '#1A3A5A']}
+        position={[0, -0.15, -TOTAL_SEGMENTS * SEGMENT_LENGTH / 2]}
       />
-
-      <primitive object={leftNeonLine} />
-      <primitive object={rightNeonLine} />
     </group>
   )
 }
 
 function Player() {
   const groupRef = useRef<THREE.Group>(null)
-  const glowRef = useRef<THREE.MeshStandardMaterial>(null)
-  const bodyRef = useRef<THREE.MeshStandardMaterial>(null)
+  const meshRef = useRef<THREE.MeshStandardMaterial>(null)
 
   const gameTime = useGameStore(s => s.gameTime)
   const playerAction = useGameStore(s => s.playerAction)
   const playerActionStart = useGameStore(s => s.playerActionStart)
   const perfectFlash = useGameStore(s => s.perfectFlash)
+  const perfectFlashTime = useGameStore(s => s.perfectFlashTime)
   const dominantFreq = useGameStore(s => s.dominantFreq)
-
-  const screenShake = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
 
   useFrame(({ camera }) => {
     if (!groupRef.current) return
 
-    let y = 0
+    let baseY = 0.5
     let scaleY = 1
-    let scaleX = 1
 
     if (playerAction === 'jumping') {
       const elapsed = gameTime - playerActionStart
       const progress = Math.min(1, elapsed / 400)
-      y = Math.sin(progress * Math.PI) * 2.5
+      baseY = 0.5 + Math.sin(progress * Math.PI) * 2.5
     } else if (playerAction === 'sliding') {
       const elapsed = gameTime - playerActionStart
       const progress = Math.min(1, elapsed / 300)
-      const easing = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2
-      scaleY = 1 - easing * 0.7
-      scaleX = 1 + easing * 0.3
-      y = -0.3 * easing
+      scaleY = progress < 0.5
+        ? 1 - (2 * progress * progress * 0.7)
+        : 0.3 + 2 * Math.pow(progress - 1, 2) * 0.7
+      baseY = 0.5 * scaleY
     }
 
-    groupRef.current.position.y = y
-    groupRef.current.scale.set(scaleX, scaleY, scaleX)
+    groupRef.current.position.y = baseY
+    groupRef.current.scale.set(1, scaleY, 1)
 
-    if (glowRef.current) {
+    if (meshRef.current) {
       if (perfectFlash) {
-        const elapsed = gameTime - (useGameStore.getState().perfectFlashTime || 0)
+        const elapsed = gameTime - (perfectFlashTime || 0)
         const alpha = Math.max(0, 1 - elapsed / 500)
         const hue = 0.5 + dominantFreq * 0.5
         const color = new THREE.Color().setHSL(hue, 1, 0.6)
-        glowRef.current.emissive.copy(color)
-        glowRef.current.emissiveIntensity = 2 * alpha
-        glowRef.current.opacity = 0.4 * alpha
+        meshRef.current.emissive.copy(color)
+        meshRef.current.emissiveIntensity = 1.2 * alpha
       } else {
-        glowRef.current.emissiveIntensity = 0
-        glowRef.current.opacity = 0
+        meshRef.current.emissiveIntensity = 0.15
+        meshRef.current.emissive.set('#112244')
       }
     }
 
-    if (bodyRef.current && perfectFlash) {
-      const elapsed = gameTime - (useGameStore.getState().perfectFlashTime || 0)
-      const alpha = Math.max(0, 1 - elapsed / 500)
-      const hue = 0.5 + dominantFreq * 0.5
-      const color = new THREE.Color().setHSL(hue, 1, 0.6)
-      bodyRef.current.emissive.lerp(color, alpha * 0.5)
-    } else if (bodyRef.current) {
-      bodyRef.current.emissive.set('#001133')
-    }
-
-    const shakePhase = gameTime * 0.002 * 2 * Math.PI
+    const shakePhase = gameTime * 0.004 * Math.PI
     const shakeAmp = perfectFlash ? 0.08 : 0.02
-    screenShake.current.x = Math.sin(shakePhase) * shakeAmp
-    screenShake.current.y = Math.cos(shakePhase * 1.3) * shakeAmp
-
-    camera.position.x = screenShake.current.x
-    camera.position.y = 5 + screenShake.current.y
+    camera.position.x = Math.sin(shakePhase) * shakeAmp
+    camera.position.y = 5 + Math.cos(shakePhase * 1.3) * shakeAmp
   })
 
   return (
-    <group ref={groupRef} position={[0, 0, PLAYER_Z]}>
-      <mesh position={[0, 1.2, 0]} castShadow>
-        <boxGeometry args={[0.8, 2, 0.8]} />
+    <group ref={groupRef} position={[0, 0.5, PLAYER_Z]}>
+      <mesh castShadow>
+        <boxGeometry args={[0.9, 1.8, 0.9]} />
         <meshStandardMaterial
-          ref={bodyRef}
-          color="#4A90D9"
-          emissive="#001133"
-          emissiveIntensity={0.3}
-          metalness={0.6}
+          ref={meshRef}
+          color="#5B9BD5"
+          emissive="#112244"
+          emissiveIntensity={0.15}
+          metalness={0.7}
           roughness={0.3}
         />
-      </mesh>
-
-      <mesh position={[0, 1.2, 0]}>
-        <boxGeometry args={[1.4, 2.8, 1.4]} />
-        <meshStandardMaterial
-          ref={glowRef}
-          color="#00BFFF"
-          emissive="#00BFFF"
-          emissiveIntensity={0}
-          transparent
-          opacity={0}
-          side={THREE.BackSide}
-        />
-      </mesh>
-
-      <mesh position={[0, 2.5, 0]} castShadow>
-        <sphereGeometry args={[0.45, 16, 16]} />
-        <meshStandardMaterial
-          color="#5AA0E9"
-          emissive="#002255"
-          emissiveIntensity={0.2}
-          metalness={0.5}
-          roughness={0.4}
-        />
-      </mesh>
-
-      <mesh position={[-0.18, 2.55, 0.38]}>
-        <sphereGeometry args={[0.08, 8, 8]} />
-        <meshBasicMaterial color="#00BFFF" />
-      </mesh>
-      <mesh position={[0.18, 2.55, 0.38]}>
-        <sphereGeometry args={[0.08, 8, 8]} />
-        <meshBasicMaterial color="#00BFFF" />
       </mesh>
     </group>
   )
@@ -260,111 +186,101 @@ function ObstacleMesh({ obstacle, scrollOffset }: ObstacleMeshProps) {
   const judgeObstacle = useGameStore(s => s.judgeObstacle)
   const missObstacle = useGameStore(s => s.missObstacle)
   const playerAction = useGameStore(s => s.playerAction)
-  const playerActionStart = useGameStore(s => s.playerActionStart)
 
-  const [isVisible, setIsVisible] = useState(true)
   const processedRef = useRef(false)
 
   useFrame(() => {
     if (!groupRef.current) return
-
     const distToPlayer = currentZ - PLAYER_Z
 
-    if (distToPlayer < -8 || obstacle.judged) {
-      if (obstacle.judged) {
-        const mat = groupRef.current.children[0] as THREE.Mesh
-        if (mat && mat.material) {
-          const m = Array.isArray(mat.material) ? mat.material[0] : mat.material as THREE.MeshStandardMaterial
-          if (m.opacity !== undefined) {
-            m.opacity = Math.max(0, m.opacity - 0.05)
+    if (obstacle.judged) {
+      groupRef.current.children.forEach(child => {
+        const mesh = child as THREE.Mesh
+        if (mesh.material) {
+          const mat = Array.isArray(mesh.material)
+            ? (mesh.material[0] as THREE.MeshStandardMaterial)
+            : (mesh.material as THREE.MeshStandardMaterial)
+          if (mat.opacity !== undefined) {
+            mat.opacity = Math.max(0, mat.opacity - 0.06)
           }
         }
-      }
+      })
     }
 
     if (processedRef.current) return
 
-    if (distToPlayer <= 0 && !obstacle.judged) {
+    if (distToPlayer <= 0.5 && !obstacle.judged) {
       processedRef.current = true
       const timeDiff = Math.abs(gameTime - obstacle.beatTime)
 
-      const playerIsJumping = playerAction === 'jumping'
-      const playerIsSliding = playerAction === 'sliding'
-
-      let correctAction = false
-      if (obstacle.type === 'block') {
-        correctAction = playerIsJumping
-      } else {
-        correctAction = playerIsSliding
-      }
+      const correctAction = obstacle.type === 'block'
+        ? playerAction === 'jumping'
+        : playerAction === 'sliding'
 
       if (timeDiff <= PERFECT_WINDOW && correctAction) {
         judgeObstacle(obstacle.id, 'perfect')
       } else if (timeDiff <= NORMAL_WINDOW && correctAction) {
         judgeObstacle(obstacle.id, 'normal')
-      } else if (!correctAction && Math.abs(distToPlayer) < 2) {
-        missObstacle(obstacle.id)
       } else {
         missObstacle(obstacle.id)
       }
     }
   })
 
-  if (!isVisible && currentZ > 30) return null
-
-  const color = obstacle.type === 'block' ? '#FF69B4' : '#00BFFF'
+  if (currentZ > 40 || currentZ < -60) return null
 
   return (
     <group ref={groupRef} position={[0, 0, currentZ]}>
       {obstacle.type === 'block' ? (
-        <mesh position={[0, 1, 0]} castShadow>
-          <boxGeometry args={[2.2, 2, 1.5]} />
+        <mesh position={[0, 1.1, 0]} castShadow>
+          <boxGeometry args={[2, 2, 1.5]} />
           <meshStandardMaterial
-            color={color}
-            emissive={color}
-            emissiveIntensity={0.4}
-            metalness={0.5}
-            roughness={0.3}
+            color="#E02020"
+            emissive="#800000"
+            emissiveIntensity={0.5}
+            metalness={0.4}
+            roughness={0.4}
             transparent
-            opacity={0.9}
+            opacity={0.95}
           />
         </mesh>
       ) : (
         <group>
-          <mesh position={[-1.8, 1.8, 0]} castShadow>
-            <boxGeometry args={[0.4, 3.6, 1.2]} />
+          <mesh position={[0, 1.8, 0]} castShadow>
+            <torusGeometry args={[2.6, 0.25, 16, 48, Math.PI]} />
             <meshStandardMaterial
-              color={color}
-              emissive={color}
-              emissiveIntensity={0.5}
-              metalness={0.5}
-              roughness={0.3}
-              transparent
-              opacity={0.9}
-            />
-          </mesh>
-          <mesh position={[1.8, 1.8, 0]} castShadow>
-            <boxGeometry args={[0.4, 3.6, 1.2]} />
-            <meshStandardMaterial
-              color={color}
-              emissive={color}
-              emissiveIntensity={0.5}
-              metalness={0.5}
-              roughness={0.3}
-              transparent
-              opacity={0.9}
-            />
-          </mesh>
-          <mesh position={[0, 3.4, 0]} castShadow>
-            <boxGeometry args={[4, 0.4, 1.2]} />
-            <meshStandardMaterial
-              color={color}
-              emissive={color}
+              color="#8A2BE2"
+              emissive="#4B0082"
               emissiveIntensity={0.6}
               metalness={0.5}
               roughness={0.3}
               transparent
-              opacity={0.9}
+              opacity={0.55}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+          <mesh position={[-2.4, 1.8, 0]} castShadow>
+            <cylinderGeometry args={[0.2, 0.2, 3.6, 16]} />
+            <meshStandardMaterial
+              color="#9932CC"
+              emissive="#4B0082"
+              emissiveIntensity={0.4}
+              metalness={0.5}
+              roughness={0.35}
+              transparent
+              opacity={0.5}
+            />
+          </mesh>
+          <mesh position={[2.4, 1.8, 0]} castShadow>
+            <cylinderGeometry args={[0.2, 0.2, 3.6, 16]} />
+            <meshStandardMaterial
+              color="#9932CC"
+              emissive="#4B0082"
+              emissiveIntensity={0.4}
+              metalness={0.5}
+              roughness={0.35}
+              transparent
+              opacity={0.5}
             />
           </mesh>
         </group>
@@ -377,13 +293,14 @@ function Obstacles() {
   const gameTime = useGameStore(s => s.gameTime)
   const obstacles = useGameStore(s => s.obstacles)
   const status = useGameStore(s => s.status)
+  const beatIndexRef = useRef(0)
 
   const scrollOffset = -(gameTime / 1000) * SCROLL_SPEED
 
   const visibleObstacles = useMemo(() => {
     return obstacles.filter(obs => {
       const worldZ = obs.z + scrollOffset
-      return worldZ < 30 && worldZ > -50
+      return worldZ < 40 && worldZ > -60
     })
   }, [obstacles, scrollOffset])
 
@@ -404,13 +321,13 @@ function CameraController() {
   useEffect(() => {
     const cam = camera as THREE.PerspectiveCamera
     cam.position.set(0, 5, PLAYER_Z + 12)
-    cam.lookAt(0, 1.5, PLAYER_Z - 5)
-    cam.fov = 65
+    cam.lookAt(0, 1.5, PLAYER_Z - 10)
+    cam.fov = 68
     cam.updateProjectionMatrix()
   }, [camera])
 
   useFrame(() => {
-    camera.lookAt(0, 1.5, PLAYER_Z - 5)
+    camera.lookAt(0, 1, PLAYER_Z - 10)
   })
 
   return null
@@ -423,43 +340,47 @@ function Scene() {
   const slide = useGameStore(s => s.slide)
   const pauseGame = useGameStore(s => s.pauseGame)
   const status = useGameStore(s => s.status)
+  const startGame = useGameStore(s => s.startGame)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault()
-        if (status === 'playing' || status === 'idle') {
+        if (status === 'idle') {
+          startGame()
+        } else if (status === 'playing') {
           jump()
         }
       } else if (e.code === 'ArrowDown' || e.key === 'ArrowDown') {
         e.preventDefault()
-        slide()
+        if (status === 'playing') {
+          slide()
+        }
       } else if (e.code === 'Escape') {
-        pauseGame()
+        if (status === 'playing') pauseGame()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [jump, slide, pauseGame, status])
+  }, [jump, slide, pauseGame, status, startGame])
 
   return (
     <>
-      <color attach="background" args={['#0B0C1E']} />
-      <fog attach="fog" args={['#0B0C1E', 20, 120]} />
-      <ambientLight intensity={0.3} color="#4466AA" />
+      <color attach="background" args={['#080818']} />
+      <fog attach="fog" args={['#080818', 25, 140]} />
+      <ambientLight intensity={0.35} color="#6677AA" />
       <directionalLight
-        position={[5, 15, 5]}
-        intensity={0.8}
+        position={[8, 18, 8]}
+        intensity={0.9}
         color="#FFFFFF"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
-      <pointLight position={[0, 8, PLAYER_Z]} intensity={1.2} color="#00BFFF" distance={40} />
-      <pointLight position={[0, 4, PLAYER_Z - 30]} intensity={0.8} color="#FF69B4" distance={50} />
+      <pointLight position={[0, 6, PLAYER_Z]} intensity={1.4} color="#FF6B9D" distance={35} />
+      <pointLight position={[0, 4, PLAYER_Z - 25]} intensity={0.8} color="#7B68EE" distance={45} />
 
       <CameraController />
-      <Starfield />
       <Track />
       <Player />
       <Obstacles />
@@ -472,9 +393,9 @@ export default function GameScene() {
     <Canvas
       shadows
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
-      camera={{ position: [0, 5, 20], fov: 65, near: 0.1, far: 500 }}
+      camera={{ position: [0, 5, 20], fov: 68, near: 0.1, far: 600 }}
       dpr={[1, 2]}
-      style={{ position: 'absolute', inset: 0, background: '#0B0C1E' }}
+      style={{ position: 'absolute', inset: 0, background: '#080818' }}
     >
       <Scene />
     </Canvas>

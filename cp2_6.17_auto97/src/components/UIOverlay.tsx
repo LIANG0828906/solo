@@ -1,299 +1,24 @@
 import { useState, useEffect } from 'react'
 import { useGameStore } from '../stores/gameStore'
 
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'absolute',
-    inset: 0,
-    pointerEvents: 'none',
-    zIndex: 10,
-    fontFamily: "'Noto Sans SC', sans-serif",
-    color: 'white',
-  },
-  scoreContainer: {
-    position: 'absolute',
-    top: '5%',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    textAlign: 'center',
-    pointerEvents: 'none',
-  },
-  score: {
-    fontFamily: "'Orbitron', monospace",
-    fontSize: 'clamp(24px, 4vw, 40px)',
-    fontWeight: 900,
-    color: '#FFFFFF',
-    textShadow: '0 0 10px #00BFFF, 0 0 20px #00BFFF, 2px 2px 4px rgba(0,191,255,0.5)',
-    letterSpacing: '4px',
-    lineHeight: 1,
-    margin: 0,
-  },
-  scoreLabel: {
-    fontFamily: "'Noto Sans SC', sans-serif",
-    fontSize: 'clamp(10px, 1.2vw, 14px)',
-    color: '#88AAFF',
-    letterSpacing: '2px',
-    marginBottom: '4px',
-    opacity: 0.8,
-  },
-  combo: {
-    fontFamily: "'Orbitron', monospace",
-    fontSize: 'clamp(16px, 2.5vw, 28px)',
-    fontWeight: 700,
-    color: '#FF69B4',
-    textShadow: '0 0 8px #FF69B4',
-    marginTop: '8px',
-    opacity: 1,
-    transition: 'opacity 0.2s',
-  },
-  comboEmpty: {
-    opacity: 0.3,
-  },
-  hudLeft: {
-    position: 'absolute',
-    top: '5%',
-    left: '3%',
-    pointerEvents: 'none',
-  },
-  healthBarContainer: {
-    width: 'clamp(120px, 18vw, 220px)',
-    height: '16px',
-    background: 'rgba(255,255,255,0.1)',
-    borderRadius: '8px',
-    overflow: 'hidden',
-    border: '1px solid rgba(0,191,255,0.3)',
-    boxShadow: '0 0 10px rgba(0,191,255,0.1)',
-  },
-  healthBar: {
-    height: '100%',
-    borderRadius: '8px',
-    background: 'linear-gradient(90deg, #FF4444 0%, #FF69B4 50%, #00BFFF 100%)',
-    transition: 'width 0.3s ease',
-    boxShadow: '0 0 12px rgba(255,105,180,0.5)',
-  },
-  healthLabel: {
-    fontSize: 'clamp(10px, 1vw, 12px)',
-    color: '#AACCFF',
-    marginBottom: '6px',
-    letterSpacing: '1px',
-  },
-  hudRight: {
-    position: 'absolute',
-    top: '5%',
-    right: '3%',
-    pointerEvents: 'auto',
-  },
-  pauseBtn: {
-    width: 'clamp(36px, 4vw, 44px)',
-    height: 'clamp(36px, 4vw, 44px)',
-    background: 'rgba(26, 42, 74, 0.8)',
-    border: '1px solid rgba(0,191,255,0.5)',
-    borderRadius: '10px',
-    color: '#00BFFF',
-    fontSize: 'clamp(14px, 1.5vw, 18px)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s',
-    fontWeight: 'bold',
-  },
-  startOverlay: {
-    position: 'absolute',
-    inset: 0,
-    background: 'rgba(0, 0, 0, 0.8)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    pointerEvents: 'auto',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-  },
-  startTitle: {
-    fontFamily: "'Orbitron', monospace",
-    fontSize: 'clamp(32px, 6vw, 72px)',
-    fontWeight: 900,
-    background: 'linear-gradient(135deg, #FF69B4 0%, #00BFFF 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    backgroundClip: 'text',
-    marginBottom: '12px',
-    letterSpacing: '6px',
-    textAlign: 'center',
-  },
-  startSubtitle: {
-    fontFamily: "'Noto Sans SC', sans-serif",
-    fontSize: 'clamp(12px, 1.5vw, 18px)',
-    color: '#AACCFF',
-    marginBottom: '40px',
-    letterSpacing: '2px',
-    textAlign: 'center',
-    maxWidth: '90%',
-  },
-  startBtn: {
-    width: 'clamp(160px, 20vw, 200px)',
-    height: 'clamp(48px, 6vw, 60px)',
-    background: 'linear-gradient(135deg, #6C63FF 0%, #483D8B 100%)',
-    border: 'none',
-    borderRadius: '30px',
-    color: 'white',
-    fontSize: 'clamp(16px, 2vw, 24px)',
-    fontFamily: "'Noto Sans SC', sans-serif",
-    fontWeight: 700,
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 0 20px rgba(108, 99, 255, 0.5), 0 4px 15px rgba(0,0,0,0.3)',
-    letterSpacing: '2px',
-  },
-  controlsInfo: {
-    marginTop: '40px',
-    textAlign: 'center',
-    color: '#6688BB',
-    fontSize: 'clamp(10px, 1.2vw, 14px)',
-    lineHeight: 2,
-    letterSpacing: '1px',
-  },
-  keyBadge: {
-    display: 'inline-block',
-    padding: '4px 12px',
-    background: 'rgba(26, 42, 74, 0.9)',
-    border: '1px solid rgba(0,191,255,0.4)',
-    borderRadius: '6px',
-    color: '#00BFFF',
-    fontFamily: "'Orbitron', monospace",
-    fontWeight: 700,
-    margin: '0 4px',
-  },
-  gameoverPanel: {
-    position: 'absolute',
-    inset: 0,
-    background: 'rgba(0, 0, 0, 0.8)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    pointerEvents: 'auto',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-  },
-  panel: {
-    width: 'clamp(300px, 85vw, 400px)',
-    background: 'linear-gradient(145deg, #1A1A2E 0%, #16213E 100%)',
-    borderRadius: '16px',
-    padding: 'clamp(24px, 4vw, 40px)',
-    boxShadow: 'inset 0 2px 10px rgba(0,191,255,0.1), 0 10px 40px rgba(0,0,0,0.5)',
-    border: '1px solid rgba(0,191,255,0.2)',
-    textAlign: 'center',
-  },
-  panelTitle: {
-    fontFamily: "'Orbitron', monospace",
-    fontSize: 'clamp(24px, 3.5vw, 36px)',
-    fontWeight: 900,
-    color: '#FF69B4',
-    marginBottom: '24px',
-    textShadow: '0 0 20px rgba(255,105,180,0.5)',
-    letterSpacing: '4px',
-  },
-  statsRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '14px 0',
-    borderBottom: '1px solid rgba(0,191,255,0.1)',
-  },
-  statsLabel: {
-    fontSize: 'clamp(12px, 1.4vw, 16px)',
-    color: '#88AAFF',
-    letterSpacing: '1px',
-  },
-  statsValue: {
-    fontFamily: "'Orbitron', monospace",
-    fontSize: 'clamp(18px, 2.5vw, 28px)',
-    fontWeight: 700,
-    color: '#00BFFF',
-    textShadow: '0 0 10px rgba(0,191,255,0.5)',
-  },
-  replayBtn: {
-    marginTop: '32px',
-    width: 'clamp(140px, 80%, 200px)',
-    height: 'clamp(44px, 5vw, 54px)',
-    background: 'linear-gradient(135deg, #00BFFF 0%, #6C63FF 100%)',
-    border: 'none',
-    borderRadius: '27px',
-    color: 'white',
-    fontSize: 'clamp(14px, 1.8vw, 20px)',
-    fontFamily: "'Noto Sans SC', sans-serif",
-    fontWeight: 700,
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 0 20px rgba(0,191,255,0.4)',
-    letterSpacing: '2px',
-  },
-  edgeFlash: {
-    position: 'absolute',
-    inset: 0,
-    pointerEvents: 'none',
-    boxShadow: 'inset 0 0 80px 20px rgba(0,191,255,0.6)',
-    animation: 'none',
-  },
-  edgeFlashActive: {
-    animation: 'edgeFlashAnim 0.5s ease-out',
-  },
-  fullscreenFlash: {
-    position: 'absolute',
-    inset: 0,
-    background: 'rgba(255,255,255,0.15)',
-    pointerEvents: 'none',
-    animation: 'fullscreenFlashAnim 0.8s ease-out',
-  },
-  comboBreak: {
-    position: 'absolute',
-    top: '15%',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    fontSize: 'clamp(40px, 8vw, 80px)',
-    color: '#FF4444',
-    fontWeight: 900,
-    textShadow: '0 0 20px #FF0000, 0 0 40px #FF0000',
-    animation: 'comboBreakAnim 0.3s ease-out forwards',
-    pointerEvents: 'none',
-    fontFamily: "'Orbitron', monospace",
-  },
-  pauseOverlay: {
-    position: 'absolute',
-    inset: 0,
-    background: 'rgba(0, 0, 0, 0.7)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    pointerEvents: 'auto',
-    backdropFilter: 'blur(4px)',
-  },
-  pauseTitle: {
-    fontFamily: "'Orbitron', monospace",
-    fontSize: 'clamp(28px, 5vw, 48px)',
-    color: '#00BFFF',
-    textShadow: '0 0 20px #00BFFF',
-    marginBottom: '32px',
-    letterSpacing: '4px',
-  },
-}
-
-const keyframesCss = `
+const keyframes = `
 @keyframes edgeFlashAnim {
   0% { opacity: 1; }
-  100% { opacity: 0; box-shadow: inset 0 0 0px 0px rgba(0,191,255,0); }
+  100% { opacity: 0; box-shadow: inset 0 0 0 0 rgba(255,107,157,0); }
 }
 @keyframes fullscreenFlashAnim {
   0% { opacity: 0; background: rgba(255,255,255,0); }
-  20% { opacity: 1; background: rgba(255,255,255,0.15); }
+  15% { opacity: 1; background: rgba(255,255,255,0.15); }
   100% { opacity: 0; background: rgba(255,255,255,0); }
 }
 @keyframes comboBreakAnim {
-  0% { transform: translateX(-50%) scale(0.5); opacity: 1; }
-  50% { transform: translateX(-50%) scale(1.3); opacity: 1; }
-  100% { transform: translateX(-50%) scale(0.8); opacity: 0; }
+  0% { transform: translateX(-50%) scale(0.4); opacity: 0; }
+  30% { transform: translateX(-50%) scale(1.2); opacity: 1; }
+  100% { transform: translateX(-50%) scale(0.9); opacity: 0; }
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
 }
 `
 
@@ -311,61 +36,130 @@ export default function UIOverlay() {
   const resumeGame = useGameStore(s => s.resumeGame)
   const resetGame = useGameStore(s => s.resetGame)
 
-  const [btnHover, setBtnHover] = useState(false)
+  const [startHover, setStartHover] = useState(false)
   const [replayHover, setReplayHover] = useState(false)
   const [pauseHover, setPauseHover] = useState(false)
+  const [resumeHover, setResumeHover] = useState(false)
 
   useEffect(() => {
-    const styleEl = document.createElement('style')
-    styleEl.innerHTML = keyframesCss
-    document.head.appendChild(styleEl)
-    return () => {
-      document.head.removeChild(styleEl)
-    }
+    const el = document.createElement('style')
+    el.innerHTML = keyframes
+    document.head.appendChild(el)
+    return () => { document.head.removeChild(el) }
   }, [])
 
   const handleStart = () => {
     resetGame()
-    setTimeout(() => startGame(), 50)
+    setTimeout(() => startGame(), 30)
   }
-
   const handleReplay = () => {
     resetGame()
-    setTimeout(() => startGame(), 50)
+    setTimeout(() => startGame(), 30)
   }
-
-  const formatScore = (n: number) => n.toString().padStart(6, '0')
+  const padScore = (n: number) => n.toString().padStart(6, '0')
 
   return (
-    <div style={styles.overlay}>
+    <div style={{
+      position: 'absolute', inset: 0, pointerEvents: 'none',
+      zIndex: 10, fontFamily: "'Noto Sans SC', sans-serif", color: 'white',
+    }}>
       {(status === 'playing' || status === 'paused') && (
         <>
-          <div style={styles.scoreContainer}>
-            <div style={styles.scoreLabel}>SCORE 得分</div>
-            <div style={styles.score}>{formatScore(score)}</div>
+          <div style={{
+            position: 'absolute', top: '5%', left: '4%', pointerEvents: 'none',
+          }}>
             <div style={{
-              ...styles.combo,
-              ...(combo <= 0 ? styles.comboEmpty : {}),
+              fontSize: '11px', color: '#8899CC', letterSpacing: '2px',
+              marginBottom: '4px', opacity: 0.8,
+            }}>SCORE 得分</div>
+            <div style={{
+              fontFamily: "'Orbitron', monospace",
+              fontSize: 'clamp(22px, 3.8vw, 40px)',
+              fontWeight: 900, color: '#FFFFFF',
+              textShadow: '0 0 10px #FF6B9D, 0 0 20px rgba(255,107,157,0.5), 2px 2px 4px rgba(0,0,0,0.4)',
+              letterSpacing: '3px', lineHeight: 1, margin: 0,
             }}>
-              {combo > 0 ? `COMBO x${combo}` : 'NO COMBO'}
+              {padScore(score)}
+            </div>
+            <div style={{
+              marginTop: '10px',
+              fontSize: '11px', color: '#8899CC', letterSpacing: '2px',
+              marginBottom: '2px', opacity: 0.8,
+            }}>COMBO 连击</div>
+            <div style={{
+              fontFamily: "'Orbitron', monospace",
+              fontSize: 'clamp(14px, 2.2vw, 26px)',
+              fontWeight: 700,
+              color: combo > 0 ? '#FF6B9D' : '#445577',
+              textShadow: combo > 0 ? '0 0 8px #FF6B9D, 0 0 16px rgba(255,107,157,0.4)' : 'none',
+              animation: combo >= 10 ? 'pulse 0.5s ease-in-out infinite' : 'none',
+              transition: 'all 0.15s',
+            }}>
+              {combo > 0 ? `x${combo}` : 'x0'}
             </div>
           </div>
 
-          <div style={styles.hudLeft}>
-            <div style={styles.healthLabel}>HP 生命值</div>
-            <div style={styles.healthBarContainer}>
-              <div style={{ ...styles.healthBar, width: `${health}%` }} />
+          <div style={{
+            position: 'absolute', top: '5%', left: '50%',
+            transform: 'translateX(-50%)', pointerEvents: 'none',
+            width: 'clamp(200px, 35vw, 420px)',
+          }}>
+            <div style={{
+              fontSize: '11px', color: '#8899CC', letterSpacing: '2px',
+              marginBottom: '6px', textAlign: 'center', opacity: 0.8,
+            }}>HP 生命值</div>
+            <div style={{
+              height: '18px',
+              background: 'rgba(255,255,255,0.08)',
+              borderRadius: '9px',
+              overflow: 'hidden',
+              border: '1px solid rgba(123, 104, 238, 0.3)',
+              boxShadow: '0 0 12px rgba(123,104,238,0.1), inset 0 1px 2px rgba(0,0,0,0.3)',
+            }}>
+              <div style={{
+                height: '100%',
+                borderRadius: '9px',
+                width: `${health}%`,
+                background: health > 50
+                  ? 'linear-gradient(90deg, #7B68EE 0%, #00BFFF 60%, #66FF99 100%)'
+                  : health > 25
+                  ? 'linear-gradient(90deg, #FFD700 0%, #FF8C00 100%)'
+                  : 'linear-gradient(90deg, #FF4444 0%, #FF0000 100%)',
+                transition: 'width 0.25s ease',
+                boxShadow: health > 50
+                  ? '0 0 14px rgba(0,191,255,0.5)'
+                  : health > 25
+                  ? '0 0 14px rgba(255,140,0,0.5)'
+                  : '0 0 14px rgba(255,0,0,0.6)',
+              }} />
+            </div>
+            <div style={{
+              marginTop: '4px', textAlign: 'center',
+              fontSize: '10px', color: '#AABBEE', opacity: 0.7,
+            }}>
+              {health} / 100
             </div>
           </div>
 
-          <div style={styles.hudRight}>
+          <div style={{
+            position: 'absolute', top: '5%', right: '4%', pointerEvents: 'auto',
+          }}>
             <button
               style={{
-                ...styles.pauseBtn,
+                width: '42px', height: '42px',
+                background: 'rgba(26, 32, 58, 0.85)',
+                border: '1px solid rgba(123, 104, 238, 0.4)',
+                borderRadius: '10px',
+                color: '#7B68EE', fontSize: '16px',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s',
+                fontWeight: 'bold',
+                backdropFilter: 'blur(4px)',
                 ...(pauseHover ? {
-                  background: 'rgba(0, 191, 255, 0.3)',
-                  transform: 'scale(1.05)',
-                  boxShadow: '0 0 15px rgba(0,191,255,0.4)',
+                  background: 'rgba(123, 104, 238, 0.25)',
+                  transform: 'scale(1.06)',
+                  boxShadow: '0 0 16px rgba(123,104,238,0.4)',
                 } : {}),
               }}
               onClick={status === 'paused' ? resumeGame : pauseGame}
@@ -379,117 +173,248 @@ export default function UIOverlay() {
       )}
 
       {perfectFlash && (
-        <div
-          key={`edge-${Date.now()}`}
-          style={{
-            ...styles.edgeFlash,
-            ...styles.edgeFlashActive,
-          }}
-        />
+        <div key={`ef-${Date.now()}`} style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          boxShadow: 'inset 0 0 100px 25px rgba(255,107,157,0.7)',
+          animation: 'edgeFlashAnim 0.5s ease-out',
+        }} />
       )}
 
       {fullscreenFlash && (
-        <div
-          key={`fs-${Date.now()}`}
-          style={styles.fullscreenFlash}
-        />
+        <div key={`fs-${Date.now()}`} style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: 'rgba(255,255,255,0.15)',
+          animation: 'fullscreenFlashAnim 0.8s ease-out',
+        }} />
       )}
 
       {comboBreakFlash && (
-        <div
-          key={`cb-${Date.now()}`}
-          style={styles.comboBreak}
-        >
+        <div key={`cb-${Date.now()}`} style={{
+          position: 'absolute',
+          top: '18%', left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: 'clamp(36px, 7vw, 72px)',
+          color: '#FF4444',
+          fontWeight: 900,
+          textShadow: '0 0 20px #FF0000, 0 0 40px #FF0000',
+          animation: 'comboBreakAnim 0.3s ease-out forwards',
+          pointerEvents: 'none',
+          fontFamily: "'Orbitron', monospace",
+        }}>
           ✕
         </div>
       )}
 
       {status === 'idle' && (
-        <div style={styles.startOverlay}>
-          <h1 style={styles.startTitle}>RHYTHM RUSH</h1>
-          <p style={styles.startSubtitle}>跟随节拍，跃动无限 · 节奏跑酷游戏</p>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(0, 0, 0, 0.82)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'auto',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+        }}>
+          <h1 style={{
+            fontFamily: "'Orbitron', monospace",
+            fontSize: 'clamp(30px, 6vw, 70px)',
+            fontWeight: 900,
+            background: 'linear-gradient(135deg, #FF6B9D 0%, #7B68EE 50%, #00BFFF 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            marginBottom: '10px', letterSpacing: '5px',
+            textAlign: 'center',
+          }}>RHYTHM RUSH</h1>
+          <p style={{
+            fontFamily: "'Noto Sans SC', sans-serif",
+            fontSize: 'clamp(12px, 1.5vw, 18px)',
+            color: '#8899CC', marginBottom: '44px',
+            letterSpacing: '2px', textAlign: 'center',
+            maxWidth: '90%',
+          }}>跟随节拍 · 跃动无限 · 节奏跑酷</p>
+
           <button
             style={{
-              ...styles.startBtn,
-              ...(btnHover ? {
+              width: 'clamp(150px, 20vw, 200px)',
+              height: 'clamp(46px, 6vw, 58px)',
+              background: 'linear-gradient(135deg, #6C63FF 0%, #483D8B 100%)',
+              border: 'none', borderRadius: '30px',
+              color: 'white',
+              fontSize: 'clamp(15px, 2vw, 22px)',
+              fontFamily: "'Noto Sans SC', sans-serif",
+              fontWeight: 700, cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 0 22px rgba(108, 99, 255, 0.5), 0 4px 18px rgba(0,0,0,0.3)',
+              letterSpacing: '2px',
+              ...(startHover ? {
                 transform: 'scale(1.05)',
-                boxShadow: '0 0 30px rgba(108, 99, 255, 0.8), 0 6px 25px rgba(0,0,0,0.4)',
+                boxShadow: '0 0 36px rgba(108, 99, 255, 0.8), 0 6px 26px rgba(0,0,0,0.4)',
               } : {}),
             }}
             onClick={handleStart}
-            onMouseEnter={() => setBtnHover(true)}
-            onMouseLeave={() => setBtnHover(false)}
+            onMouseEnter={() => setStartHover(true)}
+            onMouseLeave={() => setStartHover(false)}
           >
             开始游戏
           </button>
-          <div style={styles.controlsInfo}>
+
+          <div style={{
+            marginTop: '40px', textAlign: 'center',
+            color: '#667799', fontSize: 'clamp(11px, 1.2vw, 14px)',
+            lineHeight: 2.2, letterSpacing: '1px',
+          }}>
             <div>
-              <span style={styles.keyBadge}>空格</span>
-              <span style={{ marginRight: 20 }}>跳跃 躲避方块</span>
-              <span style={styles.keyBadge}>↓</span>
-              <span>滑铲 穿越拱门</span>
+              <span style={{
+                display: 'inline-block', padding: '4px 12px',
+                background: 'rgba(26, 42, 74, 0.9)',
+                border: '1px solid rgba(255,107,157,0.35)',
+                borderRadius: '6px', color: '#FF6B9D',
+                fontFamily: "'Orbitron', monospace",
+                fontWeight: 700, margin: '0 6px',
+              }}>空格</span>
+              <span style={{ marginRight: 22 }}>跳跃 躲避红色方块</span>
+              <span style={{
+                display: 'inline-block', padding: '4px 12px',
+                background: 'rgba(26, 42, 74, 0.9)',
+                border: '1px solid rgba(123, 104, 238, 0.35)',
+                borderRadius: '6px', color: '#7B68EE',
+                fontFamily: "'Orbitron', monospace",
+                fontWeight: 700, margin: '0 6px',
+              }}>↓</span>
+              <span>滑铲 穿过紫色拱门</span>
             </div>
-            <div style={{ marginTop: 8, opacity: 0.7 }}>
-              按节拍完美通过可获得更高分数和连击加成
+            <div style={{ marginTop: 10, opacity: 0.75 }}>
+              节拍前后 150ms 内操作 = 完美 +100 分，300ms 内 = 普通 +50 分
             </div>
           </div>
         </div>
       )}
 
       {status === 'paused' && (
-        <div style={styles.pauseOverlay}>
-          <div style={styles.pauseTitle}>— 已暂停 —</div>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(0, 0, 0, 0.72)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'auto',
+          backdropFilter: 'blur(4px)',
+        }}>
+          <div style={{
+            fontFamily: "'Orbitron', monospace",
+            fontSize: 'clamp(26px, 5vw, 46px)',
+            color: '#7B68EE',
+            textShadow: '0 0 20px rgba(123, 104, 238, 0.6)',
+            marginBottom: '32px', letterSpacing: '4px',
+          }}>— 已 暂 停 —</div>
           <button
             style={{
-              ...styles.startBtn,
-              ...(btnHover ? {
+              width: 'clamp(150px, 20vw, 200px)',
+              height: 'clamp(46px, 6vw, 58px)',
+              background: 'linear-gradient(135deg, #6C63FF 0%, #483D8B 100%)',
+              border: 'none', borderRadius: '30px',
+              color: 'white',
+              fontSize: 'clamp(15px, 2vw, 22px)',
+              fontFamily: "'Noto Sans SC', sans-serif",
+              fontWeight: 700, cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 0 22px rgba(108, 99, 255, 0.5)',
+              letterSpacing: '2px',
+              ...(resumeHover ? {
                 transform: 'scale(1.05)',
-                boxShadow: '0 0 30px rgba(108, 99, 255, 0.8)',
+                boxShadow: '0 0 36px rgba(108, 99, 255, 0.8)',
               } : {}),
             }}
             onClick={resumeGame}
-            onMouseEnter={() => setBtnHover(true)}
-            onMouseLeave={() => setBtnHover(false)}
+            onMouseEnter={() => setResumeHover(true)}
+            onMouseLeave={() => setResumeHover(false)}
           >
             继续游戏
           </button>
-          <div style={{ marginTop: 20, color: '#6688BB', fontSize: 12 }}>
-            按 ESC 键也可继续游戏
+          <div style={{ marginTop: 22, color: '#556688', fontSize: 12 }}>
+            按 ESC 键可快速继续
           </div>
         </div>
       )}
 
       {status === 'gameover' && (
-        <div style={styles.gameoverPanel}>
-          <div style={styles.panel}>
-            <div style={styles.panelTitle}>GAME OVER</div>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(0, 0, 0, 0.82)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'auto',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+        }}>
+          <div style={{
+            width: 'clamp(280px, 85vw, 400px)',
+            background: 'linear-gradient(145deg, #12122A 0%, #1A1035 100%)',
+            borderRadius: '16px',
+            padding: 'clamp(22px, 4vw, 38px)',
+            boxShadow: 'inset 0 2px 12px rgba(123, 104, 238, 0.12), 0 12px 42px rgba(0,0,0,0.55)',
+            border: '1px solid rgba(123, 104, 238, 0.2)',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              fontFamily: "'Orbitron', monospace",
+              fontSize: 'clamp(22px, 3.5vw, 34px)',
+              fontWeight: 900,
+              color: '#FF6B9D',
+              marginBottom: '24px',
+              textShadow: '0 0 20px rgba(255,107,157,0.5)',
+              letterSpacing: '4px',
+            }}>GAME OVER</div>
 
-            <div style={styles.statsRow}>
-              <span style={styles.statsLabel}>最终得分</span>
-              <span style={styles.statsValue}>{formatScore(score)}</span>
-            </div>
-
-            <div style={styles.statsRow}>
-              <span style={styles.statsLabel}>连击峰值</span>
-              <span style={{ ...styles.statsValue, color: '#FF69B4' }}>x{maxCombo}</span>
-            </div>
-
-            <div style={{ ...styles.statsRow, borderBottom: 'none' }}>
-              <span style={styles.statsLabel}>评级</span>
-              <span style={{
-                ...styles.statsValue,
-                color: score >= 8000 ? '#FFD700' : score >= 5000 ? '#C0C0C0' : score >= 2000 ? '#CD7F32' : '#6688BB',
+            {[
+              { label: '最终得分', value: padScore(score), color: '#00BFFF' },
+              { label: '连击峰值', value: `x${maxCombo}`, color: '#FFD700' },
+              { label: '评级', value: (
+                score >= 8000 ? 'S' :
+                score >= 5000 ? 'A' :
+                score >= 2000 ? 'B' :
+                score >= 1000 ? 'C' : 'D'
+              ), color: (
+                score >= 8000 ? '#FFD700' :
+                score >= 5000 ? '#C0C0C0' :
+                score >= 2000 ? '#CD7F32' :
+                score >= 1000 ? '#7B68EE' : '#445577'
+              )},
+            ].map((row, i, arr) => (
+              <div key={i} style={{
+                display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', padding: '13px 0',
+                borderBottom: i < arr.length - 1 ? '1px solid rgba(123, 104, 238, 0.1)' : 'none',
               }}>
-                {score >= 8000 ? 'S' : score >= 5000 ? 'A' : score >= 2000 ? 'B' : score >= 1000 ? 'C' : 'D'}
-              </span>
-            </div>
+                <span style={{
+                  fontSize: 'clamp(12px, 1.4vw, 15px)',
+                  color: '#8899CC', letterSpacing: '1px',
+                }}>{row.label}</span>
+                <span style={{
+                  fontFamily: "'Orbitron', monospace",
+                  fontSize: 'clamp(17px, 2.4vw, 26px)',
+                  fontWeight: 700, color: row.color,
+                  textShadow: `0 0 8px ${row.color}66`,
+                }}>{row.value}</span>
+              </div>
+            ))}
 
             <button
               style={{
-                ...styles.replayBtn,
+                marginTop: '30px',
+                width: 'clamp(130px, 80%, 200px)',
+                height: 'clamp(42px, 5vw, 52px)',
+                background: 'linear-gradient(135deg, #00BFFF 0%, #7B68EE 100%)',
+                border: 'none', borderRadius: '26px',
+                color: 'white',
+                fontSize: 'clamp(13px, 1.8vw, 19px)',
+                fontFamily: "'Noto Sans SC', sans-serif",
+                fontWeight: 700, cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 0 22px rgba(0,191,255,0.45)',
+                letterSpacing: '2px',
                 ...(replayHover ? {
                   transform: 'scale(1.05)',
-                  boxShadow: '0 0 30px rgba(0,191,255,0.7)',
+                  boxShadow: '0 0 36px rgba(0,191,255,0.7)',
                 } : {}),
               }}
               onClick={handleReplay}
