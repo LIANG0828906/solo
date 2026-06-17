@@ -637,10 +637,11 @@ export class Renderer {
     const maxEnergy = this.state.getMaxEnergy();
     const waveTimer = this.state.getWaveTimer();
     const crystalPulse = this.state.getCrystalPulse();
+    const energyPulse = this.state.getEnergyPulse();
     
     const barHeight = 40;
     
-    ctx.fillStyle = 'rgba(10, 16, 32, 0.85)';
+    ctx.fillStyle = 'rgba(10, 16, 32, 0.565)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, barHeight);
     
     ctx.fillStyle = 'rgba(0, 191, 255, 0.3)';
@@ -649,7 +650,7 @@ export class Renderer {
     const crystalX = 20;
     const crystalY = barHeight / 2;
     
-    const crystalScale = 1 + crystalPulse * 0.1;
+    const crystalScale = 1 + crystalPulse * 0.15;
     ctx.save();
     ctx.translate(crystalX, crystalY);
     ctx.scale(crystalScale, crystalScale);
@@ -666,6 +667,17 @@ export class Renderer {
     ctx.strokeStyle = '#B8860B';
     ctx.lineWidth = 1;
     ctx.stroke();
+    
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 6 * crystalPulse;
+    ctx.beginPath();
+    ctx.moveTo(0, -10);
+    ctx.lineTo(8, 0);
+    ctx.lineTo(0, 10);
+    ctx.lineTo(-8, 0);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
     
     ctx.restore();
     
@@ -690,10 +702,19 @@ export class Renderer {
       energyBarX, energyBarY + energyBarHeight
     );
     energyGradient.addColorStop(0, '#00FF88');
-    energyGradient.addColorStop(1, '#00AA55');
+    energyGradient.addColorStop(1, '#00CC66');
     ctx.fillStyle = energyGradient;
     this.roundRect(ctx, energyBarX, energyBarY, energyBarWidth * energyRatio, energyBarHeight, 4);
     ctx.fill();
+    
+    if (energyPulse > 0) {
+      ctx.shadowColor = '#00FF88';
+      ctx.shadowBlur = 8 * energyPulse;
+      ctx.fillStyle = 'rgba(0, 255, 136, 0.3)';
+      this.roundRect(ctx, energyBarX, energyBarY, energyBarWidth * energyRatio, energyBarHeight, 4);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
     
     ctx.strokeStyle = '#4A6A9A';
     ctx.lineWidth = 1;
@@ -716,13 +737,13 @@ export class Renderer {
     ctx.fillStyle = waveTimer < 10 ? '#FF6B6B' : '#FFFFFF';
     ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(`${waveTimer.toFixed(1)}s`, timerX + 60, timerY);
+    ctx.fillText(waveTimer.toFixed(1) + 's', timerX + 60, timerY);
     
     const waveNumX = CANVAS_WIDTH - 180;
     ctx.fillStyle = '#AAAAAA';
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(`第 ${this.state.getWaveNumber()} 波`, waveNumX, timerY);
+    ctx.fillText('第 ' + this.state.getWaveNumber() + ' 波', waveNumX, timerY);
   }
 
   private roundRect(

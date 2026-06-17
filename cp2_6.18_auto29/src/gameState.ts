@@ -112,6 +112,7 @@ export interface GameStateData {
   efficiency: number;
   time: number;
   crystalPulse: number;
+  energyPulse: number;
   buildCosts: BuildCost;
 }
 
@@ -249,6 +250,7 @@ export class GameState {
       efficiency: 1,
       time: 0,
       crystalPulse: 0,
+      energyPulse: 0,
       buildCosts: {
         energyTower: 50,
         shieldGenerator: 80,
@@ -521,6 +523,18 @@ export class GameState {
 
   setCrystalPulse(value: number): void {
     this.state.crystalPulse = value;
+  }
+
+  getEnergyPulse(): number {
+    return this.state.energyPulse;
+  }
+
+  setEnergyPulse(value: number): void {
+    this.state.energyPulse = value;
+  }
+
+  triggerEnergyPulse(): void {
+    this.state.energyPulse = 1;
   }
 
   getBuildCosts(): BuildCost {

@@ -26,6 +26,7 @@ export class GameLogic {
     this.updateEnergy(dt);
     this.updateShield(dt);
     this.updateCrystalPulse(dt);
+    this.updateEnergyPulse(dt);
   }
 
   private updateWave(dt: number): void {
@@ -295,7 +296,15 @@ export class GameLogic {
   private updateEnergy(dt: number): void {
     const efficiency = this.state.getEfficiency();
     const energyGain = 2 * efficiency * dt;
+    const prevEnergy = this.state.getEnergy();
     this.state.addEnergy(energyGain);
+    const newEnergy = this.state.getEnergy();
+    
+    if (newEnergy - prevEnergy > 0.01) {
+      if (this.state.getEnergyPulse() < 0.3) {
+        this.state.triggerEnergyPulse();
+      }
+    }
   }
 
   private updateShield(dt: number): void {
@@ -312,7 +321,14 @@ export class GameLogic {
   private updateCrystalPulse(dt: number): void {
     const pulse = this.state.getCrystalPulse();
     if (pulse > 0) {
-      this.state.setCrystalPulse(Math.max(0, pulse - dt * 5));
+      this.state.setCrystalPulse(Math.max(0, pulse - dt * 2.5));
+    }
+  }
+
+  private updateEnergyPulse(dt: number): void {
+    const pulse = this.state.getEnergyPulse();
+    if (pulse > 0) {
+      this.state.setEnergyPulse(Math.max(0, pulse - dt * 3.33));
     }
   }
 
