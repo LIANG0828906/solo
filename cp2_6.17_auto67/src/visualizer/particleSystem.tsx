@@ -5,22 +5,88 @@ import { useAudioStore } from '@/store/audioStore'
 
 const PARTICLE_COUNT = 600
 
-const LOW_COLOR = new THREE.Color('#FF3366')
-const MID_COLOR = new THREE.Color('#00E5FF')
-const HIGH_COLOR = new THREE.Color('#B388FF')
+const vertexShader = /* glsl */ `
+  attribute float aSize;
+  attribute float aBand;
+  attribute vec3 aBasePosition;
+
+  uniform float uLowAvg;
+  uniform float uMidAvg;
+  uniform float uHighAvg;
+  uniform float uBeat;
+  uniform float uVolume;
+  uniform float uTime;
+
+  varying vec3 vColor;
+
+  void main() {
+    float bandValue;
+    vec3 bandColor;
+
+    if (aBand < 0.2) {
+      bandValue = uLowAvg;
+      bandColor = vec3(1.0, 0.2, 0.4);
+    } else if (aBand < 0.6) {
+      bandValue = uMidAvg;
+      bandColor = vec3(0.0, 0.898, 1.0);
+    } else {
+      bandValue = uHighAvg;
+      bandColor = vec3(0.702, 0.533, 1.0);
+    }
+
+    float displacement = bandValue * 2.5 + uVolume * 1.5;
+    vec3 dir = normalize(aBasePosition);
+    vec3 displaced = aBasePosition + dir * displacement;
+
+    float wave = sin(uTime * 2.0 + aBand * 20.0) * 0.15;
+    displaced.y += wave;
+    displaced.x += sin(uTime * 1.5 + aBand * 15.0) * 0.1;
+
+    float beatPulse = uBeat * 0.8;
+    displaced += dir * beatPulse * 0.5;
+
+    vec3 baseColor = mix(vec3(0.702, 0.533, 1.0), bandColor, bandValue);
+    float beatGlow = uBeat * 0.4;
+    vColor = baseColor + vec3(beatGlow * 0.5, beatGlow * 0.3, beatGlow * 0.7);
+
+    vec4 mvPosition = modelViewMatrix * vec4(displaced, 1.0);
+    float sizeScale = 1.0 + bandValue * 1.5 + uBeat * 0.5;
+    gl_PointSize = aSize * sizeScale * (300.0 / -mvPosition.z);
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`
+
+const fragmentShader = /* glsl */ `
+  varying vec3 vColor;
+
+  void main() {
+    float dist = length(gl_PointCoord - vec2(0.5));
+    if (dist > 0.5) discard;
+
+    float alpha = 1.0 - smoothstep(0.2, 0.5, dist);
+    float glow = exp(-dist * 4.0) * 0.6;
+
+    vec3 finalColor = vColor + vColor * glow;
+    gl_FragColor = vec4(finalColor, alpha * 0.9);
+  }
+`
 
 export function ParticleSystem() {
   const pointsRef = useRef<THREE.Points>(null)
-  const basePositions = useRef<Float32Array | null>(null)
-  const velocities = useRef<Float32Array | null>(null)
-  const sizes = useRef<Float32Array | null>(null)
+  const uniformsRef = useRef({
+    uLowAvg: { value: 0 },
+    uMidAvg: { value: 0 },
+    uHighAvg: { value: 0 },
+    uBeat: { value: 0 },
+    uVolume: { value: 0 },
+    uTime: { value: 0 },
+  })
 
-  const { positions, colors, geometry } = useMemo(() => {
+  const geometry = useMemo(() => {
     const positions = new Float32Array(PARTICLE_COUNT * 3)
-    const colors = new Float32Array(PARTICLE_COUNT * 3)
-    const base = new Float32Array(PARTICLE_COUNT * 3)
-    const vel = new Float32Array(PARTICLE_COUNT * 3)
-    const siz = new Float32Array(PARTICLE_COUNT)
+    const basePositions = new Float32Array(PARTICLE_COUNT * 3)
+    const sizes = new Float32Array(PARTICLE_COUNT)
+    const bands = new Float32Array(PARTICLE_COUNT)
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const i3 = i * 3
@@ -36,49 +102,38 @@ export function ParticleSystem() {
       positions[i3 + 1] = y
       positions[i3 + 2] = z
 
-      base[i3] = x
-      base[i3 + 1] = y
-      base[i3 + 2] = z
+      basePositions[i3] = x
+      basePositions[i3 + 1] = y
+      basePositions[i3 + 2] = z
 
-      vel[i3] = (Math.random() - 0.5) * 0.01
-      vel[i3 + 1] = (Math.random() - 0.5) * 0.01
-      vel[i3 + 2] = (Math.random() - 0.5) * 0.01
+      sizes[i] = 3 + Math.random() * 9
 
-      siz[i] = 3 + Math.random() * 9
-
-      colors[i3] = HIGH_COLOR.r
-      colors[i3 + 1] = HIGH_COLOR.g
-      colors[i3 + 2] = HIGH_COLOR.b
+      bands[i] = i / PARTICLE_COUNT
     }
 
-    basePositions.current = base
-    velocities.current = vel
-    sizes.current = siz
+    const geom = new THREE.BufferGeometry()
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geom.setAttribute('aBasePosition', new THREE.BufferAttribute(basePositions, 3))
+    geom.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1))
+    geom.setAttribute('aBand', new THREE.BufferAttribute(bands, 1))
 
-    const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    geometry.setAttribute('size', new THREE.BufferAttribute(siz, 1))
+    return geom
+  }, [])
 
-    return { positions, colors, geometry }
+  const material = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms: uniformsRef.current,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
   }, [])
 
   useFrame((_state, delta) => {
-    if (!pointsRef.current) return
-
-    const posAttr = pointsRef.current.geometry.getAttribute(
-      'position'
-    ) as THREE.BufferAttribute
-    const colAttr = pointsRef.current.geometry.getAttribute(
-      'color'
-    ) as THREE.BufferAttribute
-
-    const posArr = posAttr.array as Float32Array
-    const colArr = colAttr.array as Float32Array
-
     const state = useAudioStore.getState()
     const freq = state.frequencyData
-    const time = state.timeDomainData
     const beat = state.beat
     const volume = state.volume
 
@@ -92,86 +147,19 @@ export function ParticleSystem() {
     for (let i = 0; i < lowBand; i++) lowSum += freq[i]
     for (let i = lowBand; i < midBand; i++) midSum += freq[i]
     for (let i = midBand; i < freqLen; i++) highSum += freq[i]
-    const lowAvg = lowSum / lowBand / 255
-    const midAvg = midSum / (midBand - lowBand) / 255
-    const highAvg = highSum / (freqLen - midBand) / 255
+    const lowAvg = lowSum / Math.max(lowBand, 1) / 255
+    const midAvg = midSum / Math.max(midBand - lowBand, 1) / 255
+    const highAvg = highSum / Math.max(freqLen - midBand, 1) / 255
 
-    const base = basePositions.current!
-    const vel = velocities.current!
+    uniformsRef.current.uLowAvg.value = lowAvg
+    uniformsRef.current.uMidAvg.value = midAvg
+    uniformsRef.current.uHighAvg.value = highAvg
+    uniformsRef.current.uBeat.value = beat
+    uniformsRef.current.uVolume.value = volume
+    uniformsRef.current.uTime.value += delta
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const i3 = i * 3
-
-      const bandIdx = i % freqLen
-      let bandValue: number
-      let bandColor: THREE.Color
-
-      if (bandIdx < lowBand) {
-        bandValue = lowAvg
-        bandColor = LOW_COLOR
-      } else if (bandIdx < midBand) {
-        bandValue = midAvg
-        bandColor = MID_COLOR
-      } else {
-        bandValue = highAvg
-        bandColor = HIGH_COLOR
-      }
-
-      const freqAmplitude = freq[bandIdx] / 255
-      const displacement = freqAmplitude * 2.5 + volume * 1.5
-
-      vel[i3] += (Math.random() - 0.5) * 0.003
-      vel[i3 + 1] += (Math.random() - 0.5) * 0.003
-      vel[i3 + 2] += (Math.random() - 0.5) * 0.003
-
-      vel[i3] *= 0.96
-      vel[i3 + 1] *= 0.96
-      vel[i3 + 2] *= 0.96
-
-      const timeOffset = (time[bandIdx] - 128) / 128
-
-      posArr[i3] =
-        base[i3] +
-        (base[i3] !== 0 ? displacement * (base[i3] / Math.abs(base[i3])) : 0) +
-        vel[i3] * 20 +
-        timeOffset * 0.3
-      posArr[i3 + 1] =
-        base[i3 + 1] +
-        (base[i3 + 1] !== 0 ? displacement * (base[i3 + 1] / Math.abs(base[i3 + 1])) : 0) +
-        vel[i3 + 1] * 20 +
-        timeOffset * 0.3
-      posArr[i3 + 2] =
-        base[i3 + 2] +
-        (base[i3 + 2] !== 0 ? displacement * (base[i3 + 2] / Math.abs(base[i3 + 2])) : 0) +
-        vel[i3 + 2] * 20 +
-        Math.sin(Date.now() * 0.0005 + i * 0.1) * 0.2
-
-      const beatBoost = beat * 0.6
-      const mixR = bandColor.r * bandValue + HIGH_COLOR.r * (1 - bandValue) * 0.5
-      const mixG = bandColor.g * bandValue + HIGH_COLOR.g * (1 - bandValue) * 0.5
-      const mixB = bandColor.b * bandValue + HIGH_COLOR.b * (1 - bandValue) * 0.5
-
-      colArr[i3] = Math.min(1, mixR + beatBoost * 0.5)
-      colArr[i3 + 1] = Math.min(1, mixG + beatBoost * 0.3)
-      colArr[i3 + 2] = Math.min(1, mixB + beatBoost * 0.7)
-    }
-
-    posAttr.needsUpdate = true
-    colAttr.needsUpdate = true
-    void delta
+    void pointsRef
   })
 
-  return (
-    <points ref={pointsRef} geometry={geometry}>
-      <pointsMaterial
-        size={0.08}
-        vertexColors
-        transparent
-        opacity={0.9}
-        sizeAttenuation
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-      />
-    </points>
-  )
+  return <points ref={pointsRef} geometry={geometry} material={material} />
 }

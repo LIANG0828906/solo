@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { useAudioStore } from '@/store/audioStore'
 import {
   loadAudio,
@@ -62,10 +62,6 @@ export function ControlPanel() {
     },
     []
   )
-
-  useEffect(() => {
-    setVolume(volume)
-  }, [volume])
 
   const panelStyle: React.CSSProperties = {
     position: 'fixed',
