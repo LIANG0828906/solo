@@ -18,9 +18,15 @@ interface SectionConfig {
   sliders: SliderConfig[]
 }
 
+const ANIMATION_DURATION = 300
+
 export class Panel {
   private container: HTMLElement
   private eventBus: EventBus
+  private controlPanel: HTMLElement
+  private toggleBtn: HTMLElement
+  private closeBtn: HTMLElement
+
   private sections: SectionConfig[] = [
     {
       title: '场景设置',
@@ -79,10 +85,16 @@ export class Panel {
   ]
 
   private values: Map<string, number> = new Map()
+  private sectionAnimations: Map<HTMLElement, Animation | null> = new Map()
+  private panelVisible: boolean = true
 
   constructor(container: HTMLElement, eventBus: EventBus) {
     this.container = container
     this.eventBus = eventBus
+
+    this.controlPanel = document.getElementById('control-panel')!
+    this.toggleBtn = document.getElementById('panel-toggle-btn')!
+    this.closeBtn = document.getElementById('panel-close-btn')!
 
     for (const section of this.sections) {
       for (const slider of section.sliders) {
@@ -91,6 +103,40 @@ export class Panel {
     }
 
     this.render()
+    this.bindPanelToggleEvents()
+  }
+
+  private bindPanelToggleEvents(): void {
+    this.closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.hidePanel()
+    })
+
+    this.toggleBtn.addEventListener('click', () => {
+      this.showPanel()
+    })
+  }
+
+  private hidePanel(): void {
+    if (!this.panelVisible) return
+    this.panelVisible = false
+
+    this.controlPanel.classList.add('hidden')
+
+    setTimeout(() => {
+      this.toggleBtn.classList.add('visible')
+    }, 100)
+  }
+
+  private showPanel(): void {
+    if (this.panelVisible) return
+    this.panelVisible = true
+
+    this.toggleBtn.classList.remove('visible')
+
+    setTimeout(() => {
+      this.controlPanel.classList.remove('hidden')
+    }, 50)
   }
 
   private render(): void {
@@ -116,10 +162,6 @@ export class Panel {
       header.appendChild(title)
       header.appendChild(arrow)
 
-      header.addEventListener('click', () => {
-        header.classList.toggle('collapsed')
-      })
-
       const content = document.createElement('div')
       content.className = 'section-content'
 
@@ -128,9 +170,117 @@ export class Panel {
         content.appendChild(item)
       }
 
+      if (sectionConfig.collapsed) {
+        content.style.height = '0px'
+        content.style.paddingTop = '0px'
+        content.style.paddingBottom = '0px'
+      }
+
+      header.addEventListener('click', (e) => {
+        e.preventDefault()
+        this.toggleSection(header, content)
+      })
+
       section.appendChild(header)
       section.appendChild(content)
       this.container.appendChild(section)
+      this.sectionAnimations.set(content, null)
+    }
+  }
+
+  private toggleSection(header: HTMLElement, content: HTMLElement): void {
+    const isCollapsed = header.classList.contains('collapsed')
+    const currentAnimation = this.sectionAnimations.get(content)
+
+    if (currentAnimation) {
+      currentAnimation.cancel()
+    }
+
+    if (isCollapsed) {
+      header.classList.remove('collapsed')
+      this.animateContent(content, true)
+    } else {
+      header.classList.add('collapsed')
+      this.animateContent(content, false)
+    }
+  }
+
+  private animateContent(content: HTMLElement, expand: boolean): void {
+    const computedStyle = getComputedStyle(content)
+    const paddingTop = parseFloat(computedStyle.paddingTop) || 0
+    const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0
+
+    content.style.overflow = 'hidden'
+
+    if (expand) {
+      const currentHeight = content.getBoundingClientRect().height
+
+      content.style.height = 'auto'
+      content.style.paddingTop = ''
+      content.style.paddingBottom = ''
+      const targetHeight = content.getBoundingClientRect().height
+
+      const keyframes: Keyframe[] = [
+        {
+          height: `${currentHeight}px`,
+          paddingTop: '0px',
+          paddingBottom: '0px'
+        },
+        {
+          height: `${targetHeight}px`,
+          paddingTop: `${paddingTop}px`,
+          paddingBottom: `${paddingBottom}px`
+        }
+      ]
+
+      const animation = content.animate(keyframes, {
+        duration: ANIMATION_DURATION,
+        easing: 'ease',
+        fill: 'forwards'
+      })
+
+      animation.onfinish = () => {
+        content.style.height = 'auto'
+        content.style.paddingTop = ''
+        content.style.paddingBottom = ''
+        content.style.overflow = ''
+        this.sectionAnimations.set(content, null)
+      }
+
+      this.sectionAnimations.set(content, animation)
+    } else {
+      const currentHeight = content.getBoundingClientRect().height
+      const currentPaddingTop = parseFloat(computedStyle.paddingTop) || 0
+      const currentPaddingBottom = parseFloat(computedStyle.paddingBottom) || 0
+
+      const keyframes: Keyframe[] = [
+        {
+          height: `${currentHeight}px`,
+          paddingTop: `${currentPaddingTop}px`,
+          paddingBottom: `${currentPaddingBottom}px`
+        },
+        {
+          height: '0px',
+          paddingTop: '0px',
+          paddingBottom: '0px'
+        }
+      ]
+
+      const animation = content.animate(keyframes, {
+        duration: ANIMATION_DURATION,
+        easing: 'ease',
+        fill: 'forwards'
+      })
+
+      animation.onfinish = () => {
+        content.style.height = '0px'
+        content.style.paddingTop = '0px'
+        content.style.paddingBottom = '0px'
+        content.style.overflow = 'hidden'
+        this.sectionAnimations.set(content, null)
+      }
+
+      this.sectionAnimations.set(content, animation)
     }
   }
 
