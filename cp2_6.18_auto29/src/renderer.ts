@@ -641,7 +641,7 @@ export class Renderer {
     
     const barHeight = 40;
     
-    ctx.fillStyle = 'rgba(10, 16, 32, 0.565)';
+    ctx.fillStyle = 'rgba(10, 16, 32, 0.75)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, barHeight);
     
     ctx.fillStyle = 'rgba(0, 191, 255, 0.3)';
@@ -667,17 +667,6 @@ export class Renderer {
     ctx.strokeStyle = '#B8860B';
     ctx.lineWidth = 1;
     ctx.stroke();
-    
-    ctx.shadowColor = '#FFD700';
-    ctx.shadowBlur = 6 * crystalPulse;
-    ctx.beginPath();
-    ctx.moveTo(0, -10);
-    ctx.lineTo(8, 0);
-    ctx.lineTo(0, 10);
-    ctx.lineTo(-8, 0);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.shadowBlur = 0;
     
     ctx.restore();
     
@@ -708,12 +697,12 @@ export class Renderer {
     ctx.fill();
     
     if (energyPulse > 0) {
-      ctx.shadowColor = '#00FF88';
-      ctx.shadowBlur = 8 * energyPulse;
-      ctx.fillStyle = 'rgba(0, 255, 136, 0.3)';
+      ctx.save();
+      ctx.globalAlpha = 0.3 * energyPulse;
+      ctx.fillStyle = '#00FF88';
       this.roundRect(ctx, energyBarX, energyBarY, energyBarWidth * energyRatio, energyBarHeight, 4);
       ctx.fill();
-      ctx.shadowBlur = 0;
+      ctx.restore();
     }
     
     ctx.strokeStyle = '#4A6A9A';
