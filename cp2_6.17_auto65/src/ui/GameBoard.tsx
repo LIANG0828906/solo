@@ -1,22 +1,15 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { TABLE_CONFIG, POCKETS, BALL_RADIUS, MAX_POWER } from '../game/types';
 
 export function GameBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>(0);
-  const lastTimeRef = useRef<number>(0);
-  const mouseRef = useRef<{ x: number; y: number; isDown: boolean }>({
-    x: 0,
-    y: 0,
-    isDown: false,
-  });
+  const intervalRef = useRef<number | null>(null);
+  const lastIntervalTimeRef = useRef<number>(0);
+  const runningFlagRef = useRef<boolean>(false);
+  const [scale, setScale] = useState(1);
 
   const initGame = useGameStore((state) => state.initGame);
-  const updateGame = useGameStore((state) => state.updateGame);
-  const startAiming = useGameStore((state) => state.startAiming);
-  const updateAim = useGameStore((state) => state.updateAim);
-  const shoot = useGameStore((state) => state.shoot);
 
   useEffect(() => {
     initGame();
@@ -24,11 +17,27 @@ export function GameBoard() {
   }, [initGame]);
 
   useEffect(() => {
+    function handleResize() {
+      const topBarHeight = 60;
+      const availableWidth = window.innerWidth - 80;
+      const availableHeight = window.innerHeight - topBarHeight - 80;
+      const scaleX = availableWidth / TABLE_CONFIG.width;
+      const scaleY = availableHeight / TABLE_CONFIG.height;
+      setScale(Math.min(scaleX, scaleY, 1));
+    }
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    runningFlagRef.current = true;
 
     function lightenColor(color: string, percent: number): string {
       const num = parseInt(color.replace('#', ''), 16);
@@ -53,9 +62,9 @@ export function GameBoard() {
     }
 
     function drawTable() {
-      const { width, height, borderWidth, borderColor, feltColor, pocketRadius } = TABLE_CONFIG;
+      const { width, height, borderWidth, pocketRadius } = TABLE_CONFIG;
 
-      ctx.fillStyle = borderColor;
+      ctx.fillStyle = '#8B4513';
       ctx.fillRect(0, 0, width, height);
 
       const gradient = ctx.createLinearGradient(
@@ -296,13 +305,7 @@ export function GameBoard() {
       }
     }
 
-    const gameLoop = (timestamp: number) => {
-      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
-      const dt = Math.min((timestamp - lastTimeRef.current) / 1000, 1 / 30);
-      lastTimeRef.current = timestamp;
-
-      updateGame(dt);
-
+    function render() {
       const state = useGameStore.getState();
       const { width, height } = TABLE_CONFIG;
 
@@ -329,16 +332,42 @@ export function GameBoard() {
       } else if (cueBall && state.gamePhase === 'aiming') {
         drawCue(cueBall, state.aimAngle, 0);
       }
+    }
 
-      animationRef.current = requestAnimationFrame(gameLoop);
+    const gameLoop = () => {
+      const now = performance.now();
+      if (!lastIntervalTimeRef.current) lastIntervalTimeRef.current = now;
+      const dt = Math.min((now - lastIntervalTimeRef.current) / 1000, 1 / 30);
+      lastIntervalTimeRef.current = now;
+
+      console.log('gameLoop tick, dt=', dt);
+
+      try {
+        useGameStore.getState().updateGame(dt);
+      } catch (e) {
+        console.error('updateGame error:', e);
+      }
+
+      try {
+        render();
+      } catch (e) {
+        console.error('render error:', e);
+      }
     };
 
-    animationRef.current = requestAnimationFrame(gameLoop);
+    console.log('Starting gameLoop via setInterval...');
+    runningFlagRef.current = true;
+    intervalRef.current = window.setInterval(gameLoop, 16);
 
     return () => {
-      cancelAnimationFrame(animationRef.current);
+      console.log('Cleanup called, stopping interval');
+      runningFlagRef.current = false;
+      if (intervalRef.current !== null) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
-  }, [updateGame]);
+  }, []);
 
   const getMousePosition = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -357,15 +386,18 @@ export function GameBoard() {
     if (state.gamePhase !== 'aiming') return;
 
     const pos = getMousePosition(e);
-    mouseRef.current = { ...pos, isDown: true };
-    startAiming();
-  }, [getMousePosition, startAiming]);
+    state.startAiming();
+
+    const cueBall = state.balls.find((b) => b.number === 0 && !b.pocketed);
+    if (cueBall) {
+      const angle = Math.atan2(pos.y - cueBall.y, pos.x - cueBall.x);
+      state.updateAim(angle, 0);
+    }
+  }, [getMousePosition]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const state = useGameStore.getState();
     const pos = getMousePosition(e);
-    mouseRef.current.x = pos.x;
-    mouseRef.current.y = pos.y;
 
     const cueBall = state.balls.find((b) => b.number === 0 && !b.pocketed);
     if (!cueBall) return;
@@ -375,27 +407,25 @@ export function GameBoard() {
     if (state.isAiming) {
       const dist = Math.sqrt((pos.x - cueBall.x) ** 2 + (pos.y - cueBall.y) ** 2);
       const power = Math.min(dist * 2, MAX_POWER);
-      updateAim(angle, power);
+      state.updateAim(angle, power);
     } else if (state.gamePhase === 'aiming') {
-      updateAim(angle, 0);
+      state.updateAim(angle, 0);
     }
-  }, [getMousePosition, updateAim]);
+  }, [getMousePosition]);
 
   const handleMouseUp = useCallback(() => {
     const state = useGameStore.getState();
     if (state.isAiming && state.gamePhase === 'aiming') {
-      shoot();
+      state.shoot();
     }
-    mouseRef.current.isDown = false;
-  }, [shoot]);
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
     const state = useGameStore.getState();
     if (state.isAiming && state.gamePhase === 'aiming') {
-      shoot();
+      state.shoot();
     }
-    mouseRef.current.isDown = false;
-  }, [shoot]);
+  }, []);
 
   return (
     <div
@@ -405,24 +435,32 @@ export function GameBoard() {
         alignItems: 'center',
         flex: 1,
         padding: 20,
-        minWidth: 940,
-        minHeight: 510,
+        overflow: 'hidden',
       }}
     >
-      <canvas
-        ref={canvasRef}
-        width={TABLE_CONFIG.width}
-        height={TABLE_CONFIG.height}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
+      <div
         style={{
-          cursor: 'crosshair',
-          borderRadius: 8,
-          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center',
+          transition: 'transform 0.3s ease',
         }}
-      />
+      >
+        <canvas
+          ref={canvasRef}
+          width={TABLE_CONFIG.width}
+          height={TABLE_CONFIG.height}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          style={{
+            cursor: 'crosshair',
+            borderRadius: 8,
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+            display: 'block',
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -47,6 +47,22 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   initGame: () => {
     const balls = createInitialBalls();
+    const rackCenterX = 690;
+    const rackCenterY = 225;
+    for (const b of balls) {
+      if (b.number === 0) continue;
+      const dx = b.x - rackCenterX;
+      const dy = b.y - rackCenterY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist === 0) {
+        b.vx = (Math.random() - 0.5) * 200;
+        b.vy = (Math.random() - 0.5) * 200;
+      } else {
+        const speed = 100 + Math.random() * 150;
+        b.vx = (dx / dist) * speed;
+        b.vy = (dy / dist) * speed;
+      }
+    }
     set({
       balls,
       players: [
@@ -54,7 +70,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         { id: 1, name: '玩家2', score: 0 },
       ],
       currentPlayer: 0,
-      gamePhase: 'idle',
+      gamePhase: 'moving',
       winner: null,
       particles: [],
       ripples: [],
@@ -63,8 +79,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       aimAngle: 0,
       power: 0,
       cueBackOffset: 0,
-      breakAnimation: true,
-      breakAnimationProgress: 0,
+      breakAnimation: false,
+      breakAnimationProgress: 1,
     });
   },
 
@@ -75,8 +91,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   updateAim: (angle: number, power: number) => {
-    const { isAiming } = get();
-    if (!isAiming) return;
     const clampedPower = Math.min(Math.max(power, 0), MAX_POWER);
     const cueBackOffset = (clampedPower / MAX_POWER) * 50;
     set({ aimAngle: angle, power: clampedPower, cueBackOffset });
@@ -109,31 +123,6 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   updateGame: (dt: number) => {
     const state = get();
-
-    if (state.breakAnimation) {
-      const newProgress = state.breakAnimationProgress + dt / 0.3;
-      if (newProgress >= 1) {
-        set({ breakAnimation: false, breakAnimationProgress: 1, gamePhase: 'aiming' });
-      } else {
-        const rackCenterX = 690;
-        const rackCenterY = 225;
-        const balls = state.balls.map((b) => {
-          if (b.number === 0) return b;
-          const dx = b.x - rackCenterX;
-          const dy = b.y - rackCenterY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist === 0) return b;
-          const spreadAmount = newProgress * 15;
-          return {
-            ...b,
-            x: b.x + (dx / dist) * spreadAmount,
-            y: b.y + (dy / dist) * spreadAmount,
-          };
-        });
-        set({ breakAnimationProgress: newProgress, balls });
-      }
-      return;
-    }
 
     if (state.gamePhase !== 'moving') return;
 
