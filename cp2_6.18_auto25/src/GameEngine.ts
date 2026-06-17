@@ -42,7 +42,7 @@ export interface Projectile {
 
 export interface Particle {
   id: string;
-  type: 'snow' | 'poison' | 'upgrade' | 'bullet';
+  type: 'snow' | 'poison' | 'upgrade' | 'bullet' | 'ripple' | 'explosion';
   x: number;
   y: number;
   vx: number;
@@ -74,6 +74,11 @@ export interface GameState {
   enemiesSpawned: number;
   enemiesPerWave: number;
   spawnTimer: number;
+  waveAnnouncement: boolean;
+  waveAnnouncementTime: number;
+  goldAnimating: boolean;
+  livesAnimating: boolean;
+  waveAnimating: boolean;
 }
 
 export interface GameActions {
@@ -134,6 +139,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   enemiesSpawned: 0,
   enemiesPerWave: 8,
   spawnTimer: 0,
+  waveAnnouncement: false,
+  waveAnnouncementTime: 0,
+  goldAnimating: false,
+  livesAnimating: false,
+  waveAnimating: false,
 
   initializeGame: () => {
     const mapData = MapGenerator.generate();
@@ -155,6 +165,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       selectedTower: null,
       enemiesSpawned: 0,
       spawnTimer: 0,
+      waveAnnouncement: false,
+      waveAnnouncementTime: 0,
+      goldAnimating: false,
+      livesAnimating: false,
+      waveAnimating: false,
     });
   },
 
@@ -208,11 +223,30 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       upgradeStartTime: 0,
     };
 
+    const rippleParticle: Particle = {
+      id: uuidv4(),
+      type: 'ripple',
+      x: state.selectedCell.x + 0.5,
+      y: state.selectedCell.y + 0.5,
+      vx: 0,
+      vy: 0,
+      life: 500,
+      maxLife: 500,
+      color: '#00ABB3',
+      size: 1,
+    };
+
     set({
       towers: [...state.towers, tower],
       gold: state.gold - cost,
       selectedCell: null,
+      particles: [...state.particles.slice(-(MAX_PARTICLES - 1)), rippleParticle],
+      goldAnimating: true,
     });
+
+    setTimeout(() => {
+      set({ goldAnimating: false });
+    }, 200);
   },
 
   upgradeTower: (towerId: string) => {
@@ -253,11 +287,31 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       });
     }
 
+    const rippleParticle: Particle = {
+      id: uuidv4(),
+      type: 'ripple',
+      x: tower.x + 0.5,
+      y: tower.y + 0.5,
+      vx: 0,
+      vy: 0,
+      life: 500,
+      maxLife: 500,
+      color: '#00ABB3',
+      size: 1,
+    };
+
+    const allParticles = [...upgradeParticles, rippleParticle];
+
     set({
       towers: upgradedTowers,
       gold: state.gold - upgradeCost,
-      particles: [...state.particles.slice(-(MAX_PARTICLES - upgradeParticles.length)), ...upgradeParticles],
+      particles: [...state.particles.slice(-(MAX_PARTICLES - allParticles.length)), ...allParticles],
+      goldAnimating: true,
     });
+
+    setTimeout(() => {
+      set({ goldAnimating: false });
+    }, 200);
   },
 
   startNextWave: () => {
@@ -274,18 +328,33 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       enemiesSpawned: 0,
       enemiesPerWave,
       spawnTimer: 0,
+      waveAnnouncement: true,
+      waveAnnouncementTime: 1500,
+      waveAnimating: true,
     });
+
+    setTimeout(() => {
+      set({ waveAnimating: false });
+    }, 200);
   },
 
   update: (deltaTime: number) => {
     const state = get();
     if (state.gameOver || state.victory) return;
 
-    let { enemies, towers, projectiles, particles, gold, lives, waveInProgress, wave, enemiesSpawned, enemiesPerWave, spawnTimer } = state;
+    let { enemies, towers, projectiles, particles, gold, lives, waveInProgress, wave, enemiesSpawned, enemiesPerWave, spawnTimer, waveAnnouncement, waveAnnouncementTime } = state;
     const currentTime = performance.now();
 
+    if (waveAnnouncement) {
+      waveAnnouncementTime -= deltaTime;
+      if (waveAnnouncementTime <= 0) {
+        waveAnnouncement = false;
+      }
+    }
+
+    let shouldTriggerWaveAnim = false;
+
     if (!waveInProgress && wave < state.maxWaves) {
-      // 波次间隔计时 - 自动开始下一波
       state.waveTimer -= deltaTime;
       if (state.waveTimer <= 0) {
         const nextWave = wave + 1;
@@ -295,6 +364,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         enemiesSpawned = 0;
         enemiesPerWave = newEnemiesPerWave;
         spawnTimer = 0;
+        waveAnnouncement = true;
+        waveAnnouncementTime = 1500;
+        shouldTriggerWaveAnim = true;
       }
     }
 
@@ -329,6 +401,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       }
     }
 
+    const newParticles: Particle[] = [...particles];
     const updatedEnemies: Enemy[] = [];
     let livesLost = 0;
     let goldGained = 0;
@@ -364,6 +437,23 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
       if (hp <= 0) {
         goldGained += ENEMY_GOLD_REWARD;
+        const particleCount = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < particleCount; i++) {
+          const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5;
+          const speed = 2 + Math.random() * 2;
+          newParticles.push({
+            id: uuidv4(),
+            type: 'explosion',
+            x: enemy.x,
+            y: enemy.y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 300,
+            maxLife: 300,
+            color: '#FF8C00',
+            size: 6,
+          });
+        }
         continue;
       }
 
@@ -444,7 +534,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     });
 
     const updatedProjectiles: Projectile[] = [];
-    const newParticles: Particle[] = [...particles];
 
     for (const proj of projectiles) {
       const target = updatedEnemies.find(e => e.id === proj.targetId);
@@ -520,17 +609,30 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     const updatedParticles = newParticles
-      .map(p => ({
-        ...p,
-        x: p.x + p.vx * (deltaTime / 1000),
-        y: p.y + p.vy * (deltaTime / 1000),
-        life: p.life - deltaTime,
-      }))
+      .map(p => {
+        if (p.type === 'ripple') {
+          const progress = 1 - p.life / p.maxLife;
+          return {
+            ...p,
+            size: 1 + progress * 3,
+            life: p.life - deltaTime,
+          };
+        }
+        return {
+          ...p,
+          x: p.x + p.vx * (deltaTime / 1000),
+          y: p.y + p.vy * (deltaTime / 1000),
+          life: p.life - deltaTime,
+        };
+      })
       .filter(p => p.life > 0)
       .slice(-MAX_PARTICLES);
 
     const newLives = lives - livesLost;
     const newGold = gold + goldGained;
+
+    const goldChanged = goldGained > 0;
+    const livesChanged = livesLost > 0;
 
     if (newLives <= 0) {
       set({
@@ -541,6 +643,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         lives: 0,
         gold: newGold,
         gameOver: true,
+        waveAnnouncement,
+        waveAnnouncementTime,
       });
       return;
     }
@@ -557,7 +661,28 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       enemiesSpawned,
       enemiesPerWave,
       spawnTimer,
+      waveAnnouncement,
+      waveAnnouncementTime,
+      goldAnimating: goldChanged || state.goldAnimating,
+      livesAnimating: livesChanged || state.livesAnimating,
+      waveAnimating: shouldTriggerWaveAnim || state.waveAnimating,
     });
+
+    if (goldChanged && !state.goldAnimating) {
+      setTimeout(() => {
+        set({ goldAnimating: false });
+      }, 200);
+    }
+    if (livesChanged && !state.livesAnimating) {
+      setTimeout(() => {
+        set({ livesAnimating: false });
+      }, 200);
+    }
+    if (shouldTriggerWaveAnim && !state.waveAnimating) {
+      setTimeout(() => {
+        set({ waveAnimating: false });
+      }, 200);
+    }
   },
 }));
 

@@ -21,7 +21,7 @@ const TOWER_LABELS: Record<TowerType, string> = {
 };
 
 export const HUD: React.FC = () => {
-  const { lives, gold, wave, maxWaves, waveInProgress, waveTimer, startNextWave, initializeGame, gameOver, victory } = useGameStore();
+  const { lives, gold, wave, maxWaves, waveInProgress, waveTimer, startNextWave, initializeGame, gameOver, victory, goldAnimating, livesAnimating, waveAnimating } = useGameStore();
 
   const formatTime = (ms: number) => {
     return Math.ceil(ms / 1000).toString();
@@ -31,15 +31,15 @@ export const HUD: React.FC = () => {
     <div className="hud-container">
       <div className="hud-item">
         <span className="hud-label">生命值</span>
-        <span className="hud-value lives">{lives}</span>
+        <span className={`hud-value lives ${livesAnimating ? 'bounce' : ''}`}>{lives}</span>
       </div>
       <div className="hud-item">
         <span className="hud-label">金币</span>
-        <span className="hud-value gold">{gold}</span>
+        <span className={`hud-value gold ${goldAnimating ? 'bounce' : ''}`}>{gold}</span>
       </div>
       <div className="hud-item">
         <span className="hud-label">波次</span>
-        <span className="hud-value wave">{wave} / {maxWaves}</span>
+        <span className={`hud-value wave ${waveAnimating ? 'bounce' : ''}`}>{wave} / {maxWaves}</span>
       </div>
       {!waveInProgress && !gameOver && !victory && wave < maxWaves && (
         <div className="hud-item">
@@ -87,6 +87,9 @@ export const HUD: React.FC = () => {
         .hud-value {
           font-size: 14px;
           font-weight: bold;
+          display: inline-block;
+          min-width: 40px;
+          text-align: right;
         }
         .hud-value.lives {
           color: #FF4444;
@@ -96,6 +99,14 @@ export const HUD: React.FC = () => {
         }
         .hud-value.wave {
           color: #00ABB3;
+        }
+        .hud-value.bounce {
+          animation: bounceAnim 0.2s ease-in-out;
+        }
+        @keyframes bounceAnim {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.2); }
+          100% { transform: scale(1); }
         }
         .hud-value.timer {
           color: #FFA500;
@@ -346,6 +357,63 @@ export const UpgradePanel: React.FC = () => {
           padding: 10px;
           color: #FFD700;
           font-weight: bold;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export const WaveAnnouncement: React.FC = () => {
+  const { wave, waveAnnouncement } = useGameStore();
+
+  if (!waveAnnouncement) return null;
+
+  return (
+    <div className={`wave-announcement ${waveAnnouncement ? 'show' : ''}`}>
+      <div className="wave-text">第 {wave} 波</div>
+
+      <style>{`
+        .wave-announcement {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 400;
+          pointer-events: none;
+          animation: waveFade 1.5s ease-in-out forwards;
+        }
+        .wave-text {
+          font-size: 36px;
+          font-weight: bold;
+          color: #FFFFFF;
+          font-family: 'Roboto Mono', monospace;
+          text-shadow: 
+            0 0 10px #00ABB3,
+            0 0 20px #00ABB3,
+            0 0 30px #00ABB3,
+            0 0 40px #00ABB3;
+        }
+        @keyframes waveFade {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.5);
+          }
+          20% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.1);
+          }
+          40% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          80% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(1.2);
+          }
         }
       `}</style>
     </div>
@@ -622,12 +690,22 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ width, height }) => {
     const y = offsetY + particle.y * cellSize;
     const alpha = particle.life / particle.maxLife;
 
-    ctx.beginPath();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = particle.color;
-    ctx.arc(x, y, particle.size * (cellSize / 50), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    if (particle.type === 'ripple') {
+      ctx.beginPath();
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.strokeStyle = particle.color;
+      ctx.lineWidth = 3;
+      ctx.arc(x, y, particle.size * cellSize * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.beginPath();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = particle.color;
+      ctx.arc(x, y, particle.size * (cellSize / 50), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
   }, []);
 
   useEffect(() => {
@@ -728,6 +806,7 @@ export const GameContainer: React.FC = () => {
       <GameCanvas width={dimensions.width} height={dimensions.height} />
       <HUD />
       <UpgradePanel />
+      <WaveAnnouncement />
       <GameOverOverlay />
 
       <style>{`
