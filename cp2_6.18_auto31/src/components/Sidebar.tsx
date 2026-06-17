@@ -32,11 +32,14 @@ function truncateText(text: string, maxLines: number = 2): string {
 export default function Sidebar({ entries, selectedId, open, currentColor }: SidebarProps) {
   const toggleSidebar = useMoodStore((s) => s.toggleSidebar);
   const selectEntry = useMoodStore((s) => s.selectEntry);
+  const removeEntry = useMoodStore((s) => s.removeEntry);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   const [itemHeight, setItemHeight] = useState(92);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [fadingOutIds, setFadingOutIds] = useState<Set<string>>(new Set());
 
   const selectedEntry = entries.find((e) => e.id === selectedId) || null;
   const currentMood = selectedEntry?.mood || null;
@@ -74,6 +77,30 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  const handleDeleteClick = useCallback((e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setConfirmDeleteId(id);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!confirmDeleteId) return;
+    setFadingOutIds((prev) => new Set(prev).add(confirmDeleteId));
+    const idToDelete = confirmDeleteId;
+    setConfirmDeleteId(null);
+    setTimeout(() => {
+      removeEntry(idToDelete);
+      setFadingOutIds((prev) => {
+        const next = new Set(prev);
+        next.delete(idToDelete);
+        return next;
+      });
+    }, 200);
+  }, [confirmDeleteId, removeEntry]);
+
+  const handleCancelDelete = useCallback(() => {
+    setConfirmDeleteId(null);
   }, []);
 
   const virtualItems = useMemo(() => {
@@ -265,6 +292,7 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
                 {virtualItems.items.map(({ entry, offsetY }) => {
                   const theme = MOOD_THEME[entry.mood];
                   const isSelected = selectedId === entry.id;
+                  const isFadingOut = fadingOutIds.has(entry.id);
                   return (
                     <div
                       key={entry.id}
@@ -279,8 +307,9 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
                         cursor: 'pointer',
                         background: isSelected ? `${entry.color}10` : 'transparent',
                         borderLeft: isSelected ? `4px solid ${entry.color}` : '4px solid transparent',
-                        transition: 'background 0.2s ease',
+                        transition: 'background 0.2s ease, opacity 0.2s ease',
                         boxSizing: 'border-box',
+                        opacity: isFadingOut ? 0 : 1,
                       }}
                       onMouseEnter={(e) => {
                         if (!isSelected) {
@@ -299,6 +328,7 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
                           alignItems: 'flex-start',
                           gap: '12px',
                           height: '100%',
+                          position: 'relative',
                         }}
                       >
                         <div
@@ -323,6 +353,7 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
                             flexDirection: 'column',
                             justifyContent: 'center',
                             height: '100%',
+                            paddingRight: '28px',
                           }}
                         >
                           <div
@@ -350,6 +381,44 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
                             {truncateText(entry.text)}
                           </div>
                         </div>
+                        <button
+                          onClick={(e) => handleDeleteClick(e, entry.id)}
+                          style={{
+                            position: 'absolute',
+                            right: '4px',
+                            bottom: '8px',
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '6px',
+                            background: 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: 0.3,
+                            transition: 'all 0.2s ease',
+                            color: '#999',
+                            fontSize: '14px',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.opacity = '1';
+                            e.currentTarget.style.color = '#E74C3C';
+                            e.currentTarget.style.background = 'rgba(231, 76, 60, 0.1)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.opacity = '0.3';
+                            e.currentTarget.style.color = '#999';
+                            e.currentTarget.style.background = 'transparent';
+                          }}
+                          title="删除"
+                          type="button"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                          </svg>
+                        </button>
                       </div>
                     </div>
                   );
@@ -358,6 +427,118 @@ export default function Sidebar({ entries, selectedId, open, currentColor }: Sid
             )}
           </div>
         </>
+      )}
+
+      {confirmDeleteId && (
+        <div
+          onClick={handleCancelDelete}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '20px',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '240px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+              animation: 'fadeIn 0.2s ease-out',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '15px',
+                fontWeight: 600,
+                color: '#333',
+                marginBottom: '8px',
+                textAlign: 'center',
+              }}
+            >
+              删除确认
+            </div>
+            <div
+              style={{
+                fontSize: '13px',
+                color: '#666',
+                marginBottom: '20px',
+                textAlign: 'center',
+                lineHeight: 1.5,
+              }}
+            >
+              确定要删除这条心情记录吗？
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                gap: '10px',
+              }}
+            >
+              <button
+                onClick={handleCancelDelete}
+                style={{
+                  flex: 1,
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'rgba(0, 0, 0, 0.05)',
+                  color: '#666',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(0, 0, 0, 0.05)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+                type="button"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                style={{
+                  flex: 1,
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: '#E74C3C',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#C0392B';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(231, 76, 60, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#E74C3C';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                type="button"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

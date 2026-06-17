@@ -9,6 +9,7 @@ interface MoodStore {
   addEntry: (mood: MoodType, text: string) => void;
   selectEntry: (id: string | null) => void;
   toggleSidebar: () => void;
+  removeEntry: (id: string) => void;
 }
 
 export const useMoodStore = create<MoodStore>((set) => ({
@@ -30,4 +31,16 @@ export const useMoodStore = create<MoodStore>((set) => ({
   },
   selectEntry: (id) => set({ selectedId: id }),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+  removeEntry: (id) =>
+    set((state) => {
+      const newEntries = state.entries.filter((e) => e.id !== id);
+      let newSelectedId = state.selectedId;
+      if (state.selectedId === id) {
+        newSelectedId = newEntries.length > 0 ? newEntries[0].id : null;
+      }
+      return {
+        entries: newEntries,
+        selectedId: newSelectedId,
+      };
+    }),
 }));
