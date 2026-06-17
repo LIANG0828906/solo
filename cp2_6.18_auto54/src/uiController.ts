@@ -32,16 +32,15 @@ export class UIController {
     this.onScreenshot = onScreenshot;
     this.onParamChange = onParamChange;
 
-    this.checkMobile();
+    this.isMobile = window.innerWidth < 768;
     this.createUI();
     this.bindEvents();
-    window.addEventListener('resize', () => this.checkMobile());
+    window.addEventListener('resize', () => this.onResize());
   }
 
-  private checkMobile(): void {
+  private onResize(): void {
     const wasMobile = this.isMobile;
     this.isMobile = window.innerWidth < 768;
-    
     if (wasMobile !== this.isMobile) {
       this.updateLayout();
     }
@@ -90,7 +89,7 @@ export class UIController {
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.25s ease;
+        transition: filter 0.25s ease, transform 0.25s ease;
         white-space: nowrap;
       }
 
@@ -114,44 +113,41 @@ export class UIController {
         z-index: 1000;
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        animation: panelEnter 0.4s ease-out;
+        animation: aurabloomPanelEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         transform-origin: bottom right;
       }
 
-      .aurabloom-control-panel.mobile {
+      .aurabloom-control-panel.mobile-layout {
         position: fixed;
         bottom: 80px;
         left: 50%;
         right: auto;
         transform: translateX(-50%);
         transform-origin: center bottom;
+        animation: aurabloomPanelEnterMobile 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
       }
 
-      .aurabloom-control-panel.hidden {
+      .aurabloom-control-panel.panel-hidden {
         display: none;
       }
 
-      @keyframes panelEnter {
-        from {
+      @keyframes aurabloomPanelEnter {
+        0% {
           opacity: 0;
           transform: scale(0.15);
         }
-        to {
+        100% {
           opacity: 1;
           transform: scale(1);
         }
       }
 
-      .aurabloom-control-panel.mobile {
-        animation: panelEnterMobile 0.4s ease-out;
-      }
-
-      @keyframes panelEnterMobile {
-        from {
+      @keyframes aurabloomPanelEnterMobile {
+        0% {
           opacity: 0;
           transform: translateX(-50%) scale(0.15);
         }
-        to {
+        100% {
           opacity: 1;
           transform: translateX(-50%) scale(1);
         }
@@ -176,7 +172,7 @@ export class UIController {
       .aurabloom-slider {
         width: 100%;
         height: 4px;
-        background: #2D2850;
+        background: #2A2648;
         border-radius: 2px;
         outline: none;
         -webkit-appearance: none;
@@ -184,25 +180,40 @@ export class UIController {
         cursor: pointer;
       }
 
+      .aurabloom-slider::-webkit-slider-runnable-track {
+        height: 4px;
+        background: #2A2648;
+        border-radius: 2px;
+      }
+
       .aurabloom-slider::-webkit-slider-thumb {
         -webkit-appearance: none;
         appearance: none;
         width: 16px;
         height: 16px;
-        background: #7B6FE0;
+        background: #7C6FF0;
         border-radius: 50%;
         cursor: pointer;
+        margin-top: -6px;
         transition: background 0.2s;
+        border: none;
       }
 
       .aurabloom-slider::-webkit-slider-thumb:hover {
-        background: #9B8FF0;
+        background: #9B8FF5;
+      }
+
+      .aurabloom-slider::-moz-range-track {
+        height: 4px;
+        background: #2A2648;
+        border-radius: 2px;
+        border: none;
       }
 
       .aurabloom-slider::-moz-range-thumb {
         width: 16px;
         height: 16px;
-        background: #7B6FE0;
+        background: #7C6FF0;
         border-radius: 50%;
         cursor: pointer;
         border: none;
@@ -210,23 +221,34 @@ export class UIController {
       }
 
       .aurabloom-slider::-moz-range-thumb:hover {
-        background: #9B8FF0;
+        background: #9B8FF5;
       }
 
       .aurabloom-select {
         width: 100%;
         padding: 8px 12px;
-        background: #2D2850;
+        background: #2A2648;
         color: white;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 6px;
         font-size: 12px;
         cursor: pointer;
         outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239B8FF5' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 28px;
       }
 
       .aurabloom-select:focus {
-        border-color: #7B6FE0;
+        border-color: #7C6FF0;
+      }
+
+      .aurabloom-select option {
+        background: #1E1B33;
+        color: white;
       }
 
       .aurabloom-screenshot-btn {
@@ -244,7 +266,7 @@ export class UIController {
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s ease;
+        transition: transform 0.2s ease, opacity 0.3s ease;
         opacity: 0;
         pointer-events: none;
       }
@@ -274,10 +296,9 @@ export class UIController {
         opacity: 0;
         pointer-events: none;
         z-index: 9999;
-        transition: opacity 0.03s;
       }
 
-      .aurabloom-flash-overlay.active {
+      .aurabloom-flash-overlay.flash-active {
         opacity: 1;
       }
 
@@ -297,12 +318,12 @@ export class UIController {
         align-items: center;
         justify-content: center;
         color: white;
-        font-size: 24px;
+        font-size: 20px;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         transition: transform 0.2s;
       }
 
-      .aurabloom-mobile-toggle.visible {
+      .aurabloom-mobile-toggle.toggle-visible {
         display: flex;
       }
 
@@ -325,7 +346,7 @@ export class UIController {
 
     const uploadBtn = document.createElement('button');
     uploadBtn.className = 'aurabloom-upload-btn';
-    uploadBtn.textContent = '📷 上传照片';
+    uploadBtn.textContent = '上传照片';
 
     this.fileInput = document.createElement('input');
     this.fileInput.type = 'file';
@@ -341,33 +362,33 @@ export class UIController {
 
   private createControlPanel(): void {
     this.controlPanel = document.createElement('div');
-    this.controlPanel.className = 'aurabloom-control-panel hidden';
+    this.controlPanel.className = 'aurabloom-control-panel panel-hidden';
 
     this.controlPanel.innerHTML = `
       <div class="aurabloom-control-group">
         <label class="aurabloom-control-label">
-          扩散半径 <span class="aurabloom-slider-value" id="spread-value">1.5</span>
+          扩散半径 <span class="aurabloom-slider-value" id="aurabloom-spread-val">1.5</span>
         </label>
-        <input type="range" class="aurabloom-slider" id="spread-slider" 
+        <input type="range" class="aurabloom-slider" id="aurabloom-spread-slider"
                min="0.5" max="3" step="0.1" value="1.5">
       </div>
       <div class="aurabloom-control-group">
         <label class="aurabloom-control-label">
-          脉动速度 <span class="aurabloom-slider-value" id="pulse-value">1.0</span>
+          脉动速度 <span class="aurabloom-slider-value" id="aurabloom-pulse-val">1.0</span>
         </label>
-        <input type="range" class="aurabloom-slider" id="pulse-slider"
+        <input type="range" class="aurabloom-slider" id="aurabloom-pulse-slider"
                min="0" max="2" step="0.1" value="1">
       </div>
       <div class="aurabloom-control-group">
         <label class="aurabloom-control-label">
-          粒子大小 <span class="aurabloom-slider-value" id="size-value">4.0</span>
+          粒子大小 <span class="aurabloom-slider-value" id="aurabloom-size-val">4.0</span>
         </label>
-        <input type="range" class="aurabloom-slider" id="size-slider"
+        <input type="range" class="aurabloom-slider" id="aurabloom-size-slider"
                min="1" max="6" step="0.5" value="4">
       </div>
       <div class="aurabloom-control-group">
         <label class="aurabloom-control-label">颜色模式</label>
-        <select class="aurabloom-select" id="color-mode-select">
+        <select class="aurabloom-select" id="aurabloom-color-mode">
           <option value="brightnessMix">亮度混合</option>
           <option value="hueGroup">色相分组</option>
         </select>
@@ -376,10 +397,10 @@ export class UIController {
 
     document.body.appendChild(this.controlPanel);
 
-    this.spreadSlider = document.getElementById('spread-slider') as HTMLInputElement;
-    this.pulseSlider = document.getElementById('pulse-slider') as HTMLInputElement;
-    this.sizeSlider = document.getElementById('size-slider') as HTMLInputElement;
-    this.colorModeSelect = document.getElementById('color-mode-select') as HTMLSelectElement;
+    this.spreadSlider = document.getElementById('aurabloom-spread-slider') as HTMLInputElement;
+    this.pulseSlider = document.getElementById('aurabloom-pulse-slider') as HTMLInputElement;
+    this.sizeSlider = document.getElementById('aurabloom-size-slider') as HTMLInputElement;
+    this.colorModeSelect = document.getElementById('aurabloom-color-mode') as HTMLSelectElement;
   }
 
   private createScreenshotButton(): void {
@@ -402,7 +423,7 @@ export class UIController {
   private createMobileToggle(): void {
     this.mobileToggleBtn = document.createElement('button');
     this.mobileToggleBtn.className = 'aurabloom-mobile-toggle';
-    this.mobileToggleBtn.innerHTML = '⚙️';
+    this.mobileToggleBtn.innerHTML = '&#9881;';
     document.body.appendChild(this.mobileToggleBtn);
   }
 
@@ -418,21 +439,24 @@ export class UIController {
     this.spreadSlider?.addEventListener('input', (e) => {
       const value = parseFloat((e.target as HTMLInputElement).value);
       this.config.spreadRadius = value;
-      document.getElementById('spread-value')!.textContent = value.toFixed(1);
+      const valEl = document.getElementById('aurabloom-spread-val');
+      if (valEl) valEl.textContent = value.toFixed(1);
       this.onParamChange();
     });
 
     this.pulseSlider?.addEventListener('input', (e) => {
       const value = parseFloat((e.target as HTMLInputElement).value);
       this.config.pulseSpeed = value;
-      document.getElementById('pulse-value')!.textContent = value.toFixed(1);
+      const valEl = document.getElementById('aurabloom-pulse-val');
+      if (valEl) valEl.textContent = value.toFixed(1);
       this.onParamChange();
     });
 
     this.sizeSlider?.addEventListener('input', (e) => {
       const value = parseFloat((e.target as HTMLInputElement).value);
       this.config.particleSize = value;
-      document.getElementById('size-value')!.textContent = value.toFixed(1);
+      const valEl = document.getElementById('aurabloom-size-val');
+      if (valEl) valEl.textContent = value.toFixed(1);
       this.onParamChange();
     });
 
@@ -453,15 +477,15 @@ export class UIController {
 
   private updateLayout(): void {
     if (this.isMobile) {
-      this.controlPanel?.classList.add('mobile');
-      this.mobileToggleBtn?.classList.add('visible');
+      this.controlPanel?.classList.add('mobile-layout');
+      this.mobileToggleBtn?.classList.add('toggle-visible');
       if (!this.panelVisible) {
-        this.controlPanel?.classList.add('hidden');
+        this.controlPanel?.classList.add('panel-hidden');
       }
     } else {
-      this.controlPanel?.classList.remove('mobile');
-      this.mobileToggleBtn?.classList.remove('visible');
-      this.controlPanel?.classList.remove('hidden');
+      this.controlPanel?.classList.remove('mobile-layout');
+      this.mobileToggleBtn?.classList.remove('toggle-visible');
+      this.controlPanel?.classList.remove('panel-hidden');
       this.panelVisible = true;
     }
   }
@@ -469,34 +493,26 @@ export class UIController {
   private toggleMobilePanel(): void {
     this.panelVisible = !this.panelVisible;
     if (this.panelVisible) {
-      this.controlPanel?.classList.remove('hidden');
+      this.controlPanel?.classList.remove('panel-hidden');
     } else {
-      this.controlPanel?.classList.add('hidden');
+      this.controlPanel?.classList.add('panel-hidden');
     }
   }
 
   showUploadPanel(): void {
     this.uploadContainer?.classList.remove('hidden');
     this.screenshotBtn?.classList.remove('visible');
-    this.controlPanel?.classList.add('hidden');
+    this.controlPanel?.classList.add('panel-hidden');
   }
 
   hideUploadPanel(): void {
     this.uploadContainer?.classList.add('hidden');
     this.screenshotBtn?.classList.add('visible');
-    this.controlPanel?.classList.remove('hidden');
+    this.controlPanel?.classList.remove('panel-hidden');
     if (this.isMobile) {
       this.panelVisible = false;
-      this.controlPanel?.classList.add('hidden');
+      this.controlPanel?.classList.add('panel-hidden');
     }
-  }
-
-  showControlPanel(): void {
-    this.controlPanel?.classList.remove('hidden');
-  }
-
-  hideControlPanel(): void {
-    this.controlPanel?.classList.add('hidden');
   }
 
   triggerFlashEffect(): Promise<void> {
@@ -505,34 +521,43 @@ export class UIController {
         resolve();
         return;
       }
-      
-      this.flashOverlay?.classList.add('active');
+
+      if (!this.flashOverlay) {
+        resolve();
+        return;
+      }
+
+      this.flashOverlay.classList.add('flash-active');
+
       setTimeout(() => {
-        this.flashOverlay?.classList.remove('active');
+        this.flashOverlay?.classList.remove('flash-active');
         setTimeout(resolve, 30);
       }, 30);
     });
   }
 
+  isMobileDevice(): boolean {
+    return this.isMobile;
+  }
+
   updateUI(): void {
     if (this.spreadSlider) {
       this.spreadSlider.value = this.config.spreadRadius.toString();
-      document.getElementById('spread-value')!.textContent = this.config.spreadRadius.toFixed(1);
+      const valEl = document.getElementById('aurabloom-spread-val');
+      if (valEl) valEl.textContent = this.config.spreadRadius.toFixed(1);
     }
     if (this.pulseSlider) {
       this.pulseSlider.value = this.config.pulseSpeed.toString();
-      document.getElementById('pulse-value')!.textContent = this.config.pulseSpeed.toFixed(1);
+      const valEl = document.getElementById('aurabloom-pulse-val');
+      if (valEl) valEl.textContent = this.config.pulseSpeed.toFixed(1);
     }
     if (this.sizeSlider) {
       this.sizeSlider.value = this.config.particleSize.toString();
-      document.getElementById('size-value')!.textContent = this.config.particleSize.toFixed(1);
+      const valEl = document.getElementById('aurabloom-size-val');
+      if (valEl) valEl.textContent = this.config.particleSize.toFixed(1);
     }
     if (this.colorModeSelect) {
       this.colorModeSelect.value = this.config.colorMode;
     }
-  }
-
-  isMobileDevice(): boolean {
-    return this.isMobile;
   }
 }
