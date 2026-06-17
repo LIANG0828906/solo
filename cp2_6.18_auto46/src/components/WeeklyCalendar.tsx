@@ -8,12 +8,23 @@ interface WeeklyCalendarProps {
 }
 
 export default function WeeklyCalendar({ userId, userName }: WeeklyCalendarProps) {
-  const checkins = useAppStore(state => state.checkins);
+  const checkins = useAppStore(state => state.checkins) || [];
 
-  const weekData: WeeklyDayData[] = useMemo(
-    () => getWeeklyCalendarData(checkins, userId),
-    [checkins, userId]
-  );
+  const weekData: WeeklyDayData[] = useMemo(() => {
+    if (!userId || !Array.isArray(checkins)) return [];
+    return getWeeklyCalendarData(checkins, userId);
+  }, [checkins, userId]);
+
+  if (weekData.length === 0) {
+    return (
+      <div className="weekly-calendar-card">
+        <div style={{ textAlign: 'center', padding: '24px 0', color: '#94A3B8' }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+          <div style={{ fontSize: 13 }}>暂无打卡数据</div>
+        </div>
+      </div>
+    );
+  }
 
   const completedCount = weekData.filter(d => d.status === 'completed').length;
   const totalMinutes = weekData.reduce((sum, d) => sum + d.duration, 0);

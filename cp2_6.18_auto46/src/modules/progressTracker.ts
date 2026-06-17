@@ -150,23 +150,33 @@ export const getWeeklyCalendarData = (
   checkins: Checkin[],
   userId: string
 ): WeeklyDayData[] => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const today = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
 
   const dayOfWeek = today.getDay();
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + mondayOffset);
+  const monday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() + mondayOffset
+  );
 
   const result: WeeklyDayData[] = [];
   const todayKey = formatDateKey(today);
 
   for (let i = 0; i < 7; i++) {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + i);
+    const date = new Date(
+      monday.getFullYear(),
+      monday.getMonth(),
+      monday.getDate() + i
+    );
     const dateKey = formatDateKey(date);
 
-    const dayCheckins = checkins.filter(
+    const dayCheckins = (Array.isArray(checkins) ? checkins : []).filter(
       c => c.userId === userId && c.date === dateKey
     );
     const totalDuration = dayCheckins.reduce((sum, c) => sum + c.duration, 0);
@@ -174,10 +184,8 @@ export const getWeeklyCalendarData = (
     let status: DayStatus;
     if (totalDuration > 0) {
       status = 'completed';
-    } else if (date < today) {
+    } else if (date.getTime() < today.getTime()) {
       status = 'missed';
-    } else if (dateKey === todayKey) {
-      status = 'pending';
     } else {
       status = 'pending';
     }

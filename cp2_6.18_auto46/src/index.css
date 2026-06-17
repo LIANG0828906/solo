@@ -826,6 +826,58 @@ body {
   background: var(--primary);
   border-color: var(--primary);
   color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  transform: scale(1.02);
+}
+
+.weekly-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggle-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.toggle-indicator {
+  font-size: 8px;
+  margin-left: 2px;
+  opacity: 0.9;
+}
+
+.weekly-cell.pending {
+  background: #FFFFFF;
+  color: #CBD5E1;
+  border: 2px dashed #CBD5E1;
+  position: relative;
+}
+
+.weekly-cell.pending::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #CBD5E1;
+}
+
+.weekly-cell.pending .weekly-cell-icon {
+  color: #94A3B8;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 @media (max-width: 768px) {

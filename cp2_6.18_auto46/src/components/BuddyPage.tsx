@@ -102,19 +102,45 @@ export default function BuddyPage() {
                   className={`weekly-toggle-btn ${calendarViewUserId === 'me' ? 'active' : ''}`}
                   onClick={() => setCalendarViewUserId('me')}
                 >
+                  <span
+                    className="toggle-avatar"
+                    style={{
+                      background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                    }}
+                  >
+                    我
+                  </span>
                   我的日历
+                  {calendarViewUserId === 'me' && (
+                    <span className="toggle-indicator">●</span>
+                  )}
                 </button>
                 <button
                   className={`weekly-toggle-btn ${calendarViewUserId === selectedBuddy.userId ? 'active' : ''}`}
                   onClick={() => setCalendarViewUserId(selectedBuddy.userId)}
                 >
+                  <span
+                    className="toggle-avatar"
+                    style={{
+                      background: 'linear-gradient(135deg, #F97316, #EF4444)',
+                    }}
+                  >
+                    {selectedBuddy.user!.nickname.charAt(0)}
+                  </span>
                   {selectedBuddy.user!.nickname}的日历
+                  {calendarViewUserId === selectedBuddy.userId && (
+                    <span className="toggle-indicator">●</span>
+                  )}
                 </button>
                 <button
                   className={`weekly-toggle-btn ${calendarViewUserId === 'both' ? 'active' : ''}`}
                   onClick={() => setCalendarViewUserId('both')}
                 >
+                  <span className="toggle-avatar" style={{ fontSize: 11 }}>👥</span>
                   并排对比
+                  {calendarViewUserId === 'both' && (
+                    <span className="toggle-indicator">●</span>
+                  )}
                 </button>
               </div>
 
