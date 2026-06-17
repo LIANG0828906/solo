@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { useGeoFlowStore } from '../store';
-import { getDataStatistics } from '../utils/parseData';
 
 const styles = {
   panel: {
@@ -157,6 +156,40 @@ const styles = {
     color: '#8B949E',
     minWidth: '30px'
   },
+  performanceCard: {
+    padding: '12px',
+    backgroundColor: '#0D1117',
+    borderRadius: '8px',
+    border: '1px solid #21262D'
+  },
+  performanceGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '10px'
+  },
+  performanceItem: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '2px'
+  },
+  performanceValue: {
+    fontSize: '18px',
+    fontWeight: 700,
+    color: '#58A6FF'
+  },
+  performanceLabel: {
+    fontSize: '10px',
+    color: '#8B949E',
+    textTransform: 'uppercase' as const
+  },
+  lodBadge: {
+    display: 'inline-block',
+    padding: '2px 8px',
+    borderRadius: '4px',
+    fontSize: '10px',
+    fontWeight: 600,
+    marginTop: '8px'
+  },
   footer: {
     padding: '12px 16px',
     borderTop: '1px solid #30363D',
@@ -172,11 +205,11 @@ interface DataPanelProps {
 }
 
 function DataPanel({ onFileUpload, onPresetSelect }: DataPanelProps) {
-  const { rawData, dataSourceName } = useGeoFlowStore();
+  const { dataSourceName, statistics, performance } = useGeoFlowStore();
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState('earthquake');
 
-  const stats = getDataStatistics(rawData);
+  const stats = statistics;
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -211,11 +244,16 @@ function DataPanel({ onFileUpload, onPresetSelect }: DataPanelProps) {
     onPresetSelect(value);
   }, [onPresetSelect]);
 
+  const formatNumber = (num: number): string => {
+    if (!isFinite(num) || isNaN(num)) return '0.00';
+    return num.toFixed(2);
+  };
+
   const tableRows = [
     { label: '数据点数', value: stats.count.toLocaleString() },
-    { label: '最大强度', value: stats.maxIntensity.toFixed(2) },
-    { label: '最小强度', value: stats.minIntensity.toFixed(2) },
-    { label: '平均强度', value: stats.avgIntensity.toFixed(2) }
+    { label: '最大强度', value: formatNumber(stats.maxIntensity) },
+    { label: '最小强度', value: formatNumber(stats.minIntensity) },
+    { label: '平均强度', value: formatNumber(stats.avgIntensity) }
   ];
 
   return (
@@ -302,6 +340,52 @@ function DataPanel({ onFileUpload, onPresetSelect }: DataPanelProps) {
             <span style={{ ...styles.legendLabel, textAlign: 'left' }}>低</span>
             <div style={styles.legendBar} />
             <span style={{ ...styles.legendLabel, textAlign: 'right' }}>高</span>
+          </div>
+        </div>
+
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>性能监控</h3>
+          <div style={styles.performanceCard}>
+            <div style={styles.performanceGrid}>
+              <div style={styles.performanceItem}>
+                <span style={{
+                  ...styles.performanceValue,
+                  color: performance.fps >= 55 ? '#3FB950' : performance.fps >= 30 ? '#D29922' : '#F85149'
+                }}>
+                  {performance.fps.toFixed(1)}
+                </span>
+                <span style={styles.performanceLabel}>FPS</span>
+              </div>
+              <div style={styles.performanceItem}>
+                <span style={styles.performanceValue}>
+                  {performance.frameTime.toFixed(1)}ms
+                </span>
+                <span style={styles.performanceLabel}>帧时间</span>
+              </div>
+              <div style={styles.performanceItem}>
+                <span style={styles.performanceValue}>
+                  {performance.drawCalls}
+                </span>
+                <span style={styles.performanceLabel}>Draw Calls</span>
+              </div>
+              <div style={styles.performanceItem}>
+                <span style={{
+                  ...styles.performanceValue,
+                  color: performance.isLODActive ? '#F85149' : '#3FB950'
+                }}>
+                  {performance.isLODActive ? 'ON' : 'OFF'}
+                </span>
+                <span style={styles.performanceLabel}>LOD模式</span>
+              </div>
+            </div>
+            <div style={{
+              ...styles.lodBadge,
+              backgroundColor: performance.fps >= 55 ? 'rgba(63, 185, 80, 0.15)' : performance.fps >= 30 ? 'rgba(210, 153, 34, 0.15)' : 'rgba(248, 81, 73, 0.15)',
+              color: performance.fps >= 55 ? '#3FB950' : performance.fps >= 30 ? '#D29922' : '#F85149',
+              border: `1px solid ${performance.fps >= 55 ? 'rgba(63, 185, 80, 0.3)' : performance.fps >= 30 ? 'rgba(210, 153, 34, 0.3)' : 'rgba(248, 81, 73, 0.3)'}`
+            }}>
+              {performance.fps >= 55 ? '✅ 运行流畅 (≥60FPS目标)' : performance.fps >= 30 ? '⚠️ 性能一般' : '❌ 性能不足'}
+            </div>
           </div>
         </div>
       </div>

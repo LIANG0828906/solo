@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect, useState } from 'react';
+import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, Stars } from '@react-three/drei';
 import * as THREE from 'three';
@@ -8,16 +8,23 @@ import type { ProcessedDataPoint } from '../store';
 const GLOBE_RADIUS = 200;
 const ATMOSPHERE_RADIUS = 215;
 
+const LOD_DISTANCE_THRESHOLD = 700;
+const HIGH_SEGMENTS = 16;
+const LOW_SEGMENTS = 8;
+const HIGH_EARTH_SEGMENTS = 64;
+const LOW_EARTH_SEGMENTS = 32;
+
 interface DataBarProps {
   point: ProcessedDataPoint;
   isHovered: boolean;
   isSelected: boolean;
-  isLOD: boolean;
+  isDataLOD: boolean;
+  cameraDistance: number;
   onHover: (id: string | null) => void;
   onClick: (point: ProcessedDataPoint) => void;
 }
 
-function DataBar({ point, isHovered, isSelected, isLOD, onHover, onClick }: DataBarProps) {
+function DataBar({ point, isHovered, isSelected, isDataLOD, cameraDistance, onHover, onClick }: DataBarProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const [animatedHeight, setAnimatedHeight] = useState(0);
   const targetHeight = point.height;
@@ -25,7 +32,7 @@ function DataBar({ point, isHovered, isSelected, isLOD, onHover, onClick }: Data
   useEffect(() => {
     const startTime = Date.now();
     const duration = 1000;
-    const startHeight = 0;
+    const startHeight = animatedHeight;
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
@@ -41,6 +48,10 @@ function DataBar({ point, isHovered, isSelected, isLOD, onHover, onClick }: Data
 
     animate();
   }, [targetHeight]);
+
+  const isCameraLOD = cameraDistance > LOD_DISTANCE_THRESHOLD;
+  const isLOD = isDataLOD || isCameraLOD;
+  const segments = isLOD ? LOW_SEGMENTS : HIGH_SEGMENTS;
 
   const position = useMemo(() => {
     const [x, y, z] = point.position;
@@ -73,7 +84,7 @@ function DataBar({ point, isHovered, isSelected, isLOD, onHover, onClick }: Data
   }, [point.position]);
 
   const scale = isHovered && !isSelected ? 1.2 : 1;
-  const segments = isLOD ? 8 : 16;
+  const barColor = point.color;
 
   return (
     <group position={position} rotation={rotation}>
@@ -97,8 +108,8 @@ function DataBar({ point, isHovered, isSelected, isLOD, onHover, onClick }: Data
       >
         <cylinderGeometry args={[6, 6, animatedHeight, segments]} />
         <meshStandardMaterial
-          color={point.color}
-          emissive={isSelected ? '#FFD700' : point.color}
+          color={barColor}
+          emissive={isSelected ? '#FFD700' : barColor}
           emissiveIntensity={isSelected ? 0.8 : 0.2}
           metalness={0.3}
           roughness={0.4}
@@ -109,30 +120,39 @@ function DataBar({ point, isHovered, isSelected, isLOD, onHover, onClick }: Data
 
       {isSelected && (
         <>
-          <mesh scale={[1.25, 1.03, 1.25]}>
+          <mesh scale={[1.28, 1.04, 1.28]}>
             <cylinderGeometry args={[6, 6, animatedHeight, segments]} />
             <meshBasicMaterial
               color="#FFD700"
               transparent
-              opacity={0.12}
+              opacity={0.1}
               side={THREE.BackSide}
             />
           </mesh>
-          <mesh scale={[1.18, 1.02, 1.18]}>
+          <mesh scale={[1.20, 1.03, 1.20]}>
             <cylinderGeometry args={[6, 6, animatedHeight, segments]} />
             <meshBasicMaterial
               color="#FFD700"
               transparent
-              opacity={0.25}
+              opacity={0.2}
               side={THREE.BackSide}
             />
           </mesh>
-          <mesh scale={[1.12, 1.01, 1.12]}>
+          <mesh scale={[1.14, 1.02, 1.14]}>
             <cylinderGeometry args={[6, 6, animatedHeight, segments]} />
             <meshBasicMaterial
               color="#FFD700"
               transparent
-              opacity={0.45}
+              opacity={0.35}
+              side={THREE.BackSide}
+            />
+          </mesh>
+          <mesh scale={[1.08, 1.01, 1.08]}>
+            <cylinderGeometry args={[6, 6, animatedHeight, segments]} />
+            <meshBasicMaterial
+              color="#FFD700"
+              transparent
+              opacity={0.55}
               side={THREE.BackSide}
             />
           </mesh>
@@ -140,7 +160,7 @@ function DataBar({ point, isHovered, isSelected, isLOD, onHover, onClick }: Data
       )}
 
       <pointLight
-        color={point.color}
+        color={barColor}
         intensity={0.5}
         distance={50}
         position={[0, -animatedHeight / 2, 0]}
@@ -161,13 +181,13 @@ function DataBar({ point, isHovered, isSelected, isLOD, onHover, onClick }: Data
             fontSize: '14px',
             whiteSpace: 'nowrap',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
-            border: `1px solid ${point.color}`,
+            border: `1px solid ${barColor}`,
             pointerEvents: 'none'
           }}>
-            <div style={{ fontWeight: 600, marginBottom: '4px', color: point.color }}>📍 数据点</div>
+            <div style={{ fontWeight: 600, marginBottom: '4px', color: barColor }}>📍 数据点</div>
             <div>经度: {point.longitude.toFixed(4)}°</div>
             <div>纬度: {point.latitude.toFixed(4)}°</div>
-            <div style={{ marginTop: '4px', color: point.color, fontWeight: 500 }}>
+            <div style={{ marginTop: '4px', color: barColor, fontWeight: 500 }}>
               强度: {point.intensity.toFixed(2)}
             </div>
           </div>
@@ -178,15 +198,19 @@ function DataBar({ point, isHovered, isSelected, isLOD, onHover, onClick }: Data
 }
 
 interface EarthProps {
-  isLOD: boolean;
+  cameraDistance: number;
+  isDataLOD: boolean;
 }
 
-function Earth({ isLOD }: EarthProps) {
+function Earth({ cameraDistance, isDataLOD }: EarthProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const atmosphereRef = useRef<THREE.Mesh>(null);
   const { camera } = useThree();
+  const setCameraDistance = useGeoFlowStore((state) => state.setCameraDistance);
 
-  const segments = isLOD ? 32 : 64;
+  const isCameraLOD = cameraDistance > LOD_DISTANCE_THRESHOLD;
+  const isLOD = isDataLOD || isCameraLOD;
+  const segments = isLOD ? LOW_EARTH_SEGMENTS : HIGH_EARTH_SEGMENTS;
 
   const earthTexture = useMemo(() => {
     const canvas = document.createElement('canvas');
@@ -255,17 +279,28 @@ function Earth({ isLOD }: EarthProps) {
     return texture;
   }, []);
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
+    const cameraPos = camera.position;
+    const distance = Math.sqrt(
+      cameraPos.x * cameraPos.x +
+      cameraPos.y * cameraPos.y +
+      cameraPos.z * cameraPos.z
+    );
+    setCameraDistance(distance);
+
     if (atmosphereRef.current) {
-      const pulse = 0.15 + Math.sin(clock.getElapsedTime() * 1.5) * 0.05;
+      const minDistance = 350;
+      const maxDistance = 1200;
+      const normalizedDistance = Math.max(0, Math.min(1, (distance - minDistance) / (maxDistance - minDistance)));
+      const baseOpacity = 0.2;
+      const distanceFactor = 0.1 + normalizedDistance * 0.15;
+      const opacity = baseOpacity + distanceFactor;
+
       const material = atmosphereRef.current.material as THREE.ShaderMaterial;
       if (material.uniforms) {
-        material.uniforms.uOpacity.value = pulse;
+        material.uniforms.uOpacity.value = Math.max(0.1, Math.min(0.4, opacity));
       }
     }
-
-    const cameraDirection = new THREE.Vector3();
-    camera.getWorldDirection(cameraDirection);
   });
 
   const atmosphereMaterial = useMemo(() => {
@@ -380,16 +415,53 @@ function ParticleRing() {
   );
 }
 
+function PerformanceMonitor() {
+  const { setPerformance, processedData } = useGeoFlowStore();
+  const frameCountRef = useRef(0);
+  const lastTimeRef = useRef(performance.now());
+  const { gl } = useThree();
+
+  useFrame(() => {
+    frameCountRef.current++;
+    const now = performance.now();
+    const elapsed = now - lastTimeRef.current;
+
+    if (elapsed >= 500) {
+      const fps = (frameCountRef.current * 1000) / elapsed;
+      const frameTime = elapsed / frameCountRef.current;
+      const isLODActive = processedData.length > 500;
+      const drawCalls = gl.info.render.calls;
+
+      setPerformance({
+        fps: Math.round(fps * 100) / 100,
+        frameTime: Math.round(frameTime * 100) / 100,
+        drawCalls,
+        isLODActive
+      });
+
+      frameCountRef.current = 0;
+      lastTimeRef.current = now;
+    }
+  });
+
+  return null;
+}
+
 function DataBars() {
   const {
     processedData,
     hoveredPoint,
     selectedPoint,
+    cameraDistance,
     setHoveredPoint,
     setSelectedPoint
   } = useGeoFlowStore();
 
-  const isLOD = processedData.length > 500;
+  const isDataLOD = processedData.length > 500;
+
+  const handleClick = useCallback((p: ProcessedDataPoint) => {
+    setSelectedPoint(selectedPoint?.id === p.id ? null : p);
+  }, [selectedPoint, setSelectedPoint]);
 
   return (
     <group>
@@ -399,9 +471,10 @@ function DataBars() {
           point={point}
           isHovered={hoveredPoint === point.id}
           isSelected={selectedPoint?.id === point.id}
-          isLOD={isLOD}
+          isDataLOD={isDataLOD}
+          cameraDistance={cameraDistance}
           onHover={setHoveredPoint}
-          onClick={(p) => setSelectedPoint(selectedPoint?.id === p.id ? null : p)}
+          onClick={handleClick}
         />
       ))}
     </group>
@@ -409,8 +482,8 @@ function DataBars() {
 }
 
 function SceneContent() {
-  const { processedData } = useGeoFlowStore();
-  const isLOD = processedData.length > 500;
+  const { processedData, cameraDistance } = useGeoFlowStore();
+  const isDataLOD = processedData.length > 500;
 
   return (
     <>
@@ -442,9 +515,10 @@ function SceneContent() {
         speed={0.5}
       />
 
-      <Earth isLOD={isLOD} />
+      <Earth cameraDistance={cameraDistance} isDataLOD={isDataLOD} />
       <ParticleRing />
       <DataBars />
+      <PerformanceMonitor />
 
       <OrbitControls
         enablePan={false}
