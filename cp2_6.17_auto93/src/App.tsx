@@ -1,59 +1,7 @@
-import { useState } from 'react';
 import Scene from './scene';
 import PlanetInfoPanel from './panel';
 import { useStore } from './store';
 import type { PlanetData } from './types';
-
-interface PlanetButtonProps {
-  planet: PlanetData;
-  isActive: boolean;
-  onClick: () => void;
-}
-
-function PlanetButton({ planet, isActive, onClick }: PlanetButtonProps) {
-  const [isHovered, setIsHovered] = useState(false);
-
-  const bgColor = isActive ? '#1A2B4A' : isHovered ? '#1A2B4A' : 'transparent';
-  const borderColor = isActive ? '#00BFFF' : 'transparent';
-  const textColor = isActive ? '#00BFFF' : '#C0C0C0';
-
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        padding: '10px 14px',
-        background: bgColor,
-        border: `1px solid ${borderColor}`,
-        borderRadius: '6px',
-        color: textColor,
-        fontSize: '14px',
-        cursor: 'pointer',
-        textAlign: 'left',
-        width: '100%',
-        transition: 'background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease',
-        fontFamily: 'inherit',
-        fontWeight: isActive ? 600 : 400
-      }}
-    >
-      <div
-        style={{
-          width: '14px',
-          height: '14px',
-          borderRadius: '50%',
-          background: planet.color,
-          boxShadow: `0 0 8px ${planet.color}`,
-          flexShrink: 0
-        }}
-      />
-      <span>{planet.name}</span>
-    </button>
-  );
-}
 
 function ControlBar() {
   const planets = useStore(s => s.planets);
@@ -91,14 +39,54 @@ function ControlBar() {
         flexDirection: 'column',
         gap: '6px'
       }}>
-        {planets.map((planet: PlanetData) => (
-          <PlanetButton
-            key={planet.id}
-            planet={planet}
-            isActive={selectedPlanetId === planet.id}
-            onClick={() => focusAndSelect(planet.id)}
-          />
-        ))}
+        {planets.map((planet: PlanetData) => {
+          const isActive = selectedPlanetId === planet.id;
+          return (
+            <button
+              key={planet.id}
+              onClick={() => focusAndSelect(planet.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '10px 14px',
+                background: isActive ? '#1A2B4A' : 'transparent',
+                border: isActive ? '1px solid #00BFFF' : '1px solid transparent',
+                borderRadius: '6px',
+                color: isActive ? '#00BFFF' : '#C0C0C0',
+                fontSize: '14px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                width: '100%',
+                transition: 'background-color 0.2s ease',
+                fontFamily: 'inherit',
+                fontWeight: isActive ? 600 : 400
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = '#1A2B4A';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
+            >
+              <div
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  background: planet.color,
+                  boxShadow: `0 0 8px ${planet.color}`,
+                  flexShrink: 0
+                }}
+              />
+              <span>{planet.name}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div style={{
