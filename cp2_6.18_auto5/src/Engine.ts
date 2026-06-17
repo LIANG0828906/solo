@@ -217,70 +217,8 @@ function spawnPickupParticles(x: number, y: number): Particle[] {
   return particles
 }
 
-function buildSpatialHash(pulses: Pulse[]): Map<string, Pulse[]> {
-  const map = new Map<string, Pulse[]>()
-  for (const p of pulses) {
-    const gx = Math.floor(p.x / SPATIAL_CELL_SIZE)
-    const gy = Math.floor(p.y / SPATIAL_CELL_SIZE)
-    const key = `${gx},${gy}`
-    let arr = map.get(key)
-    if (!arr) {
-      arr = []
-      map.set(key, arr)
-    }
-    arr.push(p)
-  }
-  return map
-}
 
-function getNearbyPulses(spatial: Map<string, Pulse[]>, x: number, y: number): Pulse[] {
-  const gx = Math.floor(x / SPATIAL_CELL_SIZE)
-  const gy = Math.floor(y / SPATIAL_CELL_SIZE)
-  const result: Pulse[] = []
-  for (let dx = -1; dx <= 1; dx++) {
-    for (let dy = -1; dy <= 1; dy++) {
-      const key = `${gx + dx},${gy + dy}`
-      const arr = spatial.get(key)
-      if (arr) {
-        for (const p of arr) {
-          result.push(p)
-        }
-      }
-    }
-  }
-  return result
-}
 
-export const useGameStore = create<GameState>((set, get) => ({
-  ...createInitialState(window.innerWidth, window.innerHeight),
-
-  setInput: (input: Partial<InputState>) => {
-    set((state) => ({ input: { ...state.input, ...input } }))
-  },
-
-  setCanvasSize: (w: number, h: number) => {
-    set((state) => {
-      const cx = w / 2
-      const cy = h / 2
-      if (state.phase === 'countdown') {
-        return {
-          canvasWidth: w,
-          canvasHeight: h,
-          ball: { x: cx, y: cy, radius: BALL_RADIUS },
-          safeZone: { ...state.safeZone, centerX: cx, centerY: cy },
-        }
-      }
-      return {
-        canvasWidth: w,
-        canvasHeight: h,
-        safeZone: { ...state.safeZone, centerX: cx, centerY: cy },
-      }
-    })
-  },
-
-  reset: () => {
-    const state = get()
-    set(createInitialState(state.canvasWidth, state.canvasHeight))
   },
 
   update: (deltaTime: number) => {
