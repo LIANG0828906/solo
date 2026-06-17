@@ -15,6 +15,7 @@ import { getEffectiveLayout } from '../modules/responsiveStrategy';
 
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
+const SNAP_THRESHOLD = 20;
 
 interface DragItem {
   type: string;
@@ -24,6 +25,8 @@ interface DragItem {
   startY: number;
   offsetX: number;
   offsetY: number;
+  _clientStartX?: number;
+  _clientStartY?: number;
 }
 
 interface InsertIndicator {
@@ -32,6 +35,13 @@ interface InsertIndicator {
   width: number;
   targetId?: string;
   isBefore: boolean;
+}
+
+interface SnapGuideLines {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
 }
 
 const CanvasComponent: React.FC<{
@@ -87,7 +97,7 @@ const CanvasComponent: React.FC<{
     opacity: isDragging ? 0.7 : isHidden ? 0.4 : 1,
     borderRadius: 4,
     cursor: simulationMode ? 'default' : 'move',
-    transition: 'width 0.3s ease, opacity 0.3s ease',
+    transition: simulationMode ? 'width 0.5s ease-in-out, height 0.5s ease-in-out, left 0.5s ease-in-out, top 0.5s ease-in-out, opacity 0.3s ease' : 'width 0.3s ease, opacity 0.3s ease',
     overflow: 'hidden',
     boxSizing: 'border-box',
     background: component.type === 'container' ? 'rgba(74,144,217,0.05)' : component.type === 'image' ? '#e8e8e8' : '#fff',
@@ -318,6 +328,8 @@ const CanvasInner: React.FC = () => {
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [insertIndicator, setInsertIndicator] = useState<InsertIndicator | null>(null);
+  const [snapGuides, setSnapGuides] = useState<SnapGuideLines>({});
+  const [isDragging, setIsDragging] = useState(false);
 
   const getCanvasCoords = useCallback((clientX: number, clientY: number) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
@@ -330,6 +342,44 @@ const CanvasInner: React.FC = () => {
   const snapPosition = useCallback((val: number) => {
     return Math.round(val / GRID_SIZE) * GRID_SIZE;
   }, []);
+
+  const computeSnapGuides = useCallback(
+    (compLeft: number, compTop: number, compWidth: number, compHeight: number): SnapGuideLines => {
+      const guides: SnapGuideLines = {};
+
+      const compRight = compLeft + compWidth;
+      const compBottom = compTop + compHeight;
+
+      const nearestLeft = Math.round(compLeft / GRID_SIZE) * GRID_SIZE;
+      if (Math.abs(compLeft - nearestLeft) <= SNAP_THRESHOLD) {
+        guides.left = nearestLeft;
+      }
+
+      const nearestRight = Math.round(compRight / GRID_SIZE) * GRID_SIZE;
+      if (Math.abs(compRight - nearestRight) <= SNAP_THRESHOLD && guides.left === undefined) {
+        guides.right = nearestRight;
+      } else if (Math.abs(compRight - nearestRight) <= SNAP_THRESHOLD && Math.abs(compRight - nearestRight) < Math.abs(compLeft - nearestLeft)) {
+        guides.right = nearestRight;
+        delete guides.left;
+      }
+
+      const nearestTop = Math.round(compTop / GRID_SIZE) * GRID_SIZE;
+      if (Math.abs(compTop - nearestTop) <= SNAP_THRESHOLD) {
+        guides.top = nearestTop;
+      }
+
+      const nearestBottom = Math.round(compBottom / GRID_SIZE) * GRID_SIZE;
+      if (Math.abs(compBottom - nearestBottom) <= SNAP_THRESHOLD && guides.top === undefined) {
+        guides.bottom = nearestBottom;
+      } else if (Math.abs(compBottom - nearestBottom) <= SNAP_THRESHOLD && Math.abs(compBottom - nearestBottom) < Math.abs(compTop - nearestTop)) {
+        guides.bottom = nearestBottom;
+        delete guides.top;
+      }
+
+      return guides;
+    },
+    []
+  );
 
   const computeInsertIndicator = useCallback(
     (canvasX: number, canvasY: number, draggingId?: string): InsertIndicator | null => {
@@ -395,6 +445,28 @@ const CanvasInner: React.FC = () => {
     [components, activeBreakpoint, simulationMode, simulationDevice, snapPosition]
   );
 
+  const getDraggedDimensions = useCallback(
+    (item: DragItem): { width: number; height: number } => {
+      if (item.type === 'NEW_COMPONENT' && item.componentType) {
+        const d = COMPONENT_DEFAULTS[item.componentType];
+        return { width: d.width, height: d.height };
+      } else if (item.type === 'CANVAS_COMPONENT' && item.id) {
+        const comp = components.find(c => c.id === item.id);
+        if (comp) {
+          const layout = getEffectiveLayout(comp, activeBreakpoint);
+          const canvasWidth = simulationMode && simulationDevice ? simulationDevice.width : CANVAS_WIDTH;
+          const effectiveWidth =
+            typeof layout.width === 'string' && layout.width.endsWith('%')
+              ? (parseFloat(layout.width) / 100) * canvasWidth
+              : Number(layout.width);
+          return { width: effectiveWidth, height: comp.height };
+        }
+      }
+      return { width: 100, height: 100 };
+    },
+    [components, activeBreakpoint, simulationMode, simulationDevice]
+  );
+
   const [{ isOver, canDrop }, dropRef] = useDrop({
     accept: ['NEW_COMPONENT', 'CANVAS_COMPONENT'],
     drop: (item: DragItem, monitor) => {
@@ -424,17 +496,44 @@ const CanvasInner: React.FC = () => {
         handleCanvasComponentDrop(item.id, snapPosition(targetX), snapPosition(targetY));
       }
       setInsertIndicator(null);
+      setSnapGuides({});
+      setIsDragging(false);
     },
     hover: (item: DragItem, monitor) => {
       const offset = monitor.getClientOffset();
       if (!offset || !canvasRef.current) return;
       const coords = getCanvasCoords(offset.x, offset.y);
+      setIsDragging(true);
       const indicator = computeInsertIndicator(
         coords.x,
         coords.y,
         item.type === 'CANVAS_COMPONENT' ? item.id : undefined
       );
       setInsertIndicator(indicator);
+
+      const dims = getDraggedDimensions(item);
+      let compLeft, compTop;
+      if (item.type === 'NEW_COMPONENT' && item.componentType) {
+        compLeft = coords.x - dims.width / 2;
+        compTop = coords.y - dims.height / 2;
+      } else if (item.type === 'CANVAS_COMPONENT' && item.id) {
+        const diff = monitor.getDifferenceFromInitialOffset();
+        const draggedComp = components.find(c => c.id === item.id);
+        if (diff && draggedComp) {
+          const dx = diff.x / canvasZoom;
+          const dy = diff.y / canvasZoom;
+          compLeft = draggedComp.x + dx;
+          compTop = draggedComp.y + dy;
+        } else {
+          compLeft = coords.x - item.offsetX;
+          compTop = coords.y - item.offsetY;
+        }
+      } else {
+        compLeft = coords.x;
+        compTop = coords.y;
+      }
+      const guides = computeSnapGuides(compLeft, compTop, dims.width, dims.height);
+      setSnapGuides(guides);
     },
     collect: (monitor) => ({
       isOver: monitor.isOver(),
@@ -465,6 +564,14 @@ const CanvasInner: React.FC = () => {
     linear-gradient(to bottom, #E0E0E0 1px, transparent 1px)
   `;
   const gridSize = `${GRID_SIZE}px ${GRID_SIZE}px`;
+
+  const snapGuideStyle = {
+    position: 'absolute' as const,
+    background: '#87CEEB',
+    opacity: 0.6,
+    pointerEvents: 'none' as const,
+    zIndex: 9998,
+  };
 
   return (
     <div
@@ -499,10 +606,18 @@ const CanvasInner: React.FC = () => {
       <div style={{ position: 'relative' }}>
         {simulationMode && simulationDevice && (
           <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             border: '2px solid #000',
             borderRadius: 8,
             overflow: 'hidden',
             background: '#FFFFFFCC',
+            pointerEvents: 'none',
+            zIndex: 1,
+            transition: 'width 0.5s ease-in-out, height 0.5s ease-in-out',
           }}>
             <div style={{
               position: 'absolute',
@@ -535,7 +650,9 @@ const CanvasInner: React.FC = () => {
             position: 'relative',
             transform: simulationMode ? 'none' : `scale(${canvasZoom})`,
             transformOrigin: 'center center',
-            transition: 'transform 0.1s ease, width 0.3s ease, height 0.3s ease',
+            transition: simulationMode
+              ? 'width 0.5s ease-in-out, height 0.5s ease-in-out, box-shadow 0.3s ease, border-radius 0.5s ease-in-out'
+              : 'transform 0.1s ease, width 0.5s ease-in-out, height 0.5s ease-in-out, box-shadow 0.3s ease',
             boxShadow: isOver && canDrop ? '0 0 0 3px #2196F3' : '0 4px 24px rgba(0,0,0,0.3)',
             overflow: simulationMode ? 'auto' : 'visible',
             borderRadius: simulationMode ? 8 : 0,
@@ -549,6 +666,51 @@ const CanvasInner: React.FC = () => {
               simulationMode={simulationMode}
             />
           ))}
+
+          {snapGuides.left !== undefined && (
+            <div style={{
+              ...snapGuideStyle,
+              left: snapGuides.left,
+              top: 0,
+              width: 2,
+              height: '100%',
+              borderLeft: '1px dashed #87CEEB',
+              background: 'transparent',
+            }} />
+          )}
+          {snapGuides.right !== undefined && (
+            <div style={{
+              ...snapGuideStyle,
+              left: snapGuides.right,
+              top: 0,
+              width: 2,
+              height: '100%',
+              borderLeft: '1px dashed #87CEEB',
+              background: 'transparent',
+            }} />
+          )}
+          {snapGuides.top !== undefined && (
+            <div style={{
+              ...snapGuideStyle,
+              left: 0,
+              top: snapGuides.top,
+              width: '100%',
+              height: 2,
+              borderTop: '1px dashed #87CEEB',
+              background: 'transparent',
+            }} />
+          )}
+          {snapGuides.bottom !== undefined && (
+            <div style={{
+              ...snapGuideStyle,
+              left: 0,
+              top: snapGuides.bottom,
+              width: '100%',
+              height: 2,
+              borderTop: '1px dashed #87CEEB',
+              background: 'transparent',
+            }} />
+          )}
 
           {insertIndicator && isOver && (
             <>
