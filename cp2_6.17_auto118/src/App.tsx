@@ -25,11 +25,8 @@ export default function App() {
         dpr={[1, 2]}
         style={{ background: '#0a0a1a' }}
       >
-        <ambientLight intensity={0.5} />
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[5, 5, 5]} />
-          <meshBasicMaterial color="#00FF87" />
-        </mesh>
+        <ambientLight intensity={0.2} />
+        <ParticleSystem engineRef={engineRef} />
       </Canvas>
 
       <ControlPanel />
