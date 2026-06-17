@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0B0C10;
+  font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+  color: #C5C6C7;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(102, 252, 241, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(102, 252, 241, 0.6); }
+}
+
+@keyframes equip-flash {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); filter: brightness(1.5); }
+  100% { transform: scale(1); }
+}
+
+@keyframes float-up {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-20px); }
+}
+
+.equip-flash {
+  animation: equip-flash 0.3s ease-out;
+}
+
+.game-btn {
+  background: #45A29E;
+  border: none;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.game-btn:hover {
+  background: #66FCF1;
+  transform: scale(1.05);
+}
+
+.game-btn:active {
+  transform: scale(0.95);
+}
+
+.game-btn:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+  transform: none;
+}
