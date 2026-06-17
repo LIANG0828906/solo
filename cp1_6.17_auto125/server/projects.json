@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ff65f480-0b2c-4f13-b1ff-571ad1edb276",
+    "name": "植鞣皮短夹",
+    "coverDescription": "意大利植鞣牛皮，简约风格，适合日常携带",
+    "steps": [
+      {
+        "id": "aa08fbee-68bf-4965-85e6-52b6041fa3c9",
+        "title": "裁切",
+        "duration": 15,
+        "notes": "使用裁皮刀和钢尺，沿皮革纹理方向裁切。注意保持刀刃锋利，避免边缘毛躁。",
+        "images": [],
+        "quality": 3,
+        "createdAt": 1781678687462
+      },
+      {
+        "id": "c3320255-ef13-4f95-a280-0c405c7b2409",
+        "title": "打磨",
+        "duration": 20,
+        "notes": "先用粗砂纸打磨边缘，再用细砂纸抛亮。打磨时保持均匀力度，注意边缘倒角均匀。",
+        "images": [],
+        "quality": 3,
+        "createdAt": 1781678687463
+      },
+      {
+        "id": "76a5ff89-e190-49aa-afea-d06b36bafb83",
+        "title": "封边",
+        "duration": 25,
+        "notes": "涂抹封边液后用打磨棒快速摩擦生热，使边缘光滑发亮。需要反复多次操作。",
+        "images": [],
+        "quality": 3,
+        "createdAt": 1781678687464
+      }
+    ],
+    "createdAt": 1781678687462,
+    "updatedAt": 1781678687462
+  }
+]
