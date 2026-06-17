@@ -1,0 +1,345 @@
+.perfume-library-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.library-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding-bottom: 12px;
+}
+
+.library-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--color-text);
+}
+
+.library-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-brand);
+  background: rgba(108, 92, 231, 0.08);
+  padding: 4px 12px;
+  border-radius: 12px;
+  letter-spacing: 0.5px;
+}
+
+.library-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 20px;
+  background: linear-gradient(135deg, #FFFFFF 0%, #FAFAFA 100%);
+  border-radius: 16px;
+  border: 2px dashed rgba(0, 0, 0, 0.06);
+}
+
+.library-empty-icon {
+  font-size: 52px;
+  opacity: 0.5;
+  animation: float 3s ease-in-out infinite;
+}
+
+.library-empty-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #999;
+}
+
+.library-empty-desc {
+  font-size: 12px;
+  color: #BBB;
+}
+
+.perfume-library-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 220px);
+  gap: 20px;
+  justify-content: center;
+  padding: 8px;
+}
+
+.perfume-card {
+  width: 220px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F5F2EE 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(232, 232, 232, 0.8);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 15px 15px -5px rgba(0, 0, 0, 0.06);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  transition:
+    height 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 300ms ease,
+    transform 300ms ease;
+  will-change: height, box-shadow, transform;
+}
+
+.perfume-card:hover {
+  transform: translateY(-10px);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 30px 20px -10px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+}
+
+.perfume-card.is-expanded {
+  z-index: 2;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 30px 40px -10px rgba(108, 92, 231, 0.2);
+}
+
+.mini-bottle-stage {
+  position: relative;
+  width: 100%;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 800px;
+}
+
+.mini-bottle-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: background 300ms ease;
+}
+
+.mini-bottle {
+  position: relative;
+  width: 40px;
+  height: 115px;
+  transform-style: preserve-3d;
+  transform: rotateY(-6deg) rotateX(2deg);
+  animation: miniBottleFloat 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes miniBottleFloat {
+  0%, 100% { transform: rotateY(-6deg) rotateX(2deg) translateY(0); }
+  50%      { transform: rotateY(6deg)  rotateX(-2deg) translateY(-2px); }
+}
+
+.mini-bottle-cap {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 23px;
+  height: 15px;
+  background: linear-gradient(135deg, #D8D8D8 0%, #A0A0A0 100%);
+  border-radius: 2px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.mini-bottle-neck {
+  position: absolute;
+  top: 17px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 15px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border-left: 1px solid rgba(200, 200, 200, 0.5);
+  border-right: 1px solid rgba(200, 200, 200, 0.5);
+}
+
+.mini-bottle-body {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 100px;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.1) 100%);
+  border: 1px solid #D0D0D0;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow:
+    inset -4px 0 10px rgba(255, 255, 255, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.mini-bottle-liquid {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 88%;
+  border-radius: 0 0 3px 3px;
+  animation: miniLiquidFloat 3s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes miniLiquidFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+.perfume-card-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.perfume-card-mood {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #FFFFFF;
+  letter-spacing: 0.5px;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.mood-dot {
+  width: 6px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+}
+
+.perfume-card-details {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: detailsFadeIn 300ms ease-out;
+}
+
+@keyframes detailsFadeIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.details-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #888;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.details-formula-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.details-formula-row {
+  display: grid;
+  grid-template-columns: 20px 40px 1fr 34px;
+  align-items: center;
+  gap: 6px;
+}
+
+.details-formula-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.details-formula-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #555;
+}
+
+.details-formula-bar {
+  height: 6px;
+  background: #EFEFEF;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.details-formula-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.details-formula-pct {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.details-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.details-remix-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-brand);
+  padding: 4px 2px;
+  border-bottom: 1px solid transparent;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.details-remix-btn:hover {
+  border-bottom-color: var(--color-brand);
+}
+
+.details-delete-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-danger);
+  padding: 4px 2px;
+  border-bottom: 1px solid transparent;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.details-delete-btn:hover {
+  border-bottom-color: var(--color-danger);
+}
