@@ -8,8 +8,10 @@ const ParticleCanvas: React.FC = () => {
   const engineRef = useRef<WeatherEngine | null>(null);
   const fpsRef = useRef<HTMLDivElement>(null);
   const countRef = useRef<HTMLDivElement>(null);
+  const memoryRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
+  const memoryUpdateTimer = useRef<number>(0);
   const { currentCity, isMobile } = useAppStore();
 
   useEffect(() => {
@@ -58,6 +60,13 @@ const ParticleCanvas: React.FC = () => {
         if (fpsRef.current && countRef.current) {
           fpsRef.current.textContent = `FPS: ${engineRef.current.getFps()}`;
           countRef.current.textContent = `Particles: ${engineRef.current.getParticleCount()}`;
+        }
+
+        memoryUpdateTimer.current += delta;
+        if (memoryUpdateTimer.current >= 1000 && memoryRef.current) {
+          memoryUpdateTimer.current = 0;
+          const memMB = engineRef.current.getMemoryMB();
+          memoryRef.current.textContent = memMB !== null ? `Memory: ${memMB.toFixed(1)} MB` : 'Memory: N/A';
         }
       }
 
@@ -112,23 +121,47 @@ const ParticleCanvas: React.FC = () => {
           position: 'absolute',
           top: 16,
           right: 16,
-          padding: 8,
+          padding: '8px 12px',
           background: 'rgba(0, 0, 0, 0.6)',
           borderRadius: 8,
           fontFamily: 'monospace, "Courier New", Courier',
-          fontSize: 14,
+          fontSize: 13,
           color: '#00FF88',
-          lineHeight: 1.6,
-          minWidth: 120,
+          lineHeight: 1.7,
+          minWidth: 130,
           textShadow: '0 0 4px rgba(0, 255, 136, 0.5)',
           zIndex: 5,
           pointerEvents: 'none',
           border: '1px solid rgba(0, 255, 136, 0.25)',
-          boxShadow: '0 0 12px rgba(0, 255, 136, 0.1)',
+          boxShadow: '0 0 12px rgba(0, 255, 136, 0.1), inset 0 0 20px rgba(0, 0, 0, 0.3)',
+          backdropFilter: 'blur(4px)',
         }}
       >
-        <div ref={fpsRef} style={{ letterSpacing: 0.5 }}>FPS: 0</div>
-        <div ref={countRef} style={{ letterSpacing: 0.5 }}>Particles: 0</div>
+        <div
+          ref={fpsRef}
+          style={{
+            letterSpacing: 0.5,
+            borderBottom: '1px solid rgba(0, 255, 136, 0.15)',
+            paddingBottom: 4,
+            marginBottom: 2,
+          }}
+        >
+          FPS: 0
+        </div>
+        <div
+          ref={countRef}
+          style={{
+            letterSpacing: 0.5,
+            borderBottom: '1px solid rgba(0, 255, 136, 0.15)',
+            paddingBottom: 4,
+            marginBottom: 2,
+          }}
+        >
+          Particles: 0
+        </div>
+        <div ref={memoryRef} style={{ letterSpacing: 0.5 }}>
+          Memory: --
+        </div>
       </div>
     </div>
   );

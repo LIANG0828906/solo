@@ -57,6 +57,7 @@ export interface CityConfig {
   name: string;
   weatherType: WeatherType;
   weatherIcon: string;
+  weatherDesc: string;
   temperature: number;
   humidity: number;
   windSpeed: number;

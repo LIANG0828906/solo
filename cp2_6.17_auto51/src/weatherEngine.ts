@@ -8,13 +8,16 @@ interface TransitionState {
   startTime: number;
   duration: number;
   active: boolean;
-  fromCount: number;
-  toCount: number;
+  phase: 'fade-out' | 'fade-in' | 'crossfade';
+  fadeProgress: number;
+  fromParticles: Particle[];
+  toParticles: Particle[];
 }
 
 interface FpsTracker {
-  frames: number[];
-  lastTime: number;
+  frameCount: number;
+  lastFpsUpdate: number;
+  currentFps: number;
 }
 
 export class WeatherEngine {
@@ -24,14 +27,14 @@ export class WeatherEngine {
   private canvasSize: CanvasSize = { width: 800, height: 600, dpr: 1 };
   private currentConfig: CityConfig;
   private transition: TransitionState | null = null;
-  private fpsTracker: FpsTracker = { frames: [], lastTime: performance.now() };
-  private currentFps = 60;
+  private fpsTracker: FpsTracker = { frameCount: 0, lastFpsUpdate: 0, currentFps: 60 };
   private globalTime = 0;
   private mistSpawnTimer = 0;
   private snowAccumulation = 0;
   private lightningTimer = 0;
   private nextLightningInterval = 3000 + Math.random() * 2000;
   private lightningFlash = 0;
+  private lightningRemaining = 0;
   private isMobileReduction = false;
 
   constructor(initialConfig: CityConfig) {
@@ -43,7 +46,18 @@ export class WeatherEngine {
   }
 
   setMobileReduction(isMobile: boolean): void {
-    this.isMobileReduction = isMobile;
+    if (this.isMobileReduction !== isMobile) {
+      this.isMobileReduction = isMobile;
+      const targetCount = this.getEffectiveCount(this.currentConfig.particleParams.count);
+      if (this.particles.length > targetCount) {
+        this.particles = this.particles.slice(0, targetCount);
+      } else if (this.particles.length < targetCount) {
+        const need = targetCount - this.particles.length;
+        for (let i = 0; i < need; i++) {
+          this.particles.push(this.createParticle(this.currentConfig, true));
+        }
+      }
+    }
   }
 
   setInitialConfig(config: CityConfig): void {
@@ -51,46 +65,80 @@ export class WeatherEngine {
     const targetCount = this.getEffectiveCount(config.particleParams.count);
     this.particles = [];
     for (let i = 0; i < targetCount; i++) {
-      this.particles.push(this.createParticle(config, true));
+      const p = this.createParticle(config, true);
+      p.opacity = this.randomRange(config.particleParams.opacityRange[0], config.particleParams.opacityRange[1]);
+      this.particles.push(p);
     }
   }
 
   transitionTo(targetConfig: CityConfig, duration = 1500): void {
-    const fromConfig = this.currentConfig;
+    const fadeDuration = 500;
     const fromCount = this.particles.filter((p) => p.active).length;
     const toCount = this.getEffectiveCount(targetConfig.particleParams.count);
 
+    const fromParticles = this.particles.map((p) => ({ ...p }));
+
+    const toParticles: Particle[] = [];
+    const maxToCount = Math.max(fromCount, toCount);
+    for (let i = 0; i < maxToCount; i++) {
+      if (i < toCount) {
+        const p = this.createParticle(targetConfig, true);
+        p.opacity = 0;
+        toParticles.push(p);
+      }
+    }
+
     this.transition = {
-      fromConfig,
+      fromConfig: this.currentConfig,
       toConfig: targetConfig,
       startTime: this.globalTime,
-      duration,
+      duration: fadeDuration,
       active: true,
-      fromCount,
-      toCount,
+      phase: 'crossfade',
+      fadeProgress: 0,
+      fromParticles,
+      toParticles,
     };
 
-    if (toCount > this.particles.length) {
-      const need = toCount - this.particles.length;
+    this.currentConfig = targetConfig;
+
+    const maxCount = Math.max(fromCount, toCount);
+    if (this.particles.length < maxCount) {
+      const need = maxCount - this.particles.length;
       for (let i = 0; i < need; i++) {
-        this.particles.push(this.createParticle(fromConfig, true));
+        const p = this.createParticle(targetConfig, true);
+        p.opacity = 0;
+        this.particles.push(p);
       }
     }
 
     for (let i = 0; i < this.particles.length; i++) {
-      const p = this.particles[i];
+      const p = this.particles[i] as Particle & {
+        _targetVx?: number;
+        _targetVy?: number;
+        _targetSize?: number;
+        _targetSizeY?: number;
+        _targetColor?: string;
+        _targetOpacity?: number;
+        _startOpacity?: number;
+      };
       if (i < toCount) {
         p.active = true;
-        (p as Particle & { _targetSize?: number })._targetSize = this.randomRange(
-          targetConfig.particleParams.minSize,
-          targetConfig.particleParams.maxSize,
-        );
+        const targetP = toParticles[i] ?? this.createParticle(targetConfig, true);
+        p._targetVx = targetP.vx;
+        p._targetVy = targetP.vy;
+        p._targetSize = targetP.size;
+        p._targetSizeY = targetP.sizeY;
+        p._targetColor = targetP.color;
+        p._targetOpacity = targetP.opacity;
+        p._startOpacity = p.opacity;
+        p.shape = targetP.shape;
       } else {
         p.active = false;
       }
     }
 
-    this.currentConfig = targetConfig;
+    void duration;
   }
 
   update(deltaTimeMs: number): void {
@@ -98,24 +146,39 @@ export class WeatherEngine {
     this.globalTime += deltaTimeMs;
     this.updateFps(deltaTimeMs);
 
-    const t = this.transition?.active
-      ? this.easeInOut(Math.min(1, (this.globalTime - this.transition.startTime) / this.transition.duration))
-      : 1;
-    if (this.transition && t >= 1) {
-      this.transition.active = false;
-      this.transition = null;
+    let fadeT = 1;
+    let isTransitioning = false;
+    if (this.transition?.active) {
+      isTransitioning = true;
+      const elapsed = this.globalTime - this.transition.startTime;
+      fadeT = Math.min(1, elapsed / this.transition.duration);
+      this.transition.fadeProgress = fadeT;
+      if (fadeT >= 1) {
+        this.transition.active = false;
+        this.transition = null;
+        fadeT = 1;
+        for (const p of this.particles) {
+          if (p.active) {
+            p.opacity = this.randomRange(
+              this.currentConfig.particleParams.opacityRange[0],
+              this.currentConfig.particleParams.opacityRange[1],
+            );
+          }
+        }
+      }
     }
 
     const config = this.currentConfig;
 
-    for (const p of this.particles) {
+    for (let i = 0; i < this.particles.length; i++) {
+      const p = this.particles[i];
       if (!p.active) continue;
-      this.updateParticle(p, dt, config, t);
+      this.updateParticle(p, dt, config, fadeT, isTransitioning, i);
       this.wrapParticle(p);
     }
 
     if (config.weatherType === WeatherType.Rainy) {
-      this.updateMist(dt, deltaTimeMs);
+      this.updateMist(dt, deltaTimeMs, isTransitioning, fadeT);
     } else {
       this.mistParticles = [];
     }
@@ -138,7 +201,10 @@ export class WeatherEngine {
       hp.x += hp.vx * dt;
       hp.y += hp.vy * dt;
       hp.life = (hp.life ?? 0) - deltaTimeMs;
-      if (hp.life <= 0 || hp.y > this.canvasSize.height + 20) {
+      if (hp.life !== undefined && hp.maxLife !== undefined) {
+        hp.opacity = (hp.life / hp.maxLife) * 0.95;
+      }
+      if ((hp.life ?? 0) <= 0 || hp.y > this.canvasSize.height + 20) {
         hp.active = false;
       }
     }
@@ -149,7 +215,7 @@ export class WeatherEngine {
     const { width, height } = this.canvasSize;
     const config = this.currentConfig;
 
-    const bg = this.interpolateBackground(ctx, config);
+    const bg = this.interpolateBackground(config);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
 
@@ -191,7 +257,15 @@ export class WeatherEngine {
   }
 
   getFps(): number {
-    return Math.round(this.currentFps);
+    return Math.round(this.fpsTracker.currentFps);
+  }
+
+  getMemoryMB(): number | null {
+    const perf = performance as Performance & { memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } };
+    if (perf.memory && perf.memory.usedJSHeapSize !== undefined) {
+      return perf.memory.usedJSHeapSize / (1024 * 1024);
+    }
+    return null;
   }
 
   getCurrentWeatherType(): WeatherType {
@@ -250,9 +324,41 @@ export class WeatherEngine {
     };
   }
 
-  private updateParticle(p: Particle, dt: number, config: CityConfig, t: number): void {
+  private updateParticle(
+    p: Particle,
+    dt: number,
+    config: CityConfig,
+    fadeT: number,
+    isTransitioning: boolean,
+    index: number,
+  ): void {
     const params = config.particleParams;
-    const { width, height } = this.canvasSize;
+
+    const extra = p as Particle & {
+      _targetVx?: number;
+      _targetVy?: number;
+      _targetSize?: number;
+      _targetSizeY?: number;
+      _targetColor?: string;
+      _targetOpacity?: number;
+      _startOpacity?: number;
+    };
+
+    if (isTransitioning && extra._targetVx !== undefined && extra._targetVy !== undefined) {
+      p.vx = this.lerp(p.vx, extra._targetVx, fadeT);
+      p.vy = this.lerp(p.vy, extra._targetVy, fadeT);
+    }
+
+    if (isTransitioning && extra._targetSize !== undefined) {
+      p.size = this.lerp(p.size, extra._targetSize, fadeT);
+      if (extra._targetSizeY !== undefined && p.sizeY !== undefined) {
+        p.sizeY = this.lerp(p.sizeY, extra._targetSizeY, fadeT);
+      }
+    }
+
+    if (isTransitioning && extra._targetColor) {
+      p.color = this.lerpColor(p.color, extra._targetColor, fadeT);
+    }
 
     switch (config.weatherType) {
       case WeatherType.Sunny: {
@@ -267,48 +373,70 @@ export class WeatherEngine {
         if (params.blinkEnabled) {
           const blinkPhase = (this.globalTime / 1000) * p.blinkSpeed! + p.blinkOffset!;
           const baseOpacity = this.lerp(params.opacityRange[0], params.opacityRange[1], 0.5);
-          p.opacity = baseOpacity + Math.sin(blinkPhase) * 0.2;
-          p.opacity = Math.max(params.opacityRange[0], Math.min(params.opacityRange[1], p.opacity));
+          const blinkOpacity = baseOpacity + Math.sin(blinkPhase) * 0.2;
+          const clampedBlink = Math.max(
+            params.opacityRange[0],
+            Math.min(params.opacityRange[1], blinkOpacity),
+          );
+          if (isTransitioning && extra._startOpacity !== undefined) {
+            const targetOpacity = this.lerp(extra._startOpacity, clampedBlink, fadeT);
+            p.opacity = targetOpacity;
+          } else {
+            p.opacity = clampedBlink;
+          }
+        } else if (isTransitioning && extra._startOpacity !== undefined) {
+          const targetOpacity = this.lerp(
+            extra._startOpacity,
+            this.lerp(params.opacityRange[0], params.opacityRange[1], 0.5),
+            fadeT,
+          );
+          p.opacity = targetOpacity;
         }
         break;
       }
       case WeatherType.Rainy: {
         p.x += p.vx * dt;
         p.y += p.vy * dt;
+        if (isTransitioning && extra._startOpacity !== undefined) {
+          p.opacity = this.lerp(
+            extra._startOpacity,
+            this.lerp(params.opacityRange[0], params.opacityRange[1], 0.7),
+            fadeT,
+          );
+        }
         break;
       }
       case WeatherType.Snowy: {
-        const swayPhase = (this.globalTime / 1000) * (2 * Math.PI / 1.5) + p.phase!;
+        const swayPhase = (this.globalTime / 1000) * ((2 * Math.PI) / 1.5) + (p.phase ?? 0);
         const swayAmount = Math.sin(swayPhase) * 5;
-        const baseVx = p.vx;
-        p.x += (baseVx + swayAmount * 0.1) * dt;
+        p.x += (p.vx + swayAmount * 0.1) * dt;
         p.y += p.vy * dt;
         p.rotation = (p.rotation ?? 0) + (p.rotationSpeed ?? 0) * dt;
+        if (isTransitioning && extra._startOpacity !== undefined) {
+          p.opacity = this.lerp(
+            extra._startOpacity,
+            this.lerp(params.opacityRange[0], params.opacityRange[1], 0.8),
+            fadeT,
+          );
+        }
         break;
       }
       case WeatherType.Thunderstorm: {
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         p.rotation = (p.rotation ?? 0) + (p.rotationSpeed ?? 0) * dt;
+        if (isTransitioning && extra._startOpacity !== undefined) {
+          p.opacity = this.lerp(
+            extra._startOpacity,
+            this.lerp(params.opacityRange[0], params.opacityRange[1], 0.8),
+            fadeT,
+          );
+        }
         break;
       }
     }
 
-    if (this.transition) {
-      const toParams = this.transition.toConfig.particleParams;
-      const targetSize = this.lerp(
-        this.transition.fromConfig.particleParams.minSize,
-        toParams.minSize,
-        t,
-      ) + ((p as Particle & { _targetSize?: number })._targetSize ?? p.size) * 0.0001;
-      p.size = this.lerp(p.size, this.lerp(p.size, targetSize, 1), t * 0.05);
-
-      const toColor = toParams.colors[Math.floor(toParams.colors.length * (parseInt(p.id.slice(0, 8), 16) / 0xffffffff))];
-      p.color = this.lerpColor(p.color, toColor, Math.min(1, t));
-    }
-
-    void width;
-    void height;
+    void index;
   }
 
   private wrapParticle(p: Particle): void {
@@ -329,14 +457,14 @@ export class WeatherEngine {
     }
   }
 
-  private updateMist(dt: number, deltaTimeMs: number): void {
+  private updateMist(dt: number, deltaTimeMs: number, isTransitioning: boolean, fadeT: number): void {
     void dt;
     this.mistSpawnTimer += deltaTimeMs;
     const spawnInterval = 50;
+    const spawnRate = isTransitioning ? fadeT : 1;
     while (this.mistSpawnTimer >= spawnInterval) {
       this.mistSpawnTimer -= spawnInterval;
-      const count = 1;
-      for (let i = 0; i < count; i++) {
+      if (Math.random() < spawnRate) {
         const mp: Particle = {
           id: uuidv4(),
           x: Math.random() * this.canvasSize.width,
@@ -360,12 +488,13 @@ export class WeatherEngine {
       mp.y += mp.vy;
       mp.life = (mp.life ?? 0) - deltaTimeMs;
       const lifeRatio = 1 - (mp.life ?? 0) / (mp.maxLife ?? 500);
+      const baseOpacity = 0.15 * (isTransitioning ? fadeT : 1);
       if (lifeRatio < 0.3) {
-        mp.opacity = 0.15 * (lifeRatio / 0.3);
+        mp.opacity = baseOpacity * (lifeRatio / 0.3);
       } else if (lifeRatio > 0.7) {
-        mp.opacity = 0.15 * ((1 - lifeRatio) / 0.3);
+        mp.opacity = baseOpacity * ((1 - lifeRatio) / 0.3);
       } else {
-        mp.opacity = 0.15;
+        mp.opacity = baseOpacity;
       }
       if ((mp.life ?? 0) <= 0) {
         mp.active = false;
@@ -376,27 +505,43 @@ export class WeatherEngine {
 
   private updateLightning(deltaTimeMs: number): void {
     this.lightningTimer += deltaTimeMs;
-    if (this.lightningFlash > 0) {
-      this.lightningFlash = Math.max(0, this.lightningFlash - deltaTimeMs / 100);
+
+    if (this.lightningRemaining > 0) {
+      this.lightningRemaining -= deltaTimeMs;
+      if (this.lightningRemaining <= 0) {
+        this.lightningFlash = 0;
+        this.lightningRemaining = 0;
+      } else {
+        const progress = 1 - this.lightningRemaining / 100;
+        this.lightningFlash = 1 - progress * 0.5;
+      }
     }
+
     if (this.lightningTimer >= this.nextLightningInterval) {
       this.lightningTimer = 0;
       this.nextLightningInterval = 3000 + Math.random() * 2000;
       this.lightningFlash = 1;
+      this.lightningRemaining = 100;
+
+      const centerX = this.canvasSize.width * (0.3 + Math.random() * 0.4);
+      const centerY = this.canvasSize.height * 0.1;
+
       for (let i = 0; i < 30; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 3 + Math.random() * 8;
         const hp: Particle = {
           id: uuidv4(),
-          x: Math.random() * this.canvasSize.width,
-          y: -10,
-          vx: (Math.random() - 0.5) * 3,
-          vy: 10 + Math.random() * 6,
-          size: 5,
+          x: centerX + (Math.random() - 0.5) * 40,
+          y: centerY + (Math.random() - 0.5) * 20,
+          vx: Math.cos(angle) * speed * 0.5,
+          vy: Math.abs(Math.sin(angle)) * speed + 4,
+          size: 3 + Math.random() * 4,
           color: '#FFD700',
           opacity: 0.95,
           shape: 'circle',
           active: true,
-          life: 800,
-          maxLife: 800,
+          life: 600 + Math.random() * 400,
+          maxLife: 1000,
           isHighlight: true,
         };
         this.highlightParticles.push(hp);
@@ -406,7 +551,7 @@ export class WeatherEngine {
 
   private drawParticle(ctx: CanvasRenderingContext2D, p: Particle): void {
     ctx.save();
-    ctx.globalAlpha = p.opacity;
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.opacity));
     ctx.fillStyle = p.color;
 
     if (p.rotation !== undefined) {
@@ -471,36 +616,29 @@ export class WeatherEngine {
     const { width, height } = this.canvasSize;
     const groundHeight = height * 0.08;
     const gradient = ctx.createLinearGradient(0, height - groundHeight, 0, height);
-    gradient.addColorStop(0, `rgba(255, 255, 255, 0)`);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
     gradient.addColorStop(0.3, `rgba(255, 255, 255, ${this.snowAccumulation * 0.5})`);
     gradient.addColorStop(1, `rgba(255, 255, 255, ${this.snowAccumulation})`);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, height - groundHeight, width, groundHeight);
   }
 
-  private interpolateBackground(ctx: CanvasRenderingContext2D, toConfig: CityConfig): string {
-    if (!this.transition) return toConfig.themeColors.background;
-    const t = this.easeInOut(
-      Math.min(1, (this.globalTime - this.transition.startTime) / this.transition.duration),
-    );
+  private interpolateBackground(toConfig: CityConfig): string {
+    if (!this.transition?.active) return toConfig.themeColors.background;
+    const t = Math.min(1, (this.globalTime - this.transition.startTime) / this.transition.duration);
     const fromColor = this.transition.fromConfig.themeColors.background;
     const toColor = toConfig.themeColors.background;
-    void ctx;
-    return this.lerpColor(fromColor, toColor, t);
+    return this.lerpColor(fromColor, toColor, this.easeInOut(t));
   }
 
   private updateFps(deltaTimeMs: number): void {
-    const now = this.globalTime;
-    if (deltaTimeMs > 0) {
-      const instantFps = 1000 / deltaTimeMs;
-      this.fpsTracker.frames.push(instantFps);
-      if (this.fpsTracker.frames.length > 10) {
-        this.fpsTracker.frames.shift();
-      }
-      const sum = this.fpsTracker.frames.reduce((a, b) => a + b, 0);
-      this.currentFps = sum / this.fpsTracker.frames.length;
+    this.fpsTracker.frameCount++;
+    if (this.globalTime - this.fpsTracker.lastFpsUpdate >= 500) {
+      const elapsed = this.globalTime - this.fpsTracker.lastFpsUpdate;
+      this.fpsTracker.currentFps = (this.fpsTracker.frameCount / elapsed) * 1000;
+      this.fpsTracker.frameCount = 0;
+      this.fpsTracker.lastFpsUpdate = this.globalTime;
     }
-    void now;
   }
 
   private randomRange(min: number, max: number): number {
