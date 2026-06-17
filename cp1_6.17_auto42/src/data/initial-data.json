@@ -1,0 +1,235 @@
+[
+  {
+    "id": "node_1_1",
+    "sceneId": "crime-scene-arrival",
+    "text": "深夜，你接到报警电话赶到城东的古董博物馆。馆长王明远一脸焦急地站在门口：\"那件价值连城的唐代金佛不见了！\"你推门走入展厅，地面一片狼藉，展示柜的玻璃碎了一地。空气中弥漫着一股淡淡的古龙水味道。你环顾四周，决定先从哪里入手……",
+    "sceneBgColor": "#2C3E50",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=detective%20arriving%20at%20museum%20crime%20scene%20at%20night%2C%20broken%20glass%20display%20case%2C%20noir%20atmosphere%2C%20dim%20emergency%20lighting&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "仔细搜查展厅，寻找指纹和物证痕迹",
+        "nextNodeId": "node_1_2",
+        "score": 10,
+        "type": "score"
+      },
+      {
+        "text": "先询问馆长和值班保安，了解案发经过",
+        "nextNodeId": "node_1_3",
+        "score": 5,
+        "type": "normal"
+      }
+    ],
+    "chapter": 1,
+    "isEnd": false
+  },
+  {
+    "id": "node_1_2",
+    "sceneId": "investigate-hall",
+    "text": "你蹲下身仔细检查展柜碎片。在玻璃碎片间，你发现了一枚半枚指纹和一根黑色纤维。更关键的是，展柜的锁没有被撬开的痕迹——这意味着凶手拥有钥匙！你将证物小心收好，又注意到墙角有一个不起眼的通风口，栅栏似乎被动过。你可以继续追踪通风口，也可以先提取物证样本。",
+    "sceneBgColor": "#2C3E50",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=detective%20examining%20broken%20glass%20and%20clues%20in%20museum%20display%20hall%20with%20magnifying%20glass%2C%20evidence%20markers%2C%20dramatic%20lighting&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "检查通风口，追踪嫌疑人的逃生路线",
+        "nextNodeId": "node_1_4",
+        "score": 15,
+        "type": "critical"
+      },
+      {
+        "text": "仔细提取指纹和纤维样本，送回实验室",
+        "nextNodeId": "node_1_4",
+        "score": 10,
+        "type": "score"
+      }
+    ],
+    "chapter": 1,
+    "isEnd": false
+  },
+  {
+    "id": "node_1_3",
+    "sceneId": "question-witnesses",
+    "text": "馆长王明远表示今晚只有他和值夜班的老保安刘叔在场。刘叔说他在凌晨两点巡夜时一切正常，但三点再巡时就发现展柜被砸了。你注意到刘叔说话时眼神闪烁，手一直摸口袋。你追问之下，刘叔终于承认：\"我……我中间去上了个厕所，大概二十分钟。\"这二十分钟，就是关键的作案窗口。",
+    "sceneBgColor": "#2C3E50",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=detective%20interviewing%20nervous%20elderly%20security%20guard%20in%20museum%20hallway%20at%20night%2C%20dramatic%20shadows%2C%20noir%20style&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "追问刘叔是否注意到可疑人员出入",
+        "nextNodeId": "node_1_4",
+        "score": 10,
+        "type": "normal"
+      },
+      {
+        "text": "检查刘叔的口袋，看看他藏了什么",
+        "nextNodeId": "node_1_4",
+        "score": 5,
+        "type": "score"
+      }
+    ],
+    "chapter": 1,
+    "isEnd": false
+  },
+  {
+    "id": "node_1_4",
+    "sceneId": "first-clue",
+    "text": "综合所有线索，你判断这不是普通的盗窃案。凶手对博物馆的布局了如指掌，还拥有钥匙。通风口通向建筑外侧的小巷，你在通风口外发现了轮胎痕迹和一枚烟蒂。烟蒂上残留着古龙水的味道——和展厅里闻到的一模一样！凶手就是从这里逃走的。轮胎痕迹延伸向城南老城区，你的追踪之路即将开始。",
+    "sceneBgColor": "#2C3E50",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=detective%20finding%20tire%20tracks%20and%20cigarette%20butt%20outside%20museum%20ventilation%20shaft%20at%20night%2C%20street%20lamp%20light%2C%20noir&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "沿着轮胎痕迹追踪，深入城南老城区",
+        "nextNodeId": "node_2_1",
+        "score": 5,
+        "type": "critical"
+      }
+    ],
+    "chapter": 1,
+    "isEnd": false
+  },
+  {
+    "id": "node_2_1",
+    "sceneId": "night-pursuit-start",
+    "text": "轮胎痕迹延伸进了城南的老城区，这里巷弄交错、灯光昏暗，是藏身的绝佳之地。你站在三岔路口，仔细观察：左边是通往旧仓库区的小路，隐约有灯光闪烁；中间的小巷深处传来急促的脚步声，似乎有人在奔跑；右边通向线人老张常出没的\"月影茶馆\"，或许他能提供有价值的情报。时间紧迫，你必须做出选择。",
+    "sceneBgColor": "#1A237E",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=dark%20alley%20intersection%20in%20old%20city%20district%20at%20night%2C%20three%20diverging%20paths%2C%20moody%20fog%20atmosphere%2C%20noir%20detective%20story&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "追踪脚步声，深入中间的暗巷",
+        "nextNodeId": "node_2_2",
+        "score": 10,
+        "type": "critical"
+      },
+      {
+        "text": "去月影茶馆找线人老张打听消息",
+        "nextNodeId": "node_2_3",
+        "score": 5,
+        "type": "normal"
+      },
+      {
+        "text": "潜入旧仓库区，查看灯光来源",
+        "nextNodeId": "node_2_4",
+        "score": 15,
+        "type": "score"
+      }
+    ],
+    "chapter": 2,
+    "isEnd": false
+  },
+  {
+    "id": "node_2_2",
+    "sceneId": "dark-alley-chase",
+    "text": "你沿着小巷快步追踪，脚步声越来越近。转角处，一个黑影猛地撞向你！你闪身一避，抓住对方的手臂——是个瘦小的少年，浑身发抖。\"别抓我！我只是个跑腿的！\"少年惊恐地说，\"有人给了我五百块，让我把这个盒子送到码头三号仓库……\"他手中攥着一个包裹严实的小盒子，盒子上隐约可见博物馆的封条印记。",
+    "sceneBgColor": "#1A237E",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=detective%20catching%20a%20frightened%20young%20man%20in%20a%20dark%20alley%20at%20night%2C%20dramatic%20shadows%2C%20noir%20detective&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "扣押少年和盒子，直奔码头三号仓库",
+        "nextNodeId": "node_3_1",
+        "score": 20,
+        "type": "critical"
+      }
+    ],
+    "chapter": 2,
+    "isEnd": false
+  },
+  {
+    "id": "node_2_3",
+    "sceneId": "informant-teahouse",
+    "text": "茶馆里烟雾缭绕，老张正在角落喝着浓茶。看到你来，他压低声音说：\"最近有个叫'黑蛇'的中间人很活跃，专帮人销赃。听说他今晚要在码头三号仓库和买家交接一批货。\"老张递给你一张模糊的照片——上面是一个戴墨镜的高个男子。\"小心，黑蛇手下有打手，你一个人去太危险了。\"",
+    "sceneBgColor": "#1A237E",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=informant%20whispering%20to%20detective%20in%20a%20smoky%20Chinese%20teahouse%20at%20night%2C%20dim%20lanterns%2C%20noir%20atmosphere&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "谢过老张，直奔码头三号仓库",
+        "nextNodeId": "node_3_1",
+        "score": 15,
+        "type": "critical"
+      }
+    ],
+    "chapter": 2,
+    "isEnd": false
+  },
+  {
+    "id": "node_2_4",
+    "sceneId": "warehouse-investigation",
+    "text": "你悄悄接近旧仓库区，透过破损的窗户看到里面有人正在搬箱子。仔细辨认，其中一个箱子上赫然印着博物馆的标记！你掏出手机拍了几张照片作为证据，却一不小心踩到了地上的铁罐——\"谁在外面！\"几个壮汉冲了出来。你利用对地形的判断，迅速穿过集装箱间的缝隙甩掉了追兵，同时发现他们正将货物向码头方向转移。",
+    "sceneBgColor": "#1A237E",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=detective%20hiding%20and%20spying%20on%20criminals%20moving%20boxes%20in%20a%20warehouse%20at%20night%2C%20moonlight%20through%20window%2C%20noir&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "跟踪他们前往码头，揭开幕后真相",
+        "nextNodeId": "node_3_1",
+        "score": 25,
+        "type": "score"
+      }
+    ],
+    "chapter": 2,
+    "isEnd": false
+  },
+  {
+    "id": "node_3_1",
+    "sceneId": "confront-suspect",
+    "text": "码头三号仓库前，一辆黑色货车正在装货。你躲在集装箱后面仔细观察，发现了一个意想不到的人——馆长王明远！他正和一个戴墨镜的高个男子（就是\"黑蛇\"）低声交谈。原来，馆长就是幕后黑手！他监守自盗，利用职务之便偷出金佛，再通过黑蛇销赃出国。证据确凿，但你现在面临关键抉择——如何将他们绳之以法？",
+    "sceneBgColor": "#4A148C",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=detective%20hiding%20behind%20shipping%20container%20at%20docks%2C%20watching%20museum%20director%20talking%20to%20a%20criminal%20at%20night%2C%20moonlit%20harbor&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "立即现身，正面揭穿馆长的阴谋",
+        "nextNodeId": "node_3_2",
+        "score": 15,
+        "type": "critical"
+      },
+      {
+        "text": "暗中录音取证，用智慧瓦解犯罪",
+        "nextNodeId": "node_3_3",
+        "score": 20,
+        "type": "score"
+      }
+    ],
+    "chapter": 3,
+    "isEnd": false
+  },
+  {
+    "id": "node_3_2",
+    "sceneId": "direct-confrontation",
+    "text": "\"王明远！你被捕了！\"你亮出证件大步走出。王明远脸色骤变，黑蛇伸手去摸腰间——但你早已提前通知了支援。警笛声划破夜空，特警从四面八方包围了码头。黑蛇被当场制服，王明远瘫倒在地。搜查货车后，金佛完好无损地在暗格中被找到。此案告破，正义终将到来！",
+    "sceneBgColor": "#4A148C",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=detective%20confronting%20criminals%20at%20the%20docks%2C%20police%20sirens%20and%20blue%20lights%20in%20background%2C%20dramatic%20standoff%20at%20night&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "查看案件结局",
+        "nextNodeId": "node_end",
+        "score": 10,
+        "type": "normal"
+      }
+    ],
+    "chapter": 3,
+    "isEnd": false
+  },
+  {
+    "id": "node_3_3",
+    "sceneId": "smart-deduction",
+    "text": "你悄悄打开录音设备，将他们的对话完整录下。\"金佛明天就能上船，到了海外就安全了……\"王明远的声音清晰可辨。你将录音和照片实时传送给指挥部，同时故意发出声响引开注意。在混乱中，你成功拿到了装金佛的箱子。当王明远反应过来时，手铐已经扣上了他的手腕。完美的智取！",
+    "sceneBgColor": "#4A148C",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=detective%20secretly%20recording%20criminals%20with%20smartphone%20at%20the%20docks%2C%20holding%20recovered%20golden%20Buddha%20artifact%2C%20night%20scene&image_size=landscape_16_9",
+    "options": [
+      {
+        "text": "查看案件结局",
+        "nextNodeId": "node_end",
+        "score": 15,
+        "type": "critical"
+      }
+    ],
+    "chapter": 3,
+    "isEnd": false
+  },
+  {
+    "id": "node_end",
+    "sceneId": "case-closed",
+    "text": "晨曦映照在金佛上，折射出耀眼的光芒。你站在博物馆门前，看着王明远被押上警车。刘叔红着眼眶向你道谢：\"谢谢你，侦探，是你找回了我们最珍贵的宝物。\"你望着初升的朝阳，心中明白：真相也许会迟到，但永远不会缺席。你的侦探之路，才刚刚开始……",
+    "sceneBgColor": "#1B5E20",
+    "sceneImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=detective%20standing%20at%20museum%20entrance%20at%20dawn%2C%20golden%20Buddha%20artifact%20glowing%20in%20sunlight%2C%20police%20car%20in%20background%2C%20sunrise&image_size=landscape_16_9",
+    "options": [],
+    "chapter": 3,
+    "isEnd": true
+  }
+]
