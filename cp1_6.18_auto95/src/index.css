@@ -1,0 +1,98 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-container {
+  min-height: 100vh;
+}
+
+.main-content {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+}
+
+.left-column {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.right-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+
+  .left-column {
+    width: 100%;
+  }
+}
+
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.positions-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.positions-scroll::-webkit-scrollbar-track {
+  background: #121220;
+  border-radius: 3px;
+}
+
+.positions-scroll::-webkit-scrollbar-thumb {
+  background: #2A2A40;
+  border-radius: 3px;
+}
+
+.positions-scroll::-webkit-scrollbar-thumb:hover {
+  background: #3A3A50;
+}
+
+.table-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #121220;
+  border-radius: 3px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #2A2A40;
+  border-radius: 3px;
+}
+
+button:hover {
+  opacity: 0.85;
+}
+
+button:active {
+  opacity: 0.7;
+}
