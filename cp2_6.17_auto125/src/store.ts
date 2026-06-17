@@ -59,6 +59,21 @@ const saveToStorage = (events: Event[]) => {
   }
 }
 
+interface StatsCacheEntry {
+  total: number
+  signedIn: number
+  version: number
+}
+
+const statsCache = new Map<string, StatsCacheEntry>()
+const eventVersions = new Map<string, number>()
+
+const bumpEventVersion = (eventId: string) => {
+  const current = eventVersions.get(eventId) || 0
+  eventVersions.set(eventId, current + 1)
+  statsCache.delete(eventId)
+}
+
 export const useEventStore = create<EventStore>((set, get) => ({
   events: [],
   currentEventId: null,
@@ -70,24 +85,10 @@ export const useEventStore = create<EventStore>((set, get) => ({
 
   setCurrentEvent: (id) => set({ currentEventId: id }),
 
-  createEvent: (name, date, description) => {
-    const newEvent: Event = {
-      id: uuidv4(),
-      name,
-      date,
-      description,
-      participants: [],
-      createdAt: new Date().toISOString()
-    }
-    const events = [...get().events, newEvent]
-    saveToStorage(events)
-    set({ events })
-    return newEvent
-  },
-
   deleteEvent: (eventId) => {
     const events = get().events.filter(e => e.id !== eventId)
     saveToStorage(events)
+    bumpEventVersion(eventId)
     set({ 
       events,
       currentEventId: get().currentEventId === eventId ? null : get().currentEventId
@@ -95,22 +96,25 @@ export const useEventStore = create<EventStore>((set, get) => ({
   },
 
   signIn: (eventId, participantId) => {
+    let shouldBump = false
     const events = get().events.map(event => {
       if (event.id !== eventId) return event
-      return {
-        ...event,
-        participants: event.participants.map(p => {
-          if (p.id !== participantId || p.signedIn) return p
-          return {
-            ...p,
-            signedIn: true,
-            signedInAt: new Date().toISOString()
-          }
-        })
-      }
+      const updatedParticipants = event.participants.map(p => {
+        if (p.id !== participantId || p.signedIn) return p
+        shouldBump = true
+        return {
+          ...p,
+          signedIn: true,
+          signedInAt: new Date().toISOString()
+        }
+      })
+      return { ...event, participants: updatedParticipants }
     })
-    saveToStorage(events)
-    set({ events })
+    if (shouldBump) {
+      saveToStorage(events)
+      bumpEventVersion(eventId)
+      set({ events })
+    }
   },
 
   addParticipant: (eventId, name, email) => {
@@ -132,6 +136,7 @@ export const useEventStore = create<EventStore>((set, get) => ({
       }
     })
     saveToStorage(events)
+    bumpEventVersion(eventId)
     set({ events })
     return newParticipant
   },
@@ -157,11 +162,37 @@ export const useEventStore = create<EventStore>((set, get) => ({
       }
     })
     saveToStorage(events)
+    bumpEventVersion(eventId)
     set({ events })
     return validParticipants
   },
 
+  createEvent: (name, date, description) => {
+    const newEvent: Event = {
+      id: uuidv4(),
+      name,
+      date,
+      description,
+      participants: [],
+      createdAt: new Date().toISOString()
+    }
+    const events = [...get().events, newEvent]
+    saveToStorage(events)
+    bumpEventVersion(newEvent.id)
+    set({ events })
+    return newEvent
+  },
+
   getEventStats: (eventId) => {
+    const currentVersion = eventVersions.get(eventId) || 0
+    const cached = statsCache.get(eventId)
+    if (cached && cached.version === currentVersion) {
+      return {
+        total: cached.total,
+        signedIn: cached.signedIn,
+        percentage: cached.total > 0 ? (cached.signedIn / cached.total) * 100 : 0
+      }
+    }
     const event = get().events.find(e => e.id === eventId)
     if (!event) {
       return { total: 0, signedIn: 0, percentage: 0 }
@@ -173,6 +204,7 @@ export const useEventStore = create<EventStore>((set, get) => ({
         signedIn++
       }
     }
+    statsCache.set(eventId, { total, signedIn, version: currentVersion })
     return {
       total,
       signedIn,

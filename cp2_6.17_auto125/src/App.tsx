@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react'
+import React, { Suspense, lazy, useState, useEffect, useCallback, useMemo } from 'react'
 import { useEventStore } from './store'
 
 const EventList = lazy(() => import('./pages/EventList'))
@@ -22,9 +22,26 @@ const App: React.FC = () => {
     setShowCreateModal(true)
   }, [])
 
+  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement
+    setNewEventName(target.value)
+  }, [])
+
+  const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement
+    setNewEventDate(target.value)
+  }, [])
+
+  const handleDescChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement> | React.FormEvent<HTMLTextAreaElement>) => {
+    const target = e.target as HTMLTextAreaElement
+    setNewEventDescription(target.value)
+  }, [])
+
   const currentEvent = currentEventId ? events.find(e => e.id === currentEventId) : null
 
-  const isFormValid = newEventName.trim().length > 0 && newEventDate.length > 0
+  const isFormValid = useMemo(() => {
+    return newEventName.trim().length > 0 && newEventDate.length > 0
+  }, [newEventName, newEventDate])
 
   const handleCreateEvent = useCallback(() => {
     if (!isFormValid) return
@@ -311,7 +328,8 @@ const App: React.FC = () => {
               style={inputStyle}
               placeholder="请输入活动名称"
               value={newEventName}
-              onChange={(e) => setNewEventName(e.target.value)}
+              onChange={handleNameChange}
+              onInput={handleNameChange}
               onFocus={inputFocusStyle}
               onBlur={inputBlurStyle}
             />
@@ -321,7 +339,8 @@ const App: React.FC = () => {
               type="date"
               style={inputStyle}
               value={newEventDate}
-              onChange={(e) => setNewEventDate(e.target.value)}
+              onChange={handleDateChange}
+              onInput={handleDateChange}
               onFocus={inputFocusStyle}
               onBlur={inputBlurStyle}
             />
@@ -331,7 +350,8 @@ const App: React.FC = () => {
               style={textareaStyle}
               placeholder="请输入活动描述（可选）"
               value={newEventDescription}
-              onChange={(e) => setNewEventDescription(e.target.value)}
+              onChange={handleDescChange}
+              onInput={handleDescChange}
               onFocus={inputFocusStyle}
               onBlur={inputBlurStyle}
             />

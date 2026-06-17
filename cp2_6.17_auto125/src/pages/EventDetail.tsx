@@ -14,6 +14,7 @@ const EventDetail: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [newParticipants, setNewParticipants] = useState<string[]>([])
   const [signingInIds, setSigningInIds] = useState<Set<string>>(new Set())
+  const signInTimersRef = useRef<Map<string, number>>(new Map())
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const stats = event ? getEventStats(event.id) : { total: 0, signedIn: 0, percentage: 0 }
@@ -39,6 +40,13 @@ const EventDetail: React.FC = () => {
     }
   }, [newParticipants])
 
+  useEffect(() => {
+    return () => {
+      signInTimersRef.current.forEach(timer => clearTimeout(timer))
+      signInTimersRef.current.clear()
+    }
+  }, [])
+
   if (!event) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
@@ -49,34 +57,44 @@ const EventDetail: React.FC = () => {
 
   const handleCopyLink = async () => {
     const link = `eventpulse://checkin/${event.id}`
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(link)
-        setCopyError(false)
-        setShowCopied(true)
-        setTimeout(() => setShowCopied(false), 2000)
-      } else {
-        const textArea = document.createElement('textarea')
-        textArea.value = link
-        textArea.style.position = 'fixed'
-        textArea.style.left = '-9999px'
-        textArea.style.top = '-9999px'
-        document.body.appendChild(textArea)
+    const copyWithExecCommand = (): boolean => {
+      const textArea = document.createElement('textarea')
+      textArea.value = link
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-9999px'
+      textArea.style.top = '-9999px'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      try {
         textArea.focus()
         textArea.select()
-        try {
-          document.execCommand('copy')
+        textArea.setSelectionRange(0, link.length)
+        const success = document.execCommand('copy')
+        if (!success) throw new Error('execCommand copy failed')
+        return true
+      } finally {
+        document.body.removeChild(textArea)
+      }
+    }
+    try {
+      if (navigator.clipboard && window.isSecureContext && document.hasFocus()) {
+        await navigator.clipboard.writeText(link)
+      } else {
+        if (!copyWithExecCommand()) throw new Error('Fallback copy failed')
+      }
+      setCopyError(false)
+      setShowCopied(true)
+      setTimeout(() => setShowCopied(false), 2000)
+    } catch (err) {
+      try {
+        if (copyWithExecCommand()) {
           setCopyError(false)
           setShowCopied(true)
           setTimeout(() => setShowCopied(false), 2000)
-        } catch (fallbackErr) {
-          throw fallbackErr
-        } finally {
-          document.body.removeChild(textArea)
+          return
         }
-      }
-    } catch (err) {
-      console.error('Copy failed:', err)
+      } catch (_) { /* ignore fallback error */ }
+      console.error('Copy failed completely:', err)
       setCopyError(true)
       setTimeout(() => setCopyError(false), 3000)
     }
@@ -127,16 +145,24 @@ const EventDetail: React.FC = () => {
   }
 
   const handleSignIn = (participantId: string) => {
-    if (signingInIds.has(participantId)) return
-    setSigningInIds(prev => new Set(prev).add(participantId))
-    signIn(event.id, participantId)
-    setTimeout(() => {
+    const existingTimer = signInTimersRef.current.get(participantId)
+    if (existingTimer !== undefined) {
+      clearTimeout(existingTimer)
+      signInTimersRef.current.delete(participantId)
+    }
+    if (!signingInIds.has(participantId)) {
+      setSigningInIds(prev => new Set(prev).add(participantId))
+      signIn(event.id, participantId)
+    }
+    const timer = window.setTimeout(() => {
       setSigningInIds(prev => {
         const next = new Set(prev)
         next.delete(participantId)
         return next
       })
+      signInTimersRef.current.delete(participantId)
     }, 300)
+    signInTimersRef.current.set(participantId, timer)
   }
 
   const confirmDelete = () => {
@@ -349,15 +375,6 @@ const EventDetail: React.FC = () => {
     cursor: 'pointer',
     transition: 'all 0.2s',
     objectFit: 'contain'
-  }
-
-  const copiedTextStyle: React.CSSProperties = {
-    fontSize: '12px',
-    color: '#4CAF50',
-    fontWeight: 600,
-    transition: 'opacity 0.5s',
-    opacity: showCopied ? 1 : 0,
-    height: '18px'
   }
 
   const qrHintStyle: React.CSSProperties = {
