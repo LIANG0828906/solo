@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>细胞粒子沙盒</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #0F172A;
+    }
+
+    #gameCanvas {
+      display: block;
+      cursor: crosshair;
+    }
+
+    #stats-panel {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: 200px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      z-index: 10;
+      user-select: none;
+    }
+
+    #stats-panel .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    #stats-panel .stat-label {
+      color: #94A3B8;
+    }
+
+    #stats-panel .stat-value {
+      color: #E2E8F0;
+    }
+
+    #stats-panel .producer-color {
+      color: #4ADE80;
+    }
+
+    #stats-panel .consumer-color {
+      color: #FACC15;
+    }
+
+    #stats-panel .hunter-color {
+      color: #EF4444;
+    }
+
+    #stats-panel h3 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #F1F5F9;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 4px;
+    }
+
+    #control-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 16px 28px;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
+      z-index: 10;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-group label {
+      color: #CBD5E1;
+      font-size: 12px;
+      user-select: none;
+    }
+
+    .control-group input[type="range"] {
+      width: 120px;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #444;
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .control-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3B82F6;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .control-group input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .control-group input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3B82F6;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    #resetBtn {
+      padding: 10px 24px;
+      background: #3B82F6;
+      color: white;
+      font-size: 16px;
+      font-weight: 500;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    #resetBtn:hover {
+      background: #60A5FA;
+    }
+
+    #resetBtn:active {
+      transform: scale(0.97);
+    }
+
+    .spawn-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .spawn-btn {
+      flex: 1;
+      padding: 6px 8px;
+      font-size: 11px;
+      border: 2px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .spawn-btn.producer {
+      background: rgba(74, 222, 128, 0.2);
+      color: #4ADE80;
+      border-color: transparent;
+    }
+
+    .spawn-btn.producer.active {
+      border-color: #4ADE80;
+      background: rgba(74, 222, 128, 0.3);
+    }
+
+    .spawn-btn.consumer {
+      background: rgba(250, 204, 21, 0.2);
+      color: #FACC15;
+    }
+
+    .spawn-btn.consumer.active {
+      border-color: #FACC15;
+      background: rgba(250, 204, 21, 0.3);
+    }
+
+    .spawn-btn.hunter {
+      background: rgba(239, 68, 68, 0.2);
+      color: #EF4444;
+    }
+
+    .spawn-btn.hunter.active {
+      border-color: #EF4444;
+      background: rgba(239, 68, 68, 0.3);
+    }
+
+    .spawn-btn:hover {
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="stats-panel">
+    <h3>状态统计</h3>
+    <div class="spawn-selector">
+      <button class="spawn-btn producer active" data-type="producer">生产者</button>
+      <button class="spawn-btn consumer" data-type="consumer">消费者</button>
+      <button class="spawn-btn hunter" data-type="hunter">猎手</button>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">粒子总数</span>
+      <span class="stat-value" id="totalCount">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label producer-color">生产者</span>
+      <span class="stat-value" id="producerCount">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label consumer-color">消费者</span>
+      <span class="stat-value" id="consumerCount">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label hunter-color">猎手</span>
+      <span class="stat-value" id="hunterCount">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">平均生命</span>
+      <span class="stat-value" id="avgHealth">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">分裂/秒</span>
+      <span class="stat-value" id="splitRate">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">吞噬/秒</span>
+      <span class="stat-value" id="eatRate">0</span>
+    </div>
+  </div>
+
+  <div id="control-bar">
+    <div class="control-group">
+      <label for="gravitySlider">引力强度</label>
+      <input type="range" id="gravitySlider" min="0.1" max="2.0" step="0.1" value="0.5">
+    </div>
+    <div class="control-group">
+      <label for="repulsionSlider">斥力半径</label>
+      <input type="range" id="repulsionSlider" min="20" max="160" step="5" value="80">
+    </div>
+    <div class="control-group">
+      <label for="turbulenceSlider">湍流幅度</label>
+      <input type="range" id="turbulenceSlider" min="0" max="2" step="0.1" value="0.5">
+    </div>
+    <button id="resetBtn">重置</button>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
