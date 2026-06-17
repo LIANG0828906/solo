@@ -1,6 +1,7 @@
 import {
   Ball,
   Paddle,
+  FlashEffect,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   PADDLE_RESTITUTION,
@@ -51,20 +52,32 @@ export function createBall(x: number, y: number, radius?: number): Ball {
   };
 }
 
-export function updateBallSpawn(ball: Ball, now: number): Ball {
-  if (!ball.spawning) return ball;
+export function updateBallSpawn(ball: Ball, now: number): { ball: Ball; displayOffset: number; displayScale: number } {
+  if (!ball.spawning) {
+    return { ball, displayOffset: 0, displayScale: 1 };
+  }
   const elapsed = now - ball.spawnTime;
   if (elapsed >= SPAWN_ANIM_DURATION) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 100 + Math.random() * 150;
     return {
-      ...ball,
-      spawning: false,
-      vx: Math.cos(angle) * speed,
-      vy: -150,
+      ball: {
+        ...ball,
+        spawning: false,
+        vx: Math.cos(angle) * speed,
+        vy: -150,
+      },
+      displayOffset: 0,
+      displayScale: 1,
     };
   }
-  return ball;
+
+  const t = elapsed / SPAWN_ANIM_DURATION;
+  const initialAmplitude = 40;
+  const amplitude = initialAmplitude * (1 - t);
+  const bounce = Math.sin(t * Math.PI * 4) * amplitude;
+  const scale = 0.5 + 0.5 * t;
+  return { ball, displayOffset: bounce, displayScale: scale };
 }
 
 export function updatePhysics(
@@ -72,15 +85,27 @@ export function updatePhysics(
   paddle: Paddle,
   dt: number,
   now: number
-): { balls: Ball[]; scoreDelta: number; lifeLost: boolean; collisionTime: number } {
+): {
+  balls: Ball[];
+  scoreDelta: number;
+  lifeLost: boolean;
+  collisionTime: number;
+  flashEffects: FlashEffect[];
+} {
+  const funcStart = performance.now();
+
   let scoreDelta = 0;
   let lifeLost = false;
-  let totalCollisionTime = 0;
+  const newFlashEffects: FlashEffect[] = [];
+  const displayUpdates = new Map<string, { offset: number; scale: number }>();
 
   const updated = balls.map((ball) => {
     let b = { ...ball };
-
-    b = updateBallSpawn(b, now);
+    const { ball: processed, displayOffset, displayScale } = updateBallSpawn(b, now);
+    b = processed;
+    if (b.id !== ball.id || processed.id === ball.id) {
+      displayUpdates.set(b.id, { offset: displayOffset, scale: displayScale });
+    }
 
     if (!b.spawning) {
       b.vy += GRAVITY * dt;
@@ -103,15 +128,16 @@ export function updatePhysics(
       b.vy = Math.abs(b.vy) * WALL_RESTITUTION;
     }
 
-    if (!b.spawning &&
+    if (
+      !b.spawning &&
       b.vy > 0 &&
       b.y + b.radius >= paddle.y &&
-      b.y + b.radius <= paddle.y + paddle.height + b.vy * dt + 5 &&
+      b.y + b.radius <= paddle.y + paddle.height + b.vy * dt + 10 &&
       b.x + b.radius > paddle.x &&
       b.x - b.radius < paddle.x + paddle.width
     ) {
       b.y = paddle.y - b.radius;
-      b.vy = -Math.abs(b.vy) * PADDLE_RESTITUTION;
+      b.vy = -b.vy * PADDLE_RESTITUTION;
       const hitPos = (b.x - paddle.x) / paddle.width;
       b.vx += (hitPos - 0.5) * 100;
       scoreDelta += 1;
@@ -131,68 +157,65 @@ export function updatePhysics(
 
   const alive: Ball[] = updated.filter((b): b is Ball => b !== null);
 
-  const collisionDetectStart = performance.now();
-  const collisionPairs: [number, number][] = [];
   for (let i = 0; i < alive.length; i++) {
     for (let j = i + 1; j < alive.length; j++) {
-      const pairStart = performance.now();
       const a = alive[i];
       const b = alive[j];
-      if (a.spawning || b.spawning) {
-        totalCollisionTime += performance.now() - pairStart;
-        continue;
-      }
+      if (a.spawning || b.spawning) continue;
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const minDist = a.radius + b.radius;
       if (dist < minDist && dist > 0) {
-        collisionPairs.push([i, j]);
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        const overlap = a.radius + b.radius - dist;
+        a.x -= nx * overlap * 0.5;
+        a.y -= ny * overlap * 0.5;
+        b.x += nx * overlap * 0.5;
+        b.y += ny * overlap * 0.5;
+
+        const dvx = a.vx - b.vx;
+        const dvy = a.vy - b.vy;
+        const dvDotN = dvx * nx + dvy * ny;
+
+        if (dvDotN > 0) {
+          const massA = a.radius * a.radius;
+          const massB = b.radius * b.radius;
+          const totalMass = massA + massB;
+
+          a.vx -= (2 * massB / totalMass) * dvDotN * nx;
+          a.vy -= (2 * massB / totalMass) * dvDotN * ny;
+          b.vx += (2 * massA / totalMass) * dvDotN * nx;
+          b.vy += (2 * massA / totalMass) * dvDotN * ny;
+
+          const fc = mixColors(a.color, b.color);
+          a.flashUntil = now + FLASH_DURATION;
+          a.flashColor = fc;
+          b.flashUntil = now + FLASH_DURATION;
+          b.flashColor = fc;
+
+          const cx = (a.x + b.x) / 2;
+          const cy = (a.y + b.y) / 2;
+          newFlashEffects.push({
+            id: uuidv4(),
+            x: cx,
+            y: cy,
+            color: fc,
+            until: now + FLASH_DURATION,
+          });
+        }
       }
-      totalCollisionTime += performance.now() - pairStart;
     }
   }
 
-  for (const [i, j] of collisionPairs) {
-    const resolveStart = performance.now();
-    const a = alive[i];
-    const b = alive[j];
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const nx = dx / dist;
-    const ny = dy / dist;
-
-    const overlap = a.radius + b.radius - dist;
-    a.x -= nx * overlap * 0.5;
-    a.y -= ny * overlap * 0.5;
-    b.x += nx * overlap * 0.5;
-    b.y += ny * overlap * 0.5;
-
-    const dvx = a.vx - b.vx;
-    const dvy = a.vy - b.vy;
-    const dvDotN = dvx * nx + dvy * ny;
-
-    if (dvDotN > 0) {
-      const massA = a.radius * a.radius;
-      const massB = b.radius * b.radius;
-      const totalMass = massA + massB;
-
-      a.vx -= (2 * massB / totalMass) * dvDotN * nx;
-      a.vy -= (2 * massB / totalMass) * dvDotN * ny;
-      b.vx += (2 * massA / totalMass) * dvDotN * nx;
-      b.vy += (2 * massA / totalMass) * dvDotN * ny;
-
-      const fc = mixColors(a.color, b.color);
-      a.flashUntil = now + FLASH_DURATION;
-      a.flashColor = fc;
-      b.flashUntil = now + FLASH_DURATION;
-      b.flashColor = fc;
-    }
-    totalCollisionTime += performance.now() - resolveStart;
-  }
-
-  totalCollisionTime += performance.now() - collisionDetectStart;
-
-  return { balls: alive, scoreDelta, lifeLost, collisionTime: totalCollisionTime };
+  const funcEnd = performance.now();
+  return {
+    balls: alive,
+    scoreDelta,
+    lifeLost,
+    collisionTime: funcEnd - funcStart,
+    flashEffects: newFlashEffects,
+  };
 }

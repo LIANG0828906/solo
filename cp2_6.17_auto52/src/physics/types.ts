@@ -26,6 +26,14 @@ export interface CollisionResult {
   collided: boolean;
 }
 
+export interface FlashEffect {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  until: number;
+}
+
 export const CANVAS_WIDTH = 800;
 export const CANVAS_HEIGHT = 600;
 export const PADDLE_WIDTH = 120;

@@ -2,16 +2,15 @@ import { create } from 'zustand';
 import {
   Ball,
   Paddle,
+  FlashEffect,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   PADDLE_WIDTH,
   PADDLE_HEIGHT,
   PADDLE_Y_OFFSET,
   INITIAL_LIVES,
-  COLOR_PALETTE,
 } from './physics/types';
 import { createBall } from './physics/engine';
-import { v4 as uuidv4 } from 'uuid';
 
 interface PerformanceData {
   fps: number;
@@ -27,6 +26,7 @@ interface GameState {
   gameOver: boolean;
   performance: PerformanceData;
   paddleVelocity: number;
+  flashEffects: FlashEffect[];
 
   setBalls: (balls: Ball[]) => void;
   addBall: () => void;
@@ -37,6 +37,8 @@ interface GameState {
   loseLife: () => void;
   setGameOver: (v: boolean) => void;
   setPerformance: (p: PerformanceData) => void;
+  addFlashEffects: (effects: FlashEffect[]) => void;
+  cleanupFlashEffects: (now: number) => void;
   reset: () => void;
 }
 
@@ -45,8 +47,11 @@ function createInitialBalls(): Ball[] {
   for (let i = 0; i < 5; i++) {
     const radius = Math.floor(Math.random() * 8) + 8;
     const x = 100 + Math.random() * (CANVAS_WIDTH - 200);
-    const y = 50 + Math.random() * 150;
-    balls.push(createBall(x, y, radius));
+    const y = 200 + Math.random() * 200;
+    const ball = createBall(x, y, radius);
+    ball.spawning = false;
+    ball.vy = Math.abs(ball.vy) * (Math.random() > 0.5 ? -1 : 1);
+    balls.push(ball);
   }
   return balls;
 }
@@ -64,6 +69,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   gameOver: false,
   performance: { fps: 0, particleCount: 0, avgCollisionTime: 0 },
   paddleVelocity: 0,
+  flashEffects: [],
 
   setBalls: (balls) => set({ balls }),
   addBall: () => {
@@ -94,6 +100,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     }),
   setGameOver: (v) => set({ gameOver: v }),
   setPerformance: (p) => set({ performance: p }),
+  addFlashEffects: (effects) =>
+    set((s) => ({ flashEffects: [...s.flashEffects, ...effects] })),
+  cleanupFlashEffects: (now) =>
+    set((s) => ({
+      flashEffects: s.flashEffects.filter((f) => f.until > now),
+    })),
   reset: () =>
     set({
       balls: createInitialBalls(),
@@ -107,5 +119,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         height: PADDLE_HEIGHT,
       },
       performance: { fps: 0, particleCount: 0, avgCollisionTime: 0 },
+      flashEffects: [],
     }),
 }));

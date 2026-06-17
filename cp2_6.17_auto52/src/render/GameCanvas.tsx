@@ -5,6 +5,8 @@ import {
   CANVAS_HEIGHT,
   PADDLE_SPEED_LIMIT,
   PADDLE_Y_OFFSET,
+  SPAWN_ANIM_DURATION,
+  FLASH_DURATION,
 } from '../physics/types';
 import { updatePhysics } from '../physics/engine';
 
@@ -22,14 +24,14 @@ const GameCanvas: React.FC = () => {
   const balls = useGameStore((s) => s.balls);
   const paddle = useGameStore((s) => s.paddle);
   const gameOver = useGameStore((s) => s.gameOver);
-  const score = useGameStore((s) => s.score);
-  const lives = useGameStore((s) => s.lives);
 
   const setBalls = useGameStore((s) => s.setBalls);
   const setPaddle = useGameStore((s) => s.setPaddle);
   const addScore = useGameStore((s) => s.addScore);
   const loseLife = useGameStore((s) => s.loseLife);
   const setPerformance = useGameStore((s) => s.setPerformance);
+  const addFlashEffects = useGameStore((s) => s.addFlashEffects);
+  const cleanupFlashEffects = useGameStore((s) => s.cleanupFlashEffects);
 
   const drawGrid = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.strokeStyle = '#2A2A4E';
@@ -48,26 +50,27 @@ const GameCanvas: React.FC = () => {
     }
   }, []);
 
-  const drawBall = useCallback((ctx: CanvasRenderingContext2D, ball: typeof balls[0], now: number) => {
-    const { x, y, radius, color, flashUntil, flashColor, spawning, spawnTime } = ball;
+  const drawBall = useCallback((ctx: CanvasRenderingContext2D, ball: any, now: number) => {
+    const { x, y, radius, color, spawning, spawnTime } = ball;
 
     let drawY = y;
     let drawRadius = radius;
+
     if (spawning) {
       const elapsed = now - spawnTime;
-      const t = Math.min(elapsed / 300, 1);
-      const bounce = Math.sin(t * Math.PI * 3) * (1 - t) * 20;
+      const t = Math.min(elapsed / SPAWN_ANIM_DURATION, 1);
+      const initialAmplitude = 40;
+      const amplitude = initialAmplitude * (1 - t);
+      const bounce = Math.sin(t * Math.PI * 4) * amplitude;
       drawY = y + bounce;
       drawRadius = radius * (0.5 + 0.5 * t);
     }
 
     ctx.save();
 
-    const isFlashing = flashUntil > now && flashColor;
-
     const gradient = ctx.createRadialGradient(
-      drawX(x, drawRadius, -0.33),
-      drawY_offset(drawY, drawRadius, -0.33),
+      x + drawRadius * (-0.33),
+      drawY + drawRadius * (-0.33),
       drawRadius * 0.1,
       x,
       drawY,
@@ -83,28 +86,29 @@ const GameCanvas: React.FC = () => {
     ctx.fillStyle = gradient;
     ctx.fill();
 
-    if (isFlashing) {
-      const flashProgress = (flashUntil - now) / 100;
-      ctx.globalAlpha = flashProgress * 0.7;
-      const flashRadius = drawRadius * (1.5 + (1 - flashProgress) * 0.5);
-      const flashGrad = ctx.createRadialGradient(x, drawY, 0, x, drawY, flashRadius);
-      flashGrad.addColorStop(0, flashColor);
-      flashGrad.addColorStop(0.5, flashColor);
-      flashGrad.addColorStop(1, 'transparent');
-      ctx.beginPath();
-      ctx.arc(x, drawY, flashRadius, 0, Math.PI * 2);
-      ctx.fillStyle = flashGrad;
-      ctx.fill();
-
-      ctx.globalAlpha = flashProgress * 0.9;
-      ctx.beginPath();
-      ctx.arc(x, drawY, drawRadius * 1.1, 0, Math.PI * 2);
-      ctx.strokeStyle = flashColor;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
-
     ctx.restore();
+  }, []);
+
+  const drawFlashEffects = useCallback((ctx: CanvasRenderingContext2D, now: number) => {
+    const effects = useGameStore.getState().flashEffects;
+    for (const eff of effects) {
+      if (eff.until <= now) continue;
+      const t = (eff.until - now) / FLASH_DURATION;
+      const alpha = 0.5 * t;
+      const radius = 15 + (1 - t) * 20;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      const grad = ctx.createRadialGradient(eff.x, eff.y, 0, eff.x, eff.y, radius);
+      grad.addColorStop(0, eff.color);
+      grad.addColorStop(0.6, eff.color);
+      grad.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.arc(eff.x, eff.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+    }
   }, []);
 
   const gameLoop = useCallback(() => {
@@ -150,6 +154,8 @@ const GameCanvas: React.FC = () => {
       setBalls(result.balls);
       if (result.scoreDelta > 0) addScore(result.scoreDelta);
       if (result.lifeLost) loseLife();
+      if (result.flashEffects.length > 0) addFlashEffects(result.flashEffects);
+      cleanupFlashEffects(now);
     }
 
     const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
@@ -165,16 +171,12 @@ const GameCanvas: React.FC = () => {
       drawBall(ctx, ball, now);
     }
 
+    drawFlashEffects(ctx, now);
+
     const currentPaddle = useGameStore.getState().paddle;
     ctx.save();
     ctx.shadowColor = '#E94560';
     ctx.shadowBlur = 8;
-    ctx.fillStyle = '#E94560';
-    ctx.beginPath();
-    roundRect(ctx, currentPaddle.x, currentPaddle.y, currentPaddle.width, currentPaddle.height, 8);
-    ctx.fill();
-    ctx.restore();
-
     const grad = ctx.createLinearGradient(
       currentPaddle.x,
       currentPaddle.y,
@@ -187,6 +189,7 @@ const GameCanvas: React.FC = () => {
     ctx.beginPath();
     roundRect(ctx, currentPaddle.x, currentPaddle.y, currentPaddle.width, currentPaddle.height, 8);
     ctx.fill();
+    ctx.restore();
 
     frameCountRef.current++;
     if (now - fpsTimeRef.current >= 1000) {
@@ -205,7 +208,7 @@ const GameCanvas: React.FC = () => {
     }
 
     animIdRef.current = requestAnimationFrame(gameLoop);
-  }, [balls, paddle, gameOver, setBalls, setPaddle, addScore, loseLife, setPerformance, drawGrid, drawBall]);
+  }, [balls, paddle, gameOver, setBalls, setPaddle, addScore, loseLife, setPerformance, addFlashEffects, cleanupFlashEffects, drawGrid, drawBall, drawFlashEffects]);
 
   useEffect(() => {
     lastTimeRef.current = performance.now();
@@ -294,14 +297,6 @@ const GameCanvas: React.FC = () => {
     </div>
   );
 };
-
-function drawX(x: number, radius: number, offset: number): number {
-  return x + radius * offset;
-}
-
-function drawY_offset(y: number, radius: number, offset: number): number {
-  return y + radius * offset;
-}
 
 function darkenColor(color: string, factor: number): string {
   let r: number, g: number, b: number;
