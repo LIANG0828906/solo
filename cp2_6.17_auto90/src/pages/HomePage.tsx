@@ -127,6 +127,9 @@ const HomePage = () => {
                 onClick={() => handleCardClick(timeline)}
                 style={{
                   width: '300px',
+                  height: '180px',
+                  display: 'flex',
+                  flexDirection: 'column',
                   backgroundColor: '#1E1E2E',
                   borderRadius: '12px',
                   border: '0.5px solid #3A3A5C',
@@ -134,6 +137,7 @@ const HomePage = () => {
                   cursor: 'pointer',
                   transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out',
                   position: 'relative',
+                  boxSizing: 'border-box',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-4px)';
@@ -188,17 +192,22 @@ const HomePage = () => {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'flex-end',
+                  marginTop: 'auto',
+                  paddingTop: '12px',
                 }}>
                   <div style={{
                     fontSize: '12px',
                     color: '#6C63FF',
                     fontWeight: 500,
+                    pointerEvents: 'none',
                   }}>
                     {eventCount} 个事件
                   </div>
                   <div style={{
                     fontSize: '11px',
                     color: '#666677',
+                    pointerEvents: 'none',
+                    paddingLeft: '12px',
                   }}>
                     {formatRelativeTime(timeline.updatedAt)}
                   </div>

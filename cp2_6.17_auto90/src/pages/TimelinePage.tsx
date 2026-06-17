@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTimelineStore } from '../store';
-import { COLOR_PRESETS, formatDate, darkenColor, lightenColor, hexToRgba } from '../constants';
+import { COLOR_PRESETS, formatDate, darkenColor, lightenColor, hexToRgba, TIMELINE_AXIS_LEFT, TIMELINE_AXIS_WIDTH, TIMELINE_DOT_SIZE, TIMELINE_CONTAINER_PADDING_LEFT, TIMELINE_CARD_MARGIN_LEFT, getTimelineDotLeft, getHoverShadowColor } from '../constants';
 import type { Event } from '../types';
 
 const TimelinePage = () => {
@@ -624,13 +624,13 @@ const TimelinePage = () => {
             <div style={{ fontSize: '16px' }}>还没有事件，点击上方按钮添加第一个事件吧</div>
           </div>
         ) : (
-          <div style={{ position: 'relative', paddingLeft: '28px' }}>
+          <div style={{ position: 'relative', paddingLeft: `${TIMELINE_CONTAINER_PADDING_LEFT}px` }}>
             <div style={{
               position: 'absolute',
-              left: '13px',
+              left: `${TIMELINE_AXIS_LEFT}px`,
               top: '0',
               bottom: '0',
-              width: '2px',
+              width: `${TIMELINE_AXIS_WIDTH}px`,
               backgroundColor: '#6C63FF',
             }} />
 
@@ -645,10 +645,10 @@ const TimelinePage = () => {
               >
                 <div style={{
                   position: 'absolute',
-                  left: '-22px',
+                  left: `${getTimelineDotLeft()}px`,
                   top: '28px',
-                  width: '12px',
-                  height: '12px',
+                  width: `${TIMELINE_DOT_SIZE}px`,
+                  height: `${TIMELINE_DOT_SIZE}px`,
                   borderRadius: '50%',
                   backgroundColor: event.color,
                   border: '3px solid #121221',
@@ -659,16 +659,18 @@ const TimelinePage = () => {
                 <div
                   style={{
                     width: '100%',
-                    background: `linear-gradient(to right, ${hexToRgba(event.color, 0.1)} 0%, transparent 60%), #2A2A3E`,
+                    position: 'relative',
+                    backgroundColor: '#2A2A3E',
                     borderRadius: '10px',
                     borderLeft: `4px solid ${event.color}`,
                     padding: '20px',
-                    marginLeft: '20px',
+                    marginLeft: `${TIMELINE_CARD_MARGIN_LEFT}px`,
+                    overflow: 'hidden',
                     transition: 'transform 0.3s ease-out, box-shadow 0.3s ease-out',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateX(4px)';
-                    e.currentTarget.style.boxShadow = `0 4px 16px ${hexToRgba(event.color, 0.15)}`;
+                    e.currentTarget.style.boxShadow = `0 4px 16px ${getHoverShadowColor()}`;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateX(0)';
@@ -676,79 +678,91 @@ const TimelinePage = () => {
                   }}
                 >
                   <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    marginBottom: '8px',
-                  }}>
-                    <div>
-                      <h3 style={{
-                        fontSize: '16px',
-                        fontWeight: 600,
-                        color: '#E0E0E0',
-                      }}>
-                        {event.title}
-                      </h3>
-                      <div style={{
-                        fontSize: '12px',
-                        color: '#6C63FF',
-                        marginTop: '4px',
-                      }}>
-                        {formatDate(event.date)}
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: `linear-gradient(to right, ${hexToRgba(event.color, 0.1)} 0%, transparent 60%)`,
+                    pointerEvents: 'none',
+                    zIndex: 0,
+                  }} />
+                  <div style={{ position: 'relative', zIndex: 1 }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      marginBottom: '8px',
+                    }}>
+                      <div>
+                        <h3 style={{
+                          fontSize: '16px',
+                          fontWeight: 600,
+                          color: '#E0E0E0',
+                        }}>
+                          {event.title}
+                        </h3>
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#6C63FF',
+                          marginTop: '4px',
+                        }}>
+                          {formatDate(event.date)}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => handleEditEvent(event)}
+                          style={{
+                            padding: '4px 12px',
+                            backgroundColor: 'transparent',
+                            color: '#888899',
+                            fontSize: '12px',
+                            borderRadius: '4px',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#3A3A5C';
+                            e.currentTarget.style.color = '#E0E0E0';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.color = '#888899';
+                          }}
+                        >
+                          编辑
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEvent(event.id)}
+                          style={{
+                            padding: '4px 12px',
+                            backgroundColor: 'transparent',
+                            color: '#F50057',
+                            fontSize: '12px',
+                            borderRadius: '4px',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(245, 0, 87, 0.1)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          删除
+                        </button>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => handleEditEvent(event)}
-                        style={{
-                          padding: '4px 12px',
-                          backgroundColor: 'transparent',
-                          color: '#888899',
-                          fontSize: '12px',
-                          borderRadius: '4px',
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#3A3A5C';
-                          e.currentTarget.style.color = '#E0E0E0';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = '#888899';
-                        }}
-                      >
-                        编辑
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEvent(event.id)}
-                        style={{
-                          padding: '4px 12px',
-                          backgroundColor: 'transparent',
-                          color: '#F50057',
-                          fontSize: '12px',
-                          borderRadius: '4px',
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'rgba(245, 0, 87, 0.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
-                      >
-                        删除
-                      </button>
-                    </div>
+                    {event.description && (
+                      <p style={{
+                        fontSize: '14px',
+                        color: '#AAAAAA',
+                        lineHeight: 1.6,
+                      }}>
+                        {event.description}
+                      </p>
+                    )}
                   </div>
-                  {event.description && (
-                    <p style={{
-                      fontSize: '14px',
-                      color: '#AAAAAA',
-                      lineHeight: 1.6,
-                    }}>
-                      {event.description}
-                    </p>
-                  )}
                 </div>
               </div>
             ))}

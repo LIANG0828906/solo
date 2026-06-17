@@ -53,6 +53,11 @@ export const formatRelativeTime = (dateString: string): string => {
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
+
+  if (diffMs <= 0 || isNaN(diffMs)) {
+    return '刚刚';
+  }
+
   const diffSec = Math.floor(diffMs / 1000);
   const diffMin = Math.floor(diffSec / 60);
   const diffHour = Math.floor(diffMin / 60);
@@ -70,9 +75,32 @@ export const formatRelativeTime = (dateString: string): string => {
   if (diffDay < 7) {
     return `${diffDay}天前`;
   }
+  const nowYear = now.getFullYear();
+  const dateYear = date.getFullYear();
+  if (nowYear === dateYear) {
+    return date.toLocaleDateString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+    });
+  }
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
   });
+};
+
+export const TIMELINE_AXIS_LEFT = 20;
+export const TIMELINE_AXIS_WIDTH = 2;
+export const TIMELINE_DOT_SIZE = 12;
+export const TIMELINE_CONTAINER_PADDING_LEFT = 40;
+export const TIMELINE_CARD_MARGIN_LEFT = 28;
+
+export const getTimelineDotLeft = (): number => {
+  const axisCenter = TIMELINE_AXIS_LEFT + TIMELINE_AXIS_WIDTH / 2;
+  return axisCenter - TIMELINE_CONTAINER_PADDING_LEFT - TIMELINE_DOT_SIZE / 2;
+};
+
+export const getHoverShadowColor = (): string => {
+  return 'rgba(255, 255, 255, 0.08)';
 };
