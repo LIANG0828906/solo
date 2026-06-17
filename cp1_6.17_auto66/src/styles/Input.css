@@ -1,0 +1,122 @@
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-bottom: 2px solid var(--color-border);
+  background-color: transparent;
+  font-size: 14px;
+  color: var(--color-text);
+  transition: border-color var(--transition-fast);
+  outline: none;
+  font-family: inherit;
+}
+
+.custom-input:focus {
+  border-bottom-color: var(--color-primary);
+}
+
+.custom-input::placeholder {
+  color: var(--color-text-light);
+}
+
+.custom-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.6;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.textarea:focus {
+  border-color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.char-count {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.number-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition-fast);
+  width: 140px;
+}
+
+.number-input-wrapper:focus-within {
+  border-color: var(--color-primary);
+}
+
+.number-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-panel);
+  border: none;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.number-btn:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.number-btn:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.number-btn:hover:not(:disabled) {
+  background-color: var(--color-border);
+}
+
+.number-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.number-input {
+  flex: 1;
+  text-align: center;
+  border: none;
+  border-bottom: none;
+  padding: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  -moz-appearance: textfield;
+}
+
+.number-input::-webkit-outer-spin-button,
+.number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.number-input:focus {
+  border-bottom: none;
+}

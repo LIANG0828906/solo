@@ -1,0 +1,125 @@
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all var(--transition-fast);
+  user-select: none;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  min-height: 32px;
+  min-width: 32px;
+}
+
+.btn-md {
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.btn-lg {
+  padding: 14px 28px;
+  font-size: 16px;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(.btn-disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.btn-secondary {
+  background-color: var(--color-secondary);
+  color: #ffffff;
+}
+
+.btn-secondary:hover:not(.btn-disabled) {
+  background-color: #9089F0;
+}
+
+.btn-success {
+  background-color: var(--color-success);
+  color: #ffffff;
+}
+
+.btn-success:hover:not(.btn-disabled) {
+  background-color: #27AE60;
+}
+
+.btn-danger {
+  background-color: var(--color-danger);
+  color: #ffffff;
+}
+
+.btn-danger:hover:not(.btn-disabled) {
+  background-color: #C0392B;
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-text);
+}
+
+.btn-ghost:hover:not(.btn-disabled) {
+  background-color: var(--color-bg-panel);
+}
+
+.btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ripple {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  animation: ripple-expand 0.4s linear forwards;
+  pointer-events: none;
+}
+
+.btn-ghost .btn-ripple {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+@keyframes ripple-expand {
+  to {
+    transform: translate(-50%, -50%) scale(40);
+    opacity: 0;
+  }
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.btn-content-loading {
+  opacity: 0.7;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

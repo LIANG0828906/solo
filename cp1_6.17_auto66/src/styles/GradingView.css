@@ -1,0 +1,191 @@
+.grading-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fade-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.grading-panel {
+  background-color: #ffffff;
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(-30px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.grading-panel.visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.grading-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.grading-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.close-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.close-btn:hover {
+  background-color: var(--color-bg-panel);
+  color: var(--color-text);
+}
+
+.grading-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.slide-in {
+  opacity: 0;
+  transform: translateY(-20px);
+  animation: slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slide-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.student-info-section {
+  background-color: var(--color-bg-panel);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.info-label {
+  color: var(--color-text-secondary);
+}
+
+.info-value {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.submission-section {
+  margin-bottom: 24px;
+}
+
+.submission-section h4,
+.grading-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 12px 0;
+}
+
+.submission-content {
+  background-color: var(--color-bg-panel);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.submission-content p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.submission-content p:last-child {
+  margin-bottom: 0;
+}
+
+.submission-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-primary);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.submission-file:hover {
+  text-decoration: underline;
+}
+
+.grading-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.grade-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.grade-hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.feedback-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.grading-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border);
+  background-color: #fafafa;
+}
