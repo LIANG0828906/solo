@@ -20,6 +20,7 @@ export class UIControl {
   private rangeFill: HTMLElement;
   private rangeMinDisplay: HTMLElement;
   private rangeMaxDisplay: HTMLElement;
+  private rangeCurrentDisplay: HTMLElement;
   private playBtn: HTMLElement;
   private timelineProgress: HTMLElement;
   private timelineThumb: HTMLElement;
@@ -41,6 +42,9 @@ export class UIControl {
     ) as HTMLElement;
     this.rangeMaxDisplay = document.getElementById(
       'range-max-display'
+    ) as HTMLElement;
+    this.rangeCurrentDisplay = document.getElementById(
+      'range-current-display'
     ) as HTMLElement;
     this.playBtn = document.getElementById('play-btn') as HTMLElement;
     this.timelineProgress = document.getElementById(
@@ -66,6 +70,7 @@ export class UIControl {
       !this.rangeFill ||
       !this.rangeMinDisplay ||
       !this.rangeMaxDisplay ||
+      !this.rangeCurrentDisplay ||
       !this.playBtn ||
       !this.timelineProgress ||
       !this.timelineThumb ||
@@ -206,8 +211,11 @@ export class UIControl {
 
   // 更新范围显示
   private updateRangeDisplay(): void {
-    this.rangeMinDisplay.textContent = `${parseFloat(this.rangeMin.value).toFixed(1)}°C`;
-    this.rangeMaxDisplay.textContent = `${parseFloat(this.rangeMax.value).toFixed(1)}°C`;
+    const minVal = parseFloat(this.rangeMin.value).toFixed(1);
+    const maxVal = parseFloat(this.rangeMax.value).toFixed(1);
+    this.rangeMinDisplay.textContent = `${minVal}°C`;
+    this.rangeMaxDisplay.textContent = `${maxVal}°C`;
+    this.rangeCurrentDisplay.textContent = `当前显示：${minVal}°C - ${maxVal}°C`;
   }
 
   // 切换播放状态

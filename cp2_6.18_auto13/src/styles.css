@@ -246,6 +246,16 @@ html, body {
   box-shadow: 0 2px 6px rgba(255, 107, 107, 0.4);
 }
 
+.range-current-display {
+  text-align: center;
+  font-size: 12px;
+  color: #888;
+  margin-top: 12px;
+  padding: 6px 12px;
+  background: #2A2A3E;
+  border-radius: 8px;
+}
+
 .time-display {
   text-align: center;
   font-size: 24px;
