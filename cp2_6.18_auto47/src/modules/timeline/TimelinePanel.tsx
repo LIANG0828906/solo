@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { useTimelineStore, interpolateKeyframe, Keyframe, Scene } from '../../store/timelineStore'
+import './TimelinePanel.css'
 
 const TIMELINE_HEADER_HEIGHT = 50
 const TRACK_HEIGHT = 60
@@ -170,121 +171,38 @@ export const TimelinePanel: React.FC = () => {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        backgroundColor: '#16213e',
-        borderBottom: '1px solid #0f3460',
-      }}
-    >
+    <div className="timeline-container">
       {/* Playback Controls */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '10px 16px',
-          gap: 12,
-          borderBottom: '1px solid #0f3460',
-          minHeight: 44,
-        }}
-      >
-        {/* Play/Pause Button */}
-        <button
-          onClick={togglePlay}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: '#e5e5e5',
-            fontSize: 18,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent'
-          }}
-        >
-          {isPlaying ? '⏸' : '▶'}
-        </button>
+      <div className="playback-controls">
+        <div className="playback-buttons">
+          {/* Play/Pause Button */}
+          <button
+            onClick={togglePlay}
+            className="control-button"
+          >
+            {isPlaying ? '⏸' : '▶'}
+          </button>
 
-        {/* Go to Start Button */}
-        <button
-          onClick={goToStart}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            border: 'none',
-            backgroundColor: 'transparent',
-            color: '#e5e5e5',
-            fontSize: 16,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent'
-          }}
-        >
-          ⏮
-        </button>
+          {/* Go to Start Button */}
+          <button
+            onClick={goToStart}
+            className="control-button small"
+          >
+            ⏮
+          </button>
 
-        {/* Loop Toggle Button */}
-        <button
-          onClick={toggleLoop}
-          style={{
-            position: 'relative',
-            padding: '6px 14px',
-            borderRadius: 4,
-            border: 'none',
-            backgroundColor: isLooping ? '#2ecc71' : '#666',
-            color: '#fff',
-            fontSize: 12,
-            cursor: 'pointer',
-            transition: 'background-color 0.2s',
-          }}
-        >
-          循环
-          {isLooping && (
-            <span
-              style={{
-                position: 'absolute',
-                right: -2,
-                bottom: -2,
-                fontSize: 12,
-                color: '#fff',
-                lineHeight: 1,
-              }}
-            >
-              ↻
-            </span>
-          )}
-        </button>
+          {/* Loop Toggle Button */}
+          <button
+            onClick={toggleLoop}
+            className={`loop-button ${isLooping ? 'active' : ''}`}
+          >
+            循环
+            {isLooping && <span className="loop-icon">↻</span>}
+          </button>
+        </div>
 
         {/* Frame Counter */}
-        <div
-          style={{
-            flex: 1,
-            textAlign: 'center',
-            fontSize: 12,
-            color: '#888',
-          }}
-        >
+        <div className="frame-counter">
           帧 {currentFrame}/{totalFrames}
         </div>
       </div>
