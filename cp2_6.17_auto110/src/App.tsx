@@ -310,6 +310,10 @@ const App: React.FC = () => {
         }
       `}</style>
 
+      {currentPage === 'recipeBook' ? (
+        <RecipeBook onNavigate={(page) => setCurrentPage(page)} />
+      ) : (
+        <>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -363,7 +367,7 @@ const App: React.FC = () => {
               width: 40,
               height: 40,
               borderRadius: '50%',
-              background: currentPage === 'recipeBook' ? '#6C63FF' : '#3A3A5C',
+              background: '#3A3A5C',
               border: 'none',
               color: '#fff',
               fontSize: 18,
@@ -374,7 +378,7 @@ const App: React.FC = () => {
               transition: 'background 0.2s ease',
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#6C63FF'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = currentPage === 'recipeBook' ? '#6C63FF' : '#3A3A5C'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#3A3A5C'; }}
             title="炼金图鉴"
           >
             📖
@@ -913,6 +917,8 @@ const App: React.FC = () => {
             zIndex: 50,
           }}
         />
+      )}
+        </>
       )}
     </div>
   );

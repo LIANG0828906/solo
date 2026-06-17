@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Recipe, AlchemySchool } from '../types';
+import { Recipe, AlchemySchool, MaterialType, Rarity } from '../types';
 import { MaterialRegistry } from '../modules/engine/MaterialRegistry';
 
 interface InventoryEntry {
@@ -7,6 +7,8 @@ interface InventoryEntry {
   count: number;
   addedAt: number;
 }
+
+export type RecipeSortOption = 'name' | 'rarity' | 'unlockTime';
 
 interface GameStoreState {
   inventory: InventoryEntry[];
@@ -22,6 +24,11 @@ interface GameStoreState {
   lastCraftResult: 'success' | 'failure' | null;
   newlyUnlockedMaterial: string | null;
   recipeUnlockTimes: Map<string, number>;
+
+  recipeBookFilterRarity: Rarity | 'all';
+  recipeBookFilterType: MaterialType | 'all';
+  recipeBookFilterMaterial: string | 'all';
+  recipeBookSort: RecipeSortOption;
 
   addRandomMaterial: () => void;
   addToCrucible: (materialId: string) => boolean;
@@ -39,6 +46,12 @@ interface GameStoreState {
   setCrucibleShaking: (shaking: boolean) => void;
   clearLastCraftResult: () => void;
   clearNewlyUnlocked: () => void;
+
+  setRecipeBookFilterRarity: (rarity: Rarity | 'all') => void;
+  setRecipeBookFilterType: (type: MaterialType | 'all') => void;
+  setRecipeBookFilterMaterial: (materialId: string | 'all') => void;
+  setRecipeBookSort: (sort: RecipeSortOption) => void;
+  resetRecipeBookFilters: () => void;
 }
 
 const RECIPES: Recipe[] = [
@@ -155,6 +168,7 @@ const RECIPES: Recipe[] = [
 const MAX_INVENTORY_KINDS = 20;
 const MAX_STACK = 99;
 const MAX_CRUCIBLE = 6;
+const INITIAL_UNLOCK_TIME = 0;
 
 const getInitialInventory = (): InventoryEntry[] => {
   const now = Date.now();
@@ -167,10 +181,28 @@ const getInitialInventory = (): InventoryEntry[] => {
   ];
 };
 
+const getInitialUnlockedRecipes = (): { recipes: Set<string>; times: Map<string, number> } => {
+  const unlocked = new Set<string>();
+  const times = new Map<string, number>();
+  const initialDiscovered = new Set(['water', 'earth', 'fire_ash', 'herb_leaf', 'seed']);
+
+  for (const recipe of RECIPES) {
+    const allMatsDiscovered = recipe.materials.every(m => initialDiscovered.has(m));
+    if (allMatsDiscovered) {
+      unlocked.add(recipe.id);
+      times.set(recipe.id, INITIAL_UNLOCK_TIME);
+    }
+  }
+
+  return { recipes: unlocked, times };
+};
+
+const initialUnlocked = getInitialUnlockedRecipes();
+
 export const useGameStore = create<GameStoreState>((set, get) => ({
   inventory: getInitialInventory(),
   crucible: [],
-  unlockedRecipes: new Set<string>(),
+  unlockedRecipes: initialUnlocked.recipes,
   discoveredMaterials: new Set<string>(['water', 'earth', 'fire_ash', 'herb_leaf', 'seed']),
   toastMessage: null,
   showHintPanel: false,
@@ -180,7 +212,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   crucibleShaking: false,
   lastCraftResult: null,
   newlyUnlockedMaterial: null,
-  recipeUnlockTimes: new Map<string, number>(),
+  recipeUnlockTimes: initialUnlocked.times,
+
+  recipeBookFilterRarity: 'all',
+  recipeBookFilterType: 'all',
+  recipeBookFilterMaterial: 'all',
+  recipeBookSort: 'name',
 
   addRandomMaterial: () => {
     const material = MaterialRegistry.getRandomMaterial();
@@ -352,11 +389,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   hideResetDialog: () => set({ showResetConfirm: false }),
 
   resetGame: () => {
+    const resetUnlocked = getInitialUnlockedRecipes();
     set({
       inventory: getInitialInventory(),
       crucible: [],
-      unlockedRecipes: new Set<string>(),
-      recipeUnlockTimes: new Map<string, number>(),
+      unlockedRecipes: resetUnlocked.recipes,
+      recipeUnlockTimes: resetUnlocked.times,
       discoveredMaterials: new Set<string>(['water', 'earth', 'fire_ash', 'herb_leaf', 'seed']),
       toastMessage: '游戏已重置',
       showHintPanel: false,
@@ -365,10 +403,24 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       crucibleShaking: false,
       lastCraftResult: null,
       newlyUnlockedMaterial: null,
+      recipeBookFilterRarity: 'all',
+      recipeBookFilterType: 'all',
+      recipeBookFilterMaterial: 'all',
+      recipeBookSort: 'name',
     });
   },
 
   setCrucibleShaking: (shaking: boolean) => set({ crucibleShaking: shaking }),
   clearLastCraftResult: () => set({ lastCraftResult: null }),
   clearNewlyUnlocked: () => set({ newlyUnlockedMaterial: null }),
+
+  setRecipeBookFilterRarity: (rarity: Rarity | 'all') => set({ recipeBookFilterRarity: rarity }),
+  setRecipeBookFilterType: (type: MaterialType | 'all') => set({ recipeBookFilterType: type }),
+  setRecipeBookFilterMaterial: (materialId: string | 'all') => set({ recipeBookFilterMaterial: materialId }),
+  setRecipeBookSort: (sort: RecipeSortOption) => set({ recipeBookSort: sort }),
+  resetRecipeBookFilters: () => set({
+    recipeBookFilterRarity: 'all',
+    recipeBookFilterType: 'all',
+    recipeBookFilterMaterial: 'all',
+  }),
 }));

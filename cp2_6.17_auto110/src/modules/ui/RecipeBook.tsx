@@ -1,67 +1,141 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { MaterialRegistry } from '../../modules/engine/MaterialRegistry';
-import type { Rarity, Recipe, Material } from '../../types';
+import { Rarity, MaterialType } from '../../types';
+import type { Recipe, Material } from '../../types';
 import { easeTransition } from './AnimationManager';
 
 const RARITY_COLORS: Record<Rarity, string> = {
-  common: '#A0A0A0',
-  rare: '#4A90D9',
-  epic: '#9B59B6',
-  legendary: '#F1C40F',
+  [Rarity.COMMON]: '#A0A0A0',
+  [Rarity.RARE]: '#4A90D9',
+  [Rarity.EPIC]: '#9B59B6',
+  [Rarity.LEGENDARY]: '#F1C40F',
 };
 
 const RARITY_NAMES: Record<Rarity, string> = {
-  common: '普通',
-  rare: '稀有',
-  epic: '史诗',
-  legendary: '传说',
+  [Rarity.COMMON]: '普通',
+  [Rarity.RARE]: '稀有',
+  [Rarity.EPIC]: '史诗',
+  [Rarity.LEGENDARY]: '传说',
 };
 
 const RARITY_ORDER: Record<Rarity, number> = {
-  legendary: 4,
-  epic: 3,
-  rare: 2,
-  common: 1,
+  [Rarity.LEGENDARY]: 4,
+  [Rarity.EPIC]: 3,
+  [Rarity.RARE]: 2,
+  [Rarity.COMMON]: 1,
+};
+
+const TYPE_NAMES: Record<MaterialType, string> = {
+  element: '元素',
+  biological: '生物',
+  mineral: '矿物',
+  energy: '能量',
+  mechanical: '机械',
+  mystical: '神秘',
+};
+
+const TYPE_COLORS: Record<MaterialType, string> = {
+  element: '#4FC3F7',
+  biological: '#81C784',
+  mineral: '#FFB74D',
+  energy: '#CE93D8',
+  mechanical: '#90A4AE',
+  mystical: '#FFD54F',
 };
 
 const OUTPUT_MATERIALS: Record<string, Material> = {
-  healing_potion: { id: 'healing_potion', name: '治疗药水', rarity: 'common' as Rarity, type: 'mystical' as MaterialType, color: '#81C784', description: '恢复生命值的神奇药剂。' },
-  fire_elixir: { id: 'fire_elixir', name: '火焰药剂', rarity: 'rare' as Rarity, type: 'energy' as MaterialType, color: '#FF7043', description: '投掷后产生剧烈爆炸。' },
-  storm_bottle: { id: 'storm_bottle', name: '风暴之瓶', rarity: 'rare' as Rarity, type: 'energy' as MaterialType, color: '#7E57C2', description: '释放强烈风暴能量。' },
-  moonlight_essence: { id: 'moonlight_essence', name: '月光精华', rarity: 'epic' as Rarity, type: 'energy' as MaterialType, color: '#9FA8DA', description: '浓缩的月光能量结晶。' },
-  dragon_breath: { id: 'dragon_breath', name: '龙息药剂', rarity: 'legendary' as Rarity, type: 'energy' as MaterialType, color: '#E91E63', description: '传说中的终极火焰药剂。' },
-  earth_shield: { id: 'earth_shield', name: '大地护盾', rarity: 'common' as Rarity, type: 'mineral' as MaterialType, color: '#8D6E63', description: '提供临时防护的符咒。' },
-  void_portal: { id: 'void_portal', name: '虚空之门', rarity: 'epic' as Rarity, type: 'mystical' as MaterialType, color: '#5E35B1', description: '通往未知维度的裂缝。' },
-  steam_automaton: { id: 'steam_automaton', name: '蒸汽机械', rarity: 'epic' as Rarity, type: 'mechanical' as MaterialType, color: '#546E7A', description: '自动运转的精密机械。' },
-  philosopher_stone: { id: 'philosopher_stone', name: '贤者之石', rarity: 'legendary' as Rarity, type: 'mystical' as MaterialType, color: '#FFD54F', description: '炼金术的终极追求。' },
-  life_elixir: { id: 'life_elixir', name: '生命药剂', rarity: 'legendary' as Rarity, type: 'biological' as MaterialType, color: '#1B5E20', description: '赋予永恒生命的神药。' },
-  amber_charm: { id: 'amber_charm', name: '琥珀护符', rarity: 'rare' as Rarity, type: 'mineral' as MaterialType, color: '#FFB300', description: '抵御邪恶的护身符。' },
-  poison_vial: { id: 'poison_vial', name: '剧毒小瓶', rarity: 'rare' as Rarity, type: 'biological' as MaterialType, color: '#9CCC65', description: '致命的浓缩毒素。' },
+  healing_potion: { id: 'healing_potion', name: '治疗药水', rarity: Rarity.COMMON, type: 'mystical', color: '#81C784', description: '恢复生命值的神奇药剂。' },
+  fire_elixir: { id: 'fire_elixir', name: '火焰药剂', rarity: Rarity.RARE, type: 'energy', color: '#FF7043', description: '投掷后产生剧烈爆炸。' },
+  storm_bottle: { id: 'storm_bottle', name: '风暴之瓶', rarity: Rarity.RARE, type: 'energy', color: '#7E57C2', description: '释放强烈风暴能量。' },
+  moonlight_essence: { id: 'moonlight_essence', name: '月光精华', rarity: Rarity.EPIC, type: 'energy', color: '#9FA8DA', description: '浓缩的月光能量结晶。' },
+  dragon_breath: { id: 'dragon_breath', name: '龙息药剂', rarity: Rarity.LEGENDARY, type: 'energy', color: '#E91E63', description: '传说中的终极火焰药剂。' },
+  earth_shield: { id: 'earth_shield', name: '大地护盾', rarity: Rarity.COMMON, type: 'mineral', color: '#8D6E63', description: '提供临时防护的符咒。' },
+  void_portal: { id: 'void_portal', name: '虚空之门', rarity: Rarity.EPIC, type: 'mystical', color: '#5E35B1', description: '通往未知维度的裂缝。' },
+  steam_automaton: { id: 'steam_automaton', name: '蒸汽机械', rarity: Rarity.EPIC, type: 'mechanical', color: '#546E7A', description: '自动运转的精密机械。' },
+  philosopher_stone: { id: 'philosopher_stone', name: '贤者之石', rarity: Rarity.LEGENDARY, type: 'mystical', color: '#FFD54F', description: '炼金术的终极追求。' },
+  life_elixir: { id: 'life_elixir', name: '生命药剂', rarity: Rarity.LEGENDARY, type: 'biological', color: '#1B5E20', description: '赋予永恒生命的神药。' },
+  amber_charm: { id: 'amber_charm', name: '琥珀护符', rarity: Rarity.RARE, type: 'mineral', color: '#FFB300', description: '抵御邪恶的护身符。' },
+  poison_vial: { id: 'poison_vial', name: '剧毒小瓶', rarity: Rarity.RARE, type: 'biological', color: '#9CCC65', description: '致命的浓缩毒素。' },
 };
 
 function getMaterial(id: string): Material | null {
   return MaterialRegistry.getMaterialById(id) ?? OUTPUT_MATERIALS[id] ?? null;
 }
 
-type RarityFilter = 'all' | Rarity;
-type SortOption = 'name' | 'rarity' | 'unlockTime';
-type MaterialFilter = 'all' | string;
+interface MaterialIconProps {
+  material: Material;
+  size?: number;
+  showBadge?: number;
+  showTooltip?: boolean;
+}
+
+const MaterialIcon: React.FC<MaterialIconProps> = ({ material, size = 24, showBadge, showTooltip = true }) => {
+  const iconStyle: React.CSSProperties = {
+    width: size,
+    height: size,
+    borderRadius: Math.max(4, size / 6),
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: Math.max(10, size / 2),
+    fontWeight: 700,
+    color: '#fff',
+    textShadow: '0 0 4px rgba(0,0,0,0.6)',
+    background: `linear-gradient(135deg, ${material.color}CC 0%, ${material.color}66 100%)`,
+    border: `1.5px solid ${material.color}`,
+    boxShadow: `0 0 ${size / 6}px ${material.color}40, inset 0 0 ${size / 4}px rgba(255,255,255,0.1)`,
+    position: 'relative',
+    ...easeTransition(['transform', 'box-shadow']),
+  };
+
+  const badgeStyle: React.CSSProperties = {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    padding: '0 4px',
+    borderRadius: 8,
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#fff',
+    background: '#1A1A2E',
+    border: `1px solid ${material.color}`,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    lineHeight: 1,
+  };
+
+  const icon = (
+    <div
+      style={iconStyle}
+      title={showTooltip ? `${material.name} (${RARITY_NAMES[material.rarity]})` : undefined}
+    >
+      {material.name[0]}
+      {showBadge !== undefined && showBadge > 1 && (
+        <span style={badgeStyle}>×{showBadge}</span>
+      )}
+    </div>
+  );
+
+  return icon;
+};
 
 interface RecipeCardProps {
   recipe: Recipe;
   isUnlocked: boolean;
   onClick: () => void;
   isMobile?: boolean;
-  isNewlyUnlocked?: boolean;
 }
 
-const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isUnlocked, onClick, isMobile = false, isNewlyUnlocked = false }) => {
+const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isUnlocked, onClick, isMobile = false }) => {
   const [isHovered, setIsHovered] = useState(false);
   const outputMat = getMaterial(recipe.output);
 
   const cardWidth = isMobile ? 130 : 140;
-  const cardHeight = isMobile ? 200 : 210;
+  const cardHeight = isMobile ? 210 : 220;
 
   const cardStyle: React.CSSProperties = {
     width: cardWidth,
@@ -77,12 +151,23 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isUnlocked, onClick, is
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px 8px',
+    padding: '12px 8px 10px 8px',
     position: 'relative',
     overflow: 'hidden',
     ...easeTransition(['transform', 'box-shadow']),
-    animation: isNewlyUnlocked ? 'flipIn 0.6s ease-out' : undefined,
+  };
+
+  const rarityTagStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: '2px 8px',
+    fontSize: 10,
+    fontWeight: 600,
+    color: '#FFFFFF',
+    backgroundColor: outputMat ? RARITY_COLORS[outputMat.rarity] + 'CC' : '#3A3A5CCC',
+    borderRadius: 10,
+    zIndex: 2,
   };
 
   const iconContainerStyle: React.CSSProperties = {
@@ -95,12 +180,14 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isUnlocked, onClick, is
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 16,
+    marginBottom: 8,
     border: `2px solid ${isUnlocked && outputMat ? outputMat.color : '#3A3A5C'}`,
     boxShadow: isUnlocked && outputMat ? `0 0 12px ${outputMat.color}40` : 'none',
+    ...easeTransition(['border-color', 'box-shadow']),
   };
 
-  const emojiStyle: React.CSSProperties = {
+  const iconCharStyle: React.CSSProperties = {
     fontSize: 28,
     lineHeight: 1,
     filter: isUnlocked ? 'none' : 'grayscale(1) opacity(0.3)',
@@ -112,18 +199,20 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isUnlocked, onClick, is
     color: isUnlocked ? '#FFFFFF' : '#4A4A6A',
     textAlign: 'center',
     lineHeight: 1.3,
+    marginBottom: 6,
   };
 
-  const rarityTagStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    padding: '2px 8px',
-    fontSize: 10,
-    fontWeight: 600,
-    color: '#FFFFFF',
-    backgroundColor: outputMat ? RARITY_COLORS[outputMat.rarity] + '80' : '#3A3A5C80',
-    borderRadius: 10,
+  const ingredientsContainerStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    flexWrap: 'wrap',
+    marginTop: 'auto',
+    minHeight: 32,
+    padding: '4px 2px',
+    borderTop: '1px solid #3A3A5C',
+    width: '100%',
   };
 
   const lockedMaskStyle: React.CSSProperties = {
@@ -134,6 +223,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isUnlocked, onClick, is
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
+    zIndex: 3,
   };
 
   const questionMarkStyle: React.CSSProperties = {
@@ -142,32 +232,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isUnlocked, onClick, is
     fontWeight: 700,
   };
 
-  const ingredientsRowStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    flexWrap: 'wrap',
-    marginTop: 'auto',
-    paddingTop: 8,
-  };
-
-  const ingredientIconStyle: React.CSSProperties = {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#fff',
-    textShadow: '0 0 4px rgba(0,0,0,0.5)',
-  };
-
   const renderIngredients = () => {
     if (!isUnlocked) {
-      return <span style={{ fontSize: 10, color: '#4A4A6A' }}>???</span>;
+      return <span style={{ fontSize: 18, color: '#4A4A6A', letterSpacing: 4 }}>???</span>;
     }
 
     const matCounts: Record<string, number> = {};
@@ -175,37 +242,16 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isUnlocked, onClick, is
       matCounts[mid] = (matCounts[mid] || 0) + 1;
     });
 
-    return Object.entries(matCounts).map(([mid, count], idx) => {
+    return Object.entries(matCounts).map(([mid, count]) => {
       const mat = getMaterial(mid);
+      if (!mat) return null;
       return (
-        <div key={idx} title={mat?.name || mid} style={{ position: 'relative' }}>
-          <div
-            style={{
-              ...ingredientIconStyle,
-              background: mat ? `linear-gradient(135deg, ${mat.color}60, ${mat.color}30)` : '#3A3A5C',
-              border: `1px solid ${mat ? mat.color : '#3A3A5C'}`,
-            }}
-          >
-            {mat ? mat.name[0] : '?'}
-          </div>
-          {count > 1 && (
-            <span style={{
-              position: 'absolute',
-              bottom: -4,
-              right: -4,
-              fontSize: 9,
-              fontWeight: 700,
-              color: '#fff',
-              background: '#1A1A2E',
-              borderRadius: 8,
-              padding: '0 4px',
-              minWidth: 12,
-              textAlign: 'center',
-            }}>
-              {count}
-            </span>
-          )}
-        </div>
+        <MaterialIcon
+          key={mid}
+          material={mat}
+          size={22}
+          showBadge={count}
+        />
       );
     });
   };
@@ -220,13 +266,19 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, isUnlocked, onClick, is
       <span style={rarityTagStyle}>
         {isUnlocked && outputMat ? RARITY_NAMES[outputMat.rarity] : '???'}
       </span>
+
       <div style={iconContainerStyle}>
-        <span style={emojiStyle}>{isUnlocked && outputMat ? outputMat.name[0] : '?'}</span>
+        <span style={iconCharStyle}>
+          {isUnlocked && outputMat ? outputMat.name[0] : '?'}
+        </span>
       </div>
+
       <span style={nameStyle}>{isUnlocked ? recipe.name : '???'}</span>
-      <div style={ingredientsRowStyle}>
+
+      <div style={ingredientsContainerStyle}>
         {renderIngredients()}
       </div>
+
       {!isUnlocked && (
         <div style={lockedMaskStyle}>
           <span style={questionMarkStyle}>?</span>
@@ -258,7 +310,7 @@ const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose }
 
   const modalStyle: React.CSSProperties = {
     width: '100%',
-    maxWidth: 380,
+    maxWidth: 420,
     backgroundColor: '#1E1E32',
     borderRadius: 16,
     padding: 24,
@@ -274,29 +326,15 @@ const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose }
     marginBottom: 16,
   };
 
-  const iconBoxStyle: React.CSSProperties = {
-    width: 64,
-    height: 64,
-    borderRadius: '50%',
-    background: outputMat
-      ? `radial-gradient(circle, ${outputMat.color}40 0%, ${outputMat.color}20 100%)`
-      : '#3A3A5C',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: `2px solid ${outputMat?.color || '#3A3A5C'}`,
-    fontSize: 32,
-  };
-
   const titleSectionStyle: React.CSSProperties = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    gap: 4,
+    gap: 6,
   };
 
   const titleStyle: React.CSSProperties = {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 700,
     color: '#FFFFFF',
     margin: 0,
@@ -316,55 +354,46 @@ const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose }
   const descStyle: React.CSSProperties = {
     fontSize: 14,
     color: '#CCCCCC',
-    lineHeight: 1.5,
-    margin: '0 0 20px 0',
+    lineHeight: 1.6,
+    margin: '0 0 16px 0',
   };
 
   const sectionTitleStyle: React.CSSProperties = {
     fontSize: 13,
     fontWeight: 600,
     color: '#888888',
-    margin: '0 0 12px 0',
+    margin: '0 0 10px 0',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   };
 
-  const ingredientsListStyle: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
+  const ingredientsGridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+    gap: 8,
     marginBottom: 20,
   };
 
   const ingredientRowStyle: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
-    padding: '10px 14px',
+    gap: 10,
+    padding: '8px 10px',
     backgroundColor: '#2D2D44',
     borderRadius: 8,
   };
 
-  const ingIconStyle: React.CSSProperties = {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 16,
-    fontWeight: 700,
-    color: '#fff',
-  };
-
   const ingNameStyle: React.CSSProperties = {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: '#E0E0E0',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   };
 
   const ingCountStyle: React.CSSProperties = {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 600,
     color: outputMat?.color || '#6C63FF',
   };
@@ -411,45 +440,45 @@ const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose }
             from { opacity: 0; transform: scale(0.9); }
             to { opacity: 1; transform: scale(1); }
           }
-          @keyframes flipIn {
-            0% { transform: rotateY(180deg) scale(0.8); opacity: 0; }
-            50% { transform: rotateY(90deg) scale(0.9); opacity: 0.5; }
-            100% { transform: rotateY(0deg) scale(1); opacity: 1; }
-          }
         `}
       </style>
       <div style={overlayStyle} onClick={onClose}>
         <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
           <div style={headerStyle}>
-            <div style={iconBoxStyle}>{outputMat?.name[0] || '?'}</div>
+            {outputMat && (
+              <MaterialIcon material={outputMat} size={56} showTooltip={false} />
+            )}
             <div style={titleSectionStyle}>
               <h2 style={titleStyle}>{recipe.name}</h2>
-              <span style={rarityBadgeStyle}>
-                {outputMat ? RARITY_NAMES[outputMat.rarity] : '未知'}
-              </span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <span style={rarityBadgeStyle}>
+                  {outputMat ? RARITY_NAMES[outputMat.rarity] : '未知'}
+                </span>
+                {outputMat && (
+                  <span style={{
+                    ...rarityBadgeStyle,
+                    backgroundColor: TYPE_COLORS[outputMat.type] + 'CC',
+                  }}>
+                    {TYPE_NAMES[outputMat.type]}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+
           <p style={descStyle}>{outputMat?.description || '神秘的炼金产物。'}</p>
-          
+
           <div style={hintStyle}>
             💡 谜语线索：「{recipe.hint}」
           </div>
 
           <h3 style={sectionTitleStyle}>合成材料</h3>
-          <div style={ingredientsListStyle}>
-            {Object.entries(matCounts).map(([mid, count], idx) => {
+          <div style={ingredientsGridStyle}>
+            {Object.entries(matCounts).map(([mid, count]) => {
               const material = getMaterial(mid);
               return (
-                <div key={idx} style={ingredientRowStyle}>
-                  <div style={{
-                    ...ingIconStyle,
-                    background: material
-                      ? `linear-gradient(135deg, ${material.color}60, ${material.color}30)`
-                      : '#3A3A5C',
-                    border: `1px solid ${material?.color || '#3A3A5C'}`,
-                  }}>
-                    {material ? material.name[0] : '?'}
-                  </div>
+                <div key={mid} style={ingredientRowStyle}>
+                  {material && <MaterialIcon material={material} size={28} />}
                   <span style={ingNameStyle}>{material?.name || '未知材料'}</span>
                   <span style={ingCountStyle}>× {count}</span>
                 </div>
@@ -460,7 +489,7 @@ const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose }
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <span style={{ fontSize: 12, color: '#888' }}>成功概率</span>
             <span style={{
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: 700,
               color: recipe.probability >= 0.8 ? '#4CAF50' : recipe.probability >= 0.5 ? '#FFC107' : '#FF6B6B',
             }}>
@@ -468,7 +497,12 @@ const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({ recipe, onClose }
             </span>
           </div>
 
-          <button style={closeBtnStyle} onClick={onClose}>
+          <button
+            style={closeBtnStyle}
+            onClick={onClose}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#5A52D9'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#6C63FF'; }}
+          >
             关闭
           </button>
         </div>
@@ -482,12 +516,23 @@ interface RecipeBookProps {
 }
 
 const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
-  const { recipes, unlockedRecipes, recipeUnlockTimes } = useGameStore();
+  const {
+    recipes,
+    unlockedRecipes,
+    recipeUnlockTimes,
+    recipeBookFilterRarity,
+    recipeBookFilterType,
+    recipeBookFilterMaterial,
+    recipeBookSort,
+    setRecipeBookFilterRarity,
+    setRecipeBookFilterType,
+    setRecipeBookFilterMaterial,
+    setRecipeBookSort,
+    resetRecipeBookFilters,
+  } = useGameStore();
+
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [rarityFilter, setRarityFilter] = useState<RarityFilter>('all');
-  const [materialFilter, setMaterialFilter] = useState<MaterialFilter>('all');
-  const [sortOption, setSortOption] = useState<SortOption>('name');
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -496,27 +541,41 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const allMaterialTypes = useMemo((): MaterialType[] => {
+    return ['element', 'biological', 'mineral', 'energy', 'mechanical', 'mystical'];
+  }, []);
+
   const availableMaterials = useMemo(() => {
     const matIds = new Set<string>();
     recipes.forEach(r => r.materials.forEach(m => matIds.add(m)));
     return Array.from(matIds)
       .map(id => getMaterial(id))
       .filter((m): m is Material => m !== null)
-      .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+      .sort((a, b) => {
+        const rarityDiff = RARITY_ORDER[b.rarity] - RARITY_ORDER[a.rarity];
+        return rarityDiff !== 0 ? rarityDiff : a.name.localeCompare(b.name, 'zh-CN');
+      });
   }, [recipes]);
 
   const filteredAndSortedRecipes = useMemo(() => {
     let result = [...recipes];
 
-    if (rarityFilter !== 'all') {
+    if (recipeBookFilterRarity !== 'all') {
       result = result.filter(r => {
         const outputMat = getMaterial(r.output);
-        return outputMat?.rarity === rarityFilter;
+        return outputMat?.rarity === recipeBookFilterRarity;
       });
     }
 
-    if (materialFilter !== 'all') {
-      result = result.filter(r => r.materials.includes(materialFilter));
+    if (recipeBookFilterType !== 'all') {
+      result = result.filter(r => {
+        const outputMat = getMaterial(r.output);
+        return outputMat?.type === recipeBookFilterType;
+      });
+    }
+
+    if (recipeBookFilterMaterial !== 'all') {
+      result = result.filter(r => r.materials.includes(recipeBookFilterMaterial));
     }
 
     result.sort((a, b) => {
@@ -527,7 +586,7 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
         return aUnlocked ? -1 : 1;
       }
 
-      switch (sortOption) {
+      switch (recipeBookSort) {
         case 'name':
           return a.name.localeCompare(b.name, 'zh-CN');
 
@@ -536,16 +595,18 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
           const bMat = getMaterial(b.output);
           const aOrder = aMat ? RARITY_ORDER[aMat.rarity] : 0;
           const bOrder = bMat ? RARITY_ORDER[bMat.rarity] : 0;
-          return bOrder - aOrder;
+          if (bOrder !== aOrder) return bOrder - aOrder;
+          return a.name.localeCompare(b.name, 'zh-CN');
         }
 
         case 'unlockTime': {
           if (!aUnlocked) {
             return a.name.localeCompare(b.name, 'zh-CN');
           }
-          const aTime = recipeUnlockTimes.get(a.id) || 0;
-          const bTime = recipeUnlockTimes.get(b.id) || 0;
-          return bTime - aTime;
+          const aTime = recipeUnlockTimes.get(a.id) ?? 0;
+          const bTime = recipeUnlockTimes.get(b.id) ?? 0;
+          if (bTime !== aTime) return bTime - aTime;
+          return a.name.localeCompare(b.name, 'zh-CN');
         }
 
         default:
@@ -554,31 +615,27 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
     });
 
     return result;
-  }, [recipes, rarityFilter, materialFilter, sortOption, unlockedRecipes, recipeUnlockTimes]);
+  }, [
+    recipes,
+    recipeBookFilterRarity,
+    recipeBookFilterType,
+    recipeBookFilterMaterial,
+    recipeBookSort,
+    unlockedRecipes,
+    recipeUnlockTimes,
+  ]);
 
   const unlockedCount = unlockedRecipes.size;
 
-  const handleRarityFilterChange = (rarity: RarityFilter) => {
-    setRarityFilter(rarity);
-  };
-
-  const handleMaterialFilterChange = (materialId: MaterialFilter) => {
-    setMaterialFilter(materialId);
-  };
-
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSortOption(e.target.value as SortOption);
-  };
-
-  const resetFilters = () => {
-    setRarityFilter('all');
-    setMaterialFilter('all');
-  };
+  const hasActiveFilters =
+    recipeBookFilterRarity !== 'all' ||
+    recipeBookFilterType !== 'all' ||
+    recipeBookFilterMaterial !== 'all';
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
     backgroundColor: '#0F0F1A',
-    padding: isMobile ? 16 : 24,
+    padding: isMobile ? 12 : 24,
     color: '#E8EAF6',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   };
@@ -587,8 +644,8 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    maxWidth: 1100,
+    marginBottom: 16,
+    maxWidth: 1200,
     marginLeft: 'auto',
     marginRight: 'auto',
     flexWrap: 'wrap',
@@ -628,7 +685,7 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
     flexDirection: 'column',
     gap: 12,
     marginBottom: 20,
-    maxWidth: 1100,
+    maxWidth: 1200,
     marginLeft: 'auto',
     marginRight: 'auto',
     backgroundColor: '#1A1A2E',
@@ -640,24 +697,24 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
   const filterRowStyle: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flexWrap: 'wrap',
   };
 
   const filterLabelStyle: React.CSSProperties = {
-    fontSize: 12,
+    fontSize: 11,
     color: '#888',
     fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    minWidth: 60,
+    minWidth: isMobile ? 'auto' : 48,
   };
 
   const filterBtnBaseStyle: React.CSSProperties = {
-    padding: '6px 14px',
+    padding: '6px 12px',
     fontSize: 12,
     fontWeight: 500,
-    borderRadius: 20,
+    borderRadius: 16,
     border: '1px solid #3A3A5C',
     background: 'transparent',
     color: '#B0B0C0',
@@ -666,7 +723,7 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
   };
 
   const selectStyle: React.CSSProperties = {
-    padding: '6px 12px',
+    padding: '6px 10px',
     fontSize: 12,
     fontWeight: 500,
     borderRadius: 8,
@@ -674,14 +731,15 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
     background: '#2D2D44',
     color: '#E0E0E0',
     cursor: 'pointer',
+    maxWidth: 180,
     ...easeTransition('border-color'),
   };
 
   const gridStyle: React.CSSProperties = {
     display: 'grid',
-    gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(6, 1fr)',
+    gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(140px, 1fr))',
     gap: isMobile ? 10 : 16,
-    maxWidth: 1100,
+    maxWidth: 1200,
     margin: '0 auto',
     justifyItems: 'center',
   };
@@ -736,24 +794,24 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
           <button
             style={{
               ...filterBtnBaseStyle,
-              backgroundColor: rarityFilter === 'all' ? '#6C63FF' : 'transparent',
-              borderColor: rarityFilter === 'all' ? '#6C63FF' : '#3A3A5C',
-              color: rarityFilter === 'all' ? '#fff' : '#B0B0C0',
+              backgroundColor: recipeBookFilterRarity === 'all' ? '#6C63FF' : 'transparent',
+              borderColor: recipeBookFilterRarity === 'all' ? '#6C63FF' : '#3A3A5C',
+              color: recipeBookFilterRarity === 'all' ? '#fff' : '#B0B0C0',
             }}
-            onClick={() => handleRarityFilterChange('all')}
+            onClick={() => setRecipeBookFilterRarity('all')}
           >
             全部
           </button>
-          {(['legendary', 'epic', 'rare', 'common'] as Rarity[]).map(rarity => (
+          {([Rarity.LEGENDARY, Rarity.EPIC, Rarity.RARE, Rarity.COMMON] as Rarity[]).map(rarity => (
             <button
               key={rarity}
               style={{
                 ...filterBtnBaseStyle,
-                backgroundColor: rarityFilter === rarity ? RARITY_COLORS[rarity] : 'transparent',
-                borderColor: rarityFilter === rarity ? RARITY_COLORS[rarity] : '#3A3A5C',
-                color: rarityFilter === rarity ? '#fff' : '#B0B0C0',
+                backgroundColor: recipeBookFilterRarity === rarity ? RARITY_COLORS[rarity] : 'transparent',
+                borderColor: recipeBookFilterRarity === rarity ? RARITY_COLORS[rarity] : '#3A3A5C',
+                color: recipeBookFilterRarity === rarity ? '#fff' : '#B0B0C0',
               }}
-              onClick={() => handleRarityFilterChange(rarity)}
+              onClick={() => setRecipeBookFilterRarity(rarity)}
             >
               {RARITY_NAMES[rarity]}
             </button>
@@ -761,11 +819,27 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
         </div>
 
         <div style={filterRowStyle}>
-          <span style={filterLabelStyle}>材料</span>
+          <span style={filterLabelStyle}>类型</span>
           <select
             style={selectStyle}
-            value={materialFilter}
-            onChange={(e) => handleMaterialFilterChange(e.target.value)}
+            value={recipeBookFilterType}
+            onChange={(e) => setRecipeBookFilterType(e.target.value as MaterialType | 'all')}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLSelectElement).style.borderColor = '#6C63FF'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLSelectElement).style.borderColor = '#3A3A5C'; }}
+          >
+            <option value="all">全部类型</option>
+            {allMaterialTypes.map(type => (
+              <option key={type} value={type}>
+                {TYPE_NAMES[type]}
+              </option>
+            ))}
+          </select>
+
+          <span style={{ ...filterLabelStyle, marginLeft: isMobile ? 0 : 10 }}>材料</span>
+          <select
+            style={selectStyle}
+            value={recipeBookFilterMaterial}
+            onChange={(e) => setRecipeBookFilterMaterial(e.target.value)}
             onMouseEnter={(e) => { (e.currentTarget as HTMLSelectElement).style.borderColor = '#6C63FF'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLSelectElement).style.borderColor = '#3A3A5C'; }}
           >
@@ -777,11 +851,11 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
             ))}
           </select>
 
-          <span style={{ ...filterLabelStyle, marginLeft: 20 }}>排序</span>
+          <span style={{ ...filterLabelStyle, marginLeft: isMobile ? 0 : 10 }}>排序</span>
           <select
             style={selectStyle}
-            value={sortOption}
-            onChange={handleSortChange}
+            value={recipeBookSort}
+            onChange={(e) => setRecipeBookSort(e.target.value as 'name' | 'rarity' | 'unlockTime')}
             onMouseEnter={(e) => { (e.currentTarget as HTMLSelectElement).style.borderColor = '#6C63FF'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLSelectElement).style.borderColor = '#3A3A5C'; }}
           >
@@ -790,10 +864,10 @@ const RecipeBook: React.FC<RecipeBookProps> = ({ onNavigate }) => {
             <option value="unlockTime">按解锁时间排序</option>
           </select>
 
-          {(rarityFilter !== 'all' || materialFilter !== 'all') && (
+          {hasActiveFilters && (
             <button
               style={clearFilterBtnStyle}
-              onClick={resetFilters}
+              onClick={resetRecipeBookFilters}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FF6B6B';
                 (e.currentTarget as HTMLButtonElement).style.color = '#fff';
