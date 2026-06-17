@@ -44,16 +44,16 @@ const ProjectCard = memo(function ProjectCard({
       }}
       data-project-id={id}
     >
-      <div className="project-card__cover">
+      <div className="project-card__thumb-wrap">
         {!isLoaded && (
-          <div className="project-card__skeleton" />
+          <div className="project-card__thumb-skeleton" />
         )}
-        {isInView && (
+        {isInView && coverImage && (
           <img
             ref={imgRef}
             src={coverImage}
             alt={title}
-            className={`project-card__img ${isLoaded ? 'project-card__img--loaded' : ''}`}
+            className={`project-card__thumb ${isLoaded ? 'project-card__thumb--loaded' : ''}`}
             onLoad={() => setIsLoaded(true)}
             loading="lazy"
           />

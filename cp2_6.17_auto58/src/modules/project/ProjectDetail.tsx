@@ -18,7 +18,7 @@ import {
 import { useProjectStore } from './store';
 import { useActivityStore } from '../activity/store';
 import { CURRENT_USER } from '../../types';
-import { formatRelativeTime, getInitials, generateAvatarColor } from '../../utils/format';
+import { formatRelativeTime, getInitials } from '../../utils/format';
 
 export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +37,6 @@ export function ProjectDetail() {
   const isLiked = projectLikes.some((l) => l.user === CURRENT_USER);
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
   const [commentInput, setCommentInput] = useState('');
   const [isLiking, setIsLiking] = useState(false);
   const [likeAnimating, setLikeAnimating] = useState(false);
@@ -60,26 +59,18 @@ export function ProjectDetail() {
   }, [id]);
 
   const handlePrevImage = useCallback(() => {
-    if (!project?.images.length || isAnimating) return;
-    setIsAnimating(true);
-    setTimeout(() => {
-      setCurrentImageIndex((prev) =>
-        prev === 0 ? project.images.length - 1 : prev - 1
-      );
-      setTimeout(() => setIsAnimating(false), 300);
-    }, 150);
-  }, [project, isAnimating]);
+    if (!project?.images.length) return;
+    setCurrentImageIndex((prev) =>
+      prev === 0 ? project.images.length - 1 : prev - 1
+    );
+  }, [project]);
 
   const handleNextImage = useCallback(() => {
-    if (!project?.images.length || isAnimating) return;
-    setIsAnimating(true);
-    setTimeout(() => {
-      setCurrentImageIndex((prev) =>
-        prev === project.images.length - 1 ? 0 : prev + 1
-      );
-      setTimeout(() => setIsAnimating(false), 300);
-    }, 150);
-  }, [project, isAnimating]);
+    if (!project?.images.length) return;
+    setCurrentImageIndex((prev) =>
+      prev === project.images.length - 1 ? 0 : prev + 1
+    );
+  }, [project]);
 
   const handleLike = useCallback(async () => {
     if (!project || isOwnProject || isLiking) return;
@@ -159,13 +150,8 @@ export function ProjectDetail() {
                 src={img}
                 alt={`${project.title} - ${index + 1}`}
                 className={`image-carousel__img ${
-                  index === currentImageIndex && !isAnimating
-                    ? 'image-carousel__img--active'
-                    : ''
+                  index === currentImageIndex ? 'image-carousel__img--active' : ''
                 }`}
-                style={{
-                  opacity: index === currentImageIndex ? 1 : 0,
-                }}
               />
             ))}
           </div>
@@ -174,19 +160,19 @@ export function ProjectDetail() {
             <>
               <button
                 type="button"
-                className="image-carousel__arrow image-carousel__arrow--left"
+                className="carousel-arrow carousel-arrow--left"
                 onClick={handlePrevImage}
                 aria-label="上一张"
               >
-                <ChevronLeft size={24} />
+                <ChevronLeft size={24} color="#333" />
               </button>
               <button
                 type="button"
-                className="image-carousel__arrow image-carousel__arrow--right"
+                className="carousel-arrow carousel-arrow--right"
                 onClick={handleNextImage}
                 aria-label="下一张"
               >
-                <ChevronRight size={24} />
+                <ChevronRight size={24} color="#333" />
               </button>
               <div className="image-carousel__dots">
                 {project.images.map((_, index) => (
@@ -242,10 +228,7 @@ export function ProjectDetail() {
           ) : (
             sortedComments.map((comment) => (
               <div key={comment.id} className="comment-item">
-                <div
-                  className="comment-item__avatar"
-                  style={{ backgroundColor: generateAvatarColor(comment.user) }}
-                >
+                <div className="comment-item__avatar">
                   {getInitials(comment.user)}
                 </div>
                 <div className="comment-item__body">
@@ -264,24 +247,29 @@ export function ProjectDetail() {
         </div>
 
         <div className="comment-input-section">
-          <div
-            className="comment-input__avatar"
-            style={{ backgroundColor: generateAvatarColor(CURRENT_USER) }}
-          >
+          <div className="comment-input__avatar">
             {getInitials(CURRENT_USER)}
           </div>
           <div className="comment-input__wrapper">
             <textarea
-              className="comment-input"
+              className={`comment-input ${commentInput.length >= 200 ? 'comment-input--error' : ''}`}
               placeholder="发表你的评论（按 Enter 发送，最多200字）"
               value={commentInput}
-              onChange={(e) => setCommentInput(e.target.value.slice(0, 200))}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.length <= 200) {
+                  setCommentInput(val);
+                }
+              }}
               onKeyDown={handleCommentKeyDown}
               rows={2}
               maxLength={200}
             />
+            {commentInput.length >= 200 && (
+              <p className="comment-input__error">评论内容不能超过200字</p>
+            )}
             <div className="comment-input__footer">
-              <span className="comment-input__count">
+              <span className={`comment-input__count ${commentInput.length >= 200 ? 'comment-input__count--error' : ''}`}>
                 {commentInput.length}/200
               </span>
               <button

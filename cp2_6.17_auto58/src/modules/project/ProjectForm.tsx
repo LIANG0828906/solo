@@ -185,40 +185,42 @@ export function ProjectForm({ onClose }: ProjectFormProps) {
               改造对比图片 <span className="required">*</span>
               <span className="char-count">{images.length}/4</span>
             </label>
-            <div className="image-upload-grid">
-              {images.map((img, index) => (
-                <div key={index} className="image-preview">
-                  <img src={img.preview} alt={`预览${index + 1}`} />
-                  <button
-                    type="button"
-                    className="image-preview__remove"
-                    onClick={() => removeImage(index)}
-                    aria-label="移除图片"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-              {images.length < 4 && (
-                <label className="image-upload-btn">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    multiple
-                    onChange={handleFileSelect}
-                    hidden
-                  />
-                  <div className="image-upload-btn__inner">
-                    <Plus size={24} color="#999" />
-                    <Upload size={20} color="#999" />
-                    <span>上传图片</span>
-                    <span className="image-upload-btn__hint">
-                      JPG/PNG，每张≤2MB
-                    </span>
+            <div className={`image-upload-wrapper ${errors.images ? 'image-upload-wrapper--error' : ''}`}>
+              <div className="image-upload-grid">
+                {images.map((img, index) => (
+                  <div key={index} className="image-preview">
+                    <img src={img.preview} alt={`预览${index + 1}`} />
+                    <button
+                      type="button"
+                      className="image-preview__remove"
+                      onClick={() => removeImage(index)}
+                      aria-label="移除图片"
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
-                </label>
-              )}
+                ))}
+                {images.length < 4 && (
+                  <label className={`image-upload-btn ${errors.images ? 'image-upload-btn--error' : ''}`}>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      multiple
+                      onChange={handleFileSelect}
+                      hidden
+                    />
+                    <div className="image-upload-btn__inner">
+                      <Plus size={24} color="#999" />
+                      <Upload size={20} color="#999" />
+                      <span>上传图片</span>
+                      <span className="image-upload-btn__hint">
+                        JPG/PNG，每张≤2MB
+                      </span>
+                    </div>
+                  </label>
+                )}
+              </div>
             </div>
             {errors.images && (
               <p className="form-error">{errors.images}</p>

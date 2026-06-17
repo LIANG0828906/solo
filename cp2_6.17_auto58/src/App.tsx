@@ -7,6 +7,7 @@ import { ActivityFeed } from './modules/activity/ActivityFeed';
 import { useProjectStore } from './modules/project/store';
 import { useActivityStore } from './modules/activity/store';
 import { openDB } from './utils/db';
+import { seedMockDataIfEmpty } from './utils/mockData';
 
 function Header() {
   return (
@@ -38,6 +39,7 @@ function AppContent() {
     async function initData() {
       try {
         await openDB();
+        await seedMockDataIfEmpty();
         if (mounted) {
           await Promise.all([
             projectStore.getState().loadProjects(),
