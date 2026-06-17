@@ -1,0 +1,163 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  background-color: #263238;
+  font-family: 'Courier New', Courier, monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.canvas-wrapper {
+  width: 800px;
+  height: 600px;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+.control-panel {
+  width: 800px;
+  height: 180px;
+  background-color: #37474F;
+  padding: 20px;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.season-buttons {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.season-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  color: #FFFFFF;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  font-weight: bold;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0;
+}
+
+.season-btn:hover {
+  opacity: 0.9;
+}
+
+.season-btn.active {
+  width: 80px;
+  height: 80px;
+  opacity: 1;
+}
+
+.season-btn.spring {
+  background-color: #81C784;
+}
+
+.season-btn.spring.active {
+  box-shadow: 0 0 8px #81C784;
+}
+
+.season-btn.summer {
+  background-color: #FFD54F;
+}
+
+.season-btn.summer.active {
+  box-shadow: 0 0 8px #FFD54F;
+}
+
+.season-btn.autumn {
+  background-color: #FF8A65;
+}
+
+.season-btn.autumn.active {
+  box-shadow: 0 0 8px #FF8A65;
+}
+
+.season-btn.winter {
+  background-color: #81D4FA;
+}
+
+.season-btn.winter.active {
+  box-shadow: 0 0 8px #81D4FA;
+}
+
+.particle-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.particle-label {
+  color: #FFFFFF;
+  font-size: 12px;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.particle-slider {
+  width: 200px;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #546E7A;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.particle-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #B0BEC5;
+  cursor: pointer;
+  border: none;
+}
+
+.particle-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #B0BEC5;
+  cursor: pointer;
+  border: none;
+}
