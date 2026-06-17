@@ -14,6 +14,7 @@ interface AppState {
   darkMode: boolean;
   selectedTags: string[];
   searchQuery: string;
+  highlightedUserIds: string[];
 
   setDarkMode: (value: boolean) => void;
   addSkill: (skill: Omit<Skill, 'id' | 'createdAt'>) => void;
@@ -28,6 +29,8 @@ interface AppState {
   setSelectedTags: (tags: string[]) => void;
   setSearchQuery: (query: string) => void;
   getUserById: (userId: string) => User | undefined;
+  setHighlightedUserIds: (ids: string[]) => void;
+  calculateMatchScore: (userId: string) => number;
 }
 
 const getInitialState = () => {
@@ -44,6 +47,7 @@ const getInitialState = () => {
     darkMode: false,
     selectedTags: [] as string[],
     searchQuery: '',
+    highlightedUserIds: [] as string[],
   };
 };
 
@@ -103,7 +107,6 @@ export const useStore = create<AppState>()(
         const invite = get().invites.find((i) => i.id === inviteId);
         if (!invite) return;
 
-        const fromUser = get().getUserById(invite.fromUserId);
         const toUser = get().getUserById(invite.toUserId);
         const now = Date.now();
 
@@ -204,7 +207,66 @@ export const useStore = create<AppState>()(
 
       setSearchQuery: (query) => set({ searchQuery: query }),
 
+      setHighlightedUserIds: (ids) => set({ highlightedUserIds: ids }),
+
       getUserById: (userId) => get().users.find((u) => u.id === userId),
+
+      calculateMatchScore: (userId) => {
+        const state = get();
+        const currentUser = state.currentUser;
+        const targetUser = state.getUserById(userId);
+        if (!targetUser || targetUser.id === currentUser.id) return 0;
+
+        const currentSkills = state.skills.filter((s) => s.userId === currentUser.id);
+        const targetSkills = state.skills.filter((s) => s.userId === userId);
+
+        const currentAllTags = new Set(
+          currentSkills.flatMap((s) => [...s.tags, s.category])
+        );
+        const targetAllTags = new Set(
+          targetSkills.flatMap((s) => [...s.tags, s.category])
+        );
+
+        let score = 0;
+
+        let complementaryCount = 0;
+        currentAllTags.forEach((tag) => {
+          if (!targetAllTags.has(tag)) {
+            targetAllTags.forEach((t) => {
+              if (!currentAllTags.has(t)) {
+                complementaryCount++;
+              }
+            });
+          }
+        });
+        complementaryCount = Math.min(
+          [...currentAllTags].filter((t) => !targetAllTags.has(t)).length,
+          [...targetAllTags].filter((t) => !currentAllTags.has(t)).length
+        );
+        score += complementaryCount * 15;
+
+        let sameCount = 0;
+        currentAllTags.forEach((tag) => {
+          if (targetAllTags.has(tag)) sameCount++;
+        });
+        score += sameCount * 5;
+
+        const radarDims: RadarDimension[] = [
+          'frontend',
+          'backend',
+          'design',
+          'dataAnalysis',
+          'softSkills',
+        ];
+        radarDims.forEach((dim) => {
+          const diff = Math.abs(
+            currentUser.radarScores[dim] - targetUser.radarScores[dim]
+          );
+          if (diff < 10) score += 10;
+        });
+
+        return Math.min(100, score);
+      },
     }),
     {
       name: 'skillswap-storage',
@@ -277,5 +339,44 @@ export const useRadarScores = (userId: string) => {
     softSkills: 50,
   };
 };
+
+export const useMatchedUsersForSkill = (skillTagOrTitle: string) =>
+  useStore((state) => {
+    const query = skillTagOrTitle.toLowerCase();
+    const skillMatches = state.skills.filter(
+      (s) =>
+        s.userId !== state.currentUser.id &&
+        (s.title.toLowerCase().includes(query) ||
+          s.tags.some((t) => t.toLowerCase().includes(query)) ||
+          s.category.toLowerCase().includes(query))
+    );
+
+    const userMap = new Map<string, { user: User; score: number }>();
+    skillMatches.forEach((skill) => {
+      if (!userMap.has(skill.userId)) {
+        const user = state.getUserById(skill.userId);
+        if (user) {
+          userMap.set(skill.userId, {
+            user,
+            score: state.calculateMatchScore(skill.userId),
+          });
+        }
+      }
+    });
+
+    return Array.from(userMap.values())
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.user.id);
+  });
+
+export const useMatchScore = (userId: string) =>
+  useStore((state) => state.calculateMatchScore(userId));
+
+export function getMatchBadgeColor(score: number): string {
+  if (score >= 80) return '#22C55E';
+  if (score >= 60) return '#3B82F6';
+  if (score >= 40) return '#F97316';
+  return '#9CA3AF';
+}
 
 export type { RadarDimension };

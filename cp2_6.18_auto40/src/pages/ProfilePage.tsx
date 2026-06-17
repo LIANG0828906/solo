@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Icon from '@mdi/react';
 import { mdiPlus, mdiSwapHorizontal } from '@mdi/js';
 import { SkillCard } from '@/components/SkillCard';
@@ -16,6 +16,7 @@ import type { Skill } from '@/types';
 import { CATEGORIES, RADAR_LABELS, RadarDimension } from '@/types';
 
 export function ProfilePage() {
+  const navigate = useNavigate();
   const { userId } = useParams<{ userId: string }>();
   const {
     currentUser,
@@ -79,6 +80,14 @@ export function ProfilePage() {
     setExchangeForm({ expectedTime: '', note: '' });
     setShowExchangeModal(true);
   }, []);
+
+  const handleFindPartner = useCallback(
+    (skill: Skill) => {
+      const filterKeyword = skill.tags[0] || skill.category || skill.title;
+      navigate(`/?skill=${encodeURIComponent(filterKeyword)}`);
+    },
+    [navigate]
+  );
 
   const submitAdd = useCallback(() => {
     if (!formData.title.trim()) return;
@@ -196,6 +205,7 @@ export function ProfilePage() {
                   onEdit={handleEditSkill}
                   onDelete={handleDeleteSkill}
                   onExchange={!isOwnProfile ? handleExchange : undefined}
+                  onFindPartner={isOwnProfile ? handleFindPartner : undefined}
                 />
               </div>
             ))}
