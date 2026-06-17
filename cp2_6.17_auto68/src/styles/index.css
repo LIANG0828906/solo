@@ -595,16 +595,27 @@ input, textarea, select {
   margin-bottom: 28px;
 }
 
-.poem-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 320px);
-  gap: 24px 20px;
-  justify-content: start;
+.masonry-container {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  width: 100%;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+.masonry-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex: 0 0 auto;
+  width: 320px;
+  box-sizing: border-box;
 }
 
 .poem-card {
-  width: 320px;
-  height: 240px;
+  width: 100%;
+  min-height: 240px;
   background: var(--bg-card);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
@@ -612,7 +623,7 @@ input, textarea, select {
   cursor: pointer;
   overflow: hidden;
   border: 1px solid rgba(139, 92, 246, 0.1);
-  break-inside: avoid;
+  box-sizing: border-box;
 }
 
 .poem-card:hover {
@@ -878,6 +889,7 @@ input, textarea, select {
     margin: 0 auto;
     padding: 24px 20px;
     min-height: 400px;
+    box-sizing: border-box;
   }
 
   .editor-title-input {
@@ -912,9 +924,15 @@ input, textarea, select {
     align-items: stretch;
   }
 
-  .poem-grid {
-    grid-template-columns: 1fr;
-    justify-content: center;
+  .masonry-container {
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .masonry-column {
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .poem-card {
@@ -922,6 +940,7 @@ input, textarea, select {
     max-width: 100%;
     height: auto;
     min-height: 200px;
+    box-sizing: border-box;
   }
 
   .card-actions {
@@ -959,11 +978,20 @@ input, textarea, select {
     grid-template-columns: 1fr;
   }
 
-  .poem-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  .masonry-container {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    box-sizing: border-box;
+  }
+
+  .masonry-column {
+    flex: 0 0 calc(50% - 10px);
+    min-width: 300px;
+    box-sizing: border-box;
   }
 
   .poem-card {
     width: 100%;
+    box-sizing: border-box;
   }
 }

@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePoemStore, Poem } from '../stores/poemStore';
 
 type SortOption = 'createdAt' | 'updatedAt' | 'title';
 
 const PAGE_SIZE = 12;
+const CARD_WIDTH = 320;
+const COLUMN_GAP = 20;
 
 const formatDate = (timestamp: number): string => {
   const date = new Date(timestamp);
@@ -27,6 +29,96 @@ const getSummary = (content: string, maxLen: number = 30): string => {
   return plain.slice(0, maxLen) + '...';
 };
 
+interface PoemCardProps {
+  poem: Poem;
+  isDeleting: boolean;
+  onCardClick: (poem: Poem) => void;
+  onEdit: (e: React.MouseEvent, poem: Poem) => void;
+  onDelete: (e: React.MouseEvent, poem: Poem) => void;
+  onHeightMeasure?: (id: string, height: number) => void;
+}
+
+const PoemCard = memo(function PoemCard({
+  poem,
+  isDeleting,
+  onCardClick,
+  onEdit,
+  onDelete,
+  onHeightMeasure
+}: PoemCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (cardRef.current && onHeightMeasure) {
+      const height = cardRef.current.offsetHeight;
+      onHeightMeasure(poem.id, height);
+    }
+  }, [poem.id, onHeightMeasure]);
+
+  return (
+    <div
+      ref={cardRef}
+      className={`poem-card ${isDeleting ? 'deleting' : ''}`}
+      onClick={() => onCardClick(poem)}
+    >
+      <div className="card-inner">
+        <h3 className="poem-card-title">{poem.title}</h3>
+        <p className="poem-card-summary">{getSummary(poem.content)}</p>
+        <div className="poem-card-footer">
+          <span className="card-time">🕒 {formatDate(poem.updatedAt)}</span>
+          <div className="card-actions">
+            <button
+              className="card-btn card-btn-edit"
+              title="编辑"
+              onClick={(e) => onEdit(e, poem)}
+            >
+              ✏️
+            </button>
+            <button
+              className="card-btn card-btn-delete"
+              title="删除"
+              onClick={(e) => onDelete(e, poem)}
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+interface MasonryColumnProps {
+  poems: Poem[];
+  deletingId: string | null;
+  onCardClick: (poem: Poem) => void;
+  onEdit: (e: React.MouseEvent, poem: Poem) => void;
+  onDelete: (e: React.MouseEvent, poem: Poem) => void;
+}
+
+const MasonryColumn = memo(function MasonryColumn({
+  poems,
+  deletingId,
+  onCardClick,
+  onEdit,
+  onDelete
+}: MasonryColumnProps) {
+  return (
+    <div className="masonry-column">
+      {poems.map((poem) => (
+        <PoemCard
+          key={poem.id}
+          poem={poem}
+          isDeleting={deletingId === poem.id}
+          onCardClick={onCardClick}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ))}
+    </div>
+  );
+});
+
 const PoemList: React.FC = () => {
   const navigate = useNavigate();
   const { poems, dbReady, initDB, createPoem, deletePoem } = usePoemStore();
@@ -36,15 +128,49 @@ const PoemList: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>('updatedAt');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [columnCount, setColumnCount] = useState(3);
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const calculateColumnCount = useCallback(() => {
+    if (!containerRef.current) return 3;
+    const containerWidth = containerRef.current.offsetWidth;
+    const availableWidth = containerWidth + COLUMN_GAP;
+    const cols = Math.floor(availableWidth / (CARD_WIDTH + COLUMN_GAP));
+    return Math.max(1, cols);
+  }, []);
 
   useEffect(() => {
     if (!dbReady) {
       initDB();
     }
   }, [dbReady, initDB]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (resizeTimerRef.current) {
+        clearTimeout(resizeTimerRef.current);
+      }
+      resizeTimerRef.current = setTimeout(() => {
+        const cols = calculateColumnCount();
+        setColumnCount(cols);
+      }, 150);
+    };
+
+    const cols = calculateColumnCount();
+    setColumnCount(cols);
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (resizeTimerRef.current) {
+        clearTimeout(resizeTimerRef.current);
+      }
+    };
+  }, [calculateColumnCount]);
 
   useEffect(() => {
     if (searchTimerRef.current) {
@@ -80,6 +206,27 @@ const PoemList: React.FC = () => {
     return filteredPoems.slice(0, visibleCount);
   }, [filteredPoems, visibleCount]);
 
+  const masonryColumns = useMemo(() => {
+    const columns: Poem[][] = Array.from({ length: columnCount }, () => []);
+    const columnHeights = Array(columnCount).fill(0);
+
+    for (const poem of visiblePoems) {
+      let shortestIndex = 0;
+      for (let i = 1; i < columnHeights.length; i++) {
+        if (columnHeights[i] < columnHeights[shortestIndex]) {
+          shortestIndex = i;
+        }
+      }
+      columns[shortestIndex].push(poem);
+
+      const contentLen = getSummary(poem.content).length;
+      const estimatedHeight = 240 + Math.max(0, contentLen - 30) * 4;
+      columnHeights[shortestIndex] += estimatedHeight + 24;
+    }
+
+    return columns;
+  }, [visiblePoems, columnCount]);
+
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [entry] = entries;
@@ -101,30 +248,39 @@ const PoemList: React.FC = () => {
     return () => observer.disconnect();
   }, [handleObserver, visiblePoems.length]);
 
-  const handleCreateNew = async () => {
+  const handleCreateNew = useCallback(async () => {
     const poem = await createPoem();
     navigate(`/editor/${poem.id}`);
-  };
+  }, [createPoem, navigate]);
 
-  const handleCardClick = (poem: Poem) => {
-    if (deletingId === poem.id) return;
-    navigate(`/poem/${poem.id}`);
-  };
+  const handleCardClick = useCallback(
+    (poem: Poem) => {
+      if (deletingId === poem.id) return;
+      navigate(`/poem/${poem.id}`);
+    },
+    [deletingId, navigate]
+  );
 
-  const handleEdit = (e: React.MouseEvent, poem: Poem) => {
-    e.stopPropagation();
-    navigate(`/editor/${poem.id}`);
-  };
+  const handleEdit = useCallback(
+    (e: React.MouseEvent, poem: Poem) => {
+      e.stopPropagation();
+      navigate(`/editor/${poem.id}`);
+    },
+    [navigate]
+  );
 
-  const handleDelete = async (e: React.MouseEvent, poem: Poem) => {
-    e.stopPropagation();
-    const confirmed = window.confirm(`确定删除诗歌《${poem.title}》吗？此操作不可撤销。`);
-    if (confirmed) {
-      setDeletingId(poem.id);
-      await deletePoem(poem.id);
-      setDeletingId(null);
-    }
-  };
+  const handleDelete = useCallback(
+    async (e: React.MouseEvent, poem: Poem) => {
+      e.stopPropagation();
+      const confirmed = window.confirm(`确定删除诗歌《${poem.title}》吗？此操作不可撤销。`);
+      if (confirmed) {
+        setDeletingId(poem.id);
+        await deletePoem(poem.id);
+        setDeletingId(null);
+      }
+    },
+    [deletePoem]
+  );
 
   return (
     <div className="poem-list-container">
@@ -180,37 +336,16 @@ const PoemList: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="poem-grid">
-          {visiblePoems.map((poem) => (
-            <div
-              key={poem.id}
-              className={`poem-card ${deletingId === poem.id ? 'deleting' : ''}`}
-              onClick={() => handleCardClick(poem)}
-            >
-              <div className="card-inner">
-                <h3 className="poem-card-title">{poem.title}</h3>
-                <p className="poem-card-summary">{getSummary(poem.content)}</p>
-                <div className="poem-card-footer">
-                  <span className="card-time">🕒 {formatDate(poem.updatedAt)}</span>
-                  <div className="card-actions">
-                    <button
-                      className="card-btn card-btn-edit"
-                      title="编辑"
-                      onClick={(e) => handleEdit(e, poem)}
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      className="card-btn card-btn-delete"
-                      title="删除"
-                      onClick={(e) => handleDelete(e, poem)}
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <div ref={containerRef} className="masonry-container">
+          {masonryColumns.map((colPoems, colIndex) => (
+            <MasonryColumn
+              key={colIndex}
+              poems={colPoems}
+              deletingId={deletingId}
+              onCardClick={handleCardClick}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       )}
@@ -227,4 +362,4 @@ const PoemList: React.FC = () => {
   );
 };
 
-export default PoemList;
+export default memo(PoemList);
