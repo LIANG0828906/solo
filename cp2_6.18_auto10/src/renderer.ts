@@ -25,6 +25,9 @@ export class PlantRenderer {
   private stemGroup: THREE.Group;
   private layerMeshes: Map<string, THREE.Mesh> = new Map();
   private vascularMeshes: Map<number, THREE.Mesh> = new Map();
+  private boundaryRingLines: THREE.Line[] = [];
+  private vascularParticleSystems: THREE.Points[] = [];
+  private outerGlowWireframe: THREE.Mesh | null = null;
   private stemData: PlantStemData;
   private effectsManager: EffectsManager;
   private raycaster: THREE.Raycaster;
@@ -317,6 +320,140 @@ export class PlantRenderer {
       this.vascularMeshes.set(bundle.id, mesh);
       this.stemGroup.add(mesh);
     });
+
+    this.createBoundaryRingLines();
+    this.createVascularParticleSystems();
+    this.createOuterGlowWireframe();
+  }
+
+  private createBoundaryRingLines(): void {
+    const halfHeight = this.stemData.height / 2;
+    const segments = 128;
+
+    const createRingAtHeight = (radius: number, y: number): THREE.Line => {
+      const points: THREE.Vector3[] = [];
+      for (let i = 0; i <= segments; i++) {
+        const angle = (i / segments) * Math.PI * 2;
+        points.push(new THREE.Vector3(
+          Math.cos(angle) * radius,
+          y,
+          Math.sin(angle) * radius
+        ));
+      }
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineBasicMaterial({
+        color: 0xaaaaaa,
+        transparent: true,
+        opacity: 0.5,
+      });
+      const line = new THREE.Line(geometry, material);
+      line.renderOrder = 10;
+      return line;
+    };
+
+    for (let i = 0; i < this.stemData.layers.length - 1; i++) {
+      const outerLayer = this.stemData.layers[i];
+      const innerLayer = this.stemData.layers[i + 1];
+      const midRadius = (outerLayer.innerRadius + innerLayer.outerRadius) / 2;
+      const gapRadius = midRadius;
+
+      const topRing = createRingAtHeight(gapRadius, halfHeight);
+      const bottomRing = createRingAtHeight(gapRadius, -halfHeight);
+
+      this.boundaryRingLines.push(topRing, bottomRing);
+      this.stemGroup.add(topRing);
+      this.stemGroup.add(bottomRing);
+    }
+
+    for (let i = 0; i < this.stemData.layers.length; i++) {
+      const layer = this.stemData.layers[i];
+      const topOuterRing = createRingAtHeight(layer.outerRadius, halfHeight);
+      const bottomOuterRing = createRingAtHeight(layer.outerRadius, -halfHeight);
+      const topInnerRing = createRingAtHeight(layer.innerRadius, halfHeight);
+      const bottomInnerRing = createRingAtHeight(layer.innerRadius, -halfHeight);
+
+      this.boundaryRingLines.push(topOuterRing, bottomOuterRing, topInnerRing, bottomInnerRing);
+      this.stemGroup.add(topOuterRing);
+      this.stemGroup.add(bottomOuterRing);
+      this.stemGroup.add(topInnerRing);
+      this.stemGroup.add(bottomInnerRing);
+    }
+  }
+
+  private createVascularParticleSystems(): void {
+    this.stemData.vascularBundles.forEach((bundle) => {
+      const particleCount = 50 + Math.floor(Math.random() * 31);
+      const positions = new Float32Array(particleCount * 3);
+      const colors = new Float32Array(particleCount * 3);
+
+      for (let i = 0; i < particleCount; i++) {
+        const angleOffset = Math.random() * Math.PI * 2;
+        const distOffset = Math.random() * 0.2;
+        const heightOffset = (Math.random() - 0.5) * (bundle.height * 0.8);
+
+        const radialAngle = (bundle.angle * Math.PI) / 180;
+        const tangentAngle = radialAngle + Math.PI / 2;
+
+        const localX = Math.cos(tangentAngle) * distOffset * Math.cos(angleOffset) +
+                       Math.cos(radialAngle) * distOffset * Math.sin(angleOffset) * 0.5;
+        const localZ = Math.sin(tangentAngle) * distOffset * Math.cos(angleOffset) +
+                       Math.sin(radialAngle) * distOffset * Math.sin(angleOffset) * 0.5;
+        const localY = heightOffset;
+
+        positions[i * 3] = bundle.x + localX;
+        positions[i * 3 + 1] = localY;
+        positions[i * 3 + 2] = bundle.z + localZ;
+
+        const colorVariation = 0.85 + Math.random() * 0.15;
+        colors[i * 3] = 1.0 * colorVariation;
+        colors[i * 3 + 1] = 0.95 * colorVariation;
+        colors[i * 3 + 2] = 0.4 * colorVariation;
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const material = new THREE.PointsMaterial({
+        size: 0.04,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.6,
+        sizeAttenuation: true,
+      });
+
+      const points = new THREE.Points(geometry, material);
+      points.renderOrder = 5;
+      this.vascularParticleSystems.push(points);
+      this.stemGroup.add(points);
+    });
+  }
+
+  private createOuterGlowWireframe(): void {
+    const epidermisLayer = this.stemData.layers[0];
+    if (!epidermisLayer) return;
+
+    const glowRadius = epidermisLayer.outerRadius + 0.08;
+    const geometry = new THREE.CylinderGeometry(
+      glowRadius,
+      glowRadius,
+      this.stemData.height + 0.1,
+      64,
+      1,
+      true
+    );
+
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.1,
+      side: THREE.DoubleSide,
+    });
+
+    this.outerGlowWireframe = new THREE.Mesh(geometry, material);
+    this.outerGlowWireframe.renderOrder = -1;
+    this.stemGroup.add(this.outerGlowWireframe);
   }
 
   private createLayerMesh(layer: LayerConfig): THREE.Mesh {
@@ -522,6 +659,7 @@ export class PlantRenderer {
             if (completed === layersToPeel.length) {
               this.state.currentLayer = targetLayer;
               this.state.isAnimating = false;
+              this.updateAuxiliaryVisibility();
               eventBus.emit(EventType.LAYER_SWITCH, targetLayer);
 
               if (targetLayer === 3) {
@@ -549,6 +687,7 @@ export class PlantRenderer {
 
     if (layersToRestore.length === 0) {
       this.state.currentLayer = targetLayer;
+      this.updateAuxiliaryVisibility();
       eventBus.emit(EventType.LAYER_SWITCH, targetLayer);
       return;
     }
@@ -565,6 +704,7 @@ export class PlantRenderer {
             if (completed === layersToRestore.length) {
               this.state.currentLayer = targetLayer;
               this.state.isAnimating = false;
+              this.updateAuxiliaryVisibility();
               eventBus.emit(EventType.LAYER_SWITCH, targetLayer);
             }
           });
@@ -572,6 +712,33 @@ export class PlantRenderer {
           completed++;
         }
       }, index * 200);
+    });
+  }
+
+  private updateAuxiliaryVisibility(): void {
+    const currentLayer = this.state.currentLayer;
+
+    if (this.outerGlowWireframe) {
+      this.outerGlowWireframe.visible = currentLayer <= 1;
+    }
+
+    const gapLinesCount = (this.stemData.layers.length - 1) * 2;
+    const layerLinesPerLayer = 4;
+    for (let i = 0; i < this.boundaryRingLines.length; i++) {
+      let visible = false;
+      if (i < gapLinesCount) {
+        const gapIndex = Math.floor(i / 2);
+        visible = currentLayer <= gapIndex + 1;
+      } else {
+        const lineOffset = i - gapLinesCount;
+        const layerIndex = Math.floor(lineOffset / layerLinesPerLayer);
+        visible = currentLayer <= layerIndex + 1;
+      }
+      this.boundaryRingLines[i].visible = visible;
+    }
+
+    this.vascularParticleSystems.forEach((points) => {
+      points.visible = currentLayer >= 3;
     });
   }
 
@@ -610,6 +777,24 @@ export class PlantRenderer {
       mesh.geometry.dispose();
       (mesh.material as THREE.Material).dispose();
     });
+
+    this.boundaryRingLines.forEach((line) => {
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    });
+    this.boundaryRingLines = [];
+
+    this.vascularParticleSystems.forEach((points) => {
+      points.geometry.dispose();
+      (points.material as THREE.Material).dispose();
+    });
+    this.vascularParticleSystems = [];
+
+    if (this.outerGlowWireframe) {
+      this.outerGlowWireframe.geometry.dispose();
+      (this.outerGlowWireframe.material as THREE.Material).dispose();
+      this.outerGlowWireframe = null;
+    }
 
     this.renderer.dispose();
     this.controls.dispose();
