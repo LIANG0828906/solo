@@ -16,7 +16,8 @@ const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
         overflow: 'hidden',
         cursor: 'pointer',
         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        transition: 'transform 0.25s ease-out, box-shadow 0.25s ease-out'
+        transition: 'transform 0.25s ease-out, box-shadow 0.25s ease-out',
+        willChange: 'transform'
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-3px)';
@@ -43,7 +44,7 @@ const PhotoCard: React.FC<PhotoCardProps> = ({ photo, onClick }) => {
           fontSize: '14px',
           fontWeight: 600,
           color: '#ffffff',
-          marginBottom: '4px',
+          margin: '0 0 4px 0',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis'

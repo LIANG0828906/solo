@@ -7,12 +7,14 @@ const PhotoSharePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [photo, setPhoto] = useState<Photo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!id) {
       setLoading(false);
       return;
     }
+    setLoading(true);
     getPhotoById(id)
       .then((data) => {
         setPhoto(data || null);
@@ -22,6 +24,10 @@ const PhotoSharePage: React.FC = () => {
         setLoading(false);
       });
   }, [id]);
+
+  const handleImageLoad = () => {
+    setLoaded(true);
+  };
 
   if (loading) {
     return (
@@ -56,14 +62,21 @@ const PhotoSharePage: React.FC = () => {
         justifyContent: 'center',
         padding: '24px'
       }}>
-        <div style={{
-          fontSize: '64px',
-          marginBottom: '24px'
-        }}>🔍</div>
-        <h2 style={{ fontSize: '24px', fontWeight: 600, color: '#ffffff', marginBottom: '8px' }}>
+        <div style={{ fontSize: '64px', marginBottom: '24px' }}>🔍</div>
+        <h2 style={{
+          fontSize: '24px',
+          fontWeight: 600,
+          color: '#ffffff',
+          margin: '0 0 8px 0'
+        }}>
           照片不存在
         </h2>
-        <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '24px', textAlign: 'center' }}>
+        <p style={{
+          fontSize: '14px',
+          color: 'rgba(255,255,255,0.6)',
+          margin: '0 0 24px 0',
+          textAlign: 'center'
+        }}>
           这张照片可能已被删除，或者链接无效
         </p>
         <Link
@@ -74,7 +87,8 @@ const PhotoSharePage: React.FC = () => {
             padding: '12px 24px',
             borderRadius: '8px',
             fontWeight: 600,
-            fontSize: '14px'
+            fontSize: '14px',
+            textDecoration: 'none'
           }}
         >
           返回图库
@@ -97,7 +111,7 @@ const PhotoSharePage: React.FC = () => {
         justifyContent: 'space-between',
         borderBottom: '1px solid rgba(255,255,255,0.1)'
       }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', margin: 0 }}>
           <span style={{ color: '#6C63FF' }}>Photo</span>Vault
         </h1>
         <Link
@@ -108,7 +122,8 @@ const PhotoSharePage: React.FC = () => {
             fontWeight: 500,
             padding: '8px 16px',
             borderRadius: '6px',
-            transition: 'background-color 0.2s ease-out'
+            transition: 'background-color 0.25s ease-out',
+            textDecoration: 'none'
           }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
@@ -124,23 +139,46 @@ const PhotoSharePage: React.FC = () => {
         justifyContent: 'center',
         padding: '24px'
       }}>
-        <div className="fade-in" style={{ maxWidth: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div
+          style={{
+            opacity: loaded ? 1 : 0,
+            transition: 'opacity 0.6s ease',
+            maxWidth: '100%',
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
           <img
             src={photo.fullUrl}
             alt={photo.title}
+            onLoad={handleImageLoad}
             style={{
               maxWidth: '100%',
               maxHeight: '75vh',
+              width: 'auto',
+              height: 'auto',
               objectFit: 'contain',
               borderRadius: '12px',
               boxShadow: '0 8px 40px rgba(0,0,0,0.5)'
             }}
           />
           <div style={{ marginTop: '24px', textAlign: 'center' }}>
-            <h2 style={{ fontSize: '22px', fontWeight: 600, color: '#ffffff', marginBottom: '8px' }}>
+            <h2 style={{
+              fontSize: '22px',
+              fontWeight: 600,
+              color: '#ffffff',
+              margin: '0 0 8px 0'
+            }}>
               {photo.title}
             </h2>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)' }}>
+            <p style={{
+              fontSize: '14px',
+              color: 'rgba(255,255,255,0.6)',
+              margin: 0
+            }}>
               拍摄于 {photo.date}
             </p>
           </div>

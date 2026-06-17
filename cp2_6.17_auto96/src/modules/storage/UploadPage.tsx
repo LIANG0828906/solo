@@ -4,7 +4,7 @@ import Cropper, { Area } from 'react-easy-crop';
 import { v4 as uuidv4 } from 'uuid';
 import { savePhoto } from './storageService';
 import { usePhotoStore } from '../../store';
-import type { Photo, CropAspect } from '../../types';
+import type { Photo } from '../../types';
 
 type Step = 'select' | 'crop' | 'complete';
 
@@ -17,7 +17,7 @@ const UploadPage: React.FC = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');
   const [title, setTitle] = useState('');
-  const [aspect, setAspect] = useState<CropAspect>(16 / 9);
+  const [aspect, setAspect] = useState<number>(16 / 9);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -44,7 +44,7 @@ const UploadPage: React.FC = () => {
     reader.readAsDataURL(file);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
     const files = e.dataTransfer.files;
@@ -53,12 +53,12 @@ const UploadPage: React.FC = () => {
     }
   }, [handleFileSelect]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
   }, []);
@@ -74,10 +74,14 @@ const UploadPage: React.FC = () => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
-  const getCroppedImg = useCallback((imageSrc: string, pixelCrop: Area): Promise<{ fullUrl: string; thumbnailUrl: string; width: number; height: number }> => {
+  const getCroppedImg = useCallback((imageSrc: string, pixelCrop: Area): Promise<{
+    fullUrl: string;
+    thumbnailUrl: string;
+    width: number;
+    height: number;
+  }> => {
     return new Promise((resolve, reject) => {
       const image = new Image();
-      image.crossOrigin = 'anonymous';
       image.src = imageSrc;
       image.onload = () => {
         const canvas = document.createElement('canvas');
@@ -194,7 +198,7 @@ const UploadPage: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff', margin: 0 }}>
           <span style={{ color: '#6C63FF' }}>Photo</span>Vault
         </h1>
         <Link
@@ -205,7 +209,8 @@ const UploadPage: React.FC = () => {
             fontWeight: 500,
             padding: '8px 16px',
             borderRadius: '6px',
-            transition: 'background-color 0.2s ease-out'
+            transition: 'background-color 0.25s ease-out',
+            textDecoration: 'none'
           }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
@@ -217,10 +222,10 @@ const UploadPage: React.FC = () => {
       <main style={{ padding: '32px 24px', maxWidth: '960px', margin: '0 auto' }}>
         {step === 'select' && (
           <>
-            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#ffffff', margin: '0 0 8px 0' }}>
               上传照片
             </h2>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '32px' }}>
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', margin: '0 0 32px 0' }}>
               选择一张图片上传，支持 JPG、PNG、GIF 等格式
             </p>
 
@@ -241,10 +246,10 @@ const UploadPage: React.FC = () => {
               }}
             >
               <div style={{ fontSize: '56px', marginBottom: '16px' }}>📤</div>
-              <p style={{ fontSize: '16px', fontWeight: 500, color: '#ffffff', marginBottom: '8px' }}>
+              <p style={{ fontSize: '16px', fontWeight: 500, color: '#ffffff', margin: '0 0 8px 0' }}>
                 {isDragging ? '释放文件以上传' : '点击或拖拽图片到此处'}
               </p>
-              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)' }}>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
                 支持 JPG、PNG、GIF、WebP 格式
               </p>
               <input
@@ -260,12 +265,17 @@ const UploadPage: React.FC = () => {
 
         {step === 'crop' && originalImage && (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '24px'
+            }}>
               <div>
-                <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#ffffff', margin: '0 0 4px 0' }}>
                   裁剪照片
                 </h2>
-                <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)' }}>
+                <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
                   调整裁剪区域和缩放比例
                 </p>
               </div>
@@ -280,7 +290,7 @@ const UploadPage: React.FC = () => {
                   fontSize: '14px',
                   fontWeight: 500,
                   cursor: 'pointer',
-                  transition: 'background-color 0.2s ease-out'
+                  transition: 'background-color 0.25s ease-out'
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
@@ -311,7 +321,13 @@ const UploadPage: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.8)', marginBottom: '12px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: 'rgba(255,255,255,0.8)',
+                marginBottom: '12px'
+              }}>
                 裁剪比例
               </label>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -332,7 +348,7 @@ const UploadPage: React.FC = () => {
                       fontSize: '13px',
                       fontWeight: 500,
                       cursor: 'pointer',
-                      transition: 'all 0.2s ease-out'
+                      transition: 'all 0.25s ease-out'
                     }}
                   >
                     {opt.label}
@@ -342,7 +358,13 @@ const UploadPage: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.8)', marginBottom: '8px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: 'rgba(255,255,255,0.8)',
+                marginBottom: '8px'
+              }}>
                 缩放: {Math.round(zoom * 100)}%
               </label>
               <input
@@ -354,13 +376,20 @@ const UploadPage: React.FC = () => {
                 onChange={(e) => setZoom(Number(e.target.value))}
                 style={{
                   width: '100%',
-                  accentColor: '#6C63FF'
+                  accentColor: '#6C63FF',
+                  cursor: 'pointer'
                 }}
               />
             </div>
 
             <div style={{ marginBottom: '32px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.8)', marginBottom: '8px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: 'rgba(255,255,255,0.8)',
+                marginBottom: '8px'
+              }}>
                 照片标题
               </label>
               <input
@@ -377,7 +406,8 @@ const UploadPage: React.FC = () => {
                   color: '#ffffff',
                   fontSize: '14px',
                   outline: 'none',
-                  transition: 'border-color 0.2s ease-out'
+                  transition: 'border-color 0.25s ease-out',
+                  boxSizing: 'border-box'
                 }}
                 onFocus={(e) => { e.currentTarget.style.borderColor = '#6C63FF'; }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
@@ -396,7 +426,7 @@ const UploadPage: React.FC = () => {
                 fontSize: '15px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'background-color 0.2s ease-out'
+                transition: 'background-color 0.25s ease-out'
               }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5A52E0'; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#6C63FF'; }}
@@ -417,14 +447,15 @@ const UploadPage: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '36px',
-              marginBottom: '24px'
+              marginBottom: '24px',
+              color: '#22c55e'
             }}>
               ✓
             </div>
-            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#ffffff', margin: '0 0 8px 0' }}>
               上传成功！
             </h2>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '32px' }}>
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', margin: '0 0 32px 0' }}>
               照片已保存到您的相册
             </p>
 
@@ -447,10 +478,15 @@ const UploadPage: React.FC = () => {
               marginBottom: '24px',
               textAlign: 'left'
             }}>
-              <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
+              <p style={{
+                fontSize: '13px',
+                fontWeight: 500,
+                color: 'rgba(255,255,255,0.6)',
+                margin: '0 0 8px 0'
+              }}>
                 分享链接
               </p>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <code style={{
                   flex: 1,
                   padding: '10px 14px',
@@ -461,7 +497,8 @@ const UploadPage: React.FC = () => {
                   wordBreak: 'break-all',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  fontFamily: 'monospace'
                 }}>
                   {`${window.location.origin}/#/photo/${uploadedPhoto.id}`}
                 </code>
@@ -476,8 +513,14 @@ const UploadPage: React.FC = () => {
                     fontSize: '13px',
                     fontWeight: 500,
                     cursor: 'pointer',
-                    transition: 'background-color 0.2s ease-out',
+                    transition: 'background-color 0.25s ease-out',
                     whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!copied) e.currentTarget.style.backgroundColor = '#5A52E0';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!copied) e.currentTarget.style.backgroundColor = '#6C63FF';
                   }}
                 >
                   {copied ? '已复制！' : '复制链接'}
@@ -497,7 +540,7 @@ const UploadPage: React.FC = () => {
                   fontSize: '14px',
                   fontWeight: 500,
                   cursor: 'pointer',
-                  transition: 'background-color 0.2s ease-out'
+                  transition: 'background-color 0.25s ease-out'
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
@@ -515,7 +558,7 @@ const UploadPage: React.FC = () => {
                   fontSize: '14px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'background-color 0.2s ease-out'
+                  transition: 'background-color 0.25s ease-out'
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5A52E0'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#6C63FF'; }}

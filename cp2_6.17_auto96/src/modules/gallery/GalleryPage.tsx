@@ -1,10 +1,15 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import PhotoCard from './PhotoCard';
 import PhotoViewer from './PhotoViewer';
 import { usePhotoStore } from '../../store';
 import { getAllPhotos } from '../storage/storageService';
 import { demoPhotos } from '../storage/demoData';
+import type { Photo } from '../../types';
+
+const GAP = 12;
+const INITIAL_COUNT = 20;
+const LOAD_PER_PAGE = 8;
 
 const GalleryPage: React.FC = () => {
   const {
@@ -13,17 +18,34 @@ const GalleryPage: React.FC = () => {
     isLoading,
     hasMore,
     setPhotos,
-    loadMorePhotos,
+    setDisplayedCount,
+    setIsLoading,
+    setHasMore,
     openViewer
   } = usePhotoStore();
 
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const [columnCount, setColumnCount] = useState(4);
+  const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const loaded = useRef(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const dataLoaded = useRef(false);
 
   useEffect(() => {
-    if (!loaded.current) {
-      loaded.current = true;
+    const updateColumns = () => {
+      const w = window.innerWidth;
+      if (w < 600) setColumnCount(2);
+      else if (w < 900) setColumnCount(3);
+      else if (w < 1400) setColumnCount(4);
+      else setColumnCount(5);
+    };
+    updateColumns();
+    window.addEventListener('resize', updateColumns);
+    return () => window.removeEventListener('resize', updateColumns);
+  }, []);
+
+  useEffect(() => {
+    if (!dataLoaded.current) {
+      dataLoaded.current = true;
       getAllPhotos().then((data) => {
         if (data.length > 0) {
           setPhotos(data);
@@ -36,35 +58,65 @@ const GalleryPage: React.FC = () => {
     }
   }, [setPhotos]);
 
-  useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const columnCount = useMemo(() => {
-    if (windowWidth < 600) return 2;
-    if (windowWidth < 900) return 3;
-    if (windowWidth < 1400) return 4;
-    return 5;
-  }, [windowWidth]);
-
-  const displayedPhotos = useMemo(() => photos.slice(0, displayedCount), [photos, displayedCount]);
+  const loadMore = useCallback(() => {
+    if (isLoading || !hasMore) return;
+    setIsLoading(true);
+    setTimeout(() => {
+      const total = photos.length;
+      const next = Math.min(displayedCount + LOAD_PER_PAGE, total);
+      setDisplayedCount(next);
+      setHasMore(next < total);
+      setIsLoading(false);
+    }, 300);
+  }, [photos.length, displayedCount, isLoading, hasMore, setDisplayedCount, setHasMore, setIsLoading]);
 
   useEffect(() => {
     if (!sentinelRef.current) return;
-    const observer = new IntersectionObserver(
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver(
       (entries) => {
         const [entry] = entries;
         if (entry.isIntersecting && hasMore && !isLoading) {
-          loadMorePhotos();
+          loadMore();
         }
       },
-      { rootMargin: '100px' }
+      { rootMargin: '200px' }
     );
-    observer.observe(sentinelRef.current);
-    return () => observer.disconnect();
-  }, [hasMore, isLoading, loadMorePhotos]);
+    observerRef.current.observe(sentinelRef.current);
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+    };
+  }, [hasMore, isLoading, loadMore]);
+
+  const displayedPhotos = useMemo(
+    () => photos.slice(0, displayedCount),
+    [photos, displayedCount]
+  );
+
+  const columns = useMemo(() => {
+    const cols: Photo[][] = Array.from({ length: columnCount }, () => []);
+    const colHeights: number[] = Array(columnCount).fill(0);
+
+    displayedPhotos.forEach((photo) => {
+      let shortestIdx = 0;
+      for (let i = 1; i < columnCount; i++) {
+        if (colHeights[i] < colHeights[shortestIdx]) {
+          shortestIdx = i;
+        }
+      }
+      cols[shortestIdx].push(photo);
+      const aspectRatio = photo.height / photo.width || 1;
+      const cardHeight = 200 * aspectRatio + 60;
+      colHeights[shortestIdx] += cardHeight + GAP;
+    });
+
+    return cols;
+  }, [displayedPhotos, columnCount]);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#1A1A2E' }}>
@@ -79,7 +131,7 @@ const GalleryPage: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#ffffff' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#ffffff', margin: 0 }}>
           <span style={{ color: '#6C63FF' }}>Photo</span>Vault
         </h1>
         <Link
@@ -91,7 +143,8 @@ const GalleryPage: React.FC = () => {
             borderRadius: '8px',
             fontWeight: 600,
             fontSize: '14px',
-            transition: 'background-color 0.2s ease-out'
+            transition: 'background-color 0.25s ease-out',
+            textDecoration: 'none'
           }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#5A52E0'; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#6C63FF'; }}
@@ -100,7 +153,7 @@ const GalleryPage: React.FC = () => {
         </Link>
       </header>
 
-      <main style={{ padding: '24px' }}>
+      <main style={{ padding: `${GAP}px` }} ref={containerRef}>
         {displayedPhotos.length === 0 && !isLoading ? (
           <div style={{
             display: 'flex',
@@ -137,56 +190,60 @@ const GalleryPage: React.FC = () => {
                 padding: '12px 24px',
                 borderRadius: '8px',
                 fontWeight: 600,
-                fontSize: '14px'
+                fontSize: '14px',
+                textDecoration: 'none'
               }}
             >
               立即上传
             </Link>
           </div>
         ) : (
-          <div
-            style={{
-              columnCount: columnCount,
-              columnGap: '12px'
-            }}
-          >
-            {displayedPhotos.map((photo) => (
-              <div key={photo.id} style={{ breakInside: 'avoid', marginBottom: '12px' }}>
-                <PhotoCard
-                  photo={photo}
-                  onClick={() => openViewer(photo.id)}
-                />
+          <div style={{ display: 'flex', gap: `${GAP}px` }}>
+            {columns.map((column, colIdx) => (
+              <div key={colIdx} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: `${GAP}px` }}>
+                {column.map((photo) => (
+                  <PhotoCard
+                    key={photo.id}
+                    photo={photo}
+                    onClick={() => openViewer(photo.id)}
+                  />
+                ))}
               </div>
             ))}
           </div>
         )}
 
-        {hasMore && (
-          <div ref={sentinelRef} style={{ padding: '40px', textAlign: 'center' }}>
-            {isLoading && (
+        <div ref={sentinelRef} style={{ height: '1px' }} />
+
+        {isLoading && (
+          <div style={{ padding: '40px 0', display: 'flex', justifyContent: 'center' }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              color: 'rgba(255,255,255,0.6)',
+              fontSize: '14px'
+            }}>
               <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                color: 'rgba(255,255,255,0.6)',
-                fontSize: '14px'
-              }}>
-                <div style={{
-                  width: '16px',
-                  height: '16px',
-                  borderRadius: '50%',
-                  border: '2px solid rgba(255,255,255,0.2)',
-                  borderTopColor: '#6C63FF',
-                  animation: 'spin 0.8s linear infinite'
-                }} />
-                加载中...
-              </div>
-            )}
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                border: '2px solid rgba(255,255,255,0.2)',
+                borderTopColor: '#6C63FF',
+                animation: 'spin 0.8s linear infinite'
+              }} />
+              加载中...
+            </div>
           </div>
         )}
 
         {!hasMore && photos.length > 0 && (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '14px' }}>
+          <div style={{
+            padding: '40px 0 24px',
+            textAlign: 'center',
+            color: 'rgba(255,255,255,0.4)',
+            fontSize: '14px'
+          }}>
             — 没有更多照片了 —
           </div>
         )}

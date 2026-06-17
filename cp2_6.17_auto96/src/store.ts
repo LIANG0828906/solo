@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import type { Photo } from './types';
 import { demoPhotos } from './modules/storage/demoData';
 
+const INITIAL_DISPLAY = 20;
+const LOAD_MORE_COUNT = 8;
+
 interface PhotoStore {
   photos: Photo[];
   currentPhotoId: string | null;
@@ -17,15 +20,13 @@ interface PhotoStore {
   setIsLoading: (loading: boolean) => void;
   setHasMore: (hasMore: boolean) => void;
   setViewerOpen: (open: boolean) => void;
+
   openViewer: (photoId: string) => void;
   closeViewer: () => void;
   goToPrevPhoto: () => void;
   goToNextPhoto: () => void;
   loadMorePhotos: () => void;
 }
-
-const INITIAL_DISPLAY = 20;
-const LOAD_MORE_COUNT = 8;
 
 export const usePhotoStore = create<PhotoStore>((set, get) => ({
   photos: demoPhotos,
@@ -35,14 +36,16 @@ export const usePhotoStore = create<PhotoStore>((set, get) => ({
   hasMore: demoPhotos.length > INITIAL_DISPLAY,
   viewerOpen: false,
 
-  setPhotos: (photos) => set({ 
-    photos, 
-    hasMore: photos.length > INITIAL_DISPLAY,
-    displayedCount: Math.min(INITIAL_DISPLAY, photos.length)
+  setPhotos: (photos) => set({
+    photos,
+    displayedCount: Math.min(INITIAL_DISPLAY, photos.length),
+    hasMore: photos.length > INITIAL_DISPLAY
   }),
 
   addPhoto: (photo) => set((state) => ({
-    photos: [photo, ...state.photos]
+    photos: [photo, ...state.photos],
+    displayedCount: Math.min(state.displayedCount + 1, state.photos.length + 1),
+    hasMore: state.photos.length + 1 > INITIAL_DISPLAY
   })),
 
   setCurrentPhotoId: (id) => set({ currentPhotoId: id }),
@@ -80,9 +83,9 @@ export const usePhotoStore = create<PhotoStore>((set, get) => ({
   loadMorePhotos: () => {
     const { photos, displayedCount, isLoading, hasMore } = get();
     if (isLoading || !hasMore) return;
-    
+
     set({ isLoading: true });
-    
+
     setTimeout(() => {
       const newCount = Math.min(displayedCount + LOAD_MORE_COUNT, photos.length);
       set({

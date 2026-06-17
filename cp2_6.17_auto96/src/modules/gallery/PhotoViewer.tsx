@@ -16,9 +16,15 @@ const PhotoViewer: React.FC = () => {
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!viewerOpen) return;
-    if (e.key === 'Escape') closeViewer();
-    if (e.key === 'ArrowLeft') goToPrevPhoto();
-    if (e.key === 'ArrowRight') goToNextPhoto();
+    if (e.key === 'Escape') {
+      closeViewer();
+    }
+    if (e.key === 'ArrowLeft') {
+      goToPrevPhoto();
+    }
+    if (e.key === 'ArrowRight') {
+      goToNextPhoto();
+    }
   }, [viewerOpen, closeViewer, goToPrevPhoto, goToNextPhoto]);
 
   useEffect(() => {
@@ -39,7 +45,7 @@ const PhotoViewer: React.FC = () => {
 
   if (!viewerOpen || !currentPhoto) return null;
 
-  const buttonStyle: React.CSSProperties = {
+  const arrowButtonStyle: React.CSSProperties = {
     position: 'absolute',
     top: '50%',
     transform: 'translateY(-50%)',
@@ -50,22 +56,30 @@ const PhotoViewer: React.FC = () => {
     color: '#ffffff',
     border: 'none',
     cursor: 'pointer',
-    fontSize: '24px',
+    fontSize: '28px',
+    fontWeight: 300,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    transition: 'background-color 0.2s ease-out',
-    zIndex: 10
+    transition: 'background-color 0.25s ease-out',
+    zIndex: 10,
+    lineHeight: 1,
+    padding: 0
   };
 
   return (
     <div
       onClick={(e) => {
-        if (e.target === e.currentTarget) closeViewer();
+        if (e.target === e.currentTarget) {
+          closeViewer();
+        }
       }}
       style={{
         position: 'fixed',
-        inset: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: '#000000CC',
         zIndex: 1000,
         display: 'flex',
@@ -86,12 +100,14 @@ const PhotoViewer: React.FC = () => {
           color: '#ffffff',
           border: 'none',
           cursor: 'pointer',
-          fontSize: '20px',
+          fontSize: '24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'background-color 0.2s ease-out',
-          zIndex: 10
+          transition: 'background-color 0.25s ease-out',
+          zIndex: 10,
+          lineHeight: 1,
+          padding: 0
         }}
         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
@@ -101,8 +117,11 @@ const PhotoViewer: React.FC = () => {
 
       {currentIndex > 0 && (
         <button
-          onClick={(e) => { e.stopPropagation(); goToPrevPhoto(); }}
-          style={{ ...buttonStyle, left: '24px' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            goToPrevPhoto();
+          }}
+          style={{ ...arrowButtonStyle, left: '24px' }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
         >
@@ -112,8 +131,11 @@ const PhotoViewer: React.FC = () => {
 
       {currentIndex < photos.length - 1 && (
         <button
-          onClick={(e) => { e.stopPropagation(); goToNextPhoto(); }}
-          style={{ ...buttonStyle, right: '24px' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            goToNextPhoto();
+          }}
+          style={{ ...arrowButtonStyle, right: '24px' }}
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'; }}
         >
@@ -121,7 +143,14 @@ const PhotoViewer: React.FC = () => {
         </button>
       )}
 
-      <div style={{ maxWidth: '90vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{
+        maxWidth: '90vw',
+        maxHeight: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
         <img
           key={currentPhoto.id}
           src={currentPhoto.fullUrl}
@@ -129,15 +158,30 @@ const PhotoViewer: React.FC = () => {
           className="fade-in"
           style={{
             maxWidth: '90vw',
-            maxHeight: '80vh',
+            maxHeight: '75vh',
+            width: 'auto',
+            height: 'auto',
             objectFit: 'contain',
             borderRadius: '8px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
           }}
         />
         <div style={{ marginTop: '16px', textAlign: 'center' }}>
-          <h2 style={{ color: '#ffffff', fontSize: '18px', marginBottom: '4px' }}>{currentPhoto.title}</h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px' }}>{currentPhoto.date}</p>
+          <h2 style={{
+            color: '#ffffff',
+            fontSize: '18px',
+            fontWeight: 600,
+            margin: '0 0 4px 0'
+          }}>
+            {currentPhoto.title}
+          </h2>
+          <p style={{
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: '14px',
+            margin: 0
+          }}>
+            {currentPhoto.date}
+          </p>
         </div>
       </div>
     </div>
