@@ -22,9 +22,9 @@ interface CardStore {
   setTemplate: (template: TemplateName) => void;
   generateColors: () => void;
   applyColors: (colors: CardColors) => void;
-  saveHistory: () => void;
+  saveHistory: (thumbnail?: string) => void;
   restoreCard: (id: string) => void;
-  toggleFavorite: (id: string) => void;
+  toggleFavorite: (id: string) => boolean;
   removeFromHistory: (id: string) => void;
   toggleHistoryPanel: () => void;
   showToast: (message: string) => void;
@@ -103,13 +103,14 @@ export const useCardStore = create<CardStore>((set, get) => ({
     }));
   },
 
-  saveHistory: () => {
+  saveHistory: (thumbnail) => {
     const { currentCard, history } = get();
     const cardCopy: CardData = {
       ...currentCard,
       id: uuidv4(),
       createTime: Date.now(),
       isFavorite: false,
+      thumbnail,
     };
 
     const newHistory = [cardCopy, ...history].slice(0, HISTORY_MAX_COUNT);
@@ -131,7 +132,7 @@ export const useCardStore = create<CardStore>((set, get) => ({
     const { history, favorites } = get();
     const allCards = [...history, ...favorites];
     const card = allCards.find((c) => c.id === id);
-    if (!card) return;
+    if (!card) return false;
 
     const isFav = favorites.some((c) => c.id === id);
 
@@ -149,10 +150,10 @@ export const useCardStore = create<CardStore>((set, get) => ({
         set({ favorites: newFavs });
         saveToStorage('card_favorites', newFavs);
       }
+      return false;
     } else {
       if (favorites.length >= FAVORITES_MAX_COUNT) {
-        get().showToast('收藏已达上限（50条），请先移除部分收藏');
-        return;
+        return false;
       }
       const favCard = { ...card, isFavorite: true };
       const newFavs = [favCard, ...favorites];
@@ -162,6 +163,7 @@ export const useCardStore = create<CardStore>((set, get) => ({
       set({ favorites: newFavs, history: newHistory });
       saveToStorage('card_favorites', newFavs);
       saveToStorage('card_history', newHistory);
+      return true;
     }
   },
 

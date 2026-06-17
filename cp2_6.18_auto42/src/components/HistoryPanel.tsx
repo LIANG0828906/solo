@@ -17,9 +17,13 @@ function CardItem({ card, source }: CardItemProps) {
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
-    toggleFavorite(card.id);
+    const success = toggleFavorite(card.id);
     if (!card.isFavorite) {
-      showToast('已收藏');
+      if (success) {
+        showToast('已收藏');
+      } else {
+        showToast('收藏已达上限（50条），请先移除部分收藏');
+      }
     }
   };
 
@@ -32,18 +36,32 @@ function CardItem({ card, source }: CardItemProps) {
 
   return (
     <div className="history-item" onClick={handleRestore}>
-      <div
-        className="history-thumbnail"
-        style={{
-          background: card.colors.background,
-          borderColor: card.colors.accent,
-        }}
-      >
-        <span className="thumb-emoji">{card.emoji}</span>
-        <span className="thumb-title" style={{ color: card.colors.title }}>
-          {card.title.slice(0, 6)}
-        </span>
-      </div>
+      {card.thumbnail ? (
+        <img
+          src={card.thumbnail}
+          alt={card.title}
+          className="history-thumbnail-img"
+          style={{
+            width: 80,
+            height: 60,
+            borderRadius: 8,
+            objectFit: 'cover',
+          }}
+        />
+      ) : (
+        <div
+          className="history-thumbnail"
+          style={{
+            background: card.colors.background,
+            borderColor: card.colors.accent,
+          }}
+        >
+          <span className="thumb-emoji">{card.emoji}</span>
+          <span className="thumb-title" style={{ color: card.colors.title }}>
+            {card.title.slice(0, 6)}
+          </span>
+        </div>
+      )}
       <div className="history-info">
         <div className="history-title" style={{ color: '#333' }}>
           {card.title || '未命名卡片'}

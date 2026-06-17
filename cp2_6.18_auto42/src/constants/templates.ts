@@ -14,6 +14,7 @@ export interface CardData {
   colors: CardColors;
   isFavorite: boolean;
   createTime: number;
+  thumbnail?: string;
 }
 
 export type TemplateName = 'simple' | 'vintage' | 'tech';

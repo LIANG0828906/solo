@@ -1,14 +1,45 @@
 import { toPng } from 'html-to-image';
 import type { CardColors } from '@/constants/templates';
 
+export async function generateThumbnail(
+  node: HTMLElement,
+  width: number = 160,
+  height: number = 120
+): Promise<string> {
+  const dataUrl = await toPng(node, {
+    pixelRatio: 1,
+    width,
+    height,
+    cacheBust: true,
+  });
+  return dataUrl;
+}
+
 export async function exportCardAsPng(node: HTMLElement | null): Promise<void> {
   if (!node) {
     throw new Error('卡片元素不存在');
   }
 
+  // 等待字体加载完成，避免导出时字体未渲染导致文字显示异常或使用回退字体
+  if ('fonts' in document) {
+    await document.fonts.ready;
+  } else {
+    // 旧浏览器不支持 document.fonts，使用短暂延迟作为降级方案
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  // 强制触发一次重排，确保所有样式计算完成
+  void node.offsetHeight;
+
   const dataUrl = await toPng(node, {
     pixelRatio: 2,
     cacheBust: true,
+    backgroundColor: undefined,
+    style: {
+      transform: 'none',
+      animation: 'none',
+      transition: 'none',
+    },
   });
 
   const now = new Date();

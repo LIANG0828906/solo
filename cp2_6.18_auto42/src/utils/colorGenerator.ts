@@ -88,32 +88,68 @@ function getLuminance(hex: string): number {
   return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 }
 
-function ensureContrast(fg: string, bg: string, minRatio: number = 4.5): string {
+function getContrastRatio(hex1: string, hex2: string): number {
+  const lum1 = getLuminance(hex1);
+  const lum2 = getLuminance(hex2);
+  const lighter = Math.max(lum1, lum2);
+  const darker = Math.min(lum1, lum2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function ensureContrast(fg: string, bg: string, targetRatio: number = 4.5): string {
   const [fh, fs, fl] = hexToHsl(fg);
   const bgLum = getLuminance(bg);
-  let lightness = fl;
+  const isBgLight = bgLum > 0.5;
 
-  for (let i = 0; i < 20; i++) {
-    const candidate = hslToHex(fh, fs, lightness);
-    const fgLum = getLuminance(candidate);
-    const lighter = Math.max(fgLum, bgLum);
-    const darker = Math.min(fgLum, bgLum);
-    const ratio = (lighter + 0.05) / (darker + 0.05);
+  let bestS = fs;
+  let bestL = fl;
+  let bestRatio = getContrastRatio(fg, bg);
 
-    if (ratio >= minRatio) {
-      return candidate;
-    }
-
-    if (bgLum > 0.5) {
-      lightness -= 3;
-    } else {
-      lightness += 3;
-    }
-
-    lightness = Math.max(5, Math.min(95, lightness));
+  if (bestRatio >= targetRatio) {
+    return fg;
   }
 
-  return hslToHex(fh, fs, lightness);
+  const maxIterations = 50;
+  let stepLightness = 5;
+  let stepSaturation = 2;
+  let improved = true;
+
+  for (let iter = 0; iter < maxIterations && improved; iter++) {
+    improved = false;
+    const progress = iter / maxIterations;
+    stepLightness = 5 - 4.5 * progress;
+    stepSaturation = 2 - 1.5 * progress;
+
+    for (let s = -1; s <= 1; s += 1) {
+      for (let l = 1; l <= 3; l += 1) {
+        const satOffset = s * stepSaturation;
+        const lightOffset = isBgLight ? -l * stepLightness : l * stepLightness;
+
+        const newS = Math.max(0, Math.min(100, bestS + satOffset));
+        const newL = Math.max(0, Math.min(100, bestL + lightOffset));
+
+        const candidate = hslToHex(fh, newS, newL);
+        const ratio = getContrastRatio(candidate, bg);
+
+        if (ratio > bestRatio) {
+          bestRatio = ratio;
+          bestS = newS;
+          bestL = newL;
+          improved = true;
+
+          if (ratio >= targetRatio) {
+            return candidate;
+          }
+        }
+      }
+    }
+  }
+
+  if (bestRatio < targetRatio) {
+    return isBgLight ? '#000000' : '#FFFFFF';
+  }
+
+  return hslToHex(fh, bestS, bestL);
 }
 
 export function generateColorSchemes(baseColors: CardColors): CardColors[] {
@@ -138,12 +174,14 @@ export function generateColorSchemes(baseColors: CardColors): CardColors[] {
     const titleS = Math.min(100, accentS + 10);
     const titleL = 22 + Math.random() * 10;
     const titleRaw = hslToHex(titleH, titleS, titleL);
-    const title = ensureContrast(titleRaw, background, 7);
+    // 标题色对比度目标 4.5 (WCAG AA 级标准)
+    const title = ensureContrast(titleRaw, background, 4.5);
 
     const bodyH = accentH;
     const bodyS = Math.max(10, accentS - 15);
     const bodyL = 35 + Math.random() * 10;
     const bodyRaw = hslToHex(bodyH, bodyS, bodyL);
+    // 正文色对比度目标 4.5 (WCAG AA 级标准)
     const body = ensureContrast(bodyRaw, background, 4.5);
 
     schemes.push({
