@@ -1,0 +1,126 @@
+.toolbar-container {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 80px;
+  background-color: #1E1E2E;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 100;
+}
+
+.toolbar-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  gap: 4px;
+  width: 100%;
+}
+
+.toolbar-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.toolbar-logo-icon {
+  color: #fff;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.toolbar-divider {
+  width: 40px;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.toolbar-icon-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  border: none;
+  cursor: pointer;
+  position: relative;
+}
+
+.toolbar-icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.toolbar-icon-btn:hover svg {
+  transform: rotate(15deg);
+  transition: transform 0.2s ease;
+}
+
+.toolbar-icon-btn:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 1023px) {
+  .toolbar-container {
+    width: 100%;
+    height: 60px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    flex-direction: row;
+  }
+
+  .toolbar-inner {
+    flex-direction: row;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 16px;
+    padding-right: 16px;
+    gap: 8px;
+    height: 100%;
+  }
+
+  .toolbar-logo {
+    margin-bottom: 0;
+    margin-right: 4px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .toolbar-logo-icon {
+    font-size: 20px;
+  }
+
+  .toolbar-divider {
+    width: 1px;
+    height: 32px;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 8px;
+    margin-right: 8px;
+  }
+
+  .toolbar-icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+}

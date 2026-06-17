@@ -1,0 +1,66 @@
+.canvas-wrapper {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+  overflow: auto;
+}
+
+.canvas-page {
+  position: relative;
+  width: 794px;
+  min-height: 1123px;
+  background-color: #ffffff;
+  border: 1px dashed #D1D5DB;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+  user-select: none;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 19px,
+      #E5E7EB 19px,
+      #E5E7EB 20px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 19px,
+      #E5E7EB 19px,
+      #E5E7EB 20px
+    );
+}
+
+.canvas-guide-v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: #EF4444;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.canvas-guide-h {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #EF4444;
+  z-index: 100;
+  pointer-events: none;
+}
+
+@media (max-width: 1023px) {
+  .canvas-wrapper {
+    padding: 20px 10px;
+  }
+
+  .canvas-page {
+    width: 100%;
+    max-width: 794px;
+    transform-origin: top center;
+  }
+}
