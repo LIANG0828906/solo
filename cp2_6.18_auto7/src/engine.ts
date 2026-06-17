@@ -39,7 +39,7 @@ export class Engine {
     for (let i = 0; i < count; i++) {
       const size = this.particleMinSize + Math.random() * (this.particleMaxSize - this.particleMinSize);
       const angle = Math.random() * Math.PI * 2;
-      const speed = 0.5;
+      const speed = 0.3 + Math.random() * 0.4;
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
       const x = size + Math.random() * (this.width - size * 2);

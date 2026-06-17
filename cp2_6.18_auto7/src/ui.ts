@@ -126,7 +126,7 @@ export class UI {
 
     const valSpan = document.createElement('span');
     valSpan.textContent = value + unit;
-    valSpan.style.cssText = 'color:#00DDFF;font-size:11px;min-width:36px;text-align:right;font-variant-numeric:tabular-nums;';
+    valSpan.style.cssText = 'color:#AABBCC;font-size:12px;min-width:36px;text-align:right;font-variant-numeric:tabular-nums;';
 
     const slider = document.createElement('input');
     slider.type = 'range';
@@ -143,8 +143,8 @@ export class UI {
       this.applySliderValue(key, v);
     });
 
-    right.appendChild(valSpan);
     right.appendChild(slider);
+    right.appendChild(valSpan);
     row.appendChild(lbl);
     row.appendChild(right);
     return row;
@@ -158,6 +158,12 @@ export class UI {
     lbl.textContent = label;
     lbl.style.cssText = 'color:rgba(255,255,255,0.7);font-size:12px;text-align:left;';
 
+    const rightCol = document.createElement('div');
+    rightCol.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:6px;';
+
+    const pickerRow = document.createElement('div');
+    pickerRow.style.cssText = 'display:flex;align-items:center;gap:6px;';
+
     const picker = document.createElement('input');
     picker.type = 'color';
     picker.value = value;
@@ -167,13 +173,52 @@ export class UI {
     `;
     picker.id = `pf-${key}`;
 
+    const applyColor = (c: string) => {
+      this.state.bgColor = c;
+      this.renderer.bgColor = c;
+      picker.value = c;
+    };
+
     picker.addEventListener('input', () => {
-      this.state.bgColor = picker.value;
-      this.renderer.bgColor = picker.value;
+      applyColor(picker.value);
     });
 
+    pickerRow.appendChild(picker);
+
+    const presets = document.createElement('div');
+    presets.style.cssText = 'display:flex;gap:6px;';
+    const presetColors: [string, string][] = [
+      ['深蓝', '#0A0A1A'],
+      ['暗紫', '#1A0A1A'],
+      ['墨绿', '#0A1A10'],
+      ['纯黑', '#000000'],
+    ];
+
+    for (const [name, hex] of presetColors) {
+      const swatch = document.createElement('button');
+      swatch.title = name;
+      swatch.style.cssText = `
+        width:20px;height:20px;border-radius:4px;border:1px solid #444;
+        background:${hex};cursor:pointer;padding:0;
+        transition:transform 0.15s ease-in-out,border-color 0.15s ease-in-out;
+      `;
+      swatch.addEventListener('mouseenter', () => {
+        swatch.style.transform = 'scale(1.15)';
+        swatch.style.borderColor = '#00DDFF';
+      });
+      swatch.addEventListener('mouseleave', () => {
+        swatch.style.transform = 'scale(1)';
+        swatch.style.borderColor = '#444';
+      });
+      swatch.addEventListener('click', () => applyColor(hex));
+      presets.appendChild(swatch);
+    }
+
+    rightCol.appendChild(pickerRow);
+    rightCol.appendChild(presets);
+
     row.appendChild(lbl);
-    row.appendChild(picker);
+    row.appendChild(rightCol);
     return row;
   }
 

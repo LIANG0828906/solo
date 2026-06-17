@@ -90,6 +90,29 @@ export class Particle {
     this.color = speedToColor(speed);
   }
 
+  getGlowRadius(): number {
+    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    const t = Math.min(speed / 3, 1);
+    return 2 + t * 6;
+  }
+
+  hexToRgb(hex: string): { r: number; g: number; b: number } {
+    const rgbMatch = hex.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+    if (rgbMatch) {
+      return {
+        r: parseInt(rgbMatch[1], 10),
+        g: parseInt(rgbMatch[2], 10),
+        b: parseInt(rgbMatch[3], 10),
+      };
+    }
+    const h = hex.replace('#', '');
+    return {
+      r: parseInt(h.substring(0, 2), 16),
+      g: parseInt(h.substring(2, 4), 16),
+      b: parseInt(h.substring(4, 6), 16),
+    };
+  }
+
   collideWith(other: Particle): void {
     const dx = other.x - this.x;
     const dy = other.y - this.y;
@@ -120,6 +143,18 @@ export class Particle {
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
+    const glow = this.getGlowRadius();
+    const rgb = this.hexToRgb(this.color);
+
+    const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, glow);
+    gradient.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.9)`);
+    gradient.addColorStop(0.3, `rgba(${rgb.r},${rgb.g},${rgb.b},0.4)`);
+    gradient.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0)`);
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, glow, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
