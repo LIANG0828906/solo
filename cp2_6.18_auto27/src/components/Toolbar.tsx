@@ -1,3 +1,17 @@
+/**
+ * Toolbar 组件：顶部工具栏
+ *
+ * 模块职责：
+ * - 提供预设风格模板按钮（柔和、现代、复古）
+ * - 提供重置按钮恢复默认值
+ * - 提供导出 CSS 按钮
+ * - 提供编辑面板折叠/展开按钮
+ *
+ * 调用关系：
+ * - 写入 store：调用 useDesignTokenStore 的 applyPreset / resetAll 批量更新令牌
+ * - 控制 App 组件状态：通过 props 回调切换面板折叠和导出模态框
+ */
+
 import { useDesignTokenStore, type PresetName } from '@/store/designTokenStore';
 import { Palette, RotateCcw, Flower2, Zap, Clock } from 'lucide-react';
 

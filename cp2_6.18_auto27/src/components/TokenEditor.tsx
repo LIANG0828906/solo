@@ -1,3 +1,16 @@
+/**
+ * TokenEditor 组件：令牌编辑面板
+ *
+ * 模块职责：
+ * - 提供色相环交互选择颜色
+ * - 提供滑块调整间距、圆角、阴影参数
+ * - 按类别分组展示令牌（颜色、间距、圆角、阴影）
+ *
+ * 调用关系：
+ * - 写入 store：调用 useDesignTokenStore 的 updateColor / updateSpacing / updateBorderRadius / updateShadow
+ * - 读取 store：通过 useDesignTokenStore 获取当前令牌值用于回显
+ */
+
 import React, { useCallback, useRef, useState } from 'react';
 import {
   useDesignTokenStore,
@@ -105,7 +118,7 @@ function HueRing({ token, tokenKey }: { token: ColorToken; tokenKey: string }) {
         <div
           className="hue-ring-indicator"
           style={{
-            transform: `translate(${ix}px, ${iy}px)`,
+            transform: `translate(calc(-50% + ${ix}px), calc(-50% + ${iy}px))`,
           }}
         />
       </div>
@@ -285,8 +298,16 @@ function ShadowEditor() {
 }
 
 export default function TokenEditor() {
+  const colors = useDesignTokenStore((s) => s.colors);
+  const primaryColor = hslToCss(colors.primary);
+
   return (
-    <div className="token-editor">
+    <div
+      className="token-editor"
+      style={{
+        ['--slider-primary-color' as string]: primaryColor,
+      }}
+    >
       <Section title="颜色令牌" defaultOpen>
         <ColorEditor />
       </Section>

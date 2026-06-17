@@ -244,13 +244,11 @@ html, body, #root {
   left: 50%;
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: 3px;
   background: #fff;
-  border: 2px solid rgba(0,0,0,0.3);
-  box-shadow: 0 0 4px rgba(0,0,0,0.4);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.3), 0 0 4px rgba(0,0,0,0.4);
   pointer-events: none;
-  margin-left: -3px;
-  margin-top: -3px;
+  will-change: transform;
 }
 
 .color-preview-swatch {
@@ -310,7 +308,7 @@ input[type="range"].custom-slider {
   flex: 1;
   height: 4px;
   border-radius: 2px;
-  background: rgba(203,166,247,0.15);
+  background: color-mix(in srgb, var(--slider-primary-color, #cba6f7) 30%, transparent);
   outline: none;
   cursor: pointer;
 }
@@ -321,10 +319,10 @@ input[type="range"].custom-slider::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #cba6f7;
+  background: var(--slider-primary-color, #cba6f7);
   border: 2px solid #1E1E2E;
   cursor: pointer;
-  transition: transform 0.12s ease;
+  transition: transform 0.12s ease, background 0.12s ease;
   box-shadow: 0 0 4px rgba(0,0,0,0.3);
 }
 
@@ -337,10 +335,10 @@ input[type="range"].custom-slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #cba6f7;
+  background: var(--slider-primary-color, #cba6f7);
   border: 2px solid #1E1E2E;
   cursor: pointer;
-  transition: transform 0.12s ease;
+  transition: transform 0.12s ease, background 0.12s ease;
   box-shadow: 0 0 4px rgba(0,0,0,0.3);
 }
 
@@ -512,6 +510,7 @@ input[type="range"].custom-slider:disabled {
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s ease;
+  position: relative;
 }
 
 .copy-btn:hover {
@@ -520,6 +519,40 @@ input[type="range"].custom-slider:disabled {
 
 .copy-btn.copied {
   background: linear-gradient(135deg, #a6e3a1, #94e2d5);
+  animation: copyPulse 0.3s ease;
+}
+
+@keyframes copyPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.copy-btn.show-toast::after {
+  content: '✓ 已复制到剪贴板';
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1E1E1E;
+  color: #a6e3a1;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  animation: toastFade 2s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes toastFade {
+  0% { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+}
+
+.modal-footer {
+  position: relative;
 }
 
 @media (max-width: 900px) {

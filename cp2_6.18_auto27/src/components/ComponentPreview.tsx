@@ -1,3 +1,16 @@
+/**
+ * ComponentPreview 组件：组件预览区
+ *
+ * 模块职责：
+ * - 实时渲染一组标准组件（主按钮、辅按钮、输入框、卡片、导航栏）
+ * - 将设计令牌动态应用到组件样式上
+ * - 展示每个组件所使用的令牌名称和值
+ *
+ * 调用关系：
+ * - 读取 store：通过 useDesignTokenStore(selector) 订阅令牌变化
+ * - 数据流向：store 更新 → selector 触发 → 组件重新渲染 → 样式实时更新
+ */
+
 import {
   useDesignTokenStore,
   hslToCss,
@@ -35,9 +48,9 @@ function PrimaryButton() {
         </button>
       </div>
       <div className="preview-token-info">
-        <span>背景: {colors.primary.label}</span>
-        <span>圆角: radius-{borderRadius.md.label}</span>
-        <span>内边距: spacing-{spacing.md.label}</span>
+        <span>主色令牌: {bgColor}</span>
+        <span>圆角令牌: {radius}px</span>
+        <span>间距令牌: {px}px</span>
       </div>
     </div>
   );
@@ -71,8 +84,8 @@ function SecondaryButton() {
         </button>
       </div>
       <div className="preview-token-info">
-        <span>背景: {colors.secondary.label}</span>
-        <span>圆角: radius-{borderRadius.sm.label}</span>
+        <span>辅色令牌: {bgColor}</span>
+        <span>圆角令牌: {radius}px</span>
       </div>
     </div>
   );
@@ -105,8 +118,8 @@ function InputField() {
         />
       </div>
       <div className="preview-token-info">
-        <span>边框: {colors.gray3.label}</span>
-        <span>圆角: radius-{borderRadius.sm.label}</span>
+        <span>灰色阶3令牌: {borderColor}</span>
+        <span>圆角令牌: {radius}px</span>
       </div>
     </div>
   );
@@ -145,10 +158,10 @@ function CardPreview() {
         </div>
       </div>
       <div className="preview-token-info">
-        <span>背景: {colors.background.label}</span>
-        <span>圆角: radius-{borderRadius.md.label}</span>
-        <span>内边距: spacing-{spacing.lg.label}</span>
-        <span>阴影: shadow-{shadows.md.label}</span>
+        <span>背景色令牌: {bgColor}</span>
+        <span>圆角令牌: {radius}px</span>
+        <span>间距令牌: {padding}px</span>
+        <span>阴影令牌: {shadow}</span>
       </div>
     </div>
   );
@@ -184,7 +197,7 @@ function Navbar() {
         </nav>
       </div>
       <div className="preview-token-info">
-        <span>背景: {colors.gray3.label}</span>
+        <span>灰色阶3令牌: {bgColor}</span>
         <span>高度: 48px</span>
       </div>
     </div>

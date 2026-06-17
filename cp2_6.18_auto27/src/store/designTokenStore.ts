@@ -1,4 +1,20 @@
+/**
+ * Zustand store: 设计令牌状态管理
+ *
+ * 模块职责：
+ * - 维护 20 个设计令牌（8 颜色 + 4 间距 + 4 圆角 + 4 阴影）
+ * - 提供令牌的读写接口供其他模块调用
+ * - 维护 3 个预设风格模板（柔和、现代、复古）
+ *
+ * 数据流向：
+ * - 写入：TokenEditor → updateColor/updateSpacing/updateBorderRadius/updateShadow → store
+ * - 写入：Toolbar → applyPreset/resetAll → store
+ * - 读取：ComponentPreview → useDesignTokenStore(selector) → store
+ * - 读取：exportCSS → useDesignTokenStore.getState() → store
+ */
+
 import { create } from 'zustand';
+
 export interface ColorToken {
   name: string;
   label: string;
