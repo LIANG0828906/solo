@@ -164,9 +164,14 @@ export function useCanvasDraw({ canvasRef, onRedrawNeeded }: UseCanvasDrawOption
 
     currentPoints.current.push(point);
 
-    const draw = (timestamp: number) => {
+    if (animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+    }
+
+    const rafId = requestAnimationFrame((timestamp) => {
       if (timestamp - lastDrawTime.current < 20) {
-        animationFrameId.current = requestAnimationFrame(draw);
+        lastDrawTime.current = timestamp;
+        animationFrameId.current = null;
         return;
       }
       lastDrawTime.current = timestamp;
@@ -179,15 +184,10 @@ export function useCanvasDraw({ canvasRef, onRedrawNeeded }: UseCanvasDrawOption
 
       drawSegment(ctx, lastPoint.current!, point, tool, color, lineWidth);
       lastPoint.current = point;
+      animationFrameId.current = null;
+    });
 
-      if (isDrawing.current) {
-        animationFrameId.current = requestAnimationFrame(draw);
-      }
-    };
-
-    if (!animationFrameId.current) {
-      animationFrameId.current = requestAnimationFrame(draw);
-    }
+    animationFrameId.current = rafId;
   }, [canvasRef, getCanvasPoint, drawSegment, tool, color, lineWidth]);
 
   const stopDrawing = useCallback(() => {
@@ -235,17 +235,7 @@ export function useCanvasDraw({ canvasRef, onRedrawNeeded }: UseCanvasDrawOption
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    if (!tempCtx) return;
-
-    tempCtx.fillStyle = '#1E1E2E';
-    tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-    tempCtx.drawImage(canvas, 0, 0);
-
-    const dataURL = tempCanvas.toDataURL('image/png');
+    const dataURL = canvas.toDataURL('image/png');
     const link = document.createElement('a');
     link.download = `sketchpulse-export-${Date.now()}.png`;
     link.href = dataURL;

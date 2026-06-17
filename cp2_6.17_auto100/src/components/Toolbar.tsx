@@ -1,11 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useCanvasStore, ToolType } from '../store/useCanvasStore';
 
 const COLORS = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
-  '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
-  '#BB8FCE', '#85C1E9', '#F8B500', '#000000',
-  '#FFFFFF', '#7F8C8D', '#E74C3C', '#2ECC71',
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
+  '#BB8FCE', '#85C1E9', '#F8B500', '#000000', '#FFFFFF', '#7F8C8D', '#E74C3C', '#2ECC71',
+  '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4', '#009688',
+  '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722', '#795548',
+  '#607D8B', '#9E9E9E', '#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3',
+  '#03A9F4', '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107',
+  '#FF9800', '#FF5722', '#795548', '#607D8B', '#9E9E9E', '#F44336', '#FF0000', '#00FF00',
+  '#0000FF', '#FFFF00', '#00FFFF', '#FF00FF', '#C0C0C0', '#808080', '#800000', '#808000',
 ];
 
 interface ToolbarProps {
@@ -17,30 +21,41 @@ interface ToolbarProps {
 export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onRedo, onExport }) => {
   const { tool, color, lineWidth, setTool, setColor, setLineWidth, canUndo, canRedo } = useCanvasStore();
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [showSliderTooltip, setShowSliderTooltip] = useState(false);
+  const [sliderTooltipVisible, setSliderTooltipVisible] = useState(false);
+  const [sliderTooltipOpacity, setSliderTooltipOpacity] = useState(0);
   const [undoScale, setUndoScale] = useState(false);
   const [redoScale, setRedoScale] = useState(false);
   const colorPickerRef = useRef<HTMLDivElement>(null);
   const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const closeColorPicker = useCallback(() => {
+    setShowColorPicker(false);
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
-        setShowColorPicker(false);
+        closeColorPicker();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [closeColorPicker]);
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setLineWidth(Number(e.target.value));
-    setShowSliderTooltip(true);
+    setSliderTooltipVisible(true);
+    setSliderTooltipOpacity(1);
+    
     if (tooltipTimeoutRef.current) {
       clearTimeout(tooltipTimeoutRef.current);
     }
+    
     tooltipTimeoutRef.current = setTimeout(() => {
-      setShowSliderTooltip(false);
+      setSliderTooltipOpacity(0);
+      setTimeout(() => {
+        setSliderTooltipVisible(false);
+      }, 300);
     }, 1500);
   };
 
@@ -101,7 +116,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onRedo, onExport }) =>
                 style={{ backgroundColor: c }}
                 onClick={() => {
                   setColor(c);
-                  setShowColorPicker(false);
+                  closeColorPicker();
                 }}
               />
             ))}
@@ -118,8 +133,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onRedo, onExport }) =>
           value={lineWidth}
           onChange={handleSliderChange}
         />
-        {showSliderTooltip && (
-          <div className="slider-tooltip">{lineWidth}px</div>
+        {sliderTooltipVisible && (
+          <div 
+            className="slider-tooltip"
+            style={{ opacity: sliderTooltipOpacity }}
+          >
+            {lineWidth}px
+          </div>
         )}
       </div>
 
@@ -232,14 +252,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onRedo, onExport }) =>
           top: calc(100% + 8px);
           left: 50%;
           transform: translateX(-50%);
-          width: 160px;
-          height: 160px;
+          width: 280px;
+          height: 280px;
           background: #2D2D3F;
           border-radius: 8px;
           padding: 8px;
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 6px;
+          grid-template-columns: repeat(8, 1fr);
+          gap: 4px;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
           animation: fadeIn 0.1s ease;
           z-index: 100;
@@ -251,8 +271,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onRedo, onExport }) =>
         }
 
         .color-option {
-          width: 30px;
-          height: 30px;
+          width: 26px;
+          height: 26px;
           border: 2px solid transparent;
           border-radius: 4px;
           cursor: pointer;
@@ -316,14 +336,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onRedo, onExport }) =>
           border-radius: 4px;
           font-size: 12px;
           white-space: nowrap;
-          animation: tooltipFade 1.5s ease forwards;
+          transition: opacity 0.3s ease;
           pointer-events: none;
-        }
-
-        @keyframes tooltipFade {
-          0% { opacity: 1; }
-          70% { opacity: 1; }
-          100% { opacity: 0; }
         }
 
         .export-btn {

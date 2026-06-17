@@ -53,10 +53,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       id: uuidv4(),
     };
     set((state) => {
-      let newUndoStack = [...state.undoStack, newAction];
-      if (newUndoStack.length > state.maxHistorySize) {
-        newUndoStack = newUndoStack.slice(-state.maxHistorySize);
+      const newUndoStack = [...state.undoStack];
+      if (newUndoStack.length >= state.maxHistorySize) {
+        newUndoStack.shift();
       }
+      newUndoStack.push(newAction);
       return {
         undoStack: newUndoStack,
         redoStack: [],
