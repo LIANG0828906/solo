@@ -1,0 +1,19 @@
+{
+  "name": "pixel-thief",
+  "version": "1.0.0",
+  "description": "A pixel-style stealth game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0",
+    "@vitejs/plugin-basic-ssl": "^1.0.0"
+  }
+}
