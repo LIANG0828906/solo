@@ -96,6 +96,7 @@ export function Editor() {
   };
 
   const wordCount = content.replace(/\s/g, '').length;
+  const totalWordCount = (title + content).replace(/\s/g, '').length;
 
   const getPreviewHtml = () => {
     try {
@@ -107,7 +108,7 @@ export function Editor() {
 
   return (
     <div className="editor-page">
-      <Toast message="已保存" visible={showSavedToast} duration={2000} onClose={() => setShowSavedToast(false)} />
+      <Toast message="已保存" visible={showSavedToast} duration={3000} onClose={() => setShowSavedToast(false)} />
 
       <div className="editor-header">
         <button className="back-btn" onClick={() => navigate('/')}>
@@ -131,6 +132,7 @@ export function Editor() {
             value={content}
             onChange={handleContentChange}
           />
+          <div className="editor-word-count">字数：{totalWordCount}</div>
         </div>
 
         <div className="editor-preview">

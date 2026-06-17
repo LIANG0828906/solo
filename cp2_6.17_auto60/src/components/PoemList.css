@@ -156,8 +156,10 @@
 }
 
 .poem-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  transform: translateY(-12px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  outline: 2px solid rgba(124, 58, 237, 0.5);
+  outline-offset: -2px;
 }
 
 .poem-card-content {

@@ -47,7 +47,7 @@ export function PoemList() {
     searchTimeoutRef.current = setTimeout(() => {
       setDebouncedQuery(searchQuery);
       setVisibleCount(PAGE_SIZE);
-    }, 150);
+    }, 100);
 
     return () => {
       if (searchTimeoutRef.current) {

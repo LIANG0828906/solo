@@ -8,7 +8,7 @@ interface ToastProps {
   onClose?: () => void;
 }
 
-export function Toast({ message, duration = 2000, visible, onClose }: ToastProps) {
+export function Toast({ message, duration = 3000, visible, onClose }: ToastProps) {
   const [show, setShow] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
 
