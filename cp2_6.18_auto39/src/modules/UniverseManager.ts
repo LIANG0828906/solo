@@ -165,9 +165,19 @@ export class UniverseManager {
     p.y = this.centerY + r * Math.sin(theta);
   }
 
-  update(dt: number): void {
+  update(dt: number, craftX?: number, craftY?: number): void {
     this.star.pulsePhase += (Math.PI * 2 / 3) * dt;
-    this.target.blinkPhase += (Math.PI * 2 / 0.8) * dt;
+    let blinkPeriod = 0.8;
+    if (craftX !== undefined && craftY !== undefined) {
+      const dx = this.target.x - craftX;
+      const dy = this.target.y - craftY;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 100) {
+        const t = Math.max(0, dist) / 100;
+        blinkPeriod = 0.4 + (0.8 - 0.4) * t;
+      }
+    }
+    this.target.blinkPhase += (Math.PI * 2 / blinkPeriod) * dt;
     for (const p of this.planets) {
       p.orbitAngle += p.orbitSpeed * dt * 60;
       this.updatePlanetPosition(p);

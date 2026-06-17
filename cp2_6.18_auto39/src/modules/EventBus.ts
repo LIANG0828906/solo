@@ -21,7 +21,9 @@ export type EventPayloadMap = {
   [EventType.PLANET_CREATED]: { id: string; name: string };
   [EventType.CRAFT_STATE_UPDATED]: {
     x: number; y: number; vx: number; vy: number;
-    speed: number; fuel: number; maneuverCount: number; trailLength: number;
+    speed: number; angle: number; fuel: number;
+    maneuverCount: number; trailLength: number;
+    inGravityRange: boolean;
   };
   [EventType.TARGET_REACHED]: ScoreResult;
   [EventType.FUEL_CHANGED]: number;

@@ -249,13 +249,19 @@ export class SimulationEngine {
       return result;
     }
 
+    const speed = Math.hypot(craft.vx, craft.vy);
+    let angle = 0;
+    if (speed > 0.001) {
+      angle = (Math.atan2(craft.vy, craft.vx) * 180 / Math.PI + 360) % 360;
+    }
     eventBus.emit(EventType.CRAFT_STATE_UPDATED, {
       x: craft.x, y: craft.y,
       vx: craft.vx, vy: craft.vy,
-      speed: Math.hypot(craft.vx, craft.vy),
+      speed, angle,
       fuel: craft.fuel,
       maneuverCount: craft.maneuverCount,
-      trailLength: craft.trailLength
+      trailLength: craft.trailLength,
+      inGravityRange: craft.inGravityRangeOf !== null
     });
 
     return null;

@@ -10,9 +10,11 @@ const engine = new SimulationEngine();
 
 const $ = (id: string): HTMLElement => document.getElementById(id)!;
 const statSpeed = $('stat-speed') as HTMLElement;
+const statAngle = $('stat-angle') as HTMLElement;
 const statFuel = $('stat-fuel') as HTMLElement;
 const statManeuver = $('stat-maneuver') as HTMLElement;
 const statTrailLength = $('stat-traillength') as HTMLElement;
+const statGravityStatus = $('stat-gravity-status') as HTMLElement;
 const addPlanetBtn = $('add-planet-btn') as HTMLButtonElement;
 const planetTooltip = $('planet-tooltip') as HTMLElement;
 const maneuverMenu = $('maneuver-menu') as HTMLElement;
@@ -65,7 +67,7 @@ function initGame(): void {
   maneuverMenu.style.display = 'none';
   startHint.style.display = 'block';
   updateAddPlanetButton();
-  updateStatusPanel({ speed: 0, fuel: 100, maneuverCount: 0, trailLength: 0 });
+  updateStatusPanel({ speed: 0, angle: 0, fuel: 100, maneuverCount: 0, trailLength: 0, inGravityRange: false });
 }
 
 eventBus.on(EventType.CRAFT_STATE_UPDATED, (s) => {
@@ -87,11 +89,19 @@ addPlanetBtn.addEventListener('click', () => {
   }
 });
 
-function updateStatusPanel(s: { speed: number; fuel: number; maneuverCount: number; trailLength: number }): void {
+function updateStatusPanel(s: { speed: number; angle: number; fuel: number; maneuverCount: number; trailLength: number; inGravityRange: boolean }): void {
   statSpeed.textContent = s.speed.toFixed(2);
+  statAngle.textContent = s.angle.toFixed(1);
   statFuel.textContent = s.fuel.toFixed(0);
   statManeuver.textContent = String(s.maneuverCount);
   statTrailLength.textContent = Math.round(s.trailLength).toString();
+  if (s.inGravityRange) {
+    statGravityStatus.textContent = '引力影响中';
+    statGravityStatus.style.color = '#FFD700';
+  } else {
+    statGravityStatus.textContent = '自由飞行';
+    statGravityStatus.style.color = '#88AABB';
+  }
 }
 
 function onTargetReached(r: ScoreResult): void {
@@ -296,11 +306,43 @@ function renderLaunchArrow(): void {
   ctx.fill();
   ctx.restore();
 
-  const speedDisplay = (clamped * VEL_SCALE).toFixed(0);
+  const speedPxPerFrame = (clamped * VEL_SCALE) / 60;
+  const angle = ((Math.atan2(dy, dx) * 180 / Math.PI) + 360) % 360;
+
   ctx.save();
   ctx.font = "12px 'Courier New', monospace";
-  ctx.fillStyle = '#AADDAA';
-  ctx.fillText(`v ≈ ${speedDisplay} px/s`, ex + 12, ey - 8);
+  const line1 = `v ≈ ${speedPxPerFrame.toFixed(2)} px/frame`;
+  const line2 = `θ ≈ ${angle.toFixed(1)}°`;
+  const textW1 = ctx.measureText(line1).width;
+  const textW2 = ctx.measureText(line2).width;
+  const boxW = Math.max(textW1, textW2) + 14;
+  const boxH = 34;
+  let boxX = ex + 12;
+  let boxY = ey - 40;
+  if (boxX + boxW > viewportW - 10) boxX = ex - boxW - 12;
+  if (boxY < 10) boxY = ey + 12;
+
+  ctx.fillStyle = 'rgba(10,10,26,0.78)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const r = 5;
+  ctx.moveTo(boxX + r, boxY);
+  ctx.lineTo(boxX + boxW - r, boxY);
+  ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + r);
+  ctx.lineTo(boxX + boxW, boxY + boxH - r);
+  ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - r, boxY + boxH);
+  ctx.lineTo(boxX + r, boxY + boxH);
+  ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - r);
+  ctx.lineTo(boxX, boxY + r);
+  ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(line1, boxX + 7, boxY + 15);
+  ctx.fillText(line2, boxX + 7, boxY + 29);
   ctx.restore();
 }
 
@@ -311,13 +353,13 @@ function tick(now: number): void {
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
 
-  universe.update(dt);
   const res = engine.update(
     dt,
     universe.getGravityField(),
     universe.getStarGravity(),
     { x: universe.target.x, y: universe.target.y, radius: universe.target.radius }
   );
+  universe.update(dt, engine.craft.x, engine.craft.y);
   if (res) { /* handled via event */ }
 
   ctx.fillStyle = '#0A0A1A';
