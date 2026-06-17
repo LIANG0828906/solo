@@ -29,6 +29,7 @@ export interface PixelBoardState {
   pixels: Pixel[];
   redoStack: Pixel[][];
   currentColor: string;
+  presetColors: string[];
   onlineUsers: number;
   userId: string;
   isConnected: boolean;
@@ -37,9 +38,14 @@ export interface PixelBoardState {
   undo: () => Pixel | null;
   setPixels: (pixels: Pixel[]) => void;
   setCurrentColor: (color: string) => void;
+  setPresetColors: (colors: string[]) => void;
   setOnlineUsers: (count: number) => void;
   setConnected: (connected: boolean) => void;
   removePixelById: (id: string) => Pixel | null;
+}
+
+export function isValidHexColor(color: string): boolean {
+  return /^#[0-9A-Fa-f]{6}$/.test(color);
 }
 
 export const GRID_SIZE = 32;

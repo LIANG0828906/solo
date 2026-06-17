@@ -1,6 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { usePixelStore } from '../pixelBoard/store';
-import { DEFAULT_COLORS } from '../pixelBoard/types';
+import { isValidHexColor } from '../pixelBoard/types';
 
 interface ToolbarProps {
   onUndo: () => void;
@@ -10,11 +10,73 @@ interface ToolbarProps {
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onSave, onLoad, isLoading }) => {
-  const { currentColor, setCurrentColor, onlineUsers, redoStack } = usePixelStore();
+  const { currentColor, setCurrentColor, presetColors, onlineUsers, redoStack } = usePixelStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [customColor, setCustomColor] = useState(currentColor);
+  const [colorError, setColorError] = useState(false);
+  const lastValidColor = useRef(currentColor);
+
+  useEffect(() => {
+    setCustomColor(currentColor);
+    lastValidColor.current = currentColor;
+    setColorError(false);
+  }, [currentColor]);
 
   const handleColorClick = (color: string) => {
     setCurrentColor(color);
+    setColorError(false);
+  };
+
+  const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCustomColor(value);
+
+    if (value === '') {
+      setColorError(false);
+      return;
+    }
+
+    if (isValidHexColor(value)) {
+      setColorError(false);
+      lastValidColor.current = value;
+      setCurrentColor(value);
+    } else if (value.length >= 7) {
+      setColorError(true);
+    } else {
+      setColorError(false);
+    }
+  };
+
+  const handleCustomColorBlur = () => {
+    if (customColor === '' || !isValidHexColor(customColor)) {
+      setCustomColor(lastValidColor.current);
+      setColorError(false);
+    }
+  };
+
+  const handleCustomColorKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (isValidHexColor(customColor)) {
+        lastValidColor.current = customColor;
+        setCurrentColor(customColor);
+        setColorError(false);
+      } else {
+        setColorError(true);
+        setTimeout(() => {
+          setCustomColor(lastValidColor.current);
+          setColorError(false);
+        }, 1000);
+      }
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
+  const handleNativeColorPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const color = e.target.value;
+    setCustomColor(color);
+    setCurrentColor(color);
+    lastValidColor.current = color;
+    setColorError(false);
   };
 
   const handleLoadClick = () => {
@@ -37,7 +99,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onSave, onLoad, isLoad
       
       <div className="toolbar-section">
         <div className="color-palette">
-          {DEFAULT_COLORS.map((color, index) => (
+          {presetColors.map((color, index) => (
             <button
               key={index}
               className={`color-swatch ${currentColor === color ? 'selected' : ''}`}
@@ -47,6 +109,29 @@ export const Toolbar: React.FC<ToolbarProps> = ({ onUndo, onSave, onLoad, isLoad
             />
           ))}
         </div>
+      </div>
+
+      <div className="toolbar-section toolbar-custom-color">
+        <div className="custom-color-label">自定义</div>
+        <div className="custom-color-input-wrapper">
+          <input
+            type="text"
+            className={`custom-color-input ${colorError ? 'error' : ''}`}
+            value={customColor}
+            onChange={handleCustomColorChange}
+            onBlur={handleCustomColorBlur}
+            onKeyDown={handleCustomColorKeyDown}
+            placeholder="#FFFFFF"
+            maxLength={7}
+          />
+          <input
+            type="color"
+            className="custom-color-picker"
+            value={currentColor}
+            onChange={handleNativeColorPick}
+          />
+        </div>
+        {colorError && <div className="color-error-msg">无效颜色</div>}
       </div>
 
       <div className="toolbar-section">

@@ -11,6 +11,7 @@ export const usePixelStore = create<PixelBoardState>((set, get) => ({
   pixels: [],
   redoStack: [],
   currentColor: DEFAULT_COLORS[0],
+  presetColors: [...DEFAULT_COLORS],
   onlineUsers: 1,
   userId: generateUserId(),
   isConnected: false,
@@ -94,6 +95,10 @@ export const usePixelStore = create<PixelBoardState>((set, get) => ({
 
   setCurrentColor: (color: string) => {
     set({ currentColor: color });
+  },
+
+  setPresetColors: (colors: string[]) => {
+    set({ presetColors: colors });
   },
 
   setOnlineUsers: (count: number) => {

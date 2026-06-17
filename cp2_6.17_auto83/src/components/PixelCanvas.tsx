@@ -1,17 +1,10 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { usePixelStore } from '../pixelBoard/store';
 import { PixelRenderer } from '../pixelBoard/renderer';
-import { PIXEL_SIZE, GRID_SIZE } from '../pixelBoard/types';
+import { PIXEL_SIZE, GRID_SIZE, CANVAS_SIZE } from '../pixelBoard/types';
 import { collaborationChannel } from '../collaboration/channel';
 import { v4 as uuidv4 } from 'uuid';
 import type { Pixel } from '../pixelBoard/types';
-
-const PRESET_COLORS: string[] = [
-  '#000000', '#FFFFFF', '#FF0000', '#00FF00',
-  '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
-  '#FF8000', '#8000FF', '#0080FF', '#00FF80',
-  '#808080', '#C0C0C0', '#800000', '#008080',
-];
 
 interface PixelCanvasProps {
   onPixelAdd?: (pixel: Pixel) => void;
@@ -21,11 +14,11 @@ export const PixelCanvas: React.FC<PixelCanvasProps> = ({ onPixelAdd }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<PixelRenderer | null>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
-  const { pixels, currentColor, userId, addPixel, setCurrentColor } = usePixelStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { pixels, currentColor, userId, addPixel } = usePixelStore();
   const [, forceUpdate] = useState(0);
-  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [customColor, setCustomColor] = useState(currentColor);
+  const lastDrawRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current || !overlayRef.current) return;
@@ -34,6 +27,15 @@ export const PixelCanvas: React.FC<PixelCanvasProps> = ({ onPixelAdd }) => {
     rendererRef.current = renderer;
     renderer.renderAll(pixels);
 
+    const resizeOverlay = () => {
+      if (overlayRef.current && canvasRef.current) {
+        overlayRef.current.width = canvasRef.current.width;
+        overlayRef.current.height = canvasRef.current.height;
+      }
+    };
+    resizeOverlay();
+    window.addEventListener('resize', resizeOverlay);
+
     collaborationChannel.setOnRemotePixelAdded((pixel) => {
       if (rendererRef.current) {
         rendererRef.current.addCursorAnimation(pixel.id, pixel.x, pixel.y);
@@ -41,6 +43,7 @@ export const PixelCanvas: React.FC<PixelCanvasProps> = ({ onPixelAdd }) => {
     });
 
     return () => {
+      window.removeEventListener('resize', resizeOverlay);
       renderer.destroy();
       rendererRef.current = null;
     };
@@ -52,10 +55,6 @@ export const PixelCanvas: React.FC<PixelCanvasProps> = ({ onPixelAdd }) => {
       forceUpdate((n) => n + 1);
     }
   }, [pixels]);
-
-  useEffect(() => {
-    setCustomColor(currentColor);
-  }, [currentColor]);
 
   const getPixelCoords = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return null;
@@ -89,55 +88,33 @@ export const PixelCanvas: React.FC<PixelCanvasProps> = ({ onPixelAdd }) => {
     }
   }, [addPixel, collaborationChannel, currentColor, onPixelAdd, userId]);
 
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const coords = getPixelCoords(e);
-    setHoverPos(coords);
-
-    if (isDrawing && coords) {
-      drawPixel(coords.x, coords.y);
-    }
-
-    renderOverlay(coords, isDrawing);
-  };
-
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const coords = getPixelCoords(e);
-    if (coords) {
-      setIsDrawing(true);
-      drawPixel(coords.x, coords.y);
-      renderOverlay(coords, true);
-    }
-  };
-
-  const handleCanvasMouseUp = () => {
-    setIsDrawing(false);
-    if (hoverPos) {
-      renderOverlay(hoverPos, false);
-    }
-  };
-
-  const handleCanvasMouseLeave = () => {
-    setHoverPos(null);
-    setIsDrawing(false);
-    clearOverlay();
-  };
-
-  const renderOverlay = (coords: { x: number; y: number } | null, drawing: boolean) => {
+  const renderOverlay = useCallback((coords: { x: number; y: number } | null, drawing: boolean) => {
     if (!overlayRef.current) return;
 
     const ctx = overlayRef.current.getContext('2d');
     if (!ctx) return;
 
+    ctx.save();
     ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
 
-    if (!coords) return;
+    if (!coords) {
+      ctx.restore();
+      return;
+    }
 
     const x = coords.x * PIXEL_SIZE + 1;
     const y = coords.y * PIXEL_SIZE + 1;
     const size = PIXEL_SIZE - 2;
 
     if (drawing) {
-      ctx.fillStyle = hexToRgba(currentColor, 0.5);
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(currentColor);
+      let r = 0, g = 0, b = 0;
+      if (result) {
+        r = parseInt(result[1], 16);
+        g = parseInt(result[2], 16);
+        b = parseInt(result[3], 16);
+      }
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.5)`;
       ctx.fillRect(x, y, size, size);
     } else {
       ctx.strokeStyle = '#FFFFFF';
@@ -153,116 +130,75 @@ export const PixelCanvas: React.FC<PixelCanvasProps> = ({ onPixelAdd }) => {
       ctx.strokeRect(x, y, size, size);
       ctx.shadowBlur = 0;
     }
-  };
 
-  const clearOverlay = () => {
+    ctx.restore();
+  }, [currentColor]);
+
+  const clearOverlay = useCallback(() => {
     if (!overlayRef.current) return;
     const ctx = overlayRef.current.getContext('2d');
     if (ctx) {
       ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
     }
-  };
+  }, []);
 
-  const hexToRgba = (hex: string, alpha: number): string => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (result) {
-      const r = parseInt(result[1], 16);
-      const g = parseInt(result[2], 16);
-      const b = parseInt(result[3], 16);
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const coords = getPixelCoords(e);
+
+    if (isDrawing && coords) {
+      if (!lastDrawRef.current || lastDrawRef.current.x !== coords.x || lastDrawRef.current.y !== coords.y) {
+        drawPixel(coords.x, coords.y);
+        lastDrawRef.current = { x: coords.x, y: coords.y };
+      }
     }
-    return `rgba(0, 0, 0, ${alpha})`;
+
+    renderOverlay(coords, isDrawing);
   };
 
-  const handlePresetColorClick = (color: string) => {
-    setCurrentColor(color);
-    setCustomColor(color);
-  };
-
-  const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const color = e.target.value;
-    setCustomColor(color);
-  };
-
-  const handleCustomColorApply = () => {
-    if (/^#[0-9A-Fa-f]{6}$/.test(customColor)) {
-      setCurrentColor(customColor);
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const coords = getPixelCoords(e);
+    if (coords) {
+      setIsDrawing(true);
+      lastDrawRef.current = { x: coords.x, y: coords.y };
+      drawPixel(coords.x, coords.y);
+      renderOverlay(coords, true);
     }
   };
 
-  const handleCustomColorKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleCustomColorApply();
+  const handleCanvasMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDrawing(false);
+    lastDrawRef.current = null;
+    const coords = getPixelCoords(e);
+    if (coords) {
+      renderOverlay(coords, false);
     }
+  };
+
+  const handleCanvasMouseLeave = () => {
+    setIsDrawing(false);
+    lastDrawRef.current = null;
+    clearOverlay();
   };
 
   return (
-    <div className="pixel-canvas-wrapper">
-      <div className="canvas-container">
-        <canvas
-          ref={canvasRef}
-          className="pixel-canvas"
-          onMouseMove={handleCanvasMouseMove}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={handleCanvasMouseLeave}
-        />
-        <canvas
-          ref={overlayRef}
-          className="pixel-canvas-overlay"
-          width={640}
-          height={640}
-          style={{ pointerEvents: 'none' }}
-        />
-      </div>
-
-      <div className="canvas-color-panel">
-        <div className="color-panel-title">调色板</div>
-        
-        <div className="preset-colors">
-          {PRESET_COLORS.map((color, index) => (
-            <button
-              key={index}
-              className={`preset-color-swatch ${currentColor === color ? 'active' : ''}`}
-              style={{ backgroundColor: color }}
-              onClick={() => handlePresetColorClick(color)}
-              title={color}
-            />
-          ))}
-        </div>
-
-        <div className="custom-color-section">
-          <div className="custom-color-label">自定义颜色</div>
-          <div className="custom-color-input-wrapper">
-            <input
-              type="text"
-              className="custom-color-input"
-              value={customColor}
-              onChange={handleCustomColorChange}
-              onKeyDown={handleCustomColorKeyDown}
-              onBlur={handleCustomColorApply}
-              placeholder="#FFFFFF"
-              maxLength={7}
-            />
-            <div
-              className="custom-color-preview"
-              style={{ backgroundColor: customColor }}
-            />
-          </div>
-          <div className="color-picker-native">
-            <input
-              type="color"
-              value={currentColor}
-              onChange={(e) => {
-                setCurrentColor(e.target.value);
-                setCustomColor(e.target.value);
-              }}
-              className="color-picker-input"
-            />
-            <span className="color-picker-label">选择器</span>
-          </div>
-        </div>
-      </div>
+    <div className="canvas-container" ref={containerRef}>
+      <canvas
+        ref={canvasRef}
+        className="pixel-canvas"
+        width={CANVAS_SIZE}
+        height={CANVAS_SIZE}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseDown={handleCanvasMouseDown}
+        onMouseUp={handleCanvasMouseUp}
+        onMouseLeave={handleCanvasMouseLeave}
+      />
+      <canvas
+        ref={overlayRef}
+        className="pixel-canvas-overlay"
+        width={CANVAS_SIZE}
+        height={CANVAS_SIZE}
+        style={{ pointerEvents: 'none' }}
+      />
     </div>
   );
 };
