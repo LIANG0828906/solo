@@ -8,17 +8,22 @@ export class InfoCard {
   private card: HTMLDivElement;
   private headerDot: HTMLDivElement;
   private titleEl: HTMLHeadingElement;
+  private divider: HTMLDivElement;
   private massEl: HTMLSpanElement;
   private orbitEl: HTMLSpanElement;
   private periodEl: HTMLSpanElement;
   private radiusEl: HTMLSpanElement;
   private isVisible: boolean;
+  private isAnimating: boolean;
+  private currentBodyId: string | null;
   private cachedBodies: Map<string, CelestialBody>;
 
   constructor(container: HTMLElement, bus: EventBus) {
     this.container = container;
     this.bus = bus;
     this.isVisible = false;
+    this.isAnimating = false;
+    this.currentBodyId = null;
     this.cachedBodies = new Map();
 
     this.card = document.createElement('div');
@@ -42,6 +47,9 @@ export class InfoCard {
     header.appendChild(this.titleEl);
     header.appendChild(closeBtn);
 
+    this.divider = document.createElement('div');
+    this.divider.className = 'info-card-divider';
+
     const list = document.createElement('ul');
     list.className = 'info-card-list';
 
@@ -61,6 +69,7 @@ export class InfoCard {
     list.appendChild(radiusItem.li);
 
     this.card.appendChild(header);
+    this.card.appendChild(this.divider);
     this.card.appendChild(list);
 
     this.container.appendChild(this.card);
@@ -100,12 +109,22 @@ export class InfoCard {
     this.bus.on('body:click', ({ body }) => {
       const fullBody = this.cachedBodies.get(body.id);
       if (fullBody && fullBody.type === 'planet') {
-        this.show(fullBody);
+        if (this.isVisible && this.currentBodyId === body.id) {
+          this.hide(() => {
+            this.show(fullBody);
+          });
+        } else if (this.isVisible && this.currentBodyId !== body.id) {
+          this.hide(() => {
+            this.show(fullBody);
+          });
+        } else {
+          this.show(fullBody);
+        }
       }
     });
   }
 
-  private show(body: CelestialBody): void {
+  private populateBody(body: CelestialBody): void {
     this.titleEl.textContent = body.name;
     this.headerDot.style.backgroundColor = body.color;
     this.headerDot.style.color = body.color;
@@ -118,35 +137,58 @@ export class InfoCard {
         ? (2 * Math.PI) / body.orbitSpeed
         : 0;
     this.periodEl.textContent = period > 0 ? `${period.toFixed(2)} s` : '—';
-
-    if (!this.isVisible) {
-      this.isVisible = true;
-      gsap.fromTo(
-        this.card,
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.3,
-          ease: 'power2.out',
-          onStart: () => {
-            this.card.classList.add('visible');
-          }
-        }
-      );
-    }
   }
 
-  private hide(): void {
-    if (!this.isVisible) return;
+  private show(body: CelestialBody): void {
+    if (this.isAnimating) return;
+
+    this.currentBodyId = body.id;
+    this.populateBody(body);
+    this.isVisible = true;
+    this.isAnimating = true;
+
+    this.card.classList.add('visible');
+
+    gsap.fromTo(
+      this.card,
+      {
+        y: 120,
+        opacity: 0,
+        scale: 0.92
+      },
+      {
+        y: 0,
+        opacity: 1,
+        scale: 1,
+        duration: 0.55,
+        ease: 'elastic.out(1, 0.6)',
+        onComplete: () => {
+          this.isAnimating = false;
+        }
+      }
+    );
+  }
+
+  private hide(onComplete?: () => void): void {
+    if (!this.isVisible || this.isAnimating) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    this.isAnimating = true;
     this.isVisible = false;
+
     gsap.to(this.card, {
+      y: 120,
       opacity: 0,
-      y: 40,
-      duration: 0.25,
-      ease: 'power2.in',
+      scale: 0.92,
+      duration: 0.3,
+      ease: 'power3.in',
       onComplete: () => {
         this.card.classList.remove('visible');
+        this.currentBodyId = null;
+        this.isAnimating = false;
+        if (onComplete) onComplete();
       }
     });
   }

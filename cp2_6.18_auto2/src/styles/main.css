@@ -73,9 +73,9 @@ canvas:active {
 
 .info-card {
   position: fixed;
-  top: 50%;
+  bottom: 60px;
   right: 60px;
-  transform: translateY(-50%) translateY(40px);
+  transform: translateY(120px);
   width: 300px;
   padding: 20px;
   background: rgba(0, 0, 0, 0.7);
@@ -93,7 +93,7 @@ canvas:active {
 .info-card.visible {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(-50%) translateY(0);
+  transform: translateY(0);
 }
 
 .info-card::before {
@@ -126,9 +126,22 @@ canvas:active {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+  margin-bottom: 0;
+  padding-bottom: 14px;
+}
+
+.info-card-divider {
+  height: 2px;
+  margin: 12px 0 14px;
+  border: none;
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 229, 255, 0.4) 30%,
+    rgba(0, 229, 255, 0.15) 70%,
+    transparent 100%
+  );
 }
 
 .info-card-dot {
@@ -237,9 +250,8 @@ canvas:active {
     right: 16px;
     left: 16px;
     width: auto;
-    top: auto;
     bottom: 16px;
-    transform: translateY(40px);
+    transform: translateY(120px);
   }
 
   .info-card.visible {
