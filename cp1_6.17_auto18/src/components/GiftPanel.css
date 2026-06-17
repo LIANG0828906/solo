@@ -1,0 +1,145 @@
+.gift-panel {
+  width: 320px;
+  height: 100%;
+  background: #2D2D44;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.gift-panel:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.gift-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #444466 transparent;
+}
+
+.gift-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, #3D3D5C 0%, #2D2D44 100%);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.2s ease;
+}
+
+.gift-item:hover {
+  background: linear-gradient(135deg, #4D4D6C 0%, #3D3D5C 100%);
+}
+
+.gift-glow {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.3), transparent);
+  animation: goldShine 1.5s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes goldShine {
+  0% {
+    left: -100%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.gift-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.gift-info {
+  flex: 1;
+  min-width: 0;
+  z-index: 1;
+}
+
+.gift-nickname {
+  font-size: 13px;
+  font-weight: 600;
+  color: #E0E0E0;
+  margin-bottom: 4px;
+}
+
+.gift-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.gift-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.gift-name {
+  font-size: 13px;
+  color: #B0B0C0;
+}
+
+.gift-count-num {
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFD700;
+}
+
+.gift-time {
+  font-size: 11px;
+  color: #707090;
+}
+
+.gift-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: #FF6B00;
+  white-space: nowrap;
+  z-index: 1;
+  align-self: center;
+}
+
+.gift-count {
+  background: #FFD700;
+  color: #1E1E2E;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .gift-panel {
+    width: 100%;
+    max-height: 40vh;
+  }
+}
