@@ -9,7 +9,7 @@ export interface Photo {
   createdAt: number;
 }
 
-export type CropAspect = 1 / 1 | 4 / 3 | 16 / 9;
+export type CropAspect = number;
 
 export interface CropArea {
   x: number;

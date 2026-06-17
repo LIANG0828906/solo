@@ -292,7 +292,7 @@ const UploadPage: React.FC = () => {
             <div style={{
               position: 'relative',
               height: '480px',
-              backgroundColor: '#1E1E2E',
+              backgroundColor: '#0D0D15',
               borderRadius: '12px',
               overflow: 'hidden',
               marginBottom: '24px'
@@ -305,6 +305,8 @@ const UploadPage: React.FC = () => {
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
+                cropShape="rect"
+                showGrid={false}
               />
             </div>
 

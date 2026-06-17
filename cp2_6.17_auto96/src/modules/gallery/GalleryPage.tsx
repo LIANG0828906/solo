@@ -4,6 +4,7 @@ import PhotoCard from './PhotoCard';
 import PhotoViewer from './PhotoViewer';
 import { usePhotoStore } from '../../store';
 import { getAllPhotos } from '../storage/storageService';
+import { demoPhotos } from '../storage/demoData';
 
 const GalleryPage: React.FC = () => {
   const {
@@ -24,8 +25,14 @@ const GalleryPage: React.FC = () => {
     if (!loaded.current) {
       loaded.current = true;
       getAllPhotos().then((data) => {
-        setPhotos(data);
-      }).catch(console.error);
+        if (data.length > 0) {
+          setPhotos(data);
+        } else {
+          setPhotos(demoPhotos);
+        }
+      }).catch(() => {
+        setPhotos(demoPhotos);
+      });
     }
   }, [setPhotos]);
 
@@ -58,14 +65,6 @@ const GalleryPage: React.FC = () => {
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
   }, [hasMore, isLoading, loadMorePhotos]);
-
-  const columns = useMemo(() => {
-    const cols: typeof displayedPhotos[] = Array.from({ length: columnCount }, () => []);
-    displayedPhotos.forEach((photo, index) => {
-      cols[index % columnCount].push(photo);
-    });
-    return cols;
-  }, [displayedPhotos, columnCount]);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#1A1A2E' }}>
@@ -147,19 +146,16 @@ const GalleryPage: React.FC = () => {
         ) : (
           <div
             style={{
-              display: 'flex',
-              gap: '12px'
+              columnCount: columnCount,
+              columnGap: '12px'
             }}
           >
-            {columns.map((column, colIndex) => (
-              <div key={colIndex} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                {column.map((photo) => (
-                  <PhotoCard
-                    key={photo.id}
-                    photo={photo}
-                    onClick={() => openViewer(photo.id)}
-                  />
-                ))}
+            {displayedPhotos.map((photo) => (
+              <div key={photo.id} style={{ breakInside: 'avoid', marginBottom: '12px' }}>
+                <PhotoCard
+                  photo={photo}
+                  onClick={() => openViewer(photo.id)}
+                />
               </div>
             ))}
           </div>

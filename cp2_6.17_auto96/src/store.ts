@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Photo } from './types';
+import { demoPhotos } from './modules/storage/demoData';
 
 interface PhotoStore {
   photos: Photo[];
@@ -27,11 +28,11 @@ const INITIAL_DISPLAY = 20;
 const LOAD_MORE_COUNT = 8;
 
 export const usePhotoStore = create<PhotoStore>((set, get) => ({
-  photos: [],
+  photos: demoPhotos,
   currentPhotoId: null,
   displayedCount: INITIAL_DISPLAY,
   isLoading: false,
-  hasMore: true,
+  hasMore: demoPhotos.length > INITIAL_DISPLAY,
   viewerOpen: false,
 
   setPhotos: (photos) => set({ 
