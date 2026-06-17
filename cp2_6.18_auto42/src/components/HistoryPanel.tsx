@@ -1,11 +1,84 @@
 import { useCardStore } from '@/store';
 import { formatDateTime } from '@/utils/exportUtils';
+import { getTemplateByName } from '@/constants/templates';
 import { X, Star, Clock, Heart } from 'lucide-react';
 import type { CardData } from '@/constants/templates';
 
 interface CardItemProps {
   card: CardData;
   source: 'history' | 'favorites';
+}
+
+function ThumbnailFallback({ card }: { card: CardData }) {
+  const template = getTemplateByName(card.template);
+  const containerStyle: React.CSSProperties = {
+    width: 80,
+    minWidth: 80,
+    height: 60,
+    borderRadius: 8,
+    background: card.colors.background,
+    border: `1px solid ${card.colors.accent}`,
+    fontFamily: template.fontFamily,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    padding: '6px 6px 6px',
+    gap: 4,
+    overflow: 'hidden',
+    flexShrink: 0,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+  };
+  const emojiWrapStyle: React.CSSProperties = {
+    width: 22,
+    height: 22,
+    borderRadius: '50%',
+    background: 'rgba(255, 255, 255, 0.4)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  };
+  const emojiStyle: React.CSSProperties = {
+    fontSize: 14,
+    lineHeight: 1,
+  };
+  const titleStyle: React.CSSProperties = {
+    color: card.colors.title,
+    fontSize: 9,
+    fontWeight: 700,
+    textAlign: 'center',
+    lineHeight: 1.2,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: '100%',
+    flexShrink: 0,
+  };
+  const bodyStyle: React.CSSProperties = {
+    color: card.colors.body,
+    fontSize: 6,
+    lineHeight: 1.5,
+    textAlign: 'justify',
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical' as const,
+    overflow: 'hidden',
+    maxWidth: '100%',
+    textIndent: '1em',
+  };
+
+  return (
+    <div style={containerStyle}>
+      <div style={emojiWrapStyle}>
+        <span style={emojiStyle}>{card.emoji}</span>
+      </div>
+      <div style={titleStyle}>{card.title || '未命名'}</div>
+      <div style={bodyStyle}>{card.body || ''}</div>
+    </div>
+  );
 }
 
 function CardItem({ card, source }: CardItemProps) {
@@ -17,12 +90,19 @@ function CardItem({ card, source }: CardItemProps) {
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const success = toggleFavorite(card.id);
-    if (!card.isFavorite) {
-      if (success) {
-        showToast('已收藏');
+    const result = toggleFavorite(card.id);
+
+    if (result.action === 'favorited' && result.success) {
+      showToast('已收藏');
+    } else if (result.action === 'limit' && !result.success) {
+      showToast('收藏已达上限（50条），请先移除部分收藏');
+    } else if (result.action === 'unfavorited' && result.success) {
+      showToast('已取消收藏');
+    } else if (result.action === 'error' && !result.success) {
+      if (card.isFavorite) {
+        showToast('取消收藏失败，请重试');
       } else {
-        showToast('收藏已达上限（50条），请先移除部分收藏');
+        showToast('收藏失败，请重试');
       }
     }
   };
@@ -49,18 +129,7 @@ function CardItem({ card, source }: CardItemProps) {
           }}
         />
       ) : (
-        <div
-          className="history-thumbnail"
-          style={{
-            background: card.colors.background,
-            borderColor: card.colors.accent,
-          }}
-        >
-          <span className="thumb-emoji">{card.emoji}</span>
-          <span className="thumb-title" style={{ color: card.colors.title }}>
-            {card.title.slice(0, 6)}
-          </span>
-        </div>
+        <ThumbnailFallback card={card} />
       )}
       <div className="history-info">
         <div className="history-title" style={{ color: '#333' }}>

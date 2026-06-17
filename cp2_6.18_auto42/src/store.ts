@@ -24,7 +24,12 @@ interface CardStore {
   applyColors: (colors: CardColors) => void;
   saveHistory: (thumbnail?: string) => void;
   restoreCard: (id: string) => void;
-  toggleFavorite: (id: string) => boolean;
+  toggleFavorite: (
+    id: string
+  ) => {
+    success: boolean;
+    action: 'favorited' | 'unfavorited' | 'limit' | 'error';
+  };
   removeFromHistory: (id: string) => void;
   toggleHistoryPanel: () => void;
   showToast: (message: string) => void;
@@ -132,38 +137,48 @@ export const useCardStore = create<CardStore>((set, get) => ({
     const { history, favorites } = get();
     const allCards = [...history, ...favorites];
     const card = allCards.find((c) => c.id === id);
-    if (!card) return false;
+    if (!card) {
+      return { success: false, action: 'error' as const };
+    }
 
     const isFav = favorites.some((c) => c.id === id);
 
     if (isFav) {
-      const newFavs = favorites.filter((c) => c.id !== id);
-      const cardInHistory = history.find((c) => c.id === id);
-      if (cardInHistory) {
+      try {
+        const newFavs = favorites.filter((c) => c.id !== id);
+        const cardInHistory = history.find((c) => c.id === id);
+        if (cardInHistory) {
+          const newHistory = history.map((c) =>
+            c.id === id ? { ...c, isFavorite: false } : c
+          );
+          set({ favorites: newFavs, history: newHistory });
+          saveToStorage('card_favorites', newFavs);
+          saveToStorage('card_history', newHistory);
+        } else {
+          set({ favorites: newFavs });
+          saveToStorage('card_favorites', newFavs);
+        }
+        return { success: true, action: 'unfavorited' as const };
+      } catch {
+        return { success: false, action: 'error' as const };
+      }
+    } else {
+      if (favorites.length >= FAVORITES_MAX_COUNT) {
+        return { success: false, action: 'limit' as const };
+      }
+      try {
+        const favCard = { ...card, isFavorite: true };
+        const newFavs = [favCard, ...favorites];
         const newHistory = history.map((c) =>
-          c.id === id ? { ...c, isFavorite: false } : c
+          c.id === id ? { ...c, isFavorite: true } : c
         );
         set({ favorites: newFavs, history: newHistory });
         saveToStorage('card_favorites', newFavs);
         saveToStorage('card_history', newHistory);
-      } else {
-        set({ favorites: newFavs });
-        saveToStorage('card_favorites', newFavs);
+        return { success: true, action: 'favorited' as const };
+      } catch {
+        return { success: false, action: 'error' as const };
       }
-      return false;
-    } else {
-      if (favorites.length >= FAVORITES_MAX_COUNT) {
-        return false;
-      }
-      const favCard = { ...card, isFavorite: true };
-      const newFavs = [favCard, ...favorites];
-      const newHistory = history.map((c) =>
-        c.id === id ? { ...c, isFavorite: true } : c
-      );
-      set({ favorites: newFavs, history: newHistory });
-      saveToStorage('card_favorites', newFavs);
-      saveToStorage('card_history', newHistory);
-      return true;
     }
   },
 

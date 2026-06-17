@@ -15,32 +15,92 @@ export async function generateThumbnail(
   return dataUrl;
 }
 
+async function waitForFontsWithTimeout(timeoutMs: number = 3000): Promise<void> {
+  if (!('fonts' in document)) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    return;
+  }
+
+  try {
+    const fontsReady = document.fonts.ready;
+    const timeout = new Promise<void>((_, reject) => {
+      setTimeout(() => reject(new Error('Font loading timed out')), timeoutMs);
+    });
+
+    try {
+      await Promise.race([fontsReady, timeout]);
+    } catch (fontErr) {
+      console.warn('[exportCardAsPng] 字体加载超时或失败，使用系统字体降级导出:', fontErr);
+
+      const testCanvas = document.createElement('canvas');
+      testCanvas.width = 1;
+      testCanvas.height = 1;
+      const ctx = testCanvas.getContext('2d');
+      if (ctx) {
+        const fontFamilies = [
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'PingFang SC',
+          'Microsoft YaHei',
+          'sans-serif',
+        ].join(', ');
+        ctx.font = `16px ${fontFamilies}`;
+        void ctx.measureText('test').width;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  } catch (err) {
+    console.warn('[exportCardAsPng] 字体API异常，使用降级方案:', err);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+}
+
 export async function exportCardAsPng(node: HTMLElement | null): Promise<void> {
   if (!node) {
     throw new Error('卡片元素不存在');
   }
 
-  // 等待字体加载完成，避免导出时字体未渲染导致文字显示异常或使用回退字体
-  if ('fonts' in document) {
-    await document.fonts.ready;
-  } else {
-    // 旧浏览器不支持 document.fonts，使用短暂延迟作为降级方案
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
+  await waitForFontsWithTimeout(3000);
 
-  // 强制触发一次重排，确保所有样式计算完成
   void node.offsetHeight;
 
-  const dataUrl = await toPng(node, {
-    pixelRatio: 2,
-    cacheBust: true,
-    backgroundColor: undefined,
-    style: {
-      transform: 'none',
-      animation: 'none',
-      transition: 'none',
-    },
-  });
+  let dataUrl: string;
+  try {
+    dataUrl = await toPng(node, {
+      pixelRatio: 2,
+      cacheBust: true,
+      backgroundColor: undefined,
+      skipFonts: false,
+      style: {
+        transform: 'none',
+        animation: 'none',
+        transition: 'none',
+        textRendering: 'geometricPrecision',
+      } as any,
+    });
+  } catch (renderErr) {
+    console.warn('[exportCardAsPng] 主渲染失败，尝试无字体模式:', renderErr);
+    dataUrl = await toPng(node, {
+      pixelRatio: 2,
+      cacheBust: true,
+      skipFonts: true,
+      backgroundColor: undefined,
+      style: {
+        transform: 'none',
+        animation: 'none',
+        transition: 'none',
+        fontFamily:
+          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+      },
+    });
+  }
+
+  if (!dataUrl || dataUrl.length < 100) {
+    throw new Error('导出图片数据为空，请重试');
+  }
 
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');

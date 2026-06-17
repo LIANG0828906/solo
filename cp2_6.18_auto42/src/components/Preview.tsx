@@ -31,7 +31,14 @@ export function Preview() {
     const computedStyle = getComputedStyle(containerEl);
     const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
     const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-    const availableWidth = containerEl.clientWidth - paddingLeft - paddingRight;
+    const buttonsEl = containerEl.querySelector('.export-buttons') as HTMLElement | null;
+    const buttonsWidth = buttonsEl ? buttonsEl.offsetWidth : 0;
+    const gap = 24;
+    const containerContentWidth = containerEl.clientWidth - paddingLeft - paddingRight;
+    const maxCardWidth = Math.max(containerContentWidth, CARD_WIDTH);
+    const buttonsWithGapWidth = buttonsWidth + gap;
+    const horizontalSpace = Math.max(maxCardWidth, buttonsWithGapWidth);
+    const availableWidth = containerContentWidth - (horizontalSpace > containerContentWidth ? 0 : 0);
     const displayWidth = Math.min(availableWidth, CARD_WIDTH);
     const displayHeight = displayWidth * 0.75;
     setCardDisplayWidth(displayWidth);

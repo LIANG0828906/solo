@@ -101,55 +101,72 @@ function ensureContrast(fg: string, bg: string, targetRatio: number = 4.5): stri
   const bgLum = getLuminance(bg);
   const isBgLight = bgLum > 0.5;
 
-  let bestS = fs;
-  let bestL = fl;
-  let bestRatio = getContrastRatio(fg, bg);
+  let curS = fs;
+  let curL = fl;
+  let curRatio = getContrastRatio(fg, bg);
 
-  if (bestRatio >= targetRatio) {
+  if (curRatio >= targetRatio) {
     return fg;
   }
 
-  const maxIterations = 50;
-  let stepLightness = 5;
-  let stepSaturation = 2;
-  let improved = true;
+  const maxIterations = 60;
+  const initialSearchRadius = 15;
+  const minSearchRadius = 0.5;
+  let searchRadius = initialSearchRadius;
 
-  for (let iter = 0; iter < maxIterations && improved; iter++) {
-    improved = false;
+  for (let iter = 0; iter < maxIterations; iter++) {
     const progress = iter / maxIterations;
-    stepLightness = 5 - 4.5 * progress;
-    stepSaturation = 2 - 1.5 * progress;
+    searchRadius = Math.max(
+      minSearchRadius,
+      initialSearchRadius * (1 - progress * 0.95)
+    );
+    const satStep = searchRadius * 0.4;
 
-    for (let s = -1; s <= 1; s += 1) {
-      for (let l = 1; l <= 3; l += 1) {
-        const satOffset = s * stepSaturation;
-        const lightOffset = isBgLight ? -l * stepLightness : l * stepLightness;
+    const candidates: Array<{ s: number; l: number; ratio: number }> = [];
+    const lightDir = isBgLight ? -1 : 1;
 
-        const newS = Math.max(0, Math.min(100, bestS + satOffset));
-        const newL = Math.max(0, Math.min(100, bestL + lightOffset));
-
-        const candidate = hslToHex(fh, newS, newL);
+    for (let sIdx = -2; sIdx <= 2; sIdx++) {
+      for (let lIdx = 1; lIdx <= 4; lIdx++) {
+        const s = Math.max(0, Math.min(100, curS + sIdx * satStep));
+        const l = Math.max(0, Math.min(100, curL + lightDir * lIdx * searchRadius * 0.5));
+        const candidate = hslToHex(fh, s, l);
         const ratio = getContrastRatio(candidate, bg);
+        candidates.push({ s, l, ratio });
 
-        if (ratio > bestRatio) {
-          bestRatio = ratio;
-          bestS = newS;
-          bestL = newL;
-          improved = true;
+        if (ratio >= targetRatio) {
+          return candidate;
+        }
+      }
+    }
 
-          if (ratio >= targetRatio) {
-            return candidate;
-          }
+    candidates.sort((a, b) => b.ratio - a.ratio);
+    const best = candidates[0];
+
+    if (best.ratio > curRatio) {
+      curS = best.s;
+      curL = best.l;
+      curRatio = best.ratio;
+    } else {
+      const jump = Math.max(5, searchRadius * 2);
+      const fallbackL = Math.max(0, Math.min(100, curL + lightDir * jump));
+      const fallback = hslToHex(fh, curS, fallbackL);
+      const fallbackRatio = getContrastRatio(fallback, bg);
+
+      if (fallbackRatio > curRatio) {
+        curL = fallbackL;
+        curRatio = fallbackRatio;
+        if (fallbackRatio >= targetRatio) {
+          return fallback;
         }
       }
     }
   }
 
-  if (bestRatio < targetRatio) {
+  if (curRatio < targetRatio) {
     return isBgLight ? '#000000' : '#FFFFFF';
   }
 
-  return hslToHex(fh, bestS, bestL);
+  return hslToHex(fh, curS, curL);
 }
 
 export function generateColorSchemes(baseColors: CardColors): CardColors[] {
