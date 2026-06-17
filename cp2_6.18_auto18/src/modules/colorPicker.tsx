@@ -9,8 +9,9 @@ const MARKER_SIZE = 20
 const SECONDARY_DOT_SIZE = 12
 const SECONDARY_RING_RADIUS = 30
 
-const SV_PANEL_WIDTH = RING_SIZE
-const SV_PANEL_HEIGHT = 40
+const SLIDER_WIDTH = RING_SIZE
+const SLIDER_HEIGHT = 24
+const THUMB_SIZE = 20
 
 const SCHEME_LABELS: Record<SchemeType, string> = {
   triadic: '三元色',
@@ -31,9 +32,12 @@ export default function ColorPicker() {
   const setSchemeType = useColorStore(s => s.setSchemeType)
 
   const ringRef = useRef<HTMLDivElement>(null)
-  const svPanelRef = useRef<HTMLDivElement>(null)
+  const satSliderRef = useRef<HTMLDivElement>(null)
+  const lightSliderRef = useRef<HTMLDivElement>(null)
+
   const [ringDragging, setRingDragging] = useState(false)
-  const [svDragging, setSvDragging] = useState(false)
+  const [satDragging, setSatDragging] = useState(false)
+  const [lightDragging, setLightDragging] = useState(false)
 
   const hueToXY = useCallback((h: number) => {
     const rad = (h - 90) * (Math.PI / 180)
@@ -82,53 +86,78 @@ export default function ColorPicker() {
     }
   }, [ringDragging, handleRingPointerMove])
 
-  const handleSvPointerMove = useCallback((e: PointerEvent) => {
-    if (!svPanelRef.current) return
-    const rect = svPanelRef.current.getBoundingClientRect()
+  const handleSatPointerMove = useCallback((e: PointerEvent) => {
+    if (!satSliderRef.current) return
+    const rect = satSliderRef.current.getBoundingClientRect()
     let x = e.clientX - rect.left
-    let y = e.clientY - rect.top
-    x = Math.max(0, Math.min(SV_PANEL_WIDTH, x))
-    y = Math.max(0, Math.min(SV_PANEL_HEIGHT, y))
-    const newSat = Math.round((x / SV_PANEL_WIDTH) * 100)
-    const newLight = Math.round(100 - (y / SV_PANEL_HEIGHT) * 100)
+    x = Math.max(0, Math.min(SLIDER_WIDTH, x))
+    const newSat = Math.round((x / SLIDER_WIDTH) * 100)
     setSaturation(newSat)
-    setLightness(newLight)
-  }, [setSaturation, setLightness])
+  }, [setSaturation])
 
-  const handleSvPointerDown = useCallback((e: React.PointerEvent) => {
+  const handleSatPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault()
-    setSvDragging(true)
-    if (!svPanelRef.current) return
-    const rect = svPanelRef.current.getBoundingClientRect()
+    setSatDragging(true)
+    if (!satSliderRef.current) return
+    const rect = satSliderRef.current.getBoundingClientRect()
     let x = e.clientX - rect.left
-    let y = e.clientY - rect.top
-    x = Math.max(0, Math.min(SV_PANEL_WIDTH, x))
-    y = Math.max(0, Math.min(SV_PANEL_HEIGHT, y))
-    const newSat = Math.round((x / SV_PANEL_WIDTH) * 100)
-    const newLight = Math.round(100 - (y / SV_PANEL_HEIGHT) * 100)
+    x = Math.max(0, Math.min(SLIDER_WIDTH, x))
+    const newSat = Math.round((x / SLIDER_WIDTH) * 100)
     setSaturation(newSat)
-    setLightness(newLight)
-  }, [setSaturation, setLightness])
+  }, [setSaturation])
 
   useEffect(() => {
-    if (!svDragging) return
-    const onMove = (e: PointerEvent) => handleSvPointerMove(e)
-    const onUp = () => setSvDragging(false)
+    if (!satDragging) return
+    const onMove = (e: PointerEvent) => handleSatPointerMove(e)
+    const onUp = () => setSatDragging(false)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
-  }, [svDragging, handleSvPointerMove])
+  }, [satDragging, handleSatPointerMove])
+
+  const handleLightPointerMove = useCallback((e: PointerEvent) => {
+    if (!lightSliderRef.current) return
+    const rect = lightSliderRef.current.getBoundingClientRect()
+    let x = e.clientX - rect.left
+    x = Math.max(0, Math.min(SLIDER_WIDTH, x))
+    const newLight = Math.round((x / SLIDER_WIDTH) * 100)
+    setLightness(newLight)
+  }, [setLightness])
+
+  const handleLightPointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault()
+    setLightDragging(true)
+    if (!lightSliderRef.current) return
+    const rect = lightSliderRef.current.getBoundingClientRect()
+    let x = e.clientX - rect.left
+    x = Math.max(0, Math.min(SLIDER_WIDTH, x))
+    const newLight = Math.round((x / SLIDER_WIDTH) * 100)
+    setLightness(newLight)
+  }, [setLightness])
+
+  useEffect(() => {
+    if (!lightDragging) return
+    const onMove = (e: PointerEvent) => handleLightPointerMove(e)
+    const onUp = () => setLightDragging(false)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+  }, [lightDragging, handleLightPointerMove])
 
   const markerPos = hueToXY(hue)
   const secondaryHues = getSecondaryHues(hue, schemeType)
 
-  const svMarkerX = (saturation / 100) * SV_PANEL_WIDTH
-  const svMarkerY = (1 - lightness / 100) * SV_PANEL_HEIGHT
+  const satThumbX = (saturation / 100) * SLIDER_WIDTH
+  const lightThumbX = (lightness / 100) * SLIDER_WIDTH
 
-  const verticalBg = `linear-gradient(to bottom, #fff 0%, hsl(${hue}, 100%, 50%) 50%, #000 100%)`
+  const satGradient = `linear-gradient(to right, hsl(${hue}, 0%, ${lightness}%), hsl(${hue}, 100%, ${lightness}%))`
+  const lightGradient = `linear-gradient(to right, hsl(${hue}, ${saturation}%, 0%), hsl(${hue}, ${saturation}%, 50%), hsl(${hue}, ${saturation}%, 100%))`
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
@@ -224,49 +253,91 @@ export default function ColorPicker() {
         </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: SV_PANEL_WIDTH }}>
-        <label style={{ fontSize: '12px', color: '#6B7280', fontWeight: 500 }}>
-          饱和度 {saturation}% · 亮度 {lightness}%
-        </label>
-        <div
-          ref={svPanelRef}
-          onPointerDown={handleSvPointerDown}
-          style={{
-            width: SV_PANEL_WIDTH,
-            height: SV_PANEL_HEIGHT,
-            borderRadius: 8,
-            position: 'relative',
-            cursor: 'crosshair',
-            background: verticalBg,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            overflow: 'hidden',
-          }}
-        >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: SLIDER_WIDTH }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ fontSize: '12px', color: '#6B7280', fontWeight: 500 }}>饱和度</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: '#9CA3AF' }}>低 → 高</span>
+              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#1A1A2E', fontWeight: 600, minWidth: '36px', textAlign: 'right' }}>
+                {saturation}%
+              </span>
+            </div>
+          </div>
           <div
+            ref={satSliderRef}
+            onPointerDown={handleSatPointerDown}
             style={{
-              position: 'absolute',
-              inset: 0,
-              background: `linear-gradient(to right, rgba(255,255,255,0.85), rgba(255,255,255,0) 40%)`,
-              pointerEvents: 'none',
+              width: SLIDER_WIDTH,
+              height: SLIDER_HEIGHT,
+              borderRadius: SLIDER_HEIGHT / 2,
+              background: satGradient,
+              position: 'relative',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
             }}
-          />
+          >
+            <div
+              style={{
+                position: 'absolute',
+                left: satThumbX - THUMB_SIZE / 2,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: THUMB_SIZE,
+                height: THUMB_SIZE,
+                borderRadius: '50%',
+                background: colorScheme.primary,
+                border: '2px solid white',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                pointerEvents: 'none',
+                transition: satDragging ? 'none' : 'left 0.05s ease, background 0.3s ease',
+                zIndex: 5,
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ fontSize: '12px', color: '#6B7280', fontWeight: 500 }}>亮度</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: '#9CA3AF' }}>暗 → 亮</span>
+              <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#1A1A2E', fontWeight: 600, minWidth: '36px', textAlign: 'right' }}>
+                {lightness}%
+              </span>
+            </div>
+          </div>
           <div
+            ref={lightSliderRef}
+            onPointerDown={handleLightPointerDown}
             style={{
-              position: 'absolute',
-              left: svMarkerX - MARKER_SIZE / 2,
-              top: svMarkerY - MARKER_SIZE / 2,
-              width: MARKER_SIZE,
-              height: MARKER_SIZE,
-              borderRadius: '50%',
-              background: colorScheme.primary,
-              border: '2px solid white',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              cursor: 'grab',
-              pointerEvents: 'none',
-              transition: svDragging ? 'none' : 'left 0.05s ease, top 0.05s ease, background 0.3s ease',
-              zIndex: 5,
+              width: SLIDER_WIDTH,
+              height: SLIDER_HEIGHT,
+              borderRadius: SLIDER_HEIGHT / 2,
+              background: lightGradient,
+              position: 'relative',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
             }}
-          />
+          >
+            <div
+              style={{
+                position: 'absolute',
+                left: lightThumbX - THUMB_SIZE / 2,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: THUMB_SIZE,
+                height: THUMB_SIZE,
+                borderRadius: '50%',
+                background: colorScheme.primary,
+                border: '2px solid white',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                pointerEvents: 'none',
+                transition: lightDragging ? 'none' : 'left 0.05s ease, background 0.3s ease',
+                zIndex: 5,
+              }}
+            />
+          </div>
         </div>
       </div>
 

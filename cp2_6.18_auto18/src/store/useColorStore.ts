@@ -17,9 +17,6 @@ export interface SavedScheme {
   primary: string
   secondary: string[]
   type: SchemeType
-  hue: number
-  saturation: number
-  lightness: number
 }
 
 interface ColorStoreState {
@@ -36,7 +33,7 @@ interface ColorStoreState {
   setSaturation: (sat: number) => void
   setLightness: (light: number) => void
   setSchemeType: (type: SchemeType) => void
-  saveScheme: (name?: string) => void
+  saveScheme: (name: string) => void
   removeScheme: (id: string) => void
   applyScheme: (scheme: SavedScheme) => void
   toggleStar: () => void
@@ -83,17 +80,14 @@ export const useColorStore = create<ColorStoreState>((set, get) => ({
     const s = get()
     set({ schemeType, colorScheme: buildScheme(s.hue, s.saturation, s.lightness, schemeType), isStarred: false })
   },
-  saveScheme: (name?: string) => {
+  saveScheme: (name: string) => {
     const s = get()
     const scheme: SavedScheme = {
       id: uuidv4(),
-      name: name || `${s.schemeType} ${Math.round(s.hue)}°`,
+      name,
       primary: s.colorScheme.primary,
       secondary: s.colorScheme.secondary,
       type: s.colorScheme.type,
-      hue: s.hue,
-      saturation: s.saturation,
-      lightness: s.lightness,
     }
     set({ savedSchemes: [...s.savedSchemes, scheme], isStarred: true })
   },
@@ -103,15 +97,15 @@ export const useColorStore = create<ColorStoreState>((set, get) => ({
   },
   applyScheme: (scheme: SavedScheme) => {
     const [h, sat, light] = hslFromHex(scheme.primary)
-    const hue = scheme.hue != null ? scheme.hue : Math.round(h)
-    const saturation = scheme.saturation != null ? scheme.saturation : Math.round(sat)
-    const lightness = scheme.lightness != null ? scheme.lightness : Math.round(light)
+    const hue = Math.round(h)
+    const saturation = Math.round(sat)
+    const lightness = Math.round(light)
     set({
       hue,
       saturation,
       lightness,
       schemeType: scheme.type,
-      colorScheme: { primary: scheme.primary, secondary: scheme.secondary, type: scheme.type },
+      colorScheme: buildScheme(hue, saturation, lightness, scheme.type),
       isStarred: true,
     })
   },
@@ -126,9 +120,6 @@ export const useColorStore = create<ColorStoreState>((set, get) => ({
         primary: s.colorScheme.primary,
         secondary: s.colorScheme.secondary,
         type: s.colorScheme.type,
-        hue: s.hue,
-        saturation: s.saturation,
-        lightness: s.lightness,
       }
       set({ savedSchemes: [...s.savedSchemes, scheme], isStarred: true })
     }
