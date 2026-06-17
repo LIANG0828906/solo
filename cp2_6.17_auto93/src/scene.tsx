@@ -1,10 +1,50 @@
 import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Stars, Html, Line } from '@react-three/drei';
+import { OrbitControls, Stars, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { useSpring, animated } from '@react-spring/three';
+import { useSpring, animated, to } from '@react-spring/three';
 import { useStore } from './store';
 import type { PlanetData } from './types';
+
+const CME_INTERVAL = 8000;
+const CME_DURATION = 1500;
+
+function createEllipseRingGeometry(
+  xRadius: number,
+  zRadius: number,
+  thickness: number,
+  segments: number
+): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry();
+  const vertices: number[] = [];
+  const indices: number[] = [];
+
+  for (let i = 0; i <= segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const innerX = cos * (xRadius - thickness / 2);
+    const innerZ = sin * (zRadius - thickness / 2);
+    const outerX = cos * (xRadius + thickness / 2);
+    const outerZ = sin * (zRadius + thickness / 2);
+    vertices.push(innerX, 0, innerZ);
+    vertices.push(outerX, 0, outerZ);
+  }
+
+  for (let i = 0; i < segments; i++) {
+    const a = i * 2;
+    const b = i * 2 + 1;
+    const c = i * 2 + 2;
+    const d = i * 2 + 3;
+    indices.push(a, b, c);
+    indices.push(b, d, c);
+  }
+
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
 
 function StarField() {
   const ref = useRef<THREE.Points>(null);
@@ -64,6 +104,7 @@ function Sun() {
   const [cmeActive, setCmeActive] = useState(false);
   const cmeRef = useRef<THREE.Points>(null);
   const cmeTimeRef = useRef(0);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cmePositions = useMemo(() => {
     const count = 100;
@@ -79,13 +120,27 @@ function Sun() {
     return pos;
   }, []);
 
+  const triggerCME = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    cmeTimeRef.current = 0;
+    setCmeActive(true);
+    timeoutRef.current = setTimeout(() => {
+      setCmeActive(false);
+      timeoutRef.current = null;
+    }, CME_DURATION);
+  };
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCmeActive(true);
-      cmeTimeRef.current = 0;
-      setTimeout(() => setCmeActive(false), 1500);
-    }, 8000);
-    return () => clearInterval(interval);
+    triggerCME();
+    const interval = setInterval(triggerCME, CME_INTERVAL);
+    return () => {
+      clearInterval(interval);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
   useFrame((state, delta) => {
@@ -97,8 +152,8 @@ function Sun() {
       glowRef.current.scale.setScalar(pulse);
     }
     if (cmeActive && cmeRef.current) {
-      cmeTimeRef.current += delta;
-      const t = Math.min(cmeTimeRef.current / 1.5, 1);
+      cmeTimeRef.current += delta * 1000;
+      const t = Math.min(cmeTimeRef.current / CME_DURATION, 1);
       const positions = cmeRef.current.geometry.attributes.position.array as Float32Array;
       const original = cmePositions;
       for (let i = 0; i < positions.length / 3; i++) {
@@ -144,24 +199,24 @@ function Sun() {
 }
 
 function OrbitRing({ radius }: { radius: number }) {
-  const points = useMemo(() => {
-    const pts: [number, number, number][] = [];
-    const segments = 128;
-    for (let i = 0; i <= segments; i++) {
-      const angle = (i / segments) * Math.PI * 2;
-      pts.push([Math.cos(angle) * radius, 0, Math.sin(angle) * radius]);
-    }
-    return pts;
+  const geometry = useMemo(() => {
+    const eccentricity = 0.02;
+    const xRadius = radius;
+    const zRadius = radius * (1 - eccentricity);
+    const thickness = 0.03;
+    return createEllipseRingGeometry(xRadius, zRadius, thickness, 256);
   }, [radius]);
 
   return (
-    <Line
-      points={points}
-      color="#4A90D9"
-      lineWidth={1}
-      transparent
-      opacity={0.3}
-    />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} geometry={geometry}>
+      <meshBasicMaterial
+        color="#4A90D9"
+        transparent
+        opacity={0.3}
+        side={THREE.DoubleSide}
+        depthWrite={false}
+      />
+    </mesh>
   );
 }
 
@@ -250,58 +305,64 @@ function CameraController() {
   const controlsRef = useRef<any>(null);
   const focusedPlanetId = useStore(s => s.focusedPlanetId);
   const planets = useStore(s => s.planets);
-  const animatingRef = useRef(false);
 
-  useFrame((state, delta) => {
-    if (focusedPlanetId && !animatingRef.current) {
-      const planet = planets.find(p => p.id === focusedPlanetId);
-      if (planet && controlsRef.current) {
-        animatingRef.current = true;
-        controlsRef.current.target.lerp(
-          new THREE.Vector3(0, 0, 0),
-          0.05
-        );
-      }
+  const targetPlanet = useMemo(() => {
+    if (!focusedPlanetId) return null;
+    return planets.find(p => p.id === focusedPlanetId) || null;
+  }, [focusedPlanetId, planets]);
+
+  const [{ posX, posY, posZ, targetX, targetY, targetZ }, api] = useSpring(() => ({
+    posX: 0,
+    posY: 20,
+    posZ: 35,
+    targetX: 0,
+    targetY: 0,
+    targetZ: 0,
+    config: {
+      mass: 1,
+      tension: 120,
+      friction: 20,
+      clamp: false
     }
-  });
+  }), [targetPlanet]);
 
   useEffect(() => {
-    if (!focusedPlanetId || !controlsRef.current) {
-      animatingRef.current = false;
-      return;
+    if (targetPlanet) {
+      const planetOrbitRadius = targetPlanet.orbitRadius;
+      const planetSize = targetPlanet.size;
+      const targetDistance = planetOrbitRadius + planetSize * 3 + 5;
+      const angle = Math.PI / 4;
+      const height = planetSize * 2 + 2;
+      api.start({
+        posX: Math.cos(angle) * targetDistance * 0.7,
+        posY: height,
+        posZ: Math.sin(angle) * targetDistance * 0.7,
+        targetX: 0,
+        targetY: 0,
+        targetZ: 0
+      });
+    } else {
+      api.start({
+        posX: 0,
+        posY: 20,
+        posZ: 35,
+        targetX: 0,
+        targetY: 0,
+        targetZ: 0
+      });
     }
-    const planet = planets.find(p => p.id === focusedPlanetId);
-    if (!planet) return;
+  }, [targetPlanet, api]);
 
-    const targetDistance = planet.orbitRadius + planet.size * 3 + 5;
-    const startPos = camera.position.clone();
-    const endPos = new THREE.Vector3(
-      planet.orbitRadius * 0.7,
-      planet.size * 2 + 2,
-      planet.orbitRadius * 0.7
-    );
-    const direction = endPos.clone().normalize().multiplyScalar(targetDistance);
-    const finalTarget = direction;
+  const tempVec = useMemo(() => new THREE.Vector3(), []);
 
-    let progress = 0;
-    const duration = 1000;
-    const startTime = performance.now();
-
-    const animate = () => {
-      const elapsed = performance.now() - startTime;
-      progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-
-      camera.position.lerpVectors(startPos, finalTarget, eased);
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        animatingRef.current = false;
-      }
-    };
-    animate();
-  }, [focusedPlanetId, camera, planets]);
+  useFrame(() => {
+    camera.position.set(posX.get(), posY.get(), posZ.get());
+    tempVec.set(targetX.get(), targetY.get(), targetZ.get());
+    if (controlsRef.current) {
+      controlsRef.current.target.lerp(tempVec, 0.1);
+      controlsRef.current.update();
+    }
+  });
 
   return (
     <OrbitControls
