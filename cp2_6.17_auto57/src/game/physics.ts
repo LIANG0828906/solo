@@ -37,12 +37,19 @@ export function updateBalls(balls: Ball[], dt: number = 1): Ball[] {
   });
 }
 
+export interface CollisionEvent {
+  x: number;
+  y: number;
+  hasCueBall: boolean;
+  spreadAngle: number;
+}
+
 export function checkBallCollisions(balls: Ball[]): {
   balls: Ball[];
-  collisionEvents: { x: number; y: number }[];
+  collisionEvents: CollisionEvent[];
 } {
   const result = balls.map((b) => ({ ...b }));
-  const collisionEvents: { x: number; y: number }[] = [];
+  const collisionEvents: CollisionEvent[] = [];
 
   for (let i = 0; i < result.length; i++) {
     for (let j = i + 1; j < result.length; j++) {
@@ -57,7 +64,14 @@ export function checkBallCollisions(balls: Ball[]): {
       const minDist = a.radius + b.radius;
 
       if (dist < minDist && dist > 0) {
-        collisionEvents.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+        const hasCue = a.number === 0 || b.number === 0;
+        const angle = Math.atan2(dy, dx);
+        collisionEvents.push({
+          x: (a.x + b.x) / 2,
+          y: (a.y + b.y) / 2,
+          hasCueBall: hasCue,
+          spreadAngle: angle,
+        });
 
         const nx = dx / dist;
         const ny = dy / dist;

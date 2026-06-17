@@ -5,56 +5,17 @@ export function GameBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const lastTimeRef = useRef<number>(0);
+  const store = useGameStore;
 
-  const {
-    setCanvasSize,
-    startAiming,
-    updateAiming,
-    shoot,
-    updateGame,
-    balls,
-    aimData,
-    particles,
-    ripples,
-    tableConfig,
-    pockets,
-    cueStickProgress,
-    gamePhase,
-  } = useGameStore();
-
-  const stateRef = useRef({
-    balls,
-    aimData,
-    particles,
-    ripples,
-    tableConfig,
-    pockets,
-    cueStickProgress,
-    gamePhase,
-    updateGame,
-  });
-
-  useEffect(() => {
-    stateRef.current = {
-      balls,
-      aimData,
-      particles,
-      ripples,
-      tableConfig,
-      pockets,
-      cueStickProgress,
-      gamePhase,
-      updateGame,
-    };
-  }, [balls, aimData, particles, ripples, tableConfig, pockets, cueStickProgress, gamePhase, updateGame]);
+  const { setCanvasSize, startAiming, updateAiming, shoot, gamePhase } = useGameStore();
 
   useEffect(() => {
     const handleResize = () => {
-      setCanvasSize(window.innerWidth, window.innerHeight);
       if (canvasRef.current) {
         canvasRef.current.width = window.innerWidth;
         canvasRef.current.height = window.innerHeight;
       }
+      setCanvasSize(window.innerWidth, window.innerHeight);
     };
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -70,11 +31,12 @@ export function GameBoard() {
       const dt = Math.min((timestamp - lastTimeRef.current) / 1000, 0.033);
       lastTimeRef.current = timestamp;
 
-      stateRef.current.updateGame(dt);
+      const state = store.getState();
+      state.updateGame(dt);
 
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        render(ctx, canvas.width, canvas.height);
+        render(ctx, canvas.width, canvas.height, state);
       }
 
       animationRef.current = requestAnimationFrame(gameLoop);
@@ -87,22 +49,22 @@ export function GameBoard() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, []);
+  }, [store]);
 
   const render = (
     ctx: CanvasRenderingContext2D,
     width: number,
-    height: number
+    height: number,
+    state: ReturnType<typeof store.getState>
   ) => {
-    const state = stateRef.current;
     const {
-      balls: stateBalls,
-      aimData: stateAimData,
-      particles: stateParticles,
-      ripples: stateRipples,
-      tableConfig: stateTableConfig,
-      pockets: statePockets,
-      cueStickProgress: stateCueStickProgress,
+      balls,
+      aimData,
+      particles,
+      ripples,
+      tableConfig,
+      pockets,
+      cueStickProgress,
       gamePhase: stateGamePhase,
     } = state;
 
@@ -110,18 +72,18 @@ export function GameBoard() {
 
     drawWoodBackground(ctx, width, height);
 
-    if (stateTableConfig) {
-      drawTable(ctx, stateTableConfig);
-      drawPockets(ctx, statePockets);
-      drawRipples(ctx, stateRipples);
-      drawTrails(ctx, stateBalls);
-      drawBalls(ctx, stateBalls);
-      drawParticles(ctx, stateParticles);
+    if (tableConfig) {
+      drawTable(ctx, tableConfig);
+      drawPockets(ctx, pockets);
+      drawRipples(ctx, ripples);
+      drawTrails(ctx, balls);
+      drawBalls(ctx, balls);
+      drawParticles(ctx, particles);
 
       if (stateGamePhase === 'aiming') {
-        drawAimLine(ctx, stateBalls, stateAimData, stateTableConfig);
-        drawCueStick(ctx, stateBalls, stateAimData, stateCueStickProgress, stateTableConfig);
-        drawPowerBar(ctx, stateAimData, stateTableConfig);
+        drawAimLine(ctx, balls, aimData, tableConfig);
+        drawCueStick(ctx, balls, aimData, cueStickProgress, tableConfig);
+        drawPowerBar(ctx, aimData, tableConfig);
       }
     }
   };
@@ -335,7 +297,10 @@ export function GameBoard() {
     const endX = cueBall.x + Math.cos(angle) * (cueBall.radius + lineLength);
     const endY = cueBall.y + Math.sin(angle) * (cueBall.radius + lineLength);
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.save();
+    ctx.shadowColor = 'rgba(204, 204, 204, 0.8)';
+    ctx.shadowBlur = 6;
+    ctx.strokeStyle = '#CCCCCC';
     ctx.lineWidth = 2;
     ctx.setLineDash([8, 8]);
     ctx.beginPath();
@@ -343,6 +308,7 @@ export function GameBoard() {
     ctx.lineTo(endX, endY);
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.restore();
   };
 
   const drawCueStick = (
@@ -359,12 +325,18 @@ export function GameBoard() {
 
     let angle = 0;
     let power = 0;
+    let opacity = 1;
 
     if (aim.isAiming) {
       const dx = aim.currentX - aim.startX;
       const dy = aim.currentY - aim.startY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
       angle = Math.atan2(dy, dx);
       power = aim.power;
+
+      if (distance < 30) {
+        opacity = 0.2 + (distance / 30) * 0.8;
+      }
     } else if (progress > 0) {
       angle = Math.atan2(cueBall.vy, cueBall.vx) + Math.PI;
       power = progress;
@@ -384,6 +356,9 @@ export function GameBoard() {
     const tipY = baseY + Math.sin(angle) * stickLength;
 
     const perpAngle = angle + Math.PI / 2;
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
 
     ctx.fillStyle = '#D4A76A';
     ctx.beginPath();
@@ -416,6 +391,8 @@ export function GameBoard() {
     ctx.rotate(perpAngle);
     ctx.fillRect(-4, -tipWidth, 8, tipWidth * 2);
     ctx.restore();
+
+    ctx.restore();
   };
 
   const drawPowerBar = (
@@ -433,13 +410,22 @@ export function GameBoard() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.fillRect(x, y, barWidth, barHeight);
 
-    const fillHeight = barHeight * aim.power;
-    const gradient = ctx.createLinearGradient(x, y + barHeight, x, y);
-    gradient.addColorStop(0, '#FF0000');
-    gradient.addColorStop(1, '#FFFF00');
+    const fillWidth = (barWidth * aim.power) / 2;
+    const midX = x + barWidth / 2;
 
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x, y + barHeight - fillHeight, barWidth, fillHeight);
+    const leftGradient = ctx.createLinearGradient(x, y, midX, y);
+    leftGradient.addColorStop(0, '#FF0000');
+    leftGradient.addColorStop(1, '#FFFF00');
+
+    ctx.fillStyle = leftGradient;
+    ctx.fillRect(x, y, fillWidth, barHeight);
+
+    const rightGradient = ctx.createLinearGradient(midX, y, x + barWidth, y);
+    rightGradient.addColorStop(0, '#FFFF00');
+    rightGradient.addColorStop(1, '#FF0000');
+
+    ctx.fillStyle = rightGradient;
+    ctx.fillRect(x + barWidth - fillWidth, y, fillWidth, barHeight);
 
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 1;

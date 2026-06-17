@@ -111,10 +111,17 @@ function createTriangleBalls(
   return balls;
 }
 
-function createCollisionParticles(x: number, y: number): Particle[] {
+function createCollisionParticles(
+  x: number,
+  y: number,
+  hasCueBall: boolean = false,
+  spreadAngle: number = 0
+): Particle[] {
   const particles: Particle[] = [];
+
   for (let i = 0; i < 15; i++) {
-    const angle = Math.random() * Math.PI * 2;
+    const randomOffset = (Math.random() - 0.5) * Math.PI * 0.6;
+    const angle = spreadAngle + randomOffset;
     const speed = 50 + Math.random() * 100;
     particles.push({
       id: uuidv4(),
@@ -129,6 +136,28 @@ function createCollisionParticles(x: number, y: number): Particle[] {
       color: '#FFD700',
     });
   }
+
+  if (hasCueBall) {
+    const whiteCount = 5 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < whiteCount; i++) {
+      const randomOffset = (Math.random() - 0.5) * Math.PI * 0.6;
+      const angle = spreadAngle + randomOffset;
+      const speed = 30 + Math.random() * 60;
+      particles.push({
+        id: uuidv4(),
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 2 + Math.random() * 1,
+        opacity: 1,
+        life: 0.3,
+        maxLife: 0.3,
+        color: '#FFFFFF',
+      });
+    }
+  }
+
   return particles;
 }
 
@@ -385,7 +414,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       let newRipples = [...state.ripples];
 
       for (const event of collisionResult.collisionEvents) {
-        newParticles.push(...createCollisionParticles(event.x, event.y));
+        newParticles.push(
+          ...createCollisionParticles(event.x, event.y, event.hasCueBall, event.spreadAngle)
+        );
       }
 
       for (const event of pocketResult.pocketEvents) {
