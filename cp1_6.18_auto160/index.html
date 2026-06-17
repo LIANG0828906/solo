@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0A0A2E" />
+  <title>情绪光谱仪 · Emotion Spectrometer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(180deg, #0A0A2E 0%, #1B1B4E 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      color: #fff;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    #canvas-container {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+    .toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      z-index: 10;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .tool-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 16px;
+      font-weight: bold;
+      transition: transform 0.25s ease-out, box-shadow 0.25s ease-out;
+      position: relative;
+    }
+    .tool-btn:hover {
+      transform: scale(1.2);
+    }
+    .tool-btn.reanalyze { background: #FF6B6B; box-shadow: 0 0 12px rgba(255, 107, 107, 0.5); }
+    .tool-btn.screenshot { background: #6C63FF; box-shadow: 0 0 12px rgba(108, 99, 255, 0.5); }
+    .tool-btn.fullscreen { background: #6BCB77; box-shadow: 0 0 12px rgba(107, 203, 119, 0.5); }
+    .tool-btn.reset-view { background: #FFD93D; color: #333; box-shadow: 0 0 12px rgba(255, 217, 61, 0.5); }
+    .tooltip {
+      position: absolute;
+      bottom: -32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-4px);
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: normal;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .tool-btn:hover .tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      transition-delay: 0.3s;
+    }
+    .input-card {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      width: 320px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 16px;
+      padding: 20px;
+      border: 1.5px solid rgba(108, 99, 255, 0.3);
+      transition: border-color 0.4s ease, box-shadow 0.4s ease;
+      z-index: 10;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .input-card:focus-within {
+      border-color: #FF6B6B;
+      border-image: linear-gradient(135deg, #6C63FF, #FF6B6B) 1;
+      box-shadow: 0 8px 32px rgba(108, 99, 255, 0.2), 0 0 0 1px rgba(255, 107, 107, 0.3);
+    }
+    .input-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+      opacity: 0.85;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .input-title::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #FFD93D, #FF6B6B, #6C63FF, #6BCB77);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.3); }
+    }
+    .text-input {
+      width: 100%;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 14px;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.3s ease;
+    }
+    .text-input::placeholder {
+      color: rgba(255, 255, 255, 0.35);
+    }
+    .text-input:focus {
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    .submit-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 14px;
+    }
+    .submit-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 2px solid #6C63FF;
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .submit-btn::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, #FFD93D, #FF6B6B, #6C63FF, #6BCB77, #FFD93D);
+      opacity: 0;
+      transition: opacity 0.6s ease;
+      z-index: 0;
+    }
+    .submit-btn::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(10, 10, 46, 0.9), rgba(27, 27, 78, 0.9));
+      z-index: 1;
+    }
+    .submit-btn svg {
+      position: relative;
+      z-index: 2;
+      width: 18px;
+      height: 18px;
+      fill: #fff;
+      transition: transform 0.6s ease;
+    }
+    .submit-btn:hover {
+      width: 56px;
+      height: 56px;
+      border-color: transparent;
+      transform: rotate(180deg);
+      box-shadow: 0 0 24px rgba(108, 99, 255, 0.6), 0 0 48px rgba(255, 107, 107, 0.3);
+    }
+    .submit-btn:hover::before {
+      opacity: 1;
+      animation: spin 1.5s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .submit-btn:active {
+      transform: rotate(180deg) scale(0.92);
+    }
+    .emotion-ring-wrap {
+      position: fixed;
+      bottom: 32px;
+      left: 32px;
+      width: 100px;
+      height: 100px;
+      z-index: 10;
+      cursor: pointer;
+    }
+    .emotion-ring-wrap svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+    .emotion-arc {
+      cursor: pointer;
+      transition: opacity 0.3s ease, filter 0.3s ease;
+      transform-origin: 50px 50px;
+    }
+    .emotion-arc:hover {
+      filter: brightness(1.4) drop-shadow(0 0 8px currentColor);
+    }
+    .emotion-arc.dimmed {
+      opacity: 0.25;
+    }
+    .emotion-arc.highlighted {
+      filter: brightness(1.5) drop-shadow(0 0 12px currentColor);
+    }
+    .ring-label {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 10px;
+      text-align: center;
+      opacity: 0.7;
+      pointer-events: none;
+      line-height: 1.4;
+    }
+    .hover-label {
+      position: fixed;
+      max-width: 280px;
+      background: rgba(255, 255, 255, 0.96);
+      color: #1a1a2e;
+      padding: 10px 14px;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.6;
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -12px);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(4px);
+    }
+    .hover-label.visible {
+      opacity: 1;
+      transform: translate(-50%, -20px);
+    }
+    .hover-label::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 6px solid rgba(255, 255, 255, 0.96);
+    }
+    .hover-label .emotion-tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: #fff;
+    }
+    @media (max-width: 768px) {
+      .input-card {
+        width: calc(100% - 32px);
+        right: 16px;
+        bottom: 16px;
+      }
+      .emotion-ring-wrap {
+        width: 80px;
+        height: 80px;
+        left: 16px;
+        bottom: 16px;
+      }
+      .toolbar {
+        gap: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <div class="toolbar" id="toolbar">
+      <button class="tool-btn reanalyze" id="btn-reanalyze" title="重新分析">
+        ↻
+        <span class="tooltip">重新分析</span>
+      </button>
+      <button class="tool-btn screenshot" id="btn-screenshot" title="截图保存">
+        ⬇
+        <span class="tooltip">截图保存</span>
+      </button>
+      <button class="tool-btn fullscreen" id="btn-fullscreen" title="全屏切换">
+        ⤢
+        <span class="tooltip">全屏切换</span>
+      </button>
+      <button class="tool-btn reset-view" id="btn-reset" title="重置视角">
+        ◎
+        <span class="tooltip">重置视角</span>
+      </button>
+    </div>
+
+    <div class="emotion-ring-wrap" id="emotion-ring">
+      <svg viewBox="0 0 100 100" id="ring-svg"></svg>
+      <div class="ring-label">情绪<br/>比例</div>
+    </div>
+
+    <div class="input-card" id="input-card">
+      <div class="input-title">输入你的文字 · Input Text</div>
+      <textarea
+        class="text-input"
+        id="text-input"
+        placeholder="在这里输入日记、诗歌或歌词...&#10;&#10;例：今天阳光很好，我走在熟悉的街道上，心里充满了平静的喜悦，偶尔想起那些遗憾的往事，也只是微微一笑。"
+      ></textarea>
+      <div class="submit-row">
+        <button class="submit-btn" id="submit-btn" aria-label="提交分析">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="hover-label" id="hover-label">
+      <span class="emotion-tag" id="hover-tag"></span>
+      <div id="hover-text"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
