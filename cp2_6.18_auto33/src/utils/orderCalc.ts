@@ -37,11 +37,13 @@ export function calculateOrder(
   let amountToNextTier = 0;
 
   if (nextTier) {
-    const prevThreshold = currentTier ? currentTier.threshold : 0;
-    const range = nextTier.threshold - prevThreshold;
-    const currentProgress = totalPrice - prevThreshold;
-    progressToNextTier = Math.min(100, Math.max(0, (currentProgress / range) * 100));
-    amountToNextTier = Math.max(0, nextTier.threshold - totalPrice);
+    const currentTierStart = currentTier ? currentTier.threshold : 0;
+    const nextTierTarget = nextTier.threshold;
+    const tierRange = nextTierTarget - currentTierStart;
+    const progressInCurrentTier = totalPrice - currentTierStart;
+    const ratio = progressInCurrentTier / tierRange;
+    progressToNextTier = Math.min(100, Math.max(0, ratio * 100));
+    amountToNextTier = Math.max(0, nextTierTarget - totalPrice);
   } else {
     progressToNextTier = 100;
     amountToNextTier = 0;

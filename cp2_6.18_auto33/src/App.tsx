@@ -19,7 +19,8 @@ const App: React.FC = () => {
 
     if (source.droppableId === 'menu-items' && destination.droppableId === 'order-items') {
       const allMenuItems = restaurants.flatMap((r) => r.menuItems);
-      const menuItem = allMenuItems.find((m) => m.id === result.draggableId);
+      const menuItemId = result.draggableId.replace('menu-item-', '');
+      const menuItem = allMenuItems.find((m) => m.id === menuItemId);
       if (menuItem) {
         addItemToOrder(menuItem);
       }

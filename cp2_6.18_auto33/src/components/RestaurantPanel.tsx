@@ -13,7 +13,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({ item, index, onAdd }) => {
   const discountPercent = Math.round((1 - item.discount) * 100);
 
   return (
-    <Draggable draggableId={item.id} index={index}>
+    <Draggable draggableId={`menu-item-${item.id}`} index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}

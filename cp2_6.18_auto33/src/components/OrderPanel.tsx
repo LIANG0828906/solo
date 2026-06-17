@@ -115,9 +115,8 @@ const PerPersonCard: React.FC = () => {
 
   const { perPersonPrice, finalPrice } = calculationResult;
 
-  const minPrice = 5;
-  const maxPrice = 60;
-  const ratio = Math.min(1, Math.max(0, (perPersonPrice - minPrice) / (maxPrice - minPrice)));
+  const maxReferencePrice = 43.2;
+  const ratio = Math.min(1, Math.max(0, perPersonPrice / maxReferencePrice));
 
   const startColor = [168, 230, 207];
   const endColor = [255, 139, 148];
@@ -125,11 +124,15 @@ const PerPersonCard: React.FC = () => {
   const g = Math.round(startColor[1] + (endColor[1] - startColor[1]) * ratio);
   const b = Math.round(startColor[2] + (endColor[2] - startColor[2]) * ratio);
   const bgColor = `rgb(${r}, ${g}, ${b})`;
+  const bgColorWithAlpha = `rgba(${r}, ${g}, ${b}, 0.87)`;
+  const gradientStyle: React.CSSProperties = {
+    background: `linear-gradient(135deg, ${bgColor}, ${bgColorWithAlpha})`,
+  };
 
   return (
     <div
       className="per-person-card"
-      style={{ background: `linear-gradient(135deg, ${bgColor}, ${bgColor}dd)` }}
+      style={gradientStyle}
     >
       <div className="per-person-info">
         <span className="per-person-label">每人分摊</span>
@@ -145,6 +148,24 @@ const PerPersonCard: React.FC = () => {
     </div>
   );
 };
+
+function hashUserId(userId: string): number {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    const char = userId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+function getColorFromUserId(userId: string): string {
+  const hash = hashUserId(userId);
+  const hue = hash % 360;
+  const saturation = 60 + (hash % 20);
+  const lightness = 65 + (hash % 15);
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
 
 const OrderHistory: React.FC = () => {
   const { orderHistory } = useLunchMateStore();
@@ -177,7 +198,7 @@ const OrderHistory: React.FC = () => {
                     <div
                       key={p.id}
                       className="avatar-circle"
-                      style={{ backgroundColor: p.avatarColor }}
+                      style={{ backgroundColor: getColorFromUserId(p.id) }}
                       title={p.name}
                     />
                   ))}
