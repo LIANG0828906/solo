@@ -122,11 +122,10 @@ export class UI {
     lbl.style.cssText = 'color:rgba(255,255,255,0.7);font-size:12px;text-align:left;';
 
     const right = document.createElement('div');
-    right.style.cssText = 'display:flex;align-items:center;gap:6px;';
+    right.style.cssText = 'display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:120px;';
 
-    const valSpan = document.createElement('span');
-    valSpan.textContent = value + unit;
-    valSpan.style.cssText = 'color:#AABBCC;font-size:12px;min-width:36px;text-align:right;font-variant-numeric:tabular-nums;';
+    const sliderRow = document.createElement('div');
+    sliderRow.style.cssText = 'display:flex;align-items:center;gap:6px;width:100%;justify-content:flex-end;';
 
     const slider = document.createElement('input');
     slider.type = 'range';
@@ -137,13 +136,18 @@ export class UI {
     slider.style.cssText = this.sliderCSS();
     slider.id = `pf-${key}`;
 
+    const valSpan = document.createElement('span');
+    valSpan.textContent = value + unit;
+    valSpan.style.cssText = 'color:#AABBCC;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;';
+
     slider.addEventListener('input', () => {
       const v = parseFloat(slider.value);
       valSpan.textContent = v + unit;
       this.applySliderValue(key, v);
     });
 
-    right.appendChild(slider);
+    sliderRow.appendChild(slider);
+    right.appendChild(sliderRow);
     right.appendChild(valSpan);
     row.appendChild(lbl);
     row.appendChild(right);
@@ -175,7 +179,7 @@ export class UI {
 
     const applyColor = (c: string) => {
       this.state.bgColor = c;
-      this.renderer.bgColor = c;
+      this.renderer.setBackgroundColor(c);
       picker.value = c;
     };
 

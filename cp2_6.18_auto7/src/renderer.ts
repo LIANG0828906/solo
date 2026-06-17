@@ -28,6 +28,11 @@ export class Renderer {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
+  setBackgroundColor(color: string): void {
+    this.bgColor = color;
+    this.clear();
+  }
+
   drawTrails(particles: Particle[]): void {
     const tctx = this.trailCtx;
     tctx.clearRect(0, 0, this.trailCanvas.width, this.trailCanvas.height);

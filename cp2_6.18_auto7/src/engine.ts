@@ -51,7 +51,7 @@ export class Engine {
       } else {
         p = new Particle();
       }
-      p.init(x, y, vx, vy, size);
+      p.init(x, y, vx, vy, size, angle);
       this.particles.push(p);
       this.initialStates.push({ x, y, vx, vy, size });
     }
