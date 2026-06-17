@@ -5,20 +5,18 @@ import { useMoleculeStore } from '@/store'
 const { Title, Text } = Typography
 
 const PANEL_STYLE: React.CSSProperties = {
-  width: '320px',
+  width: '100%',
   height: '100%',
   background: '#2d2d44',
   padding: '16px',
   boxSizing: 'border-box',
-  boxShadow: '0 -2px 0 #00d4ff inset',
+  boxShadow: 'inset 0 2px 0 #00d4ff',
   overflowY: 'auto',
   overflowX: 'hidden',
 }
 
 const CARD_STYLE: React.CSSProperties = {
-  background: '#3a3a54',
   borderRadius: '8px',
-  border: 'none',
   marginBottom: '12px',
 }
 
@@ -46,26 +44,6 @@ const VALUE_STYLE: React.CSSProperties = {
 const markStyle: React.CSSProperties = {
   color: '#888899',
   fontSize: '11px',
-}
-
-const sliderTrackStyle = {
-  background: 'linear-gradient(90deg, #4a4a6a 0%, #6a6a8a 100%)',
-  height: '6px',
-  borderRadius: '3px',
-}
-
-const sliderRailStyle = {
-  background: '#4a4a6a',
-  height: '6px',
-  borderRadius: '3px',
-}
-
-const sliderHandleStyle = {
-  backgroundColor: '#00d4ff',
-  borderColor: '#00d4ff',
-  width: '18px',
-  height: '18px',
-  boxShadow: '0 0 10px rgba(0, 212, 255, 0.5)',
 }
 
 export default function ControlPanel() {
@@ -135,9 +113,6 @@ export default function ControlPanel() {
           onChange={setCameraDistance}
           style={SLIDER_STYLE}
           tooltip={{ formatter: (value) => `${value?.toFixed(1)}` }}
-          trackStyle={sliderTrackStyle}
-          railStyle={sliderRailStyle}
-          handleStyle={sliderHandleStyle}
           marks={{
             5: { style: markStyle, label: '5' },
             10: { style: markStyle, label: '10' },
@@ -158,9 +133,6 @@ export default function ControlPanel() {
           onChange={setRotationY}
           style={SLIDER_STYLE}
           tooltip={{ formatter: (value) => `${value}°` }}
-          trackStyle={sliderTrackStyle}
-          railStyle={sliderRailStyle}
-          handleStyle={sliderHandleStyle}
           marks={{
             0: { style: markStyle, label: '0°' },
             90: { style: markStyle, label: '90°' },
@@ -182,9 +154,6 @@ export default function ControlPanel() {
           onChange={setRotationX}
           style={SLIDER_STYLE}
           tooltip={{ formatter: (value) => `${value}°` }}
-          trackStyle={sliderTrackStyle}
-          railStyle={sliderRailStyle}
-          handleStyle={sliderHandleStyle}
           marks={{
             [-90]: { style: markStyle, label: '-90°' },
             [-45]: { style: markStyle, label: '-45°' },
