@@ -1,0 +1,814 @@
+:root {
+  --color-primary: #4A90D9;
+  --color-primary-hover: #3A7BC8;
+  --color-success: #6DBE63;
+  --color-danger: #E74C3C;
+  --color-purple: #9B59B6;
+  --color-gold-start: #F1C40F;
+  --color-gold-end: #F39C12;
+  --color-bg: #F9F9F9;
+  --color-bg-alt: #F5F5F5;
+  --color-bg-tag: #F0F0F0;
+  --color-border: #E0E0E0;
+  --color-text: #333333;
+  --color-text-secondary: #999999;
+  --color-gray: #CCCCCC;
+  --color-nav: #2C3E50;
+  --color-white: #FFFFFF;
+  --color-black: #000000;
+  --shadow-card: 0px 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0px 6px 18px rgba(0, 0, 0, 0.14);
+  --shadow-modal: 0px 10px 40px rgba(0, 0, 0, 0.2);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --transition-fast: 0.2s ease-in-out;
+  --transition-normal: 0.3s ease-in-out;
+  --transition-slow: 0.5s ease-in-out;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: var(--color-text);
+  background-color: var(--color-bg-alt);
+  line-height: 1.5;
+}
+
+button {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  outline: none;
+  transition: all var(--transition-normal);
+}
+
+input {
+  font-family: inherit;
+  outline: none;
+}
+
+/* ========== 导航栏 ========== */
+.navbar {
+  height: 56px;
+  background-color: var(--color-nav);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--color-white);
+  margin-right: 48px;
+}
+
+.navbar-nav {
+  display: flex;
+  height: 100%;
+  gap: 8px;
+}
+
+.nav-item {
+  height: 100%;
+  padding: 0 20px;
+  background: transparent;
+  color: var(--color-white);
+  font-size: 14px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  opacity: 0.7;
+}
+
+.nav-item:hover {
+  opacity: 1;
+}
+
+.nav-item.active {
+  opacity: 1;
+}
+
+.nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-primary);
+}
+
+.nav-icon {
+  display: none;
+  font-size: 20px;
+}
+
+/* ========== App 布局 ========== */
+.app-container {
+  min-height: calc(100vh - 56px);
+}
+
+/* ========== 推荐页布局 ========== */
+.recipe-page {
+  display: flex;
+  min-height: calc(100vh - 56px);
+}
+
+.ingredient-panel {
+  width: 320px;
+  flex-shrink: 0;
+  background-color: var(--color-white);
+  padding: 24px;
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+  border-right: 1px solid var(--color-border);
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 16px;
+  color: var(--color-text);
+}
+
+.ingredient-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  transition: border-color var(--transition-fast);
+}
+
+.ingredient-input:focus {
+  border-color: var(--color-primary);
+}
+
+.ingredient-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  margin-bottom: 24px;
+}
+
+.ingredient-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--color-success);
+  color: var(--color-white);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  animation: tagIn var(--transition-normal);
+}
+
+@keyframes tagIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tag-remove {
+  width: 16px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.3);
+  color: var(--color-white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.tag-remove:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.recommend-btn {
+  width: 100%;
+  height: 48px;
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: var(--radius-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+.recommend-btn:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.recommend-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: width var(--transition-normal);
+}
+
+.recommend-btn:hover::before {
+  width: 100%;
+  right: auto;
+  left: 0;
+}
+
+.recommend-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.result-panel {
+  flex: 1;
+  background-color: var(--color-bg);
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.result-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  color: var(--color-text-secondary);
+}
+
+.result-empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.result-empty-text {
+  font-size: 15px;
+}
+
+.recipe-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ========== 菜谱卡片 ========== */
+.recipe-card {
+  width: 280px;
+  background-color: var(--color-white);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.recipe-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+.recipe-card.removing {
+  animation: cardRemove var(--transition-normal) forwards;
+}
+
+@keyframes cardRemove {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.recipe-name {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--color-text);
+  flex: 1;
+}
+
+.favorite-btn {
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  line-height: 1;
+  position: relative;
+}
+
+.favorite-btn.active {
+  animation: heartBeat var(--transition-normal);
+}
+
+@keyframes heartBeat {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.heart-gray {
+  color: var(--color-gray);
+}
+
+.heart-red {
+  color: var(--color-danger);
+}
+
+.match-section {
+  margin-bottom: 14px;
+}
+
+.match-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--color-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  width: 0;
+  animation: progressFill var(--transition-slow) ease-out forwards;
+}
+
+@keyframes progressFill {
+  from {
+    width: 0;
+  }
+}
+
+.progress-green {
+  background-color: var(--color-success);
+}
+
+.progress-blue {
+  background-color: var(--color-primary);
+}
+
+.progress-purple {
+  background-color: var(--color-purple);
+}
+
+.ingredients-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.ingredient-chip {
+  height: 26px;
+  padding: 0 10px;
+  background-color: var(--color-bg-tag);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  color: var(--color-text);
+}
+
+.rating-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 14px;
+}
+
+.rating-score {
+  color: var(--color-gold-end);
+  font-weight: 500;
+}
+
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+.detail-btn {
+  width: 36px;
+  height: 36px;
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.detail-btn:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.remove-fav-btn {
+  width: 100%;
+  height: 36px;
+  background-color: var(--color-danger);
+  color: var(--color-white);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.remove-fav-btn:hover {
+  opacity: 0.9;
+}
+
+/* ========== 收藏页 ========== */
+.favorites-page {
+  padding: 24px;
+  min-height: calc(100vh - 56px);
+  background-color: var(--color-bg);
+}
+
+.favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 32%);
+  gap: 16px;
+}
+
+.favorites-empty {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--color-text-secondary);
+}
+
+.favorites-empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* ========== 详情弹窗 ========== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn var(--transition-normal);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  width: 480px;
+  max-height: 90vh;
+  background-color: var(--color-white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+  overflow-y: auto;
+  animation: slideUp var(--transition-normal);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  background-color: var(--color-white);
+  z-index: 1;
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  background-color: var(--color-bg-tag);
+  border-radius: 50%;
+  font-size: 16px;
+  color: var(--color-text-secondary);
+}
+
+.modal-close:hover {
+  background-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.modal-body {
+  padding: 20px 24px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: bold;
+  margin-bottom: 14px;
+}
+
+.steps-list {
+  list-style: none;
+}
+
+.step-item {
+  display: flex;
+  gap: 14px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.step-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.step-number {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  background-color: var(--color-bg-tag);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text);
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.step-content {
+  flex: 1;
+  padding-top: 12px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.rating-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.stars-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.star-btn {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  position: relative;
+  line-height: 1;
+}
+
+.star-btn.ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(241, 196, 15, 0.3);
+  transform: translate(-50%, -50%);
+  animation: ripple 0.4s ease-out;
+}
+
+@keyframes ripple {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  100% {
+    width: 60px;
+    height: 60px;
+    opacity: 0;
+  }
+}
+
+.star-gray {
+  color: var(--color-gray);
+}
+
+.star-gold {
+  background: linear-gradient(135deg, var(--color-gold-start), var(--color-gold-end));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.shopping-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.shopping-btn {
+  width: 100%;
+  height: 44px;
+  background-color: var(--color-success);
+  color: var(--color-white);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.shopping-btn:hover {
+  opacity: 0.9;
+}
+
+.shopping-list {
+  margin-top: 14px;
+  padding: 14px;
+  background-color: var(--color-bg-tag);
+  border-radius: var(--radius-md);
+}
+
+.shopping-list-title {
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.shopping-items {
+  list-style: none;
+}
+
+.shopping-item {
+  font-size: 13px;
+  padding: 4px 0;
+  padding-left: 18px;
+  position: relative;
+}
+
+.shopping-item::before {
+  content: '•';
+  position: absolute;
+  left: 6px;
+  color: var(--color-primary);
+}
+
+.average-rating {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+}
+
+.average-rating strong {
+  color: var(--color-gold-end);
+  font-size: 16px;
+}
+
+/* ========== 响应式设计 ========== */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 16px;
+  }
+
+  .navbar-title {
+    font-size: 20px;
+    margin-right: 24px;
+  }
+
+  .nav-item {
+    padding: 0 12px;
+  }
+
+  .nav-text {
+    display: none;
+  }
+
+  .nav-icon {
+    display: inline;
+  }
+
+  .recipe-page {
+    flex-direction: column;
+  }
+
+  .ingredient-panel {
+    width: 100%;
+    position: relative;
+    top: 0;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .result-panel {
+    padding: 16px;
+  }
+
+  .recipe-list {
+    justify-content: center;
+  }
+
+  .recipe-card {
+    width: 95%;
+  }
+
+  .favorites-page {
+    padding: 16px;
+  }
+
+  .favorites-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    width: 92%;
+    max-width: 480px;
+  }
+
+  .modal-header,
+  .modal-body {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
