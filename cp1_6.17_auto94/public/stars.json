@@ -1,0 +1,3002 @@
+[
+  {
+    "id": "star-0001",
+    "name": "天狼星",
+    "nameEn": "Sirius",
+    "spectralType": "G",
+    "magnitude": 0.66,
+    "luminosity": 20051.18,
+    "temperature": 5053.5,
+    "distance": 46.08,
+    "position": {
+      "x": -37.5,
+      "y": -25.15,
+      "z": -9.19
+    }
+  },
+  {
+    "id": "star-0002",
+    "name": "北极星",
+    "nameEn": "Polaris",
+    "spectralType": "G",
+    "magnitude": 1.89,
+    "luminosity": 57227.29,
+    "temperature": 5988.8,
+    "distance": 49.23,
+    "position": {
+      "x": -34.67,
+      "y": -6.73,
+      "z": 34.3
+    }
+  },
+  {
+    "id": "star-0003",
+    "name": "织女星",
+    "nameEn": "Vega",
+    "spectralType": "A",
+    "magnitude": 2.71,
+    "luminosity": 53387.79,
+    "temperature": 8366.1,
+    "distance": 44.11,
+    "position": {
+      "x": -25.46,
+      "y": 26.74,
+      "z": -24.13
+    }
+  },
+  {
+    "id": "star-0004",
+    "name": "牛郎星",
+    "nameEn": "Altair",
+    "spectralType": "G",
+    "magnitude": 3.23,
+    "luminosity": 7453.4,
+    "temperature": 5210,
+    "distance": 18.13,
+    "position": {
+      "x": -7.05,
+      "y": -11.2,
+      "z": -12.38
+    }
+  },
+  {
+    "id": "star-0005",
+    "name": "参宿四",
+    "nameEn": "Betelgeuse",
+    "spectralType": "B",
+    "magnitude": 3.88,
+    "luminosity": 65621.71,
+    "temperature": 19051,
+    "distance": 48.02,
+    "position": {
+      "x": -24.75,
+      "y": -40.83,
+      "z": 5.13
+    }
+  },
+  {
+    "id": "star-0006",
+    "name": "参宿七",
+    "nameEn": "Rigel",
+    "spectralType": "K",
+    "magnitude": 0.29,
+    "luminosity": 57866.59,
+    "temperature": 3881.9,
+    "distance": 48.09,
+    "position": {
+      "x": -36.46,
+      "y": -18.75,
+      "z": 25.14
+    }
+  },
+  {
+    "id": "star-0007",
+    "name": "南河三",
+    "nameEn": "Procyon",
+    "spectralType": "G",
+    "magnitude": 4.42,
+    "luminosity": 33325.31,
+    "temperature": 5114,
+    "distance": 29.68,
+    "position": {
+      "x": 16.29,
+      "y": -1.09,
+      "z": -24.79
+    }
+  },
+  {
+    "id": "star-0008",
+    "name": "北河三",
+    "nameEn": "Pollux",
+    "spectralType": "M",
+    "magnitude": 4.52,
+    "luminosity": 48702.31,
+    "temperature": 3007.8,
+    "distance": 13.94,
+    "position": {
+      "x": 1.33,
+      "y": 7.47,
+      "z": 11.69
+    }
+  },
+  {
+    "id": "star-0009",
+    "name": "五车二",
+    "nameEn": "Capella",
+    "spectralType": "G",
+    "magnitude": 1.57,
+    "luminosity": 64928.5,
+    "temperature": 5797.5,
+    "distance": 25.48,
+    "position": {
+      "x": -11.33,
+      "y": -5.39,
+      "z": -22.18
+    }
+  },
+  {
+    "id": "star-0010",
+    "name": "角宿一",
+    "nameEn": "Spica",
+    "spectralType": "B",
+    "magnitude": 0.9,
+    "luminosity": 91559.17,
+    "temperature": 12019.6,
+    "distance": 48.23,
+    "position": {
+      "x": -24.3,
+      "y": -17.74,
+      "z": 37.7
+    }
+  },
+  {
+    "id": "star-0011",
+    "name": "心宿二",
+    "nameEn": "Antares",
+    "spectralType": "G",
+    "magnitude": 4.52,
+    "luminosity": 93670.17,
+    "temperature": 5394.9,
+    "distance": 45.23,
+    "position": {
+      "x": -28.46,
+      "y": 13.54,
+      "z": -32.44
+    }
+  },
+  {
+    "id": "star-0012",
+    "name": "织女二",
+    "nameEn": "Sulafat",
+    "spectralType": "B",
+    "magnitude": 1.78,
+    "luminosity": 57281.86,
+    "temperature": 10053.3,
+    "distance": 36.48,
+    "position": {
+      "x": 32.85,
+      "y": 13.62,
+      "z": -8.16
+    }
+  },
+  {
+    "id": "star-0013",
+    "name": "天津四",
+    "nameEn": "Deneb",
+    "spectralType": "K",
+    "magnitude": 0.48,
+    "luminosity": 36264.94,
+    "temperature": 4008.9,
+    "distance": 43.61,
+    "position": {
+      "x": -18.31,
+      "y": -36.66,
+      "z": -14.9
+    }
+  },
+  {
+    "id": "star-0014",
+    "name": "河鼓二",
+    "nameEn": "Altair",
+    "spectralType": "M",
+    "magnitude": 1.24,
+    "luminosity": 35557.9,
+    "temperature": 2434.4,
+    "distance": 15.76,
+    "position": {
+      "x": -3.25,
+      "y": -14.94,
+      "z": 3.8
+    }
+  },
+  {
+    "id": "star-0015",
+    "name": "北落师门",
+    "nameEn": "Fomalhaut",
+    "spectralType": "K",
+    "magnitude": 5.15,
+    "luminosity": 84416.06,
+    "temperature": 4486.8,
+    "distance": 49.41,
+    "position": {
+      "x": -11.52,
+      "y": 47.78,
+      "z": 5.06
+    }
+  },
+  {
+    "id": "star-0016",
+    "name": "禄存星1",
+    "nameEn": "Star-016",
+    "spectralType": "K",
+    "magnitude": 5.41,
+    "luminosity": 56848.35,
+    "temperature": 4063.1,
+    "distance": 28.32,
+    "position": {
+      "x": 22.56,
+      "y": -10.79,
+      "z": -13.3
+    }
+  },
+  {
+    "id": "star-0017",
+    "name": "巨门星1",
+    "nameEn": "Star-017",
+    "spectralType": "K",
+    "magnitude": 4.79,
+    "luminosity": 2984.13,
+    "temperature": 4854.1,
+    "distance": 40.59,
+    "position": {
+      "x": -19.96,
+      "y": -18.53,
+      "z": -30.09
+    }
+  },
+  {
+    "id": "star-0018",
+    "name": "贪狼星1",
+    "nameEn": "Star-018",
+    "spectralType": "G",
+    "magnitude": 2.04,
+    "luminosity": 29111.61,
+    "temperature": 5635.2,
+    "distance": 17.95,
+    "position": {
+      "x": 0,
+      "y": 13.85,
+      "z": 11.41
+    }
+  },
+  {
+    "id": "star-0019",
+    "name": "左辅星1",
+    "nameEn": "Star-019",
+    "spectralType": "G",
+    "magnitude": 5.1,
+    "luminosity": 34551.28,
+    "temperature": 5300.1,
+    "distance": 44.64,
+    "position": {
+      "x": 1.26,
+      "y": -8.78,
+      "z": -43.75
+    }
+  },
+  {
+    "id": "star-0020",
+    "name": "右弼星1",
+    "nameEn": "Star-020",
+    "spectralType": "A",
+    "magnitude": 2.92,
+    "luminosity": 64762.2,
+    "temperature": 7941.6,
+    "distance": 45.07,
+    "position": {
+      "x": -9.84,
+      "y": -28.66,
+      "z": -33.36
+    }
+  },
+  {
+    "id": "star-0021",
+    "name": "天枢星2",
+    "nameEn": "Star-021",
+    "spectralType": "G",
+    "magnitude": 1.11,
+    "luminosity": 75508.25,
+    "temperature": 5060.4,
+    "distance": 47.94,
+    "position": {
+      "x": -1.94,
+      "y": 29.07,
+      "z": 38.07
+    }
+  },
+  {
+    "id": "star-0022",
+    "name": "瑶光星2",
+    "nameEn": "Star-022",
+    "spectralType": "G",
+    "magnitude": 5.1,
+    "luminosity": 20656.94,
+    "temperature": 5341,
+    "distance": 29.01,
+    "position": {
+      "x": -24.02,
+      "y": 3.71,
+      "z": 15.84
+    }
+  },
+  {
+    "id": "star-0023",
+    "name": "开阳星2",
+    "nameEn": "Star-023",
+    "spectralType": "K",
+    "magnitude": 5.49,
+    "luminosity": 42598.68,
+    "temperature": 4466.7,
+    "distance": 13.74,
+    "position": {
+      "x": 4.23,
+      "y": -2.51,
+      "z": 12.83
+    }
+  },
+  {
+    "id": "star-0024",
+    "name": "玉衡星2",
+    "nameEn": "Star-024",
+    "spectralType": "G",
+    "magnitude": 1.04,
+    "luminosity": 48413.66,
+    "temperature": 5825.3,
+    "distance": 31.35,
+    "position": {
+      "x": 21.45,
+      "y": -7.59,
+      "z": 21.57
+    }
+  },
+  {
+    "id": "star-0025",
+    "name": "天璇星2",
+    "nameEn": "Star-025",
+    "spectralType": "G",
+    "magnitude": 4.88,
+    "luminosity": 50489.13,
+    "temperature": 5029.6,
+    "distance": 27.31,
+    "position": {
+      "x": 15.17,
+      "y": -22.67,
+      "z": 1.34
+    }
+  },
+  {
+    "id": "star-0026",
+    "name": "天玑星2",
+    "nameEn": "Star-026",
+    "spectralType": "F",
+    "magnitude": 0.63,
+    "luminosity": 18212.66,
+    "temperature": 7465.8,
+    "distance": 45.14,
+    "position": {
+      "x": -3.04,
+      "y": -26.46,
+      "z": 36.44
+    }
+  },
+  {
+    "id": "star-0027",
+    "name": "天权星2",
+    "nameEn": "Star-027",
+    "spectralType": "G",
+    "magnitude": 0.32,
+    "luminosity": 39479.98,
+    "temperature": 5449.7,
+    "distance": 37.92,
+    "position": {
+      "x": 21.18,
+      "y": 9.34,
+      "z": 30.03
+    }
+  },
+  {
+    "id": "star-0028",
+    "name": "紫薇星2",
+    "nameEn": "Star-028",
+    "spectralType": "F",
+    "magnitude": 0.07,
+    "luminosity": 55807.26,
+    "temperature": 6548.2,
+    "distance": 42.23,
+    "position": {
+      "x": -28.96,
+      "y": 7.72,
+      "z": -29.75
+    }
+  },
+  {
+    "id": "star-0029",
+    "name": "太微星2",
+    "nameEn": "Star-029",
+    "spectralType": "B",
+    "magnitude": 2.33,
+    "luminosity": 2268.34,
+    "temperature": 18988.3,
+    "distance": 43.81,
+    "position": {
+      "x": -24.34,
+      "y": -7.94,
+      "z": -35.56
+    }
+  },
+  {
+    "id": "star-0030",
+    "name": "天市星2",
+    "nameEn": "Star-030",
+    "spectralType": "K",
+    "magnitude": 1.83,
+    "luminosity": 11850.52,
+    "temperature": 4400,
+    "distance": 27.32,
+    "position": {
+      "x": -27.12,
+      "y": -1.35,
+      "z": 3.05
+    }
+  },
+  {
+    "id": "star-0031",
+    "name": "天狼星2",
+    "nameEn": "Star-031",
+    "spectralType": "K",
+    "magnitude": 5.38,
+    "luminosity": 73392.67,
+    "temperature": 4597.1,
+    "distance": 32.51,
+    "position": {
+      "x": -4.13,
+      "y": -1.34,
+      "z": 32.22
+    }
+  },
+  {
+    "id": "star-0032",
+    "name": "破军星2",
+    "nameEn": "Star-032",
+    "spectralType": "M",
+    "magnitude": 5.41,
+    "luminosity": 41968.83,
+    "temperature": 3214.5,
+    "distance": 29.09,
+    "position": {
+      "x": 1.25,
+      "y": -28.96,
+      "z": -2.44
+    }
+  },
+  {
+    "id": "star-0033",
+    "name": "武曲星2",
+    "nameEn": "Star-033",
+    "spectralType": "G",
+    "magnitude": 5.36,
+    "luminosity": 24794.25,
+    "temperature": 5469,
+    "distance": 26.44,
+    "position": {
+      "x": -5.42,
+      "y": -24.9,
+      "z": -7.05
+    }
+  },
+  {
+    "id": "star-0034",
+    "name": "廉贞星2",
+    "nameEn": "Star-034",
+    "spectralType": "M",
+    "magnitude": 0.65,
+    "luminosity": 12892.39,
+    "temperature": 2965.3,
+    "distance": 27.49,
+    "position": {
+      "x": 17.89,
+      "y": -6.56,
+      "z": -19.82
+    }
+  },
+  {
+    "id": "star-0035",
+    "name": "文曲星2",
+    "nameEn": "Star-035",
+    "spectralType": "B",
+    "magnitude": 3.31,
+    "luminosity": 26800.27,
+    "temperature": 23811.4,
+    "distance": 27.56,
+    "position": {
+      "x": 26.72,
+      "y": 6.52,
+      "z": -1.84
+    }
+  },
+  {
+    "id": "star-0036",
+    "name": "禄存星2",
+    "nameEn": "Star-036",
+    "spectralType": "K",
+    "magnitude": 5.71,
+    "luminosity": 68225.19,
+    "temperature": 4578.6,
+    "distance": 45.27,
+    "position": {
+      "x": 10.41,
+      "y": -38.32,
+      "z": -21.74
+    }
+  },
+  {
+    "id": "star-0037",
+    "name": "巨门星2",
+    "nameEn": "Star-037",
+    "spectralType": "M",
+    "magnitude": 0.14,
+    "luminosity": 45986.46,
+    "temperature": 2436.7,
+    "distance": 35.44,
+    "position": {
+      "x": -7.14,
+      "y": 12.04,
+      "z": 32.56
+    }
+  },
+  {
+    "id": "star-0038",
+    "name": "贪狼星2",
+    "nameEn": "Star-038",
+    "spectralType": "M",
+    "magnitude": 5.56,
+    "luminosity": 8176.48,
+    "temperature": 2720.8,
+    "distance": 49.49,
+    "position": {
+      "x": 41.08,
+      "y": -0.36,
+      "z": -27.6
+    }
+  },
+  {
+    "id": "star-0039",
+    "name": "左辅星2",
+    "nameEn": "Star-039",
+    "spectralType": "O",
+    "magnitude": 0.36,
+    "luminosity": 18682.59,
+    "temperature": 37779.1,
+    "distance": 39.1,
+    "position": {
+      "x": -6.55,
+      "y": 37.74,
+      "z": -7.86
+    }
+  },
+  {
+    "id": "star-0040",
+    "name": "右弼星2",
+    "nameEn": "Star-040",
+    "spectralType": "G",
+    "magnitude": 2.38,
+    "luminosity": 39817.11,
+    "temperature": 5961.7,
+    "distance": 48.66,
+    "position": {
+      "x": 7.22,
+      "y": -21.11,
+      "z": 43.24
+    }
+  },
+  {
+    "id": "star-0041",
+    "name": "天枢星3",
+    "nameEn": "Star-041",
+    "spectralType": "A",
+    "magnitude": 0.56,
+    "luminosity": 69636.57,
+    "temperature": 7899.6,
+    "distance": 27.95,
+    "position": {
+      "x": -14.55,
+      "y": 22.67,
+      "z": -7.46
+    }
+  },
+  {
+    "id": "star-0042",
+    "name": "瑶光星3",
+    "nameEn": "Star-042",
+    "spectralType": "M",
+    "magnitude": 1.33,
+    "luminosity": 43701.01,
+    "temperature": 2496.9,
+    "distance": 37.27,
+    "position": {
+      "x": 35.39,
+      "y": -11.48,
+      "z": -2.23
+    }
+  },
+  {
+    "id": "star-0043",
+    "name": "开阳星3",
+    "nameEn": "Star-043",
+    "spectralType": "B",
+    "magnitude": 4.44,
+    "luminosity": 18438.44,
+    "temperature": 22612.1,
+    "distance": 42.57,
+    "position": {
+      "x": 14.89,
+      "y": -12.23,
+      "z": -37.96
+    }
+  },
+  {
+    "id": "star-0044",
+    "name": "玉衡星3",
+    "nameEn": "Star-044",
+    "spectralType": "M",
+    "magnitude": 0.63,
+    "luminosity": 84121.58,
+    "temperature": 2594.5,
+    "distance": 44.2,
+    "position": {
+      "x": 11.56,
+      "y": -33.45,
+      "z": 26.47
+    }
+  },
+  {
+    "id": "star-0045",
+    "name": "天璇星3",
+    "nameEn": "Star-045",
+    "spectralType": "G",
+    "magnitude": 1.15,
+    "luminosity": 3828.61,
+    "temperature": 5212.7,
+    "distance": 34.17,
+    "position": {
+      "x": -4.81,
+      "y": -2.12,
+      "z": -33.76
+    }
+  },
+  {
+    "id": "star-0046",
+    "name": "天玑星3",
+    "nameEn": "Star-046",
+    "spectralType": "M",
+    "magnitude": 0.55,
+    "luminosity": 83230.74,
+    "temperature": 2641.9,
+    "distance": 37.3,
+    "position": {
+      "x": 26.57,
+      "y": 12.41,
+      "z": 23.05
+    }
+  },
+  {
+    "id": "star-0047",
+    "name": "天权星3",
+    "nameEn": "Star-047",
+    "spectralType": "G",
+    "magnitude": 0.04,
+    "luminosity": 64993.9,
+    "temperature": 5986.7,
+    "distance": 31.38,
+    "position": {
+      "x": 16.42,
+      "y": -23.26,
+      "z": 13.18
+    }
+  },
+  {
+    "id": "star-0048",
+    "name": "紫薇星3",
+    "nameEn": "Star-048",
+    "spectralType": "K",
+    "magnitude": 5.44,
+    "luminosity": 31941.87,
+    "temperature": 4383.7,
+    "distance": 34.07,
+    "position": {
+      "x": -11.55,
+      "y": 31.47,
+      "z": -6.11
+    }
+  },
+  {
+    "id": "star-0049",
+    "name": "太微星3",
+    "nameEn": "Star-049",
+    "spectralType": "M",
+    "magnitude": 3.98,
+    "luminosity": 94850.98,
+    "temperature": 2975.2,
+    "distance": 37.75,
+    "position": {
+      "x": 10.97,
+      "y": 26.07,
+      "z": 25
+    }
+  },
+  {
+    "id": "star-0050",
+    "name": "天市星3",
+    "nameEn": "Star-050",
+    "spectralType": "G",
+    "magnitude": 1.95,
+    "luminosity": 8754.92,
+    "temperature": 5868.6,
+    "distance": 38.82,
+    "position": {
+      "x": 20.71,
+      "y": 31.97,
+      "z": 7.51
+    }
+  },
+  {
+    "id": "star-0051",
+    "name": "天狼星3",
+    "nameEn": "Star-051",
+    "spectralType": "F",
+    "magnitude": 4.89,
+    "luminosity": 89189.24,
+    "temperature": 7257,
+    "distance": 49.19,
+    "position": {
+      "x": -29.12,
+      "y": -32.74,
+      "z": -22.37
+    }
+  },
+  {
+    "id": "star-0052",
+    "name": "破军星3",
+    "nameEn": "Star-052",
+    "spectralType": "G",
+    "magnitude": 1.95,
+    "luminosity": 95390.08,
+    "temperature": 5908.7,
+    "distance": 12.09,
+    "position": {
+      "x": -5.95,
+      "y": -4.06,
+      "z": -9.71
+    }
+  },
+  {
+    "id": "star-0053",
+    "name": "武曲星3",
+    "nameEn": "Star-053",
+    "spectralType": "K",
+    "magnitude": 1.5,
+    "luminosity": 10552.12,
+    "temperature": 3500.4,
+    "distance": 48.69,
+    "position": {
+      "x": 24.2,
+      "y": -37.96,
+      "z": 18.57
+    }
+  },
+  {
+    "id": "star-0054",
+    "name": "廉贞星3",
+    "nameEn": "Star-054",
+    "spectralType": "G",
+    "magnitude": 2.61,
+    "luminosity": 19625.38,
+    "temperature": 5525,
+    "distance": 45.37,
+    "position": {
+      "x": 9.8,
+      "y": 12.88,
+      "z": 42.38
+    }
+  },
+  {
+    "id": "star-0055",
+    "name": "文曲星3",
+    "nameEn": "Star-055",
+    "spectralType": "M",
+    "magnitude": 1.08,
+    "luminosity": 89339.37,
+    "temperature": 3485.4,
+    "distance": 34.11,
+    "position": {
+      "x": -32.58,
+      "y": -3.69,
+      "z": -9.4
+    }
+  },
+  {
+    "id": "star-0056",
+    "name": "禄存星3",
+    "nameEn": "Star-056",
+    "spectralType": "A",
+    "magnitude": 2.18,
+    "luminosity": 51627.64,
+    "temperature": 7876.6,
+    "distance": 23.02,
+    "position": {
+      "x": 12,
+      "y": 16.26,
+      "z": 11.02
+    }
+  },
+  {
+    "id": "star-0057",
+    "name": "巨门星3",
+    "nameEn": "Star-057",
+    "spectralType": "F",
+    "magnitude": 3.54,
+    "luminosity": 72545.25,
+    "temperature": 6892.8,
+    "distance": 41.46,
+    "position": {
+      "x": 13.88,
+      "y": 23.24,
+      "z": 31.4
+    }
+  },
+  {
+    "id": "star-0058",
+    "name": "贪狼星3",
+    "nameEn": "Star-058",
+    "spectralType": "M",
+    "magnitude": 5.33,
+    "luminosity": 45565.94,
+    "temperature": 3372.5,
+    "distance": 45.38,
+    "position": {
+      "x": -6.23,
+      "y": -3.08,
+      "z": 44.84
+    }
+  },
+  {
+    "id": "star-0059",
+    "name": "左辅星3",
+    "nameEn": "Star-059",
+    "spectralType": "A",
+    "magnitude": 1.31,
+    "luminosity": 49059.06,
+    "temperature": 7503,
+    "distance": 46.85,
+    "position": {
+      "x": -2.81,
+      "y": 46.06,
+      "z": 8.05
+    }
+  },
+  {
+    "id": "star-0060",
+    "name": "右弼星3",
+    "nameEn": "Star-060",
+    "spectralType": "G",
+    "magnitude": 0.04,
+    "luminosity": 35517.53,
+    "temperature": 5971.8,
+    "distance": 43.72,
+    "position": {
+      "x": 29.42,
+      "y": -4.65,
+      "z": -32
+    }
+  },
+  {
+    "id": "star-0061",
+    "name": "天枢星4",
+    "nameEn": "Star-061",
+    "spectralType": "B",
+    "magnitude": 2.55,
+    "luminosity": 98979.54,
+    "temperature": 29793.8,
+    "distance": 32.72,
+    "position": {
+      "x": -1.36,
+      "y": -31.15,
+      "z": -9.95
+    }
+  },
+  {
+    "id": "star-0062",
+    "name": "瑶光星4",
+    "nameEn": "Star-062",
+    "spectralType": "G",
+    "magnitude": 3.51,
+    "luminosity": 88845.42,
+    "temperature": 5259.6,
+    "distance": 22.67,
+    "position": {
+      "x": 11.39,
+      "y": -13.95,
+      "z": -13.76
+    }
+  },
+  {
+    "id": "star-0063",
+    "name": "开阳星4",
+    "nameEn": "Star-063",
+    "spectralType": "M",
+    "magnitude": 2.16,
+    "luminosity": 51891.87,
+    "temperature": 3046.1,
+    "distance": 43.91,
+    "position": {
+      "x": -17.17,
+      "y": -40.09,
+      "z": 5.11
+    }
+  },
+  {
+    "id": "star-0064",
+    "name": "玉衡星4",
+    "nameEn": "Star-064",
+    "spectralType": "K",
+    "magnitude": 0.68,
+    "luminosity": 55859.15,
+    "temperature": 4879.1,
+    "distance": 43.57,
+    "position": {
+      "x": 5.93,
+      "y": -30,
+      "z": 31.04
+    }
+  },
+  {
+    "id": "star-0065",
+    "name": "天璇星4",
+    "nameEn": "Star-065",
+    "spectralType": "G",
+    "magnitude": 1.79,
+    "luminosity": 87687.47,
+    "temperature": 5989,
+    "distance": 33.07,
+    "position": {
+      "x": 20.01,
+      "y": -12.89,
+      "z": 22.95
+    }
+  },
+  {
+    "id": "star-0066",
+    "name": "天玑星4",
+    "nameEn": "Star-066",
+    "spectralType": "G",
+    "magnitude": 4.23,
+    "luminosity": 16526.7,
+    "temperature": 5407.6,
+    "distance": 46.45,
+    "position": {
+      "x": 8.61,
+      "y": 2.35,
+      "z": -45.59
+    }
+  },
+  {
+    "id": "star-0067",
+    "name": "天权星4",
+    "nameEn": "Star-067",
+    "spectralType": "G",
+    "magnitude": 1.31,
+    "luminosity": 15267.11,
+    "temperature": 5704.7,
+    "distance": 46.81,
+    "position": {
+      "x": 0.63,
+      "y": -45.46,
+      "z": -11.15
+    }
+  },
+  {
+    "id": "star-0068",
+    "name": "紫薇星4",
+    "nameEn": "Star-068",
+    "spectralType": "M",
+    "magnitude": 4.38,
+    "luminosity": 41062.85,
+    "temperature": 3304.4,
+    "distance": 34.96,
+    "position": {
+      "x": 33.71,
+      "y": -9.25,
+      "z": 0.19
+    }
+  },
+  {
+    "id": "star-0069",
+    "name": "太微星4",
+    "nameEn": "Star-069",
+    "spectralType": "M",
+    "magnitude": 1.17,
+    "luminosity": 52281.11,
+    "temperature": 3313.4,
+    "distance": 16.05,
+    "position": {
+      "x": 2.16,
+      "y": 10.51,
+      "z": -11.94
+    }
+  },
+  {
+    "id": "star-0070",
+    "name": "天市星4",
+    "nameEn": "Star-070",
+    "spectralType": "M",
+    "magnitude": 2.31,
+    "luminosity": 4066.91,
+    "temperature": 3147,
+    "distance": 46.81,
+    "position": {
+      "x": -25.97,
+      "y": -2.14,
+      "z": 38.89
+    }
+  },
+  {
+    "id": "star-0071",
+    "name": "天狼星4",
+    "nameEn": "Star-071",
+    "spectralType": "B",
+    "magnitude": 5.25,
+    "luminosity": 14436.28,
+    "temperature": 12238.5,
+    "distance": 23.66,
+    "position": {
+      "x": -13.2,
+      "y": 10.02,
+      "z": 16.88
+    }
+  },
+  {
+    "id": "star-0072",
+    "name": "破军星4",
+    "nameEn": "Star-072",
+    "spectralType": "F",
+    "magnitude": 2.83,
+    "luminosity": 35524.37,
+    "temperature": 7032.2,
+    "distance": 44.82,
+    "position": {
+      "x": 20.53,
+      "y": -6.17,
+      "z": -39.35
+    }
+  },
+  {
+    "id": "star-0073",
+    "name": "武曲星4",
+    "nameEn": "Star-073",
+    "spectralType": "M",
+    "magnitude": 0.92,
+    "luminosity": 3521.3,
+    "temperature": 3143.2,
+    "distance": 42.98,
+    "position": {
+      "x": -8.46,
+      "y": -22.35,
+      "z": -35.73
+    }
+  },
+  {
+    "id": "star-0074",
+    "name": "廉贞星4",
+    "nameEn": "Star-074",
+    "spectralType": "G",
+    "magnitude": 4.48,
+    "luminosity": 59932.66,
+    "temperature": 5551.7,
+    "distance": 47.96,
+    "position": {
+      "x": 22.78,
+      "y": 41.16,
+      "z": 9.32
+    }
+  },
+  {
+    "id": "star-0075",
+    "name": "文曲星4",
+    "nameEn": "Star-075",
+    "spectralType": "K",
+    "magnitude": 5.77,
+    "luminosity": 93716.39,
+    "temperature": 3806.5,
+    "distance": 19.69,
+    "position": {
+      "x": 12.94,
+      "y": -10.74,
+      "z": -10.24
+    }
+  },
+  {
+    "id": "star-0076",
+    "name": "禄存星4",
+    "nameEn": "Star-076",
+    "spectralType": "M",
+    "magnitude": 2.8,
+    "luminosity": 68867.93,
+    "temperature": 3434,
+    "distance": 47.23,
+    "position": {
+      "x": 38.68,
+      "y": -26.54,
+      "z": 5.5
+    }
+  },
+  {
+    "id": "star-0077",
+    "name": "巨门星4",
+    "nameEn": "Star-077",
+    "spectralType": "G",
+    "magnitude": 3.88,
+    "luminosity": 20184.56,
+    "temperature": 5416,
+    "distance": 42.77,
+    "position": {
+      "x": 40.82,
+      "y": 9.49,
+      "z": 8.55
+    }
+  },
+  {
+    "id": "star-0078",
+    "name": "贪狼星4",
+    "nameEn": "Star-078",
+    "spectralType": "G",
+    "magnitude": 5.25,
+    "luminosity": 86757.08,
+    "temperature": 5742.1,
+    "distance": 27.95,
+    "position": {
+      "x": -23.6,
+      "y": -8.94,
+      "z": -12
+    }
+  },
+  {
+    "id": "star-0079",
+    "name": "左辅星4",
+    "nameEn": "Star-079",
+    "spectralType": "A",
+    "magnitude": 3.12,
+    "luminosity": 69627.14,
+    "temperature": 8981.3,
+    "distance": 44.44,
+    "position": {
+      "x": -36.54,
+      "y": 24.96,
+      "z": -4.06
+    }
+  },
+  {
+    "id": "star-0080",
+    "name": "右弼星4",
+    "nameEn": "Star-080",
+    "spectralType": "B",
+    "magnitude": 2.04,
+    "luminosity": 57352.41,
+    "temperature": 13179.9,
+    "distance": 24.25,
+    "position": {
+      "x": 21.93,
+      "y": -7.39,
+      "z": 7.25
+    }
+  },
+  {
+    "id": "star-0081",
+    "name": "天枢星5",
+    "nameEn": "Star-081",
+    "spectralType": "G",
+    "magnitude": 4.85,
+    "luminosity": 4433.65,
+    "temperature": 5582.8,
+    "distance": 25.66,
+    "position": {
+      "x": -13.51,
+      "y": 14.81,
+      "z": -16.02
+    }
+  },
+  {
+    "id": "star-0082",
+    "name": "瑶光星5",
+    "nameEn": "Star-082",
+    "spectralType": "G",
+    "magnitude": 2.77,
+    "luminosity": 27773.48,
+    "temperature": 5495.2,
+    "distance": 43.21,
+    "position": {
+      "x": -12.31,
+      "y": 40.27,
+      "z": 9.66
+    }
+  },
+  {
+    "id": "star-0083",
+    "name": "开阳星5",
+    "nameEn": "Star-083",
+    "spectralType": "A",
+    "magnitude": 2.1,
+    "luminosity": 75382.4,
+    "temperature": 8380.2,
+    "distance": 19.81,
+    "position": {
+      "x": 5.03,
+      "y": -19.16,
+      "z": 0.34
+    }
+  },
+  {
+    "id": "star-0084",
+    "name": "玉衡星5",
+    "nameEn": "Star-084",
+    "spectralType": "G",
+    "magnitude": 2.2,
+    "luminosity": 30004.56,
+    "temperature": 5159.1,
+    "distance": 30.77,
+    "position": {
+      "x": -5.27,
+      "y": -19.41,
+      "z": -23.29
+    }
+  },
+  {
+    "id": "star-0085",
+    "name": "天璇星5",
+    "nameEn": "Star-085",
+    "spectralType": "M",
+    "magnitude": 1.6,
+    "luminosity": 97018.69,
+    "temperature": 2731,
+    "distance": 43.07,
+    "position": {
+      "x": 28.43,
+      "y": -27.54,
+      "z": -16.99
+    }
+  },
+  {
+    "id": "star-0086",
+    "name": "天玑星5",
+    "nameEn": "Star-086",
+    "spectralType": "M",
+    "magnitude": 5.76,
+    "luminosity": 64501.05,
+    "temperature": 2999.1,
+    "distance": 45.37,
+    "position": {
+      "x": 16.07,
+      "y": 42.11,
+      "z": 5.26
+    }
+  },
+  {
+    "id": "star-0087",
+    "name": "天权星5",
+    "nameEn": "Star-087",
+    "spectralType": "K",
+    "magnitude": 1.68,
+    "luminosity": 82585.66,
+    "temperature": 3980.2,
+    "distance": 32.33,
+    "position": {
+      "x": -19.46,
+      "y": 24.42,
+      "z": -8.37
+    }
+  },
+  {
+    "id": "star-0088",
+    "name": "紫薇星5",
+    "nameEn": "Star-088",
+    "spectralType": "M",
+    "magnitude": 2.9,
+    "luminosity": 76035.69,
+    "temperature": 3410,
+    "distance": 31.09,
+    "position": {
+      "x": -19.95,
+      "y": 23.82,
+      "z": -1.21
+    }
+  },
+  {
+    "id": "star-0089",
+    "name": "太微星5",
+    "nameEn": "Star-089",
+    "spectralType": "G",
+    "magnitude": 4.03,
+    "luminosity": 31741,
+    "temperature": 5684.9,
+    "distance": 33.62,
+    "position": {
+      "x": 13.66,
+      "y": -25.1,
+      "z": 17.71
+    }
+  },
+  {
+    "id": "star-0090",
+    "name": "天市星5",
+    "nameEn": "Star-090",
+    "spectralType": "G",
+    "magnitude": 4.77,
+    "luminosity": 42687.05,
+    "temperature": 5623.1,
+    "distance": 25.8,
+    "position": {
+      "x": 8.65,
+      "y": 17.79,
+      "z": 16.56
+    }
+  },
+  {
+    "id": "star-0091",
+    "name": "天狼星5",
+    "nameEn": "Star-091",
+    "spectralType": "O",
+    "magnitude": 1.93,
+    "luminosity": 95031.75,
+    "temperature": 39951.3,
+    "distance": 45.96,
+    "position": {
+      "x": 28.48,
+      "y": -35.14,
+      "z": 8.12
+    }
+  },
+  {
+    "id": "star-0092",
+    "name": "破军星5",
+    "nameEn": "Star-092",
+    "spectralType": "M",
+    "magnitude": 1.67,
+    "luminosity": 24.46,
+    "temperature": 3386.1,
+    "distance": 42.83,
+    "position": {
+      "x": -31.21,
+      "y": 19.1,
+      "z": 22.26
+    }
+  },
+  {
+    "id": "star-0093",
+    "name": "武曲星5",
+    "nameEn": "Star-093",
+    "spectralType": "B",
+    "magnitude": 2.29,
+    "luminosity": 46625.26,
+    "temperature": 22441.2,
+    "distance": 41.68,
+    "position": {
+      "x": 12.47,
+      "y": 5.24,
+      "z": -39.42
+    }
+  },
+  {
+    "id": "star-0094",
+    "name": "廉贞星5",
+    "nameEn": "Star-094",
+    "spectralType": "G",
+    "magnitude": 0.3,
+    "luminosity": 97754.77,
+    "temperature": 5396.5,
+    "distance": 27.34,
+    "position": {
+      "x": -1.65,
+      "y": -1.45,
+      "z": -27.25
+    }
+  },
+  {
+    "id": "star-0095",
+    "name": "文曲星5",
+    "nameEn": "Star-095",
+    "spectralType": "G",
+    "magnitude": 1.87,
+    "luminosity": 84259.17,
+    "temperature": 5241.6,
+    "distance": 41.82,
+    "position": {
+      "x": -31.27,
+      "y": -20.9,
+      "z": 18.28
+    }
+  },
+  {
+    "id": "star-0096",
+    "name": "禄存星5",
+    "nameEn": "Star-096",
+    "spectralType": "G",
+    "magnitude": 5.06,
+    "luminosity": 40802.14,
+    "temperature": 5213.8,
+    "distance": 25.76,
+    "position": {
+      "x": 12.94,
+      "y": -16.13,
+      "z": 15.36
+    }
+  },
+  {
+    "id": "star-0097",
+    "name": "巨门星5",
+    "nameEn": "Star-097",
+    "spectralType": "M",
+    "magnitude": 5.28,
+    "luminosity": 4070.9,
+    "temperature": 3195.6,
+    "distance": 47.08,
+    "position": {
+      "x": 45.76,
+      "y": 10.96,
+      "z": 1.55
+    }
+  },
+  {
+    "id": "star-0098",
+    "name": "贪狼星5",
+    "nameEn": "Star-098",
+    "spectralType": "G",
+    "magnitude": 3.75,
+    "luminosity": 27895.11,
+    "temperature": 5565.6,
+    "distance": 37.62,
+    "position": {
+      "x": 16.62,
+      "y": -33.65,
+      "z": -2.53
+    }
+  },
+  {
+    "id": "star-0099",
+    "name": "左辅星5",
+    "nameEn": "Star-099",
+    "spectralType": "M",
+    "magnitude": 1.41,
+    "luminosity": 74827.17,
+    "temperature": 3429.5,
+    "distance": 46.96,
+    "position": {
+      "x": 13.33,
+      "y": -30.43,
+      "z": -33.18
+    }
+  },
+  {
+    "id": "star-0100",
+    "name": "右弼星5",
+    "nameEn": "Star-100",
+    "spectralType": "G",
+    "magnitude": 4.21,
+    "luminosity": 85611.88,
+    "temperature": 5023,
+    "distance": 45.11,
+    "position": {
+      "x": -9.4,
+      "y": 41.36,
+      "z": 15.36
+    }
+  },
+  {
+    "id": "star-0101",
+    "name": "天枢星6",
+    "nameEn": "Star-101",
+    "spectralType": "G",
+    "magnitude": 5.34,
+    "luminosity": 56093.4,
+    "temperature": 5217.7,
+    "distance": 25.46,
+    "position": {
+      "x": -13.24,
+      "y": -15.93,
+      "z": -14.79
+    }
+  },
+  {
+    "id": "star-0102",
+    "name": "瑶光星6",
+    "nameEn": "Star-102",
+    "spectralType": "G",
+    "magnitude": 0.77,
+    "luminosity": 48526.63,
+    "temperature": 5917.6,
+    "distance": 45.99,
+    "position": {
+      "x": -34.93,
+      "y": -20.49,
+      "z": -21.79
+    }
+  },
+  {
+    "id": "star-0103",
+    "name": "开阳星6",
+    "nameEn": "Star-103",
+    "spectralType": "K",
+    "magnitude": 0.75,
+    "luminosity": 91765.98,
+    "temperature": 4557.7,
+    "distance": 47.42,
+    "position": {
+      "x": 11.31,
+      "y": -45.26,
+      "z": -8.49
+    }
+  },
+  {
+    "id": "star-0104",
+    "name": "玉衡星6",
+    "nameEn": "Star-104",
+    "spectralType": "M",
+    "magnitude": 5.36,
+    "luminosity": 33202.69,
+    "temperature": 2780,
+    "distance": 37,
+    "position": {
+      "x": 31.54,
+      "y": -9.03,
+      "z": -17.12
+    }
+  },
+  {
+    "id": "star-0105",
+    "name": "天璇星6",
+    "nameEn": "Star-105",
+    "spectralType": "A",
+    "magnitude": 0.27,
+    "luminosity": 6415.23,
+    "temperature": 8059.9,
+    "distance": 25.37,
+    "position": {
+      "x": 21.66,
+      "y": 12.98,
+      "z": 2.54
+    }
+  },
+  {
+    "id": "star-0106",
+    "name": "天玑星6",
+    "nameEn": "Star-106",
+    "spectralType": "M",
+    "magnitude": 4.06,
+    "luminosity": 13282.7,
+    "temperature": 3120.8,
+    "distance": 38.55,
+    "position": {
+      "x": 17.37,
+      "y": -31.17,
+      "z": 14.58
+    }
+  },
+  {
+    "id": "star-0107",
+    "name": "天权星6",
+    "nameEn": "Star-107",
+    "spectralType": "A",
+    "magnitude": 5.19,
+    "luminosity": 63776.76,
+    "temperature": 9404.6,
+    "distance": 42.23,
+    "position": {
+      "x": -10.43,
+      "y": -32.02,
+      "z": -25.48
+    }
+  },
+  {
+    "id": "star-0108",
+    "name": "紫薇星6",
+    "nameEn": "Star-108",
+    "spectralType": "M",
+    "magnitude": 5.52,
+    "luminosity": 42012.11,
+    "temperature": 3184.4,
+    "distance": 41.09,
+    "position": {
+      "x": -5.34,
+      "y": 4.3,
+      "z": -40.52
+    }
+  },
+  {
+    "id": "star-0109",
+    "name": "太微星6",
+    "nameEn": "Star-109",
+    "spectralType": "F",
+    "magnitude": 5.82,
+    "luminosity": 26907.58,
+    "temperature": 6146.7,
+    "distance": 48.99,
+    "position": {
+      "x": -48.62,
+      "y": -3.75,
+      "z": 4.72
+    }
+  },
+  {
+    "id": "star-0110",
+    "name": "天市星6",
+    "nameEn": "Star-110",
+    "spectralType": "A",
+    "magnitude": 3.43,
+    "luminosity": 5303.48,
+    "temperature": 9401.6,
+    "distance": 35.87,
+    "position": {
+      "x": 4.24,
+      "y": 30.88,
+      "z": 17.74
+    }
+  },
+  {
+    "id": "star-0111",
+    "name": "天狼星6",
+    "nameEn": "Star-111",
+    "spectralType": "G",
+    "magnitude": 1.56,
+    "luminosity": 36288.76,
+    "temperature": 5156.7,
+    "distance": 36.83,
+    "position": {
+      "x": 28.83,
+      "y": 3.63,
+      "z": -22.63
+    }
+  },
+  {
+    "id": "star-0112",
+    "name": "破军星6",
+    "nameEn": "Star-112",
+    "spectralType": "A",
+    "magnitude": 1.24,
+    "luminosity": 48824.18,
+    "temperature": 9911.1,
+    "distance": 30.77,
+    "position": {
+      "x": -17.01,
+      "y": 10.87,
+      "z": 23.23
+    }
+  },
+  {
+    "id": "star-0113",
+    "name": "武曲星6",
+    "nameEn": "Star-113",
+    "spectralType": "K",
+    "magnitude": 3.31,
+    "luminosity": 55743.68,
+    "temperature": 4104.7,
+    "distance": 48.16,
+    "position": {
+      "x": 42.24,
+      "y": -14.64,
+      "z": -17.9
+    }
+  },
+  {
+    "id": "star-0114",
+    "name": "廉贞星6",
+    "nameEn": "Star-114",
+    "spectralType": "G",
+    "magnitude": 2.56,
+    "luminosity": 11435.67,
+    "temperature": 5010,
+    "distance": 49.52,
+    "position": {
+      "x": 41.23,
+      "y": -11.78,
+      "z": -24.77
+    }
+  },
+  {
+    "id": "star-0115",
+    "name": "文曲星6",
+    "nameEn": "Star-115",
+    "spectralType": "M",
+    "magnitude": 5.34,
+    "luminosity": 75877.89,
+    "temperature": 2857.2,
+    "distance": 47.35,
+    "position": {
+      "x": -39.02,
+      "y": 25.88,
+      "z": 7.08
+    }
+  },
+  {
+    "id": "star-0116",
+    "name": "禄存星6",
+    "nameEn": "Star-116",
+    "spectralType": "M",
+    "magnitude": 2.96,
+    "luminosity": 65915.23,
+    "temperature": 2864.5,
+    "distance": 48.16,
+    "position": {
+      "x": 24.06,
+      "y": 12.66,
+      "z": 39.75
+    }
+  },
+  {
+    "id": "star-0117",
+    "name": "巨门星6",
+    "nameEn": "Star-117",
+    "spectralType": "B",
+    "magnitude": 3.47,
+    "luminosity": 69363.03,
+    "temperature": 28419.2,
+    "distance": 48.47,
+    "position": {
+      "x": 9.57,
+      "y": 44.64,
+      "z": -16.29
+    }
+  },
+  {
+    "id": "star-0118",
+    "name": "贪狼星6",
+    "nameEn": "Star-118",
+    "spectralType": "G",
+    "magnitude": 1.05,
+    "luminosity": 52399.33,
+    "temperature": 5178.7,
+    "distance": 49.3,
+    "position": {
+      "x": -27.4,
+      "y": 35.81,
+      "z": -19.94
+    }
+  },
+  {
+    "id": "star-0119",
+    "name": "左辅星6",
+    "nameEn": "Star-119",
+    "spectralType": "G",
+    "magnitude": 1.82,
+    "luminosity": 42984.21,
+    "temperature": 5411.2,
+    "distance": 35.18,
+    "position": {
+      "x": 23.97,
+      "y": -25.72,
+      "z": -1.17
+    }
+  },
+  {
+    "id": "star-0120",
+    "name": "右弼星6",
+    "nameEn": "Star-120",
+    "spectralType": "G",
+    "magnitude": 5.36,
+    "luminosity": 17466.25,
+    "temperature": 5871.8,
+    "distance": 40.79,
+    "position": {
+      "x": -31.16,
+      "y": -25.93,
+      "z": -4.55
+    }
+  },
+  {
+    "id": "star-0121",
+    "name": "天枢星7",
+    "nameEn": "Star-121",
+    "spectralType": "G",
+    "magnitude": 5.75,
+    "luminosity": 81785.56,
+    "temperature": 5949.6,
+    "distance": 45.59,
+    "position": {
+      "x": -20.59,
+      "y": -5.62,
+      "z": 40.29
+    }
+  },
+  {
+    "id": "star-0122",
+    "name": "瑶光星7",
+    "nameEn": "Star-122",
+    "spectralType": "G",
+    "magnitude": 3.54,
+    "luminosity": 1550.71,
+    "temperature": 5428.2,
+    "distance": 30.3,
+    "position": {
+      "x": 5.01,
+      "y": -29.79,
+      "z": -2.25
+    }
+  },
+  {
+    "id": "star-0123",
+    "name": "开阳星7",
+    "nameEn": "Star-123",
+    "spectralType": "G",
+    "magnitude": 1.86,
+    "luminosity": 21336.92,
+    "temperature": 5871.2,
+    "distance": 48.25,
+    "position": {
+      "x": 24.68,
+      "y": -11.07,
+      "z": 39.96
+    }
+  },
+  {
+    "id": "star-0124",
+    "name": "玉衡星7",
+    "nameEn": "Star-124",
+    "spectralType": "K",
+    "magnitude": 0.98,
+    "luminosity": 73050.03,
+    "temperature": 4659.8,
+    "distance": 45.3,
+    "position": {
+      "x": 22.96,
+      "y": -7.13,
+      "z": -38.39
+    }
+  },
+  {
+    "id": "star-0125",
+    "name": "天璇星7",
+    "nameEn": "Star-125",
+    "spectralType": "G",
+    "magnitude": 0.62,
+    "luminosity": 25638.53,
+    "temperature": 5524.9,
+    "distance": 35.55,
+    "position": {
+      "x": 5.36,
+      "y": 35.11,
+      "z": 1.61
+    }
+  },
+  {
+    "id": "star-0126",
+    "name": "天玑星7",
+    "nameEn": "Star-126",
+    "spectralType": "F",
+    "magnitude": 4.46,
+    "luminosity": 43150.82,
+    "temperature": 6808.7,
+    "distance": 41.52,
+    "position": {
+      "x": 20.66,
+      "y": -35.67,
+      "z": 4.95
+    }
+  },
+  {
+    "id": "star-0127",
+    "name": "天权星7",
+    "nameEn": "Star-127",
+    "spectralType": "O",
+    "magnitude": 4.32,
+    "luminosity": 69049.49,
+    "temperature": 44023.6,
+    "distance": 45.02,
+    "position": {
+      "x": 40.5,
+      "y": -17.6,
+      "z": 8.74
+    }
+  },
+  {
+    "id": "star-0128",
+    "name": "紫薇星7",
+    "nameEn": "Star-128",
+    "spectralType": "O",
+    "magnitude": 2.01,
+    "luminosity": 97843.23,
+    "temperature": 33098.7,
+    "distance": 31.1,
+    "position": {
+      "x": -30.53,
+      "y": 4.23,
+      "z": -4.17
+    }
+  },
+  {
+    "id": "star-0129",
+    "name": "太微星7",
+    "nameEn": "Star-129",
+    "spectralType": "K",
+    "magnitude": 1.19,
+    "luminosity": 74961.64,
+    "temperature": 4681.7,
+    "distance": 8.92,
+    "position": {
+      "x": -4.62,
+      "y": 3.65,
+      "z": -6.7
+    }
+  },
+  {
+    "id": "star-0130",
+    "name": "天市星7",
+    "nameEn": "Star-130",
+    "spectralType": "B",
+    "magnitude": 3.15,
+    "luminosity": 50678.35,
+    "temperature": 27335.1,
+    "distance": 49.02,
+    "position": {
+      "x": 38.98,
+      "y": 19.81,
+      "z": 22.17
+    }
+  },
+  {
+    "id": "star-0131",
+    "name": "天狼星7",
+    "nameEn": "Star-131",
+    "spectralType": "G",
+    "magnitude": 3.86,
+    "luminosity": 12203.87,
+    "temperature": 5766,
+    "distance": 32.21,
+    "position": {
+      "x": 19.35,
+      "y": 25.71,
+      "z": 1.46
+    }
+  },
+  {
+    "id": "star-0132",
+    "name": "破军星7",
+    "nameEn": "Star-132",
+    "spectralType": "B",
+    "magnitude": 3.17,
+    "luminosity": 71975.95,
+    "temperature": 13161.9,
+    "distance": 38.54,
+    "position": {
+      "x": 24.08,
+      "y": 5.04,
+      "z": 29.67
+    }
+  },
+  {
+    "id": "star-0133",
+    "name": "武曲星7",
+    "nameEn": "Star-133",
+    "spectralType": "G",
+    "magnitude": 5.63,
+    "luminosity": 63804.3,
+    "temperature": 5537.8,
+    "distance": 42.64,
+    "position": {
+      "x": -35.16,
+      "y": -8.65,
+      "z": -22.53
+    }
+  },
+  {
+    "id": "star-0134",
+    "name": "廉贞星7",
+    "nameEn": "Star-134",
+    "spectralType": "M",
+    "magnitude": 5.88,
+    "luminosity": 5495.7,
+    "temperature": 2972.2,
+    "distance": 44.98,
+    "position": {
+      "x": 20.48,
+      "y": -39.53,
+      "z": -6.42
+    }
+  },
+  {
+    "id": "star-0135",
+    "name": "文曲星7",
+    "nameEn": "Star-135",
+    "spectralType": "M",
+    "magnitude": 3.94,
+    "luminosity": 79627.02,
+    "temperature": 2465.5,
+    "distance": 44.67,
+    "position": {
+      "x": 9.78,
+      "y": -14.6,
+      "z": 41.07
+    }
+  },
+  {
+    "id": "star-0136",
+    "name": "禄存星7",
+    "nameEn": "Star-136",
+    "spectralType": "K",
+    "magnitude": 4.61,
+    "luminosity": 15979.16,
+    "temperature": 3976.3,
+    "distance": 36.77,
+    "position": {
+      "x": 8.85,
+      "y": -28.07,
+      "z": -22.05
+    }
+  },
+  {
+    "id": "star-0137",
+    "name": "巨门星7",
+    "nameEn": "Star-137",
+    "spectralType": "K",
+    "magnitude": 4.24,
+    "luminosity": 86849.13,
+    "temperature": 3601.4,
+    "distance": 45.91,
+    "position": {
+      "x": 39.07,
+      "y": 23.72,
+      "z": 4.31
+    }
+  },
+  {
+    "id": "star-0138",
+    "name": "贪狼星7",
+    "nameEn": "Star-138",
+    "spectralType": "G",
+    "magnitude": 0.37,
+    "luminosity": 87357.33,
+    "temperature": 5422.8,
+    "distance": 44.77,
+    "position": {
+      "x": 39.36,
+      "y": 15.32,
+      "z": 14.85
+    }
+  },
+  {
+    "id": "star-0139",
+    "name": "左辅星7",
+    "nameEn": "Star-139",
+    "spectralType": "K",
+    "magnitude": 1.25,
+    "luminosity": 20845.94,
+    "temperature": 4502.1,
+    "distance": 27.26,
+    "position": {
+      "x": -15.87,
+      "y": -10.54,
+      "z": 19.5
+    }
+  },
+  {
+    "id": "star-0140",
+    "name": "右弼星7",
+    "nameEn": "Star-140",
+    "spectralType": "G",
+    "magnitude": 2.28,
+    "luminosity": 33627.23,
+    "temperature": 5550,
+    "distance": 45.25,
+    "position": {
+      "x": -30.57,
+      "y": -18.51,
+      "z": 27.75
+    }
+  },
+  {
+    "id": "star-0141",
+    "name": "天枢星8",
+    "nameEn": "Star-141",
+    "spectralType": "F",
+    "magnitude": 0.87,
+    "luminosity": 40112.69,
+    "temperature": 6399.8,
+    "distance": 25.43,
+    "position": {
+      "x": 23.47,
+      "y": -5.08,
+      "z": -8.39
+    }
+  },
+  {
+    "id": "star-0142",
+    "name": "瑶光星8",
+    "nameEn": "Star-142",
+    "spectralType": "G",
+    "magnitude": 1.74,
+    "luminosity": 37062.8,
+    "temperature": 5502.7,
+    "distance": 20.76,
+    "position": {
+      "x": 11.31,
+      "y": -3.46,
+      "z": -17.07
+    }
+  },
+  {
+    "id": "star-0143",
+    "name": "开阳星8",
+    "nameEn": "Star-143",
+    "spectralType": "M",
+    "magnitude": 3.58,
+    "luminosity": 20421.19,
+    "temperature": 3056.4,
+    "distance": 29.49,
+    "position": {
+      "x": -11.9,
+      "y": -12.85,
+      "z": -23.73
+    }
+  },
+  {
+    "id": "star-0144",
+    "name": "玉衡星8",
+    "nameEn": "Star-144",
+    "spectralType": "B",
+    "magnitude": 5.68,
+    "luminosity": 57049.86,
+    "temperature": 18586.6,
+    "distance": 28.07,
+    "position": {
+      "x": 12.89,
+      "y": -1.1,
+      "z": 24.91
+    }
+  },
+  {
+    "id": "star-0145",
+    "name": "天璇星8",
+    "nameEn": "Star-145",
+    "spectralType": "G",
+    "magnitude": 3.71,
+    "luminosity": 98006.9,
+    "temperature": 5091.7,
+    "distance": 44.38,
+    "position": {
+      "x": -7.12,
+      "y": -17.31,
+      "z": -40.24
+    }
+  },
+  {
+    "id": "star-0146",
+    "name": "天玑星8",
+    "nameEn": "Star-146",
+    "spectralType": "A",
+    "magnitude": 2.82,
+    "luminosity": 60510.56,
+    "temperature": 8184.8,
+    "distance": 45.97,
+    "position": {
+      "x": 7.68,
+      "y": -40.73,
+      "z": 19.89
+    }
+  },
+  {
+    "id": "star-0147",
+    "name": "天权星8",
+    "nameEn": "Star-147",
+    "spectralType": "G",
+    "magnitude": 4.56,
+    "luminosity": 83510.01,
+    "temperature": 5708.9,
+    "distance": 7.92,
+    "position": {
+      "x": -0.88,
+      "y": 7.63,
+      "z": 1.97
+    }
+  },
+  {
+    "id": "star-0148",
+    "name": "紫薇星8",
+    "nameEn": "Star-148",
+    "spectralType": "O",
+    "magnitude": 0.73,
+    "luminosity": 87155.86,
+    "temperature": 30068.2,
+    "distance": 47.1,
+    "position": {
+      "x": 36,
+      "y": 30.32,
+      "z": 1.76
+    }
+  },
+  {
+    "id": "star-0149",
+    "name": "太微星8",
+    "nameEn": "Star-149",
+    "spectralType": "F",
+    "magnitude": 1.38,
+    "luminosity": 16161.12,
+    "temperature": 7133.1,
+    "distance": 28.59,
+    "position": {
+      "x": 21.31,
+      "y": 8.05,
+      "z": -17.27
+    }
+  },
+  {
+    "id": "star-0150",
+    "name": "天市星8",
+    "nameEn": "Star-150",
+    "spectralType": "G",
+    "magnitude": 0.55,
+    "luminosity": 57020.07,
+    "temperature": 5794.3,
+    "distance": 41.97,
+    "position": {
+      "x": -19.38,
+      "y": -34.93,
+      "z": -12.9
+    }
+  },
+  {
+    "id": "star-0151",
+    "name": "天狼星8",
+    "nameEn": "Star-151",
+    "spectralType": "G",
+    "magnitude": 3.52,
+    "luminosity": 88077.98,
+    "temperature": 5318.4,
+    "distance": 34.29,
+    "position": {
+      "x": -2.32,
+      "y": -33.1,
+      "z": -8.64
+    }
+  },
+  {
+    "id": "star-0152",
+    "name": "破军星8",
+    "nameEn": "Star-152",
+    "spectralType": "M",
+    "magnitude": 4.88,
+    "luminosity": 83966.67,
+    "temperature": 3459.8,
+    "distance": 37.52,
+    "position": {
+      "x": 24.9,
+      "y": 2.27,
+      "z": 27.97
+    }
+  },
+  {
+    "id": "star-0153",
+    "name": "武曲星8",
+    "nameEn": "Star-153",
+    "spectralType": "K",
+    "magnitude": 3.64,
+    "luminosity": 70089.07,
+    "temperature": 4565.1,
+    "distance": 45.6,
+    "position": {
+      "x": -24.03,
+      "y": 38.6,
+      "z": -3.42
+    }
+  },
+  {
+    "id": "star-0154",
+    "name": "廉贞星8",
+    "nameEn": "Star-154",
+    "spectralType": "B",
+    "magnitude": 4.46,
+    "luminosity": 38660.18,
+    "temperature": 22261.6,
+    "distance": 48.16,
+    "position": {
+      "x": 41.27,
+      "y": -24.26,
+      "z": -5.18
+    }
+  },
+  {
+    "id": "star-0155",
+    "name": "文曲星8",
+    "nameEn": "Star-155",
+    "spectralType": "G",
+    "magnitude": 4.75,
+    "luminosity": 58929.24,
+    "temperature": 5418.9,
+    "distance": 46.09,
+    "position": {
+      "x": 34.23,
+      "y": 7.63,
+      "z": -29.91
+    }
+  },
+  {
+    "id": "star-0156",
+    "name": "禄存星8",
+    "nameEn": "Star-156",
+    "spectralType": "F",
+    "magnitude": 4.71,
+    "luminosity": 12719.6,
+    "temperature": 6076.1,
+    "distance": 49.89,
+    "position": {
+      "x": 17.73,
+      "y": -25.49,
+      "z": -39.05
+    }
+  },
+  {
+    "id": "star-0157",
+    "name": "巨门星8",
+    "nameEn": "Star-157",
+    "spectralType": "K",
+    "magnitude": 5.61,
+    "luminosity": 78547,
+    "temperature": 4943.5,
+    "distance": 31.55,
+    "position": {
+      "x": -7.82,
+      "y": 6.95,
+      "z": 29.77
+    }
+  },
+  {
+    "id": "star-0158",
+    "name": "贪狼星8",
+    "nameEn": "Star-158",
+    "spectralType": "M",
+    "magnitude": 1.35,
+    "luminosity": 25861.15,
+    "temperature": 3268.5,
+    "distance": 49.08,
+    "position": {
+      "x": 27.17,
+      "y": -10.76,
+      "z": 39.44
+    }
+  },
+  {
+    "id": "star-0159",
+    "name": "左辅星8",
+    "nameEn": "Star-159",
+    "spectralType": "G",
+    "magnitude": 5.5,
+    "luminosity": 27481.42,
+    "temperature": 5707.7,
+    "distance": 43.84,
+    "position": {
+      "x": -16.6,
+      "y": -4.35,
+      "z": -40.34
+    }
+  },
+  {
+    "id": "star-0160",
+    "name": "右弼星8",
+    "nameEn": "Star-160",
+    "spectralType": "G",
+    "magnitude": 4.56,
+    "luminosity": 968.24,
+    "temperature": 5716.1,
+    "distance": 46.79,
+    "position": {
+      "x": -44.14,
+      "y": -9.85,
+      "z": -11.99
+    }
+  },
+  {
+    "id": "star-0161",
+    "name": "天枢星9",
+    "nameEn": "Star-161",
+    "spectralType": "M",
+    "magnitude": 0.32,
+    "luminosity": 73939.78,
+    "temperature": 2753.2,
+    "distance": 44.51,
+    "position": {
+      "x": -21.44,
+      "y": -13.82,
+      "z": 36.47
+    }
+  },
+  {
+    "id": "star-0162",
+    "name": "瑶光星9",
+    "nameEn": "Star-162",
+    "spectralType": "A",
+    "magnitude": 3.17,
+    "luminosity": 83964.74,
+    "temperature": 8721.7,
+    "distance": 19.95,
+    "position": {
+      "x": -18.26,
+      "y": 6.46,
+      "z": -4.76
+    }
+  },
+  {
+    "id": "star-0163",
+    "name": "开阳星9",
+    "nameEn": "Star-163",
+    "spectralType": "B",
+    "magnitude": 1.15,
+    "luminosity": 91022.85,
+    "temperature": 11754.2,
+    "distance": 46.05,
+    "position": {
+      "x": 15.18,
+      "y": 21.57,
+      "z": 37.75
+    }
+  },
+  {
+    "id": "star-0164",
+    "name": "玉衡星9",
+    "nameEn": "Star-164",
+    "spectralType": "O",
+    "magnitude": 3.1,
+    "luminosity": 91724.86,
+    "temperature": 31477.4,
+    "distance": 49.65,
+    "position": {
+      "x": -36.05,
+      "y": 7.41,
+      "z": 33.32
+    }
+  },
+  {
+    "id": "star-0165",
+    "name": "天璇星9",
+    "nameEn": "Star-165",
+    "spectralType": "M",
+    "magnitude": 5.87,
+    "luminosity": 71562.85,
+    "temperature": 3143.2,
+    "distance": 48.49,
+    "position": {
+      "x": 11.93,
+      "y": 40.59,
+      "z": 23.7
+    }
+  },
+  {
+    "id": "star-0166",
+    "name": "天玑星9",
+    "nameEn": "Star-166",
+    "spectralType": "G",
+    "magnitude": 4.01,
+    "luminosity": 45101.15,
+    "temperature": 5415.3,
+    "distance": 32.87,
+    "position": {
+      "x": -14.72,
+      "y": 22.77,
+      "z": -18.58
+    }
+  },
+  {
+    "id": "star-0167",
+    "name": "天权星9",
+    "nameEn": "Star-167",
+    "spectralType": "F",
+    "magnitude": 4.71,
+    "luminosity": 49265.48,
+    "temperature": 6418.6,
+    "distance": 49.37,
+    "position": {
+      "x": 21.12,
+      "y": -44.54,
+      "z": 2.77
+    }
+  },
+  {
+    "id": "star-0168",
+    "name": "紫薇星9",
+    "nameEn": "Star-168",
+    "spectralType": "A",
+    "magnitude": 0.57,
+    "luminosity": 41197.42,
+    "temperature": 7871.6,
+    "distance": 48.26,
+    "position": {
+      "x": 39.25,
+      "y": -14.07,
+      "z": -24.29
+    }
+  },
+  {
+    "id": "star-0169",
+    "name": "太微星9",
+    "nameEn": "Star-169",
+    "spectralType": "F",
+    "magnitude": 5.49,
+    "luminosity": 38636.63,
+    "temperature": 7200.8,
+    "distance": 45.91,
+    "position": {
+      "x": -37.83,
+      "y": 23.42,
+      "z": 11.3
+    }
+  },
+  {
+    "id": "star-0170",
+    "name": "天市星9",
+    "nameEn": "Star-170",
+    "spectralType": "A",
+    "magnitude": 1.66,
+    "luminosity": 70018,
+    "temperature": 8362,
+    "distance": 49.22,
+    "position": {
+      "x": 22.28,
+      "y": 1.79,
+      "z": -43.86
+    }
+  },
+  {
+    "id": "star-0171",
+    "name": "天狼星9",
+    "nameEn": "Star-171",
+    "spectralType": "F",
+    "magnitude": 4.02,
+    "luminosity": 69831.01,
+    "temperature": 6218.6,
+    "distance": 49.83,
+    "position": {
+      "x": 48.7,
+      "y": 7.27,
+      "z": -7.62
+    }
+  },
+  {
+    "id": "star-0172",
+    "name": "破军星9",
+    "nameEn": "Star-172",
+    "spectralType": "B",
+    "magnitude": 3.2,
+    "luminosity": 15464.31,
+    "temperature": 15897,
+    "distance": 34.57,
+    "position": {
+      "x": -15.06,
+      "y": -29.78,
+      "z": 9.03
+    }
+  },
+  {
+    "id": "star-0173",
+    "name": "武曲星9",
+    "nameEn": "Star-173",
+    "spectralType": "G",
+    "magnitude": 0.46,
+    "luminosity": 40681.68,
+    "temperature": 5789.6,
+    "distance": 49.25,
+    "position": {
+      "x": 39.69,
+      "y": 19.27,
+      "z": 21.89
+    }
+  },
+  {
+    "id": "star-0174",
+    "name": "廉贞星9",
+    "nameEn": "Star-174",
+    "spectralType": "A",
+    "magnitude": 2.25,
+    "luminosity": 86934.83,
+    "temperature": 9320.6,
+    "distance": 33.35,
+    "position": {
+      "x": 15.73,
+      "y": 16.79,
+      "z": 24.14
+    }
+  },
+  {
+    "id": "star-0175",
+    "name": "文曲星9",
+    "nameEn": "Star-175",
+    "spectralType": "G",
+    "magnitude": 5.3,
+    "luminosity": 69046.22,
+    "temperature": 5488.6,
+    "distance": 47.52,
+    "position": {
+      "x": 35.06,
+      "y": -2.53,
+      "z": -31.97
+    }
+  },
+  {
+    "id": "star-0176",
+    "name": "禄存星9",
+    "nameEn": "Star-176",
+    "spectralType": "M",
+    "magnitude": 3.01,
+    "luminosity": 57557.29,
+    "temperature": 2678.6,
+    "distance": 31.7,
+    "position": {
+      "x": -22.12,
+      "y": -17.86,
+      "z": -14.02
+    }
+  },
+  {
+    "id": "star-0177",
+    "name": "巨门星9",
+    "nameEn": "Star-177",
+    "spectralType": "G",
+    "magnitude": 5.62,
+    "luminosity": 49503.74,
+    "temperature": 5361.6,
+    "distance": 18.84,
+    "position": {
+      "x": 5.16,
+      "y": 15.36,
+      "z": 9.62
+    }
+  },
+  {
+    "id": "star-0178",
+    "name": "贪狼星9",
+    "nameEn": "Star-178",
+    "spectralType": "M",
+    "magnitude": 4.36,
+    "luminosity": 43838.93,
+    "temperature": 3220.4,
+    "distance": 49.45,
+    "position": {
+      "x": 28.45,
+      "y": 28.44,
+      "z": 28.76
+    }
+  },
+  {
+    "id": "star-0179",
+    "name": "左辅星9",
+    "nameEn": "Star-179",
+    "spectralType": "B",
+    "magnitude": 0.03,
+    "luminosity": 21319.94,
+    "temperature": 29208.2,
+    "distance": 38.5,
+    "position": {
+      "x": -31.86,
+      "y": -0.69,
+      "z": 21.59
+    }
+  },
+  {
+    "id": "star-0180",
+    "name": "右弼星9",
+    "nameEn": "Star-180",
+    "spectralType": "A",
+    "magnitude": 1.63,
+    "luminosity": 29094.9,
+    "temperature": 9056.2,
+    "distance": 25.73,
+    "position": {
+      "x": 5.4,
+      "y": 25.03,
+      "z": -2.56
+    }
+  },
+  {
+    "id": "star-0181",
+    "name": "天枢星10",
+    "nameEn": "Star-181",
+    "spectralType": "G",
+    "magnitude": 0.49,
+    "luminosity": 78474.84,
+    "temperature": 5816.7,
+    "distance": 28.12,
+    "position": {
+      "x": 27.87,
+      "y": -1.6,
+      "z": 3.38
+    }
+  },
+  {
+    "id": "star-0182",
+    "name": "瑶光星10",
+    "nameEn": "Star-182",
+    "spectralType": "A",
+    "magnitude": 5.74,
+    "luminosity": 99974.9,
+    "temperature": 9457.9,
+    "distance": 24.25,
+    "position": {
+      "x": -6.5,
+      "y": 15.05,
+      "z": -17.88
+    }
+  },
+  {
+    "id": "star-0183",
+    "name": "开阳星10",
+    "nameEn": "Star-183",
+    "spectralType": "B",
+    "magnitude": 2.47,
+    "luminosity": 51168.05,
+    "temperature": 27829.3,
+    "distance": 45.9,
+    "position": {
+      "x": -42.55,
+      "y": -12.21,
+      "z": 12.15
+    }
+  },
+  {
+    "id": "star-0184",
+    "name": "玉衡星10",
+    "nameEn": "Star-184",
+    "spectralType": "B",
+    "magnitude": 3.47,
+    "luminosity": 6268.3,
+    "temperature": 19217.3,
+    "distance": 48.57,
+    "position": {
+      "x": -7.67,
+      "y": 23.71,
+      "z": -41.7
+    }
+  },
+  {
+    "id": "star-0185",
+    "name": "天璇星10",
+    "nameEn": "Star-185",
+    "spectralType": "A",
+    "magnitude": 5.76,
+    "luminosity": 34506.43,
+    "temperature": 8535.6,
+    "distance": 48.87,
+    "position": {
+      "x": 31.91,
+      "y": -35.76,
+      "z": 9.55
+    }
+  },
+  {
+    "id": "star-0186",
+    "name": "天玑星10",
+    "nameEn": "Star-186",
+    "spectralType": "M",
+    "magnitude": 5.41,
+    "luminosity": 73324.02,
+    "temperature": 3060.3,
+    "distance": 34.78,
+    "position": {
+      "x": 6.15,
+      "y": 31.01,
+      "z": 14.49
+    }
+  },
+  {
+    "id": "star-0187",
+    "name": "天权星10",
+    "nameEn": "Star-187",
+    "spectralType": "G",
+    "magnitude": 4.75,
+    "luminosity": 33523.07,
+    "temperature": 5281.1,
+    "distance": 49.92,
+    "position": {
+      "x": -37.33,
+      "y": 15.65,
+      "z": 29.22
+    }
+  },
+  {
+    "id": "star-0188",
+    "name": "紫薇星10",
+    "nameEn": "Star-188",
+    "spectralType": "M",
+    "magnitude": 0.77,
+    "luminosity": 28309.09,
+    "temperature": 2406.3,
+    "distance": 29.66,
+    "position": {
+      "x": -15.06,
+      "y": 24.1,
+      "z": -8.47
+    }
+  },
+  {
+    "id": "star-0189",
+    "name": "太微星10",
+    "nameEn": "Star-189",
+    "spectralType": "F",
+    "magnitude": 1.08,
+    "luminosity": 34045.01,
+    "temperature": 6094.5,
+    "distance": 42.44,
+    "position": {
+      "x": -15.08,
+      "y": -29.31,
+      "z": 26.73
+    }
+  },
+  {
+    "id": "star-0190",
+    "name": "天市星10",
+    "nameEn": "Star-190",
+    "spectralType": "A",
+    "magnitude": 2.52,
+    "luminosity": 31988.91,
+    "temperature": 7654.2,
+    "distance": 49.47,
+    "position": {
+      "x": -41.51,
+      "y": -22.12,
+      "z": 15.32
+    }
+  },
+  {
+    "id": "star-0191",
+    "name": "天狼星10",
+    "nameEn": "Star-191",
+    "spectralType": "G",
+    "magnitude": 1.33,
+    "luminosity": 73171.88,
+    "temperature": 5876.3,
+    "distance": 30.04,
+    "position": {
+      "x": -17.85,
+      "y": -20.94,
+      "z": 12.05
+    }
+  },
+  {
+    "id": "star-0192",
+    "name": "破军星10",
+    "nameEn": "Star-192",
+    "spectralType": "M",
+    "magnitude": 5.47,
+    "luminosity": 89765.73,
+    "temperature": 3108.3,
+    "distance": 48.74,
+    "position": {
+      "x": 28.73,
+      "y": -19.66,
+      "z": 34.12
+    }
+  },
+  {
+    "id": "star-0193",
+    "name": "武曲星10",
+    "nameEn": "Star-193",
+    "spectralType": "G",
+    "magnitude": 2.15,
+    "luminosity": 38551.24,
+    "temperature": 5544.7,
+    "distance": 45.22,
+    "position": {
+      "x": 32.49,
+      "y": -12.65,
+      "z": 28.8
+    }
+  },
+  {
+    "id": "star-0194",
+    "name": "廉贞星10",
+    "nameEn": "Star-194",
+    "spectralType": "F",
+    "magnitude": 0.53,
+    "luminosity": 85437.73,
+    "temperature": 7438.2,
+    "distance": 37.71,
+    "position": {
+      "x": -3.49,
+      "y": -22.62,
+      "z": 29.97
+    }
+  },
+  {
+    "id": "star-0195",
+    "name": "文曲星10",
+    "nameEn": "Star-195",
+    "spectralType": "G",
+    "magnitude": 0.15,
+    "luminosity": 65136.02,
+    "temperature": 5201,
+    "distance": 35.87,
+    "position": {
+      "x": -8.71,
+      "y": -16.73,
+      "z": 30.52
+    }
+  },
+  {
+    "id": "star-0196",
+    "name": "禄存星10",
+    "nameEn": "Star-196",
+    "spectralType": "M",
+    "magnitude": 0.51,
+    "luminosity": 33679.48,
+    "temperature": 2648.1,
+    "distance": 39.68,
+    "position": {
+      "x": -28.38,
+      "y": -16.3,
+      "z": -22.44
+    }
+  },
+  {
+    "id": "star-0197",
+    "name": "巨门星10",
+    "nameEn": "Star-197",
+    "spectralType": "O",
+    "magnitude": 2.71,
+    "luminosity": 11339.1,
+    "temperature": 39204.6,
+    "distance": 46.49,
+    "position": {
+      "x": 40.38,
+      "y": -9.8,
+      "z": 20.86
+    }
+  },
+  {
+    "id": "star-0198",
+    "name": "贪狼星10",
+    "nameEn": "Star-198",
+    "spectralType": "O",
+    "magnitude": 3.34,
+    "luminosity": 46687.93,
+    "temperature": 36499.6,
+    "distance": 17.77,
+    "position": {
+      "x": 3.64,
+      "y": 14.47,
+      "z": -9.65
+    }
+  },
+  {
+    "id": "star-0199",
+    "name": "左辅星10",
+    "nameEn": "Star-199",
+    "spectralType": "F",
+    "magnitude": 3.12,
+    "luminosity": 22350,
+    "temperature": 6312.5,
+    "distance": 48.94,
+    "position": {
+      "x": -35.81,
+      "y": -24.82,
+      "z": -22.3
+    }
+  },
+  {
+    "id": "star-0200",
+    "name": "右弼星10",
+    "nameEn": "Star-200",
+    "spectralType": "M",
+    "magnitude": 4.91,
+    "luminosity": 10690.99,
+    "temperature": 3353.1,
+    "distance": 48.3,
+    "position": {
+      "x": 32.89,
+      "y": 28.98,
+      "z": 20.28
+    }
+  }
+]
