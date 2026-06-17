@@ -136,8 +136,12 @@ export class GameEngine {
   private fireTimer = 0;
   private canvasWidth: number;
   private canvasHeight: number;
-  private waveSpawned = false;
+  private waveActive = false;
+  private waveEnemiesKilled = 0;
+  private waveTotalTargets = 0;
   private engineParticleTimer = 0;
+  private invincibleBlinkTimer = 0;
+  private readonly PARTICLE_LIMIT = 500;
 
   constructor(width: number, height: number) {
     this.canvasWidth = width;
@@ -183,7 +187,9 @@ export class GameEngine {
 
   private startNextWave(): void {
     this.wave++;
-    this.waveSpawned = false;
+    this.waveEnemiesKilled = 0;
+    this.waveTotalTargets = 0;
+    this.waveActive = false;
     this.gameState = 'playing';
   }
 
@@ -198,7 +204,10 @@ export class GameEngine {
     for (let i = 0; i < enemyCount; i++) {
       this.enemies.push(this.createEnemy());
     }
-    this.waveSpawned = true;
+
+    this.waveTotalTargets = asteroidCount + enemyCount;
+    this.waveEnemiesKilled = 0;
+    this.waveActive = true;
   }
 
   private createAsteroid(generation: number): AsteroidState {
@@ -313,7 +322,10 @@ export class GameEngine {
     this.fragmentCount = 0;
     this.fireTimer = 0;
     this.gameState = 'playing';
-    this.waveSpawned = false;
+    this.waveActive = false;
+    this.waveEnemiesKilled = 0;
+    this.waveTotalTargets = 0;
+    this.invincibleBlinkTimer = 0;
     this.startNextWave();
   }
 
@@ -356,7 +368,7 @@ export class GameEngine {
       return this.takeSnapshot();
     }
 
-    if (!this.waveSpawned) {
+    if (!this.waveActive) {
       this.spawnWave();
     }
 
@@ -368,8 +380,9 @@ export class GameEngine {
     this.updateParticles(dt);
     this.updateEngineParticles(dt, keys);
     this.checkCollisions();
+    this.checkPlayerFragmentCollisions(dt);
     this.checkWaveEnd();
-    this.cullOffscreen();
+    this.wrapOffscreenEntities();
 
     return this.takeSnapshot();
   }
@@ -396,12 +409,19 @@ export class GameEngine {
 
     if (p.invincible) {
       p.invincibleTimer -= dt;
+      this.invincibleBlinkTimer += dt;
       if (p.invincibleTimer <= 0) {
         p.invincible = false;
         p.invincibleBlink = false;
+        this.invincibleBlinkTimer = 0;
       } else {
-        p.invincibleBlink = !p.invincibleBlink;
+        if (this.invincibleBlinkTimer >= 0.1) {
+          p.invincibleBlink = !p.invincibleBlink;
+          this.invincibleBlinkTimer = 0;
+        }
       }
+    } else {
+      this.invincibleBlinkTimer = 0;
     }
 
     this.fireTimer -= dt * 1000;
@@ -482,17 +502,20 @@ export class GameEngine {
       const p = this.player;
       const cx = p.x + p.width / 2;
       const cy = p.y + p.height;
-      for (let i = 0; i < 2; i++) {
-        this.particles.push({
-          x: cx + (Math.random() - 0.5) * 10,
-          y: cy + Math.random() * 5,
-          vx: (Math.random() - 0.5) * 30,
-          vy: 50 + Math.random() * 80,
-          size: 3 + Math.random() * 3,
-          color: Math.random() > 0.5 ? '#FF4500' : '#FF8C00',
-          life: 0.2 + Math.random() * 0.2,
-          maxLife: 0.4,
-        });
+      const available = this.PARTICLE_LIMIT - this.particles.length;
+      if (available >= 2) {
+        for (let i = 0; i < 2; i++) {
+          this.particles.push({
+            x: cx + (Math.random() - 0.5) * 10,
+            y: cy + Math.random() * 5,
+            vx: (Math.random() - 0.5) * 30,
+            vy: 50 + Math.random() * 80,
+            size: 3 + Math.random() * 3,
+            color: Math.random() > 0.5 ? '#FF4500' : '#FF8C00',
+            life: 0.2 + Math.random() * 0.2,
+            maxLife: 0.4,
+          });
+        }
       }
       this.engineParticleTimer = 0.03;
     }
@@ -503,7 +526,6 @@ export class GameEngine {
     this.checkBulletEnemyCollisions();
     this.checkPlayerAsteroidCollisions();
     this.checkPlayerEnemyCollisions();
-    this.checkPlayerFragmentCollisions();
   }
 
   private checkBulletAsteroidCollisions(): void {
@@ -512,15 +534,16 @@ export class GameEngine {
       const bCx = b.x + b.width / 2;
       const bCy = b.y + b.height / 2;
 
+      let bulletHit = false;
       for (let ai = this.asteroids.length - 1; ai >= 0; ai--) {
         const a = this.asteroids[ai];
         const dx = bCx - a.x;
         const dy = bCy - a.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const rSum = a.radius + Math.max(b.width, b.height) / 2;
 
-        if (dist < a.radius + Math.max(b.width, b.height) / 2) {
+        if (dx * dx + dy * dy < rSum * rSum) {
           this.spawnExplosion(a.x, a.y, '#555577', 10);
-          this.bullets.splice(bi, 1);
+          bulletHit = true;
 
           if (a.generation < 2) {
             const splitCount = 2 + Math.floor(Math.random() * 2);
@@ -533,11 +556,17 @@ export class GameEngine {
               this.asteroids.push(child);
             }
           }
+
           this.asteroids.splice(ai, 1);
           this.score += 10;
           this.kills++;
+          this.waveEnemiesKilled++;
           break;
         }
+      }
+
+      if (bulletHit) {
+        this.bullets.splice(bi, 1);
       }
     }
   }
@@ -545,12 +574,14 @@ export class GameEngine {
   private checkBulletEnemyCollisions(): void {
     for (let bi = this.bullets.length - 1; bi >= 0; bi--) {
       const b = this.bullets[bi];
+      let bulletHit = false;
+
       for (let ei = this.enemies.length - 1; ei >= 0; ei--) {
         const e = this.enemies[ei];
         if (this.aabbCollision(b, e)) {
           this.spawnExplosion(e.x + e.width / 2, e.y + e.height / 2, '#FF4444', 10);
-          this.bullets.splice(bi, 1);
-          this.enemies.splice(ei, 1);
+          bulletHit = true;
+
           this.fragmentDrops.push({
             id: uuidv4(),
             x: e.x + e.width / 2,
@@ -559,10 +590,17 @@ export class GameEngine {
             rotation: 0,
             floatTime: 0,
           });
+
+          this.enemies.splice(ei, 1);
           this.score += 25;
           this.kills++;
+          this.waveEnemiesKilled++;
           break;
         }
+      }
+
+      if (bulletHit) {
+        this.bullets.splice(bi, 1);
       }
     }
   }
@@ -602,19 +640,28 @@ export class GameEngine {
     }
   }
 
-  private checkPlayerFragmentCollisions(): void {
+  private checkPlayerFragmentCollisions(dt: number): void {
     const p = this.player;
     const pCx = p.x + p.width / 2;
     const pCy = p.y + p.height / 2;
     const collectDist = 30;
+    const magnetDist = 120;
+    const magnetSpeed = 180;
 
     for (let i = this.fragmentDrops.length - 1; i >= 0; i--) {
       const f = this.fragmentDrops[i];
       const dx = pCx - f.x;
       const dy = pCy - f.y;
-      if (Math.sqrt(dx * dx + dy * dy) < collectDist) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < collectDist) {
         this.fragmentCount++;
         this.fragmentDrops.splice(i, 1);
+      } else if (dist < magnetDist) {
+        const nx = dx / (dist || 1);
+        const ny = dy / (dist || 1);
+        f.x += nx * magnetSpeed * dt;
+        f.y += ny * magnetSpeed * dt;
       }
     }
   }
@@ -640,7 +687,11 @@ export class GameEngine {
   }
 
   private spawnExplosion(x: number, y: number, color: string, count: number): void {
-    for (let i = 0; i < count; i++) {
+    const available = this.PARTICLE_LIMIT - this.particles.length;
+    if (available <= 0) return;
+    const actualCount = Math.min(count, available);
+
+    for (let i = 0; i < actualCount; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 50 + Math.random() * 150;
       this.particles.push({
@@ -657,7 +708,9 @@ export class GameEngine {
   }
 
   private checkWaveEnd(): void {
-    if (this.waveSpawned && this.asteroids.length === 0 && this.enemies.length === 0) {
+    if (!this.waveActive) return;
+    if (this.asteroids.length === 0 && this.enemies.length === 0) {
+      this.waveActive = false;
       this.gameState = 'wave_end';
       this.generateUpgradeOptions();
     }
@@ -683,16 +736,22 @@ export class GameEngine {
     });
   }
 
-  private cullOffscreen(): void {
-    const margin = 100;
-    this.asteroids = this.asteroids.filter(a =>
-      a.x > -margin - a.radius && a.x < this.canvasWidth + margin + a.radius &&
-      a.y > -margin - a.radius && a.y < this.canvasHeight + margin + a.radius
-    );
-    this.enemies = this.enemies.filter(e =>
-      e.x > -margin && e.x < this.canvasWidth + margin &&
-      e.y > -margin && e.y < this.canvasHeight + margin
-    );
+  private wrapOffscreenEntities(): void {
+    const margin = 60;
+
+    for (const a of this.asteroids) {
+      if (a.x < -margin - a.radius) a.x = this.canvasWidth + margin + a.radius;
+      else if (a.x > this.canvasWidth + margin + a.radius) a.x = -margin - a.radius;
+      if (a.y < -margin - a.radius) a.y = this.canvasHeight + margin + a.radius;
+      else if (a.y > this.canvasHeight + margin + a.radius) a.y = -margin - a.radius;
+    }
+
+    for (const e of this.enemies) {
+      if (e.x < -margin) e.x = this.canvasWidth + margin;
+      else if (e.x > this.canvasWidth + margin) e.x = -margin;
+      if (e.y < -margin) e.baseY = this.canvasHeight * 0.5;
+      else if (e.y > this.canvasHeight + margin) e.baseY = this.canvasHeight * 0.3;
+    }
   }
 
   private takeSnapshot(): GameStateSnapshot {
