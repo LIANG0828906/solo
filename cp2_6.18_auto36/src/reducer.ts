@@ -10,7 +10,9 @@ export const initialState: AppState = {
   currentWidth: CONSTANTS.DEFAULT_WIDTH,
   transform: { x: 0, y: 0, scale: 1 },
   selectedNoteId: null,
+  selectedConnectionId: null,
   connectionStartId: null,
+  connectionCurvature: 1,
   isSyncConnected: false,
 };
 
@@ -63,14 +65,35 @@ export function appReducer(state: AppState, action: Action): AppState {
     case 'ADD_CONNECTION':
       return { ...state, connections: [...state.connections, action.payload] };
 
+    case 'UPDATE_CONNECTION':
+      return {
+        ...state,
+        connections: state.connections.map((c) =>
+          c.id === action.payload.id ? action.payload : c
+        ),
+      };
+
+    case 'DELETE_CONNECTION':
+      return {
+        ...state,
+        connections: state.connections.filter((c) => c.id !== action.payload),
+        selectedConnectionId: state.selectedConnectionId === action.payload ? null : state.selectedConnectionId,
+      };
+
     case 'SET_TRANSFORM':
       return { ...state, transform: action.payload };
 
     case 'SELECT_NOTE':
-      return { ...state, selectedNoteId: action.payload };
+      return { ...state, selectedNoteId: action.payload, selectedConnectionId: null };
+
+    case 'SELECT_CONNECTION':
+      return { ...state, selectedConnectionId: action.payload, selectedNoteId: null };
 
     case 'SET_CONNECTION_START':
       return { ...state, connectionStartId: action.payload };
+
+    case 'SET_CONNECTION_CURVATURE':
+      return { ...state, connectionCurvature: action.payload };
 
     case 'CLEAR_CANVAS':
       return {
@@ -79,6 +102,7 @@ export function appReducer(state: AppState, action: Action): AppState {
         notes: [],
         connections: [],
         selectedNoteId: null,
+        selectedConnectionId: null,
         connectionStartId: null,
       };
 

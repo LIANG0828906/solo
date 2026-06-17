@@ -44,7 +44,9 @@ export interface AppState {
   currentWidth: number;
   transform: Transform;
   selectedNoteId: string | null;
+  selectedConnectionId: string | null;
   connectionStartId: string | null;
+  connectionCurvature: number;
   isSyncConnected: boolean;
 }
 
@@ -58,9 +60,13 @@ export type Action =
   | { type: 'UPDATE_NOTE'; payload: StickyNote }
   | { type: 'DELETE_NOTE'; payload: string }
   | { type: 'ADD_CONNECTION'; payload: Connection }
+  | { type: 'UPDATE_CONNECTION'; payload: Connection }
+  | { type: 'DELETE_CONNECTION'; payload: string }
   | { type: 'SET_TRANSFORM'; payload: Transform }
   | { type: 'SELECT_NOTE'; payload: string | null }
+  | { type: 'SELECT_CONNECTION'; payload: string | null }
   | { type: 'SET_CONNECTION_START'; payload: string | null }
+  | { type: 'SET_CONNECTION_CURVATURE'; payload: number }
   | { type: 'CLEAR_CANVAS' }
   | { type: 'SET_SYNC_CONNECTED'; payload: boolean }
   | { type: 'SYNC_STATE'; payload: Partial<AppState> };

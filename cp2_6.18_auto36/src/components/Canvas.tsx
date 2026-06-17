@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import type { AppState, Action, Stroke, Point, StickyNote, Connection } from '@/types';
 import { CONSTANTS } from '@/constants';
 import { StickyNote as StickyNoteComponent } from './StickyNote';
@@ -10,6 +10,7 @@ interface CanvasProps {
 
 export function Canvas({ state, dispatch }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const isDrawingRef = useRef(false);
   const isPanningRef = useRef(false);
   const isSpacePressedRef = useRef(false);
@@ -20,12 +21,14 @@ export function Canvas({ state, dispatch }: CanvasProps) {
   const scaleAnimationRef = useRef<{
     start: number; duration: number; startScale: number; endScale: number; centerX: number; centerY: number } | null>(null);
   const lastDrawRef = useRef(0);
+  const dirtyRef = useRef(true);
+  const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
 
-  const getCanvasPoint = useCallback((clientX: number, clientY: number): Point => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
+  const screenToWorld = useCallback((clientX: number, clientY: number): Point => {
+    const container = containerRef.current;
+    if (!container) return { x: 0, y: 0 };
 
-    const rect = canvas.getBoundingClientRect();
+    const rect = container.getBoundingClientRect();
     const { transform } = state;
     const x = (clientX - rect.left - transform.x) / transform.scale;
     const y = (clientY - rect.top - transform.y) / transform.scale;
@@ -41,9 +44,13 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       if (!fromNote || !toNote) return;
 
       const from = {
-        x: fromNote.x + fromNote.width / 2, y: fromNote.y + fromNote.height / 2 };
+        x: fromNote.x + fromNote.width / 2,
+        y: fromNote.y + fromNote.height / 2,
+      };
       const to = {
-        x: toNote.x + toNote.width / 2, y: toNote.y + toNote.height / 2 };
+        x: toNote.x + toNote.width / 2,
+        y: toNote.y + toNote.height / 2,
+      };
 
       const dx = to.x - from.x;
       const dy = to.y - from.y;
@@ -53,17 +60,28 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       const midX = (from.x + to.x) / 2 - dy * curvature * 0.3;
       const midY = (from.y + to.y) / 2 + dx * curvature * 0.3;
 
-      ctx.strokeStyle = CONSTANTS.CONNECTION_COLOR;
-      ctx.lineWidth = CONSTANTS.CONNECTION_WIDTH;
+      const isSelected = state.selectedConnectionId === connection.id;
+      const isHovered = hoveredConnectionId === connection.id;
+
+      ctx.strokeStyle = isSelected
+        ? '#FF6B6B'
+        : isHovered
+        ? '#7FB5F0'
+        : CONSTANTS.CONNECTION_COLOR;
+      ctx.lineWidth = isSelected || isHovered ? CONSTANTS.CONNECTION_WIDTH + 2 : CONSTANTS.CONNECTION_WIDTH;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(from.x, from.y);
       ctx.quadraticCurveTo(midX, midY, to.x, to.y);
       ctx.stroke();
 
-      const arrowSize = 8;
+      const arrowSize = 10;
       const angle = Math.atan2(to.y - midY, to.x - midX);
-      ctx.fillStyle = CONSTANTS.CONNECTION_COLOR;
+      ctx.fillStyle = isSelected
+        ? '#FF6B6B'
+        : isHovered
+        ? '#7FB5F0'
+        : CONSTANTS.CONNECTION_COLOR;
       ctx.beginPath();
       ctx.moveTo(to.x, to.y);
       ctx.lineTo(
@@ -77,7 +95,7 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       ctx.closePath();
       ctx.fill();
     });
-  }, [state.connections, state.notes]);
+  }, [state.connections, state.notes, state.selectedConnectionId, hoveredConnectionId]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -90,7 +108,11 @@ export function Canvas({ state, dispatch }: CanvasProps) {
     if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
+      dirtyRef.current = true;
     }
+
+    if (!dirtyRef.current) return;
+    dirtyRef.current = false;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = CONSTANTS.CANVAS_BG;
@@ -125,13 +147,7 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       }
 
       const lastPoint = stroke.points[stroke.points.length - 1];
-      ctx.quadraticCurveTo(
-        lastPoint.x,
-        lastPoint.y,
-        lastPoint.x,
-        lastPoint.y
-      );
-
+      ctx.lineTo(lastPoint.x, lastPoint.y);
       ctx.stroke();
     });
 
@@ -156,16 +172,14 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       }
 
       const lastPoint = stroke.points[stroke.points.length - 1];
-      ctx.quadraticCurveTo(
-        lastPoint.x,
-        lastPoint.y,
-        lastPoint.x,
-        lastPoint.y
-      );
-
+      ctx.lineTo(lastPoint.x, lastPoint.y);
       ctx.stroke();
     }
   }, [state.transform, state.strokes, drawConnections]);
+
+  useEffect(() => {
+    dirtyRef.current = true;
+  }, [state, hoveredConnectionId]);
 
   const animateScale = useCallback((timestamp: number) => {
     if (!scaleAnimationRef.current) return;
@@ -199,26 +213,71 @@ export function Canvas({ state, dispatch }: CanvasProps) {
   }, [state.transform, dispatch]);
 
   useEffect(() => {
+    let running = true;
     const animate = (timestamp: number) => {
+      if (!running) return;
       if (timestamp - lastDrawRef.current >= 16) {
         render();
         lastDrawRef.current = timestamp;
       }
-      animationFrameRef.current = requestAnimationFrame(animate);
+      requestAnimationFrame(animate);
     };
-    animationFrameRef.current = requestAnimationFrame(animate);
+    requestAnimationFrame(animate);
 
     return () => {
+      running = false;
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, [render]);
 
+  const hitTestConnection = useCallback(
+    (worldX: number, worldY: number): Connection | null => {
+      for (let i = state.connections.length - 1; i >= 0; i--) {
+        const connection = state.connections[i];
+        const fromNote = state.notes.find((n) => n.id === connection.fromNoteId);
+        const toNote = state.notes.find((n) => n.id === connection.toNoteId);
+
+        if (!fromNote || !toNote) continue;
+
+        const from = {
+          x: fromNote.x + fromNote.width / 2,
+          y: fromNote.y + fromNote.height / 2,
+        };
+        const to = {
+          x: toNote.x + toNote.width / 2,
+          y: toNote.y + toNote.height / 2,
+        };
+
+        const steps = 30;
+        for (let s = 0; s <= steps; s++) {
+          const t = s / steps;
+          const dx = to.x - from.x;
+          const dy = to.y - from.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const curvature = connection.curvature * Math.min(1, distance / 200);
+          const midX = (from.x + to.x) / 2 - dy * curvature * 0.3;
+          const midY = (from.y + to.y) / 2 + dx * curvature * 0.3;
+
+          const cx = (1 - t) * (1 - t) * from.x + 2 * (1 - t) * t * midX + t * t * to.x;
+          const cy = (1 - t) * (1 - t) * from.y + 2 * (1 - t) * t * midY + t * t * to.y;
+
+          const distToPoint = Math.sqrt((worldX - cx) ** 2 + (worldY - cy) ** 2);
+          if (distToPoint < 8 / state.transform.scale) {
+            return connection;
+          }
+        }
+      }
+      return null;
+    },
+    [state.connections, state.notes, state.transform.scale]
+  );
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
 
-    const point = getCanvasPoint(e.clientX, e.clientY);
+    const point = screenToWorld(e.clientX, e.clientY);
 
     if (isSpacePressedRef.current) {
       isPanningRef.current = true;
@@ -231,10 +290,16 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       return;
     }
 
+    const hitConnection = hitTestConnection(point.x, point.y);
+    if (hitConnection && !e.ctrlKey && !e.metaKey) {
+      dispatch({ type: 'SELECT_CONNECTION', payload: hitConnection.id });
+      return;
+    }
+
     if (state.currentTool === 'pen' || state.currentTool === 'eraser') {
       isDrawingRef.current = true;
       currentStrokeRef.current = {
-        id: `temp-${Date.now()}`,
+        id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         points: [point],
         color: state.currentColor,
         width: state.currentWidth,
@@ -260,7 +325,7 @@ export function Canvas({ state, dispatch }: CanvasProps) {
     }
 
     if (isDrawingRef.current && currentStrokeRef.current) {
-      const point = getCanvasPoint(e.clientX, e.clientY);
+      const point = screenToWorld(e.clientX, e.clientY);
       const lastPoint = currentStrokeRef.current.points[currentStrokeRef.current.points.length - 1];
 
       const dx = point.x - lastPoint.x;
@@ -269,8 +334,13 @@ export function Canvas({ state, dispatch }: CanvasProps) {
 
       if (distance > 0.5) {
         currentStrokeRef.current.points.push(point);
+        dirtyRef.current = true;
       }
     }
+
+    const point = screenToWorld(e.clientX, e.clientY);
+    const hitConnection = hitTestConnection(point.x, point.y);
+    setHoveredConnectionId(hitConnection ? hitConnection.id : null);
   };
 
   const handleMouseUp = () => {
@@ -289,6 +359,7 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       }
       isDrawingRef.current = false;
       currentStrokeRef.current = null;
+      dirtyRef.current = true;
     }
   };
 
@@ -330,10 +401,10 @@ export function Canvas({ state, dispatch }: CanvasProps) {
   const handleDoubleClick = (e: React.MouseEvent) => {
     if (e.target !== canvasRef.current) return;
 
-    const point = getCanvasPoint(e.clientX, e.clientY);
+    const point = screenToWorld(e.clientX, e.clientY);
 
     const newNote: StickyNote = {
-      id: `note-${Date.now()}`,
+      id: `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       x: point.x - CONSTANTS.NOTE_WIDTH / 2,
       y: point.y - CONSTANTS.NOTE_HEIGHT / 2,
       text: '',
@@ -349,6 +420,7 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       dispatch({ type: 'SET_CONNECTION_START', payload: null });
     }
     dispatch({ type: 'SELECT_NOTE', payload: null });
+    dispatch({ type: 'SELECT_CONNECTION', payload: null });
   };
 
   useEffect(() => {
@@ -357,6 +429,9 @@ export function Canvas({ state, dispatch }: CanvasProps) {
         e.preventDefault();
         isSpacePressedRef.current = true;
         document.body.style.cursor = 'grab';
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedConnectionId) {
+        dispatch({ type: 'DELETE_CONNECTION', payload: state.selectedConnectionId });
       }
     };
 
@@ -374,14 +449,16 @@ export function Canvas({ state, dispatch }: CanvasProps) {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [state.selectedConnectionId, dispatch]);
 
   const handleNoteUpdate = (note: StickyNote) => {
     dispatch({ type: 'UPDATE_NOTE', payload: note });
+    dirtyRef.current = true;
   };
 
   const handleNoteDelete = (id: string) => {
     dispatch({ type: 'DELETE_NOTE', payload: id });
+    dirtyRef.current = true;
   };
 
   const handleNoteSelect = (id: string | null) => {
@@ -395,18 +472,22 @@ export function Canvas({ state, dispatch }: CanvasProps) {
   const handleEndConnection = (id: string) => {
     if (state.connectionStartId && state.connectionStartId !== id) {
       const connection: Connection = {
-        id: `conn-${Date.now()}`,
+        id: `conn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         fromNoteId: state.connectionStartId,
         toNoteId: id,
-        curvature: 1,
+        curvature: state.connectionCurvature,
       };
       dispatch({ type: 'ADD_CONNECTION', payload: connection });
     }
     dispatch({ type: 'SET_CONNECTION_START', payload: null });
+    dirtyRef.current = true;
   };
+
+  const { transform } = state;
 
   return (
     <div
+      ref={containerRef}
       style={{
         position: 'absolute',
         top: CONSTANTS.TOOLBAR_HEIGHT,
@@ -427,6 +508,8 @@ export function Canvas({ state, dispatch }: CanvasProps) {
           height: '100%',
           cursor: isSpacePressedRef.current
             ? 'grab'
+            : hoveredConnectionId
+            ? 'pointer'
             : state.currentTool === 'eraser'
             ? 'cell'
             : 'crosshair',
@@ -440,40 +523,122 @@ export function Canvas({ state, dispatch }: CanvasProps) {
         onClick={handleCanvasClick}
       />
 
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-          transform: `translate(${state.transform.x}px, ${state.transform.y}px) scale(${state.transform.scale})`,
-          transformOrigin: '0 0',
-        }}
-      >
-        {state.notes.map((note) => (
+      {state.notes.map((note) => {
+        const screenX = transform.x + note.x * transform.scale;
+        const screenY = transform.y + note.y * transform.scale;
+
+        return (
           <div
             key={note.id}
             style={{
               position: 'absolute',
+              left: screenX,
+              top: screenY,
+              width: note.width * transform.scale,
+              height: note.height * transform.scale,
               pointerEvents: 'auto',
+              zIndex: state.selectedNoteId === note.id ? 100 : 1,
             }}
           >
-            <StickyNoteComponent
-              note={note}
-              scale={state.transform.scale}
-              isSelected={state.selectedNoteId === note.id}
-              isConnectionStart={state.connectionStartId === note.id}
-              onUpdate={handleNoteUpdate}
-              onDelete={handleNoteDelete}
-              onSelect={handleNoteSelect}
-              onStartConnection={handleStartConnection}
-              onEndConnection={handleEndConnection}
-            />
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                transformOrigin: '0 0',
+                transform: `scale(${transform.scale})`,
+              }}
+            >
+              <StickyNoteComponent
+                note={note}
+                scale={transform.scale}
+                isSelected={state.selectedNoteId === note.id}
+                isConnectionStart={state.connectionStartId === note.id}
+                onUpdate={handleNoteUpdate}
+                onDelete={handleNoteDelete}
+                onSelect={handleNoteSelect}
+                onStartConnection={handleStartConnection}
+                onEndConnection={handleEndConnection}
+              />
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
+
+      {state.selectedConnectionId && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '16px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            zIndex: 500,
+          }}
+        >
+          <span style={{ fontSize: '13px', color: '#333', fontWeight: 500 }}>
+            曲线弧度
+          </span>
+          <input
+            type="range"
+            min="0"
+            max="3"
+            step="0.1"
+            value={
+              state.connections.find((c) => c.id === state.selectedConnectionId)?.curvature ??
+              state.connectionCurvature
+            }
+            onChange={(e) => {
+              const curvature = Number(e.target.value);
+              const connection = state.connections.find((c) => c.id === state.selectedConnectionId);
+              if (connection) {
+                dispatch({
+                  type: 'UPDATE_CONNECTION',
+                  payload: { ...connection, curvature },
+                });
+              }
+              dispatch({ type: 'SET_CONNECTION_CURVATURE', payload: curvature });
+            }}
+            style={{
+              width: '120px',
+              height: '4px',
+              borderRadius: '2px',
+              cursor: 'pointer',
+              accentColor: '#4A90D9',
+            }}
+          />
+          <span style={{ fontSize: '12px', color: '#666', minWidth: '32px', textAlign: 'center' }}>
+            {(
+              state.connections.find((c) => c.id === state.selectedConnectionId)?.curvature ??
+              state.connectionCurvature
+            ).toFixed(1)}
+          </span>
+          <button
+            onClick={() => {
+              if (state.selectedConnectionId) {
+                dispatch({ type: 'DELETE_CONNECTION', payload: state.selectedConnectionId });
+              }
+            }}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#FF6B6B',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 500,
+            }}
+          >
+            删除连线
+          </button>
+        </div>
+      )}
 
       <div
         style={{
@@ -487,10 +652,12 @@ export function Canvas({ state, dispatch }: CanvasProps) {
           fontSize: '12px',
           color: '#666',
           pointerEvents: 'none',
+          lineHeight: 1.6,
         }}
       >
-        <div>缩放: {Math.round(state.transform.scale * 100)}%</div>
-        <div>按住空格 + 拖拽平移 | 滚轮缩放 | 双击创建便签</div>
+        <div>缩放: {Math.round(transform.scale * 100)}%</div>
+        <div>按住空格+拖拽平移 | 滚轮缩放 | 双击创建便签</div>
+        <div>Ctrl+点击两个便签创建连线 | 点击连线可编辑</div>
       </div>
     </div>
   );

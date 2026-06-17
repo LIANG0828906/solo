@@ -30,6 +30,8 @@ export function StickyNote({
   const [editText, setEditText] = useState(note.text);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
+  const [dragDirection, setDragDirection] = useState<1 | -1>(1);
+  const [lastMouseX, setLastMouseX] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -62,13 +64,12 @@ export function StickyNote({
     e.stopPropagation();
     onSelect(note.id);
     setIsDragging(true);
+    setLastMouseX(e.clientX);
+    setDragDirection(Math.random() > 0.5 ? 1 : -1);
     setDragOffset({
       x: e.clientX / scale - note.x,
       y: e.clientY / scale - note.y,
     });
-
-    const startRotation = (Math.random() - 0.5) * 6;
-    setRotation(startRotation);
   };
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -83,8 +84,18 @@ export function StickyNote({
       y: newY,
     });
 
-    const progress = Math.min(1, Math.abs(newX - note.x) / 100);
-    setRotation(progress * ((Math.random() > 0.5 ? 1 : -1) * 3));
+    const deltaX = e.clientX - lastMouseX;
+    setLastMouseX(e.clientX);
+
+    const totalDeltaX = Math.abs(e.clientX / scale - dragOffset.x - note.x);
+    const totalDeltaY = Math.abs(e.clientY / scale - dragOffset.y - note.y);
+    const distance = Math.sqrt(totalDeltaX * totalDeltaX + totalDeltaY * totalDeltaY);
+
+    const baseRotation = Math.min(5, distance / 20);
+    const wobble = Math.sin(Date.now() / 100) * 0.5;
+    const direction = deltaX >= 0 ? 1 : -1;
+
+    setRotation((baseRotation + wobble) * direction * dragDirection);
   };
 
   const handleMouseUp = () => {
@@ -94,19 +105,21 @@ export function StickyNote({
 
   useEffect(() => {
     if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      const handleMove = (e: MouseEvent) => handleMouseMove(e);
+      const handleUp = () => handleMouseUp();
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleUp);
       return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('mousemove', handleMove);
+        window.removeEventListener('mouseup', handleUp);
       };
     }
-  }, [isDragging, dragOffset, note, scale, onUpdate]);
+  }, [isDragging, dragOffset, note, scale, dragDirection, lastMouseX, onUpdate]);
 
   const handleDoubleClick = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setIsEditing(true);
-    };
+    e.stopPropagation();
+    setIsEditing(true);
+  };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -138,20 +151,29 @@ export function StickyNote({
     }
   };
 
+  const handleDeleteBtnMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).style.transform = 'scale(0.9)';
+  };
+
+  const handleDeleteBtnMouseUp = (e: React.MouseEvent) => {
+    (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+  };
+
   return (
     <div
       style={{
         ...noteStyle,
-        left: note.x,
-        top: note.y,
         width: note.width,
         height: note.height,
         opacity: isDragging ? 0.7 : 1,
         transform: `rotate(${rotation}deg)`,
-        transition: isDragging ? 'none' : 'transform 0.3s ease, opacity 0.2s',
-        border: isConnectionStart ? '2px dashed #4A90D9' : 'none',
+        transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease',
+        border: isConnectionStart ? '2px dashed #4A90D9' : isSelected ? '2px solid rgba(74, 144, 217, 0.5)' : 'none',
         boxShadow: isConnectionStart
           ? '0 4px 12px rgba(74, 144, 217, 0.3)'
+          : isSelected
+          ? '0 6px 20px rgba(0, 0, 0, 0.15)'
           : '0 4px 12px rgba(0, 0, 0, 0.12)',
       }}
       onMouseDown={handleMouseDown}
@@ -160,7 +182,11 @@ export function StickyNote({
       <button
         style={deleteButtonStyle}
         onClick={handleDelete}
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={handleDeleteBtnMouseDown}
+        onMouseUp={handleDeleteBtnMouseUp}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+        }}
       >
         ×
       </button>
@@ -174,6 +200,7 @@ export function StickyNote({
           onKeyDown={handleKeyDown}
           style={textareaStyle}
           placeholder="输入便签内容..."
+          maxLength={CONSTANTS.MAX_NOTE_TEXT}
         />
       ) : (
         <div style={noteTextStyle}>
@@ -186,20 +213,26 @@ export function StickyNote({
       {isConnectionStart && (
         <>
           <div style={connectionIndicatorStyle}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4A90D9" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4A90D9" strokeWidth="2.5">
+              <circle cx="12" cy="12" r="9"/>
               <path d="M8 12h8M12 8v8"/>
             </svg>
           </div>
           <span style={connectionHintStyle}>Ctrl+点击另一个便签连接</span>
         </>
       )}
+
+      {!isEditing && note.text.length >= CONSTANTS.MAX_NOTE_TEXT - 20 && (
+        <div style={charCountStyle}>
+          {note.text.length}/{CONSTANTS.MAX_NOTE_TEXT}
+        </div>
+      )}
     </div>
   );
 }
 
 const noteStyle: React.CSSProperties = {
-  position: 'absolute',
+  position: 'relative',
   backgroundColor: CONSTANTS.NOTE_BG,
   borderRadius: `${CONSTANTS.NOTE_RADIUS}px`,
   padding: '16px',
@@ -207,6 +240,7 @@ const noteStyle: React.CSSProperties = {
   cursor: 'move',
   userSelect: 'none',
   willChange: 'transform',
+  boxSizing: 'border-box',
 };
 
 const deleteButtonStyle: React.CSSProperties = {
@@ -228,6 +262,7 @@ const deleteButtonStyle: React.CSSProperties = {
   padding: 0,
   boxShadow: '0 2px 8px rgba(255, 107, 107, 0.4)',
   transition: 'transform 0.15s ease',
+  zIndex: 10,
 };
 
 const textareaStyle: React.CSSProperties = {
@@ -241,6 +276,8 @@ const textareaStyle: React.CSSProperties = {
   lineHeight: 1.5,
   color: '#333',
   outline: 'none',
+  padding: 0,
+  margin: 0,
 };
 
 const noteTextStyle: React.CSSProperties = {
@@ -281,4 +318,13 @@ const connectionHintStyle: React.CSSProperties = {
   borderRadius: '4px',
   fontSize: '12px',
   whiteSpace: 'nowrap',
+  fontWeight: 500,
+};
+
+const charCountStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: '4px',
+  right: '8px',
+  fontSize: '10px',
+  color: '#999',
 };
