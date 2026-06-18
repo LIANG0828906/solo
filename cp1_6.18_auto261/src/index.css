@@ -1,0 +1,32 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: serif;
+  background-color: #1C1109;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #2A1810;
+  border-left: 1px solid #8B5A2B;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #8B5A2B, #6B4226);
+  border-radius: 4px;
+  border: 1px solid #8B6914;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #CD853F, #8B5A2B);
+}
