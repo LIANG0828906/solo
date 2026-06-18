@@ -25,38 +25,53 @@ export default function QAPage() {
   const [remark, setRemark] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emptyTextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedbackCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addFeedback = useFeedbackStore(state => state.addFeedback);
+
+  const clearAllTimers = useCallback(() => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = null;
+    }
+    if (emptyTextTimerRef.current) {
+      clearTimeout(emptyTextTimerRef.current);
+      emptyTextTimerRef.current = null;
+    }
+    if (feedbackCloseTimerRef.current) {
+      clearTimeout(feedbackCloseTimerRef.current);
+      feedbackCloseTimerRef.current = null;
+    }
+  }, []);
 
   const handleSearch = useCallback(() => {
     if (!query.trim()) return;
-    if (emptyTextTimerRef.current) {
-      clearTimeout(emptyTextTimerRef.current);
-    }
+    clearAllTimers();
     setIsSearching(true);
     setHasSearched(true);
     setShowEmptyIllustration(false);
     setShowEmptyText(false);
-    setTimeout(() => {
+    searchTimerRef.current = setTimeout(() => {
+      searchTimerRef.current = null;
       const searchResults = search(query);
       setResults(searchResults);
       setIsSearching(false);
       if (searchResults.length === 0) {
         setShowEmptyIllustration(true);
         emptyTextTimerRef.current = setTimeout(() => {
+          emptyTextTimerRef.current = null;
           setShowEmptyText(true);
         }, 3000);
       }
     }, 10);
-  }, [query]);
+  }, [query, clearAllTimers]);
 
   useEffect(() => {
     return () => {
-      if (emptyTextTimerRef.current) {
-        clearTimeout(emptyTextTimerRef.current);
-      }
+      clearAllTimers();
     };
-  }, []);
+  }, [clearAllTimers]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -90,7 +105,11 @@ export default function QAPage() {
       remark: remark.trim()
     });
     setSubmitted(true);
-    setTimeout(() => {
+    if (feedbackCloseTimerRef.current) {
+      clearTimeout(feedbackCloseTimerRef.current);
+    }
+    feedbackCloseTimerRef.current = setTimeout(() => {
+      feedbackCloseTimerRef.current = null;
       closeFeedbackPanel();
     }, 1500);
   };

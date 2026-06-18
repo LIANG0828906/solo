@@ -92,14 +92,25 @@ export function search(query: string): SearchResult[] {
     const titleMatchedKeywords: string[] = [];
     let titleMatchCount = 0;
     for (const keyword of keywords) {
-      if (lowerTitle.includes(keyword.toLowerCase())) {
+      const kwLower = keyword.toLowerCase();
+      if (lowerTitle.includes(kwLower)) {
         titleMatchedKeywords.push(keyword);
         const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
         const matches = lowerTitle.match(regex);
         titleMatchCount += matches ? matches.length : 0;
       }
     }
-    const isTitleMatch = titleMatchedKeywords.length > 0;
+    if (titleMatchedKeywords.length > 0) {
+      paragraphMatches.push({
+        chapter,
+        paragraph: chapter.title,
+        matchCount: titleMatchCount,
+        matchedKeywords: titleMatchedKeywords,
+        isTitleMatch: true,
+        titleMatchCount,
+        positionBonus: 10
+      });
+    }
     const paragraphs = splitIntoParagraphs(chapter.content);
     paragraphs.forEach((paragraph, pIndex) => {
       const lowerParagraph = paragraph.toLowerCase();
@@ -125,17 +136,14 @@ export function search(query: string): SearchResult[] {
       if (pIndex === 0) {
         positionBonus += 5;
       }
-      const allMatched = [...new Set([...matchedKeywords, ...titleMatchedKeywords])];
-      if (allMatched.length > 0 || isTitleMatch) {
-        const finalMatched = allMatched.length > 0 ? allMatched : titleMatchedKeywords;
-        const finalMatchCount = matchCount + titleMatchCount;
+      if (matchedKeywords.length > 0) {
         paragraphMatches.push({
           chapter,
-          paragraph: paragraph || chapter.content.slice(0, 60),
-          matchCount: finalMatchCount,
-          matchedKeywords: finalMatched,
-          isTitleMatch,
-          titleMatchCount,
+          paragraph,
+          matchCount,
+          matchedKeywords,
+          isTitleMatch: false,
+          titleMatchCount: 0,
           positionBonus
         });
       }
