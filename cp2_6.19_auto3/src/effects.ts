@@ -33,6 +33,11 @@ const COLORS = {
   text: '#ffffff',
 };
 
+export interface TouchDirResult {
+  dx: number;
+  dy: number;
+}
+
 export class Renderer {
   ctx: CanvasRenderingContext2D;
   canvas: HTMLCanvasElement;
@@ -42,6 +47,8 @@ export class Renderer {
   particles: Particle[] = [];
   gemBobTime: number = 0;
   exitGlowTime: number = 0;
+  swipeIndicatorFade: number = 0;
+  swipeLastDir: Direction | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -365,6 +372,9 @@ export class Renderer {
   updateParticles(dt: number): void {
     this.gemBobTime += dt;
     this.exitGlowTime += dt;
+    if (this.swipeIndicatorFade > 0) {
+      this.swipeIndicatorFade = Math.max(0, this.swipeIndicatorFade - dt);
+    }
 
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
@@ -380,6 +390,204 @@ export class Renderer {
     if (this.particles.length > 300) {
       this.particles.splice(0, this.particles.length - 300);
     }
+  }
+
+  notifySwipe(dir: Direction): void {
+    this.swipeLastDir = dir;
+    this.swipeIndicatorFade = 1;
+  }
+
+  drawGemPanel(collectedCount: number, totalGems: number): void {
+    const ts = this.tileSize;
+    const padding = ts * 0.4;
+    const fontSize = Math.floor(ts * 0.7);
+    const text = `宝石: ${collectedCount}/${totalGems}`;
+
+    this.ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
+    this.ctx.textBaseline = 'top';
+    this.ctx.textAlign = 'left';
+    const textMetrics = this.ctx.measureText(text);
+    const panelW = textMetrics.width + ts * 1.2 + padding * 2;
+    const panelH = fontSize + padding * 2;
+    const px = padding;
+    const py = padding;
+
+    this.ctx.fillStyle = 'rgba(45, 27, 78, 0.85)';
+    this.ctx.fillRect(px, py, panelW, panelH);
+
+    this.ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+    this.ctx.lineWidth = 2;
+    this.ctx.strokeRect(px + 1, py + 1, panelW - 2, panelH - 2);
+
+    const gx = px + padding + ts * 0.3;
+    const gy = py + panelH / 2;
+    const gs = ts * 0.28;
+    this.ctx.fillStyle = COLORS.gem;
+    this.ctx.beginPath();
+    this.ctx.moveTo(gx, gy - gs);
+    this.ctx.lineTo(gx + gs * 0.7, gy);
+    this.ctx.lineTo(gx, gy + gs);
+    this.ctx.lineTo(gx - gs * 0.7, gy);
+    this.ctx.closePath();
+    this.ctx.fill();
+    this.ctx.fillStyle = COLORS.gemHi;
+    this.ctx.beginPath();
+    this.ctx.moveTo(gx, gy - gs);
+    this.ctx.lineTo(gx + gs * 0.25, gy - gs * 0.2);
+    this.ctx.lineTo(gx, gy);
+    this.ctx.lineTo(gx - gs * 0.25, gy - gs * 0.2);
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    this.ctx.fillStyle = COLORS.text;
+    this.ctx.fillText(text, px + padding + ts * 0.7, py + padding);
+  }
+
+  drawStatusTip(collectedCount: number, totalGems: number): void {
+    const ts = this.tileSize;
+    const fontSize = Math.floor(ts * 0.5);
+    this.ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
+    this.ctx.textBaseline = 'top';
+    this.ctx.textAlign = 'right';
+
+    let text = '';
+    let color = COLORS.text;
+    if (collectedCount >= totalGems) {
+      text = '★ 出口已激活！';
+      color = COLORS.exitGlow;
+    } else {
+      text = '收集宝石激活出口';
+    }
+
+    const padding = ts * 0.4;
+    const px = this.canvas.clientWidth - padding;
+    const py = padding;
+    const textMetrics = this.ctx.measureText(text);
+    const panelW = textMetrics.width + padding * 1.5;
+    const panelH = fontSize + padding;
+
+    this.ctx.fillStyle = 'rgba(45, 27, 78, 0.7)';
+    this.ctx.fillRect(px - panelW, py, panelW, panelH);
+
+    this.ctx.fillStyle = color;
+    this.ctx.fillText(text, px - padding * 0.75, py + padding * 0.5);
+  }
+
+  drawCenterMessage(
+    text: string,
+    type: 'win' | 'gameover',
+    flashPhase: number
+  ): void {
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+    const titleSize = Math.floor(Math.min(w, h) * 0.14);
+    const glow = 0.4 + 0.6 * Math.abs(Math.sin(flashPhase * 6));
+
+    this.ctx.font = `bold ${titleSize}px 'Courier New', monospace`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+
+    const baseColor = type === 'win' ? COLORS.gem : COLORS.monster;
+    const glowColor = type === 'win' ? 'rgba(255, 215, 0,' : 'rgba(229, 57, 53,';
+
+    this.ctx.shadowColor = type === 'win' ? COLORS.gem : COLORS.monster;
+    this.ctx.shadowBlur = 30 * glow;
+
+    for (let i = 4; i >= 0; i--) {
+      this.ctx.fillStyle = `${glowColor}${(0.08 * glow * (5 - i)).toFixed(3)})`;
+      this.ctx.fillText(text, w / 2 + i, h / 2 + i);
+    }
+
+    this.ctx.fillStyle = baseColor;
+    this.ctx.fillText(text, w / 2, h / 2);
+    this.ctx.shadowBlur = 0;
+
+    const subSize = Math.floor(titleSize * 0.28);
+    this.ctx.font = `${subSize}px 'Courier New', monospace`;
+    this.ctx.fillStyle = COLORS.text;
+    this.ctx.fillText('即将重新开始...', w / 2, h / 2 + titleSize * 0.8);
+  }
+
+  drawStartScreen(phase: number): void {
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+
+    this.ctx.fillStyle = 'rgba(10, 5, 20, 0.88)';
+    this.ctx.fillRect(0, 0, w, h);
+
+    const titleSize = Math.floor(Math.min(w, h) * 0.1);
+    this.ctx.font = `bold ${titleSize}px 'Courier New', monospace`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+
+    this.ctx.shadowColor = COLORS.gem;
+    this.ctx.shadowBlur = 20;
+    this.ctx.fillStyle = COLORS.gem;
+    this.ctx.fillText('像素勇者地牢', w / 2, h / 2 - titleSize * 1.2);
+    this.ctx.shadowBlur = 0;
+
+    const bob = Math.sin(phase * 3) * 0.15 + 1;
+    const subSize = Math.floor(titleSize * 0.42);
+    this.ctx.font = `bold ${Math.floor(subSize * bob)}px 'Courier New', monospace`;
+    this.ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + 0.3 * Math.abs(Math.sin(phase * 2.5))})`;
+    this.ctx.fillText('按任意键开始', w / 2, h / 2 + titleSize * 0.3);
+
+    const tipSize = Math.floor(subSize * 0.65);
+    this.ctx.font = `${tipSize}px 'Courier New', monospace`;
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    this.ctx.fillText('方向键 / WASD / 滑动屏幕 控制移动', w / 2, h / 2 + titleSize * 1.1);
+    this.ctx.fillText('收集所有宝石，到达绿色出口', w / 2, h / 2 + titleSize * 1.1 + tipSize * 1.4);
+  }
+
+  drawSwipeHint(): void {
+    if (this.swipeIndicatorFade <= 0 && !this.swipeLastDir) return;
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+    const alpha = Math.max(0.05, this.swipeIndicatorFade);
+    const size = Math.min(w, h) * 0.16;
+    const margin = size * 0.6;
+    const cx = margin + size;
+    const cy = h - margin - size;
+
+    this.ctx.globalAlpha = alpha * 0.75;
+
+    this.ctx.fillStyle = 'rgba(45, 27, 78, 0.5)';
+    this.ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
+    this.ctx.lineWidth = 2;
+    this.ctx.beginPath();
+    this.ctx.arc(cx, cy, size, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.stroke();
+
+    const dirs: { dir: Direction; dx: number; dy: number; label: string }[] = [
+      { dir: 'up', dx: 0, dy: -1, label: '↑' },
+      { dir: 'left', dx: -1, dy: 0, label: '←' },
+      { dir: 'right', dx: 1, dy: 0, label: '→' },
+      { dir: 'down', dx: 0, dy: 1, label: '↓' },
+    ];
+
+    const btnSize = size * 0.5;
+    const fontS = Math.floor(btnSize * 0.7);
+    this.ctx.font = `bold ${fontS}px 'Courier New', monospace`;
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+
+    for (const d of dirs) {
+      const bx = cx + d.dx * size * 0.55;
+      const by = cy + d.dy * size * 0.55;
+      const isActive = this.swipeLastDir === d.dir && this.swipeIndicatorFade > 0.3;
+      this.ctx.fillStyle = isActive ? 'rgba(255, 215, 0, 0.7)' : 'rgba(255, 215, 0, 0.18)';
+      this.ctx.fillRect(bx - btnSize / 2, by - btnSize / 2, btnSize, btnSize);
+      this.ctx.fillStyle = isActive ? '#fff' : COLORS.gem;
+      this.ctx.fillText(d.label, bx, by);
+    }
+
+    const tipSize = Math.floor(size * 0.22);
+    this.ctx.font = `${tipSize}px 'Courier New', monospace`;
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    this.ctx.fillText('滑动屏幕', cx, cy + size + tipSize);
+
+    this.ctx.globalAlpha = 1;
   }
 
   drawParticles(): void {

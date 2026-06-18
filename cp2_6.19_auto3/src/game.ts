@@ -1,8 +1,11 @@
 import { generateDungeon, MapData, TileType } from './mapGen';
-import { Player, Monster, tryCollectGem } from './entities';
+import { Player, Monster, tryCollectGem, Direction } from './entities';
 import { Renderer, isTouchDevice } from './effects';
 
-type GameState = 'playing' | 'gameover' | 'win';
+type GameState = 'start' | 'playing' | 'gameover' | 'win';
+
+const SWIPE_THRESHOLD = 20;
+const MESSAGE_RESET_DELAY = 2;
 
 class Game {
   canvas: HTMLCanvasElement;
@@ -11,12 +14,19 @@ class Game {
   player!: Player;
   monsters: Monster[] = [];
   collectedGems: Set<string> = new Set();
-  gameState: GameState = 'playing';
+  gameState: GameState = 'start';
   lastTime: number = 0;
   pendingDir: { dx: number; dy: number } | null = null;
   touch: boolean;
   fireworksSpawned: boolean = false;
   fireworksTimer: number = 0;
+  startPhase: number = 0;
+  messageTimer: number = 0;
+  messagePhase: number = 0;
+  swipeStartX: number = 0;
+  swipeStartY: number = 0;
+  swipeActive: boolean = false;
+  swipeConsumed: boolean = false;
 
   constructor() {
     const canvas = document.getElementById('game-canvas') as HTMLCanvasElement | null;
@@ -25,22 +35,26 @@ class Game {
     this.renderer = new Renderer(canvas);
     this.touch = isTouchDevice();
 
-    this.initGame();
+    this.map = generateDungeon();
+    this.renderer.resize(this.map);
+    this.resetEntities();
     this.bindEvents();
 
     window.addEventListener('resize', () => this.renderer.resize(this.map));
     requestAnimationFrame(this.loop.bind(this));
   }
 
-  initGame(): void {
-    this.map = generateDungeon();
+  private resetEntities(): void {
     this.player = new Player(this.map.startPos.x, this.map.startPos.y);
     this.monsters = [];
     this.collectedGems = new Set();
-    this.gameState = 'playing';
     this.fireworksSpawned = false;
     this.fireworksTimer = 0;
     this.pendingDir = null;
+    this.messageTimer = 0;
+    this.messagePhase = 0;
+    this.swipeActive = false;
+    this.swipeConsumed = false;
 
     for (const spawn of this.map.monsterSpawns) {
       const monster = new Monster(spawn.x, spawn.y);
@@ -48,16 +62,40 @@ class Game {
       monster.setPatrolPath(patrol);
       this.monsters.push(monster);
     }
+  }
 
+  initGame(): void {
+    this.map = generateDungeon();
+    this.resetEntities();
+    this.gameState = 'playing';
     this.renderer.resize(this.map);
+  }
+
+  private startFromIdle(): void {
+    if (this.gameState === 'start') {
+      this.gameState = 'playing';
+      return;
+    }
+    if (this.gameState === 'gameover' || this.gameState === 'win') {
+      this.initGame();
+    }
+  }
+
+  private resolveSwipe(dx: number, dy: number): { dx: number; dy: number; dir: Direction } | null {
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    if (absX < SWIPE_THRESHOLD && absY < SWIPE_THRESHOLD) return null;
+    if (absX > absY) {
+      return { dx: dx > 0 ? 1 : -1, dy: 0, dir: dx > 0 ? 'right' : 'left' };
+    } else {
+      return { dx: 0, dy: dy > 0 ? 1 : -1, dir: dy > 0 ? 'down' : 'up' };
+    }
   }
 
   bindEvents(): void {
     window.addEventListener('keydown', (e) => {
       if (this.gameState !== 'playing') {
-        if (e.code === 'Space') {
-          this.initGame();
-        }
+        this.startFromIdle();
         return;
       }
 
@@ -82,61 +120,86 @@ class Game {
           this.pendingDir = { dx: 1, dy: 0 };
           e.preventDefault();
           break;
+        default:
+          break;
       }
     });
 
     this.canvas.addEventListener('click', () => {
-      if (this.gameState !== 'playing') {
-        this.initGame();
-      }
+      this.startFromIdle();
     });
 
-    if (this.touch) {
-      this.canvas.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        if (this.gameState !== 'playing') {
-          this.initGame();
-          return;
-        }
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      if (this.gameState !== 'playing') {
+        this.startFromIdle();
+        return;
+      }
+      const touch = e.touches[0];
+      const rect = this.canvas.getBoundingClientRect();
+      this.swipeStartX = touch.clientX - rect.left;
+      this.swipeStartY = touch.clientY - rect.top;
+      this.swipeActive = true;
+      this.swipeConsumed = false;
+    };
 
-        const touch = e.touches[0];
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (this.gameState !== 'playing' || !this.swipeActive || this.swipeConsumed) return;
+      const touch = e.touches[0];
+      const rect = this.canvas.getBoundingClientRect();
+      const cx = touch.clientX - rect.left;
+      const cy = touch.clientY - rect.top;
+      const dx = cx - this.swipeStartX;
+      const dy = cy - this.swipeStartY;
+      const result = this.resolveSwipe(dx, dy);
+      if (result) {
+        this.pendingDir = { dx: result.dx, dy: result.dy };
+        this.renderer.notifySwipe(result.dir);
+        this.swipeConsumed = true;
+        this.swipeActive = false;
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      if (this.gameState !== 'playing') {
+        this.startFromIdle();
+        return;
+      }
+      if (this.swipeActive && !this.swipeConsumed) {
+        const touch = e.changedTouches[0];
         const rect = this.canvas.getBoundingClientRect();
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
-        const w = this.canvas.clientWidth;
-        const h = this.canvas.clientHeight;
-        const btnSize = Math.min(w, h) * 0.12;
-        const margin = btnSize * 0.5;
-        const dpadX = margin + btnSize;
-        const dpadY = h - margin - btnSize * 1.5;
-
-        const dirs = [
-          { dx: 0, dy: -1, ox: 0, oy: -1 },
-          { dx: -1, dy: 0, ox: -1, oy: 0 },
-          { dx: 1, dy: 0, ox: 1, oy: 0 },
-          { dx: 0, dy: 1, ox: 0, oy: 1 },
-        ];
-
-        for (const d of dirs) {
-          const bx = dpadX + d.ox * btnSize;
-          const by = dpadY + d.oy * btnSize;
-          if (
-            x >= bx - btnSize / 2 &&
-            x <= bx + btnSize / 2 &&
-            y >= by - btnSize / 2 &&
-            y <= by + btnSize / 2
-          ) {
-            this.pendingDir = { dx: d.dx, dy: d.dy };
-            break;
-          }
+        const cx = touch.clientX - rect.left;
+        const cy = touch.clientY - rect.top;
+        const dx = cx - this.swipeStartX;
+        const dy = cy - this.swipeStartY;
+        const result = this.resolveSwipe(dx, dy);
+        if (result) {
+          this.pendingDir = { dx: result.dx, dy: result.dy };
+          this.renderer.notifySwipe(result.dir);
+          this.swipeConsumed = true;
         }
-      }, { passive: false });
-    }
+      }
+      this.swipeActive = false;
+    };
+
+    this.canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+    this.canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+    this.canvas.addEventListener('touchend', onTouchEnd, { passive: false });
   }
 
   update(dt: number): void {
-    if (this.gameState !== 'playing') {
-      this.renderer.updateParticles(dt);
+    this.renderer.updateParticles(dt);
+
+    if (this.gameState === 'start') {
+      this.startPhase += dt;
+      return;
+    }
+
+    if (this.gameState === 'gameover' || this.gameState === 'win') {
+      this.messagePhase += dt;
+      this.messageTimer += dt;
       if (this.gameState === 'win') {
         this.fireworksTimer -= dt;
         if (this.fireworksTimer <= 0) {
@@ -146,10 +209,11 @@ class Game {
           this.fireworksTimer = 0.8;
         }
       }
+      if (this.messageTimer >= MESSAGE_RESET_DELAY) {
+        this.initGame();
+      }
       return;
     }
-
-    this.renderer.updateParticles(dt);
 
     if (this.pendingDir && !this.player.isMoving) {
       this.player.startMove(this.pendingDir.dx, this.pendingDir.dy, this.map);
@@ -168,6 +232,8 @@ class Game {
       monster.updateAI(dt, this.map, this.player);
       if (monster.checkCollision(this.player)) {
         this.gameState = 'gameover';
+        this.messagePhase = 0;
+        this.messageTimer = 0;
         return;
       }
     }
@@ -180,6 +246,8 @@ class Game {
       this.player.gridY === this.map.exitPos.y
     ) {
       this.gameState = 'win';
+      this.messagePhase = 0;
+      this.messageTimer = 0;
       const w = this.canvas.clientWidth;
       const h = this.canvas.clientHeight;
       this.renderer.spawnFireworks(w / 2, h / 2);
@@ -197,18 +265,22 @@ class Game {
       this.renderer.drawMonster(monster);
     }
     this.renderer.drawParticles();
-    this.renderer.drawHUD(
-      this.collectedGems.size,
-      this.map.gemPositions.length,
-      this.gameState
-    );
 
-    if (this.touch && this.gameState === 'playing') {
-      this.renderer.drawTouchControls();
+    this.renderer.drawGemPanel(this.collectedGems.size, this.map.gemPositions.length);
+    if (this.gameState === 'playing') {
+      this.renderer.drawStatusTip(this.collectedGems.size, this.map.gemPositions.length);
     }
 
-    if (this.gameState === 'gameover' || this.gameState === 'win') {
-      this.renderer.drawGameOver(this.gameState === 'win');
+    if (this.gameState === 'playing') {
+      this.renderer.drawSwipeHint();
+    }
+
+    if (this.gameState === 'gameover') {
+      this.renderer.drawCenterMessage('游戏结束', 'gameover', this.messagePhase);
+    } else if (this.gameState === 'win') {
+      this.renderer.drawCenterMessage('通关！', 'win', this.messagePhase);
+    } else if (this.gameState === 'start') {
+      this.renderer.drawStartScreen(this.startPhase);
     }
   }
 
