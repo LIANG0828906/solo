@@ -16,13 +16,14 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
 const particleSystem = createParticleSystem(scene);
-const audioVisualizer = createAudioVisualizer(scene);
+const audioVisualizer = createAudioVisualizer(scene, GENRE_PRESETS[0]);
 
 let currentGenreIndex = 0;
 
 createUIController((genreIndex: number) => {
   currentGenreIndex = genreIndex;
   particleSystem.setGenre(genreIndex);
+  audioVisualizer.setGenre(GENRE_PRESETS[genreIndex]);
   audioVisualizer.setBPM(GENRE_PRESETS[genreIndex].bpm);
 });
 

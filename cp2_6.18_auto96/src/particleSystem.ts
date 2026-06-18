@@ -69,7 +69,7 @@ function makeParticleState(randomAge: boolean): ParticleState {
   return {
     age: randomAge ? Math.random() * lifetime : 0,
     lifetime,
-    baseSpeed: 0.5 + Math.random() * 0.2,
+    baseSpeed: 0.5 + (Math.random() - 0.5) * 0.4,
     driftPhase: Math.random() * Math.PI * 2,
     driftFreq: 1 + Math.random() * 2,
     initialX: (Math.random() - 0.5) * 1.5,
@@ -103,15 +103,12 @@ export function createParticleSystem(scene: THREE.Scene) {
 
   function applyParticle(i: number, p: ParticleState) {
     const t = p.age / p.lifetime;
-    const spreadFactor = Math.sin(t * Math.PI);
 
     positions[i * 3] =
-      p.initialX * (1 + spreadFactor * 0.5) +
-      Math.sin(p.age * p.driftFreq + p.driftPhase) * 0.3 * spreadFactor;
+      p.initialX + Math.sin(p.age * p.driftFreq + p.driftPhase) * 0.3;
     positions[i * 3 + 1] = p.age * p.baseSpeed;
     positions[i * 3 + 2] =
-      p.initialZ * (1 + spreadFactor * 0.5) +
-      Math.cos(p.age * p.driftFreq * 0.7 + p.driftPhase) * 0.3 * spreadFactor;
+      p.initialZ + Math.cos(p.age * p.driftFreq * 0.7 + p.driftPhase) * 0.3;
 
     sizes[i] = 3 - 2.5 * t;
     opacities[i] = 1 - t;
@@ -175,16 +172,15 @@ export function createParticleSystem(scene: THREE.Scene) {
       }
 
       const t = p.age / p.lifetime;
-      const spreadFactor = Math.sin(t * Math.PI);
       const beatMod = 1 + beatIntensity * intensityFactor;
 
       positions[i * 3] =
-        p.initialX * (1 + spreadFactor * 0.5) +
-        Math.sin(p.age * p.driftFreq + p.driftPhase) * 0.3 * spreadFactor * beatMod;
+        p.initialX +
+        Math.sin(p.age * p.driftFreq + p.driftPhase) * 0.3 * beatMod;
       positions[i * 3 + 1] = p.age * p.baseSpeed * (1 + beatIntensity * intensityFactor * 0.3);
       positions[i * 3 + 2] =
-        p.initialZ * (1 + spreadFactor * 0.5) +
-        Math.cos(p.age * p.driftFreq * 0.7 + p.driftPhase) * 0.3 * spreadFactor * beatMod;
+        p.initialZ +
+        Math.cos(p.age * p.driftFreq * 0.7 + p.driftPhase) * 0.3 * beatMod;
 
       sizes[i] = (3 - 2.5 * t) * (1 + beatIntensity * intensityFactor * 0.2);
       opacities[i] = 1 - t;
