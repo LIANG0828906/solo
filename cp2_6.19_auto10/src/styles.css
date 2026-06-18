@@ -109,13 +109,20 @@ body {
   padding: 32px 24px;
 }
 
-.search-wrapper {
+.filter-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 28px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .search-box {
   position: relative;
-  max-width: 480px;
+  flex: 1;
+  min-width: 260px;
+  max-width: 520px;
 }
 
 .search-box input {
@@ -141,6 +148,47 @@ body {
   transform: translateY(-50%);
   font-size: 18px;
   opacity: 0.5;
+}
+
+.sort-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-light);
+  white-space: nowrap;
+}
+
+.sort-select {
+  padding: 10px 36px 10px 14px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  font-size: 14px;
+  background: #fff;
+  color: var(--color-text);
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234a3728' d='M6 8.825L1.175 4 2.238 2.938 6 6.7l3.763-3.763L10.825 4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  transition: border-color var(--transition-fast);
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: var(--color-nav);
+}
+
+.sort-select:hover {
+  border-color: var(--color-nav);
 }
 
 .toolbar {
@@ -238,7 +286,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .aroma-tag {
@@ -248,6 +296,43 @@ body {
   color: var(--color-btn);
   border-radius: 20px;
   font-weight: 500;
+}
+
+.card-stars {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+  line-height: 1;
+}
+
+.star {
+  font-size: 14px;
+  display: inline-block;
+  transition: transform var(--transition-fast);
+}
+
+.card:hover .star {
+  transform: scale(1.05);
+}
+
+.star-half {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.star-half-inner {
+  position: absolute;
+  clip-path: inset(0 50% 0 0);
+  left: 0;
+}
+
+.star-half-outer {
+  visibility: visible;
 }
 
 .card-stats {
@@ -663,6 +748,17 @@ body {
   .main-container {
     padding: 20px 14px;
   }
+  .filter-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 20px;
+  }
+  .search-box {
+    max-width: none;
+  }
+  .sort-wrapper {
+    justify-content: flex-end;
+  }
   .card-grid {
     grid-template-columns: 1fr;
     gap: 18px;
@@ -685,5 +781,8 @@ body {
   }
   .compare-bars-card {
     padding: 20px 16px;
+  }
+  .star {
+    font-size: 13px;
   }
 }

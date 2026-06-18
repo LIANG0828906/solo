@@ -113,6 +113,7 @@ const App: React.FC = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc' | 'default'>('default');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [filterKey, setFilterKey] = useState(0);
@@ -153,17 +154,30 @@ const App: React.FC = () => {
 
   const filteredRecords = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return records;
-    return records.filter((r) => {
-      if (r.name.toLowerCase().includes(q)) return true;
-      if (r.roaster.toLowerCase().includes(q)) return true;
-      if (r.aromas.some((a) => a.toLowerCase().includes(q))) return true;
-      return false;
-    });
-  }, [records, searchQuery]);
+    let result = records;
+    if (q) {
+      result = records.filter((r) => {
+        if (r.name.toLowerCase().includes(q)) return true;
+        if (r.roaster.toLowerCase().includes(q)) return true;
+        if (r.aromas.some((a) => a.toLowerCase().includes(q))) return true;
+        return false;
+      });
+    }
+    if (sortOrder === 'desc') {
+      result = [...result].sort((a, b) => b.overall - a.overall);
+    } else if (sortOrder === 'asc') {
+      result = [...result].sort((a, b) => a.overall - b.overall);
+    }
+    return result;
+  }, [records, searchQuery, sortOrder]);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
+    setFilterKey((k) => k + 1);
+  }, []);
+
+  const handleSortChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSortOrder(e.target.value as 'desc' | 'asc' | 'default');
     setFilterKey((k) => k + 1);
   }, []);
 
@@ -252,7 +266,7 @@ const App: React.FC = () => {
 
   const renderListView = () => (
     <div>
-      <div className="search-wrapper">
+      <div className="filter-toolbar">
         <div className="search-box">
           <span className="search-icon">🔍</span>
           <input
@@ -261,6 +275,19 @@ const App: React.FC = () => {
             value={searchQuery}
             onChange={handleSearchChange}
           />
+        </div>
+        <div className="sort-wrapper">
+          <label className="sort-label" htmlFor="sort-select">排序：</label>
+          <select
+            id="sort-select"
+            className="sort-select"
+            value={sortOrder}
+            onChange={handleSortChange}
+          >
+            <option value="default">默认顺序</option>
+            <option value="desc">评分从高到低</option>
+            <option value="asc">评分从低到高</option>
+          </select>
         </div>
       </div>
       <div className="toolbar">

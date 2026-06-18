@@ -30,6 +30,40 @@ const getGradientStyle = (score: number): React.CSSProperties => {
   };
 };
 
+const renderStars = (score: number): React.ReactNode => {
+  const maxStars = 10;
+  const full = Math.floor(score);
+  const hasHalf = score - full >= 0.5;
+  const empty = maxStars - full - (hasHalf ? 1 : 0);
+  const stars: React.ReactNode[] = [];
+  const activeColor = getScoreColor(score);
+  const inactiveColor = '#d8c8b8';
+
+  for (let i = 0; i < full; i++) {
+    stars.push(
+      <span key={`f-${i}`} className="star star-full" style={{ color: activeColor }}>
+        ★
+      </span>
+    );
+  }
+  if (hasHalf) {
+    stars.push(
+      <span key="h" className="star star-half" style={{ color: activeColor }}>
+        <span className="star-half-inner" style={{ color: inactiveColor }}>★</span>
+        <span className="star-half-outer">☆</span>
+      </span>
+    );
+  }
+  for (let i = 0; i < empty; i++) {
+    stars.push(
+      <span key={`e-${i}`} className="star star-empty" style={{ color: inactiveColor }}>
+        ★
+      </span>
+    );
+  }
+  return stars;
+};
+
 const CoffeeCard: React.FC<CoffeeCardProps> = ({
   record,
   selected,
@@ -77,6 +111,9 @@ const CoffeeCard: React.FC<CoffeeCardProps> = ({
           {record.aromas.length > 4 && (
             <span className="aroma-tag">+{record.aromas.length - 4}</span>
           )}
+        </div>
+        <div className="card-stars">
+          {renderStars(record.overall)}
         </div>
         <div className="card-stats">
           <div className="card-stat-item">
