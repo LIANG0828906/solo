@@ -1,0 +1,12 @@
+{
+  "plants": [
+    {
+      "id": "a7fed878-1516-4a8c-b822-8766339ce528",
+      "name": "小绿多肉",
+      "category": "多肉",
+      "waterFrequency": 3,
+      "lastWateredDate": "2026-06-18T05:00:23.967Z",
+      "growthRecords": []
+    }
+  ]
+}
