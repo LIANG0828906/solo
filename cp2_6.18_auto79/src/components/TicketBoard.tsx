@@ -18,6 +18,14 @@ const statusColors: Record<TicketStatus, string> = {
   completed: '#8B5CF6',
 };
 
+const statusDotColors: Record<TicketStatus, string> = {
+  pending: '#9CA3AF',
+  reviewing: '#3B82F6',
+  approved: '#10B981',
+  rejected: '#EF4444',
+  completed: '#8B5CF6',
+};
+
 const filterButtons: (TicketStatus | 'all')[] = [
   'all',
   'pending',
@@ -58,13 +66,13 @@ const TicketCard: React.FC<TicketCardProps> = ({
   };
 
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   };
 
   const truncatedReason =
@@ -78,11 +86,12 @@ const TicketCard: React.FC<TicketCardProps> = ({
         width: '100%',
         maxWidth: '400px',
         backgroundColor: '#FFFFFF',
-        borderRadius: '12px',
+        borderRadius: '16px',
+        border: '1px solid #E5E7EB',
         boxShadow: isHovered
-          ? '0 6px 20px rgba(0,0,0,0.12)'
-          : '0 2px 8px rgba(0,0,0,0.06)',
-        padding: '16px',
+          ? '0 12px 32px rgba(0,0,0,0.15)'
+          : '0 4px 12px rgba(0,0,0,0.08)',
+        padding: '20px',
         transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
         transition: 'transform 0.2s ease, box-shadow 0.2s ease',
         position: 'relative',
@@ -138,7 +147,10 @@ const TicketCard: React.FC<TicketCardProps> = ({
         <span
           key={statusKey}
           style={{
-            padding: '4px 10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 12px',
             borderRadius: '9999px',
             fontSize: '12px',
             fontWeight: 500,
@@ -147,6 +159,15 @@ const TicketCard: React.FC<TicketCardProps> = ({
             animation: 'fadeIn 0.3s ease',
           }}
         >
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: statusDotColors[ticket.status],
+              boxShadow: `0 0 0 2px ${statusDotColors[ticket.status]}33`,
+            }}
+          />
           {statusLabels[ticket.status]}
         </span>
       </div>
