@@ -3,11 +3,16 @@ import { v4 as uuidv4 } from 'uuid';
 
 export type CardType = 'text' | 'image' | 'voice' | 'todo';
 
+export interface CardPosition {
+  x: number;
+  y: number;
+}
+
 export interface Card {
   id: string;
   type: CardType;
   content: string;
-  position: { x: number; y: number };
+  position: CardPosition;
   rotation: number;
   imageUrl?: string;
   audioUrl?: string;
@@ -15,26 +20,36 @@ export interface Card {
   isNew?: boolean;
 }
 
-interface CardStore {
+export interface CardStoreState {
   cards: Card[];
   gridEnabled: boolean;
   zoom: number;
+}
+
+export interface CardStoreActions {
   addCard: (card: Omit<Card, 'id' | 'isNew'>) => void;
   removeCard: (id: string) => void;
-  moveCard: (id: string, position: { x: number; y: number }) => void;
-  toggleGrid: () => void;
-  clearCards: () => void;
+  moveCard: (id: string, position: CardPosition) => void;
   updateCard: (id: string, updates: Partial<Card>) => void;
   duplicateCard: (id: string) => void;
+  clearCards: () => void;
+  toggleGrid: () => void;
   setZoom: (zoom: number) => void;
   markCardAsSeen: (id: string) => void;
 }
 
-const GRID_SIZE = 16;
+export type CardStore = CardStoreState & CardStoreActions;
+
+export const GRID_SIZE = 16;
 
 export const snapToGrid = (value: number): number => {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
 };
+
+export const snapPositionToGrid = (position: CardPosition): CardPosition => ({
+  x: snapToGrid(position.x),
+  y: snapToGrid(position.y),
+});
 
 export const useCardStore = create<CardStore>((set, get) => ({
   cards: [],
@@ -43,7 +58,7 @@ export const useCardStore = create<CardStore>((set, get) => ({
 
   addCard: (cardData) => {
     const snappedPosition = get().gridEnabled
-      ? { x: snapToGrid(cardData.position.x), y: snapToGrid(cardData.position.y) }
+      ? snapPositionToGrid(cardData.position)
       : cardData.position;
 
     const newCard: Card = {
@@ -61,7 +76,7 @@ export const useCardStore = create<CardStore>((set, get) => ({
 
   moveCard: (id, position) => {
     const snappedPosition = get().gridEnabled
-      ? { x: snapToGrid(position.x), y: snapToGrid(position.y) }
+      ? snapPositionToGrid(position)
       : position;
 
     set((state) => ({

@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useCardStore, Card, snapToGrid } from './store';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useCardStore, Card, snapPositionToGrid, GRID_SIZE, CardPosition } from './store';
 
 interface CanvasProps {
   canvasRef: React.RefObject<HTMLDivElement>;
@@ -15,8 +15,6 @@ interface DragState {
   currentX: number;
   currentY: number;
 }
-
-const GRID_SIZE = 16;
 
 const getCardStyle = (type: string): React.CSSProperties => {
   switch (type) {
@@ -61,6 +59,16 @@ const getCardStyle = (type: string): React.CSSProperties => {
       };
     default:
       return {};
+  }
+};
+
+const getCardBorderRadius = (type: string): string => {
+  switch (type) {
+    case 'text': return '8px';
+    case 'image': return '12px';
+    case 'voice': return '16px';
+    case 'todo': return '8px';
+    default: return '8px';
   }
 };
 
@@ -178,6 +186,156 @@ const TodoCardContent: React.FC<{ card: Card; onToggle: () => void }> = ({ card,
   </div>
 );
 
+interface CardItemProps {
+  card: Card;
+  isDragging: boolean;
+  isOtherDragging: boolean;
+  currentX: number;
+  currentY: number;
+  onMouseDown: (e: React.MouseEvent, card: Card) => void;
+  onRemove: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onToggleTodo: (id: string) => void;
+  onAnimationEnd: (id: string) => void;
+}
+
+const CardItem: React.FC<CardItemProps> = ({
+  card,
+  isDragging,
+  isOtherDragging,
+  currentX,
+  currentY,
+  onMouseDown,
+  onRemove,
+  onDuplicate,
+  onToggleTodo,
+  onAnimationEnd,
+}) => {
+  const cardStyle = getCardStyle(card.type);
+  const [isEntered, setIsEntered] = useState(!card.isNew);
+
+  useEffect(() => {
+    if (card.isNew && !isEntered) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsEntered(true);
+          setTimeout(() => onAnimationEnd(card.id), 200);
+        });
+      });
+    }
+  }, [card.isNew, card.id, isEntered, onAnimationEnd]);
+
+  const getContentComponent = () => {
+    switch (card.type) {
+      case 'text':
+        return <TextCardContent card={card} />;
+      case 'image':
+        return <ImageCardContent card={card} />;
+      case 'voice':
+        return <VoiceCardContent card={card} />;
+      case 'todo':
+        return <TodoCardContent card={card} onToggle={() => onToggleTodo(card.id)} />;
+      default:
+        return null;
+    }
+  };
+
+  const transformValue = card.isNew && !isEntered
+    ? `translate(-100px, -100px) scale(0.8) rotate(${card.rotation}deg)`
+    : `translate(0, 0) scale(1) rotate(${card.rotation}deg)`;
+
+  const opacityValue = card.isNew && !isEntered ? 0 : 1;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: `${currentX}px`,
+        top: `${currentY}px`,
+        transform: transformValue,
+        opacity: isDragging ? 0.7 : isOtherDragging ? 0.3 : opacityValue,
+        transition: isDragging
+          ? 'opacity 0.1s ease'
+          : card.isNew
+          ? 'transform 0.2s ease, opacity 0.2s ease'
+          : 'opacity 0.15s ease, transform 0.15s ease',
+        zIndex: isDragging ? 50 : 10,
+        cursor: 'grab',
+        userSelect: 'none',
+      }}
+      onMouseDown={(e) => onMouseDown(e, card)}
+    >
+      <div style={cardStyle}>
+        {getContentComponent()}
+      </div>
+
+      <div
+        className="card-actions"
+        style={{
+          position: 'absolute',
+          right: '-8px',
+          bottom: '-8px',
+          display: 'flex',
+          gap: '4px',
+          opacity: 0,
+          transition: 'opacity 0.15s ease',
+        }}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate(card.id);
+          }}
+          style={{
+            width: '24px',
+            height: '24px',
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: '#6B7280',
+            color: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            transition: 'background-color 0.2s ease',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#4B5563')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6B7280')}
+          title="复制"
+        >
+          ⎘
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(card.id);
+          }}
+          style={{
+            width: '24px',
+            height: '24px',
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: '#6B7280',
+            color: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            transition: 'background-color 0.2s ease',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#EF4444')}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6B7280')}
+          title="删除"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function Canvas({ canvasRef }: CanvasProps) {
   const cards = useCardStore((state) => state.cards);
   const zoom = useCardStore((state) => state.zoom);
@@ -205,12 +363,19 @@ export default function Canvas({ canvasRef }: CanvasProps) {
 
   const showGrid = gridEnabled && zoom >= 0.8;
 
+  const snappedPosition = useMemo<CardPosition | null>(() => {
+    if (!dragState.isDragging || !dragState.cardId || !gridEnabled) return null;
+    return snapPositionToGrid({ x: dragState.currentX, y: dragState.currentY });
+  }, [dragState.isDragging, dragState.cardId, dragState.currentX, dragState.currentY, gridEnabled]);
+
+  const draggingCard = useMemo(() => {
+    if (!dragState.cardId) return null;
+    return cards.find((c) => c.id === dragState.cardId) || null;
+  }, [dragState.cardId, cards]);
+
   const handleMouseDown = useCallback((e: React.MouseEvent, card: Card) => {
     e.preventDefault();
     e.stopPropagation();
-
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
 
     setDragState({
       isDragging: true,
@@ -222,7 +387,7 @@ export default function Canvas({ canvasRef }: CanvasProps) {
       currentX: card.position.x,
       currentY: card.position.y,
     });
-  }, [canvasRef]);
+  }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!dragStateRef.current.isDragging || !dragStateRef.current.cardId) return;
@@ -243,8 +408,14 @@ export default function Canvas({ canvasRef }: CanvasProps) {
   const handleMouseUp = useCallback(() => {
     if (!dragStateRef.current.isDragging || !dragStateRef.current.cardId) return;
 
-    const finalX = snapToGrid(dragStateRef.current.currentX);
-    const finalY = snapToGrid(dragStateRef.current.currentY);
+    const finalX = snapPositionToGrid({
+      x: dragStateRef.current.currentX,
+      y: dragStateRef.current.currentY,
+    }).x;
+    const finalY = snapPositionToGrid({
+      x: dragStateRef.current.currentX,
+      y: dragStateRef.current.currentY,
+    }).y;
 
     moveCard(dragStateRef.current.cardId, { x: finalX, y: finalY });
 
@@ -272,156 +443,29 @@ export default function Canvas({ canvasRef }: CanvasProps) {
     };
   }, [dragState.isDragging, handleMouseMove, handleMouseUp]);
 
-  const handleCardLoad = useCallback((cardId: string) => {
-    setTimeout(() => {
-      markCardAsSeen(cardId);
-    }, 300);
+  const handleAnimationEnd = useCallback((cardId: string) => {
+    markCardAsSeen(cardId);
   }, [markCardAsSeen]);
 
-  const renderCard = (card: Card) => {
-    const isDragging = dragState.isDragging && dragState.cardId === card.id;
-    const isOtherDragging = dragState.isDragging && dragState.cardId !== card.id;
-
-    let currentX = card.position.x;
-    let currentY = card.position.y;
-
-    if (isDragging) {
-      currentX = dragState.currentX;
-      currentY = dragState.currentY;
+  const handleToggleTodo = useCallback((id: string) => {
+    const card = cards.find((c) => c.id === id);
+    if (card) {
+      updateCard(id, { checked: !card.checked });
     }
+  }, [cards, updateCard]);
 
-    const cardStyle = getCardStyle(card.type);
-
-    const getContentComponent = () => {
-      switch (card.type) {
-        case 'text':
-          return <TextCardContent card={card} />;
-        case 'image':
-          return <ImageCardContent card={card} />;
-        case 'voice':
-          return <VoiceCardContent card={card} />;
-        case 'todo':
-          return (
-            <TodoCardContent
-              card={card}
-              onToggle={() => updateCard(card.id, { checked: !card.checked })}
-            />
-          );
-        default:
-          return null;
-      }
-    };
-
-    const getAnimationStyle = (): React.CSSProperties => {
-      if (!card.isNew) return {};
-
-      handleCardLoad(card.id);
-
-      return {
-        animation: 'flyIn 0.2s ease forwards',
-        transformOrigin: 'top left',
-      };
-    };
-
-    return (
-      <div
-        key={card.id}
-        style={{
-          position: 'absolute',
-          left: `${currentX}px`,
-          top: `${currentY}px`,
-          transform: `rotate(${card.rotation}deg)`,
-          opacity: isDragging ? 0.7 : isOtherDragging ? 0.3 : 1,
-          transition: isDragging ? 'none' : 'opacity 0.15s ease, transform 0.15s ease',
-          zIndex: isDragging ? 50 : 10,
-          cursor: 'grab',
-          userSelect: 'none',
-          ...getAnimationStyle(),
-        }}
-        onMouseDown={(e) => handleMouseDown(e, card)}
-      >
-        <div style={cardStyle}>
-          {getContentComponent()}
-        </div>
-
-        <div
-          style={{
-            position: 'absolute',
-            right: '-8px',
-            bottom: '-8px',
-            display: 'flex',
-            gap: '4px',
-            opacity: isDragging ? 0 : 0,
-            transition: 'opacity 0.15s ease',
-          }}
-          className="card-actions"
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0')}
-        >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              duplicateCard(card.id);
-            }}
-            style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: '50%',
-              border: 'none',
-              backgroundColor: '#6B7280',
-              color: 'white',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '12px',
-              transition: 'background-color 0.2s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#4B5563')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6B7280')}
-            title="复制"
-          >
-            ⎘
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              removeCard(card.id);
-            }}
-            style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: '50%',
-              border: 'none',
-              backgroundColor: '#6B7280',
-              color: 'white',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '12px',
-              transition: 'background-color 0.2s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#EF4444')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6B7280')}
-            title="删除"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-    );
+  const gridStyle: React.CSSProperties = {
+    backgroundImage: `
+      linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)
+    `,
+    backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
+    opacity: showGrid ? 1 : 0,
+    transition: 'opacity 0.3s ease',
+    position: 'absolute',
+    inset: 0,
+    pointerEvents: 'none',
   };
-
-  const gridStyle: React.CSSProperties = showGrid
-    ? {
-        backgroundImage: `
-          linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)
-        `,
-        backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
-      }
-    : {};
 
   return (
     <>
@@ -432,23 +476,9 @@ export default function Canvas({ canvasRef }: CanvasProps) {
           inset: 0,
           backgroundColor: '#1F2937',
           overflow: 'auto',
-          transform: `scale(${zoom})`,
-          transformOrigin: 'center center',
-          transition: 'transform 0.15s ease',
-          ...gridStyle,
         }}
       >
         <style>{`
-          @keyframes flyIn {
-            0% {
-              opacity: 0;
-              transform: translate(-50%, -50%) scale(0.8);
-            }
-            100% {
-              opacity: 1;
-              transform: translate(0, 0) scale(1);
-            }
-          }
           .card-actions {
             opacity: 0;
           }
@@ -456,15 +486,68 @@ export default function Canvas({ canvasRef }: CanvasProps) {
             opacity: 1;
           }
         `}</style>
+
         <div
           style={{
             position: 'relative',
             minWidth: '3000px',
             minHeight: '2000px',
             padding: '40px',
+            transform: `scale(${zoom})`,
+            transformOrigin: 'top left',
+            transition: 'transform 0.15s ease',
           }}
         >
-          {cards.map(renderCard)}
+          <div style={gridStyle} />
+
+          {snappedPosition && draggingCard && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${snappedPosition.x}px`,
+                top: `${snappedPosition.y}px`,
+                width: draggingCard.type === 'image' ? '240px' : 'auto',
+                minWidth: '200px',
+                minHeight: '40px',
+                border: '2px dashed #3B82F6',
+                borderRadius: getCardBorderRadius(draggingCard.type),
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                opacity: 0.6,
+                pointerEvents: 'none',
+                zIndex: 5,
+                transition: 'left 0.05s ease, top 0.05s ease',
+              }}
+            />
+          )}
+
+          {cards.map((card) => {
+            const isDragging = dragState.isDragging && dragState.cardId === card.id;
+            const isOtherDragging = dragState.isDragging && dragState.cardId !== card.id;
+
+            let currentX = card.position.x;
+            let currentY = card.position.y;
+
+            if (isDragging) {
+              currentX = dragState.currentX;
+              currentY = dragState.currentY;
+            }
+
+            return (
+              <CardItem
+                key={card.id}
+                card={card}
+                isDragging={isDragging}
+                isOtherDragging={isOtherDragging}
+                currentX={currentX}
+                currentY={currentY}
+                onMouseDown={handleMouseDown}
+                onRemove={removeCard}
+                onDuplicate={duplicateCard}
+                onToggleTodo={handleToggleTodo}
+                onAnimationEnd={handleAnimationEnd}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -491,6 +574,7 @@ export default function Canvas({ canvasRef }: CanvasProps) {
             fontWeight: 500,
             minWidth: '50px',
             textAlign: 'center',
+            transition: 'all 0.1s ease',
           }}
         >
           {Math.round(zoom * 100)}%
@@ -500,6 +584,7 @@ export default function Canvas({ canvasRef }: CanvasProps) {
           min="25"
           max="200"
           value={zoom * 100}
+          onInput={(e) => setZoom(Number(e.target.value) / 100)}
           onChange={(e) => setZoom(Number(e.target.value) / 100)}
           style={{
             width: '200px',
