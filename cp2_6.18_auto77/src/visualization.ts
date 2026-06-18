@@ -19,9 +19,11 @@ export class Visualization {
   private particleColors: Float32Array | null = null;
   private particleSizes: Float32Array | null = null;
   private baseParticlePositions: Float32Array | null = null;
+  private particleRandomOffsets: Float32Array | null = null;
   private waveform: THREE.Mesh | null = null;
   private waveformGeometry: THREE.PlaneGeometry | null = null;
   private waveformBasePositions: Float32Array | null = null;
+  private waveformGridLines: THREE.LineSegments | null = null;
   private rotationAngle: number = 0;
   private particleCount: number = 5000;
   private particleTime: number = 0;
@@ -58,6 +60,7 @@ export class Visualization {
     this.particleColors = new Float32Array(count * 3);
     this.particleSizes = new Float32Array(count);
     this.baseParticlePositions = new Float32Array(count * 3);
+    this.particleRandomOffsets = new Float32Array(count * 3);
 
     const baseRadius = 4;
     const height = 6;
@@ -77,9 +80,13 @@ export class Visualization {
       this.baseParticlePositions[i3 + 1] = y;
       this.baseParticlePositions[i3 + 2] = z;
 
-      this.particlePositions[i3] = x;
-      this.particlePositions[i3 + 1] = y;
-      this.particlePositions[i3 + 2] = z;
+      this.particleRandomOffsets[i3] = (Math.random() - 0.5) * 0.6;
+      this.particleRandomOffsets[i3 + 1] = (Math.random() - 0.5) * 0.6;
+      this.particleRandomOffsets[i3 + 2] = (Math.random() - 0.5) * 0.6;
+
+      this.particlePositions[i3] = x + this.particleRandomOffsets[i3];
+      this.particlePositions[i3 + 1] = y + this.particleRandomOffsets[i3 + 1];
+      this.particlePositions[i3 + 2] = z + this.particleRandomOffsets[i3 + 2];
 
       const colorRatio = t;
       let color: THREE.Color;
@@ -195,24 +202,38 @@ export class Visualization {
     this.waveform.position.y = -4;
     this.scene.add(this.waveform);
 
-    const wireframeGeometry = new THREE.WireframeGeometry(this.waveformGeometry);
-    const wireframePositions = wireframeGeometry.attributes.position.array as Float32Array;
-    for (let i = 0; i < wireframePositions.length; i++) {
-      if (isNaN(wireframePositions[i])) {
-        wireframePositions[i] = 0;
-      }
-    }
-    wireframeGeometry.attributes.position.needsUpdate = true;
-    wireframeGeometry.computeBoundingSphere();
+    this.createWaveformGridLines();
+  }
 
-    const wireframeMaterial = new THREE.LineBasicMaterial({
-      color: 0x00aaff,
+  private createWaveformGridLines(): void {
+    if (!this.waveformGeometry) return;
+
+    const gridSize = 20;
+    const cellSize = 0.3;
+    const totalSize = gridSize * cellSize;
+    const halfSize = totalSize / 2;
+    const positions: number[] = [];
+
+    for (let i = 0; i <= gridSize; i++) {
+      const pos = -halfSize + i * cellSize;
+
+      positions.push(pos, 0, -halfSize, pos, 0, halfSize);
+
+      positions.push(-halfSize, 0, pos, halfSize, 0, pos);
+    }
+
+    const gridGeometry = new THREE.BufferGeometry();
+    gridGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+    const gridMaterial = new THREE.LineBasicMaterial({
+      color: 0x66ffcc,
       transparent: true,
-      opacity: 0.3
+      opacity: 0.2
     });
-    const wireframe = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
-    wireframe.position.y = -4;
-    this.scene.add(wireframe);
+
+    this.waveformGridLines = new THREE.LineSegments(gridGeometry, gridMaterial);
+    this.waveformGridLines.position.y = -4;
+    this.scene.add(this.waveformGridLines);
   }
 
   update(freqData: Uint8Array, params: VisualParams, deltaTime: number): void {
@@ -233,7 +254,7 @@ export class Visualization {
   }
 
   private updateParticles(freqData: Uint8Array, params: VisualParams, _deltaTime: number): void {
-    if (!this.particleGeometry || !this.baseParticlePositions || !this.particlePositions || !this.particleSizes || freqData.length === 0) return;
+    if (!this.particleGeometry || !this.baseParticlePositions || !this.particlePositions || !this.particleSizes || !this.particleRandomOffsets || freqData.length === 0) return;
 
     const positions = this.particleGeometry.attributes.position.array as Float32Array;
     const sizes = this.particleGeometry.attributes.size.array as Float32Array;
@@ -248,6 +269,8 @@ export class Visualization {
     const baseRadius = 4;
     const spreadAmount = params.spread * 1.5;
 
+    const breathIntensity = totalEnergy / 255;
+
     for (let i = 0; i < count; i++) {
       const t = i / count;
       const freqIndex = Math.floor(t * freqData.length);
@@ -261,17 +284,23 @@ export class Visualization {
       const offsetX = Math.sin(this.particleTime * 2 + i * 0.1) * spreadAmount * amplitude * 0.3;
       const offsetZ = Math.cos(this.particleTime * 1.5 + i * 0.15) * spreadAmount * amplitude * 0.3;
 
-      const x = r * Math.cos(dynamicTheta) + offsetX;
-      const z = r * Math.sin(dynamicTheta) + offsetZ;
-      const yOffset = amplitude * 0.5 * Math.sin(this.particleTime * 3 + i * 0.2);
-
       const i3 = i * 3;
-      positions[i3] = isNaN(x) ? this.baseParticlePositions[i3] : x;
-      positions[i3 + 1] = isNaN(y + yOffset) ? this.baseParticlePositions[i3 + 1] : y + yOffset;
-      positions[i3 + 2] = isNaN(z) ? this.baseParticlePositions[i3 + 2] : z;
 
-      const size = 0.05 + amplitude * 0.25;
-      sizes[i] = isNaN(size) ? 0.05 : size;
+      const breathTremorX = this.particleRandomOffsets[i3] * (1 + breathIntensity * 0.4 * Math.sin(this.particleTime * 2.5 + i * 0.07));
+      const breathTremorY = this.particleRandomOffsets[i3 + 1] * (1 + breathIntensity * 0.4 * Math.sin(this.particleTime * 1.8 + i * 0.09));
+      const breathTremorZ = this.particleRandomOffsets[i3 + 2] * (1 + breathIntensity * 0.4 * Math.sin(this.particleTime * 2.2 + i * 0.11));
+
+      const spiralX = r * Math.cos(dynamicTheta) + offsetX;
+      const spiralY = y + amplitude * 0.5 * Math.sin(this.particleTime * 3 + i * 0.2);
+      const spiralZ = r * Math.sin(dynamicTheta) + offsetZ;
+
+      const x = spiralX + breathTremorX;
+      const finalY = spiralY + breathTremorY;
+      const z = spiralZ + breathTremorZ;
+
+      positions[i3] = isNaN(x) ? this.baseParticlePositions[i3] : x;
+      positions[i3 + 1] = isNaN(finalY) ? this.baseParticlePositions[i3 + 1] : finalY;
+      positions[i3 + 2] = isNaN(z) ? this.baseParticlePositions[i3 + 2] : z;
 
       const lowIdx = Math.max(0, Math.min(Math.floor(freqIndex * 0.3), freqData.length - 1));
       const midIdx = Math.max(0, Math.min(Math.floor(freqIndex * 0.6), freqData.length - 1));
@@ -280,6 +309,11 @@ export class Visualization {
       const lowFreq = freqData[lowIdx] / 255;
       const midFreq = freqData[midIdx] / 255;
       const highFreq = freqData[highIdx] / 255;
+
+      const flicker = 1 + 0.3 * Math.sin(this.particleTime * 8 + i * 1.7) * amplitude;
+      const baseSize = 0.05 + amplitude * 0.25;
+      const size = baseSize * flicker;
+      sizes[i] = isNaN(size) ? 0.05 : Math.min(size, 0.3);
 
       const rCol = Visualization.LOW_COLOR.r * lowFreq * amplitude + 0.2;
       const gCol = Visualization.MID_COLOR.g * midFreq * amplitude + 0.2;
@@ -322,6 +356,59 @@ export class Visualization {
 
     this.waveformGeometry.attributes.position.needsUpdate = true;
     this.waveformGeometry.computeVertexNormals();
+
+    this.updateGridLineHeights(freqData, params);
+  }
+
+  private updateGridLineHeights(freqData: Uint8Array, params: VisualParams): void {
+    if (!this.waveformGridLines) return;
+
+    const gridPositions = this.waveformGridLines.geometry.attributes.position.array as Float32Array;
+    const gridSize = 20;
+    const cellSize = 0.3;
+    const totalSize = gridSize * cellSize;
+    const halfSize = totalSize / 2;
+    let idx = 0;
+
+    for (let i = 0; i <= gridSize; i++) {
+      const pos = -halfSize + i * cellSize;
+
+      const rowI = Math.min(i, gridSize - 1);
+      const freqRow = Math.floor((rowI / (gridSize - 1)) * (freqData.length * 0.5));
+
+      for (let j = 0; j <= 1; j++) {
+        const sampleCol = j * (gridSize - 1);
+        const freqCol = Math.floor((sampleCol / (gridSize - 1)) * (freqData.length * 0.5));
+        const freqIndex = Math.floor((freqRow + freqCol) * 0.5);
+        const safeIndex = Math.max(0, Math.min(freqIndex, freqData.length - 1));
+        const value = freqData[safeIndex] / 255;
+        const h = (value * 2 - 1) * params.sensitivity;
+
+        gridPositions[idx] = pos;
+        gridPositions[idx + 1] = isNaN(h) ? 0 : h;
+        gridPositions[idx + 2] = j === 0 ? -halfSize : halfSize;
+        idx += 3;
+      }
+
+      const colI = Math.min(i, gridSize - 1);
+      const freqColIdx = Math.floor((colI / (gridSize - 1)) * (freqData.length * 0.5));
+
+      for (let j = 0; j <= 1; j++) {
+        const sampleRow = j * (gridSize - 1);
+        const freqRowIdx = Math.floor((sampleRow / (gridSize - 1)) * (freqData.length * 0.5));
+        const freqIndex = Math.floor((freqRowIdx + freqColIdx) * 0.5);
+        const safeIndex = Math.max(0, Math.min(freqIndex, freqData.length - 1));
+        const value = freqData[safeIndex] / 255;
+        const h = (value * 2 - 1) * params.sensitivity;
+
+        gridPositions[idx] = j === 0 ? -halfSize : halfSize;
+        gridPositions[idx + 1] = isNaN(h) ? 0 : h;
+        gridPositions[idx + 2] = pos;
+        idx += 3;
+      }
+    }
+
+    this.waveformGridLines.geometry.attributes.position.needsUpdate = true;
   }
 
   resize(width: number, height: number): void {

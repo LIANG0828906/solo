@@ -104,8 +104,12 @@ export class UIControls {
     const group = document.createElement('div');
     group.className = 'control-group';
 
+    const headerRow = document.createElement('div');
+    headerRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;';
+
     const label = document.createElement('label');
     label.className = 'control-label';
+    label.style.marginBottom = '0';
     const labels: Record<string, string> = {
       sensitivity: '灵敏度',
       rotationSpeed: '旋转速度',
@@ -113,9 +117,20 @@ export class UIControls {
     };
     label.textContent = labels[paramKey] || paramKey;
 
+    const valueDisplay = document.createElement('span');
+    valueDisplay.style.cssText = 'font-size:12px;color:#00FF88;font-family:monospace;min-width:36px;text-align:right;';
+    valueDisplay.textContent = value.toFixed(2);
+
+    headerRow.appendChild(label);
+    headerRow.appendChild(valueDisplay);
+
+    const sliderRow = document.createElement('div');
+    sliderRow.style.cssText = 'display:flex;align-items:center;gap:8px;';
+
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.className = 'slider';
+    slider.style.flex = '1';
     slider.min = min.toString();
     slider.max = max.toString();
     slider.value = value.toString();
@@ -125,10 +140,13 @@ export class UIControls {
       const val = parseFloat((e.target as HTMLInputElement).value);
       (this.params as any)[paramKey] = val;
       this.callbacks.onParamsChange({ [paramKey]: val } as Partial<VisualParams>);
+      valueDisplay.textContent = val.toFixed(2);
     });
 
-    group.appendChild(label);
-    group.appendChild(slider);
+    sliderRow.appendChild(slider);
+
+    group.appendChild(headerRow);
+    group.appendChild(sliderRow);
     this.controlPanel.appendChild(group);
 
     return slider;
