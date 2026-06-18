@@ -68,6 +68,14 @@ const GRADIENT_PALETTES = [
   ['#30cfd0', '#330867'],
   ['#a8edea', '#fed6e3'],
   ['#ff9a9e', '#fecfef'],
+  ['#ff6e7f', '#bfe9ff'],
+  ['#a18cd1', '#fbc2eb'],
+  ['#fbc2eb', '#a6c1ee'],
+  ['#84fab0', '#8fd3f4'],
+  ['#fccb90', '#d57eeb'],
+  ['#e0c3fc', '#8ec5fc'],
+  ['#f5576c', '#f093fb'],
+  ['#5ee7df', '#b490ca'],
 ]
 
 const PERSONALITY_RESULTS: PersonalityResult[] = [
@@ -152,17 +160,21 @@ export default function App() {
 
   const computeResult = useCallback((userAnswers: number[]) => {
     const score = userAnswers.reduce((sum, ans) => sum + ans, 0)
-    const paletteIndex = userAnswers.reduce(
-      (acc, ans, idx) => acc + ans * (idx + 1),
-      0
-    ) % GRADIENT_PALETTES.length
+
+    let comboHash = 0
+    userAnswers.forEach((ans, idx) => {
+      comboHash = (comboHash << 1) | ans
+      comboHash = (comboHash * 31 + idx * 7 + ans * 13) >>> 0
+    })
+
+    const paletteIndex = comboHash % GRADIENT_PALETTES.length
     const personalityIndex = score % PERSONALITY_RESULTS.length
     const result = PERSONALITY_RESULTS[personalityIndex]
 
     setResultTitle(result.title)
     setResultDescription(result.description)
     setResultColors(GRADIENT_PALETTES[paletteIndex])
-    setGradientDirection(score % 4)
+    setGradientDirection(comboHash % 4)
   }, [])
 
   const handleStart = useCallback(() => {

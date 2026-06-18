@@ -355,6 +355,10 @@ body {
   border: 2px solid transparent;
   transition: all 0.1s ease;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .gradient-option:hover {
@@ -366,13 +370,26 @@ body {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
 }
 
+.gradient-option-label {
+  position: relative;
+  z-index: 1;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 3px 10px;
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+}
+
 .gradient-option::after {
   content: '';
   position: absolute;
-  inset: 6px;
+  inset: 4px;
   border-radius: 8px;
   background: inherit;
-  filter: brightness(1.1);
+  filter: brightness(1.05);
 }
 
 .action-buttons {

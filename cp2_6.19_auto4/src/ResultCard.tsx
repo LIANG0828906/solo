@@ -88,8 +88,9 @@ export default function ResultCard({
                 background: `linear-gradient(${dir.value}, ${gradientColors[0]}, ${gradientColors[1]})`,
               }}
               onClick={() => onGradientDirectionChange(idx)}
-              title={dir.label}
-            />
+            >
+              <span className="gradient-option-label">{dir.label}</span>
+            </div>
           ))}
         </div>
 
