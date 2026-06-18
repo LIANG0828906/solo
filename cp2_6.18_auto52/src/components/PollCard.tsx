@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Clock, Users, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 import { usePollStore } from '@/store';
 import StatisticsPanel from './StatisticsPanel';
 import type { Poll } from '@/types';
@@ -31,7 +32,7 @@ function formatCountdown(cd: Countdown): string {
   if (cd.expired) return '已截止';
   const parts: string[] = [];
   if (cd.days > 0) parts.push(`${cd.days}天`);
-  if (cd.hours > 0 || cd.days > 0) parts.push(`${cd.hours}小时`);
+  if (cd.hours > 0 || cd.days > 0) parts.push(`${cd.hours}时`);
   parts.push(`${cd.minutes}分${cd.seconds}秒`);
   return parts.join('');
 }
@@ -42,7 +43,7 @@ export default function PollCard({ poll }: PollCardProps) {
   const closePoll = usePollStore((s) => s.closePoll);
 
   const [countdown, setCountdown] = useState<Countdown>(getCountdown(poll.deadline));
-  const [showChart, setShowChart] = useState(true);
+  const [showDetails, setShowDetails] = useState(false);
 
   const selectedOption = votedPolls[poll.id] ?? null;
 
@@ -70,101 +71,150 @@ export default function PollCard({ poll }: PollCardProps) {
   const totalVotes = poll.votes.length;
 
   const statistics = useMemo(() => {
-    return usePollStore.getState().getStatistics(poll.id);
-  }, [poll.id, poll.votes, poll.options]);
+    return usePollStore.getState().getStats(poll.id);
+  }, [poll.id, poll.votes.length]);
+
+  const hasExpired = poll.isClosed || countdown.expired;
 
   return (
     <div
-      className={`rounded-xl bg-white p-5 transition-all duration-300`}
+      className="rounded-xl bg-white transition-all duration-300 overflow-hidden"
       style={{
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        opacity: poll.isClosed ? 0.6 : 1,
+        opacity: hasExpired ? 0.6 : 1,
       }}
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <h3 className="text-base font-semibold text-gray-900 leading-snug">
-          {poll.title}
-        </h3>
-        {poll.isClosed && (
-          <span className="shrink-0 rounded-md bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-            已截止
-          </span>
-        )}
-      </div>
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 leading-snug">
+            {poll.title}
+          </h3>
+          {hasExpired && (
+            <span className="shrink-0 rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
+              已截止
+            </span>
+          )}
+        </div>
 
-      <div className="flex items-center gap-4 mb-4 text-sm text-gray-500">
-        <span className="flex items-center gap-1">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-          {totalVotes} 票
-        </span>
-        {!poll.isClosed && (
-          <span className="flex items-center gap-1 text-indigo-600">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            {formatCountdown(countdown)}
-          </span>
-        )}
-      </div>
+        <div className="flex flex-wrap items-center gap-4 mb-5 text-sm">
+          <div className="flex items-center gap-1.5 text-gray-500">
+            <Users size={14} />
+            <span>
+              <span className="font-semibold text-gray-700">{totalVotes}</span>
+              {' '}人已投票
+            </span>
+          </div>
+          <div
+            className={`flex items-center gap-1.5 ${
+              hasExpired ? 'text-gray-500' : 'text-indigo-600'
+            }`}
+          >
+            <Clock size={14} />
+            <span>
+              {hasExpired ? '投票已截止' : `剩余 ${formatCountdown(countdown)}`}
+            </span>
+          </div>
+        </div>
 
-      <div className="flex flex-col gap-2 mb-4">
-        {poll.options.map((option) => {
-          const isSelected = selectedOption === option.id;
-          const percentage = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
+        <div className="flex flex-col gap-3">
+          {poll.options.map((option) => {
+            const isSelected = selectedOption === option.id;
+            const percentage = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
 
-          return (
-            <button
-              key={option.id}
-              onClick={() => handleVote(option.id)}
-              disabled={isDisabled}
-              className={`relative flex items-center justify-between rounded-lg border px-4 py-3 text-sm transition-all duration-200 text-left overflow-hidden ${
-                isDisabled
-                  ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
-                  : isSelected
-                  ? 'border-indigo-600 bg-indigo-50 text-indigo-700 cursor-pointer'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50 cursor-pointer'
-              }`}
-            >
-              {isSelected && !isDisabled && (
-                <div
-                  className="absolute inset-0 bg-indigo-50/60 transition-all duration-500 ease-out"
-                  style={{ width: `${percentage}%` }}
-                />
-              )}
-              {!isSelected && totalVotes > 0 && !isDisabled && (
-                <div
-                  className="absolute inset-0 bg-gray-50/60 transition-all duration-500 ease-out"
-                  style={{ width: `${percentage}%` }}
-                />
-              )}
-              <span className="relative z-10 font-medium truncate">{option.text}</span>
-              <span className="relative z-10 shrink-0 text-xs ml-2">
-                {totalVotes > 0 && (
-                  <span className={`${isSelected ? 'text-indigo-500' : 'text-gray-400'}`}>
-                    {option.votes}票 {percentage}%
-                  </span>
-                )}
-              </span>
-            </button>
-          );
-        })}
+            return (
+              <div key={option.id} className="group">
+                <button
+                  onClick={() => handleVote(option.id)}
+                  disabled={isDisabled}
+                  className={`relative w-full rounded-lg border px-4 py-3 transition-all duration-200 text-left overflow-hidden ${
+                    isDisabled
+                      ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                      : isSelected
+                      ? 'border-indigo-600 cursor-pointer'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 cursor-pointer'
+                  }`}
+                >
+                  <div
+                    className={`absolute inset-y-0 left-0 transition-all duration-500 ease-out ${
+                      isSelected ? 'bg-indigo-100/80' : 'bg-gray-100/60'
+                    }`}
+                    style={{ width: `${percentage}%` }}
+                  />
+
+                  <div className="relative z-10 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-600'
+                            : isDisabled
+                            ? 'border-gray-300 bg-gray-100'
+                            : 'border-gray-300 group-hover:border-indigo-400'
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                        )}
+                      </div>
+                      <span
+                        className={`truncate font-medium ${
+                          isSelected && !isDisabled ? 'text-indigo-700' : ''
+                        }`}
+                      >
+                        {option.text}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span
+                        className={`text-sm font-semibold tabular-nums ${
+                          isSelected && !isDisabled ? 'text-indigo-600' : 'text-gray-500'
+                        }`}
+                      >
+                        {option.votes}
+                      </span>
+                      <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden shrink-0">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ease-out ${
+                            isSelected ? 'bg-indigo-500' : 'bg-gray-400'
+                          }`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <span
+                        className={`text-xs font-medium tabular-nums min-w-[36px] text-right ${
+                          isSelected && !isDisabled ? 'text-indigo-600' : 'text-gray-400'
+                        }`}
+                      >
+                        {totalVotes > 0 ? `${percentage}%` : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {totalVotes > 0 && (
-        <div>
+        <div className="border-t border-gray-100 bg-gray-50/50 px-5 py-3">
           <button
-            onClick={() => setShowChart(!showChart)}
-            className="text-xs text-indigo-600 hover:text-indigo-700 mb-2 transition-colors"
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center justify-between w-full text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
           >
-            {showChart ? '收起图表 ▲' : '展开图表 ▼'}
+            <span className="flex items-center gap-1.5">
+              <BarChart3 size={15} />
+              查看统计详情
+            </span>
+            {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
-          {showChart && <StatisticsPanel pollId={poll.id} statistics={statistics} />}
+
+          {showDetails && (
+            <div className="mt-4 pb-2 animate-in fade-in duration-300">
+              <StatisticsPanel pollId={poll.id} statistics={statistics} />
+            </div>
+          )}
         </div>
       )}
     </div>

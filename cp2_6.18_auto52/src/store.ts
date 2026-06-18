@@ -13,6 +13,7 @@ interface PollStore {
   hasVoted: (pollId: string) => boolean;
   getSelectedOption: (pollId: string) => string | null;
   getStatistics: (pollId: string) => PollStatistics;
+  getStats: (pollId: string) => PollStatistics;
   getFilteredPolls: () => Poll[];
 }
 
@@ -151,6 +152,10 @@ export const usePollStore = create<PollStore>((set, get) => ({
     }));
 
     return { totalVotes, optionStats, timelineData };
+  },
+
+  getStats: (pollId) => {
+    return get().getStatistics(pollId);
   },
 
   getFilteredPolls: () => {
