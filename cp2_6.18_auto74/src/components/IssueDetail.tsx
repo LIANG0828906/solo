@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useIssueStore, IssueTag, IssueStatus } from '@/store/issueStore';
+import { useIssueStore, IssueTag, IssueStatus, Issue } from '@/store/issueStore';
 import { relativeTime } from '@/utils/helpers';
-import { calculateSimilarity, suggestTags, TagSuggestion, SimilarIssue } from '@/api/similarity';
+import { calculateSimilarity, suggestTags, TagSuggestion, SimilarIssue, SimilarityWeights } from '@/api/similarity';
 
 const TAG_COLORS: Record<string, string> = {
   Bug: '#EF4444',
@@ -51,9 +51,12 @@ function Spinner({ size = 16 }: { size?: number }) {
 
 interface SimilarPanelProps {
   similarIssues: SimilarIssue[];
+  currentIssue: Issue | null;
+  allIssues: Issue[];
   onJump: (id: string) => void;
   onMarkDuplicate: () => void;
   markingDuplicate: boolean;
+  onWeightsChange: (weights: SimilarityWeights) => void;
 }
 
 function AnimatedPercent({ value }: { value: number }) {
@@ -80,11 +83,14 @@ function AnimatedPercent({ value }: { value: number }) {
 function SimilarItem({
   item,
   onJump,
+  onIgnore,
 }: {
   item: SimilarIssue;
   onJump: (id: string) => void;
+  onIgnore: (id: string) => void;
 }) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const itemRef = useRef<HTMLDivElement>(null);
   const simPercent = Math.round(item.similarity * 100);
   const simColor = item.similarity > 0.8 ? '#EF4444' : '#F97316';
@@ -94,8 +100,8 @@ function SimilarItem({
     <div
       ref={itemRef}
       onClick={() => onJump(item.id)}
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      onMouseEnter={() => { setShowTooltip(true); setHovered(true); }}
+      onMouseLeave={() => { setShowTooltip(false); setHovered(false); }}
       style={{
         position: 'relative',
         display: 'flex',
@@ -117,20 +123,41 @@ function SimilarItem({
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
         flex: 1,
-        marginRight: '12px',
+        marginRight: '8px',
       }}>
         {item.title}
       </span>
-      <span style={{
-        fontSize: '12px',
-        fontWeight: 600,
-        color: simColor,
-        flexShrink: 0,
-        minWidth: '42px',
-        textAlign: 'right',
-      }}>
-        <AnimatedPercent value={simPercent} />
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onIgnore(item.id); }}
+          style={{
+            padding: '2px 8px',
+            background: hovered ? '#FEE2E2' : 'transparent',
+            color: '#EF4444',
+            border: 'none',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 0.2s ease, background 0.2s ease',
+            pointerEvents: hovered ? 'auto' : 'none',
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#FECACA'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = hovered ? '#FEE2E2' : 'transparent'; }}
+        >
+          忽略此匹配
+        </button>
+        <span style={{
+          fontSize: '12px',
+          fontWeight: 600,
+          color: simColor,
+          minWidth: '42px',
+          textAlign: 'right',
+        }}>
+          <AnimatedPercent value={simPercent} />
+        </span>
+      </div>
       {showTooltip && (
         <div
           style={{
@@ -272,13 +299,61 @@ function ConfirmDialog({
 
 type SortMode = 'similarity' | 'time';
 
-function SimilarPanel({ similarIssues, onJump, onMarkDuplicate, markingDuplicate }: SimilarPanelProps) {
+const IGNORED_STORAGE_KEY = 'issue-similarity-ignored';
+
+function loadIgnored(currentIssueId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(IGNORED_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as Record<string, string[]>;
+    return new Set(parsed[currentIssueId] || []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveIgnored(currentIssueId: string, ignored: Set<string>) {
+  try {
+    const raw = localStorage.getItem(IGNORED_STORAGE_KEY);
+    const parsed: Record<string, string[]> = raw ? JSON.parse(raw) : {};
+    parsed[currentIssueId] = Array.from(ignored);
+    localStorage.setItem(IGNORED_STORAGE_KEY, JSON.stringify(parsed));
+  } catch {
+    // ignore
+  }
+}
+
+function SimilarPanel({ similarIssues, currentIssue, allIssues, onJump, onMarkDuplicate, markingDuplicate, onWeightsChange }: SimilarPanelProps) {
   const [sortMode, setSortMode] = useState<SortMode>('similarity');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [weights, setWeights] = useState<SimilarityWeights>({ title: 0.5, description: 0.5 });
+  const [ignoredIds, setIgnoredIds] = useState<Set<string>>(new Set());
+  const [computedSimilar, setComputedSimilar] = useState<SimilarIssue[]>(similarIssues);
 
-  if (similarIssues.length === 0) return null;
+  useEffect(() => {
+    if (!currentIssue) {
+      setIgnoredIds(new Set());
+      return;
+    }
+    setIgnoredIds(loadIgnored(currentIssue.id));
+  }, [currentIssue?.id]);
 
-  const sorted = [...similarIssues].sort((a, b) => {
+  useEffect(() => {
+    if (!currentIssue) return;
+    const recalculated = calculateSimilarity(currentIssue, allIssues, 0.25, weights);
+    setComputedSimilar(recalculated);
+    onWeightsChange(weights);
+  }, [weights, currentIssue?.id]);
+
+  useEffect(() => {
+    setComputedSimilar(similarIssues);
+  }, [similarIssues]);
+
+  if (!currentIssue || computedSimilar.length === 0) return null;
+
+  const filtered = computedSimilar.filter(item => !ignoredIds.has(item.id));
+
+  const sorted = [...filtered].sort((a, b) => {
     if (sortMode === 'time') {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }
@@ -294,6 +369,23 @@ function SimilarPanel({ similarIssues, onJump, onMarkDuplicate, markingDuplicate
     onMarkDuplicate();
   };
 
+  const handleTitleWeightChange = (val: number) => {
+    const title = Math.max(0, Math.min(1, val));
+    setWeights({ title, description: 1 - title });
+  };
+
+  const handleDescWeightChange = (val: number) => {
+    const description = Math.max(0, Math.min(1, val));
+    setWeights({ title: 1 - description, description });
+  };
+
+  const handleIgnore = (id: string) => {
+    const next = new Set(ignoredIds);
+    next.add(id);
+    setIgnoredIds(next);
+    saveIgnored(currentIssue.id, next);
+  };
+
   return (
     <>
       <div
@@ -305,10 +397,10 @@ function SimilarPanel({ similarIssues, onJump, onMarkDuplicate, markingDuplicate
           marginTop: '24px',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ fontSize: '14px', fontWeight: 600, color: '#991B1B' }}>
-              可能重复的 Issue（{similarIssues.length}）
+              可能重复的 Issue（{sorted.length}）
             </div>
             <button
               onClick={toggleSort}
@@ -363,10 +455,83 @@ function SimilarPanel({ similarIssues, onJump, onMarkDuplicate, markingDuplicate
             标记为重复
           </button>
         </div>
+
+        <div style={{
+          background: '#fff',
+          borderRadius: '8px',
+          padding: '12px 14px',
+          marginBottom: '12px',
+          border: '1px solid #FECACA',
+        }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, color: '#991B1B', marginBottom: '10px' }}>
+            ⚖️ 相似度权重调节
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '12px', color: '#64748B', width: '60px', flexShrink: 0 }}>标题权重</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={weights.title}
+                onChange={(e) => handleTitleWeightChange(parseFloat(e.target.value))}
+                style={{
+                  flex: 1,
+                  accentColor: '#6366F1',
+                  cursor: 'pointer',
+                  height: '4px',
+                }}
+              />
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#6366F1', width: '36px', textAlign: 'right' }}>
+                {Math.round(weights.title * 100)}%
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '12px', color: '#64748B', width: '60px', flexShrink: 0 }}>描述权重</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={weights.description}
+                onChange={(e) => handleDescWeightChange(parseFloat(e.target.value))}
+                style={{
+                  flex: 1,
+                  accentColor: '#6366F1',
+                  cursor: 'pointer',
+                  height: '4px',
+                }}
+              />
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#6366F1', width: '36px', textAlign: 'right' }}>
+                {Math.round(weights.description * 100)}%
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {sorted.map(item => (
-            <SimilarItem key={item.id} item={item} onJump={onJump} />
-          ))}
+          {sorted.length === 0 ? (
+            <div style={{
+              padding: '16px',
+              textAlign: 'center',
+              fontSize: '12px',
+              color: '#94A3B8',
+              background: '#fff',
+              borderRadius: '6px',
+            }}>
+              已忽略全部匹配项
+            </div>
+          ) : (
+            sorted.map(item => (
+              <SimilarItem
+                key={item.id}
+                item={item}
+                onJump={onJump}
+                onIgnore={handleIgnore}
+              />
+            ))
+          )}
         </div>
       </div>
       <ConfirmDialog
@@ -496,6 +661,7 @@ const IssueDetail: React.FC<IssueDetailProps> = () => {
   const [markingDuplicate, setMarkingDuplicate] = useState(false);
   const [addingComment, setAddingComment] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [similarityWeights, setSimilarityWeights] = useState<SimilarityWeights>({ title: 0.5, description: 0.5 });
   const suggestBtnRef = useRef<HTMLDivElement>(null);
 
   const issue = issues.find(i => i.id === selectedIssueId) || null;
@@ -505,13 +671,13 @@ const IssueDetail: React.FC<IssueDetailProps> = () => {
 
     setCalculatingSimilar(true);
     const timer = setTimeout(() => {
-      const results = calculateSimilarity(issue, issues, 0.25);
+      const results = calculateSimilarity(issue, issues, 0.25, similarityWeights);
       setSimilarIssues(results);
       setCalculatingSimilar(false);
     }, 10);
 
     return () => clearTimeout(timer);
-  }, [issue?.id, issues, setSimilarIssues]);
+  }, [issue?.id, issues, setSimilarIssues, similarityWeights]);
 
   useEffect(() => {
     setShowTagSuggestions(false);
@@ -580,7 +746,9 @@ const IssueDetail: React.FC<IssueDetailProps> = () => {
   const handleMarkDuplicate = () => {
     setMarkingDuplicate(true);
     setTimeout(() => {
-      const newTags = issue.tags.includes('已标记重复') ? issue.tags : [...issue.tags, '已标记重复'];
+      const newTags: IssueTag[] = issue.tags.includes('已标记重复' as IssueTag)
+        ? issue.tags
+        : [...issue.tags, '已标记重复' as IssueTag];
       updateIssue(issue.id, { status: '已完成', tags: newTags });
       setMarkingDuplicate(false);
       setSimilarIssues([]);
@@ -872,9 +1040,12 @@ const IssueDetail: React.FC<IssueDetailProps> = () => {
       ) : (
         <SimilarPanel
           similarIssues={similarIssues}
+          currentIssue={issue}
+          allIssues={issues}
           onJump={selectIssue}
           onMarkDuplicate={handleMarkDuplicate}
           markingDuplicate={markingDuplicate}
+          onWeightsChange={setSimilarityWeights}
         />
       )}
     </div>

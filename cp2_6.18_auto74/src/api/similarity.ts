@@ -71,20 +71,28 @@ interface FullIssueLike extends IssueLike {
   createdAt?: string;
 }
 
+export interface SimilarityWeights {
+  title: number;
+  description: number;
+}
+
 export function calculateSimilarity(
   newIssue: IssueLike,
   issues: FullIssueLike[],
-  threshold: number = 0.25
+  threshold: number = 0.25,
+  weights: SimilarityWeights = { title: 0.5, description: 0.5 }
 ): SimilarIssue[] {
-  const textA = `${newIssue.title} ${newIssue.description}`;
-  const tokensA = tokenize(textA);
+  const titleTokensA = tokenize(newIssue.title);
+  const descTokensA = tokenize(newIssue.description);
 
   const results: SimilarIssue[] = [];
   for (const issue of issues) {
     if (issue.id === newIssue.id) continue;
-    const textB = `${issue.title} ${issue.description}`;
-    const tokensB = tokenize(textB);
-    const sim = diceCoefficient(tokensA, tokensB);
+    const titleTokensB = tokenize(issue.title);
+    const descTokensB = tokenize(issue.description);
+    const titleSim = diceCoefficient(titleTokensA, titleTokensB);
+    const descSim = diceCoefficient(descTokensA, descTokensB);
+    const sim = titleSim * weights.title + descSim * weights.description;
     if (sim >= threshold) {
       results.push({
         id: issue.id,
