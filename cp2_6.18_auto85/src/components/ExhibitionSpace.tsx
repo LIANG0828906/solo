@@ -74,7 +74,7 @@ const VenueScene: React.FC<VenueSceneProps> = ({ template, layoutIndex, placemen
       if (!camera) return;
       let workId = draggingWorkId || '';
       if (!workId) {
-        workId = e.dataTransfer.getData('text/plain') || '';
+        workId = e.dataTransfer?.getData('text/plain') || '';
       }
       if (!workId) {
         draggingFromWall.current = null;
@@ -288,7 +288,7 @@ const VenueScene: React.FC<VenueSceneProps> = ({ template, layoutIndex, placemen
             >
               <planeGeometry args={[wall.width, wall.height]} />
               <meshStandardMaterial
-                color={wall.color ?? config.wallColor}
+                color={config.wallColor}
                 side={THREE.DoubleSide}
                 roughness={0.85}
               />

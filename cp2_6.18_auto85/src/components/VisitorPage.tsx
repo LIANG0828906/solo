@@ -236,3 +236,222 @@ export const VisitorPage: React.FC<VisitorPageProps> = ({ exhibitionId, onBack }
         }}
       >
         <div style={{ fontSize: 80, marginBottom: 20, opacity: 0.3 }}>🔒</div>
+        <div style={{ fontSize: 22, fontWeight: 600, color: '#CBD5E1', marginBottom: 8 }}>展览尚未发布</div>
+        <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 24 }}>策展人暂未开放该展览的公开访问</div>
+        <button className="btn-gradient" onClick={onBack}>
+          返回首页
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+        background: VENUE_CONFIGS[exhibition.venueTemplate].bgColor,
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          padding: '16px 28px',
+          background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0) 100%)',
+          zIndex: 100,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          pointerEvents: 'none',
+        }}
+      >
+        <div style={{ pointerEvents: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+            <button
+              onClick={onBack}
+              className="btn-secondary"
+              style={{ padding: '8px 14px', fontSize: 12 }}
+            >
+              ← 返回
+            </button>
+            <div
+              style={{
+                padding: '6px 14px',
+                background: 'rgba(79, 70, 229, 0.25)',
+                border: '1px solid rgba(79, 70, 229, 0.4)',
+                borderRadius: 8,
+                fontSize: 11,
+                color: '#A5B4FC',
+                fontWeight: 600,
+              }}
+            >
+              👁️ 访客视图
+            </div>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#F8FAFC', marginTop: 8 }}>
+            {exhibition.name}
+          </div>
+          {exhibition.description && (
+            <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4, maxWidth: 480, lineHeight: 1.6 }}>
+              {exhibition.description}
+            </div>
+          )}
+        </div>
+        <div
+          style={{
+            pointerEvents: 'auto',
+            textAlign: 'right',
+            padding: '10px 16px',
+            background: 'rgba(30, 41, 59, 0.8)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: 12,
+            border: '1px solid #334155',
+          }}
+        >
+          <div style={{ fontSize: 10, color: '#64748B', marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            访问次数
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <span style={{ fontSize: 24, fontWeight: 800, color: '#A3E635', lineHeight: 1 }}>
+              {exhibition.visitCount.toLocaleString()}
+            </span>
+            <span style={{ fontSize: 11, color: '#94A3B8' }}>次</span>
+          </div>
+        </div>
+      </div>
+
+      <Canvas
+        shadows
+        camera={{ position: [0, 3, 14], fov: 60, near: 0.1, far: 1000 }}
+        dpr={[1, 2]}
+        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+      >
+        <color attach="background" args={[VENUE_CONFIGS[exhibition.venueTemplate].bgColor]} />
+        <fog
+          attach="fog"
+          args={[VENUE_CONFIGS[exhibition.venueTemplate].bgColor, 25, 55]}
+        />
+        <VisitorScene
+          template={exhibition.venueTemplate}
+          layoutIndex={exhibition.wallLayout}
+          placements={placements}
+          works={works}
+          onWorkHover={setHoveredWorkId}
+        />
+      </Canvas>
+
+      <div
+        style={{
+          position: 'absolute',
+          left: 24,
+          bottom: 24,
+          background: 'rgba(30, 41, 59, 0.85)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid #334155',
+          borderRadius: 12,
+          padding: '14px 18px',
+          zIndex: 100,
+          maxWidth: 320,
+        }}
+      >
+        <div style={{ fontSize: 11, color: '#A3E635', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          操作提示
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#CBD5E1' }}>
+            <span
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 4,
+                background: 'rgba(163, 230, 53, 0.15)',
+                border: '1px solid rgba(163, 230, 53, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 10,
+                color: '#A3E635',
+                fontWeight: 600,
+              }}
+            >
+              ⇆
+            </span>
+            鼠标拖拽 — 旋转视角
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#CBD5E1' }}>
+            <span
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 4,
+                background: 'rgba(163, 230, 53, 0.15)',
+                border: '1px solid rgba(163, 230, 53, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 10,
+                color: '#A3E635',
+                fontWeight: 600,
+              }}
+            >
+              ⊕
+            </span>
+            滚轮 — 缩放画面
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#CBD5E1' }}>
+            <span
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 4,
+                background: 'rgba(163, 230, 53, 0.15)',
+                border: '1px solid rgba(163, 230, 53, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 10,
+                color: '#A3E635',
+                fontWeight: 600,
+              }}
+            >
+              ✦
+            </span>
+            悬停作品 — 查看详情
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: 'absolute',
+          right: 24,
+          bottom: 24,
+          padding: '14px 28px',
+          background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.9), rgba(34, 197, 94, 0.9))',
+          backdropFilter: 'blur(10px)',
+          borderRadius: 14,
+          zIndex: 100,
+          boxShadow: '0 8px 30px rgba(79, 70, 229, 0.4)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontSize: 18 }}>👥</div>
+          <div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.75)', marginBottom: 1, letterSpacing: 0.3 }}>
+              TOTAL VISITS
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'white', lineHeight: 1 }}>
+              {exhibition.visitCount.toLocaleString()}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {hoveredWork && <WorkInfoPopup work={hoveredWork} />}
+    </div>
+  );
+};

@@ -256,7 +256,7 @@ export const TourController: React.FC<TourControllerProps> = ({ cameraRef }) => 
         <div style={{ marginTop: 4 }}>ESC：退出导览</div>
       </div>
 
-      <WorkInfoPopup work={currentWork} />
+      <WorkInfoPopup work={currentWork ?? null} />
     </>
   );
 };
