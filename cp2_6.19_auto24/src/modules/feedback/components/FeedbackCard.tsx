@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import type { Feedback } from '../../../types';
 import { useFeedbackStore } from '../store/feedbackStore';
 import { formatDate, getRoleLabel } from '../../analytics/utils/wordCloud';
@@ -16,49 +16,59 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ feedback, index }) => {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
-  const expandedContentRef = useRef<HTMLDivElement>(null);
-  const summaryContentRef = useRef<HTMLDivElement>(null);
-  const [expandedHeight, setExpandedHeight] = useState(0);
-  const [summaryHeight, setSummaryHeight] = useState(0);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [hasEntered, setHasEntered] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [summaryHeight, setSummaryHeight] = useState(60);
+
+  useLayoutEffect(() => {
+    if (contentRef.current) {
+      setContentHeight(contentRef.current.scrollHeight);
+    }
+  }, [feedback.keyTakeaways, feedback.improvements, feedback.reply, showReplyBox, replyText]);
 
   useEffect(() => {
-    if (expandedContentRef.current) {
-      setExpandedHeight(expandedContentRef.current.scrollHeight);
+    if (feedback.isProcessed && !hasEntered) {
+      const timer = setTimeout(() => {
+        setHasEntered(true);
+      }, 50);
+      return () => clearTimeout(timer);
     }
-  }, [feedback.isProcessed, replyText, feedback.reply]);
-
-  useEffect(() => {
-    if (summaryContentRef.current) {
-      setSummaryHeight(summaryContentRef.current.scrollHeight);
+    if (!feedback.isProcessed) {
+      setHasEntered(true);
     }
-  }, [feedback.keyTakeaways]);
+  }, [feedback.isProcessed, hasEntered]);
 
   const handleProcess = () => {
     if (!replyText.trim()) return;
     setIsProcessing(true);
-    setIsAnimatingOut(true);
+    setIsLeaving(true);
     setTimeout(() => {
       processFeedback(feedback.id, replyText.trim());
       setIsProcessing(false);
       setShowReplyBox(false);
-      setIsAnimatingOut(false);
+      setIsExpanded(false);
+      setIsLeaving(false);
     }, 300);
   };
 
   const summary = feedback.keyTakeaways.slice(0, 20) + (feedback.keyTakeaways.length > 20 ? '...' : '');
 
-  const currentMaxHeight = isExpanded ? expandedHeight + (showReplyBox ? 160 : 0) : summaryHeight;
+  const maxHeight = isExpanded ? contentHeight + summaryHeight : summaryHeight;
 
   return (
     <div
       style={{
         ...styles.card,
+        minHeight: '150px',
         ...(feedback.isProcessed ? styles.cardProcessed : {}),
-        ...(isAnimatingOut ? styles.cardAnimatingOut : {}),
+        ...(isLeaving ? styles.cardLeaving : {}),
+        ...(feedback.isProcessed && hasEntered ? styles.cardEntered : {}),
+        ...(!feedback.isProcessed && hasEntered ? styles.cardEnteredNormal : {}),
         animationDelay: `${index * 30}ms`,
       }}
-      className="fade-in"
+      className="feedback-card"
     >
       {feedback.isProcessed && (
         <div style={styles.processedBadge}>
@@ -85,107 +95,87 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ feedback, index }) => {
         <div style={styles.rating}>{renderStars(feedback.rating, 16)}</div>
       </div>
 
+      <div style={styles.summaryRow}>
+        <span style={styles.summaryLabel}>关键收获：</span>
+        <span style={styles.summaryText}>{summary}</span>
+      </div>
+
       <div
         style={{
-          ...styles.cardContent,
-          maxHeight: `${Math.max(currentMaxHeight, 0)}px`,
-          transition: 'max-height 300ms ease-in-out',
+          ...styles.expandableContent,
+          maxHeight: isExpanded ? `${contentHeight}px` : '0px',
+          opacity: isExpanded ? 1 : 0,
+          transition: 'max-height 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 250ms cubic-bezier(0.4, 0, 0.2, 1)',
           overflow: 'hidden',
-          willChange: 'max-height',
+          willChange: 'max-height, opacity',
+          transform: 'translateZ(0)',
         }}
       >
-        <div
-          ref={summaryContentRef}
-          style={{
-            ...styles.summaryContainer,
-            opacity: isExpanded ? 0 : 1,
-            transition: 'opacity 200ms ease-in-out',
-            position: isExpanded ? 'absolute' : 'relative',
-          }}
-        >
-          <p style={styles.summaryText}>
-            <span style={styles.summaryLabel}>关键收获：</span>
-            {summary}
-          </p>
-        </div>
-
-        <div
-          ref={expandedContentRef}
-          style={{
-            ...styles.expandedContainer,
-            opacity: isExpanded ? 1 : 0,
-            transition: 'opacity 200ms ease-in-out',
-            pointerEvents: isExpanded ? 'auto' : 'none',
-            position: isExpanded ? 'relative' : 'absolute',
-            top: isExpanded ? 0 : -10000,
-          }}
-        >
-          <div style={styles.expandedContent}>
-            <div style={styles.contentSection}>
-              <h4 style={styles.contentLabel}>🎯 关键收获</h4>
-              <p style={styles.contentText}>{feedback.keyTakeaways}</p>
-            </div>
-            <div style={styles.contentSection}>
-              <h4 style={styles.contentLabel}>💡 待改进建议</h4>
-              <p style={styles.contentText}>{feedback.improvements}</p>
-            </div>
-            {feedback.reply && (
-              <div style={styles.replySection}>
-                <div style={styles.replyHeader}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                  <span style={styles.replyTitle}>改进措施</span>
-                  {feedback.repliedAt && (
-                    <span style={styles.replyDate}>{formatDate(feedback.repliedAt)}</span>
-                  )}
-                </div>
-                <p style={styles.replyText}>{feedback.reply}</p>
-              </div>
-            )}
-
-            {showReplyBox && !feedback.isProcessed && (
-              <div style={styles.replyBox}>
-                <textarea
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="请输入改进措施..."
-                  rows={3}
-                  style={styles.replyInput}
-                  onFocus={(e) => (e.target.style.transform = 'scale(1.01)')}
-                  onBlur={(e) => (e.target.style.transform = 'scale(1)')}
-                />
-                <div style={styles.replyActions}>
-                  <button
-                    onClick={() => {
-                      setShowReplyBox(false);
-                      setReplyText('');
-                    }}
-                    style={styles.cancelBtn}
-                  >
-                    取消
-                  </button>
-                  <button
-                    onClick={handleProcess}
-                    disabled={!replyText.trim() || isProcessing}
-                    style={{
-                      ...styles.confirmBtn,
-                      ...(!replyText.trim() || isProcessing ? styles.btnDisabled : {}),
-                    }}
-                    onMouseDown={(e) => {
-                      if (replyText.trim() && !isProcessing) {
-                        e.currentTarget.style.transform = 'scale(0.97)';
-                      }
-                    }}
-                    onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-                  >
-                    {isProcessing ? '提交中...' : '确认处理 ✓'}
-                  </button>
-                </div>
-              </div>
-            )}
+        <div ref={contentRef} style={styles.contentInner}>
+          <div style={styles.contentSection}>
+            <h4 style={styles.contentLabel}>🎯 关键收获</h4>
+            <p style={styles.contentText}>{feedback.keyTakeaways}</p>
           </div>
+          <div style={styles.contentSection}>
+            <h4 style={styles.contentLabel}>💡 待改进建议</h4>
+            <p style={styles.contentText}>{feedback.improvements}</p>
+          </div>
+          {feedback.reply && (
+            <div style={styles.replySection}>
+              <div style={styles.replyHeader}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <span style={styles.replyTitle}>改进措施</span>
+                {feedback.repliedAt && (
+                  <span style={styles.replyDate}>{formatDate(feedback.repliedAt)}</span>
+                )}
+              </div>
+              <p style={styles.replyText}>{feedback.reply}</p>
+            </div>
+          )}
+
+          {showReplyBox && !feedback.isProcessed && (
+            <div style={styles.replyBox}>
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="请输入改进措施..."
+                rows={3}
+                style={styles.replyInput}
+                onFocus={(e) => (e.target.style.transform = 'scale(1.01)')}
+                onBlur={(e) => (e.target.style.transform = 'scale(1)')}
+              />
+              <div style={styles.replyActions}>
+                <button
+                  onClick={() => {
+                    setShowReplyBox(false);
+                    setReplyText('');
+                  }}
+                  style={styles.cancelBtn}
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleProcess}
+                  disabled={!replyText.trim() || isProcessing}
+                  style={{
+                    ...styles.confirmBtn,
+                    ...(!replyText.trim() || isProcessing ? styles.btnDisabled : {}),
+                  }}
+                  onMouseDown={(e) => {
+                    if (replyText.trim() && !isProcessing) {
+                      e.currentTarget.style.transform = 'scale(0.97)';
+                    }
+                  }}
+                  onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                >
+                  {isProcessing ? '提交中...' : '确认处理 ✓'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -219,19 +209,30 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'relative',
     border: '2px solid transparent',
     opacity: 0,
-    animation: 'fadeIn 0.3s ease forwards',
     cursor: 'pointer',
-    willChange: 'transform, box-shadow, max-height',
-    transition: 'transform 300ms ease-in-out, box-shadow 300ms ease-in-out, border-color 300ms ease-in-out, background 300ms ease-in-out',
+    boxSizing: 'border-box',
+    willChange: 'transform, opacity',
+    backfaceVisibility: 'hidden',
+    transform: 'translateZ(0)',
+  },
+  cardEnteredNormal: {
+    opacity: 1,
+    transform: 'translateY(0)',
+    transition: 'opacity 400ms ease-out, transform 400ms ease-out, box-shadow 300ms ease, border-color 300ms ease, background 300ms ease',
   },
   cardProcessed: {
     borderColor: '#10b981',
     background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.03), rgba(16, 185, 129, 0.06))',
   },
-  cardAnimatingOut: {
-    transform: 'translateY(-100%)',
+  cardLeaving: {
     opacity: 0,
-    transition: 'transform 300ms ease-in-out, opacity 300ms ease-in-out',
+    transform: 'translateY(-30px) scale(0.98)',
+    transition: 'opacity 300ms ease-in, transform 300ms ease-in',
+  },
+  cardEntered: {
+    opacity: 1,
+    transform: 'translateY(0)',
+    animation: 'slideUp 400ms ease-out',
   },
   processedBadge: {
     position: 'absolute',
@@ -246,6 +247,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+    zIndex: 2,
   },
   cardHeader: {
     display: 'flex',
@@ -297,28 +299,35 @@ const styles: Record<string, React.CSSProperties> = {
   rating: {
     flexShrink: 0,
   },
-  cardContent: {
-    position: 'relative',
-    willChange: 'max-height',
-  },
-  summaryContainer: {
-    width: '100%',
-  },
-  summaryText: {
+  summaryRow: {
     fontSize: '14px',
     color: '#475569',
     lineHeight: 1.6,
-    margin: 0,
+    marginBottom: '12px',
+    padding: '10px 14px',
+    background: '#f8fafc',
+    borderRadius: '8px',
+    borderLeft: '3px solid #e2e8f0',
   },
   summaryLabel: {
     color: '#64748b',
     fontSize: '13px',
+    fontWeight: 500,
+    marginRight: '4px',
   },
-  expandedContainer: {
-    width: '100%',
+  summaryText: {
+    color: '#475569',
   },
-  expandedContent: {
-    marginTop: '0px',
+  expandableContent: {
+    willChange: 'max-height, opacity',
+  },
+  contentInner: {
+    padding: '16px',
+    marginTop: '4px',
+    background: '#f8fafc',
+    borderRadius: '10px',
+    boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.04)',
+    border: '1px solid #e2e8f0',
   },
   contentSection: {
     marginBottom: '16px',
@@ -327,17 +336,18 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '13px',
     fontWeight: 600,
     color: '#334155',
-    marginBottom: '6px',
+    marginBottom: '8px',
   },
   contentText: {
     fontSize: '14px',
     color: '#475569',
     lineHeight: 1.7,
     margin: 0,
-    background: '#f8fafc',
-    padding: '12px',
+    background: '#ffffff',
+    padding: '12px 14px',
     borderRadius: '8px',
     borderLeft: '3px solid #2563eb',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
   },
   replySection: {
     background: 'rgba(16, 185, 129, 0.08)',
@@ -396,7 +406,7 @@ const styles: Record<string, React.CSSProperties> = {
   replyBox: {
     marginTop: '16px',
     paddingTop: '16px',
-    borderTop: '1px solid #f1f5f9',
+    borderTop: '1px solid #e2e8f0',
   },
   replyInput: {
     width: '100%',
@@ -409,6 +419,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '12px',
     transition: 'all 0.2s ease',
     boxSizing: 'border-box',
+    background: '#ffffff',
   },
   replyActions: {
     display: 'flex',
@@ -419,7 +430,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '8px 20px',
     fontSize: '14px',
     color: '#64748b',
-    background: '#f1f5f9',
+    background: '#e2e8f0',
     borderRadius: '8px',
     fontWeight: 500,
     transition: 'all 0.2s ease',
@@ -441,28 +452,68 @@ const styles: Record<string, React.CSSProperties> = {
   },
 };
 
-const cardHoverStyle = `
-  .fade-in:hover {
+const cardStyles = `
+  .feedback-card {
+    animation: fadeInCard 0.4s ease-out forwards;
+    animation-fill-mode: both;
+  }
+  
+  @keyframes fadeInCard {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .feedback-card:hover {
     transform: translateY(-2px) scale(1.01);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
   }
+  
   button[style*="toggleBtn"]:hover {
-    background: #f1f5f9;
+    background: #e2e8f0;
     color: #334155;
   }
+  
   button[style*="replyBtn"]:hover {
     transform: scale(1.05);
   }
+  
   button[style*="cancelBtn"]:hover {
-    background: #e2e8f0;
+    background: #cbd5e1;
   }
+  
   button[style*="confirmBtn"]:hover:not(:disabled) {
     transform: scale(1.02);
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    .feedback-card,
+    div[style*="expandableContent"],
+    div[style*="max-height"] {
+      transition: none !important;
+      animation: none !important;
+    }
   }
 `;
 
 const styleSheet = document.createElement('style');
-styleSheet.textContent = cardHoverStyle;
+styleSheet.textContent = cardStyles;
 document.head.appendChild(styleSheet);
 
 export default React.memo(FeedbackCard);
