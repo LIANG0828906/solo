@@ -114,23 +114,40 @@ function drawHandles(
 }
 
 function drawBezierConnections(ctx: CanvasRenderingContext2D, shapes: Shape[]) {
-  if (shapes.length < 2) return;
+  if (!shapes || shapes.length < 2) return;
+  const shapeMap = new Map<string, Shape>();
+  for (const s of shapes) shapeMap.set(s.id, s);
+  const drawn = new Set<string>();
+
   ctx.save();
   ctx.strokeStyle = CURVE_COLOR;
   ctx.lineWidth = CURVE_LINE_WIDTH;
-  for (let i = 0; i < shapes.length - 1; i++) {
-    const a = getShapeCenter(shapes[i]);
-    const b = getShapeCenter(shapes[i + 1]);
-    const cp1x = a.x + CURVE_CONTROL_OFFSET;
-    const cp1y = a.y;
-    const cp2x = b.x - CURVE_CONTROL_OFFSET;
-    const cp2y = b.y;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, b.x, b.y);
-    ctx.stroke();
+
+  for (const shape of shapes) {
+    if (!shape.connections || shape.connections.length === 0) continue;
+    const a = getShapeCenter(shape);
+    for (const targetId of shape.connections) {
+      const pairKey = [shape.id, targetId].sort().join('|');
+      if (drawn.has(pairKey)) continue;
+      const target = shapeMap.get(targetId);
+      if (!target) continue;
+      const b = getShapeCenter(target);
+      const cp1x = a.x + CURVE_CONTROL_OFFSET;
+      const cp1y = a.y;
+      const cp2x = b.x - CURVE_CONTROL_OFFSET;
+      const cp2y = b.y;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, b.x, b.y);
+      ctx.stroke();
+      drawn.add(pairKey);
+    }
   }
   ctx.restore();
+}
+
+function getShapeSig(shapes: Shape[]): string {
+  return shapes.length + ':' + shapes.map((s) => s.id).join(',');
 }
 
 export default function WhiteboardCanvas() {
@@ -156,11 +173,13 @@ export default function WhiteboardCanvas() {
   const panningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
   const spaceDownRef = useRef(false);
+  const debounceTimerRef = useRef<number | null>(null);
 
   const [editingShape, setEditingShape] = useState<Shape | null>(null);
   const [editPanelPos, setEditPanelPos] = useState({ x: 0, y: 0 });
   const [zoomIndicatorVisible, setZoomIndicatorVisible] = useState(false);
-  const [zoomIndicatorFading, setZoomIndicatorFading] = useState(false);
+  const [zoomIndicatorOpacity, setZoomIndicatorOpacity] = useState(0);
+  const zoomDelayTimerRef = useRef<number | null>(null);
   const zoomFadeTimerRef = useRef<number | null>(null);
   const [currentTemplateName, setCurrentTemplateName] = useState('');
 
@@ -211,14 +230,15 @@ export default function WhiteboardCanvas() {
 
   useEffect(() => {
     let rafId = 0;
-    let lastShapes = shapes;
+    let lastSig = getShapeSig(shapes);
     const loop = () => {
+      const curSig = getShapeSig(shapesRef.current);
       if (
-        shapesRef.current !== lastShapes ||
+        curSig !== lastSig ||
         draggingRef.current ||
         panningRef.current
       ) {
-        lastShapes = shapesRef.current;
+        lastSig = curSig;
         render();
       }
       rafId = requestAnimationFrame(loop);
@@ -238,27 +258,39 @@ export default function WhiteboardCanvas() {
     };
   };
 
-  const triggerZoomIndicator = () => {
-    setZoomIndicatorVisible(true);
-    setZoomIndicatorFading(false);
+  const triggerZoomIndicator = useCallback(() => {
+    if (zoomDelayTimerRef.current) {
+      clearTimeout(zoomDelayTimerRef.current);
+      zoomDelayTimerRef.current = null;
+    }
     if (zoomFadeTimerRef.current) {
       clearTimeout(zoomFadeTimerRef.current);
+      zoomFadeTimerRef.current = null;
     }
-    zoomFadeTimerRef.current = window.setTimeout(() => {
-      setZoomIndicatorFading(true);
-      window.setTimeout(() => {
-        setZoomIndicatorVisible(false);
-        setZoomIndicatorFading(false);
-      }, 500);
+    setZoomIndicatorVisible(true);
+    setZoomIndicatorOpacity(1);
+
+    zoomDelayTimerRef.current = window.setTimeout(() => {
+      requestAnimationFrame(() => {
+        setZoomIndicatorOpacity(0);
+        zoomFadeTimerRef.current = window.setTimeout(() => {
+          setZoomIndicatorVisible(false);
+          zoomFadeTimerRef.current = null;
+        }, 500);
+      });
     }, 2000);
-  };
+  }, []);
 
   useEffect(() => {
     triggerZoomIndicator();
+  }, [zoom, triggerZoomIndicator]);
+
+  useEffect(() => {
     return () => {
+      if (zoomDelayTimerRef.current) clearTimeout(zoomDelayTimerRef.current);
       if (zoomFadeTimerRef.current) clearTimeout(zoomFadeTimerRef.current);
     };
-  }, [zoom]);
+  }, []);
 
   const onMouseDown = (e: React.MouseEvent) => {
     const canvas = canvasRef.current;
@@ -372,11 +404,38 @@ export default function WhiteboardCanvas() {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
+
   const handleEditChange = (patch: Partial<Shape>) => {
     if (!editingShape) return;
+
+    const numericFields = ['x', 'y', 'width', 'height', 'radius'] as const;
+    for (const key of numericFields) {
+      if (patch[key] !== undefined) {
+        const val = patch[key];
+        if (typeof val !== 'number' || !isFinite(val) || isNaN(val)) return;
+        if ((key === 'width' || key === 'height' || key === 'radius') && val <= 0) return;
+      }
+    }
+    if ('fill' in patch) {
+      const val = patch.fill;
+      if (typeof val !== 'string' || !val.trim()) return;
+    }
+
     const updated = { ...editingShape, ...patch };
     setEditingShape(updated);
-    updateShape(editingShape.id, patch);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = window.setTimeout(() => {
+      updateShape(editingShape.id, patch);
+      debounceTimerRef.current = null;
+    }, 300);
   };
 
   const handleSave = () => {
@@ -408,6 +467,7 @@ export default function WhiteboardCanvas() {
       height: 60,
       radius: 8,
       fill: '#3B82F6',
+      connections: [],
     });
   };
 
@@ -424,6 +484,7 @@ export default function WhiteboardCanvas() {
       height: 80,
       radius: 40,
       fill: '#F59E0B',
+      connections: [],
     });
   };
 
@@ -497,7 +558,7 @@ export default function WhiteboardCanvas() {
             color: '#FFFFFF',
             fontSize: 12,
             borderRadius: 4,
-            opacity: zoomIndicatorFading ? 0 : 1,
+            opacity: zoomIndicatorOpacity,
             transition: 'opacity 0.5s ease',
             pointerEvents: 'none',
           }}

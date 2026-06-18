@@ -90,6 +90,7 @@ export default function TemplateManager() {
       </button>
 
       <div
+        className="template-list"
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -240,6 +241,19 @@ export default function TemplateManager() {
       </div>
 
       <style>{`
+        @media (min-width: 768px) and (max-width: 1024px) {
+          .template-manager {
+            width: 230px !important;
+          }
+          .template-list > div {
+            padding: 6px !important;
+            gap: 4px !important;
+          }
+          .template-list img,
+          .template-list > div > div:first-of-type {
+            height: 70px !important;
+          }
+        }
         @media (max-width: 767px) {
           .template-manager {
             width: 100% !important;
@@ -252,15 +266,25 @@ export default function TemplateManager() {
           .template-manager > *:not(:nth-last-child(-n+2)) {
             flex-shrink: 0 !important;
           }
-          .template-manager > :last-child {
+          .template-list {
             flex-direction: row !important;
             overflow-x: auto !important;
             overflow-y: hidden !important;
             width: auto !important;
+            flex: none !important;
+            height: 100% !important;
+            white-space: nowrap !important;
+            align-items: center !important;
           }
-          .template-manager > :last-child > * {
+          .template-list > * {
             flex-shrink: 0 !important;
             width: 140px !important;
+            display: inline-flex !important;
+            white-space: nowrap !important;
+          }
+          .template-list > div > div:first-of-type,
+          .template-list img {
+            display: none !important;
           }
         }
       `}</style>

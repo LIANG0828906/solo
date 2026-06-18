@@ -10,6 +10,7 @@ export interface Shape {
   height: number;
   radius: number;
   fill: string;
+  connections: string[];
 }
 
 export interface Template {

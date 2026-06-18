@@ -36,6 +36,11 @@ export default function App() {
         <WhiteboardCanvas />
       </div>
       <style>{`
+        @media (min-width: 768px) and (max-width: 1024px) {
+          #root > div > div:first-child > div:first-child {
+            width: 230px !important;
+          }
+        }
         @media (max-width: 767px) {
           #root > div {
             flex-direction: column !important;
