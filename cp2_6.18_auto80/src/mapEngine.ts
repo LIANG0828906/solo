@@ -40,9 +40,9 @@ export interface ShadowZone {
   radius: number;
 }
 
-interface SpatialGrid {
+interface SpatialGrid<T> {
   cellSize: number;
-  cells: Map<string, Fragment[]>;
+  cells: Map<string, T[]>;
 }
 
 const FRAGMENT_COUNT = 80;
@@ -57,6 +57,8 @@ const ENEMY_RADIUS_Y = 20;
 const ENEMY_SPEED_RATIO = 0.6;
 const DETECTION_RADIUS = 180;
 const CHASE_INTERVAL = 0.1;
+const AVOIDANCE_RADIUS = 60;
+const AVOIDANCE_STRENGTH = 0.6;
 
 export class MapEngine {
   private canvas: HTMLCanvasElement;
@@ -70,7 +72,8 @@ export class MapEngine {
   private shadowZones: ShadowZone[] = [];
 
   private keys: Set<string> = new Set();
-  private spatialGrid!: SpatialGrid;
+  private fragmentGrid!: SpatialGrid<Fragment>;
+  private enemyGrid!: SpatialGrid<Enemy>;
   private nextId: number = 0;
   private chaseTimer: number = 0;
   private hitFlashTimer: number = 0;
@@ -129,8 +132,12 @@ export class MapEngine {
       hitCooldown: 0,
     };
 
-    this.spatialGrid = {
+    this.fragmentGrid = {
       cellSize: 60,
+      cells: new Map(),
+    };
+    this.enemyGrid = {
+      cellSize: 100,
       cells: new Map(),
     };
 
@@ -141,7 +148,7 @@ export class MapEngine {
 
   private generateFragments(): void {
     this.fragments = [];
-    this.spatialGrid.cells.clear();
+    this.fragmentGrid.cells.clear();
 
     const margin = 60;
     let attempts = 0;
@@ -178,19 +185,59 @@ export class MapEngine {
           id: this.nextId++,
         };
         this.fragments.push(frag);
-        this.addToGrid(frag);
+        this.addFragmentToGrid(frag);
       }
     }
   }
 
-  private addToGrid(frag: Fragment): void {
-    const gridX = Math.floor(frag.pos.x / this.spatialGrid.cellSize);
-    const gridY = Math.floor(frag.pos.y / this.spatialGrid.cellSize);
+  private addFragmentToGrid(frag: Fragment): void {
+    const gridX = Math.floor(frag.pos.x / this.fragmentGrid.cellSize);
+    const gridY = Math.floor(frag.pos.y / this.fragmentGrid.cellSize);
     const key = `${gridX},${gridY}`;
-    if (!this.spatialGrid.cells.has(key)) {
-      this.spatialGrid.cells.set(key, []);
+    if (!this.fragmentGrid.cells.has(key)) {
+      this.fragmentGrid.cells.set(key, []);
     }
-    this.spatialGrid.cells.get(key)!.push(frag);
+    this.fragmentGrid.cells.get(key)!.push(frag);
+  }
+
+  private removeFragmentFromGrid(frag: Fragment): void {
+    const gridX = Math.floor(frag.pos.x / this.fragmentGrid.cellSize);
+    const gridY = Math.floor(frag.pos.y / this.fragmentGrid.cellSize);
+    const key = `${gridX},${gridY}`;
+    const cell = this.fragmentGrid.cells.get(key);
+    if (cell) {
+      const idx = cell.indexOf(frag);
+      if (idx >= 0) cell.splice(idx, 1);
+    }
+  }
+
+  private rebuildEnemyGrid(): void {
+    this.enemyGrid.cells.clear();
+    for (const enemy of this.enemies) {
+      const gridX = Math.floor(enemy.pos.x / this.enemyGrid.cellSize);
+      const gridY = Math.floor(enemy.pos.y / this.enemyGrid.cellSize);
+      const key = `${gridX},${gridY}`;
+      if (!this.enemyGrid.cells.has(key)) {
+        this.enemyGrid.cells.set(key, []);
+      }
+      this.enemyGrid.cells.get(key)!.push(enemy);
+    }
+  }
+
+  private queryGrid<T>(grid: SpatialGrid<T>, cx: number, cy: number, range: number): T[] {
+    const result: T[] = [];
+    const cellSize = grid.cellSize;
+    const minGX = Math.floor((cx - range) / cellSize);
+    const maxGX = Math.floor((cx + range) / cellSize);
+    const minGY = Math.floor((cy - range) / cellSize);
+    const maxGY = Math.floor((cy + range) / cellSize);
+    for (let gx = minGX; gx <= maxGX; gx++) {
+      for (let gy = minGY; gy <= maxGY; gy++) {
+        const cell = grid.cells.get(`${gx},${gy}`);
+        if (cell) result.push(...cell);
+      }
+    }
+    return result;
   }
 
   private generateEnemies(): void {
@@ -260,6 +307,7 @@ export class MapEngine {
 
     this.updatePlayer(dt);
     this.updateFragments(dt);
+    this.rebuildEnemyGrid();
     this.updateEnemies(dt);
     this.checkCollisions(dt);
 
@@ -340,14 +388,67 @@ export class MapEngine {
       enemy.patrolTimer -= dt;
 
       if (enemy.target) {
-        const dx = enemy.target.x - enemy.pos.x;
-        const dy = enemy.target.y - enemy.pos.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        let dirX = enemy.target.x - enemy.pos.x;
+        let dirY = enemy.target.y - enemy.pos.y;
+        const dist = Math.sqrt(dirX * dirX + dirY * dirY);
 
         if (dist > 2) {
+          dirX /= dist;
+          dirY /= dist;
+
+          const nearbyEnemies = this.queryGrid(
+            this.enemyGrid,
+            enemy.pos.x,
+            enemy.pos.y,
+            AVOIDANCE_RADIUS
+          );
+
+          let avoidX = 0;
+          let avoidY = 0;
+          let avoidCount = 0;
+          for (const other of nearbyEnemies) {
+            if (other.id === enemy.id) continue;
+            const odx = enemy.pos.x - other.pos.x;
+            const ody = enemy.pos.y - other.pos.y;
+            const odist = Math.sqrt(odx * odx + ody * ody);
+            if (odist < AVOIDANCE_RADIUS && odist > 0.1) {
+              const strength = (AVOIDANCE_RADIUS - odist) / AVOIDANCE_RADIUS;
+              avoidX += (odx / odist) * strength;
+              avoidY += (ody / odist) * strength;
+              avoidCount++;
+            }
+          }
+
+          for (const zone of this.shadowZones) {
+            const zdx = enemy.pos.x - zone.pos.x;
+            const zdy = enemy.pos.y - zone.pos.y;
+            const zdist = Math.sqrt(zdx * zdx + zdy * zdy);
+            if (zdist < zone.radius * 1.1 && zdist > 0.1) {
+              const strength = (zone.radius * 1.1 - zdist) / (zone.radius * 1.1);
+              avoidX += (zdx / zdist) * strength * 1.5;
+              avoidY += (zdy / zdist) * strength * 1.5;
+              avoidCount++;
+            }
+          }
+
+          if (avoidCount > 0) {
+            const avoidLen = Math.sqrt(avoidX * avoidX + avoidY * avoidY);
+            if (avoidLen > 0) {
+              avoidX /= avoidLen;
+              avoidY /= avoidLen;
+              dirX = dirX * (1 - AVOIDANCE_STRENGTH) + avoidX * AVOIDANCE_STRENGTH;
+              dirY = dirY * (1 - AVOIDANCE_STRENGTH) + avoidY * AVOIDANCE_STRENGTH;
+              const dlen = Math.sqrt(dirX * dirX + dirY * dirY);
+              if (dlen > 0) {
+                dirX /= dlen;
+                dirY /= dlen;
+              }
+            }
+          }
+
           const speedMod = enemy.state === 'chase' ? 1 : 0.6;
-          enemy.pos.x += (dx / dist) * enemy.speed * speedMod * dt;
-          enemy.pos.y += (dy / dist) * enemy.speed * speedMod * dt;
+          enemy.pos.x += dirX * enemy.speed * speedMod * dt;
+          enemy.pos.y += dirY * enemy.speed * speedMod * dt;
         }
       }
 
@@ -356,35 +457,38 @@ export class MapEngine {
     }
   }
 
-  private checkCollisions(dt: number): void {
-    void dt;
-
-    const gridX = Math.floor(this.player.pos.x / this.spatialGrid.cellSize);
-    const gridY = Math.floor(this.player.pos.y / this.spatialGrid.cellSize);
+  private checkCollisions(_dt: number): void {
     const collectRadius = this.player.radius + FRAGMENT_SIZE * 0.8;
+    const nearbyFragments = this.queryGrid(
+      this.fragmentGrid,
+      this.player.pos.x,
+      this.player.pos.y,
+      collectRadius + this.fragmentGrid.cellSize
+    );
 
-    for (let ox = -1; ox <= 1; ox++) {
-      for (let oy = -1; oy <= 1; oy++) {
-        const key = `${gridX + ox},${gridY + oy}`;
-        const cell = this.spatialGrid.cells.get(key);
-        if (!cell) continue;
-
-        for (const frag of cell) {
-          if (frag.collected) continue;
-          const dx = frag.pos.x - this.player.pos.x;
-          const dy = frag.pos.y - this.player.pos.y;
-          if (dx * dx + dy * dy < collectRadius * collectRadius) {
-            frag.collected = true;
-            frag.collectAnim = 1;
-            gameState.collectFragment();
-          }
-        }
+    for (const frag of nearbyFragments) {
+      if (frag.collected) continue;
+      const dx = frag.pos.x - this.player.pos.x;
+      const dy = frag.pos.y - this.player.pos.y;
+      if (dx * dx + dy * dy < collectRadius * collectRadius) {
+        frag.collected = true;
+        frag.collectAnim = 1;
+        this.removeFragmentFromGrid(frag);
+        gameState.collectFragment();
       }
     }
 
     if (this.player.hitCooldown > 0) return;
 
-    for (const enemy of this.enemies) {
+    const hitRadius = this.player.radius + Math.max(ENEMY_RADIUS_X, ENEMY_RADIUS_Y);
+    const nearbyEnemies = this.queryGrid(
+      this.enemyGrid,
+      this.player.pos.x,
+      this.player.pos.y,
+      hitRadius + this.enemyGrid.cellSize
+    );
+
+    for (const enemy of nearbyEnemies) {
       const dx = this.player.pos.x - enemy.pos.x;
       const dy = this.player.pos.y - enemy.pos.y;
       const rx = (this.player.radius + enemy.radiusX);

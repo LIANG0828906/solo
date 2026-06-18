@@ -206,8 +206,8 @@ class GameState {
   }
 
   private decayBrightness(dt: number): void {
-    const decayRate = 0.05;
-    this.stats.brightness = Math.max(0, this.stats.brightness * (1 - decayRate * dt));
+    const decayPerSecond = 5;
+    this.stats.brightness = Math.max(0, this.stats.brightness - decayPerSecond * dt);
     this.emitStatsUpdate();
   }
 

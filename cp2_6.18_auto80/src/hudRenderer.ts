@@ -93,6 +93,25 @@ export class HUDRenderer {
     this.drawHUD();
     if (this.phase === 'countdown') this.drawCountdown();
     if (this.phase === 'tutorial') this.drawTutorialHint();
+    if (this.phase === 'paused') this.drawOverlayBlur(0.4);
+    if (this.phase === 'gameover') this.drawOverlayBlur(0.5);
+  }
+
+  private drawOverlayBlur(intensity: number): void {
+    const c = this.hudCtx;
+    c.save();
+    c.fillStyle = `rgba(0, 0, 0, ${intensity * 0.3})`;
+    c.fillRect(0, 0, this.width, this.height);
+
+    const centerX = this.width / 2;
+    const centerY = this.height / 2;
+    for (let i = 5; i >= 1; i--) {
+      c.fillStyle = `rgba(11, 12, 42, ${0.04 * i})`;
+      c.beginPath();
+      c.arc(centerX, centerY, Math.max(this.width, this.height) * 0.6, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.restore();
   }
 
   private drawRoundedRect(x: number, y: number, w: number, h: number, r: number): void {
@@ -366,12 +385,14 @@ export class HUDRenderer {
 
     const panel = document.createElement('div');
     panel.style.cssText = `
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      background: rgba(15, 15, 35, 0.72);
+      backdrop-filter: blur(14px) saturate(180%);
+      -webkit-backdrop-filter: blur(14px) saturate(180%);
       border-radius: 24px; padding: 32px; min-width: 380px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       display: flex; flex-direction: column; align-items: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                  0 0 0 1px rgba(255, 255, 255, 0.05) inset;
     `;
 
     const title = document.createElement('div');
