@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { CourseUnit } from '../../types';
 import { useProgress } from '../../hooks/useProgress';
 
-interface TocItem {
+interface TocNode {
   id: string;
   text: string;
   level: number;
+  element: HTMLElement | null;
+  children: TocNode[];
 }
 
 interface CourseContentProps {
@@ -29,49 +31,92 @@ export const CourseContent: React.FC<CourseContentProps> = ({
   const [loading, setLoading] = useState(true);
   const [readingProgress, setReadingProgress] = useState(0);
   const [tocExpanded, setTocExpanded] = useState(true);
-  const [tocItems, setTocItems] = useState<TocItem[]>([]);
+  const [tocTree, setTocTree] = useState<TocNode[]>([]);
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteContent, setNoteContent] = useState('');
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
+  const [isNoteLocked, setIsNoteLocked] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
-  const headingRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const markdownContainerRef = useRef<HTMLDivElement | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const throttleTimeoutRef = useRef<number | null>(null);
+
+  const noteKey = useMemo(() => `${courseId}__${unit.id}`, [courseId, unit.id]);
 
   const note = getNoteSync(courseId, unit.id);
   const hasNote = hasNoteSync(courseId, unit.id);
 
-  const extractToc = useCallback((markdown: string): TocItem[] => {
-    const headingRegex = /^(#{1,6})\s+(.+)$/gm;
-    const items: TocItem[] = [];
-    let match;
+  useEffect(() => {
+    setIsNoteLocked(isCompleted);
+  }, [isCompleted]);
 
-    while ((match = headingRegex.exec(markdown)) !== null) {
-      const level = match[1].length;
-      const text = match[2].trim();
-      const id = `heading-${items.length}-${text.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-').replace(/^-+|-+$/g, '')}`;
-      items.push({ id, text, level });
-    }
+  const buildTocTree = (flatItems: TocNode[]): TocNode[] => {
+    const tree: TocNode[] = [];
+    const stack: TocNode[] = [];
 
-    return items;
-  }, []);
+    flatItems.forEach((item) => {
+      const node: TocNode = { ...item, children: [] };
 
-  const addHeadingIds = useCallback((html: string, toc: TocItem[]): string => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-
-    const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    headings.forEach((heading, index) => {
-      if (toc[index]) {
-        heading.id = toc[index].id;
+      while (
+        stack.length > 0 &&
+        stack[stack.length - 1].level >= node.level
+      ) {
+        stack.pop();
       }
+
+      if (stack.length === 0) {
+        tree.push(node);
+      } else {
+        stack[stack.length - 1].children.push(node);
+      }
+
+      stack.push(node);
     });
 
-    return tempDiv.innerHTML;
-  }, []);
+    return tree;
+  };
+
+  const parseDomHeadings = useCallback((): TocNode[] => {
+    if (!markdownContainerRef.current) return [];
+
+    const container = markdownContainerRef.current;
+    const headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+    const flatItems: TocNode[] = [];
+    let headingIndex = 0;
+
+    headings.forEach((heading) => {
+      const level = parseInt(heading.tagName.substring(1), 10);
+      const text = heading.textContent?.trim() || '';
+      const safeText = text.toLowerCase()
+        .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      const id = `h-${noteKey}-${headingIndex}-${safeText || level}`;
+
+      heading.id = id;
+      heading.setAttribute('data-heading-index', String(headingIndex));
+      heading.setAttribute('tabindex', '-1');
+      (heading as HTMLElement).style.scrollMarginTop = '24px';
+
+      flatItems.push({
+        id,
+        text,
+        level,
+        element: heading as HTMLElement,
+        children: [],
+      });
+
+      headingIndex++;
+    });
+
+    return flatItems;
+  }, [noteKey]);
 
   useEffect(() => {
     const renderMarkdown = async () => {
       setLoading(true);
+      setTocTree([]);
       const start = performance.now();
 
       marked.setOptions({
@@ -79,13 +124,25 @@ export const CourseContent: React.FC<CourseContentProps> = ({
         gfm: true,
       });
 
-      const toc = extractToc(unit.content);
-      setTocItems(toc);
-
       const rawHtml = await marked.parse(unit.content);
-      const htmlWithIds = addHeadingIds(rawHtml, toc);
-      const sanitizedHtml = DOMPurify.sanitize(htmlWithIds);
-      setRenderedContent(sanitizedHtml);
+      const sanitizedHtml = DOMPurify.sanitize(rawHtml);
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = sanitizedHtml;
+      const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      let headingIndex = 0;
+      headings.forEach((heading) => {
+        const text = heading.textContent?.trim() || '';
+        const safeText = text.toLowerCase()
+          .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        const id = `h-${noteKey}-${headingIndex}-${safeText || heading.tagName.substring(1)}`;
+        heading.id = id;
+        heading.setAttribute('data-heading-index', String(headingIndex));
+        headingIndex++;
+      });
+
+      setRenderedContent(tempDiv.innerHTML);
 
       const duration = performance.now() - start;
       if (duration > 200) {
@@ -96,19 +153,129 @@ export const CourseContent: React.FC<CourseContentProps> = ({
     };
 
     renderMarkdown();
-  }, [unit.content, extractToc, addHeadingIds]);
+  }, [unit.content, noteKey]);
 
   useEffect(() => {
-    if (loading || !contentRef.current) return;
+    if (loading) return;
 
-    const headings = contentRef.current.querySelectorAll('h1, h2, h3, h4, h5, h6');
-    headingRefs.current.clear();
-    headings.forEach((heading) => {
-      if (heading.id) {
-        headingRefs.current.set(heading.id, heading as HTMLElement);
+    const frameId = requestAnimationFrame(() => {
+      if (markdownContainerRef.current) {
+        const flatItems = parseDomHeadings();
+        const tree = buildTocTree(flatItems);
+        setTocTree(tree);
       }
     });
-  }, [renderedContent, loading]);
+
+    return () => cancelAnimationFrame(frameId);
+  }, [renderedContent, loading, parseDomHeadings]);
+
+  const calculateReadingProgress = useCallback(() => {
+    if (!contentRef.current) return 0;
+
+    const el = contentRef.current;
+    const scrollTop = el.scrollTop;
+    const scrollHeight = el.scrollHeight;
+    const clientHeight = el.clientHeight;
+    const scrollable = scrollHeight - clientHeight;
+
+    if (scrollable <= 0) return scrollTop > 0 ? 100 : 0;
+    return Math.min(100, Math.max(0, Math.round((scrollTop / scrollable) * 100)));
+  }, []);
+
+  const findActiveHeading = useCallback((): string | null => {
+    if (!markdownContainerRef.current) return null;
+
+    const container = markdownContainerRef.current;
+    const viewportTop = (contentRef.current?.scrollTop || 0) + 120;
+
+    const headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    let currentActive: HTMLElement | null = null;
+
+    headings.forEach((heading) => {
+      const el = heading as HTMLElement;
+      if (el.offsetTop <= viewportTop) {
+        currentActive = el;
+      }
+    });
+
+    return (currentActive as HTMLElement | null)?.id || null;
+  }, []);
+
+  const onScrollThrottled = useCallback(() => {
+    if (throttleTimeoutRef.current !== null) return;
+
+    throttleTimeoutRef.current = window.setTimeout(() => {
+      throttleTimeoutRef.current = null;
+
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+
+      rafIdRef.current = requestAnimationFrame(() => {
+        const progress = calculateReadingProgress();
+        setReadingProgress(progress);
+
+        const activeId = findActiveHeading();
+        if (activeId !== activeHeadingId) {
+          setActiveHeadingId(activeId);
+        }
+      });
+    }, 50);
+  }, [calculateReadingProgress, findActiveHeading, activeHeadingId]);
+
+  useEffect(() => {
+    const contentEl = contentRef.current;
+    if (!contentEl) return;
+
+    contentEl.addEventListener('scroll', onScrollThrottled, { passive: true });
+
+    const initialProgress = calculateReadingProgress();
+    setReadingProgress(initialProgress);
+
+    return () => {
+      contentEl.removeEventListener('scroll', onScrollThrottled);
+      if (throttleTimeoutRef.current !== null) {
+        clearTimeout(throttleTimeoutRef.current);
+        throttleTimeoutRef.current = null;
+      }
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, [onScrollThrottled, calculateReadingProgress, loading]);
+
+  const handleTocClick = (node: TocNode) => {
+    if (!contentRef.current) return;
+
+    const element = document.getElementById(node.id);
+    if (element) {
+      const targetTop = element.offsetTop - 24;
+      contentRef.current.scrollTo({
+        top: targetTop,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  const renderTocNode = (node: TocNode): React.ReactNode => (
+    <div key={node.id}>
+      <button
+        className={`toc-item level-${node.level} ${
+          activeHeadingId === node.id ? 'active' : ''
+        }`}
+        onClick={() => handleTocClick(node)}
+        style={{ paddingLeft: `${(node.level - 1) * 16 + 12}px` }}
+      >
+        {node.text}
+      </button>
+      {node.children.length > 0 && (
+        <div className="toc-children">
+          {node.children.map(renderTocNode)}
+        </div>
+      )}
+    </div>
+  );
 
   useEffect(() => {
     if (showNoteModal && note) {
@@ -118,55 +285,16 @@ export const CourseContent: React.FC<CourseContentProps> = ({
     }
   }, [showNoteModal, note]);
 
-  const handleScroll = useCallback(() => {
-    if (!contentRef.current) return;
-
-    const contentEl = contentRef.current;
-    const scrollTop = contentEl.scrollTop;
-    const scrollHeight = contentEl.scrollHeight - contentEl.clientHeight;
-
-    if (scrollHeight > 0) {
-      const progress = Math.min(100, Math.max(0, (scrollTop / scrollHeight) * 100));
-      setReadingProgress(Math.round(progress));
+  const handleOpenNoteModal = () => {
+    if (isNoteLocked) {
+      return;
     }
-
-    let currentHeading: string | null = null;
-    const viewportTop = scrollTop + 100;
-
-    headingRefs.current.forEach((element, id) => {
-      if (element.offsetTop <= viewportTop) {
-        currentHeading = id;
-      }
-    });
-
-    if (currentHeading !== activeHeadingId) {
-      setActiveHeadingId(currentHeading);
-    }
-  }, [activeHeadingId]);
-
-  useEffect(() => {
-    const contentEl = contentRef.current;
-    if (!contentEl) return;
-
-    contentEl.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-
-    return () => {
-      contentEl.removeEventListener('scroll', handleScroll);
-    };
-  }, [handleScroll, loading]);
-
-  const handleTocClick = (item: TocItem) => {
-    const element = headingRefs.current.get(item.id);
-    if (element && contentRef.current) {
-      contentRef.current.scrollTo({
-        top: element.offsetTop - 20,
-        behavior: 'smooth',
-      });
-    }
+    setShowNoteModal(true);
   };
 
   const handleSaveNote = async () => {
+    if (isNoteLocked) return;
+
     if (noteContent.trim()) {
       await saveNote(courseId, unit.id, noteContent.trim());
     } else if (hasNote) {
@@ -176,6 +304,7 @@ export const CourseContent: React.FC<CourseContentProps> = ({
   };
 
   const handleDeleteNote = async () => {
+    if (isNoteLocked) return;
     if (window.confirm('确定要删除这条笔记吗？')) {
       await deleteNote(courseId, unit.id);
       setShowNoteModal(false);
@@ -191,6 +320,20 @@ export const CourseContent: React.FC<CourseContentProps> = ({
     );
   }
 
+  const flattenToc = (nodes: TocNode[]): TocNode[] => {
+    const result: TocNode[] = [];
+    const walk = (list: TocNode[]) => {
+      list.forEach((node) => {
+        result.push(node);
+        if (node.children.length) walk(node.children);
+      });
+    };
+    walk(nodes);
+    return result;
+  };
+
+  const flatToc = flattenToc(tocTree);
+
   return (
     <div className="course-content-wrapper">
       <div className="reading-progress-bar">
@@ -201,52 +344,53 @@ export const CourseContent: React.FC<CourseContentProps> = ({
         <span className="reading-progress-text">{readingProgress}%</span>
       </div>
 
-      {tocItems.length > 0 && (
+      {tocTree.length > 0 && (
         <div className={`toc-container ${tocExpanded ? 'expanded' : 'collapsed'}`}>
           <button
             className="toc-toggle"
             onClick={() => setTocExpanded(!tocExpanded)}
+            aria-expanded={tocExpanded}
           >
             <span className="toc-icon">📑</span>
-            <span className="toc-title">目录大纲</span>
+            <span className="toc-title">目录大纲 ({flatToc.length} 节)</span>
             <span className={`toc-arrow ${tocExpanded ? 'up' : 'down'}`}>
               {tocExpanded ? '▲' : '▼'}
             </span>
           </button>
           {tocExpanded && (
-            <nav className="toc-list">
-              {tocItems.map((item) => (
-                <button
-                  key={item.id}
-                  className={`toc-item level-${item.level} ${
-                    activeHeadingId === item.id ? 'active' : ''
-                  }`}
-                  onClick={() => handleTocClick(item)}
-                  style={{ paddingLeft: `${(item.level - 1) * 16 + 12}px` }}
-                >
-                  {item.text}
-                </button>
-              ))}
+            <nav className="toc-list" role="navigation" aria-label="课程目录">
+              {tocTree.map(renderTocNode)}
             </nav>
           )}
         </div>
       )}
 
       <div className="course-content" ref={contentRef}>
-        <h2 className="course-unit-title">{unit.title}</h2>
+        <h2 className="course-unit-title" id={`unit-${unit.id}`}>
+          {unit.title}
+        </h2>
         <div
           className="markdown-content"
+          ref={(el) => {
+            markdownContainerRef.current = el;
+          }}
           dangerouslySetInnerHTML={{ __html: renderedContent }}
         />
         <div className="content-footer">
           <div className="footer-actions">
             <button
-              className={`btn-add-note ${hasNote ? 'has-note' : ''}`}
-              onClick={() => setShowNoteModal(true)}
+              className={`btn-add-note ${hasNote ? 'has-note' : ''} ${isNoteLocked ? 'locked' : ''}`}
+              onClick={handleOpenNoteModal}
+              disabled={isNoteLocked}
+              title={isNoteLocked ? '单元已完成，笔记已锁定' : hasNote ? '编辑笔记' : '添加笔记'}
             >
-              <span className="btn-icon">📝</span>
-              {hasNote ? '编辑笔记' : '添加笔记'}
-              {hasNote && <span className="note-indicator">●</span>}
+              <span className="btn-icon">{isNoteLocked ? '🔒' : '📝'}</span>
+              {isNoteLocked
+                ? '笔记已锁定'
+                : hasNote
+                ? '编辑笔记'
+                : '添加笔记'}
+              {hasNote && !isNoteLocked && <span className="note-indicator">●</span>}
             </button>
             <button
               className={`btn-mark-complete ${isCompleted ? 'completed' : ''}`}
@@ -256,10 +400,15 @@ export const CourseContent: React.FC<CourseContentProps> = ({
               {isCompleted ? '✓ 已完成' : '标记已完成'}
             </button>
           </div>
+          {isNoteLocked && hasNote && (
+            <p className="note-locked-hint">
+              💡 该单元已完成，笔记已保存。如需修改，请先取消完成状态。
+            </p>
+          )}
         </div>
       </div>
 
-      {showNoteModal && (
+      {showNoteModal && !isNoteLocked && (
         <div className="note-modal-overlay" onClick={() => setShowNoteModal(false)}>
           <div className="note-modal" onClick={(e) => e.stopPropagation()}>
             <header className="note-modal-header">
@@ -267,6 +416,7 @@ export const CourseContent: React.FC<CourseContentProps> = ({
               <button
                 className="note-modal-close"
                 onClick={() => setShowNoteModal(false)}
+                aria-label="关闭"
               >
                 ✕
               </button>
@@ -274,6 +424,9 @@ export const CourseContent: React.FC<CourseContentProps> = ({
             <div className="note-modal-body">
               <p className="note-unit-title">
                 <strong>单元：</strong>{unit.title}
+              </p>
+              <p className="note-meta-hint">
+                <small>笔记标识：{noteKey}</small>
               </p>
               <textarea
                 className="note-textarea"

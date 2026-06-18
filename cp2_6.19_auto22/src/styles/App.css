@@ -544,9 +544,14 @@ body {
 .toc-item.level-1 { font-size: 15px; font-weight: 600; }
 .toc-item.level-2 { font-size: 14px; }
 .toc-item.level-3 { font-size: 13px; color: var(--text-secondary); }
-.toc-item.level-4 { font-size: 12px; color: var(--text-secondary); padding-left: 48px !important; }
-.toc-item.level-5 { font-size: 12px; color: var(--text-secondary); padding-left: 64px !important; }
-.toc-item.level-6 { font-size: 12px; color: var(--text-secondary); padding-left: 80px !important; }
+.toc-item.level-4 { font-size: 12px; color: var(--text-secondary); }
+.toc-item.level-5 { font-size: 12px; color: var(--text-secondary); }
+.toc-item.level-6 { font-size: 12px; color: var(--text-secondary); }
+
+.toc-children {
+  border-left: 1px dashed var(--border-color);
+  margin-left: 16px;
+}
 
 /* ========== Unit Note Indicator ========== */
 .unit-note-indicator {
@@ -617,6 +622,37 @@ body {
   right: 8px;
   font-size: 8px;
   color: var(--accent-color);
+}
+
+.btn-add-note.locked {
+  background: var(--bg-color) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border-color) !important;
+  cursor: not-allowed !important;
+  opacity: 0.7;
+}
+
+.btn-add-note:disabled {
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.note-locked-hint {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: #fff8e1;
+  border-left: 3px solid var(--accent-color);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.note-meta-hint {
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 /* ========== Course Content ========== */
