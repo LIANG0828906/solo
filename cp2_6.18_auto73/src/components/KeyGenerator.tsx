@@ -10,6 +10,7 @@ import {
   Layers,
   Plus,
   Minus,
+  X,
 } from 'lucide-react';
 
 interface BatchKey {
@@ -17,6 +18,12 @@ interface BatchKey {
   name: string;
   rawKey: string;
   revealUntil: number;
+}
+
+interface ToastState {
+  id: string;
+  message: string;
+  type: 'success' | 'error';
 }
 
 export default function KeyGenerator() {
@@ -27,12 +34,31 @@ export default function KeyGenerator() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [batchCount, setBatchCount] = useState(3);
+  const [batchCountInput, setBatchCountInput] = useState('3');
+  const [batchCountError, setBatchCountError] = useState('');
   const [batchKeys, setBatchKeys] = useState<BatchKey[]>([]);
   const [copiedBatchIds, setCopiedBatchIds] = useState<Set<string>>(new Set());
   const [batchMode, setBatchMode] = useState(false);
+  const [toasts, setToasts] = useState<ToastState[]>([]);
   const tickRef = useRef<number | null>(null);
+  const batchHideTimerRef = useRef<number | null>(null);
 
   const addKey = useKeyStore((s) => s.addKey);
+
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' = 'success') => {
+      const id = `toast-${Date.now()}-${Math.random()}`;
+      setToasts((prev) => [...prev, { id, message, type }]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 2000);
+    },
+    []
+  );
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   const clearReveal = useCallback(() => {
     setRevealedKey(null);
@@ -63,14 +89,17 @@ export default function KeyGenerator() {
         window.clearInterval(tickRef.current);
         tickRef.current = null;
       }
+      if (batchHideTimerRef.current) {
+        window.clearTimeout(batchHideTimerRef.current);
+        batchHideTimerRef.current = null;
+      }
       return;
     }
 
     if (!tickRef.current) {
       tickRef.current = window.setInterval(() => {
-        const now = Date.now();
         setBatchKeys((prev) =>
-          prev.filter((k) => k.revealUntil > now)
+          prev.map((k) => ({ ...k }))
         );
       }, 1000);
     }
@@ -84,8 +113,48 @@ export default function KeyGenerator() {
   }, [batchKeys.length]);
 
   const charCount = name.length;
-  const nearLimit = charCount >= 40;
-  const atLimit = charCount >= 50;
+  const maxChars = batchMode ? 45 : 50;
+  const nearLimit = charCount > 40;
+  const atLimit = charCount >= maxChars;
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    if (newValue.length > maxChars) {
+      setName(newValue.substring(0, maxChars));
+    } else {
+      setName(newValue);
+    }
+    if (error) setError('');
+  };
+
+  const handleBatchCountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    setBatchCountInput(rawValue);
+    setBatchCountError('');
+
+    if (rawValue === '') {
+      setBatchCountError('请输入生成数量');
+      return;
+    }
+
+    if (rawValue.includes('.')) {
+      setBatchCountError('请输入整数，不支持小数');
+      return;
+    }
+
+    if (!/^\d+$/.test(rawValue)) {
+      setBatchCountError('请输入有效的数字');
+      return;
+    }
+
+    const val = parseInt(rawValue, 10);
+    if (val < 1 || val > 10) {
+      setBatchCountError('生成数量需在 1-10 之间');
+      return;
+    }
+
+    setBatchCount(val);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,8 +163,8 @@ export default function KeyGenerator() {
       setError('请输入密钥名称');
       return;
     }
-    if (trimmed.length > 50) {
-      setError('名称不能超过50个字符');
+    if (trimmed.length > maxChars) {
+      setError(`名称不能超过${maxChars}个字符`);
       return;
     }
     setError('');
@@ -106,6 +175,14 @@ export default function KeyGenerator() {
     setCopied(false);
   };
 
+  const clearAllBatchKeys = useCallback(() => {
+    setBatchKeys([]);
+    if (batchHideTimerRef.current) {
+      window.clearTimeout(batchHideTimerRef.current);
+      batchHideTimerRef.current = null;
+    }
+  }, []);
+
   const handleBatchGenerate = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = name.trim();
@@ -113,8 +190,12 @@ export default function KeyGenerator() {
       setError('请输入密钥名称前缀');
       return;
     }
-    if (trimmed.length > 45) {
-      setError('名称前缀不能超过45个字符');
+    if (trimmed.length > maxChars) {
+      setError(`名称前缀不能超过${maxChars}个字符`);
+      return;
+    }
+    if (batchCountError) {
+      setError(batchCountError);
       return;
     }
     if (batchCount < 1 || batchCount > 10) {
@@ -139,6 +220,13 @@ export default function KeyGenerator() {
 
     setBatchKeys((prev) => [...newKeys, ...prev].slice(0, 20));
     setName('');
+
+    if (batchHideTimerRef.current) {
+      window.clearTimeout(batchHideTimerRef.current);
+    }
+    batchHideTimerRef.current = window.setTimeout(() => {
+      clearAllBatchKeys();
+    }, 15000);
   };
 
   const handleCopySingle = async () => {
@@ -146,9 +234,11 @@ export default function KeyGenerator() {
     try {
       await navigator.clipboard.writeText(revealedKey);
       setCopied(true);
+      showToast('已复制到剪贴板', 'success');
       setTimeout(() => setCopied(false), 1500);
+      setTimeLeft(15);
     } catch {
-      // ignore
+      showToast('复制失败，请手动复制', 'error');
     }
   };
 
@@ -160,6 +250,7 @@ export default function KeyGenerator() {
         next.add(batchId);
         return next;
       });
+      showToast('已复制到剪贴板', 'success');
       setTimeout(() => {
         setCopiedBatchIds((prev) => {
           const next = new Set(prev);
@@ -167,8 +258,16 @@ export default function KeyGenerator() {
           return next;
         });
       }, 1500);
+
+      setBatchKeys((prev) =>
+        prev.map((k) =>
+          k.id === batchId
+            ? { ...k, revealUntil: Date.now() + 15000 }
+            : k
+        )
+      );
     } catch {
-      // ignore
+      showToast('复制失败，请手动复制', 'error');
     }
   };
 
@@ -202,7 +301,35 @@ export default function KeyGenerator() {
   };
 
   return (
-    <div className="rounded-2xl border border-vault-border bg-vault-card p-6 card-shadow">
+    <div className="relative rounded-2xl border border-vault-border bg-vault-card p-6 card-shadow">
+      {toasts.length > 0 && (
+        <div className="absolute right-6 top-6 z-50 flex flex-col gap-2">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`animate-fade-in-up flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium shadow-lg ${
+                toast.type === 'success'
+                  ? 'bg-green-500/95 text-white'
+                  : 'bg-red-500/95 text-white'
+              }`}
+            >
+              {toast.type === 'success' ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <X className="h-4 w-4" />
+              )}
+              <span>{toast.message}</span>
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="ml-1 rounded p-0.5 transition-colors hover:bg-white/20"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg gradient-btn">
           <KeyRound className="h-5 w-5 text-white" />
@@ -251,15 +378,18 @@ export default function KeyGenerator() {
           <input
             type="text"
             value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (error) setError('');
-            }}
-            maxLength={batchMode ? 45 : 50}
+            onChange={handleNameChange}
+            maxLength={maxChars}
             placeholder={
               batchMode ? '例如：dev-key' : '例如：生产环境API密钥'
             }
-            className="w-full rounded-lg border border-vault-border bg-[#1E1E2E] px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-colors focus:border-vault-accent1 focus:ring-1 focus:ring-vault-accent1/30"
+            className={`w-full rounded-lg border bg-[#1E1E2E] px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-all duration-200 focus:ring-1 ${
+              atLimit
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30'
+                : nearLimit
+                  ? 'border-orange-500 focus:border-vault-accent1 focus:ring-vault-accent1/30'
+                  : 'border-vault-border focus:border-vault-accent1 focus:ring-vault-accent1/30'
+            }`}
           />
           <div className="mt-1 flex items-center justify-between">
             {error ? (
@@ -276,7 +406,7 @@ export default function KeyGenerator() {
                     : 'text-gray-500'
               }`}
             >
-              {charCount}/{batchMode ? 45 : 50}
+              {charCount}/{maxChars}
             </span>
           </div>
         </div>
@@ -296,14 +426,17 @@ export default function KeyGenerator() {
                   onClick={() => setRole(opt.value)}
                   className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-all duration-200 ${
                     isSelected
-                      ? 'border-vault-accent1 bg-vault-accent1/10 ring-1 ring-vault-accent1/30'
+                      ? 'bg-blue-500/10 shadow-md ring-1 ring-blue-500/30'
                       : 'border-vault-border bg-[#1E1E2E]/50 hover:border-gray-500'
                   }`}
+                  style={{
+                    borderColor: isSelected ? '#3B82F6' : undefined,
+                  }}
                 >
                   <div
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-all duration-200 ${
                       isSelected
-                        ? 'bg-vault-accent1/20'
+                        ? 'bg-blue-500/20'
                         : 'bg-vault-card'
                     }`}
                   >
@@ -316,7 +449,7 @@ export default function KeyGenerator() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div
-                      className={`text-sm font-semibold ${
+                      className={`text-sm font-semibold transition-colors duration-200 ${
                         isSelected ? 'text-white' : 'text-gray-300'
                       }`}
                     >
@@ -325,7 +458,7 @@ export default function KeyGenerator() {
                     <div className="text-xs text-gray-500">{opt.desc}</div>
                   </div>
                   {isSelected && (
-                    <CheckCircle className="h-4 w-4 text-vault-accent1" />
+                    <CheckCircle className="h-4 w-4 text-blue-500" />
                   )}
                 </button>
               );
@@ -341,9 +474,12 @@ export default function KeyGenerator() {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() =>
-                  setBatchCount((prev) => Math.max(1, prev - 1))
-                }
+                onClick={() => {
+                  const newVal = Math.max(1, batchCount - 1);
+                  setBatchCount(newVal);
+                  setBatchCountInput(String(newVal));
+                  setBatchCountError('');
+                }}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-vault-border bg-[#1E1E2E] text-gray-400 transition-colors hover:border-gray-500 hover:text-white"
                 aria-label="减少"
               >
@@ -352,24 +488,35 @@ export default function KeyGenerator() {
               <div className="flex-1">
                 <div className="relative">
                   <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={batchCount}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10);
-                      if (isNaN(val)) return;
-                      setBatchCount(Math.min(10, Math.max(1, val)));
+                    type="text"
+                    value={batchCountInput}
+                    onChange={handleBatchCountInputChange}
+                    onBlur={() => {
+                      if (!batchCountError && batchCountInput) {
+                        setBatchCountInput(String(batchCount));
+                      }
                     }}
-                    className="w-full rounded-lg border border-vault-border bg-[#1E1E2E] px-4 py-2 text-center text-sm font-semibold text-white outline-none transition-colors focus:border-vault-accent1 focus:ring-1 focus:ring-vault-accent1/30"
+                    className={`w-full rounded-lg border bg-[#1E1E2E] px-4 py-2 text-center text-sm font-semibold text-white outline-none transition-all duration-200 focus:ring-1 ${
+                      batchCountError
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30'
+                        : 'border-vault-border focus:border-vault-accent1 focus:ring-vault-accent1/30'
+                    }`}
                   />
                 </div>
+                {batchCountError && (
+                  <span className="mt-1 block text-xs text-red-400">
+                    {batchCountError}
+                  </span>
+                )}
               </div>
               <button
                 type="button"
-                onClick={() =>
-                  setBatchCount((prev) => Math.min(10, prev + 1))
-                }
+                onClick={() => {
+                  const newVal = Math.min(10, batchCount + 1);
+                  setBatchCount(newVal);
+                  setBatchCountInput(String(newVal));
+                  setBatchCountError('');
+                }}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-vault-border bg-[#1E1E2E] text-gray-400 transition-colors hover:border-gray-500 hover:text-white"
                 aria-label="增加"
               >
@@ -381,7 +528,11 @@ export default function KeyGenerator() {
                 <button
                   key={num}
                   type="button"
-                  onClick={() => setBatchCount(num)}
+                  onClick={() => {
+                    setBatchCount(num);
+                    setBatchCountInput(String(num));
+                    setBatchCountError('');
+                  }}
                   className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition-all duration-200 ${
                     batchCount === num
                       ? 'bg-vault-accent1/20 text-vault-accent1'
