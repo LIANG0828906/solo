@@ -1,0 +1,197 @@
+.piano-roll-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.piano-roll-modal {
+  background: #1E1E2E;
+  border-radius: 16px;
+  border: 1px solid #3A3A5C;
+  width: 90vw;
+  max-width: 1000px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.piano-roll-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, transparent 100%);
+  border-bottom: 1px solid #3A3A5C;
+}
+
+.piano-roll-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #EAEAEA;
+  margin: 0;
+}
+
+.piano-roll-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tool-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #3A3A5C;
+  color: #EAEAEA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-size: 16px;
+}
+
+.tool-btn:hover {
+  background: #8B5CF6;
+  color: white;
+  transform: scale(0.95);
+}
+
+.tool-btn:active {
+  transform: scale(0.9);
+}
+
+.close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: transparent;
+  color: #9CA3AF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-size: 20px;
+  margin-left: 8px;
+}
+
+.close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+}
+
+.piano-roll-body {
+  flex: 1;
+  overflow: auto;
+  background: #1E1E2E;
+}
+
+.piano-roll-canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+.piano-roll-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: #2D2D44;
+  border-top: 1px solid #3A3A5C;
+}
+
+.note-info {
+  font-size: 13px;
+  color: #9CA3AF;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.secondary-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: #3A3A5C;
+  color: #EAEAEA;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.secondary-btn:hover {
+  background: #4A4A6C;
+  transform: scale(0.98);
+}
+
+.secondary-btn:active {
+  transform: scale(0.95);
+}
+
+.primary-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.primary-btn:hover {
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+  transform: scale(0.98);
+}
+
+.primary-btn:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .piano-roll-modal {
+    width: 95vw;
+    max-height: 90vh;
+  }
+
+  .piano-roll-footer {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .footer-actions {
+    justify-content: flex-end;
+  }
+}
