@@ -25,7 +25,6 @@ interface TimelineProps {
 const TRACK_HEIGHT = 60;
 const MIN_ZOOM = 1 / 30;
 const MAX_ZOOM = 30;
-const HANDLE_WIDTH = 8;
 
 const Timeline: React.FC<TimelineProps> = ({
   clips,
@@ -51,12 +50,50 @@ const Timeline: React.FC<TimelineProps> = ({
   const [dragStartValue, setDragStartValue] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
   const [hoverGapIndex, setHoverGapIndex] = useState<number | null>(null);
+  const [displayZoom, setDisplayZoom] = useState(zoom);
+  const zoomAnimationRef = useRef<number | null>(null);
+  const targetZoomRef = useRef(zoom);
+  const currentZoomRef = useRef(zoom);
+
+  useEffect(() => {
+    targetZoomRef.current = zoom;
+    const startZoom = currentZoomRef.current;
+    const endZoom = zoom;
+    const startTime = performance.now();
+    const duration = 200;
+
+    if (zoomAnimationRef.current) {
+      cancelAnimationFrame(zoomAnimationRef.current);
+    }
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const newZoom = startZoom + (endZoom - startZoom) * easeProgress;
+      
+      currentZoomRef.current = newZoom;
+      setDisplayZoom(newZoom);
+
+      if (progress < 1) {
+        zoomAnimationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    zoomAnimationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (zoomAnimationRef.current) {
+        cancelAnimationFrame(zoomAnimationRef.current);
+      }
+    };
+  }, [zoom]);
 
   const totalDuration = useMemo(() => getTotalDuration(clips), [clips]);
   const visibleDuration = Math.max(totalDuration + 5, 30);
 
-  const timeToPixel = useCallback((time: number) => time * zoom * 50, [zoom]);
-  const pixelToTime = useCallback((pixel: number) => pixel / (zoom * 50), [zoom]);
+  const timeToPixel = useCallback((time: number) => time * displayZoom * 50, [displayZoom]);
+  const pixelToTime = useCallback((pixel: number) => pixel / (displayZoom * 50), [displayZoom]);
 
   const sortedClips = useMemo(() => {
     return [...clips].sort((a, b) => a.startTime - b.startTime);
@@ -300,10 +337,6 @@ const Timeline: React.FC<TimelineProps> = ({
     return ticks;
   };
 
-  const getTransitionForClip = (clipId: string) => {
-    return transitions.find(t => t.fromClipId === clipId || t.toClipId === clipId);
-  };
-
   return (
     <div 
       className="timeline-container"
@@ -319,7 +352,7 @@ const Timeline: React.FC<TimelineProps> = ({
           >
             <ZoomOut size={16} />
           </button>
-          <span className="zoom-level">{Math.round(zoom * 100)}%</span>
+          <span className="zoom-level">{Math.round(displayZoom * 100)}%</span>
           <button
             className="zoom-btn"
             onClick={() => onZoomChange(clamp(zoom * 1.25, MIN_ZOOM, MAX_ZOOM))}
@@ -358,7 +391,6 @@ const Timeline: React.FC<TimelineProps> = ({
           {sortedClips.map((clip, index) => {
             const material = getMaterialForClip(clip.id);
             const isSelected = selectedClipId === clip.id;
-            const transition = getTransitionForClip(clip.id);
             const hasTransitionBefore = transitions.some(t => t.toClipId === clip.id);
 
             return (

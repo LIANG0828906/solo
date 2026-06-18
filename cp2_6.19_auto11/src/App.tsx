@@ -2,7 +2,6 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MaterialPanel from './modules/material/MaterialPanel';
 import Timeline from './modules/timeline/Timeline';
-import TransitionOverlay from './modules/timeline/TransitionOverlay';
 import PreviewPlayer from './modules/preview/PreviewPlayer';
 import PropertyEditor from './modules/properties/PropertyEditor';
 import { useVideoMetadata } from './hooks/useVideoMetadata';
@@ -37,7 +36,7 @@ const App: React.FC = () => {
   const [zoom, setZoom] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
-  const [filter, setFilter] = useState({ keyword: '', sortBy: 'name' as const });
+  const [filter, setFilter] = useState<{ keyword: string; sortBy: 'name' | 'duration' }>({ keyword: '', sortBy: 'name' });
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isTransitionDragging, setIsTransitionDragging] = useState(false);
@@ -45,9 +44,16 @@ const App: React.FC = () => {
   const { processFiles, cleanupMaterial } = useVideoMetadata();
   const { startMaterialDrag, startTransitionDrag, endDrag } = useDragAndDrop();
 
+  const [isUploading, setIsUploading] = useState(false);
+
   const handleUpload = useCallback(async (files: FileList) => {
-    const newMaterials = await processFiles(files);
-    setMaterials(prev => [...prev, ...newMaterials]);
+    setIsUploading(true);
+    try {
+      const newMaterials = await processFiles(files);
+      setMaterials(prev => [...prev, ...newMaterials]);
+    } finally {
+      setIsUploading(false);
+    }
   }, [processFiles]);
 
   const handleDragStart = useCallback((material: Material, e: React.DragEvent) => {
@@ -156,8 +162,6 @@ const App: React.FC = () => {
     };
   }, [materials, cleanupMaterial]);
 
-  const timeToPixel = useCallback((time: number) => time * zoom * 50, [zoom]);
-
   return (
     <div className="app-container" onDragEnd={handleDragEnd}>
       <MaterialPanel
@@ -168,6 +172,7 @@ const App: React.FC = () => {
         onDragStart={handleDragStart}
         collapsed={leftPanelCollapsed}
         onToggleCollapse={() => setLeftPanelCollapsed(!leftPanelCollapsed)}
+        isUploading={isUploading}
       />
 
       <div className="main-content">

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import type { Clip, Material, Transition } from '../types';
 import { clamp } from '../utils/time';
 
@@ -14,7 +14,7 @@ interface UsePlayerControlsProps {
 }
 
 export const usePlayerControls = (props: UsePlayerControlsProps) => {
-  const { clips, transitions, materials, currentTime, isPlaying, onTimeChange, onPlay, onPause } = props;
+  const { clips, transitions, materials, currentTime, isPlaying, onTimeChange, onPause } = props;
   
   const animationRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);

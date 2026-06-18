@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Settings, Volume2, Gauge, Scissors } from 'lucide-react';
 import type { Clip, Material } from '../../types';
 import { formatTime, clamp } from '../../utils/time';
@@ -12,6 +12,49 @@ interface PropertyEditorProps {
   onToggleCollapse: () => void;
 }
 
+const useAnimatedValue = (targetValue: number, duration: number = 150) => {
+  const [displayValue, setDisplayValue] = useState(targetValue);
+  const animationRef = useRef<number | null>(null);
+  const startValueRef = useRef(targetValue);
+  const targetValueRef = useRef(targetValue);
+  const startTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (targetValue === targetValueRef.current) return;
+
+    startValueRef.current = displayValue;
+    targetValueRef.current = targetValue;
+    startTimeRef.current = performance.now();
+
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTimeRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const newValue = startValueRef.current + (targetValue - startValueRef.current) * easeProgress;
+      
+      setDisplayValue(newValue);
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [targetValue, duration, displayValue]);
+
+  return displayValue;
+};
+
 const PropertyEditor: React.FC<PropertyEditorProps> = ({
   clip,
   material,
@@ -23,6 +66,11 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
   const [localSpeed, setLocalSpeed] = useState(1);
   const [localInPoint, setLocalInPoint] = useState(0);
   const [localOutPoint, setLocalOutPoint] = useState(0);
+
+  const animatedVolume = useAnimatedValue(localVolume, 150);
+  const animatedSpeed = useAnimatedValue(localSpeed, 150);
+  const animatedInPoint = useAnimatedValue(localInPoint, 150);
+  const animatedOutPoint = useAnimatedValue(localOutPoint, 150);
 
   useEffect(() => {
     if (clip) {
@@ -75,6 +123,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
   }, [clip, material, onClipUpdate]);
 
   const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
+  const displayDuration = (animatedOutPoint - animatedInPoint) / animatedSpeed;
 
   return (
     <div 
@@ -136,7 +185,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
                 <div className="property-item">
                   <div className="property-label">
                     <span>起始点</span>
-                    <span className="value-display">{formatTime(localInPoint)}</span>
+                    <span className="value-display value-animate">{formatTime(animatedInPoint)}</span>
                   </div>
                   <div className="slider-container">
                     <input
@@ -152,7 +201,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
                       className="slider-track"
                       style={{
                         left: 0,
-                        width: `${(localInPoint / (material?.duration || 1)) * 100}%`,
+                        width: `${(animatedInPoint / (material?.duration || 1)) * 100}%`,
                       }}
                     />
                   </div>
@@ -161,7 +210,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
                 <div className="property-item">
                   <div className="property-label">
                     <span>结束点</span>
-                    <span className="value-display">{formatTime(localOutPoint)}</span>
+                    <span className="value-display value-animate">{formatTime(animatedOutPoint)}</span>
                   </div>
                   <div className="slider-container">
                     <input
@@ -177,7 +226,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
                       className="slider-track"
                       style={{
                         left: 0,
-                        width: `${(localOutPoint / (material?.duration || 1)) * 100}%`,
+                        width: `${(animatedOutPoint / (material?.duration || 1)) * 100}%`,
                       }}
                     />
                   </div>
@@ -185,7 +234,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
 
                 <div className="duration-preview">
                   <span>剪辑时长</span>
-                  <strong>{formatTime((localOutPoint - localInPoint) / localSpeed)}</strong>
+                  <strong className="value-animate">{formatTime(displayDuration)}</strong>
                 </div>
               </div>
 
@@ -197,7 +246,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
                 <div className="property-item">
                   <div className="property-label">
                     <span>音量</span>
-                    <span className="value-display">{localVolume}%</span>
+                    <span className="value-display value-animate">{Math.round(animatedVolume)}%</span>
                   </div>
                   <div className="slider-container">
                     <input
@@ -210,7 +259,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
                     />
                     <div
                       className="slider-track volume"
-                      style={{ width: `${localVolume}%` }}
+                      style={{ width: `${animatedVolume}%` }}
                     />
                   </div>
                 </div>
@@ -235,7 +284,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
                 <div className="property-item">
                   <div className="property-label">
                     <span>自定义速度</span>
-                    <span className="value-display">{localSpeed.toFixed(2)}x</span>
+                    <span className="value-display value-animate">{animatedSpeed.toFixed(2)}x</span>
                   </div>
                   <div className="slider-container">
                     <input
@@ -249,7 +298,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
                     />
                     <div
                       className="slider-track speed"
-                      style={{ width: `${((localSpeed - 0.5) / 1.5) * 100}%` }}
+                      style={{ width: `${((animatedSpeed - 0.5) / 1.5) * 100}%` }}
                     />
                   </div>
                 </div>

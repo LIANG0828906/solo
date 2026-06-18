@@ -30,7 +30,7 @@ const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(80);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
