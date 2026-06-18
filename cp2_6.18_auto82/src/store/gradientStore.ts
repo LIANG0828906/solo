@@ -12,7 +12,7 @@ interface GradientState {
   radius: number;
   radialShape: RadialShape;
   aspectRatio: number;
-  previewShape: PreviewShape;
+  shape: PreviewShape;
   borderRadius: number;
   setStartColor: (color: string) => void;
   setEndColor: (color: string) => void;
@@ -21,7 +21,7 @@ interface GradientState {
   setRadius: (radius: number) => void;
   setRadialShape: (shape: RadialShape) => void;
   setAspectRatio: (ratio: number) => void;
-  setPreviewShape: (shape: PreviewShape) => void;
+  setShape: (shape: PreviewShape) => void;
   setBorderRadius: (radius: number) => void;
 }
 
@@ -33,8 +33,8 @@ export const useGradientStore = create<GradientState>((set) => ({
   radius: 50,
   radialShape: 'circle',
   aspectRatio: 1,
-  previewShape: 'rectangle',
-  borderRadius: 16,
+  shape: 'rectangle',
+  borderRadius: 0,
   setStartColor: (color) => set({ startColor: color }),
   setEndColor: (color) => set({ endColor: color }),
   setGradientType: (type) => set({ gradientType: type }),
@@ -42,7 +42,7 @@ export const useGradientStore = create<GradientState>((set) => ({
   setRadius: (radius) => set({ radius }),
   setRadialShape: (shape) => set({ radialShape: shape }),
   setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
-  setPreviewShape: (shape) => set({ previewShape: shape }),
+  setShape: (shape) => set({ shape }),
   setBorderRadius: (radius) => set({ borderRadius: radius }),
 }));
 
