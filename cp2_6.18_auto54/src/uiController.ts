@@ -1,4 +1,5 @@
 import type { SharedConfig, ColorMode } from './sharedConfig';
+import { isValidColorMode } from './sharedConfig';
 
 export class UIController {
   private config: SharedConfig;
@@ -21,6 +22,8 @@ export class UIController {
   private isMobile = false;
   private panelVisible = true;
 
+  private boundOutsideClickListener: ((e: MouseEvent) => void) | null = null;
+
   constructor(
     config: SharedConfig,
     onImageUpload: (file: File) => void,
@@ -35,6 +38,7 @@ export class UIController {
     this.isMobile = window.innerWidth < 768;
     this.createUI();
     this.bindEvents();
+    this.syncInitialValues();
     window.addEventListener('resize', () => this.onResize());
   }
 
@@ -461,7 +465,13 @@ export class UIController {
     });
 
     this.colorModeSelect?.addEventListener('change', (e) => {
-      const value = (e.target as HTMLSelectElement).value as ColorMode;
+      const rawValue = (e.target as HTMLSelectElement).value;
+      if (!isValidColorMode(rawValue)) {
+        console.warn(`Invalid color mode: ${rawValue}, fallback to brightnessMix`);
+        (e.target as HTMLSelectElement).value = this.config.colorMode;
+        return;
+      }
+      const value = rawValue as ColorMode;
       this.config.colorMode = value;
       this.onParamChange();
     });
@@ -470,9 +480,21 @@ export class UIController {
       this.onScreenshot();
     });
 
-    this.mobileToggleBtn?.addEventListener('click', () => {
+    this.mobileToggleBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
       this.toggleMobilePanel();
     });
+
+    this.boundOutsideClickListener = (e: MouseEvent) => {
+      if (!this.isMobile) return;
+      if (!this.panelVisible) return;
+      if (!this.controlPanel) return;
+      if (this.controlPanel.contains(e.target as Node)) return;
+      if (this.mobileToggleBtn?.contains(e.target as Node)) return;
+      this.panelVisible = false;
+      this.controlPanel.classList.add('panel-hidden');
+    };
+    document.addEventListener('click', this.boundOutsideClickListener);
   }
 
   private updateLayout(): void {
@@ -497,6 +519,10 @@ export class UIController {
     } else {
       this.controlPanel?.classList.add('panel-hidden');
     }
+  }
+
+  private syncInitialValues(): void {
+    this.updateUI();
   }
 
   showUploadPanel(): void {
@@ -557,7 +583,18 @@ export class UIController {
       if (valEl) valEl.textContent = this.config.particleSize.toFixed(1);
     }
     if (this.colorModeSelect) {
-      this.colorModeSelect.value = this.config.colorMode;
+      if (isValidColorMode(this.config.colorMode)) {
+        this.colorModeSelect.value = this.config.colorMode;
+      } else {
+        this.colorModeSelect.value = 'brightnessMix';
+      }
+    }
+  }
+
+  destroy(): void {
+    if (this.boundOutsideClickListener) {
+      document.removeEventListener('click', this.boundOutsideClickListener);
+      this.boundOutsideClickListener = null;
     }
   }
 }

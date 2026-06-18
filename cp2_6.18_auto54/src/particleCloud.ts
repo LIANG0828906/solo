@@ -8,6 +8,7 @@ interface ParamTransition {
   targetValue: number;
   elapsed: number;
   duration: number;
+  active: boolean;
 }
 
 export class ParticleCloud {
@@ -23,7 +24,7 @@ export class ParticleCloud {
   private particles: ParticleData[] = [];
   private points: THREE.Points | null = null;
   private geometry: THREE.BufferGeometry | null = null;
-  private material: THREE.PointsMaterial | null = null;
+  private material: THREE.ShaderMaterial | null = null;
   private time = 0;
   private paused = false;
   private animationId: number | null = null;
@@ -31,14 +32,15 @@ export class ParticleCloud {
   private baseCameraDistance = 6;
 
   private basePositions = new Float32Array();
-  private colors = new Float32Array();
-  private sizes = new Float32Array();
+  private baseColors = new Float32Array();
+  private baseAlphas = new Float32Array();
+  private particleSizeBase = new Float32Array();
   private phases = new Float32Array();
   private periods = new Float32Array();
 
-  private spreadTransition: ParamTransition = { startValue: 1.5, targetValue: 1.5, elapsed: 0, duration: 0.5 };
-  private pulseTransition: ParamTransition = { startValue: 1.0, targetValue: 1.0, elapsed: 0, duration: 0.5 };
-  private sizeTransition: ParamTransition = { startValue: 4.0, targetValue: 4.0, elapsed: 0, duration: 0.5 };
+  private spreadTransition: ParamTransition = { startValue: 1.5, targetValue: 1.5, elapsed: 0, duration: 0.5, active: false };
+  private pulseTransition: ParamTransition = { startValue: 1.0, targetValue: 1.0, elapsed: 0, duration: 0.5, active: false };
+  private sizeTransition: ParamTransition = { startValue: 4.0, targetValue: 4.0, elapsed: 0, duration: 0.5, active: false };
 
   private currentSpread = 1.5;
   private currentPulse = 1.0;
@@ -104,9 +106,10 @@ export class ParticleCloud {
   }
 
   private initTransitions(): void {
-    this.spreadTransition = { startValue: this.config.spreadRadius, targetValue: this.config.spreadRadius, elapsed: 0.5, duration: 0.5 };
-    this.pulseTransition = { startValue: this.config.pulseSpeed, targetValue: this.config.pulseSpeed, elapsed: 0.5, duration: 0.5 };
-    this.sizeTransition = { startValue: this.config.particleSize, targetValue: this.config.particleSize, elapsed: 0.5, duration: 0.5 };
+    const d = this.config.transitionDuration;
+    this.spreadTransition = { startValue: this.config.spreadRadius, targetValue: this.config.spreadRadius, elapsed: d, duration: d, active: false };
+    this.pulseTransition = { startValue: this.config.pulseSpeed, targetValue: this.config.pulseSpeed, elapsed: d, duration: d, active: false };
+    this.sizeTransition = { startValue: this.config.particleSize, targetValue: this.config.particleSize, elapsed: d, duration: d, active: false };
     this.currentSpread = this.config.spreadRadius;
     this.currentPulse = this.config.pulseSpeed;
     this.currentSize = this.config.particleSize;
@@ -137,14 +140,54 @@ export class ParticleCloud {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
+  private createParticleMaterial(): THREE.ShaderMaterial {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uSize: { value: this.currentSize },
+        uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) }
+      },
+      vertexShader: `
+        attribute float aSize;
+        attribute vec3 aColor;
+        attribute float aAlpha;
+        varying vec3 vColor;
+        varying float vAlpha;
+        uniform float uSize;
+        uniform float uPixelRatio;
+        void main() {
+          vColor = aColor;
+          vAlpha = aAlpha;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = uSize * aSize * uPixelRatio * (300.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main() {
+          vec2 uv = gl_PointCoord - 0.5;
+          float d = length(uv);
+          if (d > 0.5) discard;
+          float soft = 1.0 - smoothstep(0.0, 0.5, d);
+          gl_FragColor = vec4(vColor, vAlpha * soft);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+  }
+
   loadParticles(particles: ParticleData[]): void {
     this.disposeParticles();
     this.particles = particles;
 
     const count = particles.length;
     this.basePositions = new Float32Array(count * 3);
-    this.colors = new Float32Array(count * 3);
-    this.sizes = new Float32Array(count);
+    this.baseColors = new Float32Array(count * 3);
+    this.baseAlphas = new Float32Array(count);
+    this.particleSizeBase = new Float32Array(count);
     this.phases = new Float32Array(count);
     this.periods = new Float32Array(count);
 
@@ -155,86 +198,84 @@ export class ParticleCloud {
       this.basePositions[i * 3 + 2] = p.z;
       this.phases[i] = p.phase;
       this.periods[i] = p.period;
-      this.sizes[i] = p.size;
+      this.particleSizeBase[i] = p.size;
     }
 
-    this.applyColors();
+    this.recomputeColorsAndAlpha();
 
     this.geometry = new THREE.BufferGeometry();
     this.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(this.basePositions), 3));
-    this.geometry.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
+    this.geometry.setAttribute('aColor', new THREE.BufferAttribute(this.baseColors, 3));
+    this.geometry.setAttribute('aAlpha', new THREE.BufferAttribute(this.baseAlphas, 1));
+    this.geometry.setAttribute('aSize', new THREE.BufferAttribute(this.particleSizeBase, 1));
 
     const adaptiveSize = count > 3000 ? 2 : this.config.particleSize;
     this.currentSize = adaptiveSize;
+    const d = this.config.transitionDuration;
     this.sizeTransition.startValue = adaptiveSize;
     this.sizeTransition.targetValue = adaptiveSize;
-    this.sizeTransition.elapsed = 0.5;
+    this.sizeTransition.elapsed = d;
+    this.sizeTransition.active = false;
 
-    this.material = new THREE.PointsMaterial({
-      size: adaptiveSize,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.9,
-      sizeAttenuation: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
+    this.material = this.createParticleMaterial();
+    this.material.uniforms.uSize.value = this.currentSize;
 
     this.points = new THREE.Points(this.geometry, this.material);
     this.scene.add(this.points);
   }
 
-  applyColors(): void {
+  private recomputeColorsAndAlpha(): void {
     const count = this.particles.length;
 
-    for (let i = 0; i < count; i++) {
-      const p = this.particles[i];
-      let r = p.r;
-      let g = p.g;
-      let b = p.b;
-
-      if (this.config.colorMode === 'hueGroup') {
+    if (this.config.colorMode === 'hueGroup') {
+      for (let i = 0; i < count; i++) {
+        const p = this.particles[i];
         const groupedHue = ImageParser.groupHue(p.h);
-        const rgb = ImageParser.hsvToRgb(groupedHue, p.s, 1);
-        r = rgb.r;
-        g = rgb.g;
-        b = rgb.b;
+        const rgb = ImageParser.hsvToRgb(groupedHue, p.s, 1.0);
+        this.baseColors[i * 3] = rgb.r;
+        this.baseColors[i * 3 + 1] = rgb.g;
+        this.baseColors[i * 3 + 2] = rgb.b;
+        this.baseAlphas[i] = 1.0;
       }
-
-      this.colors[i * 3] = r;
-      this.colors[i * 3 + 1] = g;
-      this.colors[i * 3 + 2] = b;
+    } else {
+      for (let i = 0; i < count; i++) {
+        const p = this.particles[i];
+        this.baseColors[i * 3] = p.r;
+        this.baseColors[i * 3 + 1] = p.g;
+        this.baseColors[i * 3 + 2] = p.b;
+        this.baseAlphas[i] = 0.25 + p.v * 0.75;
+      }
     }
 
     if (this.geometry) {
-      const colorAttr = this.geometry.getAttribute('color') as THREE.BufferAttribute;
+      const colorAttr = this.geometry.getAttribute('aColor') as THREE.BufferAttribute;
       colorAttr.needsUpdate = true;
+      const alphaAttr = this.geometry.getAttribute('aAlpha') as THREE.BufferAttribute;
+      alphaAttr.needsUpdate = true;
     }
   }
 
   updateColorMode(): void {
-    this.applyColors();
-
-    if (this.material) {
-      if (this.config.colorMode === 'brightnessMix') {
-        this.material.opacity = 0.9;
-      } else {
-        this.material.opacity = 1.0;
-      }
-    }
+    this.recomputeColorsAndAlpha();
   }
 
   onParamChange(): void {
+    const d = this.config.transitionDuration;
+
     if (this.config.spreadRadius !== this.spreadTransition.targetValue) {
       this.spreadTransition.startValue = this.currentSpread;
       this.spreadTransition.targetValue = this.config.spreadRadius;
       this.spreadTransition.elapsed = 0;
+      this.spreadTransition.duration = d;
+      this.spreadTransition.active = true;
     }
 
     if (this.config.pulseSpeed !== this.pulseTransition.targetValue) {
       this.pulseTransition.startValue = this.currentPulse;
       this.pulseTransition.targetValue = this.config.pulseSpeed;
       this.pulseTransition.elapsed = 0;
+      this.pulseTransition.duration = d;
+      this.pulseTransition.active = true;
     }
 
     const adaptiveSize = this.particles.length > 3000 ? 2 : this.config.particleSize;
@@ -242,16 +283,22 @@ export class ParticleCloud {
       this.sizeTransition.startValue = this.currentSize;
       this.sizeTransition.targetValue = adaptiveSize;
       this.sizeTransition.elapsed = 0;
+      this.sizeTransition.duration = d;
+      this.sizeTransition.active = true;
     }
   }
 
   private advanceTransition(t: ParamTransition, deltaTime: number): number {
-    if (t.elapsed >= t.duration) return t.targetValue;
+    if (!t.active || t.elapsed >= t.duration) {
+      t.active = false;
+      return t.targetValue;
+    }
     t.elapsed = Math.min(t.elapsed + deltaTime, t.duration);
     const progress = t.elapsed / t.duration;
     const eased = progress < 0.5
       ? 4 * progress * progress * progress
       : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    if (t.elapsed >= t.duration) t.active = false;
     return t.startValue + (t.targetValue - t.startValue) * eased;
   }
 
@@ -286,12 +333,7 @@ export class ParticleCloud {
     positions.needsUpdate = true;
 
     if (this.material) {
-      this.material.size = this.currentSize;
-      if (this.config.colorMode === 'brightnessMix') {
-        this.material.opacity = 0.9;
-      } else {
-        this.material.opacity = 1.0;
-      }
+      this.material.uniforms.uSize.value = this.currentSize;
     }
   }
 

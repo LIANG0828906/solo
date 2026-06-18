@@ -45,10 +45,10 @@ class AuraBloomApp {
     this.config.isScreenshotting = true;
 
     this.particleCloud.pauseAnimation();
-    this.particleCloud.renderFrame();
 
     await this.uiController.triggerFlashEffect();
 
+    this.particleCloud.renderFrame();
     const dataURL = this.particleCloud.getCanvasDataURL();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `autoblom_${timestamp}.png`;

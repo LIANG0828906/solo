@@ -21,6 +21,7 @@ export interface SharedConfig {
   pulseSpeed: number;
   particleSize: number;
   colorMode: ColorMode;
+  transitionDuration: number;
   screenshotRequested: boolean;
   isScreenshotting: boolean;
 }
@@ -31,6 +32,11 @@ export const createDefaultConfig = (): SharedConfig => ({
   pulseSpeed: 1.0,
   particleSize: 4.0,
   colorMode: 'brightnessMix',
+  transitionDuration: 0.5,
   screenshotRequested: false,
   isScreenshotting: false
 });
+
+export const isValidColorMode = (mode: string): mode is ColorMode => {
+  return mode === 'hueGroup' || mode === 'brightnessMix';
+};
