@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { useGradientStore, generateGradientCSS } from '../store/gradientStore';
+import React from 'react';
+import { useGradientStore, generateFullCSS } from '../store/gradientStore';
 
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
+  showToast: (message: string) => void;
 }
 
-export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => {
-  const [copied, setCopied] = useState(false);
+export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, showToast }) => {
   const state = useGradientStore();
 
-  const gradientCSS = generateGradientCSS({
+  const { full } = generateFullCSS({
     startColor: state.startColor,
     endColor: state.endColor,
     gradientType: state.gradientType,
@@ -20,13 +20,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
     aspectRatio: state.aspectRatio,
   });
 
-  const fullCSS = `background: ${gradientCSS};`;
-
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(fullCSS);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(full);
+      showToast('已复制到剪贴板');
     } catch (err) {
       console.error('复制失败:', err);
     }
@@ -45,12 +42,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose }) => 
         </div>
         <div className="modal-body">
           <div className="css-code-block">
-            <pre><code>{fullCSS}</code></pre>
+            <pre><code>{full}</code></pre>
           </div>
         </div>
         <div className="modal-footer">
           <button className="copy-btn" onClick={handleCopy}>
-            {copied ? '已复制' : '复制代码'}
+            复制代码
           </button>
         </div>
       </div>

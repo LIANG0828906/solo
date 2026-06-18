@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
-import { useGradientStore, generateGradientCSS, PreviewShape } from '../store/gradientStore';
+import React from 'react';
+import { useGradientStore, generateGradientCSS, generateFullCSS, PreviewShape } from '../store/gradientStore';
 
-export const GradientPreview: React.FC = () => {
+interface GradientPreviewProps {
+  showToast: (message: string) => void;
+}
+
+export const GradientPreview: React.FC<GradientPreviewProps> = ({ showToast }) => {
   const {
     startColor,
     endColor,
@@ -16,8 +20,6 @@ export const GradientPreview: React.FC = () => {
     setBorderRadius,
   } = useGradientStore();
 
-  const [copied, setCopied] = useState(false);
-
   const gradientCSS = generateGradientCSS({
     startColor,
     endColor,
@@ -28,13 +30,21 @@ export const GradientPreview: React.FC = () => {
     aspectRatio,
   });
 
-  const fullCSS = `background: ${gradientCSS};`;
+  const displayCSS = `background: ${gradientCSS};`;
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(fullCSS);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      const { full } = generateFullCSS({
+        startColor,
+        endColor,
+        gradientType,
+        angle,
+        radius,
+        radialShape,
+        aspectRatio,
+      });
+      await navigator.clipboard.writeText(full);
+      showToast('已复制到剪贴板');
     } catch (err) {
       console.error('复制失败:', err);
     }
@@ -115,13 +125,13 @@ export const GradientPreview: React.FC = () => {
         </div>
         <div className="css-export-content">
           <div className="css-code-display">
-            <code>{fullCSS}</code>
+            <code>{displayCSS}</code>
           </div>
           <button
-            className={`copy-btn-inline ${copied ? 'copied' : ''}`}
+            className="copy-btn-inline"
             onClick={handleCopy}
           >
-            {copied ? '已复制' : '复制'}
+            复制
           </button>
         </div>
       </div>

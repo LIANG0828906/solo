@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ColorPicker } from './components/ColorPicker';
 import { GradientPreview } from './components/GradientPreview';
 import { ExportModal } from './components/ExportModal';
+import { Toast } from './components/Toast';
 import { useGradientStore, GradientType, RadialShape } from './store/gradientStore';
 
 const App: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    setToastVisible(true);
+  }, []);
   const {
     startColor,
     endColor,
@@ -136,12 +144,17 @@ const App: React.FC = () => {
 
         <section className="bottom-section">
           <div className="card preview-card">
-            <GradientPreview />
+            <GradientPreview showToast={showToast} />
           </div>
         </section>
       </main>
 
-      <ExportModal isOpen={showModal} onClose={() => setShowModal(false)} />
+      <ExportModal isOpen={showModal} onClose={() => setShowModal(false)} showToast={showToast} />
+      <Toast
+        message={toastMessage}
+        isVisible={toastVisible}
+        onClose={() => setToastVisible(false)}
+      />
     </div>
   );
 };

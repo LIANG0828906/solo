@@ -25,6 +25,12 @@ interface GradientState {
   setBorderRadius: (radius: number) => void;
 }
 
+export interface FullCSSOutput {
+  standard: string;
+  webkit: string;
+  full: string;
+}
+
 export const useGradientStore = create<GradientState>((set) => ({
   startColor: '#FF6B6B',
   endColor: '#4ECDC4',
@@ -42,7 +48,10 @@ export const useGradientStore = create<GradientState>((set) => ({
   setRadius: (radius) => set({ radius }),
   setRadialShape: (shape) => set({ radialShape: shape }),
   setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
-  setShape: (shape) => set({ shape }),
+  setShape: (shape) => set((state) => ({
+    shape,
+    borderRadius: shape === 'circle' ? 0 : state.borderRadius,
+  })),
   setBorderRadius: (radius) => set({ borderRadius: radius }),
 }));
 
@@ -67,4 +76,24 @@ export function generateGradientCSS(state: GradientConfig): string {
       : `${radius}% ${radius * aspectRatio}%`;
     return `radial-gradient(${radialShape} ${size} at center, ${startColor}, ${endColor})`;
   }
+}
+
+export function generateWebkitGradientCSS(state: GradientConfig): string {
+  const { startColor, endColor, gradientType, angle, radius, radialShape, aspectRatio } = state;
+  
+  if (gradientType === 'linear') {
+    return `-webkit-linear-gradient(${angle}deg, ${startColor}, ${endColor})`;
+  } else {
+    const size = radialShape === 'circle' 
+      ? `${radius}%` 
+      : `${radius}% ${radius * aspectRatio}%`;
+    return `-webkit-radial-gradient(center, ${radialShape} ${size}, ${startColor}, ${endColor})`;
+  }
+}
+
+export function generateFullCSS(state: GradientConfig): FullCSSOutput {
+  const standard = generateGradientCSS(state);
+  const webkit = generateWebkitGradientCSS(state);
+  const full = `background: ${webkit};\nbackground: ${standard};`;
+  return { standard, webkit, full };
 }
