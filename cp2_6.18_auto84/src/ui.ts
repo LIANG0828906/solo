@@ -16,9 +16,9 @@ export class UI {
     this.uploadContainer = this.createUploadArea();
     this.dropZone = this.uploadContainer.querySelector('.drop-zone')!;
     this.fileInput = this.uploadContainer.querySelector('input[type="file"]')!;
-    this.controlsContainer = this.createControls();
+    this.controlsContainer = this.createGridControl();
     this.gridToggle = this.controlsContainer.querySelector('#grid-toggle')!;
-    this.resetBtn = this.controlsContainer.querySelector('#reset-view-btn')!;
+    this.resetBtn = this.createResetButton();
     this.setupDropZone();
     this.setupControls();
   }
@@ -206,7 +206,7 @@ export class UI {
     this.dropZone.appendChild(thumbArea);
   }
 
-  private createControls(): HTMLDivElement {
+  private createGridControl(): HTMLDivElement {
     const container = document.createElement('div');
     container.id = 'controls-container';
     container.style.cssText = `
@@ -214,17 +214,14 @@ export class UI {
       bottom: 24px;
       left: 24px;
       z-index: 200;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
       display: none;
     `;
 
-    const gridRow = document.createElement('div');
-    gridRow.style.cssText = `
+    const row = document.createElement('div');
+    row.style.cssText = `
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       background: rgba(255,255,255,0.9);
       backdrop-filter: blur(8px);
       padding: 8px 14px;
@@ -232,20 +229,22 @@ export class UI {
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     `;
 
-    const gridLabel = document.createElement('span');
-    gridLabel.textContent = '网格';
-    gridLabel.style.cssText = `
+    const label = document.createElement('span');
+    label.textContent = '网格';
+    label.style.cssText = `
       color: #1E293B;
       font-size: 13px;
       font-weight: 500;
+      user-select: none;
     `;
 
     const toggle = document.createElement('label');
     toggle.style.cssText = `
       position: relative;
-      width: 40px;
-      height: 22px;
+      width: 44px;
+      height: 24px;
       cursor: pointer;
+      flex-shrink: 0;
     `;
 
     const checkbox = document.createElement('input');
@@ -262,27 +261,27 @@ export class UI {
       position: absolute;
       inset: 0;
       background: #CBD5E1;
-      border-radius: 11px;
-      transition: background 0.2s;
+      border-radius: 12px;
+      transition: background 0.2s ease;
     `;
 
     const knob = document.createElement('span');
     knob.style.cssText = `
       position: absolute;
-      top: 2px;
-      left: 2px;
+      top: 3px;
+      left: 3px;
       width: 18px;
       height: 18px;
       background: white;
       border-radius: 50%;
-      transition: transform 0.2s;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transition: transform 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
     `;
 
     checkbox.addEventListener('change', () => {
       if (checkbox.checked) {
         slider.style.background = '#7C3AED';
-        knob.style.transform = 'translateX(18px)';
+        knob.style.transform = 'translateX(20px)';
       } else {
         slider.style.background = '#CBD5E1';
         knob.style.transform = 'translateX(0)';
@@ -295,40 +294,55 @@ export class UI {
     toggle.appendChild(slider);
     this.gridToggle = checkbox;
 
-    gridRow.appendChild(gridLabel);
-    gridRow.appendChild(toggle);
-
-    const resetBtn = document.createElement('button');
-    resetBtn.id = 'reset-view-btn';
-    resetBtn.textContent = '复位视角';
-    resetBtn.style.cssText = `
-      background: rgba(255,255,255,0.9);
-      backdrop-filter: blur(8px);
-      color: #1E293B;
-      border: 1px solid #E2E8F0;
-      border-radius: 10px;
-      padding: 8px 16px;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s, box-shadow 0.2s;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    `;
-    resetBtn.addEventListener('mouseenter', () => {
-      resetBtn.style.background = '#EEF2FF';
-      resetBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
-    });
-    resetBtn.addEventListener('mouseleave', () => {
-      resetBtn.style.background = 'rgba(255,255,255,0.9)';
-      resetBtn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
-    });
-    this.resetBtn = resetBtn;
-
-    container.appendChild(gridRow);
-    container.appendChild(resetBtn);
+    row.appendChild(label);
+    row.appendChild(toggle);
+    container.appendChild(row);
     document.body.appendChild(container);
 
     return container;
+  }
+
+  private createResetButton(): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.id = 'reset-view-btn';
+    btn.innerHTML = `
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+      </svg>
+    `;
+    btn.title = '复位视角';
+    btn.style.cssText = `
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 200;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      color: #7C3AED;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+    `;
+    btn.addEventListener('mouseenter', () => {
+      btn.style.background = '#EEF2FF';
+      btn.style.boxShadow = '0 6px 20px rgba(124, 58, 237, 0.2)';
+      btn.style.transform = 'scale(1.05)';
+    });
+    btn.addEventListener('mouseleave', () => {
+      btn.style.background = 'rgba(255,255,255,0.95)';
+      btn.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
+      btn.style.transform = 'scale(1)';
+    });
+    document.body.appendChild(btn);
+    return btn;
   }
 
   private setupControls() {
@@ -351,7 +365,8 @@ export class UI {
 
   hideUploadArea() {
     this.uploadContainer.style.display = 'none';
-    this.controlsContainer.style.display = 'flex';
+    this.controlsContainer.style.display = 'block';
+    this.resetBtn.style.display = 'flex';
   }
 
   showInfoCard(buildingId: number, height: number, screenPos: { x: number; y: number }) {
@@ -454,7 +469,13 @@ export class UI {
 
   private removeInfoCard() {
     if (this.infoCard) {
-      this.infoCard.remove();
+      const card = this.infoCard;
+      card.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(-6px)';
+      setTimeout(() => {
+        if (card.parentNode) card.parentNode.removeChild(card);
+      }, 200);
       this.infoCard = null;
     }
   }
