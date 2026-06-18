@@ -1,0 +1,25 @@
+{
+  "name": "inspiration-sketch",
+  "version": "1.0.0",
+  "description": "灵感速写 - 创意管理应用",
+  "scripts": {
+    "dev": "concurrently \"cd server && npm run start\" \"npm run dev:client\"",
+    "dev:client": "vite",
+    "install:all": "npm install && cd server && npm install"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "axios": "^1.6.0",
+    "socket.io-client": "^4.7.2",
+    "zustand": "^4.4.7"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^4.2.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0",
+    "concurrently": "^8.2.2"
+  }
+}
