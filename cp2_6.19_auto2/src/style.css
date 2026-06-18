@@ -33,7 +33,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.6s ease-out;
+  transition: opacity 0.5s ease-out;
 }
 
 #loading-overlay.fade-out {
@@ -68,6 +68,7 @@ html, body {
   background: #ffffff;
   border-radius: 1px;
   transition: width 0.1s linear;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6), 0 0 16px rgba(108, 99, 255, 0.4);
 }
 
 .constellation-left,
@@ -98,19 +99,35 @@ html, body {
 .constellation-left {
   left: 0;
   background-image:
-    radial-gradient(1px 1px at 30% 20%, #6c63ff, transparent),
-    radial-gradient(1px 1px at 50% 45%, #ff6584, transparent),
-    radial-gradient(1px 1px at 25% 70%, #6c63ff, transparent),
-    radial-gradient(1px 1px at 60% 85%, #8a2be2, transparent);
+    radial-gradient(2px 2px at 30% 20%, #6c63ff, transparent),
+    radial-gradient(1.5px 1.5px at 18% 35%, #ff6584, transparent),
+    radial-gradient(1px 1px at 45% 12%, #ffffff, transparent),
+    radial-gradient(2px 2px at 50% 45%, #ff6584, transparent),
+    radial-gradient(1.5px 1.5px at 35% 58%, #8a2be2, transparent),
+    radial-gradient(1px 1px at 55% 30%, #ffd700, transparent),
+    radial-gradient(2px 2px at 25% 70%, #6c63ff, transparent),
+    radial-gradient(1.5px 1.5px at 42% 78%, #ff6584, transparent),
+    radial-gradient(1px 1px at 15% 85%, #ffffff, transparent),
+    radial-gradient(2px 2px at 60% 85%, #8a2be2, transparent),
+    radial-gradient(1.5px 1.5px at 50% 95%, #6c63ff, transparent),
+    radial-gradient(1px 1px at 35% 40%, #00ffff, transparent);
 }
 
 .constellation-right {
   right: 0;
   background-image:
-    radial-gradient(1px 1px at 70% 25%, #ff6584, transparent),
-    radial-gradient(1px 1px at 40% 50%, #6c63ff, transparent),
-    radial-gradient(1px 1px at 75% 75%, #8a2be2, transparent),
-    radial-gradient(1px 1px at 35% 90%, #ffd700, transparent);
+    radial-gradient(2px 2px at 70% 25%, #ff6584, transparent),
+    radial-gradient(1.5px 1.5px at 82% 40%, #6c63ff, transparent),
+    radial-gradient(1px 1px at 55% 18%, #ffffff, transparent),
+    radial-gradient(2px 2px at 40% 50%, #6c63ff, transparent),
+    radial-gradient(1.5px 1.5px at 65% 62%, #ffd700, transparent),
+    radial-gradient(1px 1px at 45% 35%, #00ffff, transparent),
+    radial-gradient(2px 2px at 75% 75%, #8a2be2, transparent),
+    radial-gradient(1.5px 1.5px at 58% 82%, #ff6584, transparent),
+    radial-gradient(1px 1px at 85% 90%, #ffffff, transparent),
+    radial-gradient(2px 2px at 35% 90%, #ffd700, transparent),
+    radial-gradient(1.5px 1.5px at 50% 95%, #8a2be2, transparent),
+    radial-gradient(1px 1px at 65% 45%, #6c63ff, transparent);
 }
 
 .constellation-left::before,
@@ -122,7 +139,21 @@ html, body {
   background:
     linear-gradient(135deg, transparent 45%, rgba(108, 99, 255, 0.3) 46%, rgba(108, 99, 255, 0.3) 47%, transparent 48%),
     linear-gradient(225deg, transparent 30%, rgba(255, 101, 132, 0.2) 31%, rgba(255, 101, 132, 0.2) 32%, transparent 33%),
-    linear-gradient(160deg, transparent 60%, rgba(138, 43, 226, 0.25) 61%, rgba(138, 43, 226, 0.25) 62%, transparent 63%);
+    linear-gradient(160deg, transparent 60%, rgba(138, 43, 226, 0.25) 61%, rgba(138, 43, 226, 0.25) 62%, transparent 63%),
+    linear-gradient(75deg, transparent 20%, rgba(108, 99, 255, 0.2) 21%, rgba(108, 99, 255, 0.2) 22%, transparent 23%),
+    linear-gradient(105deg, transparent 75%, rgba(255, 101, 132, 0.18) 76%, rgba(255, 101, 132, 0.18) 77%, transparent 78%);
+}
+
+.constellation-left::after,
+.constellation-right::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(45deg, transparent 15%, rgba(255, 215, 0, 0.15) 16%, rgba(255, 215, 0, 0.15) 17%, transparent 18%),
+    linear-gradient(200deg, transparent 48%, rgba(0, 255, 255, 0.2) 49%, rgba(0, 255, 255, 0.2) 50%, transparent 51%),
+    linear-gradient(30deg, transparent 82%, rgba(138, 43, 226, 0.15) 83%, rgba(138, 43, 226, 0.15) 84%, transparent 85%);
 }
 
 .panel-toggle {
@@ -174,15 +205,16 @@ html, body {
   top: 24px;
   right: 24px;
   width: 280px;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(108, 99, 255, 0.2);
+  background: rgba(10, 10, 26, 0.15);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(108, 99, 255, 0.25);
   border-radius: 8px;
   z-index: 100;
   transform: translateX(0);
   transition: transform 0.3s ease;
   overflow: hidden;
+  box-shadow: 0 8px 32px rgba(108, 99, 255, 0.1);
 }
 
 .control-panel.hidden {

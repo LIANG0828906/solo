@@ -114,7 +114,7 @@ class NebulaApp {
           this.loadingOverlay.classList.add('fade-out');
           setTimeout(() => {
             this.loadingOverlay.style.display = 'none';
-          }, 600);
+          }, 500);
         }, 200);
       } else {
         this.loadingBar.style.width = `${progress}%`;
