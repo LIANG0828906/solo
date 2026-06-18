@@ -243,8 +243,8 @@ class CrowdFlowApp {
 
         const intensity = densities[i] / 100;
         const r = Math.round(0 + intensity * 255);
-        const g = Math.round(212 - intensity * 110);
-        const b = Math.round(255 - intensity * 189);
+        const g = Math.round(212 - intensity * 161);
+        const b = Math.round(255 - intensity * 153);
         this.cornerLabels[i].style.color = `rgb(${r}, ${g}, ${b})`;
       } else {
         this.cornerLabels[i].style.display = 'none';
@@ -261,8 +261,8 @@ class CrowdFlowApp {
 
     const t = this.displayedDensity / 100;
     const r = Math.round(0 + t * 255);
-    const g = Math.round(212 - t * 110);
-    const b = Math.round(255 - t * 189);
+    const g = Math.round(212 - t * 161);
+    const b = Math.round(255 - t * 153);
     this.densityValue.style.color = `rgb(${r}, ${g}, ${b})`;
   }
 
@@ -299,7 +299,7 @@ class CrowdFlowApp {
     const currentTime = performance.now();
     const deltaTime = Math.min(this.clock.getDelta(), 0.05);
 
-    const densityGrid = this.dataManager.getDensityGrid(currentTime);
+    const densityGrid = this.dataManager.getDensityGrid(currentTime, deltaTime);
 
     this.particleSystem.update(densityGrid, deltaTime);
 

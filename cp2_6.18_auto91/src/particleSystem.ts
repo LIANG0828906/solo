@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { DensityGrid } from './dataManager';
 
 const PARTICLE_COUNT = 5000;
+const SHAPE_TRANSITION_DURATION = 1.0;
 
 interface ParticleState {
   basePhi: number;
@@ -23,15 +24,19 @@ export class ParticleSystem {
   
   private currentYShapeFactor: number = 1.2;
   private targetYShapeFactor: number = 1.2;
+  private startYShapeFactor: number = 1.2;
   private currentZShapeFactor: number = 1.0;
   private targetZShapeFactor: number = 1.0;
-  private shapeTransitionProgress: number = 1.0;
+  private startZShapeFactor: number = 1.0;
+  private shapeTransitionTimer: number = SHAPE_TRANSITION_DURATION;
 
-  private coolColor: THREE.Color = new THREE.Color(0x00D4FF);
-  private warmColor: THREE.Color = new THREE.Color(0xFF3366);
-  private midColor: THREE.Color = new THREE.Color(0x00FFCC);
+  private coolColor: THREE.Color;
+  private warmColor: THREE.Color;
 
   constructor(scene: THREE.Scene) {
+    this.coolColor = new THREE.Color(0x00D4FF);
+    this.warmColor = new THREE.Color(0xFF3366);
+    
     this.scene = scene;
     this.particleStates = [];
     this.positions = new Float32Array(PARTICLE_COUNT * 3);
@@ -148,11 +153,6 @@ export class ParticleSystem {
     return a + (b - a) * t;
   }
 
-  private smoothstep(edge0: number, edge1: number, x: number): number {
-    const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-    return t * t * (3 - 2 * t);
-  }
-
   private getCellDensity(densityGrid: DensityGrid, gridX: number, gridY: number): number {
     const cells = densityGrid.cells;
     const size = densityGrid.size;
@@ -165,39 +165,29 @@ export class ParticleSystem {
     const t = density / 100;
     const result = new THREE.Color();
     
-    if (t < 0.5) {
-      const localT = t * 2;
-      result.r = this.lerp(this.coolColor.r, this.midColor.r, localT);
-      result.g = this.lerp(this.coolColor.g, this.midColor.g, localT);
-      result.b = this.lerp(this.coolColor.b, this.midColor.b, localT);
-    } else {
-      const localT = (t - 0.5) * 2;
-      result.r = this.lerp(this.midColor.r, this.warmColor.r, localT);
-      result.g = this.lerp(this.midColor.g, this.warmColor.g, localT);
-      result.b = this.lerp(this.midColor.b, this.warmColor.b, localT);
-    }
+    result.r = this.lerp(this.coolColor.r, this.warmColor.r, t);
+    result.g = this.lerp(this.coolColor.g, this.warmColor.g, t);
+    result.b = this.lerp(this.coolColor.b, this.warmColor.b, t);
     
     return result;
   }
 
   private getRadiusFromDensity(density: number, seed: number): number {
-    let minRadius: number, maxRadius: number;
+    let baseRadius: number;
     
     if (density < 30) {
       const localT = density / 30;
-      minRadius = 0;
-      maxRadius = this.lerp(1.0, 2.0, localT);
+      baseRadius = this.lerp(0, 2, localT);
     } else if (density > 70) {
       const localT = (density - 70) / 30;
-      minRadius = this.lerp(3.0, 4.0, localT);
-      maxRadius = this.lerp(4.0, 6.0, localT);
+      baseRadius = this.lerp(4, 6, localT);
     } else {
       const localT = (density - 30) / 40;
-      minRadius = this.lerp(1.0, 3.0, localT);
-      maxRadius = this.lerp(2.0, 4.0, localT);
+      baseRadius = this.lerp(2, 4, localT);
     }
     
-    return this.lerp(minRadius, maxRadius, seed);
+    const jitter = (seed - 0.5) * 0.4;
+    return baseRadius + jitter;
   }
 
   update(densityGrid: DensityGrid, deltaTime: number): void {
@@ -209,19 +199,20 @@ export class ParticleSystem {
     
     if (Math.abs(newTargetY - this.targetYShapeFactor) > 0.001 ||
         Math.abs(newTargetZ - this.targetZShapeFactor) > 0.001) {
+      this.startYShapeFactor = this.currentYShapeFactor;
+      this.startZShapeFactor = this.currentZShapeFactor;
       this.targetYShapeFactor = newTargetY;
       this.targetZShapeFactor = newTargetZ;
-      this.shapeTransitionProgress = 0;
+      this.shapeTransitionTimer = 0;
     }
     
-    const shapeSpeed = 1 / 1.0;
-    if (this.shapeTransitionProgress < 1.0) {
-      this.shapeTransitionProgress = Math.min(1.0, this.shapeTransitionProgress + deltaTime * shapeSpeed);
+    if (this.shapeTransitionTimer < SHAPE_TRANSITION_DURATION) {
+      this.shapeTransitionTimer = Math.min(SHAPE_TRANSITION_DURATION, this.shapeTransitionTimer + deltaTime);
+      const t = this.shapeTransitionTimer / SHAPE_TRANSITION_DURATION;
+      const smoothT = t * t * (3 - 2 * t);
+      this.currentYShapeFactor = this.lerp(this.startYShapeFactor, this.targetYShapeFactor, smoothT);
+      this.currentZShapeFactor = this.lerp(this.startZShapeFactor, this.targetZShapeFactor, smoothT);
     }
-    
-    const smoothT = this.smoothstep(0, 1, this.shapeTransitionProgress);
-    this.currentYShapeFactor = this.lerp(this.currentYShapeFactor, this.targetYShapeFactor, smoothT * 0.1);
-    this.currentZShapeFactor = this.lerp(this.currentZShapeFactor, this.targetZShapeFactor, smoothT * 0.1);
 
     const time = performance.now() / 1000;
 

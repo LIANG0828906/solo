@@ -7,11 +7,14 @@ export interface DensityGrid {
 
 interface DensityCell {
   current: number;
+  previous: number;
   target: number;
+  transitionTimer: number;
 }
 
 const GRID_SIZE = 4;
 const UPDATE_INTERVAL = 2000;
+const TRANSITION_DURATION = 1.5;
 
 export class DataManager {
   private grid: DensityCell[][];
@@ -27,7 +30,9 @@ export class DataManager {
         const initial = 20 + Math.random() * 30;
         this.grid[i][j] = {
           current: initial,
-          target: initial
+          previous: initial,
+          target: initial,
+          transitionTimer: TRANSITION_DURATION
         };
       }
     }
@@ -40,7 +45,7 @@ export class DataManager {
     };
 
     this.startTime = performance.now();
-    this.updateDensityGrid();
+    this.updateDensityGrid(0);
   }
 
   private smoothstep(edge0: number, edge1: number, x: number): number {
@@ -73,7 +78,9 @@ export class DataManager {
         const maxDensity = 75 + Math.random() * 25;
         const target = minDensity + base * (maxDensity - minDensity);
         
+        this.grid[i][j].previous = this.grid[i][j].current;
         this.grid[i][j].target = Math.max(0, Math.min(100, target));
+        this.grid[i][j].transitionTimer = 0;
       }
     }
 
@@ -88,29 +95,29 @@ export class DataManager {
           const nj = hj + dj;
           if (ni >= 0 && ni < GRID_SIZE && nj >= 0 && nj < GRID_SIZE) {
             const falloff = 1 - (Math.abs(di) + Math.abs(dj)) / 3;
+            this.grid[ni][nj].previous = this.grid[ni][nj].current;
             this.grid[ni][nj].target = Math.max(
               this.grid[ni][nj].target,
               hotspotValue * falloff
             );
+            this.grid[ni][nj].transitionTimer = 0;
           }
         }
       }
     }
   }
 
-  getDensityGrid(currentTime: number): DensityGrid {
+  getDensityGrid(currentTime: number, deltaTime: number): DensityGrid {
     if (currentTime - this.lastUpdateTime >= UPDATE_INTERVAL) {
       this.generateTargetDensities();
       this.lastUpdateTime = currentTime;
     }
 
-    this.updateDensityGrid();
+    this.updateDensityGrid(deltaTime);
     return this.densityGrid;
   }
 
-  private updateDensityGrid(): void {
-    const transitionSpeed = 1 / 1500;
-
+  private updateDensityGrid(deltaTime: number): void {
     this.densityGrid.cells = [];
     let sum = 0;
 
@@ -118,10 +125,15 @@ export class DataManager {
       this.densityGrid.cells[i] = [];
       for (let j = 0; j < GRID_SIZE; j++) {
         const cell = this.grid[i][j];
-        const diff = cell.target - cell.current;
-        cell.current += diff * transitionSpeed * 16;
-        cell.current = Math.max(0, Math.min(100, cell.current));
         
+        if (cell.transitionTimer < TRANSITION_DURATION) {
+          cell.transitionTimer = Math.min(TRANSITION_DURATION, cell.transitionTimer + deltaTime);
+          const t = cell.transitionTimer / TRANSITION_DURATION;
+          const smoothT = t * t * (3 - 2 * t);
+          cell.current = this.lerp(cell.previous, cell.target, smoothT);
+        }
+        
+        cell.current = Math.max(0, Math.min(100, cell.current));
         this.densityGrid.cells[i][j] = cell.current;
         sum += cell.current;
       }
@@ -134,6 +146,10 @@ export class DataManager {
       this.grid[GRID_SIZE - 1][0].current,
       this.grid[GRID_SIZE - 1][GRID_SIZE - 1].current
     ];
+  }
+
+  private lerp(a: number, b: number, t: number): number {
+    return a + (b - a) * t;
   }
 
   getGridSize(): number {
