@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0F0F23;
+  --bg-card: rgba(30, 30, 63, 0.8);
+  --bg-timeline-start: #1A1A2E;
+  --bg-timeline-end: #16213E;
+  --text-primary: #D0D0E0;
+  --text-secondary: #8888A0;
+  --accent-primary: #6C63FF;
+  --accent-gold: #F1C40F;
+  --accent-green: #2ECC71;
+  --accent-red: #E74C3C;
+  --accent-blue: #4A90D9;
+  --border-color: #3A3A5C;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 5px var(--accent-gold); }
+  50% { box-shadow: 0 0 20px var(--accent-gold), 0 0 30px var(--accent-gold); }
+}
+
+@keyframes color-blink {
+  0%, 100% { border-color: transparent; }
+  50% { border-color: white; }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.time-indicator {
+  animation: breathe 0.5s ease-in-out infinite;
+}
+
+.gold-pulse {
+  animation: pulse-gold 1.5s ease-in-out infinite;
+}
+
+.color-select-blink {
+  animation: color-blink 0.15s ease-in-out 2;
+}
+
+.confetti-piece {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  animation: confetti-fall 1.5s ease-out forwards;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .timeline-block {
+    width: 80% !important;
+  }
+}
