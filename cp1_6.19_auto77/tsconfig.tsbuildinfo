@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/environmentpanel.tsx","./src/components/growthlog.tsx","./src/components/plantscene.tsx","./src/data/planttypes.ts"],"version":"5.8.3"}
