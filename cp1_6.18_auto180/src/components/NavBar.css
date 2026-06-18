@@ -1,0 +1,141 @@
+.nav-top {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-height);
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border-light);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  z-index: 100;
+}
+
+.nav-top-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  height: 100%;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  transition: transform var(--transition-ease);
+}
+
+.nav-logo:hover {
+  transform: scale(1.02);
+}
+
+.nav-top-links {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-top-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  transition: all var(--transition-ease);
+}
+
+.nav-top-link:hover {
+  background: var(--color-bg-primary);
+  transform: scale(1.02);
+  color: var(--color-text-primary);
+}
+
+.nav-top-link:active {
+  transform: scale(0.98);
+}
+
+.nav-top-link.active {
+  background: var(--color-bg-secondary);
+  color: var(--color-accent);
+  font-weight: 500;
+}
+
+.nav-top-right {
+  display: flex;
+  align-items: center;
+}
+
+.nav-badge-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nav-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--color-warning);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-badge-bounce {
+  animation: badgeBounce 0.5s ease;
+}
+
+.nav-mobile {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-height);
+  background: var(--color-bg-card);
+  border-top: 1px solid var(--color-border-light);
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 100;
+}
+
+.nav-mobile-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  color: var(--color-text-muted);
+  transition: all var(--transition-ease);
+}
+
+.nav-mobile-item:hover {
+  color: var(--color-text-secondary);
+  transform: scale(1.02);
+}
+
+.nav-mobile-item:active {
+  transform: scale(0.98);
+}
+
+.nav-mobile-item.active {
+  color: var(--color-accent);
+}
+
+.nav-mobile-label {
+  font-size: 11px;
+}

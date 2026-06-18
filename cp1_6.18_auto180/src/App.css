@@ -1,0 +1,14 @@
+.app {
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+}
+
+.app-main {
+  padding-top: calc(var(--nav-height) + 0px);
+  min-height: 100vh;
+}
+
+.app-main.mobile {
+  padding-top: 0;
+  padding-bottom: var(--nav-height);
+}
