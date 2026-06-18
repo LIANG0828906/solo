@@ -1,0 +1,30 @@
+:root {
+  --bg-gradient-start: #1A1A2E;
+  --bg-gradient-end: #16213E;
+  --card-bg: rgba(255, 255, 255, 0.08);
+  --card-border: rgba(255, 255, 255, 0.12);
+  --card-blur: 12px;
+  --card-radius: 16px;
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.72);
+  --text-tertiary: rgba(255, 255, 255, 0.48);
+  --btn-gradient-start: #6C63FF;
+  --btn-gradient-end: #4834D4;
+  --btn-shadow: 0 4px 14px rgba(108, 99, 255, 0.35);
+  --btn-hover-shadow: 0 8px 24px rgba(108, 99, 255, 0.5);
+  --time-green: #2ECC71;
+  --time-yellow: #F1C40F;
+  --time-red: #E74C3C;
+  --gold: #FFD700;
+  --gold-gradient-start: rgba(255, 215, 0, 0.95);
+  --gold-gradient-end: rgba(255, 193, 7, 0.8);
+  --trend-bg: rgba(255, 255, 255, 0.05);
+  --trend-radius: 12px;
+  --bar-bg: rgba(255, 255, 255, 0.12);
+  --bar-gradient: linear-gradient(90deg, #6C63FF, #4834D4);
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.25);
+  --shadow-glow: 0 0 32px rgba(108, 99, 255, 0.15);
+}
