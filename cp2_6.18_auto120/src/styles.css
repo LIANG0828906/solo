@@ -1,0 +1,213 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: monospace;
+  color: #E2E8F0;
+  background-color: #0B0E14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-container {
+  position: relative;
+  width: 800px;
+  height: 800px;
+}
+
+.game-canvas {
+  display: block;
+  background-color: #0B0E14;
+}
+
+.status-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 12px;
+  background-color: #00000080;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: monospace;
+  font-size: 14px;
+  color: #E2E8F0;
+  z-index: 10;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-label {
+  color: #94A3B8;
+}
+
+.status-value {
+  color: #E2E8F0;
+  font-weight: bold;
+}
+
+.combo-value {
+  color: #F59E0B;
+  font-weight: bold;
+}
+
+.lives-container {
+  display: flex;
+  gap: 4px;
+}
+
+.life-icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: background-color 0.3s;
+}
+
+.life-icon.active {
+  background-color: #EF4444;
+  box-shadow: 0 0 8px #EF4444;
+}
+
+.life-icon.lost {
+  background-color: #475569;
+}
+
+.life-icon.flashing {
+  animation: flash 0.3s infinite;
+}
+
+@keyframes flash {
+  0%, 100% {
+    background-color: #EF4444;
+    box-shadow: 0 0 8px #EF4444;
+  }
+  50% {
+    background-color: #475569;
+    box-shadow: none;
+  }
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.gameover-overlay {
+  background-color: #00000080;
+}
+
+.victory-overlay {
+  background-color: #1E3A8A80;
+}
+
+.overlay-content {
+  text-align: center;
+  padding: 48px 64px;
+  border-radius: 16px;
+}
+
+.gameover-content {
+  background-color: #1E293B;
+  border: 1px solid #475569;
+}
+
+.victory-content {
+  background-color: #1E3A8A80;
+  border: 1px solid #FCD34D;
+  box-shadow: 0 0 40px #FCD34D40;
+}
+
+.overlay-title {
+  font-family: monospace;
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+.gameover-title {
+  color: #E2E8F0;
+}
+
+.victory-title {
+  color: #FCD34D;
+  text-shadow: 0 0 20px #FCD34D;
+  animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% {
+    text-shadow: 0 0 20px #FCD34D, 0 0 40px #FCD34D;
+  }
+  50% {
+    text-shadow: 0 0 30px #FCD34D, 0 0 60px #FCD34D, 0 0 80px #F59E0B;
+  }
+}
+
+.overlay-score {
+  font-family: monospace;
+  font-size: 20px;
+  color: #94A3B8;
+  margin-bottom: 32px;
+}
+
+.overlay-score-value {
+  color: #E2E8F0;
+  font-weight: bold;
+}
+
+.restart-button {
+  font-family: monospace;
+  font-size: 16px;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gameover-button {
+  background-color: #4C51BF;
+  color: white;
+}
+
+.gameover-button:hover {
+  background-color: #6366F1;
+  box-shadow: 0 0 20px #4C51BF80;
+}
+
+.victory-button {
+  background-color: #FCD34D;
+  color: #1E3A8A;
+  font-weight: bold;
+}
+
+.victory-button:hover {
+  background-color: #FBBF24;
+  box-shadow: 0 0 20px #FCD34D80;
+}
