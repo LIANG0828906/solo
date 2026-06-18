@@ -1,0 +1,143 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modalContainer {
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  width: 640px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modalHeader {
+  padding: 20px 24px;
+  border-bottom: 1px solid #E5E7EB;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B7280;
+  transition: 0.2s;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.closeBtn:hover {
+  background-color: #F3F4F6;
+}
+
+.modalBody {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sectionLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.templateGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.templateCard {
+  padding: 16px;
+  border: 2px solid #E5E7EB;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.2s;
+  background-color: #ffffff;
+}
+
+.templateCard:hover {
+  border-color: #60A5FA;
+  transform: translateY(-2px);
+}
+
+.templateCardSelected {
+  border-color: #2563EB;
+  background-color: #F0F5FF;
+}
+
+.templateIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.templateIconSimple {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.templateIconDetailed {
+  background-color: #DBEAFE;
+  color: #2563EB;
+}
+
+.templateIconCustom {
+  background-color: #EDE9FE;
+  color: #7C3AED;
+}
+
+.templateName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.templateDesc {
+  font-size: 11px;
+  color: #6B7280;
+  line-height: 1.4;
+}

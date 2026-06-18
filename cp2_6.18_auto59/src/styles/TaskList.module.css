@@ -1,0 +1,71 @@
+.listContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6B7280;
+}
+
+.sectionCount {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background-color: #F3F4F6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6B7280;
+}
+
+.completedHeader .sectionCount {
+  background-color: #D1FAE5;
+  color: #059669;
+}
+
+.taskGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dropPlaceholder {
+  height: 48px;
+  border: 2px dashed #60A5FA;
+  border-radius: 8px;
+  background-color: #EFF6FF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563EB;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.emptyState {
+  padding: 40px 20px;
+  text-align: center;
+  color: #9CA3AF;
+}
+
+.emptyIcon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.emptyText {
+  font-size: 13px;
+}

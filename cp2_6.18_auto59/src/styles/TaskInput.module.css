@@ -1,0 +1,144 @@
+.inputWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mainInputRow {
+  display: flex;
+  gap: 8px;
+}
+
+.inputField {
+  flex: 1;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: 0.2s;
+  outline: none;
+}
+
+.inputField:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.addBtn {
+  min-width: 80px;
+  height: 40px;
+  background-color: #2563EB;
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.addBtn:hover {
+  background-color: #1D4ED8;
+}
+
+.addBtn:disabled {
+  background-color: #9CA3AF;
+  cursor: not-allowed;
+}
+
+.optionsRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.optionGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.optionLabel {
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.priorityBtns {
+  display: flex;
+  gap: 4px;
+}
+
+.priorityBtn {
+  width: 32px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  transition: 0.2s;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.priorityBtnP0 {
+  color: #EF4444;
+  background-color: #FEF2F2;
+}
+
+.priorityBtnP0:active {
+  border-color: #EF4444;
+}
+
+.priorityBtnP1 {
+  color: #F97316;
+  background-color: #FFF7ED;
+}
+
+.priorityBtnP1:active {
+  border-color: #F97316;
+}
+
+.priorityBtnP2 {
+  color: #9CA3AF;
+  background-color: #F3F4F6;
+}
+
+.priorityBtnP2:active {
+  border-color: #9CA3AF;
+}
+
+.priorityBtnActive {
+  font-weight: 700;
+  transform: scale(1.05);
+}
+
+.timeSelect {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  font-size: 12px;
+  background-color: #ffffff;
+  color: #374151;
+  outline: none;
+}
+
+.shortcutHint {
+  font-size: 11px;
+  color: #9CA3AF;
+  margin-left: auto;
+}
+
+.charCount {
+  font-size: 11px;
+  color: #9CA3AF;
+  min-width: 40px;
+  text-align: right;
+}
+
+.charCountWarning {
+  color: #EF4444;
+}

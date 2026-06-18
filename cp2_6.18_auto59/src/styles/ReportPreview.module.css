@@ -1,0 +1,193 @@
+.previewCard {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+  min-height: 100%;
+  transition: opacity 0.4s ease;
+}
+
+.previewCardFading {
+  opacity: 0;
+}
+
+.reportTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.reportDate {
+  font-size: 12px;
+  color: #9CA3AF;
+  margin-bottom: 20px;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sectionTitleIcon {
+  width: 4px;
+  height: 14px;
+  background-color: #2563EB;
+  border-radius: 2px;
+}
+
+.workHoursBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #F0F5FF;
+  border-radius: 8px;
+  color: #2563EB;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.taskList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.taskItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.taskBullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+.taskBulletCompleted {
+  background-color: #10B981;
+}
+
+.taskBulletPending {
+  background-color: #F59E0B;
+}
+
+.taskContent {
+  flex: 1;
+}
+
+.taskPriority {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.priorityP0 {
+  background-color: #FEF2F2;
+  color: #EF4444;
+}
+
+.priorityP1 {
+  background-color: #FFF7ED;
+  color: #F97316;
+}
+
+.priorityP2 {
+  background-color: #F3F4F6;
+  color: #6B7280;
+}
+
+.taskTime {
+  color: #9CA3AF;
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.emptyTasks {
+  color: #9CA3AF;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.notesTextarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  transition: 0.2s;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.notesTextarea:focus {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.copySection {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #E5E7EB;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px;
+  background-color: #2563EB;
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.copyBtn:hover {
+  background-color: #1D4ED8;
+}
+
+.copyBtnCopied {
+  background-color: #10B981;
+}
+
+.copyBtnCopied:hover {
+  background-color: #059669;
+}
+
+.copyFeedback {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
