@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1024" />
+    <title>星轨编织者 | Star Weaver</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: linear-gradient(180deg, #0A0B1A 0%, #16213E 100%);
+      }
+      body {
+        font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+        min-width: 1024px;
+        max-width: 2560px;
+        margin: 0 auto;
+      }
+      canvas {
+        display: block;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
