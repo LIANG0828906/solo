@@ -7,9 +7,13 @@ import styles from '../styles/TaskList.module.css';
 
 type DragScope = 'pending' | 'completed';
 
+type DropPosition = 'before' | 'after' | null;
+
 interface DragState {
   draggingId: string | null;
   overId: string | null;
+  overPosition: DropPosition;
+  isOverGroup: boolean;
   scope: DragScope | null;
 }
 
@@ -20,6 +24,8 @@ export default function TaskList() {
   const [dragState, setDragState] = useState<DragState>({
     draggingId: null,
     overId: null,
+    overPosition: null,
+    isOverGroup: false,
     scope: null,
   });
   const rafRef = useRef<number | null>(null);
@@ -36,47 +42,127 @@ export default function TaskList() {
     (id: string, scope: DragScope, e: React.DragEvent) => {
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', id);
-      setDragState({ draggingId: id, overId: null, scope });
+      setDragState({
+        draggingId: id,
+        overId: null,
+        overPosition: null,
+        isOverGroup: false,
+        scope,
+      });
     },
     []
   );
 
-  const handleDragOver = useCallback(
-    (id: string, e: React.DragEvent) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-
+  const setDragOver = useCallback(
+    (update: Partial<DragState>) => {
       if (rafRef.current !== null) return;
       rafRef.current = requestAnimationFrame(() => {
-        setDragState((prev) =>
-          prev.draggingId && prev.draggingId !== id
-            ? { ...prev, overId: id }
-            : prev
-        );
+        setDragState((prev) => ({ ...prev, ...update }));
         rafRef.current = null;
       });
     },
     []
   );
 
-  const handleDrop = useCallback(
-    (toId: string, e: React.DragEvent) => {
+  const handleItemDragOver = useCallback(
+    (id: string, position: DropPosition, e: React.DragEvent) => {
       e.preventDefault();
-      const { draggingId, scope } = dragState;
-      if (draggingId && scope && draggingId !== toId) {
-        reorderTasks(draggingId, toId, scope);
+      e.dataTransfer.dropEffect = 'move';
+      e.stopPropagation();
+      if (dragState.draggingId === id) return;
+      setDragOver({ overId: id, overPosition: position, isOverGroup: false });
+    },
+    [dragState.draggingId, setDragOver]
+  );
+
+  const handleGroupDragOver = useCallback(
+    (scope: DragScope, e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (dragState.scope !== scope || !dragState.draggingId) return;
+      if (!dragState.overId) {
+        setDragOver({ isOverGroup: true });
       }
-      setDragState({ draggingId: null, overId: null, scope: null });
+    },
+    [dragState.scope, dragState.draggingId, dragState.overId, setDragOver]
+  );
+
+  const handleGroupDragLeave = useCallback(
+    (scope: DragScope, e: React.DragEvent) => {
+      if (dragState.scope !== scope) return;
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const { clientX, clientY } = e;
+      const isOutside =
+        clientX < rect.left ||
+        clientX > rect.right ||
+        clientY < rect.top ||
+        clientY > rect.bottom;
+      if (isOutside) {
+        setDragOver({ overId: null, overPosition: null, isOverGroup: false });
+      }
+    },
+    [dragState.scope, setDragOver]
+  );
+
+  const handleDrop = useCallback(
+    (toId: string | null, dropAtEnd: boolean, scope: DragScope, e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const { draggingId, scope: currentScope } = dragState;
+      if (!draggingId || currentScope !== scope) {
+        setDragState({
+          draggingId: null,
+          overId: null,
+          overPosition: null,
+          isOverGroup: false,
+          scope: null,
+        });
+        return;
+      }
+
+      const sourceList =
+        scope === 'pending' ? pendingTasks : completedTasks;
+      const sourceIds = sourceList.map((t) => t.id);
+      const draggingIdx = sourceIds.indexOf(draggingId);
+
+      let targetIdx: number;
+      if (dropAtEnd || toId === null) {
+        targetIdx = sourceIds.length - 1;
+      } else {
+        targetIdx = sourceIds.indexOf(toId);
+        if (targetIdx > draggingIdx) targetIdx -= 1;
+      }
+
+      if (draggingIdx !== -1 && targetIdx !== -1 && draggingIdx !== targetIdx) {
+        const reordered = [...sourceIds];
+        const [removed] = reordered.splice(draggingIdx, 1);
+        reordered.splice(targetIdx, 0, removed);
+        reorderTasks(draggingId, reordered[targetIdx] ?? draggingId, scope);
+      }
+
+      setDragState({
+        draggingId: null,
+        overId: null,
+        overPosition: null,
+        isOverGroup: false,
+        scope: null,
+      });
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
     },
-    [dragState, reorderTasks]
+    [dragState, pendingTasks, completedTasks, reorderTasks]
   );
 
   const handleDragEnd = useCallback(() => {
-    setDragState({ draggingId: null, overId: null, scope: null });
+    setDragState({
+      draggingId: null,
+      overId: null,
+      overPosition: null,
+      isOverGroup: false,
+      scope: null,
+    });
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -91,6 +177,11 @@ export default function TaskList() {
     headerExtraClass?: string
   ) => {
     const showEmpty = taskList.length === 0 && scope === 'pending';
+    const isCurrentScope = dragState.scope === scope;
+    const isDraggingInScope = isCurrentScope && dragState.draggingId !== null;
+    const showEndPlaceholder =
+      isDraggingInScope &&
+      (!dragState.overId || dragState.isOverGroup);
 
     return (
       <div>
@@ -103,7 +194,12 @@ export default function TaskList() {
           <span className={styles.sectionTitle}>{title}</span>
           <span className={styles.sectionCount}>{taskList.length}</span>
         </div>
-        <div className={styles.taskGroup}>
+        <div
+          className={styles.taskGroup}
+          onDragOver={(e) => handleGroupDragOver(scope, e)}
+          onDragLeave={(e) => handleGroupDragLeave(scope, e)}
+          onDrop={(e) => handleDrop(null, true, scope, e)}
+        >
           {showEmpty ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>
@@ -112,12 +208,16 @@ export default function TaskList() {
               <div className={styles.emptyText}>还没有待处理任务，快去添加吧！</div>
             </div>
           ) : (
-            taskList.map((task) => {
-              const isOver = dragState.overId === task.id && dragState.scope === scope;
+            taskList.map((task, idx) => {
+              const isOver =
+                isDraggingInScope &&
+                dragState.overId === task.id &&
+                dragState.draggingId !== task.id;
+              const isLast = idx === taskList.length - 1;
               return (
                 <div key={`wrapper-${task.id}`}>
-                  {isOver && dragState.draggingId && dragState.draggingId !== task.id && (
-                    <div className={styles.dropPlaceholder}>放置到此处</div>
+                  {isOver && dragState.overPosition !== 'after' && (
+                    <div className={styles.dropPlaceholder} />
                   )}
                   <TaskItem
                     key={task.id}
@@ -126,20 +226,31 @@ export default function TaskList() {
                     isDragging={dragState.draggingId === task.id}
                     isOver={isOver}
                     onDragStart={(id, s, e) => handleDragStart(id, s, e)}
-                    onDragOver={(id, e) => handleDragOver(id, e)}
-                    onDrop={(id, e) => handleDrop(id, e)}
+                    onDragOverId={(position, e) =>
+                      handleItemDragOver(task.id, position, e)
+                    }
+                    onDrop={(id, e) =>
+                      handleDrop(
+                        id,
+                        isLast && dragState.overPosition === 'after',
+                        scope,
+                        e
+                      )
+                    }
                     onDragEnd={handleDragEnd}
                   />
+                  {isOver &&
+                    dragState.overPosition === 'after' &&
+                    !showEndPlaceholder && (
+                      <div className={styles.dropPlaceholder} />
+                    )}
                 </div>
               );
             })
           )}
-          {taskList.length > 0 &&
-            dragState.scope === scope &&
-            dragState.overId === null &&
-            dragState.draggingId && (
-              <div className={styles.dropPlaceholder}>放置到此处</div>
-            )}
+          {!showEmpty && showEndPlaceholder && (
+            <div className={styles.dropPlaceholder} />
+          )}
         </div>
       </div>
     );

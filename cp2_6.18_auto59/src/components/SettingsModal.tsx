@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useDayBriefStore } from '../store';
 import type { TemplateType } from '../types';
 import { X, FileText, Settings } from 'lucide-react';
@@ -45,14 +45,17 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const templateType = useDayBriefStore((s) => s.templateType);
   const setTemplateType = useDayBriefStore((s) => s.setTemplateType);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
       }
-    };
+    },
+    [onClose]
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
 
     document.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
@@ -61,7 +64,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, handleKeyDown]);
 
   if (!isOpen) return null;
 
@@ -77,10 +80,17 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <div className={styles.modalOverlay} onClick={handleOverlayClick}>
-      <div className={styles.modalContainer} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={styles.modalContainer}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className={styles.modalHeader}>
           <h2 className={styles.modalTitle}>日报模板设置</h2>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="关闭">
+          <button
+            className={styles.closeBtn}
+            onClick={onClose}
+            aria-label="关闭"
+          >
             <X size={18} />
           </button>
         </div>
@@ -93,14 +103,20 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               return (
                 <div
                   key={option.type}
-                  className={`${styles.templateCard} ${isSelected ? styles.templateCardSelected : ''}`}
+                  className={`${styles.templateCard} ${
+                    isSelected ? styles.templateCardSelected : ''
+                  }`}
                   onClick={() => handleCardClick(option.type)}
                 >
-                  <div className={`${styles.templateIcon} ${option.iconClass}`}>
+                  <div
+                    className={`${styles.templateIcon} ${option.iconClass}`}
+                  >
                     <IconComponent size={20} />
                   </div>
                   <div className={styles.templateName}>{option.name}</div>
-                  <div className={styles.templateDesc}>{option.description}</div>
+                  <div className={styles.templateDesc}>
+                    {option.description}
+                  </div>
                 </div>
               );
             })}

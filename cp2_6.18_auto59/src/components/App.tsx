@@ -30,9 +30,10 @@ export default function App() {
       if (!containerRef.current) return;
       const containerWidth = containerRef.current.getBoundingClientRect().width;
       const deltaX = e.clientX - startXRef.current;
-      const deltaRatio = deltaX / containerWidth;
+      const deltaRatio = containerWidth > 0 ? deltaX / containerWidth : 0;
       const newRatio = startWidthRef.current + deltaRatio;
-      const clamped = Math.max(0.2, Math.min(0.8, newRatio));
+      const bounded = Math.max(0, Math.min(1, newRatio));
+      const clamped = Math.max(0.2, Math.min(0.8, bounded));
       setLeftPanelWidth(clamped);
     };
 

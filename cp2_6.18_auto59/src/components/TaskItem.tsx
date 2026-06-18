@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, memo, useRef } from 'react';
 import { useDayBriefStore } from '../store';
 import type { Task } from '../types';
 import { formatEstimatedTime } from '../utils/formatters';
@@ -6,6 +6,7 @@ import { Pencil, Trash2, Check } from 'lucide-react';
 import styles from '../styles/TaskItem.module.css';
 
 type DragScope = 'pending' | 'completed';
+type DropPosition = 'before' | 'after' | null;
 
 interface TaskItemProps {
   task: Task;
@@ -13,7 +14,7 @@ interface TaskItemProps {
   isDragging: boolean;
   isOver: boolean;
   onDragStart: (id: string, scope: DragScope, e: React.DragEvent) => void;
-  onDragOver: (id: string, e: React.DragEvent) => void;
+  onDragOverId: (position: DropPosition, e: React.DragEvent) => void;
   onDrop: (id: string, e: React.DragEvent) => void;
   onDragEnd: () => void;
 }
@@ -36,13 +37,14 @@ function TaskItemComponent({
   isDragging,
   isOver,
   onDragStart,
-  onDragOver,
+  onDragOverId,
   onDrop,
   onDragEnd,
 }: TaskItemProps) {
   const toggleTaskStatus = useDayBriefStore((s) => s.toggleTaskStatus);
   const updateTask = useDayBriefStore((s) => s.updateTask);
   const removeTask = useDayBriefStore((s) => s.removeTask);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(task.content);
@@ -78,7 +80,12 @@ function TaskItemComponent({
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    onDragOver(task.id, e);
+    if (!cardRef.current) return;
+    e.preventDefault();
+    const rect = cardRef.current.getBoundingClientRect();
+    const midpointY = rect.top + rect.height / 2;
+    const position: DropPosition = e.clientY < midpointY ? 'before' : 'after';
+    onDragOverId(position, e);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -87,6 +94,7 @@ function TaskItemComponent({
 
   return (
     <div
+      ref={cardRef}
       className={`
         ${styles.taskCard}
         ${isCompleted ? styles.taskCardCompleted : ''}

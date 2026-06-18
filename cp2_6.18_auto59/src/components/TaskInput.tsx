@@ -81,13 +81,13 @@ export default function TaskInput() {
                     priority === p ? styles.priorityBtnActive : ''
                   }`}
                   onClick={() => setPriority(p)}
-                  title={`优先级 ${p}`}
+                  aria-label={`优先级 ${p}`}
+                  title={`${p} - 优先级 ${p === 'P0' ? '紧急' : p === 'P1' ? '一般' : '低'}`}
                 >
                   <span
                     className={styles.priorityDot}
                     style={{ backgroundColor: dotColors[p] }}
                   />
-                  <span>{p}</span>
                 </button>
               );
             })}

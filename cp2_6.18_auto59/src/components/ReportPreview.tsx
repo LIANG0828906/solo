@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useDayBriefStore } from '../store';
 import { generateReportRenderData, generatePlainTextReport } from '../utils/reportGenerator';
-import { formatTotalWorkHours, formatEstimatedTime, getPriorityColor } from '../utils/formatters';
+import { formatTotalWorkHours, formatEstimatedTime } from '../utils/formatters';
 import { Clock, Copy, CheckCircle2 } from 'lucide-react';
 import type { Task } from '../types';
 import styles from '../styles/ReportPreview.module.css';
@@ -16,14 +16,18 @@ function TaskItemView({ task, isCompleted }: { task: Task; isCompleted: boolean 
   return (
     <li className={styles.taskItem}>
       <span
-        className={`${styles.taskBullet} ${isCompleted ? styles.taskBulletCompleted : styles.taskBulletPending}`}
+        className={`${styles.taskBullet} ${
+          isCompleted ? styles.taskBulletCompleted : styles.taskBulletPending
+        }`}
       />
       <span className={styles.taskContent}>
         <span className={`${styles.taskPriority} ${priorityStyles[task.priority]}`}>
           {task.priority}
         </span>
         {task.content}
-        <span className={styles.taskTime}>{formatEstimatedTime(task.estimatedMinutes)}</span>
+        <span className={styles.taskTime}>
+          {formatEstimatedTime(task.estimatedMinutes)}
+        </span>
       </span>
     </li>
   );
@@ -37,37 +41,47 @@ export default function ReportPreview() {
   const updateDraftNotes = useDayBriefStore((s) => s.updateDraftNotes);
 
   const [isCopied, setIsCopied] = useState(false);
-  const [isFadingOut, setIsFadingOut] = useState(false);
-  const [isFadingIn, setIsFadingIn] = useState(false);
-  const [animationKey, setAnimationKey] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [localNotes, setLocalNotes] = useState(draftNotes);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const renderData = useMemo(
-    () => generateReportRenderData({ tasks, templateType, customTemplate, draftNotes }),
+    () =>
+      generateReportRenderData({
+        tasks,
+        templateType,
+        customTemplate,
+        draftNotes,
+      }),
     [tasks, templateType, customTemplate, draftNotes]
   );
 
   const plainTextReport = useMemo(
-    () => generatePlainTextReport({ tasks, templateType, customTemplate, draftNotes }),
+    () =>
+      generatePlainTextReport({
+        tasks,
+        templateType,
+        customTemplate,
+        draftNotes,
+      }),
     [tasks, templateType, customTemplate, draftNotes]
   );
 
   useEffect(() => {
-    setIsFadingOut(true);
-
-    const fadeOutTimer = setTimeout(() => {
-      setAnimationKey((k) => k + 1);
-      setIsFadingOut(false);
-      setIsFadingIn(true);
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIsFadingIn(false);
-        });
-      });
-    }, 250);
-
-    return () => clearTimeout(fadeOutTimer);
+    if (transitionTimerRef.current) {
+      clearTimeout(transitionTimerRef.current);
+      transitionTimerRef.current = null;
+    }
+    setIsTransitioning(true);
+    transitionTimerRef.current = setTimeout(() => {
+      setIsTransitioning(false);
+      transitionTimerRef.current = null;
+    }, 350);
+    return () => {
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+      }
+    };
   }, [templateType]);
 
   useEffect(() => {
@@ -112,17 +126,19 @@ export default function ReportPreview() {
 
   const showWorkHours =
     templateType === 'detailed' ||
-    (templateType === 'custom' && customTemplate.sections.find((s) => s.key === 'workHours')?.enabled);
+    (templateType === 'custom' &&
+      customTemplate.sections.find((s) => s.key === 'workHours')?.enabled);
+
+  const showNotes =
+    templateType === 'detailed' ||
+    (templateType === 'custom' &&
+      customTemplate.sections.find((s) => s.key === 'notes')?.enabled);
 
   return (
     <div
-      key={animationKey}
-      className={styles.previewCard}
-      style={{
-        opacity: isFadingOut ? 0 : 1,
-        transition: 'opacity 0.4s ease',
-        willChange: 'opacity',
-      }}
+      className={`${styles.previewCard} ${
+        isTransitioning ? styles.previewCardFading : ''
+      }`}
     >
       <h1 className={styles.reportTitle}>{renderData.title}</h1>
       <p className={styles.reportDate}>{renderData.date}</p>
@@ -168,8 +184,7 @@ export default function ReportPreview() {
         )}
       </div>
 
-      {(templateType === 'detailed' ||
-        (templateType === 'custom' && customTemplate.sections.find((s) => s.key === 'notes')?.enabled)) && (
+      {showNotes && (
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>
             <span className={styles.sectionTitleIcon} />
