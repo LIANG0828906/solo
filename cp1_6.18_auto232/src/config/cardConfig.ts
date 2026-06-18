@@ -1,0 +1,197 @@
+export type Rarity = 'common' | 'rare' | 'epic';
+export type SkillType = 'none' | 'aoe' | 'heal' | 'shield';
+
+export interface CardConfig {
+  readonly id: string;
+  readonly name: string;
+  readonly attack: number;
+  readonly health: number;
+  readonly rarity: Rarity;
+  readonly skill: SkillType;
+  readonly skillValue: number;
+  readonly description: string;
+}
+
+export const RarityColors: Readonly<Record<Rarity, string>> = {
+  common: '#9E9E9E',
+  rare: '#FFD700',
+  epic: '#8A2BE2',
+} as const;
+
+export const CARD_CONFIGS: ReadonlyArray<Readonly<CardConfig>> = [
+  {
+    id: 'c001',
+    name: '新兵战士',
+    attack: 2,
+    health: 3,
+    rarity: 'common',
+    skill: 'none',
+    skillValue: 0,
+    description: '普通的士兵，没有特殊技能。',
+  },
+  {
+    id: 'c002',
+    name: '村庄守卫',
+    attack: 1,
+    health: 4,
+    rarity: 'common',
+    skill: 'none',
+    skillValue: 0,
+    description: '忠诚的村庄守护者。',
+  },
+  {
+    id: 'c003',
+    name: '流浪剑客',
+    attack: 3,
+    health: 2,
+    rarity: 'common',
+    skill: 'none',
+    skillValue: 0,
+    description: '四处漂泊的剑术高手。',
+  },
+  {
+    id: 'c004',
+    name: '年轻法师',
+    attack: 2,
+    health: 2,
+    rarity: 'common',
+    skill: 'aoe',
+    skillValue: 1,
+    description: '初出茅庐的法师，能造成少量范围伤害。',
+  },
+  {
+    id: 'c005',
+    name: '神殿学徒',
+    attack: 1,
+    health: 3,
+    rarity: 'common',
+    skill: 'heal',
+    skillValue: 2,
+    description: '神殿的学徒，能治疗少量生命值。',
+  },
+  {
+    id: 'c006',
+    name: '持盾民兵',
+    attack: 1,
+    health: 3,
+    rarity: 'common',
+    skill: 'shield',
+    skillValue: 2,
+    description: '装备简陋盾牌的民兵。',
+  },
+  {
+    id: 'r001',
+    name: '精英骑士',
+    attack: 4,
+    health: 5,
+    rarity: 'rare',
+    skill: 'none',
+    skillValue: 0,
+    description: '训练有素的精英骑士。',
+  },
+  {
+    id: 'r002',
+    name: '火焰法师',
+    attack: 3,
+    health: 3,
+    rarity: 'rare',
+    skill: 'aoe',
+    skillValue: 3,
+    description: '精通火焰魔法的法师，能造成大量范围伤害。',
+  },
+  {
+    id: 'r003',
+    name: '圣光牧师',
+    attack: 2,
+    health: 4,
+    rarity: 'rare',
+    skill: 'heal',
+    skillValue: 4,
+    description: '受圣光指引的牧师，能治疗大量生命值。',
+  },
+  {
+    id: 'r004',
+    name: '铁壁守卫',
+    attack: 2,
+    health: 6,
+    rarity: 'rare',
+    skill: 'shield',
+    skillValue: 4,
+    description: '身披重甲的守卫，拥有强大的护盾。',
+  },
+  {
+    id: 'r005',
+    name: '暗影刺客',
+    attack: 5,
+    health: 3,
+    rarity: 'rare',
+    skill: 'none',
+    skillValue: 0,
+    description: '来自暗影的致命刺客。',
+  },
+  {
+    id: 'r006',
+    name: '冰霜巫师',
+    attack: 3,
+    health: 4,
+    rarity: 'rare',
+    skill: 'aoe',
+    skillValue: 2,
+    description: '操控冰霜之力的巫师。',
+  },
+  {
+    id: 'e001',
+    name: '烈焰巨龙',
+    attack: 7,
+    health: 8,
+    rarity: 'epic',
+    skill: 'aoe',
+    skillValue: 5,
+    description: '传说中的烈焰巨龙，吐息可焚烧一切。',
+  },
+  {
+    id: 'e002',
+    name: '生命古树',
+    attack: 3,
+    health: 12,
+    rarity: 'epic',
+    skill: 'heal',
+    skillValue: 6,
+    description: '千年生命古树，拥有无尽的生命之力。',
+  },
+  {
+    id: 'e003',
+    name: '圣光天使',
+    attack: 5,
+    health: 7,
+    rarity: 'epic',
+    skill: 'shield',
+    skillValue: 6,
+    description: '降临人间的圣光天使，守护一切生灵。',
+  },
+  {
+    id: 'e004',
+    name: '混沌魔王',
+    attack: 9,
+    health: 6,
+    rarity: 'epic',
+    skill: 'aoe',
+    skillValue: 4,
+    description: '来自混沌深渊的魔王，毁灭是它的本能。',
+  },
+] as const;
+
+export const INITIAL_DECK: ReadonlyArray<string> = [
+  'c001',
+  'c001',
+  'c002',
+  'c003',
+  'c004',
+  'c005',
+  'c006',
+  'r001',
+  'r002',
+  'r003',
+  'r004',
+  'e001',
+] as const;
