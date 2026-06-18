@@ -59,6 +59,7 @@ interface ModuleStore {
   moveModule: (id: string, gridX: number, gridY: number) => void
   updateParam: (id: string, key: string, value: number) => void
   clearSpringIn: (id: string) => void
+  triggerSpringIn: (id: string) => void
   addConnection: (sourceModuleId: string, sourcePortIndex: number, targetModuleId: string, targetPortIndex: number) => void
   removeConnection: (id: string) => void
   togglePlay: () => void
@@ -156,6 +157,17 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
     set((s) => ({
       modules: s.modules.map((m) => (m.id === id ? { ...m, springIn: false } : m)),
     }))
+  },
+
+  triggerSpringIn: (id) => {
+    set((s) => ({
+      modules: s.modules.map((m) => (m.id === id ? { ...m, springIn: false } : m)),
+    }))
+    requestAnimationFrame(() => {
+      set((s) => ({
+        modules: s.modules.map((m) => (m.id === id ? { ...m, springIn: true } : m)),
+      }))
+    })
   },
 
   addConnection: (sourceModuleId, sourcePortIndex, targetModuleId, targetPortIndex) => {

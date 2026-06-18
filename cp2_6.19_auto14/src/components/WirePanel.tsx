@@ -266,7 +266,7 @@ export const WirePanel: React.FC<WirePanelProps> = ({
         x2: t.x,
         y2: t.y,
         pulse,
-        isActive: sActivated || tActivated || !isPlaying,
+        isActive: true,
         accent,
         glowAccent: glow,
       })
@@ -304,7 +304,7 @@ export const WirePanel: React.FC<WirePanelProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative flex-1 wire-panel-grid overflow-hidden"
+      className="relative h-full w-full wire-panel-grid overflow-hidden"
       style={{ background: '#0f0f1b' }}
     >
       <canvas
@@ -318,7 +318,6 @@ export const WirePanel: React.FC<WirePanelProps> = ({
           <ModuleCardPanel
             key={mod.id}
             module={mod}
-            panelOffset={panelOffset}
             onPortMouseDown={onPortMouseDown}
             onModuleDragStart={onModuleDragStart}
             onModuleDrag={onModuleDrag}

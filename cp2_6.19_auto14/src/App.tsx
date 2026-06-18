@@ -192,6 +192,7 @@ const App: React.FC = () => {
     moveModule,
     activateChain,
     resetActivation,
+    triggerSpringIn,
     modules,
     connections,
     wiring,
@@ -415,8 +416,9 @@ const App: React.FC = () => {
   const handleModuleDragEnd = useCallback((moduleId: string) => {
     if (moduleDragRef.current?.moduleId === moduleId) {
       moduleDragRef.current.isDragging = false
+      triggerSpringIn(moduleId)
     }
-  }, [])
+  }, [triggerSpringIn])
 
   const handlePortMouseDown = useCallback(
     (moduleId: string, direction: 'input' | 'output', portIndex: number, e: React.MouseEvent) => {

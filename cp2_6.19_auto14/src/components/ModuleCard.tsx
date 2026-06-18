@@ -76,7 +76,6 @@ export const ModuleLibrary: React.FC<ModuleCardLibraryProps> = ({ onDragStart })
 
 interface ModuleCardPanelProps {
   module: SynthModule
-  panelOffset: { x: number; y: number }
   onPortMouseDown: (moduleId: string, direction: 'input' | 'output', portIndex: number, e: React.MouseEvent) => void
   onModuleDragStart: (moduleId: string, e: React.MouseEvent) => void
   onModuleDrag: (moduleId: string, e: React.MouseEvent) => void
@@ -85,7 +84,6 @@ interface ModuleCardPanelProps {
 
 export const ModuleCardPanel: React.FC<ModuleCardPanelProps> = ({
   module,
-  panelOffset,
   onPortMouseDown,
   onModuleDragStart,
   onModuleDragEnd,
@@ -107,8 +105,8 @@ export const ModuleCardPanel: React.FC<ModuleCardPanelProps> = ({
     clearSpringIn(module.id)
   }, [module.id, clearSpringIn])
 
-  const left = module.gridX - panelOffset.x
-  const top = module.gridY - panelOffset.y
+  const left = module.gridX
+  const top = module.gridY
 
   const paramConfigs = PARAM_CONFIGS[module.type]
 
