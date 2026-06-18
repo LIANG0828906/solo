@@ -75,8 +75,23 @@ export const ConnectionLine: React.FC<ConnectionLineProps> = ({
         strokeLinecap="round"
         strokeDasharray="8 12"
         className="animate-flow"
-        opacity="0.5"
+        opacity="0.35"
       />
+
+      <circle r="4" fill="#7C3AED" filter={!isPreview ? `url(#glow-${connection.id})` : undefined}>
+        <animateMotion
+          dur="0.5s"
+          repeatCount="indefinite"
+          path={path}
+        />
+      </circle>
+      <circle r="2" fill="#FFFFFF">
+        <animateMotion
+          dur="0.5s"
+          repeatCount="indefinite"
+          path={path}
+        />
+      </circle>
 
       <path
         d={arrowPath}

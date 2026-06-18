@@ -100,6 +100,8 @@ export const useDragDrop = (
   return {
     isDragging: dragState.isDragging,
     isResizing: resizeState.isResizing,
+    draggingComponentId: dragState.isDragging ? componentIdRef.current : null,
+    resizingComponentId: resizeState.isResizing ? componentIdRef.current : null,
     handleDragStart,
     handleResizeStart,
     handleMouseMove,

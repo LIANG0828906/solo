@@ -58,6 +58,8 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
   const {
     isDragging,
     isResizing,
+    draggingComponentId,
+    resizingComponentId,
     handleDragStart,
     handleResizeStart,
     handleMouseMove: handleDragMouseMove,
@@ -227,6 +229,8 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
     const isSelected = selectedComponentId === component.id;
     const isConnectingSource = connectingFromId === component.id;
     const hasPulse = isPulsing === component.id;
+    const isThisDragging = draggingComponentId === component.id;
+    const isThisResizing = resizingComponentId === component.id;
 
     const baseStyle: React.CSSProperties = {
       position: 'absolute',
@@ -238,19 +242,21 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
       borderRadius: component.borderRadius,
       border: `1px solid ${isSelected ? '#6366F1' : component.borderColor}`,
       cursor: activeTool === 'connection' ? 'pointer' : 'move',
-      transition: isDragging || isResizing ? 'none' : 'border-color 0.15s',
+      transition: isThisDragging || isThisResizing
+        ? 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)'
+        : 'border-color 0.15s, box-shadow 0.15s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
       boxShadow: isSelected
         ? '0 0 0 2px rgba(99, 102, 241, 0.3)'
         : 'none',
-      transform: isDragging ? 'scale(1.05)' : hasPulse ? 'scale(1.02)' : 'scale(1)',
-      zIndex: isSelected ? 10 : 1,
+      transform: isThisDragging ? 'scale(1.05)' : hasPulse ? 'scale(1.02)' : 'scale(1)',
+      zIndex: isSelected || isThisDragging ? 10 : 1,
     };
 
     return (
       <div
         key={component.id}
         style={baseStyle}
-        className={`group transition-transform duration-150 ease-out ${
+        className={`group hover:!border-[#6366F1] ${
           hasPulse ? 'animate-pulse' : ''
         } ${isConnectingSource ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
         onClick={(e) => handleComponentClick(e, component)}

@@ -123,10 +123,22 @@ export const ProjectEditor: React.FC = () => {
 
         {isMobile ? (
           <>
-            {showPropertyPanel && selectedComponentId && (
+            {showPropertyPanel && (
               <div className="fixed inset-x-0 bottom-0 top-auto z-40 animate-slideUp">
-                <div className="bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-hidden">
-                  <div className="flex justify-center py-2">
+                <div
+                  className="bg-white rounded-t-2xl shadow-2xl max-h-[70vh] overflow-hidden transition-all duration-300"
+                  style={{
+                    maxHeight: selectedComponentId ? '70vh' : '40vh',
+                  }}
+                >
+                  <div
+                    className="flex justify-center py-2 cursor-grab active:cursor-grabbing"
+                    onClick={() => {
+                      if (!selectedComponentId) {
+                        setShowPropertyPanel(false);
+                      }
+                    }}
+                  >
                     <div className="w-12 h-1 bg-slate-300 rounded-full" />
                   </div>
                   <div className="h-full overflow-auto">
@@ -137,6 +149,14 @@ export const ProjectEditor: React.FC = () => {
                   </div>
                 </div>
               </div>
+            )}
+            {!showPropertyPanel && (
+              <button
+                onClick={() => setShowPropertyPanel(true)}
+                className="fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-800 text-white rounded-full shadow-lg text-sm z-30 hover:bg-slate-700 transition-colors"
+              >
+                {selectedComponentId ? '显示属性面板' : '属性面板'}
+              </button>
             )}
           </>
         ) : (

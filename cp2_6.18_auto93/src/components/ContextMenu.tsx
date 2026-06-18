@@ -44,11 +44,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   return (
     <div
-      className="fixed bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-50 animate-fadeIn"
+      className="fixed bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-50"
       style={{
         left: state.x,
         top: state.y,
         minWidth: '140px',
+        animation: 'contextMenuIn 0.2s ease-out',
+        transformOrigin: 'top left',
       }}
       onClick={(e) => e.stopPropagation()}
     >
