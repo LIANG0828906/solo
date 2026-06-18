@@ -53,8 +53,9 @@ const damping = 0.95;
 const center = new THREE.Vector3(0, 0, 0);
 
 const fpsCounter = document.getElementById('fps-counter') as HTMLElement;
-let frameCount = 0;
-let lastFpsUpdate = performance.now();
+let lastFrameTime = performance.now();
+let smoothedFps = 60;
+const fpsSmoothingFactor = 0.1;
 
 const constellationInput = document.getElementById('constellation-input') as HTMLInputElement;
 const saveButton = document.getElementById('save-button') as HTMLButtonElement;
@@ -170,10 +171,18 @@ updateConstellationList();
 
 const clock = new THREE.Clock();
 
-function animate(): void {
+function animate(timestamp: number): void {
   requestAnimationFrame(animate);
 
   const deltaTime = Math.min(clock.getDelta(), 0.1);
+
+  const frameDelta = timestamp - lastFrameTime;
+  if (frameDelta > 0) {
+    const instantFps = 1000 / frameDelta;
+    smoothedFps = smoothedFps * (1 - fpsSmoothingFactor) + instantFps * fpsSmoothingFactor;
+    fpsCounter.textContent = `FPS: ${Math.round(smoothedFps)}`;
+  }
+  lastFrameTime = timestamp;
 
   currentRotationX += (targetRotationX - currentRotationX) * (1 - damping);
   currentRotationY += (targetRotationY - currentRotationY) * (1 - damping);
@@ -206,15 +215,6 @@ function animate(): void {
   constellationManager.update(deltaTime, camera);
 
   renderer.render(scene, camera);
-
-  frameCount++;
-  const now = performance.now();
-  if (now - lastFpsUpdate >= 1000) {
-    const fps = Math.round(frameCount * 1000 / (now - lastFpsUpdate));
-    fpsCounter.textContent = `FPS: ${fps}`;
-    frameCount = 0;
-    lastFpsUpdate = now;
-  }
 }
 
-animate();
+requestAnimationFrame(animate);

@@ -21,17 +21,19 @@ export interface ConstellationData {
 }
 
 export interface Particle {
-  mesh: THREE.Mesh;
+  sprite: THREE.Sprite;
   velocity: THREE.Vector3;
   life: number;
   maxLife: number;
+  startSize: number;
 }
 
 export interface FlowDot {
-  mesh: THREE.Mesh;
+  sprite: THREE.Sprite;
   line: THREE.Line;
   progress: number;
   speed: number;
+  lineLength: number;
   star1: THREE.Object3D;
   star2: THREE.Object3D;
 }
@@ -44,6 +46,27 @@ const starColors = [
   new THREE.Color('#A0C4FF')
 ];
 
+function createRadialGradientTexture(size: number = 128): THREE.Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const gradient = ctx.createRadialGradient(
+    size / 2, size / 2, 0,
+    size / 2, size / 2, size / 2
+  );
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.9)');
+  gradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.4)');
+  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+}
+
 export class ConstellationManager {
   private scene: THREE.Scene;
   private camera: THREE.Camera;
@@ -55,16 +78,19 @@ export class ConstellationManager {
   private mouse: THREE.Vector2 = new THREE.Vector2();
   private selectedStarForConnection: string | null = null;
   private activeConstellationId: string | null = null;
-  private starGeometry: THREE.SphereGeometry;
-  private particleGeometry: THREE.SphereGeometry;
-  private flowDotGeometry: THREE.SphereGeometry;
+  private starTexture: THREE.Texture;
+  private haloTexture: THREE.Texture;
+  private particleTexture: THREE.Texture;
+  private flowDotTexture: THREE.Texture;
+  private starTargets: Map<string, { coreSize: number; haloSize: number }> = new Map();
 
   constructor(scene: THREE.Scene, camera: THREE.Camera) {
     this.scene = scene;
     this.camera = camera;
-    this.starGeometry = new THREE.SphereGeometry(1, 16, 16);
-    this.particleGeometry = new THREE.SphereGeometry(1, 8, 8);
-    this.flowDotGeometry = new THREE.SphereGeometry(1, 16, 16);
+    this.starTexture = createRadialGradientTexture(128);
+    this.haloTexture = createRadialGradientTexture(256);
+    this.particleTexture = createRadialGradientTexture(64);
+    this.flowDotTexture = createRadialGradientTexture(64);
     this.loadConstellations();
   }
 
@@ -79,12 +105,11 @@ export class ConstellationManager {
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
-    const starObjects = Array.from(this.stars.values());
-    const starMeshes = starObjects.flatMap(group => 
+    const starObjects = Array.from(this.stars.values()).flatMap(group =>
       group.children.filter(child => child.userData.isStarCore)
     );
-    
-    const intersects = this.raycaster.intersectObjects(starMeshes, true);
+
+    const intersects = this.raycaster.intersectObjects(starObjects, true);
 
     if (isShiftPressed && intersects.length > 0) {
       const clickedMesh = intersects[0].object;
@@ -136,29 +161,36 @@ export class ConstellationManager {
     starGroup.userData.color = color;
     starGroup.userData.size = size;
 
-    const coreMaterial = new THREE.MeshBasicMaterial({
+    const coreMaterial = new THREE.SpriteMaterial({
+      map: this.starTexture,
       color: color,
       transparent: true,
-      opacity: 1.0
+      opacity: 1.0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
     });
-    const coreMesh = new THREE.Mesh(this.starGeometry, coreMaterial);
-    coreMesh.scale.setScalar(0);
-    coreMesh.userData.isStarCore = true;
-    starGroup.add(coreMesh);
+    const coreSprite = new THREE.Sprite(coreMaterial);
+    coreSprite.scale.setScalar(0);
+    coreSprite.userData.isStarCore = true;
+    coreSprite.userData.baseSize = size;
+    starGroup.add(coreSprite);
 
-    const haloMaterial = new THREE.MeshBasicMaterial({
+    const haloMaterial = new THREE.SpriteMaterial({
+      map: this.haloTexture,
       color: color,
       transparent: true,
       opacity: 0.3,
       blending: THREE.AdditiveBlending,
       depthWrite: false
     });
-    const haloMesh = new THREE.Mesh(this.starGeometry, haloMaterial);
-    haloMesh.scale.setScalar(0);
-    starGroup.add(haloMesh);
+    const haloSprite = new THREE.Sprite(haloMaterial);
+    haloSprite.scale.setScalar(0);
+    haloSprite.userData.isHalo = true;
+    starGroup.add(haloSprite);
 
     this.scene.add(starGroup);
     this.stars.set(id, starGroup);
+    this.starTargets.set(id, { coreSize: size, haloSize: size * 2.5 });
 
     const startTime = performance.now();
     const animateScale = () => {
@@ -169,14 +201,14 @@ export class ConstellationManager {
         t += 1;
         const scale = size * (t * t * ((overshoot + 1) * t - overshoot) + 1) / 2;
         const actualScale = Math.min(scale, size);
-        
-        coreMesh.scale.setScalar(actualScale);
-        haloMesh.scale.setScalar(actualScale * 2.5);
-        
+
+        coreSprite.scale.setScalar(actualScale);
+        haloSprite.scale.setScalar(actualScale * 2.5);
+
         requestAnimationFrame(animateScale);
       } else {
-        coreMesh.scale.setScalar(size);
-        haloMesh.scale.setScalar(size * 2.5);
+        coreSprite.scale.setScalar(size);
+        haloSprite.scale.setScalar(size * 2.5);
       }
     };
     animateScale();
@@ -187,31 +219,36 @@ export class ConstellationManager {
   private createParticles(position: THREE.Vector3, color: THREE.Color): void {
     const particleCount = 10;
     for (let i = 0; i < particleCount; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
       const velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2
-      ).normalize().multiplyScalar(0.5 + Math.random() * 1.0);
+        Math.sin(phi) * Math.cos(theta),
+        Math.sin(phi) * Math.sin(theta),
+        Math.cos(phi)
+      ).multiplyScalar(0.5 + Math.random() * 1.0);
 
-      const material = new THREE.MeshBasicMaterial({
+      const size = 2 + Math.random() * 2;
+
+      const material = new THREE.SpriteMaterial({
+        map: this.particleTexture,
         color: color,
         transparent: true,
         opacity: 1,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
-      const mesh = new THREE.Mesh(this.particleGeometry, material);
-      const size = 2 + Math.random() * 2;
-      mesh.scale.setScalar(size);
-      mesh.position.copy(position);
+      const sprite = new THREE.Sprite(material);
+      sprite.scale.setScalar(size);
+      sprite.position.copy(position);
 
-      this.scene.add(mesh);
+      this.scene.add(sprite);
 
       this.particles.push({
-        mesh,
+        sprite,
         velocity,
         life: 0.8,
-        maxLife: 0.8
+        maxLife: 0.8,
+        startSize: size
       });
     }
   }
@@ -220,14 +257,15 @@ export class ConstellationManager {
     const starGroup = this.stars.get(starId);
     if (!starGroup) return;
 
-    const haloMesh = starGroup.children.find(child => 
-      child instanceof THREE.Mesh && !child.userData.isStarCore
-    ) as THREE.Mesh;
+    const haloSprite = starGroup.children.find(child =>
+      child instanceof THREE.Sprite && child.userData.isHalo
+    ) as THREE.Sprite;
 
-    if (haloMesh) {
-      const material = haloMesh.material as THREE.MeshBasicMaterial;
+    if (haloSprite) {
+      const material = haloSprite.material as THREE.SpriteMaterial;
+      const target = this.starTargets.get(starId);
       material.opacity = highlighted ? 0.6 : 0.3;
-      haloMesh.scale.setScalar(starGroup.userData.size * (highlighted ? 3.5 : 2.5));
+      haloSprite.scale.setScalar((target?.coreSize || starGroup.userData.size) * (highlighted ? 3.5 : 2.5));
     }
   }
 
@@ -253,22 +291,26 @@ export class ConstellationManager {
     line.userData.id = connectionId;
     this.scene.add(line);
 
-    const flowDotMaterial = new THREE.MeshBasicMaterial({
+    const lineLength = star1.position.distanceTo(star2.position);
+
+    const flowDotMaterial = new THREE.SpriteMaterial({
+      map: this.flowDotTexture,
       color: 0xFFFFFF,
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,
       depthWrite: false
     });
-    const flowDotMesh = new THREE.Mesh(this.flowDotGeometry, flowDotMaterial);
-    flowDotMesh.scale.setScalar(6);
-    this.scene.add(flowDotMesh);
+    const flowDotSprite = new THREE.Sprite(flowDotMaterial);
+    flowDotSprite.scale.setScalar(6);
+    this.scene.add(flowDotSprite);
 
     const flowDot: FlowDot = {
-      mesh: flowDotMesh,
+      sprite: flowDotSprite,
       line,
       progress: 0,
       speed: 1,
+      lineLength,
       star1,
       star2
     };
@@ -313,36 +355,33 @@ export class ConstellationManager {
   }
 
   public update(deltaTime: number, camera: THREE.Camera): void {
-    for (const starGroup of this.stars.values()) {
-      starGroup.lookAt(camera.position);
-    }
-
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const particle = this.particles[i];
-      particle.mesh.position.add(particle.velocity.clone().multiplyScalar(deltaTime));
+      particle.sprite.position.add(particle.velocity.clone().multiplyScalar(deltaTime));
       particle.life -= deltaTime;
       const alpha = Math.max(0, particle.life / particle.maxLife);
-      (particle.mesh.material as THREE.MeshBasicMaterial).opacity = alpha;
-      particle.mesh.scale.setScalar((2 + Math.random() * 2) * alpha);
+      (particle.sprite.material as THREE.SpriteMaterial).opacity = alpha;
+      particle.sprite.scale.setScalar(particle.startSize * alpha);
 
       if (particle.life <= 0) {
-        this.scene.remove(particle.mesh);
+        this.scene.remove(particle.sprite);
+        particle.sprite.material.dispose();
         this.particles.splice(i, 1);
       }
     }
 
     for (const { flowDot, selected } of this.connections.values()) {
-      flowDot.progress += flowDot.speed * deltaTime;
+      flowDot.progress += (flowDot.speed / flowDot.lineLength) * deltaTime;
       if (flowDot.progress > 1) flowDot.progress = 0;
 
       const start = flowDot.star1.position;
       const end = flowDot.star2.position;
-      flowDot.mesh.position.lerpVectors(start, end, flowDot.progress);
+      flowDot.sprite.position.lerpVectors(start, end, flowDot.progress);
 
       const lineMaterial = flowDot.line.material as THREE.LineBasicMaterial;
       lineMaterial.color.setHex(selected ? 0xFFD700 : 0xFFFFFF);
 
-      const dotMaterial = flowDot.mesh.material as THREE.MeshBasicMaterial;
+      const dotMaterial = flowDot.sprite.material as THREE.SpriteMaterial;
       dotMaterial.color.setHex(selected ? 0xFFD700 : 0xFFFFFF);
     }
   }
@@ -410,29 +449,36 @@ export class ConstellationManager {
       starGroup.userData.color = starData.color.clone();
       starGroup.userData.size = starData.size;
 
-      const coreMaterial = new THREE.MeshBasicMaterial({
+      const coreMaterial = new THREE.SpriteMaterial({
+        map: this.starTexture,
         color: starData.color,
         transparent: true,
-        opacity: 1.0
+        opacity: 1.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
       });
-      const coreMesh = new THREE.Mesh(this.starGeometry, coreMaterial);
-      coreMesh.scale.setScalar(starData.size);
-      coreMesh.userData.isStarCore = true;
-      starGroup.add(coreMesh);
+      const coreSprite = new THREE.Sprite(coreMaterial);
+      coreSprite.scale.setScalar(starData.size);
+      coreSprite.userData.isStarCore = true;
+      coreSprite.userData.baseSize = starData.size;
+      starGroup.add(coreSprite);
 
-      const haloMaterial = new THREE.MeshBasicMaterial({
+      const haloMaterial = new THREE.SpriteMaterial({
+        map: this.haloTexture,
         color: starData.color,
         transparent: true,
         opacity: 0.3,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
-      const haloMesh = new THREE.Mesh(this.starGeometry, haloMaterial);
-      haloMesh.scale.setScalar(starData.size * 2.5);
-      starGroup.add(haloMesh);
+      const haloSprite = new THREE.Sprite(haloMaterial);
+      haloSprite.scale.setScalar(starData.size * 2.5);
+      haloSprite.userData.isHalo = true;
+      starGroup.add(haloSprite);
 
       this.scene.add(starGroup);
       this.stars.set(starData.id, starGroup);
+      this.starTargets.set(starData.id, { coreSize: starData.size, haloSize: starData.size * 2.5 });
     }
 
     for (const connData of constellation.connections) {
@@ -453,22 +499,26 @@ export class ConstellationManager {
       line.userData.id = connData.id;
       this.scene.add(line);
 
-      const flowDotMaterial = new THREE.MeshBasicMaterial({
+      const lineLength = star1.position.distanceTo(star2.position);
+
+      const flowDotMaterial = new THREE.SpriteMaterial({
+        map: this.flowDotTexture,
         color: 0xFFFFFF,
         transparent: true,
         opacity: 1,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
-      const flowDotMesh = new THREE.Mesh(this.flowDotGeometry, flowDotMaterial);
-      flowDotMesh.scale.setScalar(6);
-      this.scene.add(flowDotMesh);
+      const flowDotSprite = new THREE.Sprite(flowDotMaterial);
+      flowDotSprite.scale.setScalar(6);
+      this.scene.add(flowDotSprite);
 
       const flowDot: FlowDot = {
-        mesh: flowDotMesh,
+        sprite: flowDotSprite,
         line,
         progress: Math.random(),
         speed: 1,
+        lineLength,
         star1,
         star2
       };
@@ -493,18 +543,28 @@ export class ConstellationManager {
 
   public clearCurrent(): void {
     for (const starGroup of this.stars.values()) {
+      for (const child of starGroup.children) {
+        if (child instanceof THREE.Sprite) {
+          child.material.dispose();
+        }
+      }
       this.scene.remove(starGroup);
     }
     this.stars.clear();
+    this.starTargets.clear();
 
     for (const { line, flowDot } of this.connections.values()) {
       this.scene.remove(line);
-      this.scene.remove(flowDot.mesh);
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+      this.scene.remove(flowDot.sprite);
+      (flowDot.sprite.material as THREE.Material).dispose();
     }
     this.connections.clear();
 
     for (const particle of this.particles) {
-      this.scene.remove(particle.mesh);
+      this.scene.remove(particle.sprite);
+      (particle.sprite.material as THREE.Material).dispose();
     }
     this.particles = [];
 
