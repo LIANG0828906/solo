@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import Timeline from './components/Timeline'
 import MemoryGrid from './components/MemoryGrid'
@@ -7,8 +7,14 @@ import { Memory, sampleMemories, generateYearList } from './data/sampleData'
 function App() {
   const [memories, setMemories] = useState<Memory[]>(sampleMemories)
   const [selectedYear, setSelectedYear] = useState<number>(2024)
+  const [newMemoryId, setNewMemoryId] = useState<string | null>(null)
+  const yearListRef = useRef<number[]>([])
 
-  const yearList = useMemo(() => generateYearList(memories), [memories])
+  const yearList = useMemo(() => {
+    const list = generateYearList(memories)
+    yearListRef.current = list
+    return list
+  }, [memories])
 
   const yearMemories = useMemo(() => {
     return memories
@@ -27,6 +33,11 @@ function App() {
     }
     setMemories(prev => [...prev, memory])
     setSelectedYear(memory.year)
+    setNewMemoryId(memory.id)
+    
+    setTimeout(() => {
+      setNewMemoryId(null)
+    }, 1000)
   }, [])
 
   const handleUpdateMemory = useCallback((id: string, updates: Partial<Memory>) => {
@@ -62,6 +73,7 @@ function App() {
             onAddMemory={handleAddMemory}
             onUpdateMemory={handleUpdateMemory}
             onDeleteMemory={handleDeleteMemory}
+            newMemoryId={newMemoryId}
           />
         </AnimatePresence>
       </main>
