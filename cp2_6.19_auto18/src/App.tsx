@@ -183,54 +183,82 @@ const App: React.FC = () => {
   const handleExportPng = useCallback(async () => {
     if (!canvasRef.current) return;
 
+    let wrapper: HTMLDivElement | null = null;
+    let watermark: HTMLDivElement | null = null;
+    let clone: HTMLElement | null = null;
+
     try {
       const totalPeople = people.length;
       const totalTables = tables.length;
       const watermarkText = `总人数: ${totalPeople} | 桌位数: ${totalTables}`;
 
-      const clone = canvasRef.current.cloneNode(true) as HTMLElement;
-      const wrapper = document.createElement('div');
-      wrapper.style.position = 'relative';
-      wrapper.style.display = 'inline-block';
+      const originalCanvas = canvasRef.current;
+      const canvasWidth = originalCanvas.scrollWidth;
+      const canvasHeight = originalCanvas.scrollHeight;
+
+      clone = originalCanvas.cloneNode(true) as HTMLElement;
+      clone.style.transform = 'none';
+      clone.style.position = 'static';
+
+      wrapper = document.createElement('div');
+      Object.assign(wrapper.style, {
+        position: 'fixed',
+        top: '-10000px',
+        left: '-10000px',
+        visibility: 'hidden',
+        width: `${canvasWidth}px`,
+        height: `${canvasHeight}px`,
+        backgroundColor: '#faf3e0',
+        overflow: 'hidden',
+      });
       wrapper.appendChild(clone);
 
-      const watermark = document.createElement('div');
+      watermark = document.createElement('div');
       watermark.textContent = watermarkText;
       Object.assign(watermark.style, {
         position: 'absolute',
-        right: '16px',
-        bottom: '12px',
+        left: '16px',
+        top: '12px',
         fontSize: '12px',
         color: 'rgba(90, 74, 58, 0.5)',
         fontWeight: '400',
         letterSpacing: '0.5px',
         pointerEvents: 'none',
-        textShadow: '0 1px 2px rgba(255, 255, 255, 0.8)',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontFamily: 'system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif',
+        zIndex: '9999',
       });
       wrapper.appendChild(watermark);
 
-      wrapper.style.visibility = 'hidden';
-      wrapper.style.position = 'fixed';
-      wrapper.style.top = '-9999px';
-      wrapper.style.left = '-9999px';
       document.body.appendChild(wrapper);
 
-      const canvas = await html2canvas(wrapper, {
+      const resultCanvas = await html2canvas(wrapper, {
         backgroundColor: '#faf3e0',
         scale: 2,
         useCORS: true,
         logging: false,
+        width: canvasWidth,
+        height: canvasHeight,
       });
-
-      document.body.removeChild(wrapper);
 
       const link = document.createElement('a');
       link.download = `座位安排_${new Date().toLocaleDateString()}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = resultCanvas.toDataURL('image/png');
       link.click();
     } catch (error) {
       console.error('导出失败:', error);
+    } finally {
+      if (watermark && watermark.parentNode) {
+        watermark.parentNode.removeChild(watermark);
+      }
+      if (clone && clone.parentNode) {
+        clone.parentNode.removeChild(clone);
+      }
+      if (wrapper && wrapper.parentNode) {
+        wrapper.parentNode.removeChild(wrapper);
+      }
+      watermark = null;
+      clone = null;
+      wrapper = null;
     }
   }, [people, tables]);
 

@@ -109,25 +109,40 @@ export const TableCard: React.FC<TableCardProps> = ({
     onPersonRemove?.(table.id, seatId);
   };
 
-  const calculateFontSize = (text: string, containerWidth: number, maxSize: number, minSize: number): number => {
-    let fontSize = maxSize;
-    const testSpan = document.createElement('span');
-    testSpan.style.visibility = 'hidden';
-    testSpan.style.position = 'absolute';
-    testSpan.style.whiteSpace = 'nowrap';
-    testSpan.style.fontWeight = '500';
-    document.body.appendChild(testSpan);
+  const canvasCtxRef = useRef<CanvasRenderingContext2D | null>(null);
 
-    while (fontSize >= minSize) {
-      testSpan.style.fontSize = `${fontSize}px`;
-      testSpan.textContent = text;
-      if (testSpan.offsetWidth <= containerWidth) {
-        break;
-      }
-      fontSize -= 0.5;
+  const measureTextWidth = (text: string, fontSize: number, fontWeight: string = '500'): number => {
+    if (!canvasCtxRef.current) {
+      const canvas = document.createElement('canvas');
+      canvasCtxRef.current = canvas.getContext('2d');
     }
-    document.body.removeChild(testSpan);
-    return Math.max(fontSize, minSize);
+    const ctx = canvasCtxRef.current;
+    if (!ctx) return text.length * fontSize * 0.6;
+    ctx.font = `${fontWeight} ${fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif`;
+    return ctx.measureText(text).width;
+  };
+
+  const calculateFontSize = (text: string, containerWidth: number, maxSize: number, minSize: number): number => {
+    let low = minSize;
+    let high = maxSize;
+    let bestSize = minSize;
+
+    if (measureTextWidth(text, maxSize) <= containerWidth) {
+      return Math.max(10, maxSize);
+    }
+
+    while (low <= high) {
+      const mid = Math.round(((low + high) / 2) * 2) / 2;
+      const width = measureTextWidth(text, mid);
+      if (width <= containerWidth) {
+        bestSize = mid;
+        low = mid + 0.5;
+      } else {
+        high = mid - 0.5;
+      }
+    }
+
+    return Math.max(10, bestSize);
   };
 
   const renderSeat = (seat: Seat, index: number) => {
@@ -137,7 +152,8 @@ export const TableCard: React.FC<TableCardProps> = ({
     const person = getPersonById(seat.personId);
     const isHovered = hoveredSeatId === seat.id;
     const hasPerson = !!person;
-    const displayName = person && person.name.trim() ? person.name : '未命名';
+    const isNameEmpty = !person || !person.name.trim();
+    const displayName = isNameEmpty ? '未命名' : person!.name.trim();
     const nameFontSize = person ? calculateFontSize(displayName, LABEL_WIDTH, 12, 10) : 12;
 
     return (
@@ -194,14 +210,14 @@ export const TableCard: React.FC<TableCardProps> = ({
                 justifyContent: 'center',
                 fontSize: 14,
                 fontWeight: 500,
-                color: '#555',
+                color: isNameEmpty ? '#888' : '#555',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
                 transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 animation: hasPerson ? 'flyIn 0.3s ease-out' : 'none',
               }}
-              title={person.name}
+              title={isNameEmpty ? '未命名 - 双击移出后编辑' : person.name}
             >
-              {displayName.charAt(0)}
+              {isNameEmpty ? '未' : displayName.charAt(0)}
             </div>
           )}
         </div>
@@ -213,11 +229,12 @@ export const TableCard: React.FC<TableCardProps> = ({
               textAlign: 'center',
               fontSize: nameFontSize,
               fontWeight: 500,
-              color: person.name.trim() ? '#3a3a3a' : '#999',
+              color: isNameEmpty ? '#a0a0a0' : '#4a4a4a',
               whiteSpace: 'nowrap',
               overflow: 'visible',
               lineHeight: 1.2,
-              textShadow: '0 1px 2px rgba(250,243,224,0.9)',
+              fontStyle: isNameEmpty ? 'italic' : 'normal',
+              textShadow: '0 1px 1px rgba(142,202,230,0.35)',
               pointerEvents: 'none',
             }}
           >
