@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useDayBriefStore } from '../store';
 import type { Task } from '../types';
 import { formatEstimatedTime } from '../utils/formatters';
 import { Pencil, Trash2, Check } from 'lucide-react';
 import styles from '../styles/TaskItem.module.css';
 
+type DragScope = 'pending' | 'completed';
+
 interface TaskItemProps {
   task: Task;
+  scope: DragScope;
+  isDragging: boolean;
+  isOver: boolean;
+  onDragStart: (id: string, scope: DragScope, e: React.DragEvent) => void;
+  onDragOver: (id: string, e: React.DragEvent) => void;
+  onDrop: (id: string, e: React.DragEvent) => void;
+  onDragEnd: () => void;
 }
 
 const priorityDotClass: Record<string, string> = {
@@ -21,7 +30,16 @@ const priorityLabelClass: Record<string, string> = {
   P2: styles.priorityLabelP2,
 };
 
-export default function TaskItem({ task }: TaskItemProps) {
+function TaskItemComponent({
+  task,
+  scope,
+  isDragging,
+  isOver,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}: TaskItemProps) {
   const toggleTaskStatus = useDayBriefStore((s) => s.toggleTaskStatus);
   const updateTask = useDayBriefStore((s) => s.updateTask);
   const removeTask = useDayBriefStore((s) => s.removeTask);
@@ -55,8 +73,32 @@ export default function TaskItem({ task }: TaskItemProps) {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    onDragStart(task.id, scope, e);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    onDragOver(task.id, e);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    onDrop(task.id, e);
+  };
+
   return (
-    <div className={`${styles.taskCard} ${isCompleted ? styles.taskCardCompleted : ''}`}>
+    <div
+      className={`
+        ${styles.taskCard}
+        ${isCompleted ? styles.taskCardCompleted : ''}
+        ${isDragging ? styles.taskCardDragging : ''}
+        ${isOver ? styles.taskCardOver : ''}
+      `}
+      draggable
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      onDragEnd={onDragEnd}
+    >
       <div className={styles.dragHandle}>
         <div className={styles.dragHandleDot} />
         <div className={styles.dragHandleDot} />
@@ -116,3 +158,5 @@ export default function TaskItem({ task }: TaskItemProps) {
     </div>
   );
 }
+
+export default memo(TaskItemComponent);

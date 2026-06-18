@@ -43,7 +43,7 @@
 
 .dropPlaceholder {
   height: 48px;
-  border: 2px dashed #60A5FA;
+  border: 2px dashed #3B82F6;
   border-radius: 8px;
   background-color: #EFF6FF;
   display: flex;
@@ -52,6 +52,7 @@
   color: #2563EB;
   font-size: 12px;
   transition: all 0.2s;
+  margin-bottom: 8px;
 }
 
 .emptyState {

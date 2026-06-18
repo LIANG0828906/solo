@@ -32,7 +32,7 @@ export default function App() {
       const deltaX = e.clientX - startXRef.current;
       const deltaRatio = deltaX / containerWidth;
       const newRatio = startWidthRef.current + deltaRatio;
-      const clamped = Math.max(0.4, Math.min(0.8, newRatio));
+      const clamped = Math.max(0.2, Math.min(0.8, newRatio));
       setLeftPanelWidth(clamped);
     };
 

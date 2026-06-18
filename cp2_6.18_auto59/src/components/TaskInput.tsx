@@ -67,18 +67,30 @@ export default function TaskInput() {
         <div className={styles.optionGroup}>
           <span className={styles.optionLabel}>优先级:</span>
           <div className={styles.priorityBtns}>
-            {(['P0', 'P1', 'P2'] as Priority[]).map((p) => (
-              <button
-                key={p}
-                type="button"
-                className={`${styles.priorityBtn} ${styles[`priorityBtn${p}`]} ${
-                  priority === p ? styles.priorityBtnActive : ''
-                }`}
-                onClick={() => setPriority(p)}
-              >
-                {p}
-              </button>
-            ))}
+            {(['P0', 'P1', 'P2'] as Priority[]).map((p) => {
+              const dotColors: Record<Priority, string> = {
+                P0: '#EF4444',
+                P1: '#F97316',
+                P2: '#9CA3AF',
+              };
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  className={`${styles.priorityBtn} ${styles[`priorityBtn${p}`]} ${
+                    priority === p ? styles.priorityBtnActive : ''
+                  }`}
+                  onClick={() => setPriority(p)}
+                  title={`优先级 ${p}`}
+                >
+                  <span
+                    className={styles.priorityDot}
+                    style={{ backgroundColor: dotColors[p] }}
+                  />
+                  <span>{p}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className={styles.optionGroup}>

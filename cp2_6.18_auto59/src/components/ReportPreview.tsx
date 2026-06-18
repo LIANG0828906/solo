@@ -37,7 +37,9 @@ export default function ReportPreview() {
   const updateDraftNotes = useDayBriefStore((s) => s.updateDraftNotes);
 
   const [isCopied, setIsCopied] = useState(false);
-  const [isFading, setIsFading] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
+  const [isFadingIn, setIsFadingIn] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
   const [localNotes, setLocalNotes] = useState(draftNotes);
 
   const renderData = useMemo(
@@ -51,9 +53,21 @@ export default function ReportPreview() {
   );
 
   useEffect(() => {
-    setIsFading(true);
-    const timer = setTimeout(() => setIsFading(false), 200);
-    return () => clearTimeout(timer);
+    setIsFadingOut(true);
+
+    const fadeOutTimer = setTimeout(() => {
+      setAnimationKey((k) => k + 1);
+      setIsFadingOut(false);
+      setIsFadingIn(true);
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsFadingIn(false);
+        });
+      });
+    }, 250);
+
+    return () => clearTimeout(fadeOutTimer);
   }, [templateType]);
 
   useEffect(() => {
@@ -101,7 +115,15 @@ export default function ReportPreview() {
     (templateType === 'custom' && customTemplate.sections.find((s) => s.key === 'workHours')?.enabled);
 
   return (
-    <div className={`${styles.previewCard} ${isFading ? styles.previewCardFading : ''}`}>
+    <div
+      key={animationKey}
+      className={styles.previewCard}
+      style={{
+        opacity: isFadingOut ? 0 : 1,
+        transition: 'opacity 0.4s ease',
+        willChange: 'opacity',
+      }}
+    >
       <h1 className={styles.reportTitle}>{renderData.title}</h1>
       <p className={styles.reportDate}>{renderData.date}</p>
 
