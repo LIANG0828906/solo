@@ -99,7 +99,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({
         }}
         className="person-avatar"
       >
-        {person.name.charAt(0)}
+        {(person.name.trim() || '未命名').charAt(0)}
       </div>
       {isEditing ? (
         <input
@@ -109,6 +109,7 @@ export const PersonCard: React.FC<PersonCardProps> = ({
           onChange={(e) => setEditName(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
+          placeholder="未命名"
           style={{
             width: dimensions.avatar + 10,
             fontSize: dimensions.fontSize,
@@ -125,16 +126,17 @@ export const PersonCard: React.FC<PersonCardProps> = ({
         <span
           style={{
             fontSize: dimensions.fontSize,
-            color: '#4a4a4a',
+            color: person.name.trim() ? '#4a4a4a' : '#aaa',
             textAlign: 'center',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             maxWidth: dimensions.avatar + 12,
+            fontStyle: person.name.trim() ? 'normal' : 'italic',
           }}
-          title={person.name}
+          title={person.name.trim() || '未命名 - 双击编辑'}
         >
-          {person.name}
+          {person.name.trim() || '未命名'}
         </span>
       )}
     </div>

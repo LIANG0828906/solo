@@ -184,12 +184,46 @@ const App: React.FC = () => {
     if (!canvasRef.current) return;
 
     try {
-      const canvas = await html2canvas(canvasRef.current, {
+      const totalPeople = people.length;
+      const totalTables = tables.length;
+      const watermarkText = `总人数: ${totalPeople} | 桌位数: ${totalTables}`;
+
+      const clone = canvasRef.current.cloneNode(true) as HTMLElement;
+      const wrapper = document.createElement('div');
+      wrapper.style.position = 'relative';
+      wrapper.style.display = 'inline-block';
+      wrapper.appendChild(clone);
+
+      const watermark = document.createElement('div');
+      watermark.textContent = watermarkText;
+      Object.assign(watermark.style, {
+        position: 'absolute',
+        right: '16px',
+        bottom: '12px',
+        fontSize: '12px',
+        color: 'rgba(90, 74, 58, 0.5)',
+        fontWeight: '400',
+        letterSpacing: '0.5px',
+        pointerEvents: 'none',
+        textShadow: '0 1px 2px rgba(255, 255, 255, 0.8)',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      });
+      wrapper.appendChild(watermark);
+
+      wrapper.style.visibility = 'hidden';
+      wrapper.style.position = 'fixed';
+      wrapper.style.top = '-9999px';
+      wrapper.style.left = '-9999px';
+      document.body.appendChild(wrapper);
+
+      const canvas = await html2canvas(wrapper, {
         backgroundColor: '#faf3e0',
         scale: 2,
         useCORS: true,
         logging: false,
       });
+
+      document.body.removeChild(wrapper);
 
       const link = document.createElement('a');
       link.download = `座位安排_${new Date().toLocaleDateString()}.png`;
@@ -198,7 +232,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('导出失败:', error);
     }
-  }, []);
+  }, [people, tables]);
 
   const handleResetZoom = useCallback(() => {
     setCanvasScale(1);

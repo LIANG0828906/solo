@@ -13,8 +13,9 @@ interface TableCardProps {
 }
 
 const TABLE_SIZE = 140;
-const SEAT_RADIUS = 95;
+const SEAT_RADIUS = 110;
 const SEAT_SIZE = 36;
+const LABEL_WIDTH = 50;
 
 export const TableCard: React.FC<TableCardProps> = ({
   table,
@@ -108,6 +109,27 @@ export const TableCard: React.FC<TableCardProps> = ({
     onPersonRemove?.(table.id, seatId);
   };
 
+  const calculateFontSize = (text: string, containerWidth: number, maxSize: number, minSize: number): number => {
+    let fontSize = maxSize;
+    const testSpan = document.createElement('span');
+    testSpan.style.visibility = 'hidden';
+    testSpan.style.position = 'absolute';
+    testSpan.style.whiteSpace = 'nowrap';
+    testSpan.style.fontWeight = '500';
+    document.body.appendChild(testSpan);
+
+    while (fontSize >= minSize) {
+      testSpan.style.fontSize = `${fontSize}px`;
+      testSpan.textContent = text;
+      if (testSpan.offsetWidth <= containerWidth) {
+        break;
+      }
+      fontSize -= 0.5;
+    }
+    document.body.removeChild(testSpan);
+    return Math.max(fontSize, minSize);
+  };
+
   const renderSeat = (seat: Seat, index: number) => {
     const angle = seat.angle;
     const seatX = Math.cos(angle) * SEAT_RADIUS;
@@ -115,6 +137,8 @@ export const TableCard: React.FC<TableCardProps> = ({
     const person = getPersonById(seat.personId);
     const isHovered = hoveredSeatId === seat.id;
     const hasPerson = !!person;
+    const displayName = person && person.name.trim() ? person.name : '未命名';
+    const nameFontSize = person ? calculateFontSize(displayName, LABEL_WIDTH, 12, 10) : 12;
 
     return (
       <div
@@ -126,46 +150,78 @@ export const TableCard: React.FC<TableCardProps> = ({
         onDoubleClick={(e) => hasPerson && handlePersonDoubleClick(e, seat.id)}
         style={{
           position: 'absolute',
-          left: `calc(50% + ${seatX}px - ${SEAT_SIZE / 2}px)`,
-          top: `calc(50% + ${seatY}px - ${SEAT_SIZE / 2}px)`,
-          width: SEAT_SIZE,
-          height: SEAT_SIZE,
-          borderRadius: '50%',
-          backgroundColor: hasPerson ? 'transparent' : 'rgba(255,255,255,0.5)',
-          border: isHovered
-            ? '2px solid #8ecae6'
-            : hasPerson
-            ? '2px solid transparent'
-            : '2px dashed rgba(0,0,0,0.15)',
-          boxShadow: isHovered ? '0 0 12px rgba(142,202,230,0.8)' : 'none',
+          left: `calc(50% + ${seatX}px)`,
+          top: `calc(50% + ${seatY}px)`,
+          transform: 'translate(-50%, -50%)',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
           cursor: hasPerson ? 'pointer' : draggingPersonId ? 'copy' : 'default',
-          transition: 'all 0.2s ease',
-          transform: isHovered ? 'scale(1.1)' : 'scale(1)',
+          transition: 'transform 0.2s ease',
+          transformOrigin: 'center center',
+          zIndex: isHovered ? 10 : 1,
         }}
       >
+        <div
+          style={{
+            width: SEAT_SIZE,
+            height: SEAT_SIZE,
+            borderRadius: '50%',
+            backgroundColor: hasPerson ? 'transparent' : 'rgba(255,255,255,0.5)',
+            border: isHovered
+              ? '2px solid #8ecae6'
+              : hasPerson
+              ? '2px solid transparent'
+              : '2px dashed rgba(0,0,0,0.15)',
+            boxShadow: isHovered ? '0 0 12px rgba(142,202,230,0.8)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+            transform: isHovered ? 'scale(1.1)' : 'scale(1)',
+            flexShrink: 0,
+          }}
+        >
+          {person && (
+            <div
+              style={{
+                width: SEAT_SIZE - 4,
+                height: SEAT_SIZE - 4,
+                borderRadius: '50%',
+                backgroundColor: person.avatar,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#555',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                animation: hasPerson ? 'flyIn 0.3s ease-out' : 'none',
+              }}
+              title={person.name}
+            >
+              {displayName.charAt(0)}
+            </div>
+          )}
+        </div>
         {person && (
           <div
             style={{
-              width: SEAT_SIZE - 4,
-              height: SEAT_SIZE - 4,
-              borderRadius: '50%',
-              backgroundColor: person.avatar,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 14,
+              marginTop: 2,
+              width: LABEL_WIDTH,
+              textAlign: 'center',
+              fontSize: nameFontSize,
               fontWeight: 500,
-              color: '#555',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-              transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-              animation: hasPerson ? 'flyIn 0.3s ease-out' : 'none',
+              color: person.name.trim() ? '#3a3a3a' : '#999',
+              whiteSpace: 'nowrap',
+              overflow: 'visible',
+              lineHeight: 1.2,
+              textShadow: '0 1px 2px rgba(250,243,224,0.9)',
+              pointerEvents: 'none',
             }}
-            title={person.name}
           >
-            {person.name.charAt(0)}
+            {displayName}
           </div>
         )}
       </div>
