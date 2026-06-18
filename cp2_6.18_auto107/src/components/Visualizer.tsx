@@ -56,7 +56,8 @@ export const Visualizer: React.FC = () => {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     for (const p of particlesRef.current) {
-      updateParticle(p, beatPulseRef.current, canvas.width, canvas.height);
+      const freqIntensity = p.band === 'low' ? freqLow : p.band === 'mid' ? freqMid : freqHigh;
+      updateParticle(p, beatPulseRef.current, freqIntensity, canvas.width, canvas.height);
 
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
@@ -72,17 +73,16 @@ export const Visualizer: React.FC = () => {
       }
     }
 
-    if (bpm > 0) {
-      ctx.save();
-      ctx.font = '18px "Segoe UI", Arial, sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 6;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
-      ctx.fillText(`BPM: ${bpm}`, 16, 32);
-      ctx.restore();
-    }
+    ctx.save();
+    ctx.font = '18px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    ctx.fillText(`BPM: ${bpm > 0 ? bpm : '--'}`, 16, 32);
+    ctx.fillText(`Time: ${formatTime(currentTime)}`, 16, 60);
+    ctx.restore();
 
     if (fileName) {
       ctx.save();
@@ -93,7 +93,7 @@ export const Visualizer: React.FC = () => {
       const display = duration > 0
         ? `${fileName} (${formatTime(currentTime)} / ${formatTime(duration)})`
         : fileName;
-      ctx.fillText(display, 16, 56);
+      ctx.fillText(display, 16, 88);
       ctx.restore();
     }
 

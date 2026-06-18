@@ -12,6 +12,13 @@ export interface Particle {
   maxLife: number;
   opacity: number;
   band: 'low' | 'mid' | 'high';
+  angle: number;
+  angularSpeed: number;
+  orbitRadius: number;
+  centerX: number;
+  centerY: number;
+  wanderAngle: number;
+  wanderRate: number;
 }
 
 const BAND_COLORS: Record<string, number> = {
@@ -27,15 +34,47 @@ export function createParticle(
   canvasHeight: number
 ): Particle {
   const baseRadius = 2 + intensity * 8;
-  const speed = 0.5 + Math.random() * 1.5;
   const angle = Math.random() * Math.PI * 2;
   const life = 180 + Math.random() * 180;
+  const centerX = canvasWidth / 2;
+  const centerY = canvasHeight / 2;
+
+  let vx = 0, vy = 0, speed = 0;
+  let angularSpeed = 0, orbitRadius = 0, wanderAngle = 0, wanderRate = 0;
+
+  if (band === 'low') {
+    orbitRadius = 50 + Math.random() * Math.min(canvasWidth, canvasHeight) * 0.35;
+    angularSpeed = (Math.random() > 0.5 ? 1 : -1) * (0.005 + Math.random() * 0.01);
+    const startAngle = Math.random() * Math.PI * 2;
+    vx = Math.cos(startAngle) * orbitRadius;
+    vy = Math.sin(startAngle) * orbitRadius;
+  } else if (band === 'mid') {
+    speed = 0.8 + Math.random() * 1.2;
+    const dir = Math.random() * Math.PI * 2;
+    vx = Math.cos(dir) * speed;
+    vy = Math.sin(dir) * speed;
+    wanderAngle = Math.random() * Math.PI * 2;
+    wanderRate = 0.1 + Math.random() * 0.2;
+  } else {
+    speed = 2 + Math.random() * 3;
+    const dir = Math.random() * Math.PI * 2;
+    vx = Math.cos(dir) * speed;
+    vy = Math.sin(dir) * speed;
+  }
+
+  let startX = Math.random() * canvasWidth;
+  let startY = Math.random() * canvasHeight;
+
+  if (band === 'low') {
+    startX = centerX + Math.cos(angle) * orbitRadius;
+    startY = centerY + Math.sin(angle) * orbitRadius;
+  }
 
   return {
-    x: Math.random() * canvasWidth,
-    y: Math.random() * canvasHeight,
-    vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed,
+    x: startX,
+    y: startY,
+    vx,
+    vy,
     radius: baseRadius,
     baseRadius,
     color: '',
@@ -45,40 +84,77 @@ export function createParticle(
     maxLife: life,
     opacity: 1,
     band,
+    angle,
+    angularSpeed,
+    orbitRadius,
+    centerX,
+    centerY,
+    wanderAngle,
+    wanderRate,
   };
 }
 
 export function updateParticle(
   particle: Particle,
   beatPulse: number,
+  freqIntensity: number,
   canvasWidth: number,
   canvasHeight: number
 ): Particle {
   particle.life -= 1;
   particle.hueOffset = (particle.hueOffset + 0.5) % 360;
-  particle.x += particle.vx;
-  particle.y += particle.vy;
 
-  if (particle.x - particle.radius < 0) {
-    particle.x = particle.radius;
-    particle.vx = Math.abs(particle.vx);
-  } else if (particle.x + particle.radius > canvasWidth) {
-    particle.x = canvasWidth - particle.radius;
-    particle.vx = -Math.abs(particle.vx);
+  const centerX = canvasWidth / 2;
+  const centerY = canvasHeight / 2;
+
+  if (particle.band === 'low') {
+    particle.angle += particle.angularSpeed;
+    particle.x = centerX + Math.cos(particle.angle) * particle.orbitRadius;
+    particle.y = centerY + Math.sin(particle.angle) * particle.orbitRadius;
+  } else if (particle.band === 'mid') {
+    particle.wanderAngle += (Math.random() - 0.5) * particle.wanderRate * 2;
+    const currentSpeed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+    const currentDir = Math.atan2(particle.vy, particle.vx);
+    const newDir = currentDir + Math.sin(particle.wanderAngle) * particle.wanderRate;
+    particle.vx = Math.cos(newDir) * currentSpeed;
+    particle.vy = Math.sin(newDir) * currentSpeed;
+    particle.x += particle.vx;
+    particle.y += particle.vy;
+  } else {
+    particle.x += particle.vx;
+    particle.y += particle.vy;
   }
-  if (particle.y - particle.radius < 0) {
-    particle.y = particle.radius;
-    particle.vy = Math.abs(particle.vy);
-  } else if (particle.y + particle.radius > canvasHeight) {
-    particle.y = canvasHeight - particle.radius;
-    particle.vy = -Math.abs(particle.vy);
+
+  if (particle.band !== 'low') {
+    if (particle.x - particle.radius < 0) {
+      particle.x = particle.radius;
+      particle.vx = Math.abs(particle.vx);
+    } else if (particle.x + particle.radius > canvasWidth) {
+      particle.x = canvasWidth - particle.radius;
+      particle.vx = -Math.abs(particle.vx);
+    }
+    if (particle.y - particle.radius < 0) {
+      particle.y = particle.radius;
+      particle.vy = Math.abs(particle.vy);
+    } else if (particle.y + particle.radius > canvasHeight) {
+      particle.y = canvasHeight - particle.radius;
+      particle.vy = -Math.abs(particle.vy);
+    }
   }
+
+  const dx = particle.x - centerX;
+  const dy = particle.y - centerY;
+  const distFromCenter = Math.sqrt(dx * dx + dy * dy);
+  const maxDist = Math.min(canvasWidth, canvasHeight) * 0.6;
+  const distFactor = Math.max(0.2, 1 - distFromCenter / maxDist);
 
   const lifeRatio = particle.life / particle.maxLife;
-  particle.opacity = lifeRatio < 0.3 ? lifeRatio / 0.3 : 1;
+  const lifeOpacity = lifeRatio < 0.3 ? lifeRatio / 0.3 : 1;
+  particle.opacity = lifeOpacity * distFactor;
 
   const pulseScale = 1 + beatPulse * 0.2;
-  particle.radius = particle.baseRadius * pulseScale;
+  const freqScale = 0.6 + freqIntensity * 0.8;
+  particle.radius = particle.baseRadius * pulseScale * freqScale;
 
   const hue = (particle.baseHue + particle.hueOffset) % 360;
   const saturation = 80;
