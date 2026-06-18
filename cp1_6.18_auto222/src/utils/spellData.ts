@@ -1,0 +1,88 @@
+import type { Spell } from '@/types'
+
+export const ALL_SPELLS: Spell[] = [
+  {
+    id: 'fire_bolt',
+    name: '火球术',
+    element: 'fire',
+    manaCost: 10,
+    cooldownMs: 2000,
+    damage: 15,
+    description: '释放一颗炽热火球',
+    gradientColors: ['#FF4500', '#FF6347'],
+  },
+  {
+    id: 'inferno',
+    name: '炼狱之焰',
+    element: 'fire',
+    manaCost: 25,
+    cooldownMs: 8000,
+    damage: 40,
+    description: '召唤炼狱烈焰焚烧敌人',
+    gradientColors: ['#FF4500', '#FF6347'],
+  },
+  {
+    id: 'frost_shard',
+    name: '冰晶碎片',
+    element: 'ice',
+    manaCost: 8,
+    cooldownMs: 1500,
+    damage: 10,
+    description: '发射锋利的冰晶碎片',
+    gradientColors: ['#00BFFF', '#87CEFA'],
+  },
+  {
+    id: 'blizzard',
+    name: '暴风雪',
+    element: 'ice',
+    manaCost: 20,
+    cooldownMs: 7000,
+    damage: 35,
+    description: '召唤暴风雪覆盖战场',
+    gradientColors: ['#00BFFF', '#87CEFA'],
+  },
+  {
+    id: 'lightning_bolt',
+    name: '闪电箭',
+    element: 'lightning',
+    manaCost: 12,
+    cooldownMs: 3000,
+    damage: 20,
+    description: '释放一道闪电箭',
+    gradientColors: ['#FFD700', '#FFA500'],
+  },
+  {
+    id: 'chain_lightning',
+    name: '闪电链',
+    element: 'lightning',
+    manaCost: 22,
+    cooldownMs: 9000,
+    damage: 38,
+    description: '释放连锁闪电攻击多个目标',
+    gradientColors: ['#FFD700', '#FFA500'],
+  },
+  {
+    id: 'shadow_bolt',
+    name: '暗影箭',
+    element: 'dark',
+    manaCost: 10,
+    cooldownMs: 2000,
+    damage: 15,
+    description: '发射暗影能量箭矢',
+    gradientColors: ['#8B008B', '#9400D3'],
+  },
+  {
+    id: 'void_rift',
+    name: '虚空裂隙',
+    element: 'dark',
+    manaCost: 25,
+    cooldownMs: 10000,
+    damage: 45,
+    description: '撕裂虚空释放毁灭之力',
+    gradientColors: ['#8B008B', '#9400D3'],
+  },
+]
+
+export function getSpellById(id: string): Spell | undefined {
+  return ALL_SPELLS.find(s => s.id === id)
+}
