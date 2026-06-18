@@ -2,7 +2,7 @@ type WebSocketEvents = {
   playerJoined: { playerId: string; nickname: string; avatarColor: string };
   questionReceived: { questionId: string; text: string; options: string[]; correctIndex: number; roundIndex: number };
   timerSync: { remaining: number; total: number };
-  roundEnd: { roundIndex: number; correctIndex: number };
+  roundEnd: { roundIndex: number; correctIndex: number; playerAnswers: Array<{ playerId: string; selectedIndex: number }> };
 };
 
 type GameManagerEvents = {

@@ -40,7 +40,7 @@ const QUESTIONS = [
   },
   {
     id: v4(),
-    text: ""但愿人长久，千里共婵娟"出自哪位诗人？",
+    text: "「但愿人长久，千里共婵娟」出自哪位诗人？",
     options: ["李白", "杜甫", "白居易", "苏轼"],
     correctIndex: 3,
   },
@@ -225,9 +225,14 @@ class WebSocketService {
   private endRound(): void {
     this.clearTimer();
     const question = QUESTIONS[this.currentRound];
+    const playerAnswers = Array.from(this.answers.entries()).map(([playerId, selectedIndex]) => ({
+      playerId,
+      selectedIndex,
+    }));
     eventBus.emit("roundEnd", {
       roundIndex: this.currentRound,
       correctIndex: question.correctIndex,
+      playerAnswers,
     });
 
     this.currentRound++;

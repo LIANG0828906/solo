@@ -118,13 +118,13 @@ let roundEndTimeout: ReturnType<typeof setTimeout> | null = null
 export function initGameManager() {
   eventBus.on(
     'playerJoined',
-    (data: { playerId: string; nickname: string; avatar: string }) => {
+    (data: { playerId: string; nickname: string; avatarColor: string }) => {
       const state = useGameStore.getState()
       const isHost = state.players.length === 0
       const player: Player = {
         id: data.playerId,
         nickname: data.nickname,
-        avatarColor: data.avatar,
+        avatarColor: data.avatarColor,
         score: 0,
         correctCount: 0,
         totalTime: 0,
