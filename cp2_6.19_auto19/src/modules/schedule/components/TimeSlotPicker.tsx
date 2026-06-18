@@ -113,8 +113,8 @@ export const TimeSlotPicker: React.FC<TimeSlotPickerProps> = ({ groupId, onClose
           {loading ? '确认中...' : '确认选择'}
         </button>
       </div>
+      </div>
     </div>
-    </>
   );
 };
 

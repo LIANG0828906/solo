@@ -1,7 +1,8 @@
 import { create } from 'zustand';
+
 import dayjs from 'dayjs';
 import type { TimeSlot, ScheduleAssignment } from '../../../types';
-import { assignTimeSlotApi } from '../../../api/mockApi';
+import { assignTimeSlotApi, fetchSlotsApi } from '../../../api/mockApi';
 import { useGroupBuyStore } from '../../groupBuy/store/groupBuyStore';
 
 interface ScheduleState {
@@ -24,18 +25,13 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   error: null,
 
   fetchSlots: async () => {
-    const now = dayjs();
-    const slots: TimeSlot[] = [];
-    for (let i = 1; i <= 7; i++) {
-      const date = now.add(i, 'day').format('YYYY-MM-DD');
-      slots.push(
-        { id: `slot-${i}-1`, date, startTime: '09:00', endTime: '11:00', maxCapacity: 20, currentCount: Math.floor(Math.random() * 15) },
-        { id: `slot-${i}-2`, date, startTime: '11:00', endTime: '13:00', maxCapacity: 20, currentCount: Math.floor(Math.random() * 15) },
-        { id: `slot-${i}-3`, date, startTime: '14:00', endTime: '16:00', maxCapacity: 20, currentCount: Math.floor(Math.random() * 15) },
-        { id: `slot-${i}-4`, date, startTime: '16:00', endTime: '18:00', maxCapacity: 20, currentCount: Math.floor(Math.random() * 15) },
-      );
+    set({ loading: true, error: null });
+    try {
+      const slots = await fetchSlotsApi();
+      set({ timeSlots: slots, loading: false });
+    } catch (error) {
+      set({ error: '获取时段列表失败', loading: false });
     }
-    set({ timeSlots: slots });
   },
 
   autoAssignSlot: async (groupId) => {
@@ -75,7 +71,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
         loading: false,
       }));
 
-      useGroupBuyStore.getState().setAssignedSlot(groupId, updatedSlot);
+      await useGroupBuyStore.getState().setAssignedSlot(groupId, updatedSlot);
       return updatedSlot;
     } catch (error) {
       set({ error: '自动分配时段失败', loading: false });
@@ -108,7 +104,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
         loading: false,
       }));
 
-      useGroupBuyStore.getState().setAssignedSlot(groupId, updatedSlot);
+      await useGroupBuyStore.getState().setAssignedSlot(groupId, updatedSlot);
     } catch (error) {
       set({ error: '确认时段失败', loading: false });
     }
@@ -128,12 +124,21 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       (g) => g.creatorId === userId || g.currentMembers.some((m) => m.id === userId)
     );
 
-    return get()
-      .assignments.map((a) => {
-        const group = userGroups.find((g) => g.id === a.groupBuyId);
-        if (!group || !group.assignedSlot) return null;
-        return { ...a, slot: group.assignedSlot, groupName: group.productName };
-      })
-      .filter(Boolean) as (ScheduleAssignment & { slot: TimeSlot; groupName: string })[];
+    const result: (ScheduleAssignment & { slot: TimeSlot; groupName: string })[] = [];
+    
+    for (const group of userGroups) {
+      if (group.assignedSlot) {
+        const existingAssignment = get().assignments.find((a) => a.groupBuyId === group.id);
+        result.push({
+          groupBuyId: group.id,
+          slotId: group.assignedSlot.id,
+          assignedAt: existingAssignment?.assignedAt || dayjs().toISOString(),
+          slot: group.assignedSlot,
+          groupName: group.productName,
+        });
+      }
+    }
+    
+    return result;
   },
 }));

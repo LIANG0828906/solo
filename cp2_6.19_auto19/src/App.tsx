@@ -12,7 +12,7 @@ function App() {
   const { groupBuys, loading, error, fetchGroupBuys, checkAndCloseExpired } = useGroupBuyStore();
   const { fetchSlots } = useScheduleStore();
   const [showCreator, setShowCreator] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
+  const [_showProfile, _setShowProfile] = useState(false);
   const [currentPage, setCurrentPage] = useState<Page>('home');
 
   useEffect(() => {
@@ -27,9 +27,19 @@ function App() {
   return (
     <div style={styles.app}>
       <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; text-shadow: 0 0 5px rgba(255, 126, 103, 0.5); }
-          50% { opacity: 0.8; text-shadow: 0 0 15px rgba(255, 126, 103, 0.8); }
+        @keyframes pulse-glow {
+          0%, 100% { 
+            opacity: 1; 
+            text-shadow: 0 0 5px rgba(255, 126, 103, 0.5),
+                         0 0 10px rgba(255, 126, 103, 0.3),
+                         0 0 15px rgba(255, 126, 103, 0.2);
+          }
+          50% { 
+            opacity: 0.9; 
+            text-shadow: 0 0 10px rgba(255, 126, 103, 0.8),
+                         0 0 20px rgba(255, 126, 103, 0.5),
+                         0 0 30px rgba(255, 126, 103, 0.3);
+          }
         }
         @keyframes fadeInUp {
           from {
@@ -111,11 +121,11 @@ function App() {
               <div style={styles.gridContainer}>
                 <VirtualGrid
                   items={groupBuys}
-                  itemHeight={380}
                   gap={16}
                   overscan={2}
-                  renderItem={(group, _, style) => (
-                    <div key={group.id} style={style} className="card-hover">
+                  minItemWidth={280}
+                  renderItem={(group) => (
+                    <div className="card-hover" style={{ height: '100%' }}>
                       <GroupCard group={group} />
                     </div>
                   )}
@@ -168,7 +178,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   navBtn: {
     padding: '8px 16px',
-    background: 'none',
+    backgroundColor: 'transparent',
     border: 'none',
     fontSize: '14px',
     color: '#666',

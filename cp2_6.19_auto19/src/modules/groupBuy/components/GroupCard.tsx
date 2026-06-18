@@ -306,10 +306,12 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#666',
   },
   countdown: {
-    fontFamily: 'monospace',
+    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
     color: '#FF7E67',
     fontWeight: 'bold',
-    animation: 'pulse 2s ease-in-out infinite',
+    fontSize: '13px',
+    letterSpacing: '1px',
+    animation: 'pulse-glow 2s ease-in-out infinite',
   },
   actionRow: {
     display: 'flex',

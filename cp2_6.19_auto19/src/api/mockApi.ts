@@ -42,14 +42,30 @@ export const createGroupBuyApi = async (
   return delay(newGroup);
 };
 
+export const fetchSlotsApi = async (): Promise<TimeSlot[]> => {
+  const now = dayjs();
+  const slots: TimeSlot[] = [];
+  for (let i = 1; i <= 7; i++) {
+    const date = now.add(i, 'day').format('YYYY-MM-DD');
+    slots.push(
+      { id: uuidv4(), date, startTime: '09:00', endTime: '11:00', maxCapacity: 20, currentCount: Math.floor(Math.random() * 15) },
+      { id: uuidv4(), date, startTime: '11:00', endTime: '13:00', maxCapacity: 20, currentCount: Math.floor(Math.random() * 15) },
+      { id: uuidv4(), date, startTime: '14:00', endTime: '16:00', maxCapacity: 20, currentCount: Math.floor(Math.random() * 15) },
+      { id: uuidv4(), date, startTime: '16:00', endTime: '18:00', maxCapacity: 20, currentCount: Math.floor(Math.random() * 15) },
+    );
+  }
+  return delay(slots);
+};
+
 export const fetchGroupBuysApi = async (): Promise<GroupBuy[]> => {
   const now = dayjs();
-  const sampleSlots: TimeSlot[] = [
-    { id: 'slot-1', date: now.add(1, 'day').format('YYYY-MM-DD'), startTime: '09:00', endTime: '11:00', maxCapacity: 20, currentCount: 5 },
-    { id: 'slot-2', date: now.add(1, 'day').format('YYYY-MM-DD'), startTime: '14:00', endTime: '16:00', maxCapacity: 20, currentCount: 12 },
-    { id: 'slot-3', date: now.add(2, 'day').format('YYYY-MM-DD'), startTime: '09:00', endTime: '11:00', maxCapacity: 20, currentCount: 3 },
-    { id: 'slot-4', date: now.add(2, 'day').format('YYYY-MM-DD'), startTime: '16:00', endTime: '18:00', maxCapacity: 20, currentCount: 8 },
+  const generateSlots = (): TimeSlot[] => [
+    { id: uuidv4(), date: now.add(1, 'day').format('YYYY-MM-DD'), startTime: '09:00', endTime: '11:00', maxCapacity: 20, currentCount: 5 },
+    { id: uuidv4(), date: now.add(1, 'day').format('YYYY-MM-DD'), startTime: '14:00', endTime: '16:00', maxCapacity: 20, currentCount: 12 },
+    { id: uuidv4(), date: now.add(2, 'day').format('YYYY-MM-DD'), startTime: '09:00', endTime: '11:00', maxCapacity: 20, currentCount: 3 },
+    { id: uuidv4(), date: now.add(2, 'day').format('YYYY-MM-DD'), startTime: '16:00', endTime: '18:00', maxCapacity: 20, currentCount: 8 },
   ];
+  const sampleSlots = generateSlots();
 
   const mockData: GroupBuy[] = [
     {
@@ -117,15 +133,23 @@ export const fetchGroupBuysApi = async (): Promise<GroupBuy[]> => {
   return delay(mockData);
 };
 
-export const joinGroupBuyApi = async (groupId: string, member: Omit<Member, 'joinedAt'>): Promise<Member> => {
+export const joinGroupBuyApi = async (_groupId: string, member: Omit<Member, 'joinedAt'>): Promise<Member> => {
   return delay({ ...member, joinedAt: dayjs().toISOString() });
 };
 
-export const assignTimeSlotApi = async (groupId: string, slot: TimeSlot): Promise<TimeSlot> => {
+export const assignTimeSlotApi = async (_groupId: string, slot: TimeSlot): Promise<TimeSlot> => {
   return delay({ ...slot, currentCount: slot.currentCount + 1 });
 };
 
 export const fetchUserGroupBuysApi = async (userId: string): Promise<GroupBuy[]> => {
   const data = await fetchGroupBuysApi();
   return delay(data.filter(g => g.creatorId === userId || g.currentMembers.some(m => m.id === userId)));
+};
+
+export const updateGroupStatusApi = async (groupId: string, status: GroupBuy['status']): Promise<{ groupId: string; status: GroupBuy['status'] }> => {
+  return delay({ groupId, status });
+};
+
+export const setAssignedSlotApi = async (groupId: string, slot: TimeSlot): Promise<{ groupId: string; slot: TimeSlot }> => {
+  return delay({ groupId, slot });
 };
