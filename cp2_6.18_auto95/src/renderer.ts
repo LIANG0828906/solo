@@ -1,10 +1,11 @@
-import type { Snake, Food, Point } from './types';
+import type { Snake, Food, Point, EatFoodEffect } from './types';
 import {
   CANVAS_SIZE,
   GRID_SIZE,
   CELL_PADDING,
   FOOD_RADIUS,
   COLOR_PALETTE,
+  EAT_FOOD_EFFECT_DURATION,
 } from './types';
 import { getGameState } from './gameStore';
 
@@ -14,6 +15,7 @@ let gridCanvas: HTMLCanvasElement | null = null;
 let gridCtx: CanvasRenderingContext2D | null = null;
 let lastSnakeState: string = '';
 let lastFoodState: string = '';
+let lastEffectState: string = '';
 let scaleFactor: number = 1;
 
 type CanvasContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -32,7 +34,7 @@ const initGridCache = (): void => {
   gridCtx = gridCanvas.getContext('2d');
 
   if (gridCtx) {
-    gridCtx.strokeStyle = '#2A2A3F';
+    gridCtx.strokeStyle = '#1A1A1A';
     gridCtx.lineWidth = 1;
 
     for (let x = 0; x <= CANVAS_SIZE; x += GRID_SIZE) {
@@ -131,13 +133,65 @@ const drawFood = (ctx: CanvasContext, food: Food): void => {
   ctx.restore();
 };
 
-const hasStateChanged = (snakes: Snake[], foods: Food[]): boolean => {
+const drawEatFoodEffect = (ctx: CanvasContext, effect: EatFoodEffect): void => {
+  const elapsed = Date.now() - effect.createdAt;
+  const progress = Math.min(1, elapsed / EAT_FOOD_EFFECT_DURATION);
+
+  const x = effect.position.x * scaleFactor + (GRID_SIZE * scaleFactor) / 2;
+  const y = effect.position.y * scaleFactor + (GRID_SIZE * scaleFactor) / 2;
+
+  const maxRadius = 24 * scaleFactor;
+  const radius = maxRadius * progress;
+  const alpha = 1 - progress;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  ctx.shadowColor = '#FFFFFF';
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 3 * scaleFactor;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (progress < 0.5) {
+    ctx.shadowColor = effect.snakeColor;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.globalAlpha = (1 - progress * 2) * 0.8;
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI * 2 * i) / 6 + progress * 2;
+    const dist = radius * 0.8;
+    const px = x + Math.cos(angle) * dist;
+    const py = y + Math.sin(angle) * dist;
+    const particleSize = (3 - progress * 3) * scaleFactor;
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(px, py, Math.max(0, particleSize), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+};
+
+const hasStateChanged = (snakes: Snake[], foods: Food[], effects: EatFoodEffect[]): boolean => {
   const snakeState = JSON.stringify(snakes.map(s => ({ id: s.id, body: s.body, alive: s.alive, deathOpacity: s.deathOpacity })));
   const foodState = JSON.stringify(foods.map(f => ({ id: f.id, position: f.position, scale: f.scale })));
+  const effectState = JSON.stringify(effects.map(e => ({ id: e.id, createdAt: e.createdAt })));
 
-  if (snakeState !== lastSnakeState || foodState !== lastFoodState) {
+  if (snakeState !== lastSnakeState || foodState !== lastFoodState || effectState !== lastEffectState) {
     lastSnakeState = snakeState;
     lastFoodState = foodState;
+    lastEffectState = effectState;
     return true;
   }
   return false;
@@ -150,11 +204,12 @@ export const render = (canvas: HTMLCanvasElement | null): void => {
   if (!ctx) return;
 
   const state = getGameState();
-  const { snakes, foods } = state;
+  const { snakes, foods, eatFoodEffects } = state;
+  const effects = eatFoodEffects || [];
 
-  const needsRedraw = hasStateChanged(snakes, foods);
+  const needsRedraw = hasStateChanged(snakes, foods, effects);
 
-  if (!needsRedraw && offscreenCanvas) {
+  if (!needsRedraw && offscreenCanvas && effects.length === 0) {
     ctx.drawImage(offscreenCanvas, 0, 0);
     return;
   }
@@ -176,6 +231,8 @@ export const render = (canvas: HTMLCanvasElement | null): void => {
       }
     });
 
+    effects.forEach((effect) => drawEatFoodEffect(targetCtx, effect));
+
     if (offscreenCanvas) {
       ctx.drawImage(offscreenCanvas, 0, 0);
     }
@@ -185,5 +242,6 @@ export const render = (canvas: HTMLCanvasElement | null): void => {
 export const forceRender = (canvas: HTMLCanvasElement | null): void => {
   lastSnakeState = '';
   lastFoodState = '';
+  lastEffectState = '';
   render(canvas);
 };

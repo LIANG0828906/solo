@@ -62,3 +62,11 @@ export const MAX_FOODS = 5;
 export const SCORE_PER_FOOD = 10;
 export const DEATH_ANIMATION_DURATION = 300;
 export const FOOD_SCALE_ANIMATION_DURATION = 200;
+export const EAT_FOOD_EFFECT_DURATION = 200;
+
+export interface EatFoodEffect {
+  id: string;
+  position: Point;
+  createdAt: number;
+  snakeColor: string;
+}

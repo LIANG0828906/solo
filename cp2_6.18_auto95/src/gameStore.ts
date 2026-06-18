@@ -1,15 +1,19 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { Snake, Food, GameStage, Point, Direction } from './types';
+import type { Snake, Food, GameStage, Point, Direction, EatFoodEffect } from './types';
 import { COLOR_PALETTE, AI_NAMES, CANVAS_SIZE, GRID_SIZE } from './types';
 
 interface GameStore {
   snakes: Snake[];
   foods: Food[];
+  eatFoodEffects: EatFoodEffect[];
   gameStage: GameStage;
   winnerId: string | null;
   setSnakes: (snakes: Snake[]) => void;
   setFoods: (foods: Food[]) => void;
+  addEatFoodEffect: (effect: EatFoodEffect) => void;
+  removeEatFoodEffect: (effectId: string) => void;
+  setEatFoodEffects: (effects: EatFoodEffect[]) => void;
   addFood: (food: Food) => void;
   removeFood: (foodId: string) => void;
   updateSnake: (snakeId: string, updates: Partial<Snake>) => void;
@@ -75,12 +79,21 @@ const createInitialSnakes = (): Snake[] => {
 export const useGameStore = create<GameStore>((set, get) => ({
   snakes: createInitialSnakes(),
   foods: [],
+  eatFoodEffects: [],
   gameStage: 'waiting',
   winnerId: null,
 
   setSnakes: (snakes) => set({ snakes }),
 
   setFoods: (foods) => set({ foods }),
+
+  addEatFoodEffect: (effect) => set((state) => ({ eatFoodEffects: [...state.eatFoodEffects, effect] })),
+
+  removeEatFoodEffect: (effectId) => set((state) => ({
+    eatFoodEffects: state.eatFoodEffects.filter((e) => e.id !== effectId),
+  })),
+
+  setEatFoodEffects: (effects) => set({ eatFoodEffects: effects }),
 
   addFood: (food) => set((state) => ({ foods: [...state.foods, food] })),
 
@@ -101,6 +114,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   initGame: () => set({
     snakes: createInitialSnakes(),
     foods: [],
+    eatFoodEffects: [],
     gameStage: 'waiting',
     winnerId: null,
   }),
@@ -108,6 +122,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   resetGame: () => set({
     snakes: createInitialSnakes(),
     foods: [],
+    eatFoodEffects: [],
     gameStage: 'waiting',
     winnerId: null,
   }),

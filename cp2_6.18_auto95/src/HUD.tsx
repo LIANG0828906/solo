@@ -16,6 +16,7 @@ const HUD: React.FC = () => {
   const aliveSnakes = snakes.filter(s => s.alive);
   const deadSnakes = snakes.filter(s => !s.alive);
   const winner = winnerId ? snakes.find(s => s.id === winnerId) : null;
+  const maxScore = Math.max(...snakes.map(s => s.score), 0);
 
   const canvasSize = viewportSize.height < 900 ? 600 : 800;
   const scaleFactor = canvasSize / CANVAS_SIZE;
@@ -240,22 +241,89 @@ const HUD: React.FC = () => {
           {gameStage === 'ended' && (
             <div
               className="absolute inset-0 flex flex-col items-center justify-center z-20"
-              style={{ backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: '8px' }}
+              style={{
+                backgroundColor: 'rgba(0,0,0,0.85)',
+                borderRadius: '8px',
+                backdropFilter: 'blur(2px)',
+              }}
             >
               <div
-                className="game-title text-center mb-4"
-                style={{ color: '#FFFFFF', fontSize: '24px' }}
+                className="game-title text-center mb-6"
+                style={{
+                  color: '#FF4444',
+                  fontSize: viewportSize.width < 1100 ? '28px' : '36px',
+                  textShadow: '0 0 20px rgba(255,68,68,0.6), 0 0 40px rgba(255,68,68,0.3)',
+                  letterSpacing: '2px',
+                }}
               >
-                游戏结束
+                GAME OVER
               </div>
+
+              <div
+                className="text-center mb-4"
+                style={{ color: '#FFFFFF', fontSize: '16px' }}
+              >
+                最终排名
+              </div>
+
+              <div
+                className="flex flex-col gap-2 mb-6 px-6"
+                style={{ minWidth: '200px' }}
+              >
+                {sortedSnakes.slice(0, 3).map((snake, index) => (
+                  <div
+                    key={snake.id}
+                    className="flex items-center justify-between gap-4 px-4 py-2 rounded-lg"
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      fontSize: '14px',
+                    }}
+                  >
+                    <span style={{ color: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : '#CD7F32' }}>
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'} {snake.name}
+                    </span>
+                    <span style={{ color: '#FFFFFF', fontWeight: 'bold' }}>
+                      {snake.score} 分
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                className="text-center mb-2"
+                style={{
+                  color: '#FFD700',
+                  fontSize: viewportSize.width < 1100 ? '18px' : '22px',
+                  fontWeight: 'bold',
+                }}
+              >
+                你的得分：{playerSnake?.score || 0} 分
+              </div>
+
               {winner && (
                 <div
-                  className="text-center"
-                  style={{ color: winner.color, fontSize: '20px' }}
+                  className="text-center mb-6"
+                  style={{ color: winner.color, fontSize: '16px' }}
                 >
-                  🎉 {winner.name} 获胜！
+                  � {winner.name} 赢得了比赛！
                 </div>
               )}
+
+              <button
+                onClick={handleResetGame}
+                className="px-8 py-3 rounded-lg transition-all hover:scale-105 active:scale-95 game-title"
+                style={{
+                  backgroundColor: '#22C55E',
+                  color: '#FFFFFF',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  minWidth: '160px',
+                  minHeight: '48px',
+                  boxShadow: '0 0 20px rgba(34,197,94,0.4)',
+                }}
+              >
+                再来一局
+              </button>
             </div>
           )}
 

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Snake, Food, Point } from './types';
+import type { Snake, Food, Point, EatFoodEffect } from './types';
 import {
   CANVAS_SIZE,
   GRID_SIZE,
@@ -8,6 +8,7 @@ import {
   SCORE_PER_FOOD,
   DEATH_ANIMATION_DURATION,
   FOOD_SCALE_ANIMATION_DURATION,
+  EAT_FOOD_EFFECT_DURATION,
 } from './types';
 import { getGameState, setGameState } from './gameStore';
 import { moveAllSnakes, checkAllCollisions, handleAITurns, growSnake } from './snakeLogic';
@@ -100,6 +101,7 @@ const checkFoodConsumption = (): void => {
   let updatedSnakes = [...snakes];
   let updatedFoods = [...foods];
   let hasChanges = false;
+  const newEffects: EatFoodEffect[] = [];
 
   for (let i = updatedSnakes.length - 1; i >= 0; i--) {
     const snake = updatedSnakes[i];
@@ -117,6 +119,14 @@ const checkFoodConsumption = (): void => {
           score: snake.score + SCORE_PER_FOOD,
         };
 
+        const effect: EatFoodEffect = {
+          id: uuidv4(),
+          position: { ...head },
+          createdAt: Date.now(),
+          snakeColor: snake.color,
+        };
+        newEffects.push(effect);
+
         updatedFoods.splice(j, 1);
         hasChanges = true;
         break;
@@ -125,7 +135,27 @@ const checkFoodConsumption = (): void => {
   }
 
   if (hasChanges) {
-    setGameState({ snakes: updatedSnakes, foods: updatedFoods });
+    const currentEffects = state.eatFoodEffects || [];
+    setGameState({
+      snakes: updatedSnakes,
+      foods: updatedFoods,
+      eatFoodEffects: [...currentEffects, ...newEffects],
+    });
+  }
+};
+
+const updateEatFoodEffects = (): void => {
+  const state = getGameState();
+  const { eatFoodEffects } = state;
+  if (!eatFoodEffects || eatFoodEffects.length === 0) return;
+
+  const now = Date.now();
+  const validEffects = eatFoodEffects.filter(
+    (e) => now - e.createdAt < EAT_FOOD_EFFECT_DURATION
+  );
+
+  if (validEffects.length !== eatFoodEffects.length) {
+    setGameState({ eatFoodEffects: validEffects });
   }
 };
 
@@ -196,6 +226,7 @@ const gameFrame = (timestamp: number): void => {
 
   updateFoodScales();
   updateDeathAnimations();
+  updateEatFoodEffects();
   render(canvasRef);
 
   animationFrameId = requestAnimationFrame(gameFrame);
