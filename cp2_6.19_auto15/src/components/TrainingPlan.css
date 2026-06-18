@@ -1,0 +1,156 @@
+.plan-wrapper {
+  overflow-x: auto;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.plan-table {
+  width: 100%;
+  min-width: 840px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.plan-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: linear-gradient(135deg, #1e88e5, #42a5f5);
+  color: white;
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  height: 48px;
+}
+
+.plan-table th:first-child {
+  border-radius: 8px 0 0 0;
+}
+
+.plan-table th:last-child {
+  border-radius: 0 8px 0 0;
+}
+
+.plan-table td {
+  border: 1px solid #e0e0e0;
+  vertical-align: top;
+  padding: 8px;
+  min-height: 240px;
+}
+
+.plan-table tr:nth-child(even) td {
+  background: #f0f8ff;
+}
+
+.day-cell {
+  min-height: 240px;
+  min-width: 120px;
+}
+
+.day-cell.drag-over {
+  background: #e3f2fd;
+  border: 2px dashed #90caf9;
+  border-radius: 4px;
+}
+
+.empty-placeholder {
+  color: #bbb;
+  font-size: 13px;
+  text-align: center;
+  padding: 40px 8px;
+}
+
+.planned-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  margin-bottom: 8px;
+  position: relative;
+  animation: bounce-in 400ms ease-out;
+}
+
+.planned-card.dragging {
+  opacity: 0.7;
+}
+
+.planned-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 4px;
+}
+
+.planned-card-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.remove-btn {
+  border: none;
+  background: transparent;
+  color: #e53935;
+  cursor: pointer;
+  padding: 4px;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 4px;
+  transition: background 200ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.remove-btn:hover {
+  background: #ffebee;
+}
+
+.params-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.param-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.param-label {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.param-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.param-input:focus {
+  outline: none;
+  border-color: #42a5f5;
+  box-shadow: 0 0 0 2px rgba(66, 165, 245, 0.2);
+}
+
+@media (max-width: 1023px) {
+  .plan-table {
+    min-width: 720px;
+  }
+}
+
+@media (max-width: 480px) {
+  .plan-table {
+    min-width: 640px;
+  }
+}

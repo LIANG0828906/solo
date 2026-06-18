@@ -1,0 +1,262 @@
+.training-log {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 16px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.tab-btn {
+  padding: 8px 20px;
+  border: none;
+  background: #f5f5f5;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 300ms;
+  min-height: 40px;
+}
+
+.tab-btn.active {
+  background: #1e88e5;
+  color: white;
+}
+
+.day-section {
+  margin-bottom: 20px;
+}
+
+.day-header {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.exercise-row {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.exercise-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.exercise-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exercise-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.muscle-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: white;
+  font-weight: 500;
+}
+
+.sets-log {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.set-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 1fr 60px;
+  align-items: center;
+  gap: 8px;
+}
+
+.set-num {
+  font-size: 13px;
+  color: #666;
+  text-align: center;
+}
+
+.input-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-wrap label {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+.input-wrap input {
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-wrap input:focus {
+  outline: none;
+  border-color: #1e88e5;
+}
+
+.volume-label {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+}
+
+.progress-section {
+  margin-top: 4px;
+}
+
+.volume-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.progress-bar-container {
+  height: 16px;
+  background: #eee;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 8px;
+  transition: width 500ms ease-out;
+  position: relative;
+  background: linear-gradient(90deg, #4ecdc4, #45b7d1);
+}
+
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.progress-bar-fill.pulse::after {
+  animation: pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(78, 205, 196, 0.8);
+  opacity: 1;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(78, 205, 196, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(78, 205, 196, 0.9);
+  }
+}
+
+.percent-text {
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+  flex-shrink: 0;
+  min-width: 40px;
+}
+
+.trend-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.trend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.trend-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.trend-nav-btn {
+  padding: 6px 14px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 36px;
+  transition: 300ms;
+}
+
+.trend-nav-btn:hover {
+  background: #f5f5f5;
+}
+
+.trend-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.trend-nav-group {
+  display: flex;
+  gap: 8px;
+}
+
+.trend-chart-wrap {
+  transition: transform 400ms ease-in-out;
+}
+
+.day-empty {
+  font-size: 12px;
+  color: #999;
+  padding: 8px 12px;
+}
+
+@media (max-width: 767px) {
+  .set-row {
+    grid-template-columns: 32px 1fr 1fr;
+  }
+  .volume-label {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .input-wrap input {
+    font-size: 12px;
+    padding: 3px;
+  }
+  .training-log {
+    padding: 12px;
+  }
+  .tab-btn {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+}
