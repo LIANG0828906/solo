@@ -94,21 +94,67 @@ body {
   }
 }
 
+.welcome-icon {
+  font-size: 56px;
+  text-align: center;
+  margin-bottom: 16px;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
 .welcome-title {
   font-size: 32px;
   font-weight: 700;
   color: #ffffff;
   text-align: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   letter-spacing: -0.5px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 
 .welcome-subtitle {
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9);
   text-align: center;
-  margin-bottom: 40px;
-  line-height: 1.6;
+  margin-bottom: 32px;
+  line-height: 1.7;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 16px 20px;
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.welcome-features {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.welcome-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+}
+
+.welcome-feature-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 
 .btn-primary {
@@ -352,22 +398,32 @@ body {
   height: 56px;
   border-radius: 12px;
   cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.1s ease;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  user-select: none;
 }
 
 .gradient-option:hover {
-  transform: scale(1.03);
+  transform: scale(1.04);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.gradient-option:active {
+  transform: scale(0.96);
 }
 
 .gradient-option.selected {
   border-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.25),
+    0 4px 16px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: scale(1.02);
 }
 
 .gradient-option-label {
@@ -376,11 +432,17 @@ body {
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  background: rgba(0, 0, 0, 0.25);
-  padding: 3px 10px;
-  border-radius: 6px;
-  backdrop-filter: blur(4px);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 4px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.gradient-option.selected .gradient-option-label {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .gradient-option::after {
@@ -389,7 +451,7 @@ body {
   inset: 4px;
   border-radius: 8px;
   background: inherit;
-  filter: brightness(1.05);
+  filter: brightness(1.08);
 }
 
 .action-buttons {
