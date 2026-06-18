@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/modules/projects/projectform.tsx","./src/modules/projects/projectpanel.tsx","./src/modules/scheduler/budgetbar.tsx","./src/modules/scheduler/timeallocator.ts","./src/modules/shared/eventbus.ts","./src/modules/shared/storecontext.tsx"],"errors":true,"version":"5.8.3"}
