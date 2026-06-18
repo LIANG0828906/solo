@@ -26,6 +26,7 @@ export interface Connection {
   sourcePortIndex: number
   targetModuleId: string
   targetPortIndex: number
+  createdAt: number
 }
 
 export interface DraggingState {
@@ -40,6 +41,11 @@ export interface WiringState {
   mouseX: number
   mouseY: number
   active: boolean
+  hoverTargetPort: {
+    moduleId: string
+    direction: 'input' | 'output'
+    portIndex: number
+  } | null
 }
 
 interface ModuleStore {
@@ -56,13 +62,14 @@ interface ModuleStore {
   addConnection: (sourceModuleId: string, sourcePortIndex: number, targetModuleId: string, targetPortIndex: number) => void
   removeConnection: (id: string) => void
   togglePlay: () => void
+  setPlaying: (v: boolean) => void
   setDragging: (state: DraggingState) => void
   setWiring: (state: WiringState) => void
   resetActivation: () => void
   activateChain: () => void
 }
 
-const MAX_CONNECTIONS_PER_PORT = 3
+const MAX_CONNECTIONS_PER_MODULE = 3
 
 const DEFAULT_PARAMS: Record<ModuleType, Record<string, number>> = {
   oscillator: { frequency: 440, detune: 0, type: 0 },
@@ -85,24 +92,12 @@ export const MODULE_ICONS: Record<ModuleType, string> = {
   delay: '⟳',
 }
 
-function getConnectionsForInputPort(
-  connections: Connection[],
-  targetModuleId: string,
-  targetPortIndex: number
-): Connection[] {
-  return connections.filter(
-    (c) => c.targetModuleId === targetModuleId && c.targetPortIndex === targetPortIndex
-  )
+function getModuleInputCount(connections: Connection[], moduleId: string): Connection[] {
+  return connections.filter((c) => c.targetModuleId === moduleId)
 }
 
-function getConnectionsForOutputPort(
-  connections: Connection[],
-  sourceModuleId: string,
-  sourcePortIndex: number
-): Connection[] {
-  return connections.filter(
-    (c) => c.sourceModuleId === sourceModuleId && c.sourcePortIndex === sourcePortIndex
-  )
+function getModuleOutputCount(connections: Connection[], moduleId: string): Connection[] {
+  return connections.filter((c) => c.sourceModuleId === moduleId)
 }
 
 export const useModuleStore = create<ModuleStore>((set, get) => ({
@@ -110,7 +105,14 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
   connections: [],
   isPlaying: false,
   dragging: { moduleId: null, offsetX: 0, offsetY: 0 },
-  wiring: { sourceModuleId: null, sourcePortIndex: 0, mouseX: 0, mouseY: 0, active: false },
+  wiring: {
+    sourceModuleId: null,
+    sourcePortIndex: 0,
+    mouseX: 0,
+    mouseY: 0,
+    active: false,
+    hoverTargetPort: null,
+  },
 
   addModule: (type, gridX, gridY) => {
     const id = uuidv4()
@@ -170,16 +172,20 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
     )
     if (exists) return
 
-    let updatedConnections = [...connections]
+    let updated = [...connections]
 
-    const inputConns = getConnectionsForInputPort(updatedConnections, targetModuleId, targetPortIndex)
-    if (inputConns.length >= MAX_CONNECTIONS_PER_PORT) {
-      updatedConnections = updatedConnections.filter((c) => c.id !== inputConns[0].id)
+    const sourceOutputs = getModuleOutputCount(updated, sourceModuleId)
+    if (sourceOutputs.length >= MAX_CONNECTIONS_PER_MODULE) {
+      const sorted = [...sourceOutputs].sort((a, b) => a.createdAt - b.createdAt)
+      const toRemove = sorted[0].id
+      updated = updated.filter((c) => c.id !== toRemove)
     }
 
-    const outputConns = getConnectionsForOutputPort(updatedConnections, sourceModuleId, sourcePortIndex)
-    if (outputConns.length >= MAX_CONNECTIONS_PER_PORT) {
-      updatedConnections = updatedConnections.filter((c) => c.id !== outputConns[0].id)
+    const targetInputs = getModuleInputCount(updated, targetModuleId)
+    if (targetInputs.length >= MAX_CONNECTIONS_PER_MODULE) {
+      const sorted = [...targetInputs].sort((a, b) => a.createdAt - b.createdAt)
+      const toRemove = sorted[0].id
+      updated = updated.filter((c) => c.id !== toRemove)
     }
 
     const newConn: Connection = {
@@ -188,9 +194,10 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
       sourcePortIndex,
       targetModuleId,
       targetPortIndex,
+      createdAt: Date.now(),
     }
 
-    set({ connections: [...updatedConnections, newConn] })
+    set({ connections: [...updated, newConn] })
   },
 
   removeConnection: (id) => {
@@ -199,6 +206,10 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
 
   togglePlay: () => {
     set((s) => ({ isPlaying: !s.isPlaying }))
+  },
+
+  setPlaying: (v) => {
+    set({ isPlaying: v })
   },
 
   setDragging: (state) => set({ dragging: state }),
