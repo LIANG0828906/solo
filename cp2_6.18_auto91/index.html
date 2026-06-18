@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CrowdFlow - 人流密度可视化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0A0A0F;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      background: linear-gradient(180deg, #0A0A0F 0%, #1A1A2E 100%);
+    }
+    canvas {
+      display: block;
+    }
+    #density-bar-container {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      z-index: 100;
+      pointer-events: none;
+    }
+    #density-bar {
+      width: 30px;
+      height: 200px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    #density-gradient {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      background: linear-gradient(180deg, #FF3366 0%, #FF9966 30%, #00FFCC 70%, #00D4FF 100%);
+      border-radius: 8px;
+    }
+    #density-indicator {
+      position: absolute;
+      left: 50%;
+      transform: translate(-50%, 50%);
+      width: 14px;
+      height: 14px;
+      background: #FFFFFF;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+      transition: bottom 0.3s ease-out;
+    }
+    #density-value {
+      color: #FFFFFF;
+      font-size: 14px;
+      font-weight: 500;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+      white-space: nowrap;
+      min-width: 60px;
+    }
+    .corner-label {
+      position: absolute;
+      color: #FFFFFF;
+      font-size: 12px;
+      font-weight: 400;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      white-space: nowrap;
+    }
+    #title {
+      position: fixed;
+      top: 30px;
+      left: 30px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 16px;
+      font-weight: 300;
+      letter-spacing: 4px;
+      z-index: 100;
+      pointer-events: none;
+    }
+    #title span {
+      color: #00D4FF;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="title">CROWD<span>FLOW</span></div>
+    <div id="density-bar-container">
+      <div id="density-value">0%</div>
+      <div id="density-bar">
+        <div id="density-gradient"></div>
+        <div id="density-indicator" style="bottom: 0%;"></div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
