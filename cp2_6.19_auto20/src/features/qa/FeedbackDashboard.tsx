@@ -16,9 +16,12 @@ const statusOptions: { value: FeedbackStatus; label: string }[] = [
 ];
 
 export default function FeedbackDashboard() {
-  const { feedbacks, updateStatus, deleteFeedback } = useFeedbackStore();
+  const { feedbacks, updateStatus, deleteFeedback, clearAll, exportToJSON } = useFeedbackStore();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [rowsHeightMap, setRowsHeightMap] = useState<Record<string, { base: number; expanded: number }>>({});
+  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
+  const [confirmClear, setConfirmClear] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,7 +68,58 @@ export default function FeedbackDashboard() {
   };
 
   const toggleExpand = (id: string) => {
+    const isExpanding = expandedId !== id;
     setExpandedId(prev => prev === id ? null : id);
+    const heights = rowsHeightMap[id];
+    if (heights) {
+      setRowHeights(prev => ({
+        ...prev,
+        [id]: isExpanding ? heights.expanded : heights.base
+      }));
+      setTimeout(() => {
+        setRowHeights(prev => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      }, 320);
+    }
+  };
+
+  const registerRowHeight = (id: string, type: 'base' | 'expanded', height: number) => {
+    setRowsHeightMap(prev => ({
+      ...prev,
+      [id]: {
+        ...(prev[id] || { base: 60, expanded: 200 }),
+        [type]: height
+      }
+    }));
+  };
+
+  const handleExportJSON = () => {
+    const jsonStr = exportToJSON();
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
+    link.download = `feedbacks_${dateStr}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClearAll = () => {
+    if (confirmClear) {
+      clearAll();
+      setExpandedId(null);
+      setConfirmClear(false);
+    } else {
+      setConfirmClear(true);
+      setTimeout(() => setConfirmClear(false), 3000);
+    }
   };
 
   const filterButtons: { value: StatusFilter; label: string; count: number; color: string }[] = [
@@ -78,8 +132,40 @@ export default function FeedbackDashboard() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>反馈管理后台</h1>
-        <p style={styles.subtitle}>查看和管理所有用户反馈</p>
+        <div style={styles.headerLeft}>
+          <h1 style={styles.title}>反馈管理后台</h1>
+          <p style={styles.subtitle}>查看和管理所有用户反馈</p>
+        </div>
+        <div style={styles.headerActions}>
+          <button
+            onClick={handleExportJSON}
+            style={styles.actionBarButton}
+            className="action-export-button"
+            disabled={feedbacks.length === 0}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>导出JSON</span>
+          </button>
+          <button
+            onClick={handleClearAll}
+            style={{
+              ...styles.actionBarButton,
+              ...(confirmClear ? styles.actionBarButtonDanger : {})
+            }}
+            className="action-clear-button"
+            disabled={feedbacks.length === 0}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+            <span>{confirmClear ? '确认清空？' : '清空所有'}</span>
+          </button>
+        </div>
       </div>
 
       <div style={styles.statsRow}>
@@ -153,6 +239,8 @@ export default function FeedbackDashboard() {
                   onStatusChange={handleStatusChange}
                   onDelete={deleteFeedback}
                   formatDate={formatDate}
+                  forcedHeight={rowHeights[feedback.id]}
+                  registerHeight={(type, h) => registerRowHeight(feedback.id, type, h)}
                 />
               ))}
             </tbody>
@@ -171,10 +259,30 @@ interface TableRowProps {
   onStatusChange: (id: string, status: FeedbackStatus) => void;
   onDelete: (id: string) => void;
   formatDate: (iso: string) => string;
+  forcedHeight?: number;
+  registerHeight?: (type: 'base' | 'expanded', height: number) => void;
 }
 
-function TableRow({ feedback, index, expanded, onToggle, onStatusChange, onDelete, formatDate }: TableRowProps) {
+function TableRow({ feedback, index, expanded, onToggle, onStatusChange, onDelete, formatDate, forcedHeight, registerHeight }: TableRowProps) {
   const [isChanging, setIsChanging] = useState(false);
+  const baseRowRef = useRef<HTMLTableRowElement>(null);
+  const expandedRowRef = useRef<HTMLTableRowElement>(null);
+
+  useEffect(() => {
+    if (baseRowRef.current && registerHeight) {
+      registerHeight('base', baseRowRef.current.getBoundingClientRect().height);
+    }
+  }, [registerHeight]);
+
+  useEffect(() => {
+    if (expanded && expandedRowRef.current && registerHeight) {
+      setTimeout(() => {
+        if (expandedRowRef.current) {
+          registerHeight('expanded', expandedRowRef.current.getBoundingClientRect().height);
+        }
+      }, 0);
+    }
+  }, [expanded, registerHeight]);
 
   const handleStatusChange = (newStatus: FeedbackStatus) => {
     setIsChanging(true);
@@ -186,18 +294,26 @@ function TableRow({ feedback, index, expanded, onToggle, onStatusChange, onDelet
   const ratingColor = feedback.rating === 'useful' ? '#27ae60' : '#e74c3c';
   const status = statusConfig[feedback.status];
 
+  const baseRowStyle: React.CSSProperties = {
+    ...styles.tr,
+    ...(index % 2 === 0 ? {} : { backgroundColor: '#fafbfc' }),
+    animation: `fadeIn 300ms ease ${index * 30}ms both`,
+    transition: 'height 0.3s ease, background-color 0.3s ease, opacity 0.3s ease',
+    opacity: isChanging ? 0.7 : 1
+  };
+
+  if (forcedHeight !== undefined) {
+    baseRowStyle.height = forcedHeight + 'px';
+    baseRowStyle.overflow = 'hidden';
+  }
+
   return (
     <>
       <tr
+        ref={baseRowRef}
         data-row
-        style={{
-          ...styles.tr,
-          ...(index % 2 === 0 ? {} : { backgroundColor: '#fafbfc' }),
-          animation: `fadeIn 300ms ease ${index * 30}ms both`,
-          transition: 'all 300ms ease',
-          opacity: isChanging ? 0.7 : 1
-        }}
-        className="table-row"
+        style={baseRowStyle}
+        className={`table-row table-row-animate`}
       >
         <td style={{ ...styles.td, ...styles.questionCell }}>
           <span style={styles.questionText}>{feedback.question}</span>
@@ -237,7 +353,8 @@ function TableRow({ feedback, index, expanded, onToggle, onStatusChange, onDelet
             <span style={{
               ...styles.statusBadge,
               backgroundColor: status.bgColor,
-              color: status.color
+              color: status.color,
+              transition: 'background-color 0.3s ease, color 0.3s ease'
             }}>
               {status.label}
             </span>
@@ -274,10 +391,14 @@ function TableRow({ feedback, index, expanded, onToggle, onStatusChange, onDelet
         </td>
       </tr>
       {expanded && feedback.remark && (
-        <tr style={{
-          ...styles.expandedRow,
-          animation: 'fadeIn 300ms ease'
-        }}>
+        <tr
+          ref={expandedRowRef}
+          style={{
+            ...styles.expandedRow,
+            animation: 'fadeIn 300ms ease',
+            transition: 'all 0.3s ease'
+          }}
+        >
           <td colSpan={8} style={styles.expandedCell}>
             <div style={styles.expandedContent}>
               <span style={styles.expandedLabel}>完整备注：</span>
@@ -299,8 +420,14 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%'
   },
   header: {
-    marginBottom: '24px'
+    marginBottom: '24px',
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '16px'
   },
+  headerLeft: {},
   title: {
     fontSize: '24px',
     fontWeight: 700,
@@ -310,6 +437,30 @@ const styles: Record<string, React.CSSProperties> = {
   subtitle: {
     fontSize: '14px',
     color: '#7f8c8d'
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '10px'
+  },
+  actionBarButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '10px 16px',
+    fontSize: '13px',
+    fontWeight: 500,
+    color: '#2c3e50',
+    background: '#fff',
+    border: '1px solid #e1e8ed',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'all 150ms ease'
+  },
+  actionBarButtonDanger: {
+    background: '#fef2f2',
+    borderColor: '#fecaca',
+    color: '#dc2626',
+    animation: 'pulse 1s ease-in-out infinite'
   },
   statsRow: {
     display: 'grid',

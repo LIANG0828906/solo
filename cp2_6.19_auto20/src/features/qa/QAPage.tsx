@@ -14,6 +14,7 @@ export default function QAPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [showEmptyIllustration, setShowEmptyIllustration] = useState(false);
   const [showEmptyText, setShowEmptyText] = useState(false);
   const [feedbackPanel, setFeedbackPanel] = useState<FeedbackPanelState>({
     isOpen: false,
@@ -24,22 +25,38 @@ export default function QAPage() {
   const [remark, setRemark] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const emptyTextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const addFeedback = useFeedbackStore(state => state.addFeedback);
 
   const handleSearch = useCallback(() => {
     if (!query.trim()) return;
+    if (emptyTextTimerRef.current) {
+      clearTimeout(emptyTextTimerRef.current);
+    }
     setIsSearching(true);
     setHasSearched(true);
+    setShowEmptyIllustration(false);
     setShowEmptyText(false);
     setTimeout(() => {
       const searchResults = search(query);
       setResults(searchResults);
       setIsSearching(false);
       if (searchResults.length === 0) {
-        setTimeout(() => setShowEmptyText(true), 3000);
+        setShowEmptyIllustration(true);
+        emptyTextTimerRef.current = setTimeout(() => {
+          setShowEmptyText(true);
+        }, 3000);
       }
     }, 10);
   }, [query]);
+
+  useEffect(() => {
+    return () => {
+      if (emptyTextTimerRef.current) {
+        clearTimeout(emptyTextTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -157,11 +174,19 @@ export default function QAPage() {
       <div style={styles.resultsSection}>
         {hasSearched && !isSearching && results.length === 0 && (
           <div style={styles.emptyState}>
-            {emptyStateIllustration}
+            <div style={{
+              ...styles.emptyIllustrationWrapper,
+              opacity: showEmptyIllustration ? 1 : 0,
+              transform: showEmptyIllustration ? 'scale(1)' : 'scale(0.8)',
+              transition: 'all 500ms cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}>
+              {emptyStateIllustration}
+            </div>
             <p style={{
               ...styles.emptyText,
               opacity: showEmptyText ? 1 : 0,
-              transition: 'opacity 1s ease'
+              transform: showEmptyText ? 'translateY(0)' : 'translateY(10px)',
+              transition: 'all 1s ease'
             }}>
               没有找到匹配内容，请换个关键词试试
             </p>
@@ -425,16 +450,24 @@ const styles: Record<string, React.CSSProperties> = {
   },
   emptyState: {
     textAlign: 'center',
-    padding: '60px 20px'
+    padding: '60px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+  emptyIllustrationWrapper: {
+    marginBottom: '24px',
+    display: 'flex',
+    justifyContent: 'center'
   },
   emptyIllustration: {
-    marginBottom: '24px',
     display: 'flex',
     justifyContent: 'center'
   },
   emptyText: {
     fontSize: '15px',
-    color: '#7f8c8d'
+    color: '#7f8c8d',
+    opacity: 0
   },
   overlay: {
     position: 'fixed',
@@ -450,14 +483,14 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'fixed',
     left: '50%',
     bottom: 0,
-    transform: 'translateX(-50%)',
     width: '100%',
     maxWidth: '600px',
     background: '#fff',
     borderRadius: '16px 16px 0 0',
     boxShadow: '0 -4px 30px rgba(0, 0, 0, 0.15)',
     zIndex: 1000,
-    animation: 'slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1)'
+    transform: 'translateX(-50%) translateY(0)',
+    animation: 'feedbackBounceIn 300ms cubic-bezier(0.68, -0.55, 0.27, 1.55) both'
   },
   panelHeader: {
     display: 'flex',

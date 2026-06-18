@@ -14,6 +14,9 @@ interface ParagraphInfo {
   paragraph: string;
   matchCount: number;
   matchedKeywords: string[];
+  isTitleMatch: boolean;
+  titleMatchCount: number;
+  positionBonus: number;
 }
 
 const PARAGRAPH_SPLIT_REGEX = /[。！？.!?\n]+/;
@@ -54,14 +57,16 @@ function splitIntoParagraphs(text: string): string[] {
 }
 
 function calculateConfidence(paragraphInfo: ParagraphInfo): number {
-  const { paragraph, matchCount, matchedKeywords } = paragraphInfo;
+  const { paragraph, matchCount, matchedKeywords, isTitleMatch, titleMatchCount, positionBonus } = paragraphInfo;
   const paraLength = paragraph.length;
   const uniqueMatchCount = matchedKeywords.length;
   const lengthFactor = Math.min(1, 50 / (paraLength + 10));
   const matchDensity = (matchCount * 10) / (paraLength + 1);
   const keywordLengthBonus = matchedKeywords.reduce((sum, kw) => sum + kw.length, 0) / 10;
-  const baseScore = (uniqueMatchCount * 20) + (matchCount * 5) + keywordLengthBonus;
-  const adjustedScore = baseScore * (0.5 + lengthFactor * 0.5) * (0.7 + matchDensity * 0.3);
+  const titleMultiplier = isTitleMatch ? 2.0 : 1.0;
+  const titleBonus = titleMatchCount * 15;
+  const baseScore = (uniqueMatchCount * 20) + (matchCount * 5) + keywordLengthBonus + titleBonus + positionBonus;
+  const adjustedScore = baseScore * titleMultiplier * (0.5 + lengthFactor * 0.5) * (0.7 + matchDensity * 0.3);
   return Math.min(99, Math.max(10, adjustedScore));
 }
 
@@ -83,28 +88,58 @@ export function search(query: string): SearchResult[] {
   if (keywords.length === 0) return [];
   const paragraphMatches: ParagraphInfo[] = [];
   for (const chapter of manualData) {
+    const lowerTitle = chapter.title.toLowerCase();
+    const titleMatchedKeywords: string[] = [];
+    let titleMatchCount = 0;
+    for (const keyword of keywords) {
+      if (lowerTitle.includes(keyword.toLowerCase())) {
+        titleMatchedKeywords.push(keyword);
+        const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        const matches = lowerTitle.match(regex);
+        titleMatchCount += matches ? matches.length : 0;
+      }
+    }
+    const isTitleMatch = titleMatchedKeywords.length > 0;
     const paragraphs = splitIntoParagraphs(chapter.content);
-    for (const paragraph of paragraphs) {
+    paragraphs.forEach((paragraph, pIndex) => {
       const lowerParagraph = paragraph.toLowerCase();
       const matchedKeywords: string[] = [];
       let matchCount = 0;
+      let positionBonus = 0;
       for (const keyword of keywords) {
-        if (lowerParagraph.includes(keyword.toLowerCase())) {
+        const kwLower = keyword.toLowerCase();
+        if (lowerParagraph.includes(kwLower)) {
           matchedKeywords.push(keyword);
-          const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+          const regex = new RegExp(kwLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
           const matches = lowerParagraph.match(regex);
-          matchCount += matches ? matches.length : 0;
+          const count = matches ? matches.length : 0;
+          matchCount += count;
+          const firstPos = lowerParagraph.indexOf(kwLower);
+          if (firstPos < 20) {
+            positionBonus += 8;
+          } else if (firstPos < 50) {
+            positionBonus += 4;
+          }
         }
       }
-      if (matchedKeywords.length > 0) {
+      if (pIndex === 0) {
+        positionBonus += 5;
+      }
+      const allMatched = [...new Set([...matchedKeywords, ...titleMatchedKeywords])];
+      if (allMatched.length > 0 || isTitleMatch) {
+        const finalMatched = allMatched.length > 0 ? allMatched : titleMatchedKeywords;
+        const finalMatchCount = matchCount + titleMatchCount;
         paragraphMatches.push({
           chapter,
-          paragraph,
-          matchCount,
-          matchedKeywords
+          paragraph: paragraph || chapter.content.slice(0, 60),
+          matchCount: finalMatchCount,
+          matchedKeywords: finalMatched,
+          isTitleMatch,
+          titleMatchCount,
+          positionBonus
         });
       }
-    }
+    });
   }
   paragraphMatches.sort(sortByWeight);
   const results = paragraphMatches.slice(0, MAX_RESULTS).map(info => {
