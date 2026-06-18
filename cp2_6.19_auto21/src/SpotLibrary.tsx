@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Spot, SpotCategory, CATEGORY_COLORS, SPOTS, filterSpots } from './data';
 import { useRouteStore } from './store';
 
@@ -103,19 +103,77 @@ interface SpotLibraryProps {
 
 export default function SpotLibrary({ onDragStart }: SpotLibraryProps) {
   const [keyword, setKeyword] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [category, setCategory] = useState<SpotCategory | '全部'>('全部');
-  const [animKey, setAnimKey] = useState(0);
+  const [displayedSpots, setDisplayedSpots] = useState<Spot[]>(SPOTS);
+  const [phase, setPhase] = useState<'idle' | 'exiting' | 'entering'>('idle');
+  const [pendingSpots, setPendingSpots] = useState<Spot[] | null>(null);
+  const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
+  const [enteringIds, setEnteringIds] = useState<Set<string>>(new Set());
   const lastFilterRef = useRef('');
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filtered = useMemo(() => {
-    const result = filterSpots(SPOTS, keyword, category);
-    const filterKey = `${keyword}-${category}`;
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedKeyword(keyword);
+    }, 150);
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [keyword]);
+
+  useEffect(() => {
+    const start = performance.now();
+    const filtered = filterSpots(SPOTS, debouncedKeyword, category);
+    const filterKey = `${debouncedKeyword}-${category}`;
+    
     if (filterKey !== lastFilterRef.current) {
       lastFilterRef.current = filterKey;
-      setAnimKey((k) => k + 1);
+      
+      setDisplayedSpots(currentDisplayed => {
+        const exiting = new Set(currentDisplayed.filter(s => !filtered.find(f => f.id === s.id)).map(s => s.id));
+        const entering = new Set(filtered.filter(s => !currentDisplayed.find(d => d.id === s.id)).map(s => s.id));
+        
+        if (exiting.size > 0) {
+          setExitingIds(exiting);
+          setPhase('exiting');
+          setPendingSpots(filtered);
+          setEnteringIds(entering);
+          
+          setTimeout(() => {
+            setDisplayedSpots(filtered);
+            setExitingIds(new Set());
+            setPhase('entering');
+            
+            setTimeout(() => {
+              setEnteringIds(new Set());
+              setPhase('idle');
+              setPendingSpots(null);
+            }, 200);
+          }, 150);
+          return currentDisplayed;
+        } else if (entering.size > 0) {
+          setEnteringIds(entering);
+          setPhase('entering');
+          
+          setTimeout(() => {
+            setEnteringIds(new Set());
+            setPhase('idle');
+          }, 200);
+          return filtered;
+        }
+        return filtered;
+      });
     }
-    return result;
-  }, [keyword, category]);
+    
+    const elapsed = performance.now() - start;
+    if (elapsed > 180) {
+      console.warn(`Search filter took ${elapsed}ms, target <200ms`);
+    }
+  }, [debouncedKeyword, category]);
 
   const handleKeywordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setKeyword(e.target.value);
@@ -177,17 +235,23 @@ export default function SpotLibrary({ onDragStart }: SpotLibraryProps) {
           alignContent: 'start',
         }}
       >
-        {filtered.map((spot, i) => (
-          <div
-            key={spot.id}
-            style={{
-              animation: animKey > 0 ? `fadeScaleIn 0.2s ease ${i * 30}ms both` : 'none',
-            }}
-          >
-            <SpotCard spot={spot} onDragStart={onDragStart} animating={false} />
-          </div>
-        ))}
-        {filtered.length === 0 && (
+        {displayedSpots.map((spot) => {
+          const isExiting = exitingIds.has(spot.id);
+          const isEntering = enteringIds.has(spot.id);
+          return (
+            <div
+              key={spot.id}
+              style={{
+                transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease',
+                transform: isExiting ? 'scale(0.85)' : (isEntering ? 'scale(0.85)' : 'scale(1)'),
+                opacity: isExiting ? 0 : (isEntering ? 0 : 1),
+              }}
+            >
+              <SpotCard spot={spot} onDragStart={onDragStart} animating={false} />
+            </div>
+          );
+        })}
+        {displayedSpots.length === 0 && (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#aaa', padding: 40, fontSize: 14 }}>
             没有找到匹配的景点
           </div>
@@ -195,7 +259,7 @@ export default function SpotLibrary({ onDragStart }: SpotLibraryProps) {
       </div>
       <style>{`
         @keyframes fadeScaleIn {
-          from { opacity: 0; transform: scale(0.9); }
+          from { opacity: 0; transform: scale(0.85); }
           to { opacity: 1; transform: scale(1); }
         }
       `}</style>
