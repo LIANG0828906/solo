@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 import { Dumbbell } from 'lucide-react';
 import './ActionLibrary.css';
@@ -68,6 +68,37 @@ export default function ActionLibrary({ actions }: ActionLibraryProps) {
   }, [actions, searchKeyword, selectedGroup]);
 
   const visibleIds = useMemo(() => new Set(filteredActions.map((a) => a.id)), [filteredActions]);
+  const prevVisibleIdsRef = useRef<Set<string>>(new Set());
+  const [bouncingIds, setBouncingIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const prevVisibleIds = prevVisibleIdsRef.current;
+    const newIds: string[] = [];
+
+    filteredActions.forEach((action) => {
+      if (!prevVisibleIds.has(action.id)) {
+        newIds.push(action.id);
+      }
+    });
+
+    if (newIds.length > 0) {
+      setBouncingIds((prev) => {
+        const next = new Set(prev);
+        newIds.forEach((id) => next.add(id));
+        return next;
+      });
+
+      setTimeout(() => {
+        setBouncingIds((prev) => {
+          const next = new Set(prev);
+          newIds.forEach((id) => next.delete(id));
+          return next;
+        });
+      }, 400);
+    }
+
+    prevVisibleIdsRef.current = visibleIds;
+  }, [filteredActions, visibleIds]);
 
   return (
     <div className="action-library">
@@ -121,11 +152,11 @@ export default function ActionLibrary({ actions }: ActionLibraryProps) {
                       {...dragProvided.draggableProps}
                       {...dragProvided.dragHandleProps}
                       className={`action-card ${!isVisible ? 'scale-out' : ''} ${
+                        isVisible && bouncingIds.has(action.id) ? 'animate-bounce' : ''} ${
                         dragSnapshot.isDragging ? 'dragging' : ''
                       }`}
                       style={{
                         ...dragProvided.draggableProps.style,
-                        display: isVisible ? undefined : 'none',
                       }}
                     >
                       <div className="card-image">

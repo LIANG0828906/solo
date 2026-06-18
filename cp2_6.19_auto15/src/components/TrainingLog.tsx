@@ -112,15 +112,14 @@ function getProgressGradient(percent: number): string {
   return 'linear-gradient(90deg, #4ecdc4, #45b7d1)';
 }
 
+function getPulseColor(percent: number): string {
+  if (percent >= 100) return '#66bb6a';
+  if (percent >= 80) return '#ffa726';
+  return '#4ecdc4';
+}
+
 function parseWeekKey(weekKey: string): Date {
-  const [yearStr, weekStr] = weekKey.split('-W');
-  const year = parseInt(yearStr, 10);
-  const week = parseInt(weekStr, 10);
-  const date = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
-  const dayOfWeek = date.getUTCDay();
-  const diff = (dayOfWeek + 6) % 7;
-  date.setUTCDate(date.getUTCDate() - diff);
-  return date;
+  return new Date(weekKey);
 }
 
 function formatDateMMDD(date: Date): string {
@@ -138,22 +137,21 @@ function addDays(date: Date, days: number): Date {
 function generateWeekKey(offsetWeeks: number, baseWeekKey: string): string {
   const baseDate = parseWeekKey(baseWeekKey);
   const targetDate = addDays(baseDate, offsetWeeks * 7);
-  const year = targetDate.getUTCFullYear();
-  const oneJan = new Date(Date.UTC(year, 0, 1));
-  const daysDiff = Math.floor((targetDate.getTime() - oneJan.getTime()) / (1000 * 60 * 60 * 24));
-  const week = Math.ceil((daysDiff + oneJan.getUTCDay() + 1) / 7);
-  return `${year}-W${week.toString().padStart(2, '0')}`;
+  const year = targetDate.getFullYear();
+  const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const day = String(targetDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export default function TrainingLog({ weekKey, plan, logs, onUpdateLog }: TrainingLogProps) {
   const [currentTab, setCurrentTab] = useState<'log' | 'trend'>('log');
   const [expandedDays, setExpandedDays] = useState<Set<DayOfWeek>>(new Set(DAYS.map(d => d.key)));
   const [trendOffset, setTrendOffset] = useState(0);
-  const [animKey, setAnimKey] = useState(0);
-  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
-  const [pulsingKeys, setPulsingKeys] = useState<Set<string>>(new Set());
-  const prevPercentRef = useRef<Record<string, number>>({});
-  const pulseTimeoutsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const [displayTrendData, setDisplayTrendData] = useState<TrendDataPoint[]>([]);
+  const [slideAnimClass, setSlideAnimClass] = useState<string>('');
+  const slideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevTrendOffsetRef = useRef(0);
+  const isFirstTrendLoadRef = useRef(true);
 
   const toggleDay = (day: DayOfWeek) => {
     setExpandedDays(prev => {
@@ -230,58 +228,11 @@ export default function TrainingLog({ weekKey, plan, logs, onUpdateLog }: Traini
     onUpdateLog(entry);
   };
 
-  const exercisePercentKey = (planId: string, day: DayOfWeek): string => `${planId}-${day}`;
-
-  const triggerPulse = (key: string) => {
-    if (pulseTimeoutsRef.current[key]) {
-      clearTimeout(pulseTimeoutsRef.current[key]);
-    }
-    setPulsingKeys(prev => {
-      const next = new Set(prev);
-      next.add(key);
-      return next;
-    });
-    pulseTimeoutsRef.current[key] = setTimeout(() => {
-      setPulsingKeys(prev => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
-      delete pulseTimeoutsRef.current[key];
-    }, 3000);
-  };
-
   useEffect(() => {
-    return () => {
-      Object.values(pulseTimeoutsRef.current).forEach(t => clearTimeout(t));
-    };
+    if (slideTimeoutRef.current) {
+      clearTimeout(slideTimeoutRef.current);
+    }
   }, []);
-
-  const exerciseProgressList = useMemo(() => {
-    const list: { key: string; percent: number }[] = [];
-    for (const day of DAYS) {
-      const exercises = plan.days[day.key] || [];
-      for (const planExercise of exercises) {
-        const loggedSets = getLoggedSetsOrDefault(planExercise, day.key);
-        const targetV = calcTargetVolume(planExercise);
-        const actualV = calcActualVolume(loggedSets);
-        const percent = calcCompletionPercent(targetV, actualV);
-        const key = exercisePercentKey(planExercise.planId, day.key);
-        list.push({ key, percent });
-      }
-    }
-    return list;
-  }, [plan, logs, weekKey]);
-
-  useEffect(() => {
-    for (const { key, percent } of exerciseProgressList) {
-      const prevPercent = prevPercentRef.current[key] ?? 0;
-      if (percent >= 80 && percent !== prevPercent) {
-        triggerPulse(key);
-      }
-      prevPercentRef.current[key] = percent;
-    }
-  }, [exerciseProgressList]);
 
   const trendData = useMemo<TrendDataPoint[]>(() => {
     const data: TrendDataPoint[] = [];
@@ -316,16 +267,42 @@ export default function TrainingLog({ weekKey, plan, logs, onUpdateLog }: Traini
   }, [trendOffset, weekKey, plan, logs]);
 
   const handlePrevWeek = () => {
-    setSlideDirection('right');
     setTrendOffset(prev => prev - 1);
-    setAnimKey(prev => prev + 1);
   };
 
   const handleNextWeek = () => {
-    setSlideDirection('left');
     setTrendOffset(prev => prev + 1);
-    setAnimKey(prev => prev + 1);
   };
+
+  useEffect(() => {
+    if (isFirstTrendLoadRef.current) {
+      if (trendData.length > 0) {
+        setDisplayTrendData(trendData);
+        isFirstTrendLoadRef.current = false;
+      }
+      return;
+    }
+
+    if (prevTrendOffsetRef.current === trendOffset) return;
+
+    const direction = trendOffset > prevTrendOffsetRef.current ? 'left' : 'right';
+    prevTrendOffsetRef.current = trendOffset;
+
+    if (slideTimeoutRef.current) {
+      clearTimeout(slideTimeoutRef.current);
+    }
+
+    setSlideAnimClass(`slide-out-${direction}`);
+
+    slideTimeoutRef.current = setTimeout(() => {
+      setDisplayTrendData(trendData);
+      setSlideAnimClass(`slide-in-${direction}`);
+      slideTimeoutRef.current = setTimeout(() => {
+        setSlideAnimClass('');
+        slideTimeoutRef.current = null;
+      }, 400);
+    }, 400);
+  }, [trendOffset, trendData]);
 
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number }>; label?: string }) => {
     if (active && payload && payload.length) {
@@ -387,10 +364,10 @@ export default function TrainingLog({ weekKey, plan, logs, onUpdateLog }: Traini
                       const actualV = calcActualVolume(loggedSets);
                       const percent = calcCompletionPercent(targetV, actualV);
                       const clampedPercent = clampPercent(percent);
-                      const key = exercisePercentKey(planExercise.planId, day.key);
-                      const shouldPulse = pulsingKeys.has(key);
+                      const shouldPulse = percent >= 50 && actualV > 0;
 
                       const gradient = getProgressGradient(percent);
+                      const pulseColor = getPulseColor(percent);
                       const setVolume = (s: LoggedSet) => s.actualReps * s.actualWeight;
 
                       return (
@@ -464,6 +441,7 @@ export default function TrainingLog({ weekKey, plan, logs, onUpdateLog }: Traini
                                 style={{
                                   width: `${clampedPercent}%`,
                                   background: gradient,
+                                  ['--pulse-color' as any]: pulseColor,
                                 }}
                               />
                               <span className="percent-text">{percent.toFixed(0)}%</span>
@@ -493,25 +471,9 @@ export default function TrainingLog({ weekKey, plan, logs, onUpdateLog }: Traini
               </button>
             </div>
           </div>
-          <div
-            key={animKey}
-            className="trend-chart-wrap"
-            style={{
-              transform: slideDirection === 'right' ? 'translateX(20px)' : 'translateX(-20px)',
-              opacity: 0,
-              animation: 'trendSlideIn 400ms ease-in-out forwards',
-            }}
-          >
-            <style>{`
-              @keyframes trendSlideIn {
-                to {
-                  transform: translateX(0);
-                  opacity: 1;
-                }
-              }
-            `}</style>
+          <div className={`trend-chart-wrap ${slideAnimClass}`}>
             <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={trendData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+              <BarChart data={displayTrendData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
                 <Defs>
                   <LinearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#4ecdc4" />

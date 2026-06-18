@@ -91,17 +91,48 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   cursor: grab;
-  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    opacity 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 350ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 200ms ease;
   transform: scale(1);
   opacity: 1;
   border: 1px solid #f3f4f6;
+  transform-origin: center center;
 }
 
 .action-card:hover {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+  transform: translateY(-3px) scale(1.02);
+}
+
+.action-card.scale-in {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.action-card.scale-out {
+  transform: scale(0.7);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes bounce-scale {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.action-card.animate-bounce {
+  animation: bounce-scale 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .action-card:active {
@@ -112,11 +143,6 @@
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   transform: scale(1.03);
   z-index: 10;
-}
-
-.action-card.scale-out {
-  transform: scale(0.9);
-  opacity: 0.4;
 }
 
 .card-image {

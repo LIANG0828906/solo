@@ -1,5 +1,6 @@
+import { useState, useEffect, useRef } from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Edit3 } from 'lucide-react';
 import './TrainingPlan.css';
 
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -23,9 +24,10 @@ export interface WeeklyPlan {
 
 interface TrainingPlanProps {
   weekKey: string;
-  plan: WeeklyPlan;
-  onUpdateExercise: (day: DayOfWeek, planId: string, field: keyof PlannedExercise, value: number) => void;
-  onRemoveExercise: (day: DayOfWeek, planId: string) => void;
+  weeklyPlan: WeeklyPlan;
+  onUpdatePlannedExercise: (day: DayOfWeek, planId: string, field: keyof PlannedExercise, value: number) => void;
+  onRemovePlannedExercise: (day: DayOfWeek, planId: string) => void;
+  onStartLogging?: (exercise: PlannedExercise, day: DayOfWeek) => void;
 }
 
 const DAYS: { key: DayOfWeek; label: string }[] = [
@@ -48,11 +50,54 @@ const MUSCLE_COLORS: Record<MuscleGroup, string> = {
 };
 
 export default function TrainingPlan({
-  plan,
-  onUpdateExercise,
-  onRemoveExercise,
+  weekKey,
+  weeklyPlan,
+  onUpdatePlannedExercise,
+  onRemovePlannedExercise,
+  onStartLogging,
 }: TrainingPlanProps) {
-  const maxExercises = Math.max(...DAYS.map((d) => plan.days[d.key].length), 0);
+  const [newCardIds, setNewCardIds] = useState<Set<string>>(new Set());
+  const prevPlanIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const currentIds = new Set<string>();
+    for (const day of DAYS) {
+      for (const ex of weeklyPlan.days[day.key]) {
+        currentIds.add(ex.planId);
+      }
+    }
+
+    const newIds = new Set<string>();
+    if (prevPlanIdsRef.current.size > 0) {
+      for (const id of currentIds) {
+        if (!prevPlanIdsRef.current.has(id)) {
+          newIds.add(id);
+        }
+      }
+    }
+
+    if (newIds.size > 0) {
+      setNewCardIds((prev) => {
+        const next = new Set(prev);
+        newIds.forEach((id) => next.add(id));
+        return next;
+      });
+
+      const timer = setTimeout(() => {
+        setNewCardIds((prev) => {
+          const next = new Set(prev);
+          newIds.forEach((id) => next.delete(id));
+          return next;
+        });
+      }, 600);
+
+      return () => clearTimeout(timer);
+    }
+
+    prevPlanIdsRef.current = currentIds;
+  }, [weeklyPlan]);
+
+  const maxExercises = Math.max(...DAYS.map((d) => weeklyPlan.days[d.key].length), 0);
   const rows = maxExercises === 0 ? 1 : maxExercises;
 
   return (
@@ -69,7 +114,7 @@ export default function TrainingPlan({
           {Array.from({ length: rows }).map((_, rowIndex) => (
             <tr key={rowIndex}>
               {DAYS.map((day) => {
-                const exercises = plan.days[day.key];
+                const exercises = weeklyPlan.days[day.key];
                 if (rowIndex === 0) {
                   return (
                     <td key={day.key} rowSpan={rows}>
@@ -94,7 +139,7 @@ export default function TrainingPlan({
                                       ref={dragProvided.innerRef}
                                       {...dragProvided.draggableProps}
                                       {...dragProvided.dragHandleProps}
-                                      className={`planned-card ${dragSnapshot.isDragging ? 'dragging' : ''}`}
+                                      className={`planned-card ${dragSnapshot.isDragging ? 'dragging' : ''} ${newCardIds.has(exercise.planId) ? 'is-new' : ''}`}
                                     >
                                       <div className="planned-card-header">
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
@@ -114,7 +159,7 @@ export default function TrainingPlan({
                                         <button
                                           type="button"
                                           className="remove-btn"
-                                          onClick={() => onRemoveExercise(day.key, exercise.planId)}
+                                          onClick={() => onRemovePlannedExercise(day.key, exercise.planId)}
                                           aria-label="删除动作"
                                         >
                                           <Trash2 size={16} />
@@ -129,7 +174,7 @@ export default function TrainingPlan({
                                             value={exercise.targetSets}
                                             min={0}
                                             onChange={(e) =>
-                                              onUpdateExercise(
+                                              onUpdatePlannedExercise(
                                                 day.key,
                                                 exercise.planId,
                                                 'targetSets',
@@ -146,7 +191,7 @@ export default function TrainingPlan({
                                             value={exercise.targetReps}
                                             min={0}
                                             onChange={(e) =>
-                                              onUpdateExercise(
+                                              onUpdatePlannedExercise(
                                                 day.key,
                                                 exercise.planId,
                                                 'targetReps',
@@ -164,7 +209,7 @@ export default function TrainingPlan({
                                             min={0}
                                             step={0.5}
                                             onChange={(e) =>
-                                              onUpdateExercise(
+                                              onUpdatePlannedExercise(
                                                 day.key,
                                                 exercise.planId,
                                                 'targetWeight',
@@ -174,6 +219,16 @@ export default function TrainingPlan({
                                           />
                                         </div>
                                       </div>
+                                      {onStartLogging && (
+                                        <button
+                                          type="button"
+                                          className="log-btn"
+                                          onClick={() => onStartLogging(exercise, day.key)}
+                                        >
+                                          <Edit3 size={12} />
+                                          记录
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                 </Draggable>

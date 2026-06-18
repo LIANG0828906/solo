@@ -166,16 +166,16 @@
 
 .progress-bar-fill.pulse::after {
   animation: pulse 1.5s ease-in-out infinite;
-  box-shadow: 0 0 12px rgba(78, 205, 196, 0.8);
+  box-shadow: 0 0 12px var(--pulse-color);
   opacity: 1;
 }
 
 @keyframes pulse {
   0%, 100% {
-    box-shadow: 0 0 8px rgba(78, 205, 196, 0.6);
+    box-shadow: 0 0 8px var(--pulse-color);
   }
   50% {
-    box-shadow: 0 0 20px rgba(78, 205, 196, 0.9);
+    box-shadow: 0 0 20px var(--pulse-color);
   }
 }
 
@@ -229,7 +229,49 @@
 }
 
 .trend-chart-wrap {
-  transition: transform 400ms ease-in-out;
+  transition: transform 400ms ease-in-out, opacity 400ms ease-in-out;
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.trend-chart-wrap.slide-out-left {
+  transform: translateX(-30px);
+  opacity: 0;
+}
+
+.trend-chart-wrap.slide-out-right {
+  transform: translateX(30px);
+  opacity: 0;
+}
+
+.trend-chart-wrap.slide-in-left {
+  animation: slideInLeft 400ms ease-out;
+}
+
+.trend-chart-wrap.slide-in-right {
+  animation: slideInRight 400ms ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .day-empty {
