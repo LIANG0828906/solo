@@ -1,4 +1,9 @@
 export class UI {
+  private static readonly DROPZONE_DEFAULT_BG = 'rgba(255,255,255,0.9)';
+  private static readonly DROPZONE_DEFAULT_BORDER = '#6366F1';
+  private static readonly DROPZONE_ACTIVE_BG = '#EEF2FF';
+  private static readonly DROPZONE_ACTIVE_BORDER = '#8B5CF6';
+
   private uploadContainer: HTMLDivElement;
   private dropZone: HTMLDivElement;
   private fileInput: HTMLInputElement;
@@ -8,6 +13,7 @@ export class UI {
   private gridToggle: HTMLInputElement;
   private resetBtn: HTMLButtonElement;
   private infoCard: HTMLDivElement | null = null;
+  private isRemovingCard: boolean = false;
   private imageCallback: ((img: HTMLImageElement) => void) | null = null;
   private resetCallback: (() => void) | null = null;
   private gridCallback: ((visible: boolean) => void) | null = null;
@@ -50,8 +56,9 @@ export class UI {
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: background 0.2s, border-color 0.2s;
+      transition: background-color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
       background: rgba(255,255,255,0.9);
+      background-color: rgba(255,255,255,0.9);
     `;
 
     const icon = document.createElement('div');
@@ -97,19 +104,31 @@ export class UI {
   private setupDropZone() {
     this.dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      this.dropZone.style.background = '#EEF2FF';
-      this.dropZone.style.borderColor = '#8B5CF6';
+      this.dropZone.style.background = UI.DROPZONE_ACTIVE_BG;
+      this.dropZone.style.backgroundColor = UI.DROPZONE_ACTIVE_BG;
+      this.dropZone.style.borderColor = UI.DROPZONE_ACTIVE_BORDER;
     });
 
-    this.dropZone.addEventListener('dragleave', () => {
-      this.dropZone.style.background = 'rgba(255,255,255,0.9)';
-      this.dropZone.style.borderColor = '#6366F1';
+    this.dropZone.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      const rect = this.dropZone.getBoundingClientRect();
+      if (
+        e.clientX < rect.left ||
+        e.clientX > rect.right ||
+        e.clientY < rect.top ||
+        e.clientY > rect.bottom
+      ) {
+        this.dropZone.style.background = UI.DROPZONE_DEFAULT_BG;
+        this.dropZone.style.backgroundColor = UI.DROPZONE_DEFAULT_BG;
+        this.dropZone.style.borderColor = UI.DROPZONE_DEFAULT_BORDER;
+      }
     });
 
     this.dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
-      this.dropZone.style.background = 'rgba(255,255,255,0.9)';
-      this.dropZone.style.borderColor = '#6366F1';
+      this.dropZone.style.background = UI.DROPZONE_DEFAULT_BG;
+      this.dropZone.style.backgroundColor = UI.DROPZONE_DEFAULT_BG;
+      this.dropZone.style.borderColor = UI.DROPZONE_DEFAULT_BORDER;
       const file = e.dataTransfer?.files[0];
       if (file && file.type.startsWith('image/')) {
         this.handleFile(file);
@@ -261,8 +280,9 @@ export class UI {
       position: absolute;
       inset: 0;
       background: #CBD5E1;
+      background-color: #CBD5E1;
       border-radius: 12px;
-      transition: background 0.2s ease;
+      transition: background-color 0.2s ease, background 0.2s ease;
     `;
 
     const knob = document.createElement('span');
@@ -306,9 +326,10 @@ export class UI {
     const btn = document.createElement('button');
     btn.id = 'reset-view-btn';
     btn.innerHTML = `
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+      <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 3 L2 12 L5 12 L5 21 L10 21 L10 14 L14 14 L14 21 L19 21 L19 12 L22 12 Z"
+              fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linejoin="round" stroke-linecap="round"/>
       </svg>
     `;
     btn.title = '复位视角';
@@ -397,6 +418,8 @@ export class UI {
     card.style.top = `${top}px`;
 
     const closeBtn = document.createElement('button');
+    closeBtn.setAttribute('role', 'button');
+    closeBtn.setAttribute('aria-label', '关闭');
     closeBtn.style.cssText = `
       position: absolute;
       top: 8px;
@@ -412,17 +435,24 @@ export class UI {
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s;
+      transition: background-color 0.2s ease;
       box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      z-index: 1;
     `;
-    closeBtn.innerHTML = '✕';
+    closeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="6" y1="18" x2="18" y2="6"></line></svg>';
     closeBtn.addEventListener('mouseenter', () => {
-      closeBtn.style.background = '#F1F5F9';
+      closeBtn.style.backgroundColor = '#F1F5F9';
     });
     closeBtn.addEventListener('mouseleave', () => {
-      closeBtn.style.background = 'white';
+      closeBtn.style.backgroundColor = 'white';
     });
-    closeBtn.addEventListener('click', () => this.removeInfoCard());
+    const handleCloseClick = (e: Event) => {
+      e.stopPropagation();
+      e.preventDefault();
+      this.removeInfoCard();
+    };
+    closeBtn.addEventListener('click', handleCloseClick, { once: false });
+    (closeBtn as any)._closeHandler = handleCloseClick;
 
     const idLine = document.createElement('div');
     idLine.style.cssText = `
@@ -468,15 +498,17 @@ export class UI {
   }
 
   private removeInfoCard() {
-    if (this.infoCard) {
-      const card = this.infoCard;
-      card.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
-      card.style.opacity = '0';
-      card.style.transform = 'translateY(-6px)';
-      setTimeout(() => {
-        if (card.parentNode) card.parentNode.removeChild(card);
-      }, 200);
-      this.infoCard = null;
-    }
+    if (this.isRemovingCard || !this.infoCard) return;
+    this.isRemovingCard = true;
+
+    const card = this.infoCard;
+    card.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(-6px)';
+    setTimeout(() => {
+      if (card.parentNode) card.parentNode.removeChild(card);
+      this.isRemovingCard = false;
+    }, 200);
+    this.infoCard = null;
   }
 }
