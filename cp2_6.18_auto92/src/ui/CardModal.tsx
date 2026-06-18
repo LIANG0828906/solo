@@ -10,7 +10,9 @@ export const CardModal: React.FC = () => {
     if (isCardModalOpen) {
       setImageLoaded(false);
       requestAnimationFrame(() => {
-        setIsVisible(true);
+        requestAnimationFrame(() => {
+          setIsVisible(true);
+        });
       });
     } else {
       setIsVisible(false);
@@ -60,7 +62,8 @@ export const CardModal: React.FC = () => {
         background: isVisible
           ? 'rgba(0, 0, 0, 0.85)'
           : 'rgba(0, 0, 0, 0)',
-        backdropFilter: isVisible ? 'blur(8px)' : 'blur(0px)',
+        backdropFilter: isVisible ? 'blur(10px)' : 'blur(0px)',
+        WebkitBackdropFilter: isVisible ? 'blur(10px)' : 'blur(0px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -70,14 +73,14 @@ export const CardModal: React.FC = () => {
       }}
     >
       <style>{`
-        @keyframes cardSlideUp {
+        @keyframes cardFadeIn {
           from {
             opacity: 0;
-            transform: translateY(30px) scale(0.96);
+            transform: scale(0.92) translateY(20px);
           }
           to {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: scale(1) translateY(0);
           }
         }
         @keyframes fadeIn {
@@ -87,6 +90,10 @@ export const CardModal: React.FC = () => {
         @keyframes shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
         }
       `}</style>
 
@@ -101,8 +108,12 @@ export const CardModal: React.FC = () => {
           boxShadow: isVisible
             ? '0 25px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(0, 229, 255, 0.15)'
             : 'none',
-          border: '1px solid rgba(255, 215, 0, 0.2)',
-          animation: isVisible ? 'cardSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'none',
+          border: '1px solid rgba(255, 215, 0, 0.25)',
+          opacity: isVisible ? 1 : 0,
+          transform: isVisible
+            ? 'scale(1) translateY(0)'
+            : 'scale(0.92) translateY(20px)',
+          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -116,6 +127,20 @@ export const CardModal: React.FC = () => {
                 paddingTop: '75%',
                 overflow: 'hidden',
                 background: 'linear-gradient(135deg, #1A1B41 0%, #2D2F6E 100%)',
+                cursor: 'zoom-out',
+              }}
+              onClick={handleImageClick}
+              onMouseEnter={(e) => {
+                const img = e.currentTarget.querySelector('img');
+                if (img) {
+                  (img as HTMLImageElement).style.transform = 'scale(1.05)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                const img = e.currentTarget.querySelector('img');
+                if (img) {
+                  (img as HTMLImageElement).style.transform = 'scale(1)';
+                }
               }}
             >
               {!imageLoaded && (
@@ -135,7 +160,6 @@ export const CardModal: React.FC = () => {
               <img
                 src={currentCard.image}
                 alt={currentCard.title}
-                onClick={handleImageClick}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -145,16 +169,10 @@ export const CardModal: React.FC = () => {
                   objectFit: 'cover',
                   opacity: imageLoaded ? 1 : 0,
                   transition: 'all 0.3s ease',
-                  cursor: 'zoom-out',
+                  pointerEvents: 'none',
                 }}
                 onLoad={() => setImageLoaded(true)}
                 draggable={false}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.02)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
               />
               <div
                 style={{
@@ -162,11 +180,32 @@ export const CardModal: React.FC = () => {
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  height: '40%',
+                  height: '50%',
                   background: 'linear-gradient(to top, #1A1B41 0%, transparent 100%)',
                   pointerEvents: 'none',
                 }}
               />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '18px',
+                  fontWeight: 300,
+                  backdropFilter: 'blur(4px)',
+                  pointerEvents: 'none',
+                }}
+              >
+                ✕
+              </div>
             </div>
 
             <div
@@ -227,8 +266,8 @@ export const CardModal: React.FC = () => {
                   letterSpacing: '0.5px',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 25px rgba(255, 215, 0, 0.5)';
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(255, 215, 0, 0.5)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';

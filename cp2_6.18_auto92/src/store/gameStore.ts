@@ -78,7 +78,7 @@ interface GameState {
   resetCombo: () => void;
   decrementTime: () => void;
   setTimeRemaining: (time: number) => void;
-  unlockCard: (card: Omit<UnlockedCard, 'id'>) => void;
+  unlockCard: (card: Omit<UnlockedCard, 'id'>) => UnlockedCard;
   openCardModal: (card: UnlockedCard) => void;
   closeCardModal: () => void;
   triggerMatchAnimation: (starIds: string[]) => void;

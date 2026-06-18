@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useGameStore, UnlockedCard } from '../store/gameStore';
 import { eventBus, EVENTS } from '../game/ConstellationEngine';
 
@@ -11,10 +11,19 @@ const formatTime = (seconds: number): string => {
 interface ThumbnailCardProps {
   card: UnlockedCard;
   onClick: () => void;
+  index: number;
 }
 
-const ThumbnailCard: React.FC<ThumbnailCardProps> = ({ card, onClick }) => {
+const ThumbnailCard: React.FC<ThumbnailCardProps> = ({ card, onClick, index }) => {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, index * 50);
+    return () => clearTimeout(timer);
+  }, [index]);
 
   return (
     <div
@@ -29,14 +38,17 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({ card, onClick }) => {
         background: 'linear-gradient(135deg, #1A1B41 0%, #2D2F6E 100%)',
         border: '1px solid rgba(255, 215, 0, 0.3)',
         flexShrink: 0,
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.9)',
+        animation: isVisible ? 'none' : 'none',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-4px)';
-        e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 229, 255, 0.3)';
-        e.currentTarget.style.borderColor = 'rgba(0, 229, 255, 0.6)';
+        e.currentTarget.style.transform = 'translateY(-4px) scale(1.05)';
+        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 229, 255, 0.4)';
+        e.currentTarget.style.borderColor = 'rgba(0, 229, 255, 0.8)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.transform = 'translateY(0) scale(1)';
         e.currentTarget.style.boxShadow = 'none';
         e.currentTarget.style.borderColor = 'rgba(255, 215, 0, 0.3)';
       }}
@@ -54,8 +66,8 @@ const ThumbnailCard: React.FC<ThumbnailCardProps> = ({ card, onClick }) => {
         >
           <div
             style={{
-              width: '20px',
-              height: '20px',
+              width: '18px',
+              height: '18px',
               border: '2px solid rgba(255, 215, 0, 0.3)',
               borderTopColor: '#FFD700',
               borderRadius: '50%',
@@ -96,54 +108,60 @@ export const InfoPanel: React.FC = () => {
     resetGame,
   } = useGameStore();
 
-  const [timePulse, setTimePulse] = useState(false);
   const animationRef = useRef<number | null>(null);
-  const prevScoreRef = useRef(displayScore);
+  const scoreStartRef = useRef(0);
+  const scoreEndRef = useRef(0);
+  const scoreAnimatingRef = useRef(false);
+  const [scoreAnimKey, setScoreAnimKey] = useState(0);
+  const [timeTickKey, setTimeTickKey] = useState(0);
+
+  const animateScore = useCallback(() => {
+    const startTime = performance.now();
+    const startValue = scoreStartRef.current;
+    const endValue = scoreEndRef.current;
+    const duration = 100;
+
+    const step = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const currentValue = Math.round(startValue + (endValue - startValue) * easeProgress);
+
+      setDisplayScore(currentValue);
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(step);
+      } else {
+        scoreAnimatingRef.current = false;
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(step);
+  }, [setDisplayScore]);
 
   useEffect(() => {
-    if (score !== displayScore) {
+    if (score !== displayScore && !scoreAnimatingRef.current) {
+      scoreStartRef.current = displayScore;
+      scoreEndRef.current = score;
+      scoreAnimatingRef.current = true;
+      setScoreAnimKey((k) => k + 1);
+      animateScore();
+    }
+  }, [score, displayScore, animateScore]);
+
+  useEffect(() => {
+    return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
-
-      const startValue = prevScoreRef.current;
-      const endValue = score;
-      const duration = 100;
-      const startTime = performance.now();
-
-      const animate = (currentTime: number) => {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const easeProgress = 1 - Math.pow(1 - progress, 3);
-        const currentValue = Math.round(startValue + (endValue - startValue) * easeProgress);
-
-        setDisplayScore(currentValue);
-
-        if (progress < 1) {
-          animationRef.current = requestAnimationFrame(animate);
-        } else {
-          prevScoreRef.current = endValue;
-          animationRef.current = null;
-        }
-      };
-
-      animationRef.current = requestAnimationFrame(animate);
-
-      return () => {
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-        }
-      };
-    }
-  }, [score, setDisplayScore]);
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
       decrementTime();
       eventBus.emit(EVENTS.TIME_UPDATED, { timeRemaining: timeRemaining - 1 });
-
-      setTimePulse(true);
-      setTimeout(() => setTimePulse(false), 200);
+      setTimeTickKey((k) => k + 1);
     }, 1000);
 
     return () => clearInterval(timer);
@@ -169,15 +187,17 @@ export const InfoPanel: React.FC = () => {
     height: '100%',
     background: 'rgba(15, 23, 42, 0.7)',
     backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
     borderRadius: '16px 0 0 16px',
     padding: '20px',
     display: 'flex',
     flexDirection: 'column',
     gap: '24px',
     boxSizing: 'border-box',
-    animation: 'fadeIn 0.3s ease-out',
+    animation: 'panelFadeIn 0.3s ease-out',
     borderLeft: '1px solid rgba(255, 215, 0, 0.1)',
     overflowY: 'auto',
+    flexShrink: 0,
   };
 
   const sectionTitleStyle: React.CSSProperties = {
@@ -192,26 +212,90 @@ export const InfoPanel: React.FC = () => {
   return (
     <div style={panelStyle}>
       <style>{`
+        @keyframes panelFadeIn {
+          from {
+            opacity: 0;
+            transform: translateX(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateX(20px); }
-          to { opacity: 1; transform: translateX(0); }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
         @keyframes timeTick {
-          0% { transform: scale(1); }
-          30% { transform: scale(1.08); }
-          100% { transform: scale(1); }
+          0% {
+            transform: scale(1);
+            color: #EF4444;
+          }
+          30% {
+            transform: scale(1.12);
+            color: #FF6B6B;
+            text-shadow: 0 0 30px rgba(239, 68, 68, 0.8);
+          }
+          100% {
+            transform: scale(1);
+            color: #EF4444;
+          }
+        }
+        @keyframes scoreRoll {
+          0% {
+            transform: translateY(0);
+            opacity: 1;
+          }
+          50% {
+            transform: translateY(-4px);
+            opacity: 0.8;
+          }
+          100% {
+            transform: translateY(0);
+            opacity: 1;
+          }
         }
         @keyframes scoreGlow {
-          0% { text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); }
-          50% { text-shadow: 0 0 25px rgba(0, 229, 255, 0.8), 0 0 40px rgba(0, 229, 255, 0.4); }
-          100% { text-shadow: 0 0 15px rgba(0, 229, 255, 0.4); }
+          0% {
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+          }
+          40% {
+            text-shadow: 0 0 30px rgba(0, 229, 255, 0.9), 0 0 50px rgba(0, 229, 255, 0.5);
+          }
+          100% {
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+          }
+        }
+        @keyframes comboPopup {
+          0% {
+            transform: scale(0.5) translateY(10px);
+            opacity: 0;
+          }
+          60% {
+            transform: scale(1.1) translateY(-2px);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+          }
+        }
+        @keyframes sectionFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
 
-      <div>
+      <div style={{ animation: 'sectionFadeIn 0.3s ease-out 0.1s both' }}>
         <div style={sectionTitleStyle}>当前星座</div>
         <div
           style={{
@@ -226,35 +310,37 @@ export const InfoPanel: React.FC = () => {
         </div>
       </div>
 
-      <div>
+      <div style={{ animation: 'sectionFadeIn 0.3s ease-out 0.15s both' }}>
         <div style={sectionTitleStyle}>积分</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
           <div
-            key={score}
+            key={scoreAnimKey}
             style={{
               fontSize: '36px',
               fontWeight: 800,
               color: '#00E5FF',
               textShadow: '0 0 15px rgba(0, 229, 255, 0.4)',
-              fontFeatureSettings: 'tnum',
+              fontFeatureSettings: "'tnum'",
               fontVariantNumeric: 'tabular-nums',
-              animation: score !== displayScore ? 'scoreGlow 0.2s ease-out' : 'none',
-              transition: 'all 0.1s ease-out',
+              animation: 'scoreGlow 0.2s ease-out',
+              lineHeight: 1,
             }}
           >
             {displayScore.toLocaleString()}
           </div>
           {combo > 1 && (
             <div
+              key={combo}
               style={{
                 fontSize: '14px',
                 fontWeight: 700,
                 color: '#FFD700',
                 background: 'rgba(255, 215, 0, 0.15)',
-                padding: '2px 8px',
-                borderRadius: '10px',
-                border: '1px solid rgba(255, 215, 0, 0.3)',
-                animation: 'fadeIn 0.3s ease-out',
+                padding: '3px 10px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 215, 0, 0.4)',
+                animation: 'comboPopup 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                textShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
               }}
             >
               ×{(1 + combo * 0.2).toFixed(1)}
@@ -263,28 +349,37 @@ export const InfoPanel: React.FC = () => {
         </div>
       </div>
 
-      <div>
+      <div style={{ animation: 'sectionFadeIn 0.3s ease-out 0.2s both' }}>
         <div style={sectionTitleStyle}>剩余时间</div>
         <div
-          key={timeRemaining}
+          key={timeTickKey}
           style={{
             fontSize: '42px',
             fontWeight: 800,
             color: '#EF4444',
             textShadow: timeRemaining <= 30
-              ? '0 0 20px rgba(239, 68, 68, 0.6)'
-              : '0 0 10px rgba(239, 68, 68, 0.3)',
+              ? '0 0 25px rgba(239, 68, 68, 0.7)'
+              : '0 0 12px rgba(239, 68, 68, 0.4)',
             animation: 'timeTick 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            fontFeatureSettings: 'tnum',
+            fontFeatureSettings: "'tnum'",
             fontVariantNumeric: 'tabular-nums',
             display: 'inline-block',
+            lineHeight: 1,
           }}
         >
           {formatTime(timeRemaining)}
         </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'sectionFadeIn 0.3s ease-out 0.25s both',
+        }}
+      >
         <div style={sectionTitleStyle}>
           已解锁卡片 ({unlockedCards.length})
         </div>
@@ -293,9 +388,10 @@ export const InfoPanel: React.FC = () => {
             display: 'flex',
             flexWrap: 'wrap',
             gap: '8px',
-            maxHeight: '100%',
+            flex: 1,
             overflowY: 'auto',
             paddingRight: '4px',
+            alignContent: 'flex-start',
           }}
         >
           {unlockedCards.length === 0 ? (
@@ -305,16 +401,18 @@ export const InfoPanel: React.FC = () => {
                 fontSize: '12px',
                 fontStyle: 'italic',
                 padding: '12px 0',
+                width: '100%',
               }}
             >
               连接星座解锁故事卡片...
             </div>
           ) : (
-            unlockedCards.map((card) => (
+            unlockedCards.map((card, index) => (
               <ThumbnailCard
                 key={card.id}
                 card={card}
                 onClick={() => handleCardClick(card)}
+                index={index}
               />
             ))
           )}
@@ -336,6 +434,7 @@ export const InfoPanel: React.FC = () => {
             cursor: 'pointer',
             transition: 'all 0.3s ease',
             boxShadow: '0 4px 15px rgba(255, 215, 0, 0.3)',
+            animation: 'sectionFadeIn 0.3s ease-out 0.3s both',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'translateY(-2px)';
@@ -355,6 +454,7 @@ export const InfoPanel: React.FC = () => {
           borderTop: '1px solid rgba(255, 255, 255, 0.1)',
           paddingTop: '16px',
           marginTop: 'auto',
+          animation: 'sectionFadeIn 0.3s ease-out 0.35s both',
         }}
       >
         <div
