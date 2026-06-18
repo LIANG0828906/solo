@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>光影织毯 · Light Weaving</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #ECECEC;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #333;
+      user-select: none;
+    }
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #ECECEC;
+    }
+    #canvas-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .control-panel {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      width: 220px;
+      padding: 18px 16px 20px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      z-index: 10;
+    }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 12px;
+      letter-spacing: 0.3px;
+    }
+    .panel-section {
+      margin-bottom: 18px;
+    }
+    .panel-section:last-child {
+      margin-bottom: 0;
+    }
+    .section-label {
+      font-size: 11px;
+      color: #999;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .texture-buttons {
+      display: flex;
+      gap: 8px;
+    }
+    .texture-btn {
+      width: 44px;
+      height: 36px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      color: #333;
+      background: rgba(255, 255, 255, 0.6);
+      transition: background-color 0.3s ease, transform 0.15s ease, box-shadow 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    .texture-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    }
+    .texture-btn:active {
+      transform: translateY(0);
+    }
+    .texture-btn.active-silk {
+      background: #F5DEB3;
+    }
+    .texture-btn.active-linen {
+      background: #C4A882;
+      color: #fff;
+    }
+    .texture-btn.active-wool {
+      background: #E8E0D8;
+    }
+    .slider-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .intensity-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6C63FF;
+      min-width: 34px;
+      text-align: right;
+    }
+    input[type="range"].intensity-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 160px;
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(to right, #6C63FF 0%, #6C63FF var(--fill, 33%), #ddd var(--fill, 33%), #ddd 100%);
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"].intensity-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #6C63FF;
+      cursor: pointer;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(108, 99, 255, 0.35);
+      transition: transform 0.15s ease;
+    }
+    input[type="range"].intensity-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+    input[type="range"].intensity-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #6C63FF;
+      cursor: pointer;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(108, 99, 255, 0.35);
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="control-panel" id="control-panel">
+    <div class="panel-title">光影织毯 · Control</div>
+
+    <div class="panel-section">
+      <div class="section-label">织物材质</div>
+      <div class="texture-buttons">
+        <button class="texture-btn active-silk" data-texture="silk">丝绸</button>
+        <button class="texture-btn" data-texture="linen">亚麻</button>
+        <button class="texture-btn" data-texture="wool">羊毛</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">光线强度</div>
+      <div class="slider-wrapper">
+        <div class="slider-row">
+          <input type="range" class="intensity-slider" id="intensity-slider" min="0.5" max="2.0" step="0.01" value="1.0" />
+          <span class="intensity-value" id="intensity-value">1.00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
