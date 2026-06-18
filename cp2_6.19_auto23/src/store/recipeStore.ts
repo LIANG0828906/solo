@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Recipe, Comment, UserProfile, Ingredient, RecipeStep } from '../models/recipeTypes';
+import type { Recipe, Comment, UserProfile, Ingredient } from '../models/recipeTypes';
 
 const generateId = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -89,11 +89,92 @@ const initialRecipes: Recipe[] = [
       { order: 7, content: '盛出淋在米饭上即可' },
     ],
     cookTime: 40,
-    category: '日料',
+    category: '午餐',
     authorId: 'user-2',
     authorName: '料理达人小李',
     createdAt: Date.now() - 86400000 * 7,
     updatedAt: Date.now() - 86400000 * 7,
+  },
+  {
+    id: 'recipe-4',
+    title: '法式吐司',
+    coverImage: 'https://images.unsplash.com/photo-1484723091739-30909f22077b?w=800',
+    description: '外酥里嫩的法式吐司，配上蜂蜜和水果，完美早餐',
+    ingredients: [
+      { name: '吐司面包', quantity: '4片' },
+      { name: '鸡蛋', quantity: '2个' },
+      { name: '牛奶', quantity: '100ml' },
+      { name: '黄油', quantity: '20g' },
+      { name: '蜂蜜', quantity: '适量' },
+      { name: '水果', quantity: '适量' },
+    ],
+    steps: [
+      { order: 1, content: '鸡蛋打散，加入牛奶搅拌均匀' },
+      { order: 2, content: '将吐司片浸入蛋液中，两面均匀蘸满' },
+      { order: 3, content: '平底锅小火融化黄油' },
+      { order: 4, content: '放入吐司煎至两面金黄' },
+      { order: 5, content: '装盘后淋上蜂蜜，搭配新鲜水果' },
+    ],
+    cookTime: 15,
+    category: '早餐',
+    authorId: 'user-2',
+    authorName: '料理达人小李',
+    createdAt: Date.now() - 86400000 * 2,
+    updatedAt: Date.now() - 86400000 * 2,
+  },
+  {
+    id: 'recipe-5',
+    title: '提拉米苏',
+    coverImage: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=800',
+    description: '经典意式甜点，浓郁的咖啡与马斯卡彭芝士完美融合',
+    ingredients: [
+      { name: '马斯卡彭芝士', quantity: '250g' },
+      { name: '手指饼干', quantity: '200g' },
+      { name: '浓缩咖啡', quantity: '200ml' },
+      { name: '蛋黄', quantity: '3个' },
+      { name: '细砂糖', quantity: '75g' },
+      { name: '可可粉', quantity: '适量' },
+    ],
+    steps: [
+      { order: 1, content: '蛋黄加砂糖打发至颜色变浅' },
+      { order: 2, content: '加入马斯卡彭芝士搅拌均匀' },
+      { order: 3, content: '手指饼干快速蘸取咖啡液' },
+      { order: 4, content: '容器底部铺一层蘸好咖啡的饼干' },
+      { order: 5, content: '铺上一层芝士糊，重复叠放' },
+      { order: 6, content: '冷藏4小时以上，食用前撒上可可粉' },
+    ],
+    cookTime: 30,
+    category: '甜点',
+    authorId: 'user-3',
+    authorName: '烘焙爱好者小张',
+    createdAt: Date.now() - 86400000 * 4,
+    updatedAt: Date.now() - 86400000 * 4,
+  },
+  {
+    id: 'recipe-6',
+    title: '清蒸鲈鱼',
+    coverImage: 'https://images.unsplash.com/photo-1534604973900-c43ab4c2e0ab?w=800',
+    description: '鲜嫩滑口的清蒸鲈鱼，保留了鱼的原汁原味',
+    ingredients: [
+      { name: '鲈鱼', quantity: '1条' },
+      { name: '姜丝', quantity: '适量' },
+      { name: '葱丝', quantity: '适量' },
+      { name: '蒸鱼豉油', quantity: '2勺' },
+      { name: '料酒', quantity: '1勺' },
+    ],
+    steps: [
+      { order: 1, content: '鲈鱼洗净，在鱼身两侧划几刀' },
+      { order: 2, content: '抹上料酒和少许盐，腌制10分钟' },
+      { order: 3, content: '鱼身铺上姜丝，放入蒸锅大火蒸8分钟' },
+      { order: 4, content: '取出倒掉蒸出的汤汁，铺上葱丝' },
+      { order: 5, content: '淋上蒸鱼豉油，浇上热油即可' },
+    ],
+    cookTime: 25,
+    category: '晚餐',
+    authorId: 'user-1',
+    authorName: '美食家小王',
+    createdAt: Date.now() - 86400000 * 6,
+    updatedAt: Date.now() - 86400000 * 6,
   },
 ];
 
@@ -111,7 +192,7 @@ const initialComments: Comment[] = [
     id: 'comment-2',
     recipeId: 'recipe-1',
     userId: 'user-3',
-    userName: '吃货小张',
+    userName: '烘焙爱好者小张',
     content: '简单好上手，新手也能做出美味！',
     rating: 4,
     createdAt: Date.now() - 86400000,
@@ -120,10 +201,19 @@ const initialComments: Comment[] = [
     id: 'comment-3',
     recipeId: 'recipe-2',
     userId: 'user-3',
-    userName: '吃货小张',
+    userName: '烘焙爱好者小张',
     content: '红烧肉入口即化，太香了！',
     rating: 5,
     createdAt: Date.now() - 86400000 * 3,
+  },
+  {
+    id: 'comment-4',
+    recipeId: 'recipe-5',
+    userId: 'user-1',
+    userName: '美食家小王',
+    content: '甜度刚好，咖啡味很浓郁！',
+    rating: 4,
+    createdAt: Date.now() - 86400000 * 1,
   },
 ];
 
@@ -133,6 +223,13 @@ const initialUser: UserProfile = {
   id: 'user-1',
   name: '美食家小王',
 };
+
+export interface SearchFilters {
+  keyword: string;
+  category: string;
+  minCookTime: number | null;
+  maxCookTime: number | null;
+}
 
 interface RecipeState {
   recipes: Recipe[];
@@ -146,6 +243,8 @@ interface RecipeState {
   addComment: (recipeId: string, comment: Omit<Comment, 'id' | 'recipeId' | 'userId' | 'userName' | 'createdAt'> & { userName?: string }) => void;
   getRecipeAverageRating: (recipeId: string) => number;
   searchRecipes: (keyword: string) => Recipe[];
+  searchRecipesWithFilters: (filters: SearchFilters) => Recipe[];
+  getAllCategories: () => string[];
 }
 
 export const useRecipeStore = create<RecipeState>()(
@@ -221,6 +320,34 @@ export const useRecipeStore = create<RecipeState>()(
           if (r.ingredients.some((i: Ingredient) => i.name.toLowerCase().includes(kw))) return true;
           return false;
         });
+      },
+
+      searchRecipesWithFilters: (filters: SearchFilters) => {
+        const { recipes } = get();
+        return recipes.filter((r) => {
+          if (filters.keyword.trim()) {
+            const kw = filters.keyword.toLowerCase();
+            const matchesKeyword =
+              r.title.toLowerCase().includes(kw) ||
+              r.ingredients.some((i: Ingredient) => i.name.toLowerCase().includes(kw));
+            if (!matchesKeyword) return false;
+          }
+          if (filters.category && r.category !== filters.category) {
+            return false;
+          }
+          if (filters.minCookTime !== null && r.cookTime < filters.minCookTime) {
+            return false;
+          }
+          if (filters.maxCookTime !== null && r.cookTime > filters.maxCookTime) {
+            return false;
+          }
+          return true;
+        });
+      },
+
+      getAllCategories: () => {
+        const categories = new Set(get().recipes.map((r) => r.category));
+        return Array.from(categories).sort();
       },
     }),
     {
