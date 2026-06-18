@@ -1,0 +1,267 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-cream: #F7F1E3;
+  --color-warm-brown: #D4A574;
+  --color-dark-brown: #4A3B32;
+  --color-debt-red: #FF6B6B;
+  --color-gold: #FFD93D;
+  --color-border: #E0D5C1;
+  --color-completed: #8B7D6B;
+  --color-white: #FFFFFF;
+  --color-black: #333333;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: var(--color-cream);
+  color: var(--color-dark-brown);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, .font-handwriting {
+  font-family: 'Ma Shan Zheng', cursive;
+}
+
+@layer utilities {
+  .bg-picnic {
+    background-image: 
+      linear-gradient(45deg, rgba(212, 165, 116, 0.1) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(212, 165, 116, 0.1) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(212, 165, 116, 0.1) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(212, 165, 116, 0.1) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    background-blend-mode: multiply;
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .btn-capsule {
+    @apply px-6 py-3 rounded-full text-white font-medium transition-all duration-150;
+    background: linear-gradient(135deg, var(--color-warm-brown), #C19A6B);
+    box-shadow: 0 4px 15px rgba(212, 165, 116, 0.4);
+  }
+
+  .btn-capsule:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 165, 116, 0.5);
+  }
+
+  .btn-capsule:active {
+    transform: scale(0.95);
+  }
+
+  .activity-card {
+    @apply bg-white rounded-2xl border transition-all duration-300 cursor-pointer;
+    border-color: var(--color-border);
+  }
+
+  .activity-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(74, 59, 50, 0.15);
+  }
+
+  .expense-card {
+    @apply rounded-xl p-4 mb-4;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 20px rgba(74, 59, 50, 0.08);
+  }
+
+  .avatar-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .avatar-glow {
+    animation: avatarGlow 0.3s ease-out;
+  }
+
+  @keyframes avatarGlow {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 217, 61, 0.8);
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 0 0 4px rgba(255, 217, 61, 0.6), 0 0 20px rgba(255, 217, 61, 0.4);
+      transform: scale(1.1);
+    }
+    100% {
+      box-shadow: 0 0 0 2px rgba(255, 217, 61, 0.3);
+      transform: scale(1);
+    }
+  }
+
+  .gold-ring {
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: var(--color-gold);
+    animation: spinRing 0.3s linear forwards;
+  }
+
+  @keyframes spinRing {
+    0% {
+      transform: rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: rotate(360deg);
+      opacity: 0;
+    }
+  }
+
+  .payer-avatar {
+    transform: scale(1.2);
+    box-shadow: 0 0 20px rgba(255, 217, 61, 0.5);
+    background: radial-gradient(circle, rgba(255, 217, 61, 0.3) 0%, transparent 70%);
+  }
+
+  .floating-stats {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-dark-brown);
+    color: var(--color-cream);
+    padding: 16px 24px 20px;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    z-index: 100;
+  }
+
+  .floating-stats::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 8px;
+    background: var(--color-warm-brown);
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
+
+  .progress-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(247, 241, 227, 0.2);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-warm-brown), var(--color-gold));
+    transition: width 0.5s ease-out;
+    border-radius: 4px;
+  }
+
+  .red-packet-modal {
+    animation: springIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes springIn {
+    0% {
+      transform: scale(0) translateY(100px);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.1) translateY(-20px);
+    }
+    100% {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .packet-string {
+    animation: swing 0.6s ease-in-out infinite alternate;
+    transform-origin: top center;
+  }
+
+  @keyframes swing {
+    0% {
+      transform: rotate(-5deg);
+    }
+    100% {
+      transform: rotate(5deg);
+    }
+  }
+
+  .coin-particle {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #FFF9C4, #FFD54F, #FF8F00);
+    animation: coinBurst 1.5s ease-out forwards;
+  }
+
+  @keyframes coinBurst {
+    0% {
+      transform: translate(0, 0) scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(var(--tx), var(--ty)) scale(0);
+      opacity: 0;
+    }
+  }
+
+  .tab-active {
+    @apply font-bold;
+    color: var(--color-warm-brown);
+    border-bottom: 3px solid var(--color-warm-brown);
+  }
+
+  .divider {
+    cursor: ew-resize;
+    background: var(--color-border);
+    transition: background 0.2s;
+  }
+
+  .divider:hover {
+    background: var(--color-warm-brown);
+  }
+
+  .pull-refresh {
+    transition: transform 0.3s ease;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+    backdrop-filter: blur(4px);
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
