@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import dayjs from 'dayjs';
 import { useTicketStore, Ticket, TicketStatus } from '../store/ticketStore';
 
 const statusLabels: Record<TicketStatus | 'all', string> = {
@@ -66,13 +67,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
   };
 
   const formatDate = (date: Date) => {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
+    return dayjs(date).format('YYYY-MM-DD HH:mm');
   };
 
   const truncatedReason =
@@ -82,21 +77,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
 
   return (
     <div
-      style={{
-        width: '100%',
-        maxWidth: '400px',
-        backgroundColor: '#FFFFFF',
-        borderRadius: '16px',
-        border: '1px solid #E5E7EB',
-        boxShadow: isHovered
-          ? '0 12px 32px rgba(0,0,0,0.15)'
-          : '0 4px 12px rgba(0,0,0,0.08)',
-        padding: '20px',
-        transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
+      className={`ticket-card ${isHovered ? 'ticket-card-hovered' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -108,7 +89,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            borderRadius: '12px',
+            borderRadius: '16px',
             boxShadow: 'inset 0 0 0 3px #3B82F6',
             animation: 'pulse-border 0.6s ease-out',
             pointerEvents: 'none',
@@ -160,6 +141,8 @@ const TicketCard: React.FC<TicketCardProps> = ({
           }}
         >
           <span
+            role="status"
+            aria-label={`状态：${statusLabels[ticket.status]}`}
             style={{
               width: '8px',
               height: '8px',
@@ -223,24 +206,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
         {ticket.status === 'pending' && (
           <button
             onClick={handleReview}
-            style={{
-              flex: 1,
-              padding: '8px 16px',
-              backgroundColor: '#3B82F6',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background-color 0.2s ease',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#2563EB';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#3B82F6';
-            }}
+            className="action-btn action-btn-blue"
           >
             审核
           </button>
@@ -249,47 +215,13 @@ const TicketCard: React.FC<TicketCardProps> = ({
           <>
             <button
               onClick={() => handleStatusChange(() => onApprove(ticket.id))}
-              style={{
-                flex: 1,
-                padding: '8px 16px',
-                backgroundColor: '#10B981',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'background-color 0.2s ease',
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = '#059669';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = '#10B981';
-              }}
+              className="action-btn action-btn-green"
             >
               通过
             </button>
             <button
               onClick={() => handleStatusChange(() => onReject(ticket.id))}
-              style={{
-                flex: 1,
-                padding: '8px 16px',
-                backgroundColor: '#EF4444',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'background-color 0.2s ease',
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = '#DC2626';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = '#EF4444';
-              }}
+              className="action-btn action-btn-red"
             >
               驳回
             </button>
@@ -298,24 +230,7 @@ const TicketCard: React.FC<TicketCardProps> = ({
         {ticket.status === 'approved' && (
           <button
             onClick={() => handleStatusChange(() => onComplete(ticket.id))}
-            style={{
-              flex: 1,
-              padding: '8px 16px',
-              backgroundColor: '#8B5CF6',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background-color 0.2s ease',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#7C3AED';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#8B5CF6';
-            }}
+            className="action-btn action-btn-purple"
           >
             标记退款完成
           </button>
@@ -323,6 +238,58 @@ const TicketCard: React.FC<TicketCardProps> = ({
       </div>
 
       <style>{`
+        .ticket-card {
+          width: 100%;
+          max-width: 400px;
+          background-color: #FFFFFF;
+          border-radius: 16px;
+          border: 1px solid #E5E7EB;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          padding: 20px;
+          transform: translateY(0);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          position: relative;
+          overflow: hidden;
+        }
+        .ticket-card-hovered {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+        }
+        .action-btn {
+          flex: 1;
+          padding: 8px 16px;
+          color: #FFFFFF;
+          border: none;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background-color 0.2s ease;
+        }
+        .action-btn-blue {
+          background-color: #3B82F6;
+        }
+        .action-btn-blue:hover {
+          background-color: #2563EB;
+        }
+        .action-btn-green {
+          background-color: #10B981;
+        }
+        .action-btn-green:hover {
+          background-color: #059669;
+        }
+        .action-btn-red {
+          background-color: #EF4444;
+        }
+        .action-btn-red:hover {
+          background-color: #DC2626;
+        }
+        .action-btn-purple {
+          background-color: #8B5CF6;
+        }
+        .action-btn-purple:hover {
+          background-color: #7C3AED;
+        }
         @keyframes fadeIn {
           from {
             opacity: 0;
