@@ -424,10 +424,226 @@ body {
   overflow-y: auto;
 }
 
+/* ========== Course Content Wrapper ========== */
+.course-content-wrapper {
+  position: relative;
+  max-width: 850px;
+  margin: 0 auto;
+}
+
+/* ========== Reading Progress Bar ========== */
+.reading-progress-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.reading-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-color), var(--accent-light));
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+.reading-progress-text {
+  position: absolute;
+  right: 0;
+  top: -24px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+/* ========== Table of Contents ========== */
+.toc-container {
+  background: var(--surface-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-light);
+  margin-bottom: 24px;
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.toc-container.collapsed {
+  box-shadow: none;
+  border: 1px solid var(--border-color);
+}
+
+.toc-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition-fast);
+}
+
+.toc-toggle:hover {
+  background: var(--bg-color);
+}
+
+.toc-icon {
+  font-size: 18px;
+}
+
+.toc-title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.toc-arrow {
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: transform var(--transition-fast);
+}
+
+.toc-list {
+  padding: 8px 0 16px;
+  border-top: 1px solid var(--border-color);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.toc-item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  border-left: 3px solid transparent;
+}
+
+.toc-item:hover {
+  background: var(--bg-color);
+  color: var(--accent-color);
+}
+
+.toc-item.active {
+  background: rgba(255, 143, 0, 0.1);
+  color: var(--accent-color);
+  font-weight: 600;
+  border-left-color: var(--accent-color);
+}
+
+.toc-item.level-1 { font-size: 15px; font-weight: 600; }
+.toc-item.level-2 { font-size: 14px; }
+.toc-item.level-3 { font-size: 13px; color: var(--text-secondary); }
+.toc-item.level-4 { font-size: 12px; color: var(--text-secondary); padding-left: 48px !important; }
+.toc-item.level-5 { font-size: 12px; color: var(--text-secondary); padding-left: 64px !important; }
+.toc-item.level-6 { font-size: 12px; color: var(--text-secondary); padding-left: 80px !important; }
+
+/* ========== Unit Note Indicator ========== */
+.unit-note-indicator {
+  font-size: 14px;
+  margin-left: auto;
+  opacity: 0.8;
+}
+
+.unit-nav-item .unit-note-indicator {
+  margin-left: 8px;
+}
+
+/* ========== Card Note Indicator ========== */
+.card-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-note-indicator {
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+/* ========== Footer Actions ========== */
+.footer-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-add-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-color);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  position: relative;
+}
+
+.btn-add-note:hover {
+  background: rgba(26, 35, 126, 0.05);
+  transform: translateY(-1px);
+}
+
+.btn-add-note.has-note {
+  background: rgba(255, 143, 0, 0.1);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.btn-add-note .btn-icon {
+  font-size: 18px;
+}
+
+.note-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 8px;
+  color: var(--accent-color);
+}
+
 /* ========== Course Content ========== */
 .course-content {
   max-width: 800px;
   margin: 0 auto;
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  padding-right: 16px;
+}
+
+.course-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.course-content::-webkit-scrollbar-track {
+  background: var(--bg-color);
+  border-radius: 4px;
+}
+
+.course-content::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.course-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 .course-unit-title {
@@ -1000,6 +1216,180 @@ body {
   font-size: 18px;
 }
 
+/* ========== Note Modal ========== */
+.note-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.note-modal {
+  background: var(--surface-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-dark);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.note-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.note-modal-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin: 0;
+}
+
+.note-modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: var(--transition-fast);
+}
+
+.note-modal-close:hover {
+  background: var(--bg-color);
+  color: var(--text-primary);
+}
+
+.note-modal-body {
+  padding: 24px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.note-unit-title {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-color);
+  border-radius: 8px;
+}
+
+.note-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  transition: var(--transition-fast);
+}
+
+.note-textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(255, 143, 0, 0.1);
+}
+
+.note-textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+.note-updated-at {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.note-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  gap: 12px;
+}
+
+.footer-right {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-cancel-note,
+.btn-save-note,
+.btn-delete-note {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  border: none;
+}
+
+.btn-cancel-note {
+  background: var(--bg-color);
+  color: var(--text-primary);
+}
+
+.btn-cancel-note:hover {
+  background: var(--border-color);
+}
+
+.btn-save-note {
+  background: var(--accent-color);
+  color: white;
+}
+
+.btn-save-note:hover {
+  background: var(--accent-dark);
+  transform: translateY(-1px);
+}
+
+.btn-delete-note {
+  background: transparent;
+  color: var(--error-color);
+  border: 1px solid var(--error-color);
+}
+
+.btn-delete-note:hover {
+  background: rgba(244, 67, 54, 0.1);
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 768px) {
   .course-list-view {
@@ -1105,6 +1495,56 @@ body {
 
   .course-unit-title {
     font-size: 22px;
+  }
+
+  .toc-container {
+    margin-bottom: 16px;
+  }
+
+  .toc-toggle {
+    padding: 12px 16px;
+  }
+
+  .toc-title {
+    font-size: 14px;
+  }
+
+  .footer-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-add-note,
+  .btn-mark-complete {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .course-content {
+    max-height: calc(100vh - 400px);
+    padding-right: 8px;
+  }
+
+  .note-modal {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .note-modal-body {
+    padding: 16px;
+  }
+
+  .note-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .footer-right {
+    width: 100%;
+  }
+
+  .footer-right button {
+    flex: 1;
   }
 
   .quiz-container {

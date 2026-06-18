@@ -4,6 +4,7 @@ import {
   CourseProgress,
   QuizAttempt,
   UnitProgress,
+  UnitNote,
 } from '../types';
 
 const STORAGE_KEY = 'training_progress';
@@ -54,6 +55,7 @@ export async function updateUnitProgress(
       courseId,
       units: [],
       quizAttempts: [],
+      notes: [],
     };
   }
 
@@ -88,12 +90,99 @@ export async function saveQuizAttempt(
       courseId,
       units: [],
       quizAttempts: [],
+      notes: [],
     };
   }
 
   progress.courses[courseId].quizAttempts.push(attempt);
   progress.courses[courseId].lastStudiedAt = new Date().toISOString();
   await saveProgress(progress);
+}
+
+export async function saveUnitNote(
+  courseId: string,
+  unitId: string,
+  content: string
+): Promise<void> {
+  const progress = await getProgress();
+  if (!progress.courses[courseId]) {
+    progress.courses[courseId] = {
+      courseId,
+      units: [],
+      quizAttempts: [],
+      notes: [],
+    };
+  }
+
+  const courseProgress = progress.courses[courseId];
+  const existingNote = courseProgress.notes.find((n) => n.unitId === unitId);
+
+  if (existingNote) {
+    existingNote.content = content;
+    existingNote.updatedAt = new Date().toISOString();
+  } else {
+    const note: UnitNote = {
+      unitId,
+      content,
+      updatedAt: new Date().toISOString(),
+    };
+    courseProgress.notes.push(note);
+  }
+
+  courseProgress.lastStudiedAt = new Date().toISOString();
+  await saveProgress(progress);
+}
+
+export async function getUnitNote(
+  courseId: string,
+  unitId: string
+): Promise<UnitNote | null> {
+  const courseProgress = await getCourseProgress(courseId);
+  if (!courseProgress) return null;
+  return courseProgress.notes.find((n) => n.unitId === unitId) || null;
+}
+
+export async function deleteUnitNote(
+  courseId: string,
+  unitId: string
+): Promise<void> {
+  const progress = await getProgress();
+  const courseProgress = progress.courses[courseId];
+  if (!courseProgress) return;
+
+  courseProgress.notes = courseProgress.notes.filter((n) => n.unitId !== unitId);
+  courseProgress.lastStudiedAt = new Date().toISOString();
+  await saveProgress(progress);
+}
+
+export function hasUnitNotes(courseId: string): boolean {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (!stored) return false;
+  try {
+    const progress: UserProgress = JSON.parse(stored);
+    const courseProgress = progress.courses[courseId];
+    return courseProgress?.notes && courseProgress.notes.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+export function getUnitNoteSync(
+  courseId: string,
+  unitId: string,
+  progress: UserProgress
+): UnitNote | null {
+  const courseProgress = progress.courses[courseId];
+  if (!courseProgress) return null;
+  return courseProgress.notes.find((n) => n.unitId === unitId) || null;
+}
+
+export function hasUnitNoteSync(
+  courseId: string,
+  unitId: string,
+  progress: UserProgress
+): boolean {
+  return getUnitNoteSync(courseId, unitId, progress) !== null;
 }
 
 export async function getQuizScore(
@@ -190,6 +279,29 @@ export function useProgress() {
     return lastTime;
   };
 
+  const saveNote = async (courseId: string, unitId: string, content: string) => {
+    await saveUnitNote(courseId, unitId, content);
+    await loadProgress();
+  };
+
+  const deleteNote = async (courseId: string, unitId: string) => {
+    await deleteUnitNote(courseId, unitId);
+    await loadProgress();
+  };
+
+  const getNoteSync = (courseId: string, unitId: string): UnitNote | null => {
+    return getUnitNoteSync(courseId, unitId, progress);
+  };
+
+  const hasNoteSync = (courseId: string, unitId: string): boolean => {
+    return hasUnitNoteSync(courseId, unitId, progress);
+  };
+
+  const hasAnyNoteSync = (courseId: string): boolean => {
+    const courseProgress = progress.courses[courseId];
+    return courseProgress?.notes && courseProgress.notes.length > 0;
+  };
+
   return {
     progress,
     loading,
@@ -202,6 +314,11 @@ export function useProgress() {
     getPassedQuizzesCount,
     getOverallCompletionRate,
     getLastStudyTime,
+    saveNote,
+    deleteNote,
+    getNoteSync,
+    hasNoteSync,
+    hasAnyNoteSync,
     refreshProgress: loadProgress,
   };
 }

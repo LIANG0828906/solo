@@ -29,6 +29,12 @@ export interface Quiz {
   questions: QuizQuestion[];
 }
 
+export interface UnitNote {
+  unitId: string;
+  content: string;
+  updatedAt: string;
+}
+
 export interface UnitProgress {
   unitId: string;
   completed: boolean;
@@ -39,6 +45,7 @@ export interface CourseProgress {
   courseId: string;
   units: UnitProgress[];
   quizAttempts: QuizAttempt[];
+  notes: UnitNote[];
   lastStudiedAt?: string;
 }
 

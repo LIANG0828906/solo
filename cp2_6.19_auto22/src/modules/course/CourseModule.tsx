@@ -17,6 +17,7 @@ export const CourseModule: React.FC<CourseModuleProps> = ({ courseId }) => {
     getCourseProgressSync,
     updateProgress,
     getLatestQuizAttemptSync,
+    hasNoteSync,
   } = useProgress();
   const {
     setView,
@@ -164,6 +165,9 @@ export const CourseModule: React.FC<CourseModuleProps> = ({ courseId }) => {
                     {isCompleted ? '✓' : '🔒'}
                   </span>
                   <span className="unit-title-text">{unit.title}</span>
+                  {hasNoteSync(courseId, unit.id) && (
+                    <span className="unit-note-indicator" title="有笔记">📝</span>
+                  )}
                 </button>
               );
             })}
@@ -173,6 +177,7 @@ export const CourseModule: React.FC<CourseModuleProps> = ({ courseId }) => {
         <main className="course-main">
           {activeUnit && (
             <CourseContent
+              courseId={courseId}
               unit={activeUnit}
               isCompleted={getUnitCompleted(activeUnit.id)}
               onMarkComplete={handleMarkComplete}

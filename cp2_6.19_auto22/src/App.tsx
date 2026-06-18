@@ -24,6 +24,7 @@ const App: React.FC = () => {
     getPassedQuizzesCount,
     getOverallCompletionRate,
     getLastStudyTime,
+    hasAnyNoteSync,
   } = useProgress();
 
   const totalUnits = useMemo(() => {
@@ -156,7 +157,12 @@ const App: React.FC = () => {
                     <span className="unit-count">
                       {course.units.length} 个单元
                     </span>
-                    <span className="card-arrow">→</span>
+                    <div className="card-meta-right">
+                      {hasAnyNoteSync(course.id) && (
+                        <span className="card-note-indicator" title="有学习笔记">📝</span>
+                      )}
+                      <span className="card-arrow">→</span>
+                    </div>
                   </div>
                 </div>
               </div>
