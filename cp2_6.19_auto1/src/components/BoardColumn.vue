@@ -59,13 +59,17 @@
       </div>
     </div>
 
-    <div class="task-list" ref="taskListRef">
-      <TransitionGroup name="task-list" tag="div">
+    <div
+      class="task-list"
+      ref="taskListRef"
+      @scroll.passive="handleScroll"
+    >
+      <TransitionGroup name="task-list" tag="div" class="task-list-inner">
         <TaskCard
-          v-for="(task, index) in tasks"
+          v-for="(task, index) in visibleTasks"
           :key="task.id"
           :task="task"
-          :animation-delay="index * 30"
+          :animation-delay="index * 20"
           @drag-start="handleCardDragStart"
           @drag-end="handleCardDragEnd"
         />
@@ -86,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import TaskCard from './TaskCard.vue'
 import type { Task, Priority, TaskStatus } from '../stores/boardStore'
 import { useBoardStore } from '../stores/boardStore'
@@ -109,6 +113,51 @@ const newTask = reactive({
 })
 
 const taskListRef = ref<HTMLElement | null>(null)
+const scrollTop = ref(0)
+const viewportHeight = ref(600)
+const ITEM_HEIGHT = 120
+const BUFFER = 5
+
+const visibleTasks = computed(() => {
+  if (props.tasks.length <= 30) return props.tasks
+
+  const start = Math.max(0, Math.floor(scrollTop.value / ITEM_HEIGHT) - BUFFER)
+  const visibleCount = Math.ceil(viewportHeight.value / ITEM_HEIGHT) + BUFFER * 2
+  const end = Math.min(props.tasks.length, start + visibleCount)
+
+  return props.tasks.slice(start, end)
+})
+
+const handleScroll = () => {
+  if (taskListRef.value) {
+    scrollTop.value = taskListRef.value.scrollTop
+  }
+}
+
+const updateViewport = () => {
+  if (taskListRef.value) {
+    viewportHeight.value = taskListRef.value.clientHeight
+  }
+}
+
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  updateViewport()
+  if (taskListRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      updateViewport()
+    })
+    resizeObserver.observe(taskListRef.value)
+  }
+})
+
+onUnmounted(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+})
 
 const handleDragOver = (e: DragEvent) => {
   e.preventDefault()
@@ -133,13 +182,9 @@ const handleDrop = (e: DragEvent) => {
   }
 }
 
-const handleCardDragStart = () => {
-  // 可以添加全局拖拽状态
-}
+const handleCardDragStart = () => {}
 
-const handleCardDragEnd = () => {
-  // 清除全局拖拽状态
-}
+const handleCardDragEnd = () => {}
 
 const addNewTask = () => {
   if (newTask.title.trim()) {
@@ -176,13 +221,14 @@ const cancelAdd = () => {
   padding: 20px;
   min-height: 400px;
   border: 1px solid rgba(203, 166, 247, 0.1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  contain: layout style;
 }
 
 .board-column.is-drag-over {
-  background: rgba(203, 166, 247, 0.1);
+  background: rgba(203, 166, 247, 0.08);
   border-color: rgba(203, 166, 247, 0.5);
-  box-shadow: inset 0 0 30px rgba(203, 166, 247, 0.1);
+  box-shadow: inset 0 0 40px rgba(203, 166, 247, 0.08), 0 0 20px rgba(203, 166, 247, 0.1);
 }
 
 .column-header {
@@ -290,7 +336,7 @@ const cancelAdd = () => {
   font-family: inherit;
   margin-bottom: 10px;
   outline: none;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .form-input:focus,
@@ -361,6 +407,11 @@ const cancelAdd = () => {
   overflow-x: hidden;
   padding-right: 4px;
   min-height: 100px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.task-list-inner {
+  min-height: 0;
 }
 
 .task-list-move,
@@ -408,7 +459,7 @@ const cancelAdd = () => {
 
 @media (max-width: 900px) {
   .board-column {
-    min-height: 300px;
+    min-height: 250px;
   }
 }
 </style>

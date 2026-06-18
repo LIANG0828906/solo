@@ -1,29 +1,39 @@
 <template>
   <div
     class="task-card"
-    :class="{ 'is-dragging': isDragging, 'is-editing': isEditing }"
+    :class="[
+      `priority-border-${task.priority}`,
+      { 'is-dragging': isDragging, 'is-editing': isEditing, 'is-overdue': isOverdue }
+    ]"
     :style="{ animationDelay: `${animationDelay}ms` }"
     draggable="true"
     @dragstart="handleDragStart"
     @dragend="handleDragEnd"
     @click="handleClick"
+    @touchstart.passive="handleTouchStart"
+    @touchmove.passive="handleTouchMove"
+    @touchend="handleTouchEnd"
   >
     <div v-if="!isEditing" class="card-content">
       <div class="card-header">
         <span class="priority-badge" :class="`priority-${task.priority}`">
+          <span class="priority-dot"></span>
           {{ priorityText }}
         </span>
-        <button class="delete-btn" @click.stop="handleDelete">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+        <div class="card-actions">
+          <span v-if="isOverdue" class="overdue-badge">已逾期</span>
+          <button class="delete-btn" @click.stop="handleDelete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
       <h3 class="card-title">{{ task.title }}</h3>
       <p class="card-description">{{ task.description }}</p>
       <div class="card-footer">
-        <span class="due-date">
+        <span class="due-date" :class="{ overdue: isOverdue }">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -32,11 +42,15 @@
           </svg>
           {{ formatDate(task.dueDate) }}
         </span>
+        <span class="priority-footer-tag" :class="`tag-${task.priority}`">
+          {{ priorityLabel }}
+        </span>
       </div>
     </div>
 
     <div v-else class="card-edit-form">
       <input
+        ref="titleInputRef"
         v-model="editForm.title"
         class="edit-input title-input"
         placeholder="任务标题"
@@ -72,14 +86,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import type { Task, Priority } from '../stores/boardStore'
 import { useBoardStore } from '../stores/boardStore'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   task: Task
   animationDelay?: number
-}>()
+}>(), {
+  animationDelay: 0,
+})
 
 const emit = defineEmits<{
   (e: 'dragStart', taskId: string): void
@@ -90,6 +106,7 @@ const { deleteTask, updateTask } = useBoardStore()
 
 const isDragging = ref(false)
 const isEditing = ref(false)
+const titleInputRef = ref<HTMLInputElement | null>(null)
 const editForm = ref({
   title: props.task.title,
   description: props.task.description,
@@ -98,12 +115,18 @@ const editForm = ref({
 })
 
 const priorityText = computed(() => {
-  const map: Record<Priority, string> = {
-    high: '高',
-    medium: '中',
-    low: '低',
-  }
+  const map: Record<Priority, string> = { high: '高', medium: '中', low: '低' }
   return map[props.task.priority]
+})
+
+const priorityLabel = computed(() => {
+  const map: Record<Priority, string> = { high: '高优先级', medium: '中优先级', low: '低优先级' }
+  return map[props.task.priority]
+})
+
+const isOverdue = computed(() => {
+  if (props.task.status === 'done') return false
+  return new Date(props.task.dueDate) < new Date(new Date().toDateString())
 })
 
 watch(() => props.task, (newTask) => {
@@ -113,12 +136,22 @@ watch(() => props.task, (newTask) => {
     priority: newTask.priority,
     dueDate: newTask.dueDate,
   }
-})
+}, { deep: true })
 
 const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr)
+  const now = new Date()
+  const diffTime = date.getTime() - now.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) return `已逾期${Math.abs(diffDays)}天`
+  if (diffDays === 0) return '今天截止'
+  if (diffDays === 1) return '明天截止'
+  if (diffDays <= 7) return `${diffDays}天后截止`
   return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
 }
+
+let touchTimer: ReturnType<typeof setTimeout> | null = null
 
 const handleDragStart = (e: DragEvent) => {
   isDragging.value = true
@@ -134,9 +167,33 @@ const handleDragEnd = () => {
   emit('dragEnd')
 }
 
+const handleTouchStart = () => {
+  touchTimer = setTimeout(() => {
+    isDragging.value = true
+  }, 200)
+}
+
+const handleTouchMove = () => {
+  if (touchTimer) {
+    clearTimeout(touchTimer)
+    touchTimer = null
+  }
+}
+
+const handleTouchEnd = () => {
+  if (touchTimer) {
+    clearTimeout(touchTimer)
+    touchTimer = null
+  }
+  isDragging.value = false
+}
+
 const handleClick = () => {
   if (!isDragging.value) {
     isEditing.value = true
+    nextTick(() => {
+      titleInputRef.value?.focus()
+    })
   }
 }
 
@@ -178,10 +235,27 @@ const cancelEdit = () => {
   padding: 16px;
   margin-bottom: 12px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              border-color 0.2s ease,
+              background 0.2s ease;
   transform-origin: center;
   animation: cardEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
   will-change: transform, box-shadow;
+  contain: layout style paint;
+  border-left: 4px solid transparent;
+}
+
+.priority-border-high {
+  border-left-color: #f38ba8;
+}
+
+.priority-border-medium {
+  border-left-color: #f9e2af;
+}
+
+.priority-border-low {
+  border-left-color: #a6e3a1;
 }
 
 @keyframes cardEnter {
@@ -196,29 +270,37 @@ const cancelEdit = () => {
 }
 
 .task-card:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 25px rgba(203, 166, 247, 0.25), 0 0 0 1px rgba(203, 166, 247, 0.3);
-  border-color: rgba(203, 166, 247, 0.4);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 30px rgba(203, 166, 247, 0.2),
+              0 0 0 1px rgba(203, 166, 247, 0.25);
+  border-color: rgba(203, 166, 247, 0.35);
 }
 
 .task-card:active {
-  transform: scale(0.98);
-  transition-duration: 0.1s;
+  transform: scale(0.97);
+  transition-duration: 0.08s;
 }
 
 .task-card.is-dragging {
-  opacity: 0.5;
+  opacity: 0.4;
   transform: scale(1.05) rotate(2deg);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
 .task-card.is-editing {
-  animation: bounceIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: bounceIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-color: rgba(203, 166, 247, 0.5);
+}
+
+.task-card.is-overdue {
+  border-left-color: #f38ba8;
+  background: rgba(243, 139, 168, 0.05);
 }
 
 @keyframes bounceIn {
   0% { transform: scale(1); }
-  50% { transform: scale(1.03); }
+  40% { transform: scale(1.04); }
+  70% { transform: scale(0.98); }
   100% { transform: scale(1); }
 }
 
@@ -229,31 +311,77 @@ const cancelEdit = () => {
   margin-bottom: 10px;
 }
 
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 4px 10px;
   border-radius: 20px;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
+.priority-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
 .priority-high {
-  background: linear-gradient(135deg, rgba(243, 139, 168, 0.3), rgba(243, 139, 168, 0.1));
+  background: rgba(243, 139, 168, 0.2);
   color: #f38ba8;
   border: 1px solid rgba(243, 139, 168, 0.4);
 }
 
+.priority-high .priority-dot {
+  background: #f38ba8;
+  box-shadow: 0 0 6px rgba(243, 139, 168, 0.6);
+}
+
 .priority-medium {
-  background: linear-gradient(135deg, rgba(249, 226, 175, 0.3), rgba(249, 226, 175, 0.1));
+  background: rgba(249, 226, 175, 0.2);
   color: #f9e2af;
   border: 1px solid rgba(249, 226, 175, 0.4);
 }
 
+.priority-medium .priority-dot {
+  background: #f9e2af;
+  box-shadow: 0 0 6px rgba(249, 226, 175, 0.6);
+}
+
 .priority-low {
-  background: linear-gradient(135deg, rgba(166, 227, 161, 0.3), rgba(166, 227, 161, 0.1));
+  background: rgba(166, 227, 161, 0.2);
   color: #a6e3a1;
   border: 1px solid rgba(166, 227, 161, 0.4);
+}
+
+.priority-low .priority-dot {
+  background: #a6e3a1;
+  box-shadow: 0 0 6px rgba(166, 227, 161, 0.6);
+}
+
+.overdue-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(243, 139, 168, 0.2);
+  color: #f38ba8;
+  border: 1px solid rgba(243, 139, 168, 0.4);
+  animation: pulseOverdue 2s infinite;
+}
+
+@keyframes pulseOverdue {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .delete-btn {
@@ -296,6 +424,10 @@ const cancelEdit = () => {
 .card-footer {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(203, 166, 247, 0.08);
 }
 
 .due-date {
@@ -304,6 +436,37 @@ const cancelEdit = () => {
   gap: 6px;
   font-size: 12px;
   color: #6c7086;
+  font-weight: 500;
+}
+
+.due-date.overdue {
+  color: #f38ba8;
+}
+
+.due-date.overdue svg {
+  stroke: #f38ba8;
+}
+
+.priority-footer-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.tag-high {
+  background: rgba(243, 139, 168, 0.15);
+  color: #f38ba8;
+}
+
+.tag-medium {
+  background: rgba(249, 226, 175, 0.15);
+  color: #f9e2af;
+}
+
+.tag-low {
+  background: rgba(166, 227, 161, 0.15);
+  color: #a6e3a1;
 }
 
 .card-edit-form {
@@ -320,7 +483,7 @@ const cancelEdit = () => {
   color: #cdd6f4;
   font-size: 14px;
   font-family: inherit;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   outline: none;
 }
 
@@ -356,6 +519,7 @@ const cancelEdit = () => {
   font-family: inherit;
   outline: none;
   cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
 .edit-select:focus,
