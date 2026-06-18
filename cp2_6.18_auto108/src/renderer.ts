@@ -162,7 +162,7 @@ export class Renderer {
     const ctx = this.ctx;
 
     for (const obs of obstacles) {
-      const age = currentTime - obs.spawnTime;
+      const age = currentTime - obs.birthTime;
       const spawnProgress = Math.min(age / obs.spawnDuration, 1);
       const easeProgress = 1 - Math.pow(1 - spawnProgress, 3);
       const scale = 0.3 + 0.7 * easeProgress;

@@ -170,7 +170,7 @@ class Game {
     const carState = this.car.state;
     const carRadius = this.car.getRadius();
 
-    const onPlatform = this.arena.isCarOnPlatform(
+    const outOfBounds = this.arena.isCarOutOfBounds(
       carState.x,
       carState.y,
       carState.angle + carState.driftAngle * 0.5,
@@ -178,7 +178,7 @@ class Game {
       carState.carHeight
     );
 
-    if (!onPlatform) {
+    if (outOfBounds) {
       this.gameOver();
       return;
     }

@@ -49,7 +49,7 @@ export class Arena {
       this.removeObstaclesOutside();
     }
 
-    state.edgeFlashInterval = this.calculateEdgeFlashInterval();
+    state.edgeFlashInterval = this.getEdgeFlashInterval();
 
     state.edgeFlashTimer += deltaTime;
     if (state.edgeFlashTimer >= state.edgeFlashInterval) {
@@ -65,7 +65,7 @@ export class Arena {
     }
   }
 
-  private calculateEdgeFlashInterval(): number {
+  getEdgeFlashInterval(): number {
     const state = this.state;
     if (state.diameter >= EDGE_FLASH_FAST_THRESHOLD) {
       return EDGE_FLASH_INTERVAL_MAX;
@@ -97,7 +97,7 @@ export class Arena {
       x,
       y,
       radius,
-      spawnTime: currentTime,
+      birthTime: currentTime,
       spawnDuration: OBSTACLE_SPAWN_DURATION,
     });
   }
@@ -126,7 +126,7 @@ export class Arena {
     return dist <= state.diameter / 2 - margin;
   }
 
-  isCarOnPlatform(
+  isCarOutOfBounds(
     carX: number,
     carY: number,
     carAngle: number,
@@ -157,11 +157,11 @@ export class Arena {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist > platformRadius) {
-        return false;
+        return true;
       }
     }
 
-    return true;
+    return false;
   }
 
   checkCarCollision(carX: number, carY: number, carRadius: number): Obstacle | null {

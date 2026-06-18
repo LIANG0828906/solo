@@ -43,7 +43,7 @@ export interface Obstacle {
   x: number;
   y: number;
   radius: number;
-  spawnTime: number;
+  birthTime: number;
   spawnDuration: number;
 }
 
