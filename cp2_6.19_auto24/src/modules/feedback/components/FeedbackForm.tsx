@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useFeedbackStore } from '../store/feedbackStore';
-import { getRoleLabel } from '../../analytics/utils/wordCloud';
 import type { Role, Rating } from '../../../types';
 
 const FeedbackForm: React.FC = () => {
@@ -259,21 +258,17 @@ const FeedbackForm: React.FC = () => {
 
               <div style={styles.formGroup} className="stagger-2">
                 <label style={styles.label}>您的角色</label>
-                <div style={styles.roleOptions}>
-                  {(['host', 'participant', 'observer'] as Role[]).map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setRole(r)}
-                      style={{
-                        ...styles.roleOption,
-                        ...(role === r ? styles.roleOptionActive : {}),
-                      }}
-                    >
-                      {getRoleLabel(r)}
-                    </button>
-                  ))}
-                </div>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as Role)}
+                  style={styles.select}
+                  onFocus={(e) => (e.target.style.transform = 'scale(1.02)')}
+                  onBlur={(e) => (e.target.style.transform = 'scale(1)')}
+                >
+                  <option value="host">主持人</option>
+                  <option value="participant">参会者</option>
+                  <option value="observer">旁听</option>
+                </select>
               </div>
 
               <div style={styles.formGroup} className="stagger-3">
@@ -546,24 +541,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   charCountWarning: {
     color: '#f97316',
-  },
-  roleOptions: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap',
-  },
-  roleOption: {
-    padding: '10px 20px',
-    border: '2px solid #e2e8f0',
-    borderRadius: '8px',
-    fontSize: '14px',
-    color: '#64748b',
-    transition: 'all 0.2s ease',
-  },
-  roleOptionActive: {
-    borderColor: '#2563eb',
-    background: 'rgba(37, 99, 235, 0.08)',
-    color: '#2563eb',
   },
   starsContainer: {
     display: 'flex',

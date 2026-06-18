@@ -15,6 +15,7 @@ import {
 import { useFeedbackStore } from '../../feedback/store/feedbackStore';
 import { generateWordCloud, formatDate, getScoreColor } from '../utils/wordCloud';
 import { renderStars } from '../../../shared/utils/StarRating';
+import FeedbackCard from '../../feedback/components/FeedbackCard';
 
 interface MeetingDashboardProps {
   meetingId: string;
@@ -309,55 +310,18 @@ const MeetingDashboard: React.FC<MeetingDashboardProps> = ({ meetingId }) => {
         ) : (
           <div style={styles.feedbackList}>
             {feedbacks.map((feedback, index) => (
-              <div key={feedback.id}>
+              <React.Fragment key={feedback.id}>
                 {index === feedbacks.length - unprocessedCount && unprocessedCount > 0 && (
                   <div style={styles.divider}>
                     <span style={styles.dividerText}>—— 已处理 ——</span>
                   </div>
                 )}
-                <div
-                  dangerouslySetInnerHTML={{
-                    __html: `<div style="padding: 4px 0;">
-                      <div style="display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 12px; border: 2px solid ${feedback.isProcessed ? '#10b981' : 'transparent'};">
-                        <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1e40af); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0;">
-                          ${feedback.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div style="flex: 1; min-width: 0;">
-                          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                            <span style="font-weight: 600; color: #1e293b;">${feedback.name}</span>
-                            <span style="font-size: 11px; padding: 2px 8px; background: rgba(37,99,235,0.1); color: #2563eb; border-radius: 4px;">${
-                              { host: '主持人', participant: '参会者', observer: '旁听' }[feedback.role]
-                            }</span>
-                            ${
-                              feedback.isProcessed
-                                ? '<span style="font-size: 11px; padding: 2px 8px; background: rgba(16,185,129,0.1); color: #10b981; border-radius: 4px;">✓ 已处理</span>'
-                                : ''
-                            }
-                          </div>
-                          <div style="font-size: 12px; color: #94a3b8; margin-bottom: 4px;">${formatDate(
-                            feedback.createdAt
-                          )}</div>
-                          <div style="display: flex; align-items: center; gap: 8px;">
-                            ${'★'.repeat(feedback.rating)
-                              .split('')
-                              .map(() => '<span style="color: #fbbf24;">★</span>')
-                              .join('')}
-                            ${'☆'.repeat(5 - feedback.rating)
-                              .split('')
-                              .map(() => '<span style="color: #d1d5db;">★</span>')
-                              .join('')}
-                            <span style="font-size: 13px; color: #475569; margin-left: 8px;">${
-                              feedback.keyTakeaways.length > 30
-                                ? feedback.keyTakeaways.slice(0, 30) + '...'
-                                : feedback.keyTakeaways
-                            }</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>`,
-                  }}
+                <FeedbackCard
+                  feedback={feedback}
+                  index={index}
+                  isLastUnprocessed={index === feedbacks.length - unprocessedCount - 1}
                 />
-              </div>
+              </React.Fragment>
             ))}
           </div>
         )}

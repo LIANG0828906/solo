@@ -41,12 +41,23 @@ function segmentChinese(text: string): string[] {
   return words;
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 0, g: 0, b: 0 };
+}
+
 function interpolateColor(ratio: number): string {
-  const r1 = 37, g1 = 99, b1 = 235;
-  const r2 = 124, g2 = 58, b2 = 237;
-  const r = Math.round(r1 + (r2 - r1) * ratio);
-  const g = Math.round(g1 + (g2 - g1) * ratio);
-  const b = Math.round(b1 + (b2 - b1) * ratio);
+  const startColor = hexToRgb('#1890ff');
+  const endColor = hexToRgb('#722ed1');
+  const r = Math.round(startColor.r + (endColor.r - startColor.r) * ratio);
+  const g = Math.round(startColor.g + (endColor.g - startColor.g) * ratio);
+  const b = Math.round(startColor.b + (endColor.b - startColor.b) * ratio);
   return `rgb(${r}, ${g}, ${b})`;
 }
 
@@ -73,20 +84,47 @@ export function generateWordCloud(texts: string[], maxWords = 30): WordItem[] {
   });
 }
 
+function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
+  let r, g, b;
+  if (s === 0) {
+    r = g = b = l;
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+  return {
+    r: Math.round(r * 255),
+    g: Math.round(g * 255),
+    b: Math.round(b * 255),
+  };
+}
+
 export function getScoreGradient(avgScore: number): string {
-  const ratio = Math.max(0, Math.min(1, (avgScore - 1) / 4));
-  const r = Math.round(239 - 229 * ratio);
-  const g = Math.round(68 + 107 * ratio);
-  const b = Math.round(68 + 3 * ratio);
-  return `linear-gradient(135deg, rgba(${r},${g},${b},0.12), rgba(${r},${g},${b},0.22))`;
+  const ratio = Math.max(0, Math.min(1, avgScore === 0 ? 0.5 : (avgScore - 1) / 4));
+  const hue = 0 + 120 * ratio;
+  const saturation = 0.7;
+  const lightness = 0.45;
+  const { r, g, b } = hslToRgb(hue / 360, saturation, lightness);
+  return `linear-gradient(135deg, hsla(${hue}, ${saturation * 100}%, ${lightness * 100}%, 0.12), hsla(${hue}, ${saturation * 100}%, ${lightness * 100}%, 0.25))`;
 }
 
 export function getScoreColor(avgScore: number): string {
-  const ratio = Math.max(0, Math.min(1, (avgScore - 1) / 4));
-  const r = Math.round(239 - 229 * ratio);
-  const g = Math.round(68 + 107 * ratio);
-  const b = Math.round(68 + 3 * ratio);
-  return `rgb(${r}, ${g}, ${b})`;
+  const ratio = Math.max(0, Math.min(1, avgScore === 0 ? 0.5 : (avgScore - 1) / 4));
+  const hue = 0 + 120 * ratio;
+  const saturation = 0.7;
+  const lightness = 0.45;
+  return `hsl(${hue}, ${saturation * 100}%, ${lightness * 100}%)`;
 }
 
 export function formatDate(isoString: string): string {

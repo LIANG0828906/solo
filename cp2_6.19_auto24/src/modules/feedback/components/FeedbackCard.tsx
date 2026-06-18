@@ -10,49 +10,53 @@ interface FeedbackCardProps {
   isLastUnprocessed: boolean;
 }
 
-const FeedbackCard: React.FC<FeedbackCardProps> = ({ feedback, index, isLastUnprocessed }) => {
+const FeedbackCard: React.FC<FeedbackCardProps> = ({ feedback, index }) => {
   const { processFeedback } = useFeedbackStore();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [shouldAnimate, setShouldAnimate] = useState(false);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [contentHeight, setContentHeight] = useState(0);
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const expandedContentRef = useRef<HTMLDivElement>(null);
+  const summaryContentRef = useRef<HTMLDivElement>(null);
+  const [expandedHeight, setExpandedHeight] = useState(0);
+  const [summaryHeight, setSummaryHeight] = useState(0);
 
   useEffect(() => {
-    if (contentRef.current) {
-      setContentHeight(contentRef.current.scrollHeight);
+    if (expandedContentRef.current) {
+      setExpandedHeight(expandedContentRef.current.scrollHeight);
     }
-  }, [isExpanded, feedback.isProcessed, replyText]);
+  }, [feedback.isProcessed, replyText, feedback.reply]);
 
   useEffect(() => {
-    if (feedback.isProcessed) {
-      const timer = setTimeout(() => setShouldAnimate(true), 100);
-      return () => clearTimeout(timer);
+    if (summaryContentRef.current) {
+      setSummaryHeight(summaryContentRef.current.scrollHeight);
     }
-  }, [feedback.isProcessed]);
+  }, [feedback.keyTakeaways]);
 
   const handleProcess = () => {
     if (!replyText.trim()) return;
     setIsProcessing(true);
+    setIsAnimatingOut(true);
     setTimeout(() => {
       processFeedback(feedback.id, replyText.trim());
       setIsProcessing(false);
       setShowReplyBox(false);
-    }, 400);
+      setIsAnimatingOut(false);
+    }, 300);
   };
 
   const summary = feedback.keyTakeaways.slice(0, 20) + (feedback.keyTakeaways.length > 20 ? '...' : '');
+
+  const currentMaxHeight = isExpanded ? expandedHeight + (showReplyBox ? 160 : 0) : summaryHeight;
 
   return (
     <div
       style={{
         ...styles.card,
         ...(feedback.isProcessed ? styles.cardProcessed : {}),
-        ...(shouldAnimate && feedback.isProcessed ? styles.cardSlideUp : {}),
+        ...(isAnimatingOut ? styles.cardAnimatingOut : {}),
         animationDelay: `${index * 30}ms`,
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
       className="fade-in"
     >
@@ -84,44 +88,104 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ feedback, index, isLastUnpr
       <div
         style={{
           ...styles.cardContent,
-          maxHeight: isExpanded ? `${contentHeight + 60}px` : '72px',
-          transition: 'max-height 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+          maxHeight: `${Math.max(currentMaxHeight, 0)}px`,
+          transition: 'max-height 300ms ease-in-out',
           overflow: 'hidden',
           willChange: 'max-height',
         }}
       >
-        <div ref={contentRef}>
-          {!isExpanded ? (
-            <p style={styles.summaryText}>
-              <span style={styles.summaryLabel}>关键收获：</span>
-              {summary}
-            </p>
-          ) : (
-            <div style={styles.expandedContent}>
-              <div style={styles.contentSection}>
-                <h4 style={styles.contentLabel}>🎯 关键收获</h4>
-                <p style={styles.contentText}>{feedback.keyTakeaways}</p>
-              </div>
-              <div style={styles.contentSection}>
-                <h4 style={styles.contentLabel}>💡 待改进建议</h4>
-                <p style={styles.contentText}>{feedback.improvements}</p>
-              </div>
-              {feedback.reply && (
-                <div style={styles.replySection}>
-                  <div style={styles.replyHeader}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
-                    <span style={styles.replyTitle}>改进措施</span>
-                    {feedback.repliedAt && (
-                      <span style={styles.replyDate}>{formatDate(feedback.repliedAt)}</span>
-                    )}
-                  </div>
-                  <p style={styles.replyText}>{feedback.reply}</p>
-                </div>
-              )}
+        <div
+          ref={summaryContentRef}
+          style={{
+            ...styles.summaryContainer,
+            opacity: isExpanded ? 0 : 1,
+            transition: 'opacity 200ms ease-in-out',
+            position: isExpanded ? 'absolute' : 'relative',
+          }}
+        >
+          <p style={styles.summaryText}>
+            <span style={styles.summaryLabel}>关键收获：</span>
+            {summary}
+          </p>
+        </div>
+
+        <div
+          ref={expandedContentRef}
+          style={{
+            ...styles.expandedContainer,
+            opacity: isExpanded ? 1 : 0,
+            transition: 'opacity 200ms ease-in-out',
+            pointerEvents: isExpanded ? 'auto' : 'none',
+            position: isExpanded ? 'relative' : 'absolute',
+            top: isExpanded ? 0 : -10000,
+          }}
+        >
+          <div style={styles.expandedContent}>
+            <div style={styles.contentSection}>
+              <h4 style={styles.contentLabel}>🎯 关键收获</h4>
+              <p style={styles.contentText}>{feedback.keyTakeaways}</p>
             </div>
-          )}
+            <div style={styles.contentSection}>
+              <h4 style={styles.contentLabel}>💡 待改进建议</h4>
+              <p style={styles.contentText}>{feedback.improvements}</p>
+            </div>
+            {feedback.reply && (
+              <div style={styles.replySection}>
+                <div style={styles.replyHeader}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span style={styles.replyTitle}>改进措施</span>
+                  {feedback.repliedAt && (
+                    <span style={styles.replyDate}>{formatDate(feedback.repliedAt)}</span>
+                  )}
+                </div>
+                <p style={styles.replyText}>{feedback.reply}</p>
+              </div>
+            )}
+
+            {showReplyBox && !feedback.isProcessed && (
+              <div style={styles.replyBox}>
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="请输入改进措施..."
+                  rows={3}
+                  style={styles.replyInput}
+                  onFocus={(e) => (e.target.style.transform = 'scale(1.01)')}
+                  onBlur={(e) => (e.target.style.transform = 'scale(1)')}
+                />
+                <div style={styles.replyActions}>
+                  <button
+                    onClick={() => {
+                      setShowReplyBox(false);
+                      setReplyText('');
+                    }}
+                    style={styles.cancelBtn}
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleProcess}
+                    disabled={!replyText.trim() || isProcessing}
+                    style={{
+                      ...styles.confirmBtn,
+                      ...(!replyText.trim() || isProcessing ? styles.btnDisabled : {}),
+                    }}
+                    onMouseDown={(e) => {
+                      if (replyText.trim() && !isProcessing) {
+                        e.currentTarget.style.transform = 'scale(0.97)';
+                      }
+                    }}
+                    onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                  >
+                    {isProcessing ? '提交中...' : '确认处理 ✓'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -141,48 +205,6 @@ const FeedbackCard: React.FC<FeedbackCardProps> = ({ feedback, index, isLastUnpr
           </button>
         )}
       </div>
-
-      {showReplyBox && !feedback.isProcessed && (
-        <div style={styles.replyBox}>
-          <textarea
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            placeholder="请输入改进措施..."
-            rows={3}
-            style={styles.replyInput}
-            onFocus={(e) => (e.target.style.transform = 'scale(1.01)')}
-            onBlur={(e) => (e.target.style.transform = 'scale(1)')}
-          />
-          <div style={styles.replyActions}>
-            <button
-              onClick={() => {
-                setShowReplyBox(false);
-                setReplyText('');
-              }}
-              style={styles.cancelBtn}
-            >
-              取消
-            </button>
-            <button
-              onClick={handleProcess}
-              disabled={!replyText.trim() || isProcessing}
-              style={{
-                ...styles.confirmBtn,
-                ...(!replyText.trim() || isProcessing ? styles.btnDisabled : {}),
-              }}
-              onMouseDown={(e) => {
-                if (replyText.trim() && !isProcessing) {
-                  e.currentTarget.style.transform = 'scale(0.97)';
-                }
-              }}
-              onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-            >
-              {isProcessing ? '提交中...' : '确认处理 ✓'}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -199,14 +221,17 @@ const styles: Record<string, React.CSSProperties> = {
     opacity: 0,
     animation: 'fadeIn 0.3s ease forwards',
     cursor: 'pointer',
-    willChange: 'transform, box-shadow',
+    willChange: 'transform, box-shadow, max-height',
+    transition: 'transform 300ms ease-in-out, box-shadow 300ms ease-in-out, border-color 300ms ease-in-out, background 300ms ease-in-out',
   },
   cardProcessed: {
     borderColor: '#10b981',
     background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.03), rgba(16, 185, 129, 0.06))',
   },
-  cardSlideUp: {
-    animation: 'slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+  cardAnimatingOut: {
+    transform: 'translateY(-100%)',
+    opacity: 0,
+    transition: 'transform 300ms ease-in-out, opacity 300ms ease-in-out',
   },
   processedBadge: {
     position: 'absolute',
@@ -273,7 +298,11 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   cardContent: {
+    position: 'relative',
     willChange: 'max-height',
+  },
+  summaryContainer: {
+    width: '100%',
   },
   summaryText: {
     fontSize: '14px',
@@ -285,8 +314,11 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#64748b',
     fontSize: '13px',
   },
+  expandedContainer: {
+    width: '100%',
+  },
   expandedContent: {
-    marginTop: '8px',
+    marginTop: '0px',
   },
   contentSection: {
     marginBottom: '16px',
@@ -362,10 +394,9 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'all 0.2s ease',
   },
   replyBox: {
-    marginTop: '12px',
-    paddingTop: '12px',
+    marginTop: '16px',
+    paddingTop: '16px',
     borderTop: '1px solid #f1f5f9',
-    animation: 'fadeIn 0.3s ease',
   },
   replyInput: {
     width: '100%',
