@@ -214,21 +214,44 @@ const cancelAdd = () => {
 .board-column {
   display: flex;
   flex-direction: column;
-  background: rgba(24, 24, 37, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(24, 24, 37, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-radius: 16px;
   padding: 20px;
   min-height: 400px;
-  border: 1px solid rgba(203, 166, 247, 0.1);
+  border: 1px solid rgba(203, 166, 247, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   contain: layout style;
+  position: relative;
+}
+
+.board-column::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    180deg,
+    rgba(203, 166, 247, 0.15) 0%,
+    rgba(203, 166, 247, 0.03) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .board-column.is-drag-over {
   background: rgba(203, 166, 247, 0.08);
   border-color: rgba(203, 166, 247, 0.5);
-  box-shadow: inset 0 0 40px rgba(203, 166, 247, 0.08), 0 0 20px rgba(203, 166, 247, 0.1);
+  box-shadow: inset 0 0 40px rgba(203, 166, 247, 0.1), 0 0 30px rgba(203, 166, 247, 0.15);
 }
 
 .column-header {

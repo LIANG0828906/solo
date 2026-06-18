@@ -227,23 +227,48 @@ const cancelEdit = () => {
 
 <style scoped>
 .task-card {
-  background: rgba(49, 50, 68, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(203, 166, 247, 0.15);
-  border-radius: 12px;
+  position: relative;
+  background: rgba(49, 50, 68, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(203, 166, 247, 0.18);
+  border-radius: 14px;
   padding: 16px;
   margin-bottom: 12px;
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-              border-color 0.2s ease,
-              background 0.2s ease;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+              border-color 0.18s ease,
+              background 0.18s ease;
   transform-origin: center;
-  animation: cardEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation: cardEnter 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
   will-change: transform, box-shadow;
   contain: layout style paint;
   border-left: 4px solid transparent;
+}
+
+.task-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(203, 166, 247, 0.3) 0%,
+    rgba(203, 166, 247, 0.05) 50%,
+    rgba(180, 190, 254, 0.15) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
 }
 
 .priority-border-high {
@@ -261,7 +286,7 @@ const cancelEdit = () => {
 @keyframes cardEnter {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.95);
+    transform: translateY(16px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -271,36 +296,45 @@ const cancelEdit = () => {
 
 .task-card:hover {
   transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 8px 30px rgba(203, 166, 247, 0.2),
-              0 0 0 1px rgba(203, 166, 247, 0.25);
-  border-color: rgba(203, 166, 247, 0.35);
+  box-shadow: 0 10px 40px rgba(203, 166, 247, 0.25),
+              0 0 0 1px rgba(203, 166, 247, 0.35),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-color: rgba(203, 166, 247, 0.45);
+  background: rgba(49, 50, 68, 0.6);
+}
+
+.task-card:hover::before {
+  opacity: 1;
 }
 
 .task-card:active {
-  transform: scale(0.97);
-  transition-duration: 0.08s;
+  transform: scale(0.96);
+  transition-duration: 0.06s;
 }
 
 .task-card.is-dragging {
-  opacity: 0.4;
-  transform: scale(1.05) rotate(2deg);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  opacity: 0.5;
+  transform: scale(1.06) rotate(2deg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5),
+              0 0 40px rgba(203, 166, 247, 0.2);
+  border-color: rgba(203, 166, 247, 0.6);
 }
 
 .task-card.is-editing {
-  animation: bounceIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-  border-color: rgba(203, 166, 247, 0.5);
+  animation: bounceIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border-color: rgba(203, 166, 247, 0.55);
+  box-shadow: 0 0 30px rgba(203, 166, 247, 0.2);
 }
 
 .task-card.is-overdue {
   border-left-color: #f38ba8;
-  background: rgba(243, 139, 168, 0.05);
+  background: rgba(243, 139, 168, 0.06);
 }
 
 @keyframes bounceIn {
   0% { transform: scale(1); }
-  40% { transform: scale(1.04); }
-  70% { transform: scale(0.98); }
+  35% { transform: scale(1.05); }
+  65% { transform: scale(0.97); }
   100% { transform: scale(1); }
 }
 

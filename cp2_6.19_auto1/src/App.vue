@@ -1,6 +1,13 @@
 <template>
   <div class="app-container">
-    <div class="particles-bg" ref="particlesRef"></div>
+    <div class="particles-bg">
+      <div
+        v-for="i in 25"
+        :key="i"
+        class="particle"
+        :style="getParticleStyle(i)"
+      ></div>
+    </div>
 
     <aside class="sidebar" :class="{ 'is-collapsed': sidebarCollapsed }">
       <div class="sidebar-header">
@@ -131,17 +138,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onUnmounted, watch } from 'vue'
 import BoardColumn from './components/BoardColumn.vue'
 import { useBoardStore } from './stores/boardStore'
 
 const { state, tasksByStatus, filterByKeyword, setFilterKeyword, setFilterPriority, selectProject, generateBulkTasks } = useBoardStore()
 
-const particlesRef = ref<HTMLElement | null>(null)
 const searchKeyword = ref('')
 const sidebarCollapsed = ref(false)
-let animationFrame: number | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+const particleCache = new Map<number, Record<string, string>>()
+
+const getParticleStyle = (index: number): Record<string, string> => {
+  if (particleCache.has(index)) {
+    return particleCache.get(index)!
+  }
+
+  const seed = index * 137.5
+  const left = (Math.sin(seed) * 0.5 + 0.5) * 100
+  const top = (Math.cos(seed * 1.3) * 0.5 + 0.5) * 100
+  const size = 2 + (index % 5) * 1.2
+  const duration = 15 + (index % 8) * 3
+  const delay = -(index % 12) * 1.5
+  const opacity = 0.15 + ((index * 7) % 10) / 30
+  const hue = 250 + (index % 5) * 8
+
+  const style = {
+    left: `${left}%`,
+    top: `${top}%`,
+    width: `${size}px`,
+    height: `${size}px`,
+    animationDuration: `${duration}s`,
+    animationDelay: `${delay}s`,
+    opacity: opacity.toFixed(2),
+    '--hue': `${hue}`,
+  } as Record<string, string>
+
+  particleCache.set(index, style)
+  return style
+}
 
 const priorityOptions = [
   { value: 'all', label: '全部' },
@@ -175,114 +211,7 @@ const handleLoadTest = () => {
   generateBulkTasks(100)
 }
 
-class Particle {
-  x: number
-  y: number
-  size: number
-  speedX: number
-  speedY: number
-  opacity: number
-  hue: number
-
-  constructor(width: number, height: number) {
-    this.x = Math.random() * width
-    this.y = Math.random() * height
-    this.size = Math.random() * 2.5 + 0.5
-    this.speedX = (Math.random() - 0.5) * 0.3
-    this.speedY = (Math.random() - 0.5) * 0.3
-    this.opacity = Math.random() * 0.4 + 0.1
-    this.hue = 260 + Math.random() * 40
-  }
-
-  update(width: number, height: number) {
-    this.x += this.speedX
-    this.y += this.speedY
-    if (this.x < 0 || this.x > width) this.speedX *= -1
-    if (this.y < 0 || this.y > height) this.speedY *= -1
-  }
-
-  draw(ctx: CanvasRenderingContext2D) {
-    ctx.beginPath()
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
-    ctx.fillStyle = `hsla(${this.hue}, 70%, 70%, ${this.opacity})`
-    ctx.fill()
-  }
-}
-
-const initParticles = () => {
-  if (!particlesRef.value) return
-  const container = particlesRef.value
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d', { alpha: true })
-  if (!ctx) return
-
-  const resizeCanvas = () => {
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-  }
-  resizeCanvas()
-  canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;'
-  container.appendChild(canvas)
-
-  const particles: Particle[] = []
-  const particleCount = Math.min(50, Math.floor((canvas.width * canvas.height) / 25000))
-  for (let i = 0; i < particleCount; i++) {
-    particles.push(new Particle(canvas.width, canvas.height))
-  }
-
-  let lastTime = 0
-  const targetInterval = 1000 / 30
-
-  const animate = (timestamp: number) => {
-    const delta = timestamp - lastTime
-    if (delta >= targetInterval) {
-      lastTime = timestamp - (delta % targetInterval)
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-      for (const particle of particles) {
-        particle.update(canvas.width, canvas.height)
-        particle.draw(ctx)
-      }
-
-      for (let i = 0; i < particles.length; i++) {
-        const p1 = particles[i]
-        for (let j = i + 1; j < particles.length; j++) {
-          const p2 = particles[j]
-          const dx = p1.x - p2.x
-          const dy = p1.y - p2.y
-          const distSq = dx * dx + dy * dy
-          if (distSq < 14400) {
-            const distance = Math.sqrt(distSq)
-            ctx.beginPath()
-            ctx.moveTo(p1.x, p1.y)
-            ctx.lineTo(p2.x, p2.y)
-            ctx.strokeStyle = `hsla(267, 70%, 70%, ${0.12 * (1 - distance / 120)})`
-            ctx.lineWidth = 0.5
-            ctx.stroke()
-          }
-        }
-      }
-    }
-    animationFrame = requestAnimationFrame(animate)
-  }
-  animationFrame = requestAnimationFrame(animate)
-
-  window.addEventListener('resize', resizeCanvas, { passive: true })
-  return () => {
-    window.removeEventListener('resize', resizeCanvas)
-    if (animationFrame) cancelAnimationFrame(animationFrame)
-    canvas.remove()
-  }
-}
-
-let cleanupParticles: (() => void) | null = null
-
-onMounted(() => {
-  cleanupParticles = initParticles()
-})
-
 onUnmounted(() => {
-  if (cleanupParticles) cleanupParticles()
   if (debounceTimer) clearTimeout(debounceTimer)
 })
 </script>
@@ -304,22 +233,66 @@ onUnmounted(() => {
   height: 100%;
   pointer-events: none;
   z-index: 0;
-  background: linear-gradient(135deg, #1e1e2e 0%, #1a1a2e 50%, #1e1e3e 100%);
-  overflow: hidden;
-}
-
-.particles-bg::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
   background:
     radial-gradient(ellipse at 20% 20%, rgba(203, 166, 247, 0.1) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 80%, rgba(180, 190, 254, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(203, 166, 247, 0.05) 0%, transparent 70%);
-  pointer-events: none;
+    radial-gradient(ellipse at 50% 50%, rgba(203, 166, 247, 0.05) 0%, transparent 70%),
+    linear-gradient(135deg, #1e1e2e 0%, #1a1a2e 50%, #1e1e3e 100%);
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  background: hsl(var(--hue, 267), 70%, 75%);
+  box-shadow: 0 0 8px hsl(var(--hue, 267), 70%, 75%),
+              0 0 20px hsl(var(--hue, 267), 70%, 75%, 0.5);
+  animation: particleFloat linear infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes particleFloat {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-30px, -50px) scale(1.1);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(20px, -100px) scale(0.8);
+    opacity: 0;
+  }
+}
+
+.particle:nth-child(odd) {
+  animation-name: particleFloatAlt;
+}
+
+@keyframes particleFloatAlt {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(40px, -30px) scale(0.9);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-20px, -80px) scale(1.1);
+    opacity: 0;
+  }
 }
 
 .sidebar {
