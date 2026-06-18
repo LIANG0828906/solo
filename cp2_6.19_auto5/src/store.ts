@@ -56,6 +56,7 @@ interface AppState {
   deleteSnippet: (id: string) => void;
   reorderSnippets: (startIndex: number, endIndex: number) => void;
   setSearchQuery: (query: string) => void;
+  clearSearchQuery: () => void;
   setSelectedTags: (tags: string[]) => void;
   toggleTag: (tag: string) => void;
   setSortOrder: (order: SortOrder) => void;
@@ -165,6 +166,7 @@ export const useStore = create<AppState>((set, get) => ({
   }),
 
   setSearchQuery: (query) => set({ searchQuery: query }),
+  clearSearchQuery: () => set({ searchQuery: '' }),
   setSelectedTags: (tags) => set({ selectedTags: tags }),
 
   toggleTag: (tag) => set(state => ({

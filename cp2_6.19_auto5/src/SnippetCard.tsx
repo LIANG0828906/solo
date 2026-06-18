@@ -25,6 +25,7 @@ function stripMarkdown(md: string): string {
 
 interface SnippetCardProps {
   snippet: Snippet;
+  highlightQuery?: string;
   onEdit: (snippet: Snippet) => void;
   onDelete: (id: string) => void;
   onDragStart: (e: React.DragEvent, id: string) => void;
@@ -37,6 +38,7 @@ interface SnippetCardProps {
 
 const SnippetCard = memo(function SnippetCard({
   snippet,
+  highlightQuery = '',
   onEdit,
   onDelete,
   onDragStart,
@@ -56,6 +58,36 @@ const SnippetCard = memo(function SnippetCard({
     onDelete(snippet.id);
   }, [snippet.id, onDelete]);
 
+  const highlightText = useCallback((text: string, query: string) => {
+    if (!query.trim()) return text;
+    const q = query.trim().toLowerCase();
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let lowerText = text.toLowerCase();
+    let idx = lowerText.indexOf(q);
+
+    while (idx !== -1) {
+      if (idx > lastIndex) {
+        parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex, idx)}</span>);
+      }
+      parts.push(
+        <mark key={`highlight-${idx}`} className="highlight-term">
+          {text.slice(idx, idx + q.length)}
+        </mark>
+      );
+      lastIndex = idx + q.length;
+      idx = lowerText.indexOf(q, lastIndex);
+    }
+
+    if (lastIndex < text.length) {
+      parts.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex)}</span>);
+    }
+
+    return parts.length > 0 ? <>{parts}</> : text;
+  }, []);
+
+  const plainContent = stripMarkdown(snippet.content);
+
   return (
     <div
       className={`snippet-card ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
@@ -66,14 +98,14 @@ const SnippetCard = memo(function SnippetCard({
       onDragEnd={onDragEnd}
     >
       <div className="card-header">
-        <div className="card-title">{snippet.title}</div>
+        <div className="card-title">{highlightText(snippet.title, highlightQuery)}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
           <GripVertical size={14} style={{ color: 'var(--text-muted)', opacity: 0.4, cursor: 'grab' }} />
         </div>
       </div>
 
       <div className="card-content-preview">
-        {stripMarkdown(snippet.content)}
+        {highlightText(plainContent, highlightQuery)}
       </div>
 
       {snippet.tags.length > 0 && (

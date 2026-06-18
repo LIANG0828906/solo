@@ -299,6 +299,61 @@ body {
   pointer-events: none;
 }
 
+.search-clear-btn {
+  position: absolute;
+  right: 52px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.search-clear-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-primary);
+}
+
+.search-clear-btn:active {
+  transform: translateY(-50%) scale(0.95);
+  transition: transform 0.1s;
+}
+
+.search-shortcut {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  pointer-events: none;
+}
+
+.highlight-term {
+  background: #fff3cd;
+  color: #856404;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+
+.search-box input:focus ~ .search-shortcut {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
 .tag-filters {
   display: flex;
   gap: 6px;

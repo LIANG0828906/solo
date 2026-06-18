@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { FixedSizeGrid as Grid } from 'react-window';
-import { Search, Download, ArrowUpDown, Clock, ArrowDownAZ } from 'lucide-react';
+import { Search, Download, ArrowUpDown, Clock, ArrowDownAZ, X } from 'lucide-react';
 import { useStore, getAllTags } from './store';
 import type { Snippet, SortOrder } from './types';
 import SnippetCard from './SnippetCard';
@@ -30,6 +30,7 @@ export default function SnippetManager() {
   const snippets = useStore(s => s.snippets);
   const searchQuery = useStore(s => s.searchQuery);
   const setSearchQuery = useStore(s => s.setSearchQuery);
+  const clearSearchQuery = useStore(s => s.clearSearchQuery);
   const selectedCategoryId = useStore(s => s.selectedCategoryId);
   const selectedTags = useStore(s => s.selectedTags);
   const toggleTag = useStore(s => s.toggleTag);
@@ -44,11 +45,33 @@ export default function SnippetManager() {
   const isMobileView = useStore(s => s.isMobileView);
   const categories = useStore(s => s.categories);
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const debouncedSearch = useDebounce(searchQuery, 200);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   }, [setSearchQuery]);
+
+  const handleClearSearch = useCallback(() => {
+    clearSearchQuery();
+    searchInputRef.current?.focus();
+  }, [clearSearchQuery]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+      if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        e.preventDefault();
+        clearSearchQuery();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [clearSearchQuery]);
 
   const filteredSnippets = useMemo(() => {
     let filtered = [...snippets];
@@ -179,7 +202,8 @@ export default function SnippetManager() {
     columnCount,
     dragId,
     dragOverId,
-  }), [filteredSnippets, columnCount, dragId, dragOverId]);
+    highlightQuery: debouncedSearch,
+  }), [filteredSnippets, columnCount, dragId, dragOverId, debouncedSearch]);
 
   const Cell = useCallback(({ columnIndex, rowIndex, style, data }: {
     columnIndex: number;
@@ -187,7 +211,7 @@ export default function SnippetManager() {
     style: React.CSSProperties;
     data: typeof gridData;
   }) => {
-    const { items, columnCount: cols, dragId: did, dragOverId: doid } = data;
+    const { items, columnCount: cols, dragId: did, dragOverId: doid, highlightQuery: hq } = data;
     const idx = rowIndex * cols + columnIndex;
     if (idx >= items.length) return <div style={style} />;
     const snippet = items[idx];
@@ -201,6 +225,7 @@ export default function SnippetManager() {
       }}>
         <SnippetCard
           snippet={snippet}
+          highlightQuery={hq}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onDragStart={handleDragStart}
@@ -231,11 +256,22 @@ export default function SnippetManager() {
         <div className="search-box">
           <span className="search-icon"><Search size={15} /></span>
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="搜索标题或正文..."
             value={searchQuery}
             onChange={handleSearchChange}
           />
+          {searchQuery && (
+            <button
+              className="search-clear-btn"
+              onClick={handleClearSearch}
+              title="清除搜索"
+            >
+              <X size={14} />
+            </button>
+          )}
+          <span className="search-shortcut" title="Ctrl+K 快速搜索">Ctrl+K</span>
         </div>
 
         <div className="tag-filters">
