@@ -1,0 +1,150 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  overflow: hidden;
+}
+
+.canvas-area {
+  position: relative;
+  flex: 1;
+  height: 80vh;
+  min-height: 0;
+}
+
+.canvas-container {
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.uploader-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+.uploader-overlay:has(.file-loaded) {
+  top: auto;
+  bottom: 10px;
+  transform: translate(-50%, 0);
+}
+
+.upload-btn {
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: transparent;
+  border: 2px solid transparent;
+  border-image: linear-gradient(135deg, #6c5ce7, #a29bfe) 1;
+  border-radius: 0;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.15));
+  z-index: -1;
+}
+
+.upload-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(108, 92, 231, 0.4);
+}
+
+.controls-bar {
+  height: 60px;
+  background: rgba(45, 52, 54, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+}
+
+.controls-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.play-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #6c5ce7;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.1s ease;
+  flex-shrink: 0;
+}
+
+.play-btn:hover {
+  background: #a29bfe;
+}
+
+.play-btn:active {
+  transform: scale(0.95);
+}
+
+.progress-wrapper {
+  flex: 1;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.progress-bg {
+  width: 100%;
+  height: 8px;
+  background: #2d3436;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #a29bfe;
+  border-radius: 4px;
+  transition: width 0.1s linear;
+}
+
+@media (max-width: 768px) {
+  .canvas-area {
+    height: 60vh;
+  }
+
+  .controls-bar {
+    height: 50px;
+    padding: 8px 12px;
+  }
+
+  .upload-btn {
+    padding: 10px 24px;
+    font-size: 14px;
+  }
+}
