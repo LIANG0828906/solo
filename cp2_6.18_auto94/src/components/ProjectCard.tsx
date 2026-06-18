@@ -23,7 +23,7 @@ const ProjectCard = memo(function ProjectCard({
   const getProjectProgress = useInkFlowStore((s) => s.getProjectProgress);
 
   const progress = getProjectProgress(project.id);
-  const progressPercent = progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
+  const progressPercent = progress.percent;
 
   const handleCardClick = () => {
     navigate(`/project/${project.id}`);

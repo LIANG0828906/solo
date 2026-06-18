@@ -10,17 +10,30 @@ export function formatRelativeTime(isoString: string): string {
     d1.getMonth() === d2.getMonth() &&
     d1.getDate() === d2.getDate();
 
-  if (isSameDay(date, now)) {
+  const startOfDay = (d: Date) => {
+    const normalized = new Date(d);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  };
+
+  const dayDiff = Math.floor(
+    (startOfDay(now).getTime() - startOfDay(date).getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (dayDiff === 0) {
     return `今天 ${timePart}`;
   }
 
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (isSameDay(date, yesterday)) {
+  if (dayDiff === 1) {
     return `昨天 ${timePart}`;
   }
 
-  return `${pad(date.getMonth() + 1)}月${pad(date.getDate())}日`;
+  const isSameYear = date.getFullYear() === now.getFullYear();
+  if (isSameYear) {
+    return `${pad(date.getMonth() + 1)}月${pad(date.getDate())}日`;
+  }
+
+  return `${date.getFullYear()}年${pad(date.getMonth() + 1)}月${pad(date.getDate())}日`;
 }
 
 export function formatFullDateTime(isoString: string): string {

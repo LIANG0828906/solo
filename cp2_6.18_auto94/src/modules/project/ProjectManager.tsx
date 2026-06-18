@@ -62,15 +62,34 @@ export default function ProjectManager() {
     setShowCreateModal(true);
   };
 
-  const handleShare = (project: Project) => {
+  const handleShare = async (project: Project) => {
     const shareData = {
       title: project.title,
-      text: project.description,
-      url: window.location.href.replace(/\/$/, '') + `/project/${project.id}`,
+      text: project.description || '来看看我的写作项目吧',
+      url: `${window.location.origin}/project/${project.id}`,
     };
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(shareData.url);
-      alert('项目链接已复制到剪贴板');
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') {
+        console.warn('Web Share failed, fallback to copy', e);
+      } else {
+        return;
+      }
+    }
+
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareData.url);
+        alert('项目链接已复制到剪贴板');
+      }
+    } catch (e) {
+      console.warn('Copy to clipboard failed', e);
+      alert('分享失败，请手动复制链接');
     }
   };
 
