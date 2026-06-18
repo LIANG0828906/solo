@@ -129,9 +129,17 @@ const HomePage: React.FC = () => {
   const filterBarStyle: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
     padding: '12px 24px',
     backgroundColor: '#FAF5EF',
+    flexWrap: 'nowrap',
+  };
+
+  const filterControlsStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
     flexWrap: 'wrap',
   };
 
@@ -155,10 +163,10 @@ const HomePage: React.FC = () => {
   };
 
   const resultTextStyle: React.CSSProperties = {
-    marginLeft: 'auto',
     fontSize: 13,
     color: '#888',
     whiteSpace: 'nowrap',
+    flexShrink: 0,
   };
 
   const tabBarStyle: React.CSSProperties = {
@@ -227,36 +235,38 @@ const HomePage: React.FC = () => {
       </nav>
 
       <div style={filterBarStyle}>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          style={selectStyle}
-        >
-          <option value="">全部类别</option>
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
+        <div style={filterControlsStyle}>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={selectStyle}
+          >
+            <option value="">全部类别</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
 
-        <input
-          type="number"
-          placeholder="最短(分钟)"
-          value={minCookTime}
-          onChange={(e) => setMinCookTime(e.target.value === '' ? '' : Number(e.target.value))}
-          style={timeInputStyle}
-          min={0}
-        />
-        <span style={{ color: '#999' }}>—</span>
-        <input
-          type="number"
-          placeholder="最长(分钟)"
-          value={maxCookTime}
-          onChange={(e) => setMaxCookTime(e.target.value === '' ? '' : Number(e.target.value))}
-          style={timeInputStyle}
-          min={0}
-        />
+          <input
+            type="number"
+            placeholder="最短(分钟)"
+            value={minCookTime}
+            onChange={(e) => setMinCookTime(e.target.value === '' ? '' : Number(e.target.value))}
+            style={timeInputStyle}
+            min={0}
+          />
+          <span style={{ color: '#999' }}>—</span>
+          <input
+            type="number"
+            placeholder="最长(分钟)"
+            value={maxCookTime}
+            onChange={(e) => setMaxCookTime(e.target.value === '' ? '' : Number(e.target.value))}
+            style={timeInputStyle}
+            min={0}
+          />
+        </div>
 
         <span style={resultTextStyle}>共找到{displayedRecipes.length}个食谱</span>
       </div>
@@ -270,10 +280,10 @@ const HomePage: React.FC = () => {
         </button>
       </div>
 
-      <div style={gridStyle} className="home-recipe-grid">
+      <div style={gridStyle} className="home-recipe-grid" key={`grid-${activeTab}-${displayedRecipes.length}`}>
         {displayedRecipes.map((recipe, index) => (
           <div
-            key={recipe.id}
+            key={`${recipe.id}-${activeTab}-${index}`}
             style={{
               animation: `fadeInItem 0.4s ease-out ${index * 0.06}s both`,
             }}

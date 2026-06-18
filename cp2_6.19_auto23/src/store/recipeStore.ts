@@ -314,11 +314,17 @@ export const useRecipeStore = create<RecipeState>()(
 
       searchRecipes: (keyword) => {
         if (!keyword.trim()) return get().recipes;
-        const kw = keyword.toLowerCase();
+        const keywords = keyword
+          .toLowerCase()
+          .split(/[\s,，]+/)
+          .filter((kw) => kw.trim().length > 0);
+        if (keywords.length === 0) return get().recipes;
         return get().recipes.filter((r) => {
-          if (r.title.toLowerCase().includes(kw)) return true;
-          if (r.ingredients.some((i: Ingredient) => i.name.toLowerCase().includes(kw))) return true;
-          return false;
+          return keywords.every((kw) => {
+            if (r.title.toLowerCase().includes(kw)) return true;
+            if (r.ingredients.some((i: Ingredient) => i.name.toLowerCase().includes(kw))) return true;
+            return false;
+          });
         });
       },
 
@@ -326,19 +332,26 @@ export const useRecipeStore = create<RecipeState>()(
         const { recipes } = get();
         return recipes.filter((r) => {
           if (filters.keyword.trim()) {
-            const kw = filters.keyword.toLowerCase();
-            const matchesKeyword =
-              r.title.toLowerCase().includes(kw) ||
-              r.ingredients.some((i: Ingredient) => i.name.toLowerCase().includes(kw));
-            if (!matchesKeyword) return false;
+            const keywords = filters.keyword
+              .toLowerCase()
+              .split(/[\s,，]+/)
+              .filter((kw) => kw.trim().length > 0);
+            if (keywords.length > 0) {
+              const allMatch = keywords.every((kw) => {
+                if (r.title.toLowerCase().includes(kw)) return true;
+                if (r.ingredients.some((i: Ingredient) => i.name.toLowerCase().includes(kw))) return true;
+                return false;
+              });
+              if (!allMatch) return false;
+            }
           }
           if (filters.category && r.category !== filters.category) {
             return false;
           }
-          if (filters.minCookTime !== null && r.cookTime < filters.minCookTime) {
+          if (filters.minCookTime !== null && r.cookTime < Number(filters.minCookTime)) {
             return false;
           }
-          if (filters.maxCookTime !== null && r.cookTime > filters.maxCookTime) {
+          if (filters.maxCookTime !== null && r.cookTime > Number(filters.maxCookTime)) {
             return false;
           }
           return true;
