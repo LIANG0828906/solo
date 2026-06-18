@@ -18,7 +18,7 @@ export const ProjectDetail: React.FC = () => {
   const [showAddTrack, setShowAddTrack] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [trackForm, setTrackForm] = useState({ name: '', description: '', status: '待录制' as TrackStatus })
-  const scrollRef = useScrollFadeIn()
+  const scrollRef = useScrollFadeIn([id, tracks.length])
 
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id])
 

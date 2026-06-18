@@ -11,7 +11,7 @@ export const ProjectList: React.FC = () => {
   const addProject = useProjectStore((s) => s.addProject)
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(true)
-  const scrollRef = useScrollFadeIn()
+  const scrollRef = useScrollFadeIn([loading, projects.length])
 
   const [form, setForm] = useState({
     name: '',

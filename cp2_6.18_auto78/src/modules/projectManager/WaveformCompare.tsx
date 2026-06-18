@@ -37,12 +37,31 @@ function generateWavBlob(frequency: number, duration: number, sampleRate = 44100
   return new Blob([buffer], { type: 'audio/wav' })
 }
 
-export const WaveformCompare: React.FC<{
+function lightenColor(hex: string, amount: number = 0.15): string {
+  const num = parseInt(hex.replace('#', ''), 16)
+  const r = Math.min(255, (num >> 16) + Math.round(255 * amount))
+  const g = Math.min(255, ((num >> 8) & 0xff) + Math.round(255 * amount))
+  const b = Math.min(255, (num & 0xff) + Math.round(255 * amount))
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
+
+interface WaveformCompareProps {
   oldVersionId: string
   newVersionId: string
   trackId: string
   onClose: () => void
-}> = ({ oldVersionId, newVersionId, trackId, onClose }) => {
+  oldColor?: string
+  newColor?: string
+}
+
+export const WaveformCompare: React.FC<WaveformCompareProps> = ({
+  oldVersionId,
+  newVersionId,
+  trackId,
+  onClose,
+  oldColor = '#3B82F6',
+  newColor = '#F97316',
+}) => {
   const versions = useProjectStore((s) => s.versions[trackId] || [])
   const oldVersion = versions.find((v) => v.id === oldVersionId)
   const newVersion = versions.find((v) => v.id === newVersionId)
@@ -53,77 +72,138 @@ export const WaveformCompare: React.FC<{
   const newWaveSurferRef = useRef<WaveSurfer | null>(null)
   const [oldReady, setOldReady] = useState(false)
   const [newReady, setNewReady] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const cleanupRef = useRef<{ urls: string[]; destroy: () => void } | null>(null)
 
   useEffect(() => {
     if (!oldContainerRef.current || !newContainerRef.current) return
 
-    const oldUrl = URL.createObjectURL(generateWavBlob(220 + Math.random() * 200, 3))
-    const newUrl = URL.createObjectURL(generateWavBlob(260 + Math.random() * 200, 3))
+    const urls: string[] = []
+    let oldWs: WaveSurfer | null = null
+    let newWs: WaveSurfer | null = null
+    let disposed = false
 
-    const oldWs = WaveSurfer.create({
-      container: oldContainerRef.current,
-      waveColor: '#3B82F6',
-      progressColor: '#2563EB',
-      cursorColor: '#3B82F6',
-      height: 80,
-      barWidth: 2,
-      barGap: 1,
-      barRadius: 2,
-      normalize: true,
-      backend: 'WebAudio',
-    })
-
-    const newWs = WaveSurfer.create({
-      container: newContainerRef.current,
-      waveColor: '#F97316',
-      progressColor: '#EA580C',
-      cursorColor: '#F97316',
-      height: 80,
-      barWidth: 2,
-      barGap: 1,
-      barRadius: 2,
-      normalize: true,
-      backend: 'WebAudio',
-    })
-
-    oldWs.on('ready', () => setOldReady(true))
-    newWs.on('ready', () => setNewReady(true))
-
-    oldWs.load(oldUrl)
-    newWs.load(newUrl)
-
-    oldWaveSurferRef.current = oldWs
-    newWaveSurferRef.current = newWs
-
-    return () => {
-      oldWs.destroy()
-      newWs.destroy()
-      URL.revokeObjectURL(oldUrl)
-      URL.revokeObjectURL(newUrl)
+    const cleanup = () => {
+      disposed = true
+      try {
+        if (oldWs) oldWs.destroy()
+        if (newWs) newWs.destroy()
+      } catch (_) {}
+      urls.forEach((u) => {
+        try { URL.revokeObjectURL(u) } catch (_) {}
+      })
       setOldReady(false)
       setNewReady(false)
     }
-  }, [oldVersionId, newVersionId])
+
+    cleanupRef.current = { urls, destroy: cleanup }
+
+    ;(async () => {
+      try {
+        if (disposed) return
+        const oldBlob = generateWavBlob(220 + Math.random() * 200, 3)
+        const newBlob = generateWavBlob(260 + Math.random() * 200, 3)
+        const oldUrl = URL.createObjectURL(oldBlob)
+        const newUrl = URL.createObjectURL(newBlob)
+        urls.push(oldUrl, newUrl)
+
+        if (!oldContainerRef.current || !newContainerRef.current) return
+
+        try {
+          oldWs = WaveSurfer.create({
+            container: oldContainerRef.current,
+            waveColor: oldColor,
+            progressColor: lightenColor(oldColor, -0.1),
+            cursorColor: oldColor,
+            height: 80,
+            barWidth: 2,
+            barGap: 1,
+            barRadius: 2,
+            normalize: true,
+          })
+        } catch (e) {
+          throw new Error('旧版本波形创建失败')
+        }
+
+        try {
+          newWs = WaveSurfer.create({
+            container: newContainerRef.current,
+            waveColor: newColor,
+            progressColor: lightenColor(newColor, -0.1),
+            cursorColor: newColor,
+            height: 80,
+            barWidth: 2,
+            barGap: 1,
+            barRadius: 2,
+            normalize: true,
+          })
+        } catch (e) {
+          throw new Error('新版本波形创建失败')
+        }
+
+        oldWs.on('ready', () => setOldReady(true))
+        newWs.on('ready', () => setNewReady(true))
+        oldWs.on('error', () => setError('旧版本音频加载失败'))
+        newWs.on('error', () => setError('新版本音频加载失败'))
+
+        try {
+          oldWs.load(oldUrl)
+        } catch (_) {
+          setError('旧版本音频加载失败')
+        }
+        try {
+          newWs.load(newUrl)
+        } catch (_) {
+          setError('新版本音频加载失败')
+        }
+
+        oldWaveSurferRef.current = oldWs
+        newWaveSurferRef.current = newWs
+      } catch (e) {
+        if (!disposed) {
+          setError(e instanceof Error ? e.message : '波形渲染失败，请刷新重试')
+          cleanup()
+        }
+      }
+    })()
+
+    return cleanup
+  }, [oldVersionId, newVersionId, oldColor, newColor])
 
   const handlePlayOld = () => {
-    if (oldWaveSurferRef.current) {
-      oldWaveSurferRef.current.playPause()
-    }
+    try {
+      oldWaveSurferRef.current?.playPause()
+    } catch (_) {}
   }
 
   const handlePlayNew = () => {
-    if (newWaveSurferRef.current) {
-      newWaveSurferRef.current.playPause()
-    }
+    try {
+      newWaveSurferRef.current?.playPause()
+    } catch (_) {}
   }
 
   if (!oldVersion || !newVersion) return null
 
   return (
-    <div className="waveform-compare">
+    <div className="waveform-compare" style={{ position: 'relative' }}>
+      {error && (
+        <div
+          style={{
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid var(--danger)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '8px 12px',
+            marginBottom: 12,
+            fontSize: 13,
+            color: 'var(--danger)',
+          }}
+        >
+          {error}
+        </div>
+      )}
       <div className="waveform-panel">
         <div className="waveform-label">
-          <span className="dot old" />
+          <span className="dot old" style={{ background: oldColor }} />
           {oldVersion.versionNumber} - {oldVersion.uploaderName}
         </div>
         <div className="waveform-container" ref={oldContainerRef} />
@@ -132,7 +212,7 @@ export const WaveformCompare: React.FC<{
             className="btn btn-ghost"
             style={{ fontSize: 12, padding: '4px 10px' }}
             onClick={handlePlayOld}
-            disabled={!oldReady}
+            disabled={!oldReady || !!error}
           >
             ▶ 播放旧版
           </button>
@@ -140,7 +220,7 @@ export const WaveformCompare: React.FC<{
       </div>
       <div className="waveform-panel">
         <div className="waveform-label">
-          <span className="dot new" />
+          <span className="dot new" style={{ background: newColor }} />
           {newVersion.versionNumber} - {newVersion.uploaderName}
         </div>
         <div className="waveform-container" ref={newContainerRef} />
@@ -149,7 +229,7 @@ export const WaveformCompare: React.FC<{
             className="btn btn-ghost"
             style={{ fontSize: 12, padding: '4px 10px' }}
             onClick={handlePlayNew}
-            disabled={!newReady}
+            disabled={!newReady || !!error}
           >
             ▶ 播放新版
           </button>
@@ -157,7 +237,13 @@ export const WaveformCompare: React.FC<{
       </div>
       <button
         className="btn btn-ghost"
-        style={{ position: 'absolute', top: 8, right: 8, fontSize: 12, padding: '4px 8px' }}
+        style={{
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          fontSize: 12,
+          padding: '4px 8px',
+        }}
         onClick={onClose}
       >
         ✕ 关闭对比

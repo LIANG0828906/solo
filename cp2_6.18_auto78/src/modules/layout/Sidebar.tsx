@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useProjectStore } from '../../store/projectStore'
 
-export const useScrollFadeIn = () => {
-  const ref = useRef<HTMLDivElement>(null)
+export const useScrollFadeIn = <T extends HTMLElement = HTMLDivElement>(deps: React.DependencyList = []) => {
+  const ref = useRef<T | null>(null)
 
   useEffect(() => {
     const el = ref.current
@@ -14,20 +14,40 @@ export const useScrollFadeIn = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add('visible')
+            observer.unobserve(entry.target)
           }
         })
       },
-      { threshold: 0.1 }
+      { root: null, rootMargin: '0px 0px -40px 0px', threshold: 0 }
     )
 
-    const children = el.querySelectorAll('.scroll-fade-in')
-    children.forEach((child) => observer.observe(child))
+    const elementsToObserve: Element[] = []
     if (el.classList.contains('scroll-fade-in')) {
-      observer.observe(el)
+      elementsToObserve.push(el)
     }
+    el.querySelectorAll('.scroll-fade-in').forEach((child) => {
+      elementsToObserve.push(child)
+    })
 
-    return () => observer.disconnect()
-  }, [])
+    elementsToObserve.forEach((elem, idx) => {
+      (elem as HTMLElement).style.transitionDelay = `${idx * 0.08}s`
+      observer.observe(elem)
+    })
+
+    const forceTimer = setTimeout(() => {
+      elementsToObserve.forEach((elem) => {
+        if (!elem.classList.contains('visible')) {
+          elem.classList.add('visible')
+        }
+      })
+    }, 150)
+
+    return () => {
+      clearTimeout(forceTimer)
+      observer.disconnect()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps)
 
   return ref
 }

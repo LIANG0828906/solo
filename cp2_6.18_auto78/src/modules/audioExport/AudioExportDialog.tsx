@@ -1,26 +1,28 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useProjectStore } from '../../store/projectStore'
 import { downloadQueue, DownloadTask } from '../../utils/downloadQueue'
 
 const createExportWorker = (): Worker => {
   const code = `
     self.onmessage = function(e) {
-      const { tracks, versions } = e.data
-      const results = []
-      for (const track of tracks) {
-        const trackVersions = versions[track.id] || []
+      const { selectedIds, tracksData, versionsData } = e.data
+      const result = []
+      for (let i = 0; i < selectedIds.length; i++) {
+        const id = selectedIds[i]
+        const track = tracksData.find(function(t) { return t.id === id })
+        if (!track) continue
+        const trackVersions = versionsData[id] || []
         const latest = trackVersions[trackVersions.length - 1]
-        results.push({
-          trackId: track.id,
-          trackName: track.name,
-          versionNumber: latest ? latest.versionNumber : 'v1.0',
+        result.push({
+          trackId: id,
+          fileName: track.name + '-' + (latest ? latest.versionNumber : 'v1.0') + '.mp3',
           fileSize: latest ? latest.fileSize : 0,
-          audioUrl: latest ? latest.audioUrl : ''
+          audioUrl: latest ? (latest.audioUrl || '') : ''
         })
       }
-      setTimeout(() => {
-        self.postMessage({ results })
-      }, 300)
+      setTimeout(function() {
+        self.postMessage({ results: result })
+      }, 200)
     }
   `
   const blob = new Blob([code], { type: 'application/javascript' })
@@ -32,103 +34,158 @@ export const AudioExportDialog: React.FC<{
   onClose: () => void
 }> = ({ projectId, onClose }) => {
   const tracks = useProjectStore((s) => s.tracks[projectId] || [])
-  const versions = useProjectStore((s) => s.versions)
+  const allVersions = useProjectStore((s) => s.versions)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isExporting, setIsExporting] = useState(false)
-  const [downloadTasks, setDownloadTasks] = useState<DownloadTask[]>([])
+  const [queueTasks, setQueueTasks] = useState<DownloadTask[]>([])
   const [playingTrackId, setPlayingTrackId] = useState<string | null>(null)
   const [audioProgress, setAudioProgress] = useState<Record<string, number>>({})
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [exportStartTime, setExportStartTime] = useState<number | null>(null)
+  const [showSpinner, setShowSpinner] = useState(false)
   const workerRef = useRef<Worker | null>(null)
+  const audioCleanupRef = useRef<{ oscillator?: OscillatorNode; audioCtx?: AudioContext; interval?: number } | null>(null)
+  const exportTimeoutRef = useRef<number | null>(null)
+  const spinnerTimeoutRef = useRef<number | null>(null)
 
-  const finalizedTracks = tracks.filter((t) => t.status === '已定稿')
+  const finalizedTracks = useMemo(
+    () => tracks.filter((t) => t.status === '已定稿'),
+    [tracks]
+  )
 
-  const exportItems = finalizedTracks.map((track) => {
-    const trackVersions = versions[track.id] || []
-    const latest = trackVersions[trackVersions.length - 1]
-    return {
-      trackId: track.id,
-      trackName: track.name,
-      versionNumber: latest?.versionNumber || 'v1.0',
-      fileSize: latest?.fileSize || 0,
-      audioUrl: latest?.audioUrl || '',
-    }
-  })
+  const exportItems = useMemo(() => {
+    return finalizedTracks.map((track) => {
+      const trackVersions = allVersions[track.id] || []
+      const latest = trackVersions[trackVersions.length - 1]
+      return {
+        trackId: track.id,
+        trackName: track.name,
+        versionNumber: latest?.versionNumber || 'v1.0',
+        fileSize: latest?.fileSize || 0,
+        audioUrl: latest?.audioUrl || '',
+        fileName: `${track.name}-${latest?.versionNumber || 'v1.0'}.mp3`,
+      }
+    })
+  }, [finalizedTracks, allVersions])
 
   useEffect(() => {
     const unsub = downloadQueue.subscribe(() => {
-      setDownloadTasks(downloadQueue.getTasks())
+      setQueueTasks(downloadQueue.getTasks())
     })
-    return unsub
+    return () => unsub
   }, [])
 
-  const toggleSelect = (trackId: string) => {
+  useEffect(() => {
+    return () => {
+      if (workerRef.current) {
+        try { workerRef.current.terminate() } catch (_) {}
+      }
+      if (audioCleanupRef.current) {
+        try { audioCleanupRef.current.oscillator?.stop() } catch (_) {}
+        try { audioCleanupRef.current.audioCtx?.close() } catch (_) {}
+        if (audioCleanupRef.current.interval) {
+          window.clearInterval(audioCleanupRef.current.interval)
+        }
+      }
+      if (exportTimeoutRef.current) window.clearTimeout(exportTimeoutRef.current)
+      if (spinnerTimeoutRef.current) window.clearTimeout(spinnerTimeoutRef.current)
+      downloadQueue.clear()
+    }
+  }, [])
+
+  const toggleSelect = useCallback((trackId: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(trackId)) next.delete(trackId)
       else next.add(trackId)
       return next
     })
-  }
+  }, [])
 
-  const selectAll = () => {
+  const selectAll = useCallback(() => {
     if (selectedIds.size === exportItems.length) {
       setSelectedIds(new Set())
     } else {
       setSelectedIds(new Set(exportItems.map((i) => i.trackId)))
     }
-  }
+  }, [selectedIds, exportItems])
 
   const handleExport = useCallback(() => {
     if (selectedIds.size === 0) return
 
+    const selectedIdArr = Array.from(selectedIds)
     setIsExporting(true)
+    setExportStartTime(Date.now())
 
-    const selectedItems = exportItems.filter((i) => selectedIds.has(i.trackId))
-    const tracksData = selectedItems.map((i) => ({
-      id: i.trackId,
-      name: i.trackName,
-    }))
+    if (spinnerTimeoutRef.current) window.clearTimeout(spinnerTimeoutRef.current)
+    spinnerTimeoutRef.current = window.setTimeout(() => {
+      if (isExporting || Date.now() - (exportStartTime || 0) < 1000) {
+        setShowSpinner(true)
+      }
+    }, 900)
 
-    const worker = createExportWorker()
-    workerRef.current = worker
+    try {
+      const worker = createExportWorker()
+      workerRef.current = worker
 
-    worker.onmessage = (e) => {
-      const { results } = e.data
-      results.forEach((item: { trackId: string; trackName: string; versionNumber: string; fileSize: number }) => {
-        downloadQueue.enqueue({
-          id: `dl-${item.trackId}`,
-          fileName: `${item.trackName}-${item.versionNumber}.mp3`,
-          fileSize: item.fileSize,
-          audioUrl: `blob:mock-audio-${item.trackId}`,
+      worker.onmessage = (e) => {
+        const { results } = e.data
+        const taskPromiseArr: DownloadTask[] = []
+        results.forEach((item: { trackId: string; fileName: string; fileSize: number; audioUrl: string }) => {
+          const t = downloadQueue.enqueue({
+            id: `dl-${item.trackId}`,
+            fileName: item.fileName,
+            fileSize: item.fileSize,
+            audioUrl: item.audioUrl || `blob:mock-audio-${item.trackId}-${Date.now()}`,
+            onProgress: () => {},
+            onComplete: (fileSizeMB, audioUrl) => {},
+          })
+          taskPromiseArr.push(t)
         })
+        worker.terminate()
+        workerRef.current = null
+
+        if (exportTimeoutRef.current) window.clearTimeout(exportTimeoutRef.current)
+        exportTimeoutRef.current = window.setTimeout(() => {
+          setIsExporting(false)
+          if (spinnerTimeoutRef.current) window.clearTimeout(spinnerTimeoutRef.current)
+          setShowSpinner(false)
+        }, 400)
+      }
+
+      worker.onerror = () => {
+        setIsExporting(false)
+        setShowSpinner(false)
+        try { worker.terminate() } catch (_) {}
+        workerRef.current = null
+      }
+
+      const tracksData = finalizedTracks.map((t) => ({ id: t.id, name: t.name }))
+      const versionsData: Record<string, { versionNumber: string; fileSize: number; audioUrl: string }[]> = {}
+      for (const track of finalizedTracks) {
+        versionsData[track.id] = (allVersions[track.id] || []).map((v) => ({
+          versionNumber: v.versionNumber,
+          fileSize: v.fileSize,
+          audioUrl: v.audioUrl,
+        }))
+      }
+
+      worker.postMessage({
+        selectedIds: selectedIdArr,
+        tracksData,
+        versionsData,
       })
+    } catch (err) {
       setIsExporting(false)
-      worker.terminate()
+      setShowSpinner(false)
     }
+  }, [selectedIds, finalizedTracks, allVersions, isExporting, exportStartTime])
 
-    worker.onerror = () => {
-      setIsExporting(false)
-      worker.terminate()
-    }
-
-    worker.postMessage({
-      tracks: tracksData,
-      versions: Object.fromEntries(
-        Object.entries(versions).map(([k, v]) => [k, v.map((ver) => ({
-          id: ver.id,
-          versionNumber: ver.versionNumber,
-          fileSize: ver.fileSize,
-          audioUrl: ver.audioUrl,
-        }))])
-      ),
-    })
-  }, [selectedIds, exportItems, versions])
-
-  const handlePreview = (trackId: string, trackName: string) => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current = null
+  const handlePreview = useCallback((trackId: string) => {
+    if (audioCleanupRef.current) {
+      try { audioCleanupRef.current.oscillator?.stop() } catch (_) {}
+      try { audioCleanupRef.current.audioCtx?.close() } catch (_) {}
+      if (audioCleanupRef.current.interval) window.clearInterval(audioCleanupRef.current.interval)
+      audioCleanupRef.current = null
     }
 
     if (playingTrackId === trackId) {
@@ -136,47 +193,53 @@ export const AudioExportDialog: React.FC<{
       return
     }
 
-    const audio = new Audio()
-    const audioCtx = new AudioContext()
-    const oscillator = audioCtx.createOscillator()
-    const gainNode = audioCtx.createGain()
-    oscillator.connect(gainNode)
-    gainNode.connect(audioCtx.destination)
-    oscillator.frequency.value = 220 + Math.random() * 200
-    oscillator.type = 'sine'
-    gainNode.gain.value = 0.1
+    try {
+      const audioCtx = new AudioContext()
+      const oscillator = audioCtx.createOscillator()
+      const gainNode = audioCtx.createGain()
+      oscillator.connect(gainNode)
+      gainNode.connect(audioCtx.destination)
+      oscillator.frequency.value = 220 + Math.random() * 200
+      oscillator.type = 'sine'
+      gainNode.gain.value = 0.1
+      oscillator.start()
 
-    const mediaStream = audioCtx.createMediaStreamDestination()
-    gainNode.connect(mediaStream)
+      setPlayingTrackId(trackId)
+      setAudioProgress((prev) => ({ ...prev, [trackId]: 0 }))
 
-    setPlayingTrackId(trackId)
-    setAudioProgress((prev) => ({ ...prev, [trackId]: 0 }))
+      let progress = 0
+      const interval = window.setInterval(() => {
+        progress += 2
+        if (progress >= 100) {
+          window.clearInterval(interval)
+          try { oscillator.stop() } catch (_) {}
+          try { audioCtx.close() } catch (_) {}
+          setPlayingTrackId(null)
+          setAudioProgress((prev) => ({ ...prev, [trackId]: 100 }))
+          audioCleanupRef.current = null
+        } else {
+          setAudioProgress((prev) => ({ ...prev, [trackId]: progress }))
+        }
+      }, 60)
 
-    let progress = 0
-    const interval = setInterval(() => {
-      progress += 2
-      if (progress >= 100) {
-        clearInterval(interval)
-        setPlayingTrackId(null)
-        setAudioProgress((prev) => ({ ...prev, [trackId]: 100 }))
-        oscillator.stop()
-        audioCtx.close()
-      } else {
-        setAudioProgress((prev) => ({ ...prev, [trackId]: progress }))
-      }
-    }, 60)
+      audioCleanupRef.current = { oscillator, audioCtx, interval }
 
-    oscillator.start()
-    setTimeout(() => {
-      oscillator.stop()
-      audioCtx.close()
-      clearInterval(interval)
+      window.setTimeout(() => {
+        if (audioCleanupRef.current?.interval === interval) {
+          try { oscillator.stop() } catch (_) {}
+          try { audioCtx.close() } catch (_) {}
+          window.clearInterval(interval)
+          setPlayingTrackId(null)
+          audioCleanupRef.current = null
+        }
+      }, 3000)
+    } catch (_) {
       setPlayingTrackId(null)
-    }, 3000)
-  }
+    }
+  }, [playingTrackId])
 
   const getTaskForTrack = (trackId: string) => {
-    return downloadTasks.find((t) => t.id === `dl-${trackId}`)
+    return queueTasks.find((t) => t.id === `dl-${trackId}`)
   }
 
   return (
@@ -194,11 +257,22 @@ export const AudioExportDialog: React.FC<{
           </div>
         ) : (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 12,
+              }}
+            >
               <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                 已选 {selectedIds.size} / {exportItems.length} 首
               </span>
-              <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={selectAll}>
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 12, padding: '4px 10px' }}
+                onClick={selectAll}
+              >
                 {selectedIds.size === exportItems.length ? '取消全选' : '全选'}
               </button>
             </div>
@@ -212,12 +286,10 @@ export const AudioExportDialog: React.FC<{
                       type="checkbox"
                       checked={selectedIds.has(item.trackId)}
                       onChange={() => toggleSelect(item.trackId)}
-                      style={{ accentColor: 'var(--accent)' }}
+                      style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
                     />
                     <div>
-                      <div className="track-export-name">
-                        {item.trackName}-{item.versionNumber}.mp3
-                      </div>
+                      <div className="track-export-name">{item.fileName}</div>
                       <div className="track-export-size">{item.fileSize}MB</div>
                     </div>
                   </div>
@@ -233,7 +305,7 @@ export const AudioExportDialog: React.FC<{
                     <button
                       className="btn btn-ghost"
                       style={{ fontSize: 12, padding: '4px 8px' }}
-                      onClick={() => handlePreview(item.trackId, item.trackName)}
+                      onClick={() => handlePreview(item.trackId)}
                     >
                       {playingTrackId === item.trackId ? '⏹ 停止' : '▶ 试听'}
                     </button>
@@ -244,7 +316,22 @@ export const AudioExportDialog: React.FC<{
 
             {playingTrackId && (
               <div className="audio-player" style={{ marginTop: 12 }}>
-                <button className="audio-player-btn" onClick={() => setPlayingTrackId(null)}>⏹</button>
+                <button
+                  className="audio-player-btn"
+                  onClick={() => {
+                    if (audioCleanupRef.current) {
+                      try { audioCleanupRef.current.oscillator?.stop() } catch (_) {}
+                      try { audioCleanupRef.current.audioCtx?.close() } catch (_) {}
+                      if (audioCleanupRef.current.interval) {
+                        window.clearInterval(audioCleanupRef.current.interval)
+                      }
+                      audioCleanupRef.current = null
+                    }
+                    setPlayingTrackId(null)
+                  }}
+                >
+                  ⏹
+                </button>
                 <div className="audio-player-progress">
                   <div
                     className="audio-player-progress-bar"
@@ -252,12 +339,21 @@ export const AudioExportDialog: React.FC<{
                   />
                 </div>
                 <span className="audio-player-time">
-                  {Math.round((audioProgress[playingTrackId] || 0) / 100 * 30)}s
+                  {Math.round(((audioProgress[playingTrackId] || 0) / 100) * 30)}s
                 </span>
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                justifyContent: 'flex-end',
+                marginTop: 20,
+                alignItems: 'center',
+              }}
+            >
+              {isExporting && showSpinner && <div className="loading-spinner-32" />}
               <button className="btn btn-ghost" onClick={onClose}>
                 关闭
               </button>
@@ -267,9 +363,21 @@ export const AudioExportDialog: React.FC<{
                 disabled={selectedIds.size === 0 || isExporting}
               >
                 {isExporting ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className="loading-spinner" />
-                    导出中...
+                  <span
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      flexDirection: 'row-reverse',
+                    }}
+                  >
+                    {!showSpinner && '导出处理中...'}
+                    {showSpinner && (
+                      <div
+                        className="loading-spinner-32"
+                        style={{ width: 16, height: 16, borderWidth: 2 }}
+                      />
+                    )}
                   </span>
                 ) : (
                   `导出 ${selectedIds.size} 首曲目`

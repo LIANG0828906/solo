@@ -717,10 +717,23 @@ html, body, #root {
 .comment-bubble {
   position: relative;
   background: var(--bg-card);
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   padding: 12px 14px;
   margin-bottom: 10px;
-  border-left: 4px solid var(--accent);
+  padding-left: 18px;
+  overflow: hidden;
+}
+
+.comment-bubble::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  border-radius: 4px;
+  margin: 0 4px;
 }
 
 .comment-bubble-header {
@@ -824,11 +837,27 @@ html, body, #root {
   opacity: 0;
   transform: translateY(20px);
   transition: opacity 0.4s ease, transform 0.4s ease;
+  will-change: opacity, transform;
 }
 
 .scroll-fade-in.visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.loading-spinner-32 {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin-32 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin-32 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .export-dialog .track-export-item {
@@ -1101,5 +1130,38 @@ html, body, #root {
 
   .page-title {
     font-size: 22px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sidebar {
+    position: relative;
+    transform: translateX(0) !important;
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    background: var(--bg-sidebar);
+  }
+
+  .hamburger-btn {
+    display: none;
+  }
+
+  .mobile-overlay {
+    display: none !important;
+  }
+
+  .project-card {
+    width: 300px;
+    flex: 0 0 300px;
+  }
+
+  .skeleton-card {
+    width: 300px;
+    flex: 0 0 300px;
+  }
+
+  .main-content {
+    padding: 32px;
+    padding-top: 32px;
   }
 }
