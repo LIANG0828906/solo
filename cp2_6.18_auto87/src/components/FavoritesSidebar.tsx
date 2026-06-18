@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLandmarkStore } from '../store/landmarkStore';
 import { getCityName } from '../utils/helpers';
-import { StarIcon, CloseIcon, TrashIcon } from './Icons';
+import { StarIcon, CloseIcon, TrashIcon, ChevronDownIcon } from './Icons';
+
+const debounce = <T extends (...args: unknown[]) => void>(func: T, wait: number) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
 
 const FavoritesSidebar: React.FC = () => {
   const {
@@ -11,6 +19,18 @@ const FavoritesSidebar: React.FC = () => {
     clearFavorites,
     setSelectedLandmark,
   } = useLandmarkStore();
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    const debouncedCheckMobile = debounce(checkMobile, 150);
+    checkMobile();
+    window.addEventListener('resize', debouncedCheckMobile);
+    return () => window.removeEventListener('resize', debouncedCheckMobile);
+  }, []);
 
   const handleCardClick = (landmarkId: string, cityId: string) => {
     const { currentCityId, setCurrentCity } = useLandmarkStore.getState();
@@ -28,20 +48,57 @@ const FavoritesSidebar: React.FC = () => {
     toggleFavorite(landmarkId);
   };
 
+  const handleClose = useCallback(() => {
+    setShowFavoritesSidebar(false);
+  }, [setShowFavoritesSidebar]);
+
   return (
-    <div className="favorites-sidebar">
+    <div
+      className={`favorites-sidebar ${isMobile ? 'favorites-sidebar-mobile' : ''}`}
+    >
+      {isMobile && (
+        <div
+          className="drawer-handle"
+          onClick={handleClose}
+          style={{
+            width: '100%',
+            padding: '12px 0 8px 0',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            flexDirection: 'column',
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 4,
+              backgroundColor: 'var(--color-text-muted)',
+              borderRadius: 2,
+              marginBottom: 6,
+            }}
+          />
+          <ChevronDownIcon
+            style={{ width: 18, height: 18, color: 'var(--color-text-muted)' }}
+          />
+        </div>
+      )}
       <div className="favorites-sidebar-header">
         <div className="favorites-sidebar-title">
           <StarIcon filled style={{ width: 20, height: 20, color: 'var(--color-highlight)' }} />
           我的收藏 ({favoriteLandmarks.length})
         </div>
-        <button
-          className="favorites-sidebar-close"
-          onClick={() => setShowFavoritesSidebar(false)}
-          title="关闭"
-        >
-          <CloseIcon style={{ width: 20, height: 20 }} />
-        </button>
+        {!isMobile && (
+          <button
+            className="favorites-sidebar-close"
+            onClick={handleClose}
+            title="关闭"
+          >
+            <CloseIcon style={{ width: 20, height: 20 }} />
+          </button>
+        )}
       </div>
 
       {favoriteLandmarks.length > 0 && (

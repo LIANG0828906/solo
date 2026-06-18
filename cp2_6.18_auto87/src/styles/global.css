@@ -907,21 +907,21 @@
 }
 
 .timeline-description {
-  max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
   font-size: 13px;
   line-height: 1.6;
   color: var(--color-text-secondary);
-  padding: 0;
   opacity: 0;
 }
 
 .timeline-description.open {
-  max-height: 300px;
+  opacity: 1;
+}
+
+.timeline-description-content {
   padding-top: 4px;
   padding-bottom: 12px;
-  opacity: 1;
 }
 
 @media (max-width: 768px) {

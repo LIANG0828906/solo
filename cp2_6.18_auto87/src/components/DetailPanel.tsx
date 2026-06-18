@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Landmark } from '../types';
 import { useLandmarkStore } from '../store/landmarkStore';
 import { formatRelativeTime } from '../utils/helpers';
@@ -22,6 +22,18 @@ const TimelineItem: React.FC<{
   description: string;
 }> = ({ year, title, description }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = useState('0px');
+
+  useEffect(() => {
+    if (contentRef.current) {
+      if (isOpen) {
+        setMaxHeight(`${contentRef.current.scrollHeight + 20}px`);
+      } else {
+        setMaxHeight('0px');
+      }
+    }
+  }, [isOpen]);
 
   return (
     <div className="timeline-item" onClick={() => setIsOpen(!isOpen)}>
@@ -31,8 +43,14 @@ const TimelineItem: React.FC<{
         <span className="timeline-title">{title}</span>
         <ChevronDownIcon className={`timeline-toggle ${isOpen ? 'open' : ''}`} />
       </div>
-      <div className={`timeline-description ${isOpen ? 'open' : ''}`}>
-        {description}
+      <div
+        ref={contentRef}
+        className={`timeline-description ${isOpen ? 'open' : ''}`}
+        style={{ maxHeight }}
+      >
+        <div className="timeline-description-content">
+          {description}
+        </div>
       </div>
     </div>
   );

@@ -65,7 +65,6 @@ const MapView: React.FC = () => {
       zoom={initialZoom}
       zoomControl={true}
       scrollWheelZoom={true}
-      preferCanvas={true}
       renderer={canvasRenderer}
       style={{ width: '100%', height: '100%' }}
     >
