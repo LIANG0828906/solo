@@ -23,12 +23,13 @@ const AnimatedRoutes: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  const { fetchCurrentUser, fetchUsers } = useAppStore();
+  const { fetchCurrentUser, fetchUsers, fetchServerTime } = useAppStore();
 
   useEffect(() => {
+    fetchServerTime();
     fetchCurrentUser();
     fetchUsers();
-  }, [fetchCurrentUser, fetchUsers]);
+  }, [fetchServerTime, fetchCurrentUser, fetchUsers]);
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">

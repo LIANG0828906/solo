@@ -276,6 +276,10 @@ app.get('/api/user/current', (_req: Request, res: Response) => {
   res.json(currentUser);
 });
 
+app.get('/api/server-time', (_req: Request, res: Response) => {
+  res.json({ serverTime: new Date().toISOString() });
+});
+
 app.listen(PORT, () => {
   console.log(`CommunityCanvas API server running on port ${PORT}`);
   console.log(`Announcements: ${announcements.length} mock items`);

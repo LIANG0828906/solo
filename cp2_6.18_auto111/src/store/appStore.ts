@@ -34,11 +34,13 @@ interface AppState {
   error: string | null;
   searchQuery: string;
   selectedCategory: string;
+  serverTimeOffset: number;
 
   fetchAnnouncements: () => Promise<void>;
   fetchActivities: (category?: string) => Promise<void>;
   fetchCurrentUser: () => Promise<void>;
   fetchUsers: () => Promise<void>;
+  fetchServerTime: () => Promise<void>;
   createAnnouncement: (title: string, content: string) => Promise<Announcement | null>;
   joinActivity: (activityId: string, userId: string) => Promise<Activity | null>;
   leaveActivity: (activityId: string, userId: string) => Promise<Activity | null>;
@@ -46,6 +48,7 @@ interface AppState {
   setSelectedCategory: (category: string) => void;
   getFilteredAnnouncements: () => Announcement[];
   getFilteredActivities: () => Activity[];
+  getAdjustedServerTime: () => number;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -57,6 +60,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   error: null,
   searchQuery: '',
   selectedCategory: '全部',
+  serverTimeOffset: 0,
 
   fetchAnnouncements: async () => {
     set({ loading: true, error: null });
@@ -185,6 +189,26 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setSearchQuery: (query: string) => set({ searchQuery: query }),
   setSelectedCategory: (category: string) => set({ selectedCategory: category }),
+
+  fetchServerTime: async () => {
+    try {
+      const response = await fetch('/api/server-time');
+      if (!response.ok) throw new Error('获取服务器时间失败');
+      const data = await response.json();
+      const serverTime = new Date(data.serverTime).getTime();
+      const clientTime = Date.now();
+      const offset = serverTime - clientTime;
+      set({ serverTimeOffset: offset });
+    } catch (error) {
+      console.warn('获取服务器时间失败，将使用客户端时间:', error);
+      set({ serverTimeOffset: 0 });
+    }
+  },
+
+  getAdjustedServerTime: () => {
+    const { serverTimeOffset } = get();
+    return Date.now() + serverTimeOffset;
+  },
 
   getFilteredAnnouncements: () => {
     const { announcements, searchQuery } = get();
