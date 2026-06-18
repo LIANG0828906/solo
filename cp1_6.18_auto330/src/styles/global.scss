@@ -1,0 +1,571 @@
+$paper-color: #F5E6C8;
+$text-color: #3E2723;
+$dark-base: #2C2C2C;
+$accent-brown: #8D6E63;
+$photo-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+$flip-duration: 0.6s;
+$flip-easing: ease-in-out;
+
+@keyframes flipPageOutLeft {
+  0% {
+    transform: perspective(1200px) rotateY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: perspective(1200px) rotateY(-95deg);
+    opacity: 0;
+    clip-path: polygon(0 0, 100% 0, 85% 10%, 100% 20%, 85% 30%, 100% 40%, 85% 50%, 100% 60%, 85% 70%, 100% 80%, 85% 90%, 100% 100%, 0 100%);
+  }
+}
+
+@keyframes flipPageInRight {
+  0% {
+    transform: perspective(1200px) rotateY(95deg);
+    opacity: 0;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 15% 90%, 0 80%, 15% 70%, 0 60%, 15% 50%, 0 40%, 15% 30%, 0 20%, 15% 10%);
+  }
+  100% {
+    transform: perspective(1200px) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes flipPageOutRight {
+  0% {
+    transform: perspective(1200px) rotateY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: perspective(1200px) rotateY(95deg);
+    opacity: 0;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 15% 90%, 0 80%, 15% 70%, 0 60%, 15% 50%, 0 40%, 15% 30%, 0 20%, 15% 10%);
+  }
+}
+
+@keyframes flipPageInLeft {
+  0% {
+    transform: perspective(1200px) rotateY(-95deg);
+    opacity: 0;
+    clip-path: polygon(0 0, 100% 0, 85% 10%, 100% 20%, 85% 30%, 100% 40%, 85% 50%, 100% 60%, 85% 70%, 100% 80%, 85% 90%, 100% 100%, 0 100%);
+  }
+  100% {
+    transform: perspective(1200px) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Playfair Display', Georgia, serif;
+  background-color: $paper-color;
+  color: $text-color;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.06;
+    z-index: 9999;
+  }
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+.app-root {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.album-manager {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+
+  &.hidden {
+    opacity: 0;
+    transform: translateY(-100%);
+    pointer-events: none;
+  }
+
+  .back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(62, 39, 35, 0.1);
+    border-radius: 20px;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: rgba(62, 39, 35, 0.2);
+    }
+  }
+
+  .title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .fullscreen-btn {
+    padding: 8px 16px;
+    background: rgba(62, 39, 35, 0.1);
+    border-radius: 20px;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: rgba(62, 39, 35, 0.2);
+    }
+  }
+}
+
+.cover-page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: scale(1.01);
+
+    .cover-inner {
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  .cover-inner {
+    width: min(560px, 85vw);
+    height: min(720px, 80vh);
+    background: $paper-color;
+    border-radius: 8px;
+    padding: 64px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    position: relative;
+    transition: box-shadow 0.3s ease;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 16px;
+      border: 1px solid rgba(62, 39, 35, 0.2);
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    h1 {
+      font-size: clamp(36px, 6vw, 56px);
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 24px;
+      letter-spacing: 4px;
+    }
+
+    .photographer {
+      font-size: clamp(16px, 2vw, 20px);
+      font-weight: 400;
+      margin-bottom: 48px;
+      color: rgba(62, 39, 35, 0.75);
+    }
+
+    .decoration-line {
+      width: 120px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, $accent-brown, transparent);
+      margin-bottom: 64px;
+    }
+
+    .enter-hint {
+      font-size: 14px;
+      color: rgba(62, 39, 35, 0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.flip-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  padding-bottom: 140px;
+}
+
+.album-page {
+  position: relative;
+  width: min(680px, 90vw);
+  height: min(820px, calc(100vh - 200px));
+  background: $paper-color;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), inset 0 0 60px rgba(141, 110, 99, 0.08);
+  transform-style: preserve-3d;
+  will-change: transform, opacity, clip-path;
+
+  &.flipping-out-left {
+    animation: flipPageOutLeft $flip-duration $flip-easing forwards;
+    transform-origin: left center;
+  }
+
+  &.flipping-in-right {
+    animation: flipPageInRight $flip-duration $flip-easing forwards;
+    transform-origin: right center;
+  }
+
+  &.flipping-out-right {
+    animation: flipPageOutRight $flip-duration $flip-easing forwards;
+    transform-origin: right center;
+  }
+
+  &.flipping-in-left {
+    animation: flipPageInLeft $flip-duration $flip-easing forwards;
+    transform-origin: left center;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paperGrain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paperGrain)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+
+  .page-inner {
+    width: 100%;
+    height: 100%;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page-number {
+    position: absolute;
+    top: 20px;
+    right: 28px;
+    font-size: 14px;
+    color: rgba(62, 39, 35, 0.6);
+    font-weight: 500;
+    z-index: 10;
+  }
+
+  .photo-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: $dark-base;
+    border-radius: 5px;
+    padding: 20px;
+    box-shadow: $photo-shadow;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .click-zone {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 120px;
+    height: 120px;
+    cursor: pointer;
+    z-index: 5;
+
+    &.prev {
+      left: 0;
+      right: auto;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      width: 12px;
+      height: 12px;
+      border-top: 2px solid rgba(62, 39, 35, 0.3);
+      border-right: 2px solid rgba(62, 39, 35, 0.3);
+      transform: rotate(45deg);
+      transition: all 0.2s ease;
+    }
+
+    &:hover::after {
+      border-color: $accent-brown;
+      transform: rotate(45deg) translate(4px, -4px);
+    }
+
+    &.prev::after {
+      right: auto;
+      left: 24px;
+      transform: rotate(-135deg);
+    }
+
+    &.prev:hover::after {
+      transform: rotate(-135deg) translate(4px, -4px);
+    }
+  }
+}
+
+.photo-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .photo-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 3px;
+    transition: transform 0.3s ease;
+  }
+
+  .handwritten-note {
+    position: absolute;
+    max-width: 55%;
+    padding: 10px 16px;
+    background: rgba(245, 230, 200, 0.7);
+    backdrop-filter: blur(4px);
+    border-radius: 4px;
+    font-family: 'Caveat', 'Segoe Script', cursive;
+    font-size: 20px;
+    font-weight: 600;
+    color: $text-color;
+    line-height: 1.4;
+    transform: rotate(0deg);
+    transform-origin: center;
+    transition: background 0.3s ease, transform 0.3s ease;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
+    pointer-events: none;
+
+    &.pos-tl {
+      top: 16px;
+      left: 16px;
+      transform: rotate(-15deg) translateX(-8px);
+    }
+
+    &.pos-br {
+      bottom: 16px;
+      right: 16px;
+      transform: rotate(15deg) translateX(8px);
+    }
+  }
+
+  &:hover {
+    .handwritten-note {
+      background: rgba(245, 230, 200, 1);
+      -webkit-line-clamp: unset;
+      max-width: 80%;
+      transform: rotate(0deg) !important;
+      z-index: 5;
+    }
+
+    .photo-meta {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .photo-meta {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: rgba(44, 44, 44, 0.9);
+    color: $paper-color;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: 'Playfair Display', serif;
+    opacity: 0;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+}
+
+.thumbnail-nav {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(62, 39, 35, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+  max-width: 95vw;
+  overflow-x: auto;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+
+  &.hidden {
+    opacity: 0;
+    transform: translateX(-50%) translateY(150%);
+    pointer-events: none;
+  }
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(245, 230, 200, 0.3);
+    border-radius: 2px;
+  }
+
+  .thumbnail {
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+    border: 2px solid transparent;
+    position: relative;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    &:hover {
+      transform: translateY(-3px);
+    }
+
+    &.active {
+      border-color: $accent-brown;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+  }
+}
+
+.fullscreen-hint {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(62, 39, 35, 0.9);
+  color: $paper-color;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+
+  &.visible {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .flip-container {
+    padding: 8px;
+    padding-bottom: 100px;
+  }
+
+  .album-page {
+    width: min(680px, 96vw);
+    height: min(820px, calc(100vh - 140px));
+
+    .page-inner {
+      padding: 20px;
+    }
+  }
+
+  .thumbnail-nav {
+    bottom: 12px;
+    padding: 8px;
+    gap: 6px;
+
+    .thumbnail {
+      width: 40px;
+      height: 40px;
+    }
+  }
+
+  .photo-card {
+    .handwritten-note {
+      font-size: 16px;
+      max-width: 70%;
+    }
+  }
+}
+
+@media (min-width: 1200px) {
+  .album-page {
+    width: 720px;
+    height: 860px;
+  }
+}
