@@ -1,14 +1,28 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Upload, Search, Filter, ChevronLeft, ChevronRight, Film, Clock, Loader2 } from 'lucide-react';
+import { 
+  Upload, Search, Filter, ChevronLeft, ChevronRight, 
+  Film, Clock, Loader2, Calendar, HardDrive, 
+  Grid3X3, LayoutGrid, LayoutList 
+} from 'lucide-react';
 import type { Material } from '../../types';
-import { formatTimeShort } from '../../utils/time';
+import { formatTimeShort, formatFileSize, formatDate } from '../../utils/time';
 import './MaterialPanel.css';
 
 interface MaterialPanelProps {
   materials: Material[];
-  filter: { keyword: string; sortBy: 'name' | 'duration' };
+  filter: { 
+    keyword: string; 
+    sortBy: 'name' | 'duration' | 'date' | 'size';
+    dateRange: { start: string | null; end: string | null };
+    cardSize: 'small' | 'medium' | 'large';
+  };
   onUpload: (files: FileList) => void;
-  onFilterChange: (filter: { keyword: string; sortBy: 'name' | 'duration' }) => void;
+  onFilterChange: (filter: { 
+    keyword: string; 
+    sortBy: 'name' | 'duration' | 'date' | 'size';
+    dateRange: { start: string | null; end: string | null };
+    cardSize: 'small' | 'medium' | 'large';
+  }) => void;
   onDragStart: (material: Material, e: React.DragEvent) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -30,6 +44,7 @@ const MaterialPanel: React.FC<MaterialPanelProps> = ({
   const [displayedMaterials, setDisplayedMaterials] = useState<Material[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
   const [filterDebounce, setFilterDebounce] = useState(filter);
+  const [showDateFilter, setShowDateFilter] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -46,10 +61,28 @@ const MaterialPanel: React.FC<MaterialPanelProps> = ({
       result = result.filter(m => m.name.toLowerCase().includes(keyword));
     }
 
-    if (filterDebounce.sortBy === 'name') {
-      result.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (filterDebounce.sortBy === 'duration') {
-      result.sort((a, b) => a.duration - b.duration);
+    if (filterDebounce.dateRange.start) {
+      const startDate = new Date(filterDebounce.dateRange.start).getTime();
+      result = result.filter(m => m.lastModified >= startDate);
+    }
+    if (filterDebounce.dateRange.end) {
+      const endDate = new Date(filterDebounce.dateRange.end).getTime() + 86400000;
+      result = result.filter(m => m.lastModified < endDate);
+    }
+
+    switch (filterDebounce.sortBy) {
+      case 'name':
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'duration':
+        result.sort((a, b) => a.duration - b.duration);
+        break;
+      case 'date':
+        result.sort((a, b) => b.lastModified - a.lastModified);
+        break;
+      case 'size':
+        result.sort((a, b) => b.fileSize - a.fileSize);
+        break;
     }
 
     return result;
@@ -91,9 +124,29 @@ const MaterialPanel: React.FC<MaterialPanelProps> = ({
   const handleDragEnd = useCallback(() => {
   }, []);
 
+  const handleDateStartChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value || null;
+    onFilterChange({ ...filter, dateRange: { ...filter.dateRange, start: value } });
+  }, [filter, onFilterChange]);
+
+  const handleDateEndChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value || null;
+    onFilterChange({ ...filter, dateRange: { ...filter.dateRange, end: value } });
+  }, [filter, onFilterChange]);
+
+  const clearDateFilter = useCallback(() => {
+    onFilterChange({ ...filter, dateRange: { start: null, end: null } });
+  }, [filter, onFilterChange]);
+
+  const handleCardSizeChange = useCallback((size: 'small' | 'medium' | 'large') => {
+    onFilterChange({ ...filter, cardSize: size });
+  }, [filter, onFilterChange]);
+
+  const hasActiveDateFilter = filter.dateRange.start || filter.dateRange.end;
+
   return (
     <div 
-      className={`material-panel ${collapsed ? 'collapsed' : ''}`}
+      className={`material-panel ${collapsed ? 'collapsed' : ''} size-${filter.cardSize}`}
       style={{ width: collapsed ? '48px' : '25%' }}
     >
       <div className="panel-header">
@@ -155,15 +208,81 @@ const MaterialPanel: React.FC<MaterialPanelProps> = ({
               <Filter size={16} />
               <select
                 value={filter.sortBy}
-                onChange={(e) => onFilterChange({ ...filter, sortBy: e.target.value as 'name' | 'duration' })}
+                onChange={(e) => onFilterChange({ 
+                  ...filter, 
+                  sortBy: e.target.value as 'name' | 'duration' | 'date' | 'size' 
+                })}
               >
                 <option value="name">按名称</option>
                 <option value="duration">按时长</option>
+                <option value="date">按日期</option>
+                <option value="size">按大小</option>
               </select>
             </div>
           </div>
 
-          <div className={`material-grid ${isAnimating ? 'animating' : ''}`}>
+          <div className="advanced-filters">
+            <button 
+              className={`date-filter-toggle ${showDateFilter ? 'active' : ''} ${hasActiveDateFilter ? 'has-filter' : ''}`}
+              onClick={() => setShowDateFilter(!showDateFilter)}
+            >
+              <Calendar size={14} />
+              <span>日期筛选</span>
+              {hasActiveDateFilter && <span className="filter-dot" />}
+            </button>
+
+            <div className="card-size-toggle">
+              <button
+                className={`size-btn ${filter.cardSize === 'small' ? 'active' : ''}`}
+                onClick={() => handleCardSizeChange('small')}
+                title="小卡片"
+              >
+                <LayoutList size={16} />
+              </button>
+              <button
+                className={`size-btn ${filter.cardSize === 'medium' ? 'active' : ''}`}
+                onClick={() => handleCardSizeChange('medium')}
+                title="中卡片"
+              >
+                <Grid3X3 size={16} />
+              </button>
+              <button
+                className={`size-btn ${filter.cardSize === 'large' ? 'active' : ''}`}
+                onClick={() => handleCardSizeChange('large')}
+                title="大卡片"
+              >
+                <LayoutGrid size={16} />
+              </button>
+            </div>
+          </div>
+
+          {showDateFilter && (
+            <div className="date-filter-panel">
+              <div className="date-input-group">
+                <label>开始日期</label>
+                <input
+                  type="date"
+                  value={filter.dateRange.start || ''}
+                  onChange={handleDateStartChange}
+                />
+              </div>
+              <div className="date-input-group">
+                <label>结束日期</label>
+                <input
+                  type="date"
+                  value={filter.dateRange.end || ''}
+                  onChange={handleDateEndChange}
+                />
+              </div>
+              {hasActiveDateFilter && (
+                <button className="clear-date-btn" onClick={clearDateFilter}>
+                  清除筛选
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className={`material-grid ${isAnimating ? 'animating' : ''} size-${filter.cardSize}`}>
             {displayedMaterials.length === 0 ? (
               <div className="empty-state">
                 <Film size={48} opacity={0.3} />
@@ -197,14 +316,23 @@ const MaterialPanel: React.FC<MaterialPanelProps> = ({
                       <Clock size={12} />
                       {formatTimeShort(material.duration)}
                     </div>
+                    <div className="date-badge">
+                      {formatDate(material.lastModified)}
+                    </div>
                   </div>
                   <div className="card-info">
                     <span className="card-name" title={material.name}>
                       {material.name}
                     </span>
-                    <span className="card-resolution">
-                      {material.width}×{material.height}
-                    </span>
+                    <div className="card-meta">
+                      <span className="card-resolution">
+                        {material.width}×{material.height}
+                      </span>
+                      <span className="card-size">
+                        <HardDrive size={12} />
+                        {formatFileSize(material.fileSize)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))

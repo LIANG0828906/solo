@@ -36,7 +36,17 @@ const App: React.FC = () => {
   const [zoom, setZoom] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<{ keyword: string; sortBy: 'name' | 'duration' }>({ keyword: '', sortBy: 'name' });
+  const [filter, setFilter] = useState<{ 
+    keyword: string; 
+    sortBy: 'name' | 'duration' | 'date' | 'size';
+    dateRange: { start: string | null; end: string | null };
+    cardSize: 'small' | 'medium' | 'large';
+  }>({ 
+    keyword: '', 
+    sortBy: 'name',
+    dateRange: { start: null, end: null },
+    cardSize: 'medium',
+  });
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const [isTransitionDragging, setIsTransitionDragging] = useState(false);

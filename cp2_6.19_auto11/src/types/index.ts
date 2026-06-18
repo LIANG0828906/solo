@@ -7,6 +7,8 @@ export interface Material {
   thumbnail: string;
   width: number;
   height: number;
+  fileSize: number;
+  lastModified: number;
 }
 
 export interface Clip {
@@ -44,7 +46,9 @@ export interface AppState {
   timeline: TimelineState;
   filter: {
     keyword: string;
-    sortBy: 'name' | 'duration';
+    sortBy: 'name' | 'duration' | 'date' | 'size';
+    dateRange: { start: string | null; end: string | null };
+    cardSize: 'small' | 'medium' | 'large';
   };
 }
 

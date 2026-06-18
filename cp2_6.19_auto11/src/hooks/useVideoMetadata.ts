@@ -32,6 +32,8 @@ export const useVideoMetadata = () => {
             thumbnail: metadata.thumbnail,
             width: metadata.width,
             height: metadata.height,
+            fileSize: file.size,
+            lastModified: file.lastModified,
           });
         } catch (e) {
           console.error(`Failed to process ${file.name}:`, e);
