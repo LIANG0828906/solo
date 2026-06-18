@@ -1,0 +1,58 @@
+{
+  "items": [
+    {
+      "id": "item-001",
+      "name": "电动螺丝刀",
+      "description": "博世电动螺丝刀，充电式，便携好用",
+      "status": "available",
+      "createdAt": "2024-01-15T10:00:00.000Z"
+    },
+    {
+      "id": "item-002",
+      "name": "折叠梯子",
+      "description": "多功能折叠梯子，承重150kg",
+      "status": "available",
+      "createdAt": "2024-01-16T10:00:00.000Z"
+    },
+    {
+      "id": "item-003",
+      "name": "电钻",
+      "description": "得伟电钻，冲击钻功能，动力强劲",
+      "status": "borrowed",
+      "createdAt": "2024-01-17T10:00:00.000Z"
+    },
+    {
+      "id": "item-004",
+      "name": "露营帐篷",
+      "description": "3-4人双层帐篷，防水防晒",
+      "status": "available",
+      "createdAt": "2024-01-18T10:00:00.000Z"
+    },
+    {
+      "id": "item-005",
+      "name": "投影仪",
+      "description": "便携式投影仪，1080P高清，家庭影院必备",
+      "status": "available",
+      "createdAt": "2024-01-19T10:00:00.000Z"
+    },
+    {
+      "id": "item-006",
+      "name": "烧烤架",
+      "description": "不锈钢烧烤架，便携折叠，户外烧烤必备",
+      "status": "available",
+      "createdAt": "2024-01-20T10:00:00.000Z"
+    }
+  ],
+  "borrows": [
+    {
+      "id": "borrow-001",
+      "itemId": "item-003",
+      "itemName": "电钻",
+      "borrowerName": "张三",
+      "days": 7,
+      "remark": "家里装修需要用",
+      "status": "active",
+      "borrowTime": "2024-06-10T08:30:00.000Z"
+    }
+  ]
+}
