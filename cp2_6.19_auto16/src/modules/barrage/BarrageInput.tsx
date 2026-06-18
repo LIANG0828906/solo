@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useBarrageStore } from '../../stores/useBarrageStore';
-import { LANGUAGE_OPTIONS, SPEED_DURATION, TRANSLATION_THROTTLE_MS } from '../../types';
+import { LANGUAGE_OPTIONS, SPEED_DURATION, TRANSLATION_THROTTLE_MS, MAX_INPUT_LENGTH } from '../../types';
 import type { LanguageCode, SpeedLevel, TranslationResult } from '../../types';
 import { translatorEngine } from '../translator/TranslatorEngine';
 
@@ -11,8 +11,10 @@ export const BarrageInput: React.FC = function BarrageInput() {
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   const [showSpeedDropdown, setShowSpeedDropdown] = useState(false);
   const [filterInput, setFilterInput] = useState('');
+  const [speedToast, setSpeedToast] = useState<{ label: string; duration: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const speedRef = useRef<HTMLDivElement>(null);
+  const toastTimer = useRef<number | null>(null);
 
   const addBarrage = useBarrageStore((s) => s.addBarrage);
   const setTargetLanguage = useBarrageStore((s) => s.setTargetLanguage);
@@ -91,6 +93,19 @@ export const BarrageInput: React.FC = function BarrageInput() {
     [setTargetLanguage]
   );
 
+  const handleSpeedChange = useCallback((value: SpeedLevel, label: string) => {
+    setSpeedLevel(value);
+    setShowSpeedDropdown(false);
+    setSpeedToast({ label, duration: SPEED_DURATION[value] / 1000 });
+    if (toastTimer.current !== null) {
+      window.clearTimeout(toastTimer.current);
+    }
+    toastTimer.current = window.setTimeout(() => {
+      setSpeedToast(null);
+      toastTimer.current = null;
+    }, 2000);
+  }, [setSpeedLevel]);
+
   const currentLang = LANGUAGE_OPTIONS.find((l) => l.code === settings.targetLanguage)!;
 
   const speedOptions: { value: SpeedLevel; label: string; duration: number }[] = [
@@ -99,6 +114,9 @@ export const BarrageInput: React.FC = function BarrageInput() {
     { value: 'fast', label: '快速', duration: SPEED_DURATION.fast }
   ];
   const currentSpeed = speedOptions.find((s) => s.value === settings.speedLevel)!;
+
+  const charCount = inputText.length;
+  const isNearLimit = charCount >= MAX_INPUT_LENGTH * 0.8;
 
   return (
     <div className="input-section">
@@ -129,7 +147,11 @@ export const BarrageInput: React.FC = function BarrageInput() {
             onClick={() => setShowSpeedDropdown((v) => !v)}
             type="button"
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg>
             <span>{currentSpeed.label}</span>
+            <span className="speed-duration">{currentSpeed.duration / 1000}s</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
               <path d="M7 10l5 5 5-5z" />
             </svg>
@@ -140,15 +162,22 @@ export const BarrageInput: React.FC = function BarrageInput() {
                 <button
                   key={opt.value}
                   className={`dropdown-item ${settings.speedLevel === opt.value ? 'active' : ''}`}
-                  onClick={() => {
-                    setSpeedLevel(opt.value);
-                    setShowSpeedDropdown(false);
-                  }}
+                  onClick={() => handleSpeedChange(opt.value, opt.label)}
                   type="button"
                 >
-                  {opt.label}
+                  <span>{opt.label}</span>
+                  <span className="speed-item-duration">{opt.duration / 1000}s</span>
                 </button>
               ))}
+            </div>
+          )}
+          {speedToast && (
+            <div className="speed-toast">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+              <span className="speed-toast-label">{speedToast.label}</span>
+              <span className="speed-toast-duration">{speedToast.duration}s</span>
             </div>
           )}
         </div>
@@ -190,16 +219,28 @@ export const BarrageInput: React.FC = function BarrageInput() {
             className="barrage-input"
             placeholder="输入弹幕，支持实时翻译预览..."
             value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
+            onChange={(e) => setInputText(e.target.value.slice(0, MAX_INPUT_LENGTH))}
             onKeyDown={handleKeyDown}
-            maxLength={200}
+            maxLength={MAX_INPUT_LENGTH}
           />
-          {inputText && (
-            <div className={`translation-preview ${isTranslating ? 'loading' : ''}`}>
-              {isTranslating && <span className="preview-loading">翻译中...</span>}
-              {preview && !isTranslating && <span>{preview.translatedText}</span>}
-            </div>
-          )}
+          <div className="input-meta">
+            {inputText && (
+              <div className={`translation-preview ${isTranslating ? 'loading' : ''}`}>
+                {isTranslating && (
+                  <span className="preview-spinner">
+                    <svg className="spinner-svg" viewBox="0 0 24 24" width="14" height="14">
+                      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeDasharray="31.4" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                )}
+                {preview && !isTranslating && <span>{preview.translatedText}</span>}
+                {isTranslating && <span className="preview-loading-text">翻译中</span>}
+              </div>
+            )}
+            <span className={`char-counter ${isNearLimit ? 'near-limit' : ''} ${charCount >= MAX_INPUT_LENGTH ? 'at-limit' : ''}`}>
+              {charCount}/{MAX_INPUT_LENGTH}
+            </span>
+          </div>
         </div>
 
         <button className="send-btn" onClick={handleSend} type="button" disabled={!inputText.trim()}>

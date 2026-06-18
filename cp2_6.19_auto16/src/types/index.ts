@@ -68,3 +68,4 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
 
 export const MAX_BARRAGE_COUNT = 200;
 export const TRANSLATION_THROTTLE_MS = 300;
+export const MAX_INPUT_LENGTH = 100;

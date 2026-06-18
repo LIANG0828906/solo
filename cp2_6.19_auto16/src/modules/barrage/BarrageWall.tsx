@@ -34,6 +34,14 @@ const getFontSize = (text: string): { translated: string; original: string } => 
   }
 };
 
+const formatTimestamp = (ts: number): string => {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+};
+
 const BarrageCard = memo(function BarrageCard({
   barrage,
   targetLang,
@@ -95,8 +103,11 @@ const BarrageCard = memo(function BarrageCard({
     >
       <div className="barrage-inner" style={innerVars}>
         <div className="barrage-content">
-          <div className="barrage-original" style={{ fontSize: fontSize.original }}>
-            {barrage.originalText}
+          <div className="barrage-header">
+            <span className="barrage-original" style={{ fontSize: fontSize.original }}>
+              {barrage.originalText}
+            </span>
+            <span className="barrage-timestamp">{formatTimestamp(barrage.createdAt)}</span>
           </div>
           <div
             className="barrage-translated"

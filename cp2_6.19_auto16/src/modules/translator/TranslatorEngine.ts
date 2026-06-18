@@ -30,8 +30,6 @@ const TRANSLATE_SUFFIX: Record<LanguageCode, string> = {
 
 class TranslatorEngine {
   private cache: Map<string, TranslationResult> = new Map();
-  private throttleTimer: number | null = null;
-  private pendingCallback: (() => void) | null = null;
   private requestCount = 0;
 
   async translate(
@@ -81,7 +79,7 @@ class TranslatorEngine {
     });
   }
 
-  private mockTranslate(text: string, src: LanguageCode, tgt: LanguageCode): string {
+  private mockTranslate(text: string, _src: LanguageCode, tgt: LanguageCode): string {
     const lower = text.toLowerCase();
     for (const key of Object.keys(MOCK_TRANSLATIONS)) {
       if (lower.includes(key) && MOCK_TRANSLATIONS[key][tgt]) {
@@ -137,11 +135,8 @@ class TranslatorEngine {
   }
 
   reset(): void {
-    if (this.throttleTimer !== null) {
-      window.clearTimeout(this.throttleTimer);
-      this.throttleTimer = null;
-    }
-    this.pendingCallback = null;
+    this.cache.clear();
+    this.requestCount = 0;
   }
 }
 

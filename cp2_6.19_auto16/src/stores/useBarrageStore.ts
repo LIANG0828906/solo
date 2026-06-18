@@ -53,11 +53,6 @@ const INITIAL_TEXTS: { text: string; lang: LanguageCode }[] = [
 const getRandomColor = (): string =>
   BARRAGE_COLORS[Math.floor(Math.random() * BARRAGE_COLORS.length)];
 
-const getRandomSpeed = (): SpeedLevel => {
-  const speeds: SpeedLevel[] = ['slow', 'normal', 'fast'];
-  return speeds[Math.floor(Math.random() * speeds.length)];
-};
-
 export const useBarrageStore = create<BarrageState>((set, get) => ({
   barrages: [],
   settings: {
