@@ -23,39 +23,6 @@ const Editor: React.FC = React.memo(() => {
     }
   }, [updateContent])
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      let command = ''
-      if (e.shiftKey && (e.key === 'c' || e.key === 'C')) {
-        e.preventDefault()
-        command = 'codeBlock'
-        document.execCommand('formatBlock', false, 'pre')
-      } else if (e.key === 'b') {
-        e.preventDefault()
-        command = 'bold'
-        document.execCommand('bold')
-      } else if (e.key === 'i') {
-        e.preventDefault()
-        command = 'italic'
-        document.execCommand('italic')
-      } else if (e.key === 'u') {
-        e.preventDefault()
-        command = 'underline'
-        document.execCommand('underline')
-      }
-
-      if (command) {
-        setTimeout(() => {
-          if (editorRef.current) {
-            isInternalUpdate.current = true
-            updateContent(editorRef.current.innerHTML)
-            updateFormatMarks(getActiveFormatMarks())
-          }
-        }, 0)
-      }
-    }
-  }, [updateContent, updateFormatMarks])
-
   const getActiveFormatMarks = (): string[] => {
     const marks: string[] = []
     if (document.queryCommandState('bold')) marks.push('bold')
@@ -70,6 +37,91 @@ const Editor: React.FC = React.memo(() => {
     return marks
   }
 
+  const syncContentAndMarks = useCallback((additionalMark: string | null = null) => {
+    if (!editorRef.current) return
+    isInternalUpdate.current = true
+    const newContent = editorRef.current.innerHTML
+    updateContent(newContent)
+    let marks = getActiveFormatMarks()
+    if (additionalMark && !marks.includes(additionalMark)) {
+      marks = [...marks, additionalMark]
+    }
+    updateFormatMarks(marks)
+  }, [updateContent, updateFormatMarks])
+
+  const wrapWithCodeBlock = useCallback(() => {
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) {
+      document.execCommand('formatBlock', false, 'pre')
+      syncContentAndMarks('codeBlock')
+      return
+    }
+
+    const range = selection.getRangeAt(0)
+    const selectedText = range.toString()
+
+    if (selectedText.trim() === '') {
+      const pre = document.createElement('pre')
+      const code = document.createElement('code')
+      code.textContent = '在此输入代码'
+      pre.appendChild(code)
+      range.deleteContents()
+      range.insertNode(pre)
+
+      range.setStart(code.firstChild || code, 0)
+      range.setEnd(code.firstChild || code, code.textContent?.length || 0)
+      selection.removeAllRanges()
+      selection.addRange(range)
+    } else {
+      const pre = document.createElement('pre')
+      const code = document.createElement('code')
+      code.textContent = selectedText
+      pre.appendChild(code)
+
+      range.deleteContents()
+      range.insertNode(pre)
+
+      range.setStartAfter(pre)
+      selection.removeAllRanges()
+      selection.addRange(range)
+    }
+
+    syncContentAndMarks('codeBlock')
+    editorRef.current?.focus()
+  }, [syncContentAndMarks])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      let additionalMark: string | null = null
+
+      if (e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault()
+        e.stopPropagation()
+        additionalMark = 'codeBlock'
+        wrapWithCodeBlock()
+      } else if (e.key === 'b') {
+        e.preventDefault()
+        e.stopPropagation()
+        additionalMark = 'bold'
+        document.execCommand('bold')
+      } else if (e.key === 'i') {
+        e.preventDefault()
+        e.stopPropagation()
+        additionalMark = 'italic'
+        document.execCommand('italic')
+      } else if (e.key === 'u') {
+        e.preventDefault()
+        e.stopPropagation()
+        additionalMark = 'underline'
+        document.execCommand('underline')
+      }
+
+      if (additionalMark && additionalMark !== 'codeBlock') {
+        setTimeout(() => syncContentAndMarks(additionalMark), 0)
+      }
+    }
+  }, [wrapWithCodeBlock, syncContentAndMarks])
+
   const handleMouseUp = useCallback(() => {
     updateFormatMarks(getActiveFormatMarks())
   }, [updateFormatMarks])
@@ -79,14 +131,15 @@ const Editor: React.FC = React.memo(() => {
   }, [updateFormatMarks])
 
   const applyFormat = useCallback((command: string, value?: string) => {
-    document.execCommand(command, false, value)
-    if (editorRef.current) {
-      isInternalUpdate.current = true
-      updateContent(editorRef.current.innerHTML)
-      updateFormatMarks(getActiveFormatMarks())
+    if (command === 'formatBlock' && value === 'pre') {
+      wrapWithCodeBlock()
+      return
     }
+
+    document.execCommand(command, false, value)
+    syncContentAndMarks(null)
     editorRef.current?.focus()
-  }, [updateContent, updateFormatMarks])
+  }, [wrapWithCodeBlock, syncContentAndMarks])
 
   if (!activeDocId) {
     return (

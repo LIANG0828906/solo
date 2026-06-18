@@ -1,6 +1,8 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useRef, useEffect } from 'react'
 import { Plus, Trash2, FileText, ChevronDown } from 'lucide-react'
 import { useDocumentStore, DocItem } from '@/store/documentStore'
+import ConfirmDialog from './ConfirmDialog'
+import { useToast } from './ToastContext'
 
 const Sidebar: React.FC = React.memo(() => {
   const documents = useDocumentStore(s => s.documents)
@@ -8,21 +10,61 @@ const Sidebar: React.FC = React.memo(() => {
   const createDoc = useDocumentStore(s => s.createDoc)
   const deleteDoc = useDocumentStore(s => s.deleteDoc)
   const switchDoc = useDocumentStore(s => s.switchDoc)
+  const { showToast } = useToast()
+
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [newDocTitle, setNewDocTitle] = useState('')
+  const listRef = useRef<HTMLDivElement>(null)
+  const activeItemRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (activeDocId && activeItemRef.current && listRef.current) {
+      activeItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [activeDocId])
 
   const handleCreate = useCallback(() => {
-    const title = prompt('请输入文档标题')
-    if (title?.trim()) {
-      createDoc(title.trim())
+    setNewDocTitle('')
+    setShowCreateDialog(true)
+  }, [])
+
+  const confirmCreate = useCallback(() => {
+    const trimmed = newDocTitle.trim()
+    if (trimmed) {
+      createDoc(trimmed)
+      setShowCreateDialog(false)
+      showToast('文档创建成功', 'success')
+    } else {
+      showToast('请输入文档标题', 'error')
     }
-  }, [createDoc])
+  }, [newDocTitle, createDoc, showToast])
 
   const handleDelete = useCallback((e: React.MouseEvent, id: string) => {
     e.stopPropagation()
-    if (confirm('确定要删除此文档吗？')) {
-      deleteDoc(id)
+    setDeleteConfirmId(id)
+  }, [])
+
+  const confirmDelete = useCallback(() => {
+    if (!deleteConfirmId) return
+    const doc = documents.find(d => d.id === deleteConfirmId)
+    const deletedIndex = documents.findIndex(d => d.id === deleteConfirmId)
+    const resultId = deleteDoc(deleteConfirmId)
+
+    if (resultId !== null && deletedIndex !== -1) {
+      const remaining = documents.filter(d => d.id !== deleteConfirmId)
+      const nextIndex = Math.min(deletedIndex, remaining.length - 1)
+      setTimeout(() => {
+        if (activeItemRef.current) {
+          activeItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        }
+      }, 100)
     }
-  }, [deleteDoc])
+
+    setDeleteConfirmId(null)
+    showToast(`"${doc?.title ?? '文档'}" 已删除`, 'success')
+  }, [deleteConfirmId, deleteDoc, documents, showToast])
 
   const handleSwitch = useCallback((id: string) => {
     switchDoc(id)
@@ -35,31 +77,36 @@ const Sidebar: React.FC = React.memo(() => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
   }
 
-  const renderDocItem = (doc: DocItem) => (
-    <div
-      key={doc.id}
-      onClick={() => handleSwitch(doc.id)}
-      className={`flex items-center justify-between h-12 px-4 rounded-md cursor-pointer transition-colors duration-200 group ${
-        activeDocId === doc.id
-          ? 'bg-blue-100 text-blue-800'
-          : 'hover:bg-gray-200 text-gray-700'
-      }`}
-    >
-      <div className="flex items-center gap-2 min-w-0 flex-1">
-        <FileText size={14} className="shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium truncate">{doc.title}</div>
-          <div className="text-xs text-gray-400">{formatTime(doc.updatedAt)}</div>
-        </div>
-      </div>
-      <button
-        onClick={(e) => handleDelete(e, doc.id)}
-        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all duration-200 shrink-0"
+  const renderDocItem = (doc: DocItem) => {
+    const isActive = activeDocId === doc.id
+    return (
+      <div
+        key={doc.id}
+        ref={isActive ? activeItemRef : null}
+        onClick={() => handleSwitch(doc.id)}
+        className={`flex items-center justify-between h-12 px-4 rounded-md cursor-pointer transition-colors duration-200 group ${
+          isActive
+            ? 'bg-blue-100 text-blue-800'
+            : 'hover:bg-gray-200 text-gray-700'
+        }`}
       >
-        <Trash2 size={14} />
-      </button>
-    </div>
-  )
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <FileText size={14} className="shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium truncate">{doc.title}</div>
+            <div className="text-xs text-gray-400">{formatTime(doc.updatedAt)}</div>
+          </div>
+        </div>
+        <button
+          onClick={(e) => handleDelete(e, doc.id)}
+          className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all duration-200 shrink-0"
+          title="删除文档"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    )
+  }
 
   const activeDoc = documents.find((d: DocItem) => d.id === activeDocId)
 
@@ -75,7 +122,7 @@ const Sidebar: React.FC = React.memo(() => {
             新建文档
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-2 space-y-1">
+        <div ref={listRef} className="flex-1 overflow-y-auto px-2 space-y-1">
           {documents.map(renderDocItem)}
         </div>
         {documents.length === 0 && (
@@ -103,10 +150,11 @@ const Sidebar: React.FC = React.memo(() => {
           </button>
         </div>
         {isMobileOpen && (
-          <div className="bg-white border-b border-gray-200 shadow-lg max-h-60 overflow-y-auto">
+          <div ref={listRef} className="bg-white border-b border-gray-200 shadow-lg max-h-60 overflow-y-auto">
             {documents.map((doc: DocItem) => (
               <div
                 key={doc.id}
+                ref={activeDocId === doc.id ? activeItemRef : null}
                 onClick={() => handleSwitch(doc.id)}
                 className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors duration-200 ${
                   activeDocId === doc.id ? 'bg-blue-50 text-blue-800' : 'hover:bg-gray-50'
@@ -127,6 +175,31 @@ const Sidebar: React.FC = React.memo(() => {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteConfirmId !== null}
+        title="删除文档"
+        message={`确定要删除 "${documents.find(d => d.id === deleteConfirmId)?.title ?? '该文档'}" 吗？此操作无法撤销。`}
+        confirmText="删除"
+        cancelText="取消"
+        confirmColor="red"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={showCreateDialog}
+        title="新建文档"
+        message="请输入文档标题："
+        confirmText="创建"
+        cancelText="取消"
+        showInput
+        inputPlaceholder="输入文档标题..."
+        inputValue={newDocTitle}
+        onInputChange={setNewDocTitle}
+        onConfirm={confirmCreate}
+        onCancel={() => setShowCreateDialog(false)}
+      />
     </>
   )
 })

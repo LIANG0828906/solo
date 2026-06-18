@@ -32,7 +32,7 @@ export interface DocumentState {
   title: string
   formatMarks: string[]
   createDoc: (title: string) => void
-  deleteDoc: (id: string) => void
+  deleteDoc: (id: string) => string | null
   switchDoc: (id: string) => void
   updateContent: (content: string) => void
   updateTitle: (title: string) => void
@@ -73,21 +73,33 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
     },
 
     deleteDoc: (id: string) => {
-      const docs = get().documents.filter(d => d.id !== id)
-      saveDocuments(docs)
+      const docs = get().documents
+      const index = docs.findIndex(d => d.id === id)
+      if (index === -1) return null
+
+      const remaining = docs.filter(d => d.id !== id)
+      saveDocuments(remaining)
+
       const state = get()
+      let nextActiveId: string | null = null
+
       if (state.activeDocId === id) {
-        const nextDoc = docs.length > 0 ? docs[0] : null
+        const nextDoc = remaining.length > 0
+          ? remaining[Math.min(index, remaining.length - 1)]
+          : null
+        nextActiveId = nextDoc?.id ?? null
         set({
-          documents: docs,
-          activeDocId: nextDoc?.id ?? null,
+          documents: remaining,
+          activeDocId: nextActiveId,
           content: nextDoc?.content ?? '',
           title: nextDoc?.title ?? '',
           formatMarks: nextDoc?.formatMarks ?? [],
         })
       } else {
-        set({ documents: docs })
+        set({ documents: remaining })
       }
+
+      return nextActiveId
     },
 
     switchDoc: (id: string) => {
