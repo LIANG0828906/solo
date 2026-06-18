@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { GripVertical, Trash2, RotateCcw, BarChart3, AlertTriangle } from 'lucide-react';
 import { QuestionEditor } from './QuestionEditor';
 import { storage } from '../../utils/storage';
-import type { Question, Page } from '../../types';
+import type { Question } from '../../types';
 
 interface BuilderPageProps {
   onNavigate: (page: Page) => void;
