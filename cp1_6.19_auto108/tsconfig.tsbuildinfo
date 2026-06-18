@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/eventbus.ts","./src/main.tsx","./src/vite-env.d.ts","./src/battle/simulator.ts","./src/domain/carddata.ts","./src/domain/skillengine.ts","./src/ui/battlerunner.tsx","./src/ui/cardeditpanel.tsx","./src/ui/cardeditor.tsx","./src/ui/cardview.tsx"],"version":"5.8.3"}
