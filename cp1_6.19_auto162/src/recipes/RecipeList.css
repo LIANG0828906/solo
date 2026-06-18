@@ -1,0 +1,112 @@
+.recipe-list {
+  flex: 1;
+  margin-right: 24px;
+}
+
+.recipe-list-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #D2691E;
+  margin-bottom: 20px;
+  font-family: 'Georgia', serif;
+}
+
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 300px);
+  gap: 20px;
+}
+
+.recipe-card {
+  width: 300px;
+  height: 180px;
+  background: #F0EDE6;
+  border-radius: 10px;
+  padding: 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  will-change: transform, box-shadow;
+}
+
+.recipe-card-header {
+  margin-bottom: 12px;
+}
+
+.recipe-card-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  font-family: 'Georgia', serif;
+}
+
+.recipe-card-body {
+  flex: 1;
+}
+
+.recipe-card-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.recipe-card-icon {
+  font-size: 16px;
+}
+
+.recipe-card-ingredients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ingredient-tag {
+  background: rgba(210, 105, 30, 0.1);
+  color: #D2691E;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ingredient-tag.more {
+  background: rgba(100, 100, 100, 0.1);
+  color: #666;
+}
+
+.recipe-card-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.like-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.like-btn:hover {
+  background: rgba(255, 100, 100, 0.1);
+}
+
+.like-icon {
+  font-size: 16px;
+}
+
+.like-count {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
