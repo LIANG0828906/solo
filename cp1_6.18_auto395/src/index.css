@@ -1,0 +1,119 @@
+:root {
+  --bg-primary: #1A1A2E;
+  --bg-card: #16213E;
+  --accent-primary: #E94560;
+  --accent-secondary: #0F3460;
+  --text-primary: #EEEEEE;
+  --text-secondary: #AAAAAA;
+  --like-gray: #888888;
+  --like-red: #FF3366;
+  --comment-bg: #F5F5F5;
+  --btn-blue: #4A90D9;
+  --btn-blue-hover: #357ABD;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  background: var(--btn-blue);
+  color: #ffffff;
+}
+
+button:hover {
+  background: var(--btn-blue-hover);
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button:disabled {
+  background: var(--text-secondary);
+  cursor: not-allowed;
+  transform: none;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+  font-family: inherit;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--accent-secondary);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.2);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+}
