@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { ArrowLeft, Users, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Users, CheckCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { ProgressBar } from './ProgressBar';
 import {
   calculateStats,
@@ -37,6 +37,8 @@ interface OptionChartDataPoint {
   isCorrect: boolean;
 }
 
+type SortOrder = 'default' | 'asc' | 'desc';
+
 export const StatsPage: React.FC<StatsPageProps> = ({ onNavigate }) => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [stats, setStats] = useState<QuestionStats[]>([]);
@@ -44,6 +46,7 @@ export const StatsPage: React.FC<StatsPageProps> = ({ onNavigate }) => {
     null
   );
   const [panelKey, setPanelKey] = useState(0);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('default');
 
   useEffect(() => {
     const loadedQuestions = storage.getQuestions();
@@ -68,18 +71,28 @@ export const StatsPage: React.FC<StatsPageProps> = ({ onNavigate }) => {
     setPanelKey((prev) => prev + 1);
   }, []);
 
+  const sortedStats = useMemo<QuestionStats[]>(() => {
+    const sorted = [...stats];
+    if (sortOrder === 'asc') {
+      sorted.sort((a, b) => a.accuracyRate - b.accuracyRate);
+    } else if (sortOrder === 'desc') {
+      sorted.sort((a, b) => b.accuracyRate - a.accuracyRate);
+    }
+    return sorted;
+  }, [stats, sortOrder]);
+
   const chartData = useMemo<ChartDataPoint[]>(() => {
-    return stats.map((stat, index) => {
-      const question = questions.find((q) => q.id === stat.questionId);
+    return sortedStats.map((stat) => {
+      const originalIndex = questions.findIndex((q) => q.id === stat.questionId);
       return {
-        name: `Q${index + 1}`,
+        name: `Q${originalIndex + 1}`,
         accuracy: Math.round(stat.accuracyRate * 100),
         questionId: stat.questionId,
         totalAnswers: stat.totalAnswers,
         correctAnswers: stat.correctAnswers,
       };
     });
-  }, [stats, questions]);
+  }, [sortedStats, questions]);
 
   const selectedQuestion = useMemo(
     () => questions.find((q) => q.id === selectedQuestionId) || null,
@@ -201,9 +214,46 @@ export const StatsPage: React.FC<StatsPageProps> = ({ onNavigate }) => {
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="w-full lg:w-3/5">
               <div className="bg-white rounded-xl shadow-md p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-6">
-                  各题正确率统计
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    各题正确率统计
+                  </h2>
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setSortOrder('default')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                        sortOrder === 'default'
+                          ? 'bg-white text-[#1a237e] shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <ArrowUpDown size={14} />
+                      默认
+                    </button>
+                    <button
+                      onClick={() => setSortOrder('asc')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                        sortOrder === 'asc'
+                          ? 'bg-white text-[#1a237e] shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <ArrowUp size={14} />
+                      升序
+                    </button>
+                    <button
+                      onClick={() => setSortOrder('desc')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                        sortOrder === 'desc'
+                          ? 'bg-white text-[#1a237e] shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <ArrowDown size={14} />
+                      降序
+                    </button>
+                  </div>
+                </div>
                 <div className="h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
@@ -266,7 +316,9 @@ export const StatsPage: React.FC<StatsPageProps> = ({ onNavigate }) => {
               </div>
 
               <div className="mt-6 space-y-3">
-                {stats.map((stat, index) => (
+                {sortedStats.map((stat) => {
+                  const originalIndex = questions.findIndex((q) => q.id === stat.questionId);
+                  return (
                   <div
                     key={stat.questionId}
                     className={`bg-white rounded-xl p-4 shadow-sm transition-all duration-200 cursor-pointer ${
@@ -282,7 +334,7 @@ export const StatsPage: React.FC<StatsPageProps> = ({ onNavigate }) => {
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <span className="text-sm text-gray-500">
-                          第 {index + 1} 题
+                          第 {originalIndex + 1} 题
                         </span>
                         <p className="font-medium text-gray-800 text-[14px] font-roboto mt-1">
                           {questions.find((q) => q.id === stat.questionId)?.title}
@@ -296,7 +348,8 @@ export const StatsPage: React.FC<StatsPageProps> = ({ onNavigate }) => {
                     </div>
                     <ProgressBar accuracyRate={stat.accuracyRate} height={20} />
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
