@@ -1,0 +1,74 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #FFF8F0;
+  color: #2C3E50;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --bg-ivory: #FFF8F0;
+  --bg-beige: #F9F3E7;
+  --bg-beige-hover: #F0E6D3;
+  --border-light: #D7C4B0;
+  --border-dark: #8B7355;
+  --nav-bg: #2C3E50;
+  --nav-accent: #64B5F6;
+  --status-design: #64B5F6;
+  --status-making: #FFB74D;
+  --status-qc: #CE93D8;
+  --status-done: #81C784;
+  --col-design: #E3F2FD;
+  --col-making: #FFF3E0;
+  --col-qc: #F3E5F5;
+  --col-done: #E8F5E9;
+  --danger: #D32F2F;
+  --shadow-sm: 0 2px 8px rgba(44, 62, 80, 0.08);
+  --shadow-md: 0 4px 16px rgba(44, 62, 80, 0.12);
+  --shadow-lg: 0 8px 24px rgba(44, 62, 80, 0.16);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFF8F0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D7C4B0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8B7355;
+}
+
+input, textarea, select, button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+input, textarea, select {
+  outline: none;
+}
