@@ -186,6 +186,38 @@
       font-size: 14px;
       color: #80BFFF;
     }
+    #audio-controls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      z-index: 60;
+    }
+    #mute-btn {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.3s;
+      pointer-events: auto;
+    }
+    #mute-btn:hover {
+      background: rgba(74, 144, 217, 0.5);
+    }
+    #mute-btn.muted {
+      background: rgba(255, 68, 68, 0.3);
+      border-color: rgba(255, 68, 68, 0.5);
+    }
+    #volume-slider {
+      width: 100px;
+      pointer-events: auto;
+      cursor: pointer;
+    }
     @media (max-width: 768px) {
       #start-screen h1 {
         font-size: 36px;
@@ -226,6 +258,10 @@
         <div id="combo"></div>
       </div>
       <div id="speed-indicator">速度: 10 m/s</div>
+      <div id="audio-controls">
+        <button id="mute-btn">🔊 音效</button>
+        <input type="range" id="volume-slider" min="0" max="100" value="30" />
+      </div>
     </div>
 
     <div id="pause-overlay">

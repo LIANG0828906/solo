@@ -1,5 +1,5 @@
 import { eventBus, SegmentData, ObstacleData, EnergyBlockData, PlayerState } from './eventBus';
-import { audioManager } from './audioManager';
+import { audioManager, AudioManager } from './audioManager';
 
 export class RailGenerator {
   private segments: SegmentData[] = [];
@@ -27,6 +27,7 @@ export class RailGenerator {
   private initialJumpVelocity: number = 0;
   private targetLaneX: number = 0;
   private laneChangeSpeed: number = 15;
+  private audioManager: AudioManager;
 
   constructor(isMobile: boolean = false) {
     this.isMobile = isMobile;
@@ -34,6 +35,47 @@ export class RailGenerator {
     this.calculateJumpVelocity();
     this.playerState = this.createInitialState();
     this.targetLaneX = this.getLaneX(1);
+    this.audioManager = audioManager;
+  }
+
+  private safePlayObstacle(): void {
+    try {
+      if (this.audioManager && this.audioManager.getIsInitialized()) {
+        this.audioManager.playObstacle();
+      }
+    } catch (e) {
+      console.warn('Failed to play obstacle sound:', e);
+    }
+  }
+
+  private safePlayEnergy(): void {
+    try {
+      if (this.audioManager && this.audioManager.getIsInitialized()) {
+        this.audioManager.playEnergy();
+      }
+    } catch (e) {
+      console.warn('Failed to play energy sound:', e);
+    }
+  }
+
+  private safePlayJump(): void {
+    try {
+      if (this.audioManager && this.audioManager.getIsInitialized()) {
+        this.audioManager.playJump();
+      }
+    } catch (e) {
+      console.warn('Failed to play jump sound:', e);
+    }
+  }
+
+  private safePlayGameOver(): void {
+    try {
+      if (this.audioManager && this.audioManager.getIsInitialized()) {
+        this.audioManager.playGameOver();
+      }
+    } catch (e) {
+      console.warn('Failed to play game over sound:', e);
+    }
   }
 
   private applyMobileSettings(): void {
@@ -293,7 +335,7 @@ export class RailGenerator {
     this.playerState.lastLifeLossTime = now;
     this.playerState.combo = 0;
 
-    audioManager.playObstacle();
+    this.safePlayObstacle();
 
     eventBus.emit({
       type: 'collision',
@@ -314,7 +356,7 @@ export class RailGenerator {
 
     if (this.playerState.lives <= 0) {
       this.playerState.isGameOver = true;
-      audioManager.playGameOver();
+      this.safePlayGameOver();
       eventBus.emit({
         type: 'gameOver',
         finalScore: this.playerState.score,
@@ -329,7 +371,7 @@ export class RailGenerator {
     this.playerState.score += points;
     this.playerState.energyCollected++;
 
-    audioManager.playEnergy();
+    this.safePlayEnergy();
 
     this.updatePlayerSpeed();
 
@@ -382,7 +424,7 @@ export class RailGenerator {
       this.playerState.isJumping = true;
       this.playerState.jumpTime = 0;
       this.playerState.jumpCooldown = this.jumpCooldown;
-      audioManager.playJump();
+      this.safePlayJump();
     }
   }
 

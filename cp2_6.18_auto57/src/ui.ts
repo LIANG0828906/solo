@@ -1,4 +1,5 @@
 import { eventBus } from './eventBus';
+import { audioManager } from './audioManager';
 
 export class UIManager {
   private container: HTMLElement;
@@ -13,6 +14,8 @@ export class UIManager {
   private startButton: HTMLElement;
   private restartButton: HTMLElement;
   private pauseOverlay: HTMLElement;
+  private muteButton: HTMLElement;
+  private volumeSlider: HTMLInputElement;
   
   private onStartCallback: (() => void) | null = null;
   private onRestartCallback: (() => void) | null = null;
@@ -26,6 +29,7 @@ export class UIManager {
   private musicOscillator: OscillatorNode | null = null;
   private musicGain: GainNode | null = null;
   private musicInterval: number | null = null;
+  private gameOverSoundPlayed: boolean = false;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -42,10 +46,44 @@ export class UIManager {
     this.startButton = document.getElementById('start-btn')!;
     this.restartButton = document.getElementById('restart-btn')!;
     this.pauseOverlay = document.getElementById('pause-overlay')!;
+    this.muteButton = document.getElementById('mute-btn')!;
+    this.volumeSlider = document.getElementById('volume-slider') as HTMLInputElement;
 
     this.setupEventListeners();
     this.setupLives();
     this.updateHighScoreDisplay();
+    this.setupAudioControls();
+  }
+
+  private setupAudioControls(): void {
+    this.muteButton.addEventListener('click', () => {
+      audioManager.init();
+      audioManager.resume();
+      const isMuted = audioManager.toggleMute();
+      this.updateMuteButton(isMuted);
+    });
+
+    this.volumeSlider.addEventListener('input', (e) => {
+      const target = e.target as HTMLInputElement;
+      const volume = parseInt(target.value, 10) / 100;
+      audioManager.init();
+      audioManager.resume();
+      audioManager.setVolume(volume);
+      if (volume > 0 && audioManager.getIsMuted()) {
+        audioManager.setMuted(false);
+        this.updateMuteButton(false);
+      }
+    });
+  }
+
+  private updateMuteButton(isMuted: boolean): void {
+    if (isMuted) {
+      this.muteButton.textContent = '🔇 静音';
+      this.muteButton.classList.add('muted');
+    } else {
+      this.muteButton.textContent = '🔊 音效';
+      this.muteButton.classList.remove('muted');
+    }
   }
 
   private setupEventListeners(): void {
@@ -118,6 +156,7 @@ export class UIManager {
     this.isGameStarted = true;
     this.startScreen.style.display = 'none';
     this.gameOverScreen.style.display = 'none';
+    this.gameOverSoundPlayed = false;
     this.startMusic();
     
     if (this.onStartCallback) {
@@ -127,6 +166,7 @@ export class UIManager {
 
   private handleRestart(): void {
     this.gameOverScreen.style.display = 'none';
+    this.gameOverSoundPlayed = false;
     this.setupLives();
     this.updateScore(0, 0);
     this.startMusic();
@@ -281,6 +321,17 @@ export class UIManager {
   showGameOver(finalScore: number): void {
     this.isGameStarted = false;
     this.stopMusic();
+
+    if (!this.gameOverSoundPlayed) {
+      try {
+        audioManager.init();
+        audioManager.resume();
+        audioManager.playGameOver();
+      } catch (e) {
+        console.warn('Failed to play game over sound from UI:', e);
+      }
+      this.gameOverSoundPlayed = true;
+    }
 
     const highScore = this.getHighScore();
     if (finalScore > highScore) {

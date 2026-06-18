@@ -9,6 +9,8 @@ export class AudioManager {
   private gameOverBuffer: AudioBuffer | null = null;
 
   private volume: number = 0.3;
+  private isMuted: boolean = false;
+  private volumeBeforeMute: number = 0.3;
 
   constructor() {}
 
@@ -168,9 +170,36 @@ export class AudioManager {
 
   setVolume(volume: number): void {
     this.volume = Math.max(0, Math.min(1, volume));
-    if (this.masterGain) {
+    if (!this.isMuted && this.masterGain) {
       this.masterGain.gain.value = this.volume;
     }
+  }
+
+  setMuted(muted: boolean): void {
+    if (this.isMuted === muted) return;
+    this.isMuted = muted;
+
+    if (!this.masterGain) return;
+
+    if (muted) {
+      this.volumeBeforeMute = this.volume;
+      this.masterGain.gain.value = 0;
+    } else {
+      this.masterGain.gain.value = this.volume;
+    }
+  }
+
+  toggleMute(): boolean {
+    this.setMuted(!this.isMuted);
+    return this.isMuted;
+  }
+
+  getIsMuted(): boolean {
+    return this.isMuted;
+  }
+
+  getVolume(): number {
+    return this.volume;
   }
 
   getIsInitialized(): boolean {
