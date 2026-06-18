@@ -23,6 +23,17 @@ const HeartIcon = ({ filled, bouncing }: { filled: boolean; bouncing: boolean })
   </svg>
 );
 
+const getFontSize = (text: string): { translated: string; original: string } => {
+  const len = text.length;
+  if (len <= 5) {
+    return { translated: '18px', original: '13px' };
+  } else if (len <= 15) {
+    return { translated: '16px', original: '12px' };
+  } else {
+    return { translated: '14px', original: '11px' };
+  }
+};
+
 const BarrageCard = memo(function BarrageCard({
   barrage,
   targetLang,
@@ -55,6 +66,20 @@ const BarrageCard = memo(function BarrageCard({
   };
 
   const animationDuration = SPEED_DURATION[barrage.speed as SpeedLevel];
+  const fontSize = getFontSize(displayTranslated);
+  const floatAmplitude = useMemo(() => 5 + Math.random() * 3, []);
+  const floatDelay = useMemo(() => -Math.random() * 3, []);
+  const floatDuration = useMemo(() => 2.5 + Math.random() * 1.5, []);
+
+  const outerVars = {
+    '--move-duration': `${animationDuration}ms`
+  } as React.CSSProperties;
+
+  const innerVars = {
+    '--float-amp': `${floatAmplitude}px`,
+    '--float-delay': `${floatDelay}s`,
+    '--float-duration': `${floatDuration}s`
+  } as React.CSSProperties;
 
   return (
     <div
@@ -65,21 +90,28 @@ const BarrageCard = memo(function BarrageCard({
         top: `${barrage.top}%`,
         borderColor: barrage.color,
         boxShadow: `0 0 8px ${barrage.color}`,
-        animationDuration: `${animationDuration}ms`
+        ...outerVars
       }}
     >
-      <div className="barrage-content">
-        <div className="barrage-original">{barrage.originalText}</div>
-        <div className="barrage-translated" style={{ color: '#4fc3f7' }}>
-          {displayTranslated}
+      <div className="barrage-inner" style={innerVars}>
+        <div className="barrage-content">
+          <div className="barrage-original" style={{ fontSize: fontSize.original }}>
+            {barrage.originalText}
+          </div>
+          <div
+            className="barrage-translated"
+            style={{ color: '#4fc3f7', fontSize: fontSize.translated }}
+          >
+            {displayTranslated}
+          </div>
         </div>
+        <button className="barrage-like-btn" onClick={handleLike} aria-label="点赞">
+          <HeartIcon filled={barrage.likedByCurrentUser} bouncing={bounce} />
+          <span className={`like-count ${barrage.likedByCurrentUser ? 'count-pulse' : ''}`}>
+            {barrage.likes}
+          </span>
+        </button>
       </div>
-      <button className="barrage-like-btn" onClick={handleLike} aria-label="点赞">
-        <HeartIcon filled={barrage.likedByCurrentUser} bouncing={bounce} />
-        <span className={`like-count ${barrage.likedByCurrentUser ? 'count-pulse' : ''}`}>
-          {barrage.likes}
-        </span>
-      </button>
     </div>
   );
 });

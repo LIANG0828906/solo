@@ -101,7 +101,7 @@ body,
   backdrop-filter: blur(4px);
   pointer-events: auto;
   cursor: default;
-  animation: barrage-move linear forwards;
+  animation: barrage-move var(--move-duration, 10000ms) linear forwards;
   will-change: transform;
   transform: translateZ(0);
   white-space: nowrap;
@@ -109,8 +109,19 @@ body,
   max-width: 70vw;
 }
 
+.barrage-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation:
+    barrage-pop-in 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0s 1 forwards,
+    barrage-float var(--float-duration, 3s) ease-in-out var(--float-delay, 0s) infinite;
+  will-change: transform;
+}
+
 .barrage-item.highlight {
-  animation: barrage-move linear forwards, highlight-blink 1s ease-in-out infinite;
+  animation: barrage-move var(--move-duration, 10000ms) linear forwards,
+    highlight-blink 1s ease-in-out infinite;
   border-width: 2px;
 }
 
@@ -121,6 +132,75 @@ body,
 
 .barrage-item.lang-transition .barrage-translated {
   animation: lang-fade 0.5s ease-in-out;
+}
+
+@keyframes barrage-pop-in {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(0) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes barrage-float {
+  0% {
+    transform: translateY(0);
+  }
+  6.25% {
+    transform: translateY(calc(var(--float-amp, 6px) * 0.383));
+  }
+  12.5% {
+    transform: translateY(calc(var(--float-amp, 6px) * 0.707));
+  }
+  18.75% {
+    transform: translateY(calc(var(--float-amp, 6px) * 0.924));
+  }
+  25% {
+    transform: translateY(calc(var(--float-amp, 6px) * 1));
+  }
+  31.25% {
+    transform: translateY(calc(var(--float-amp, 6px) * 0.924));
+  }
+  37.5% {
+    transform: translateY(calc(var(--float-amp, 6px) * 0.707));
+  }
+  43.75% {
+    transform: translateY(calc(var(--float-amp, 6px) * 0.383));
+  }
+  50% {
+    transform: translateY(0);
+  }
+  56.25% {
+    transform: translateY(calc(var(--float-amp, 6px) * -0.383));
+  }
+  62.5% {
+    transform: translateY(calc(var(--float-amp, 6px) * -0.707));
+  }
+  68.75% {
+    transform: translateY(calc(var(--float-amp, 6px) * -0.924));
+  }
+  75% {
+    transform: translateY(calc(var(--float-amp, 6px) * -1));
+  }
+  81.25% {
+    transform: translateY(calc(var(--float-amp, 6px) * -0.924));
+  }
+  87.5% {
+    transform: translateY(calc(var(--float-amp, 6px) * -0.707));
+  }
+  93.75% {
+    transform: translateY(calc(var(--float-amp, 6px) * -0.383));
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 
 @keyframes barrage-move {
