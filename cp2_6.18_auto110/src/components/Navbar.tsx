@@ -16,6 +16,10 @@ export const Navbar = () => {
     setTimeout(() => setCartAnimating(false), 300);
   };
 
+  const handleRipple = (e: React.MouseEvent<HTMLElement>, color?: string) => {
+    createRipple(e, color);
+  };
+
   const isActive = (path: string) => location.pathname === path;
 
   return (
@@ -61,13 +65,19 @@ export const Navbar = () => {
             )}
           </Link>
 
-          <button className="hidden md:flex p-2 rounded-full hover:bg-gray-100 transition-colors duration-200">
+          <button
+            className="hidden md:flex p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
+            onClick={(e) => handleRipple(e, 'rgba(30, 58, 95, 0.1)')}
+          >
             <User className="w-6 h-6 text-primary" />
           </button>
 
           <button
             className="md:hidden p-2"
-            onClick={() => setShowMenu(!showMenu)}
+            onClick={(e) => {
+              handleRipple(e, 'rgba(30, 58, 95, 0.1)');
+              setShowMenu(!showMenu);
+            }}
           >
             {showMenu ? (
               <X className="w-6 h-6 text-primary" />
@@ -83,15 +93,21 @@ export const Navbar = () => {
           <div className="px-4 py-2 space-y-2">
             <Link
               to="/"
-              className="block py-2 text-gray-700 hover:text-primary"
-              onClick={() => setShowMenu(false)}
+              className="block py-2 text-gray-700 hover:text-primary transition-colors duration-200"
+              onClick={(e) => {
+                handleRipple(e as unknown as React.MouseEvent<HTMLElement>, 'rgba(30, 58, 95, 0.1)');
+                setShowMenu(false);
+              }}
             >
               首页
             </Link>
             <Link
               to="/orders"
-              className="block py-2 text-gray-700 hover:text-primary"
-              onClick={() => setShowMenu(false)}
+              className="block py-2 text-gray-700 hover:text-primary transition-colors duration-200"
+              onClick={(e) => {
+                handleRipple(e as unknown as React.MouseEvent<HTMLElement>, 'rgba(30, 58, 95, 0.1)');
+                setShowMenu(false);
+              }}
             >
               我的订单
             </Link>

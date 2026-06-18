@@ -16,6 +16,7 @@ export const BookList = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchInputValue, setSearchInputValue] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [selectedPriceRange, setSelectedPriceRange] = useState<PriceRange | null>(null);
@@ -64,23 +65,53 @@ export const BookList = () => {
     });
   }, [books, searchKeyword, selectedPriceRange, selectedCategory]);
 
-  const handleSearch = debounce((keyword: string) => {
-    setSearchKeyword(keyword);
-    if (keyword.trim()) {
-      addToSearchHistory(keyword.trim());
+  const filteredHistory = useMemo(() => {
+    if (!searchInputValue.trim()) return searchHistory;
+    const keyword = searchInputValue.toLowerCase();
+    return searchHistory.filter((item) =>
+      item.toLowerCase().includes(keyword)
+    );
+  }, [searchInputValue, searchHistory]);
+
+  const handleSearchInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInputValue(value);
+    setShowHistory(true);
+    debouncedSearch(value);
+  };
+
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((keyword: string) => {
+        setSearchKeyword(keyword);
+      }, 300),
+    []
+  );
+
+  const handleSearchSubmit = () => {
+    if (searchInputValue.trim()) {
+      addToSearchHistory(searchInputValue.trim());
       setSearchHistory(getSearchHistory());
     }
     setShowHistory(false);
-  }, 300);
+  };
 
-  const handleHistoryClick = (keyword: string) => {
+  const handleHistoryClick = (e: React.MouseEvent<HTMLButtonElement>, keyword: string) => {
+    createRipple(e, 'rgba(30, 58, 95, 0.1)');
+    setSearchInputValue(keyword);
     setSearchKeyword(keyword);
-    searchInputRef.current?.value && (searchInputRef.current.value = keyword);
+    if (searchInputRef.current) {
+      searchInputRef.current.value = keyword;
+    }
+    addToSearchHistory(keyword);
+    setSearchHistory(getSearchHistory());
     setShowHistory(false);
   };
 
-  const clearSearch = () => {
+  const clearSearch = (e: React.MouseEvent<HTMLButtonElement>) => {
+    createRipple(e, 'rgba(30, 58, 95, 0.1)');
     setSearchKeyword('');
+    setSearchInputValue('');
     if (searchInputRef.current) {
       searchInputRef.current.value = '';
     }
@@ -95,7 +126,8 @@ export const BookList = () => {
     setSelectedPriceRange(selectedPriceRange?.label === range?.label ? null : range);
   };
 
-  const handleCategoryClick = (category: Category | null) => {
+  const handleCategoryClick = (e: React.MouseEvent<HTMLButtonElement>, category: Category | null) => {
+    createRipple(e, 'rgba(201, 168, 76, 0.3)');
     setSelectedCategory(selectedCategory?.value === category?.value ? null : category);
   };
 
@@ -110,11 +142,16 @@ export const BookList = () => {
               type="text"
               placeholder="搜索书名或作者"
               className="w-full pl-12 pr-10 py-3 rounded-full bg-[#F9FAFB] border border-transparent focus:border-primary focus:bg-white transition-all duration-200 outline-none"
-              onChange={(e) => handleSearch(e.target.value)}
+              onChange={handleSearchInput}
               onFocus={() => setShowHistory(true)}
               onBlur={() => setTimeout(() => setShowHistory(false), 200)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearchSubmit();
+                }
+              }}
             />
-            {searchKeyword && (
+            {(searchKeyword || searchInputValue) && (
               <button
                 onClick={clearSearch}
                 className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded-full transition-colors duration-200"
@@ -124,30 +161,32 @@ export const BookList = () => {
             )}
           </div>
 
-          {showHistory && searchHistory.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-100 z-40 overflow-hidden">
+          {showHistory && filteredHistory.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-100 z-40 overflow-hidden animate-fadeIn">
               <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
                 <span className="text-sm text-gray-500 flex items-center gap-1">
                   <Clock className="w-4 h-4" />
-                  搜索历史
+                  {searchInputValue.trim() ? '匹配的搜索历史' : '搜索历史'}
                 </span>
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    createRipple(e, 'rgba(30, 58, 95, 0.1)');
                     clearSearchHistory();
                     setSearchHistory([]);
                   }}
-                  className="text-xs text-gray-400 hover:text-gray-600"
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors duration-200"
                 >
                   清空
                 </button>
               </div>
-              {searchHistory.map((item, index) => (
+              {filteredHistory.map((item, index) => (
                 <button
                   key={index}
-                  onClick={() => handleHistoryClick(item)}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150"
+                  onClick={(e) => handleHistoryClick(e, item)}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150 flex items-center gap-2"
                 >
-                  {item}
+                  <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                  <span className="truncate">{item}</span>
                 </button>
               ))}
             </div>
@@ -173,7 +212,7 @@ export const BookList = () => {
             {selectedPriceRange && (
               <button
                 onClick={(e) => handlePriceRangeClick(e, null)}
-                className="text-sm text-gray-500 hover:text-gray-700 ml-2"
+                className="text-sm text-gray-500 hover:text-gray-700 ml-2 transition-colors duration-200"
               >
                 取消筛选
               </button>
@@ -185,7 +224,7 @@ export const BookList = () => {
             {CATEGORIES.map((category) => (
               <button
                 key={category.value}
-                onClick={() => handleCategoryClick(category)}
+                onClick={(e) => handleCategoryClick(e, category)}
                 className={`pb-1 text-sm font-medium transition-all duration-200 border-b-2 ${
                   selectedCategory?.value === category.value
                     ? 'border-accent text-primary'
@@ -197,8 +236,8 @@ export const BookList = () => {
             ))}
             {selectedCategory && (
               <button
-                onClick={() => handleCategoryClick(null)}
-                className="text-sm text-gray-500 hover:text-gray-700"
+                onClick={(e) => handleCategoryClick(e, null)}
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors duration-200"
               >
                 取消筛选
               </button>

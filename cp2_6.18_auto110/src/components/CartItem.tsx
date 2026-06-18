@@ -14,9 +14,10 @@ export const CartItem = ({ item }: CartItemProps) => {
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
 
-  const handleQuantityChange = (delta: number) => {
+  const handleQuantityChange = (e: React.MouseEvent<HTMLButtonElement>, delta: number) => {
+    createRipple(e, 'rgba(30, 58, 95, 0.2)');
     const newQuantity = item.quantity + delta;
-    if (newQuantity >= 0 && newQuantity <= item.book.stock) {
+    if (newQuantity >= 1 && newQuantity <= item.book.stock) {
       updateQuantity(item.bookId, newQuantity);
       setQuantityAnimating(true);
       setTimeout(() => setQuantityAnimating(false), 200);
@@ -56,21 +57,23 @@ export const CartItem = ({ item }: CartItemProps) => {
       <div className="flex flex-col items-end gap-3">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => handleQuantityChange(-1)}
+            onClick={(e) => handleQuantityChange(e, -1)}
             disabled={item.quantity <= 1}
             className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
           >
             <Minus className="w-4 h-4 text-gray-600" />
           </button>
           <span
-            className={`w-8 text-center font-medium ${
+            key={item.quantity}
+            className={`w-8 text-center font-medium inline-block ${
               quantityAnimating ? 'animate-bounceNumber' : ''
             }`}
+            style={{ transformOrigin: 'center' }}
           >
             {item.quantity}
           </span>
           <button
-            onClick={() => handleQuantityChange(1)}
+            onClick={(e) => handleQuantityChange(e, 1)}
             disabled={item.quantity >= item.book.stock}
             className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
           >

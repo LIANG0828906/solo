@@ -44,10 +44,8 @@ export const CartPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    createRipple(e as React.MouseEvent<HTMLElement>);
-
+  const handleSubmitClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    createRipple(e);
     if (!validateForm()) return;
     if (items.length === 0) return;
 
@@ -70,6 +68,10 @@ export const CartPage = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
   };
 
   return (
@@ -135,7 +137,7 @@ export const CartPage = () => {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleFormSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     收货人姓名
@@ -200,7 +202,8 @@ export const CartPage = () => {
                 </div>
 
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleSubmitClick}
                   disabled={isSubmitting}
                   className="w-full py-3 bg-primary text-white font-medium rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-[0.98]"
                 >

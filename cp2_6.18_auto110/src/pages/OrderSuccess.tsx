@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Home, Package } from 'lucide-react';
+import { createRipple } from '@/utils/helpers';
 
 export const OrderSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -12,6 +13,10 @@ export const OrderSuccess = () => {
       setOrderNo(orderNoParam);
     }
   }, [searchParams]);
+
+  const handleRipple = (e: React.MouseEvent<HTMLAnchorElement>, color?: string) => {
+    createRipple(e, color);
+  };
 
   return (
     <div className="animate-fadeIn max-w-lg mx-auto text-center py-16">
@@ -40,6 +45,7 @@ export const OrderSuccess = () => {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             to="/orders"
+            onClick={(e) => handleRipple(e)}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white font-medium rounded hover:bg-primary/90 transition-colors duration-200"
           >
             <Package className="w-5 h-5" />
@@ -47,6 +53,7 @@ export const OrderSuccess = () => {
           </Link>
           <Link
             to="/"
+            onClick={(e) => handleRipple(e, 'rgba(30, 58, 95, 0.1)')}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded hover:bg-gray-50 transition-colors duration-200"
           >
             <Home className="w-5 h-5" />

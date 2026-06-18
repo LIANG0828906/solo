@@ -22,18 +22,19 @@ export const BookCard = ({ book, index }: BookCardProps) => {
 
   return (
     <div
-      className="w-full md:w-[240px] h-[360px] bg-white rounded-card shadow-card cursor-pointer overflow-hidden transition-all duration-300 ease-out"
+      className="w-full md:w-[240px] h-[360px] flex-shrink-0 bg-white rounded-card shadow-card cursor-pointer overflow-hidden transition-all duration-300 ease-out"
       style={{
         transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
         boxShadow: isHovered
           ? '0 4px 16px rgba(0,0,0,0.2)'
           : '0 2px 8px rgba(0,0,0,0.1)',
         animationDelay: `${index * 0.05}s`,
+        aspectRatio: '240 / 360',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative h-[240px] bg-gray-100 overflow-hidden">
+      <div className="relative h-[240px] flex-shrink-0 bg-gray-100 overflow-hidden">
         {!imageLoaded && (
           <div className="absolute inset-0 animate-pulse bg-gray-200" />
         )}
@@ -52,21 +53,21 @@ export const BookCard = ({ book, index }: BookCardProps) => {
         )}
       </div>
 
-      <div className="p-4 flex flex-col h-[120px]">
-        <h3 className="text-sm font-semibold text-gray-900 truncate mb-1" title={book.title}>
+      <div className="p-4 flex flex-col h-[120px] flex-shrink-0 overflow-hidden">
+        <h3 className="text-sm font-semibold text-gray-900 truncate mb-1 flex-shrink-0" title={book.title}>
           {book.title}
         </h3>
-        <p className="text-xs text-gray-500 mb-2 truncate" title={book.author}>
+        <p className="text-xs text-gray-500 mb-2 truncate flex-shrink-0" title={book.author}>
           {book.author}
         </p>
-        <div className="mt-auto flex items-center justify-between">
-          <span className="text-lg font-bold text-accent">
+        <div className="mt-auto flex items-center justify-between flex-shrink-0">
+          <span className="text-lg font-bold text-accent flex-shrink-0">
             {formatPrice(book.price)}
           </span>
           <button
             onClick={handleAddToCart}
             disabled={book.stock === 0}
-            className={`px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
+            className={`px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 flex items-center gap-1 flex-shrink-0 ${
               book.stock === 0
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
