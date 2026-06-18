@@ -95,6 +95,18 @@ const GridCell: React.FC<{
     onMouseEnter,
     onMouseLeave,
   }) => {
+    const [showAttackAnim, setShowAttackAnim] = React.useState(false);
+
+    React.useEffect(() => {
+      if (isLastAttack && lastAttackResult) {
+        setShowAttackAnim(true);
+        const timer = setTimeout(() => {
+          setShowAttackAnim(false);
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
+    }, [isLastAttack, lastAttackResult]);
+
     let cellClass = 'grid-cell';
     if (state === 'ship') cellClass += ' cell-ship';
     if (state === 'hit') cellClass += ' cell-hit';
@@ -104,8 +116,8 @@ const GridCell: React.FC<{
     if (isInvalidPreview) cellClass += ' cell-invalid';
     if (isSinking) cellClass += ' cell-sinking';
     if (isAttackPending) cellClass += ' cell-pending';
-    if (isLastAttack && lastAttackResult === 'hit') cellClass += ' cell-explosion';
-    if (isLastAttack && lastAttackResult === 'miss') cellClass += ' cell-splash';
+    if (showAttackAnim && lastAttackResult === 'hit') cellClass += ' cell-explosion';
+    if (showAttackAnim && lastAttackResult === 'miss') cellClass += ' cell-splash';
 
     const isIntersection =
       row < GRID_SIZE - 1 && col < GRID_SIZE - 1;
@@ -131,30 +143,37 @@ const GridCell: React.FC<{
         )}
         {isInvalidPreview && <div className="invalid-marker" />}
         {isAttackPending && <div className="pending-spinner" />}
-        {isLastAttack && lastAttackResult === 'hit' && (
+        {showAttackAnim && lastAttackResult === 'hit' && (
           <div className="pixel-explosion">
             <div className="px-particle p1" />
             <div className="px-particle p2" />
             <div className="px-particle p3" />
             <div className="px-particle p4" />
             <div className="px-particle p5" />
+            <div className="px-particle p6" />
+            <div className="px-particle p7" />
+            <div className="px-particle p8" />
             <div className="px-core" />
           </div>
         )}
-        {isLastAttack && lastAttackResult === 'miss' && (
+        {showAttackAnim && lastAttackResult === 'miss' && (
           <div className="pixel-splash">
             <div className="px-drop d1" />
             <div className="px-drop d2" />
             <div className="px-drop d3" />
+            <div className="px-drop d4" />
+            <div className="px-drop d5" />
+            <div className="px-drop d6" />
             <div className="px-ripple r1" />
             <div className="px-ripple r2" />
+            <div className="px-ripple r3" />
           </div>
         )}
         {isIntersection && <div className="grid-dot" />}
       </div>
     );
   }
-);
+)
 
 GridCell.displayName = 'GridCell';
 
@@ -174,6 +193,21 @@ const GameBoard: React.FC<{
   const attackPending = useGameStore((s) => s.attackPending);
   const sinkingCells = useGameStore((s) => s.sinkingCells);
   const [localPendingCell, setLocalPendingCell] = useState<[number, number] | null>(null);
+  const [showAttackAnim, setShowAttackAnim] = useState(false);
+  const [animCell, setAnimCell] = useState<[number, number] | null>(null);
+  const [animResult, setAnimResult] = useState<'hit' | 'miss' | null>(null);
+
+  useEffect(() => {
+    if (lastAttackCell && lastAttackResult && isOpponent) {
+      setAnimCell(lastAttackCell);
+      setAnimResult(lastAttackResult);
+      setShowAttackAnim(true);
+      const timer = setTimeout(() => {
+        setShowAttackAnim(false);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [lastAttackCell, lastAttackResult, isOpponent]);
 
   const canAttack =
     !isOpponent &&
@@ -328,8 +362,8 @@ const GameBoard: React.FC<{
             );
             const isPending =
               localPendingCell?.[0] === row && localPendingCell?.[1] === col;
-            const isLastAtk =
-              lastAttackCell?.[0] === row && lastAttackCell?.[1] === col;
+            const isAnimCell =
+              showAttackAnim && animCell?.[0] === row && animCell?.[1] === col;
 
             return (
               <GridCell
@@ -345,8 +379,8 @@ const GameBoard: React.FC<{
                 isInvalidPreview={isInPreview && canDeploy && !isValidPreview}
                 isSinking={isSinking}
                 isAttackPending={isPending}
-                isLastAttack={isLastAtk && isOpponent}
-                lastAttackResult={isLastAtk && isOpponent ? lastAttackResult : null}
+                isLastAttack={isAnimCell}
+                lastAttackResult={isAnimCell ? animResult : null}
                 onClick={() => handleCellClick(row, col)}
                 onMouseEnter={() => handleMouseEnter(row, col)}
                 onMouseLeave={handleMouseLeave}

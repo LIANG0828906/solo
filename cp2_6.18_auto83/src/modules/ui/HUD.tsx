@@ -1,19 +1,55 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { useGameStore, createEmptyGrid } from '@/store/GameStore';
-import { SHIP_DEFINITIONS, ShipType } from '@/types';
+import { SHIP_DEFINITIONS, ShipType, Ship } from '@/types';
 
-const PixelAnchor: React.FC<{ blinking: boolean }> = ({ blinking }) => (
-  <div className={`pixel-anchor ${blinking ? 'anchor-blink' : ''}`}>
-    <div className="anchor-top">
-      <span className="anchor-ring" />
+const PixelAnchor: React.FC<{ blinking: boolean }> = ({ blinking }) => {
+  const px = 3;
+  const pattern = [
+    [0,0,0,1,1,0,0,0],
+    [0,0,1,0,0,1,0,0],
+    [0,0,1,0,0,1,0,0],
+    [0,0,0,1,1,0,0,0],
+    [0,0,0,1,0,0,0,0],
+    [0,0,0,1,0,0,0,0],
+    [0,0,0,1,0,0,0,0],
+    [0,0,0,1,0,0,0,0],
+    [0,0,0,1,0,0,0,0],
+    [0,1,0,1,0,1,0,0],
+    [1,1,0,1,0,1,1,0],
+    [1,0,0,1,0,0,1,0],
+  ];
+
+  return (
+    <div
+      className={`pixel-anchor ${blinking ? 'anchor-blink' : ''}`}
+      style={{
+        position: 'relative',
+        width: 8 * px,
+        height: 12 * px,
+      }}
+    >
+      {pattern.map((row, y) =>
+        row.map((cell, x) =>
+          cell ? (
+            <div
+              key={`${x}-${y}`}
+              className="anchor-pixel-dot"
+              style={{
+                position: 'absolute',
+                left: x * px,
+                top: y * px,
+                width: px,
+                height: px,
+                background: '#4CAF50',
+                boxShadow: '0 0 2px rgba(76, 175, 80, 0.5)',
+              }}
+            />
+          ) : null
+        )
+      )}
     </div>
-    <div className="anchor-shaft" />
-    <div className="anchor-arms">
-      <span className="arm-left" />
-      <span className="arm-right" />
-    </div>
-  </div>
-);
+  );
+};
 
 const PixelCountdown: React.FC<{ seconds: number }> = ({ seconds }) => {
   const pct = (seconds / 20) * 100;
@@ -69,27 +105,88 @@ const ShipStatus: React.FC<{
 }> = ({ type, label, color, size, hits, sunk }) => {
   const hitCount = hits.filter(Boolean).length;
 
+  const pixelSize = 3;
+  const pixelGap = 1;
+  const blockPixels = 6;
+  const blockSize = blockPixels * pixelSize + (blockPixels - 1) * pixelGap;
+
+  const generatePixelPattern = (isHit: boolean) => {
+    const pattern: boolean[] = [];
+    for (let y = 0; y < blockPixels; y++) {
+      for (let x = 0; x < blockPixels; x++) {
+        if (isHit) {
+          const isEdge = x === 0 || x === blockPixels - 1 || y === 0 || y === blockPixels - 1;
+          if (isEdge) {
+            pattern.push(true);
+          } else {
+            pattern.push((x + y) % 2 === 0);
+          }
+        } else {
+          pattern.push(true);
+        }
+      }
+    }
+    return pattern;
+  };
+
   return (
     <div className={`pixel-ship-status ${sunk ? 'status-sunk' : ''}`}>
       <div className="ship-status-header">
-        <span className="ship-pixel-icon" style={{ color }}>
-          {type === 'battleship' ? '⬛⬛⬛' : type === 'cruiser' ? '⬛⬛' : '⬛'}
-        </span>
+        <div className="ship-icon-row">
+          {Array.from({ length: size }, (_, i) => (
+            <div
+              key={i}
+              className="ship-icon-block"
+            >
+              <div
+                className="ship-icon-pixel"
+                style={{
+                  background: hits[i] ? '#2a2a2a' : color,
+                }}
+              />
+            </div>
+          ))}
+        </div>
         <span className="ship-label">{label}</span>
       </div>
       <div className="ship-hp-blocks">
         {Array.from({ length: size }, (_, i) => {
           const isHit = hits[i];
+          const pattern = generatePixelPattern(isHit);
           return (
             <div
               key={i}
-              className={`hp-block ${isHit ? 'hp-hit' : 'hp-intact'}`}
-              style={!isHit ? { background: color } : undefined}
+              className={`hp-block-pixel ${isHit ? 'hp-hit' : 'hp-intact'}`}
+              style={{
+                width: blockSize,
+                height: blockSize,
+              }}
             >
+              {pattern.map((filled, idx) => {
+                const x = idx % blockPixels;
+                const y = Math.floor(idx / blockPixels);
+                return filled ? (
+                  <div
+                    key={idx}
+                    className="hp-pixel-dot"
+                    style={{
+                      position: 'absolute',
+                      left: x * (pixelSize + pixelGap),
+                      top: y * (pixelSize + pixelGap),
+                      width: pixelSize,
+                      height: pixelSize,
+                      background: isHit ? '#3a3a3a' : color,
+                      boxShadow: isHit
+                        ? 'none'
+                        : `inset -1px -1px 0 rgba(0,0,0,0.25), inset 1px 1px 0 rgba(255,255,255,0.25)`,
+                    }}
+                  />
+                ) : null;
+              })}
               {isHit && (
-                <div className="crack-effect">
-                  <div className="crack-line c1" />
-                  <div className="crack-line c2" />
+                <div className="crack-overlay">
+                  <div className="crack-line-h c1" />
+                  <div className="crack-line-h c2" />
                 </div>
               )}
             </div>
