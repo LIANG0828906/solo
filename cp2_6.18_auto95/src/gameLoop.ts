@@ -146,16 +146,8 @@ const checkFoodConsumption = (): void => {
 
 const updateEatFoodEffects = (): void => {
   const state = getGameState();
-  const { eatFoodEffects } = state;
-  if (!eatFoodEffects || eatFoodEffects.length === 0) return;
-
-  const now = Date.now();
-  const validEffects = eatFoodEffects.filter(
-    (e) => now - e.createdAt < EAT_FOOD_EFFECT_DURATION
-  );
-
-  if (validEffects.length !== eatFoodEffects.length) {
-    setGameState({ eatFoodEffects: validEffects });
+  if (state.eatFoodEffects && state.eatFoodEffects.length > 0) {
+    state.updateExpiredEffects();
   }
 };
 
@@ -227,7 +219,7 @@ const gameFrame = (timestamp: number): void => {
   updateFoodScales();
   updateDeathAnimations();
   updateEatFoodEffects();
-  render(canvasRef);
+  render(canvasRef, timestamp);
 
   animationFrameId = requestAnimationFrame(gameFrame);
 };

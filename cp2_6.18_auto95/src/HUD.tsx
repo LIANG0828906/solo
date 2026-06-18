@@ -240,8 +240,12 @@ const HUD: React.FC = () => {
 
           {gameStage === 'ended' && (
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center z-20"
+              className="absolute flex flex-col items-center justify-center z-20"
               style={{
+                width: `${canvasSize}px`,
+                height: `${canvasSize}px`,
+                top: 0,
+                left: 0,
                 backgroundColor: 'rgba(0,0,0,0.85)',
                 borderRadius: '8px',
                 backdropFilter: 'blur(2px)',

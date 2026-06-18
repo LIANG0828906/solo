@@ -17,6 +17,7 @@ let lastSnakeState: string = '';
 let lastFoodState: string = '';
 let lastEffectState: string = '';
 let scaleFactor: number = 1;
+let currentRenderTimestamp: number = 0;
 
 type CanvasContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -27,7 +28,7 @@ const initOffscreenCanvas = (): void => {
   }
 };
 
-const initGridCache = (): void => {
+const buildGridCache = (): void => {
   gridCanvas = document.createElement('canvas');
   gridCanvas.width = CANVAS_SIZE;
   gridCanvas.height = CANVAS_SIZE;
@@ -53,8 +54,21 @@ const initGridCache = (): void => {
   }
 };
 
+const initGridCache = (): void => {
+  buildGridCache();
+};
+
 export const setScaleFactor = (factor: number): void => {
-  scaleFactor = factor;
+  if (factor !== scaleFactor) {
+    scaleFactor = factor;
+    forceRenderStateChange();
+  }
+};
+
+const forceRenderStateChange = (): void => {
+  lastSnakeState = '';
+  lastFoodState = '';
+  lastEffectState = '';
 };
 
 export const initRenderer = (): void => {
@@ -64,7 +78,10 @@ export const initRenderer = (): void => {
 
 const drawGrid = (ctx: CanvasContext): void => {
   if (gridCanvas) {
+    ctx.save();
+    ctx.scale(scaleFactor, scaleFactor);
     ctx.drawImage(gridCanvas, 0, 0);
+    ctx.restore();
   }
 };
 
@@ -133,8 +150,8 @@ const drawFood = (ctx: CanvasContext, food: Food): void => {
   ctx.restore();
 };
 
-const drawEatFoodEffect = (ctx: CanvasContext, effect: EatFoodEffect): void => {
-  const elapsed = Date.now() - effect.createdAt;
+const drawEatFoodEffect = (ctx: CanvasContext, effect: EatFoodEffect, timestamp: number): void => {
+  const elapsed = timestamp - effect.createdAt;
   const progress = Math.min(1, elapsed / EAT_FOOD_EFFECT_DURATION);
 
   const x = effect.position.x * scaleFactor + (GRID_SIZE * scaleFactor) / 2;
@@ -143,6 +160,7 @@ const drawEatFoodEffect = (ctx: CanvasContext, effect: EatFoodEffect): void => {
   const maxRadius = 24 * scaleFactor;
   const radius = maxRadius * progress;
   const alpha = 1 - progress;
+  const particleCount = 8;
 
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -165,18 +183,19 @@ const drawEatFoodEffect = (ctx: CanvasContext, effect: EatFoodEffect): void => {
     ctx.fill();
   }
 
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI * 2 * i) / 6 + progress * 2;
-    const dist = radius * 0.8;
+  for (let i = 0; i < particleCount; i++) {
+    const baseAngle = (Math.PI * 2 * i) / particleCount;
+    const angle = baseAngle + progress * Math.PI * 1.5;
+    const dist = maxRadius * progress * 0.9;
     const px = x + Math.cos(angle) * dist;
     const py = y + Math.sin(angle) * dist;
-    const particleSize = (3 - progress * 3) * scaleFactor;
+    const particleSize = Math.max(0, (3 - progress * 3) * scaleFactor);
 
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#FFFFFF';
     ctx.globalAlpha = alpha;
     ctx.beginPath();
-    ctx.arc(px, py, Math.max(0, particleSize), 0, Math.PI * 2);
+    ctx.arc(px, py, particleSize, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -197,19 +216,23 @@ const hasStateChanged = (snakes: Snake[], foods: Food[], effects: EatFoodEffect[
   return false;
 };
 
-export const render = (canvas: HTMLCanvasElement | null): void => {
+export const render = (canvas: HTMLCanvasElement | null, timestamp?: number): void => {
   if (!canvas) return;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+
+  const renderTime = timestamp || currentRenderTimestamp || Date.now();
+  currentRenderTimestamp = renderTime;
 
   const state = getGameState();
   const { snakes, foods, eatFoodEffects } = state;
   const effects = eatFoodEffects || [];
 
   const needsRedraw = hasStateChanged(snakes, foods, effects);
+  const hasActiveEffects = effects.length > 0;
 
-  if (!needsRedraw && offscreenCanvas && effects.length === 0) {
+  if (!needsRedraw && offscreenCanvas && !hasActiveEffects) {
     ctx.drawImage(offscreenCanvas, 0, 0);
     return;
   }
@@ -231,9 +254,9 @@ export const render = (canvas: HTMLCanvasElement | null): void => {
       }
     });
 
-    effects.forEach((effect) => drawEatFoodEffect(targetCtx, effect));
+    effects.forEach((effect) => drawEatFoodEffect(targetCtx, effect, renderTime));
 
-    if (offscreenCanvas) {
+    if (offscreenCanvas && !hasActiveEffects) {
       ctx.drawImage(offscreenCanvas, 0, 0);
     }
   }

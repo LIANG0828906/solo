@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { Snake, Food, GameStage, Point, Direction, EatFoodEffect } from './types';
-import { COLOR_PALETTE, AI_NAMES, CANVAS_SIZE, GRID_SIZE } from './types';
+import { COLOR_PALETTE, AI_NAMES, CANVAS_SIZE, GRID_SIZE, EAT_FOOD_EFFECT_DURATION } from './types';
 
 interface GameStore {
   snakes: Snake[];
@@ -14,6 +14,7 @@ interface GameStore {
   addEatFoodEffect: (effect: EatFoodEffect) => void;
   removeEatFoodEffect: (effectId: string) => void;
   setEatFoodEffects: (effects: EatFoodEffect[]) => void;
+  updateExpiredEffects: () => void;
   addFood: (food: Food) => void;
   removeFood: (foodId: string) => void;
   updateSnake: (snakeId: string, updates: Partial<Snake>) => void;
@@ -94,6 +95,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   })),
 
   setEatFoodEffects: (effects) => set({ eatFoodEffects: effects }),
+
+  updateExpiredEffects: () => set((state) => {
+    const now = Date.now();
+    const validEffects = state.eatFoodEffects.filter(
+      (e) => now - e.createdAt < EAT_FOOD_EFFECT_DURATION
+    );
+    if (validEffects.length === state.eatFoodEffects.length) {
+      return {};
+    }
+    return { eatFoodEffects: validEffects };
+  }),
 
   addFood: (food) => set((state) => ({ foods: [...state.foods, food] })),
 
