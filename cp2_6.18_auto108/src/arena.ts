@@ -4,12 +4,15 @@ const INITIAL_DIAMETER = 600;
 const MIN_DIAMETER = 200;
 const SHRINK_INTERVAL = 15;
 const SHRINK_RATE = 0.05;
-const EDGE_FLASH_INTERVAL = 0.8;
+const EDGE_FLASH_INTERVAL_MAX = 0.8;
+const EDGE_FLASH_INTERVAL_MIN = 0.3;
+const EDGE_FLASH_FAST_THRESHOLD = 250;
 
 const OBSTACLE_MIN_RADIUS = 20;
 const OBSTACLE_MAX_RADIUS = 35;
 const OBSTACLE_MIN_INTERVAL = 5;
 const OBSTACLE_MAX_INTERVAL = 8;
+const OBSTACLE_SPAWN_DURATION = 0.3;
 
 export class Arena {
   state: ArenaState;
@@ -29,13 +32,13 @@ export class Arena {
       shrinkRate: SHRINK_RATE,
       shrinkTimer: 0,
       edgeFlashTimer: 0,
-      edgeFlashInterval: EDGE_FLASH_INTERVAL,
+      edgeFlashInterval: EDGE_FLASH_INTERVAL_MAX,
       edgeFlashOn: true,
     };
     this.nextObstacleInterval = this.randomObstacleInterval();
   }
 
-  update(deltaTime: number): void {
+  update(deltaTime: number, currentTime: number): void {
     const state = this.state;
 
     state.shrinkTimer += deltaTime;
@@ -45,6 +48,8 @@ export class Arena {
       state.diameter = Math.max(newDiameter, state.minDiameter);
       this.removeObstaclesOutside();
     }
+
+    state.edgeFlashInterval = this.calculateEdgeFlashInterval();
 
     state.edgeFlashTimer += deltaTime;
     if (state.edgeFlashTimer >= state.edgeFlashInterval) {
@@ -56,15 +61,25 @@ export class Arena {
     if (this.obstacleTimer >= this.nextObstacleInterval) {
       this.obstacleTimer = 0;
       this.nextObstacleInterval = this.randomObstacleInterval();
-      this.spawnObstacle();
+      this.spawnObstacle(currentTime);
     }
+  }
+
+  private calculateEdgeFlashInterval(): number {
+    const state = this.state;
+    if (state.diameter >= EDGE_FLASH_FAST_THRESHOLD) {
+      return EDGE_FLASH_INTERVAL_MAX;
+    }
+    const t = (EDGE_FLASH_FAST_THRESHOLD - state.diameter) / (EDGE_FLASH_FAST_THRESHOLD - state.minDiameter);
+    const clampedT = Math.max(0, Math.min(1, t));
+    return EDGE_FLASH_INTERVAL_MAX - (EDGE_FLASH_INTERVAL_MAX - EDGE_FLASH_INTERVAL_MIN) * clampedT;
   }
 
   private randomObstacleInterval(): number {
     return OBSTACLE_MIN_INTERVAL + Math.random() * (OBSTACLE_MAX_INTERVAL - OBSTACLE_MIN_INTERVAL);
   }
 
-  private spawnObstacle(): void {
+  private spawnObstacle(currentTime: number): void {
     const state = this.state;
     const radius = OBSTACLE_MIN_RADIUS + Math.random() * (OBSTACLE_MAX_RADIUS - OBSTACLE_MIN_RADIUS);
     const maxDist = state.diameter / 2 - radius - 10;
@@ -82,6 +97,8 @@ export class Arena {
       x,
       y,
       radius,
+      spawnTime: currentTime,
+      spawnDuration: OBSTACLE_SPAWN_DURATION,
     });
   }
 
@@ -107,6 +124,44 @@ export class Arena {
     const dy = y - state.centerY;
     const dist = Math.sqrt(dx * dx + dy * dy);
     return dist <= state.diameter / 2 - margin;
+  }
+
+  isCarOnPlatform(
+    carX: number,
+    carY: number,
+    carAngle: number,
+    carWidth: number,
+    carHeight: number
+  ): boolean {
+    const state = this.state;
+    const halfW = carWidth / 2;
+    const halfH = carHeight / 2;
+
+    const corners = [
+      { x: -halfW, y: -halfH },
+      { x: halfW, y: -halfH },
+      { x: halfW, y: halfH },
+      { x: -halfW, y: halfH },
+    ];
+
+    const platformRadius = state.diameter / 2;
+    const cos = Math.cos(carAngle);
+    const sin = Math.sin(carAngle);
+
+    for (const corner of corners) {
+      const rotatedX = cos * corner.x - sin * corner.y + carX;
+      const rotatedY = sin * corner.x + cos * corner.y + carY;
+
+      const dx = rotatedX - state.centerX;
+      const dy = rotatedY - state.centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist > platformRadius) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   checkCarCollision(carX: number, carY: number, carRadius: number): Obstacle | null {

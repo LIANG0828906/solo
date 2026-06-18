@@ -43,6 +43,8 @@ export interface Obstacle {
   x: number;
   y: number;
   radius: number;
+  spawnTime: number;
+  spawnDuration: number;
 }
 
 export interface TireMark {

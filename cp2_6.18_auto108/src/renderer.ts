@@ -48,12 +48,13 @@ export class Renderer {
     arena: ArenaState,
     obstacles: Obstacle[],
     tireMarks: TireMark[],
-    hud: HudData
+    hud: HudData,
+    currentTime: number
   ): void {
     this.drawBackground();
     this.drawTireMarks(tireMarks);
-    this.drawArena(arena);
-    this.drawObstacles(obstacles);
+    this.drawArena(arena, currentTime);
+    this.drawObstacles(obstacles, currentTime);
     this.drawCar(car);
     this.drawHUD(hud, car);
     this.drawControlsPanel();
@@ -85,10 +86,13 @@ export class Renderer {
     }
   }
 
-  private drawArena(arena: ArenaState): void {
+  private drawArena(arena: ArenaState, currentTime: number): void {
     const ctx = this.ctx;
-    const { centerX, centerY, diameter, edgeFlashOn } = arena;
+    const { centerX, centerY, diameter, edgeFlashOn, edgeFlashInterval, minDiameter, initialDiameter } = arena;
     const radius = diameter / 2;
+
+    const dangerLevel = Math.min(1, (initialDiameter - diameter) / (initialDiameter - minDiameter - 50));
+    const pulse = 0.5 + 0.5 * Math.sin(currentTime * Math.PI * 2 * (1 / Math.max(edgeFlashInterval, 0.1)));
 
     const gradient = ctx.createRadialGradient(
       centerX, centerY, 0,
@@ -109,32 +113,67 @@ export class Renderer {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    if (edgeFlashOn) {
+    const glowIntensity = edgeFlashOn ? 20 + dangerLevel * 15 + pulse * 10 : 8;
+    const edgeWidth = 4 + dangerLevel * 2;
+
+    if (edgeFlashOn || dangerLevel > 0.3) {
       ctx.shadowColor = COLORS.platformEdge;
-      ctx.shadowBlur = 20;
+      ctx.shadowBlur = glowIntensity;
     }
+
+    const edgeColor = edgeFlashOn
+      ? COLORS.platformEdge
+      : `rgba(136, 34, 34, ${0.6 + dangerLevel * 0.2})`;
 
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = edgeFlashOn ? COLORS.platformEdge : '#882222';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = edgeColor;
+    ctx.lineWidth = edgeWidth;
     ctx.stroke();
 
     ctx.shadowBlur = 0;
 
+    const innerEdgeAlpha = edgeFlashOn ? 0.5 + dangerLevel * 0.3 : 0.3;
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius - 2, 0, Math.PI * 2);
-    ctx.strokeStyle = edgeFlashOn ? 'rgba(255, 80, 80, 0.5)' : 'rgba(100, 30, 30, 0.3)';
+    ctx.strokeStyle = edgeFlashOn
+      ? `rgba(255, 80, 80, ${innerEdgeAlpha})`
+      : `rgba(100, 30, 30, ${innerEdgeAlpha * 0.6})`;
     ctx.lineWidth = 2;
     ctx.stroke();
+
+    if (dangerLevel > 0.5) {
+      const warningAlpha = (dangerLevel - 0.5) * 2 * 0.15 * (edgeFlashOn ? 1 : 0.5);
+      const warningGradient = ctx.createRadialGradient(
+        centerX, centerY, radius - 30,
+        centerX, centerY, radius
+      );
+      warningGradient.addColorStop(0, 'rgba(255, 50, 50, 0)');
+      warningGradient.addColorStop(1, `rgba(255, 50, 50, ${warningAlpha})`);
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.fillStyle = warningGradient;
+      ctx.fill();
+    }
   }
 
-  private drawObstacles(obstacles: Obstacle[]): void {
+  private drawObstacles(obstacles: Obstacle[], currentTime: number): void {
     const ctx = this.ctx;
 
     for (const obs of obstacles) {
+      const age = currentTime - obs.spawnTime;
+      const spawnProgress = Math.min(age / obs.spawnDuration, 1);
+      const easeProgress = 1 - Math.pow(1 - spawnProgress, 3);
+      const scale = 0.3 + 0.7 * easeProgress;
+      const alpha = spawnProgress;
+
+      if (alpha <= 0) continue;
+
       ctx.save();
       ctx.translate(obs.x, obs.y);
+      ctx.scale(scale, scale);
+      ctx.globalAlpha = alpha;
 
       ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
       ctx.shadowBlur = 10;
@@ -184,7 +223,19 @@ export class Renderer {
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
+      if (spawnProgress < 1) {
+        const ringAlpha = 1 - spawnProgress;
+        const ringRadius = obs.radius * (1 + (1 - spawnProgress) * 0.8);
+        ctx.globalAlpha = ringAlpha * 0.8;
+        ctx.beginPath();
+        ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = '#FF8C42';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
       ctx.restore();
+      ctx.globalAlpha = 1;
     }
   }
 

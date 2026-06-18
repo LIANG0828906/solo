@@ -121,10 +121,11 @@ class Game {
     const currentTime = performance.now();
     const deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.05);
     this.lastTime = currentTime;
+    const gameTime = currentTime / 1000;
 
     this.updateFPS(deltaTime);
-    this.update(deltaTime, currentTime / 1000);
-    this.render();
+    this.update(deltaTime, gameTime);
+    this.render(gameTime);
 
     this.animationId = requestAnimationFrame(() => this.gameLoop());
   }
@@ -160,7 +161,7 @@ class Game {
     this.car.setParticleScale(this.particleScale);
     this.car.update(deltaTime, currentTime);
 
-    this.arena.update(deltaTime);
+    this.arena.update(deltaTime, currentTime);
 
     this.checkCollisions();
   }
@@ -169,7 +170,13 @@ class Game {
     const carState = this.car.state;
     const carRadius = this.car.getRadius();
 
-    const onPlatform = this.arena.isOnPlatform(carState.x, carState.y, 0);
+    const onPlatform = this.arena.isCarOnPlatform(
+      carState.x,
+      carState.y,
+      carState.angle + carState.driftAngle * 0.5,
+      carState.carWidth,
+      carState.carHeight
+    );
 
     if (!onPlatform) {
       this.gameOver();
@@ -205,7 +212,7 @@ class Game {
     this.particleScale = 1.0;
   }
 
-  private render(): void {
+  private render(currentTime: number): void {
     const hudData: HudData = {
       score: this.score,
       survivalTime: this.survivalTime,
@@ -219,7 +226,8 @@ class Game {
       this.arena.state,
       this.arena.getObstacles(),
       this.car.getTireMarks(),
-      hudData
+      hudData,
+      currentTime
     );
   }
 
