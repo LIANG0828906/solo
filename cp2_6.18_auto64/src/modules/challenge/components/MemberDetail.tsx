@@ -10,12 +10,14 @@ const MemberDetail: React.FC = () => {
   const addCheckIn = useChallengeStore(s => s.addCheckIn)
   const getMemberStats = useChallengeStore(s => s.getMemberStats)
   const getCheckInsByMember = useChallengeStore(s => s.getCheckInsByMember)
+  const getCheckInByDate = useChallengeStore(s => s.getCheckInByDate)
 
   const [showModal, setShowModal] = useState(false)
   const [modalDate, setModalDate] = useState('')
   const [description, setDescription] = useState('')
   const [imageBase64, setImageBase64] = useState('')
   const [completionAmount, setCompletionAmount] = useState(100)
+  const [errorMsg, setErrorMsg] = useState('')
 
   const member = useMemo(() => {
     if (!challenge || !selectedMemberId) return null
@@ -32,11 +34,25 @@ const MemberDetail: React.FC = () => {
     return getMemberStats(selectedMemberId)
   }, [selectedMemberId, getMemberStats])
 
+  const { minDate, maxDate } = useMemo(() => {
+    if (!challenge) return { minDate: '', maxDate: '' }
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const endDate = new Date(challenge.startDate)
+    endDate.setDate(endDate.getDate() + challenge.durationDays - 1)
+    const max = today < endDate ? today : endDate
+    return {
+      minDate: challenge.startDate,
+      maxDate: max.toISOString().split('T')[0],
+    }
+  }, [challenge])
+
   const handleMakeUp = (date: string) => {
     setModalDate(date)
     setDescription('')
     setImageBase64('')
     setCompletionAmount(100)
+    setErrorMsg('')
     setShowModal(true)
   }
 
@@ -51,8 +67,53 @@ const MemberDetail: React.FC = () => {
     reader.readAsDataURL(file)
   }
 
+  const validateDate = (dateStr: string): string => {
+    if (!challenge || !selectedMemberId) return ''
+    if (!dateStr) return '请选择日期'
+
+    const selected = new Date(dateStr)
+    selected.setHours(0, 0, 0, 0)
+
+    const start = new Date(challenge.startDate)
+    start.setHours(0, 0, 0, 0)
+    if (selected < start) {
+      return '不能选择挑战开始之前的日期'
+    }
+
+    const end = new Date(challenge.startDate)
+    end.setDate(end.getDate() + challenge.durationDays - 1)
+    end.setHours(0, 0, 0, 0)
+    if (selected > end) {
+      return '不能选择挑战结束之后的日期'
+    }
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (selected > today) {
+      return '不能选择未来的日期'
+    }
+
+    const existing = getCheckInByDate(selectedMemberId, dateStr)
+    if (existing) {
+      return '该日期已有打卡记录，可以覆盖'
+    }
+
+    return ''
+  }
+
+  const handleDateChange = (dateStr: string) => {
+    setModalDate(dateStr)
+    setErrorMsg(validateDate(dateStr))
+  }
+
   const handleSubmit = () => {
     if (!selectedMemberId || !modalDate) return
+
+    const err = validateDate(modalDate)
+    if (err && !err.includes('覆盖')) {
+      setErrorMsg(err)
+      return
+    }
 
     addCheckIn(selectedMemberId, modalDate, description, imageBase64, completionAmount)
     setShowModal(false)
@@ -205,7 +266,7 @@ const MemberDetail: React.FC = () => {
                 marginBottom: '20px',
               }}
             >
-              补卡 - {modalDate}
+              补卡
             </h2>
 
             <div style={{ marginBottom: '16px' }}>
@@ -223,7 +284,9 @@ const MemberDetail: React.FC = () => {
               <input
                 type="date"
                 value={modalDate}
-                onChange={(e) => setModalDate(e.target.value)}
+                min={minDate}
+                max={maxDate}
+                onChange={(e) => handleDateChange(e.target.value)}
                 style={{
                   width: '100%',
                   background: '#F1F5F9',
@@ -231,9 +294,23 @@ const MemberDetail: React.FC = () => {
                   borderRadius: '10px',
                   padding: '12px 14px',
                   fontSize: '14px',
-                  border: 'none',
+                  border: errorMsg ? '1px solid #EF4444' : 'none',
                 }}
               />
+              {errorMsg && (
+                <div
+                  style={{
+                    fontSize: '12px',
+                    color: errorMsg.includes('覆盖') ? '#F59E0B' : '#EF4444',
+                    marginTop: '6px',
+                  }}
+                >
+                  {errorMsg}
+                </div>
+              )}
+              <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>
+                可选范围：{minDate} 至 {maxDate}
+              </div>
             </div>
 
             <div style={{ marginBottom: '16px' }}>

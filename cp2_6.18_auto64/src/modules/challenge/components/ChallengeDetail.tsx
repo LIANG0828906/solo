@@ -52,7 +52,7 @@ const ChallengeDetail: React.FC = () => {
 
   const totalCheckIns = useMemo(() => {
     if (!challenge) return 0
-    return challenge.checkIns.length
+    return challenge.checkIns.filter(c => c.completionAmount > 0).length
   }, [challenge])
 
   const getRankStyle = (rank: number) => {
@@ -201,7 +201,8 @@ const ChallengeDetail: React.FC = () => {
                   padding: '12px 16px',
                   borderRadius: '12px',
                   cursor: 'pointer',
-                  transition: 'background 0.2s',
+                  background: 'transparent',
+                  transition: 'background-color 0.2s ease',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = '#F8FAFC'

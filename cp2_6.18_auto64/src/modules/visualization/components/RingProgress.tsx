@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 
 interface RingProgressProps {
   percentage: number
@@ -11,9 +11,20 @@ const RingProgress: React.FC<RingProgressProps> = ({
   size = 160,
   strokeWidth = 14,
 }) => {
+  const safePercentage = Math.max(0, Math.min(100, percentage))
   const radius = (size - strokeWidth) / 2
   const circumference = radius * 2 * Math.PI
-  const offset = circumference - (percentage / 100) * circumference
+  const isEmpty = safePercentage <= 0
+
+  const dashOffset = useMemo(() => {
+    if (isEmpty) return circumference + 1
+    return circumference - (safePercentage / 100) * circumference
+  }, [safePercentage, circumference, isEmpty])
+
+  const dashArray = useMemo(() => {
+    if (isEmpty) return '0 ' + circumference
+    return `${circumference} ${circumference}`
+  }, [circumference, isEmpty])
 
   const gradientId = `ring-gradient-${Math.random().toString(36).substr(2, 9)}`
 
@@ -34,19 +45,21 @@ const RingProgress: React.FC<RingProgressProps> = ({
           stroke="#334155"
           strokeWidth={strokeWidth}
         />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={`url(#${gradientId})`}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          style={{ transition: 'stroke-dashoffset 0.6s ease' }}
-        />
+        {!isEmpty && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke={`url(#${gradientId})`}
+            strokeWidth={strokeWidth}
+            strokeDasharray={dashArray}
+            strokeDashoffset={dashOffset}
+            strokeLinecap="butt"
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+          />
+        )}
       </svg>
       <div
         style={{
@@ -65,7 +78,7 @@ const RingProgress: React.FC<RingProgressProps> = ({
             lineHeight: 1,
           }}
         >
-          {percentage}%
+          {safePercentage}%
         </div>
         <div style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>
           完成率

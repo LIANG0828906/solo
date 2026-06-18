@@ -9,10 +9,11 @@ interface HeatmapProps {
   onMemberClick?: (memberId: string) => void
 }
 
-interface DayInfo {
-  dateStr: string
-  dateObj: Date
+interface WeekCell {
+  dateStr: string | null
+  dateObj: Date | null
   dayLabel: string
+  isEmpty: boolean
 }
 
 const Heatmap: React.FC<HeatmapProps> = ({
@@ -29,20 +30,55 @@ const Heatmap: React.FC<HeatmapProps> = ({
     y: number
   } | null>(null)
 
-  const days = useMemo(() => {
-    const result: DayInfo[] = []
+  const weeks = useMemo(() => {
     const start = new Date(startDate)
-    for (let i = 0; i < Math.min(durationDays, 28); i++) {
+    const startWeekday = start.getDay()
+
+    const totalCells = Math.ceil((startWeekday + Math.min(durationDays, 84)) / 7) * 7
+    const weeksArr: WeekCell[][] = []
+    let currentWeek: WeekCell[] = []
+
+    for (let i = 0; i < startWeekday; i++) {
+      currentWeek.push({
+        dateStr: null,
+        dateObj: null,
+        dayLabel: '',
+        isEmpty: true,
+      })
+    }
+
+    const daysToShow = Math.min(durationDays, 84)
+    for (let i = 0; i < daysToShow; i++) {
       const d = new Date(start)
       d.setDate(d.getDate() + i)
-      result.push({
+      currentWeek.push({
         dateStr: d.toISOString().split('T')[0],
         dateObj: d,
         dayLabel: `${d.getMonth() + 1}/${d.getDate()}`,
+        isEmpty: false,
       })
+      if (currentWeek.length === 7) {
+        weeksArr.push(currentWeek)
+        currentWeek = []
+      }
     }
-    return result
+
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push({
+          dateStr: null,
+          dateObj: null,
+          dayLabel: '',
+          isEmpty: true,
+        })
+      }
+      weeksArr.push(currentWeek)
+    }
+
+    return weeksArr
   }, [startDate, durationDays])
+
+  const weekdayLabels = ['日', '一', '二', '三', '四', '五', '六']
 
   const getCompletionColor = (memberId: string, dateStr: string): string => {
     const record = checkIns.find(
@@ -88,21 +124,41 @@ const Heatmap: React.FC<HeatmapProps> = ({
             alignItems: 'center',
             paddingLeft: '120px',
             gap: '4px',
+            marginBottom: '4px',
           }}
         >
-          {days.map((day, idx) => (
+          {weekdayLabels.map((label, idx) => (
             <div
               key={idx}
               style={{
                 width: '16px',
-                fontSize: '9px',
+                fontSize: '10px',
                 color: '#64748B',
                 textAlign: 'center',
-                transform: idx % 3 === 0 ? 'none' : 'opacity(0)',
+                fontWeight: '500',
               }}
             >
-              {idx % 3 === 0 ? day.dayLabel : ''}
+              {label}
             </div>
+          ))}
+          <div style={{ width: '12px' }} />
+          {weeks.length > 1 && weeks.map((_, idx) => (
+            idx % 2 === 1 ? (
+              <div
+                key={`w-${idx}`}
+                style={{
+                  width: '16px',
+                  fontSize: '10px',
+                  color: '#64748B',
+                  textAlign: 'center',
+                  marginLeft: idx === 1 ? '8px' : '20px',
+                }}
+              >
+                {weeks[idx] && weeks[idx].find(c => !c.isEmpty)
+                  ? weeks[idx].find(c => !c.isEmpty)!.dayLabel.split('/')[0] + '月'
+                  : ''}
+              </div>
+            ) : null
           ))}
         </div>
 
@@ -116,16 +172,14 @@ const Heatmap: React.FC<HeatmapProps> = ({
               cursor: onMemberClick ? 'pointer' : 'default',
               padding: '4px 0',
               borderRadius: '8px',
-              transition: 'background 0.2s',
+              transition: 'background 0.2s ease',
             }}
             onClick={() => onMemberClick && onMemberClick(member.id)}
             onMouseEnter={(e) => {
-              const target = e.currentTarget
-              target.style.background = 'rgba(59, 130, 246, 0.1)'
+              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'
             }}
             onMouseLeave={(e) => {
-              const target = e.currentTarget
-              target.style.background = 'transparent'
+              e.currentTarget.style.background = 'transparent'
             }}
           >
             <div
@@ -167,20 +221,37 @@ const Heatmap: React.FC<HeatmapProps> = ({
             </div>
 
             <div style={{ display: 'flex', gap: '4px' }}>
-              {days.map((day, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '4px',
-                    background: getCompletionColor(member.id, day.dateStr),
-                    transition: 'transform 0.15s',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => handleMouseEnter(member.id, day.dateStr, e)}
-                  onMouseLeave={handleMouseLeave}
-                />
+              {weeks.map((week, weekIdx) => (
+                <React.Fragment key={weekIdx}>
+                  {week.map((cell, dayIdx) => (
+                    cell.isEmpty ? (
+                      <div
+                        key={`${weekIdx}-${dayIdx}`}
+                        style={{
+                          width: '16px',
+                          height: '16px',
+                          borderRadius: '4px',
+                          background: 'transparent',
+                        }}
+                      />
+                    ) : (
+                      <div
+                        key={`${weekIdx}-${dayIdx}`}
+                        style={{
+                          width: '16px',
+                          height: '16px',
+                          borderRadius: '4px',
+                          background: getCompletionColor(member.id, cell.dateStr!),
+                          transition: 'transform 0.15s ease',
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => handleMouseEnter(member.id, cell.dateStr!, e)}
+                        onMouseLeave={handleMouseLeave}
+                      />
+                    )
+                  ))}
+                  <div style={{ width: '4px' }} />
+                </React.Fragment>
               ))}
             </div>
           </div>
