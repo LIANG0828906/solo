@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/modules/dashboard/dashboardstats.ts","./src/modules/dashboard/dashboardui.tsx","./src/modules/data/dataparser.ts","./src/modules/graph/graphengine.ts","./src/modules/graph/graphrenderer.ts","./src/modules/store/graphstore.ts","./src/modules/ui/app.tsx","./src/modules/ui/fileupload.tsx","./src/types/index.ts"],"version":"5.8.3"}
