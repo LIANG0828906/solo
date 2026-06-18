@@ -150,6 +150,13 @@ body {
   opacity: 0.5;
 }
 
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .sort-wrapper {
   display: flex;
   align-items: center;
@@ -756,8 +763,22 @@ body {
   .search-box {
     max-width: none;
   }
+  .filter-controls {
+    justify-content: space-between;
+    gap: 10px;
+  }
   .sort-wrapper {
-    justify-content: flex-end;
+    flex: 1;
+    min-width: 0;
+  }
+  .sort-wrapper .sort-label {
+    font-size: 13px;
+  }
+  .sort-select {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    padding: 9px 30px 9px 10px;
   }
   .card-grid {
     grid-template-columns: 1fr;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { CoffeeRecord, ViewType } from './types';
+import { CoffeeRecord, ViewType, BREWING_METHODS } from './types';
 import CoffeeCard from './CoffeeCard';
 import CoffeeForm from './CoffeeForm';
 import { RadarChart, BarChartCompare } from './ChartView';
@@ -113,7 +113,8 @@ const App: React.FC = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc' | 'default'>('default');
+  const [brewingFilter, setBrewingFilter] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<string>('date-desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [filterKey, setFilterKey] = useState(0);
@@ -156,28 +157,48 @@ const App: React.FC = () => {
     const q = searchQuery.trim().toLowerCase();
     let result = records;
     if (q) {
-      result = records.filter((r) => {
+      result = result.filter((r) => {
         if (r.name.toLowerCase().includes(q)) return true;
         if (r.roaster.toLowerCase().includes(q)) return true;
         if (r.aromas.some((a) => a.toLowerCase().includes(q))) return true;
         return false;
       });
     }
-    if (sortOrder === 'desc') {
-      result = [...result].sort((a, b) => b.overall - a.overall);
-    } else if (sortOrder === 'asc') {
-      result = [...result].sort((a, b) => a.overall - b.overall);
+    if (brewingFilter !== 'all') {
+      result = result.filter((r) => r.brewingMethod === brewingFilter);
     }
-    return result;
-  }, [records, searchQuery, sortOrder]);
+    const sorted = [...result];
+    switch (sortOrder) {
+      case 'date-desc':
+        sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        break;
+      case 'date-asc':
+        sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        break;
+      case 'overall-desc':
+        sorted.sort((a, b) => b.overall - a.overall);
+        break;
+      case 'overall-asc':
+        sorted.sort((a, b) => a.overall - b.overall);
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }, [records, searchQuery, brewingFilter, sortOrder]);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
     setFilterKey((k) => k + 1);
   }, []);
 
+  const handleBrewingChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setBrewingFilter(e.target.value);
+    setFilterKey((k) => k + 1);
+  }, []);
+
   const handleSortChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSortOrder(e.target.value as 'desc' | 'asc' | 'default');
+    setSortOrder(e.target.value);
     setFilterKey((k) => k + 1);
   }, []);
 
@@ -271,23 +292,40 @@ const App: React.FC = () => {
           <span className="search-icon">🔍</span>
           <input
             type="text"
-            placeholder="搜索咖啡名称、烘焙商或风味标签..."
+            placeholder="搜索咖啡名称或烘焙商..."
             value={searchQuery}
             onChange={handleSearchChange}
           />
         </div>
-        <div className="sort-wrapper">
-          <label className="sort-label" htmlFor="sort-select">排序：</label>
-          <select
-            id="sort-select"
-            className="sort-select"
-            value={sortOrder}
-            onChange={handleSortChange}
-          >
-            <option value="default">默认顺序</option>
-            <option value="desc">评分从高到低</option>
-            <option value="asc">评分从低到高</option>
-          </select>
+        <div className="filter-controls">
+          <div className="sort-wrapper">
+            <label className="sort-label" htmlFor="brewing-select">冲泡方式：</label>
+            <select
+              id="brewing-select"
+              className="sort-select"
+              value={brewingFilter}
+              onChange={handleBrewingChange}
+            >
+              <option value="all">全部</option>
+              {BREWING_METHODS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+          <div className="sort-wrapper">
+            <label className="sort-label" htmlFor="sort-select">排序：</label>
+            <select
+              id="sort-select"
+              className="sort-select"
+              value={sortOrder}
+              onChange={handleSortChange}
+            >
+              <option value="date-desc">日期（最新）</option>
+              <option value="date-asc">日期（最旧）</option>
+              <option value="overall-desc">评分（高→低）</option>
+              <option value="overall-asc">评分（低→高）</option>
+            </select>
+          </div>
         </div>
       </div>
       <div className="toolbar">
@@ -318,14 +356,28 @@ const App: React.FC = () => {
 
       {filteredRecords.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">☕</div>
-          <div className="empty-state-title">还没有匹配的记录</div>
+          <div className="empty-state-icon">🔍</div>
+          <div className="empty-state-title">暂无匹配的品鉴记录</div>
           <div className="empty-state-desc">
-            {searchQuery ? '尝试修改搜索关键词，或添加新记录。' : '点击右上角"添加记录"开始品鉴之旅吧！'}
+            {searchQuery || brewingFilter !== 'all'
+              ? '请尝试调整搜索关键词、冲泡方式或清除筛选条件。'
+              : '点击右上角"添加记录"开始品鉴之旅吧！'}
           </div>
-          {!searchQuery && (
+          {!searchQuery && brewingFilter === 'all' && (
             <button className="btn btn-primary" onClick={handleAddRecord}>
               + 添加第一条记录
+            </button>
+          )}
+          {(searchQuery || brewingFilter !== 'all') && (
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setSearchQuery('');
+                setBrewingFilter('all');
+                setFilterKey((k) => k + 1);
+              }}
+            >
+              清除筛选条件
             </button>
           )}
         </div>
