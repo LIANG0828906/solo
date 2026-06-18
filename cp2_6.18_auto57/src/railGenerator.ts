@@ -1,4 +1,5 @@
 import { eventBus, SegmentData, ObstacleData, EnergyBlockData, PlayerState } from './eventBus';
+import { audioManager } from './audioManager';
 
 export class RailGenerator {
   private segments: SegmentData[] = [];
@@ -292,6 +293,8 @@ export class RailGenerator {
     this.playerState.lastLifeLossTime = now;
     this.playerState.combo = 0;
 
+    audioManager.playObstacle();
+
     eventBus.emit({
       type: 'collision',
       collisionType: 'obstacle',
@@ -311,6 +314,7 @@ export class RailGenerator {
 
     if (this.playerState.lives <= 0) {
       this.playerState.isGameOver = true;
+      audioManager.playGameOver();
       eventBus.emit({
         type: 'gameOver',
         finalScore: this.playerState.score,
@@ -324,6 +328,8 @@ export class RailGenerator {
     const points = 10 * comboMultiplier;
     this.playerState.score += points;
     this.playerState.energyCollected++;
+
+    audioManager.playEnergy();
 
     this.updatePlayerSpeed();
 
@@ -376,6 +382,7 @@ export class RailGenerator {
       this.playerState.isJumping = true;
       this.playerState.jumpTime = 0;
       this.playerState.jumpCooldown = this.jumpCooldown;
+      audioManager.playJump();
     }
   }
 

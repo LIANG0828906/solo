@@ -2,6 +2,7 @@ import { eventBus, on, RailEvent, UIEvent, PlayerState, SegmentData } from './ev
 import { RailGenerator } from './railGenerator';
 import { Renderer } from './renderer';
 import { UIManager } from './ui';
+import { audioManager } from './audioManager';
 import * as THREE from 'three';
 
 class Game {
@@ -123,6 +124,9 @@ class Game {
   start(): void {
     if (this.isRunning) return;
 
+    audioManager.init();
+    audioManager.resume();
+
     this.isRunning = true;
     this.lastTime = performance.now();
 
@@ -183,6 +187,9 @@ class Game {
 
   restart(): void {
     this.stop();
+
+    audioManager.init();
+    audioManager.resume();
 
     this.railGenerator.restart();
 
