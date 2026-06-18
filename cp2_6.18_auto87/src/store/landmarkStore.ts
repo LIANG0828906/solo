@@ -28,15 +28,35 @@ interface LandmarkStore {
   selectedLandmark: Landmark | undefined;
 }
 
+const STORAGE_KEY = 'citylens-storage';
+
+const loadFromStorage = (): { favoriteIds: string[]; currentCityId: string } | null => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        favoriteIds: Array.isArray(parsed.favoriteIds) ? parsed.favoriteIds : [],
+        currentCityId: typeof parsed.currentCityId === 'string' ? parsed.currentCityId : 'beijing',
+      };
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return null;
+};
+
+const persistedState = loadFromStorage();
+
 export const useLandmarkStore = create<LandmarkStore>()(
   persist(
     (set, get) => ({
       cities,
       allLandmarks: landmarks,
-      currentCityId: 'beijing',
+      currentCityId: persistedState?.currentCityId || 'beijing',
       selectedLandmarkId: null,
       searchQuery: '',
-      favoriteIds: [],
+      favoriteIds: persistedState?.favoriteIds || [],
       showFavoritesSidebar: false,
       reviewSortType: 'time',
 
@@ -51,14 +71,34 @@ export const useLandmarkStore = create<LandmarkStore>()(
       },
       toggleFavorite: (landmarkId) => {
         const { favoriteIds } = get();
+        let newFavoriteIds: string[];
         if (favoriteIds.includes(landmarkId)) {
-          set({ favoriteIds: favoriteIds.filter((id) => id !== landmarkId) });
+          newFavoriteIds = favoriteIds.filter((id) => id !== landmarkId);
         } else {
-          set({ favoriteIds: [...favoriteIds, landmarkId] });
+          newFavoriteIds = [...favoriteIds, landmarkId];
+        }
+        set({ favoriteIds: newFavoriteIds });
+        try {
+          const currentData = loadFromStorage() || { favoriteIds: [], currentCityId: get().currentCityId };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            ...currentData,
+            favoriteIds: newFavoriteIds,
+          }));
+        } catch {
+          // ignore storage errors
         }
       },
       clearFavorites: () => {
         set({ favoriteIds: [] });
+        try {
+          const currentData = loadFromStorage() || { favoriteIds: [], currentCityId: get().currentCityId };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            ...currentData,
+            favoriteIds: [],
+          }));
+        } catch {
+          // ignore storage errors
+        }
       },
       setShowFavoritesSidebar: (show) => {
         set({ showFavoritesSidebar: show });
@@ -91,11 +131,53 @@ export const useLandmarkStore = create<LandmarkStore>()(
       },
     }),
     {
-      name: 'citylens-storage',
+      name: STORAGE_KEY,
       partialize: (state) => ({
         favoriteIds: state.favoriteIds,
         currentCityId: state.currentCityId,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+              favoriteIds: state.favoriteIds,
+              currentCityId: state.currentCityId,
+            }));
+          } catch {
+            // ignore storage errors
+          }
+        }
+      },
     }
   )
+);
+
+useLandmarkStore.subscribe(
+  (state) => state.favoriteIds,
+  (favoriteIds) => {
+    try {
+      const currentData = loadFromStorage() || { favoriteIds: [], currentCityId: useLandmarkStore.getState().currentCityId };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        ...currentData,
+        favoriteIds,
+      }));
+    } catch {
+      // ignore storage errors
+    }
+  }
+);
+
+useLandmarkStore.subscribe(
+  (state) => state.currentCityId,
+  (currentCityId) => {
+    try {
+      const currentData = loadFromStorage() || { favoriteIds: [], currentCityId: 'beijing' };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        ...currentData,
+        currentCityId,
+      }));
+    } catch {
+      // ignore storage errors
+    }
+  }
 );

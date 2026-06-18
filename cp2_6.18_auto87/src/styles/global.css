@@ -609,21 +609,6 @@
   transform: rotate(180deg);
 }
 
-.timeline-description {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease, padding 0.3s ease;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--color-text-secondary);
-  padding: 0;
-}
-
-.timeline-description.open {
-  max-height: 200px;
-  padding-bottom: 12px;
-}
-
 .reviews-header {
   display: flex;
   align-items: center;
@@ -921,6 +906,24 @@
   animation: fadeIn 0.2s ease;
 }
 
+.timeline-description {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  padding: 0;
+  opacity: 0;
+}
+
+.timeline-description.open {
+  max-height: 300px;
+  padding-top: 4px;
+  padding-bottom: 12px;
+  opacity: 1;
+}
+
 @media (max-width: 768px) {
   .navbar {
     padding: 0 12px;
@@ -944,13 +947,40 @@
   }
 
   .search-panel {
-    width: calc(100% - 40px);
-    top: 12px;
-    left: 20px;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: calc(100% - 60px);
+    z-index: 70;
+    padding: 16px;
+    background-color: var(--color-bg-primary);
+    animation: slideInUp 0.3s ease-out;
+    overflow-y: auto;
+  }
+
+  .search-input-wrapper {
+    margin-bottom: 16px;
+  }
+
+  .search-dropdown {
+    max-height: none;
+    background-color: transparent;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .search-item {
+    background-color: var(--color-bg-secondary);
+    border-radius: 12px;
   }
 
   .detail-panel {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
@@ -963,15 +993,21 @@
   }
 
   .favorites-sidebar {
-    position: absolute;
+    position: fixed;
     top: auto;
     bottom: 0;
     left: 0;
     right: 0;
     width: 100%;
     height: 60vh;
+    max-height: 60vh;
     border-radius: 16px 16px 0 0;
+    z-index: 90;
     animation: slideInUp 0.3s ease-out;
+  }
+
+  .favorites-list {
+    max-height: calc(60vh - 120px);
   }
 }
 
