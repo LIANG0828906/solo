@@ -18,7 +18,7 @@
 .color-card.expanded {
   transform: scale(1.05);
   box-shadow: 0 12px 28px rgba(139, 92, 246, 0.25);
-  z-index: 10;
+  z-index: var(--z-card-expanded);
 }
 
 .color-card.dragging {
@@ -29,6 +29,19 @@
 .color-card.drag-over {
   outline: 2px dashed #8b5cf6;
   outline-offset: 3px;
+}
+
+/* =========================================================
+   Z-Index 层级体系（统一管理，避免按钮被遮挡）
+   ------------------------------------------------------------------
+   --z-swatch-shine: 光泽流动层（色块内，不阻挡点击）
+   --z-swatch-btns: 锁定/删除按钮（需高于光泽层方可点击）
+   --z-card-expanded: 展开态卡片（高于周围兄弟元素）
+   ========================================================= */
+:root {
+  --z-swatch-shine: 1;
+  --z-swatch-btns: 2;
+  --z-card-expanded: 10;
 }
 
 .color-swatch {
@@ -44,36 +57,45 @@
   overflow: hidden;
 }
 
+/*
+ * 光泽层：采用 300% 宽度超大渐变 + transform: translateX() 位移，
+ * 完全走 GPU 合成层，零重排零重绘，低端设备不卡顿。
+ */
 .shine-layer {
   position: absolute;
-  inset: -50%;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
   background: linear-gradient(
     115deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.12) 45%,
-    rgba(255, 255, 255, 0.25) 50%,
-    rgba(255, 255, 255, 0.12) 55%,
-    transparent 70%
+    transparent 36%,
+    rgba(255, 255, 255, 0.12) 44%,
+    rgba(255, 255, 255, 0.28) 50%,
+    rgba(255, 255, 255, 0.12) 56%,
+    transparent 64%
   );
-  background-size: 200% 200%;
+  background-size: 100% 100%;
+  will-change: transform;
   animation: shineFlow 3.5s linear infinite;
   pointer-events: none;
-  z-index: 1;
+  z-index: var(--z-swatch-shine);
 }
 
 @keyframes shineFlow {
   0% {
-    background-position: 0% 0%;
+    transform: translateX(0) translateY(0);
   }
   100% {
-    background-position: 200% 200%;
+    transform: translateX(-33.3333%) translateY(-33.3333%);
   }
 }
 
+/* 色块内按钮必须显式提升层级，否则点击会被光泽层吞没 */
 .has-shine .lock-btn,
 .has-shine .remove-btn {
   position: relative;
-  z-index: 2;
+  z-index: var(--z-swatch-btns);
 }
 
 .lock-btn,
@@ -198,6 +220,8 @@
   transition: all 0.2s ease;
   background: rgba(255, 255, 255, 0.03);
   white-space: nowrap;
+  display: inline-block;
+  transform-origin: center center;
 }
 
 .format-value:hover {
@@ -216,14 +240,18 @@
 
 @keyframes valueFlash {
   0% {
+    transform-origin: center center;
     background: rgba(255, 255, 255, 0.03);
+    transform: scale(1);
   }
   30% {
+    transform-origin: center center;
     background: rgba(255, 255, 255, 0.45);
     color: #1a1b2e;
     transform: scale(1.04);
   }
   100% {
+    transform-origin: center center;
     background: rgba(16, 185, 129, 0.18);
     color: #10b981;
     transform: scale(1);
@@ -232,38 +260,46 @@
 
 .lock-icon {
   display: block;
-  transform-origin: center;
+  transform-origin: center center;
   transition: none;
 }
 
+/* 锁定：顺时针旋转 15° 再回正，ease-in-out 保证起手与收尾均平滑 */
 .lock-icon.lock-cw {
-  animation: lockRotateCW 0.2s ease-out;
+  animation: lockRotateCW 0.2s ease-in-out;
 }
 
+/* 解锁：逆时针旋转 -15° 再回正，与锁定方向形成语义对比 */
 .lock-icon.unlock-ccw {
-  animation: unlockRotateCCW 0.2s ease-out;
+  animation: unlockRotateCCW 0.2s ease-in-out;
 }
 
 @keyframes lockRotateCW {
   0% {
+    transform-origin: center center;
     transform: rotate(0deg);
   }
   50% {
+    transform-origin: center center;
     transform: rotate(15deg);
   }
   100% {
+    transform-origin: center center;
     transform: rotate(0deg);
   }
 }
 
 @keyframes unlockRotateCCW {
   0% {
+    transform-origin: center center;
     transform: rotate(0deg);
   }
   50% {
+    transform-origin: center center;
     transform: rotate(-15deg);
   }
   100% {
+    transform-origin: center center;
     transform: rotate(0deg);
   }
 }
