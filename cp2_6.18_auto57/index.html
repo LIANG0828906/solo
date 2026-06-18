@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RailSurfer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0A0E27;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: white;
+    }
+    #game-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #start-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #0A0E27 0%, #1A1040 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #start-screen h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      background: linear-gradient(90deg, #4A90D9, #80BFFF);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    #start-screen .description {
+      font-size: 16px;
+      color: #aaa;
+      text-align: center;
+      max-width: 500px;
+      line-height: 1.6;
+      margin-bottom: 40px;
+      padding: 0 20px;
+    }
+    #start-btn {
+      background: linear-gradient(90deg, #4A90D9, #357ABD);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 16px 48px;
+      font-size: 20px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    #start-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(74, 144, 217, 0.6);
+    }
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      pointer-events: none;
+      z-index: 50;
+    }
+    #score-display {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+    #score {
+      font-size: 24px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+    #combo {
+      font-size: 14px;
+      color: #FFD700;
+      margin-top: 4px;
+    }
+    #lives {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      gap: 8px;
+    }
+    .heart {
+      width: 24px;
+      height: 24px;
+      font-size: 24px;
+      color: #ff4444;
+      text-shadow: 0 0 8px rgba(255, 68, 68, 0.7);
+    }
+    .heart.lost {
+      color: #333;
+      text-shadow: none;
+    }
+    #game-over-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #game-over-panel {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 40px 60px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    #game-over-panel h2 {
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+    .final-score {
+      font-size: 20px;
+      margin: 10px 0;
+    }
+    .high-score {
+      font-size: 16px;
+      color: #FFD700;
+      margin-bottom: 30px;
+    }
+    #restart-btn {
+      background: linear-gradient(90deg, #4A90D9, #357ABD);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+    #restart-btn:hover {
+      background: linear-gradient(90deg, #357ABD, #4A90D9);
+      transform: scale(1.05);
+    }
+    #pause-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 80;
+    }
+    #pause-overlay h2 {
+      font-size: 40px;
+    }
+    #speed-indicator {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 14px;
+      color: #80BFFF;
+    }
+    @media (max-width: 768px) {
+      #start-screen h1 {
+        font-size: 36px;
+      }
+      #start-btn {
+        padding: 20px 56px;
+        font-size: 24px;
+      }
+      #restart-btn {
+        padding: 15px 30px;
+        font-size: 22px;
+      }
+      #game-over-panel {
+        padding: 30px 40px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="start-screen">
+      <h1>RailSurfer</h1>
+      <div class="description">
+        在无限延伸的3D轨道上滑行，躲避障碍物，收集能量块！<br/><br/>
+        <strong>操作说明：</strong><br/>
+        A / D 键或鼠标左右移动：切换车道<br/>
+        空格键：跳跃<br/>
+        P 键：暂停游戏<br/><br/>
+        收集能量块提升速度，撞击障碍物失去生命！
+      </div>
+      <button id="start-btn">开始游戏</button>
+    </div>
+
+    <div id="hud">
+      <div id="lives"></div>
+      <div id="score-display">
+        <div id="score">0</div>
+        <div id="combo"></div>
+      </div>
+      <div id="speed-indicator">速度: 10 m/s</div>
+    </div>
+
+    <div id="pause-overlay">
+      <h2>暂停中 - 按 P 继续</h2>
+    </div>
+
+    <div id="game-over-screen">
+      <div id="game-over-panel">
+        <h2>游戏结束</h2>
+        <div class="final-score">得分: <span id="final-score">0</span></div>
+        <div class="high-score">最高分: <span id="high-score">0</span></div>
+        <br/>
+        <button id="restart-btn">重新开始</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
