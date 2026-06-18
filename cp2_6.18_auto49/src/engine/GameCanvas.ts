@@ -34,6 +34,7 @@ export class GameCanvas {
   private lastFrameTime: number = 0;
   private comboFlashTimer: number = 0;
   private comboBreakTimer: number = 0;
+  private milestoneFlashTimer: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -62,6 +63,8 @@ export class GameCanvas {
       combo: 0,
       comboBreak: false,
       comboFlash: false,
+      milestoneFlash: false,
+      milestoneLevel: 0,
     };
   }
 
@@ -147,6 +150,7 @@ export class GameCanvas {
     this.updateCoins(deltaTime);
     this.checkCollisions();
     this.updateComboTimers(deltaTime);
+    this.updateMilestoneFlash(deltaTime);
   }
 
   private updateComboTimers(deltaTime: number): void {
@@ -179,6 +183,7 @@ export class GameCanvas {
         lane: 'left',
         color: COLORS.obstacle,
         hit: false,
+        passed: false,
       };
       
       const rightObstacle: Obstacle = {
@@ -189,6 +194,7 @@ export class GameCanvas {
         lane: 'right',
         color: COLORS.obstacle,
         hit: false,
+        passed: false,
       };
       
       this.state.obstacles.push(leftObstacle, rightObstacle);
@@ -221,22 +227,23 @@ export class GameCanvas {
 
   private updateObstacles(deltaTime: number): void {
     const speed = this.state.scrollSpeed * 60 * deltaTime;
-    const passedObstacles: number[] = [];
+    let passedCount = 0;
 
-    this.state.obstacles = this.state.obstacles.filter((obs, idx) => {
+    for (const obs of this.state.obstacles) {
       obs.x -= speed;
       
-      if (obs.x + obs.width < 0) {
-        if (!obs.hit) {
-          passedObstacles.push(idx);
-        }
-        return false;
+      if (!obs.passed && !obs.hit && obs.x + obs.width < 0) {
+        obs.passed = true;
+        passedCount++;
       }
-      return true;
+    }
+
+    this.state.obstacles = this.state.obstacles.filter((obs) => {
+      return obs.x + obs.width >= -50;
     });
 
-    if (passedObstacles.length > 0) {
-      this.incrementCombo(passedObstacles.length);
+    if (passedCount > 0) {
+      this.incrementCombo(passedCount);
     }
   }
 
@@ -314,10 +321,26 @@ export class GameCanvas {
   }
 
   private triggerComboMilestone(threshold: number): void {
+    this.state.milestoneFlash = true;
+    this.state.milestoneLevel = threshold;
+    this.milestoneFlashTimer = 0.5;
+    
     eventBus.emit('comboMilestone', { 
       threshold, 
       combo: this.state.combo 
     });
+  }
+
+  private updateMilestoneFlash(deltaTime: number): void {
+    if (this.milestoneFlashTimer > 0) {
+      this.milestoneFlashTimer -= deltaTime;
+      const progress = this.milestoneFlashTimer / 0.5;
+      
+      if (this.milestoneFlashTimer <= 0) {
+        this.state.milestoneFlash = false;
+        this.state.milestoneLevel = 0;
+      }
+    }
   }
 
   private gameOver(): void {
@@ -333,14 +356,71 @@ export class GameCanvas {
   private render(): void {
     const { ctx, state } = this;
     
-    ctx.fillStyle = state.section === 'chorus' && state.bgFlash
+    let bgColor = state.section === 'chorus' && state.bgFlash
       ? COLORS.bgAlt
       : COLORS.bgPrimary;
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     if (state.comboFlash) {
-      ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+      const flashAlpha = 0.15 + (this.comboFlashTimer / 0.2) * 0.15;
+      ctx.fillStyle = `rgba(255, 215, 0, ${flashAlpha})`;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      
+      ctx.strokeStyle = `rgba(255, 215, 0, ${flashAlpha})`;
+      ctx.lineWidth = 8;
+      ctx.strokeRect(4, 4, CANVAS_WIDTH - 8, CANVAS_HEIGHT - 8);
+    }
+
+    if (state.milestoneFlash && state.milestoneLevel > 0) {
+      const progress = this.milestoneFlashTimer / 0.5;
+      const pulseIntensity = Math.sin(progress * Math.PI);
+      
+      let flashColor: string;
+      let alpha: number;
+      
+      if (state.milestoneLevel >= 20) {
+        flashColor = '255, 215, 0';
+        alpha = 0.4 * pulseIntensity;
+      } else if (state.milestoneLevel >= 10) {
+        flashColor = '192, 192, 192';
+        alpha = 0.3 * pulseIntensity;
+      } else {
+        flashColor = '205, 127, 50';
+        alpha = 0.25 * pulseIntensity;
+      }
+      
+      ctx.fillStyle = `rgba(${flashColor}, ${alpha})`;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      
+      const borderWidth = 12 + pulseIntensity * 8;
+      ctx.strokeStyle = `rgba(${flashColor}, ${alpha + 0.2})`;
+      ctx.lineWidth = borderWidth;
+      ctx.strokeRect(borderWidth / 2, borderWidth / 2, CANVAS_WIDTH - borderWidth, CANVAS_HEIGHT - borderWidth);
+      
+      if (state.milestoneLevel >= 10) {
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2 + progress * Math.PI;
+          const radius = 100 + pulseIntensity * 200;
+          const x = CANVAS_WIDTH / 2 + Math.cos(angle) * radius;
+          const y = CANVAS_HEIGHT / 2 + Math.sin(angle) * radius;
+          
+          ctx.beginPath();
+          ctx.arc(x, y, 4 + pulseIntensity * 4, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${flashColor}, ${alpha + 0.3})`;
+          ctx.fill();
+        }
+      }
+      
+      if (state.milestoneLevel >= 20) {
+        const scanY = (1 - progress) * CANVAS_HEIGHT;
+        const gradient = ctx.createLinearGradient(0, scanY - 50, 0, scanY + 50);
+        gradient.addColorStop(0, 'rgba(255, 215, 0, 0)');
+        gradient.addColorStop(0.5, 'rgba(255, 215, 0, 0.6)');
+        gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, scanY - 50, CANVAS_WIDTH, 100);
+      }
     }
 
     this.renderTrack();

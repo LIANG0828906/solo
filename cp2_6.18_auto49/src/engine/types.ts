@@ -19,6 +19,7 @@ export interface Obstacle {
   lane: 'left' | 'right';
   color: string;
   hit: boolean;
+  passed: boolean;
 }
 
 export interface Coin {
@@ -48,6 +49,8 @@ export interface GameState {
   combo: number;
   comboBreak: boolean;
   comboFlash: boolean;
+  milestoneFlash: boolean;
+  milestoneLevel: number;
 }
 
 export type GameEventType =

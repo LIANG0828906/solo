@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, BeatEvent } from '../engine/types';
 import { eventBus } from '../core/EventBus';
 import { COLORS } from '../engine/constants';
@@ -26,6 +26,10 @@ export const GameUI: React.FC<GameUIProps> = ({
   const [showComboBreak, setShowComboBreak] = useState(false);
   const [comboMilestone, setComboMilestone] = useState<number | null>(null);
   const [milestoneColor, setMilestoneColor] = useState(COLORS.gold);
+  
+  const comboBreakTimerRef = useRef<number | null>(null);
+  const milestoneTimerRef = useRef<number | null>(null);
+  const beatTimerRef = useRef<number | null>(null);
 
   const handleGameState = useCallback((state: GameState) => {
     setGameState(state);
@@ -51,15 +55,29 @@ export const GameUI: React.FC<GameUIProps> = ({
         break;
     }
     
-    setTimeout(() => setBeatPulse(false), 200);
+    if (beatTimerRef.current !== null) {
+      window.clearTimeout(beatTimerRef.current);
+    }
+    beatTimerRef.current = window.setTimeout(() => setBeatPulse(false), 200);
   }, []);
 
   const handleComboBreak = useCallback(() => {
+    if (comboBreakTimerRef.current !== null) {
+      window.clearTimeout(comboBreakTimerRef.current);
+    }
+    
     setShowComboBreak(true);
-    setTimeout(() => setShowComboBreak(false), 1000);
+    comboBreakTimerRef.current = window.setTimeout(() => {
+      setShowComboBreak(false);
+      comboBreakTimerRef.current = null;
+    }, 1000);
   }, []);
 
   const handleComboMilestone = useCallback((payload: { threshold: number }) => {
+    if (milestoneTimerRef.current !== null) {
+      window.clearTimeout(milestoneTimerRef.current);
+    }
+    
     setComboMilestone(payload.threshold);
     
     if (payload.threshold >= 20) {
@@ -70,7 +88,10 @@ export const GameUI: React.FC<GameUIProps> = ({
       setMilestoneColor(COLORS.bronze);
     }
     
-    setTimeout(() => setComboMilestone(null), 1500);
+    milestoneTimerRef.current = window.setTimeout(() => {
+      setComboMilestone(null);
+      milestoneTimerRef.current = null;
+    }, 1500);
   }, []);
 
   useEffect(() => {
@@ -84,6 +105,19 @@ export const GameUI: React.FC<GameUIProps> = ({
       unsub2();
       unsub3();
       unsub4();
+      
+      if (comboBreakTimerRef.current !== null) {
+        window.clearTimeout(comboBreakTimerRef.current);
+        comboBreakTimerRef.current = null;
+      }
+      if (milestoneTimerRef.current !== null) {
+        window.clearTimeout(milestoneTimerRef.current);
+        milestoneTimerRef.current = null;
+      }
+      if (beatTimerRef.current !== null) {
+        window.clearTimeout(beatTimerRef.current);
+        beatTimerRef.current = null;
+      }
     };
   }, [handleGameState, handleBeat, handleComboBreak, handleComboMilestone]);
 
@@ -102,12 +136,32 @@ export const GameUI: React.FC<GameUIProps> = ({
   const handleRestart = () => {
     setShowComboBreak(false);
     setComboMilestone(null);
+    
+    if (comboBreakTimerRef.current !== null) {
+      window.clearTimeout(comboBreakTimerRef.current);
+      comboBreakTimerRef.current = null;
+    }
+    if (milestoneTimerRef.current !== null) {
+      window.clearTimeout(milestoneTimerRef.current);
+      milestoneTimerRef.current = null;
+    }
+    
     onRestart();
   };
 
   const handleBackToMenu = () => {
     setShowComboBreak(false);
     setComboMilestone(null);
+    
+    if (comboBreakTimerRef.current !== null) {
+      window.clearTimeout(comboBreakTimerRef.current);
+      comboBreakTimerRef.current = null;
+    }
+    if (milestoneTimerRef.current !== null) {
+      window.clearTimeout(milestoneTimerRef.current);
+      milestoneTimerRef.current = null;
+    }
+    
     onBackToMenu();
   };
 
