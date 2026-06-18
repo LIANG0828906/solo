@@ -1,0 +1,336 @@
+.sketchbook-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #FAF8F3;
+  padding: 20px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.canvas-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.canvas-wrapper.mobile {
+  flex-direction: column;
+}
+
+.book-spine {
+  width: 12px;
+  height: 80vh;
+  min-height: 600px;
+  background-color: #8B7355;
+  flex-shrink: 0;
+}
+
+.book-spine.left {
+  border-radius: 4px 0 0 4px;
+  box-shadow: inset -2px 0 4px rgba(0, 0, 0, 0.2);
+}
+
+.book-spine.right {
+  border-radius: 0 4px 4px 0;
+  box-shadow: inset 2px 0 4px rgba(0, 0, 0, 0.2);
+}
+
+.canvas-wrapper.mobile .book-spine {
+  width: 95vw;
+  height: 12px;
+  min-height: 12px;
+}
+
+.canvas-wrapper.mobile .book-spine.left {
+  border-radius: 4px 4px 0 0;
+  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.canvas-wrapper.mobile .book-spine.right {
+  border-radius: 0 0 4px 4px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.canvas-container {
+  position: relative;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  box-shadow: 
+    0 4px 6px rgba(0, 0, 0, 0.1),
+    0 8px 20px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  overflow: visible;
+}
+
+.canvas-container:active {
+  cursor: grabbing;
+}
+
+.flip-canvas {
+  display: block;
+  border-radius: 8px;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.flip-canvas.transitioning {
+  opacity: 0.7;
+}
+
+.annotation-note {
+  position: absolute;
+  min-width: 80px;
+  max-width: 150px;
+  padding: 6px 10px;
+  background-color: #FFFDD0;
+  border: 1px solid #D2B48C;
+  border-left-width: 3px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.annotation-note:hover {
+  transform: translate(calc(-50% + 4px), calc(-50% + 4px));
+  box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.annotation-note.editing {
+  min-width: 120px;
+  z-index: 20;
+}
+
+.annotation-content {
+  position: relative;
+  word-break: break-word;
+}
+
+.annotation-delete {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background-color: #FF6B6B;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.annotation-note:hover .annotation-delete {
+  display: flex;
+}
+
+.annotation-edit textarea {
+  width: 100%;
+  min-height: 60px;
+  border: 1px solid #D2B48C;
+  border-radius: 3px;
+  padding: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  background-color: #FFFDD0;
+  box-sizing: border-box;
+}
+
+.annotation-edit textarea:focus {
+  outline: none;
+  border-color: #4A90D9;
+}
+
+.annotation-panel {
+  position: fixed;
+  right: calc((100vw - 60vw) / 2 + 60vw + 20px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 220px;
+  max-height: 60vh;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.annotation-panel.mobile {
+  position: fixed;
+  right: auto;
+  top: auto;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90vw;
+  max-width: 600px;
+  max-height: 30vh;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+}
+
+.annotation-count {
+  font-size: 12px;
+  color: #888;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.annotation-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.annotation-list.horizontal {
+  flex-direction: row;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+}
+
+.annotation-list.horizontal .annotation-item {
+  min-width: 150px;
+  flex-shrink: 0;
+}
+
+.annotation-item {
+  padding: 10px 12px;
+  background: white;
+  border-radius: 6px;
+  border-left: 3px solid;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.annotation-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.annotation-item-text {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.5;
+  word-break: break-word;
+  margin-bottom: 8px;
+}
+
+.annotation-item-delete {
+  display: none;
+  width: 100%;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: #FFE0E0;
+  color: #FF6B6B;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.annotation-item:hover .annotation-item-delete {
+  display: block;
+}
+
+.annotation-item-delete:hover {
+  background: #FFCCCC;
+}
+
+.empty-state {
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+.page-indicator {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.page-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background-color: #C0C0C0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-dot:hover {
+  background-color: #999;
+}
+
+.page-dot.active {
+  width: 12px;
+  height: 12px;
+  background-color: #4A90D9;
+}
+
+.page-number {
+  margin-left: 8px;
+  font-size: 13px;
+  color: #666;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 768px) {
+  .sketchbook-container {
+    padding: 10px;
+  }
+  
+  .annotation-panel {
+    width: 90vw;
+    max-width: none;
+  }
+}
