@@ -26,6 +26,7 @@ class CrowdFlowApp {
 
   private densityIndicator: HTMLElement;
   private densityValue: HTMLElement;
+  private densityLevel: HTMLElement;
 
   private lastAverageDensity: number = 0;
   private displayedDensity: number = 0;
@@ -50,6 +51,7 @@ class CrowdFlowApp {
 
     this.densityIndicator = document.getElementById('density-indicator')!;
     this.densityValue = document.getElementById('density-value')!;
+    this.densityLevel = document.getElementById('density-level')!;
 
     this.setupEventListeners();
     this.animate = this.animate.bind(this);
@@ -264,6 +266,21 @@ class CrowdFlowApp {
     const g = Math.round(212 - t * 161);
     const b = Math.round(255 - t * 153);
     this.densityValue.style.color = `rgb(${r}, ${g}, ${b})`;
+
+    let levelText: string;
+    let levelColor: string;
+    if (this.displayedDensity < 30) {
+      levelText = '宽松';
+      levelColor = '#00FF88';
+    } else if (this.displayedDensity < 60) {
+      levelText = '适中';
+      levelColor = '#FFDD33';
+    } else {
+      levelText = '拥挤';
+      levelColor = '#FF3366';
+    }
+    this.densityLevel.textContent = levelText;
+    this.densityLevel.style.color = levelColor;
   }
 
   private updateGroundGlow(averageDensity: number): void {

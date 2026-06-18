@@ -74,6 +74,19 @@
       white-space: nowrap;
       min-width: 60px;
     }
+    #density-level {
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 4px;
+      letter-spacing: 1px;
+      text-shadow: 0 0 8px currentColor;
+      transition: color 0.3s ease;
+    }
+    #density-info {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
     .corner-label {
       position: absolute;
       color: #FFFFFF;
@@ -105,7 +118,10 @@
   <div id="app">
     <div id="title">CROWD<span>FLOW</span></div>
     <div id="density-bar-container">
-      <div id="density-value">0%</div>
+      <div id="density-info">
+        <div id="density-value">0%</div>
+        <div id="density-level" style="color: #00FF88;">宽松</div>
+      </div>
       <div id="density-bar">
         <div id="density-gradient"></div>
         <div id="density-indicator" style="bottom: 0%;"></div>

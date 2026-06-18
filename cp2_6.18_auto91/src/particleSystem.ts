@@ -3,6 +3,7 @@ import { DensityGrid } from './dataManager';
 
 const PARTICLE_COUNT = 5000;
 const SHAPE_TRANSITION_DURATION = 1.0;
+const POSITION_LERP_SPEED = 0.05;
 
 interface ParticleState {
   basePhi: number;
@@ -10,6 +11,9 @@ interface ParticleState {
   gridX: number;
   gridY: number;
   seed: number;
+  targetX: number;
+  targetY: number;
+  targetZ: number;
 }
 
 export class ParticleSystem {
@@ -73,7 +77,10 @@ export class ParticleSystem {
             baseTheta: theta,
             gridX: gx,
             gridY: gy,
-            seed: seed
+            seed: seed,
+            targetX: 0,
+            targetY: 0,
+            targetZ: 0
           };
           index++;
         }
@@ -143,6 +150,10 @@ export class ParticleSystem {
       this.positions[i * 3 + 1] = y;
       this.positions[i * 3 + 2] = z;
 
+      state.targetX = x;
+      state.targetY = y;
+      state.targetZ = z;
+
       this.colors[i * 3] = this.coolColor.r;
       this.colors[i * 3 + 1] = this.coolColor.g;
       this.colors[i * 3 + 2] = this.coolColor.b;
@@ -194,8 +205,9 @@ export class ParticleSystem {
     const avgDensity = densityGrid.averageDensity;
     const densityT = avgDensity / 100;
     
-    const newTargetY = this.lerp(1.2, 0.6, densityT);
-    const newTargetZ = this.lerp(1.0, 1.8, densityT);
+    const deformationFactor = this.lerp(0.6, 1.4, densityT);
+    const newTargetY = this.lerp(1.0, 0.6, densityT);
+    const newTargetZ = this.lerp(1.0, 1.4, densityT);
     
     if (Math.abs(newTargetY - this.targetYShapeFactor) > 0.001 ||
         Math.abs(newTargetZ - this.targetZShapeFactor) > 0.001) {
@@ -231,20 +243,28 @@ export class ParticleSystem {
       const phi = state.basePhi + phiOffset;
       const theta = state.baseTheta + thetaOffset;
       
-      let x = radius * Math.sin(theta) * Math.cos(phi);
-      let y = radius * Math.cos(theta) * this.currentYShapeFactor;
-      let z = radius * Math.sin(theta) * Math.sin(phi) * this.currentZShapeFactor;
+      let targetX = radius * Math.sin(theta) * Math.cos(phi);
+      let targetY = radius * Math.cos(theta) * this.currentYShapeFactor;
+      let targetZ = radius * Math.sin(theta) * Math.sin(phi) * this.currentZShapeFactor;
 
       const gridSize = densityGrid.size;
       const cellCenterX = ((state.gridX + 0.5) / gridSize - 0.5) * 4;
       const cellCenterZ = ((state.gridY + 0.5) / gridSize - 0.5) * 4;
       const clusterFactor = density / 100;
-      x = this.lerp(x, x + cellCenterX * 0.3, clusterFactor * 0.5);
-      z = this.lerp(z, z + cellCenterZ * 0.3, clusterFactor * 0.5);
+      targetX = this.lerp(targetX, targetX + cellCenterX * 0.3, clusterFactor * 0.5);
+      targetZ = this.lerp(targetZ, targetZ + cellCenterZ * 0.3, clusterFactor * 0.5);
 
-      this.positions[i * 3] = x;
-      this.positions[i * 3 + 1] = y;
-      this.positions[i * 3 + 2] = z;
+      state.targetX = targetX;
+      state.targetY = targetY;
+      state.targetZ = targetZ;
+
+      const currentX = this.positions[i * 3];
+      const currentY = this.positions[i * 3 + 1];
+      const currentZ = this.positions[i * 3 + 2];
+
+      this.positions[i * 3] = this.lerp(currentX, state.targetX, POSITION_LERP_SPEED);
+      this.positions[i * 3 + 1] = this.lerp(currentY, state.targetY, POSITION_LERP_SPEED);
+      this.positions[i * 3 + 2] = this.lerp(currentZ, state.targetZ, POSITION_LERP_SPEED);
 
       const color = this.interpolateColor(density);
       const brightnessBoost = 0.8 + density * 0.004;
