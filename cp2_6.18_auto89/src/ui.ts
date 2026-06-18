@@ -5,6 +5,7 @@ export interface UIState {
   maxLives: number
   score: number
   combo: number
+  comboCount: number
   maxCombo: number
   comboAnimTimer: number
   gameOver: boolean
@@ -19,6 +20,7 @@ export function createUIState(): UIState {
     maxLives: 3,
     score: 0,
     combo: 1,
+    comboCount: 0,
     maxCombo: 1,
     comboAnimTimer: 0,
     gameOver: false,
@@ -189,101 +191,40 @@ function renderCombo(
   ctx.textAlign = 'left'
 }
 
-export function renderGameOverPanel(
-  ctx: CanvasRenderingContext2D,
-  ui: UIState,
-  canvasWidth: number,
-  canvasHeight: number,
-  scale: number
-): { button: { x: number; y: number; w: number; h: number } } {
-  ctx.save()
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+export interface GameOverDOM {
+  overlay: HTMLElement
+  scoreEl: HTMLElement
+  timeEl: HTMLElement
+  comboEl: HTMLElement
+  restartBtn: HTMLElement
+}
 
-  const cardW = 360 * scale
-  const cardH = 320 * scale
-  const cardX = (canvasWidth - cardW) / 2
-  const cardY = (canvasHeight - cardH) / 2
-  const cardRadius = 16 * scale
-  const cardPadding = 32 * scale
+export function getGameOverDOM(): GameOverDOM | null {
+  const overlay = document.getElementById('game-over-overlay')
+  const scoreEl = document.getElementById('final-score')
+  const timeEl = document.getElementById('survival-time')
+  const comboEl = document.getElementById('final-combo')
+  const restartBtn = document.getElementById('restart-btn')
 
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
-  ctx.shadowBlur = 20 * scale
-  ctx.fillStyle = '#1E293B'
-  roundRect(ctx, cardX, cardY, cardW, cardH, cardRadius)
-  ctx.fill()
-  ctx.shadowBlur = 0
-
-  ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)'
-  ctx.lineWidth = 1 * scale
-  roundRect(ctx, cardX, cardY, cardW, cardH, cardRadius)
-  ctx.stroke()
-
-  const contentX = cardX + cardPadding
-  const contentY = cardY + cardPadding
-  const contentW = cardW - cardPadding * 2
-
-  ctx.fillStyle = '#ffffff'
-  ctx.font = `bold ${28 * scale}px system-ui, -apple-system, sans-serif`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'top'
-  ctx.fillText('游戏结束', contentX + contentW / 2, contentY)
-
-  const statY = contentY + 60 * scale
-  const statGap = 42 * scale
-
-  ctx.font = `${16 * scale}px system-ui, -apple-system, sans-serif`
-  ctx.fillStyle = '#94a3b8'
-
-  ctx.textAlign = 'left'
-  ctx.fillText('最终得分', contentX, statY)
-  ctx.textAlign = 'right'
-  ctx.fillStyle = '#ffffff'
-  ctx.font = `bold ${20 * scale}px system-ui, -apple-system, sans-serif`
-  ctx.fillText(`${ui.finalScore}`, contentX + contentW, statY)
-
-  ctx.font = `${16 * scale}px system-ui, -apple-system, sans-serif`
-  ctx.fillStyle = '#94a3b8'
-  ctx.textAlign = 'left'
-  ctx.fillText('存活时间', contentX, statY + statGap)
-  ctx.textAlign = 'right'
-  ctx.fillStyle = '#ffffff'
-  ctx.font = `bold ${20 * scale}px system-ui, -apple-system, sans-serif`
-  ctx.fillText(`${ui.survivalTime.toFixed(1)} 秒`, contentX + contentW, statY + statGap)
-
-  ctx.font = `${16 * scale}px system-ui, -apple-system, sans-serif`
-  ctx.fillStyle = '#94a3b8'
-  ctx.textAlign = 'left'
-  ctx.fillText('最高连击', contentX, statY + statGap * 2)
-  ctx.textAlign = 'right'
-  ctx.fillStyle = '#facc15'
-  ctx.font = `bold ${20 * scale}px system-ui, -apple-system, sans-serif`
-  ctx.fillText(`${ui.finalMaxCombo.toFixed(1)}x`, contentX + contentW, statY + statGap * 2)
-
-  const btnW = contentW
-  const btnH = 50 * scale
-  const btnX = contentX
-  const btnY = cardY + cardH - cardPadding - btnH
-
-  const btnGradient = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH)
-  btnGradient.addColorStop(0, '#6366F1')
-  btnGradient.addColorStop(1, '#8B5CF6')
-  ctx.fillStyle = btnGradient
-  ctx.shadowColor = 'rgba(99, 102, 241, 0.4)'
-  ctx.shadowBlur = 10 * scale
-  roundRect(ctx, btnX, btnY, btnW, btnH, 10 * scale)
-  ctx.fill()
-  ctx.shadowBlur = 0
-
-  ctx.fillStyle = '#ffffff'
-  ctx.font = `bold ${18 * scale}px system-ui, -apple-system, sans-serif`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('重新开始', btnX + btnW / 2, btnY + btnH / 2)
-
-  ctx.restore()
-
-  return {
-    button: { x: btnX, y: btnY, w: btnW, h: btnH }
+  if (!overlay || !scoreEl || !timeEl || !comboEl || !restartBtn) {
+    return null
   }
+
+  return { overlay, scoreEl, timeEl, comboEl, restartBtn }
+}
+
+export function showGameOverPanel(ui: UIState): void {
+  const dom = getGameOverDOM()
+  if (!dom) return
+
+  dom.scoreEl.textContent = `${ui.finalScore}`
+  dom.timeEl.textContent = `${ui.survivalTime.toFixed(1)} 秒`
+  dom.comboEl.textContent = `${ui.finalMaxCombo.toFixed(1)}x`
+  dom.overlay.classList.add('visible')
+}
+
+export function hideGameOverPanel(): void {
+  const dom = getGameOverDOM()
+  if (!dom) return
+  dom.overlay.classList.remove('visible')
 }

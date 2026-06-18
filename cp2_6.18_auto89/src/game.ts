@@ -27,7 +27,9 @@ import {
   updateUI,
   renderArenaBackground,
   renderHUD,
-  renderGameOverPanel,
+  showGameOverPanel,
+  hideGameOverPanel,
+  getGameOverDOM,
 } from './ui'
 
 interface ScreenEffect {
@@ -58,10 +60,9 @@ export class Game {
   private baseObstacleInterval: number = 1.2
   private maxObstacleRadius: number = 25
 
-  private gameOverButton: { x: number; y: number; w: number; h: number } | null = null
-  private pointerDownOnButton: boolean = false
-
   private isPointerDown: boolean = false
+  private activePointerId: number | null = null
+  private restartHandler: (() => void) | null = null
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -89,8 +90,10 @@ export class Game {
     this.energySpawnTimer = 0
     this.difficultyTier = 0
     this.maxObstacleRadius = 25
-    this.gameOverButton = null
-    this.pointerDownOnButton = false
+    this.isPointerDown = false
+    this.activePointerId = null
+
+    hideGameOverPanel()
 
     for (let i = 0; i < 2; i++) {
       this.energies.push(createEnergy())
@@ -105,6 +108,17 @@ export class Game {
     canvas.addEventListener('pointerup', this.onPointerUp)
     canvas.addEventListener('pointercancel', this.onPointerUp)
     canvas.addEventListener('pointerleave', this.onPointerUp)
+
+    canvas.addEventListener('touchstart', this.onTouchStart, { passive: false })
+    canvas.addEventListener('touchmove', this.onTouchMove, { passive: false })
+    canvas.addEventListener('touchend', this.onTouchEnd)
+    canvas.addEventListener('touchcancel', this.onTouchEnd)
+
+    const dom = getGameOverDOM()
+    if (dom) {
+      this.restartHandler = () => this.reset()
+      dom.restartBtn.addEventListener('click', this.restartHandler)
+    }
   }
 
   public destroy(): void {
@@ -114,6 +128,17 @@ export class Game {
     canvas.removeEventListener('pointerup', this.onPointerUp)
     canvas.removeEventListener('pointercancel', this.onPointerUp)
     canvas.removeEventListener('pointerleave', this.onPointerUp)
+
+    canvas.removeEventListener('touchstart', this.onTouchStart)
+    canvas.removeEventListener('touchmove', this.onTouchMove)
+    canvas.removeEventListener('touchend', this.onTouchEnd)
+    canvas.removeEventListener('touchcancel', this.onTouchEnd)
+
+    const dom = getGameOverDOM()
+    if (dom && this.restartHandler) {
+      dom.restartBtn.removeEventListener('click', this.restartHandler)
+    }
+
     this.stop()
   }
 
@@ -137,52 +162,53 @@ export class Game {
     return { x, y }
   }
 
-  private screenToCanvas(clientX: number, clientY: number): { x: number; y: number } {
-    const rect = this.canvas.getBoundingClientRect()
-    return {
-      x: (clientX - rect.left) * (this.canvas.width / rect.width),
-      y: (clientY - rect.top) * (this.canvas.height / rect.height),
-    }
-  }
-
-  private onPointerDown = (e: PointerEvent): void => {
-    e.preventDefault()
-    const { x: cx, y: cy } = this.screenToCanvas(e.clientX, e.clientY)
-
-    if (this.ui.gameOver && this.gameOverButton) {
-      const b = this.gameOverButton
-      if (cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h) {
-        this.pointerDownOnButton = true
-        return
-      }
-    }
-
-    this.isPointerDown = true
-    if (!this.ui.gameOver) {
-      const pos = this.screenToArena(e.clientX, e.clientY)
-      this.player.targetX = pos.x
-      this.player.targetY = pos.y
-    }
-  }
-
-  private onPointerMove = (e: PointerEvent): void => {
+  private updatePlayerTarget(clientX: number, clientY: number): void {
     if (this.ui.gameOver) return
     if (!this.isPointerDown) return
-    e.preventDefault()
-    const pos = this.screenToArena(e.clientX, e.clientY)
+    const pos = this.screenToArena(clientX, clientY)
     this.player.targetX = pos.x
     this.player.targetY = pos.y
   }
 
+  private onPointerDown = (e: PointerEvent): void => {
+    if (this.ui.gameOver) return
+    e.preventDefault()
+    this.isPointerDown = true
+    this.activePointerId = e.pointerId
+    this.updatePlayerTarget(e.clientX, e.clientY)
+  }
+
+  private onPointerMove = (e: PointerEvent): void => {
+    if (this.activePointerId !== e.pointerId) return
+    e.preventDefault()
+    this.updatePlayerTarget(e.clientX, e.clientY)
+  }
+
   private onPointerUp = (e: PointerEvent): void => {
-    if (this.pointerDownOnButton && this.ui.gameOver && this.gameOverButton) {
-      const { x: cx, y: cy } = this.screenToCanvas(e.clientX, e.clientY)
-      const b = this.gameOverButton
-      if (cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h) {
-        this.reset()
-      }
-    }
-    this.pointerDownOnButton = false
+    if (this.activePointerId !== e.pointerId && this.activePointerId !== null) return
+    this.isPointerDown = false
+    this.activePointerId = null
+  }
+
+  private onTouchStart = (e: TouchEvent): void => {
+    if (this.ui.gameOver) return
+    e.preventDefault()
+    const touch = e.touches[0]
+    if (!touch) return
+    this.isPointerDown = true
+    this.updatePlayerTarget(touch.clientX, touch.clientY)
+  }
+
+  private onTouchMove = (e: TouchEvent): void => {
+    if (this.ui.gameOver) return
+    if (!this.isPointerDown) return
+    e.preventDefault()
+    const touch = e.touches[0]
+    if (!touch) return
+    this.updatePlayerTarget(touch.clientX, touch.clientY)
+  }
+
+  private onTouchEnd = (e: TouchEvent): void => {
     this.isPointerDown = false
   }
 
@@ -288,13 +314,16 @@ export class Game {
       const e = this.energies[i]
       if (checkCircleCollision(p.x, p.y, p.radius, e.x, e.y, e.radius)) {
         this.energies.splice(i, 1)
-        const comboBonus = Math.floor(this.ui.combo)
-        this.ui.score += 10 + comboBonus
-        this.ui.combo = Math.min(10, this.ui.combo + 0.5)
+
+        this.ui.comboCount += 1
+        this.ui.combo = Math.min(10, 1 + this.ui.comboCount * 0.5)
         if (this.ui.combo > this.ui.maxCombo) {
           this.ui.maxCombo = this.ui.combo
         }
+
+        this.ui.score += 10 + Math.floor(this.ui.combo)
         this.ui.comboAnimTimer = 0.25
+
         this.particles.push(...createCollectParticles(e.x, e.y))
         this.addShake(0.08, 2)
       }
@@ -314,6 +343,7 @@ export class Game {
   private onPlayerHit(): void {
     this.ui.lives -= 1
     this.ui.combo = 1
+    this.ui.comboCount = 0
     this.player.invincibleTimer = 1
     this.player.blinkTimer = 0
     this.player.hitFlashTimer = 0.2
@@ -334,6 +364,9 @@ export class Game {
     this.ui.finalScore = this.ui.score
     this.ui.survivalTime = this.elapsedTime
     this.ui.finalMaxCombo = this.ui.maxCombo
+    this.isPointerDown = false
+    this.activePointerId = null
+    showGameOverPanel(this.ui)
   }
 
   private addShake(duration: number, magnitude: number): void {
@@ -391,13 +424,6 @@ export class Game {
       ctx.fillStyle = this.effects.flashColor
       ctx.fillRect(0, 0, cw, ch)
       ctx.restore()
-    }
-
-    if (this.ui.gameOver) {
-      const result = renderGameOverPanel(ctx, this.ui, cw, ch, scale)
-      this.gameOverButton = result.button
-    } else {
-      this.gameOverButton = null
     }
   }
 }

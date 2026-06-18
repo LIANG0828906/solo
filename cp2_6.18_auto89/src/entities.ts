@@ -163,8 +163,8 @@ export function updatePlayer(player: Player, deltaTime: number): void {
 }
 
 export function updateObstacle(obstacle: Obstacle, deltaTime: number): boolean {
-  obstacle.x += obstacle.dx * deltaTime * 60
-  obstacle.y += obstacle.dy * deltaTime * 60
+  obstacle.x += obstacle.dx * deltaTime
+  obstacle.y += obstacle.dy * deltaTime
 
   const margin = ARENA_PADDING
   const arenaEnd = margin + ARENA_SIZE
@@ -205,7 +205,7 @@ export function renderPlayer(ctx: CanvasRenderingContext2D, player: Player): voi
 
   let alpha = 1
   if (invincibleTimer > 0) {
-    alpha = 0.3 + 0.3 * Math.sin(blinkTimer * 25)
+    alpha = 0.4 + 0.25 * Math.sin(blinkTimer * 20)
   }
 
   ctx.save()

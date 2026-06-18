@@ -15,17 +15,117 @@
       height: 100%;
       overflow: hidden;
       background: #000000;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    #game-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
     }
     canvas {
       display: block;
       width: 100%;
       height: 100%;
       touch-action: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    #game-over-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      pointer-events: auto;
+    }
+    #game-over-overlay.visible {
+      display: flex;
+    }
+    #game-over-card {
+      background: #1E293B;
+      border-radius: 16px;
+      padding: 32px;
+      width: min(360px, 85vw);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    #game-over-card h2 {
+      color: #ffffff;
+      font-size: 28px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .stat-label {
+      color: #94a3b8;
+      font-size: 16px;
+    }
+    .stat-value {
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .stat-value.combo {
+      color: #facc15;
+    }
+    #restart-btn {
+      width: 100%;
+      height: 50px;
+      margin-top: 24px;
+      background: linear-gradient(180deg, #6366F1 0%, #8B5CF6 100%);
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+      transition: filter 0.15s ease, transform 0.1s ease;
+      pointer-events: auto;
+    }
+    #restart-btn:hover {
+      filter: brightness(1.1);
+    }
+    #restart-btn:active {
+      transform: scale(0.95);
     }
   </style>
 </head>
 <body>
-  <canvas id="game"></canvas>
+  <div id="game-container">
+    <canvas id="game"></canvas>
+    <div id="game-over-overlay">
+      <div id="game-over-card">
+        <h2>游戏结束</h2>
+        <div class="stat-row">
+          <span class="stat-label">最终得分</span>
+          <span class="stat-value" id="final-score">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">存活时间</span>
+          <span class="stat-value" id="survival-time">0.0 秒</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">最高连击</span>
+          <span class="stat-value combo" id="final-combo">1.0x</span>
+        </div>
+        <button id="restart-btn">重新开始</button>
+      </div>
+    </div>
+  </div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
