@@ -1,4 +1,4 @@
-import React, { useId, useState, useMemo, useRef } from 'react';
+import React, { useId, useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type { Pet, ElementType } from '../types';
 import { ELEMENT_COLORS, ELEMENT_NAMES } from '../types';
 
@@ -9,13 +9,6 @@ interface PetSelectProps {
   onConfirm: () => void;
 }
 
-const STAT_COLORS: Record<string, string> = {
-  hp: '#e63946',
-  atk: '#fb8500',
-  def: '#457b9d',
-  spd: '#2d6a4f',
-};
-
 const STAT_MAX: Record<string, number> = {
   hp: 200,
   atk: 30,
@@ -23,7 +16,9 @@ const STAT_MAX: Record<string, number> = {
   spd: 30,
 };
 
-const PetSvg: React.FC<{ element: ElementType; breathing: boolean; breathingClass: string }> = ({ element, breathing, breathingClass }) => {
+// ---------------- PetSvg ----------------
+
+const PetSvg: React.FC<{ element: ElementType; breathingClass: string }> = ({ element, breathingClass }) => {
   const color = ELEMENT_COLORS[element];
   const scopeId = useId().replace(/:/g, '');
 
@@ -80,6 +75,8 @@ const PetSvg: React.FC<{ element: ElementType; breathing: boolean; breathingClas
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        willChange: 'transform, filter',
+        transform: 'translateZ(0)',
       }}
     >
       <div
@@ -90,8 +87,7 @@ const PetSvg: React.FC<{ element: ElementType; breathing: boolean; breathingClas
           borderRadius: '50%',
           background: `radial-gradient(circle, ${color}50 0%, transparent 70%)`,
           filter: 'blur(8px)',
-          opacity: breathing ? 1 : 0.4,
-          transition: 'opacity 0.5s ease',
+          opacity: 1,
         }}
       />
       <svg width="120" height="120" viewBox="0 0 120 120" style={{ position: 'relative', zIndex: 1 }}>
@@ -120,72 +116,231 @@ const PetSvg: React.FC<{ element: ElementType; breathing: boolean; breathingClas
   );
 };
 
+// ---------------- Particles (requestAnimationFrame driven) ----------------
+
+interface ParticleData {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  angle: number;
+  angularVel: number;
+}
+
 interface ParticlesProps {
   element: ElementType;
   active: boolean;
-  particlesClass: string;
+  containerRef: React.RefObject<HTMLDivElement>;
 }
 
-const Particles: React.FC<ParticlesProps> = ({ element, active, particlesClass }) => {
+const Particles: React.FC<ParticlesProps> = ({ element, active, containerRef }) => {
   const color = ELEMENT_COLORS[element];
-  const particles = useMemo(() => {
-    const list: { id: number; size: number; left: number; top: number; delay: number; duration: number; dx: number }[] = [];
-    for (let i = 0; i < 20; i++) {
-      list.push({
-        id: i,
-        size: 2 + Math.random() * 3,
-        left: Math.random() * 100,
-        top: Math.random() * 100,
-        delay: Math.random() * 2,
-        duration: 1.5 + Math.random() * 2,
-        dx: (Math.random() > 0.5 ? 1 : -1) * (30 + Math.random() * 40),
-      });
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const particlesRef = useRef<ParticleData[]>([]);
+  const rafRef = useRef<number>(0);
+  const lastEmitRef = useRef<number>(0);
+  const activeRef = useRef(active);
+  const particleIdRef = useRef(0);
+
+  const particleColors = useMemo(() => {
+    switch (element) {
+      case 'fire': return [color, '#ff8c42', '#ffd166', '#ff6b35'];
+      case 'water': return [color, '#48cae4', '#90e0ef', '#caf0f8'];
+      case 'grass': return [color, '#52b788', '#74c69d', '#95d5b2'];
+      case 'electric': return [color, '#ffea00', '#fff3b0', '#ffffff'];
+      case 'wind': return [color, '#caf0f8', '#edf2fb', '#e0e1dd'];
+      case 'earth': return [color, '#d4a373', '#ccd5ae', '#8b5a2b'];
+      default: return [color];
     }
-    return list;
-  }, []);
+  }, [element, color]);
+
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
+
+  const emitParticle = useCallback(() => {
+    if (!containerRef.current || !canvasRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    if (canvas.width !== rect.width || canvas.height !== rect.height) {
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+
+    const px = Math.random() * canvas.width;
+    const py = canvas.height + 10;
+
+    let vx: number, vy: number, angularVel: number;
+    switch (element) {
+      case 'fire':
+        vx = (Math.random() - 0.5) * 2.5;
+        vy = -1.5 - Math.random() * 3;
+        angularVel = 0;
+        break;
+      case 'water':
+        vx = (Math.random() - 0.5) * 4;
+        vy = -0.5 - Math.random() * 1.5;
+        angularVel = (Math.random() - 0.5) * 0.05;
+        break;
+      case 'grass':
+        vx = (Math.random() - 0.5) * 1;
+        vy = -0.8 - Math.random() * 1.2;
+        angularVel = (Math.random() > 0.5 ? 1 : -1) * (0.02 + Math.random() * 0.04);
+        break;
+      case 'electric':
+        vx = (Math.random() - 0.5) * 6;
+        vy = -1 - Math.random() * 2;
+        angularVel = 0;
+        break;
+      case 'wind':
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 2;
+        vx = Math.cos(angle) * speed;
+        vy = Math.sin(angle) * speed * 0.5;
+        angularVel = (Math.random() > 0.5 ? 1 : -1) * (0.08 + Math.random() * 0.08);
+        break;
+      case 'earth':
+        vx = (Math.random() - 0.5) * 3;
+        vy = -2 - Math.random() * 2;
+        angularVel = (Math.random() - 0.5) * 0.03;
+        break;
+      default:
+        vx = (Math.random() - 0.5) * 2;
+        vy = -1 - Math.random() * 2;
+        angularVel = 0;
+    }
+
+    const particle: ParticleData = {
+      id: particleIdRef.current++,
+      x: px,
+      y: py,
+      vx,
+      vy,
+      size: 2 + Math.random() * 3,
+      life: 0,
+      maxLife: 800 + Math.random() * 400,
+      color: particleColors[Math.floor(Math.random() * particleColors.length)],
+      angle: Math.random() * Math.PI * 2,
+      angularVel,
+    };
+
+    particlesRef.current.push(particle);
+  }, [element, particleColors, containerRef]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let lastTime = performance.now();
+
+    const animate = (time: number) => {
+      const delta = time - lastTime;
+      lastTime = time;
+
+      if (!containerRef.current || !canvasRef.current) {
+        rafRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      const rect = containerRef.current.getBoundingClientRect();
+      if (canvas.width !== rect.width || canvas.height !== rect.height) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (activeRef.current) {
+        if (time - lastEmitRef.current > 50 && particlesRef.current.length < 60) {
+          emitParticle();
+          lastEmitRef.current = time;
+        }
+      }
+
+      const dt = delta / 16.67;
+      const gravity = element === 'water' || element === 'earth' ? 0.08 : 0;
+      const zigzagFreq = element === 'electric' ? 0.15 : 0;
+
+      const alive: ParticleData[] = [];
+      for (const p of particlesRef.current) {
+        p.life += delta;
+        if (p.life >= p.maxLife) continue;
+
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += gravity * dt;
+        p.angle += p.angularVel * dt;
+
+        if (element === 'electric') {
+          p.x += Math.sin(p.life * zigzagFreq) * 0.8;
+        }
+
+        const t = p.life / p.maxLife;
+        const alpha = t < 0.2 ? t * 5 : t > 0.8 ? (1 - t) * 5 : 1;
+        const size = p.size * (1 - t * 0.5);
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = p.size * 1.5;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0.5, size / 2), 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+
+        if (p.y > -20 && p.y < canvas.height + 20 && p.x > -20 && p.x < canvas.width + 20) {
+          alive.push(p);
+        }
+      }
+      particlesRef.current = alive;
+
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [element, emitParticle]);
 
   return (
-    <div
-      className={particlesClass}
+    <canvas
+      ref={canvasRef}
       style={{
         position: 'absolute',
         inset: 0,
         borderRadius: '24px',
-        overflow: 'hidden',
         pointerEvents: 'none',
         opacity: active ? 1 : 0,
         transition: 'opacity 0.4s ease',
       }}
-    >
-      {particles.map((p) => (
-        <div
-          key={p.id}
-          style={{
-            position: 'absolute',
-            width: `${p.size}px`,
-            height: `${p.size}px`,
-            borderRadius: '50%',
-            background: color,
-            left: `${p.left}%`,
-            top: `${p.top}%`,
-            boxShadow: `0 0 ${p.size * 2}px ${color}`,
-            ['--dx' as string]: `${p.dx}px`,
-            animation: `floatUp-${particlesClass} ${p.duration}s ease-in-out ${p.delay}s infinite`,
-          } as React.CSSProperties}
-        />
-      ))}
-    </div>
+    />
   );
 };
+
+// ---------------- StatBar (element color based) ----------------
 
 interface StatBarProps {
   label: string;
   value: number;
   statKey: 'hp' | 'atk' | 'def' | 'spd';
+  elementColor: string;
 }
 
-const StatBar: React.FC<StatBarProps> = ({ label, value, statKey }) => {
-  const color = STAT_COLORS[statKey];
+const StatBar: React.FC<StatBarProps> = ({ label, value, statKey, elementColor }) => {
   const max = STAT_MAX[statKey];
   const percent = Math.min(100, (value / max) * 100);
 
@@ -215,10 +370,12 @@ const StatBar: React.FC<StatBarProps> = ({ label, value, statKey }) => {
         <div style={{
           width: `${percent}%`,
           height: '100%',
-          background: `linear-gradient(90deg, ${color}90, ${color})`,
+          background: `linear-gradient(90deg, ${elementColor}80, ${elementColor})`,
           borderRadius: '4px',
           transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: `0 0 6px ${color}80`,
+          boxShadow: `0 0 6px ${elementColor}60`,
+          willChange: 'width',
+          transform: 'translateZ(0)',
         }} />
       </div>
       <span style={{
@@ -234,27 +391,44 @@ const StatBar: React.FC<StatBarProps> = ({ label, value, statKey }) => {
   );
 };
 
+// ---------------- Main PetSelect ----------------
+
 const PetSelect: React.FC<PetSelectProps> = ({ pets, selectedIndices, onSelect, onConfirm }) => {
   const scopeId = useId().replace(/:/g, '');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [pulsingIndex, setPulsingIndex] = useState<number | null>(null);
+  const isAnimatingRef = useRef<Record<number, boolean>>({});
   const timerRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const containerRefs = useRef<Record<number, React.RefObject<HTMLDivElement>>>({});
+
+  for (let i = 0; i < pets.length; i++) {
+    if (!containerRefs.current[i]) {
+      containerRefs.current[i] = React.createRef<HTMLDivElement>();
+    }
+  }
 
   const isSelected = (index: number) => selectedIndices.includes(index);
   const canSelect = selectedIndices.length < 3;
 
-  const handleClick = (index: number) => {
-    if (!isSelected(index) && !canSelect) return;
-    onSelect(index);
+  const handleClick = useCallback((index: number) => {
+    const selected = isSelected(index);
+    if (!selected && !canSelect) return;
+    if (isAnimatingRef.current[index]) return;
+
     if (timerRef.current[index]) clearTimeout(timerRef.current[index]);
+
+    isAnimatingRef.current[index] = true;
     setPulsingIndex(index);
+
     timerRef.current[index] = setTimeout(() => {
       setPulsingIndex(null);
+      isAnimatingRef.current[index] = false;
     }, 400);
-  };
+
+    onSelect(index);
+  }, [onSelect, canSelect]);
 
   const breathingClass = `breathing-${scopeId}`;
-  const particlesClass = `particles-${scopeId}`;
   const cardClass = `card-${scopeId}`;
   const pulseClass = `pulse-${scopeId}`;
 
@@ -275,11 +449,11 @@ const PetSelect: React.FC<PetSelectProps> = ({ pets, selectedIndices, onSelect, 
 
 @keyframes breath-${scopeId} {
   0%, 100% {
-    transform: scale(1);
+    transform: translateZ(0) scale(1);
     filter: brightness(1);
   }
   50% {
-    transform: scale(1.04);
+    transform: translateZ(0) scale(1.04);
     filter: brightness(1.15);
   }
 }
@@ -288,34 +462,16 @@ const PetSelect: React.FC<PetSelectProps> = ({ pets, selectedIndices, onSelect, 
   animation: breath-${scopeId} 2.6s ease-in-out infinite;
 }
 
-@keyframes floatUp-${particlesClass} {
-  0% {
-    transform: translateY(0) translateX(0) scale(0.6);
-    opacity: 0;
-  }
-  20% {
-    opacity: 0.9;
-  }
-  100% {
-    transform: translateY(-120px) translateX(var(--dx, 0px)) scale(0);
-    opacity: 0;
-  }
-}
-
 @keyframes pulseAnim-${scopeId} {
-  0% { transform: scale(1); }
-  30% { transform: scale(1.10); }
-  60% { transform: scale(0.97); }
-  100% { transform: scale(1); }
+  0% { transform: translateZ(0) scale(1); }
+  30% { transform: translateZ(0) scale(1.10); }
+  60% { transform: translateZ(0) scale(0.97); }
+  100% { transform: translateZ(0) scale(1); }
 }
 
 .${pulseClass} {
   animation: pulseAnim-${scopeId} 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
   z-index: 5;
-}
-
-.${cardClass}-hover {
-  transform: translateY(-10px) scale(1.05) !important;
 }
 
 @keyframes titleGlow {
@@ -325,6 +481,10 @@ const PetSelect: React.FC<PetSelectProps> = ({ pets, selectedIndices, onSelect, 
 
 .title-glow {
   animation: titleGlow 3s ease-in-out infinite;
+}
+
+.${cardClass}-hover {
+  transform: translateZ(0) translateY(-10px) scale(1.05) !important;
 }
 
 @media (max-width: 1023px) and (min-width: 768px) {
@@ -368,6 +528,7 @@ const PetSelect: React.FC<PetSelectProps> = ({ pets, selectedIndices, onSelect, 
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           letterSpacing: '6px',
+          willChange: 'text-shadow',
         }}>
           宠物对战纪元
         </h1>
@@ -405,6 +566,7 @@ const PetSelect: React.FC<PetSelectProps> = ({ pets, selectedIndices, onSelect, 
             return (
               <div
                 key={pet.id}
+                ref={containerRefs.current[index]}
                 className={`${hovered ? `${cardClass}-hover` : ''} ${pulsing ? pulseClass : ''}`}
                 onClick={() => handleClick(index)}
                 onMouseEnter={() => !disabled && setHoveredIndex(index)}
@@ -436,13 +598,20 @@ const PetSelect: React.FC<PetSelectProps> = ({ pets, selectedIndices, onSelect, 
                         ? '0 8px 28px rgba(0,0,0,0.4)'
                         : '0 2px 12px rgba(0,0,0,0.2)',
                   backdropFilter: 'blur(4px)',
+                  willChange: 'transform, box-shadow',
+                  transform: 'translateZ(0)',
+                  backfaceVisibility: 'hidden',
+                  perspective: '1000px',
                 }}
               >
-                <Particles element={pet.element} active={hovered || selected} particlesClass={particlesClass} />
+                <Particles
+                  element={pet.element}
+                  active={hovered || selected}
+                  containerRef={containerRefs.current[index]}
+                />
 
                 <PetSvg
                   element={pet.element}
-                  breathing={true}
                   breathingClass={breathingClass}
                 />
 
@@ -476,10 +645,10 @@ const PetSelect: React.FC<PetSelectProps> = ({ pets, selectedIndices, onSelect, 
                   width: '100%',
                   padding: '0 4px',
                 }}>
-                  <StatBar label="HP" value={pet.maxHp} statKey="hp" />
-                  <StatBar label="ATK" value={pet.attack} statKey="atk" />
-                  <StatBar label="DEF" value={pet.defense} statKey="def" />
-                  <StatBar label="SPD" value={pet.speed} statKey="spd" />
+                  <StatBar label="HP" value={pet.maxHp} statKey="hp" elementColor={color} />
+                  <StatBar label="ATK" value={pet.attack} statKey="atk" elementColor={color} />
+                  <StatBar label="DEF" value={pet.defense} statKey="def" elementColor={color} />
+                  <StatBar label="SPD" value={pet.speed} statKey="spd" elementColor={color} />
                 </div>
 
                 {selected && (
@@ -558,6 +727,8 @@ const PetSelect: React.FC<PetSelectProps> = ({ pets, selectedIndices, onSelect, 
                   boxShadow: pet ? `0 0 12px ${color}70` : 'none',
                   transition: 'all 0.3s ease',
                   flexShrink: 0,
+                  willChange: 'transform',
+                  transform: 'translateZ(0)',
                 }}>
                   {pet ? pet.name[0] : '+'}
                 </div>
@@ -585,15 +756,17 @@ const PetSelect: React.FC<PetSelectProps> = ({ pets, selectedIndices, onSelect, 
               animation: selectedIndices.length > 0 ? 'confirmGlow 2s ease-in-out infinite' : 'none',
               position: 'relative',
               overflow: 'hidden',
+              willChange: 'transform, box-shadow',
+              transform: 'translateZ(0)',
             }}
             onMouseEnter={(e) => {
               if (selectedIndices.length > 0) {
-                e.currentTarget.style.transform = 'translateY(-2px) scale(1.03)';
+                e.currentTarget.style.transform = 'translateY(-2px) scale(1.03) translateZ(0)';
                 e.currentTarget.style.boxShadow = '0 10px 30px #ffd70040, 0 0 24px #ffd70060';
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0) scale(1)';
+              e.currentTarget.style.transform = 'translateY(0) scale(1) translateZ(0)';
               e.currentTarget.style.boxShadow = 'none';
             }}
           >

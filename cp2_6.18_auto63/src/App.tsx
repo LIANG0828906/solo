@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import PetSelect from './components/PetSelect';
-import BattleArena from './components/BattleArena';
 import type { Pet, PlayerState } from './types';
 import {
   createAllPets,
@@ -11,7 +10,7 @@ import {
   feedPet,
 } from './gameEngine';
 
-type Screen = 'select' | 'manage' | 'battle';
+type Screen = 'select' | 'manage';
 
 const App: React.FC = () => {
   const [screen, setScreen] = useState<Screen>('select');
@@ -62,32 +61,6 @@ const App: React.FC = () => {
     setScreen('manage');
   }, [selectedIndices]);
 
-  const handleStartBattle = useCallback(() => {
-    if (playerState.teamIndices.length === 0) return;
-    setScreen('battle');
-  }, [playerState.teamIndices]);
-
-  const handleBackToManage = useCallback(() => {
-    setScreen('manage');
-  }, []);
-
-  const handleBattleEnd = useCallback(
-    (winner: 'player' | 'enemy', updatedTeam: Pet[]) => {
-      setPlayerState((prev) => {
-        const newPets = [...prev.pets];
-        updatedTeam.forEach((battlePet) => {
-          const idx = newPets.findIndex((p) => p.id === battlePet.id);
-          if (idx !== -1) {
-            newPets[idx] = battlePet;
-          }
-        });
-        return { ...prev, pets: newPets };
-      });
-      setScreen('manage');
-    },
-    []
-  );
-
   const handleFeed = useCallback(() => {
     const pet = playerState.pets[currentPetIndex];
     if (!pet) return;
@@ -133,19 +106,10 @@ const App: React.FC = () => {
           playerState={playerState}
           currentPetIndex={currentPetIndex}
           setCurrentPetIndex={setCurrentPetIndex}
-          onStartBattle={handleStartBattle}
           onFeed={handleFeed}
           remainingFeeds={remainingFeeds}
           onShowReset={() => setShowResetModal(true)}
           onBackToSelect={() => setScreen('select')}
-        />
-      )}
-
-      {screen === 'battle' && (
-        <BattleArena
-          playerTeam={playerState.teamIndices.map((i) => playerState.pets[i]).filter(Boolean)}
-          onBattleEnd={handleBattleEnd}
-          onFlee={handleBackToManage}
         />
       )}
 
@@ -165,7 +129,6 @@ interface ManageScreenProps {
   playerState: PlayerState;
   currentPetIndex: number;
   setCurrentPetIndex: (i: number) => void;
-  onStartBattle: () => void;
   onFeed: () => void;
   remainingFeeds: number;
   onShowReset: () => void;
@@ -176,7 +139,6 @@ const ManageScreen: React.FC<ManageScreenProps> = ({
   playerState,
   currentPetIndex,
   setCurrentPetIndex,
-  onStartBattle,
   onFeed,
   remainingFeeds,
   onShowReset,
@@ -282,7 +244,6 @@ const ManageScreen: React.FC<ManageScreenProps> = ({
         </div>
       </div>
 
-      {/* Team selector */}
       <div
         style={{
           width: '100%',
@@ -353,7 +314,6 @@ const ManageScreen: React.FC<ManageScreenProps> = ({
         })}
       </div>
 
-      {/* Pet detail card */}
       <div
         style={{
           width: '100%',
@@ -419,10 +379,10 @@ const ManageScreen: React.FC<ManageScreenProps> = ({
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 32px' }}>
-            <StatRow label="HP" value={pet.currentHp} max={pet.maxHp} color="#e63946" />
-            <StatRow label="攻击" value={pet.attack} max={30} color="#fb8500" />
-            <StatRow label="防御" value={pet.defense} max={30} color="#457b9d" />
-            <StatRow label="速度" value={pet.speed} max={30} color="#2d6a4f" />
+            <StatRow label="HP" value={pet.currentHp} max={pet.maxHp} color={elementColor(pet.element)} />
+            <StatRow label="攻击" value={pet.attack} max={30} color={elementColor(pet.element)} />
+            <StatRow label="防御" value={pet.defense} max={30} color={elementColor(pet.element)} />
+            <StatRow label="速度" value={pet.speed} max={30} color={elementColor(pet.element)} />
             <StatRow label="怒气" value={pet.rage} max={100} color="#ffd700" />
           </div>
 
@@ -494,58 +454,8 @@ const ManageScreen: React.FC<ManageScreenProps> = ({
               剩余 {remainingFeeds}/5 次
             </div>
           </button>
-
-          <button
-            onClick={onStartBattle}
-            disabled={playerState.teamIndices.length === 0 || pet.currentHp <= 0}
-            style={{
-              background:
-                playerState.teamIndices.length > 0 && pet.currentHp > 0
-                  ? 'linear-gradient(135deg, #ffd70030, #0f3460, #16213e, #ffd70020)'
-                  : '#1b1c20',
-              color:
-                playerState.teamIndices.length > 0 && pet.currentHp > 0 ? '#ffd700' : '#555',
-              border:
-                playerState.teamIndices.length > 0 && pet.currentHp > 0
-                  ? '2px solid #ffd70060'
-                  : '2px solid #333',
-              borderRadius: '14px',
-              padding: '18px 32px',
-              fontSize: '16px',
-              fontWeight: 800,
-              fontFamily: 'Nunito, sans-serif',
-              cursor:
-                playerState.teamIndices.length > 0 && pet.currentHp > 0 ? 'pointer' : 'not-allowed',
-              letterSpacing: '2px',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap',
-              animation:
-                playerState.teamIndices.length > 0 && pet.currentHp > 0
-                  ? 'battleBtnGlow 2s ease-in-out infinite'
-                  : 'none',
-            }}
-            onMouseEnter={(e) => {
-              if (playerState.teamIndices.length > 0 && pet.currentHp > 0) {
-                e.currentTarget.style.transform = 'translateY(-3px) scale(1.03)';
-                e.currentTarget.style.boxShadow = '0 10px 28px #ffd70040';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0) scale(1)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            ⚔ 开始战斗
-          </button>
         </div>
       </div>
-
-      <style>{`
-        @keyframes battleBtnGlow {
-          0%, 100% { box-shadow: 0 0 8px #ffd70030; }
-          50% { box-shadow: 0 0 20px #ffd70070; }
-        }
-      `}</style>
     </div>
   );
 };
