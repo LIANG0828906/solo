@@ -5,29 +5,48 @@ const WeekPreview: React.FC = () => {
   const { template, getCurrentWeek } = useWeekStore()
   const [copyStatus, setCopyStatus] = useState<string>('')
   const currentWeek = getCurrentWeek()
-  const colors = TEMPLATES[template]
+  const styles = TEMPLATES[template]
+  const { colors } = styles
+
+  const copyToClipboardFallback = (text: string): boolean => {
+    try {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.style.position = 'fixed'
+      textarea.style.top = '-9999px'
+      textarea.style.left = '-9999px'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      textarea.setSelectionRange(0, text.length)
+      const success = document.execCommand('copy')
+      document.body.removeChild(textarea)
+      return success
+    } catch {
+      return false
+    }
+  }
 
   const generateHTML = useCallback((): string => {
     if (!currentWeek) return ''
 
-    const dividerStyle = template === 'creative'
-      ? `background: ${colors.divider}; height: 2px; border: none;`
-      : `border: none; border-top: 1px solid ${colors.divider};`
-
-    const listMarker = template === 'professional' ? '•' : '✓'
+    const dividerStyle = styles.dividerStyle === 'gradient'
+      ? `background: ${colors.divider}; height: ${styles.dividerHeight}; border: none; border-radius: 2px;`
+      : `border: none; border-top: ${styles.dividerHeight} solid ${colors.divider};`
 
     const workItems = currentWeek.currentWork
       .filter((i) => i.content.trim())
-      .map((i) => `<li style="margin: 8px 0; line-height: 1.6;"><span style="color: ${colors.listMarker}; font-weight: bold; margin-right: 8px;">${listMarker}</span>${i.content}</li>`)
+      .map((i) => `<li style="margin: ${styles.listItemSpacing} 0; line-height: ${styles.lineHeight}; display: flex; align-items: flex-start; gap: 8px;"><span style="color: ${colors.listMarker}; font-weight: bold; flex-shrink: 0;">${styles.listMarker}</span><span>${i.content}</span></li>`)
       .join('')
 
     const planItems = currentWeek.nextPlan
       .filter((i) => i.content.trim())
-      .map((i) => `<li style="margin: 8px 0; line-height: 1.6;"><span style="color: ${colors.listMarker}; font-weight: bold; margin-right: 8px;">${listMarker}</span>${i.content}</li>`)
+      .map((i) => `<li style="margin: ${styles.listItemSpacing} 0; line-height: ${styles.lineHeight}; display: flex; align-items: flex-start; gap: 8px;"><span style="color: ${colors.listMarker}; font-weight: bold; flex-shrink: 0;">${styles.listMarker}</span><span>${i.content}</span></li>`)
       .join('')
 
     const reflectionHTML = currentWeek.reflection.trim()
-      ? `<div style="margin-top: 12px; line-height: 1.8; white-space: pre-wrap;">${currentWeek.reflection}</div>`
+      ? `<div style="margin-top: 12px; line-height: ${styles.lineHeight}; white-space: pre-wrap; font-size: ${styles.bodyFontSize};">${currentWeek.reflection}</div>`
       : ''
 
     return `<!DOCTYPE html>
@@ -37,40 +56,54 @@ const WeekPreview: React.FC = () => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>周报 - ${currentWeek.year}年第${currentWeek.weekNumber}周</title>
 </head>
-<body style="margin: 0; padding: 32px; background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <div style="max-width: 720px; margin: 0 auto; background: #ffffff; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); border-radius: 8px;">
-    <h1 style="color: ${colors.title}; font-size: 24px; margin: 0 0 8px 0;">周报</h1>
-    <p style="color: ${colors.body}; font-size: 14px; margin: 0 0 20px 0;">${currentWeek.year}年 第${currentWeek.weekNumber}周 · ${currentWeek.dateRange}</p>
-    <hr style="${dividerStyle} margin: 20px 0;" />
+<body style="margin: 0; padding: 32px; background: #f5f5f5; font-family: ${styles.fontFamily};">
+  <div style="max-width: 720px; margin: 0 auto; background: ${colors.background}; padding: 32px; box-shadow: ${styles.paperShadow}; border-radius: ${styles.borderRadius};">
+    <h1 style="color: ${colors.title}; font-size: ${styles.titleFontSize}; font-weight: 700; margin: 0 0 8px 0;">周报</h1>
+    <p style="color: ${colors.subtitle}; font-size: ${styles.bodyFontSize}; margin: 0 0 20px 0;">${currentWeek.year}年 第${currentWeek.weekNumber}周 · ${currentWeek.dateRange}</p>
+    <hr style="${dividerStyle} margin: ${styles.paragraphSpacing} 0;" />
 
-    <h2 style="color: ${colors.title}; font-size: 18px; margin: 24px 0 12px 0;">一、本周工作</h2>
-    <ul style="list-style: none; padding-left: 0; color: ${colors.body}; font-size: 14px;">
-      ${workItems || '<li style="color: #999;">暂无内容</li>'}
+    <h2 style="color: ${colors.sectionTitle}; font-size: ${styles.sectionTitleFontSize}; font-weight: 600; margin: 24px 0 12px 0;">一、本周工作</h2>
+    <ul style="list-style: none; padding-left: 0; color: ${colors.body}; font-size: ${styles.bodyFontSize};">
+      ${workItems || '<li style="color: #999; font-style: italic;">暂无内容</li>'}
     </ul>
 
     <hr style="${dividerStyle} margin: 24px 0;" />
 
-    <h2 style="color: ${colors.title}; font-size: 18px; margin: 24px 0 12px 0;">二、下周计划</h2>
-    <ul style="list-style: none; padding-left: 0; color: ${colors.body}; font-size: 14px;">
-      ${planItems || '<li style="color: #999;">暂无内容</li>'}
+    <h2 style="color: ${colors.sectionTitle}; font-size: ${styles.sectionTitleFontSize}; font-weight: 600; margin: 24px 0 12px 0;">二、下周计划</h2>
+    <ul style="list-style: none; padding-left: 0; color: ${colors.body}; font-size: ${styles.bodyFontSize};">
+      ${planItems || '<li style="color: #999; font-style: italic;">暂无内容</li>'}
     </ul>
 
     ${currentWeek.reflection.trim() ? `<hr style="${dividerStyle} margin: 24px 0;" />` : ''}
-    ${reflectionHTML ? `<h2 style="color: ${colors.title}; font-size: 18px; margin: 24px 0 12px 0;">三、问题与反思</h2>${reflectionHTML}` : ''}
+    ${reflectionHTML ? `<h2 style="color: ${colors.sectionTitle}; font-size: ${styles.sectionTitleFontSize}; font-weight: 600; margin: 24px 0 12px 0;">三、问题与反思</h2><div style="color: ${colors.body};">${reflectionHTML}</div>` : ''}
   </div>
 </body>
 </html>`
-  }, [currentWeek, template, colors])
+  }, [currentWeek, styles, colors])
 
   const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(generateHTML())
-      setCopyStatus('已复制')
+    const html = generateHTML()
+    if (!html) {
+      setCopyStatus('无内容')
       setTimeout(() => setCopyStatus(''), 2000)
-    } catch {
-      setCopyStatus('复制失败')
-      setTimeout(() => setCopyStatus(''), 2000)
+      return
     }
+
+    let success = false
+
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(html)
+        success = true
+      } catch {
+        success = copyToClipboardFallback(html)
+      }
+    } else {
+      success = copyToClipboardFallback(html)
+    }
+
+    setCopyStatus(success ? '已复制' : '复制失败')
+    setTimeout(() => setCopyStatus(''), 2000)
   }, [generateHTML])
 
   const handleDownload = useCallback(() => {
@@ -87,21 +120,59 @@ const WeekPreview: React.FC = () => {
     URL.revokeObjectURL(url)
   }, [currentWeek, generateHTML])
 
-  const listMarker = template === 'professional' ? '•' : '✓'
+  const paperStyle = useMemo<React.CSSProperties>(() => ({
+    background: colors.background,
+    fontFamily: styles.fontFamily,
+    borderRadius: styles.borderRadius,
+    boxShadow: styles.paperShadow,
+    fontSize: styles.bodyFontSize,
+    lineHeight: styles.lineHeight,
+  }), [colors, styles])
 
-  const dividerStyle = useMemo(() => {
-    if (template === 'creative') {
+  const titleStyle = useMemo<React.CSSProperties>(() => ({
+    color: colors.title,
+    fontSize: styles.titleFontSize,
+  }), [colors, styles])
+
+  const subtitleStyle = useMemo<React.CSSProperties>(() => ({
+    color: colors.subtitle,
+    fontSize: styles.bodyFontSize,
+  }), [colors, styles])
+
+  const sectionTitleStyle = useMemo<React.CSSProperties>(() => ({
+    color: colors.sectionTitle,
+    fontSize: styles.sectionTitleFontSize,
+  }), [colors, styles])
+
+  const listStyle = useMemo<React.CSSProperties>(() => ({
+    color: colors.body,
+    fontSize: styles.bodyFontSize,
+  }), [colors, styles])
+
+  const listItemStyle = useMemo<React.CSSProperties>(() => ({
+    margin: `${styles.listItemSpacing} 0`,
+  }), [styles])
+
+  const reflectionStyle = useMemo<React.CSSProperties>(() => ({
+    color: colors.body,
+    lineHeight: styles.lineHeight,
+    fontSize: styles.bodyFontSize,
+  }), [colors, styles])
+
+  const dividerStyle = useMemo<React.CSSProperties>(() => {
+    if (styles.dividerStyle === 'gradient') {
       return {
         background: colors.divider,
-        height: '2px',
+        height: styles.dividerHeight,
         border: 'none',
+        borderRadius: '2px',
       }
     }
     return {
       border: 'none',
-      borderTop: `1px solid ${colors.divider}`,
+      borderTop: `${styles.dividerHeight} solid ${colors.divider}`,
     }
-  }, [template, colors.divider])
+  }, [styles, colors.divider])
 
   if (!currentWeek) {
     return <div className="loading">加载中...</div>
@@ -110,22 +181,22 @@ const WeekPreview: React.FC = () => {
   return (
     <div className="week-preview-wrapper">
       <div className="week-preview">
-        <div className="preview-paper">
-          <h1 style={{ color: colors.title }}>周报</h1>
-          <p className="preview-subtitle" style={{ color: colors.body }}>
+        <div className="preview-paper" style={paperStyle}>
+          <h1 style={titleStyle}>周报</h1>
+          <p className="preview-subtitle" style={subtitleStyle}>
             {currentWeek.year}年 第{currentWeek.weekNumber}周 · {currentWeek.dateRange}
           </p>
           <hr className="preview-divider" style={dividerStyle} />
 
-          <h2 style={{ color: colors.title }}>一、本周工作</h2>
-          <ul className="preview-list" style={{ color: colors.body }}>
+          <h2 style={sectionTitleStyle}>一、本周工作</h2>
+          <ul className="preview-list" style={listStyle}>
             {currentWeek.currentWork.filter((i) => i.content.trim()).length > 0 ? (
               currentWeek.currentWork
                 .filter((i) => i.content.trim())
                 .map((item) => (
-                  <li key={item.id}>
+                  <li key={item.id} style={listItemStyle}>
                     <span className="list-marker" style={{ color: colors.listMarker }}>
-                      {listMarker}
+                      {styles.listMarker}
                     </span>
                     {item.content}
                   </li>
@@ -137,15 +208,15 @@ const WeekPreview: React.FC = () => {
 
           <hr className="preview-divider" style={dividerStyle} />
 
-          <h2 style={{ color: colors.title }}>二、下周计划</h2>
-          <ul className="preview-list" style={{ color: colors.body }}>
+          <h2 style={sectionTitleStyle}>二、下周计划</h2>
+          <ul className="preview-list" style={listStyle}>
             {currentWeek.nextPlan.filter((i) => i.content.trim()).length > 0 ? (
               currentWeek.nextPlan
                 .filter((i) => i.content.trim())
                 .map((item) => (
-                  <li key={item.id}>
+                  <li key={item.id} style={listItemStyle}>
                     <span className="list-marker" style={{ color: colors.listMarker }}>
-                      {listMarker}
+                      {styles.listMarker}
                     </span>
                     {item.content}
                   </li>
@@ -158,8 +229,8 @@ const WeekPreview: React.FC = () => {
           {currentWeek.reflection.trim() && (
             <>
               <hr className="preview-divider" style={dividerStyle} />
-              <h2 style={{ color: colors.title }}>三、问题与反思</h2>
-              <div className="preview-reflection" style={{ color: colors.body }}>
+              <h2 style={sectionTitleStyle}>三、问题与反思</h2>
+              <div className="preview-reflection" style={reflectionStyle}>
                 {currentWeek.reflection}
               </div>
             </>

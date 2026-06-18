@@ -230,6 +230,35 @@ body {
   color: #374151;
 }
 
+.template-desc {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.section-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: #9ca3af;
+  margin-left: 8px;
+}
+
+.warning-tip {
+  font-size: 12px;
+  padding: 6px 10px;
+  background: #fffbeb;
+  border-radius: 6px;
+  margin-bottom: 4px;
+}
+
+.char-count-inline {
+  font-size: 11px;
+  color: #9ca3af;
+  min-width: 50px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
 .form-list {
   display: flex;
   flex-direction: column;
@@ -247,6 +276,21 @@ body {
 
 .form-item-row:hover {
   background: rgba(0, 0, 0, 0.02);
+}
+
+.form-item-row.dragging {
+  opacity: 0.5;
+  background: rgba(30, 58, 95, 0.05);
+}
+
+.form-item-row.drag-over {
+  border-top: 2px solid var(--accent, #1e3a5f);
+  padding-top: 2px;
+}
+
+.form-item-row:focus-visible {
+  outline: 2px solid var(--focus-border, #1e3a5f);
+  outline-offset: 2px;
 }
 
 .drag-handle {

@@ -1,21 +1,55 @@
 import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
-import type { WeekData, WeekItem, TemplateType, TemplateColors } from '../types'
+import type { WeekData, WeekItem, TemplateType, TemplateStyles } from '../types'
 
-export const TEMPLATES: Record<TemplateType, TemplateColors> = {
+export const TEMPLATES: Record<TemplateType, TemplateStyles> = {
   professional: {
-    title: '#1E3A5F',
-    body: '#333333',
-    listMarker: '#4A90D9',
-    divider: '#E0E0E0',
-    accent: '#1E3A5F',
+    colors: {
+      title: '#1E3A5F',
+      body: '#333333',
+      listMarker: '#4A90D9',
+      divider: '#E0E0E0',
+      accent: '#1E3A5F',
+      background: '#ffffff',
+      subtitle: '#666666',
+      sectionTitle: '#1E3A5F',
+    },
+    fontFamily: "'Georgia', 'Times New Roman', 'Songti SC', 'SimSun', serif",
+    titleFontSize: '28px',
+    sectionTitleFontSize: '18px',
+    bodyFontSize: '14px',
+    lineHeight: '1.8',
+    paragraphSpacing: '16px',
+    listItemSpacing: '10px',
+    borderRadius: '4px',
+    dividerStyle: 'solid',
+    dividerHeight: '1px',
+    listMarker: '•',
+    paperShadow: '0 4px 20px rgba(0,0,0,0.08)',
   },
   creative: {
-    title: '#7B2D8E',
-    body: '#444444',
-    listMarker: '#28A745',
-    divider: 'linear-gradient(90deg, #7B2D8E 0%, #28A745 100%)',
-    accent: '#7B2D8E',
+    colors: {
+      title: '#7B2D8E',
+      body: '#444444',
+      listMarker: '#28A745',
+      divider: 'linear-gradient(90deg, #7B2D8E 0%, #28A745 50%, #FFB800 100%)',
+      accent: '#7B2D8E',
+      background: '#fdfcff',
+      subtitle: '#7B2D8E',
+      sectionTitle: '#7B2D8E',
+    },
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif",
+    titleFontSize: '26px',
+    sectionTitleFontSize: '17px',
+    bodyFontSize: '15px',
+    lineHeight: '1.7',
+    paragraphSpacing: '14px',
+    listItemSpacing: '12px',
+    borderRadius: '12px',
+    dividerStyle: 'gradient',
+    dividerHeight: '3px',
+    listMarker: '✓',
+    paperShadow: '0 8px 30px rgba(123, 45, 142, 0.15)',
   },
 }
 
@@ -84,6 +118,55 @@ const MAX_WEEKS = 5
 
 const getWeekKey = (year: number, weekNumber: number) => `${year}-W${weekNumber}`
 
+const parseWeekKey = (key: string): { year: number; weekNumber: number } => {
+  const [yearStr, weekStr] = key.split('-W')
+  return { year: parseInt(yearStr, 10), weekNumber: parseInt(weekStr, 10) }
+}
+
+const weekKeyToSortValue = (key: string): number => {
+  const { year, weekNumber } = parseWeekKey(key)
+  return year * 100 + weekNumber
+}
+
+const pruneOldWeeks = (weeks: Map<string, WeekData>, keepKey: string): Map<string, WeekData> => {
+  if (weeks.size <= MAX_WEEKS) return weeks
+
+  const sortedKeys = Array.from(weeks.keys()).sort(
+    (a, b) => weekKeyToSortValue(b) - weekKeyToSortValue(a)
+  )
+
+  const result = new Map<string, WeekData>()
+  let keptCount = 0
+  let keepKeyIncluded = false
+
+  for (const key of sortedKeys) {
+    if (keptCount < MAX_WEEKS) {
+      result.set(key, weeks.get(key)!)
+      keptCount++
+      if (key === keepKey) keepKeyIncluded = true
+    } else if (key === keepKey) {
+      const oldestKey = Array.from(result.keys()).sort(
+        (a, b) => weekKeyToSortValue(a) - weekKeyToSortValue(b)
+      )[0]
+      result.delete(oldestKey)
+      result.set(key, weeks.get(key)!)
+      keepKeyIncluded = true
+    }
+  }
+
+  if (!keepKeyIncluded && weeks.has(keepKey)) {
+    if (result.size >= MAX_WEEKS) {
+      const oldestKey = Array.from(result.keys()).sort(
+        (a, b) => weekKeyToSortValue(a) - weekKeyToSortValue(b)
+      )[0]
+      result.delete(oldestKey)
+    }
+    result.set(keepKey, weeks.get(keepKey)!)
+  }
+
+  return result
+}
+
 export const useWeekStore = create<WeekState>((set, get) => ({
   weeks: new Map(),
   currentWeekKey: '',
@@ -93,19 +176,25 @@ export const useWeekStore = create<WeekState>((set, get) => ({
     const now = new Date()
     const { year, weekNumber } = getWeekNumber(now)
     const key = getWeekKey(year, weekNumber)
-    const initialData = createInitialWeekData(year, weekNumber)
-    const weeks = new Map<string, WeekData>()
-    weeks.set(key, initialData)
-    set({ weeks, currentWeekKey: key })
+
+    set((state) => {
+      if (state.currentWeekKey && state.weeks.size > 0) {
+        return state
+      }
+      const initialData = createInitialWeekData(year, weekNumber)
+      const weeks = new Map<string, WeekData>()
+      weeks.set(key, initialData)
+      return { weeks, currentWeekKey: key }
+    })
   },
 
   switchWeek: (direction: -1 | 1) => {
     const { currentWeekKey, weeks } = get()
     if (!currentWeekKey) return
 
-    const [yearStr, weekStr] = currentWeekKey.split('-W')
-    let year = parseInt(yearStr, 10)
-    let weekNumber = parseInt(weekStr, 10) + direction
+    const { year: currentYear, weekNumber: currentWeekNum } = parseWeekKey(currentWeekKey)
+    let year = currentYear
+    let weekNumber = currentWeekNum + direction
 
     if (weekNumber < 1) {
       year -= 1
@@ -122,18 +211,8 @@ export const useWeekStore = create<WeekState>((set, get) => ({
       newWeeks.set(newKey, createInitialWeekData(year, weekNumber))
     }
 
-    const keys = Array.from(newWeeks.keys()).sort()
-    while (newWeeks.size > MAX_WEEKS) {
-      const oldestKey = keys.shift()
-      if (oldestKey && oldestKey !== newKey) {
-        newWeeks.delete(oldestKey)
-      } else if (oldestKey) {
-        keys.push(oldestKey)
-        break
-      }
-    }
-
-    set({ weeks: newWeeks, currentWeekKey: newKey })
+    const prunedWeeks = pruneOldWeeks(newWeeks, newKey)
+    set({ weeks: prunedWeeks, currentWeekKey: newKey })
   },
 
   setTemplate: (template: TemplateType) => set({ template }),
@@ -143,7 +222,7 @@ export const useWeekStore = create<WeekState>((set, get) => ({
     const current = weeks.get(currentWeekKey)
     if (!current) return
     const newWeeks = new Map(weeks)
-    newWeeks.set(currentWeekKey, { ...current, dateRange })
+    newWeeks.set(currentWeekKey, { ...current, dateRange: dateRange.slice(0, 100) })
     set({ weeks: newWeeks })
   },
 
@@ -231,7 +310,7 @@ export const useWeekStore = create<WeekState>((set, get) => ({
     newWeeks.set(currentWeekKey, {
       ...current,
       nextPlan: current.nextPlan.map((item) =>
-        item.id === id ? { ...item, content } : item
+        item.id === id ? { ...item, content: content.slice(0, 500) } : item
       ),
     })
     set({ weeks: newWeeks })

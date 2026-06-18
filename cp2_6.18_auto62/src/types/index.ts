@@ -20,4 +20,23 @@ export interface TemplateColors {
   listMarker: string
   divider: string
   accent: string
+  background: string
+  subtitle: string
+  sectionTitle: string
+}
+
+export interface TemplateStyles {
+  colors: TemplateColors
+  fontFamily: string
+  titleFontSize: string
+  sectionTitleFontSize: string
+  bodyFontSize: string
+  lineHeight: string
+  paragraphSpacing: string
+  listItemSpacing: string
+  borderRadius: string
+  dividerStyle: 'solid' | 'gradient'
+  dividerHeight: string
+  listMarker: string
+  paperShadow: string
 }

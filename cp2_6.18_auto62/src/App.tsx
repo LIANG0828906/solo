@@ -6,7 +6,7 @@ import WeekPreview from './components/WeekPreview'
 const App: React.FC = () => {
   const { initWeek, template, getCurrentWeek } = useWeekStore()
   const currentWeek = getCurrentWeek()
-  const colors = TEMPLATES[template]
+  const { colors } = TEMPLATES[template]
 
   useEffect(() => {
     initWeek()
