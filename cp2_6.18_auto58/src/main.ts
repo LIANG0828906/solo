@@ -4,8 +4,9 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { createGallery } from './gallery'
-import type { ArtworkPlacement, ArtworkInfo } from './gallery'
-import { generateHighResDataUrl, applyPulse } from './artwork'
+import type { ArtworkPlacement } from './gallery'
+import type { ArtworkInfo } from './artwork'
+import { generateHighResDataUrlAsync, applyPulse, getArtworkVersion } from './artwork'
 
 let scene: THREE.Scene
 let camera: THREE.PerspectiveCamera
@@ -19,9 +20,59 @@ let pointer: THREE.Vector2
 let bloomActiveUntil = 0
 let useBloom = false
 let modalActive = false
+let updateReflection: ((renderer: THREE.WebGLRenderer) => void) | null = null
+let reflectionUpdateCounter = 0
+const REFLECTION_UPDATE_INTERVAL = 2
 
 const clock = new THREE.Clock()
-const highResCache = new Map<string, string>()
+
+interface HighResCacheEntry {
+  dataUrl: string
+  version: number
+}
+
+const highResCache = new Map<string, HighResCacheEntry>()
+const highResPending = new Map<string, Promise<string>>()
+
+function getHighResCacheKey(info: ArtworkInfo, version: number): string {
+  return `${info.title}_v${version}`
+}
+
+async function getHighResCached(info: ArtworkInfo, version: number): Promise<string> {
+  const key = getHighResCacheKey(info, version)
+
+  const existing = highResCache.get(key)
+  if (existing && existing.version === version) {
+    return existing.dataUrl
+  }
+
+  const pending = highResPending.get(key)
+  if (pending) {
+    return pending
+  }
+
+  const promise = (async () => {
+    try {
+      const { dataUrl } = await generateHighResDataUrlAsync(info)
+      highResCache.set(key, { dataUrl, version })
+      highResPending.delete(key)
+
+      for (const oldKey of highResCache.keys()) {
+        if (oldKey.startsWith(info.title + '_v') && oldKey !== key) {
+          highResCache.delete(oldKey)
+        }
+      }
+
+      return dataUrl
+    } catch (err) {
+      highResPending.delete(key)
+      throw err
+    }
+  })()
+
+  highResPending.set(key, promise)
+  return promise
+}
 
 function init() {
   const container = document.getElementById('app')!
@@ -54,8 +105,8 @@ function init() {
   controls.maxDistance = 16
   controls.minPolarAngle = Math.PI / 6
   controls.maxPolarAngle = Math.PI / 2.1
-  controls.minFov = 20
-  controls.maxFov = 100
+  ;(controls as any).minFov = 20
+  ;(controls as any).maxFov = 100
   controls.zoomSpeed = 0.8
   controls.target.set(0, 1.5, 0)
   controls.mouseButtons = {
@@ -74,9 +125,10 @@ function init() {
   dirLight.position.set(5, 8, 5)
   scene.add(dirLight)
 
-  const { galleryGroup, artworks: _artworks } = createGallery(scene, renderer)
+  const { galleryGroup, artworks: _artworks, updateReflection: _updateReflection } = createGallery(scene, renderer)
   scene.add(galleryGroup)
   artworks = _artworks
+  updateReflection = _updateReflection
 
   raycaster = new THREE.Raycaster()
   pointer = new THREE.Vector2()
@@ -157,21 +209,29 @@ function onClick(event: MouseEvent) {
       const info = target.userData.info as ArtworkInfo | undefined
       if (info) {
         triggerBloom(1500)
-        const dataUrl = getHighResCached(info)
-        openModal(info.title, info.description, dataUrl)
+        openModalWithLoading(info)
       }
     }
   }
 }
 
-function getHighResCached(info: ArtworkInfo): string {
-  const key = info.title
-  if (highResCache.has(key)) {
-    return highResCache.get(key)!
-  }
-  const url = generateHighResDataUrl(info)
-  highResCache.set(key, url)
-  return url
+function openModalWithLoading(info: ArtworkInfo) {
+  const version = getArtworkVersion()
+  openModal(info.title, info.description, '')
+
+  const imgEl = document.getElementById('modal-image') as HTMLImageElement
+  imgEl.style.opacity = '0.5'
+  imgEl.style.transition = 'opacity 0.3s ease'
+
+  getHighResCached(info, version).then((dataUrl) => {
+    if (!modalActive) return
+    imgEl.onload = () => {
+      imgEl.style.opacity = '1'
+    }
+    imgEl.src = dataUrl
+  }).catch((err) => {
+    console.error('Failed to generate high-res texture:', err)
+  })
 }
 
 function collectPaintingMeshes(group: THREE.Object3D, out: THREE.Object3D[]) {
@@ -221,6 +281,16 @@ function animate() {
 
   controls.update()
   updateArtworksPulse(time)
+
+  reflectionUpdateCounter++
+  if (reflectionUpdateCounter >= REFLECTION_UPDATE_INTERVAL && updateReflection && !modalActive) {
+    reflectionUpdateCounter = 0
+    try {
+      updateReflection(renderer)
+    } catch (e) {
+      console.warn('Reflection update failed:', e)
+    }
+  }
 
   if (useBloom && performance.now() > bloomActiveUntil) {
     useBloom = false

@@ -6,6 +6,7 @@ export interface ArtworkPlacement {
   group: THREE.Group
   pulsePeriod: number
   pulsePhase: number
+  version: number
 }
 
 export interface GalleryScene {
@@ -13,6 +14,9 @@ export interface GalleryScene {
   artworks: ArtworkPlacement[]
   floorEnvMap: THREE.CubeTexture | null
   reflectiveGroup: THREE.Object3D
+  cubeCamera: THREE.CubeCamera | null
+  cubeRenderTarget: THREE.WebGLCubeRenderTarget | null
+  updateReflection: (renderer: THREE.WebGLRenderer) => void
 }
 
 const GALLERY_W = 16
@@ -195,43 +199,18 @@ export function createGallery(
   ]
 
   wallLayout.forEach((layout) => {
-    const { group, pulsePeriod, pulsePhase } = createArtworkMesh(layout.info)
+    const { group, pulsePeriod, pulsePhase, version } = createArtworkMesh(layout.info)
     group.position.set(layout.pos.x, layout.pos.y, layout.pos.z)
     group.rotation.y = layout.rotY
     reflectiveGroup.add(group)
     galleryGroup.add(group)
-    artworks.push({ info: layout.info, group, pulsePeriod, pulsePhase })
+    artworks.push({ info: layout.info, group, pulsePeriod, pulsePhase, version })
   })
 
+  let cubeCamera: THREE.CubeCamera | null = null
+  let cubeRenderTarget: THREE.WebGLCubeRenderTarget | null = null
   let floorEnvMap: THREE.CubeTexture | null = null
-  try {
-    const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256, {
-      format: THREE.RGBAFormat,
-      generateMipmaps: true,
-      minFilter: THREE.LinearMipmapLinearFilter,
-      colorSpace: THREE.SRGBColorSpace,
-    })
-    const cubeCamera = new THREE.CubeCamera(0.1, 100, cubeRenderTarget)
-    cubeCamera.position.set(0, 0.001, 0)
-
-    const tempFloor = new THREE.Mesh(
-      new THREE.PlaneGeometry(GALLERY_W, GALLERY_D),
-      new THREE.MeshBasicMaterial({ color: 0x000000 })
-    )
-    tempFloor.rotation.x = -Math.PI / 2
-    tempFloor.position.y = 0
-    tempFloor.visible = false
-    scene.add(tempFloor)
-
-    scene.add(reflectiveGroup)
-    cubeCamera.update(renderer, scene)
-    scene.remove(reflectiveGroup)
-    scene.remove(tempFloor)
-
-    floorEnvMap = cubeRenderTarget.texture
-  } catch (e) {
-    console.warn('Could not bake floor environment map:', e)
-  }
+  let floor: THREE.Mesh | null = null
 
   const floorGeom = new THREE.PlaneGeometry(GALLERY_W, GALLERY_D)
   const floorMat = new THREE.MeshPhysicalMaterial({
@@ -244,15 +223,43 @@ export function createGallery(
     thickness: 0.5,
     clearcoat: 0.45,
     clearcoatRoughness: 0.45,
-    envMap: floorEnvMap,
     envMapIntensity: 0.55,
     reflectivity: 0.35,
   })
-  const floor = new THREE.Mesh(floorGeom, floorMat)
+
+  try {
+    cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256, {
+      format: THREE.RGBAFormat,
+      generateMipmaps: true,
+      minFilter: THREE.LinearMipmapLinearFilter,
+      colorSpace: THREE.SRGBColorSpace,
+    })
+    cubeCamera = new THREE.CubeCamera(0.05, 50, cubeRenderTarget)
+    cubeCamera.position.set(0, -0.001, 0)
+    galleryGroup.add(cubeCamera)
+
+    floorEnvMap = cubeRenderTarget.texture
+    floorMat.envMap = floorEnvMap
+  } catch (e) {
+    console.warn('Could not create floor reflection camera:', e)
+  }
+
+  floor = new THREE.Mesh(floorGeom, floorMat)
   floor.rotation.x = -Math.PI / 2
   floor.position.y = 0
   floor.receiveShadow = true
   galleryGroup.add(floor)
 
-  return { galleryGroup, artworks, floorEnvMap, reflectiveGroup }
+  function updateReflection(renderer: THREE.WebGLRenderer) {
+    if (!cubeCamera || !floor) return
+
+    const prevVisible = floor.visible
+    floor.visible = false
+
+    cubeCamera.update(renderer, scene)
+
+    floor.visible = prevVisible
+  }
+
+  return { galleryGroup, artworks, floorEnvMap, reflectiveGroup, cubeCamera, cubeRenderTarget, updateReflection }
 }
