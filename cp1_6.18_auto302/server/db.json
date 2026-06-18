@@ -1,0 +1,242 @@
+{
+  "groups": [
+    {
+      "id": "8b6e70fb-5176-417b-8d1b-9f76046509e0",
+      "name": "北京五日游",
+      "date": "2026-06-18",
+      "memberCount": 10,
+      "members": [
+        {
+          "id": "aebef7fb-7475-4355-829d-6067c53e5c63",
+          "name": "成员1",
+          "joinCode": "606ZWO",
+          "groupIndex": 0,
+          "isOnline": false,
+          "lastUpdate": 1781764341240,
+          "lat": 39.90610875112087,
+          "lng": 116.42441369422119,
+          "history": []
+        },
+        {
+          "id": "8b3e9c83-d2b7-47e5-9207-384a017b2903",
+          "name": "成员2",
+          "joinCode": "24GJ40",
+          "groupIndex": 0,
+          "isOnline": false,
+          "lastUpdate": 1781764341240,
+          "lat": 39.87970382253421,
+          "lng": 116.4180703343401,
+          "history": []
+        },
+        {
+          "id": "8e773a51-3e07-430f-ab74-9a308c3ba640",
+          "name": "成员3",
+          "joinCode": "XEBAQ4",
+          "groupIndex": 0,
+          "isOnline": false,
+          "lastUpdate": 1781764341240,
+          "lat": 39.88719468479681,
+          "lng": 116.40384280419217,
+          "history": []
+        },
+        {
+          "id": "c11725b8-d49b-4547-a8a0-7996cef09f0e",
+          "name": "成员4",
+          "joinCode": "T2006M",
+          "groupIndex": 0,
+          "isOnline": false,
+          "lastUpdate": 1781764341240,
+          "lat": 39.91566811858189,
+          "lng": 116.412505903561,
+          "history": []
+        },
+        {
+          "id": "06202c7a-6497-4afe-9416-c15a620725c8",
+          "name": "成员5",
+          "joinCode": "XHI58Z",
+          "groupIndex": 0,
+          "isOnline": false,
+          "lastUpdate": 1781764341240,
+          "lat": 39.90793883761532,
+          "lng": 116.42620234953327,
+          "history": []
+        },
+        {
+          "id": "dc284abb-5888-4d8e-a3bc-81d0151a70f5",
+          "name": "成员6",
+          "joinCode": "R8EV07",
+          "groupIndex": 1,
+          "isOnline": false,
+          "lastUpdate": 1781764341240,
+          "lat": 39.89487676076985,
+          "lng": 116.41232034044369,
+          "history": []
+        },
+        {
+          "id": "7409640d-303a-45b0-a527-3e5066227fbd",
+          "name": "成员7",
+          "joinCode": "EPJCLL",
+          "groupIndex": 1,
+          "isOnline": false,
+          "lastUpdate": 1781764341240,
+          "lat": 39.88476515527345,
+          "lng": 116.3941613044364,
+          "history": []
+        },
+        {
+          "id": "b3981f80-6506-4cfd-a6f9-62265931022d",
+          "name": "成员8",
+          "joinCode": "F1W2S4",
+          "groupIndex": 1,
+          "isOnline": false,
+          "lastUpdate": 1781764341240,
+          "lat": 39.9163160560239,
+          "lng": 116.40896612355105,
+          "history": []
+        },
+        {
+          "id": "2c4801fd-0366-4594-aa41-e30912ee3788",
+          "name": "成员9",
+          "joinCode": "F3VLTE",
+          "groupIndex": 1,
+          "isOnline": false,
+          "lastUpdate": 1781764341240,
+          "lat": 39.8793796995647,
+          "lng": 116.41659216093736,
+          "history": []
+        },
+        {
+          "id": "8b1bc6ab-f4cf-4e68-a106-01e603d45115",
+          "name": "成员10",
+          "joinCode": "H9H920",
+          "groupIndex": 1,
+          "isOnline": false,
+          "lastUpdate": 1781764341240,
+          "lat": 39.88221348861313,
+          "lng": 116.38380166109019,
+          "history": []
+        }
+      ],
+      "createdAt": 1781764341240
+    },
+    {
+      "id": "ec8b0b3c-1c55-4f43-b355-72eb791a1344",
+      "name": "测试旅行团",
+      "date": "2026-06-18",
+      "memberCount": 10,
+      "members": [
+        {
+          "id": "a3c84b6b-a761-46ea-8c61-ee39e1fc2acf",
+          "name": "成员1",
+          "joinCode": "YWL9XB",
+          "groupIndex": 0,
+          "isOnline": false,
+          "lastUpdate": 1781764566158,
+          "lat": 39.92870406757935,
+          "lng": 116.40741977943874,
+          "history": []
+        },
+        {
+          "id": "3f6ac1c1-03c2-4e42-946e-915675101722",
+          "name": "成员2",
+          "joinCode": "I1LHJJ",
+          "groupIndex": 0,
+          "isOnline": false,
+          "lastUpdate": 1781764566158,
+          "lat": 39.91310784059478,
+          "lng": 116.4244331194931,
+          "history": []
+        },
+        {
+          "id": "4afb57d4-f640-406f-a0e8-d1f73b2faf39",
+          "name": "成员3",
+          "joinCode": "333DUS",
+          "groupIndex": 0,
+          "isOnline": false,
+          "lastUpdate": 1781764566158,
+          "lat": 39.89745258914888,
+          "lng": 116.39355612920761,
+          "history": []
+        },
+        {
+          "id": "087a35f6-2fae-49b6-8524-49444703b6ee",
+          "name": "成员4",
+          "joinCode": "75W331",
+          "groupIndex": 0,
+          "isOnline": false,
+          "lastUpdate": 1781764566158,
+          "lat": 39.91663514247854,
+          "lng": 116.39084434095756,
+          "history": []
+        },
+        {
+          "id": "226aba34-2d70-45cb-9894-df5a48af6783",
+          "name": "成员5",
+          "joinCode": "BGUD3T",
+          "groupIndex": 0,
+          "isOnline": false,
+          "lastUpdate": 1781764566158,
+          "lat": 39.902224589610725,
+          "lng": 116.41426952661554,
+          "history": []
+        },
+        {
+          "id": "86a2fcdb-854b-46b2-aa91-cf2d03faad04",
+          "name": "成员6",
+          "joinCode": "I550UA",
+          "groupIndex": 1,
+          "isOnline": false,
+          "lastUpdate": 1781764566158,
+          "lat": 39.89984634497419,
+          "lng": 116.42962056152561,
+          "history": []
+        },
+        {
+          "id": "5595d1fd-aa17-460d-9091-7287cbd6ee7b",
+          "name": "成员7",
+          "joinCode": "303QMP",
+          "groupIndex": 1,
+          "isOnline": false,
+          "lastUpdate": 1781764566158,
+          "lat": 39.916230962202754,
+          "lng": 116.43051672655434,
+          "history": []
+        },
+        {
+          "id": "5f5ec729-9fc2-4caa-8beb-56ef9ff89549",
+          "name": "成员8",
+          "joinCode": "J6VZ4E",
+          "groupIndex": 1,
+          "isOnline": false,
+          "lastUpdate": 1781764566158,
+          "lat": 39.90180708044874,
+          "lng": 116.38776055838993,
+          "history": []
+        },
+        {
+          "id": "4c6eb8de-d3d1-4ab0-80fa-5c4c83e8c2f7",
+          "name": "成员9",
+          "joinCode": "GGKPBN",
+          "groupIndex": 1,
+          "isOnline": false,
+          "lastUpdate": 1781764566158,
+          "lat": 39.92270421257906,
+          "lng": 116.40564598304566,
+          "history": []
+        },
+        {
+          "id": "001c5f9f-e430-4ce5-b0c0-08e15aa5806e",
+          "name": "成员10",
+          "joinCode": "STVPFK",
+          "groupIndex": 1,
+          "isOnline": false,
+          "lastUpdate": 1781764566158,
+          "lat": 39.90076305321805,
+          "lng": 116.39989701761169,
+          "history": []
+        }
+      ],
+      "createdAt": 1781764566158
+    }
+  ]
+}
