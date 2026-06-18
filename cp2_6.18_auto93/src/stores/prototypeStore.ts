@@ -50,6 +50,7 @@ interface PrototypeActions {
   removeMember: (id: string) => void;
   addComment: (componentId: string, userId: string, text: string) => Comment;
   deleteComment: (id: string) => void;
+  toggleComponentLock: (id: string) => void;
   loadProjectData: (projectId: string) => void;
   clearCurrentProject: () => void;
 }
@@ -343,6 +344,13 @@ export const usePrototypeStore = create<PrototypeStore>()(
       deleteComment: (id) =>
         set((state) => ({
           comments: state.comments.filter((c) => c.id !== id),
+        })),
+
+      toggleComponentLock: (id) =>
+        set((state) => ({
+          components: state.components.map((c) =>
+            c.id === id ? { ...c, locked: !c.locked } : c
+          ),
         })),
 
       loadProjectData: (projectId) => {

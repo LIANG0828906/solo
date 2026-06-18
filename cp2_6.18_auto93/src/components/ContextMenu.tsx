@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Trash2, Copy, Settings } from 'lucide-react';
+import { Trash2, Copy, Settings, Lock, Unlock } from 'lucide-react';
 import type { ContextMenuState } from '../types';
 
 interface ContextMenuProps {
@@ -8,6 +8,8 @@ interface ContextMenuProps {
   onDelete: () => void;
   onDuplicate: () => void;
   onSetInteraction: () => void;
+  onToggleLock?: () => void;
+  isLocked?: boolean;
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -16,6 +18,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onDelete,
   onDuplicate,
   onSetInteraction,
+  onToggleLock,
+  isLocked = false,
 }) => {
   useEffect(() => {
     const handleClickOutside = () => onClose();
@@ -39,6 +43,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   const menuItems = [
     { icon: Copy, label: '复制', action: onDuplicate },
     { icon: Settings, label: '设置交互', action: onSetInteraction },
+    {
+      icon: isLocked ? Unlock : Lock,
+      label: isLocked ? '解锁位置' : '锁定位置',
+      action: () => onToggleLock?.(),
+      highlight: isLocked,
+    },
     { icon: Trash2, label: '删除', action: onDelete, danger: true },
   ];
 
@@ -66,6 +76,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             className={`w-full px-3 py-2 flex items-center gap-2 text-sm transition-colors ${
               item.danger
                 ? 'text-red-600 hover:bg-red-50'
+                : item.highlight
+                ? 'text-amber-600 hover:bg-amber-50'
                 : 'text-slate-700 hover:bg-slate-100'
             }`}
           >

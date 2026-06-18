@@ -192,6 +192,7 @@ export const ProjectPreview: React.FC = () => {
                     backgroundColor: component.backgroundColor,
                     borderRadius: component.borderRadius,
                     border: `1px solid ${component.borderColor}`,
+                    boxShadow: component.boxShadow || 'none',
                     cursor: component.interaction ? 'pointer' : 'default',
                   }}
                   onClick={() => handleComponentClick(component)}

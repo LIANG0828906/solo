@@ -8,9 +8,70 @@ import { CommentBubble } from '../collab/CommentBubble';
 import { getDefaultComponent } from '../../utils/helpers';
 import type { Component, ContextMenuState, ComponentInteraction } from '../../types';
 
+interface AlignmentGuide {
+  type: 'vertical' | 'horizontal';
+  position: number;
+}
+
 interface BoardCanvasProps {
   onComponentUpdate?: (id: string, updates: Record<string, unknown>) => void;
   onComponentSelect?: (id: string | null) => void;
+}
+
+const ALIGNMENT_THRESHOLD = 4;
+
+function computeAlignmentGuides(
+  draggingComp: Component,
+  allComponents: Component[]
+): AlignmentGuide[] {
+  const guides: AlignmentGuide[] = [];
+  const dragLeft = draggingComp.x;
+  const dragRight = draggingComp.x + draggingComp.width;
+  const dragTop = draggingComp.y;
+  const dragBottom = draggingComp.y + draggingComp.height;
+  const dragCenterX = draggingComp.x + draggingComp.width / 2;
+  const dragCenterY = draggingComp.y + draggingComp.height / 2;
+
+  for (const other of allComponents) {
+    if (other.id === draggingComp.id || other.screenId !== draggingComp.screenId) continue;
+
+    const oLeft = other.x;
+    const oRight = other.x + other.width;
+    const oTop = other.y;
+    const oBottom = other.y + other.height;
+    const oCenterX = other.x + other.width / 2;
+    const oCenterY = other.y + other.height / 2;
+
+    if (Math.abs(dragLeft - oLeft) < ALIGNMENT_THRESHOLD)
+      guides.push({ type: 'vertical', position: oLeft });
+    if (Math.abs(dragRight - oRight) < ALIGNMENT_THRESHOLD)
+      guides.push({ type: 'vertical', position: oRight });
+    if (Math.abs(dragLeft - oRight) < ALIGNMENT_THRESHOLD)
+      guides.push({ type: 'vertical', position: oRight });
+    if (Math.abs(dragRight - oLeft) < ALIGNMENT_THRESHOLD)
+      guides.push({ type: 'vertical', position: oLeft });
+    if (Math.abs(dragCenterX - oCenterX) < ALIGNMENT_THRESHOLD)
+      guides.push({ type: 'vertical', position: oCenterX });
+
+    if (Math.abs(dragTop - oTop) < ALIGNMENT_THRESHOLD)
+      guides.push({ type: 'horizontal', position: oTop });
+    if (Math.abs(dragBottom - oBottom) < ALIGNMENT_THRESHOLD)
+      guides.push({ type: 'horizontal', position: oBottom });
+    if (Math.abs(dragTop - oBottom) < ALIGNMENT_THRESHOLD)
+      guides.push({ type: 'horizontal', position: oBottom });
+    if (Math.abs(dragBottom - oTop) < ALIGNMENT_THRESHOLD)
+      guides.push({ type: 'horizontal', position: oTop });
+    if (Math.abs(dragCenterY - oCenterY) < ALIGNMENT_THRESHOLD)
+      guides.push({ type: 'horizontal', position: oCenterY });
+  }
+
+  const seen = new Set<string>();
+  return guides.filter((g) => {
+    const key = `${g.type}-${g.position}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export const BoardCanvas: React.FC<BoardCanvasProps> = ({
@@ -26,6 +87,7 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
     componentId: null,
   });
   const [isPulsing, setIsPulsing] = useState<string | null>(null);
+  const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide[]>([]);
 
   const {
     currentProjectId,
@@ -45,14 +107,22 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
     addConnection,
     setActiveTool,
     setConnectingFromId,
+    toggleComponentLock,
   } = usePrototypeStore();
 
   const handleUpdate = useCallback(
     (id: string, updates: Record<string, number>) => {
       updateComponent(id, updates);
       onComponentUpdate?.(id, updates);
+
+      const updatedComp = components.find((c) => c.id === id);
+      if (updatedComp) {
+        const merged = { ...updatedComp, ...updates } as Component;
+        const guides = computeAlignmentGuides(merged, components);
+        setAlignmentGuides(guides);
+      }
     },
-    [updateComponent, onComponentUpdate]
+    [updateComponent, onComponentUpdate, components]
   );
 
   const {
@@ -173,6 +243,7 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
     handleDragMouseUp();
     handlePanMouseUp();
     setIsDraggingCanvas(false);
+    setAlignmentGuides([]);
   }, [handleDragMouseUp, handlePanMouseUp]);
 
   const handleMouseDown = useCallback(
@@ -231,6 +302,7 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
     const hasPulse = isPulsing === component.id;
     const isThisDragging = draggingComponentId === component.id;
     const isThisResizing = resizingComponentId === component.id;
+    const isLocked = component.locked || false;
 
     const baseStyle: React.CSSProperties = {
       position: 'absolute',
@@ -241,13 +313,17 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
       backgroundColor: component.backgroundColor,
       borderRadius: component.borderRadius,
       border: `1px solid ${isSelected ? '#6366F1' : component.borderColor}`,
-      cursor: activeTool === 'connection' ? 'pointer' : 'move',
+      cursor: isLocked
+        ? 'default'
+        : activeTool === 'connection'
+        ? 'pointer'
+        : 'move',
       transition: isThisDragging || isThisResizing
         ? 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)'
         : 'border-color 0.15s, box-shadow 0.15s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
       boxShadow: isSelected
         ? '0 0 0 2px rgba(99, 102, 241, 0.3)'
-        : 'none',
+        : component.boxShadow || 'none',
       transform: isThisDragging ? 'scale(1.05)' : hasPulse ? 'scale(1.02)' : 'scale(1)',
       zIndex: isSelected || isThisDragging ? 10 : 1,
     };
@@ -258,11 +334,13 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
         style={baseStyle}
         className={`group hover:!border-[#6366F1] ${
           hasPulse ? 'animate-pulse' : ''
-        } ${isConnectingSource ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
+        } ${isConnectingSource ? 'ring-2 ring-indigo-500 ring-offset-2' : ''} ${
+          isLocked ? 'opacity-90' : ''
+        }`}
         onClick={(e) => handleComponentClick(e, component)}
         onDoubleClick={(e) => handleComponentDoubleClick(e, component)}
         onMouseDown={(e) => {
-          if (activeTool !== 'connection') {
+          if (activeTool !== 'connection' && !isLocked) {
             handleDragStart(e, component.id, component.x, component.y);
           }
         }}
@@ -301,7 +379,16 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
           />
         )}
 
-        {isSelected && !isDragging && !isResizing && (
+        {isLocked && (
+          <div className="absolute -top-2 -left-2 w-5 h-5 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shadow-sm border border-amber-200 z-20">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+        )}
+
+        {isSelected && !isDragging && !isResizing && !isLocked && (
           <>
             <div
               className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-indigo-500 border-2 border-white rounded-full cursor-se-resize shadow"
@@ -346,6 +433,62 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
       });
   };
 
+  const renderAlignmentGuides = () => {
+    return alignmentGuides.map((guide, index) => {
+      if (guide.type === 'vertical') {
+        return (
+          <div
+            key={`v-${index}`}
+            className="absolute pointer-events-none z-30"
+            style={{
+              left: guide.position,
+              top: 0,
+              width: 1,
+              height: '100%',
+              backgroundColor: '#6366F1',
+              opacity: 0.6,
+            }}
+          >
+            <div
+              className="absolute w-3 h-3 rounded-full"
+              style={{
+                left: -5,
+                top: 10,
+                backgroundColor: '#6366F1',
+                opacity: 0.3,
+              }}
+            />
+          </div>
+        );
+      } else {
+        return (
+          <div
+            key={`h-${index}`}
+            className="absolute pointer-events-none z-30"
+            style={{
+              top: guide.position,
+              left: 0,
+              height: 1,
+              width: '100%',
+              backgroundColor: '#6366F1',
+              opacity: 0.6,
+            }}
+          >
+            <div
+              className="absolute w-3 h-3 rounded-full"
+              style={{
+                top: -5,
+                left: 10,
+                backgroundColor: '#6366F1',
+                opacity: 0.3,
+              }}
+            />
+          </div>
+        );
+      }
+    });
+  };
+
   const gridSize = 20;
   const gridStyle: React.CSSProperties = {
     backgroundImage: `
@@ -384,6 +527,8 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
         <div className="absolute" style={{ minWidth: '2000px', minHeight: '2000px' }}>
           {currentComponents.map(renderComponent)}
         </div>
+
+        {alignmentGuides.length > 0 && renderAlignmentGuides()}
       </div>
 
       {connectingFromId && (
@@ -403,6 +548,15 @@ export const BoardCanvas: React.FC<BoardCanvasProps> = ({
         onDelete={handleDelete}
         onDuplicate={handleDuplicate}
         onSetInteraction={handleSetInteraction}
+        onToggleLock={() => {
+          if (contextMenu.componentId) {
+            toggleComponentLock(contextMenu.componentId);
+          }
+        }}
+        isLocked={(() => {
+          const comp = components.find((c) => c.id === contextMenu.componentId);
+          return comp?.locked || false;
+        })()}
       />
     </div>
   );

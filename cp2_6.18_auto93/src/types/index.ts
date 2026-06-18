@@ -36,11 +36,22 @@ export interface Component {
   backgroundColor: string;
   borderRadius: number;
   borderColor: string;
+  boxShadow?: string;
+  locked?: boolean;
   text?: string;
   fontSize?: number;
   fontWeight?: string;
   imageUrl?: string;
   interaction?: ComponentInteraction;
+}
+
+export interface StylePreset {
+  id: string;
+  name: string;
+  backgroundColor: string;
+  borderColor: string;
+  borderRadius: number;
+  boxShadow: string;
 }
 
 export interface Connection {
