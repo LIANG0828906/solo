@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { MoleculeGroup, highlightAtom, clearAllHighlights } from './sceneBuilder'
+import { projectAtomToScreen } from './proteinParser'
 
 export interface AtomInfo {
   element: string
@@ -8,6 +10,8 @@ export interface AtomInfo {
   z: number
   neighborCount: number
   id: number
+  screenX: number
+  screenY: number
 }
 
 export type InteractionCallback = {
@@ -22,11 +26,13 @@ export class InteractionManager {
   private controls: OrbitControls
   private raycaster: THREE.Raycaster
   private mouse: THREE.Vector2
-  private hoveredAtom: THREE.Mesh | null = null
-  private originalMaterials: Map<THREE.Mesh, THREE.Material> = new Map()
+  private hoveredAtomIndex: number | null = null
   private callbacks: InteractionCallback
   private bondNeighbors: Map<number, number[]> = new Map()
   private atomsData: { element: string; x: number; y: number; z: number; id: number }[]
+  private moleculeGroup: MoleculeGroup
+  private initialCameraPosition: THREE.Vector3
+  private initialCameraTarget: THREE.Vector3
 
   constructor(
     camera: THREE.PerspectiveCamera,
@@ -35,6 +41,7 @@ export class InteractionManager {
     controls: OrbitControls,
     bonds: { atomIndex1: number; atomIndex2: number }[],
     atomsData: { element: string; x: number; y: number; z: number; id: number }[],
+    moleculeGroup: MoleculeGroup,
     callbacks: InteractionCallback = {}
   ) {
     this.camera = camera
@@ -43,9 +50,13 @@ export class InteractionManager {
     this.controls = controls
     this.callbacks = callbacks
     this.atomsData = atomsData
+    this.moleculeGroup = moleculeGroup
 
     this.raycaster = new THREE.Raycaster()
     this.mouse = new THREE.Vector2()
+
+    this.initialCameraPosition = camera.position.clone()
+    this.initialCameraTarget = controls.target.clone()
 
     this.buildNeighborMap(bonds)
     this.bindEvents()
@@ -127,35 +138,23 @@ export class InteractionManager {
 
     if (intersects.length > 0) {
       const mesh = intersects[0].object as THREE.Mesh
-      if (this.hoveredAtom !== mesh) {
+      const atomIndex = this.atomMeshes.indexOf(mesh)
+      if (atomIndex >= 0 && this.hoveredAtomIndex !== atomIndex) {
         this.unhoverCurrentAtom()
-        this.hoverAtom(mesh)
+        this.hoverAtom(atomIndex)
       }
     } else {
-      if (this.hoveredAtom) {
+      if (this.hoveredAtomIndex !== null) {
         this.unhoverCurrentAtom()
       }
     }
   }
 
-  private hoverAtom(mesh: THREE.Mesh): void {
-    this.hoveredAtom = mesh
-    this.originalMaterials.set(mesh, (mesh.material as THREE.Material).clone())
+  private hoverAtom(atomIndex: number): void {
+    this.hoveredAtomIndex = atomIndex
+    highlightAtom(this.moleculeGroup, atomIndex, true, true)
 
-    const originalMaterial = mesh.material as THREE.MeshPhongMaterial
-    const glowMaterial = new THREE.MeshPhongMaterial({
-      color: originalMaterial.color,
-      emissive: originalMaterial.color,
-      emissiveIntensity: 0.8,
-      shininess: 120,
-      transparent: true,
-      opacity: 1.0
-    })
-
-    this.animateMaterial(mesh, glowMaterial, 300)
-
-    const atomIndex = this.atomMeshes.indexOf(mesh)
-    if (atomIndex >= 0 && this.callbacks.onAtomHover) {
+    if (this.callbacks.onAtomHover) {
       this.callbacks.onAtomHover(this.getAtomInfo(atomIndex))
     }
 
@@ -163,15 +162,11 @@ export class InteractionManager {
   }
 
   private unhoverCurrentAtom(): void {
-    if (!this.hoveredAtom) return
+    if (this.hoveredAtomIndex === null) return
 
-    const originalMaterial = this.originalMaterials.get(this.hoveredAtom)
-    if (originalMaterial) {
-      this.animateMaterial(this.hoveredAtom, originalMaterial as THREE.MeshPhongMaterial, 300)
-    }
-
-    this.originalMaterials.delete(this.hoveredAtom)
-    this.hoveredAtom = null
+    const prevIndex = this.hoveredAtomIndex
+    this.hoveredAtomIndex = null
+    highlightAtom(this.moleculeGroup, prevIndex, false, true)
 
     if (this.callbacks.onAtomHover) {
       this.callbacks.onAtomHover(null)
@@ -180,41 +175,57 @@ export class InteractionManager {
     document.body.style.cursor = 'default'
   }
 
-  private animateMaterial(mesh: THREE.Mesh, targetMaterial: THREE.MeshPhongMaterial, duration: number): void {
-    const startMaterial = mesh.material as THREE.MeshPhongMaterial
-    const startEmissiveIntensity = startMaterial.emissiveIntensity || 0
-    const targetEmissiveIntensity = targetMaterial.emissiveIntensity || 0
-    const startTime = performance.now()
-
-    const material = startMaterial.clone() as THREE.MeshPhongMaterial
-    mesh.material = material
-
-    function step() {
-      const elapsed = performance.now() - startTime
-      const t = Math.min(elapsed / duration, 1)
-      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
-
-      material.emissiveIntensity = startEmissiveIntensity + (targetEmissiveIntensity - startEmissiveIntensity) * eased
-
-      if (t < 1) {
-        requestAnimationFrame(step)
-      }
-    }
-
-    requestAnimationFrame(step)
-  }
-
   private getAtomInfo(index: number): AtomInfo {
     const atom = this.atomsData[index]
     const neighbors = this.bondNeighbors.get(index) || []
+    const position = new THREE.Vector3(atom.x, atom.y, atom.z)
+    const { x: screenX, y: screenY } = projectAtomToScreen(
+      position,
+      this.camera,
+      this.renderer.domElement.clientWidth,
+      this.renderer.domElement.clientHeight
+    )
+
     return {
       element: atom.element,
       x: Number(atom.x.toFixed(2)),
       y: Number(atom.y.toFixed(2)),
       z: Number(atom.z.toFixed(2)),
       neighborCount: neighbors.length,
-      id: atom.id
+      id: atom.id,
+      screenX,
+      screenY
     }
+  }
+
+  public resetView(): void {
+    const startPos = this.camera.position.clone()
+    const startTarget = this.controls.target.clone()
+    const endPos = this.initialCameraPosition.clone()
+    const endTarget = this.initialCameraTarget.clone()
+    const startTime = performance.now()
+    const duration = 600
+
+    const animate = () => {
+      const elapsed = performance.now() - startTime
+      const t = Math.min(elapsed / duration, 1)
+      const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+
+      this.camera.position.lerpVectors(startPos, endPos, eased)
+      this.controls.target.lerpVectors(startTarget, endTarget, eased)
+      this.controls.update()
+
+      if (t < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+
+    requestAnimationFrame(animate)
+  }
+
+  public setInitialView(position: THREE.Vector3, target: THREE.Vector3): void {
+    this.initialCameraPosition.copy(position)
+    this.initialCameraTarget.copy(target)
   }
 
   public updateAtomMeshes(atomMeshes: THREE.Mesh[]): void {
@@ -238,5 +249,6 @@ export class InteractionManager {
     canvas.removeEventListener('mousemove', this.onMouseMove.bind(this))
     canvas.removeEventListener('click', this.onClick.bind(this))
     canvas.removeEventListener('wheel', this.onWheel.bind(this))
+    clearAllHighlights(this.moleculeGroup)
   }
 }

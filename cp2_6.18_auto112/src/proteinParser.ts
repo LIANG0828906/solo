@@ -8,9 +8,12 @@ export interface AtomData {
   z: number
 }
 
+export type BondType = 'single' | 'double' | 'triple'
+
 export interface BondData {
   atomIndex1: number
   atomIndex2: number
+  type: BondType
 }
 
 export interface ParsedMolecule {
@@ -53,9 +56,10 @@ export function parseProteinData(): ParsedMolecule {
     z: a.z
   }))
 
-  const bonds: BondData[] = proteinData.bonds.map((b: number[]) => ({
-    atomIndex1: b[0],
-    atomIndex2: b[1]
+  const bonds: BondData[] = proteinData.bonds.map((b: any) => ({
+    atomIndex1: b.atomIndex1 ?? b[0],
+    atomIndex2: b.atomIndex2 ?? b[1],
+    type: (b.type as BondType) ?? 'single'
   }))
 
   return { atoms, bonds }
@@ -105,36 +109,136 @@ export function createBondLines(bonds: BondData[], atomPositions: THREE.Vector3[
   return new THREE.LineSegments(geometry, material)
 }
 
+const SINGLE_BOND_RADIUS = 0.08
+const DOUBLE_BOND_RADIUS = 0.045
+const DOUBLE_BOND_OFFSET = 0.09
+
 export function createBondCylinders(
   bonds: BondData[],
   atomPositions: THREE.Vector3[],
   atomElements: string[]
 ): THREE.Group {
   const group = new THREE.Group()
-  const bondRadius = 0.08
 
   bonds.forEach((bond) => {
     const p1 = atomPositions[bond.atomIndex1]
     const p2 = atomPositions[bond.atomIndex2]
     if (!p1 || !p2) return
 
-    const direction = new THREE.Vector3().subVectors(p2, p1)
-    const length = direction.length()
-    const midPoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5)
-
-    const geometry = new THREE.CylinderGeometry(bondRadius, bondRadius, length, 8)
-    const color = 0x666666
-    const material = new THREE.MeshPhongMaterial({ color, shininess: 40 })
-    const cylinder = new THREE.Mesh(geometry, material)
-
-    cylinder.position.copy(midPoint)
-    cylinder.quaternion.setFromUnitVectors(
-      new THREE.Vector3(0, 1, 0),
-      direction.clone().normalize()
-    )
-
-    group.add(cylinder)
+    if (bond.type === 'double') {
+      createDoubleBondCylinders(group, p1, p2)
+    } else {
+      createSingleBondCylinder(group, p1, p2)
+    }
   })
 
   return group
+}
+
+function createSingleBondCylinder(
+  group: THREE.Group,
+  p1: THREE.Vector3,
+  p2: THREE.Vector3
+): void {
+  const direction = new THREE.Vector3().subVectors(p2, p1)
+  const length = direction.length()
+  const midPoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5)
+
+  const geometry = new THREE.CylinderGeometry(SINGLE_BOND_RADIUS, SINGLE_BOND_RADIUS, length, 8)
+  const material = new THREE.MeshPhongMaterial({ color: 0x666666, shininess: 40 })
+  const cylinder = new THREE.Mesh(geometry, material)
+
+  cylinder.position.copy(midPoint)
+  cylinder.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    direction.clone().normalize()
+  )
+  cylinder.userData = { bondType: 'single' }
+
+  group.add(cylinder)
+}
+
+function createDoubleBondCylinders(
+  group: THREE.Group,
+  p1: THREE.Vector3,
+  p2: THREE.Vector3
+): void {
+  const direction = new THREE.Vector3().subVectors(p2, p1)
+  const length = direction.length()
+  const dirNormalized = direction.clone().normalize()
+  const midPoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5)
+
+  const up = new THREE.Vector3(0, 1, 0)
+  let perpendicular = new THREE.Vector3().crossVectors(dirNormalized, up)
+  if (perpendicular.lengthSq() < 0.001) {
+    perpendicular.set(1, 0, 0)
+  }
+  perpendicular.normalize().multiplyScalar(DOUBLE_BOND_OFFSET)
+
+  for (let i = -1; i <= 1; i += 2) {
+    const offset = perpendicular.clone().multiplyScalar(i)
+    const offsetP1 = p1.clone().add(offset)
+    const offsetP2 = p2.clone().add(offset)
+    const offsetMid = new THREE.Vector3().addVectors(offsetP1, offsetP2).multiplyScalar(0.5)
+
+    const geometry = new THREE.CylinderGeometry(DOUBLE_BOND_RADIUS, DOUBLE_BOND_RADIUS, length, 8)
+    const material = new THREE.MeshPhongMaterial({ color: 0x777777, shininess: 40 })
+    const cylinder = new THREE.Mesh(geometry, material)
+
+    cylinder.position.copy(offsetMid)
+    cylinder.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      dirNormalized
+    )
+    cylinder.userData = { bondType: 'double' }
+
+    group.add(cylinder)
+  }
+}
+
+export function createGlowSpheres(
+  atomPositions: THREE.Vector3[],
+  atomElements: string[]
+): { group: THREE.Group; spheres: THREE.Mesh[] } {
+  const group = new THREE.Group()
+  group.name = 'glowSpheres'
+  group.visible = false
+
+  const spheres: THREE.Mesh[] = []
+
+  atomPositions.forEach((pos, index) => {
+    const color = getElementColor(atomElements[index])
+    const baseRadius = getElementRadius(atomElements[index])
+
+    const geometry = new THREE.SphereGeometry(baseRadius * 1.5, 16, 16)
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    })
+
+    const sphere = new THREE.Mesh(geometry, material)
+    sphere.position.copy(pos)
+    sphere.userData = { atomIndex: index }
+
+    spheres.push(sphere)
+    group.add(sphere)
+  })
+
+  return { group, spheres }
+}
+
+export function projectAtomToScreen(
+  atomPosition: THREE.Vector3,
+  camera: THREE.Camera,
+  width: number,
+  height: number
+): { x: number; y: number; visible: boolean } {
+  const vector = atomPosition.clone().project(camera)
+  const x = (vector.x * 0.5 + 0.5) * width
+  const y = (-vector.y * 0.5 + 0.5) * height
+  const visible = vector.z > -1 && vector.z < 1
+  return { x, y, visible }
 }

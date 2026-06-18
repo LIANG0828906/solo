@@ -3,7 +3,8 @@ import {
   ParsedMolecule,
   createAtomGeometries,
   createBondCylinders,
-  getElementRadius
+  getElementRadius,
+  createGlowSpheres
 } from './proteinParser'
 
 export type DisplayMode = 'ball-stick' | 'space-filling' | 'wireframe'
@@ -11,7 +12,9 @@ export type DisplayMode = 'ball-stick' | 'space-filling' | 'wireframe'
 export interface MoleculeGroup {
   atomGroup: THREE.Group
   bondGroup: THREE.Group
+  glowGroup: THREE.Group
   atomMeshes: THREE.Mesh[]
+  glowMeshes: THREE.Mesh[]
   originalRadii: number[]
 }
 
@@ -23,9 +26,11 @@ export function buildMoleculeScene(molecule: ParsedMolecule): MoleculeGroup {
 
   const bondGroup = createBondCylinders(molecule.bonds, positions, elements)
 
+  const { group: glowGroup, spheres: glowMeshes } = createGlowSpheres(positions, elements)
+
   const originalRadii = molecule.atoms.map((atom) => getElementRadius(atom.element))
 
-  return { atomGroup, bondGroup, atomMeshes, originalRadii }
+  return { atomGroup, bondGroup, glowGroup, atomMeshes, glowMeshes, originalRadii }
 }
 
 export function setupLights(scene: THREE.Scene): void {
@@ -58,8 +63,6 @@ export function setDisplayMode(
   mode: DisplayMode,
   animate: boolean = true
 ): void {
-  const { atomMeshes, bondGroup, originalRadii } = group
-
   if (animate) {
     animateDisplayMode(group, mode)
     return
@@ -69,11 +72,10 @@ export function setDisplayMode(
 }
 
 function applyDisplayModeImmediate(group: MoleculeGroup, mode: DisplayMode): void {
-  const { atomMeshes, bondGroup, originalRadii } = group
+  const { atomMeshes, bondGroup, glowGroup, originalRadii } = group
 
   atomMeshes.forEach((mesh, index) => {
     const material = mesh.material as THREE.MeshPhongMaterial
-    const baseRadius = group.originalRadii[index]
 
     if (mode === 'ball-stick') {
       material.wireframe = false
@@ -87,6 +89,15 @@ function applyDisplayModeImmediate(group: MoleculeGroup, mode: DisplayMode): voi
       material.wireframe = true
       mesh.scale.setScalar(1)
       mesh.visible = true
+    }
+  })
+
+  group.glowMeshes.forEach((mesh, index) => {
+    const baseRadius = originalRadii[index]
+    if (mode === 'space-filling') {
+      mesh.scale.setScalar(2.2)
+    } else {
+      mesh.scale.setScalar(1)
     }
   })
 
@@ -126,7 +137,7 @@ function animateDisplayMode(group: MoleculeGroup, mode: DisplayMode): void {
   const targetRadii: number[] = []
   const targetScale = mode === 'space-filling' ? 2.2 : 1.0
 
-  group.atomMeshes.forEach((mesh, index) => {
+  group.atomMeshes.forEach((mesh) => {
     startRadii.push(mesh.scale.x)
     targetRadii.push(targetScale)
   })
@@ -156,6 +167,13 @@ function animateDisplayMode(group: MoleculeGroup, mode: DisplayMode): void {
     const eased = easeInOutCubic(t)
 
     currentAnimation.group.atomMeshes.forEach((mesh, index) => {
+      const start = currentAnimation!.startRadii[index]
+      const target = currentAnimation!.targetRadii[index]
+      const current = start + (target - start) * eased
+      mesh.scale.setScalar(current)
+    })
+
+    currentAnimation.group.glowMeshes.forEach((mesh, index) => {
       const start = currentAnimation!.startRadii[index]
       const target = currentAnimation!.targetRadii[index]
       const current = start + (target - start) * eased
@@ -211,4 +229,96 @@ export function getBoundingBox(molecule: ParsedMolecule): THREE.Box3 {
     box.expandByPoint(new THREE.Vector3(atom.x, atom.y, atom.z))
   })
   return box
+}
+
+let glowAnimationId: number | null = null
+let glowAnimationState: {
+  targetMesh: THREE.Mesh | null
+  targetOpacity: number
+  startTime: number
+  duration: number
+} | null = null
+
+export function highlightAtom(
+  group: MoleculeGroup,
+  atomIndex: number,
+  show: boolean,
+  animate: boolean = true
+): void {
+  const glowMesh = group.glowMeshes[atomIndex]
+  if (!glowMesh) return
+
+  group.glowGroup.visible = true
+
+  const material = glowMesh.material as THREE.MeshBasicMaterial
+  const targetOpacity = show ? 0.7 : 0
+
+  if (!animate) {
+    material.opacity = targetOpacity
+    updateGlowGroupVisibility(group)
+    return
+  }
+
+  if (glowAnimationId !== null) {
+    cancelAnimationFrame(glowAnimationId)
+    glowAnimationId = null
+  }
+
+  const startOpacity = material.opacity
+  const startTime = performance.now()
+  const duration = 300
+
+  glowAnimationState = {
+    targetMesh: glowMesh,
+    targetOpacity,
+    startTime,
+    duration
+  }
+
+  function step() {
+    if (!glowAnimationState) return
+
+    const elapsed = performance.now() - glowAnimationState.startTime
+    const t = Math.min(elapsed / glowAnimationState.duration, 1)
+    const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
+
+    const mat = glowAnimationState.targetMesh!.material as THREE.MeshBasicMaterial
+    mat.opacity = startOpacity + (glowAnimationState.targetOpacity - startOpacity) * eased
+
+    if (t < 1) {
+      glowAnimationId = requestAnimationFrame(step)
+    } else {
+      mat.opacity = glowAnimationState.targetOpacity
+      glowAnimationId = null
+      glowAnimationState = null
+      updateGlowGroupVisibility(group)
+    }
+  }
+
+  glowAnimationId = requestAnimationFrame(step)
+}
+
+function updateGlowGroupVisibility(group: MoleculeGroup): void {
+  let hasVisible = false
+  group.glowMeshes.forEach((mesh) => {
+    const mat = mesh.material as THREE.MeshBasicMaterial
+    if (mat.opacity > 0.01) {
+      hasVisible = true
+    }
+  })
+  group.glowGroup.visible = hasVisible
+}
+
+export function clearAllHighlights(group: MoleculeGroup): void {
+  if (glowAnimationId !== null) {
+    cancelAnimationFrame(glowAnimationId)
+    glowAnimationId = null
+    glowAnimationState = null
+  }
+
+  group.glowMeshes.forEach((mesh) => {
+    const mat = mesh.material as THREE.MeshBasicMaterial
+    mat.opacity = 0
+  })
+  group.glowGroup.visible = false
 }

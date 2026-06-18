@@ -53,6 +53,13 @@ class MoleculeVueApp {
     this.animate()
 
     this.centerCamera()
+
+    if (this.interactionManager) {
+      this.interactionManager.setInitialView(
+        this.camera.position.clone(),
+        this.controls.target.clone()
+      )
+    }
   }
 
   private setupLights(): void {
@@ -67,6 +74,7 @@ class MoleculeVueApp {
     const moleculeRoot = new THREE.Group()
     moleculeRoot.add(this.moleculeGroup.atomGroup)
     moleculeRoot.add(this.moleculeGroup.bondGroup)
+    moleculeRoot.add(this.moleculeGroup.glowGroup)
 
     const box = new THREE.Box3().setFromObject(moleculeRoot)
     const center = new THREE.Vector3()
@@ -76,6 +84,7 @@ class MoleculeVueApp {
     this.scene.add(moleculeRoot)
     this.moleculeGroup.atomGroup = moleculeRoot.children[0] as THREE.Group
     this.moleculeGroup.bondGroup = moleculeRoot.children[1] as THREE.Group
+    this.moleculeGroup.glowGroup = moleculeRoot.children[2] as THREE.Group
 
     const atomMeshes: THREE.Mesh[] = []
     this.moleculeGroup.atomGroup.traverse((child) => {
@@ -84,6 +93,14 @@ class MoleculeVueApp {
       }
     })
     this.moleculeGroup.atomMeshes = atomMeshes
+
+    const glowMeshes: THREE.Mesh[] = []
+    this.moleculeGroup.glowGroup.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        glowMeshes.push(child)
+      }
+    })
+    this.moleculeGroup.glowMeshes = glowMeshes
 
     const atomsData = molecule.atoms.map((atom: AtomData) => ({
       element: atom.element,
@@ -100,6 +117,7 @@ class MoleculeVueApp {
       this.controls,
       molecule.bonds,
       atomsData,
+      this.moleculeGroup,
       {
         onAtomHover: (info) => this.onAtomHover(info),
         onAtomClick: (info) => this.onAtomClick(info)
@@ -200,11 +218,34 @@ class MoleculeVueApp {
       </div>
     `
 
+    const cardWidth = 260
+    const cardHeight = 240
+    const margin = 20
+
+    let posX = info.screenX + 30
+    let posY = info.screenY - cardHeight / 2
+
+    if (posX + cardWidth + margin > window.innerWidth) {
+      posX = info.screenX - cardWidth - 30
+    }
+    if (posX < margin) {
+      posX = margin
+    }
+    if (posX + cardWidth > window.innerWidth - margin) {
+      posX = window.innerWidth - cardWidth - margin
+    }
+    if (posY < margin) {
+      posY = margin
+    }
+    if (posY + cardHeight > window.innerHeight - margin) {
+      posY = window.innerHeight - cardHeight - margin
+    }
+
     card.style.cssText = `
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) scale(0.9);
+      left: ${posX}px;
+      top: ${posY}px;
+      width: ${cardWidth}px;
       background: rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
@@ -212,10 +253,11 @@ class MoleculeVueApp {
       padding: 20px;
       color: white;
       z-index: 2000;
-      min-width: 220px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
       border: 1px solid rgba(255, 255, 255, 0.15);
       opacity: 0;
+      transform: scale(0.9);
+      transform-origin: ${info.screenX < window.innerWidth / 2 ? 'left' : 'right'} center;
       transition: opacity 0.3s ease, transform 0.3s ease;
       pointer-events: none;
     `
@@ -225,7 +267,7 @@ class MoleculeVueApp {
 
     requestAnimationFrame(() => {
       card.style.opacity = '1'
-      card.style.transform = 'translate(-50%, -50%) scale(1)'
+      card.style.transform = 'scale(1)'
     })
 
     this.infoCardTimer = window.setTimeout(() => {
@@ -236,7 +278,7 @@ class MoleculeVueApp {
   private hideInfoCard(): void {
     if (this.infoCard) {
       this.infoCard.style.opacity = '0'
-      this.infoCard.style.transform = 'translate(-50%, -50%) scale(0.9)'
+      this.infoCard.style.transform = 'scale(0.9)'
       const card = this.infoCard
       setTimeout(() => {
         if (card && card.parentNode) {
@@ -276,8 +318,9 @@ class MoleculeVueApp {
   }
 
   private resetView(): void {
-    this.centerCamera()
-    this.controls.reset()
+    if (this.interactionManager) {
+      this.interactionManager.resetView()
+    }
   }
 
   private animate(): void {
