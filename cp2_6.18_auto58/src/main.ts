@@ -4,7 +4,8 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { createGallery } from './gallery'
-import type { ArtworkPlacement } from './gallery'
+import type { ArtworkPlacement, ArtworkInfo } from './gallery'
+import { generateHighResDataUrl, applyPulse } from './artwork'
 
 let scene: THREE.Scene
 let camera: THREE.PerspectiveCamera
@@ -20,6 +21,7 @@ let useBloom = false
 let modalActive = false
 
 const clock = new THREE.Clock()
+const highResCache = new Map<string, string>()
 
 function init() {
   const container = document.getElementById('app')!
@@ -42,6 +44,7 @@ function init() {
   renderer.shadowMap.enabled = false
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.4
+  renderer.outputColorSpace = THREE.SRGBColorSpace
   container.appendChild(renderer.domElement)
 
   controls = new OrbitControls(camera, renderer.domElement)
@@ -71,7 +74,7 @@ function init() {
   dirLight.position.set(5, 8, 5)
   scene.add(dirLight)
 
-  const { galleryGroup, artworks: _artworks } = createGallery()
+  const { galleryGroup, artworks: _artworks } = createGallery(scene, renderer)
   scene.add(galleryGroup)
   artworks = _artworks
 
@@ -151,13 +154,24 @@ function onClick(event: MouseEvent) {
       target = target.parent
     }
     if (target && target.userData) {
-      const data = target.userData as { info?: { title: string; description: string }; dataUrl?: string }
-      if (data.info && data.dataUrl) {
+      const info = target.userData.info as ArtworkInfo | undefined
+      if (info) {
         triggerBloom(1500)
-        openModal(data.info.title, data.info.description, data.dataUrl)
+        const dataUrl = getHighResCached(info)
+        openModal(info.title, info.description, dataUrl)
       }
     }
   }
+}
+
+function getHighResCached(info: ArtworkInfo): string {
+  const key = info.title
+  if (highResCache.has(key)) {
+    return highResCache.get(key)!
+  }
+  const url = generateHighResDataUrl(info)
+  highResCache.set(key, url)
+  return url
 }
 
 function collectPaintingMeshes(group: THREE.Object3D, out: THREE.Object3D[]) {
@@ -196,15 +210,7 @@ function closeModal() {
 
 function updateArtworksPulse(time: number) {
   artworks.forEach((art) => {
-    const t = (time / art.pulsePeriod + art.pulsePhase) * Math.PI * 2
-    const pulse = 1 + Math.sin(t) * 0.025
-    art.group.scale.setScalar(pulse)
-    if (art.group.userData.painting && art.group.userData.painting.material) {
-      const mat = art.group.userData.painting.material as THREE.MeshStandardMaterial
-      if (mat.emissiveIntensity !== undefined) {
-        mat.emissiveIntensity = Math.max(0, Math.sin(t) * 0.04)
-      }
-    }
+    applyPulse(art.group, time, art.pulsePeriod, art.pulsePhase)
   })
 }
 

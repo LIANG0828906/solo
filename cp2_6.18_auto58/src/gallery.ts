@@ -11,6 +11,8 @@ export interface ArtworkPlacement {
 export interface GalleryScene {
   galleryGroup: THREE.Group
   artworks: ArtworkPlacement[]
+  floorEnvMap: THREE.CubeTexture | null
+  reflectiveGroup: THREE.Object3D
 }
 
 const GALLERY_W = 16
@@ -40,26 +42,12 @@ function makeWallTexture(): THREE.CanvasTexture {
   return tex
 }
 
-export function createGallery(): GalleryScene {
+export function createGallery(
+  scene: THREE.Scene,
+  renderer: THREE.WebGLRenderer
+): GalleryScene {
   const galleryGroup = new THREE.Group()
-
-  const floorGeom = new THREE.PlaneGeometry(GALLERY_W, GALLERY_D)
-  const floorMat = new THREE.MeshPhysicalMaterial({
-    color: 0x2d2d44,
-    transparent: true,
-    opacity: 0.92,
-    roughness: 0.3,
-    metalness: 0.1,
-    transmission: 0.08,
-    thickness: 0.5,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.6,
-  })
-  const floor = new THREE.Mesh(floorGeom, floorMat)
-  floor.rotation.x = -Math.PI / 2
-  floor.position.y = 0
-  floor.receiveShadow = true
-  galleryGroup.add(floor)
+  const reflectiveGroup = new THREE.Group()
 
   const wallTex = makeWallTexture()
   const wallMat = new THREE.MeshStandardMaterial({
@@ -76,6 +64,7 @@ export function createGallery(): GalleryScene {
   )
   backWall.position.set(0, GALLERY_H / 2, -GALLERY_D / 2)
   backWall.receiveShadow = true
+  reflectiveGroup.add(backWall)
   galleryGroup.add(backWall)
 
   const frontWall = new THREE.Mesh(
@@ -83,6 +72,7 @@ export function createGallery(): GalleryScene {
     wallMat
   )
   frontWall.position.set(0, GALLERY_H / 2, GALLERY_D / 2)
+  reflectiveGroup.add(frontWall)
   galleryGroup.add(frontWall)
 
   const leftWall = new THREE.Mesh(
@@ -92,6 +82,7 @@ export function createGallery(): GalleryScene {
   leftWall.rotation.y = Math.PI / 2
   leftWall.position.set(-GALLERY_W / 2, GALLERY_H / 2, 0)
   leftWall.receiveShadow = true
+  reflectiveGroup.add(leftWall)
   galleryGroup.add(leftWall)
 
   const rightWall = new THREE.Mesh(
@@ -101,6 +92,7 @@ export function createGallery(): GalleryScene {
   rightWall.rotation.y = -Math.PI / 2
   rightWall.position.set(GALLERY_W / 2, GALLERY_H / 2, 0)
   rightWall.receiveShadow = true
+  reflectiveGroup.add(rightWall)
   galleryGroup.add(rightWall)
 
   const ceilingMat = new THREE.MeshStandardMaterial({
@@ -114,6 +106,7 @@ export function createGallery(): GalleryScene {
   )
   ceiling.rotation.x = Math.PI / 2
   ceiling.position.y = GALLERY_H
+  reflectiveGroup.add(ceiling)
   galleryGroup.add(ceiling)
 
   const ceilingLightPositions = [
@@ -137,6 +130,7 @@ export function createGallery(): GalleryScene {
       })
     )
     fixture.position.set(pos.x, GALLERY_H - 0.025, pos.z)
+    reflectiveGroup.add(fixture)
     galleryGroup.add(fixture)
   })
 
@@ -161,6 +155,7 @@ export function createGallery(): GalleryScene {
       })
     )
     column.position.set(pos.x, 0.5, pos.z)
+    reflectiveGroup.add(column)
     galleryGroup.add(column)
   })
 
@@ -203,9 +198,61 @@ export function createGallery(): GalleryScene {
     const { group, pulsePeriod, pulsePhase } = createArtworkMesh(layout.info)
     group.position.set(layout.pos.x, layout.pos.y, layout.pos.z)
     group.rotation.y = layout.rotY
+    reflectiveGroup.add(group)
     galleryGroup.add(group)
     artworks.push({ info: layout.info, group, pulsePeriod, pulsePhase })
   })
 
-  return { galleryGroup, artworks }
+  let floorEnvMap: THREE.CubeTexture | null = null
+  try {
+    const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256, {
+      format: THREE.RGBAFormat,
+      generateMipmaps: true,
+      minFilter: THREE.LinearMipmapLinearFilter,
+      colorSpace: THREE.SRGBColorSpace,
+    })
+    const cubeCamera = new THREE.CubeCamera(0.1, 100, cubeRenderTarget)
+    cubeCamera.position.set(0, 0.001, 0)
+
+    const tempFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(GALLERY_W, GALLERY_D),
+      new THREE.MeshBasicMaterial({ color: 0x000000 })
+    )
+    tempFloor.rotation.x = -Math.PI / 2
+    tempFloor.position.y = 0
+    tempFloor.visible = false
+    scene.add(tempFloor)
+
+    scene.add(reflectiveGroup)
+    cubeCamera.update(renderer, scene)
+    scene.remove(reflectiveGroup)
+    scene.remove(tempFloor)
+
+    floorEnvMap = cubeRenderTarget.texture
+  } catch (e) {
+    console.warn('Could not bake floor environment map:', e)
+  }
+
+  const floorGeom = new THREE.PlaneGeometry(GALLERY_W, GALLERY_D)
+  const floorMat = new THREE.MeshPhysicalMaterial({
+    color: 0x2d2d44,
+    transparent: true,
+    opacity: 0.92,
+    roughness: 0.28,
+    metalness: 0.15,
+    transmission: 0.08,
+    thickness: 0.5,
+    clearcoat: 0.45,
+    clearcoatRoughness: 0.45,
+    envMap: floorEnvMap,
+    envMapIntensity: 0.55,
+    reflectivity: 0.35,
+  })
+  const floor = new THREE.Mesh(floorGeom, floorMat)
+  floor.rotation.x = -Math.PI / 2
+  floor.position.y = 0
+  floor.receiveShadow = true
+  galleryGroup.add(floor)
+
+  return { galleryGroup, artworks, floorEnvMap, reflectiveGroup }
 }
