@@ -62,28 +62,39 @@ export const clearSearchHistory = (): void => {
 
 export const createRipple = (
   event: React.MouseEvent<HTMLElement>,
-  color: string = 'rgba(255, 255, 255, 0.4)'
+  color: string = 'rgba(255, 255, 255, 0.5)'
 ): void => {
   const button = event.currentTarget;
   const rect = button.getBoundingClientRect();
-  const size = Math.max(rect.width, rect.height);
+  const size = Math.max(rect.width, rect.height) * 2;
   const x = event.clientX - rect.left - size / 2;
   const y = event.clientY - rect.top - size / 2;
 
-  const ripple = document.createElement('span');
-  ripple.style.position = 'absolute';
-  ripple.style.width = ripple.style.height = `${size}px`;
-  ripple.style.left = `${x}px`;
-  ripple.style.top = `${y}px`;
-  ripple.style.background = color;
-  ripple.style.borderRadius = '50%';
-  ripple.style.transform = 'scale(0)';
-  ripple.style.animation = 'ripple 0.4s ease-out';
-  ripple.style.pointerEvents = 'none';
+  const existingRipples = button.querySelectorAll('.ripple-effect');
+  existingRipples.forEach((r) => r.remove());
 
-  button.style.position = 'relative';
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple-effect';
+  ripple.style.cssText = `
+    position: absolute;
+    width: ${size}px;
+    height: ${size}px;
+    left: ${x}px;
+    top: ${y}px;
+    background: ${color};
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple 0.4s ease-out forwards;
+    pointer-events: none;
+    z-index: 1;
+  `;
+
+  if (getComputedStyle(button).position === 'static') {
+    button.style.position = 'relative';
+  }
   button.style.overflow = 'hidden';
+
   button.appendChild(ripple);
 
-  setTimeout(() => ripple.remove(), 400);
+  setTimeout(() => ripple.remove(), 450);
 };

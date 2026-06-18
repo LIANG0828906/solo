@@ -205,7 +205,7 @@ export const CartPage = () => {
                   type="button"
                   onClick={handleSubmitClick}
                   disabled={isSubmitting}
-                  className="w-full py-3 bg-primary text-white font-medium rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-[0.98]"
+                  className="w-full py-3 bg-primary text-white font-medium rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-[0.98] relative overflow-hidden"
                 >
                   {isSubmitting ? '提交中...' : '提交订单'}
                 </button>

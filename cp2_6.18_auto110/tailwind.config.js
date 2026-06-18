@@ -23,7 +23,7 @@ export default {
       keyframes: {
         bounceNumber: {
           '0%, 100%': { transform: 'scale(1)' },
-          '50%': { transform: 'scale(1.2)' },
+          '50%': { transform: 'scale(1.3)' },
         },
         slideInRight: {
           '0%': { transform: 'translateX(100%)', opacity: '0' },
@@ -33,11 +33,16 @@ export default {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
+        ripple: {
+          '0%': { transform: 'scale(0)', opacity: '1' },
+          '100%': { transform: 'scale(4)', opacity: '0' },
+        },
       },
       animation: {
         bounceNumber: 'bounceNumber 0.2s ease-in-out',
         slideInRight: 'slideInRight 0.3s ease-out',
         fadeIn: 'fadeIn 0.3s ease-out',
+        ripple: 'ripple 0.4s ease-out forwards',
       },
     },
   },

@@ -3,9 +3,22 @@
 @tailwind utilities;
 
 @keyframes ripple {
-  to {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
     transform: scale(4);
     opacity: 0;
+  }
+}
+
+@keyframes bounceNumber {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
   }
 }
 

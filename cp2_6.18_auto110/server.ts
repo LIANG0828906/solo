@@ -184,6 +184,23 @@ let books: Book[] = [
 let orders: Order[] = [
   {
     id: uuidv4(),
+    orderNo: 'ORD2026061815300004',
+    items: [
+      {
+        bookId: books[4].id,
+        book: books[4],
+        quantity: 1,
+      },
+    ],
+    totalAmount: 29.80,
+    status: 'pending',
+    customerName: '赵六',
+    customerPhone: '13600136000',
+    customerAddress: '深圳市南山区某某科技园A栋',
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: uuidv4(),
     orderNo: 'ORD2026061810300001',
     items: [
       {

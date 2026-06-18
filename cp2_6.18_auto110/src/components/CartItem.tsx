@@ -59,23 +59,24 @@ export const CartItem = ({ item }: CartItemProps) => {
           <button
             onClick={(e) => handleQuantityChange(e, -1)}
             disabled={item.quantity <= 1}
-            className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 relative overflow-hidden"
           >
             <Minus className="w-4 h-4 text-gray-600" />
           </button>
           <span
             key={item.quantity}
-            className={`w-8 text-center font-medium inline-block ${
-              quantityAnimating ? 'animate-bounceNumber' : ''
-            }`}
-            style={{ transformOrigin: 'center' }}
+            className="w-8 text-center font-medium inline-block"
+            style={{
+              transformOrigin: 'center',
+              animation: quantityAnimating ? 'bounceNumber 0.2s ease-in-out' : 'none',
+            }}
           >
             {item.quantity}
           </span>
           <button
             onClick={(e) => handleQuantityChange(e, 1)}
             disabled={item.quantity >= item.book.stock}
-            className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 relative overflow-hidden"
           >
             <Plus className="w-4 h-4 text-gray-600" />
           </button>
@@ -87,7 +88,7 @@ export const CartItem = ({ item }: CartItemProps) => {
           </span>
           <button
             onClick={handleRemove}
-            className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors duration-200"
+            className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors duration-200 relative overflow-hidden"
             title="删除"
           >
             <Trash2 className="w-4 h-4" />
