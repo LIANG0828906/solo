@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>粒子化摄像头艺术</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0A0A0F;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    
+    #three-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    
+    #video-element {
+      position: absolute;
+      top: -9999px;
+      left: -9999px;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    
+    .permission-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 10, 15, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      flex-direction: column;
+      gap: 24px;
+    }
+    
+    .permission-title {
+      color: #4ECDC4;
+      font-size: 28px;
+      font-weight: 600;
+    }
+    
+    .permission-desc {
+      color: #8A8AAA;
+      font-size: 14px;
+      text-align: center;
+      max-width: 400px;
+      line-height: 1.6;
+    }
+    
+    .permission-btn {
+      padding: 14px 32px;
+      background: #4ECDC4;
+      color: #0A0A0F;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .permission-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(78, 205, 196, 0.3);
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="three-canvas"></canvas>
+    <video id="video-element" autoplay playsinline muted></video>
+    <div id="permission-overlay" class="permission-overlay">
+      <div class="permission-title">粒子化摄像头艺术</div>
+      <div class="permission-desc">
+        开启摄像头权限，体验实时粒子化视觉效果。<br/>
+        支持手势交互与多种视觉风格切换。
+      </div>
+      <button id="start-btn" class="permission-btn">开启摄像头</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
