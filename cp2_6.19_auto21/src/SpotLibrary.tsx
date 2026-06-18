@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Spot, SpotCategory, CATEGORY_COLORS, SPOTS, filterSpots } from './data';
-import { useRouteStore } from './store';
 
 const CATEGORIES: (SpotCategory | '全部')[] = ['全部', '景点', '餐厅', '博物馆'];
+
+const ALL_COLOR = '#6c757d';
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -202,26 +203,46 @@ export default function SpotLibrary({ onDragStart }: SpotLibraryProps) {
           onFocus={(e) => (e.currentTarget.style.borderColor = '#4a90d9')}
           onBlur={(e) => (e.currentTarget.style.borderColor = '#ddd')}
         />
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              style={{
-                padding: '4px 12px',
-                borderRadius: 14,
-                border: 'none',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                background: category === cat ? CATEGORY_COLORS[cat as SpotCategory] || '#555' : '#eee',
-                color: category === cat ? '#fff' : '#666',
-              }}
-            >
-              {cat}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+          {CATEGORIES.map((cat) => {
+            const isActive = category === cat;
+            const btnColor = cat === '全部' ? ALL_COLOR : CATEGORY_COLORS[cat as SpotCategory];
+            return (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: 16,
+                  border: isActive ? `2px solid ${btnColor}` : '2px solid transparent',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.25s ease',
+                  background: isActive ? btnColor : '#fff',
+                  color: isActive ? '#fff' : '#666',
+                  boxShadow: isActive 
+                    ? `0 2px 8px ${btnColor}40` 
+                    : '0 1px 3px rgba(0,0,0,0.06)',
+                  transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    (e.currentTarget as HTMLElement).style.borderColor = `${btnColor}80`;
+                    (e.currentTarget as HTMLElement).style.color = btnColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'transparent';
+                    (e.currentTarget as HTMLElement).style.color = '#666';
+                  }
+                }}
+              >
+                {cat === '全部' ? '◉ 全部' : (cat === '景点' ? '🏛 景点' : cat === '餐厅' ? '🍽 餐厅' : '🎨 博物馆')}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div
@@ -252,8 +273,27 @@ export default function SpotLibrary({ onDragStart }: SpotLibraryProps) {
           );
         })}
         {displayedSpots.length === 0 && (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#aaa', padding: 40, fontSize: 14 }}>
-            没有找到匹配的景点
+          <div style={{ 
+            gridColumn: '1 / -1', 
+            textAlign: 'center', 
+            color: '#999', 
+            padding: '50px 20px',
+            fontSize: 13,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+          }}>
+            <span style={{ fontSize: 36 }}>🔍</span>
+            <div style={{ fontWeight: 600, color: '#666', fontSize: 14 }}>
+              {keyword 
+                ? `在"${category}"类别下没有找到匹配"${keyword}"的景点` 
+                : `"${category}"类别下暂无景点`
+              }
+            </div>
+            <div style={{ fontSize: 12, color: '#bbb' }}>
+              {keyword ? '试试其他关键词或切换类别' : '请选择其他类别查看'}
+            </div>
           </div>
         )}
       </div>
