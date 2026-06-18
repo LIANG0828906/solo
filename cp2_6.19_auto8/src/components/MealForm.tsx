@@ -1,4 +1,51 @@
-import { useState, useCallback, useRef } from 'react';
+/**
+ * ============================================================
+ *  MealForm.tsx - 餐食输入表单组件
+ * ============================================================
+ * 
+ * 【职责】：
+ *  1. 接收用户输入：食物名称(下拉选择)、份量(克)、餐次选择
+ *  2. 表单验证：检查必填项和有效性
+ *  3. 调用营养计算工具，将计算结果通过回调传给App
+ *  4. 提交反馈：微震动 + 表单淡入动画 + 按钮涟漪效果
+ * 
+ * 【调用关系】：
+ *  ┌─────────────────────────────────────────────┐
+ *  │                MealForm.tsx                 │
+ *  │                                             │
+ *  │  输入来源                                    │
+ *  │  ├─ <select> foodName  (食物下拉)           │
+ *  │  ├─ <input>  grams     (份量数字)           │
+ *  │  └─ <select> mealType  (早餐/午餐/晚餐/加餐)│
+ *  │                    │                        │
+ *  │                    ▼  onSubmit              │
+ *  │           handleSubmit(e)                   │
+ *  │                    │                        │
+ *  │                    ▼  调用计算               │
+ *  │  calculateMealNutrients(formData)           │
+ *  │  from '../utils/calculateNutrients.ts'      │
+ *  │                    │                        │
+ *  │                    ▼  通过props回调          │
+ *  │         props.onAddMeal(result: MealEntry)  │
+ *  │                    │                        │
+ *  │                    ▼                        │
+ *  │              ↑ App.tsx ↑                    │
+ *  │         (更新 meals 状态)                    │
+ *  │                                             │
+ *  │  动画/反馈:                                  │
+ *  │  ├─ navigator.vibrate(50)  微震动           │
+ *  │  ├─ createRipple()  按钮涟漪                │
+ *  │  └─ form-fade-in  表单淡入动画              │
+ *  └─────────────────────────────────────────────┘
+ * 
+ * 【数据流向】：
+ *  用户UI交互 → 本地state → 提交时构造MealFormData
+ *    → 调用calculateMealNutrients → 获取MealEntry
+ *    → onAddMeal回调 → App全局状态
+ * ============================================================
+ */
+
+import { memo, useState, useCallback, useRef } from 'react';
 import type { MealEntry, MealFormData } from '../types';
 import { calculateMealNutrients, getFoodList } from '../utils/calculateNutrients';
 
@@ -63,8 +110,12 @@ function MealForm({ onAddMeal }: MealFormProps) {
 
     setIsSubmitting(true);
 
-    if (navigator.vibrate) {
-      navigator.vibrate(50);
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      try {
+        navigator.vibrate(50);
+      } catch {
+        // 忽略震动异常
+      }
     }
 
     onAddMeal(result);
@@ -80,10 +131,19 @@ function MealForm({ onAddMeal }: MealFormProps) {
     setIsSubmitting(false);
   }, [foodName, grams, mealType, onAddMeal]);
 
-  const handleFoodSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleFoodSelect = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setFoodName(e.target.value);
     setError('');
-  };
+  }, []);
+
+  const handleMealTypeSelect = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setMealType(e.target.value as MealFormData['mealType']);
+  }, []);
+
+  const handleGramsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setGrams(e.target.value);
+    setError('');
+  }, []);
 
   return (
     <form 
@@ -112,10 +172,7 @@ function MealForm({ onAddMeal }: MealFormProps) {
           id="grams"
           type="number"
           value={grams}
-          onChange={(e) => {
-            setGrams(e.target.value);
-            setError('');
-          }}
+          onChange={handleGramsChange}
           placeholder="例如: 100"
           min="1"
           step="1"
@@ -128,7 +185,7 @@ function MealForm({ onAddMeal }: MealFormProps) {
         <select
           id="mealType"
           value={mealType}
-          onChange={(e) => setMealType(e.target.value as MealFormData['mealType'])}
+          onChange={handleMealTypeSelect}
           disabled={isSubmitting}
         >
           <option value="breakfast">🌅 早餐</option>
@@ -157,4 +214,4 @@ function MealForm({ onAddMeal }: MealFormProps) {
   );
 }
 
-export default MealForm;
+export default memo(MealForm);

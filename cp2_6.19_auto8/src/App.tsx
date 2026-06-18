@@ -1,3 +1,50 @@
+/**
+ * ============================================================
+ *  App.tsx - 主应用组件
+ * ============================================================
+ * 
+ * 【职责】：
+ *  1. 全局状态管理：meals(餐食列表)、goals(营养目标)
+ *  2. 汇总计算：每日营养总量、达标状态
+ *  3. 页面布局：左侧表单区(40%) + 右侧图表+日志区(60%)
+ *  4. 事件分发：将回调传递给子组件
+ * 
+ * 【调用关系】：
+ *  ╔══════════════════════════════════════════════════╗
+ *  ║                    App.tsx                       ║
+ *  ║  ┌─────────────┐    ┌─────────────────────────┐  ║
+ *  ║  │ MealForm    │───▶│ onAddMeal(meal)         │  ║
+ *  ║  │ (输入餐食)  │    │ setMeals([meal, ...])   │  ║
+ *  ║  └─────────────┘    └────────────┬────────────┘  ║
+ *  ║                                   │               ║
+ *  ║  ┌──────────────┐   ┌────────────▼────────────┐  ║
+ *  ║  │ GoalSetting  │──▶│ onUpdateGoals(partial)  │  ║
+ *  ║  │ (设置目标)   │   │ setGoals(merge)         │  ║
+ *  ║  └──────────────┘   └────────────┬────────────┘  ║
+ *  ║                                   │               ║
+ *  ║                                   ▼               ║
+ *  ║  ┌────────────────────────────────────────────┐   ║
+ *  ║  │  useMemo: dailyTotal = calculateDailyTotal │   ║
+ *  ║  │  useMemo: goalStatus = compare(goals)      │   ║
+ *  ║  └─────────────┬──────────────────┬───────────┘   ║
+ *  ║                │                  │               ║
+ *  ║                ▼                  ▼               ║
+ *  ║  ┌───────────────┐   ┌──────────────────┐        ║
+ *  ║  │ NutrientChart │   │ MealLogList      │        ║
+ *  ║  │ (props传值)   │   │  ├─ meals[]       │        ║
+ *  ║  │  ├─ dailyTotal│   │  └─ onDeleteMeal │        ║
+ *  ║  │  ├─ goals     │   └──────────────────┘        ║
+ *  ║  │  └─ goalStatus│                               ║
+ *  ║  └───────────────┘                               ║
+ *  ╚══════════════════════════════════════════════════╝
+ * 
+ * 【数据流向】：
+ *  用户输入 → MealForm → calculateMealNutrients → App state
+ *    → calculateDailyTotal → dailyTotal + goalStatus
+ *    → 分别传给 NutrientChart / MealLogList 渲染
+ * ============================================================
+ */
+
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import type { MealEntry, NutritionGoals, DailyTotal, GoalStatus } from './types';
 import { calculateDailyTotal } from './utils/calculateNutrients';

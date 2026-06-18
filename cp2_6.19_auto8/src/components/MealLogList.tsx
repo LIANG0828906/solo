@@ -1,4 +1,45 @@
-import { useState, useCallback } from 'react';
+/**
+ * ============================================================
+ *  MealLogList.tsx - 餐食日志卡片列表组件
+ * ============================================================
+ * 
+ * 【职责】：
+ *  1. 以卡片列表形式展示当日所有餐食记录
+ *  2. 每张卡片：餐次图标 + 食物名称+份量 + 热量数值
+ *  3. 点击卡片：展开/收起详细营养素拆分(箭头旋转300ms)
+ *  4. 新卡片：从右侧滑入动画 + pulse高亮
+ *  5. 支持删除单条记录
+ * 
+ * 【调用关系】：
+ *  ┌──────────────────────────────────────────────────┐
+ *  │   App.tsx (父组件)                               │
+ *  │     │                                            │
+ *  │     ▼ 传入 props                                  │
+ *  │  ┌─ meals: MealEntry[] (含isNew标记)             │
+ *  │  └─ onDeleteMeal(mealId: string) 回调            │
+ *  │          │                                       │
+ *  │          ▼ useMemo / map 渲染                     │
+ *  │  遍历 meals → 每张 meal-card                     │
+ *  │    ├─ className: isNew → slideInRight + pulse    │
+ *  │    ├─ 点击展开 → 切换 expandedId state           │
+ *  │    │     └─ expand-arrow 旋转(0→180deg, 300ms)  │
+ *  │    │     └─ meal-details max-height 过渡         │
+ *  │    ├─ 删除按钮 → onDeleteMeal(e, mealId)         │
+ *  │    │     └─ e.stopPropagation() 防冒泡          │
+ *  │    └─ 图标/标签 → 调用工具函数                   │
+ *  │         ├─ getMealTypeIcon(type)  🌅☀️🌙🍎       │
+ *  │         └─ getMealTypeLabel(type) 早/午/晚/加   │
+ *  │                  from '../utils/calculateNutrients'│
+ *  └──────────────────────────────────────────────────┘
+ * 
+ * 【数据流向】：
+ *  App props meals[] → 本地 expandedId 状态
+ *    → 过滤/展开判断 → 渲染 meal-card 列表
+ *    → 详情展开显示 4 项营养素网格(热量/蛋白质/脂肪/碳水)
+ * ============================================================
+ */
+
+import { memo, useState, useCallback } from 'react';
 import type { MealEntry } from '../types';
 import { getMealTypeLabel, getMealTypeIcon } from '../utils/calculateNutrients';
 
@@ -18,6 +59,24 @@ function MealLogList({ meals, onDeleteMeal }: MealLogListProps) {
     e.stopPropagation();
     onDeleteMeal(mealId);
   }, [onDeleteMeal]);
+
+  const createRipple = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    const button = e.currentTarget;
+    const ripple = document.createElement('span');
+    const rect = button.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top - size / 2;
+    
+    ripple.style.width = ripple.style.height = `${size}px`;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    ripple.className = 'ripple';
+    ripple.style.background = 'rgba(244, 67, 54, 0.3)';
+    
+    button.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+  }, []);
 
   if (meals.length === 0) {
     return (
@@ -58,7 +117,7 @@ function MealLogList({ meals, onDeleteMeal }: MealLogListProps) {
               </span>
               <button
                 className="delete-btn"
-                onClick={(e) => handleDelete(e, meal.id)}
+                onClick={(e) => { handleDelete(e, meal.id); createRipple(e); }}
                 title="删除记录"
               >
                 ×
@@ -92,4 +151,4 @@ function MealLogList({ meals, onDeleteMeal }: MealLogListProps) {
   );
 }
 
-export default MealLogList;
+export default memo(MealLogList);
