@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useBookingStore, Booking } from '../store/bookingStore';
+import ResourceTimeline from '../components/ResourceTimeline';
 
 const BookingCard = memo(({ booking }: { booking: Booking }) => {
   const formatDate = (dateStr: string) => {
@@ -215,6 +216,8 @@ function BookingPage() {
           </button>
         </div>
       </form>
+
+      <ResourceTimeline bookings={bookings} />
 
       <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px' }}>当前预订</h2>
       {bookings.length === 0 ? (
