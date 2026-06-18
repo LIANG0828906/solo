@@ -56,95 +56,326 @@ interface SimilarPanelProps {
   markingDuplicate: boolean;
 }
 
-function SimilarPanel({ similarIssues, onJump, onMarkDuplicate, markingDuplicate }: SimilarPanelProps) {
-  if (similarIssues.length === 0) return null;
+function AnimatedPercent({ value }: { value: number }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    setDisplay(0);
+    const duration = 300;
+    const startTime = Date.now();
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(eased * value);
+      setDisplay(current);
+      if (progress >= 1) {
+        clearInterval(timer);
+      }
+    }, 16);
+    return () => clearInterval(timer);
+  }, [value]);
+  return <>{display}%</>;
+}
+
+function SimilarItem({
+  item,
+  onJump,
+}: {
+  item: SimilarIssue;
+  onJump: (id: string) => void;
+}) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const itemRef = useRef<HTMLDivElement>(null);
+  const simPercent = Math.round(item.similarity * 100);
+  const simColor = item.similarity > 0.8 ? '#EF4444' : '#F97316';
+  const summary = item.description.length > 80 ? item.description.substring(0, 80) + '...' : item.description;
 
   return (
     <div
+      ref={itemRef}
+      onClick={() => onJump(item.id)}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
       style={{
-        background: '#FEF2F2',
-        borderRadius: '8px',
-        border: '1px solid #FECACA',
-        padding: '16px',
-        marginTop: '24px',
+        position: 'relative',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '10px 12px',
+        background: '#fff',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        transition: 'background 0.2s ease',
       }}
+      onMouseOver={(e) => { (e.currentTarget as HTMLElement).style.background = '#FEF2F2'; }}
+      onMouseOut={(e) => { (e.currentTarget as HTMLElement).style.background = '#fff'; }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <div style={{ fontSize: '14px', fontWeight: 600, color: '#991B1B' }}>
-          可能重复的 Issue（{similarIssues.length}）
-        </div>
-        <button
-          onClick={onMarkDuplicate}
-          disabled={markingDuplicate}
+      <span style={{
+        fontSize: '13px',
+        color: '#1E293B',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        flex: 1,
+        marginRight: '12px',
+      }}>
+        {item.title}
+      </span>
+      <span style={{
+        fontSize: '12px',
+        fontWeight: 600,
+        color: simColor,
+        flexShrink: 0,
+        minWidth: '42px',
+        textAlign: 'right',
+      }}>
+        <AnimatedPercent value={simPercent} />
+      </span>
+      {showTooltip && (
+        <div
           style={{
-            padding: '6px 14px',
-            background: markingDuplicate ? '#A5B4FC' : '#EF4444',
-            color: '#fff',
-            borderRadius: '6px',
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: 'calc(100% + 6px)',
+            background: '#1E293B',
+            color: '#F8FAFC',
+            padding: '10px 12px',
+            borderRadius: '8px',
             fontSize: '12px',
-            fontWeight: 500,
-            transition: 'background 0.2s ease',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: markingDuplicate ? 'not-allowed' : 'pointer',
-          }}
-          onMouseEnter={(e) => {
-            if (!markingDuplicate) (e.currentTarget as HTMLButtonElement).style.background = '#DC2626';
-          }}
-          onMouseLeave={(e) => {
-            if (!markingDuplicate) (e.currentTarget as HTMLButtonElement).style.background = '#EF4444';
+            lineHeight: '1.5',
+            zIndex: 20,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            animation: 'fadeIn 0.2s ease',
+            pointerEvents: 'none',
           }}
         >
-          {markingDuplicate && <Spinner size={14} />}
-          标记为重复
-        </button>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {similarIssues.map(item => {
-          const simPercent = Math.round(item.similarity * 100);
-          const simColor = item.similarity > 0.8 ? '#EF4444' : '#F97316';
-          return (
-            <div
-              key={item.id}
-              onClick={() => onJump(item.id)}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '10px 12px',
-                background: '#fff',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                transition: 'background 0.2s ease',
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#FEF2F2'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#fff'; }}
-            >
-              <span style={{
-                fontSize: '13px',
-                color: '#1E293B',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                flex: 1,
-                marginRight: '12px',
-              }}>
-                {item.title}
-              </span>
-              <span style={{
-                fontSize: '12px',
-                fontWeight: 600,
-                color: simColor,
-                flexShrink: 0,
-              }}>
-                {simPercent}%
-              </span>
-            </div>
-          );
-        })}
-      </div>
+          <div style={{ fontSize: '11px', opacity: 0.7, marginBottom: '4px' }}>描述预览</div>
+          <div>{summary}</div>
+          <div style={{
+            position: 'absolute',
+            top: '-6px',
+            left: '20px',
+            width: 0,
+            height: 0,
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderBottom: '6px solid #1E293B',
+          }} />
+        </div>
+      )}
     </div>
+  );
+}
+
+function ConfirmDialog({
+  visible,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  visible: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+  loading: boolean;
+}) {
+  if (!visible) return null;
+
+  return (
+    <>
+      <div
+        onClick={onCancel}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.35)',
+          zIndex: 200,
+          animation: 'fadeIn 0.2s ease',
+        }}
+      />
+      <div
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: '#fff',
+          borderRadius: '12px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          padding: '24px',
+          width: '360px',
+          maxWidth: '90vw',
+          zIndex: 201,
+          animation: 'fadeIn 0.2s ease',
+        }}
+      >
+        <div style={{ fontSize: '16px', fontWeight: 600, color: '#1E293B', marginBottom: '10px' }}>
+          标记为重复
+        </div>
+        <div style={{ fontSize: '14px', color: '#64748B', lineHeight: '1.6', marginBottom: '20px' }}>
+          确定将此Issue标记为重复吗？标记后状态将变为已完成。
+        </div>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            style={{
+              padding: '8px 18px',
+              background: '#F1F5F9',
+              color: '#475569',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 500,
+              transition: 'background 0.2s ease',
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#E2E8F0';
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#F1F5F9';
+            }}
+          >
+            取消
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            style={{
+              padding: '8px 18px',
+              background: loading ? '#A5B4FC' : '#EF4444',
+              color: '#fff',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 500,
+              transition: 'background 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#DC2626';
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) (e.currentTarget as HTMLButtonElement).style.background = '#EF4444';
+            }}
+          >
+            {loading && <Spinner size={14} />}
+            确认
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+type SortMode = 'similarity' | 'time';
+
+function SimilarPanel({ similarIssues, onJump, onMarkDuplicate, markingDuplicate }: SimilarPanelProps) {
+  const [sortMode, setSortMode] = useState<SortMode>('similarity');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  if (similarIssues.length === 0) return null;
+
+  const sorted = [...similarIssues].sort((a, b) => {
+    if (sortMode === 'time') {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+    return b.similarity - a.similarity;
+  });
+
+  const toggleSort = () => {
+    setSortMode(prev => prev === 'similarity' ? 'time' : 'similarity');
+  };
+
+  const handleConfirmMark = () => {
+    setShowConfirm(false);
+    onMarkDuplicate();
+  };
+
+  return (
+    <>
+      <div
+        style={{
+          background: '#FEF2F2',
+          borderRadius: '8px',
+          border: '1px solid #FECACA',
+          padding: '16px',
+          marginTop: '24px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: '#991B1B' }}>
+              可能重复的 Issue（{similarIssues.length}）
+            </div>
+            <button
+              onClick={toggleSort}
+              style={{
+                padding: '4px 10px',
+                background: '#fff',
+                border: '1px solid #FECACA',
+                color: '#991B1B',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = '#FEE2E2';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = '#fff';
+              }}
+            >
+              {sortMode === 'similarity' ? '📊 按相似度' : '🕒 按时间'}
+            </button>
+          </div>
+          <button
+            onClick={() => setShowConfirm(true)}
+            disabled={markingDuplicate}
+            style={{
+              padding: '6px 14px',
+              background: markingDuplicate ? '#A5B4FC' : '#EF4444',
+              color: '#fff',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 500,
+              transition: 'background 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: markingDuplicate ? 'not-allowed' : 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              if (!markingDuplicate) (e.currentTarget as HTMLButtonElement).style.background = '#DC2626';
+            }}
+            onMouseLeave={(e) => {
+              if (!markingDuplicate) (e.currentTarget as HTMLButtonElement).style.background = '#EF4444';
+            }}
+          >
+            {markingDuplicate && <Spinner size={14} />}
+            标记为重复
+          </button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {sorted.map(item => (
+            <SimilarItem key={item.id} item={item} onJump={onJump} />
+          ))}
+        </div>
+      </div>
+      <ConfirmDialog
+        visible={showConfirm}
+        loading={markingDuplicate}
+        onConfirm={handleConfirmMark}
+        onCancel={() => setShowConfirm(false)}
+      />
+    </>
   );
 }
 

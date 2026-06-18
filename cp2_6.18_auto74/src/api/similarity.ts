@@ -7,6 +7,8 @@ export interface IssueLike {
 export interface SimilarIssue {
   id: string;
   title: string;
+  description: string;
+  createdAt: string;
   similarity: number;
 }
 
@@ -65,9 +67,13 @@ function diceCoefficient(a: Set<string>, b: Set<string>): number {
   return (2 * inter) / total;
 }
 
+interface FullIssueLike extends IssueLike {
+  createdAt?: string;
+}
+
 export function calculateSimilarity(
   newIssue: IssueLike,
-  issues: IssueLike[],
+  issues: FullIssueLike[],
   threshold: number = 0.25
 ): SimilarIssue[] {
   const textA = `${newIssue.title} ${newIssue.description}`;
@@ -83,6 +89,8 @@ export function calculateSimilarity(
       results.push({
         id: issue.id,
         title: issue.title,
+        description: issue.description,
+        createdAt: issue.createdAt || '',
         similarity: sim,
       });
     }
