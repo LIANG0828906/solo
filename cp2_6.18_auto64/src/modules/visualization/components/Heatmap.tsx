@@ -34,7 +34,6 @@ const Heatmap: React.FC<HeatmapProps> = ({
     const start = new Date(startDate)
     const startWeekday = start.getDay()
 
-    const totalCells = Math.ceil((startWeekday + Math.min(durationDays, 84)) / 7) * 7
     const weeksArr: WeekCell[][] = []
     let currentWeek: WeekCell[] = []
 

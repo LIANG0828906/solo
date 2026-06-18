@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { useChallengeStore } from '../../../store/challengeStore'
+import { useChallengeStore, Member } from '../../../store/challengeStore'
 import Heatmap from '../../visualization/components/Heatmap'
 import RingProgress from '../../visualization/components/RingProgress'
 
@@ -11,6 +11,11 @@ interface MemberRanking {
   checkInCount: number
   completionRate: number
   rank: number
+}
+
+interface ActiveMember {
+  member: Member
+  recentCount: number
 }
 
 const ChallengeDetail: React.FC = () => {
@@ -53,6 +58,28 @@ const ChallengeDetail: React.FC = () => {
   const totalCheckIns = useMemo(() => {
     if (!challenge) return 0
     return challenge.checkIns.filter(c => c.completionAmount > 0).length
+  }, [challenge])
+
+  const activeMembers = useMemo((): ActiveMember[] => {
+    if (!challenge) return []
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const sevenDaysAgo = new Date(today)
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+
+    const result: ActiveMember[] = challenge.members.map(member => {
+      const count = challenge!.checkIns.filter(c => {
+        if (c.memberId !== member.id || c.completionAmount <= 0) return false
+        const d = new Date(c.date)
+        d.setHours(0, 0, 0, 0)
+        return d >= sevenDaysAgo && d <= today
+      }).length
+      return { member, recentCount: count }
+    })
+
+    result.sort((a, b) => b.recentCount - a.recentCount)
+    return result.slice(0, 3)
   }, [challenge])
 
   const getRankStyle = (rank: number) => {
@@ -98,7 +125,7 @@ const ChallengeDetail: React.FC = () => {
           >
             {challenge.name}
           </h1>
-          <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap', marginBottom: '20px' }}>
             <div>
               <div style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '4px' }}>
                 进行天数
@@ -131,6 +158,82 @@ const ChallengeDetail: React.FC = () => {
                   {' '}人
                 </span>
               </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: '14px 16px',
+              background: 'rgba(59, 130, 246, 0.1)',
+              borderRadius: '12px',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '12px',
+                color: '#60A5FA',
+                fontWeight: '500',
+                marginBottom: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>⚡</span> 活跃成员（最近7天）
+            </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              {activeMembers.length === 0 ? (
+                <div style={{ fontSize: '13px', color: '#64748B' }}>暂无打卡数据</div>
+              ) : (
+                activeMembers.map(({ member, recentCount }) => (
+                  <div
+                    key={member.id}
+                    onClick={() => setSelectedMember(member.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      cursor: 'pointer',
+                      padding: '4px 8px',
+                      borderRadius: '8px',
+                      transition: 'background 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        background: member.avatar,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff',
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {member.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', color: '#fff', whiteSpace: 'nowrap' }}>
+                        {member.name}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#4ADE80' }}>
+                        {recentCount} 次打卡
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -262,12 +365,41 @@ const ChallengeDetail: React.FC = () => {
 
                 <div
                   style={{
-                    fontSize: '20px',
-                    fontWeight: 'bold',
-                    color: member.rank <= 3 ? rankStyle.bg : '#94A3B8',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: '6px',
                   }}
                 >
-                  #{member.rank}
+                  <div
+                    style={{
+                      fontSize: '20px',
+                      fontWeight: 'bold',
+                      color: member.rank <= 3 ? rankStyle.bg : '#94A3B8',
+                      lineHeight: 1,
+                    }}
+                  >
+                    #{member.rank}
+                  </div>
+                  <div
+                    style={{
+                      width: '60px',
+                      height: '6px',
+                      background: '#E2E8F0',
+                      borderRadius: '3px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${member.completionRate}%`,
+                        height: '100%',
+                        background: '#22C55E',
+                        borderRadius: '3px',
+                        transition: 'width 0.3s ease',
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             )
