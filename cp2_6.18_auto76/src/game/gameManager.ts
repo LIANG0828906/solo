@@ -149,7 +149,6 @@ export function initGameManager() {
       eventBus.emit('roundUpdate', {
         roundIndex: data.roundIndex,
         totalRounds: useGameStore.getState().totalRounds,
-        question: data,
       })
       eventBus.emit('gameStateChange', 'playing')
     }

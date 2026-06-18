@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import eventBus from '../eventBus'
 import { useGameStore } from '../game/gameManager'
 import QuestionCard from './QuestionCard'

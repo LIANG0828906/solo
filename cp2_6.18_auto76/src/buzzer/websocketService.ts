@@ -237,11 +237,7 @@ class WebSocketService {
 
     this.currentRound++;
     if (this.currentRound < QUESTIONS.length) {
-      const delay = this.currentRound < QUESTIONS.length - 1
-        ? BETWEEN_QUESTION_DELAY
-        : BETWEEN_QUESTION_DELAY;
       const timeout = setTimeout(() => {
-        if (this.currentRound >= QUESTIONS.length - 1 + 1) return;
         this.startRound();
       }, BETWEEN_QUESTION_DELAY);
       this.pendingTimeouts.push(timeout);
