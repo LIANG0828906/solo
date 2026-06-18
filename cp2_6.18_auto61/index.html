@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ConstellationCurator - 3D星空星座创建器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a2e;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    canvas {
+      display: block;
+    }
+    #fps-counter {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      z-index: 100;
+      pointer-events: none;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+    }
+    #constellation-panel {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 16px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    #constellation-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.188);
+      color: #ffffff;
+      font-size: 14px;
+      padding: 8px 4px;
+      outline: none;
+      width: 180px;
+      font-family: inherit;
+    }
+    #constellation-input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    #save-button {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #FFD700;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
+      box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+    }
+    #save-button:hover {
+      transform: scale(1.1);
+    }
+    #save-button svg {
+      width: 18px;
+      height: 18px;
+      color: #1a1a2e;
+    }
+    #constellation-list {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 12px;
+      z-index: 100;
+      max-height: 60vh;
+      overflow-y: auto;
+      min-width: 180px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    #constellation-list h3 {
+      color: #ffffff;
+      font-size: 13px;
+      margin-bottom: 8px;
+      opacity: 0.8;
+      font-weight: 500;
+    }
+    .constellation-item {
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .constellation-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .constellation-item.active {
+      background: rgba(255, 215, 0, 0.2);
+      color: #FFD700;
+    }
+    .constellation-item .delete-btn {
+      opacity: 0;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 16px;
+      transition: opacity 0.2s ease;
+    }
+    .constellation-item:hover .delete-btn {
+      opacity: 1;
+    }
+    .constellation-item .delete-btn:hover {
+      color: #ff6b6b;
+    }
+    #hint-text {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      z-index: 100;
+      pointer-events: none;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="fps-counter">FPS: 60</div>
+    <div id="constellation-list">
+      <h3>我的星座</h3>
+      <div id="constellation-items"></div>
+    </div>
+    <div id="constellation-panel">
+      <input id="constellation-input" type="text" maxlength="10" placeholder="给星座起个名字">
+      <button id="save-button" title="保存星座">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+      </button>
+    </div>
+    <div id="hint-text">
+      左键点击添加星星 | Shift+左键点击两颗星星连线 | 拖拽旋转视角 | 滚轮缩放
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
