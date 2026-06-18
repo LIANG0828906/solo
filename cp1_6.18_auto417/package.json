@@ -1,0 +1,11 @@
+{
+  "name": "bullet-hell-shooter",
+  "version": "1.0.0",
+  "description": "A classic bullet hell shooter game built with HTML5 Canvas",
+  "scripts": {
+    "start": "npx serve .",
+    "serve": "npx serve ."
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
