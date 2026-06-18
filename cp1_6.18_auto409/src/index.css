@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-main: #121220;
+  --bg-card: #1E1E2E;
+  --border-color: #2A2A3E;
+  --text-primary: #FFFFFF;
+  --text-secondary: #A0A0B8;
+  --accent-primary: #00D4AA;
+  --accent-blue: #4A90D9;
+  --accent-red: #FF6B6B;
+  --accent-gold: #FFD700;
+  --accent-silver: #C0C0C0;
+  --accent-bronze: #CD7F32;
+}
+
+html,
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes pulse-gold {
+  0%,
+  100% {
+    box-shadow: 0 0 5px #FFD70080;
+  }
+  50% {
+    box-shadow: 0 0 25px #FFD70080;
+  }
+}
+
+@keyframes pulse-silver {
+  0%,
+  100% {
+    box-shadow: 0 0 5px #C0C0C080;
+  }
+  50% {
+    box-shadow: 0 0 25px #C0C0C080;
+  }
+}
+
+@keyframes pulse-bronze {
+  0%,
+  100% {
+    box-shadow: 0 0 5px #CD7F3280;
+  }
+  50% {
+    box-shadow: 0 0 25px #CD7F3280;
+  }
+}
+
+@keyframes arrow-up {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+}
+
+@keyframes arrow-down {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+}
+
+@keyframes card-flash {
+  0% {
+    background-color: #00D4AA15;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes fade-in-out {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes underline-expand {
+  0% {
+    width: 0;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.rank-1 {
+  animation: pulse-gold 1.5s infinite;
+  border: 2px solid #FFD700;
+}
+
+.rank-2 {
+  animation: pulse-silver 1.5s infinite;
+  border: 2px solid #C0C0C0;
+}
+
+.rank-3 {
+  animation: pulse-bronze 1.5s infinite;
+  border: 2px solid #CD7F32;
+}
+
+.arrow-up {
+  animation: arrow-up 1s ease-out forwards;
+  color: #00D4AA;
+}
+
+.arrow-down {
+  animation: arrow-down 1s ease-out forwards;
+  color: #FF6B6B;
+}
+
+.card-flash {
+  animation: card-flash 0.3s ease-out;
+}
+
+.fade-transition {
+  animation: fade-in-out 0.3s ease;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+@media (max-width: 1023px) {
+}
+
+@media (max-width: 767px) {
+}
