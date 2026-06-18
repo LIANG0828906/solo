@@ -17,6 +17,12 @@ class MoleculeVueApp {
   private infoCardTimer: number | null = null
   private animationFrameId: number = 0
   private container: HTMLElement
+  private clock: THREE.Clock
+  private moleculeRoot: THREE.Group
+  private autoRotateEnabled: boolean = true
+  private autoRotateSpeed: number = 1.0
+  private autoRotatePaused: boolean = false
+  private autoRotateResumeTimer: number | null = null
 
   constructor(containerId: string) {
     const container = document.getElementById(containerId)
@@ -46,6 +52,9 @@ class MoleculeVueApp {
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
 
+    this.clock = new THREE.Clock()
+    this.moleculeRoot = new THREE.Group()
+
     this.setupLights()
     this.loadMolecule()
     this.setupUI()
@@ -71,20 +80,19 @@ class MoleculeVueApp {
 
     this.moleculeGroup = buildMoleculeScene(molecule)
 
-    const moleculeRoot = new THREE.Group()
-    moleculeRoot.add(this.moleculeGroup.atomGroup)
-    moleculeRoot.add(this.moleculeGroup.bondGroup)
-    moleculeRoot.add(this.moleculeGroup.glowGroup)
+    this.moleculeRoot.add(this.moleculeGroup.atomGroup)
+    this.moleculeRoot.add(this.moleculeGroup.bondGroup)
+    this.moleculeRoot.add(this.moleculeGroup.glowGroup)
 
-    const box = new THREE.Box3().setFromObject(moleculeRoot)
+    const box = new THREE.Box3().setFromObject(this.moleculeRoot)
     const center = new THREE.Vector3()
     box.getCenter(center)
-    moleculeRoot.position.sub(center)
+    this.moleculeRoot.position.sub(center)
 
-    this.scene.add(moleculeRoot)
-    this.moleculeGroup.atomGroup = moleculeRoot.children[0] as THREE.Group
-    this.moleculeGroup.bondGroup = moleculeRoot.children[1] as THREE.Group
-    this.moleculeGroup.glowGroup = moleculeRoot.children[2] as THREE.Group
+    this.scene.add(this.moleculeRoot)
+    this.moleculeGroup.atomGroup = this.moleculeRoot.children[0] as THREE.Group
+    this.moleculeGroup.bondGroup = this.moleculeRoot.children[1] as THREE.Group
+    this.moleculeGroup.glowGroup = this.moleculeRoot.children[2] as THREE.Group
 
     const atomMeshes: THREE.Mesh[] = []
     this.moleculeGroup.atomGroup.traverse((child) => {
@@ -120,7 +128,9 @@ class MoleculeVueApp {
       this.moleculeGroup,
       {
         onAtomHover: (info) => this.onAtomHover(info),
-        onAtomClick: (info) => this.onAtomClick(info)
+        onAtomClick: (info) => this.onAtomClick(info),
+        onUserInteractionStart: () => this.pauseAutoRotate(),
+        onUserInteractionEnd: () => this.scheduleResumeAutoRotate()
       }
     )
   }
@@ -129,7 +139,8 @@ class MoleculeVueApp {
     this.uiControls = new UIControls(document.body, {
       onRotationSpeedChange: (speed) => this.onRotationSpeedChange(speed),
       onDisplayModeChange: (mode) => this.onDisplayModeChange(mode),
-      onResetView: () => this.resetView()
+      onResetView: () => this.resetView(),
+      onAutoRotateToggle: (enabled) => this.setAutoRotateEnabled(enabled)
     })
   }
 
@@ -144,10 +155,37 @@ class MoleculeVueApp {
   }
 
   private onRotationSpeedChange(speed: number): void {
-    if (this.interactionManager) {
-      this.interactionManager.setAutoRotate(speed > 0)
-      this.interactionManager.setRotationSpeed(speed)
+    this.autoRotateSpeed = speed
+  }
+
+  private setAutoRotateEnabled(enabled: boolean): void {
+    this.autoRotateEnabled = enabled
+    if (enabled && this.autoRotateResumeTimer) {
+      clearTimeout(this.autoRotateResumeTimer)
+      this.autoRotateResumeTimer = null
+      this.autoRotatePaused = false
     }
+  }
+
+  private pauseAutoRotate(): void {
+    this.autoRotatePaused = true
+    if (this.autoRotateResumeTimer) {
+      clearTimeout(this.autoRotateResumeTimer)
+      this.autoRotateResumeTimer = null
+    }
+  }
+
+  private scheduleResumeAutoRotate(): void {
+    if (!this.autoRotateEnabled) return
+
+    if (this.autoRotateResumeTimer) {
+      clearTimeout(this.autoRotateResumeTimer)
+    }
+
+    this.autoRotateResumeTimer = window.setTimeout(() => {
+      this.autoRotatePaused = false
+      this.autoRotateResumeTimer = null
+    }, 2000)
   }
 
   private onDisplayModeChange(mode: DisplayMode): void {
@@ -326,6 +364,13 @@ class MoleculeVueApp {
   private animate(): void {
     this.animationFrameId = requestAnimationFrame(() => this.animate())
 
+    const delta = this.clock.getDelta()
+
+    if (this.autoRotateEnabled && !this.autoRotatePaused) {
+      const rotationSpeed = 0.5 * this.autoRotateSpeed
+      this.moleculeRoot.rotation.y += rotationSpeed * delta
+    }
+
     this.controls.update()
 
     this.renderer.render(this.scene, this.camera)
@@ -333,6 +378,11 @@ class MoleculeVueApp {
 
   public dispose(): void {
     cancelAnimationFrame(this.animationFrameId)
+
+    if (this.autoRotateResumeTimer) {
+      clearTimeout(this.autoRotateResumeTimer)
+      this.autoRotateResumeTimer = null
+    }
 
     if (this.interactionManager) {
       this.interactionManager.dispose()

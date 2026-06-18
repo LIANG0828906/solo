@@ -4,6 +4,7 @@ export interface UIControlsCallbacks {
   onRotationSpeedChange: (speed: number) => void
   onDisplayModeChange: (mode: DisplayMode) => void
   onResetView: () => void
+  onAutoRotateToggle: (enabled: boolean) => void
 }
 
 export class UIControls {
@@ -12,6 +13,7 @@ export class UIControls {
   private rotationSpeedSlider: HTMLInputElement | null = null
   private displayModeSelect: HTMLSelectElement | null = null
   private speedValueLabel: HTMLElement | null = null
+  private autoRotateSwitch: HTMLButtonElement | null = null
 
   constructor(container: HTMLElement, callbacks: UIControlsCallbacks) {
     this.container = container
@@ -55,6 +57,9 @@ export class UIControls {
 
     const modeSection = this.createDisplayModeControl()
     panel.appendChild(modeSection)
+
+    const autoRotateSection = this.createAutoRotateSwitch()
+    panel.appendChild(autoRotateSection)
 
     const resetBtn = this.createResetButton()
     panel.appendChild(resetBtn)
@@ -173,6 +178,62 @@ export class UIControls {
     return wrapper
   }
 
+  private createAutoRotateSwitch(): HTMLElement {
+    const wrapper = document.createElement('div')
+    wrapper.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;'
+
+    const label = document.createElement('span')
+    label.textContent = '自动旋转'
+    label.style.color = '#94a3b8'
+    wrapper.appendChild(label)
+
+    this.autoRotateSwitch = document.createElement('button')
+    this.autoRotateSwitch.dataset.enabled = 'true'
+    this.updateAutoRotateSwitchStyle(true)
+
+    this.autoRotateSwitch.addEventListener('click', () => {
+      const enabled = this.autoRotateSwitch!.dataset.enabled !== 'true'
+      this.autoRotateSwitch!.dataset.enabled = enabled.toString()
+      this.updateAutoRotateSwitchStyle(enabled)
+      this.callbacks.onAutoRotateToggle(enabled)
+    })
+
+    wrapper.appendChild(this.autoRotateSwitch)
+    return wrapper
+  }
+
+  private updateAutoRotateSwitchStyle(enabled: boolean): void {
+    if (!this.autoRotateSwitch) return
+
+    if (enabled) {
+      this.autoRotateSwitch.textContent = '开启'
+      this.autoRotateSwitch.style.cssText = `
+        padding: 6px 16px;
+        border-radius: 6px;
+        border: none;
+        background: #10b981;
+        color: white;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      `
+    } else {
+      this.autoRotateSwitch.textContent = '关闭'
+      this.autoRotateSwitch.style.cssText = `
+        padding: 6px 16px;
+        border-radius: 6px;
+        border: none;
+        background: #475569;
+        color: #94a3b8;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      `
+    }
+  }
+
   private createResetButton(): HTMLElement {
     const btn = document.createElement('button')
     btn.textContent = '重置视角'
@@ -277,6 +338,13 @@ export class UIControls {
   public setDisplayMode(mode: DisplayMode): void {
     if (this.displayModeSelect) {
       this.displayModeSelect.value = mode
+    }
+  }
+
+  public setAutoRotateEnabled(enabled: boolean): void {
+    if (this.autoRotateSwitch) {
+      this.autoRotateSwitch.dataset.enabled = enabled.toString()
+      this.updateAutoRotateSwitchStyle(enabled)
     }
   }
 

@@ -17,6 +17,8 @@ export interface AtomInfo {
 export type InteractionCallback = {
   onAtomHover?: (atomInfo: AtomInfo | null) => void
   onAtomClick?: (atomInfo: AtomInfo) => void
+  onUserInteractionStart?: () => void
+  onUserInteractionEnd?: () => void
 }
 
 export class InteractionManager {
@@ -82,8 +84,19 @@ export class InteractionManager {
     this.controls.minDistance = 2
     this.controls.maxDistance = 50
     this.controls.enablePan = true
-    this.controls.autoRotate = true
-    this.controls.autoRotateSpeed = 1.0
+    this.controls.autoRotate = false
+
+    this.controls.addEventListener('start', () => {
+      if (this.callbacks.onUserInteractionStart) {
+        this.callbacks.onUserInteractionStart()
+      }
+    })
+
+    this.controls.addEventListener('end', () => {
+      if (this.callbacks.onUserInteractionEnd) {
+        this.callbacks.onUserInteractionEnd()
+      }
+    })
   }
 
   private bindEvents(): void {
