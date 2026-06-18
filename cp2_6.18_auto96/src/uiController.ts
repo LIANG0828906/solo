@@ -68,6 +68,7 @@ export function createUIController(onGenreChange: (index: number) => void) {
         align-items: center;
         padding: 16px 20px 24px;
         box-sizing: border-box;
+        z-index: 1000;
       }
       .aura-button-group {
         width: 100%;

@@ -29,7 +29,7 @@ export function createAudioVisualizer(scene: THREE.Scene, initialPreset: GenrePr
     });
 
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(startX + i * barSpacing, -2.5, 0);
+    mesh.position.set(startX + i * barSpacing, 0, 0);
     mesh.scale.y = 0.5;
 
     barGroup.add(mesh);

@@ -44,6 +44,7 @@ interface ParticleState {
   driftFreq: number;
   initialX: number;
   initialZ: number;
+  initialOpacity: number;
   colorIndex: number;
 }
 
@@ -69,11 +70,12 @@ function makeParticleState(randomAge: boolean): ParticleState {
   return {
     age: randomAge ? Math.random() * lifetime : 0,
     lifetime,
-    baseSpeed: 0.5 + (Math.random() - 0.5) * 0.4,
+    baseSpeed: 0.5 + Math.random() * 0.4 - 0.2,
     driftPhase: Math.random() * Math.PI * 2,
     driftFreq: 1 + Math.random() * 2,
     initialX: (Math.random() - 0.5) * 1.5,
     initialZ: (Math.random() - 0.5) * 1.5,
+    initialOpacity: 0.6 + Math.random() * 0.4,
     colorIndex: Math.floor(Math.random() * 3),
   };
 }
@@ -88,6 +90,8 @@ export function createParticleSystem(scene: THREE.Scene) {
 
   const particles: ParticleState[] = [];
   let currentPreset = GENRE_PRESETS[0];
+  let currentBPM = 80;
+  const baseBPM = 80;
 
   function resetParticle(i: number, randomAge: boolean) {
     const p = makeParticleState(randomAge);
@@ -103,15 +107,16 @@ export function createParticleSystem(scene: THREE.Scene) {
 
   function applyParticle(i: number, p: ParticleState) {
     const t = p.age / p.lifetime;
+    const bpmFactor = currentBPM / baseBPM;
 
     positions[i * 3] =
-      p.initialX + Math.sin(p.age * p.driftFreq + p.driftPhase) * 0.3;
-    positions[i * 3 + 1] = p.age * p.baseSpeed;
+      p.initialX + Math.sin(p.age * p.driftFreq * bpmFactor + p.driftPhase) * 0.3;
+    positions[i * 3 + 1] = p.age * p.baseSpeed * bpmFactor;
     positions[i * 3 + 2] =
-      p.initialZ + Math.cos(p.age * p.driftFreq * 0.7 + p.driftPhase) * 0.3;
+      p.initialZ + Math.cos(p.age * p.driftFreq * 0.7 * bpmFactor + p.driftPhase) * 0.3;
 
     sizes[i] = 3 - 2.5 * t;
-    opacities[i] = 1 - t;
+    opacities[i] = p.initialOpacity * (1 - t);
   }
 
   for (let i = 0; i < PARTICLE_COUNT; i++) {
@@ -162,9 +167,10 @@ export function createParticleSystem(scene: THREE.Scene) {
 
   function update(deltaTime: number, beatIntensity: number) {
     const intensityFactor = currentPreset.intensity;
+    const bpmFactor = currentBPM / baseBPM;
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const p = particles[i];
-      p.age += deltaTime;
+      p.age += deltaTime * bpmFactor;
 
       if (p.age >= p.lifetime) {
         resetParticle(i, false);
@@ -176,14 +182,15 @@ export function createParticleSystem(scene: THREE.Scene) {
 
       positions[i * 3] =
         p.initialX +
-        Math.sin(p.age * p.driftFreq + p.driftPhase) * 0.3 * beatMod;
-      positions[i * 3 + 1] = p.age * p.baseSpeed * (1 + beatIntensity * intensityFactor * 0.3);
+        Math.sin(p.age * p.driftFreq * bpmFactor + p.driftPhase) * 0.3 * beatMod;
+      positions[i * 3 + 1] =
+        p.age * p.baseSpeed * bpmFactor * (1 + beatIntensity * intensityFactor * 0.3);
       positions[i * 3 + 2] =
         p.initialZ +
-        Math.cos(p.age * p.driftFreq * 0.7 + p.driftPhase) * 0.3 * beatMod;
+        Math.cos(p.age * p.driftFreq * 0.7 * bpmFactor + p.driftPhase) * 0.3 * beatMod;
 
       sizes[i] = (3 - 2.5 * t) * (1 + beatIntensity * intensityFactor * 0.2);
-      opacities[i] = 1 - t;
+      opacities[i] = p.initialOpacity * (1 - t);
     }
 
     geometry.attributes.position.needsUpdate = true;
@@ -202,5 +209,9 @@ export function createParticleSystem(scene: THREE.Scene) {
     geometry.attributes.aColor.needsUpdate = true;
   }
 
-  return { update, setGenre, points };
+  function setBPM(bpm: number) {
+    currentBPM = bpm;
+  }
+
+  return { update, setGenre, setBPM, points };
 }

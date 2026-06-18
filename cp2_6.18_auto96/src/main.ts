@@ -22,9 +22,11 @@ let currentGenreIndex = 0;
 
 createUIController((genreIndex: number) => {
   currentGenreIndex = genreIndex;
+  const preset = GENRE_PRESETS[genreIndex];
   particleSystem.setGenre(genreIndex);
-  audioVisualizer.setGenre(GENRE_PRESETS[genreIndex]);
-  audioVisualizer.setBPM(GENRE_PRESETS[genreIndex].bpm);
+  particleSystem.setBPM(preset.bpm);
+  audioVisualizer.setGenre(preset);
+  audioVisualizer.setBPM(preset.bpm);
 });
 
 const spherical = { radius: 12, theta: 0, phi: Math.PI / 3 };
