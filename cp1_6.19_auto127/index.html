@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D植物生长模拟与基因编辑实验室</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      min-width: 800px;
+      min-height: 600px;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #1A1A2E 0%, #16213E 100%);
+    }
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #env-status {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .env-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .env-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      box-shadow: 0 0 6px currentColor;
+    }
+    .env-text {
+      color: #FFFFFF;
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    #control-panel {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      transform: translateY(-50%);
+      width: 280px;
+      background: rgba(44, 62, 80, 0.9);
+      border-radius: 12px;
+      padding: 24px 20px;
+      box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+      z-index: 10;
+      color: #FFFFFF;
+    }
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #ECF0F1;
+    }
+    .slider-group {
+      margin-bottom: 18px;
+    }
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #BDC3C7;
+    }
+    .slider-value {
+      color: #3498DB;
+      font-weight: 600;
+    }
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      transition: filter 0.1s;
+    }
+    input[type="range"]:hover {
+      filter: brightness(1.1);
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #3498DB;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+    input[type="range"]:active::-webkit-slider-thumb {
+      transform: translateY(1px);
+    }
+    #gene-edit-btn {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%);
+      color: #FFFFFF;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+      transition: transform 0.1s, filter 0.1s;
+    }
+    #gene-edit-btn:hover {
+      filter: brightness(1.1);
+    }
+    #gene-edit-btn:active {
+      transform: scale(0.95) translateY(1px);
+    }
+    #modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    #modal-overlay.active {
+      display: flex;
+    }
+    #modal-panel {
+      width: 440px;
+      height: 320px;
+      background: #FFFFFF;
+      border-radius: 16px;
+      padding: 28px 32px;
+      box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2C3E50;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .gene-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid #ECF0F1;
+    }
+    .gene-item:last-of-type {
+      border-bottom: none;
+    }
+    .gene-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .gene-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #2C3E50;
+    }
+    .gene-desc {
+      font-size: 12px;
+      color: #7F8C8D;
+    }
+    .switch {
+      position: relative;
+      width: 48px;
+      height: 26px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider-switch {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #BDC3C7;
+      border-radius: 26px;
+      transition: 0.2s;
+    }
+    .slider-switch:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    .switch input:checked + .slider-switch {
+      background-color: #9B59B6;
+    }
+    .switch input:checked + .slider-switch:before {
+      transform: translateX(22px);
+    }
+    #modal-close {
+      margin-top: auto;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #95A5A6;
+      color: white;
+      font-size: 13px;
+      cursor: pointer;
+      transition: filter 0.1s, transform 0.1s;
+    }
+    #modal-close:hover {
+      filter: brightness(1.1);
+    }
+    #modal-close:active {
+      transform: translateY(1px);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <div id="env-status">
+      <div class="env-item">
+        <div class="env-dot" style="background: #F1C40F; color: #F1C40F;"></div>
+        <span class="env-text">光照: <span id="light-text">50</span></span>
+      </div>
+      <div class="env-item">
+        <div class="env-dot" style="background: #3498DB; color: #3498DB;"></div>
+        <span class="env-text">水分: <span id="water-text">50</span></span>
+      </div>
+      <div class="env-item">
+        <div class="env-dot" style="background: #2ECC71; color: #2ECC71;"></div>
+        <span class="env-text">养分: <span id="nutrient-text">50</span></span>
+      </div>
+    </div>
+    <div id="control-panel">
+      <div class="panel-title">环境参数控制</div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>光照强度</span>
+          <span class="slider-value"><span id="light-value">50</span></span>
+        </div>
+        <input type="range" id="light-slider" min="0" max="100" value="50" />
+      </div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>水分含量</span>
+          <span class="slider-value"><span id="water-value">50</span></span>
+        </div>
+        <input type="range" id="water-slider" min="0" max="100" value="50" />
+      </div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>土壤养分</span>
+          <span class="slider-value"><span id="nutrient-value">50</span></span>
+        </div>
+        <input type="range" id="nutrient-slider" min="0" max="100" value="50" />
+      </div>
+      <button id="gene-edit-btn">🧬 基因编辑</button>
+    </div>
+    <div id="modal-overlay">
+      <div id="modal-panel">
+        <div class="modal-title">基因编辑面板</div>
+        <div class="gene-item">
+          <div class="gene-info">
+            <div class="gene-name">颜色变异</div>
+            <div class="gene-desc">植物颜色变为随机暖色或冷色</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="gene-color" />
+            <span class="slider-switch"></span>
+          </label>
+        </div>
+        <div class="gene-item">
+          <div class="gene-info">
+            <div class="gene-name">形态变异</div>
+            <div class="gene-desc">叶子从圆片变为菱形或三角形</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="gene-shape" />
+            <span class="slider-switch"></span>
+          </label>
+        </div>
+        <div class="gene-item">
+          <div class="gene-info">
+            <div class="gene-name">生长速度加倍</div>
+            <div class="gene-desc">植物生长动画速度变为原来的2倍</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="gene-speed" />
+            <span class="slider-switch"></span>
+          </label>
+        </div>
+        <button id="modal-close">关闭</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
