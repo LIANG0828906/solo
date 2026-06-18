@@ -35,6 +35,8 @@ export class Nebula {
   private colors: Float32Array;
   private radialDistances: Float32Array;
   private currentTheme: ColorTheme;
+  private previousTheme: ColorTheme;
+  private themeTransitionProgress: number;
   private mouseAttraction: THREE.Vector3;
   private isMouseOver: boolean;
   private attractionProgress: number;
@@ -44,6 +46,8 @@ export class Nebula {
     this.particleCount = count;
     this.rotationSpeed = 1.0;
     this.currentTheme = 'default';
+    this.previousTheme = 'default';
+    this.themeTransitionProgress = 1.0;
     this.isMouseOver = false;
     this.mouseAttraction = new THREE.Vector3();
     this.attractionProgress = 0;
@@ -107,8 +111,32 @@ export class Nebula {
     this.updateColors();
   }
 
+  private lerpColor(
+    prev: ThemeColors,
+    curr: ThemeColors,
+    t: number,
+    radial: number
+  ): { r: number; g: number; b: number } {
+    const prevR = prev.center.r + (prev.edge.r - prev.center.r) * radial;
+    const prevG = prev.center.g + (prev.edge.g - prev.center.g) * radial;
+    const prevB = prev.center.b + (prev.edge.b - prev.center.b) * radial;
+
+    const currR = curr.center.r + (curr.edge.r - curr.center.r) * radial;
+    const currG = curr.center.g + (curr.edge.g - curr.center.g) * radial;
+    const currB = curr.center.b + (curr.edge.b - curr.center.b) * radial;
+
+    const easeT = this.easeOutCubic(t);
+
+    return {
+      r: prevR + (currR - prevR) * easeT,
+      g: prevG + (currG - prevG) * easeT,
+      b: prevB + (currB - prevB) * easeT
+    };
+  }
+
   private updateColors(): void {
-    const theme = THEMES[this.currentTheme];
+    const prevColors = THEMES[this.previousTheme];
+    const currColors = THEMES[this.currentTheme];
     const pulse = (Math.sin(this.elapsedTime * (Math.PI * 2) / 3) + 1) * 0.5;
     const intensity = 0.85 + pulse * 0.15;
 
@@ -116,21 +144,20 @@ export class Nebula {
       const i3 = i * 3;
       const t = this.radialDistances[i];
 
-      let r = theme.center.r + (theme.edge.r - theme.center.r) * t;
-      let g = theme.center.g + (theme.edge.g - theme.center.g) * t;
-      let b = theme.center.b + (theme.edge.b - theme.center.b) * t;
+      const { r, g, b } = this.lerpColor(
+        prevColors,
+        currColors,
+        this.themeTransitionProgress,
+        t
+      );
 
-      r *= intensity;
-      g *= intensity;
-      b *= intensity;
+      const finalR = Math.min(1, r * intensity);
+      const finalG = Math.min(1, g * intensity);
+      const finalB = Math.min(1, b * intensity);
 
-      r = Math.min(1, r);
-      g = Math.min(1, g);
-      b = Math.min(1, b);
-
-      this.colors[i3] = r;
-      this.colors[i3 + 1] = g;
-      this.colors[i3 + 2] = b;
+      this.colors[i3] = finalR;
+      this.colors[i3 + 1] = finalG;
+      this.colors[i3 + 2] = finalB;
     }
   }
 
@@ -168,13 +195,22 @@ export class Nebula {
   }
 
   public setColorTheme(theme: ColorTheme): void {
+    if (theme === this.currentTheme) return;
+
+    this.previousTheme = this.currentTheme;
     this.currentTheme = theme;
-    this.updateColors();
-    this.geometry.attributes.color.needsUpdate = true;
+    this.themeTransitionProgress = 0;
   }
 
   public update(deltaTime: number): void {
     this.elapsedTime += deltaTime;
+
+    if (this.themeTransitionProgress < 1.0) {
+      this.themeTransitionProgress = Math.min(
+        1.0,
+        this.themeTransitionProgress + deltaTime / 0.3
+      );
+    }
 
     const attractSpeed = 1 / 0.6;
     if (this.isMouseOver) {

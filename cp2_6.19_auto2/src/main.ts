@@ -24,6 +24,9 @@ class NebulaApp {
   private speedValue: HTMLElement;
   private themeButtons: NodeListOf<HTMLElement>;
 
+  private countAnimationTimer: number | null = null;
+  private speedAnimationTimer: number | null = null;
+
   constructor() {
     this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
     this.loadingOverlay = document.getElementById('loading-overlay') as HTMLElement;
@@ -75,6 +78,30 @@ class NebulaApp {
     this.simulateLoading();
   }
 
+  private triggerValueAnimation(element: HTMLElement, timerKey: 'count' | 'speed'): void {
+    element.classList.remove('value-changed');
+    void element.offsetWidth;
+    element.classList.add('value-changed');
+
+    if (timerKey === 'count') {
+      if (this.countAnimationTimer !== null) {
+        window.clearTimeout(this.countAnimationTimer);
+      }
+      this.countAnimationTimer = window.setTimeout(() => {
+        element.classList.remove('value-changed');
+        this.countAnimationTimer = null;
+      }, 300);
+    } else {
+      if (this.speedAnimationTimer !== null) {
+        window.clearTimeout(this.speedAnimationTimer);
+      }
+      this.speedAnimationTimer = window.setTimeout(() => {
+        element.classList.remove('value-changed');
+        this.speedAnimationTimer = null;
+      }, 300);
+    }
+  }
+
   private simulateLoading(): void {
     let progress = 0;
     const interval = setInterval(() => {
@@ -98,16 +125,34 @@ class NebulaApp {
   private setupUI(): void {
     this.panelClose.addEventListener('click', () => {
       this.controlPanel.classList.add('hidden');
+      this.panelToggle.classList.add('pulse');
     });
 
     this.panelToggle.addEventListener('click', () => {
       this.controlPanel.classList.remove('hidden');
+      this.panelToggle.classList.remove('pulse');
     });
+
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes value-pop {
+        0% { transform: scale(1); color: #6c63ff; }
+        50% { transform: scale(1.3); color: #ff6584; }
+        100% { transform: scale(1); color: #ff6584; }
+      }
+      .control-group label span.value-changed {
+        display: inline-block;
+        animation: value-pop 0.3s ease-out forwards;
+        text-shadow: 0 0 10px rgba(255, 101, 132, 0.6);
+      }
+    `;
+    document.head.appendChild(style);
 
     this.particleCountSlider.addEventListener('input', (e) => {
       const target = e.target as HTMLInputElement;
       const count = parseInt(target.value, 10);
       this.countValue.textContent = count.toString();
+      this.triggerValueAnimation(this.countValue, 'count');
       this.nebula.setParticleCount(count);
     });
 
@@ -115,6 +160,7 @@ class NebulaApp {
       const target = e.target as HTMLInputElement;
       const speed = parseFloat(target.value);
       this.speedValue.textContent = speed.toFixed(1);
+      this.triggerValueAnimation(this.speedValue, 'speed');
       this.nebula.setRotationSpeed(speed);
     });
 
