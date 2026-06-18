@@ -41,6 +41,39 @@
   padding: 8px;
   gap: 6px;
   transition: background-color 0.3s ease;
+  overflow: hidden;
+}
+
+.shine-layer {
+  position: absolute;
+  inset: -50%;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.12) 45%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.12) 55%,
+    transparent 70%
+  );
+  background-size: 200% 200%;
+  animation: shineFlow 3.5s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes shineFlow {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 200%;
+  }
+}
+
+.has-shine .lock-btn,
+.has-shine .remove-btn {
+  position: relative;
+  z-index: 2;
 }
 
 .lock-btn,
@@ -175,6 +208,64 @@
 .format-value.copied {
   background: rgba(16, 185, 129, 0.18);
   color: #10b981;
+}
+
+.format-value.flash {
+  animation: valueFlash 0.45s ease-out;
+}
+
+@keyframes valueFlash {
+  0% {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  30% {
+    background: rgba(255, 255, 255, 0.45);
+    color: #1a1b2e;
+    transform: scale(1.04);
+  }
+  100% {
+    background: rgba(16, 185, 129, 0.18);
+    color: #10b981;
+    transform: scale(1);
+  }
+}
+
+.lock-icon {
+  display: block;
+  transform-origin: center;
+  transition: none;
+}
+
+.lock-icon.lock-cw {
+  animation: lockRotateCW 0.2s ease-out;
+}
+
+.lock-icon.unlock-ccw {
+  animation: unlockRotateCCW 0.2s ease-out;
+}
+
+@keyframes lockRotateCW {
+  0% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(15deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes unlockRotateCCW {
+  0% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-15deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
 }
 
 @media (max-width: 768px) {

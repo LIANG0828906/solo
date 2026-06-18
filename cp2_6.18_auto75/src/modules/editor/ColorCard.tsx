@@ -30,7 +30,11 @@ export default function ColorCard({
   const { expandedCardId, setExpandedCardId, toggleLock, removeColor } =
     useColorStore();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [flashKey, setFlashKey] = useState<string | null>(null);
+  const [lockAnim, setLockAnim] = useState<"lock-cw" | "unlock-ccw" | null>(null);
   const copyAnimRef = useRef<number | null>(null);
+  const flashAnimRef = useRef<number | null>(null);
+  const lockAnimRef = useRef<number | null>(null);
 
   const isExpanded = expandedCardId === color.id;
   const contrastColor = getContrastColor(color.rgb.r, color.rgb.g, color.rgb.b);
@@ -43,12 +47,11 @@ export default function ColorCard({
     try {
       await copyToClipboard(value);
       setCopiedKey(key);
-      if (copyAnimRef.current) {
-        window.clearTimeout(copyAnimRef.current);
-      }
-      copyAnimRef.current = window.setTimeout(() => {
-        setCopiedKey(null);
-      }, 1000);
+      setFlashKey(key);
+      if (copyAnimRef.current) window.clearTimeout(copyAnimRef.current);
+      if (flashAnimRef.current) window.clearTimeout(flashAnimRef.current);
+      copyAnimRef.current = window.setTimeout(() => setCopiedKey(null), 1000);
+      flashAnimRef.current = window.setTimeout(() => setFlashKey(null), 450);
     } catch (e) {
       console.error("复制失败:", e);
     }
@@ -56,6 +59,10 @@ export default function ColorCard({
 
   const handleLockClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const animClass = color.locked ? "unlock-ccw" : "lock-cw";
+    setLockAnim(animClass);
+    if (lockAnimRef.current) window.clearTimeout(lockAnimRef.current);
+    lockAnimRef.current = window.setTimeout(() => setLockAnim(null), 450);
     toggleLock(color.id);
   };
 
@@ -88,48 +95,38 @@ export default function ColorCard({
       }}
     >
       <div
-        className="color-swatch"
+        className={`color-swatch ${isExpanded ? "has-shine" : ""}`}
         style={{
           backgroundColor: color.hex,
           color: contrastColor,
         }}
       >
+        {isExpanded && <div className="shine-layer" />}
         <button
           className="lock-btn"
           onClick={handleLockClick}
           title={color.locked ? "解锁" : "锁定"}
           style={{ color: contrastColor }}
         >
-          {color.locked ? (
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <svg
+            className={`lock-icon ${lockAnim ?? ""}`}
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={color.locked ? 2.5 : 2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={color.locked ? 1 : 0.7}
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            {color.locked ? (
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-          ) : (
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.7"
-            >
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            ) : (
               <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-            </svg>
-          )}
+            )}
+          </svg>
         </button>
         <button
           className="remove-btn"
@@ -165,7 +162,7 @@ export default function ColorCard({
           <div className="color-format-row">
             <span className="format-label">HEX</span>
             <span
-              className={`format-value ${copiedKey === "hex" ? "copied" : ""}`}
+              className={`format-value ${copiedKey === "hex" ? "copied" : ""} ${flashKey === "hex" ? "flash" : ""}`}
               onClick={(e) => {
                 e.stopPropagation();
                 handleCopy(color.hex, "hex");
@@ -177,7 +174,7 @@ export default function ColorCard({
           <div className="color-format-row">
             <span className="format-label">RGB</span>
             <span
-              className={`format-value ${copiedKey === "rgb" ? "copied" : ""}`}
+              className={`format-value ${copiedKey === "rgb" ? "copied" : ""} ${flashKey === "rgb" ? "flash" : ""}`}
               onClick={(e) => {
                 e.stopPropagation();
                 handleCopy(rgbToString(color.rgb), "rgb");
@@ -189,7 +186,7 @@ export default function ColorCard({
           <div className="color-format-row">
             <span className="format-label">HSL</span>
             <span
-              className={`format-value ${copiedKey === "hsl" ? "copied" : ""}`}
+              className={`format-value ${copiedKey === "hsl" ? "copied" : ""} ${flashKey === "hsl" ? "flash" : ""}`}
               onClick={(e) => {
                 e.stopPropagation();
                 handleCopy(hslToString(color.hsl), "hsl");
