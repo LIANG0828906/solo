@@ -30,6 +30,11 @@ export const CardModal: React.FC = () => {
     }
   };
 
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleClose();
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isCardModalOpen) {
@@ -68,12 +73,16 @@ export const CardModal: React.FC = () => {
         @keyframes cardSlideUp {
           from {
             opacity: 0;
-            transform: translateY(40px) scale(0.95);
+            transform: translateY(30px) scale(0.96);
           }
           to {
             opacity: 1;
             transform: translateY(0) scale(1);
           }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
         @keyframes shimmer {
           0% { background-position: -200% 0; }
@@ -93,7 +102,7 @@ export const CardModal: React.FC = () => {
             ? '0 25px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(0, 229, 255, 0.15)'
             : 'none',
           border: '1px solid rgba(255, 215, 0, 0.2)',
-          animation: isVisible ? 'cardSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'none',
+          animation: isVisible ? 'cardSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'none',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -126,6 +135,7 @@ export const CardModal: React.FC = () => {
               <img
                 src={currentCard.image}
                 alt={currentCard.title}
+                onClick={handleImageClick}
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -134,10 +144,17 @@ export const CardModal: React.FC = () => {
                   height: '100%',
                   objectFit: 'cover',
                   opacity: imageLoaded ? 1 : 0,
-                  transition: 'opacity 0.5s ease',
+                  transition: 'all 0.3s ease',
+                  cursor: 'zoom-out',
                 }}
                 onLoad={() => setImageLoaded(true)}
                 draggable={false}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
               />
               <div
                 style={{
