@@ -42,15 +42,20 @@ export class GUIManager {
   private voxelCountEl?: HTMLElement;
   private previewColorBox?: HTMLDivElement;
   private brushValueEl?: HTMLElement;
+  private tooltipEl?: HTMLDivElement;
+  private confirmModal?: HTMLDivElement;
 
   constructor(state: GUIState, actions: GUIActions) {
     this.state = state;
     this.actions = actions;
     this.root = document.createElement('div');
     this.panelContent = document.createElement('div');
+    this.tooltipEl = document.createElement('div');
+    this.tooltipEl.className = 'vf-tooltip';
     this.initStyles();
     this.buildPanel();
     document.body.appendChild(this.root);
+    document.body.appendChild(this.tooltipEl);
   }
 
   private initStyles(): void {
@@ -464,6 +469,124 @@ export class GUIManager {
       .vf-clear-btn:active {
         transform: translateY(0);
       }
+
+      .vf-tooltip {
+        position: fixed;
+        pointer-events: none;
+        z-index: 9999;
+        background: rgba(20, 20, 24, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: #E8E8E8;
+        white-space: nowrap;
+        opacity: 0;
+        transform: translateY(4px);
+        transition: opacity 0.15s ease, transform 0.15s ease;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      }
+      .vf-tooltip.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .vf-tooltip .vf-tooltip-name {
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+      .vf-tooltip .vf-tooltip-hex {
+        font-family: 'SF Mono', Monaco, monospace;
+        font-size: 11px;
+        color: #88888C;
+      }
+
+      .vf-confirm-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        backdrop-filter: blur(8px);
+      }
+      .vf-confirm-overlay.visible { opacity: 1; }
+      .vf-confirm-modal {
+        background: linear-gradient(145deg, #1E1E24 0%, #18181C 100%);
+        border-radius: 16px;
+        box-shadow: 
+          0 20px 60px rgba(0, 0, 0, 0.6),
+          0 0 0 1px rgba(255, 255, 255, 0.05);
+        padding: 24px;
+        width: 320px;
+        transform: scale(0.9) translateY(10px);
+        transition: transform 0.2s ease;
+      }
+      .vf-confirm-overlay.visible .vf-confirm-modal {
+        transform: scale(1) translateY(0);
+      }
+      .vf-confirm-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 16px;
+        background: linear-gradient(135deg, rgba(255, 59, 48, 0.2), rgba(255, 59, 48, 0.05));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #FF3B30;
+      }
+      .vf-confirm-icon svg { width: 24px; height: 24px; }
+      .vf-confirm-title {
+        text-align: center;
+        font-size: 16px;
+        font-weight: 600;
+        color: #E8E8E8;
+        margin-bottom: 8px;
+      }
+      .vf-confirm-message {
+        text-align: center;
+        font-size: 13px;
+        color: #88888C;
+        margin-bottom: 20px;
+        line-height: 1.5;
+      }
+      .vf-confirm-buttons {
+        display: flex;
+        gap: 10px;
+      }
+      .vf-confirm-btn {
+        flex: 1;
+        padding: 10px 16px;
+        border-radius: 10px;
+        border: none;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        font-family: inherit;
+      }
+      .vf-confirm-btn-cancel {
+        background: rgba(255, 255, 255, 0.06);
+        color: #E8E8E8;
+      }
+      .vf-confirm-btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .vf-confirm-btn-danger {
+        background: linear-gradient(135deg, #FF3B30, #D70015);
+        color: white;
+      }
+      .vf-confirm-btn-danger:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
+      }
     `;
     document.head.appendChild(style);
   }
@@ -563,9 +686,13 @@ export class GUIManager {
       swatch.className = 'vf-color-swatch';
       swatch.style.background = color;
       swatch.title = `${COLOR_NAMES[color] || color} - ${color}`;
+      swatch.setAttribute('aria-label', `${COLOR_NAMES[color] || color} ${color}`);
       if (color === this.state.color) swatch.classList.add('selected');
 
       swatch.addEventListener('click', () => this.selectColor(color, swatch));
+      swatch.addEventListener('mouseenter', (e) => this.showColorTooltip(e, color));
+      swatch.addEventListener('mousemove', (e) => this.moveTooltip(e));
+      swatch.addEventListener('mouseleave', () => this.hideTooltip());
 
       this.colorSwatches.push(swatch);
       picker.appendChild(swatch);
@@ -654,6 +781,7 @@ export class GUIManager {
       btn.className = `vf-mode-btn${this.state.mode === key ? ' ' + activeClass : ''}`;
       btn.innerHTML = `${icon}<span>${label}</span>`;
       btn.title = `${label}模式`;
+      btn.setAttribute('aria-label', `${label}模式`);
       btn.dataset.mode = key;
       btn.dataset.activeClass = activeClass;
 
@@ -751,8 +879,13 @@ export class GUIManager {
       </svg>
       <span>清空场景（保留地面）</span>
     `;
-    clearBtn.addEventListener('click', () => {
-      if (confirm('确定要清空所有已放置的方块吗？')) {
+    clearBtn.setAttribute('aria-label', '清空场景');
+    clearBtn.addEventListener('click', async () => {
+      const confirmed = await this.showConfirm(
+        '确认清空场景？',
+        '此操作将移除所有已放置的方块，地面层会保留。该操作不可撤销。'
+      );
+      if (confirmed) {
         this.actions.onClearScene();
       }
     });
@@ -843,7 +976,81 @@ export class GUIManager {
     updateAxis(this.hoverCoordZ, z);
   }
 
+  private showColorTooltip(e: MouseEvent, color: string): void {
+    if (!this.tooltipEl) return;
+    const name = COLOR_NAMES[color] || '自定义';
+    this.tooltipEl.innerHTML = `
+      <div class="vf-tooltip-name">${name}</div>
+      <div class="vf-tooltip-hex">${color.toUpperCase()}</div>
+    `;
+    this.moveTooltip(e);
+    requestAnimationFrame(() => {
+      this.tooltipEl?.classList.add('visible');
+    });
+  }
+
+  private moveTooltip(e: MouseEvent): void {
+    if (!this.tooltipEl) return;
+    const x = e.clientX + 12;
+    const y = e.clientY + 12;
+    this.tooltipEl.style.left = `${x}px`;
+    this.tooltipEl.style.top = `${y}px`;
+  }
+
+  private hideTooltip(): void {
+    if (!this.tooltipEl) return;
+    this.tooltipEl.classList.remove('visible');
+  }
+
+  public showConfirm(title: string, message: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'vf-confirm-overlay';
+      overlay.innerHTML = `
+        <div class="vf-confirm-modal">
+          <div class="vf-confirm-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div class="vf-confirm-title">${title}</div>
+          <div class="vf-confirm-message">${message}</div>
+          <div class="vf-confirm-buttons">
+            <button class="vf-confirm-btn vf-confirm-btn-cancel" data-action="cancel">取消</button>
+            <button class="vf-confirm-btn vf-confirm-btn-danger" data-action="confirm">确认清空</button>
+          </div>
+        </div>
+      `;
+
+      const close = (result: boolean) => {
+        overlay.classList.remove('visible');
+        setTimeout(() => {
+          overlay.remove();
+          this.confirmModal = undefined;
+        }, 200);
+        resolve(result);
+      };
+
+      overlay.querySelector('[data-action="cancel"]')?.addEventListener('click', () => close(false));
+      overlay.querySelector('[data-action="confirm"]')?.addEventListener('click', () => close(true));
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close(false);
+      });
+
+      document.body.appendChild(overlay);
+      this.confirmModal = overlay;
+
+      requestAnimationFrame(() => {
+        overlay.classList.add('visible');
+      });
+    });
+  }
+
   public dispose(): void {
     this.root.remove();
+    if (this.tooltipEl) this.tooltipEl.remove();
+    if (this.confirmModal) this.confirmModal.remove();
   }
 }

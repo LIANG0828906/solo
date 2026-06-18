@@ -80,6 +80,7 @@ export class InteractionManager {
     this.mouse = new THREE.Vector2();
 
     this.bindEvents();
+    this.updatePreview();
   }
 
   public updateOptions(options: Partial<InteractionOptions>): void {
@@ -87,6 +88,9 @@ export class InteractionManager {
     if (options.currentColor !== undefined && this.previewMesh) {
       const mat = this.previewMesh.material as THREE.MeshBasicMaterial;
       mat.color.set(options.currentColor);
+    }
+    if (options.mode !== undefined) {
+      this.updatePreview();
     }
   }
 
@@ -150,7 +154,6 @@ export class InteractionManager {
     }
 
     this.updateMouse(e);
-    this.updatePreview();
 
     if (this.isEditing && this.isDragging) {
       this.handleAction(e.button, true);
@@ -338,6 +341,7 @@ export class InteractionManager {
 
   public update(deltaTime: number): void {
     this.controls.update();
+    this.updatePreview();
   }
 
   public dispose(): void {
