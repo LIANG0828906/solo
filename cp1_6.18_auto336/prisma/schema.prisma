@@ -1,0 +1,30 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Letter {
+  id             Int        @id @default(autoincrement())
+  title          String
+  content        String
+  font           String     @default("楷体")
+  isPublic       Boolean    @default(true)
+  tags           String
+  createdAt      DateTime   @default(now())
+  favoritesCount Int        @default(0)
+  favorites      Favorite[]
+}
+
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  letterId  Int
+  letter    Letter   @relation(fields: [letterId], references: [id])
+  createdAt DateTime @default(now())
+}
