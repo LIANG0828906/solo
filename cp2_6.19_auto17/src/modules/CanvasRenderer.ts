@@ -37,12 +37,17 @@ export class CanvasRenderer {
   private fps: number = 60;
   private frameCount: number = 0;
   private fpsUpdateTime: number = 0;
+  private fpsSampleInterval: number = 500;
   private mouseX: number = -1000;
   private mouseY: number = -1000;
   private isMouseInCanvas: boolean = false;
   private onFpsChange?: (fps: number) => void;
   private onColorChange?: (hex: string) => void;
   private mixedColor: HSL = { h: 0, s: 0, l: 75 };
+  private fpsHistory: number[] = [];
+  private maxFpsHistory: number = 5;
+  private lastDegradeTime: number = 0;
+  private degradeCooldown: number = 2000;
 
   constructor(canvas: HTMLCanvasElement, options: CanvasRendererOptions = {}) {
     this.canvas = canvas;
@@ -253,13 +258,27 @@ export class CanvasRenderer {
   }
 
   private render = (timestamp: number): void => {
-    if (this.lastTime === 0) this.lastTime = timestamp;
+    if (this.lastTime === 0) {
+      this.lastTime = timestamp;
+      this.fpsUpdateTime = timestamp;
+    }
     const deltaTime = timestamp - this.lastTime;
     this.lastTime = timestamp;
 
     this.frameCount++;
-    if (timestamp - this.fpsUpdateTime >= 1000) {
-      this.fps = Math.round(this.frameCount * 1000 / (timestamp - this.fpsUpdateTime));
+    const elapsed = timestamp - this.fpsUpdateTime;
+    if (elapsed >= this.fpsSampleInterval) {
+      const instantFps = Math.round(this.frameCount * 1000 / elapsed);
+      
+      this.fpsHistory.push(instantFps);
+      if (this.fpsHistory.length > this.maxFpsHistory) {
+        this.fpsHistory.shift();
+      }
+      
+      const avgFps = Math.round(
+        this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length
+      );
+      this.fps = avgFps;
       this.frameCount = 0;
       this.fpsUpdateTime = timestamp;
       
@@ -267,8 +286,15 @@ export class CanvasRenderer {
         this.onFpsChange(this.fps);
       }
       
-      if (this.fps < 30 && this.particles.length > 10) {
-        this.setParticleCount(this.particles.length - 10);
+      if (
+        this.fps < 30 &&
+        this.particles.length > 10 &&
+        timestamp - this.lastDegradeTime > this.degradeCooldown
+      ) {
+        const reduceAmount = Math.min(10, this.particles.length - 10);
+        this.setParticleCount(this.particles.length - reduceAmount);
+        this.lastDegradeTime = timestamp;
+        this.fpsHistory = [];
       }
     }
 
@@ -284,7 +310,9 @@ export class CanvasRenderer {
     if (this.animationId !== null) return;
     this.lastTime = 0;
     this.frameCount = 0;
-    this.fpsUpdateTime = performance.now();
+    this.fpsUpdateTime = 0;
+    this.fpsHistory = [];
+    this.lastDegradeTime = 0;
     this.animationId = requestAnimationFrame(this.render);
   }
 

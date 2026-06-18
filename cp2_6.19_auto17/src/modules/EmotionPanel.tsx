@@ -117,32 +117,38 @@ export const EmotionSlider: React.FC<SliderProps> = ({
           onMouseDown={handleMouseDown}
           onTouchStart={handleTouchStart}
         >
+          <div className="emotion-slider-track-outline" />
+
           <div
-            className="emotion-slider-track-glow"
+            className="emotion-slider-glow-layer"
             style={{
-              boxShadow: `0 0 ${12 * glowIntensity}px ${color}88, 0 0 ${24 * glowIntensity}px ${color}44`,
+              background: `linear-gradient(to top, ${color} 0%, ${color}40 60%, transparent 100%)`,
+              clipPath: `inset(${100 - percentage}% 0 0 0)`,
+              filter: `blur(6px) brightness(${glowIntensity})`,
             }}
-          >
-            <div
-              className="emotion-slider-fill"
-              style={{
-                height: `${percentage}%`,
-                background: `linear-gradient(to top, ${color}, ${color}cc)`,
-              }}
-            />
-          </div>
+          />
+
+          <div
+            className="emotion-slider-fill"
+            style={{
+              height: `${percentage}%`,
+              background: `linear-gradient(to top, ${color}, ${color}ee)`,
+            }}
+          />
 
           <div
             className="emotion-slider-thumb"
             style={{
-              bottom: `calc(${percentage}% - 14px)`,
+              bottom: `calc(${percentage}% - 16px)`,
               transform: `translateX(-50%) scale(${thumbScale})`,
-              background: `radial-gradient(circle at 30% 30%, #fff, ${color})`,
+              background: `radial-gradient(circle at 35% 30%, #ffffff, ${color} 60%, ${color}dd 100%)`,
               boxShadow: `
-                0 0 ${12 * glowIntensity}px ${color},
-                0 0 ${24 * glowIntensity}px ${color}aa,
-                0 0 ${40 * glowIntensity}px ${color}55,
-                inset 0 2px 4px rgba(255, 255, 255, 0.8)
+                0 0 ${16 * glowIntensity}px ${color},
+                0 0 ${32 * glowIntensity}px ${color}dd,
+                0 0 ${60 * glowIntensity}px ${color}99,
+                0 0 ${100 * glowIntensity}px ${color}55,
+                inset 0 2px 6px rgba(255, 255, 255, 0.9),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.1)
               `,
             }}
           />

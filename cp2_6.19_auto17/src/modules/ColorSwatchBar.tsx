@@ -80,37 +80,39 @@ export const ColorSwatchBar: React.FC<ColorSwatchBarProps> = ({
 
       {expandedColor && (
         <div className="color-modal-overlay" onClick={closeExpanded}>
-          <div className="color-modal" onClick={(e) => e.stopPropagation()}>
-            <div
-              className="color-modal-preview"
-              style={{
-                backgroundColor: expandedColor.colorStr,
-                boxShadow: `0 20px 60px ${expandedColor.hex}88`,
-              }}
-            />
-            <div className="color-modal-content">
-              <h3 className="color-modal-title">{expandedColor.label}</h3>
-              <p className="color-modal-hex">{expandedColor.hex}</p>
-              <button
-                className="copy-button"
-                onClick={() => copyToClipboard(expandedColor.hex)}
-              >
-                {copied ? (
-                  <>
-                    <span className="copy-check">✓</span>
-                    <span>已复制</span>
-                  </>
-                ) : (
-                  <>
-                    <span>📋</span>
-                    <span>复制 HEX</span>
-                  </>
-                )}
+          <div className="color-modal-wrapper">
+            <div className="color-modal" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="color-modal-preview"
+                style={{
+                  backgroundColor: expandedColor.colorStr,
+                  boxShadow: `0 20px 60px ${expandedColor.hex}88`,
+                }}
+              />
+              <div className="color-modal-content">
+                <h3 className="color-modal-title">{expandedColor.label}</h3>
+                <p className="color-modal-hex">{expandedColor.hex}</p>
+                <button
+                  className={`copy-button ${copied ? 'copied' : ''}`}
+                  onClick={() => copyToClipboard(expandedColor.hex)}
+                >
+                  {copied ? (
+                    <>
+                      <span className="copy-check-icon">✓</span>
+                      <span>已复制</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>📋</span>
+                      <span>复制 HEX</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <button className="color-modal-close" onClick={closeExpanded}>
+                ×
               </button>
             </div>
-            <button className="color-modal-close" onClick={closeExpanded}>
-              ×
-            </button>
           </div>
         </div>
       )}
