@@ -22,9 +22,26 @@ export interface WeeklyPlan {
   days: Record<DayOfWeek, PlannedExercise[]>;
 }
 
+export interface LoggedSet {
+  setNumber: number;
+  actualReps: number;
+  actualWeight: number;
+}
+
+export interface TrainingLogEntry {
+  logId: string;
+  planId: string;
+  actionId: string;
+  day: DayOfWeek;
+  weekKey: string;
+  loggedSets: LoggedSet[];
+  completedAt?: string;
+}
+
 interface TrainingPlanProps {
   weekKey: string;
   weeklyPlan: WeeklyPlan;
+  logs: TrainingLogEntry[];
   onUpdatePlannedExercise: (day: DayOfWeek, planId: string, field: keyof PlannedExercise, value: number) => void;
   onRemovePlannedExercise: (day: DayOfWeek, planId: string) => void;
   onStartLogging?: (exercise: PlannedExercise, day: DayOfWeek) => void;
@@ -52,12 +69,36 @@ const MUSCLE_COLORS: Record<MuscleGroup, string> = {
 export default function TrainingPlan({
   weekKey,
   weeklyPlan,
+  logs,
   onUpdatePlannedExercise,
   onRemovePlannedExercise,
   onStartLogging,
 }: TrainingPlanProps) {
   const [newCardIds, setNewCardIds] = useState<Set<string>>(new Set());
   const prevPlanIdsRef = useRef<Set<string>>(new Set());
+
+  const getCompletionPercent = (planId: string, day: DayOfWeek): number => {
+    const log = logs.find(l => l.planId === planId && l.day === day && l.weekKey === weekKey);
+    if (!log || log.loggedSets.length === 0) return 0;
+    const exercise = weeklyPlan.days[day]?.find(ex => ex.planId === planId);
+    if (!exercise) return 0;
+    const targetVolume = exercise.targetSets * exercise.targetReps * exercise.targetWeight;
+    if (targetVolume === 0) return 0;
+    const actualVolume = log.loggedSets.reduce((sum, s) => sum + s.actualReps * s.actualWeight, 0);
+    return Math.min(100, Math.round((actualVolume / targetVolume) * 100));
+  };
+
+  const getProgressGradient = (percent: number): string => {
+    if (percent >= 100) return 'linear-gradient(90deg, #66bb6a, #43a047)';
+    if (percent >= 80) return 'linear-gradient(90deg, #ffa726, #ff7043)';
+    return 'linear-gradient(90deg, #4ecdc4, #45b7d1)';
+  };
+
+  const getPulseColor = (percent: number): string => {
+    if (percent >= 100) return 'rgba(102, 187, 106, 0.6)';
+    if (percent >= 80) return 'rgba(255, 167, 38, 0.6)';
+    return 'rgba(78, 205, 196, 0.6)';
+  };
 
   useEffect(() => {
     const currentIds = new Set<string>();
@@ -219,6 +260,27 @@ export default function TrainingPlan({
                                           />
                                         </div>
                                       </div>
+                                      {(() => {
+                                        const percent = getCompletionPercent(exercise.planId, day.key);
+                                        if (percent > 0) {
+                                          return (
+                                            <div className="mini-progress-wrap">
+                                              <div className="mini-progress-bar">
+                                                <div
+                                                  className={`mini-progress-fill ${percent >= 50 ? 'pulse' : ''}`}
+                                                  style={{
+                                                    width: `${percent}%`,
+                                                    background: getProgressGradient(percent),
+                                                    '--mini-pulse-color': getPulseColor(percent),
+                                                  } as React.CSSProperties}
+                                                />
+                                              </div>
+                                              <span className="mini-progress-text">{percent}%</span>
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
                                       {onStartLogging && (
                                         <button
                                           type="button"

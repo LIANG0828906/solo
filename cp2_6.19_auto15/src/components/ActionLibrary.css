@@ -54,8 +54,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+.tag-emoji {
+  font-size: 15px;
+  line-height: 1;
 }
 
 .muscle-tag-btn:hover:not(.active) {
@@ -146,7 +152,7 @@
 }
 
 .card-image {
-  height: 100px;
+  height: 120px;
   border-radius: 8px 8px 0 0;
   display: flex;
   align-items: center;
@@ -248,6 +254,6 @@
   }
 
   .card-image {
-    height: 90px;
+    height: 100px;
   }
 }

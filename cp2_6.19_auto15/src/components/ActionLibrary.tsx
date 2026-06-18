@@ -17,22 +17,22 @@ interface ActionLibraryProps {
 }
 
 const MUSCLE_GROUP_CONFIG: Record<MuscleGroup, { label: string; emoji: string; color: string; bgColor: string }> = {
-  chest: { label: '胸部', emoji: '💪', color: '#ffffff', bgColor: '#ef4444' },
-  back: { label: '背部', emoji: '🦴', color: '#ffffff', bgColor: '#f97316' },
+  chest: { label: '胸部', emoji: '🏋️', color: '#ffffff', bgColor: '#ef4444' },
+  back: { label: '背部', emoji: '🔙', color: '#ffffff', bgColor: '#f97316' },
   legs: { label: '腿部', emoji: '🦵', color: '#ffffff', bgColor: '#22c55e' },
-  shoulders: { label: '肩部', emoji: '🏋️', color: '#ffffff', bgColor: '#3b82f6' },
-  arms: { label: '手臂', emoji: '💪', color: '#ffffff', bgColor: '#8b5cf6' },
+  shoulders: { label: '肩部', emoji: '💪', color: '#ffffff', bgColor: '#3b82f6' },
+  arms: { label: '手臂', emoji: '🤜', color: '#ffffff', bgColor: '#8b5cf6' },
   core: { label: '核心', emoji: '🔥', color: '#ffffff', bgColor: '#ec4899' },
 };
 
-const ALL_GROUPS: { key: MuscleGroup | 'all'; label: string; bgColor: string }[] = [
-  { key: 'all', label: '全部', bgColor: '#6b7280' },
-  { key: 'chest', label: '胸部', bgColor: MUSCLE_GROUP_CONFIG.chest.bgColor },
-  { key: 'back', label: '背部', bgColor: MUSCLE_GROUP_CONFIG.back.bgColor },
-  { key: 'legs', label: '腿部', bgColor: MUSCLE_GROUP_CONFIG.legs.bgColor },
-  { key: 'shoulders', label: '肩部', bgColor: MUSCLE_GROUP_CONFIG.shoulders.bgColor },
-  { key: 'arms', label: '手臂', bgColor: MUSCLE_GROUP_CONFIG.arms.bgColor },
-  { key: 'core', label: '核心', bgColor: MUSCLE_GROUP_CONFIG.core.bgColor },
+const ALL_GROUPS: { key: MuscleGroup | 'all'; label: string; emoji: string; bgColor: string }[] = [
+  { key: 'all', label: '全部', emoji: '📋', bgColor: '#6b7280' },
+  { key: 'chest', label: '胸部', emoji: '🏋️', bgColor: MUSCLE_GROUP_CONFIG.chest.bgColor },
+  { key: 'back', label: '背部', emoji: '🔙', bgColor: MUSCLE_GROUP_CONFIG.back.bgColor },
+  { key: 'legs', label: '腿部', emoji: '🦵', bgColor: MUSCLE_GROUP_CONFIG.legs.bgColor },
+  { key: 'shoulders', label: '肩部', emoji: '💪', bgColor: MUSCLE_GROUP_CONFIG.shoulders.bgColor },
+  { key: 'arms', label: '手臂', emoji: '🤜', bgColor: MUSCLE_GROUP_CONFIG.arms.bgColor },
+  { key: 'core', label: '核心', emoji: '🔥', bgColor: MUSCLE_GROUP_CONFIG.core.bgColor },
 ];
 
 const getMuscleGroupIcon = (group: MuscleGroup, size: number = 40) => {
@@ -44,13 +44,18 @@ const getMuscleGroupIcon = (group: MuscleGroup, size: number = 40) => {
         height: '100%',
         backgroundColor: config.bgColor,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: '8px 8px 0 0',
         opacity: 0.9,
+        gap: 4,
+        position: 'relative',
       }}
     >
-      <span style={{ fontSize: `${size}px` }}>{config.emoji}</span>
+      <Dumbbell size={28} color="rgba(255,255,255,0.7)" strokeWidth={1.5} />
+      <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{config.emoji}</span>
+      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>示范图</span>
     </div>
   );
 };
@@ -123,6 +128,7 @@ export default function ActionLibrary({ actions }: ActionLibraryProps) {
                   : undefined
               }
             >
+              <span className="tag-emoji">{group.emoji}</span>
               {group.label}
             </button>
           ))}

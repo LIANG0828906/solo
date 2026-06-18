@@ -474,6 +474,7 @@ export default function App() {
               <TrainingPlan
                 weekKey={currentWeek}
                 weeklyPlan={currentWeeklyPlan}
+                logs={trainingLogs}
                 onUpdatePlannedExercise={updatePlannedExercise}
                 onRemovePlannedExercise={removePlannedExercise}
               />

@@ -145,6 +145,50 @@
   filter: brightness(0.95);
 }
 
+.mini-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mini-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #eee;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.mini-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 500ms ease-out;
+  position: relative;
+}
+
+.mini-progress-fill.pulse {
+  animation: mini-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes mini-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px var(--mini-pulse-color);
+  }
+  50% {
+    box-shadow: 0 0 10px var(--mini-pulse-color);
+  }
+}
+
+.mini-progress-text {
+  font-size: 10px;
+  font-weight: 600;
+  color: #888;
+  min-width: 28px;
+  text-align: right;
+}
+
 .params-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
