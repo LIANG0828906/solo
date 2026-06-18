@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { Product, CartItem, Order } from './types';
 
-const STORAGE_KEY = 'craft-market-data';
+const STORAGE_KEY = 'craft-market-data-v2';
 
 interface StoreState {
   products: Product[];
@@ -77,6 +77,11 @@ const seedProducts: Product[] = [
     description: '采用传统青瓷工艺，手工拉坯烧制。釉色温润如玉，触感细腻。每只茶杯都带有独特窑变效果，是品茶赏器的佳选。',
     category: '陶瓷',
     imageUrl: imgBase + encodeURIComponent('beautiful handmade celadon tea cup ceramic pottery on warm beige background product photography soft lighting'),
+    images: [
+      imgBase + encodeURIComponent('beautiful handmade celadon tea cup ceramic pottery on warm beige background product photography soft lighting front view'),
+      imgBase + encodeURIComponent('beautiful handmade celadon tea cup ceramic pottery on warm beige background product photography soft lighting side view'),
+      imgBase + encodeURIComponent('beautiful handmade celadon tea cup ceramic pottery detail close up glaze texture macro'),
+    ],
     makerName: '陈窑',
     makerAvatar: '陈',
     material: '高岭土、青釉',
@@ -91,6 +96,11 @@ const seedProducts: Product[] = [
     description: '选用优质羊毛，纯手工编织而成。纹路紧密均匀，保暖性极佳。自然原色，不染色不漂白，亲肤舒适。',
     category: '编织',
     imageUrl: imgBase + encodeURIComponent('cozy handwoven wool scarf craft on warm beige background product photography soft lighting'),
+    images: [
+      imgBase + encodeURIComponent('cozy handwoven wool scarf craft on warm beige background product photography soft lighting folded view'),
+      imgBase + encodeURIComponent('cozy handwoven wool scarf detail weave texture close up macro'),
+      imgBase + encodeURIComponent('cozy handwoven wool scarf draped over wooden chair lifestyle'),
+    ],
     makerName: '林织',
     makerAvatar: '林',
     material: '纯羊毛',

@@ -6,6 +6,7 @@ export interface Product {
   description: string;
   category: string;
   imageUrl: string;
+  images?: string[];
   makerName: string;
   makerAvatar: string;
   material: string;
