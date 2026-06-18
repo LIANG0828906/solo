@@ -3,6 +3,7 @@ import { useAudioStore } from '../store/audioStore';
 import { analyzeAudio } from '../utils/audioAnalyzer';
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = 20971520;
 const ACCEPTED_TYPES = ['audio/mpeg', 'audio/wav', 'audio/mp3'];
 
 export const AudioUploader: React.FC = () => {
@@ -18,7 +19,7 @@ export const AudioUploader: React.FC = () => {
         alert('Please upload an MP3 or WAV file');
         return;
       }
-      if (file.size > MAX_FILE_SIZE) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
         alert('File size exceeds 20MB limit');
         return;
       }

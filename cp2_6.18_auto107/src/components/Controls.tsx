@@ -71,7 +71,14 @@ export const Controls: React.FC = () => {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="controls-bar">
+    <div
+      className="controls-bar"
+      style={{
+        background: 'rgba(45, 52, 54, 0.8)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      }}
+    >
       <div className="controls-inner">
         <button className="play-btn" onClick={togglePlay}>
           {isPlaying ? (

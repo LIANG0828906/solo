@@ -55,7 +55,7 @@ export function updateParticle(
   canvasHeight: number
 ): Particle {
   particle.life -= 1;
-  particle.hueOffset += 0.5;
+  particle.hueOffset = (particle.hueOffset + 0.5) % 360;
   particle.x += particle.vx;
   particle.y += particle.vy;
 
@@ -100,32 +100,48 @@ export function manageParticles(
 ): Particle[] {
   particles = particles.filter((p) => p.life > 0);
 
-  const totalCurrent = particles.length;
-  const targetLow = Math.floor(freqLow * 180);
-  const targetMid = Math.floor(freqMid * 180);
-  const targetHigh = Math.floor(freqHigh * 140);
+  const combinedIntensity = (freqLow + freqMid + freqHigh) / 3;
+  const targetTotal = Math.min(maxCount, Math.floor(combinedIntensity * maxCount * 2));
 
   const currentLow = particles.filter((p) => p.band === 'low').length;
   const currentMid = particles.filter((p) => p.band === 'mid').length;
   const currentHigh = particles.filter((p) => p.band === 'high').length;
+  const currentTotal = particles.length;
+
+  const bandWeightLow = freqLow + 0.01;
+  const bandWeightMid = freqMid + 0.01;
+  const bandWeightHigh = freqHigh + 0.01;
+  const totalWeight = bandWeightLow + bandWeightMid + bandWeightHigh;
+
+  const targetLow = Math.floor(targetTotal * (bandWeightLow / totalWeight));
+  const targetMid = Math.floor(targetTotal * (bandWeightMid / totalWeight));
+  const targetHigh = Math.floor(targetTotal * (bandWeightHigh / totalWeight));
 
   const toSpawn: Particle[] = [];
 
-  if (totalCurrent < maxCount) {
+  if (currentTotal < maxCount) {
     const deficitLow = Math.max(0, targetLow - currentLow);
     const deficitMid = Math.max(0, targetMid - currentMid);
     const deficitHigh = Math.max(0, targetHigh - currentHigh);
 
-    for (let i = 0; i < Math.min(deficitLow, 5); i++) {
+    const spawnLow = Math.min(deficitLow, 5, maxCount - currentTotal);
+    const spawnMid = Math.min(deficitMid, 5, maxCount - currentTotal - spawnLow);
+    const spawnHigh = Math.min(deficitHigh, 5, maxCount - currentTotal - spawnLow - spawnMid);
+
+    for (let i = 0; i < spawnLow; i++) {
       toSpawn.push(createParticle('low', freqLow, canvasWidth, canvasHeight));
     }
-    for (let i = 0; i < Math.min(deficitMid, 5); i++) {
+    for (let i = 0; i < spawnMid; i++) {
       toSpawn.push(createParticle('mid', freqMid, canvasWidth, canvasHeight));
     }
-    for (let i = 0; i < Math.min(deficitHigh, 5); i++) {
+    for (let i = 0; i < spawnHigh; i++) {
       toSpawn.push(createParticle('high', freqHigh, canvasWidth, canvasHeight));
     }
   }
 
-  return [...particles, ...toSpawn];
+  const result = [...particles, ...toSpawn];
+  if (result.length > maxCount) {
+    return result.slice(0, maxCount);
+  }
+  return result;
 }

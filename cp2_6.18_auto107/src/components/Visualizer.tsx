@@ -41,7 +41,7 @@ export const Visualizer: React.FC = () => {
         beatPulseRef.current = 1;
       }
     }
-    beatPulseRef.current *= 0.9;
+    beatPulseRef.current = Math.max(0, beatPulseRef.current - 0.03);
 
     particlesRef.current = manageParticles(
       particlesRef.current,
