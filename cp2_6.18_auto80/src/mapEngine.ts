@@ -74,6 +74,8 @@ export class MapEngine {
   private keys: Set<string> = new Set();
   private fragmentGrid!: SpatialGrid<Fragment>;
   private enemyGrid!: SpatialGrid<Enemy>;
+  private enemyNeighborCache: Map<number, Enemy[]> = new Map();
+  private cacheFrameId: number = 0;
   private nextId: number = 0;
   private chaseTimer: number = 0;
   private hitFlashTimer: number = 0;
@@ -305,6 +307,9 @@ export class MapEngine {
       return;
     }
 
+    this.cacheFrameId++;
+    this.enemyNeighborCache.clear();
+
     this.updatePlayer(dt);
     this.updateFragments(dt);
     this.rebuildEnemyGrid();
@@ -396,12 +401,15 @@ export class MapEngine {
           dirX /= dist;
           dirY /= dist;
 
-          const nearbyEnemies = this.queryGrid(
-            this.enemyGrid,
-            enemy.pos.x,
-            enemy.pos.y,
-            AVOIDANCE_RADIUS
+          const speedMod = enemy.state === 'chase' ? 1 : 0.6;
+          const currentSpeed = enemy.speed * speedMod;
+          const frameTravelDistance = currentSpeed * dt;
+          const dynamicAvoidanceRadius = Math.max(
+            AVOIDANCE_RADIUS * 0.5,
+            enemy.radiusX * 2 + frameTravelDistance * 3
           );
+
+          const nearbyEnemies = this.getCachedEnemyNeighbors(enemy, dynamicAvoidanceRadius);
 
           let avoidX = 0;
           let avoidY = 0;
@@ -411,8 +419,8 @@ export class MapEngine {
             const odx = enemy.pos.x - other.pos.x;
             const ody = enemy.pos.y - other.pos.y;
             const odist = Math.sqrt(odx * odx + ody * ody);
-            if (odist < AVOIDANCE_RADIUS && odist > 0.1) {
-              const strength = (AVOIDANCE_RADIUS - odist) / AVOIDANCE_RADIUS;
+            if (odist < dynamicAvoidanceRadius && odist > 0.1) {
+              const strength = (dynamicAvoidanceRadius - odist) / dynamicAvoidanceRadius;
               avoidX += (odx / odist) * strength;
               avoidY += (ody / odist) * strength;
               avoidCount++;
@@ -423,8 +431,9 @@ export class MapEngine {
             const zdx = enemy.pos.x - zone.pos.x;
             const zdy = enemy.pos.y - zone.pos.y;
             const zdist = Math.sqrt(zdx * zdx + zdy * zdy);
-            if (zdist < zone.radius * 1.1 && zdist > 0.1) {
-              const strength = (zone.radius * 1.1 - zdist) / (zone.radius * 1.1);
+            const zoneAvoidRadius = zone.radius * 1.2;
+            if (zdist < zoneAvoidRadius && zdist > 0.1) {
+              const strength = (zoneAvoidRadius - zdist) / zoneAvoidRadius;
               avoidX += (zdx / zdist) * strength * 1.5;
               avoidY += (zdy / zdist) * strength * 1.5;
               avoidCount++;
@@ -446,15 +455,24 @@ export class MapEngine {
             }
           }
 
-          const speedMod = enemy.state === 'chase' ? 1 : 0.6;
-          enemy.pos.x += dirX * enemy.speed * speedMod * dt;
-          enemy.pos.y += dirY * enemy.speed * speedMod * dt;
+          enemy.pos.x += dirX * currentSpeed * dt;
+          enemy.pos.y += dirY * currentSpeed * dt;
         }
       }
 
       enemy.pos.x = Math.max(enemy.radiusX, Math.min(this.width - enemy.radiusX, enemy.pos.x));
       enemy.pos.y = Math.max(enemy.radiusY, Math.min(this.height - enemy.radiusY, enemy.pos.y));
     }
+  }
+
+  private getCachedEnemyNeighbors(enemy: Enemy, radius: number): Enemy[] {
+    const cacheKey = enemy.id;
+    if (this.enemyNeighborCache.has(cacheKey)) {
+      return this.enemyNeighborCache.get(cacheKey)!;
+    }
+    const neighbors = this.queryGrid(this.enemyGrid, enemy.pos.x, enemy.pos.y, radius);
+    this.enemyNeighborCache.set(cacheKey, neighbors);
+    return neighbors;
   }
 
   private checkCollisions(_dt: number): void {

@@ -6,6 +6,22 @@ interface AnimValue {
   display: number;
 }
 
+interface Button {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label: string;
+  hovered: boolean;
+  visible: boolean;
+  onClick: () => void;
+}
+
+const BUTTON_WIDTH = 200;
+const BUTTON_HEIGHT = 48;
+const BUTTON_RADIUS = 24;
+
 export class HUDRenderer {
   private hudCanvas: HTMLCanvasElement;
   private hudCtx: CanvasRenderingContext2D;
@@ -15,6 +31,9 @@ export class HUDRenderer {
   private phase: GamePhase;
   private anims: Map<string, AnimValue> = new Map();
   private overlay: HTMLDivElement;
+  private buttons: Button[] = [];
+  private mouseX: number = -1;
+  private mouseY: number = -1;
 
   constructor(_canvas: HTMLCanvasElement) {
     this.hudCanvas = document.createElement('canvas');
@@ -28,7 +47,7 @@ export class HUDRenderer {
     this.overlay = document.createElement('div');
     this.overlay.style.cssText = `
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      pointer-events: none; z-index: 10; overflow: hidden;
+      pointer-events: auto; z-index: 10; overflow: hidden;
     `;
     _canvas.parentElement?.appendChild(this.overlay);
 
@@ -38,14 +57,15 @@ export class HUDRenderer {
     }
 
     this.setupEventListeners();
+    this.setupMouseListeners();
     this.resize();
-    this.renderDOM();
+    this.buildButtons();
   }
 
   private setupEventListeners(): void {
     eventBus.on('phaseChange', () => {
       this.phase = gameState.getPhase();
-      this.renderDOM();
+      this.buildButtons();
     });
     eventBus.on('statsUpdate', () => {
       this.stats = gameState.getStats();
@@ -53,8 +73,104 @@ export class HUDRenderer {
     eventBus.on('restart', () => {
       this.stats = gameState.getStats();
       this.phase = gameState.getPhase();
-      this.renderDOM();
+      this.buildButtons();
     });
+  }
+
+  private setupMouseListeners(): void {
+    const updateMouse = (e: MouseEvent) => {
+      const rect = this.hudCanvas.getBoundingClientRect();
+      this.mouseX = e.clientX - rect.left;
+      this.mouseY = e.clientY - rect.top;
+      this.updateButtonHover();
+    };
+    this.overlay.addEventListener('mousemove', updateMouse);
+    this.overlay.addEventListener('mouseenter', updateMouse);
+    this.overlay.addEventListener('mouseleave', () => {
+      this.mouseX = -1;
+      this.mouseY = -1;
+      this.updateButtonHover();
+    });
+    this.overlay.addEventListener('click', (e) => {
+      const rect = this.hudCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      this.handleClick(x, y);
+    });
+  }
+
+  private updateButtonHover(): void {
+    for (const btn of this.buttons) {
+      if (!btn.visible) continue;
+      btn.hovered = this.mouseX >= btn.x && this.mouseX <= btn.x + btn.width &&
+                    this.mouseY >= btn.y && this.mouseY <= btn.y + btn.height;
+    }
+  }
+
+  private handleClick(x: number, y: number): void {
+    for (const btn of this.buttons) {
+      if (!btn.visible) continue;
+      if (x >= btn.x && x <= btn.x + btn.width && y >= btn.y && y <= btn.y + btn.height) {
+        btn.onClick();
+        return;
+      }
+    }
+  }
+
+  private buildButtons(): void {
+    this.buttons = [];
+    const cx = this.width / 2;
+
+    if (this.phase === 'menu') {
+      const y = this.height / 2 + 60;
+      this.buttons.push({
+        id: 'start', x: cx - BUTTON_WIDTH / 2, y,
+        width: BUTTON_WIDTH, height: BUTTON_HEIGHT,
+        label: '开始游戏', hovered: false, visible: true,
+        onClick: () => gameState.startCountdown(),
+      });
+      return;
+    }
+
+    if (this.phase === 'paused') {
+      const cy = this.height / 2;
+      this.buttons.push({
+        id: 'resume', x: cx - BUTTON_WIDTH / 2, y: cy - 10,
+        width: BUTTON_WIDTH, height: BUTTON_HEIGHT,
+        label: '继续游戏', hovered: false, visible: true,
+        onClick: () => gameState.togglePause(),
+      });
+      this.buttons.push({
+        id: 'restart', x: cx - BUTTON_WIDTH / 2, y: cy + 58,
+        width: BUTTON_WIDTH, height: BUTTON_HEIGHT,
+        label: '重新开始', hovered: false, visible: true,
+        onClick: () => gameState.reset(),
+      });
+      this.buttons.push({
+        id: 'menu', x: cx - BUTTON_WIDTH / 2, y: cy + 126,
+        width: BUTTON_WIDTH, height: BUTTON_HEIGHT,
+        label: '返回主菜单', hovered: false, visible: true,
+        onClick: () => gameState.reset(),
+      });
+      return;
+    }
+
+    if (this.phase === 'gameover') {
+      const cy = this.height / 2 + 140;
+      this.buttons.push({
+        id: 'restart_go', x: cx - BUTTON_WIDTH / 2, y: cy - 6,
+        width: BUTTON_WIDTH, height: BUTTON_HEIGHT,
+        label: '再来一局', hovered: false, visible: true,
+        onClick: () => gameState.reset(),
+      });
+      this.buttons.push({
+        id: 'menu_go', x: cx - BUTTON_WIDTH / 2, y: cy + 62,
+        width: BUTTON_WIDTH, height: BUTTON_HEIGHT,
+        label: '返回主菜单', hovered: false, visible: true,
+        onClick: () => gameState.reset(),
+      });
+      return;
+    }
   }
 
   resize(): void {
@@ -65,12 +181,13 @@ export class HUDRenderer {
     this.hudCanvas.height = this.height * dpr;
     this.hudCanvas.style.cssText = `
       width: 100%; height: 100%; position: absolute;
-      top: 0; left: 0; pointer-events: none;
+      top: 0; left: 0; display: block;
     `;
     this.hudCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (!this.hudCanvas.parentElement) {
       this.overlay.appendChild(this.hudCanvas);
     }
+    this.buildButtons();
   }
 
   update(_dt: number): void {
@@ -88,29 +205,49 @@ export class HUDRenderer {
 
   render(): void {
     this.hudCtx.clearRect(0, 0, this.width, this.height);
-    if (this.phase === 'menu') return;
+
+    if (this.phase === 'menu') {
+      this.drawMenuScreen();
+      this.drawButtons();
+      return;
+    }
 
     this.drawHUD();
     if (this.phase === 'countdown') this.drawCountdown();
     if (this.phase === 'tutorial') this.drawTutorialHint();
-    if (this.phase === 'paused') this.drawOverlayBlur(0.4);
-    if (this.phase === 'gameover') this.drawOverlayBlur(0.5);
+    if (this.phase === 'paused') {
+      this.drawGlassOverlay(0.35);
+      this.drawPausePanel();
+      this.drawButtons();
+    }
+    if (this.phase === 'gameover') {
+      this.drawGlassOverlay(0.45);
+      this.drawGameOverPanel();
+      this.drawButtons();
+    }
   }
 
-  private drawOverlayBlur(intensity: number): void {
+  private drawGlassOverlay(intensity: number): void {
     const c = this.hudCtx;
     c.save();
-    c.fillStyle = `rgba(0, 0, 0, ${intensity * 0.3})`;
+
+    c.fillStyle = `rgba(8, 10, 30, ${intensity})`;
     c.fillRect(0, 0, this.width, this.height);
 
-    const centerX = this.width / 2;
-    const centerY = this.height / 2;
-    for (let i = 5; i >= 1; i--) {
-      c.fillStyle = `rgba(11, 12, 42, ${0.04 * i})`;
-      c.beginPath();
-      c.arc(centerX, centerY, Math.max(this.width, this.height) * 0.6, 0, Math.PI * 2);
-      c.fill();
+    for (let i = 0; i < 3; i++) {
+      c.fillStyle = `rgba(15, 20, 50, ${0.06})`;
+      c.fillRect(0, 0, this.width, this.height);
     }
+
+    c.strokeStyle = `rgba(80, 120, 200, ${0.03})`;
+    c.lineWidth = 1;
+    for (let y = 0; y < this.height; y += 3) {
+      c.beginPath();
+      c.moveTo(0, y);
+      c.lineTo(this.width, y + Math.sin(y * 0.01) * 2);
+      c.stroke();
+    }
+
     c.restore();
   }
 
@@ -136,6 +273,52 @@ export class HUDRenderer {
     c.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     c.lineWidth = 1;
     c.stroke();
+  }
+
+  private drawGlassPanel(x: number, y: number, w: number, h: number, r: number): void {
+    const c = this.hudCtx;
+
+    c.save();
+    this.drawRoundedRect(x, y, w, h, r);
+    c.clip();
+
+    const layerCount = 6;
+    for (let i = layerCount; i >= 1; i--) {
+      c.fillStyle = `rgba(15, 20, 50, ${0.09 * i / layerCount})`;
+      c.fillRect(x, y, w, h);
+    }
+
+    c.fillStyle = 'rgba(20, 25, 60, 0.55)';
+    c.fillRect(x, y, w, h);
+
+    const glowGrad = c.createRadialGradient(
+      x + w / 2, y + h * 0.3, 0,
+      x + w / 2, y + h * 0.3, Math.max(w, h) * 0.7
+    );
+    glowGrad.addColorStop(0, 'rgba(100, 150, 255, 0.06)');
+    glowGrad.addColorStop(1, 'rgba(100, 150, 255, 0)');
+    c.fillStyle = glowGrad;
+    c.fillRect(x, y, w, h);
+
+    c.restore();
+
+    this.drawRoundedRect(x, y, w, h, r);
+    c.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    c.lineWidth = 1;
+    c.stroke();
+
+    c.save();
+    this.drawRoundedRect(x + 1, y + 1, w - 2, h - 2, r - 1);
+    c.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    c.lineWidth = 1;
+    c.stroke();
+    c.restore();
+
+    c.save();
+    this.drawRoundedRect(x + 2, y + 2, w - 4, 2, Math.min(r - 2, 2));
+    c.fillStyle = 'rgba(255, 255, 255, 0.08)';
+    c.fill();
+    c.restore();
   }
 
   private drawHUD(): void {
@@ -268,178 +451,168 @@ export class HUDRenderer {
     c.restore();
   }
 
-  private renderDOM(): void {
-    const toRemove: Element[] = [];
-    this.overlay.childNodes.forEach((node) => {
-      if (node !== this.hudCanvas && node instanceof Element) {
-        toRemove.push(node);
+  private drawButtons(): void {
+    const c = this.hudCtx;
+    for (const btn of this.buttons) {
+      if (!btn.visible) continue;
+      c.save();
+
+      const brightness = btn.hovered ? 1.1 : 1;
+      const scale = btn.hovered ? 1.02 : 1;
+      const bx = btn.x + btn.width / 2;
+      const by = btn.y + btn.height / 2;
+
+      c.translate(bx, by);
+      c.scale(scale, scale);
+      c.translate(-bx, -by);
+
+      c.shadowColor = btn.hovered ? 'rgba(16, 185, 129, 0.4)' : 'rgba(0, 0, 0, 0.3)';
+      c.shadowBlur = btn.hovered ? 16 : 8;
+      c.shadowOffsetY = btn.hovered ? 4 : 2;
+
+      const grad = c.createLinearGradient(btn.x, btn.y, btn.x + btn.width, btn.y + btn.height);
+      if (brightness > 1) {
+        grad.addColorStop(0, '#7FF2C3');
+        grad.addColorStop(1, '#28D099');
+      } else {
+        grad.addColorStop(0, '#6EE7B7');
+        grad.addColorStop(1, '#10B981');
       }
-    });
-    toRemove.forEach((el) => el.remove());
 
-    if (this.phase === 'menu') this.createMenu();
-    if (this.phase === 'paused') this.createPauseMenu();
-    if (this.phase === 'gameover') this.createGameOver();
+      this.drawRoundedRect(btn.x, btn.y, btn.width, btn.height, BUTTON_RADIUS);
+      c.fillStyle = grad;
+      c.fill();
+
+      c.shadowBlur = 0;
+      c.shadowOffsetY = 0;
+
+      this.drawRoundedRect(btn.x + 1, btn.y + 1, btn.width - 2, btn.height / 2 - 1, BUTTON_RADIUS - 1);
+      c.fillStyle = 'rgba(255, 255, 255, 0.12)';
+      c.fill();
+
+      c.fillStyle = '#0B0C2A';
+      c.font = 'bold 16px "Segoe UI", sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(btn.label, btn.x + btn.width / 2, btn.y + btn.height / 2 + 1);
+
+      c.restore();
+    }
   }
 
-  private btnStyle(btn: HTMLButtonElement): void {
-    btn.style.cssText = `
-      width: 200px; height: 48px; border-radius: 24px; border: none;
-      background: linear-gradient(135deg, #6EE7B7, #10B981);
-      color: #0B0C2A; font-weight: bold; font-size: 16px;
-      cursor: pointer; transition: filter 0.2s ease-in-out, transform 0.2s ease-in-out;
-      font-family: 'Segoe UI', sans-serif; pointer-events: auto;
-    `;
-    btn.onmouseenter = () => { btn.style.filter = 'brightness(1.1)'; btn.style.transform = 'scale(1.03)'; };
-    btn.onmouseleave = () => { btn.style.filter = 'brightness(1)'; btn.style.transform = 'scale(1)'; };
+  private drawGradientTitle(text: string, x: number, y: number, size: number): void {
+    const c = this.hudCtx;
+    c.save();
+    c.font = `bold ${size}px "Segoe UI", sans-serif`;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+
+    const grad = c.createLinearGradient(x - 150, y, x + 150, y);
+    grad.addColorStop(0, '#6EE7B7');
+    grad.addColorStop(1, '#60A5FA');
+    c.fillStyle = grad;
+    c.shadowColor = 'rgba(110, 231, 183, 0.3)';
+    c.shadowBlur = 20;
+    c.fillText(text, x, y);
+    c.shadowBlur = 0;
+    c.restore();
   }
 
-  private titleStyle(el: HTMLElement, size: string): void {
-    el.style.cssText = `
-      font-size: ${size}; font-weight: bold; color: #E2E8F0;
-      text-align: center; margin-bottom: 16px;
-      background: linear-gradient(135deg, #6EE7B7, #60A5FA);
-      -webkit-background-clip: text; background-clip: text;
-      -webkit-text-fill-color: transparent;
-      font-family: 'Segoe UI', sans-serif;
-    `;
+  private drawMenuScreen(): void {
+    const c = this.hudCtx;
+    const cx = this.width / 2;
+
+    const bgGrad = c.createLinearGradient(0, 0, 0, this.height);
+    bgGrad.addColorStop(0, 'rgba(11, 12, 42, 0.7)');
+    bgGrad.addColorStop(1, 'rgba(27, 28, 62, 0.7)');
+    c.fillStyle = bgGrad;
+    c.fillRect(0, 0, this.width, this.height);
+
+    c.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    const starSeed = 54321;
+    for (let i = 0; i < 100; i++) {
+      const sx = ((starSeed * (i + 1) * 9301 + 49297) % 233280) / 233280 * this.width;
+      const sy = ((starSeed * (i + 1) * 1237 + 24601) % 233280) / 233280 * this.height;
+      const sr = ((starSeed * (i + 1) * 7919 + 1234) % 233280) / 233280 * 1.5 + 0.3;
+      c.beginPath();
+      c.arc(sx, sy, sr, 0, Math.PI * 2);
+      c.fill();
+    }
+
+    const titleY = this.height / 2 - 80;
+    const playerGlow = c.createRadialGradient(cx, titleY, 0, cx, titleY, 180);
+    playerGlow.addColorStop(0, 'rgba(96, 165, 250, 0.35)');
+    playerGlow.addColorStop(1, 'rgba(96, 165, 250, 0)');
+    c.fillStyle = playerGlow;
+    c.beginPath();
+    c.arc(cx, titleY, 180, 0, Math.PI * 2);
+    c.fill();
+
+    this.drawGradientTitle('GlowRush', cx, titleY, 72);
+
+    c.fillStyle = '#94A3B8';
+    c.font = '18px "Segoe UI", sans-serif';
+    c.textAlign = 'center';
+    c.fillText('收集能量碎片 \u00B7 维持光辉 \u00B7 躲避暗影', cx, this.height / 2 - 10);
   }
 
-  private createMenu(): void {
-    const wrap = document.createElement('div');
-    wrap.style.cssText = `
-      position: absolute; inset: 0; display: flex;
-      align-items: center; justify-content: center;
-      pointer-events: auto; flex-direction: column;
-    `;
-    const title = document.createElement('div');
-    title.textContent = 'GlowRush';
-    this.titleStyle(title, '72px');
+  private drawPausePanel(): void {
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    const pw = 380;
+    const ph = 280;
+    const px = cx - pw / 2;
+    const py = cy - ph / 2 - 40;
 
-    const subtitle = document.createElement('div');
-    subtitle.style.cssText = 'color:#94A3B8; font-size:18px; margin-bottom:40px; text-align:center; font-family:"Segoe UI", sans-serif;';
-    subtitle.textContent = '收集能量碎片 · 维持光辉 · 躲避暗影';
-
-    const startBtn = document.createElement('button');
-    startBtn.textContent = '开始游戏';
-    this.btnStyle(startBtn);
-    startBtn.onclick = () => gameState.startCountdown();
-
-    wrap.appendChild(title);
-    wrap.appendChild(subtitle);
-    wrap.appendChild(startBtn);
-    this.overlay.appendChild(wrap);
+    this.drawGlassPanel(px, py, pw, ph, 24);
+    this.drawGradientTitle('游戏暂停', cx, py + 55, 40);
   }
 
-  private createPauseMenu(): void {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: absolute; inset: 0;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-      display: flex; align-items: center; justify-content: center;
-      flex-direction: column; pointer-events: auto;
-    `;
-    const title = document.createElement('div');
-    title.textContent = '游戏暂停';
-    this.titleStyle(title, '48px');
-
-    const resume = document.createElement('button');
-    resume.textContent = '继续游戏';
-    this.btnStyle(resume);
-    resume.style.marginBottom = '12px';
-    resume.onclick = () => gameState.togglePause();
-
-    const restart = document.createElement('button');
-    restart.textContent = '重新开始';
-    this.btnStyle(restart);
-    restart.style.marginBottom = '12px';
-    restart.onclick = () => { gameState.reset(); };
-
-    const menu = document.createElement('button');
-    menu.textContent = '返回主菜单';
-    this.btnStyle(menu);
-    menu.onclick = () => { gameState.reset(); };
-
-    overlay.appendChild(title);
-    overlay.appendChild(resume);
-    overlay.appendChild(restart);
-    overlay.appendChild(menu);
-    this.overlay.appendChild(overlay);
-  }
-
-  private createGameOver(): void {
+  private drawGameOverPanel(): void {
+    const c = this.hudCtx;
     const s = gameState.getStats();
-    const mins = Math.floor(s.survivalTime / 60);
-    const secs = Math.floor(s.survivalTime % 60);
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    const pw = 440;
+    const ph = 480;
+    const px = cx - pw / 2;
+    const py = cy - ph / 2;
 
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: absolute; inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex; align-items: center; justify-content: center;
-      pointer-events: auto;
-      animation: fadeIn 0.3s ease-in-out;
-    `;
+    this.drawGlassPanel(px, py, pw, ph, 24);
 
-    const panel = document.createElement('div');
-    panel.style.cssText = `
-      background: rgba(15, 15, 35, 0.72);
-      backdrop-filter: blur(14px) saturate(180%);
-      -webkit-backdrop-filter: blur(14px) saturate(180%);
-      border-radius: 24px; padding: 32px; min-width: 380px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      display: flex; flex-direction: column; align-items: center;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5),
-                  0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-    `;
+    this.drawGradientTitle('游戏结束', cx, py + 55, 36);
 
-    const title = document.createElement('div');
-    title.textContent = '游戏结束';
-    this.titleStyle(title, '36px');
+    const stats: Array<{ label: string; value: string; color: string }> = [
+      { label: '最终得分', value: s.score.toLocaleString(), color: '#6EE7B7' },
+      { label: '收集碎片', value: `${s.fragmentsCollected} 个`, color: '#60A5FA' },
+      { label: '存活时间', value: `${Math.floor(s.survivalTime / 60)}分${Math.floor(s.survivalTime % 60)}秒`, color: '#C084FC' },
+      { label: '最高连击', value: `${s.maxCombo}x`, color: '#FBBF24' },
+    ];
 
-    const makeStat = (label: string, value: string, color: string) => {
-      const row = document.createElement('div');
-      row.style.cssText = `
-        display: flex; justify-content: space-between; align-items: center;
-        width: 100%; padding: 10px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      `;
-      const l = document.createElement('span');
-      l.style.cssText = 'color:#94A3B8; font-family:"Segoe UI", sans-serif; font-size:15px;';
-      l.textContent = label;
-      const v = document.createElement('span');
-      v.style.cssText = `color:${color}; font-family:"Segoe UI", sans-serif; font-weight:bold; font-size:18px;`;
-      v.textContent = value;
-      row.appendChild(l);
-      row.appendChild(v);
-      return row;
-    };
+    const startY = py + 110;
+    const rowH = 50;
+    stats.forEach((stat, i) => {
+      const ry = startY + i * rowH;
 
-    const stats = document.createElement('div');
-    stats.style.cssText = 'width:100%; margin: 16px 0 24px 0;';
-    stats.appendChild(makeStat('最终得分', s.score.toLocaleString(), '#6EE7B7'));
-    stats.appendChild(makeStat('收集碎片', `${s.fragmentsCollected} 个`, '#60A5FA'));
-    stats.appendChild(makeStat('存活时间', `${mins}分${secs}秒`, '#C084FC'));
-    stats.appendChild(makeStat('最高连击', `${s.maxCombo}x`, '#FBBF24'));
+      if (i < stats.length - 1) {
+        c.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(px + 40, ry + rowH - 5);
+        c.lineTo(px + pw - 40, ry + rowH - 5);
+        c.stroke();
+      }
 
-    const restart = document.createElement('button');
-    restart.textContent = '再来一局';
-    this.btnStyle(restart);
-    restart.style.marginBottom = '12px';
-    restart.onclick = () => { gameState.reset(); };
+      c.fillStyle = '#94A3B8';
+      c.font = '15px "Segoe UI", sans-serif';
+      c.textAlign = 'left';
+      c.textBaseline = 'middle';
+      c.fillText(stat.label, px + 40, ry + rowH / 2);
 
-    const menu = document.createElement('button');
-    menu.textContent = '返回主菜单';
-    this.btnStyle(menu);
-    menu.onclick = () => { gameState.reset(); };
-
-    panel.appendChild(title);
-    panel.appendChild(stats);
-    panel.appendChild(restart);
-    panel.appendChild(menu);
-    overlay.appendChild(panel);
-    this.overlay.appendChild(overlay);
+      c.fillStyle = stat.color;
+      c.font = 'bold 18px "Segoe UI", sans-serif';
+      c.textAlign = 'right';
+      c.fillText(stat.value, px + pw - 40, ry + rowH / 2);
+    });
   }
 }

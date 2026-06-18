@@ -175,8 +175,10 @@ class GameState {
   }
 
   update(dt: number): void {
+    const safeDt = (typeof dt === 'number' && isFinite(dt) && dt >= 0) ? Math.min(dt, 0.1) : 1 / 60;
+
     if (this.phase === 'countdown') {
-      this.countdown -= dt;
+      this.countdown -= safeDt;
       if (this.countdown <= 0) {
         this.startTutorial();
       }
@@ -184,10 +186,10 @@ class GameState {
     }
 
     if (this.phase === 'tutorial') {
-      this.tutorialTimer -= dt;
-      this.stats.survivalTime += dt;
-      this.decayBrightness(dt);
-      this.updateComboTimer(dt);
+      this.tutorialTimer -= safeDt;
+      this.stats.survivalTime += safeDt;
+      this.decayBrightness(safeDt);
+      this.updateComboTimer(safeDt);
       if (this.tutorialTimer <= 0) {
         this.startPlaying();
       }
@@ -195,9 +197,9 @@ class GameState {
     }
 
     if (this.phase === 'playing') {
-      this.stats.survivalTime += dt;
-      this.decayBrightness(dt);
-      this.updateComboTimer(dt);
+      this.stats.survivalTime += safeDt;
+      this.decayBrightness(safeDt);
+      this.updateComboTimer(safeDt);
 
       if (this.stats.brightness <= 0) {
         this.gameOver();
@@ -206,14 +208,17 @@ class GameState {
   }
 
   private decayBrightness(dt: number): void {
+    const safeDt = (typeof dt === 'number' && isFinite(dt) && dt >= 0) ? dt : 1 / 60;
     const decayPerSecond = 5;
-    this.stats.brightness = Math.max(0, this.stats.brightness - decayPerSecond * dt);
+    const newBrightness = this.stats.brightness - decayPerSecond * safeDt;
+    this.stats.brightness = Math.max(0, Math.min(100, isFinite(newBrightness) ? newBrightness : 0));
     this.emitStatsUpdate();
   }
 
   private updateComboTimer(dt: number): void {
+    const safeDt = (typeof dt === 'number' && isFinite(dt) && dt >= 0) ? dt : 1 / 60;
     if (this.comboTimer > 0) {
-      this.comboTimer -= dt;
+      this.comboTimer -= safeDt;
       if (this.comboTimer <= 0) {
         this.stats.combo = 0;
         this.emitStatsUpdate();
