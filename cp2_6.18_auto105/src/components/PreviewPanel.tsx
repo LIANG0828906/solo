@@ -23,12 +23,33 @@ export const PreviewPanel: React.FC = () => {
       }}
     >
       {isGlassMode && (
-        <div
-          className="glass-bg"
-          style={{
-            background: `linear-gradient(135deg, ${palette[1]} 0%, ${palette[3]} 50%, ${palette[0]} 100%)`,
-          }}
-        />
+        <>
+          <div
+            className="glass-bg"
+            style={{
+              background: `linear-gradient(135deg, ${palette[0]} 0%, ${palette[2]} 40%, ${palette[4]} 100%)`,
+            }}
+          />
+          <div
+            className="glass-blob glass-blob-1"
+            style={{
+              backgroundColor: palette[1],
+            }}
+          />
+          <div
+            className="glass-blob glass-blob-2"
+            style={{
+              backgroundColor: palette[3],
+            }}
+          />
+          <div
+            className="glass-blur-overlay"
+            style={{
+              backdropFilter: 'blur(15px)',
+              WebkitBackdropFilter: 'blur(15px)',
+            }}
+          />
+        </>
       )}
 
       <div className="tabs-container">
@@ -137,6 +158,34 @@ export const PreviewPanel: React.FC = () => {
           bottom: 0;
           z-index: 0;
           transition: background 0.4s ease;
+        }
+        .glass-blob {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(60px);
+          opacity: 0.7;
+          z-index: 0;
+          transition: background-color 0.4s ease;
+        }
+        .glass-blob-1 {
+          width: 300px;
+          height: 300px;
+          top: 10%;
+          left: 10%;
+        }
+        .glass-blob-2 {
+          width: 400px;
+          height: 400px;
+          bottom: 10%;
+          right: 10%;
+        }
+        .glass-blur-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 0;
         }
         .tabs-container {
           display: flex;

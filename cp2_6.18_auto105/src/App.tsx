@@ -186,23 +186,44 @@ const App: React.FC = () => {
 
         @media (max-width: 768px) {
           .navbar {
-            height: 70px;
-            padding: 0 16px;
+            height: auto;
+            padding: 12px 16px;
+            flex-shrink: 0;
+          }
+          .navbar-content {
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-start !important;
+          }
+          .logo {
+            width: 100%;
+            justify-content: space-between;
           }
           .logo-text {
             font-size: 16px;
+          }
+          .color-picker {
+            width: 100%;
+            justify-content: space-between;
           }
           .main-content {
             flex-direction: column;
           }
           .sidebar {
             width: 100%;
+            max-height: 180px;
+            flex-shrink: 0;
             padding: 16px;
             border-right: none;
             border-bottom: 1px solid #E2E8F0;
+            overflow-y: auto;
+          }
+          .sidebar-content {
+            width: 100%;
           }
           .preview-section {
             flex: 1;
+            min-height: 0;
           }
           .export-btn {
             right: 16px;

@@ -57,7 +57,7 @@ export const PaletteBar: React.FC = () => {
                   viewBox="0 0 24 24"
                   width="16"
                   height="16"
-                  fill={locked[index] ? '#FFD700' : 'currentColor'}
+                  fill="currentColor"
                 >
                   {locked[index] ? (
                     <path d="M12 1C9.24 1 7 3.24 7 6v4H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V12c0-1.1-.9-2-2-2h-1V6c0-2.76-2.24-5-5-5zm0 10c.83 0 1.5.67 1.5 1.5S12.83 14 12 14s-1.5-.67-1.5-1.5S11.17 11 12 11zm3-5H9V6c0-1.66 1.34-3 3-3s3 1.34 3 3v0z" />
@@ -128,24 +128,28 @@ export const PaletteBar: React.FC = () => {
           justify-content: center;
           padding: 4px;
           border-radius: 4px;
-          color: rgba(128, 128, 128, 0.6);
+          color: #9CA3AF;
           opacity: 0;
-          transition: opacity 0.2s ease, background-color 0.2s ease,
-            color 0.2s ease, transform 0.2s ease;
+          transition: opacity 0.3s ease, background-color 0.3s ease,
+            color 0.3s ease, transform 0.3s ease;
+        }
+        .lock-btn svg {
+          transition: fill 0.3s ease, color 0.3s ease;
         }
         .swatch:hover .lock-btn {
           opacity: 1;
         }
         .lock-btn:hover {
           background-color: rgba(255, 255, 255, 0.2);
-          transform: scale(1.1);
+          transform: scale(1.15);
         }
         .lock-btn.locked {
           opacity: 1;
-          color: #FFD700;
+          color: #F59E0B;
+          filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.5));
         }
         .lock-btn.locked:hover {
-          transform: scale(1.1);
+          transform: scale(1.15);
         }
         .palette-hint {
           font-size: 12px;

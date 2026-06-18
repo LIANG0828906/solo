@@ -98,12 +98,15 @@ export function hslToHex(hsl: HSL): string {
 }
 
 export function generatePalette(baseHex: string, count: number = 5): string[] {
-  const baseHsl = hexToHsl(baseHex);
-  const saturation = Math.max(baseHsl.s, 90);
+  const normalizedHex = baseHex.length === 4
+    ? '#' + baseHex[1] + baseHex[1] + baseHex[2] + baseHex[2] + baseHex[3] + baseHex[3]
+    : baseHex;
+  const baseHsl = hexToHsl(normalizedHex);
 
   const midIndex = Math.floor(count / 2);
   const step = 15;
   const baseLightness = baseHsl.l;
+  const minSaturation = 90;
 
   const palette: string[] = [];
 
@@ -112,11 +115,22 @@ export function generatePalette(baseHex: string, count: number = 5): string[] {
     let lightness = baseLightness + offset * step;
     lightness = Math.max(5, Math.min(95, lightness));
 
-    const colorHsl: HSL = {
+    let colorHsl: HSL = {
       h: baseHsl.h,
-      s: saturation,
+      s: Math.max(baseHsl.s, minSaturation),
       l: Math.round(lightness),
     };
+
+    const hexColor = hslToHex(colorHsl);
+    const verifyHsl = hexToHsl(hexColor);
+    if (verifyHsl.s < minSaturation) {
+      colorHsl = {
+        h: colorHsl.h,
+        s: minSaturation,
+        l: colorHsl.l,
+      };
+    }
+
     palette.push(hslToHex(colorHsl));
   }
 
