@@ -1,0 +1,67 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  background: rgba(11, 11, 43, 0.8);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 100;
+  border-bottom: 1px solid rgba(58, 58, 94, 0.5);
+}
+
+.app-title {
+  font-family: Arial, sans-serif;
+  font-size: 22px;
+  color: #FFFFFF;
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.mode-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.mode-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #1A1A3E;
+  color: #8A8AAE;
+}
+
+.mode-btn:hover {
+  background: #2A2A4E;
+}
+
+.mode-btn.active {
+  background: #00D4AA;
+  color: #0B0B2B;
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    height: 40px;
+    padding: 0 16px;
+  }
+
+  .app-title {
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+
+  .mode-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
