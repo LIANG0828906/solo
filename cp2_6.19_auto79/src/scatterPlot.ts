@@ -6,7 +6,6 @@ import type {
   NumericFeature,
   AxisMapping,
   VisualConfig,
-  SelectionStats,
   ScatterPlotCallbacks
 } from './types';
 
@@ -23,11 +22,12 @@ const vertexShader = `
 
 const fragmentShader = `
   varying vec3 vColor;
+  uniform float opacity;
   void main() {
     float r = distance(gl_PointCoord, vec2(0.5));
     if (r > 0.5) discard;
     float alpha = 1.0 - smoothstep(0.3, 0.5, r);
-    gl_FragColor = vec4(vColor, alpha);
+    gl_FragColor = vec4(vColor, alpha * opacity);
   }
 `;
 
@@ -144,6 +144,7 @@ export class ScatterPlot {
     this.data = data;
     this.callbacks = callbacks;
     this.raycaster = new THREE.Raycaster();
+    this.raycaster.params.Points = { threshold: 2 };
     this.mouse = new THREE.Vector2();
 
     this.scene = new THREE.Scene();
@@ -158,6 +159,7 @@ export class ScatterPlot {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.domElement.style.cssText = 'display: block; width: 100%; height: 100%; cursor: grab;';
     this.container.appendChild(this.renderer.domElement);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -301,10 +303,9 @@ export class ScatterPlot {
   private setupEventListeners(): void {
     const canvas = this.renderer.domElement;
 
-    canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
-    canvas.addEventListener('click', this.onClick.bind(this));
-    canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
-    canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
+    canvas.addEventListener('mousemove', this.onMouseMove.bind(this), { capture: true });
+    canvas.addEventListener('mousedown', this.onMouseDown.bind(this), { capture: true });
+    canvas.addEventListener('mouseup', this.onMouseUp.bind(this), { capture: true });
     window.addEventListener('keydown', this.onKeyDown.bind(this));
     window.addEventListener('resize', this.onResize.bind(this));
   }
@@ -342,41 +343,55 @@ export class ScatterPlot {
   }
 
   private onMouseDown(event: MouseEvent): void {
+    console.log('onMouseDown:', event.clientX, event.clientY, 'shiftKey:', event.shiftKey);
+    this.boxSelectStart.set(event.clientX, event.clientY);
+    this.boxSelectEnd.set(event.clientX, event.clientY);
+    
     if (event.shiftKey) {
       this.isBoxSelecting = true;
       this.controls.enabled = false;
-      this.boxSelectStart.set(event.clientX, event.clientY);
-      this.boxSelectEnd.set(event.clientX, event.clientY);
     }
   }
 
   private onMouseUp(event: MouseEvent): void {
+    console.log('onMouseUp:', event.clientX, event.clientY, 'isBoxSelecting:', this.isBoxSelecting);
+    
     if (this.isBoxSelecting) {
       this.isBoxSelecting = false;
       this.controls.enabled = true;
       this.boxSelectionElement.style.display = 'none';
       this.performBoxSelection();
+      return;
     }
-  }
 
-  private onClick(event: MouseEvent): void {
-    if (this.isBoxSelecting) return;
+    const moveDistance = Math.sqrt(
+      Math.pow(event.clientX - this.boxSelectStart.x, 2) +
+      Math.pow(event.clientY - this.boxSelectStart.y, 2)
+    );
+    
+    console.log('moveDistance:', moveDistance);
 
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    if (moveDistance < 5) {
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      console.log('rect:', rect);
+      this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      console.log('mouse NDC:', this.mouse.x, this.mouse.y);
 
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObject(this.points);
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.raycaster.intersectObject(this.points);
+      console.log('intersects:', intersects.length);
 
-    if (intersects.length > 0) {
-      const index = intersects[0].index!;
-      if (this.clickedIndex !== -1 && this.clickedIndex !== index) {
-        this.updateClickHighlight(this.clickedIndex, false);
+      if (intersects.length > 0) {
+        const index = intersects[0].index!;
+        console.log('Clicked cell index:', index, 'data:', this.data[index]);
+        if (this.clickedIndex !== -1 && this.clickedIndex !== index) {
+          this.updateClickHighlight(this.clickedIndex, false);
+        }
+        this.clickedIndex = index;
+        this.updateClickHighlight(index, true);
+        this.callbacks.onCellClick(this.data[index]);
       }
-      this.clickedIndex = index;
-      this.updateClickHighlight(index, true);
-      this.callbacks.onCellClick(this.data[index]);
     }
   }
 
@@ -395,7 +410,6 @@ export class ScatterPlot {
   }
 
   private updateHover(oldIndex: number, newIndex: number): void {
-    const positions = this.points.geometry.attributes.position.array as Float32Array;
     const colors = this.points.geometry.attributes.color.array as Float32Array;
     const sizes = this.points.geometry.attributes.size.array as Float32Array;
 
@@ -477,7 +491,7 @@ export class ScatterPlot {
     this.selectedIndices.clear();
     const positions = this.points.geometry.attributes.position.array as Float32Array;
     const colors = this.points.geometry.attributes.color.array as Float32Array;
-    const material = this.points.material as THREE.PointsMaterial;
+    const material = this.points.material as THREE.ShaderMaterial;
 
     for (let i = 0; i < this.data.length; i++) {
       const worldPos = new THREE.Vector3(
@@ -497,10 +511,10 @@ export class ScatterPlot {
       ) {
         this.selectedIndices.add(i);
         colors[i * 3] = 0.0;
-        colors[i * 3  + 1] = 1.0;
+        colors[i * 3 + 1] = 1.0;
         colors[i * 3 + 2] = 0.5;
       } else {
-        material.opacity = 0.2;
+        material.uniforms.opacity.value = 0.2;
         colors[i * 3] = this.targetColors[i * 3];
         colors[i * 3 + 1] = this.targetColors[i * 3 + 1];
         colors[i * 3 + 2] = this.targetColors[i * 3 + 2];
@@ -513,8 +527,8 @@ export class ScatterPlot {
 
   private updateSelectionStats(): void {
     if (this.selectedIndices.size === 0) {
-      const material = this.points.material as THREE.PointsMaterial;
-      material.opacity = 0.9;
+      const material = this.points.material as THREE.ShaderMaterial;
+      material.uniforms.opacity.value = 0.9;
       this.callbacks.onSelectionChange(null);
       return;
     }
@@ -537,8 +551,8 @@ export class ScatterPlot {
   public clearSelection(): void {
     this.selectedIndices.clear();
     const colors = this.points.geometry.attributes.color.array as Float32Array;
-    const material = this.points.material as THREE.PointsMaterial;
-    material.opacity = 0.9;
+    const material = this.points.material as THREE.ShaderMaterial;
+    material.uniforms.opacity.value = 0.9;
 
     for (let i = 0; i < this.data.length; i++) {
       colors[i * 3] = this.targetColors[i * 3];
@@ -558,7 +572,6 @@ export class ScatterPlot {
   }
 
   public updateMapping(mapping: Partial<AxisMapping>): void {
-    const prevMapping = { ...this.axisMapping };
     this.axisMapping = { ...this.axisMapping, ...mapping };
 
     const zMin = this.data.reduce((m, d) => Math.min(m, d[this.axisMapping.z]), Infinity);
