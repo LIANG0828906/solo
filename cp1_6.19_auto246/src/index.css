@@ -1,0 +1,662 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #F8F9FA;
+  color: #2C3E50;
+}
+
+.app-header {
+  background: #2C3E50;
+  color: #FFFFFF;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-header h1 {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.app-header .header-info {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.main-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.layout-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1023px) and (min-width: 768px) {
+  .layout-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .layout-container {
+    grid-template-columns: 1fr;
+  }
+  .tour-card {
+    width: 100% !important;
+    font-size: 14px !important;
+  }
+}
+
+.calendar-section {
+  background: #FFFFFF;
+  border: 2px solid #E0E0E0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.detail-section {
+  background: #FFFFFF;
+  border: 2px solid #E0E0E0;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 400px;
+}
+
+.react-calendar {
+  width: 100%;
+  border: none;
+  font-family: inherit;
+}
+
+.react-calendar__navigation {
+  margin-bottom: 8px;
+}
+
+.react-calendar__navigation button {
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  padding: 8px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #2C3E50;
+  transition: background 0.3s ease;
+}
+
+.react-calendar__navigation button:hover {
+  background: #F0F2F5;
+}
+
+.react-calendar__tile {
+  position: relative;
+  padding: 8px 4px;
+  min-height: 80px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.react-calendar__tile:hover {
+  background: #F0F2F5;
+}
+
+.react-calendar__tile--now {
+  background: #EBF5FB;
+}
+
+.react-calendar__tile--active {
+  background: #D5E8F7 !important;
+}
+
+.react-calendar__month-view__days__day--neighboringMonth {
+  color: #BDC3C7;
+}
+
+.tour-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.tour-card {
+  width: 160px;
+  height: 64px;
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  font-size: 12px;
+  color: #2C3E50;
+}
+
+.tour-card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.tour-card.selected {
+  outline: 2px solid #2C3E50;
+}
+
+.tour-card .band-abbr {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.tour-card .card-income {
+  text-align: right;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tour-card .card-actions {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+}
+
+.tour-card .card-actions button {
+  background: rgba(255,255,255,0.7);
+  border: none;
+  border-radius: 3px;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 1px 4px;
+}
+
+.detail-panel {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.detail-panel h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #E0E0E0;
+}
+
+.detail-panel .detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+}
+
+.detail-panel .detail-row .label {
+  color: #7F8C8D;
+}
+
+.revenue-summary {
+  margin: 16px 0;
+  padding: 16px;
+  background: #FAFAFA;
+  border-radius: 8px;
+}
+
+.revenue-summary .net-income {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2C3E50;
+  margin-bottom: 8px;
+}
+
+.revenue-summary .progress-bar-container {
+  height: 8px;
+  background: #ECF0F1;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.revenue-summary .progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.revenue-summary .revenue-breakdown {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 13px;
+  color: #7F8C8D;
+}
+
+.equipment-section h3 {
+  font-size: 15px;
+  margin: 16px 0 8px;
+}
+
+.equipment-list {
+  list-style: none;
+}
+
+.equipment-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #E0E0E0;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+.equipment-list li:hover {
+  background: #F0F2F5;
+}
+
+.equipment-list li .eq-name {
+  width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.equipment-list li .eq-details {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.equipment-list li .eq-total {
+  font-weight: 600;
+  min-width: 60px;
+  text-align: right;
+}
+
+.equipment-list li button {
+  background: #E74C3C;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.equipment-list li button:hover {
+  background: #C0392B;
+}
+
+.add-equipment-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 6px 14px;
+  background: #3498DB;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.3s ease;
+}
+
+.add-equipment-btn:hover {
+  background: #2980B9;
+}
+
+.equipment-form {
+  margin-top: 12px;
+  padding: 12px;
+  background: #F8F9FA;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.equipment-form .form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.equipment-form label {
+  min-width: 70px;
+  font-size: 13px;
+  color: #7F8C8D;
+}
+
+.equipment-form input[type="text"],
+.equipment-form input[type="number"] {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.equipment-form input[type="range"] {
+  flex: 1;
+}
+
+.equipment-form .slider-value {
+  min-width: 24px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.equipment-form .form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.equipment-form .form-actions button {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.3s ease;
+}
+
+.equipment-form .form-actions .submit-btn {
+  background: #27AE60;
+  color: white;
+}
+
+.equipment-form .form-actions .submit-btn:hover {
+  background: #1E8449;
+}
+
+.equipment-form .form-actions .cancel-btn {
+  background: #BDC3C7;
+  color: #2C3E50;
+}
+
+.equipment-form .form-actions .cancel-btn:hover {
+  background: #A6ACAF;
+}
+
+.monthly-report {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.report-card {
+  width: 200px;
+  height: 80px;
+  border-radius: 12px;
+  background: #FFFFFF;
+  border: 2px solid #E0E0E0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.report-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+}
+
+.report-card.income::before {
+  background: #3498DB;
+}
+
+.report-card.expense::before {
+  background: #E74C3C;
+}
+
+.report-card.net::before {
+  background: #2ECC71;
+}
+
+.report-card .report-label {
+  font-size: 12px;
+  color: #7F8C8D;
+  margin-bottom: 4px;
+}
+
+.report-card .report-value {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 20px;
+  width: 320px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.modal.conflict-modal {
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.modal.conflict-modal h3 {
+  color: #E74C3C;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.modal.conflict-modal p {
+  font-size: 13px;
+  color: #555;
+}
+
+.modal.conflict-modal button {
+  margin-top: 8px;
+  padding: 6px 16px;
+  background: #E74C3C;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  align-self: flex-end;
+  transition: background 0.3s ease;
+}
+
+.modal.conflict-modal button:hover {
+  background: #C0392B;
+}
+
+.create-modal h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.create-modal .form-group {
+  margin-bottom: 10px;
+}
+
+.create-modal .form-group label {
+  display: block;
+  font-size: 13px;
+  color: #7F8C8D;
+  margin-bottom: 4px;
+}
+
+.create-modal .form-group input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.create-modal .form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.create-modal .form-row .form-group {
+  flex: 1;
+}
+
+.create-modal .modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.create-modal .modal-actions button {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+.create-modal .modal-actions .btn-primary {
+  background: #3498DB;
+  color: white;
+}
+
+.create-modal .modal-actions .btn-primary:hover {
+  background: #2980B9;
+}
+
+.create-modal .modal-actions .btn-cancel {
+  background: #BDC3C7;
+  color: #2C3E50;
+}
+
+.create-modal .modal-actions .btn-cancel:hover {
+  background: #A6ACAF;
+}
+
+.edit-modal h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.edit-modal .form-group {
+  margin-bottom: 10px;
+}
+
+.edit-modal .form-group label {
+  display: block;
+  font-size: 13px;
+  color: #7F8C8D;
+  margin-bottom: 4px;
+}
+
+.edit-modal .form-group input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.edit-modal .form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-modal .form-row .form-group {
+  flex: 1;
+}
+
+.edit-modal .modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.edit-modal .modal-actions button {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+.edit-modal .modal-actions .btn-primary {
+  background: #3498DB;
+  color: white;
+}
+
+.edit-modal .modal-actions .btn-primary:hover {
+  background: #2980B9;
+}
+
+.edit-modal .modal-actions .btn-cancel {
+  background: #BDC3C7;
+  color: #2C3E50;
+}
+
+.edit-modal .modal-actions .btn-cancel:hover {
+  background: #A6ACAF;
+}
+
+.empty-detail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: #BDC3C7;
+  font-size: 15px;
+}
+
+.delete-tour-btn {
+  margin-top: 12px;
+  padding: 6px 16px;
+  background: #E74C3C;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.3s ease;
+}
+
+.delete-tour-btn:hover {
+  background: #C0392B;
+}
