@@ -1,10 +1,50 @@
+import { useCallback } from 'react';
 import { useResumeStore } from '@/store/resumeStore';
 import { FONT_OPTIONS, FONT_WEIGHT_OPTIONS } from '@/store/types';
 import { X, Type, Palette } from 'lucide-react';
 
 export default function PropertyPanel() {
-  const { components, selectedId, updateComponentStyle, updateComponent, selectComponent } = useResumeStore();
+  const selectedId = useResumeStore((s) => s.selectedId);
+  const components = useResumeStore((s) => s.components);
+  const updateComponent = useResumeStore((s) => s.updateComponent);
+  const updateComponentStyle = useResumeStore((s) => s.updateComponentStyle);
+  const selectComponent = useResumeStore((s) => s.selectComponent);
+  const pushHistory = useResumeStore((s) => s.pushHistory);
+
   const selected = components.find((c) => c.id === selectedId);
+
+  const handleContentChange = useCallback(
+    (id: string, value: string) => {
+      updateComponent(id, { content: value });
+    },
+    [updateComponent]
+  );
+
+  const handleContentBlur = useCallback(() => {
+    pushHistory();
+  }, [pushHistory]);
+
+  const handleStyleChange = useCallback(
+    (id: string, updates: Partial<{ fontFamily: string; fontSize: number; color: string; backgroundColor: string; fontWeight: string }>) => {
+      updateComponentStyle(id, updates);
+    },
+    [updateComponentStyle]
+  );
+
+  const handleStyleBlur = useCallback(() => {
+    pushHistory();
+  }, [pushHistory]);
+
+  const handleSizeChange = useCallback(
+    (id: string, field: 'width' | 'height', value: number) => {
+      updateComponent(id, { [field]: Math.max(field === 'width' ? 60 : 30, value) });
+    },
+    [updateComponent]
+  );
+
+  const handleSizeBlur = useCallback(() => {
+    pushHistory();
+  }, [pushHistory]);
 
   if (!selected) return null;
 
@@ -28,7 +68,8 @@ export default function PropertyPanel() {
           <label className="text-xs font-medium text-slate-500 mb-1.5 block">文本内容</label>
           <textarea
             value={selected.content}
-            onChange={(e) => updateComponent(selected.id, { content: e.target.value })}
+            onChange={(e) => handleContentChange(selected.id, e.target.value)}
+            onBlur={handleContentBlur}
             className="w-full h-28 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition-all"
           />
         </div>
@@ -40,7 +81,10 @@ export default function PropertyPanel() {
           </label>
           <select
             value={selected.style.fontFamily}
-            onChange={(e) => updateComponentStyle(selected.id, { fontFamily: e.target.value })}
+            onChange={(e) => {
+              handleStyleChange(selected.id, { fontFamily: e.target.value });
+              handleStyleBlur();
+            }}
             className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition-all bg-white"
           >
             {FONT_OPTIONS.map((f) => (
@@ -56,7 +100,9 @@ export default function PropertyPanel() {
             min={10}
             max={48}
             value={selected.style.fontSize}
-            onChange={(e) => updateComponentStyle(selected.id, { fontSize: Number(e.target.value) })}
+            onChange={(e) => handleStyleChange(selected.id, { fontSize: Number(e.target.value) })}
+            onMouseUp={handleStyleBlur}
+            onTouchEnd={handleStyleBlur}
             className="w-full accent-blue-400"
           />
         </div>
@@ -67,7 +113,10 @@ export default function PropertyPanel() {
             {FONT_WEIGHT_OPTIONS.map((w) => (
               <button
                 key={w.value}
-                onClick={() => updateComponentStyle(selected.id, { fontWeight: w.value })}
+                onClick={() => {
+                  handleStyleChange(selected.id, { fontWeight: w.value });
+                  handleStyleBlur();
+                }}
                 className={`px-2 py-1.5 rounded-lg text-xs transition-all ${
                   selected.style.fontWeight === w.value
                     ? 'bg-blue-50 text-blue-600 border border-blue-200'
@@ -86,13 +135,15 @@ export default function PropertyPanel() {
             <input
               type="color"
               value={selected.style.color === 'transparent' ? '#000000' : selected.style.color}
-              onChange={(e) => updateComponentStyle(selected.id, { color: e.target.value })}
+              onChange={(e) => handleStyleChange(selected.id, { color: e.target.value })}
+              onBlur={handleStyleBlur}
               className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer"
             />
             <input
               type="text"
               value={selected.style.color}
-              onChange={(e) => updateComponentStyle(selected.id, { color: e.target.value })}
+              onChange={(e) => handleStyleChange(selected.id, { color: e.target.value })}
+              onBlur={handleStyleBlur}
               className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition-all"
             />
           </div>
@@ -104,13 +155,15 @@ export default function PropertyPanel() {
             <input
               type="color"
               value={selected.style.backgroundColor === 'transparent' ? '#ffffff' : selected.style.backgroundColor}
-              onChange={(e) => updateComponentStyle(selected.id, { backgroundColor: e.target.value })}
+              onChange={(e) => handleStyleChange(selected.id, { backgroundColor: e.target.value })}
+              onBlur={handleStyleBlur}
               className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer"
             />
             <input
               type="text"
               value={selected.style.backgroundColor}
-              onChange={(e) => updateComponentStyle(selected.id, { backgroundColor: e.target.value })}
+              onChange={(e) => handleStyleChange(selected.id, { backgroundColor: e.target.value })}
+              onBlur={handleStyleBlur}
               className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition-all"
             />
           </div>
@@ -124,7 +177,8 @@ export default function PropertyPanel() {
               <input
                 type="number"
                 value={selected.width}
-                onChange={(e) => updateComponent(selected.id, { width: Math.max(60, Number(e.target.value)) })}
+                onChange={(e) => handleSizeChange(selected.id, 'width', Number(e.target.value))}
+                onBlur={handleSizeBlur}
                 className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition-all"
               />
             </div>
@@ -133,7 +187,8 @@ export default function PropertyPanel() {
               <input
                 type="number"
                 value={selected.height}
-                onChange={(e) => updateComponent(selected.id, { height: Math.max(30, Number(e.target.value)) })}
+                onChange={(e) => handleSizeChange(selected.id, 'height', Number(e.target.value))}
+                onBlur={handleSizeBlur}
                 className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 transition-all"
               />
             </div>

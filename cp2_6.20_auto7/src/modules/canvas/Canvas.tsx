@@ -1,3 +1,4 @@
+import { useRef, useCallback } from 'react';
 import { useDrop } from 'react-dnd';
 import { useResumeStore } from '@/store/resumeStore';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, type ComponentType } from '@/store/types';
@@ -6,15 +7,19 @@ import CanvasComponent from './CanvasComponent';
 export default function Canvas() {
   const { components, selectedId, selectComponent, moveComponent, resizeComponent, addComponent } = useResumeStore();
 
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+
   const [{ isOver, canDrop }, dropRef] = useDrop({
     accept: 'COMPONENT',
     drop: (item: { type: string }, monitor) => {
       const offset = monitor.getClientOffset();
-      const canvasEl = (dropRef as unknown as React.RefObject<HTMLDivElement>).current;
+      const canvasEl = canvasRef.current;
       if (offset && canvasEl) {
         const rect = canvasEl.getBoundingClientRect();
-        const x = offset.x - rect.left;
-        const y = offset.y - rect.top;
+        const scaleX = CANVAS_WIDTH / rect.width;
+        const scaleY = CANVAS_HEIGHT / rect.height;
+        const x = (offset.x - rect.left) * scaleX;
+        const y = (offset.y - rect.top) * scaleY;
         addComponent(item.type as ComponentType, x, y);
       }
     },
@@ -23,6 +28,11 @@ export default function Canvas() {
       canDrop: monitor.canDrop(),
     }),
   });
+
+  const setRefs = useCallback((el: HTMLDivElement | null) => {
+    (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+    (dropRef as unknown as (el: HTMLDivElement | null) => void)(el);
+  }, [dropRef]);
 
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -41,7 +51,7 @@ export default function Canvas() {
       style={{ minHeight: 0 }}
     >
       <div
-        ref={dropRef as unknown as React.RefObject<HTMLDivElement>}
+        ref={setRefs}
         onClick={handleCanvasClick}
         className="relative bg-white flex-shrink-0"
         style={{
@@ -68,6 +78,7 @@ export default function Canvas() {
             key={comp.id}
             comp={comp}
             isSelected={comp.id === selectedId}
+            canvasRef={canvasRef}
             onSelect={() => selectComponent(comp.id)}
             onMove={moveComponent}
             onResize={resizeComponent}

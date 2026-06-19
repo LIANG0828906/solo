@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useResumeStore } from '@/store/resumeStore';
 import type { ResumeComponent } from '@/store/types';
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/store/types';
 
 function SkillBar({ content, color }: { content: string; color: string }) {
   const match = content.match(/^(.+?)\s+(\d+)%$/);
@@ -23,54 +24,96 @@ function SkillBar({ content, color }: { content: string; color: string }) {
 interface CanvasComponentProps {
   comp: ResumeComponent;
   isSelected: boolean;
+  canvasRef: React.RefObject<HTMLDivElement | null>;
   onSelect: () => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, w: number, h: number) => void;
 }
 
-export default function CanvasComponent({ comp, isSelected, onSelect, onMove, onResize }: CanvasComponentProps) {
+export default function CanvasComponent({
+  comp,
+  isSelected,
+  canvasRef,
+  onSelect,
+  onMove,
+  onResize,
+}: CanvasComponentProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const dragStart = useRef({ mouseX: 0, mouseY: 0, compX: 0, compY: 0 });
-  const resizeStart = useRef({ mouseX: 0, mouseY: 0, compW: 0, compH: 0 });
+
+  const dragState = useRef({
+    offsetX: 0,
+    offsetY: 0,
+  });
+
+  const resizeState = useRef({
+    startCanvasX: 0,
+    startCanvasY: 0,
+    startW: 0,
+    startH: 0,
+  });
+
+  const getCanvasCoords = useCallback((clientX: number, clientY: number): { x: number; y: number } | null => {
+    const canvasEl = canvasRef.current;
+    if (!canvasEl) return null;
+    const rect = canvasEl.getBoundingClientRect();
+    const scaleX = CANVAS_WIDTH / rect.width;
+    const scaleY = CANVAS_HEIGHT / rect.height;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  }, [canvasRef]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      if (isResizing) return;
       e.stopPropagation();
       onSelect();
-      setIsDragging(true);
-      dragStart.current = {
-        mouseX: e.clientX,
-        mouseY: e.clientY,
-        compX: comp.x,
-        compY: comp.y,
+
+      const coords = getCanvasCoords(e.clientX, e.clientY);
+      if (!coords) return;
+
+      dragState.current = {
+        offsetX: coords.x - comp.x,
+        offsetY: coords.y - comp.y,
       };
+
+      setIsDragging(true);
     },
-    [comp.x, comp.y, onSelect]
+    [comp.x, comp.y, isResizing, onSelect, getCanvasCoords]
   );
 
   const handleResizeMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      setIsResizing(true);
-      resizeStart.current = {
-        mouseX: e.clientX,
-        mouseY: e.clientY,
-        compW: comp.width,
-        compH: comp.height,
+
+      const coords = getCanvasCoords(e.clientX, e.clientY);
+      if (!coords) return;
+
+      resizeState.current = {
+        startCanvasX: coords.x,
+        startCanvasY: coords.y,
+        startW: comp.width,
+        startH: comp.height,
       };
+
+      setIsResizing(true);
     },
-    [comp.width, comp.height]
+    [comp.width, comp.height, getCanvasCoords]
   );
 
   useEffect(() => {
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - dragStart.current.mouseX;
-      const dy = e.clientY - dragStart.current.mouseY;
-      onMove(comp.id, dragStart.current.compX + dx, dragStart.current.compY + dy);
+      const coords = getCanvasCoords(e.clientX, e.clientY);
+      if (!coords) return;
+
+      const newX = coords.x - dragState.current.offsetX;
+      const newY = coords.y - dragState.current.offsetY;
+      onMove(comp.id, newX, newY);
     };
 
     const handleMouseUp = () => {
@@ -84,15 +127,18 @@ export default function CanvasComponent({ comp, isSelected, onSelect, onMove, on
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, comp.id, onMove]);
+  }, [isDragging, comp.id, onMove, getCanvasCoords]);
 
   useEffect(() => {
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - resizeStart.current.mouseX;
-      const dy = e.clientY - resizeStart.current.mouseY;
-      onResize(comp.id, resizeStart.current.compW + dx, resizeStart.current.compH + dy);
+      const coords = getCanvasCoords(e.clientX, e.clientY);
+      if (!coords) return;
+
+      const dx = coords.x - resizeState.current.startCanvasX;
+      const dy = coords.y - resizeState.current.startCanvasY;
+      onResize(comp.id, resizeState.current.startW + dx, resizeState.current.startH + dy);
     };
 
     const handleMouseUp = () => {
@@ -106,7 +152,7 @@ export default function CanvasComponent({ comp, isSelected, onSelect, onMove, on
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, comp.id, onResize]);
+  }, [isResizing, comp.id, onResize, getCanvasCoords]);
 
   const isSkillBar = comp.type === 'skill-bar';
 
@@ -157,7 +203,7 @@ export default function CanvasComponent({ comp, isSelected, onSelect, onMove, on
         <>
           <div
             onMouseDown={handleResizeMouseDown}
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-20"
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30"
             style={{
               background: 'linear-gradient(135deg, transparent 50%, rgba(107,123,141,0.5) 50%)',
               borderRadius: '0 0 4px 0',
@@ -165,12 +211,12 @@ export default function CanvasComponent({ comp, isSelected, onSelect, onMove, on
           />
           <div
             onMouseDown={handleResizeMouseDown}
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-1.5 cursor-s-resize z-20 rounded-full"
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-1.5 cursor-s-resize z-30 rounded-full"
             style={{ backgroundColor: 'rgba(107,123,141,0.4)' }}
           />
           <div
             onMouseDown={handleResizeMouseDown}
-            className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-6 cursor-e-resize z-20 rounded-full"
+            className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-6 cursor-e-resize z-30 rounded-full"
             style={{ backgroundColor: 'rgba(107,123,141,0.4)' }}
           />
         </>
