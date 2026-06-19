@@ -97,6 +97,79 @@ body {
   }
 }
 
+@keyframes starPop {
+  0% {
+    transform: rotate(0deg) scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.3);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes starGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px #ffd700, 0 0 16px rgba(255, 215, 0, 0.6);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 16px #ffd700, 0 0 32px rgba(255, 215, 0, 0.8);
+    opacity: 0.85;
+  }
+}
+
+@keyframes pulseBar {
+  0%, 100% {
+    transform: scaleY(1);
+  }
+  25% {
+    transform: scaleY(1.15);
+  }
+  50% {
+    transform: scaleY(0.95);
+  }
+  75% {
+    transform: scaleY(1.05);
+  }
+}
+
+@keyframes copyRipple {
+  0% {
+    transform: scale(0);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+@keyframes copyIconEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes copyIconExit {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
 @keyframes typewriter {
   from {
     opacity: 0;
@@ -577,6 +650,40 @@ body {
 .copy-btn__icon {
   font-size: 22px;
   z-index: 1;
+  position: absolute;
+}
+
+.copy-btn__ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(233, 69, 96, 0.4);
+  transform: scale(0);
+  animation: copyRipple 300ms ease-out forwards;
+  pointer-events: none;
+  width: 40px;
+  height: 40px;
+}
+
+.copy-icon-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.copy-icon-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 200ms ease-out;
+}
+
+.copy-icon-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.copy-icon-exit-active {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 200ms ease-in;
 }
 
 .copy-btn--success {
@@ -645,6 +752,11 @@ body {
   transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
     background 300ms ease;
   position: relative;
+  transform-origin: center center;
+}
+
+.strength-bar__fill--pulse {
+  animation: pulseBar 600ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .strength-bar__fill::after {
@@ -822,10 +934,38 @@ body {
   background: var(--bg-primary);
   border-radius: 12px;
   padding: 18px;
+  padding-left: 52px;
   border: 1px solid var(--border);
   transition: all var(--transition);
   position: relative;
   cursor: grab;
+}
+
+.history-card::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: all var(--transition);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.history-card--favorite::before {
+  content: '★';
+  color: #ffd700;
+  background: rgba(255, 215, 0, 0.15);
+  opacity: 1;
+  animation: starGlow 2s ease-in-out infinite;
 }
 
 .history-card:active {
@@ -927,7 +1067,8 @@ body {
 }
 
 .icon-btn__icon--spin {
-  animation: spin 400ms ease-out;
+  animation: starPop 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: center center;
 }
 
 .icon-btn--delete:hover {

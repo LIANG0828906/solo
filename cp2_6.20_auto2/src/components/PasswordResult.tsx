@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { CSSTransition } from 'react-transition-group';
 import { StrengthResult, getStrengthGradient } from '../utils/passwordGenerator';
 import { Toast } from '../hooks/usePassword';
@@ -25,8 +25,21 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
   const [copySuccess, setCopySuccess] = useState(false);
   const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
   const [copyRipples, setCopyRipples] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [strengthPulse, setStrengthPulse] = useState(false);
+  const prevStrengthRef = useRef(strength.score);
   const rippleIdRef = useRef(0);
   const copyRippleIdRef = useRef(0);
+
+  useEffect(() => {
+    if (prevStrengthRef.current !== strength.score) {
+      prevStrengthRef.current = strength.score;
+      setStrengthPulse(true);
+      const timer = setTimeout(() => {
+        setStrengthPulse(false);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [strength.score]);
 
   const createRipple = (e: React.MouseEvent<HTMLButtonElement>, setFn: typeof setRipples, idRef: React.MutableRefObject<number>) => {
     const button = e.currentTarget;
@@ -38,6 +51,18 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
     setTimeout(() => {
       setFn(prev => prev.filter(r => r.id !== id));
     }, 600);
+  };
+
+  const createCopyRipple = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const button = e.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const id = copyRippleIdRef.current++;
+    setCopyRipples(prev => [...prev, { id, x, y }]);
+    setTimeout(() => {
+      setCopyRipples(prev => prev.filter(r => r.id !== id));
+    }, 300);
   };
 
   const handleCopy = async () => {
@@ -75,7 +100,7 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
         <button
           className={`copy-btn ${copySuccess ? 'copy-btn--success' : ''}`}
           onClick={(e) => {
-            createRipple(e, setCopyRipples, copyRippleIdRef);
+            createCopyRipple(e);
             handleCopy();
           }}
           disabled={!currentPassword}
@@ -84,18 +109,31 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
           {copyRipples.map(ripple => (
             <span
               key={ripple.id}
-              className="btn__ripple"
+              className="copy-btn__ripple"
               style={{
-                left: ripple.x - 12,
-                top: ripple.y - 12,
-                width: 24,
-                height: 24
+                left: ripple.x - 20,
+                top: ripple.y - 20
               }}
             />
           ))}
-          <span className="copy-btn__icon">
-            {copySuccess ? '✓' : '📋'}
-          </span>
+          <CSSTransition
+            in={!copySuccess}
+            timeout={200}
+            classNames="copy-icon"
+            unmountOnExit
+            key="copy-icon"
+          >
+            <span className="copy-btn__icon">📋</span>
+          </CSSTransition>
+          <CSSTransition
+            in={copySuccess}
+            timeout={200}
+            classNames="copy-icon"
+            unmountOnExit
+            key="check-icon"
+          >
+            <span className="copy-btn__icon">✓</span>
+          </CSSTransition>
         </button>
       </div>
 
@@ -128,7 +166,24 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
           }}
           disabled={!currentPassword}
         >
-          <span className="btn__icon">{copySuccess ? '✓' : '📋'}</span>
+          <CSSTransition
+            in={!copySuccess}
+            timeout={200}
+            classNames="copy-icon"
+            unmountOnExit
+            key="btn-copy-icon"
+          >
+            <span className="btn__icon">📋</span>
+          </CSSTransition>
+          <CSSTransition
+            in={copySuccess}
+            timeout={200}
+            classNames="copy-icon"
+            unmountOnExit
+            key="btn-check-icon"
+          >
+            <span className="btn__icon">✓</span>
+          </CSSTransition>
           {copySuccess ? '已复制' : '复制密码'}
         </button>
       </div>
@@ -142,7 +197,7 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
         </div>
         <div className="strength-bar">
           <div
-            className="strength-bar__fill"
+            className={`strength-bar__fill ${strengthPulse ? 'strength-bar__fill--pulse' : ''}`}
             style={{
               width: `${strength.score}%`,
               background: getStrengthGradient(strength.score)

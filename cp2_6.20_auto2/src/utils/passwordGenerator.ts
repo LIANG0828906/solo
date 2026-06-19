@@ -347,14 +347,21 @@ export function calculateStrength(password: string): StrengthResult {
   };
 }
 
-export function getStrengthGradient(score: number): string {
-  if (score < 25) {
-    return `linear-gradient(90deg, #ff4757 ${score}%, #ff6b7a ${score}%)`;
-  } else if (score < 50) {
-    return `linear-gradient(90deg, #ff4757, #ffa502 ${score}%, #ffb732 ${score}%)`;
-  } else if (score < 75) {
-    return `linear-gradient(90deg, #ffa502, #1e90ff ${score}%, #4da3ff ${score}%)`;
-  } else {
-    return `linear-gradient(90deg, #1e90ff, #2ed573 ${score}%, #5ae68a ${score}%)`;
-  }
+export function getStrengthGradient(_score: number): string {
+  const colorStops: { stop: number; color: string }[] = [
+    { stop: 0, color: '#ff4444' },
+    { stop: 25, color: '#ff4444' },
+    { stop: 25, color: '#ffaa00' },
+    { stop: 50, color: '#ffaa00' },
+    { stop: 50, color: '#88ff44' },
+    { stop: 75, color: '#88ff44' },
+    { stop: 75, color: '#44ff44' },
+    { stop: 100, color: '#44ff44' }
+  ];
+
+  const stops = colorStops
+    .map(s => `${s.color} ${s.stop}%`)
+    .join(', ');
+
+  return `linear-gradient(90deg, ${stops})`;
 }
