@@ -1,5 +1,6 @@
 import { InputManager } from './input';
 import { Renderer } from './renderer';
+import { AudioManager } from './audioManager';
 import {
   Tank,
   Bullet,
@@ -65,10 +66,7 @@ class Game {
   private victoryStartTime: number = 0;
   private lastFireworkTime: number = 0;
 
-  private audioContext: AudioContext | null = null;
-  private bgMusicOscillators: OscillatorNode[] = [];
-  private bgMusicGain: GainNode | null = null;
-  private volume: number = 0.3;
+  private audio: AudioManager = new AudioManager();
 
   constructor() {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -94,60 +92,20 @@ class Game {
   private setupVolumeControl(): void {
     const volumeSlider = document.getElementById('volume') as HTMLInputElement;
     if (volumeSlider) {
-      this.volume = parseInt(volumeSlider.value) / 100;
+      this.audio.setVolume(parseInt(volumeSlider.value) / 100);
       volumeSlider.addEventListener('input', () => {
-        this.volume = parseInt(volumeSlider.value) / 100;
-        if (this.bgMusicGain) {
-          this.bgMusicGain.gain.value = this.volume * 0.1;
-        }
+        this.audio.setVolume(parseInt(volumeSlider.value) / 100);
       });
     }
-  }
 
-  private initAudio(): void {
-    if (this.audioContext) return;
-    try {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      this.startBgMusic();
-    } catch (e) {
-      console.warn('音频初始化失败:', e);
+    const musicToggle = document.getElementById('musicToggle') as HTMLButtonElement;
+    if (musicToggle) {
+      musicToggle.addEventListener('click', () => {
+        const enabled = !this.audio.isMusicEnabled();
+        this.audio.toggleMusic(!enabled);
+        musicToggle.textContent = !enabled ? '🎵 音乐:开' : '🎵 音乐:关';
+      });
     }
-  }
-
-  private startBgMusic(): void {
-    if (!this.audioContext) return;
-
-    const notes = [523.25, 587.33, 659.25, 698.46, 783.99, 698.46, 659.25, 587.33];
-    const noteDuration = 200;
-    let noteIndex = 0;
-
-    const playNote = () => {
-      if (!this.audioContext || this.gameState === 'menu') {
-        setTimeout(playNote, 100);
-        return;
-      }
-
-      const osc = this.audioContext.createOscillator();
-      const gain = this.audioContext.createGain();
-
-      osc.type = 'square';
-      osc.frequency.value = notes[noteIndex % notes.length];
-
-      gain.gain.setValueAtTime(0, this.audioContext.currentTime);
-      gain.gain.linearRampToValueAtTime(this.volume * 0.1, this.audioContext.currentTime + 0.01);
-      gain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + noteDuration / 1000 - 0.01);
-
-      osc.connect(gain);
-      gain.connect(this.audioContext.destination);
-
-      osc.start();
-      osc.stop(this.audioContext.currentTime + noteDuration / 1000);
-
-      noteIndex++;
-      setTimeout(playNote, noteDuration);
-    };
-
-    playNote();
   }
 
   private resetMatch(): void {
@@ -299,7 +257,8 @@ class Game {
 
   private updateMenu(): void {
     if (this.input.isSpacePressed()) {
-      this.initAudio();
+      this.audio.init();
+      this.audio.resume();
       this.resetMatch();
       this.startCountdown();
     }
