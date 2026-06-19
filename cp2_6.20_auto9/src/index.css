@@ -1,0 +1,199 @@
+:root {
+  --primary-dark: #1e2a3a;
+  --mint-accent: #3ebf8f;
+  --canvas-bg: #f0f4f8;
+  --node-bg: white;
+  --node-radius: 8px;
+  --node-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --selected-shadow: 0 0 0 3px #3ebf8f55;
+  --transition-interactive: 0.3s ease-in-out;
+  --transition-fast: 0.2s linear;
+  --color-red: #ff4757;
+  --color-blue: #3742fa;
+  --color-green: #2ed573;
+  --color-yellow: #ffa502;
+  --color-purple: #a55eea;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--canvas-bg);
+  color: var(--primary-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.mind-map-node {
+  background: var(--node-bg);
+  border-radius: var(--node-radius);
+  box-shadow: var(--node-shadow);
+  transition: box-shadow var(--transition-interactive), transform var(--transition-interactive);
+}
+
+.mind-map-node.selected {
+  box-shadow: var(--selected-shadow);
+  transform: scale(1.02);
+}
+
+.mind-map-node:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.tool-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  border-radius: 6px;
+  padding: 8px;
+  color: var(--primary-dark);
+}
+
+.tool-button:hover {
+  background: #3ebf8f15;
+}
+
+.color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.color-tag-red .color-dot {
+  background: var(--color-red);
+}
+
+.color-tag-blue .color-dot {
+  background: var(--color-blue);
+}
+
+.color-tag-green .color-dot {
+  background: var(--color-green);
+}
+
+.color-tag-yellow .color-dot {
+  background: var(--color-yellow);
+}
+
+.color-tag-purple .color-dot {
+  background: var(--color-purple);
+}
+
+.history-list-item {
+  transition: transform var(--transition-interactive), opacity var(--transition-interactive);
+  position: relative;
+}
+
+.history-list-item.swiping-left {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+.right-panel {
+  transition: transform var(--transition-interactive), opacity var(--transition-interactive);
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+  opacity: 0;
+  transition: opacity var(--transition-interactive);
+  pointer-events: none;
+}
+
+.overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.search-highlight {
+  position: relative;
+  overflow: visible;
+}
+
+.search-highlight::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  margin-left: -10px;
+  border-radius: 50%;
+  background: var(--mint-accent);
+  animation: ripple 1s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes node-shadow-transition {
+  0% {
+    box-shadow: var(--node-shadow);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(62, 191, 143, 0.3);
+  }
+  100% {
+    box-shadow: var(--node-shadow);
+  }
+}
+
+.node-shadow-animate {
+  animation: node-shadow-transition 0.6s ease-in-out;
+}
+
+@media (max-width: 768px) {
+  .right-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: translateY(100%);
+    z-index: 999;
+    border-radius: 16px 16px 0 0;
+    background: var(--node-bg);
+    box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.15);
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .right-panel.open {
+    transform: translateY(0);
+  }
+}
