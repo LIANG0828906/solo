@@ -4,7 +4,12 @@ import { useRecipeStore } from './store/recipeStore';
 import RecipeCard from './components/RecipeCard';
 import RecipeDetail from './components/RecipeDetail';
 
-const HomePage: React.FC = () => {
+interface HomePageProps {
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+}
+
+const HomePage: React.FC<HomePageProps> = ({ sidebarOpen, setSidebarOpen }) => {
   const {
     recipes,
     collections,
@@ -16,7 +21,6 @@ const HomePage: React.FC = () => {
     addCollection
   } = useRecipeStore();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [showAddCollection, setShowAddCollection] = useState(false);
 
@@ -171,6 +175,7 @@ const HomePage: React.FC = () => {
 const AppContent: React.FC = () => {
   const location = useLocation();
   const isHomePage = location.pathname === '/';
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
     <div className="app">
@@ -183,12 +188,7 @@ const AppContent: React.FC = () => {
           {isHomePage && (
             <button
               className="collection-toggle"
-              onClick={() => {
-                const sidebar = document.querySelector('.collection-sidebar');
-                if (sidebar) {
-                  sidebar.classList.toggle('open');
-                }
-              }}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
             >
               📂 收藏夹
             </button>
@@ -197,7 +197,7 @@ const AppContent: React.FC = () => {
       </header>
 
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<HomePage sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />} />
         <Route path="/recipe/:id" element={<RecipeDetail />} />
       </Routes>
     </div>

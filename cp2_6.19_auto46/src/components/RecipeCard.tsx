@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRecipeStore, type Recipe } from '../store/recipeStore';
 
@@ -16,26 +16,33 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, index }) => {
     navigate(`/recipe/${recipe.id}`);
   };
 
-  const handleDragStart = (e: React.DragEvent) => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     setDragging(true, recipe.id);
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('text/plain', recipe.id);
+    
+    const target = e.currentTarget;
+    requestAnimationFrame(() => {
+      target.style.opacity = '0.5';
+      target.style.transform = 'scale(0.95) rotate(2deg)';
+    });
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
     setDragging(false, null);
+    const target = e.currentTarget;
+    target.style.opacity = '';
+    target.style.transform = '';
   };
 
   const isBeingDragged = dragRecipeId === recipe.id;
   const isFlying = flyingRecipeId === recipe.id;
 
-  const getAspectRatio = () => {
+  const aspectRatio = useMemo(() => {
     const hash = recipe.id.split('-').reduce((acc, val) => acc + val.charCodeAt(0), 0);
-    const ratios = [1.33, 1.0, 1.5, 0.8, 1.2];
+    const ratios = [1.33, 1.0, 1.5, 0.85, 1.2, 0.9];
     return ratios[hash % ratios.length];
-  };
-
-  const aspectRatio = getAspectRatio();
+  }, [recipe.id]);
 
   const renderStars = (rating: number) => {
     return (
@@ -58,10 +65,10 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, index }) => {
       style={{ animationDelay: `${index * 100}ms` }}
       onClick={handleClick}
       draggable
-      onDragStart={(e) => handleDragStart(e)}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="card-image" style={{ aspectRatio: aspectRatio }}>
+      <div className="card-image" style={{ aspectRatio: `${aspectRatio}` }}>
         <img
           src={recipe.coverImage}
           alt={recipe.title}

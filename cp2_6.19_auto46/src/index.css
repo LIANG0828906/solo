@@ -309,6 +309,12 @@ img {
 .collection-count {
   font-size: 0.85rem;
   opacity: 0.7;
+  transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collection-item.drag-over .collection-count {
+  transform: scale(1.2);
+  font-weight: 600;
 }
 
 .add-collection {

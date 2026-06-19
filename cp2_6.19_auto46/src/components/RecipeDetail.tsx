@@ -164,6 +164,9 @@ const RecipeDetail: React.FC = () => {
     if (rating === 0 || !commentText.trim()) return;
 
     if (id) {
+      const tempId = `temp-${Date.now()}`;
+      setNewCommentId(tempId);
+      
       addComment(id, rating, commentText.trim());
       setRating(0);
       setCommentText('');
@@ -172,9 +175,9 @@ const RecipeDetail: React.FC = () => {
         const updatedComments = getCommentsByRecipeId(id);
         if (updatedComments.length > 0) {
           setNewCommentId(updatedComments[0].id);
-          setTimeout(() => setNewCommentId(null), 600);
+          setTimeout(() => setNewCommentId(null), 500);
         }
-      }, 50);
+      }, 30);
     }
   };
 
