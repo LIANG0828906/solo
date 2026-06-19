@@ -148,6 +148,20 @@ export const saveToCommunity = async (
     isFavorite: false,
   }
 
+  console.log('========== 表情包导出成功 ==========')
+  console.log('创作者昵称:', memeData.creatorName)
+  console.log('创作时间:', new Date(memeData.createdAt).toLocaleString('zh-CN'))
+  console.log('表情包ID:', memeData.id)
+  console.log('缩略卡片数据:', {
+    id: memeData.id,
+    creatorName: memeData.creatorName,
+    createdAt: memeData.createdAt,
+    thumbnailSize: memeData.thumbnailUrl.length,
+  })
+  console.log('图层数量:', layers.length)
+  console.log('图层详情:', layers.map(l => ({ type: l.type, name: l.name, visible: l.visible })))
+  console.log('====================================')
+
   const existing = localStorage.getItem('community_memes')
   const memes = existing ? JSON.parse(existing) : []
   memes.unshift(memeData)
@@ -234,7 +248,12 @@ const generateSampleMeme = (
 
 export const initSampleData = () => {
   const existing = localStorage.getItem('community_memes')
-  if (existing && JSON.parse(existing).length > 0) return
+  const existingData = existing ? JSON.parse(existing) : []
+  const hasAllSamples = [
+    'sample-1', 'sample-2', 'sample-3', 'sample-4',
+    'sample-5', 'sample-6', 'sample-7', 'sample-8'
+  ].every(id => existingData.some((m: any) => m.id === id))
+  if (hasAllSamples) return
 
   const samples = [
     { id: 'sample-1', bgColor: '#9d4edd', text: '太强了！', emoji: '💪', creator: '创意达人', hoursAgo: 1 },
@@ -243,13 +262,19 @@ export const initSampleData = () => {
     { id: 'sample-4', bgColor: '#ffbe0b', text: '好耶！', emoji: '🎉', creator: '开心果', hoursAgo: 12 },
     { id: 'sample-5', bgColor: '#3a86ff', text: '我不信', emoji: '🤔', creator: '怀疑人生', hoursAgo: 24 },
     { id: 'sample-6', bgColor: '#06d6a0', text: '爱了爱了', emoji: '😍', creator: '小甜心', hoursAgo: 48 },
+    { id: 'sample-7', bgColor: '#ff4d6d', text: '救命啊', emoji: '😱', creator: '惊吓小王子', hoursAgo: 72 },
+    { id: 'sample-8', bgColor: '#7209b7', text: '真香警告', emoji: '😋', creator: '吃货本货', hoursAgo: 96 },
   ]
 
-  const memes = samples
+  const sampleMemes = samples
     .map((s) =>
       generateSampleMeme(s.id, s.bgColor, s.text, s.emoji, s.creator, s.hoursAgo)
     )
     .filter(Boolean)
 
-  localStorage.setItem('community_memes', JSON.stringify(memes))
+  const existingIds = new Set(existingData.map((m: any) => m.id))
+  const newSamples = sampleMemes.filter((m: any) => !existingIds.has(m.id))
+  const merged = [...newSamples, ...existingData]
+
+  localStorage.setItem('community_memes', JSON.stringify(merged.slice(0, 100)))
 }

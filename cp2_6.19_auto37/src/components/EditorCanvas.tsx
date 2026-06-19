@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useEditorStore, Layer, TextLayer, StickerLayer, BrushLayer } from '../store/editorStore'
+import { exportCanvasAsPNG, downloadImage, saveToCommunity } from '../utils/exportImage'
 import '../styles/canvas.css'
 
 const EditorCanvas: React.FC = () => {
@@ -46,9 +47,32 @@ const EditorCanvas: React.FC = () => {
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [pinchStartDist, setPinchStartDist] = useState(0)
   const [pinchStartScale, setPinchStartScale] = useState(1)
+  const [isExporting, setIsExporting] = useState(false)
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null)
 
   const CANVAS_SIZE = 300
+
+  const handleQuickExport = async () => {
+    if (layers.length === 0) {
+      alert('请先添加一些内容到画布')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const dataUrl = await exportCanvasAsPNG(layers, 300)
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      downloadImage(dataUrl, `meme_${timestamp}.png`)
+
+      const creatorName = '画布创作者'
+      await saveToCommunity(layers, creatorName)
+    } catch (error) {
+      console.error('导出失败:', error)
+      alert('导出失败，请重试')
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   const screenToCanvas = useCallback(
     (screenX: number, screenY: number) => {
@@ -584,6 +608,13 @@ const EditorCanvas: React.FC = () => {
       <div className="upload-btn" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}>
         📁 上传图片
       </div>
+      <button
+        className={`canvas-export-btn ${isExporting ? 'exporting' : ''}`}
+        onClick={(e) => { e.stopPropagation(); handleQuickExport() }}
+        disabled={isExporting}
+      >
+        {isExporting ? '导出中...' : '📤 导出 PNG'}
+      </button>
       <div className="zoom-controls">
         <button className="zoom-btn" onClick={() => setCanvasScale(canvasScale * 1.2)}>
           +

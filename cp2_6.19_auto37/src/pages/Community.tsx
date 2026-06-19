@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { getCommunityMemes, toggleFavorite } from '../utils/exportImage'
+import { getCommunityMemes, toggleFavorite, initSampleData } from '../utils/exportImage'
 import '../styles/community.css'
 
 interface MemeItem {
@@ -24,6 +24,7 @@ const Community: React.FC<CommunityProps> = ({ showFavoritesOnly = false }) => {
   const observerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    initSampleData()
     loadMemes()
   }, [showFavoritesOnly])
 
@@ -36,9 +37,8 @@ const Community: React.FC<CommunityProps> = ({ showFavoritesOnly = false }) => {
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      allMemes = allMemes.filter(
-        (m) =>
-          m.creatorName.toLowerCase().includes(query)
+      allMemes = allMemes.filter((m) =>
+        m.creatorName.toLowerCase().includes(query)
       )
     }
 
@@ -212,7 +212,12 @@ const MemeCard: React.FC<MemeCardProps> = ({
           onClick={onFavorite}
           title={meme.isFavorite ? '取消收藏' : '收藏'}
         >
-          {meme.isFavorite ? '❤️' : '🤍'}
+          <svg viewBox="0 0 24 24" className="heart-svg">
+            <path
+              className={`heart-path ${meme.isFavorite ? 'filled' : ''}`}
+              d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+            />
+          </svg>
         </button>
       </div>
       <div className="meme-info">

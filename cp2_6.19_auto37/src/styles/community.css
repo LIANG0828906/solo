@@ -141,9 +141,8 @@
   height: 36px;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(10px);
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
-  font-size: 18px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -162,7 +161,28 @@
 }
 
 .favorite-btn.favorited {
+  background: linear-gradient(135deg, #00d4ff 0%, #9d4edd 100%);
+  border: none;
+  box-shadow: 0 0 12px rgba(157, 78, 221, 0.5);
   animation: favoriteBounce 0.4s ease;
+}
+
+.heart-svg {
+  width: 18px;
+  height: 18px;
+}
+
+.heart-path {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transition: all 0.3s ease;
+}
+
+.heart-path.filled {
+  fill: rgba(255, 255, 255, 0.95);
+  stroke: rgba(255, 255, 255, 0.95);
 }
 
 @keyframes favoriteBounce {
@@ -221,6 +241,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.3);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
 }
 
 .create-time {
