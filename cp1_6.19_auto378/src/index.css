@@ -1,0 +1,29 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: "Microsoft YaHei", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #E8D5B7 0%, #F4E4C8 100%);
+  min-height: 100vh;
+  color: #3E2723;
+}
+
+:root {
+  --easing: cubic-bezier(0.25, 0.8, 0.25, 1);
+  --color-primary: #8D6E63;
+  --color-accent: #FF5252;
+  --color-bg-light: #F4E4C8;
+  --color-bg-dark: #E8D5B7;
+  --color-card: #FFFFFF;
+  --color-text: #3E2723;
+  --color-text-light: #8D6E63;
+  --shadow-soft: 0 2px 8px rgba(93, 78, 55, 0.1);
+  --shadow-hover: 0 8px 24px rgba(93, 78, 55, 0.2);
+}
