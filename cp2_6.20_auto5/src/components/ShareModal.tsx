@@ -46,12 +46,12 @@ const ShareModal: React.FC<ShareModalProps> = ({ scheme, onClose, onToast }) => 
   const generateShareURL = () => {
     const data = btoa(
       JSON.stringify({
-        name: scheme.name,
-        colors: scheme.colors.map((c) => c.hex),
-        tags: scheme.tags
+        n: scheme.name,
+        c: scheme.colors.map((c) => c.hex),
+        t: scheme.tags
       })
     )
-    return `${window.location.origin}${window.location.pathname}?share=${data}`
+    return `${window.location.origin}${window.location.pathname}?color=${data}`
   }
 
   const getExportContent = () => {

@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useMemo } from 'react'
+import React, { useRef, useCallback, useMemo, useEffect } from 'react'
 import { hsl } from 'd3-color'
 import type { ColorData } from '../types'
 import { isValidHex, hexToColorData, rgbToHex } from '../utils/colorHarmony'
@@ -9,6 +9,13 @@ interface ColorPickerProps {
   onAddColor: (color: ColorData) => void
 }
 
+const RING_SIZE = 240
+const RING_CENTER = RING_SIZE / 2
+const RING_INNER = 40
+const RING_OUTER = 100
+
+const SV_SIZE = 240
+
 const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, onAddColor }) => {
   const hueRef = useRef<HTMLDivElement>(null)
   const svRef = useRef<HTMLDivElement>(null)
@@ -17,18 +24,20 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, onAddColor }
 
   const huePosition = useMemo(() => {
     const angle = color.hsl.h
-    const radius = 100
+    const radius = (RING_INNER + RING_OUTER) / 2
     const rad = ((angle - 90) * Math.PI) / 180
     return {
-      x: 120 + radius * Math.cos(rad),
-      y: 120 + radius * Math.sin(rad)
+      x: RING_CENTER + radius * Math.cos(rad),
+      y: RING_CENTER + radius * Math.sin(rad)
     }
   }, [color.hsl.h])
 
   const svPosition = useMemo(() => {
+    const s = color.hsl.s / 100
+    const l = color.hsl.l / 100
     return {
-      x: (color.hsl.s / 100) * 240,
-      y: ((100 - color.hsl.l) / 100) * 240
+      x: s * SV_SIZE,
+      y: (1 - l) * SV_SIZE
     }
   }, [color.hsl.s, color.hsl.l])
 
@@ -46,6 +55,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, onAddColor }
       const y = clientY - centerY
       let angle = (Math.atan2(y, x) * 180) / Math.PI + 90
       if (angle < 0) angle += 360
+      if (angle >= 360) angle -= 360
       const newColor = hexToColorData(
         hsl(angle, color.hsl.s / 100, color.hsl.l / 100).hex()
       )
@@ -58,55 +68,71 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, onAddColor }
     (clientX: number, clientY: number) => {
       if (!svRef.current) return
       const rect = svRef.current.getBoundingClientRect()
-      const x = Math.max(0, Math.min(240, clientX - rect.left))
-      const y = Math.max(0, Math.min(240, clientY - rect.top))
-      const s = (x / 240) * 100
-      const l = 100 - (y / 240) * 100
+      const x = Math.max(0, Math.min(rect.width, clientX - rect.left))
+      const y = Math.max(0, Math.min(rect.height, clientY - rect.top))
+      const s = (x / rect.width) * 100
+      const l = (1 - y / rect.height) * 100
       const newColor = hexToColorData(hsl(color.hsl.h, s / 100, l / 100).hex())
       onChange(newColor)
     },
     [color.hsl.h, onChange]
   )
 
-  const handleHueMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const handleHuePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault()
+      ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
       isDraggingHue.current = true
       updateFromHue(e.clientX, e.clientY)
     },
     [updateFromHue]
   )
 
-  const handleSVMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const handleHuePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isDraggingHue.current) return
+      e.preventDefault()
+      updateFromHue(e.clientX, e.clientY)
+    },
+    [updateFromHue]
+  )
+
+  const handleHuePointerUp = useCallback(() => {
+    isDraggingHue.current = false
+  }, [])
+
+  const handleSVPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault()
+      ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
       isDraggingSV.current = true
       updateFromSV(e.clientX, e.clientY)
     },
     [updateFromSV]
   )
 
-  React.useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isDraggingHue.current) {
-        updateFromHue(e.clientX, e.clientY)
+  const handleSVPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isDraggingSV.current) return
+      e.preventDefault()
+      updateFromSV(e.clientX, e.clientY)
+    },
+    [updateFromSV]
+  )
+
+  const handleSVPointerUp = useCallback(() => {
+    isDraggingSV.current = false
+  }, [])
+
+  useEffect(() => {
+    const preventDefault = (e: TouchEvent) => {
+      if (isDraggingHue.current || isDraggingSV.current) {
+        e.preventDefault()
       }
-      if (isDraggingSV.current) {
-        updateFromSV(e.clientX, e.clientY)
-      }
     }
-
-    const handleMouseUp = () => {
-      isDraggingHue.current = false
-      isDraggingSV.current = false
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [updateFromHue, updateFromSV])
+    document.addEventListener('touchmove', preventDefault, { passive: false })
+    return () => document.removeEventListener('touchmove', preventDefault)
+  }, [])
 
   const handleHexChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -129,7 +155,10 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, onAddColor }
         <div
           ref={hueRef}
           className="hue-ring"
-          onMouseDown={handleHueMouseDown}
+          onPointerDown={handleHuePointerDown}
+          onPointerMove={handleHuePointerMove}
+          onPointerUp={handleHuePointerUp}
+          onPointerCancel={handleHuePointerUp}
         >
           <div
             className="hue-handle"
@@ -145,8 +174,13 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, onAddColor }
           ref={svRef}
           className="sv-panel"
           style={{ backgroundColor: hueColor }}
-          onMouseDown={handleSVMouseDown}
+          onPointerDown={handleSVPointerDown}
+          onPointerMove={handleSVPointerMove}
+          onPointerUp={handleSVPointerUp}
+          onPointerCancel={handleSVPointerUp}
         >
+          <div className="sv-panel-white" />
+          <div className="sv-panel-black" />
           <div
             className="sv-handle"
             style={{

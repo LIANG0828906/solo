@@ -27,56 +27,61 @@ const hslToHex = (h: number, s: number, l: number): string => {
   return color.hex().toUpperCase()
 }
 
+const clampL = (l: number) => Math.max(10, Math.min(90, l))
+const clampS = (s: number) => Math.max(10, Math.min(100, s))
+
 const generateHarmonyColors = (
   baseHsl: { h: number; s: number; l: number },
   type: HarmonyType
 ): ColorData[] => {
   const { h, s, l } = baseHsl
-  const colors: ColorData[] = []
 
   switch (type) {
     case 'complementary':
-      colors.push(hexToColorData(hslToHex(h, s, l)))
-      colors.push(hexToColorData(hslToHex((h + 180) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex(h, s, Math.max(l - 15, 10))))
-      colors.push(hexToColorData(hslToHex((h + 180) % 360, s, Math.min(l + 15, 90))))
-      colors.push(hexToColorData(hslToHex(h, Math.max(s - 20, 20), l)))
-      break
+      return [
+        hexToColorData(hslToHex(h, s, l)),
+        hexToColorData(hslToHex((h + 180) % 360, s, l)),
+        hexToColorData(hslToHex(h, s, clampL(l - 15))),
+        hexToColorData(hslToHex((h + 180) % 360, s, clampL(l + 15))),
+        hexToColorData(hslToHex(h, clampS(s - 25), l))
+      ]
 
     case 'analogous':
-      colors.push(hexToColorData(hslToHex(h, s, l)))
-      colors.push(hexToColorData(hslToHex((h + 30) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex((h + 60) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex((h - 30 + 360) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex((h - 60 + 360) % 360, s, l)))
-      break
+      return [
+        hexToColorData(hslToHex(h, s, l)),
+        hexToColorData(hslToHex((h + 30) % 360, s, clampL(l + 5))),
+        hexToColorData(hslToHex((h + 60) % 360, clampS(s - 10), clampL(l + 10))),
+        hexToColorData(hslToHex((h - 30 + 360) % 360, s, clampL(l - 5))),
+        hexToColorData(hslToHex((h - 60 + 360) % 360, clampS(s - 10), clampL(l - 10)))
+      ]
 
     case 'triadic':
-      colors.push(hexToColorData(hslToHex(h, s, l)))
-      colors.push(hexToColorData(hslToHex((h + 120) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex((h + 240) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex(h, s, Math.min(l + 20, 90))))
-      colors.push(hexToColorData(hslToHex((h + 120) % 360, s, Math.max(l - 20, 10))))
-      break
+      return [
+        hexToColorData(hslToHex(h, s, l)),
+        hexToColorData(hslToHex((h + 120) % 360, s, l)),
+        hexToColorData(hslToHex((h + 240) % 360, s, l)),
+        hexToColorData(hslToHex(h, clampS(s - 30), clampL(l + 20))),
+        hexToColorData(hslToHex((h + 120) % 360, s, clampL(l - 20)))
+      ]
 
     case 'splitComplementary':
-      colors.push(hexToColorData(hslToHex(h, s, l)))
-      colors.push(hexToColorData(hslToHex((h + 150) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex((h + 210) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex(h, s, Math.min(l + 15, 90))))
-      colors.push(hexToColorData(hslToHex((h + 150) % 360, s, Math.max(l - 15, 10))))
-      break
+      return [
+        hexToColorData(hslToHex(h, s, l)),
+        hexToColorData(hslToHex((h + 150) % 360, s, l)),
+        hexToColorData(hslToHex((h + 210) % 360, s, l)),
+        hexToColorData(hslToHex(h, s, clampL(l + 20))),
+        hexToColorData(hslToHex((h + 150) % 360, clampS(s - 20), clampL(l - 15)))
+      ]
 
     case 'tetradic':
-      colors.push(hexToColorData(hslToHex(h, s, l)))
-      colors.push(hexToColorData(hslToHex((h + 90) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex((h + 180) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex((h + 270) % 360, s, l)))
-      colors.push(hexToColorData(hslToHex(h, Math.max(s - 30, 20), l)))
-      break
+      return [
+        hexToColorData(hslToHex(h, s, l)),
+        hexToColorData(hslToHex((h + 90) % 360, s, l)),
+        hexToColorData(hslToHex((h + 180) % 360, s, l)),
+        hexToColorData(hslToHex((h + 270) % 360, s, l)),
+        hexToColorData(hslToHex(h, clampS(s - 30), clampL(l + 15)))
+      ]
   }
-
-  return colors
 }
 
 export const generateAllHarmonySchemes = (baseColor: ColorData): HarmonyScheme[] => {

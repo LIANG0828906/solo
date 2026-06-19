@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, memo } from 'react'
 import type { ColorScheme, SortType } from '../types'
 
 interface SchemeLibraryProps {
@@ -23,11 +23,11 @@ const SchemeLibrary: React.FC<SchemeLibraryProps> = ({
   const allTags = useMemo(() => {
     const tags = new Set<string>()
     schemes.forEach((s) => s.tags.forEach((t) => tags.add(t)))
-    return Array.from(tags)
+    return Array.from(tags).sort()
   }, [schemes])
 
   const filteredAndSortedSchemes = useMemo(() => {
-    let result = [...schemes]
+    let result = schemes
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
@@ -42,13 +42,14 @@ const SchemeLibrary: React.FC<SchemeLibraryProps> = ({
       result = result.filter((s) => s.tags.includes(tagFilter))
     }
 
+    const sorted = [...result]
     if (sortBy === 'date') {
-      result.sort((a, b) => b.createdAt - a.createdAt)
-    } else if (sortBy === 'name') {
-      result.sort((a, b) => a.name.localeCompare(b.name))
+      sorted.sort((a, b) => b.createdAt - a.createdAt)
+    } else {
+      sorted.sort((a, b) => a.name.localeCompare(b.name))
     }
 
-    return result
+    return sorted
   }, [schemes, searchTerm, tagFilter, sortBy])
 
   if (schemes.length === 0) {
@@ -160,4 +161,4 @@ const SchemeLibrary: React.FC<SchemeLibraryProps> = ({
   )
 }
 
-export default SchemeLibrary
+export default memo(SchemeLibrary)

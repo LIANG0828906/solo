@@ -6,8 +6,7 @@ import SchemeLibrary from './components/SchemeLibrary'
 import ShareModal from './components/ShareModal'
 import type { ColorData, ColorScheme, HarmonyScheme } from './types'
 import { generateAllHarmonySchemes, hexToColorData, generateId } from './utils/colorHarmony'
-
-const STORAGE_KEY = 'color-palette-schemes'
+import { schemeApi } from './services/api'
 
 const App: React.FC = () => {
   const navigate = useNavigate()
@@ -24,52 +23,68 @@ const App: React.FC = () => {
   const [tagInput, setTagInput] = useState('')
   const [toast, setToast] = useState({ show: false, message: '' })
   const [shareScheme, setShareScheme] = useState<ColorScheme | null>(null)
+  const [apiAvailable, setApiAvailable] = useState(false)
 
   const harmonySchemes: HarmonyScheme[] = useMemo(() => {
     return generateAllHarmonySchemes(currentColor)
   }, [currentColor])
 
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        setSchemes(JSON.parse(saved))
-      } catch {
-        setSchemes([])
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(schemes))
-  }, [schemes])
-
-  useEffect(() => {
-    const shareParam = searchParams.get('share')
-    if (shareParam) {
-      try {
-        const data = JSON.parse(atob(shareParam))
-        const sharedScheme: ColorScheme = {
-          id: generateId(),
-          name: data.name || '分享的方案',
-          colors: data.colors.map((hex: string) => hexToColorData(hex)),
-          tags: data.tags || [],
-          createdAt: Date.now()
-        }
-        setCurrentColors(sharedScheme.colors)
-        setSchemeName(sharedScheme.name)
-        setTags(sharedScheme.tags)
-        showToast('已加载分享的配色方案！')
-      } catch {
-        showToast('分享链接无效')
-      }
-    }
-  }, [searchParams])
-
   const showToast = useCallback((message: string) => {
     setToast({ show: true, message })
     setTimeout(() => setToast({ show: false, message: '' }), 2000)
   }, [])
+
+  const loadSchemesFromApi = useCallback(async () => {
+    try {
+      const response = await schemeApi.getSchemes()
+      setSchemes(response.data)
+      setApiAvailable(true)
+    } catch {
+      setApiAvailable(false)
+      const saved = localStorage.getItem('color-palette-schemes')
+      if (saved) {
+        try {
+          setSchemes(JSON.parse(saved))
+        } catch {
+          setSchemes([])
+        }
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSchemesFromApi()
+  }, [loadSchemesFromApi])
+
+  useEffect(() => {
+    if (!apiAvailable && schemes.length > 0) {
+      localStorage.setItem('color-palette-schemes', JSON.stringify(schemes))
+    }
+  }, [schemes, apiAvailable])
+
+  useEffect(() => {
+    const colorParam = searchParams.get('color')
+    if (colorParam) {
+      try {
+        const data = JSON.parse(atob(colorParam))
+        const name = data.n || data.name || '分享的方案'
+        const colors = data.c || data.colors || []
+        const schemeTags = data.t || data.tags || []
+
+        if (Array.isArray(colors) && colors.length > 0) {
+          const parsedColors = colors.map((hex: string) => hexToColorData(hex))
+          setCurrentColors(parsedColors)
+          setSchemeName(name)
+          setTags(schemeTags)
+          showToast('已加载分享的配色方案！')
+        } else {
+          showToast('分享链接中没有有效的颜色数据')
+        }
+      } catch {
+        showToast('分享链接无效')
+      }
+    }
+  }, [searchParams, showToast])
 
   const handleAddColor = useCallback(
     (color: ColorData) => {
@@ -106,7 +121,7 @@ const App: React.FC = () => {
     setTags((prev) => prev.filter((t) => t !== tag))
   }, [])
 
-  const handleSaveScheme = useCallback(() => {
+  const handleSaveScheme = useCallback(async () => {
     if (!schemeName.trim()) {
       showToast('请输入方案名称')
       return
@@ -124,11 +139,22 @@ const App: React.FC = () => {
       createdAt: Date.now()
     }
 
-    setSchemes((prev) => [...prev, newScheme])
+    if (apiAvailable) {
+      try {
+        await schemeApi.createScheme(newScheme)
+        const response = await schemeApi.getSchemes()
+        setSchemes(response.data)
+      } catch {
+        setSchemes((prev) => [...prev, newScheme])
+      }
+    } else {
+      setSchemes((prev) => [...prev, newScheme])
+    }
+
     setSchemeName('')
     setTags([])
     showToast('方案保存成功！')
-  }, [schemeName, currentColors, tags, showToast])
+  }, [schemeName, currentColors, tags, showToast, apiAvailable])
 
   const handleApplyScheme = useCallback(
     (scheme: ColorScheme) => {
@@ -139,10 +165,23 @@ const App: React.FC = () => {
     [navigate, showToast]
   )
 
-  const handleDeleteScheme = useCallback((id: string) => {
-    setSchemes((prev) => prev.filter((s) => s.id !== id))
-    showToast('方案已删除')
-  }, [showToast])
+  const handleDeleteScheme = useCallback(
+    async (id: string) => {
+      if (apiAvailable) {
+        try {
+          await schemeApi.deleteScheme(id)
+          const response = await schemeApi.getSchemes()
+          setSchemes(response.data)
+        } catch {
+          setSchemes((prev) => prev.filter((s) => s.id !== id))
+        }
+      } else {
+        setSchemes((prev) => prev.filter((s) => s.id !== id))
+      }
+      showToast('方案已删除')
+    },
+    [showToast, apiAvailable]
+  )
 
   const handleExport = useCallback((scheme: ColorScheme) => {
     setShareScheme(scheme)
