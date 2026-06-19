@@ -1,0 +1,43 @@
+.submit-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1B2838;
+  margin-bottom: 8px;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: #666;
+}
+
+.form-container {
+  background: #fff;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 768px) {
+  .submit-page {
+    padding: 16px;
+  }
+  
+  .form-container {
+    padding: 20px;
+  }
+  
+  .page-title {
+    font-size: 22px;
+  }
+}
