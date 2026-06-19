@@ -74,8 +74,8 @@ export default function ProposalManager() {
 
   useEffect(() => {
     setPreviewFade(true);
-    const t = setTimeout(() => setPreviewFade(false), 400);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(() => setPreviewFade(false), 420);
+    return () => clearTimeout(t1);
   }, [template]);
 
   const total = calculateTotal(services);
@@ -167,7 +167,7 @@ export default function ProposalManager() {
     }
   };
 
-  const templates: TemplateType[] = ['minimal', 'business', 'creative'];
+  const templates: TemplateType[] = ['minimal', 'business', 'dark'];
 
   if (loading) {
     return (
@@ -231,19 +231,41 @@ export default function ProposalManager() {
             <div className="ff-templates">
               {templates.map((t) => {
                 const theme = TEMPLATE_THEMES[t];
+                const isActive = template === t;
                 return (
                   <div
                     key={t}
-                    className={`ff-template-card ${template === t ? 'active' : ''}`}
+                    className={`ff-template-card ${isActive ? 'active' : ''}`}
                     onClick={() => setTemplate(t)}
+                    style={isActive ? { borderColor: theme.primary } : undefined}
                   >
-                    <div
-                      className="ff-template-card__swatch"
-                      style={{
-                        background: `linear-gradient(135deg, ${theme.primary}, ${theme.accent})`,
-                      }}
-                    />
-                    <div className="ff-template-card__name">{TEMPLATE_LABELS[t]}</div>
+                    <div className="ff-template-card__thumb" style={{ background: theme.bg }}>
+                      <div className="ff-template-card__thumb-header" style={{
+                        background: t === 'minimal' ? theme.bgAlt : theme.headerBg,
+                        borderBottom: `2px solid ${t === 'business' ? theme.accent : theme.border}`,
+                      }}>
+                        <div className="ff-template-card__thumb-line" style={{ background: theme.primary, width: '45%' }} />
+                        <div className="ff-template-card__thumb-line ff-template-card__thumb-line--sm" style={{ background: theme.textMuted, width: '30%' }} />
+                      </div>
+                      <div className="ff-template-card__thumb-body">
+                        <div className="ff-template-card__thumb-row" style={{ background: theme.tableStripe }}>
+                          <div className="ff-template-card__thumb-bar" style={{ background: theme.border, width: '60%' }} />
+                          <div className="ff-template-card__thumb-bar" style={{ background: theme.accent, width: '20%' }} />
+                        </div>
+                        <div className="ff-template-card__thumb-row">
+                          <div className="ff-template-card__thumb-bar" style={{ background: theme.border, width: '55%' }} />
+                          <div className="ff-template-card__thumb-bar" style={{ background: theme.accent, width: '18%' }} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ff-template-card__name" style={{ color: isActive ? theme.primary : undefined }}>
+                      {TEMPLATE_LABELS[t]}
+                    </div>
+                    <div className="ff-template-card__colors">
+                      <span className="ff-template-card__dot" style={{ background: theme.primary }} />
+                      <span className="ff-template-card__dot" style={{ background: theme.accent }} />
+                      <span className="ff-template-card__dot" style={{ background: theme.bg }} />
+                    </div>
                   </div>
                 );
               })}
@@ -334,7 +356,7 @@ export default function ProposalManager() {
 
         <div className="ff-editor-col">
           <div className="ff-preview-wrap">
-            <div className={`ff-preview ${previewFade ? 'fade' : ''}`}>
+            <div className={`ff-preview ${previewFade ? 'ff-preview--fading' : 'ff-preview--visible'}`}>
               <ProposalPreview
                 title={title}
                 clientName={clientName}

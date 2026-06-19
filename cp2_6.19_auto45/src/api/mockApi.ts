@@ -58,7 +58,7 @@ function seedDefaultProposals(): Proposal[] {
       id: uuidv4(),
       title: '品牌 Logo 与 VI 设计',
       clientName: '橙意咖啡',
-      template: 'creative',
+      template: 'dark',
       status: 'decided',
       shareLink: `https://share.freelanceflow.app/${uuidv4().slice(0, 8)}`,
       createdAt: now - 86400000 * 12,
