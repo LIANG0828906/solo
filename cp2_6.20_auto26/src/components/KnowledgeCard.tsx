@@ -100,14 +100,15 @@ export const KnowledgeCardComponent: React.FC<KnowledgeCardProps> = ({ card }) =
   const tagStyles: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '4px',
+    justifyContent: 'center',
     padding: '4px 10px',
-    backgroundColor: '#fff3e0',
-    color: '#e65100',
-    borderRadius: '8px',
+    backgroundColor: '#ffe0b2',
+    color: '#bf360c',
+    borderRadius: '12px',
     fontSize: '12px',
-    fontWeight: '500',
-    transition: 'all 0.2s ease'
+    fontWeight: '600',
+    transition: 'all 0.2s ease',
+    whiteSpace: 'nowrap'
   };
 
   const getStarStyles = (size: number = 20): React.CSSProperties => ({
@@ -264,7 +265,7 @@ export const KnowledgeCardComponent: React.FC<KnowledgeCardProps> = ({ card }) =
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {card.tags.slice(0, 3).map(tag => (
               <span key={tag} style={tagStyles}>
                 <Tag size={12} />
@@ -383,7 +384,7 @@ export const KnowledgeCardComponent: React.FC<KnowledgeCardProps> = ({ card }) =
                 onClick={closeModal}
                 style={{ 
                   padding: '10px', 
-                  borderRadius: '10px',
+                  borderRadius: '50%',
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   alignItems: 'center',
@@ -392,13 +393,13 @@ export const KnowledgeCardComponent: React.FC<KnowledgeCardProps> = ({ card }) =
                   backgroundColor: 'transparent'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#ffe0b2';
+                  e.currentTarget.style.backgroundColor = '#f5f5f5';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <X size={22} color="#e65100" strokeWidth={2.5} />
+                <X size={22} color="#757575" strokeWidth={2.5} />
               </button>
             </div>
 

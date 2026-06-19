@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, HelpCircle, Plus, Sparkles, Tag, FolderOpen } from 'lucide-react';
+import { BookOpen, HelpCircle, Plus, Sparkles, Tag, FolderOpen, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useStore, generateId } from '../store';
 import { KnowledgeCardComponent } from '../components/KnowledgeCard';
@@ -20,6 +20,39 @@ export const HomePage: React.FC = () => {
     content: ''
   });
   const [tagInput, setTagInput] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [displayCount, setDisplayCount] = useState(6);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleLoadMore = useCallback(() => {
+    if (isLoading || displayCount >= cards.length) return;
+    setIsLoading(true);
+    setTimeout(() => {
+      setDisplayCount(prev => Math.min(prev + 6, cards.length));
+      setIsLoading(false);
+    }, 1000);
+  }, [isLoading, displayCount, cards.length]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const docHeight = document.documentElement.scrollHeight;
+      
+      if (scrollTop + windowHeight >= docHeight - 200) {
+        handleLoadMore();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [handleLoadMore]);
 
   const handleCreateCard = () => {
     if (!newCard.title.trim()) {
@@ -229,12 +262,48 @@ export const HomePage: React.FC = () => {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
         gap: '20px',
-        marginBottom: '48px'
+        marginBottom: '32px'
       }}>
-        {cards.map(card => (
+        {cards.slice(0, displayCount).map(card => (
           <KnowledgeCardComponent key={card.id} card={card} />
         ))}
       </div>
+
+      {isLoading && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '32px 0',
+          marginBottom: '16px'
+        }}>
+          <Loader2 
+            size={28} 
+            style={{
+              color: '#ffcc80',
+              animation: 'spin 1s linear infinite'
+            }}
+          />
+          <style>{`
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {!isLoading && displayCount >= cards.length && cards.length > 0 && (
+        <div style={{
+          textAlign: 'center',
+          padding: '24px 0',
+          marginBottom: '24px',
+          color: '#a1887f',
+          fontSize: '13px'
+        }}>
+          已加载全部 {cards.length} 张卡片
+        </div>
+      )}
 
       <div style={{
         display: 'flex',
