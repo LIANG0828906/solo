@@ -206,22 +206,38 @@ export function SynthesisResultModal({ isOpen, onClose, result }: SynthesisResul
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: '120%', opacity: [0, 1, 0.3] }}
+                  animate={{ height: '100%', opacity: [0, 1, 0.3] }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}
-                  className="absolute w-32 top-1/2 -translate-y-1/2"
+                  className="absolute w-36 bottom-0 left-1/2 -translate-x-1/2"
                   style={{
-                    background: `linear-gradient(to top, transparent, ${RARITY_COLORS[resultCard.rarity]}80, transparent)`,
-                    filter: 'blur(10px)',
+                    background: `linear-gradient(to top, 
+                      ${RARITY_COLORS[resultCard.rarity]} 0%, 
+                      #ff6b6b 20%, 
+                      #ffd93d 40%, 
+                      #6bcb77 60%, 
+                      #4d96ff 80%, 
+                      transparent 100%)`,
+                    filter: 'blur(12px)',
                   }}
                 />
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: '100%', opacity: [0, 0.8, 0.2] }}
-                  transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 }}
-                  className="absolute w-16 top-1/2 -translate-y-1/2"
+                  animate={{ height: '100%', opacity: [0, 0.9, 0.2] }}
+                  transition={{ duration: 0.8, ease: 'easeOut', delay: 0.05 }}
+                  className="absolute w-16 bottom-0 left-1/2 -translate-x-1/2"
                   style={{
-                    background: `linear-gradient(to top, transparent, #ffffff, transparent)`,
+                    background: 'linear-gradient(to top, #ffffff 0%, #e0e7ff 40%, transparent 100%)',
                     filter: 'blur(4px)',
+                  }}
+                />
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1.5, opacity: [0, 0.6, 0] }}
+                  transition={{ duration: 0.8, ease: 'easeOut' }}
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-48 h-24 rounded-full"
+                  style={{
+                    background: `radial-gradient(ellipse at center, ${RARITY_COLORS[resultCard.rarity]} 0%, transparent 70%)`,
+                    filter: 'blur(8px)',
                   }}
                 />
               </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCardStore } from '../store/cardStore';
 import { getCardById, ELEMENT_COLORS, RARITY_COLORS } from '../utils/cardData';
@@ -40,7 +40,7 @@ export function GameBoard() {
   const rightCard = rightSlotCardId ? getCardById(rightSlotCardId) || null : null;
   const probInfo = getSynthesisProbability();
 
-  const handleCardClick = (card: Card) => {
+  const handleCardClick = useCallback((card: Card) => {
     if (isSynthesizing || showAnim) return;
 
     if (!leftSlotCardId) {
@@ -60,9 +60,9 @@ export function GameBoard() {
       setRightFlash(true);
       setTimeout(() => setRightFlash(false), 500);
     }
-  };
+  }, [isSynthesizing, showAnim, leftSlotCardId, rightSlotCardId, setLeftSlot, setRightSlot]);
 
-  const handleFlip = (cardId: string) => {
+  const handleFlip = useCallback((cardId: string) => {
     setFlippedCards(prev => {
       const next = new Set(prev);
       if (next.has(cardId)) {
@@ -72,24 +72,24 @@ export function GameBoard() {
       }
       return next;
     });
-  };
+  }, []);
 
-  const handleSynthesize = () => {
+  const handleSynthesize = useCallback(() => {
     if (!leftSlotCardId || !rightSlotCardId || isSynthesizing) return;
 
     setShowAnim(true);
     startSynthesis();
-  };
+  }, [leftSlotCardId, rightSlotCardId, isSynthesizing, startSynthesis]);
 
-  const handleAnimComplete = () => {
+  const handleAnimComplete = useCallback(() => {
     setShowAnim(false);
     setShowResult(true);
-  };
+  }, []);
 
-  const handleCloseResult = () => {
+  const handleCloseResult = useCallback(() => {
     setShowResult(false);
     clearSynthesisResult();
-  };
+  }, [clearSynthesisResult]);
 
   const getSlotElementColor = (card: Card | null) => {
     if (!card) return '#2a2a5a';

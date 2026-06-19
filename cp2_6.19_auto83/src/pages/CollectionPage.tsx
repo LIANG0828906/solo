@@ -18,7 +18,7 @@ export function CollectionPage() {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const filteredCards = useMemo(() => {
-    if (!searchTerm.trim()) return cardList;
+    if (!searchTerm.trim()) return [...cardList];
     const term = searchTerm.toLowerCase();
     return cardList.filter(
       (card) =>
@@ -95,16 +95,14 @@ export function CollectionPage() {
         )}
       </motion.div>
 
-      <AnimatePresence mode="popLayout">
-        <motion.div
-          key={searchTerm}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3 }}
-          className="masonry-collection"
-        >
-          {filteredCards.map((card, index) => {
+      <motion.div
+        key={searchTerm || 'all'}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="masonry-collection"
+      >
+        {filteredCards.map((card, index) => {
             const owned = isCardOwned(card.id);
             const rarityColor = RARITY_COLORS[card.rarity];
             const elementColor =
@@ -221,8 +219,7 @@ export function CollectionPage() {
               </motion.div>
             );
           })}
-        </motion.div>
-      </AnimatePresence>
+      </motion.div>
 
       {filteredCards.length === 0 && (
         <motion.div

@@ -1,4 +1,4 @@
-import type { RarityType } from './cardData';
+import type { Card, RarityType } from './cardData';
 import { ALL_CARDS } from './cardData';
 
 const RARITY_PROBABILITY: Record<RarityType, number> = {
@@ -14,33 +14,70 @@ export function synthesize(
   cardBId: string,
   goldSynthCount: number
 ): { success: boolean; resultCardId: string | null; newGoldSynthCount: number } {
-  const matchedCard = ALL_CARDS.find(
+  const matchedCards = ALL_CARDS.filter(
     (card) =>
       card.formula !== undefined &&
       ((card.formula[0] === cardAId && card.formula[1] === cardBId) ||
         (card.formula[0] === cardBId && card.formula[1] === cardAId))
   );
 
-  if (!matchedCard) {
+  if (matchedCards.length === 0) {
     return { success: false, resultCardId: null, newGoldSynthCount: goldSynthCount };
   }
 
-  const rarity = matchedCard.rarity;
-  let probability = RARITY_PROBABILITY[rarity];
+  const hasLegendary = matchedCards.some(c => c.rarity === 'legendary');
+  const pityTrigger = hasLegendary && goldSynthCount + 1 >= 100;
 
-  if (rarity === 'legendary' && goldSynthCount + 1 >= 100) {
-    probability = 1.0;
-  }
+  const highestRarity = matchedCards.reduce(
+    (highest, card) => {
+      const rarityOrder: Record<RarityType, number> = {
+        common: 0,
+        uncommon: 1,
+        rare: 2,
+        epic: 3,
+        legendary: 4,
+      };
+      return rarityOrder[card.rarity] > rarityOrder[highest] ? card.rarity : highest;
+    },
+    'common' as RarityType
+  );
 
-  const roll = Math.random();
+  let success: boolean;
+  let resultCard: Card | null = null;
 
-  if (roll < probability) {
-    const newGoldSynthCount = rarity === 'legendary' ? 0 : goldSynthCount;
-    return { success: true, resultCardId: matchedCard.id, newGoldSynthCount };
+  if (pityTrigger) {
+    const legendaryCards = matchedCards.filter(c => c.rarity === 'legendary');
+    resultCard = legendaryCards[Math.floor(Math.random() * legendaryCards.length)];
+    success = true;
   } else {
-    const newGoldSynthCount = rarity === 'legendary' ? goldSynthCount + 1 : goldSynthCount;
-    return { success: false, resultCardId: null, newGoldSynthCount };
+    const prob = RARITY_PROBABILITY[highestRarity];
+    const roll = Math.random();
+    success = roll < prob;
+
+    if (success) {
+      const candidates = matchedCards.filter(c => c.rarity === highestRarity);
+      if (candidates.length > 0) {
+        resultCard = candidates[Math.floor(Math.random() * candidates.length)];
+      } else {
+        resultCard = matchedCards[Math.floor(Math.random() * matchedCards.length)];
+      }
+    }
   }
+
+  let newGoldSynthCount = goldSynthCount;
+  if (hasLegendary) {
+    if (success && resultCard?.rarity === 'legendary') {
+      newGoldSynthCount = 0;
+    } else {
+      newGoldSynthCount = goldSynthCount + 1;
+    }
+  }
+
+  return {
+    success,
+    resultCardId: resultCard ? resultCard.id : null,
+    newGoldSynthCount,
+  };
 }
 
 export function calculateSynthesisProbability(
