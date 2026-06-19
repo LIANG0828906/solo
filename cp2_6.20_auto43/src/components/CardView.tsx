@@ -1,6 +1,9 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, Transition } from 'framer-motion';
 import type { Card, BoardCard } from '../types';
+
+type MotionAnimate = any;
+type MotionInitial = any;
 
 interface CardViewProps {
   card: Card | BoardCard;
@@ -10,6 +13,11 @@ interface CardViewProps {
   onDoubleClick?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  customInitial?: MotionInitial;
+  customAnimate?: MotionAnimate;
+  customTransition?: Transition;
+  onAnimationComplete?: () => void;
+  disableDefaultAnimation?: boolean;
 }
 
 const CARD_ICONS: Record<string, string> = {
@@ -34,6 +42,11 @@ const CardView: React.FC<CardViewProps> = ({
   onDoubleClick,
   onMouseEnter,
   onMouseLeave,
+  customInitial,
+  customAnimate,
+  customTransition,
+  onAnimationComplete,
+  disableDefaultAnimation = false,
 }) => {
   const sizeClass =
     size === 'board' ? 'board-card' : size === 'preview' ? 'preview-card-large' : 'card-thumbnail';
@@ -44,12 +57,33 @@ const CardView: React.FC<CardViewProps> = ({
 
   const icon = CARD_ICONS[card.id] || '🃏';
 
+  const getInitial = () => {
+    if (customInitial) return customInitial;
+    if (disableDefaultAnimation) return undefined;
+    if (size === 'board') return { scale: 0.8, y: -20, opacity: 0 };
+    return undefined;
+  };
+
+  const getAnimate = () => {
+    if (customAnimate !== undefined) return customAnimate;
+    if (disableDefaultAnimation) return undefined;
+    if (size === 'board') return { scale: 1, y: 0, opacity: 1 };
+    return undefined;
+  };
+
+  const getTransition = () => {
+    if (customTransition) return customTransition;
+    if (size === 'board') return { type: 'spring', stiffness: 300, damping: 24 };
+    return undefined;
+  };
+
   return (
     <motion.div
       layout
-      initial={size === 'board' ? { scale: 0.8, y: -20, opacity: 0 } : undefined}
-      animate={size === 'board' ? { scale: 1, y: 0, opacity: 1 } : undefined}
-      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      initial={getInitial()}
+      animate={getAnimate()}
+      transition={getTransition()}
+      onAnimationComplete={onAnimationComplete}
       className={`card-base ${sizeClass} ${getTierClass(card.cost)} ${className}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}

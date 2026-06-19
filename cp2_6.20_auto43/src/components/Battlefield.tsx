@@ -71,6 +71,17 @@ interface DamageFloat {
   targetKey: string;
 }
 
+interface FlyingCard {
+  id: string;
+  card: Card;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  targetIndex: number;
+  side: 'player' | 'enemy';
+}
+
 const Battlefield: React.FC = () => {
   const navigate = useNavigate();
   const { selectedDeck, updateCurrentGame, saveBattleRecord } = useGameStore();
@@ -82,6 +93,11 @@ const Battlefield: React.FC = () => {
   const [damages, setDamages] = useState<DamageFloat[]>([]);
   const [attackAnim, setAttackAnim] = useState<string | null>(null);
   const [enemyDeckName, setEnemyDeckName] = useState('AI敌方卡组');
+  const [flyingCards, setFlyingCards] = useState<FlyingCard[]>([]);
+  const [screenShake, setScreenShake] = useState(false);
+  const [flashWhite, setFlashWhite] = useState(false);
+  const [showEndScreen, setShowEndScreen] = useState(false);
+  const [playerHandRefs, setPlayerHandRefs] = useState<Map<number, HTMLDivElement | null>>(new Map());
 
   const initGame = useCallback(() => {
     if (selectedDeck.cards.length < 10) {
@@ -92,6 +108,10 @@ const Battlefield: React.FC = () => {
     setEnemyDeckName(ENEMY_DECK_NAMES[Math.floor(Math.random() * ENEMY_DECK_NAMES.length)]);
     setGameState(state);
     updateCurrentGame(state);
+    setShowEndScreen(false);
+    setFlashWhite(false);
+    setFlyingCards([]);
+    setScreenShake(false);
   }, [selectedDeck, updateCurrentGame]);
 
   useEffect(() => {
@@ -101,11 +121,16 @@ const Battlefield: React.FC = () => {
   useEffect(() => {
     if (!gameState) return;
     updateCurrentGame(gameState);
-    if (gameState.phase === 'ended' && gameState.result) {
+    if (gameState.phase === 'ended' && gameState.result && !showEndScreen && !flashWhite) {
       const record = createBattleRecord(gameState, selectedDeck.name, enemyDeckName);
       saveBattleRecord(record);
+      setFlashWhite(true);
+      setTimeout(() => {
+        setFlashWhite(false);
+        setShowEndScreen(true);
+      }, 300);
     }
-  }, [gameState, updateCurrentGame, selectedDeck.name, enemyDeckName, saveBattleRecord]);
+  }, [gameState, updateCurrentGame, selectedDeck.name, enemyDeckName, saveBattleRecord, showEndScreen, flashWhite]);
 
   const addDamage = useCallback((key: string, amount: number) => {
     const id = Date.now() + Math.random();
@@ -115,12 +140,73 @@ const Battlefield: React.FC = () => {
     }, 900);
   }, []);
 
+  const triggerShake = useCallback(() => {
+    setScreenShake(true);
+    setTimeout(() => setScreenShake(false), 150);
+  }, []);
+
+  const triggerCardFlight = useCallback((
+    card: Card,
+    handIndex: number,
+    targetIndex: number,
+    side: 'player' | 'enemy',
+    onComplete: () => void
+  ) => {
+    const handEl = playerHandRefs.get(handIndex);
+    if (!handEl) {
+      onComplete();
+      return;
+    }
+
+    const handRect = handEl.getBoundingClientRect();
+    const boardArea = document.querySelector(
+      side === 'player' ? '.player-board-area' : '.enemy-board-area'
+    );
+    if (!boardArea) {
+      onComplete();
+      return;
+    }
+    const boardRect = boardArea.getBoundingClientRect();
+
+    const cardWidth = 110;
+    const gap = 10;
+    const existingCards = side === 'player' ? gameState?.playerBoard.length || 0 : gameState?.enemyBoard.length || 0;
+    const totalWidth = existingCards * (cardWidth + gap);
+    const targetX = boardRect.left + (boardRect.width / 2) - (totalWidth / 2) + (targetIndex * (cardWidth + gap)) - handRect.left;
+    const targetY = boardRect.top + (boardRect.height / 2) - (cardWidth * 1.4 / 2) - handRect.top;
+    const startX = 0;
+    const startY = 0;
+
+    const flyingId = `fly-${Date.now()}-${Math.random()}`;
+    const flyingCard: FlyingCard = {
+      id: flyingId,
+      card,
+      fromX: startX,
+      fromY: startY,
+      toX: targetX,
+      toY: targetY,
+      targetIndex,
+      side,
+    };
+
+    setFlyingCards((prev) => [...prev, flyingCard]);
+
+    setTimeout(() => {
+      setFlyingCards((prev) => prev.filter((fc) => fc.id !== flyingId));
+      onComplete();
+    }, 550);
+  }, [playerHandRefs, gameState]);
+
   const handlePlayCard = (index: number) => {
     if (!gameState || gameState.phase !== 'playerTurn') return;
     const card = gameState.playerHand[index];
     if (!canPlayCard(gameState, card, 'player')) return;
-    const newState = playCard(gameState, index, 'player');
-    setGameState(newState);
+    const targetIndex = gameState.playerBoard.length;
+
+    triggerCardFlight(card, index, targetIndex, 'player', () => {
+      const newState = playCard(gameState, index, 'player');
+      setGameState(newState);
+    });
   };
 
   const handleSelectAttacker = (instanceId: string) => {
@@ -135,6 +221,7 @@ const Battlefield: React.FC = () => {
     const prevHp = gameState.enemyBoard.find((c) => c.instanceId === targetInstanceId)?.currentHealth || 0;
     const attacker = gameState.playerBoard.find((c) => c.instanceId === selectedAttacker);
     setAttackAnim(selectedAttacker);
+    triggerShake();
     setTimeout(() => {
       const newState = attack(gameState, selectedAttacker, { type: 'minion', instanceId: targetInstanceId }, 'player');
       const afterHp = newState.enemyBoard.find((c) => c.instanceId === targetInstanceId)?.currentHealth || 0;
@@ -155,6 +242,7 @@ const Battlefield: React.FC = () => {
     if (tauntMinions.length > 0) return;
     const prevHp = gameState.enemyHp;
     setAttackAnim(selectedAttacker);
+    triggerShake();
     setTimeout(() => {
       const newState = attack(gameState, selectedAttacker, { type: 'hero' }, 'player');
       if (newState.enemyHp < prevHp) {
@@ -225,17 +313,46 @@ const Battlefield: React.FC = () => {
 
   return (
     <div className="battle-container">
-      <div className="page-header">
-        <h1 className="page-title">对战模拟器</h1>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary" onClick={() => navigate('/logs')}>
-            对战记录
-          </button>
-          <button className="btn btn-secondary" onClick={initGame}>
-            重新开始
-          </button>
+      <AnimatePresence>
+        {flashWhite && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: '#ffffff',
+              zIndex: 9999,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        animate={screenShake ? {
+          x: [0, -3, 3, -2, 2, 0],
+          y: [0, 2, -2, 3, -3, 0],
+        } : {}}
+        transition={{ duration: 0.15, ease: 'easeInOut' }}
+        style={{ width: '100%', height: '100%' }}
+      >
+        <div className="page-header">
+          <h1 className="page-title">对战模拟器</h1>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-secondary" onClick={() => navigate('/logs')}>
+              对战记录
+            </button>
+            <button className="btn btn-secondary" onClick={initGame}>
+              重新开始
+            </button>
+          </div>
         </div>
-      </div>
 
       <div className="turn-info">
         <span className="turn-label">第 <span className="turn-number">{gameState.currentTurn}</span> 回合</span>
@@ -392,17 +509,97 @@ const Battlefield: React.FC = () => {
           {gameState.playerHand.map((card, i) => {
             const playable = canPlayCard(gameState, card, 'player') && gameState.phase === 'playerTurn';
             return (
-              <CardView
+              <div
                 key={`hand-${card.id}-${i}`}
-                card={card}
-                size="thumb"
-                className={`hand-card ${playable ? 'playable' : 'unplayable'}`}
-                onClick={() => playable && handlePlayCard(i)}
-              />
+                ref={(el) => {
+                  setPlayerHandRefs((prev) => {
+                    const next = new Map(prev);
+                    next.set(i, el);
+                    return next;
+                  });
+                }}
+                style={{ position: 'relative' }}
+              >
+                <CardView
+                  card={card}
+                  size="thumb"
+                  className={`hand-card ${playable ? 'playable' : 'unplayable'}`}
+                  onClick={() => playable && handlePlayCard(i)}
+                />
+              </div>
             );
           })}
         </div>
       </div>
+
+      {gameState && flyingCards.map((fc) => {
+        const handIdx = Math.min(fc.targetIndex, gameState.playerHand.length - 1, playerHandRefs.size - 1);
+        const handEl = playerHandRefs.get(handIdx >= 0 ? handIdx : 0) ||
+                       playerHandRefs.get(Math.floor(playerHandRefs.size / 2));
+        const handRect = handEl?.getBoundingClientRect();
+        if (!handRect) return null;
+
+        const boardArea = document.querySelector(
+          fc.side === 'player' ? '.player-board-area' : '.enemy-board-area'
+        );
+        if (!boardArea) return null;
+        const boardRect = boardArea.getBoundingClientRect();
+
+        const cardWidth = 110;
+        const gap = 10;
+        const existingCards = fc.side === 'player' ? gameState.playerBoard.length : gameState.enemyBoard.length;
+        const totalWidth = existingCards * (cardWidth + gap);
+        const targetOffsetX = -(totalWidth / 2) + (fc.targetIndex * (cardWidth + gap));
+        const targetX = boardRect.left + boardRect.width / 2 + targetOffsetX;
+        const targetY = boardRect.top + boardRect.height / 2 - (cardWidth * 1.4 / 2);
+
+        const startX = handRect.left;
+        const startY = handRect.top;
+
+        const arcHeight = Math.min(-120, targetY - startY - 120);
+
+        const totalDeltaX = targetX - startX;
+        const totalDeltaY = targetY - startY;
+
+        return (
+          <div
+            key={fc.id}
+            style={{
+              position: 'fixed',
+              left: startX,
+              top: startY,
+              zIndex: 1000,
+              pointerEvents: 'none',
+            }}
+          >
+            <CardView
+              card={fc.card}
+              size="board"
+              disableDefaultAnimation
+              customInitial={{
+                x: 0,
+                y: 0,
+                scale: 0.75,
+                opacity: 1,
+                rotate: -5,
+              }}
+              customAnimate={{
+                x: [0, totalDeltaX * 0.4, totalDeltaX * 0.7, totalDeltaX * 0.9, totalDeltaX * 0.97, totalDeltaX],
+                y: [0, arcHeight, arcHeight * 0.4, arcHeight * 0.1, totalDeltaY + 8, totalDeltaY],
+                scale: [0.75, 1.05, 1.15, 1.2, 0.95, 1],
+                opacity: 1,
+                rotate: [-5, -3, 0, 2, 1, 0],
+              }}
+              customTransition={{
+                duration: 0.55,
+                ease: 'easeOut',
+                times: [0, 0.2, 0.4, 0.6, 0.85, 1],
+              }}
+            />
+          </div>
+        );
+      })}
+      </motion.div>
 
       <AnimatePresence>
         {hoveredEnemyCard && flippedEnemy && (
@@ -425,10 +622,11 @@ const Battlefield: React.FC = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-        {gameState.phase === 'ended' && gameState.result && (
+        {showEndScreen && gameState?.result && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className={`end-overlay ${gameState.result === 'win' ? 'end-win' : 'end-lose'}`}
           >
             {gameState.result === 'lose' && <div className="shatter-overlay" />}
