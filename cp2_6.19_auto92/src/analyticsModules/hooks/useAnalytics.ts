@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import {
   startOfWeek,
   endOfWeek,
@@ -8,9 +8,11 @@ import {
   subMonths,
   isWithinInterval,
   format,
+  getMonth,
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import type { CareLog } from '@/plantManager/core/plantModel'
+import type { CareLog, Plant } from '@/plantManager/core/plantModel'
+import { getPlant } from '@/plantManager/core/careLogService'
 
 interface WateringFrequencyItem {
   week: string
@@ -48,6 +50,37 @@ const LIGHT_NAMES = {
 }
 
 export function useAnalytics(plantId: string, logs: CareLog[]): UseAnalyticsReturn {
+  const [plant, setPlant] = useState<Plant | null>(null)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const cancelledRef = useRef<boolean>(false)
+
+  useEffect(() => {
+    cancelledRef.current = false
+
+    async function loadPlant() {
+      setIsLoading(true)
+      try {
+        const result = await getPlant(plantId)
+        if (!cancelledRef.current) {
+          setPlant(result)
+        }
+      } catch (error) {
+        if (!cancelledRef.current) {
+          setPlant(null)
+        }
+      } finally {
+        if (!cancelledRef.current) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadPlant()
+
+    return () => {
+      cancelledRef.current = true
+    }
+  }, [plantId])
 
   const wateringFrequency = useMemo<WateringFrequencyItem[]>(() => {
     const now = new Date()
@@ -101,11 +134,20 @@ export function useAnalytics(plantId: string, logs: CareLog[]): UseAnalyticsRetu
     let total = 0
 
     for (const log of logs) {
-      if (!log.lightLevel) continue
-      if (log.lightLevel === 'low' || log.lightLevel === 'medium' || log.lightLevel === 'high') {
-        counts[log.lightLevel]++
-        total++
+      const logDate = new Date(log.date)
+      const month = getMonth(logDate) + 1
+
+      let level: 'low' | 'medium' | 'high'
+      if (month === 12 || month === 1 || month === 2) {
+        level = 'low'
+      } else if (month === 6 || month === 7 || month === 8) {
+        level = 'high'
+      } else {
+        level = 'medium'
       }
+
+      counts[level]++
+      total++
     }
 
     if (total === 0) {
@@ -127,6 +169,6 @@ export function useAnalytics(plantId: string, logs: CareLog[]): UseAnalyticsRetu
     wateringFrequency,
     fertilizingTrend,
     lightDistribution,
-    isLoading: false,
+    isLoading,
   }
 }

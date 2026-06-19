@@ -20,6 +20,25 @@ const CATEGORY_META: Record<string, { label: string; icon: string }> = {
 
 const CATEGORY_ORDER = ['succulent', 'foliage', 'flowering', 'other']
 
+function capitalize(str: string): string {
+  if (!str) return ''
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+function getCategoryMeta(category: string): { label: string; icon: string } {
+  if (CATEGORY_META[category]) {
+    return CATEGORY_META[category]
+  }
+  return { label: `${capitalize(category)}植物`, icon: '🌱' }
+}
+
+function buildCategoryOrder(categories: string[]): string[] {
+  const knownOrder = CATEGORY_ORDER.filter((cat) => categories.includes(cat))
+  const unknownCats = categories.filter((cat) => !CATEGORY_ORDER.includes(cat))
+  const sortedUnknown = [...unknownCats].sort((a, b) => a.localeCompare(b))
+  return [...knownOrder, ...sortedUnknown]
+}
+
 function renderPlantGrid(
   plants: Plant[],
   onPlantClick?: (id: string) => void,
@@ -73,19 +92,25 @@ export default function PlantList({ plants, onPlantClick, highlightedId, newPlan
 
   const grouped: Record<string, Plant[]> = {}
   for (const plant of plants) {
-    const key = CATEGORY_META[plant.category] ? plant.category : 'other'
+    let key: string
+    if (!plant.category || plant.category.trim() === '') {
+      key = 'other'
+    } else {
+      key = plant.category
+    }
     if (!grouped[key]) {
       grouped[key] = []
     }
     grouped[key].push(plant)
   }
 
-  const categoriesToShow = CATEGORY_ORDER.filter((cat) => grouped[cat] && grouped[cat].length > 0)
+  const allCategories = Object.keys(grouped).filter((cat) => grouped[cat] && grouped[cat].length > 0)
+  const categoriesToShow = buildCategoryOrder(allCategories)
 
   return (
     <div className="space-y-8">
       {categoriesToShow.map((category) => {
-        const meta = CATEGORY_META[category]
+        const meta = getCategoryMeta(category)
         const categoryPlants = grouped[category]
         return (
           <div key={category}>

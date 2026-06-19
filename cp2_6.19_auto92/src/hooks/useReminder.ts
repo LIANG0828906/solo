@@ -110,20 +110,6 @@ export function useReminder() {
     }
   }
 
-  const handleWindowBlur = () => {
-    if (lastOverdueCountRef.current > 0) {
-      startBlinking(lastOverdueCountRef.current)
-    }
-  }
-
-  const handleWindowFocus = () => {
-    stopBlinking()
-    if (lastOverdueCountRef.current > 0) {
-      const reminderText = `${lastOverdueCountRef.current}盆植物需要照料`
-      document.title = reminderText
-    }
-  }
-
   const startChecking = () => {
     checkReminders()
     checkTimerRef.current = window.setInterval(checkReminders, CHECK_INTERVAL)
@@ -139,13 +125,9 @@ export function useReminder() {
 
   useEffect(() => {
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('blur', handleWindowBlur)
-    window.addEventListener('focus', handleWindowFocus)
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('blur', handleWindowBlur)
-      window.removeEventListener('focus', handleWindowFocus)
       stopChecking()
     }
   }, [])
