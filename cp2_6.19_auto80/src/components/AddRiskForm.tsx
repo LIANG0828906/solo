@@ -3,7 +3,6 @@ import { useRiskStore } from '@/store/useRiskStore';
 import { LEVEL_LABELS, STATUS_LABELS } from '@/types';
 import type { RiskLevel, RiskStatus } from '@/types';
 import { getTodayString } from '@/utils/date';
-import styles from './AddRiskForm.module.css';
 
 interface AddRiskFormProps {
   isOpen: boolean;
@@ -73,20 +72,20 @@ const AddRiskForm = ({ isOpen, onClose }: AddRiskFormProps) => {
   return (
     <>
       <div
-        className={`${styles.overlay} ${isOpen ? styles.overlayOpen : ''}`}
+        className={`form-overlay ${isOpen ? 'form-overlay-open' : ''}`}
         onClick={handleOverlayClick}
       />
       <div
-        className={`${styles.formContainer} ${isOpen ? styles.formOpen : ''}`}
+        className={`add-form-container ${isOpen ? 'add-form-open' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-risk-title"
       >
-        <div className={styles.formHeader}>
-          <h2 id="add-risk-title" className={styles.formTitle}>添加新风险</h2>
+        <div className="add-form-header">
+          <h2 id="add-risk-title" className="add-form-title">添加新风险</h2>
           <button
             type="button"
-            className={styles.closeButton}
+            className="add-form-close-button"
             onClick={onClose}
             aria-label="关闭"
           >
@@ -94,28 +93,28 @@ const AddRiskForm = ({ isOpen, onClose }: AddRiskFormProps) => {
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
-          </div>
+        </div>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.formGrid}>
-            <div className={styles.formGroup}>
-              <label htmlFor="title" className={styles.label}>风险标题 *</label>
+        <form onSubmit={handleSubmit} className="add-form">
+          <div className="add-form-grid">
+            <div className="add-form-group">
+              <label htmlFor="title" className="add-form-label">风险标题 *</label>
               <input
                 type="text"
                 id="title"
-                className={`${styles.input} ${errors.title ? styles.inputError : ''}`}
+                className={`add-form-input ${errors.title ? 'add-form-input-error' : ''}`}
                 value={formData.title}
                 onChange={(e) => handleChange('title', e.target.value)}
                 placeholder="请输入风险标题"
               />
-              {errors.title && <span className={styles.error}>{errors.title}</span>}
+              {errors.title && <span className="add-form-error">{errors.title}</span>}
             </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="level" className={styles.label}>风险等级 *</label>
+            <div className="add-form-group">
+              <label htmlFor="level" className="add-form-label">风险等级 *</label>
               <select
                 id="level"
-                className={styles.select}
+                className="add-form-select"
                 value={formData.level}
                 onChange={(e) => handleChange('level', e.target.value as RiskLevel)}
               >
@@ -127,11 +126,11 @@ const AddRiskForm = ({ isOpen, onClose }: AddRiskFormProps) => {
               </select>
             </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="status" className={styles.label}>状态 *</label>
+            <div className="add-form-group">
+              <label htmlFor="status" className="add-form-label">状态 *</label>
               <select
                 id="status"
-                className={styles.select}
+                className="add-form-select"
                 value={formData.status}
                 onChange={(e) => handleChange('status', e.target.value as RiskStatus)}
               >
@@ -143,53 +142,53 @@ const AddRiskForm = ({ isOpen, onClose }: AddRiskFormProps) => {
               </select>
             </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="owner" className={styles.label}>负责人 *</label>
+            <div className="add-form-group">
+              <label htmlFor="owner" className="add-form-label">负责人 *</label>
               <input
                 type="text"
                 id="owner"
-                className={`${styles.input} ${errors.owner ? styles.inputError : ''}`}
+                className={`add-form-input ${errors.owner ? 'add-form-input-error' : ''}`}
                 value={formData.owner}
                 onChange={(e) => handleChange('owner', e.target.value)}
                 placeholder="请输入负责人姓名"
               />
-              {errors.owner && <span className={styles.error}>{errors.owner}</span>}
+              {errors.owner && <span className="add-form-error">{errors.owner}</span>}
             </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="expectedCloseDate" className={styles.label}>预计解决日期 *</label>
+            <div className="add-form-group">
+              <label htmlFor="expectedCloseDate" className="add-form-label">预计解决日期 *</label>
               <input
                 type="date"
                 id="expectedCloseDate"
-                className={`${styles.input} ${errors.expectedCloseDate ? styles.inputError : ''}`}
+                className={`add-form-input ${errors.expectedCloseDate ? 'add-form-input-error' : ''}`}
                 value={formData.expectedCloseDate}
                 min={getTodayString()}
                 onChange={(e) => handleChange('expectedCloseDate', e.target.value)}
               />
               {errors.expectedCloseDate && (
-                <span className={styles.error}>{errors.expectedCloseDate}</span>
+                <span className="add-form-error">{errors.expectedCloseDate}</span>
               )}
             </div>
 
-            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-              <label htmlFor="impact" className={styles.label}>影响范围描述 *</label>
+            <div className="add-form-group add-form-full-width">
+              <label htmlFor="impact" className="add-form-label">影响范围描述 *</label>
               <textarea
                 id="impact"
-                className={`${styles.textarea} ${errors.impact ? styles.inputError : ''}`}
+                className={`add-form-textarea ${errors.impact ? 'add-form-input-error' : ''}`}
                 value={formData.impact}
                 onChange={(e) => handleChange('impact', e.target.value)}
                 placeholder="请详细描述该风险的影响范围..."
                 rows={3}
               />
-              {errors.impact && <span className={styles.error}>{errors.impact}</span>
+              {errors.impact && <span className="add-form-error">{errors.impact}</span>}
             </div>
           </div>
 
-          <div className={styles.formActions}>
-            <button type="button" className={styles.cancelButton} onClick={onClose}>
+          <div className="add-form-actions">
+            <button type="button" className="add-form-cancel" onClick={onClose}>
               取消
             </button>
-            <button type="submit" className={styles.submitButton}>
+            <button type="submit" className="add-form-submit">
               添加风险
             </button>
           </div>

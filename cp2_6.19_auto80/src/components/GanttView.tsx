@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect } from 'react';
 import type { Risk } from '@/types';
 import { RISK_LEVEL_COLORS, LEVEL_LABELS, STATUS_LABELS } from '@/types';
 import { getDateRange, getDaysDiff, getTodayString, formatDate } from '@/utils/date';
-import styles from './GanttView.module.css';
 
 interface GanttViewProps {
   risks: Risk[];
@@ -13,12 +12,13 @@ const GanttView = ({ risks, onViewDetail }: GanttViewProps) => {
   const [today, setToday] = useState(getTodayString());
 
   useEffect(() => {
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
     const interval = setInterval(() => {
       const newToday = getTodayString();
       if (newToday !== today) {
         setToday(newToday);
       }
-    }, 60000);
+    }, TWENTY_FOUR_HOURS);
 
     return () => clearInterval(interval);
   }, [today]);
@@ -69,34 +69,34 @@ const GanttView = ({ risks, onViewDetail }: GanttViewProps) => {
   const ganttWidth = totalDays * dayWidth + 200;
 
   return (
-    <div className={styles.ganttContainer}>
-      <div className={styles.ganttHeader}>
-        <div className={styles.riskLabelHeader}>风险项</div>
-        <div className={styles.timelineHeader} style={{ width: ganttWidth - 200 }}>
+    <div className="gantt-container">
+      <div className="gantt-header">
+        <div className="gantt-risk-label-header">风险项</div>
+        <div className="gantt-timeline-header" style={{ width: ganttWidth - 200 }}>
           {timelineLabels.map((label, index) => (
             <div
               key={index}
-              className={styles.timelineLabel}
+              className="gantt-timeline-label"
               style={{ left: label.position }}
             >
               {label.label}
             </div>
           ))}
           <div
-            className={styles.todayLine}
+            className="gantt-today-line"
             style={{
               left: todayPosition,
               transition: 'left 1s ease-in-out',
             }}
           >
-            <div className={styles.todayLineDot} />
-            <span className={styles.todayLabel}>今天</span>
+            <div className="gantt-today-line-dot" />
+            <span className="gantt-today-label">今天</span>
           </div>
         </div>
       </div>
 
-      <div className={styles.ganttBody}>
-        <div className={styles.ganttScroll} style={{ width: ganttWidth }}>
+      <div className="gantt-body">
+        <div className="gantt-scroll" style={{ width: ganttWidth }}>
           {sortedRisks.map((risk, index) => {
             const startPos = getDaysDiff(dateRange.min, new Date(risk.createdAt)) * dayWidth;
             const duration = getDaysDiff(new Date(risk.createdAt), new Date(risk.expectedCloseDate));
@@ -106,21 +106,21 @@ const GanttView = ({ risks, onViewDetail }: GanttViewProps) => {
             return (
               <div
                 key={risk.id}
-                className={styles.ganttRow}
+                className="gantt-row"
                 style={{ animationDelay: `${index * 10}ms` }}
               >
-                <div className={styles.riskInfo} onClick={() => onViewDetail(risk)}>
+                <div className="gantt-risk-info" onClick={() => onViewDetail(risk)}>
                   <span
-                    className={styles.riskLevelDot}
+                    className="gantt-risk-level-dot"
                     style={{ backgroundColor: levelColor }}
                   />
-                  <span className={styles.riskTitle} title={risk.title}>
+                  <span className="gantt-risk-title" title={risk.title}>
                     {risk.title}
                   </span>
                 </div>
-                <div className={styles.ganttBarArea} style={{ width: ganttWidth - 200 }}>
+                <div className="gantt-bar-area" style={{ width: ganttWidth - 200 }}>
                   <div
-                    className={styles.ganttBar}
+                    className="gantt-bar"
                     style={{
                       left: startPos,
                       width: barWidth,
@@ -129,16 +129,16 @@ const GanttView = ({ risks, onViewDetail }: GanttViewProps) => {
                     }}
                     onClick={() => onViewDetail(risk)}
                   >
-                    <div className={styles.ganttBarTooltip}>
-                      <div className={styles.tooltipTitle}>{risk.title}</div>
-                      <div className={styles.tooltipRow}>
+                    <div className="gantt-bar-tooltip">
+                      <div className="gantt-tooltip-title">{risk.title}</div>
+                      <div className="gantt-tooltip-row">
                         <span>{LEVEL_LABELS[risk.level]}</span>
                         <span>{STATUS_LABELS[risk.status]}</span>
                       </div>
-                      <div className={styles.tooltipRow}>
+                      <div className="gantt-tooltip-row">
                         <span>创建: {formatDate(risk.createdAt)}</span>
                       </div>
-                      <div className={styles.tooltipRow}>
+                      <div className="gantt-tooltip-row">
                         <span>预计: {formatDate(risk.expectedCloseDate)}</span>
                       </div>
                     </div>
@@ -149,7 +149,7 @@ const GanttView = ({ risks, onViewDetail }: GanttViewProps) => {
           })}
 
           <div
-            className={styles.todayLineOverlay}
+            className="gantt-today-line-overlay"
             style={{
               left: todayPosition + 200,
               transition: 'left 1s ease-in-out',
@@ -159,7 +159,7 @@ const GanttView = ({ risks, onViewDetail }: GanttViewProps) => {
       </div>
 
       {sortedRisks.length === 0 && (
-        <div className={styles.emptyState}>暂无风险数据</div>
+        <div className="view-empty-state">暂无风险数据</div>
       )}
     </div>
   );

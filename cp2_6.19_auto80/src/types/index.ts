@@ -30,7 +30,7 @@ export interface RiskStore {
 export const RISK_LEVEL_COLORS: Record<RiskLevel, string> = {
   high: '#e94560',
   medium: '#ffd700',
-  low: '#f0c040',
+  low: '#ffa500',
 };
 
 export const STATUS_LABELS: Record<RiskStatus, string> = {

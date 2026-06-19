@@ -2,7 +2,6 @@ import { useRiskStore } from '@/store/useRiskStore';
 import type { Risk } from '@/types';
 import { RISK_LEVEL_COLORS, STATUS_LABELS, LEVEL_LABELS } from '@/types';
 import { formatDate } from '@/utils/date';
-import styles from './RiskDetailPanel.module.css';
 
 interface RiskDetailPanelProps {
   risk: Risk | null;
@@ -38,27 +37,27 @@ const RiskDetailPanel = ({ risk, isOpen, onClose }: RiskDetailPanelProps) => {
   return (
     <>
       <div
-        className={`${styles.overlay} ${isOpen ? styles.overlayOpen : ''}`}
+        className={`detail-overlay ${isOpen ? 'detail-overlay-open' : ''}`}
         onClick={handleOverlayClick}
       />
       <div
-        className={`${styles.panel} ${isOpen ? styles.panelOpen : ''}`}
+        className={`detail-panel ${isOpen ? 'detail-panel-open' : ''}`}
         role="dialog"
         aria-modal="true"
       >
-        <div className={styles.panelHeader} style={{ borderLeft: `4px solid ${levelColor}` }}>
-          <div className={styles.panelHeaderContent}>
-          <span
-            className={styles.levelBadge}
-            style={{ backgroundColor: levelColor + '20', color: levelColor }}
-          >
-            {LEVEL_LABELS[risk.level]}
-          </span>
-          <h2 className={styles.panelTitle}>{risk.title}</h2>
+        <div className="detail-panel-header" style={{ borderLeft: `4px solid ${levelColor}` }}>
+          <div className="detail-panel-header-content">
+            <span
+              className="detail-level-badge"
+              style={{ backgroundColor: levelColor + '20', color: levelColor }}
+            >
+              {LEVEL_LABELS[risk.level]}
+            </span>
+            <h2 className="detail-panel-title">{risk.title}</h2>
           </div>
           <button
             type="button"
-            className={styles.closeButton}
+            className="detail-close-button"
             onClick={onClose}
             aria-label="关闭"
           >
@@ -68,39 +67,39 @@ const RiskDetailPanel = ({ risk, isOpen, onClose }: RiskDetailPanelProps) => {
           </button>
         </div>
 
-        <div className={styles.panelBody}>
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>基本信息</h3>
-            <div className={styles.infoGrid}>
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>状态</span>
-                <span className={`${styles.statusBadge} ${styles[`status-${risk.status}`]}`}>
+        <div className="detail-panel-body">
+          <div className="detail-section">
+            <h3 className="detail-section-title">基本信息</h3>
+            <div className="detail-info-grid">
+              <div className="detail-info-item">
+                <span className="detail-info-label">状态</span>
+                <span className={`detail-status-badge detail-status-${risk.status}`}>
                   {STATUS_LABELS[risk.status]}
                 </span>
               </div>
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>负责人</span>
-                <span className={styles.infoValue}>{risk.owner}</span>
+              <div className="detail-info-item">
+                <span className="detail-info-label">负责人</span>
+                <span className="detail-info-value">{risk.owner}</span>
               </div>
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>创建日期</span>
-                <span className={styles.infoValue}>{formatDate(risk.createdAt)}</span>
+              <div className="detail-info-item">
+                <span className="detail-info-label">创建日期</span>
+                <span className="detail-info-value">{formatDate(risk.createdAt)}</span>
               </div>
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>预计解决</span>
-                <span className={styles.infoValue}>{formatDate(risk.expectedCloseDate)}</span>
+              <div className="detail-info-item">
+                <span className="detail-info-label">预计解决</span>
+                <span className="detail-info-value">{formatDate(risk.expectedCloseDate)}</span>
               </div>
             </div>
           </div>
 
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>状态更新</h3>
-            <div className={styles.statusButtons}>
+          <div className="detail-section">
+            <h3 className="detail-section-title">状态更新</h3>
+            <div className="detail-status-buttons">
               {(Object.keys(STATUS_LABELS) as Risk['status'][]).map((status) => (
                 <button
                   key={status}
                   type="button"
-                  className={`${styles.statusButton} ${risk.status === status ? styles.statusButtonActive : ''}`}
+                  className={`detail-status-button ${risk.status === status ? 'detail-status-button-active' : ''}`}
                   onClick={() => handleStatusChange(status)}
                 >
                   {STATUS_LABELS[status]}
@@ -109,16 +108,16 @@ const RiskDetailPanel = ({ risk, isOpen, onClose }: RiskDetailPanelProps) => {
             </div>
           </div>
 
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>影响范围</h3>
-            <p className={styles.impactText}>{risk.impact}</p>
+          <div className="detail-section">
+            <h3 className="detail-section-title">影响范围</h3>
+            <p className="detail-impact-text">{risk.impact}</p>
           </div>
         </div>
 
-        <div className={styles.panelFooter}>
+        <div className="detail-panel-footer">
           <button
             type="button"
-            className={styles.deleteButton}
+            className="detail-delete-button"
             onClick={handleDelete}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

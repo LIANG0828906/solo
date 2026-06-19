@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import RiskCard from './RiskCard';
 import type { Risk, RiskLevel } from '@/types';
 import { LEVEL_LABELS, RISK_LEVEL_COLORS } from '@/types';
-import styles from './WaterfallView.module.css';
 
 interface WaterfallViewProps {
   risks: Risk[];
@@ -29,20 +28,20 @@ const WaterfallView = ({ risks, newRiskId, transitionPhase, onViewDetail }: Wate
   const levels: RiskLevel[] = ['high', 'medium', 'low'];
 
   return (
-    <div className={styles.waterfallContainer}>
+    <div className="waterfall-container">
       {levels.map((level) => (
-        <div key={level} className={styles.waterfallGroup}>
-          <div className={styles.groupHeader}>
+        <div key={level} className="waterfall-group">
+          <div className="waterfall-group-header">
             <div
-              className={styles.levelIndicator}
+              className="waterfall-level-indicator"
               style={{ backgroundColor: RISK_LEVEL_COLORS[level] }}
             />
-            <h3 className={styles.groupTitle}>{LEVEL_LABELS[level]}</h3>
-            <span className={styles.groupCount}>{groupedRisks[level].length}</span>
+            <h3 className="waterfall-group-title">{LEVEL_LABELS[level]}</h3>
+            <span className="waterfall-group-count">{groupedRisks[level].length}</span>
           </div>
-          <div className={styles.groupContent}>
+          <div className="waterfall-group-content">
             {groupedRisks[level].map((risk, index) => (
-              <div key={risk.id} className={styles.cardWrapper}>
+              <div key={risk.id} className="waterfall-card-wrapper">
                 <RiskCard
                   risk={risk}
                   isNew={risk.id === newRiskId}
@@ -53,7 +52,7 @@ const WaterfallView = ({ risks, newRiskId, transitionPhase, onViewDetail }: Wate
               </div>
             ))}
             {groupedRisks[level].length === 0 && (
-              <div className={styles.emptyState}>暂无风险</div>
+              <div className="view-empty-state">暂无风险</div>
             )}
           </div>
         </div>

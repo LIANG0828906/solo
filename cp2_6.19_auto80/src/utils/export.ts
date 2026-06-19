@@ -99,8 +99,7 @@ export const exportToPNG = async (elementId: string): Promise<void> => {
     fallbackCtx.font = '20px sans-serif';
     fallbackCtx.fillText('风险看板快照', 50, 50);
     fallbackCtx.font = '14px sans-serif';
-    fallbackCtx.fillText(`风险总数: ${risks.length}`, 50, 100);
-    fallbackCtx.fillText(`导出时间: ${new Date().toLocaleString()}`, 50, 130);
+    fallbackCtx.fillText('导出时间: ' + new Date().toLocaleString(), 50, 100);
     
     fallbackCanvas.toBlob((blob) => {
       if (!blob) return;

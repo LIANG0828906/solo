@@ -2,12 +2,10 @@ import { useState, memo } from 'react';
 import type { Risk } from '@/types';
 import { RISK_LEVEL_COLORS, STATUS_LABELS, LEVEL_LABELS } from '@/types';
 import { formatDate } from '@/utils/date';
-import styles from './RiskCard.module.css';
 
 interface RiskCardProps {
   risk: Risk;
   isNew?: boolean;
-  index?: number;
   animationDelay?: number;
   onViewDetail: (risk: Risk) => void;
   transitionPhase?: 'out' | 'in' | 'stable';
@@ -26,23 +24,23 @@ const RiskCard = memo(function RiskCard({
   const statusLabel = STATUS_LABELS[risk.status];
   const levelLabel = LEVEL_LABELS[risk.level];
 
-  const getAnimationClass = () => {
-    if (isNew) return styles.cardNew;
-    if (transitionPhase === 'out') return styles.cardExit;
-    if (transitionPhase === 'in') return styles.cardEnter;
-    return '';
-  };
-
-  const animationStyle: React.CSSProperties = {
-    animationDelay: `${animationDelay}ms`,
+  const getCardClasses = () => {
+    const classes = ['risk-card'];
+    if (isNew) classes.push('risk-card-new');
+    if (transitionPhase === 'out') classes.push('risk-card-exit');
+    if (transitionPhase === 'in') classes.push('risk-card-enter');
+    return classes.join(' ');
   };
 
   return (
     <div
-      className={`${styles.card} ${getAnimationClass()} ${isHovered ? styles.cardHovered : ''}`}
+      className={getCardClasses()}
       style={{
-        ...animationStyle,
-        borderLeft: isHovered ? `3px solid ${levelColor}` : '3px solid transparent',
+        animationDelay: `${animationDelay}ms`,
+        borderLeft: isHovered
+          ? `3px solid ${levelColor}`
+          : '3px solid transparent',
+        borderLeftStyle: 'solid',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -56,41 +54,41 @@ const RiskCard = memo(function RiskCard({
         }
       }}
     >
-      <div className={styles.cardHeader}>
-        <h3 className={styles.cardTitle}>{risk.title}</h3>
+      <div className="risk-card-header">
+        <h3 className="risk-card-title">{risk.title}</h3>
         <span
-          className={styles.levelTag}
+          className="risk-level-tag"
           style={{ backgroundColor: levelColor + '20', color: levelColor }}
         >
           {levelLabel}
         </span>
       </div>
 
-      <div className={styles.cardBody}>
-        <div className={styles.cardMeta}>
-          <span className={styles.metaItem}>
-            <span className={styles.metaLabel}>状态</span>
-            <span className={`${styles.statusBadge} ${styles[`status-${risk.status}`]}`}>
+      <div className="risk-card-body">
+        <div className="risk-card-meta">
+          <span className="risk-meta-item">
+            <span className="risk-meta-label">状态</span>
+            <span className={`risk-status-badge risk-status-${risk.status}`}>
               {statusLabel}
             </span>
           </span>
-          <span className={styles.metaItem}>
-            <span className={styles.metaLabel}>负责人</span>
-            <span className={styles.metaValue}>{risk.owner}</span>
+          <span className="risk-meta-item">
+            <span className="risk-meta-label">负责人</span>
+            <span className="risk-meta-value">{risk.owner}</span>
           </span>
         </div>
 
-        <p className={styles.impactPreview}>
+        <p className="risk-impact-preview">
           {risk.impact.length > 50 ? risk.impact.slice(0, 50) + '...' : risk.impact}
         </p>
       </div>
 
-      <div className={styles.cardFooter}>
-        <span className={styles.dateText}>创建于 {formatDate(risk.createdAt)}</span>
-        <span className={styles.dateText}>预计 {formatDate(risk.expectedCloseDate)} 解决</span>
+      <div className="risk-card-footer">
+        <span className="risk-date-text">创建于 {formatDate(risk.createdAt)}</span>
+        <span className="risk-date-text">预计 {formatDate(risk.expectedCloseDate)} 解决</span>
       </div>
 
-      <div className={styles.cardIndicator} style={{ backgroundColor: levelColor }} />
+      <div className="risk-card-indicator" style={{ backgroundColor: levelColor }} />
     </div>
   );
 });

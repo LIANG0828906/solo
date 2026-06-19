@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useRiskStore } from '@/store/useRiskStore';
 import { exportToCSV, exportToPNG } from '@/utils/export';
 import type { RiskLevel } from '@/types';
-import styles from './Header.module.css';
 
 const AnimatedNumber = ({ value, color }: { value: number; color: string }) => {
   const [displayValue, setDisplayValue] = useState(value);
@@ -31,7 +30,7 @@ const AnimatedNumber = ({ value, color }: { value: number; color: string }) => {
   }, [value]);
 
   return (
-    <span className={styles.statNumber} style={{ color }}>
+    <span className="app-stat-number" style={{ color }}>
       {displayValue}
     </span>
   );
@@ -44,25 +43,26 @@ const ExportButton = ({ type, label }: { type: 'csv' | 'png'; label: string }) =
   const handleExport = async () => {
     if (showCheck) return;
 
+    setShowCheck(true);
+
     if (type === 'csv') {
       exportToCSV(risks);
     } else {
       await exportToPNG('risk-board-container');
     }
 
-    setShowCheck(true);
     setTimeout(() => setShowCheck(false), 1000);
   };
 
   return (
     <button
       type="button"
-      className={`${styles.exportButton} ${showCheck ? styles.exportSuccess : ''}`}
+      className={`app-export-button ${showCheck ? 'app-export-success' : ''}`}
       onClick={handleExport}
     >
       {showCheck ? (
         <svg
-          className={styles.checkmark}
+          className="app-checkmark"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -99,23 +99,23 @@ const Header = () => {
   };
 
   return (
-    <header className={styles.header}>
-      <div className={styles.headerContent}>
-        <div className={styles.titleSection}>
-          <h1 className={styles.title}>项目风险管理看板</h1>
-          <span className={styles.totalCount}>共 {risks.length} 条风险</span>
+    <header className="app-header">
+      <div className="app-header-content">
+        <div className="app-title-section">
+          <h1 className="app-title">项目风险管理看板</h1>
+          <span className="app-total-count">共 {risks.length} 条风险</span>
         </div>
 
-        <div className={styles.statsSection}>
+        <div className="app-stats-section">
           {(['high', 'medium', 'low'] as RiskLevel[]).map((level) => (
-            <div key={level} className={styles.statItem}>
-              <span className={styles.statLabel}>{levelLabels[level]}</span>
+            <div key={level} className="app-stat-item">
+              <span className="app-stat-label">{levelLabels[level]}</span>
               <AnimatedNumber value={counts[level]} color={levelColors[level]} />
             </div>
           ))}
         </div>
 
-        <div className={styles.exportSection}>
+        <div className="app-export-section">
           <ExportButton type="csv" label="导出CSV" />
           <ExportButton type="png" label="导出PNG" />
         </div>

@@ -8,7 +8,6 @@ import WaterfallView from './WaterfallView';
 import GanttView from './GanttView';
 import AddRiskForm from './AddRiskForm';
 import RiskDetailPanel from './RiskDetailPanel';
-import styles from './RiskBoard.module.css';
 
 const RiskBoard = () => {
   const risks = useRiskStore((state) => state.risks);
@@ -20,7 +19,7 @@ const RiskBoard = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [newRiskId, setNewRiskId] = useState<string | null>(null);
   const [transitionPhase, setTransitionPhase] = useState<'out' | 'in' | 'stable'>('stable');
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     if (mode === viewMode) return;
@@ -88,24 +87,24 @@ const RiskBoard = () => {
   };
 
   return (
-    <div className={styles.boardWrapper}>
+    <div className="board-wrapper">
       <Header />
 
-      <div className={styles.toolbar}>
-        <div className={styles.viewTabs}>
+      <div className="board-toolbar">
+        <div className="view-tabs">
           {viewModes.map((mode) => (
             <button
               key={mode}
               type="button"
-              className={`${styles.tabButton} ${viewMode === mode ? styles.tabActive : ''}`}
+              className={`tab-button ${viewMode === mode ? 'tab-active' : ''}`}
               onClick={() => handleViewModeChange(mode)}
-              disabled={isPending}
+              disabled={transitionPhase !== 'stable'}
             >
               {VIEW_MODE_LABELS[mode]}
             </button>
           ))}
           <div
-            className={styles.tabIndicator}
+            className="tab-indicator"
             style={{
               transform: `translateX(${viewModes.indexOf(viewMode) * 100}%)`,
             }}
@@ -114,7 +113,7 @@ const RiskBoard = () => {
 
         <button
           type="button"
-          className={styles.addButton}
+          className="add-risk-button"
           onClick={handleAddRiskClick}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -124,7 +123,7 @@ const RiskBoard = () => {
         </button>
       </div>
 
-      <div className={styles.boardContainer} id="risk-board-container">
+      <div className="board-container" id="risk-board-container">
         {renderView()}
       </div>
 
