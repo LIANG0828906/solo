@@ -98,6 +98,7 @@ function handleSyncEvent(port: MessagePort, event: SyncEvent): void {
         volume: 80,
         isSpeaking: false,
         lastActive: Date.now(),
+        status: 'online',
       };
       room.users.set(user.userId, user);
       break;

@@ -38,6 +38,7 @@ export interface SyncEventPayloadMap {
       muted: boolean;
       volume: number;
       isSpeaking: boolean;
+      status: UserStatus;
     }>;
   };
   'ping': {
@@ -55,6 +56,8 @@ export interface SyncEvent<T extends SyncEventType = SyncEventType> {
   payload: SyncEventPayloadMap[T];
 }
 
+export type UserStatus = 'online' | 'idle' | 'offline';
+
 export interface UserState {
   userId: string;
   userName: string;
@@ -63,6 +66,7 @@ export interface UserState {
   volume: number;
   isSpeaking: boolean;
   lastActive: number;
+  status: UserStatus;
 }
 
 export interface RoomState {
