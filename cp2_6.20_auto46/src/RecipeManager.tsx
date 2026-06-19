@@ -187,15 +187,18 @@ function RecipeCard({
   recipe,
   onClick,
   onDelete,
+  index,
 }: {
   recipe: Recipe;
   onClick: () => void;
   onDelete: () => void;
+  index?: number;
 }) {
   const reagentNames = recipe.steps.map((s) => getReagentName(s.reagentId));
 
   return (
     <div
+      className="recipe-card-fade"
       onClick={onClick}
       style={{
         background: '#fff',
@@ -206,6 +209,7 @@ function RecipeCard({
         transition: 'all 0.2s',
         breakInside: 'avoid',
         marginBottom: 16,
+        animationDelay: `${(index ?? 0) * 60}ms`,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
@@ -763,10 +767,11 @@ export default function RecipeManager() {
               columnGap: 16,
             }}
           >
-            {filteredRecipes.map((recipe) => (
+            {filteredRecipes.map((recipe, idx) => (
               <RecipeCard
                 key={recipe.id}
                 recipe={recipe}
+                index={idx}
                 onClick={() => store.selectRecipe(recipe.id)}
                 onDelete={() => store.deleteRecipe(recipe.id)}
               />

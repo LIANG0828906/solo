@@ -21,6 +21,13 @@ interface DragState {
   trail: Array<{ x: number; y: number; color: string; alpha: number }>;
 }
 
+export interface FloatingToast {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+}
+
 interface LabStore {
   reagents: typeof REAGENT_LIST;
   beakerReagents: BeakerReagent[];
@@ -38,6 +45,8 @@ interface LabStore {
   modalReagentId: string | null;
   modalOpen: boolean;
   modalClosing: boolean;
+  floatingToasts: FloatingToast[];
+  equationTypingSpeed: number;
 
   addReagentToBeaker: (reagentId: string, amount: number) => void;
   clearBeaker: () => void;
@@ -53,6 +62,9 @@ interface LabStore {
   closeModal: () => void;
   loadHistoryRecord: (record: ReactionRecord) => void;
   updateRecipeNotes: (id: string, notes: string) => void;
+  pushFloatingToast: (text: string, x: number, y: number) => void;
+  removeFloatingToast: (id: string) => void;
+  setEquationTypingSpeed: (speed: number) => void;
 }
 
 const initialDragState: DragState = {
@@ -80,6 +92,8 @@ export const useLabStore = create<LabStore>((set, get) => ({
   modalReagentId: null,
   modalOpen: false,
   modalClosing: false,
+  floatingToasts: [],
+  equationTypingSpeed: 60,
 
   addReagentToBeaker: (reagentId, amount) => {
     const state = get();
@@ -261,4 +275,20 @@ export const useLabStore = create<LabStore>((set, get) => ({
       recipes: state.recipes.map((r) => (r.id === id ? { ...r, notes } : r)),
     });
   },
+
+  pushFloatingToast: (text, x, y) => {
+    const state = get();
+    const id = uuidv4();
+    set({ floatingToasts: [...state.floatingToasts, { id, text, x, y }] });
+    setTimeout(() => {
+      set({ floatingToasts: get().floatingToasts.filter((t) => t.id !== id) });
+    }, 800);
+  },
+
+  removeFloatingToast: (id) => {
+    const state = get();
+    set({ floatingToasts: state.floatingToasts.filter((t) => t.id !== id) });
+  },
+
+  setEquationTypingSpeed: (speed) => set({ equationTypingSpeed: speed }),
 }));

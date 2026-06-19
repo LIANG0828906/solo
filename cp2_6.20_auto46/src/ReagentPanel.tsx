@@ -269,14 +269,16 @@ export default function ReagentPanel() {
                 gap: 4,
                 cursor: 'grab',
                 transition: 'transform 0.2s, box-shadow 0.2s',
+                padding: '8px 4px',
+                borderRadius: 8,
               }}
               onMouseDown={(e) => handleMouseDown(reagent.id, e)}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-                (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
+                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px) scale(1.05)';
+                (e.currentTarget as HTMLDivElement).style.boxShadow = `0 6px 16px ${reagent.color}55, 0 2px 6px rgba(0,0,0,0.12)`;
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+                (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0) scale(1)';
                 (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
               }}
             >
@@ -296,6 +298,7 @@ export default function ReagentPanel() {
                     color: isPhenolphthalein ? '#999' : '#fff',
                     textShadow: '0 1px 2px rgba(0,0,0,0.2)',
                     boxShadow: `0 2px 8px ${reagent.color}40`,
+                    transition: 'box-shadow 0.2s, transform 0.2s',
                   }}
                 >
                   {reagent.formula.slice(0, 3)}
