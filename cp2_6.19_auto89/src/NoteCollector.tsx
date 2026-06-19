@@ -432,17 +432,23 @@ export default function NoteCollector({
         const GAP = 8;
         const scrollArea = articleRef.current?.closest('.main-area') as HTMLElement | null;
         const areaRect = scrollArea?.getBoundingClientRect();
-        const selCenterX = selection.rect.left + selection.rect.width / 2;
-        const spaceAbove = selection.rect.top - (areaRect?.top ?? 0);
+        const scrollTop = scrollArea?.scrollTop ?? 0;
+        const scrollLeft = scrollArea?.scrollLeft ?? 0;
+        const areaLeft = areaRect?.left ?? 0;
+        const areaTop = areaRect?.top ?? 0;
+        const selCenterX = (selection.rect.left + selection.rect.right) / 2;
+        const spaceAbove = selection.rect.top - areaTop;
         const showAbove = spaceAbove >= TOOLBAR_H + GAP;
-        const top = showAbove
-          ? selection.rect.top + window.scrollY - TOOLBAR_H - GAP
-          : selection.rect.bottom + window.scrollY + GAP;
-        let left = selCenterX + window.scrollX - TOOLBAR_W / 2;
-        const viewportLeft = areaRect?.left ?? 0;
-        const viewportRight = areaRect?.right ?? window.innerWidth;
-        if (left < viewportLeft + 8) left = viewportLeft + 8;
-        if (left + TOOLBAR_W > viewportRight - 8) left = viewportRight - TOOLBAR_W - 8;
+        const relCenterX = selCenterX - areaLeft + scrollLeft;
+        const relTop = selection.rect.top - areaTop + scrollTop;
+        const relBottom = selection.rect.bottom - areaTop + scrollTop;
+        let top = showAbove
+          ? relTop - TOOLBAR_H - GAP
+          : relBottom + GAP;
+        let left = relCenterX - TOOLBAR_W / 2;
+        const contentWidth = areaRect?.width ?? window.innerWidth;
+        if (left < 8) left = 8;
+        if (left + TOOLBAR_W > contentWidth - 8) left = contentWidth - TOOLBAR_W - 8;
         return { top, left };
       })()
     : null;
@@ -513,7 +519,11 @@ export default function NoteCollector({
           />
           <div className="note-input-hint">
             按 Enter 提交 · Shift+Enter 换行
-            <span className="note-input-count">{noteText.length} 字</span>
+            <span className={`note-input-count ${
+              Array.from(noteText).length > 500 ? 'note-input-count--warn' : ''
+            }`}>
+              {Array.from(noteText).length}/500
+            </span>
           </div>
         </div>
       )}

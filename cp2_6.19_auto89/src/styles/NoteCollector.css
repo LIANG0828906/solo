@@ -133,6 +133,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+.note-input-count--warn {
+  color: #ef4444;
+  font-weight: 600;
+}
+
 .sidebar-card {
   background: #ffffff;
   border: 1px solid #e5e7eb;

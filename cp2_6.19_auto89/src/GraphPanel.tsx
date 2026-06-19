@@ -55,6 +55,7 @@ export default function GraphPanel({
   const simRef = useRef<Simulation<SimNode, SimLink> | null>(null);
   const nodesRef = useRef<SimNode[]>([]);
   const linksRef = useRef<SimLink[]>([]);
+  const nodeDataMapRef = useRef<Map<string, SimNode>>(new Map());
   const [, forceRender] = useState(0);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [tooltip, setTooltip] = useState<{
@@ -136,6 +137,7 @@ export default function GraphPanel({
 
     nodesRef.current = newNodes;
     linksRef.current = newLinks;
+    nodeDataMapRef.current = new Map(newNodes.map((n) => [n.id, n]));
 
     if (dimensions.width === 0 || dimensions.height === 0) return;
 
@@ -172,6 +174,74 @@ export default function GraphPanel({
       // keep simulation for reuse
     };
   }, [highlights, notes, links, dimensions, connectionCount]);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    const container = containerRef.current;
+    if (!svg || !container) return;
+
+    const findNode = (target: EventTarget | null): string | null => {
+      let el = target as Element | null;
+      while (el && el !== svg) {
+        const id = el.getAttribute?.('data-node-id');
+        if (id) return id;
+        el = el.parentElement;
+      }
+      return null;
+    };
+
+    const handleMouseOver = (e: MouseEvent) => {
+      const nodeId = findNode(e.target);
+      if (!nodeId) return;
+      const node = nodeDataMapRef.current.get(nodeId);
+      if (!node) return;
+      const containerRect = container.getBoundingClientRect();
+      const x = e.clientX - containerRect.left;
+      const y = e.clientY - containerRect.top - 8;
+      setTooltip({
+        text: node.fullText,
+        type: node.nodeType,
+        x,
+        y,
+      });
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const nodeId = findNode(e.target);
+      if (!nodeId) {
+        if (tooltip) setTooltip(null);
+        return;
+      }
+      const node = nodeDataMapRef.current.get(nodeId);
+      if (!node) return;
+      const containerRect = container.getBoundingClientRect();
+      const x = e.clientX - containerRect.left;
+      const y = e.clientY - containerRect.top - 8;
+      setTooltip((prev) => {
+        if (prev && prev.text === node.fullText && prev.type === node.nodeType) {
+          return { ...prev, x, y };
+        }
+        return { text: node.fullText, type: node.nodeType, x, y };
+      });
+    };
+
+    const handleMouseOut = (e: MouseEvent) => {
+      const nodeId = findNode(e.target);
+      if (!nodeId) return;
+      const related = e.relatedTarget as Element | null;
+      if (related && findNode(related) === nodeId) return;
+      setTooltip(null);
+    };
+
+    svg.addEventListener('mouseover', handleMouseOver);
+    svg.addEventListener('mousemove', handleMouseMove);
+    svg.addEventListener('mouseout', handleMouseOut);
+    return () => {
+      svg.removeEventListener('mouseover', handleMouseOver);
+      svg.removeEventListener('mousemove', handleMouseMove);
+      svg.removeEventListener('mouseout', handleMouseOut);
+    };
+  }, [tooltip]);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -310,29 +380,20 @@ export default function GraphPanel({
               key={node.id}
               className={`graph-node ${isFlashing ? 'highlight-flash-node' : ''}`}
               transform={`translate(${node.x}, ${node.y})`}
-              onMouseEnter={(e) => {
-                const svgRect = svgRef.current?.getBoundingClientRect();
-                if (!svgRect) return;
-                const gRect = (e.currentTarget as SVGGElement).getBoundingClientRect();
-                setTooltip({
-                  text: node.fullText,
-                  type: node.nodeType,
-                  x: gRect.left - svgRect.left + gRect.width / 2,
-                  y: gRect.top - svgRect.top - 8,
-                });
-              }}
-              onMouseLeave={() => setTooltip(null)}
+              data-node-id={node.id}
             >
               <title>{node.fullText}</title>
               <circle
                 className="graph-node-circle"
                 r={node.size}
                 fill={node.color}
+                data-node-id={node.id}
               />
               <text
                 className="graph-node-label"
                 y={node.size + 12}
                 dy="0"
+                data-node-id={node.id}
               >
                 {node.label}
               </text>

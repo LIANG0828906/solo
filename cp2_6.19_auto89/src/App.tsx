@@ -320,21 +320,58 @@ function formatTime(ts: number): string {
 
 function getParagraphLabel(articleText: string, startOffset: number): string {
   const textBefore = articleText.slice(0, startOffset);
-  const headingMatch = textBefore.match(/(?:^|\n)(#{1,6}\s[^\n]*)[^]*$/);
-  if (headingMatch) {
+  const headingMatch = textBefore.match(/(?:^|\n)(#{1,6}\s[^\n]*)[\s\S]*$/);
+  if (headingMatch && headingMatch[1]) {
     const heading = headingMatch[1].replace(/^#+\s/, '').trim();
-    return heading.length > 12 ? heading.slice(0, 12) + '…' : heading;
+    if (heading.length > 0) {
+      return heading.length > 12 ? heading.slice(0, 12) + '…' : heading;
+    }
   }
   const lines = textBefore.split('\n');
   let paraIndex = 0;
   let inEmpty = false;
+  let inCodeBlock = false;
+  let inBlockquote = false;
+  let inList = false;
   for (const line of lines) {
-    if (line.trim() === '') {
-      if (!inEmpty) paraIndex++;
-      inEmpty = true;
-    } else {
-      inEmpty = false;
+    if (line.startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      continue;
     }
+    if (inCodeBlock) continue;
+    if (line.trim() === '') {
+      inBlockquote = false;
+      inList = false;
+      if (!inEmpty) {
+        paraIndex++;
+        inEmpty = true;
+      }
+      continue;
+    }
+    inEmpty = false;
+    if (line.startsWith('>')) {
+      if (!inBlockquote) {
+        paraIndex++;
+        inBlockquote = true;
+      }
+      continue;
+    }
+    if (/^\s*[-*]\s/.test(line) || /^\s*\d+\.\s/.test(line)) {
+      if (!inList) {
+        paraIndex++;
+        inList = true;
+      }
+      continue;
+    }
+    if (/^#{1,6}\s/.test(line)) {
+      paraIndex++;
+      continue;
+    }
+    inBlockquote = false;
+    inList = false;
+  }
+  if (paraIndex === 0 && textBefore.trim().length === 0) {
+    return '文章开头';
   }
   return `段落 ${paraIndex + 1}`;
 }
