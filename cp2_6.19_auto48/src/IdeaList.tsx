@@ -5,6 +5,8 @@ import {
   getHeatRate,
   getHeatLevel,
   getMaxHeatRate,
+  getPopularityLevel,
+  filterHotIdeas,
   type Idea,
   type Category,
   type SortType,
@@ -58,6 +60,7 @@ function IdeaCard({
   const heatRate = getHeatRate(idea)
   const heatLevel = getHeatLevel(heatRate, maxHeatRate)
   const heatPercent = maxHeatRate > 0 ? (heatRate / maxHeatRate) * 100 : 0
+  const popularityLevel = getPopularityLevel(idea.votes)
 
   return (
     <div
@@ -66,6 +69,26 @@ function IdeaCard({
         animationDelay: `${Math.min(index * 100, 900)}ms`,
       }}
     >
+      {popularityLevel !== 'none' && (
+        <div className={`popularity-tag popularity-${popularityLevel}`}>
+          {popularityLevel === 'super' ? (
+            <>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+              <span>爆款</span>
+            </>
+          ) : (
+            <>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M12 23c6.075 0 11-3.582 11-8 0-2.757-1.848-5.06-4.533-6.234C17.543 5.461 16 4 16 2c-2 0-4 3-4 3s-2-3-4-3c0 2-1.543 3.461-2.467 6.766C2.848 9.94 1 12.243 1 15c0 4.418 4.925 8 11 8zm-1-11v4h-2v-4H8l4-5 4 5h-2z" />
+              </svg>
+              <span>热门</span>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="card-header">
         <span
           className="category-tag"
@@ -127,9 +150,13 @@ function IdeaCard({
 function SortBar({
   sortBy,
   onSortChange,
+  filterHot,
+  onFilterHotChange,
 }: {
   sortBy: SortType
   onSortChange: (sort: SortType) => void
+  filterHot: boolean
+  onFilterHotChange: (value: boolean) => void
 }) {
   const [isTransitioning, setIsTransitioning] = useState(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -146,24 +173,36 @@ function SortBar({
 
   return (
     <div className="sort-bar">
-      <div className="sort-tabs">
+      <div className="sort-bar-content">
+        <div className="sort-tabs">
+          <button
+            className={`sort-tab ${sortBy === 'votes' ? 'active' : ''}`}
+            onClick={() => handleSort('votes')}
+          >
+            🏆 热门排行
+          </button>
+          <button
+            className={`sort-tab ${sortBy === 'trending' ? 'active' : ''}`}
+            onClick={() => handleSort('trending')}
+          >
+            🔥 热度趋势
+          </button>
+          <button
+            className={`sort-tab ${sortBy === 'time' ? 'active' : ''}`}
+            onClick={() => handleSort('time')}
+          >
+            🕐 最新提交
+          </button>
+        </div>
         <button
-          className={`sort-tab ${sortBy === 'votes' ? 'active' : ''}`}
-          onClick={() => handleSort('votes')}
+          className={`filter-hot-toggle ${filterHot ? 'active' : ''}`}
+          onClick={() => onFilterHotChange(!filterHot)}
+          aria-label={filterHot ? '关闭只看热门' : '只看热门'}
         >
-          🏆 热门排行
-        </button>
-        <button
-          className={`sort-tab ${sortBy === 'trending' ? 'active' : ''}`}
-          onClick={() => handleSort('trending')}
-        >
-          🔥 热度趋势
-        </button>
-        <button
-          className={`sort-tab ${sortBy === 'time' ? 'active' : ''}`}
-          onClick={() => handleSort('time')}
-        >
-          🕐 最新提交
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 23c6.075 0 11-3.582 11-8 0-2.757-1.848-5.06-4.533-6.234C17.543 5.461 16 4 16 2c-2 0-4 3-4 3s-2-3-4-3c0 2-1.543 3.461-2.467 6.766C2.848 9.94 1 12.243 1 15c0 4.418 4.925 8 11 8zm-1-11v4h-2v-4H8l4-5 4 5h-2z" />
+          </svg>
+          <span>只看热门</span>
         </button>
       </div>
       {isTransitioning && <div className="sort-transition-overlay" />}
@@ -225,30 +264,47 @@ export default function IdeaList() {
   const sortBy = useIdeaStore((state) => state.sortBy)
   const setSortBy = useIdeaStore((state) => state.setSortBy)
   const [initialAnim, setInitialAnim] = useState(true)
+  const [filterHot, setFilterHot] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => setInitialAnim(false), 1200)
     return () => clearTimeout(timer)
   }, [])
 
-  const sortedIdeas = useMemo(() => getSortedIdeas(ideas, sortBy), [ideas, sortBy])
+  const processedIdeas = useMemo(() => {
+    const filtered = filterHot ? filterHotIdeas(ideas) : ideas
+    return getSortedIdeas(filtered, sortBy)
+  }, [ideas, sortBy, filterHot])
+
   const maxHeatRate = useMemo(() => getMaxHeatRate(ideas), [ideas])
 
   return (
     <div className="main-layout">
       <div className="content-area">
-        <SortBar sortBy={sortBy} onSortChange={setSortBy} />
-        <div className={`ideas-grid sorting-${sortBy}`}>
-          {sortedIdeas.map((idea, index) => (
-            <IdeaCard
-              key={idea.id}
-              idea={idea}
-              index={index}
-              isAnimating={initialAnim}
-              maxHeatRate={maxHeatRate}
-            />
-          ))}
-        </div>
+        <SortBar
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          filterHot={filterHot}
+          onFilterHotChange={setFilterHot}
+        />
+        {processedIdeas.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">🚀</div>
+            <p className="empty-text">当前没有热门创意，快去提交或投票吧！</p>
+          </div>
+        ) : (
+          <div className={`ideas-grid sorting-${sortBy}`}>
+            {processedIdeas.map((idea, index) => (
+              <IdeaCard
+                key={idea.id}
+                idea={idea}
+                index={index}
+                isAnimating={initialAnim}
+                maxHeatRate={maxHeatRate}
+              />
+            ))}
+          </div>
+        )}
       </div>
       <FavoritesSidebar />
     </div>

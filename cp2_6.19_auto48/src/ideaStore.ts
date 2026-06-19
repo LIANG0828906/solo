@@ -46,6 +46,16 @@ export const getMaxHeatRate = (ideas: Idea[]): number => {
   return Math.max(...ideas.map((i) => getHeatRate(i)))
 }
 
+export const getPopularityLevel = (votes: number): 'none' | 'hot' | 'super' => {
+  if (votes > 20) return 'super'
+  if (votes > 10) return 'hot'
+  return 'none'
+}
+
+export const filterHotIdeas = (ideas: Idea[]): Idea[] => {
+  return ideas.filter((idea) => idea.votes >= 10)
+}
+
 const sampleIdeas: Idea[] = [
   {
     id: uuidv4(),
