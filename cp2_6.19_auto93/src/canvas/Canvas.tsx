@@ -21,36 +21,36 @@ interface GlowStroke {
   startTime: number;
 }
 
-function bezierInterpolate(points: DrawPoint[]): DrawPoint[] {
-  if (points.length < 2) return points;
+const MAX_SEGMENTS = 20;
 
-  const result: DrawPoint[] = [];
-  const maxTotal = points.length * 5;
-  const maxSegmentsPerCurve = 20;
+function easeOutQuad(t: number): number {
+  return t * (2 - t);
+}
 
-  const addPoint = (p: DrawPoint) => {
-    if (result.length < maxTotal) {
-      result.push(p);
-    }
-  };
-
-  const lerpPoint = (a: DrawPoint, b: DrawPoint, t: number): DrawPoint => ({
+function lerpPoint(a: DrawPoint, b: DrawPoint, t: number): DrawPoint {
+  return {
     x: a.x + (b.x - a.x) * t,
     y: a.y + (b.y - a.y) * t,
     color: a.color,
     size: a.size,
     timestamp: a.timestamp + (b.timestamp - a.timestamp) * t,
-  });
+  };
+}
+
+function bezierInterpolate(points: DrawPoint[]): DrawPoint[] {
+  if (points.length < 2) return points;
+
+  const result: DrawPoint[] = [];
 
   if (points.length === 2) {
-    const segs = Math.min(maxSegmentsPerCurve, maxTotal);
+    const segs = MAX_SEGMENTS;
     for (let t = 0; t <= segs; t++) {
-      addPoint(lerpPoint(points[0], points[1], t / segs));
+      result.push(lerpPoint(points[0], points[1], t / segs));
     }
     return result;
   }
 
-  addPoint({ ...points[0] });
+  result.push({ ...points[0] });
 
   for (let i = 0; i < points.length - 2; i++) {
     const a = points[i];
@@ -64,26 +64,24 @@ function bezierInterpolate(points: DrawPoint[]): DrawPoint[] {
     const endX = (b.x + c.x) / 2;
     const endY = (b.y + c.y) / 2;
 
-    const remaining = maxTotal - result.length;
-    const segs = Math.max(1, Math.min(maxSegmentsPerCurve, remaining));
+    const segs = MAX_SEGMENTS;
 
     for (let t = 1; t <= segs; t++) {
-      if (result.length >= maxTotal) break;
       const tt = t / segs;
       const mt = 1 - tt;
 
       const x = mt * mt * startX + 2 * mt * tt * cpX + tt * tt * endX;
       const y = mt * mt * startY + 2 * mt * tt * cpY + tt * tt * endY;
 
-      const startTime = a.timestamp + (b.timestamp - a.timestamp) * 0.5;
-      const endTime = b.timestamp + (c.timestamp - b.timestamp) * 0.5;
+      const startTs = a.timestamp + (b.timestamp - a.timestamp) * 0.5;
+      const endTs = b.timestamp + (c.timestamp - b.timestamp) * 0.5;
 
       result.push({
         x,
         y,
         color: b.color,
         size: b.size,
-        timestamp: startTime + (endTime - startTime) * tt,
+        timestamp: startTs + (endTs - startTs) * tt,
       });
     }
   }
@@ -91,15 +89,13 @@ function bezierInterpolate(points: DrawPoint[]): DrawPoint[] {
   const lastIdx = points.length - 1;
   const secondLast = points[lastIdx - 1];
   const last = points[lastIdx];
-  const midToLastX = (secondLast.x + last.x) / 2;
-  const midToLastY = (secondLast.y + last.y) / 2;
-  const remaining = maxTotal - result.length;
-  const segs = Math.max(1, Math.min(maxSegmentsPerCurve, remaining));
+  const midX = (secondLast.x + last.x) / 2;
+  const midY = (secondLast.y + last.y) / 2;
+  const segs = MAX_SEGMENTS;
 
   for (let t = 1; t <= segs; t++) {
-    if (result.length >= maxTotal) break;
-    addPoint(lerpPoint(
-      { ...secondLast, x: midToLastX, y: midToLastY },
+    result.push(lerpPoint(
+      { ...secondLast, x: midX, y: midY },
       last,
       t / segs
     ));
@@ -107,6 +103,16 @@ function bezierInterpolate(points: DrawPoint[]): DrawPoint[] {
 
   return result;
 }
+
+function hexToRgba(hex: string, a: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+const GLOW_INITIAL_BLUR = 20;
 
 function drawBezierPath(
   ctx: CanvasRenderingContext2D,
@@ -127,11 +133,15 @@ function drawBezierPath(
     ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
     ctx.fillStyle = p.color;
     if (glowIntensity > 0) {
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = 15 * glowIntensity;
+      const eased = easeOutQuad(glowIntensity);
+      ctx.shadowColor = hexToRgba(p.color, 0.3 + 0.5 * eased);
+      ctx.shadowBlur = GLOW_INITIAL_BLUR * eased;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
     }
     ctx.fill();
     ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
     ctx.restore();
     return;
   }
@@ -142,8 +152,11 @@ function drawBezierPath(
   ctx.lineWidth = smoothPoints[0].size;
 
   if (glowIntensity > 0) {
-    ctx.shadowColor = smoothPoints[0].color;
-    ctx.shadowBlur = 15 * glowIntensity;
+    const eased = easeOutQuad(glowIntensity);
+    ctx.shadowColor = hexToRgba(smoothPoints[0].color, 0.3 + 0.5 * eased);
+    ctx.shadowBlur = GLOW_INITIAL_BLUR * eased;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
   }
 
   ctx.beginPath();
@@ -155,6 +168,7 @@ function drawBezierPath(
 
   ctx.stroke();
   ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
   ctx.restore();
 }
 
@@ -212,7 +226,8 @@ export default function Canvas({
     glowStrokes.forEach((gs) => {
       const elapsed = now - gs.startTime;
       if (elapsed < 200) {
-        const intensity = 1 - elapsed / 200;
+        const linearProgress = elapsed / 200;
+        const intensity = 1 - easeOutQuad(linearProgress);
         drawBezierPath(ctx, gs.points, intensity);
         drawBezierPath(ctx, gs.points, 0);
         activeGlows.push(gs);

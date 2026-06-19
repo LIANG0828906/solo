@@ -99,6 +99,7 @@ export default function App() {
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackProgress, setPlaybackProgress] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(5);
 
   useEffect(() => {
     if (colorAnimRef.current) {
@@ -340,7 +341,7 @@ export default function App() {
   useEffect(() => {
     if (!isPlaying || !recordedData) return;
 
-    const totalDuration = (recordedData.endTime - recordedData.startTime) / 5;
+    const totalDuration = (recordedData.endTime - recordedData.startTime) / playbackSpeed;
     const startProgress = playbackPausedProgressRef.current;
     playbackStartTimeRef.current = performance.now() - startProgress * totalDuration;
 
@@ -365,7 +366,7 @@ export default function App() {
         cancelAnimationFrame(playbackRafRef.current);
       }
     };
-  }, [isPlaying, recordedData, renderPlaybackFrame]);
+  }, [isPlaying, recordedData, renderPlaybackFrame, playbackSpeed]);
 
   const handleTogglePlayback = useCallback(() => {
     if (!recordedData || recordedData.strokes.length === 0) return;
@@ -452,6 +453,8 @@ export default function App() {
           onTogglePlayback={handleTogglePlayback}
           playbackProgress={playbackProgress}
           onClearRecording={handleClearRecording}
+          playbackSpeed={playbackSpeed}
+          onSpeedChange={setPlaybackSpeed}
         />
       </footer>
     </div>

@@ -48,10 +48,11 @@ export function generateAvatarColor(): string {
 }
 
 export function generateAvatarPattern(): number[] {
+  const SHAPES = 4; // 0=empty, 1=circle, 2=triangle, 3=diamond
   const leftHalf: number[] = [];
   for (let row = 0; row < 5; row++) {
     for (let col = 0; col < 3; col++) {
-      leftHalf.push(Math.random() > 0.5 ? 1 : 0);
+      leftHalf.push(Math.floor(Math.random() * SHAPES));
     }
   }
   const pattern: number[] = [];
@@ -129,55 +130,36 @@ function Avatar({ user, size = 32 }: AvatarProps) {
     ctx.fillStyle = user.avatarColor;
 
     for (let i = 0; i < user.avatarPattern.length; i++) {
-      if (!user.avatarPattern[i]) continue;
+      const shapeType = user.avatarPattern[i];
+      if (shapeType === 0) continue;
       const row = Math.floor(i / 5);
       const col = i % 5;
       const x = col * cellSize;
       const y = row * cellSize;
-      const shapeIndex = (row * 5 + col + user.avatarPattern[i]) % 4;
-      const pad = cellSize * 0.12;
+      const pad = cellSize * 0.1;
       const cx = x + cellSize / 2;
       const cy = y + cellSize / 2;
       const r = (cellSize - pad * 2) / 2;
 
       ctx.save();
       ctx.beginPath();
-      switch (shapeIndex) {
-        case 0:
+      switch (shapeType) {
+        case 1: // circle
           ctx.arc(cx, cy, r, 0, Math.PI * 2);
           break;
-        case 1:
+        case 2: // triangle
           ctx.moveTo(cx, y + pad);
           ctx.lineTo(x + cellSize - pad, y + cellSize - pad);
           ctx.lineTo(x + pad, y + cellSize - pad);
           ctx.closePath();
           break;
-        case 2:
+        case 3: // diamond
           ctx.moveTo(cx, y + pad);
           ctx.lineTo(x + cellSize - pad, cy);
           ctx.lineTo(cx, y + cellSize - pad);
           ctx.lineTo(x + pad, cy);
           ctx.closePath();
           break;
-        case 3:
-        default: {
-          const rr = cellSize * 0.18;
-          const x0 = x + pad;
-          const y0 = y + pad;
-          const w = cellSize - pad * 2;
-          const h = cellSize - pad * 2;
-          ctx.moveTo(x0 + rr, y0);
-          ctx.lineTo(x0 + w - rr, y0);
-          ctx.quadraticCurveTo(x0 + w, y0, x0 + w, y0 + rr);
-          ctx.lineTo(x0 + w, y0 + h - rr);
-          ctx.quadraticCurveTo(x0 + w, y0 + h, x0 + w - rr, y0 + h);
-          ctx.lineTo(x0 + rr, y0 + h);
-          ctx.quadraticCurveTo(x0, y0 + h, x0, y0 + h - rr);
-          ctx.lineTo(x0, y0 + rr);
-          ctx.quadraticCurveTo(x0, y0, x0 + rr, y0);
-          ctx.closePath();
-          break;
-        }
       }
       ctx.fill();
       ctx.restore();

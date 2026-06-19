@@ -25,6 +25,8 @@ interface PlaybackControllerProps {
   playbackProgress: number;
   onSeek?: (progress: number) => void;
   onClearRecording: () => void;
+  playbackSpeed: number;
+  onSpeedChange: (speed: number) => void;
 }
 
 function validateRecordingData(data: unknown): data is RecordingData {
@@ -63,6 +65,8 @@ export default function PlaybackController({
   playbackProgress,
   onSeek,
   onClearRecording,
+  playbackSpeed,
+  onSpeedChange,
 }: PlaybackControllerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -133,6 +137,8 @@ export default function PlaybackController({
 
   const progressColor = isRecording ? 'var(--progress-recording)' : 'var(--progress-playing)';
 
+  const SPEED_OPTIONS = [1, 2, 5, 10];
+
   return (
     <div className="playback-controller">
       <div className="progress-container">
@@ -175,8 +181,21 @@ export default function PlaybackController({
           onClick={onTogglePlayback}
           disabled={!hasData}
         >
-          {isPlaying ? '⏸ 暂停' : '▶ 回放 (5x)'}
+          {isPlaying ? '⏸ 暂停' : `▶ 回放 (${playbackSpeed}x)`}
         </button>
+
+        <div className="speed-selector">
+          {SPEED_OPTIONS.map((speed) => (
+            <button
+              key={speed}
+              className={`speed-btn ${playbackSpeed === speed ? 'active' : ''}`}
+              onClick={() => onSpeedChange(speed)}
+              disabled={isPlaying}
+            >
+              {speed}x
+            </button>
+          ))}
+        </div>
 
         <button className="pb-btn" onClick={onExport} disabled={!hasData}>
           ⬇ 导出 JSON

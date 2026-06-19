@@ -170,7 +170,7 @@ body {
 .color-swatch.selected {
   box-shadow: 0 0 0 3px #ffffff, 0 0 0 5px currentColor, 0 0 16px 4px currentColor;
   transform: scale(1.15);
-  transition: all 100ms ease-out;
+  animation: glow-pulse 1.2s ease-in-out infinite;
 }
 
 .size-control {
@@ -369,4 +369,42 @@ body {
 
 .hidden-file-input {
   display: none;
+}
+
+.speed-selector {
+  display: inline-flex;
+  gap: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.speed-btn {
+  padding: 6px 10px;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: #f9fafb;
+  color: #6b7280;
+  transition: all 150ms ease-out;
+}
+
+.speed-btn:hover:not(:disabled) {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.speed-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.speed-btn.active {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.speed-btn.active:hover:not(:disabled) {
+  background-color: #2563eb;
 }
