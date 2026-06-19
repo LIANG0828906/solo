@@ -1,6 +1,8 @@
 import json
 import os
 import random
+import time
+from functools import lru_cache
 from pathlib import Path
 from typing import List, Dict, Any
 from fastapi import FastAPI, HTTPException
@@ -21,14 +23,37 @@ app.add_middleware(
 )
 
 question_bank = None
+question_index = None
+path_cache: Dict[str, Dict[str, Any]] = {}
+PATH_CACHE_TTL = 5000
 
 
 def load_question_bank():
-    global question_bank
+    global question_bank, question_index
     if question_bank is None:
         with open(DATA_PATH, "r", encoding="utf-8") as f:
             question_bank = json.load(f)
+        question_index = {}
+        for subject, data in question_bank.items():
+            for q in data.get("questions", []):
+                question_index[q["id"]] = q
     return question_bank
+
+
+def get_cached_path(key: str) -> Dict[str, Any] | None:
+    entry = path_cache.get(key)
+    if entry and (time.time() * 1000 - entry["ts"]) < PATH_CACHE_TTL:
+        return entry["data"]
+    if key in path_cache:
+        del path_cache[key]
+    return None
+
+
+def set_cached_path(key: str, data: Dict[str, Any]):
+    if len(path_cache) > 100:
+        oldest = min(path_cache, key=lambda k: path_cache[k]["ts"])
+        del path_cache[oldest]
+    path_cache[key] = {"data": data, "ts": time.time() * 1000}
 
 
 class Abilities(BaseModel):
@@ -123,13 +148,25 @@ def get_quiz_for_unit(subject: str, unit_id: str, count: int = 4) -> List[Dict[s
         return []
     
     subject_data = bank[subject]
-    unit_questions = [q for q in subject_data["questions"] if q["unitId"] == unit_id]
+    unit_questions = [q for q in subject_data["questions"] if q.get("unitId") == unit_id]
     
-    if len(unit_questions) == 0:
-        unit_questions = subject_data["questions"][:count]
+    if len(unit_questions) >= count:
+        return random.sample(unit_questions, count)
     
-    selected = random.sample(unit_questions, min(count, len(unit_questions)))
+    selected = list(unit_questions)
+    remaining = count - len(selected)
+    used_ids = {q["id"] for q in selected}
+    
+    others = [q for q in subject_data["questions"] if q["id"] not in used_ids]
+    if others:
+        fill = random.sample(others, min(remaining, len(others)))
+        selected.extend(fill)
+    
     return selected
+
+
+def _make_cache_key(*parts: str) -> str:
+    return "|".join(parts)
 
 
 @app.get("/")
@@ -144,6 +181,11 @@ def health_check():
 
 @app.post("/api/path/generate", response_model=PathResponse)
 def generate_path(request: PathGenerateRequest):
+    cache_key = _make_cache_key("gen", request.subject, request.level, str(request.abilities.model_dump()))
+    cached = get_cached_path(cache_key)
+    if cached:
+        return cached
+
     bank = load_question_bank()
     subject = request.subject
     
@@ -194,11 +236,18 @@ def generate_path(request: PathGenerateRequest):
         )
         result_units.append(result_unit)
     
-    return {"units": result_units}
+    result = {"units": result_units}
+    set_cached_path(cache_key, result)
+    return result
 
 
 @app.post("/api/path/adjust", response_model=PathResponse)
 def adjust_path(request: PathAdjustRequest):
+    cache_key = _make_cache_key("adj", request.subject, str(request.abilities.model_dump()))
+    cached = get_cached_path(cache_key)
+    if cached:
+        return cached
+
     bank = load_question_bank()
     subject = request.subject
     
@@ -272,7 +321,9 @@ def adjust_path(request: PathAdjustRequest):
         result_units.append(result_unit)
         order += 1
     
-    return {"units": result_units}
+    result = {"units": result_units}
+    set_cached_path(cache_key, result)
+    return result
 
 
 @app.post("/api/quiz/submit", response_model=QuizResultResponse)
@@ -284,17 +335,13 @@ def submit_quiz(request: QuizSubmitRequest):
     total_count = len(request.answers)
     
     for question_id, user_answer in request.answers.items():
-        correct_answer = 0
-        explanation = "解析内容"
-        question_text = ""
-        
-        for subject_data in bank.values():
-            for q in subject_data["questions"]:
-                if q["id"] == question_id:
-                    correct_answer = q["correctAnswer"]
-                    explanation = q["explanation"]
-                    question_text = q["question"]
-                    break
+        q = question_index.get(question_id)
+        if q:
+            correct_answer = q["correctAnswer"]
+            explanation = q["explanation"]
+        else:
+            correct_answer = 0
+            explanation = "解析内容"
         
         is_correct = user_answer == correct_answer
         if is_correct:

@@ -193,7 +193,7 @@ const SpeedChart: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-red-500" />
-          <span className="text-xs text-gray-500">待提升 ({'<60%'})</span>
+          <span className="text-xs text-gray-500">待提升 (&lt;60%)</span>
         </div>
       </div>
 

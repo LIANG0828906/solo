@@ -155,3 +155,87 @@ body {
   animation: ripple 0.6s linear;
   pointer-events: none;
 }
+
+/* 移动端响应式适配 */
+@media (max-width: 768px) {
+  .timeline-container {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .timeline-container > div {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .timeline-container > div > div:first-child > div {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .timeline-container svg {
+    display: none !important;
+  }
+
+  .timeline-container > div::after {
+    content: '';
+    display: block;
+    width: 2px;
+    height: 32px;
+    background: linear-gradient(to bottom, #1a365d, #ed8936);
+    margin: 8px auto;
+    border-radius: 1px;
+  }
+
+  .timeline-container > div:last-child::after {
+    display: none;
+  }
+
+  .radar-chart-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+  }
+
+  .radar-chart-scroll > div {
+    min-width: 280px;
+    scroll-snap-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.25rem !important;
+  }
+
+  h2 {
+    font-size: 1.1rem !important;
+  }
+
+  h3 {
+    font-size: 1rem !important;
+  }
+
+  .glass-card {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .radar-chart-scroll {
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 8px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .radar-chart-scroll > div {
+    flex-shrink: 0;
+    min-width: 260px;
+    scroll-snap-align: center;
+  }
+}

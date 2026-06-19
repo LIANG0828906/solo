@@ -1,10 +1,29 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { useLearningStore } from '@/store/useLearningStore';
 import UnitCard from './UnitCard';
 
 const PathGenerator: React.FC = () => {
   const { units, isGenerating, isAdjusting } = useLearningStore();
+
+  const sortedUnits = useMemo(() => {
+    return [...units].sort((a, b) => a.order - b.order);
+  }, [units]);
+
+  const unitCardList = useMemo(() => {
+    return sortedUnits.map((unit, index) => ({
+      unit,
+      index,
+      isLast: index === sortedUnits.length - 1,
+    }));
+  }, [sortedUnits]);
+
+  const renderUnitCard = useCallback(
+    ({ unit, index, isLast }: { unit: typeof sortedUnits[0]; index: number; isLast: boolean }) => (
+      <UnitCard key={unit.id} unit={unit} index={index} isLast={isLast} />
+    ),
+    []
+  );
 
   if (units.length === 0 && !isGenerating) {
     return (
@@ -50,15 +69,8 @@ const PathGenerator: React.FC = () => {
         ${isAdjusting ? 'opacity-60' : 'opacity-100'}
       `}
     >
-      <div className="flex items-start justify-center gap-2 min-w-max md:flex-row flex-col md:items-start items-center">
-        {units.map((unit, index) => (
-          <UnitCard
-            key={unit.id}
-            unit={unit}
-            index={index}
-            isLast={index === units.length - 1}
-          />
-        ))}
+      <div className="timeline-container flex items-start justify-center gap-2 min-w-max md:flex-row flex-col md:items-start items-center">
+        {unitCardList.map(renderUnitCard)}
       </div>
 
       {isAdjusting && (
@@ -71,4 +83,4 @@ const PathGenerator: React.FC = () => {
   );
 };
 
-export default PathGenerator;
+export default React.memo(PathGenerator);

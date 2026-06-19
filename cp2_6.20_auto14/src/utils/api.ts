@@ -3,11 +3,27 @@ import type { Unit, Abilities, Subject, Level, QuizResult, QuizQuestion } from '
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 5000,
+  timeout: 500,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+const pathCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 5000;
+
+function getCached<T>(key: string): T | null {
+  const entry = pathCache.get(key);
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
+    return entry.data as T;
+  }
+  pathCache.delete(key);
+  return null;
+}
+
+function setCache(key: string, data: any) {
+  pathCache.set(key, { data, timestamp: Date.now() });
+}
 
 api.interceptors.response.use(
   (response) => response.data,
@@ -40,6 +56,10 @@ export async function generatePath(
   level: Level,
   abilities: Abilities
 ): Promise<Unit[]> {
+  const cacheKey = `gen-${subject}-${level}-${JSON.stringify(abilities)}`;
+  const cached = getCached<{ units: Unit[] }>(cacheKey);
+  if (cached) return cached.units;
+
   try {
     const data = await api.post<PathGenerateRequest, { units: Unit[] }>(
       '/path/generate',
@@ -49,6 +69,7 @@ export async function generatePath(
         abilities,
       }
     );
+    setCache(cacheKey, data);
     return data.units;
   } catch {
     return generateMockPath(subject, level, abilities);
@@ -60,6 +81,10 @@ export async function adjustPath(
   abilities: Abilities,
   currentUnits: Unit[]
 ): Promise<Unit[]> {
+  const cacheKey = `adj-${subject}-${JSON.stringify(abilities)}-${currentUnits.map(u => u.id).join(',')}`;
+  const cached = getCached<{ units: Unit[] }>(cacheKey);
+  if (cached) return cached.units;
+
   try {
     const data = await api.post<PathAdjustRequest, { units: Unit[] }>(
       '/path/adjust',
@@ -69,6 +94,7 @@ export async function adjustPath(
         currentUnits,
       }
     );
+    setCache(cacheKey, data);
     return data.units;
   } catch {
     return adjustMockPath(abilities, currentUnits);

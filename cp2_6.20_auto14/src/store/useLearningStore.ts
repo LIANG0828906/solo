@@ -83,7 +83,7 @@ export const useLearningStore = create<LearningState>((set, get) => ({
       set((state) => {
         const updatedUnits = state.units.map((unit) => {
           if (unit.id === unitId) {
-            const status = result.score < 60 ? 'warning' : 'completed';
+            const status: Unit['status'] = result.score < 60 ? 'warning' : 'completed';
             return {
               ...unit,
               score: result.score,
