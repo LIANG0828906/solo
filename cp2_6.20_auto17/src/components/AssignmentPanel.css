@@ -70,10 +70,12 @@
 }
 
 .card-left-bar {
-  width: 4px;
+  width: clamp(3px, 0.35vw, 5px);
   flex-shrink: 0;
   background: linear-gradient(180deg, var(--primary-color) 0%, #60A5FA 100%);
   border-radius: 4px 0 0 4px;
+  min-width: 3px;
+  max-width: 5px;
 }
 
 .card-content {

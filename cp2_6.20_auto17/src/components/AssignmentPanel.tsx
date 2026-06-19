@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useCallback, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import type { Assignment, Submission } from '../types';
 import './AssignmentPanel.css';
@@ -79,10 +79,25 @@ const GradingItem = memo(function GradingItem({
 });
 
 export function AssignmentPanel({ userId }: AssignmentPanelProps) {
-  const { assignments, addSubmission, submissions, getSubmissionForAssignment } = useStore();
+  const assignments = useStore((s) => s.assignments);
+  const submissions = useStore((s) => s.submissions);
+  const addSubmission = useStore((s) => s.addSubmission);
+  const getSubmissionForAssignment = useStore((s) => s.getSubmissionForAssignment);
+
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const gradingCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (gradingCleanupRef.current) {
+        gradingCleanupRef.current();
+        gradingCleanupRef.current = null;
+      }
+    };
+  }, []);
 
   const submission = useMemo(() => {
     if (!selectedAssignment) return undefined;
@@ -92,7 +107,7 @@ export function AssignmentPanel({ userId }: AssignmentPanelProps) {
   const isGrading = submission?.status === 'grading';
   const isGraded = submission?.status === 'graded';
 
-  const formatDeadline = (deadline: string) => {
+  const formatDeadline = useCallback((deadline: string) => {
     const date = new Date(deadline);
     return date.toLocaleDateString('zh-CN', {
       year: 'numeric',
@@ -101,15 +116,19 @@ export function AssignmentPanel({ userId }: AssignmentPanelProps) {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
+  }, []);
 
-  const getAvgScore = (sub: Submission) => {
+  const getAvgScore = useCallback((sub: Submission) => {
     if (sub.gradingResults.length === 0) return 0;
     const sum = sub.gradingResults.reduce((acc, r) => acc + r.score, 0);
     return Math.round(sum / sub.gradingResults.length);
-  };
+  }, []);
 
-  const handleSelectAssignment = (assignment: Assignment) => {
+  const handleSelectAssignment = useCallback((assignment: Assignment) => {
+    if (gradingCleanupRef.current) {
+      gradingCleanupRef.current();
+      gradingCleanupRef.current = null;
+    }
     setSelectedAssignment(assignment);
     const initialAnswers: Record<number, string> = {};
     assignment.questions.forEach((q) => {
@@ -117,31 +136,42 @@ export function AssignmentPanel({ userId }: AssignmentPanelProps) {
     });
     setAnswers(initialAnswers);
     setIsSubmitting(false);
-  };
+  }, []);
 
-  const handleAnswerChange = (questionId: number, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
-  };
+  const handleAnswerChange = useCallback((questionId: number, value: string) => {
+    setAnswers((prev) => {
+      if (prev[questionId] === value) return prev;
+      return { ...prev, [questionId]: value };
+    });
+  }, []);
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (!selectedAssignment) return;
     setIsSubmitting(true);
     const answerList = selectedAssignment.questions.map((q) => ({
       questionId: q.id,
       content: answers[q.id] || '',
     }));
-    addSubmission(selectedAssignment.id, answerList);
-  };
+
+    const { cleanup } = addSubmission(selectedAssignment.id, answerList);
+    gradingCleanupRef.current = cleanup;
+  }, [selectedAssignment, answers, addSubmission]);
+
+  const assignmentCards = useMemo(() => {
+    return assignments.map((assignment) => {
+      const sub = getSubmissionForAssignment(userId, assignment.id);
+      const isCompleted = sub && sub.status === 'graded';
+      const isSubGrading = sub && sub.status === 'grading';
+      return { assignment, sub, isCompleted, isSubGrading };
+    });
+  }, [assignments, userId, getSubmissionForAssignment]);
 
   return (
     <div className="assignment-panel">
       <div className="assignment-list">
         <h3 className="panel-title">作业列表</h3>
         <div className="assignment-cards">
-          {assignments.map((assignment) => {
-            const sub = getSubmissionForAssignment(userId, assignment.id);
-            const isCompleted = sub && sub.status === 'graded';
-            const isSubGrading = sub && sub.status === 'grading';
+          {assignmentCards.map(({ assignment, sub, isCompleted, isSubGrading }) => {
             const isSelected = selectedAssignment?.id === assignment.id;
             return (
               <div

@@ -10,39 +10,86 @@ interface AppState {
   submissions: Submission[];
   errorBook: ErrorBookEntry[];
   notifications: Notification[];
+  _gradingTimers: Map<string, number>;
+  _notificationTimers: Map<string, [number, number]>;
   setCurrentUser: (user: User) => void;
-  addSubmission: (assignmentId: string, answers: { questionId: number; content: string }[]) => void;
+  addSubmission: (
+    assignmentId: string,
+    answers: { questionId: number; content: string }[]
+  ) => { submissionId: string; cleanup: () => void };
   gradeSubmission: (submissionId: string) => void;
-  addNotification: (type: Notification['type'], message: string) => void;
+  addNotification: (type: Notification['type'], message: string) => { id: string; cleanup: () => void };
   hideNotification: (id: string) => void;
   getUserSubmissions: (userId: string) => Submission[];
   getUserErrorBook: (userId: string) => ErrorBookEntry[];
   getSubmissionForAssignment: (userId: string, assignmentId: string) => Submission | undefined;
+  cleanupAllTimers: () => void;
 }
+
+const PERSIST_KEY = 'app_store_state_v1';
+type PersistedFields = Pick<AppState, 'submissions' | 'errorBook'>;
+
+const loadPersisted = (): Partial<PersistedFields> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(PERSIST_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as PersistedFields;
+    return {
+      submissions: Array.isArray(parsed.submissions) ? parsed.submissions : [],
+      errorBook: Array.isArray(parsed.errorBook) ? parsed.errorBook : [],
+    };
+  } catch {
+    return {};
+  }
+};
+
+const savePersisted = (fields: PersistedFields) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(
+      PERSIST_KEY,
+      JSON.stringify({
+        submissions: fields.submissions,
+        errorBook: fields.errorBook,
+      })
+    );
+  } catch {
+    /* noop */
+  }
+};
+
+const persisted = loadPersisted();
 
 export const useStore = create<AppState>((set, get) => ({
   currentUser: sampleUsers[0],
   users: sampleUsers,
   assignments: sampleAssignments,
-  submissions: sampleSubmissions,
-  errorBook: sampleErrorBook,
+  submissions: persisted.submissions ?? sampleSubmissions,
+  errorBook: persisted.errorBook ?? sampleErrorBook,
   notifications: [],
+  _gradingTimers: new Map(),
+  _notificationTimers: new Map(),
 
   setCurrentUser: (user: User) => {
     set({ currentUser: user });
   },
 
-  addSubmission: (assignmentId: string, answers: { questionId: number; content: string }[]) => {
+  addSubmission: (assignmentId, answers) => {
     const state = get();
     const currentUser = state.currentUser;
-    if (!currentUser) return;
+    if (!currentUser) return { submissionId: '', cleanup: () => {} };
+
+    let submissionId: string;
 
     const existingSub = state.submissions.find(
       (s) => s.userId === currentUser.id && s.assignmentId === assignmentId && s.status !== 'grading'
     );
+
     if (existingSub) {
-      set((state) => ({
-        submissions: state.submissions.map((s) =>
+      submissionId = existingSub.id;
+      set((prev) => ({
+        submissions: prev.submissions.map((s) =>
           s.id === existingSub.id
             ? {
                 ...s,
@@ -54,32 +101,51 @@ export const useStore = create<AppState>((set, get) => ({
             : s
         ),
       }));
-      setTimeout(() => {
-        get().gradeSubmission(existingSub.id);
-      }, 2000);
-      return;
+    } else {
+      submissionId = `sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const submission: Submission = {
+        id: submissionId,
+        assignmentId,
+        userId: currentUser.id,
+        answers: answers.map((a) => ({ questionId: a.questionId, content: a.content })),
+        gradingResults: [],
+        submittedAt: new Date().toISOString(),
+        status: 'grading',
+      };
+      set((prev) => ({ submissions: [...prev.submissions, submission] }));
     }
 
-    const submission: Submission = {
-      id: `sub_${Date.now()}`,
-      assignmentId,
-      userId: currentUser.id,
-      answers: answers.map((a) => ({ questionId: a.questionId, content: a.content })),
-      gradingResults: [],
-      submittedAt: new Date().toISOString(),
-      status: 'grading',
+    const existingTimer = get()._gradingTimers.get(submissionId);
+    if (existingTimer) window.clearTimeout(existingTimer);
+
+    const timerId = window.setTimeout(() => {
+      const timers = get()._gradingTimers;
+      timers.delete(submissionId);
+      get().gradeSubmission(submissionId);
+    }, 2000);
+
+    set((prev) => {
+      const newTimers = new Map(prev._gradingTimers);
+      newTimers.set(submissionId, timerId);
+      return { _gradingTimers: newTimers };
+    });
+
+    const cleanup = () => {
+      const currentTimer = get()._gradingTimers.get(submissionId);
+      if (currentTimer) {
+        window.clearTimeout(currentTimer);
+        set((prev) => {
+          const newTimers = new Map(prev._gradingTimers);
+          newTimers.delete(submissionId);
+          return { _gradingTimers: newTimers };
+        });
+      }
     };
 
-    set((state) => ({
-      submissions: [...state.submissions, submission],
-    }));
-
-    setTimeout(() => {
-      get().gradeSubmission(submission.id);
-    }, 2000);
+    return { submissionId, cleanup };
   },
 
-  gradeSubmission: (submissionId: string) => {
+  gradeSubmission: (submissionId) => {
     const state = get();
     const submission = state.submissions.find((s) => s.id === submissionId);
     if (!submission) return;
@@ -96,11 +162,11 @@ export const useStore = create<AppState>((set, get) => ({
 
     const newErrorEntries: ErrorBookEntry[] = gradingResults
       .filter((r) => r.score < 60 && r.errorType && !existingErrorQids.has(r.questionId))
-      .map((result) => {
+      .map((result, idx) => {
         const question = assignment.questions.find((q) => q.id === result.questionId)!;
         const answer = submission.answers.find((a) => a.questionId === result.questionId);
         return {
-          id: `err_${Date.now()}_${result.questionId}_${Math.random().toString(36).slice(2, 7)}`,
+          id: `err_${Date.now()}_${result.questionId}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
           userId: submission.userId,
           assignmentId: assignment.id,
           assignmentTitle: assignment.title,
@@ -128,60 +194,108 @@ export const useStore = create<AppState>((set, get) => ({
       notifMessage = `作业批改完成！平均分数：${avgScore.toFixed(1)}分，需要加强练习。`;
     }
 
-    set((state) => ({
-      submissions: state.submissions.map((s) =>
-        s.id === submissionId ? { ...s, gradingResults, status: 'graded' as const } : s
-      ),
-      errorBook: newErrorEntries.length > 0 ? [...state.errorBook, ...newErrorEntries] : state.errorBook,
-    }));
+    const newSubmissions = state.submissions.map((s) =>
+      s.id === submissionId ? { ...s, gradingResults, status: 'graded' as const } : s
+    );
+    const newErrorBook = newErrorEntries.length > 0 ? [...state.errorBook, ...newErrorEntries] : state.errorBook;
+
+    set({ submissions: newSubmissions, errorBook: newErrorBook });
+    savePersisted({ submissions: newSubmissions, errorBook: newErrorBook });
 
     get().addNotification(notifType, notifMessage);
   },
 
-  addNotification: (type: Notification['type'], message: string) => {
-    const id = `notif_${Date.now()}`;
+  addNotification: (type, message) => {
+    const id = `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     set((state) => ({
       notifications: [...state.notifications, { id, type, message, visible: true }],
     }));
-    setTimeout(() => {
+
+    const hideTimer = window.setTimeout(() => {
       get().hideNotification(id);
+      const timers = get()._notificationTimers;
+      timers.delete(id);
     }, 4000);
+
+    set((prev) => {
+      const map = new Map(prev._notificationTimers);
+      map.set(id, [hideTimer, 0]);
+      return { _notificationTimers: map };
+    });
+
+    const cleanup = () => {
+      const entry = get()._notificationTimers.get(id);
+      if (entry) {
+        if (entry[0]) window.clearTimeout(entry[0]);
+        if (entry[1]) window.clearTimeout(entry[1]);
+        set((prev) => {
+          const map = new Map(prev._notificationTimers);
+          map.delete(id);
+          return { _notificationTimers: map, notifications: prev.notifications.filter((n) => n.id !== id) };
+        });
+      }
+    };
+    return { id, cleanup };
   },
 
-  hideNotification: (id: string) => {
+  hideNotification: (id) => {
     set((state) => ({
       notifications: state.notifications.map((n) =>
         n.id === id ? { ...n, visible: false } : n
       ),
     }));
-    setTimeout(() => {
-      set((state) => ({
-        notifications: state.notifications.filter((n) => n.id !== id),
-      }));
+    const removeTimer = window.setTimeout(() => {
+      set((state) => {
+        const map = new Map(state._notificationTimers);
+        map.delete(id);
+        return {
+          notifications: state.notifications.filter((n) => n.id !== id),
+          _notificationTimers: map,
+        };
+      });
     }, 500);
+
+    set((prev) => {
+      const map = new Map(prev._notificationTimers);
+      const existing = map.get(id);
+      if (existing) {
+        existing[1] = removeTimer;
+      }
+      return { _notificationTimers: map };
+    });
   },
 
-  getUserSubmissions: (userId: string) => {
-    return get().submissions.filter((s) => s.userId === userId);
-  },
+  getUserSubmissions: (userId) => get().submissions.filter((s) => s.userId === userId),
 
-  getUserErrorBook: (userId: string) => {
-    return get().errorBook.filter((e) => e.userId === userId);
-  },
+  getUserErrorBook: (userId) => get().errorBook.filter((e) => e.userId === userId),
 
-  getSubmissionForAssignment: (userId: string, assignmentId: string) => {
-    return get().submissions.find(
-      (s) => s.userId === userId && s.assignmentId === assignmentId
-    );
+  getSubmissionForAssignment: (userId, assignmentId) =>
+    get().submissions.find((s) => s.userId === userId && s.assignmentId === assignmentId),
+
+  cleanupAllTimers: () => {
+    const state = get();
+    state._gradingTimers.forEach((timerId) => window.clearTimeout(timerId));
+    state._notificationTimers.forEach(([t1, t2]) => {
+      if (t1) window.clearTimeout(t1);
+      if (t2) window.clearTimeout(t2);
+    });
+    set({ _gradingTimers: new Map(), _notificationTimers: new Map(), notifications: [] });
   },
 }));
 
+export type StoreInstance = typeof useStore;
+
 declare global {
   interface Window {
-    __store: typeof useStore;
+    __store: StoreInstance;
   }
 }
 
-if (typeof window !== 'undefined') {
-  window.__store = useStore;
-}
+const safeInstallStore = () => {
+  if (typeof window === 'undefined') return;
+  const w = window as unknown as { __store?: StoreInstance };
+  if (!w.__store) {
+    w.__store = useStore;
+  }
+};
+safeInstallStore();
