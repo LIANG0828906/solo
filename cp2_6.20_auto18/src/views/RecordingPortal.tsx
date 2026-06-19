@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import apiClient from '../services/apiClient';
 import { useAppStore } from '../store/appStore';
-import type { Interview, InterviewQuestion } from '../types';
 
 type RecordingPhase = 'verify' | 'preparing' | 'recording' | 'uploading' | 'finished';
 
@@ -93,7 +92,7 @@ const RecordingPortal: React.FC = () => {
     };
 
     mediaRecorderRef.current = mediaRecorder;
-    mediaRecorder.start(1000);
+    mediaRecorder.start(100);
     setTimeLeft(currentQuestion.duration);
 
     let remaining = currentQuestion.duration;

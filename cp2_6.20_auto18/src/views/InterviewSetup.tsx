@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
-import { v4 as uuidv4 } from 'uuid';
 import apiClient from '../services/apiClient';
 import { useAppStore } from '../store/appStore';
-import type { CreateInterviewRequest, InterviewQuestion } from '../types';
+import type { CreateInterviewRequest } from '../types';
 
 interface FormData {
   title: string;
@@ -19,6 +18,26 @@ const InterviewSetup: React.FC = () => {
   const [inviteLink, setInviteLink] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const setCurrentInterview = useAppStore((state) => state.setCurrentInterview);
+
+  const createRipple = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const button = e.currentTarget;
+    const ripple = document.createElement('span');
+    const rect = button.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top - size / 2;
+
+    ripple.style.width = ripple.style.height = `${size}px`;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    ripple.className = 'ripple';
+
+    button.appendChild(ripple);
+
+    setTimeout(() => {
+      ripple.remove();
+    }, 600);
+  };
 
   const {
     control,
@@ -94,7 +113,7 @@ const InterviewSetup: React.FC = () => {
             <label>面试邀请链接</label>
             <div className="link-input-wrapper">
               <input type="text" value={inviteLink} readOnly className="input-field" />
-              <button className="btn btn-secondary" onClick={copyLink}>
+              <button className="btn btn-secondary" onClick={(e) => { createRipple(e); copyLink(); }}>
                 复制
               </button>
             </div>
@@ -112,7 +131,8 @@ const InterviewSetup: React.FC = () => {
           <button
             className="btn btn-primary"
             style={{ marginTop: '24px', width: '100%' }}
-            onClick={() => {
+            onClick={(e) => {
+              createRipple(e);
               setSubmitted(false);
               setInviteLink('');
             }}
@@ -272,7 +292,7 @@ const InterviewSetup: React.FC = () => {
                       <button
                         type="button"
                         className="btn-remove"
-                        onClick={() => remove(index)}
+                        onClick={(e) => { createRipple(e); remove(index); }}
                       >
                         删除
                       </button>
@@ -334,7 +354,7 @@ const InterviewSetup: React.FC = () => {
               <button
                 type="button"
                 className="btn btn-secondary add-question-btn"
-                onClick={() => append({ text: '', duration: 120 })}
+                onClick={(e) => { createRipple(e); append({ text: '', duration: 120 }); }}
               >
                 + 添加问题
               </button>
@@ -345,6 +365,7 @@ const InterviewSetup: React.FC = () => {
             type="submit"
             className="btn btn-primary submit-btn"
             disabled={isLoading}
+            onMouseDown={createRipple}
           >
             {isLoading ? '创建中...' : '创建面试并发送邀请'}
           </button>

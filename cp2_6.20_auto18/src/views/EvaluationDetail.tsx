@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
 import { useAppStore } from '../store/appStore';
-import type { VoiceComment, ScoreItem } from '../types';
+import type { VoiceComment } from '../types';
 
 const playbackRates = [1, 1.5, 2];
 
@@ -26,6 +26,9 @@ const EvaluationDetail: React.FC = () => {
   const [showControls, setShowControls] = useState(true);
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [waveAnimationFrame, setWaveAnimationFrame] = useState<number | null>(null);
+  const [playWaveformData, setPlayWaveformData] = useState<{ [key: string]: number[] }>({});
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -61,8 +64,11 @@ const EvaluationDetail: React.FC = () => {
       timeout = window.setTimeout(() => setShowControls(false), 3000);
     };
 
+    window.addEventListener('mousemove', handleMouseMove);
+
     return () => {
       clearTimeout(timeout);
+      window.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
 
@@ -71,6 +77,52 @@ const EvaluationDetail: React.FC = () => {
     if (videoRef.current) {
       videoRef.current.playbackRate = rate;
     }
+  };
+
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play();
+        setIsPlaying(true);
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    }
+  };
+
+  const createRipple = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const button = e.currentTarget;
+    const ripple = document.createElement('span');
+    const rect = button.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top - size / 2;
+
+    ripple.style.width = ripple.style.height = `${size}px`;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    ripple.className = 'ripple-effect';
+
+    button.appendChild(ripple);
+
+    setTimeout(() => {
+      ripple.remove();
+    }, 600);
+  };
+
+  const animateWaveform = (commentId: string, waveform: number[]) => {
+    if (playingVoiceId !== commentId) return;
+
+    const animated = waveform.map((v) => {
+      const variation = (Math.random() - 0.5) * 0.4;
+      return Math.max(0.1, Math.min(1, v + variation));
+    });
+
+    setPlayWaveformData((prev) => ({ ...prev, [commentId]: animated }));
+
+    const frame = requestAnimationFrame(() => animateWaveform(commentId, waveform));
+    setWaveAnimationFrame(frame);
   };
 
   const startVoiceRecording = async () => {
@@ -183,16 +235,38 @@ const EvaluationDetail: React.FC = () => {
     if (playingVoiceId === comment.id) {
       audio.pause();
       setPlayingVoiceId(null);
+      if (waveAnimationFrame) {
+        cancelAnimationFrame(waveAnimationFrame);
+        setWaveAnimationFrame(null);
+      }
+      setPlayWaveformData((prev) => {
+        const next = { ...prev };
+        delete next[comment.id];
+        return next;
+      });
     } else {
       if (playingVoiceId && audioRefs.current[playingVoiceId]) {
         audioRefs.current[playingVoiceId].pause();
       }
+      if (waveAnimationFrame) {
+        cancelAnimationFrame(waveAnimationFrame);
+      }
       audio.currentTime = 0;
       audio.play();
       setPlayingVoiceId(comment.id);
+      animateWaveform(comment.id, comment.waveformData);
 
       audio.onended = () => {
         setPlayingVoiceId(null);
+        if (waveAnimationFrame) {
+          cancelAnimationFrame(waveAnimationFrame);
+          setWaveAnimationFrame(null);
+        }
+        setPlayWaveformData((prev) => {
+          const next = { ...prev };
+          delete next[comment.id];
+          return next;
+        });
       };
     }
   };
@@ -270,12 +344,15 @@ const EvaluationDetail: React.FC = () => {
 
             <div className={`video-overlay ${showControls ? 'visible' : ''}`}>
               <div className="video-controls">
+                <button className="play-pause-btn" onClick={(e) => { createRipple(e); togglePlayPause(); }}>
+                  {isPlaying ? '⏸' : '▶'}
+                </button>
                 <div className="playback-rate-controls">
                   {playbackRates.map((rate) => (
                     <button
                       key={rate}
                       className={`rate-btn ${playbackRate === rate ? 'active' : ''}`}
-                      onClick={() => handlePlaybackRateChange(rate)}
+                      onClick={(e) => { createRipple(e); handlePlaybackRateChange(rate); }}
                     >
                       {rate}x
                     </button>
@@ -299,7 +376,7 @@ const EvaluationDetail: React.FC = () => {
                 className={`question-tab ${index === currentQuestionIndex ? 'active' : ''} ${
                   scores.some((s) => s.questionId === q.id && s.score > 0) ? 'scored' : ''
                 }`}
-                onClick={() => setCurrentQuestionIndex(index)}
+                onClick={(e) => { createRipple(e); setCurrentQuestionIndex(index); }}
               >
                 <span className="tab-number">{index + 1}</span>
                 <span className="tab-label">第{index + 1}题</span>
@@ -361,7 +438,7 @@ const EvaluationDetail: React.FC = () => {
             <div className="voice-record-section">
               <button
                 className={`record-btn ${isRecording ? 'recording' : ''}`}
-                onMouseDown={startVoiceRecording}
+                onMouseDown={(e) => { createRipple(e); startVoiceRecording(); }}
                 onMouseUp={stopVoiceRecording}
                 onMouseLeave={() => isRecording && stopVoiceRecording()}
                 onTouchStart={(e) => {
@@ -409,14 +486,17 @@ const EvaluationDetail: React.FC = () => {
                     className={`voice-item ${playingVoiceId === comment.id ? 'playing' : ''}`}
                     onClick={() => playVoiceComment(comment)}
                   >
-                    <button className="play-voice-btn">
+                    <button className="play-voice-btn" onClick={(e) => { e.stopPropagation(); createRipple(e); }}>
                       {playingVoiceId === comment.id ? '⏸' : '▶'}
                     </button>
                     <div className="waveform-container">
-                      {comment.waveformData.map((height, i) => (
+                      {(playingVoiceId === comment.id && playWaveformData[comment.id]
+                        ? playWaveformData[comment.id]
+                        : comment.waveformData
+                      ).map((height, i) => (
                         <div
                           key={i}
-                          className={`wave-bar ${playingVoiceId === comment.id ? 'animate' : ''}`}
+                          className={`wave-bar ${playingVoiceId === comment.id ? 'playing' : ''}`}
                           style={{
                             height: `${Math.max(height * 100, 15)}%`,
                             animationDelay: `${i * 0.03}s`,
@@ -444,7 +524,7 @@ const EvaluationDetail: React.FC = () => {
 
           <button
             className="btn btn-primary submit-eval-btn"
-            onClick={handleSubmit}
+            onClick={(e) => { createRipple(e); handleSubmit(); }}
             disabled={isSubmitting}
           >
             {isSubmitting ? '提交中...' : '提交评估'}
@@ -529,7 +609,24 @@ const EvaluationDetail: React.FC = () => {
         }
         .video-controls {
           display: flex;
-          justify-content: flex-end;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .play-pause-btn {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: var(--color-accent-blue);
+          color: white;
+          font-size: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+        }
+        .play-pause-btn:hover {
+          transform: scale(1.1);
+          background: var(--color-accent-blue-hover);
         }
         .playback-rate-controls {
           display: flex;
@@ -537,6 +634,29 @@ const EvaluationDetail: React.FC = () => {
           background: rgba(0, 0, 0, 0.6);
           padding: 4px;
           border-radius: 8px;
+        }
+        .ripple-effect {
+          position: absolute;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.6);
+          transform: scale(0);
+          animation: ripple 0.6s ease-out;
+          pointer-events: none;
+        }
+        @keyframes ripple {
+          to {
+            transform: scale(4);
+            opacity: 0;
+          }
+        }
+        .rate-btn,
+        .play-pause-btn,
+        .question-tab,
+        .record-btn,
+        .play-voice-btn,
+        .submit-eval-btn {
+          position: relative;
+          overflow: hidden;
         }
         .rate-btn {
           padding: 6px 12px;
@@ -830,13 +950,21 @@ const EvaluationDetail: React.FC = () => {
           background: linear-gradient(to top, var(--color-accent-blue), var(--color-accent-orange));
           border-radius: 2px;
           min-height: 4px;
+          transition: height 0.1s ease, opacity 0.1s ease;
         }
-        .waveform-container .wave-bar.animate {
-          animation: wavePulse 0.5s ease-in-out infinite alternate;
+        .waveform-container .wave-bar.playing {
+          animation: waveFlicker 0.15s ease-in-out infinite alternate;
         }
-        @keyframes wavePulse {
-          from { opacity: 0.6; }
-          to { opacity: 1; }
+        @keyframes waveFlicker {
+          from {
+            opacity: 0.7;
+            filter: brightness(1);
+          }
+          to {
+            opacity: 1;
+            filter: brightness(1.3);
+            box-shadow: 0 0 8px var(--color-accent-blue);
+          }
         }
         .voice-info {
           display: flex;

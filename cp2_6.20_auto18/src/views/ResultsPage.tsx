@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import dayjs from 'dayjs';
 import apiClient from '../services/apiClient';
 import { useAppStore } from '../store/appStore';
-import type { EvaluationResult, VoiceComment } from '../types';
+import type { EvaluationResult, VoiceComment, EvaluationDimensions } from '../types';
 
 const dimensionLabels: { key: keyof EvaluationResult['dimensions']; label: string }[] = [
   { key: 'expression', label: '表达能力' },
@@ -56,17 +55,17 @@ const ResultsPage: React.FC = () => {
 
   const selectedEval = evaluations.find((e) => e.id === selectedEvalId);
 
-  const getAverageDimensions = () => {
+  const getAverageDimensions = (): EvaluationDimensions | null => {
     if (evaluations.length === 0) return null;
 
     const keys = dimensionLabels.map((d) => d.key);
-    const avg: Record<string, number> = {};
+    const avg: Partial<EvaluationDimensions> = {};
 
     keys.forEach((key) => {
       avg[key] = evaluations.reduce((sum, e) => sum + e.dimensions[key], 0) / evaluations.length;
     });
 
-    return avg as EvaluationResult['dimensions'];
+    return avg as EvaluationDimensions;
   };
 
   const playVoiceComment = (comment: VoiceComment) => {
@@ -151,11 +150,26 @@ const ResultsPage: React.FC = () => {
       <svg viewBox={`0 0 ${size} ${size}`} className="radar-chart">
         <defs>
           <linearGradient id="radarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.6" />
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.7">
+              {animate && <animate attributeName="stopOpacity" from="0" to="0.7" dur="1s" fill="freeze" />}
+            </stop>
+            <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.6">
+              {animate && <animate attributeName="stopOpacity" from="0" to="0.6" dur="1s" begin="0.2s" fill="freeze" />}
+            </stop>
+            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.7">
+              {animate && <animate attributeName="stopOpacity" from="0" to="0.7" dur="1s" begin="0.4s" fill="freeze" />}
+            </stop>
+          </linearGradient>
+          <radialGradient id="radarRadialGradient" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#1e293b" stopOpacity="0.1" />
+          </radialGradient>
+          <linearGradient id="strokeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#f59e0b" />
           </linearGradient>
           <filter id="radarGlow">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+            <feGaussianBlur stdDeviation="4" result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
               <feMergeNode in="SourceGraphic" />
@@ -172,6 +186,10 @@ const ResultsPage: React.FC = () => {
             strokeWidth="1"
             strokeDasharray={i === levels - 1 ? '0' : '4,4'}
             opacity={0.5}
+            style={animate ? {
+              transformOrigin: 'center',
+              animation: `gridFadeIn 0.6s ease ${i * 0.1}s both`,
+            } : {}}
           />
         ))}
 
@@ -184,18 +202,22 @@ const ResultsPage: React.FC = () => {
             y2={axis.y2}
             stroke="#334155"
             strokeWidth="1"
+            style={animate ? {
+              animation: `axisDraw 0.5s ease ${0.3 + i * 0.08}s both`,
+              strokeDasharray: 100,
+            } : {}}
           />
         ))}
 
         <polygon
           points={polygonPoints}
           fill="url(#radarGradient)"
-          stroke="#3b82f6"
-          strokeWidth="2"
+          stroke="url(#strokeGradient)"
+          strokeWidth="2.5"
           filter="url(#radarGlow)"
           style={{
             transformOrigin: 'center',
-            animation: animate ? 'radarGrow 1s ease forwards' : 'none',
+            animation: animate ? 'radarGrow 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' : 'none',
           }}
         />
 
@@ -244,18 +266,47 @@ const ResultsPage: React.FC = () => {
 
         <style>{`
           @keyframes radarGrow {
-            from {
+            0% {
               transform: scale(0);
               opacity: 0;
             }
-            to {
+            50% {
+              opacity: 0.8;
+            }
+            100% {
               transform: scale(1);
               opacity: 1;
             }
           }
+          @keyframes gridFadeIn {
+            from {
+              opacity: 0;
+              transform: scale(0.8);
+            }
+            to {
+              opacity: 0.5;
+              transform: scale(1);
+            }
+          }
+          @keyframes axisDraw {
+            from {
+              stroke-dashoffset: 100;
+              opacity: 0;
+            }
+            to {
+              stroke-dashoffset: 0;
+              opacity: 1;
+            }
+          }
           @keyframes pointFade {
-            from { opacity: 0; r: 0; }
-            to { opacity: 1; r: 4; }
+            from {
+              opacity: 0;
+              transform: scale(0);
+            }
+            to {
+              opacity: 1;
+              transform: scale(1);
+            }
           }
         `}</style>
       </svg>
