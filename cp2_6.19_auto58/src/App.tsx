@@ -1,13 +1,21 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "@/pages/Home";
+import React from 'react';
+import GalleryCanvas from './components/GalleryCanvas';
+import ControlBar from './components/ControlBar';
+import ArtworkModal from './components/ArtworkModal';
 
-export default function App() {
+const App: React.FC = () => {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/other" element={<div className="text-center text-xl">Other Page - Coming Soon</div>} />
-      </Routes>
-    </Router>
+    <div className="relative w-full h-full">
+      <GalleryCanvas />
+      <ControlBar />
+      <ArtworkModal />
+      <div
+        className="fixed bottom-4 left-4 text-xs text-gray-500 z-30 bg-white/60 backdrop-blur-sm px-3 py-2 rounded-lg"
+      >
+        <p>WASD 移动 | Shift 加速 | 鼠标拖拽 旋转视角 | C 重置视角</p>
+      </div>
+    </div>
   );
-}
+};
+
+export default App;
