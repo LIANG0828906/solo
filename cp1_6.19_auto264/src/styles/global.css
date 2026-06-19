@@ -1,0 +1,91 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background-color: #FFF9F0;
+  color: #2C3E50;
+}
+
+:root {
+  --primary: #6ABF69;
+  --primary-dark: #5AA95A;
+  --accent: #E67E22;
+  --bg: #FFF9F0;
+  --card-bg: #FFF9F0;
+  --text: #2C3E50;
+  --text-light: #7F8C8D;
+  --success: #2ECC71;
+  --warning: #F39C12;
+  --muted: #95A5A6;
+  --petal: #FFB6C1;
+}
+
+.fade-enter {
+  opacity: 0;
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-in;
+}
+
+.page-container {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  background-color: var(--primary);
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+button:hover {
+  background-color: var(--primary-dark);
+}
+
+button:active {
+  transform: scale(0.95);
+  transition: transform 0.2s ease;
+}
+
+button.secondary {
+  background-color: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+button.secondary:hover {
+  background-color: var(--primary);
+  color: white;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  padding: 10px 12px;
+  border: 1px solid #E0D8CC;
+  border-radius: 8px;
+  background-color: white;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--primary);
+}
