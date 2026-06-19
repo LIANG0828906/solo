@@ -5,10 +5,11 @@ export interface Building {
   id: number;
   data: DataPoint;
   group: THREE.Group;
-  mesh: THREE.Mesh;
-  halo: THREE.Mesh;
+  contentGroup: THREE.Group;
   lod: THREE.LOD;
-  materials: THREE.MeshStandardMaterial[];
+  allMeshes: THREE.Mesh[];
+  allMaterials: THREE.MeshStandardMaterial[];
+  halo: THREE.Mesh;
   targetHeight: number;
   currentHeight: number;
   baseY: number;
@@ -18,62 +19,85 @@ export interface Building {
   isAnimating: boolean;
 }
 
+export type BuildingEvent = 'hover' | 'click' | 'growthStart' | 'growthEnd';
+
 export class CityBuilder {
   private scene: THREE.Scene;
+  private camera: THREE.PerspectiveCamera;
   private buildings: Map<number, Building> = new Map();
   private buildingMeshes: THREE.Mesh[] = [];
   private buildingsGroup: THREE.Group;
   private ground?: THREE.Mesh;
-  private windowTexture?: THREE.CanvasTexture;
-  private eventHandlers: Map<string, Function[]> = new Map();
+  private windowTextureVariants: THREE.CanvasTexture[] = [];
+  private eventHandlers: Map<BuildingEvent, ((building: Building) => void)[]> = new Map();
 
-  constructor(scene: THREE.Scene) {
+  private static readonly WINDOW_TEXTURE_COUNT = 6;
+  private static readonly LOD_DISTANCES = [0, 25, 50];
+
+  constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
     this.scene = scene;
+    this.camera = camera;
     this.buildingsGroup = new THREE.Group();
     this.scene.add(this.buildingsGroup);
-    this.createWindowTexture();
+    this.createWindowTextureVariants();
     this.createGround();
     this.createSky();
     this.createLights();
   }
 
-  private createWindowTexture(): void {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#0a0d15';
-    ctx.fillRect(0, 0, 128, 256);
-    const cols = 6;
-    const rows = 14;
-    const border = 3;
-    const cellW = 128 / cols;
-    const cellH = 256 / rows;
-    const windowW = cellW - border * 2;
-    const windowH = cellH - border * 2;
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const isLit = Math.random() > 0.35;
-        if (isLit) {
-          const r = 255;
-          const g = 200 + Math.random() * 40;
-          const b = 120 + Math.random() * 40;
-          ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        } else {
-          const r = 30 + Math.random() * 20;
-          const g = 40 + Math.random() * 20;
-          const b = 60 + Math.random() * 20;
-          ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+  private createWindowTextureVariants(): void {
+    for (let v = 0; v < CityBuilder.WINDOW_TEXTURE_COUNT; v++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d')!;
+
+      ctx.fillStyle = '#0a0d15';
+      ctx.fillRect(0, 0, 128, 256);
+
+      const cols = 6;
+      const rows = 14;
+      const border = 3;
+      const cellW = 128 / cols;
+      const cellH = 256 / rows;
+      const windowW = cellW - border * 2;
+      const windowH = cellH - border * 2;
+
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const isLit = Math.random() > 0.35;
+
+          if (isLit) {
+            const warmth = Math.random();
+            const r = 240 + Math.floor(Math.random() * 15);
+            const g = 190 + Math.floor(Math.random() * 50);
+            const b = 100 + Math.floor(warmth * 80);
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.shadowColor = `rgba(${r}, ${g}, ${b}, 0.4)`;
+            ctx.shadowBlur = 2;
+          } else {
+            const dim = Math.random();
+            const r = 25 + Math.floor(dim * 20);
+            const g = 35 + Math.floor(dim * 20);
+            const b = 50 + Math.floor(dim * 25);
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.shadowBlur = 0;
+          }
+
+          const px = x * cellW + border;
+          const py = y * cellH + border;
+          ctx.fillRect(px, py, windowW, windowH);
+          ctx.shadowBlur = 0;
         }
-        const px = x * cellW + border;
-        const py = y * cellH + border;
-        ctx.fillRect(px, py, windowW, windowH);
       }
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(1, 2);
+      tex.needsUpdate = true;
+      this.windowTextureVariants.push(tex);
     }
-    this.windowTexture = new THREE.CanvasTexture(canvas);
-    this.windowTexture.wrapS = THREE.RepeatWrapping;
-    this.windowTexture.wrapT = THREE.RepeatWrapping;
-    this.windowTexture.repeat.set(1, 2);
   }
 
   private createGround(): void {
@@ -153,56 +177,55 @@ export class CityBuilder {
     const colorHex = getCategoryColor(data.category, data.value);
     const color = new THREE.Color(colorHex);
 
-    const materials: THREE.MeshStandardMaterial[] = [
-      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.85), roughness: 0.7, metalness: 0.1, emissive: 0x000000, emissiveIntensity: 0 }),
-      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.85), roughness: 0.7, metalness: 0.1, emissive: 0x000000, emissiveIntensity: 0 }),
-      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(1.1), roughness: 0.6, metalness: 0.2, emissive: 0x000000, emissiveIntensity: 0 }),
-      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.5), roughness: 0.8, metalness: 0.05, emissive: 0x000000, emissiveIntensity: 0 }),
-      new THREE.MeshStandardMaterial({
-        color: color,
-        map: this.windowTexture,
-        roughness: 0.5,
-        metalness: 0.15,
-        emissive: 0x000000,
-        emissiveIntensity: 0,
-      }),
-      new THREE.MeshStandardMaterial({
-        color: color,
-        map: this.windowTexture,
-        roughness: 0.5,
-        metalness: 0.15,
-        emissive: 0x000000,
-        emissiveIntensity: 0,
-      }),
-    ];
+    const windowTex = this.windowTextureVariants[Math.floor(Math.random() * this.windowTextureVariants.length)];
 
     const lod = new THREE.LOD();
+    const allMeshes: THREE.Mesh[] = [];
+    const allMaterials: THREE.MeshStandardMaterial[] = [];
 
-    const geo0 = new THREE.BoxGeometry(baseSize, height, baseSize);
-    const mesh0 = new THREE.Mesh(geo0, materials);
-    mesh0.position.y = height / 2;
-    mesh0.castShadow = true;
-    mesh0.receiveShadow = true;
-    lod.addLevel(mesh0, 0);
+    const highDetailMaterials: THREE.MeshStandardMaterial[] = [
+      this.createBuildingMaterial(color.clone().multiplyScalar(0.85), 0.7, 0.1),
+      this.createBuildingMaterial(color.clone().multiplyScalar(0.85), 0.7, 0.1),
+      this.createBuildingMaterial(color.clone().multiplyScalar(1.1), 0.6, 0.2),
+      this.createBuildingMaterial(color.clone().multiplyScalar(0.5), 0.8, 0.05),
+      this.createBuildingMaterial(color, 0.5, 0.15, windowTex),
+      this.createBuildingMaterial(color, 0.5, 0.15, windowTex),
+    ];
+    allMaterials.push(...highDetailMaterials);
 
-    const geo1 = new THREE.BoxGeometry(baseSize, height, baseSize);
-    const mat1 = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7, metalness: 0.1, emissive: 0x000000, emissiveIntensity: 0 });
-    const mesh1 = new THREE.Mesh(geo1, mat1);
-    mesh1.position.y = height / 2;
-    mesh1.castShadow = true;
-    mesh1.receiveShadow = true;
-    lod.addLevel(mesh1, 25);
+    const geoHigh = new THREE.BoxGeometry(baseSize, height, baseSize, 2, Math.max(2, Math.floor(height / 2)), 2);
+    const meshHigh = new THREE.Mesh(geoHigh, highDetailMaterials);
+    meshHigh.position.y = height / 2;
+    meshHigh.castShadow = true;
+    meshHigh.receiveShadow = true;
+    meshHigh.userData.buildingId = data.id;
+    allMeshes.push(meshHigh);
+    lod.addLevel(meshHigh, CityBuilder.LOD_DISTANCES[0]);
 
-    const geo2 = new THREE.BoxGeometry(baseSize * 0.9, height * 0.95, baseSize * 0.9, 1, 1, 1);
-    const mat2 = new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.8), roughness: 0.8, metalness: 0.05, emissive: 0x000000, emissiveIntensity: 0 });
-    const mesh2 = new THREE.Mesh(geo2, mat2);
-    mesh2.position.y = height / 2;
-    mesh2.castShadow = true;
-    mesh2.receiveShadow = true;
-    lod.addLevel(mesh2, 50);
+    const matMid = this.createBuildingMaterial(color, 0.7, 0.1);
+    allMaterials.push(matMid);
+    const geoMid = new THREE.BoxGeometry(baseSize, height, baseSize, 1, 1, 1);
+    const meshMid = new THREE.Mesh(geoMid, matMid);
+    meshMid.position.y = height / 2;
+    meshMid.castShadow = true;
+    meshMid.receiveShadow = true;
+    meshMid.userData.buildingId = data.id;
+    allMeshes.push(meshMid);
+    lod.addLevel(meshMid, CityBuilder.LOD_DISTANCES[1]);
 
-    lod.position.y = 0;
-    lod.userData.buildingId = data.id;
+    const matLow = this.createBuildingMaterial(color.clone().multiplyScalar(0.8), 0.85, 0.05);
+    allMaterials.push(matLow);
+    const geoLow = new THREE.BoxGeometry(baseSize * 0.92, height * 0.96, baseSize * 0.92, 1, 1, 1);
+    const meshLow = new THREE.Mesh(geoLow, matLow);
+    meshLow.position.y = (height * 0.96) / 2;
+    meshLow.castShadow = true;
+    meshLow.receiveShadow = true;
+    meshLow.userData.buildingId = data.id;
+    allMeshes.push(meshLow);
+    lod.addLevel(meshLow, CityBuilder.LOD_DISTANCES[2]);
+
+    const contentGroup = new THREE.Group();
+    contentGroup.add(lod);
 
     const haloGeo = new THREE.CircleGeometry(baseSize * 0.9, 32);
     const haloMat = new THREE.MeshBasicMaterial({
@@ -215,7 +238,7 @@ export class CityBuilder {
     halo.rotation.x = -Math.PI / 2;
     halo.position.y = 0.02;
 
-    group.add(lod);
+    group.add(contentGroup);
     group.add(halo);
     group.position.copy(position);
 
@@ -223,10 +246,11 @@ export class CityBuilder {
       id: data.id,
       data,
       group,
-      mesh: mesh0,
-      halo,
+      contentGroup,
       lod,
-      materials,
+      allMeshes,
+      allMaterials,
+      halo,
       targetHeight: height,
       currentHeight: height,
       baseY: position.y,
@@ -236,16 +260,47 @@ export class CityBuilder {
       isAnimating: false,
     };
 
-    mesh0.userData.buildingId = data.id;
-    mesh1.userData.buildingId = data.id;
-    mesh2.userData.buildingId = data.id;
-    this.buildingMeshes.push(mesh0);
-    this.buildingMeshes.push(mesh1);
-    this.buildingMeshes.push(mesh2);
+    this.buildingMeshes.push(...allMeshes);
     this.buildingsGroup.add(group);
     this.buildings.set(data.id, building);
 
     return building;
+  }
+
+  private createBuildingMaterial(
+    color: THREE.Color,
+    roughness: number,
+    metalness: number,
+    map?: THREE.Texture
+  ): THREE.MeshStandardMaterial {
+    return new THREE.MeshStandardMaterial({
+      color: color.clone(),
+      map: map || null,
+      roughness,
+      metalness,
+      emissive: new THREE.Color(0x000000),
+      emissiveIntensity: 0,
+    });
+  }
+
+  public on(event: BuildingEvent, handler: (building: Building) => void): void {
+    if (!this.eventHandlers.has(event)) {
+      this.eventHandlers.set(event, []);
+    }
+    this.eventHandlers.get(event)!.push(handler);
+  }
+
+  public off(event: BuildingEvent, handler: (building: Building) => void): void {
+    const handlers = this.eventHandlers.get(event);
+    if (!handlers) return;
+    const idx = handlers.indexOf(handler);
+    if (idx >= 0) handlers.splice(idx, 1);
+  }
+
+  private emit(event: BuildingEvent, building: Building): void {
+    const handlers = this.eventHandlers.get(event);
+    if (!handlers) return;
+    for (const h of handlers) h(building);
   }
 
   public buildCity(data: DataPoint[]): void {
@@ -290,8 +345,8 @@ export class CityBuilder {
     this.buildings.forEach(building => {
       const visible = activeCategories.includes(building.data.category);
       building.group.visible = visible;
-      if (visible && building.isHovered) {
-        this.setHoverState(building, false);
+      if (!visible && building.isHovered) {
+        this.setBuildingHover(building, false);
       }
     });
   }
@@ -299,12 +354,10 @@ export class CityBuilder {
   public clearBuildings(): void {
     this.buildings.forEach(b => {
       this.buildingsGroup.remove(b.group);
-      b.mesh.geometry.dispose();
-      if (Array.isArray(b.mesh.material)) {
-        b.mesh.material.forEach(m => m.dispose());
-      } else {
-        b.mesh.material.dispose();
-      }
+      b.allMeshes.forEach(m => {
+        m.geometry.dispose();
+      });
+      b.allMaterials.forEach(m => m.dispose());
       b.halo.geometry.dispose();
       (b.halo.material as THREE.Material).dispose();
     });
@@ -329,13 +382,31 @@ export class CityBuilder {
     return id !== undefined ? this.buildings.get(id) : undefined;
   }
 
-  public setHoverState(building: Building, hovered: boolean): void {
+  public setBuildingHover(building: Building, hovered: boolean): void {
     if (building.isHovered === hovered) return;
     building.isHovered = hovered;
-    if (building.glowMaterial) {
-      building.glowMaterial.opacity = hovered ? 0.5 : 0;
-    }
+
+    const targetIntensity = hovered ? 0.5 : 0;
+    building.allMaterials.forEach(mat => {
+      if (hovered) {
+        mat.emissive.copy(building.originalColor);
+      } else {
+        mat.emissive.setHex(0x000000);
+      }
+      mat.emissiveIntensity = targetIntensity;
+      mat.needsUpdate = true;
+    });
+
     (building.halo.material as THREE.MeshBasicMaterial).opacity = hovered ? 0.35 : 0.15;
+
+    if (hovered) {
+      this.emit('hover', building);
+    }
+  }
+
+  public triggerBuildingClick(building: Building): void {
+    this.emit('click', building);
+    this.playGrowthAnimation(building);
   }
 
   public animateBuildings(deltaTime: number): void {
@@ -344,47 +415,47 @@ export class CityBuilder {
       const target = building.targetPosition;
       pos.x += (target.x - pos.x) * Math.min(deltaTime * 4, 1);
       pos.z += (target.z - pos.z) * Math.min(deltaTime * 4, 1);
-
-      const mesh = building.mesh;
-      const targetScaleY = building.targetHeight / Math.max(building.data.value * 0.2, 1);
-      mesh.scale.y += (targetScaleY - mesh.scale.y) * Math.min(deltaTime * 5, 1);
-      mesh.position.y = (building.data.value * 0.2 * mesh.scale.y) / 2;
     });
+
+    this.buildings.forEach(b => b.lod.update(this.camera));
   }
 
   public playGrowthAnimation(building: Building): void {
     if (building.isAnimating) return;
     building.isAnimating = true;
+    this.emit('growthStart', building);
 
-    const originalHeight = building.data.value * 0.2;
-    const peakHeight = originalHeight * 2;
     const duration = 800;
     const startTime = performance.now();
+    const expectedEnd = startTime + duration;
 
     const animate = () => {
       const elapsed = performance.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const eased = this.easeOutBack(progress);
 
-      let height: number;
+      let targetScale: number;
       if (eased < 0.5) {
         const t = eased / 0.5;
-        height = originalHeight + (peakHeight - originalHeight) * t;
+        targetScale = 1 + t;
       } else {
         const t = (eased - 0.5) / 0.5;
-        height = peakHeight + (originalHeight - peakHeight) * t;
+        targetScale = 2 - t;
       }
 
-      const scaleY = height / originalHeight;
-      building.mesh.scale.y = scaleY;
-      building.mesh.position.y = height / 2;
+      building.contentGroup.scale.y = targetScale;
 
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
-        building.mesh.scale.y = 1;
-        building.mesh.position.y = originalHeight / 2;
+        building.contentGroup.scale.y = 1;
         building.isAnimating = false;
+        const actualEnd = performance.now();
+        const deviation = Math.abs(actualEnd - expectedEnd);
+        if (deviation > 50) {
+          console.warn(`Growth animation deviation: ${deviation}ms (expected < 50ms)`);
+        }
+        this.emit('growthEnd', building);
       }
     };
     animate();
@@ -412,23 +483,36 @@ export class CityBuilder {
       positions.set(point.id, { x, z });
     });
 
-    const sortedByDistance = sortedData.slice().sort((a, b) => {
-      const pa = positions.get(a.id)!;
-      const pb = positions.get(b.id)!;
-      return Math.sqrt(pa.x * pa.x + pa.z * pa.z) - Math.sqrt(pb.x * pb.x + pb.z * pb.z);
-    });
+    const cameraPos = this.camera.position.clone();
 
-    const totalDelay = 1000;
-    const stepDelay = totalDelay / Math.max(sortedByDistance.length - 1, 1);
+    const buildingsWithDistance = sortedData
+      .map(point => {
+        const building = this.buildings.get(point.id);
+        if (!building) return null;
+        const pos = building.group.position;
+        const dist = pos.distanceTo(cameraPos);
+        return { building, dist };
+      })
+      .filter((x): x is { building: Building; dist: number } => x !== null);
 
-    sortedByDistance.forEach((point, i) => {
-      const building = this.buildings.get(point.id);
-      if (!building) return;
+    buildingsWithDistance.sort((a, b) => a.dist - b.dist);
+
+    const totalDuration = 1000;
+    const minDist = buildingsWithDistance.length > 0 ? buildingsWithDistance[0].dist : 0;
+    const maxDist =
+      buildingsWithDistance.length > 0
+        ? buildingsWithDistance[buildingsWithDistance.length - 1].dist
+        : 1;
+    const distRange = Math.max(maxDist - minDist, 0.001);
+
+    buildingsWithDistance.forEach(({ building, dist }) => {
+      const normalized = (dist - minDist) / distRange;
+      const delay = normalized * totalDuration;
+      const pos = positions.get(building.id)!;
 
       setTimeout(() => {
-        const pos = positions.get(point.id)!;
         building.targetPosition.set(pos.x, 0, pos.z);
-      }, i * stepDelay);
+      }, delay);
     });
   }
 }

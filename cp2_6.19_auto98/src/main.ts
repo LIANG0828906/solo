@@ -48,7 +48,7 @@ class App {
     this.controls.maxDistance = 50;
     this.controls.target.set(0, 0, 0);
 
-    this.cityBuilder = new CityBuilder(this.scene);
+    this.cityBuilder = new CityBuilder(this.scene, this.camera);
     this.interaction = new InteractionManager(this.scene, this.camera, this.renderer, this.cityBuilder);
 
     this.interaction.setDataChangeHandler((sortMode, categories) => {

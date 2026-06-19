@@ -45,7 +45,11 @@ export class InteractionManager {
   }
 
   private initCategoryFilters(): void {
+    this.categoryFiltersContainer.innerHTML = '';
+
     Object.entries(CATEGORY_COLORS).forEach(([key, value]) => {
+      const catId = parseInt(key);
+
       const item = document.createElement('div');
       item.className = 'filter-item checked';
       item.style.setProperty('--cat-color', value.base);
@@ -72,7 +76,13 @@ export class InteractionManager {
       });
 
       this.categoryFiltersContainer.appendChild(item);
+
+      if (!this.activeCategories.includes(catId)) {
+        this.activeCategories.push(catId);
+      }
     });
+
+    this.cityBuilder.updateCategoryVisibility([...this.activeCategories]);
   }
 
   private updateActiveCategories(): void {
@@ -80,10 +90,11 @@ export class InteractionManager {
     this.activeCategories = [];
     items.forEach(item => {
       if (item.classList.contains('checked')) {
-        this.activeCategories.push(parseInt(item.dataset.category!));
+        const cat = parseInt(item.dataset.category!);
+        this.activeCategories.push(cat);
       }
     });
-    this.cityBuilder.updateCategoryVisibility(this.activeCategories);
+    this.cityBuilder.updateCategoryVisibility([...this.activeCategories]);
     this.notifyDataChange();
   }
 
@@ -123,7 +134,7 @@ export class InteractionManager {
     this.onDataChange = handler;
   }
 
-  private onMouseMove(event: MouseEvent): void {
+  private pickBuilding(event: MouseEvent): Building | null {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -135,14 +146,21 @@ export class InteractionManager {
       const mesh = intersects[0].object as THREE.Mesh;
       const building = this.cityBuilder.getBuildingByMesh(mesh);
       if (building && building.group.visible) {
-        this.setHoveredBuilding(building, event.clientX, event.clientY);
-        this.renderer.domElement.style.cursor = 'pointer';
-        return;
+        return building;
       }
     }
+    return null;
+  }
 
-    this.setHoveredBuilding(null);
-    this.renderer.domElement.style.cursor = 'default';
+  private onMouseMove(event: MouseEvent): void {
+    const building = this.pickBuilding(event);
+    if (building) {
+      this.setHoveredBuilding(building, event.clientX, event.clientY);
+      this.renderer.domElement.style.cursor = 'pointer';
+    } else {
+      this.setHoveredBuilding(null);
+      this.renderer.domElement.style.cursor = 'default';
+    }
   }
 
   private onMouseLeave(): void {
@@ -151,20 +169,10 @@ export class InteractionManager {
   }
 
   private onClick(event: MouseEvent): void {
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.cityBuilder.getBuildingMeshes());
-
-    if (intersects.length > 0) {
-      const mesh = intersects[0].object as THREE.Mesh;
-      const building = this.cityBuilder.getBuildingByMesh(mesh);
-      if (building && building.group.visible) {
-        this.cityBuilder.playGrowthAnimation(building);
-        this.playClickSound();
-      }
+    const building = this.pickBuilding(event);
+    if (building) {
+      this.cityBuilder.triggerBuildingClick(building);
+      this.playClickSound();
     }
   }
 
@@ -177,14 +185,14 @@ export class InteractionManager {
     }
 
     if (this.hoveredBuilding) {
-      this.cityBuilder.setHoverState(this.hoveredBuilding, false);
+      this.cityBuilder.setBuildingHover(this.hoveredBuilding, false);
       this.hideTooltip();
     }
 
     this.hoveredBuilding = building;
 
     if (building && x !== undefined && y !== undefined) {
-      this.cityBuilder.setHoverState(building, true);
+      this.cityBuilder.setBuildingHover(building, true);
       this.showTooltip(building, x, y);
     }
   }
