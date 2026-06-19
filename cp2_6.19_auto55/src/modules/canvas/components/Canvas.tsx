@@ -87,6 +87,12 @@ export default function Canvas({ onOpenNodeModal, engineRef: extRef }: Props) {
   }, []);
 
   useEffect(() => {
+    if (engineLocalRef.current && nodes.length > 0) {
+      engineLocalRef.current.notifyDataChange();
+    }
+  }, [nodes.length, links.length]);
+
+  useEffect(() => {
     if (engineLocalRef.current) {
       engineLocalRef.current.setForceLayoutEnabled(forceLayoutRunning);
       if (forceLayoutRunning) {
@@ -195,7 +201,7 @@ export default function Canvas({ onOpenNodeModal, engineRef: extRef }: Props) {
     }
 
     if (modeRef.current === 'link-drag') {
-      const p = engine['pendingLinkDrag'];
+      const p = (engine as any).pendingLinkDrag as PendingLinkDrag | null;
       if (p) {
         engine.setPendingLinkDrag({ ...p, mouseX: pos.x, mouseY: pos.y });
       }
@@ -215,10 +221,17 @@ export default function Canvas({ onOpenNodeModal, engineRef: extRef }: Props) {
 
     if (modeRef.current === 'link-drag') {
       const corner = engine.hitTestCorner(pos.x, pos.y);
-      const src = engine['pendingLinkDrag']?.sourceId;
+      const node = engine.hitTestNode(pos.x, pos.y);
+      const src = (engine as any).pendingLinkDrag?.sourceId as string | null;
       engine.setPendingLinkDrag(null);
+      let targetId: string | null = null;
       if (corner && src && src !== corner.nodeId) {
-        openLinkTypeModal(src, corner.nodeId);
+        targetId = corner.nodeId;
+      } else if (node && src && src !== node.id) {
+        targetId = node.id;
+      }
+      if (src && targetId) {
+        openLinkTypeModal(src, targetId);
       }
     }
 

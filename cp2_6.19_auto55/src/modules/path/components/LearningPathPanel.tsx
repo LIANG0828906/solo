@@ -59,6 +59,7 @@ export default function LearningPathPanel() {
   const [pathIds, setPathIds] = useState<string[]>(() => generateLearningPath());
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
+  const [springKey, setSpringKey] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -108,6 +109,7 @@ export default function LearningPathPanel() {
     setPathIds(arr);
     setDragIdx(null);
     setOverIdx(null);
+    setSpringKey((k) => k + 1);
   };
   const handleDragEnd = () => {
     setDragIdx(null);
@@ -207,7 +209,7 @@ export default function LearningPathPanel() {
           const pct = n.progress;
           const done = pct >= 100;
           return (
-            <div key={id}>
+            <div key={id} style={{ animation: springKey > 0 ? `pathSpringIn 0.35s cubic-bezier(0.34,1.56,0.64,1) ${i * 0.04}s both` : undefined }}>
               <div
                 draggable
                 onDragStart={() => handleDragStart(i)}
@@ -230,7 +232,6 @@ export default function LearningPathPanel() {
                     : done
                       ? '0 2px 8px rgba(82,196,26,0.15)'
                       : undefined,
-                  animation: isOver ? undefined : undefined,
                 }}
               >
                 <div className="flex items-start gap-1.5">
@@ -294,7 +295,10 @@ export default function LearningPathPanel() {
               {i < pathIds.length - 1 && (
                 <div
                   className="flex items-center justify-center py-0.5 relative"
-                  style={{ height: 20 }}
+                  style={{
+                    height: 20,
+                    animation: springKey > 0 ? `pathSpringIn 0.3s cubic-bezier(0.34,1.56,0.64,1) ${i * 0.04 + 0.02}s both` : undefined,
+                  }}
                 >
                   <div
                     className="w-0.5 h-full"
@@ -322,8 +326,10 @@ export default function LearningPathPanel() {
       </div>
       <style>{`
         @keyframes pathSpringIn {
-          0% { transform: translateY(8px); opacity: 0; }
-          100% { transform: translateY(0); opacity: 1; }
+          0% { transform: translateY(8px) scaleY(0.9); opacity: 0; }
+          50% { transform: translateY(-3px) scaleY(1.04); opacity: 1; }
+          75% { transform: translateY(1px) scaleY(0.98); }
+          100% { transform: translateY(0) scaleY(1); opacity: 1; }
         }
       `}</style>
     </div>

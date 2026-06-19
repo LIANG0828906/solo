@@ -1,5 +1,6 @@
 import type { KnowledgeNode, KnowledgeLink, CanvasViewport } from '@/types';
 import { NODE_WIDTH, NODE_HEIGHT, LINK_TYPE_COLORS } from '@/types';
+import { useNodeStore } from '@/stores/NodeStore';
 
 export interface EngineCallbacks {
   getNodes: () => KnowledgeNode[];
@@ -232,6 +233,12 @@ export class GraphEngine {
     this.hoveredNodeId = id;
   }
 
+  notifyDataChange() {
+    this.simulating = true;
+    this.idleFrames = 0;
+    this.markAllDirty();
+  }
+
   private markAllDirty() {
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
@@ -301,10 +308,11 @@ export class GraphEngine {
     this.lastFrameTime = performance.now();
     const loop = (t: number) => {
       if (!this.running) return;
-      const dt = Math.min((t - this.lastFrameTime) / 16.67, 2.5);
+      const elapsed = t - this.lastFrameTime;
+      const dt = Math.min(elapsed / 16.67, 2.5);
       this.lastFrameTime = t;
 
-      this.fpsAccumulator += t - this.lastFrameTime + 16.67;
+      this.fpsAccumulator += elapsed;
       this.fpsFrameCount++;
       if (this.fpsAccumulator >= 1000) {
         this.currentFps = Math.round((this.fpsFrameCount * 1000) / this.fpsAccumulator);
@@ -324,8 +332,7 @@ export class GraphEngine {
         this.step(dt);
       }
 
-      const renderNeeded = this.dirtyRect !== null || this.pendingLinkDrag || this.simulating;
-      if (renderNeeded) {
+      if (this.dirtyRect) {
         this.render();
       }
 
@@ -557,8 +564,9 @@ export class GraphEngine {
     this.renderGrid(width, height);
 
     const allNodes = this.callbacks.getNodes();
+    const visibleNodesList = this.getVisibleNodes();
     const visibleNodes = new Set(
-      this.getVisibleNodes().length > 0 ? this.getVisibleNodes().map((n) => n.id) : allNodes.map((n) => n.id),
+      visibleNodesList.length > 0 ? visibleNodesList.map((n) => n.id) : allNodes.map((n) => n.id),
     );
     const links = this.callbacks.getLinks();
     const highlightedIds = new Set(this.callbacks.getHighlightedPathIds());
@@ -587,12 +595,13 @@ export class GraphEngine {
       );
     }
 
-    for (const n of allNodes) {
+    const nodesToDraw = visibleNodesList.length > 0 ? visibleNodesList : allNodes;
+    for (const n of nodesToDraw) {
       if (!visibleNodes.has(n.id)) continue;
       this.drawNodeCard(n);
     }
 
-    this.drawEdgeIndicators(allNodes, width, height);
+    this.drawEdgeIndicators(visibleNodesList.length > 0 ? visibleNodesList : allNodes, width, height);
     this.ctx.restore();
     this.dirtyRect = null;
   }
@@ -1123,5 +1132,3 @@ export class GraphEngine {
     this.markAllDirty();
   }
 }
-
-import { useNodeStore } from '@/stores/NodeStore';
