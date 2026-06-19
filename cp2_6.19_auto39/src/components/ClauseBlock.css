@@ -142,10 +142,22 @@
 
 .comment-input:focus {
   border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  caret-color: #3498db;
+  animation: caretBlink 1s infinite;
 }
 
 .comment-input::placeholder {
   color: #b0b0b0;
+}
+
+@keyframes caretBlink {
+  0%, 50% {
+    caret-color: #3498db;
+  }
+  51%, 100% {
+    caret-color: transparent;
+  }
 }
 
 .comment-actions {
@@ -212,12 +224,23 @@
   border-left: 3px solid #3498db;
 }
 
+.revisions-title.rejected {
+  border-left-color: #e74c3c;
+  color: #c0392b;
+}
+
 .revision-card {
   background: #fff9e6;
   border: 1px solid #f5e6a3;
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(243, 156, 18, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.revision-card:hover {
+  box-shadow: 0 2px 8px rgba(243, 156, 18, 0.2);
 }
 
 .revision-card.status-accepted {
@@ -263,25 +286,37 @@
 }
 
 .revision-compare {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
 }
 
 .revision-before,
 .revision-after {
-  padding: 8px;
-  border-radius: 4px;
-  font-size: 13px;
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 12px;
   line-height: 1.6;
+  min-height: 80px;
 }
 
 .revision-before {
-  background: rgba(231, 76, 60, 0.1);
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.08), rgba(231, 76, 60, 0.12));
+  border-left: 3px solid #e74c3c;
 }
 
 .revision-after {
-  background: rgba(39, 174, 96, 0.1);
+  background: linear-gradient(135deg, rgba(39, 174, 96, 0.08), rgba(39, 174, 96, 0.12));
+  border-left: 3px solid #27ae60;
+}
+
+.revision-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #95a5a6;
+  flex-shrink: 0;
 }
 
 .revision-label {
@@ -289,13 +324,16 @@
   font-size: 11px;
   font-weight: 600;
   color: #7f8c8d;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.revision-before p,
-.revision-after p {
+.revision-text {
   margin: 0;
   color: #34495e;
+  text-align: justify;
+  word-break: break-word;
 }
 
 .revision-actions {

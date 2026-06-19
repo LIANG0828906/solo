@@ -43,31 +43,59 @@ const AcceptSignArea = ({ role, onSigned }: AcceptSignAreaProps) => {
     width: number,
     height: number
   ) => {
-    ctx.fillStyle = '#fafafa';
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, '#f8f9fa');
+    gradient.addColorStop(0.5, '#f1f3f5');
+    gradient.addColorStop(1, '#f8f9fa');
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    const patternSize = 4;
-    for (let x = 0; x < width; x += patternSize) {
-      for (let y = 0; y < height; y += patternSize) {
-        if ((x + y) % (patternSize * 2) === 0) {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.02)';
-          ctx.fillRect(x, y, patternSize / 2, patternSize / 2);
-        }
-      }
+    for (let i = 0; i < 1500; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const opacity = Math.random() * 0.04 + 0.01;
+      const size = Math.random() * 1.5 + 0.5;
+      ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+      ctx.fillRect(x, y, size, size);
     }
 
+    for (let i = 0; i < 500; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const opacity = Math.random() * 0.03 + 0.01;
+      ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+      ctx.beginPath();
+      ctx.arc(x, y, Math.random() * 1 + 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = Math.min(width, height) * 0.35;
+
     ctx.save();
-    ctx.strokeStyle = '#d0d0d0';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([8, 6]);
-    ctx.strokeRect(20, 20, width - 40, height - 40);
+    ctx.strokeStyle = '#c0c4cc';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
 
     ctx.save();
-    ctx.fillStyle = '#c0c0c0';
-    ctx.font = '12px sans-serif';
+    ctx.strokeStyle = 'rgba(192, 196, 204, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius - 10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = '#909399';
+    ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('请在此区域签名', width / 2, height / 2 + 4);
+    ctx.fillText('请在此区域签名', centerX, centerY + 5);
     ctx.restore();
   };
 

@@ -43,6 +43,9 @@ const ClauseBlock = memo(function ClauseBlock({ clause }: ClauseBlockProps) {
   const acceptedRevisions = revisions.filter(
     (r) => r.clauseId === clause.id && r.status === 'accepted'
   );
+  const rejectedRevisions = revisions.filter(
+    (r) => r.clauseId === clause.id && r.status === 'rejected'
+  );
 
   useEffect(() => {
     if (highlightedClauseId === clause.id && blockRef.current) {
@@ -58,7 +61,11 @@ const ClauseBlock = memo(function ClauseBlock({ clause }: ClauseBlockProps) {
 
   useEffect(() => {
     if (showCommentInput && commentInputRef.current) {
-      commentInputRef.current.focus();
+      const timer = setTimeout(() => {
+        commentInputRef.current?.focus();
+        commentInputRef.current?.setSelectionRange(0, 0);
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [showCommentInput]);
 
@@ -237,6 +244,19 @@ const ClauseBlock = memo(function ClauseBlock({ clause }: ClauseBlockProps) {
           ))}
         </div>
       )}
+
+      {rejectedRevisions.length > 0 && (
+        <div className="revisions-section">
+          <h4 className="revisions-title rejected">已拒绝修订</h4>
+          {rejectedRevisions.map((revision) => (
+            <RevisionCard
+              key={revision.id}
+              revision={revision}
+              canAccept={false}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 });
@@ -271,20 +291,43 @@ function RevisionCard({
       <div className="revision-compare">
         <div className="revision-before">
           <span className="revision-label">修改前</span>
-          <p>{revision.beforeContent}</p>
+          <p className="revision-text">
+            {revision.beforeContent}
+          </p>
+        </div>
+        <div className="revision-arrow">
+          <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+            <path
+              d="M5 12h14M12 5l7 7-7 7"
+              stroke="#95a5a6"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
         <div className="revision-after">
           <span className="revision-label">修改后</span>
-          <p>{revision.afterContent}</p>
+          <p className="revision-text">
+            {revision.afterContent}
+          </p>
         </div>
       </div>
       {canAccept && revision.status === 'pending' && (
         <div className="revision-actions">
-          <button className="btn btn-success btn-sm" onClick={onAccept}>
-            接受
+          <button
+            className="btn btn-success btn-sm"
+            onClick={onAccept}
+            title="接受此修订"
+          >
+            ✓ 接受
           </button>
-          <button className="btn btn-danger btn-sm" onClick={onReject}>
-            拒绝
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={onReject}
+            title="拒绝此修订"
+          >
+            ✕ 拒绝
           </button>
         </div>
       )}

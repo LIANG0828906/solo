@@ -82,6 +82,11 @@
   padding: 8px;
 }
 
+.comment-list-inner {
+  display: flex;
+  flex-direction: column;
+}
+
 .comment-list::-webkit-scrollbar {
   width: 6px;
 }
@@ -130,16 +135,25 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: transform, opacity;
 }
 
 @keyframes slideIn {
-  from {
+  0% {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateX(30px);
+    max-height: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
   }
-  to {
+  50% {
+    max-height: 200px;
+  }
+  100% {
     opacity: 1;
     transform: translateX(0);
+    max-height: 200px;
   }
 }
 

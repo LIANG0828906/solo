@@ -94,19 +94,21 @@ const RevisionPanel = () => {
             <p>暂无批注记录</p>
           </div>
         ) : (
-          filteredComments.map((comment, index) => (
-            <CommentItem
-              key={comment.id}
-              comment={comment}
-              clauseNumber={getClauseNumber(comment.clauseId)}
-              index={index}
-              roleLabel={getRoleLabel(comment.authorRole)}
-              timeLabel={formatTime(comment.createdAt)}
-              onClick={() => handleCommentClick(comment)}
-              onResolve={() => resolveComment(comment.id)}
-              onDelete={() => deleteComment(comment.id)}
-            />
-          ))
+          <div key={filterType} className="comment-list-inner">
+            {filteredComments.map((comment, index) => (
+              <CommentItem
+                key={`${filterType}-${comment.id}`}
+                comment={comment}
+                clauseNumber={getClauseNumber(comment.clauseId)}
+                index={index}
+                roleLabel={getRoleLabel(comment.authorRole)}
+                timeLabel={formatTime(comment.createdAt)}
+                onClick={() => handleCommentClick(comment)}
+                onResolve={() => resolveComment(comment.id)}
+                onDelete={() => deleteComment(comment.id)}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
