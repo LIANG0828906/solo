@@ -19,6 +19,8 @@ type Action =
   | { type: 'SET_HIGHLIGHTS'; payload: Highlight[] }
   | { type: 'ADD_MESSAGE'; payload: Message }
   | { type: 'SET_MESSAGES'; payload: Message[] }
+  | { type: 'MARK_MESSAGE_RECEIVED'; payload: { messageId: string; userId: string; userName: string } }
+  | { type: 'MARK_MESSAGE_READ'; payload: { messageId: string; userId: string; userName: string } }
   | { type: 'SELECT_HIGHLIGHT'; payload: string | null }
   | { type: 'SET_BLINK'; payload: number | null }
   | { type: 'ADD_USER'; payload: User }
@@ -99,6 +101,32 @@ function reducer(state: CombinedState, action: Action): CombinedState {
       if (exists) return state;
       return { ...state, messages: [...state.messages, action.payload] };
     }
+    case 'MARK_MESSAGE_RECEIVED': {
+      return {
+        ...state,
+        messages: state.messages.map((m) => {
+          if (m.id !== action.payload.messageId) return m;
+          const readBy = m.readBy ? [...m.readBy] : [];
+          if (!readBy.includes(action.payload.userId)) {
+            readBy.push(action.payload.userId);
+          }
+          return { ...m, readBy };
+        }),
+      };
+    }
+    case 'MARK_MESSAGE_READ': {
+      return {
+        ...state,
+        messages: state.messages.map((m) => {
+          if (m.id !== action.payload.messageId) return m;
+          const readBy = m.readBy ? [...m.readBy] : [];
+          if (!readBy.includes(action.payload.userId)) {
+            readBy.push(action.payload.userId);
+          }
+          return { ...m, readBy };
+        }),
+      };
+    }
     case 'SELECT_HIGHLIGHT':
       return { ...state, selectedHighlightId: action.payload };
     case 'SET_BLINK':
@@ -136,6 +164,11 @@ function reducer(state: CombinedState, action: Action): CombinedState {
 export const App: React.FC = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [initialized, setInitialized] = useState(false);
+  const currentUserRef = React.useRef<User | null>(null);
+
+  useEffect(() => {
+    currentUserRef.current = state.currentUser;
+  }, [state.currentUser]);
 
   const handleSyncAction = useCallback(async (action: SyncAction) => {
     switch (action.type) {
@@ -167,6 +200,58 @@ export const App: React.FC = () => {
           }, 300);
         }
         await storage.putMessage(action.payload);
+
+        const user = currentUserRef.current;
+        if (user && action.payload.userId !== user.id && action.payload.roomId === user.roomId) {
+          // 立即发送已送达确认
+          syncManager.broadcast({
+            type: 'message_received',
+            payload: {
+              messageId: action.payload.id,
+              userId: user.id,
+              roomId: action.payload.roomId,
+              userName: user.name,
+            },
+            timestamp: Date.now(),
+          });
+          // 5 秒后发送已读确认
+          setTimeout(() => {
+            const u = currentUserRef.current;
+            if (!u) return;
+            syncManager.broadcast({
+              type: 'message_read',
+              payload: {
+                messageId: action.payload.id,
+                userId: u.id,
+                roomId: action.payload.roomId,
+                userName: u.name,
+              },
+              timestamp: Date.now(),
+            });
+          }, 5000);
+        }
+        break;
+      }
+      case 'message_received': {
+        dispatch({
+          type: 'MARK_MESSAGE_RECEIVED',
+          payload: {
+            messageId: action.payload.messageId,
+            userId: action.payload.userId,
+            userName: action.payload.userName,
+          },
+        });
+        break;
+      }
+      case 'message_read': {
+        dispatch({
+          type: 'MARK_MESSAGE_READ',
+          payload: {
+            messageId: action.payload.messageId,
+            userId: action.payload.userId,
+            userName: action.payload.userName,
+          },
+        });
         break;
       }
       case 'ping': {
@@ -254,6 +339,34 @@ export const App: React.FC = () => {
 
     const messages = await storage.getMessagesByRoom(roomId);
     dispatch({ type: 'SET_MESSAGES', payload: messages });
+
+    // 对所有历史消息发送已送达和已读确认（排除自己发的）
+    messages.forEach((msg) => {
+      if (msg.userId !== user.id) {
+        syncManager.broadcast({
+          type: 'message_received',
+          payload: {
+            messageId: msg.id,
+            userId: user.id,
+            roomId,
+            userName: user.name,
+          },
+          timestamp: Date.now(),
+        });
+        setTimeout(() => {
+          syncManager.broadcast({
+            type: 'message_read',
+            payload: {
+              messageId: msg.id,
+              userId: user.id,
+              roomId,
+              userName: user.name,
+            },
+            timestamp: Date.now() + 5000,
+          });
+        }, 5000);
+      }
+    });
 
     const users = await storage.getUsersByRoom(roomId);
     dispatch({ type: 'SET_USERS', payload: { roomId, users } });

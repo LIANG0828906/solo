@@ -31,6 +31,7 @@ export interface Message {
   highlightId?: string;
   paragraphIndex?: number;
   createdAt: number;
+  readBy?: string[];
 }
 
 export interface Room {
@@ -48,6 +49,8 @@ export type SyncAction =
   | { type: 'add_highlight'; payload: Highlight; timestamp: number }
   | { type: 'update_highlight'; payload: Highlight; timestamp: number }
   | { type: 'send_message'; payload: Message; timestamp: number }
+  | { type: 'message_received'; payload: { messageId: string; userId: string; roomId: string; userName: string }; timestamp: number }
+  | { type: 'message_read'; payload: { messageId: string; userId: string; roomId: string; userName: string }; timestamp: number }
   | { type: 'ping'; payload: { userId: string; roomId: string }; timestamp: number };
 
 export interface AppState {
