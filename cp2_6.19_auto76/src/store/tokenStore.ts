@@ -43,6 +43,7 @@ export interface BorderToken {
   name: string
   width: number
   color: string
+  style: 'solid' | 'dashed'
 }
 
 export interface TokenState {
@@ -61,6 +62,7 @@ export interface TokenState {
   updateRadius: (id: string, value: number | 'full') => void
   updateBorderWidth: (id: string, width: number) => void
   updateBorderColor: (id: string, color: string) => void
+  updateBorderStyle: (id: string, style: 'solid' | 'dashed') => void
   updateColorOrder: (order: string[]) => void
   resetAll: () => void
   getTokensForExport: () => object
@@ -112,9 +114,9 @@ const defaultRadii: RadiusToken[] = [
 ]
 
 const defaultBorders: BorderToken[] = [
-  { id: 'thin', name: '细边框', width: 1, color: '#e5e7eb' },
-  { id: 'medium', name: '中边框', width: 2, color: '#d1d5db' },
-  { id: 'thick', name: '粗边框', width: 4, color: '#9ca3af' },
+  { id: 'thin', name: '细边框', width: 1, color: '#e5e7eb', style: 'solid' },
+  { id: 'medium', name: '中边框', width: 2, color: '#d1d5db', style: 'solid' },
+  { id: 'thick', name: '粗边框', width: 4, color: '#9ca3af', style: 'solid' },
 ]
 
 const getDefaultColorOrder = () => defaultColors.map(c => c.id)
@@ -159,7 +161,7 @@ export const getRadiusById = (radii: RadiusToken[], id: string): string => {
 export const getBorderById = (borders: BorderToken[], id: string): string => {
   const token = borders.find(b => b.id === id)
   if (!token) return 'none'
-  return `${token.width}px solid ${token.color}`
+  return `${token.width}px ${token.style} ${token.color}`
 }
 
 export const getBorderWidthById = (borders: BorderToken[], id: string): number => {
@@ -168,6 +170,10 @@ export const getBorderWidthById = (borders: BorderToken[], id: string): number =
 
 export const getBorderColorById = (borders: BorderToken[], id: string): string => {
   return borders.find(b => b.id === id)?.color ?? '#000000'
+}
+
+export const getBorderStyleById = (borders: BorderToken[], id: string): 'solid' | 'dashed' => {
+  return borders.find(b => b.id === id)?.style ?? 'solid'
 }
 
 export const useTokenStore = create<TokenState>()(
@@ -215,6 +221,11 @@ export const useTokenStore = create<TokenState>()(
       updateBorderColor: (id, color) =>
         set(state => ({
           borders: state.borders.map(b => (b.id === id ? { ...b, color } : b)),
+        })),
+
+      updateBorderStyle: (id, style) =>
+        set(state => ({
+          borders: state.borders.map(b => (b.id === id ? { ...b, style } : b)),
         })),
 
       updateColorOrder: (order) => set({ colorOrder: order }),
@@ -286,7 +297,8 @@ export const useTokenStore = create<TokenState>()(
                 name: b.name,
                 width: `${b.width}px`,
                 color: b.color,
-                value: `${b.width}px solid ${b.color}`,
+                style: b.style,
+                value: `${b.width}px ${b.style} ${b.color}`,
               },
             }),
             {}

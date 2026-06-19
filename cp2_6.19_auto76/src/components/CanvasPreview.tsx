@@ -8,6 +8,7 @@ import {
   getBorderById,
   getBorderWidthById,
   getBorderColorById,
+  getBorderStyleById,
   darkenColor,
 } from '../store/tokenStore'
 
@@ -40,6 +41,7 @@ const SampleCard: React.FC<{
   const cardBorder = getBorderById(borders, 'thin')
   const btnBorderColor = getBorderColorById(borders, 'thin')
   const btnBorderWidth = getBorderWidthById(borders, 'thin')
+  const btnBorderStyle = getBorderStyleById(borders, 'thin')
 
   const styles = useMemo(() => {
     const primaryBg =
@@ -126,7 +128,9 @@ const SampleCard: React.FC<{
       primaryBtn: {
         background: primaryBg,
         color: '#ffffff',
-        border: `${btnBorderWidth}px solid transparent`,
+        borderWidth: `${btnBorderWidth}px`,
+        borderStyle: btnBorderStyle,
+        borderColor: 'transparent',
         padding: `${sm}px ${md}px`,
         borderRadius: btnRadius,
         fontSize: `${fonts.baseSize}px`,
@@ -139,7 +143,9 @@ const SampleCard: React.FC<{
       secondaryBtn: {
         background: secondaryBg,
         color: btnHover === 'secondary' || btnActive === 'secondary' ? '#ffffff' : secondary,
-        border: `${Math.max(btnBorderWidth, 1.5)}px solid ${secondaryBorder}`,
+        borderWidth: `${Math.max(btnBorderWidth, 1.5)}px`,
+        borderStyle: btnBorderStyle,
+        borderColor: secondaryBorder,
         padding: `${sm}px ${md}px`,
         borderRadius: btnRadius,
         fontSize: `${fonts.baseSize}px`,
@@ -152,7 +158,7 @@ const SampleCard: React.FC<{
   }, [
     bg, text, primary, secondary, sm, md, lg, cardShadow, fonts,
     cardRadius, btnRadius, avatarRadius, cardBorder,
-    btnBorderColor, btnBorderWidth, shadows,
+    btnBorderColor, btnBorderWidth, btnBorderStyle, shadows,
     btnHover, btnActive,
   ])
 
@@ -223,6 +229,7 @@ const ButtonShowcase: React.FC<{
   const containerBorder = getBorderById(borders, 'thin')
   const btnBorderWidth = getBorderWidthById(borders, 'thin')
   const btnBorderColor = getBorderColorById(borders, 'thin')
+  const btnBorderStyle = getBorderStyleById(borders, 'thin')
 
   const btnStyles = useMemo(() => {
     const pBg =
@@ -248,7 +255,9 @@ const ButtonShowcase: React.FC<{
       primary: {
         background: pBg,
         color: '#fff',
-        border: `${btnBorderWidth}px solid transparent`,
+        borderWidth: `${btnBorderWidth}px`,
+        borderStyle: btnBorderStyle,
+        borderColor: 'transparent',
         padding: `${sm}px ${md}px`,
         borderRadius: btnRadius,
         fontSize: `${fonts.baseSize}px`,
@@ -263,7 +272,9 @@ const ButtonShowcase: React.FC<{
       secondary: {
         background: sBg,
         color: hoverState === 's' || activeState === 's' ? '#fff' : secondary,
-        border: `${Math.max(btnBorderWidth, 1.5)}px solid ${sBorder}`,
+        borderWidth: `${Math.max(btnBorderWidth, 1.5)}px`,
+        borderStyle: btnBorderStyle,
+        borderColor: sBorder,
         padding: `${sm}px ${md}px`,
         borderRadius: btnRadius,
         fontSize: `${fonts.baseSize}px`,
@@ -278,7 +289,7 @@ const ButtonShowcase: React.FC<{
   }, [
     primary, secondary, sm, md, fonts.baseSize, fonts.fontFamily,
     containerShadow, hoverState, activeState,
-    btnRadius, btnBorderWidth, btnBorderColor,
+    btnRadius, btnBorderWidth, btnBorderColor, btnBorderStyle,
   ])
 
   return (
@@ -368,6 +379,8 @@ const FormInput: React.FC<{
   const containerBorder = getBorderById(borders, 'thin')
   const baseBorderWidth = getBorderWidthById(borders, 'medium')
   const baseBorderColor = getBorderColorById(borders, 'medium')
+  const baseBorderStyle = getBorderStyleById(borders, 'medium')
+  const btnBorderStyle = getBorderStyleById(borders, 'thin')
 
   const styles = useMemo(() => {
     const borderWidth = Math.max(baseBorderWidth, 1.5)
@@ -404,7 +417,9 @@ const FormInput: React.FC<{
         boxSizing: 'border-box' as const,
         padding: `${sm}px ${md}px`,
         borderRadius: inputRadius,
-        border: `${borderWidth}px solid ${borderColor}`,
+        borderWidth: `${borderWidth}px`,
+        borderStyle: baseBorderStyle,
+        borderColor: borderColor,
         background: inputBg,
         color: text,
         fontSize: `${fonts.baseSize}px`,
@@ -418,7 +433,9 @@ const FormInput: React.FC<{
         width: '100%',
         background: primary,
         color: '#fff',
-        border: `${baseBorderWidth}px solid transparent`,
+        borderWidth: `${baseBorderWidth}px`,
+        borderStyle: btnBorderStyle,
+        borderColor: 'transparent',
         padding: `${sm}px ${md}px`,
         borderRadius: btnRadius,
         fontSize: `${fonts.baseSize}px`,
@@ -448,6 +465,7 @@ const FormInput: React.FC<{
     containerShadow, fonts,
     containerRadius, inputRadius, btnRadius,
     containerBorder, baseBorderWidth, baseBorderColor,
+    baseBorderStyle, btnBorderStyle,
     focused, value,
   ])
 

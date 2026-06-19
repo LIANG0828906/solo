@@ -518,7 +518,7 @@ const RadiusItem: React.FC<{
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-        {[0, 4, 8, 12, 16, 24].map((v) => (
+        {[4, 8, 12, 16].map((v) => (
           <button
             key={v}
             onClick={() => onUpdate(v)}
@@ -561,7 +561,7 @@ const RadiusItem: React.FC<{
             transition: 'all 150ms ease',
           }}
         >
-          ⭕ 圆形
+          ⭕ 圆
         </button>
       </div>
 
@@ -600,7 +600,8 @@ const BorderItem: React.FC<{
   token: BorderToken
   onWidth: (w: number) => void
   onColor: (c: string) => void
-}> = ({ token, onWidth, onColor }) => {
+  onStyle: (s: 'solid' | 'dashed') => void
+}> = ({ token, onWidth, onColor, onStyle }) => {
   const [showPicker, setShowPicker] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
 
@@ -653,7 +654,7 @@ const BorderItem: React.FC<{
                 background: '#181825',
                 display: 'inline-block',
                 borderWidth: `${token.width}px`,
-                borderStyle: 'solid',
+                borderStyle: token.style,
                 borderColor: token.color,
               }}
             />
@@ -762,6 +763,50 @@ const BorderItem: React.FC<{
         </div>
       </div>
 
+      <div style={{ marginBottom: '10px' }}>
+        <span
+          style={{
+            display: 'block',
+            color: '#bac2de',
+            fontSize: '11.5px',
+            fontWeight: 500,
+            marginBottom: '6px',
+          }}
+        >
+          边框样式
+        </span>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {(['solid', 'dashed'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => onStyle(s)}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                fontSize: '10.5px',
+                fontFamily: 'monospace',
+                fontWeight: 600,
+                borderRadius: '6px',
+                border:
+                  token.style === s
+                    ? '1px solid #a6e3a1'
+                    : '1px solid #45475a',
+                background:
+                  token.style === s
+                    ? 'rgba(166, 227, 161, 0.12)'
+                    : '#181825',
+                color: token.style === s ? '#a6e3a1' : '#bac2de',
+                cursor: 'pointer',
+                transition: 'all 150ms ease',
+                textTransform: 'uppercase',
+              }}
+            >
+              {s === 'solid' ? '━━ 实线' : '╍╍ 虚线'}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <Slider
         label="宽度滑块微调"
         value={token.width}
@@ -785,7 +830,7 @@ const BorderItem: React.FC<{
           wordBreak: 'break-all',
         }}
       >
-        border: {token.width}px solid {token.color}
+        border: {token.width}px {token.style} {token.color}
       </div>
     </div>
   )
@@ -819,6 +864,7 @@ const TokenEditor: React.FC = () => {
   const updateRadius = useTokenStore((s) => s.updateRadius)
   const updateBorderWidth = useTokenStore((s) => s.updateBorderWidth)
   const updateBorderColor = useTokenStore((s) => s.updateBorderColor)
+  const updateBorderStyle = useTokenStore((s) => s.updateBorderStyle)
   const updateColorOrder = useTokenStore((s) => s.updateColorOrder)
 
   const orderedColors = useMemo(
@@ -1095,6 +1141,7 @@ const TokenEditor: React.FC = () => {
                     token={b}
                     onWidth={(w) => updateBorderWidth(b.id, w)}
                     onColor={(c) => updateBorderColor(b.id, c)}
+                    onStyle={(s) => updateBorderStyle(b.id, s)}
                   />
                 ))}
               </CategorySection>
