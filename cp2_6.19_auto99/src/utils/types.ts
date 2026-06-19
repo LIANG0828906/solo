@@ -31,6 +31,7 @@ export interface Message {
   highlightId?: string;
   paragraphIndex?: number;
   createdAt: number;
+  receivedBy?: string[];
   readBy?: string[];
 }
 

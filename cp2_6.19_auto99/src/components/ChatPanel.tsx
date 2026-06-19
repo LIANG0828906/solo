@@ -122,16 +122,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   };
 
-  const otherUserIds = users.filter((u) => u.id !== currentUserId).map((u) => u.id);
-  const otherUserCount = otherUserIds.length;
-
   const getMessageStatus = (msg: Message): 'none' | 'delivered' | 'read' => {
     if (msg.userId !== currentUserId) return 'none';
-    if (!msg.readBy || msg.readBy.length === 0) return 'none';
-    const readByOthers = msg.readBy.filter((uid) => uid !== currentUserId);
-    if (readByOthers.length === 0) return 'none';
-    if (readByOthers.length >= otherUserCount && otherUserCount > 0) return 'read';
-    return 'delivered';
+    const readByOthers = (msg.readBy || []).filter((uid) => uid !== currentUserId);
+    if (readByOthers.length > 0) return 'read';
+    const receivedByOthers = (msg.receivedBy || []).filter((uid) => uid !== currentUserId);
+    if (receivedByOthers.length > 0) return 'delivered';
+    return 'none';
   };
 
   const highlightSearchText = (text: string) => {

@@ -106,11 +106,11 @@ function reducer(state: CombinedState, action: Action): CombinedState {
         ...state,
         messages: state.messages.map((m) => {
           if (m.id !== action.payload.messageId) return m;
-          const readBy = m.readBy ? [...m.readBy] : [];
-          if (!readBy.includes(action.payload.userId)) {
-            readBy.push(action.payload.userId);
+          const receivedBy = m.receivedBy ? [...m.receivedBy] : [];
+          if (!receivedBy.includes(action.payload.userId)) {
+            receivedBy.push(action.payload.userId);
           }
-          return { ...m, readBy };
+          return { ...m, receivedBy };
         }),
       };
     }
@@ -119,11 +119,15 @@ function reducer(state: CombinedState, action: Action): CombinedState {
         ...state,
         messages: state.messages.map((m) => {
           if (m.id !== action.payload.messageId) return m;
+          const receivedBy = m.receivedBy ? [...m.receivedBy] : [];
+          if (!receivedBy.includes(action.payload.userId)) {
+            receivedBy.push(action.payload.userId);
+          }
           const readBy = m.readBy ? [...m.readBy] : [];
           if (!readBy.includes(action.payload.userId)) {
             readBy.push(action.payload.userId);
           }
-          return { ...m, readBy };
+          return { ...m, receivedBy, readBy };
         }),
       };
     }
@@ -293,9 +297,15 @@ export const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const savedName = localStorage.getItem('bookCoReading_userName');
-    if (savedName) {
-      dispatch({ type: 'SET_USER_NAME', payload: savedName });
+    const params = new URLSearchParams(window.location.search);
+    const urlName = params.get('name');
+    if (urlName) {
+      dispatch({ type: 'SET_USER_NAME', payload: urlName });
+    } else {
+      const savedName = localStorage.getItem('bookCoReading_userName');
+      if (savedName) {
+        dispatch({ type: 'SET_USER_NAME', payload: savedName });
+      }
     }
   }, []);
 
@@ -340,9 +350,19 @@ export const App: React.FC = () => {
     const messages = await storage.getMessagesByRoom(roomId);
     dispatch({ type: 'SET_MESSAGES', payload: messages });
 
-    // 对所有历史消息发送已送达和已读确认（排除自己发的）
+    // 对所有历史消息：本地标记已送达 + 广播已送达/已读确认（排除自己发的）
     messages.forEach((msg) => {
       if (msg.userId !== user.id) {
+        // 本地更新状态：标记为已送达
+        dispatch({
+          type: 'MARK_MESSAGE_RECEIVED',
+          payload: {
+            messageId: msg.id,
+            userId: user.id,
+            userName: user.name,
+          },
+        });
+        // 通知其他标签页（消息发送方）：我已收到
         syncManager.broadcast({
           type: 'message_received',
           payload: {
@@ -353,7 +373,17 @@ export const App: React.FC = () => {
           },
           timestamp: Date.now(),
         });
+        // 5秒后通知其他标签页（消息发送方）：我已读
         setTimeout(() => {
+          // 本地也标记为已读
+          dispatch({
+            type: 'MARK_MESSAGE_READ',
+            payload: {
+              messageId: msg.id,
+              userId: user.id,
+              userName: user.name,
+            },
+          });
           syncManager.broadcast({
             type: 'message_read',
             payload: {
@@ -362,7 +392,7 @@ export const App: React.FC = () => {
               roomId,
               userName: user.name,
             },
-            timestamp: Date.now() + 5000,
+            timestamp: Date.now(),
           });
         }, 5000);
       }
