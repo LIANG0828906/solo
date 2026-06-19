@@ -1,11 +1,65 @@
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import CountdownTimer from '../components/CountdownTimer'
 import { CardSkeleton, TextSkeleton } from '../components/Skeleton'
 import { useAuctionStore } from '../store/auctionStore'
 import type { Auction } from '../types'
+
+interface AnimatedNumberProps {
+  value: number
+  color: string
+}
+
+const AnimatedNumber = ({ value, color }: AnimatedNumberProps) => {
+  const [displayValue, setDisplayValue] = useState(value)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const prevValueRef = useRef(value)
+
+  useEffect(() => {
+    if (prevValueRef.current !== value) {
+      setIsAnimating(true)
+      const timer = setTimeout(() => {
+        setDisplayValue(value)
+        setIsAnimating(false)
+      }, 200)
+      prevValueRef.current = value
+      return () => clearTimeout(timer)
+    }
+  }, [value])
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        height: '36px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <AnimatePresence mode="popLayout">
+        <motion.div
+          key={displayValue}
+          initial={{ y: 20, opacity: 0, filter: 'blur(2px)' }}
+          animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
+          exit={{ y: -20, opacity: 0, filter: 'blur(2px)' }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          style={{
+            fontSize: '24px',
+            fontWeight: 'bold',
+            color,
+            lineHeight: '36px',
+          }}
+        >
+          {displayValue}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  )
+}
 
 const AuctionList = () => {
   const navigate = useNavigate()
@@ -39,7 +93,11 @@ const AuctionList = () => {
     <motion.div
       key={auction.id}
       variants={item}
-      whileHover={{ y: -6, transition: { duration: 0.2 } }}
+      whileHover={{
+        y: -4,
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.14)',
+        transition: { duration: 0.2, ease: 'easeOut' },
+      }}
       whileTap={{ scale: 0.98 }}
       onClick={() => navigate(`/auction/${auction.id}`)}
       style={{
@@ -48,13 +106,6 @@ const AuctionList = () => {
         overflow: 'hidden',
         cursor: 'pointer',
         boxShadow: '0 4px 15px rgba(0, 0, 0, 0.08)',
-        transition: 'box-shadow 0.2s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.12)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.08)'
       }}
     >
       <div
@@ -139,16 +190,12 @@ const AuctionList = () => {
           }}
         >
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#c9a96e' }}>
-              {auction.itemCount}
-            </div>
+            <AnimatedNumber value={auction.itemCount} color="#c9a96e" />
             <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>拍品数量</div>
           </div>
           <div style={{ width: '1px', height: '40px', backgroundColor: '#f0ebe6' }} />
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2d4a3e' }}>
-              {auction.items.reduce((sum, item) => sum + item.bidCount, 0)}
-            </div>
+            <AnimatedNumber value={auction.items.reduce((sum, item) => sum + item.bidCount, 0)} color="#2d4a3e" />
             <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>出价次数</div>
           </div>
           <div style={{ width: '1px', height: '40px', backgroundColor: '#f0ebe6' }} />
