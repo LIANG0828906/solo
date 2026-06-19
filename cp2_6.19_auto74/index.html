@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>像素坦克大战</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #0a0a1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+    }
+    #gameContainer {
+      position: relative;
+    }
+    canvas {
+      display: block;
+      border: 2px solid #ffffff;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    #volumeControl {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,0,0,0.5);
+      padding: 6px 12px;
+      border-radius: 4px;
+    }
+    #volumeControl label {
+      color: #ffffff;
+      font-size: 12px;
+    }
+    #volumeControl input[type="range"] {
+      width: 80px;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="volumeControl">
+      <label for="volume">音量</label>
+      <input type="range" id="volume" min="0" max="100" value="30">
+    </div>
+  </div>
+  <audio id="bgMusic" loop>
+  </audio>
+  <script type="module" src="/src/engine.ts"></script>
+</body>
+</html>

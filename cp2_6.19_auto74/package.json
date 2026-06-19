@@ -1,0 +1,14 @@
+{
+  "name": "pixel-tank-battle",
+  "version": "1.0.0",
+  "description": "本地双人对战像素坦克大战游戏",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}
