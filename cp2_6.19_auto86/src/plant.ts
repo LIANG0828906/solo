@@ -4,6 +4,7 @@ export interface EnvironmentParams {
   light: number;
   water: number;
   nutrients: number;
+  rotationSpeed: number;
 }
 
 interface BranchData {
@@ -152,11 +153,11 @@ function createBranch(
   const leaves: THREE.Mesh[] = [];
   for (let i = 0; i < 3; i++) {
     const leafGeometry = createTriangleGeometry(0.15);
-    const leafMaterial = new THREE.MeshStandardMaterial({
+    const leafMaterial = new THREE.MeshPhongMaterial({
       color: 0x32CD32,
       side: THREE.DoubleSide,
-      roughness: 0.3,
-      metalness: 0.15,
+      shininess: 30,
+      specular: 0x222222,
       flatShading: false
     });
     const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
@@ -230,7 +231,8 @@ export function createPlant(): PlantObject {
   const initialParams: EnvironmentParams = {
     light: 50,
     water: 60,
-    nutrients: 40
+    nutrients: 40,
+    rotationSpeed: 0.005
   };
 
   const plant: PlantObject = {
@@ -280,12 +282,26 @@ function applyParams(plant: PlantObject, params: EnvironmentParams): void {
     '#' + currentBottom.getHexString()
   );
 
-  const visibleCount = Math.max(2, Math.floor(2 + waterFactor * 3));
+  const visibleCount = Math.max(2, Math.min(4, Math.round(2 + (waterFactor * 2))));
 
   plant.branches.forEach((branchData, index) => {
     if (index < visibleCount) {
       branchData.pivot.visible = true;
+      const currentScale = branchData.pivot.scale.x;
+      const targetScale = 1;
+      const newScale = lerp(currentScale, targetScale, 0.1);
+      branchData.pivot.scale.setScalar(newScale);
+    } else {
+      const currentScale = branchData.pivot.scale.x;
+      const targetScale = 0;
+      const newScale = lerp(currentScale, targetScale, 0.1);
+      branchData.pivot.scale.setScalar(newScale);
+      if (newScale < 0.01) {
+        branchData.pivot.visible = false;
+      }
+    }
 
+    if (branchData.pivot.visible) {
       const stretchFactor = 1 + waterFactor * 0.5;
       const newLength = branchData.baseLength * stretchFactor;
 
@@ -322,7 +338,7 @@ function applyParams(plant: PlantObject, params: EnvironmentParams): void {
         leaf.position.y = leafHeight;
         const leafScale = 0.5 + nutrientFactor * 1.5;
         leaf.scale.setScalar(leafScale);
-        (leaf.material as THREE.MeshStandardMaterial).color.copy(leafColor);
+        (leaf.material as THREE.MeshPhongMaterial).color.copy(leafColor);
       });
 
       const bTop = lerpColor(hexToColor('#98FB98'), hexToColor('#32CD32'), nutrientFactor);
@@ -333,8 +349,6 @@ function applyParams(plant: PlantObject, params: EnvironmentParams): void {
         '#' + bTop.getHexString(),
         '#' + bBottom.getHexString()
       );
-    } else {
-      branchData.pivot.visible = false;
     }
   });
 }
@@ -348,7 +362,7 @@ export function setTargetParams(plant: PlantObject, params: EnvironmentParams): 
 }
 
 export function updatePlant(plant: PlantObject, deltaTime: number): void {
-  plant.group.rotation.y += 0.005;
+  plant.group.rotation.y += plant.params.rotationSpeed;
 
   if (plant.animating) {
     const elapsed = performance.now() - plant.animationStartTime;
@@ -362,6 +376,11 @@ export function updatePlant(plant: PlantObject, deltaTime: number): void {
       plant.targetParams.nutrients,
       easedT
     );
+    plant.params.rotationSpeed = lerp(
+      plant.startParams.rotationSpeed,
+      plant.targetParams.rotationSpeed,
+      easedT
+    );
 
     applyParams(plant, plant.params);
 
@@ -373,20 +392,14 @@ export function updatePlant(plant: PlantObject, deltaTime: number): void {
 
 export function getPlantHeight(plant: PlantObject): number {
   const trunkHeight = 3;
-  let maxHeight = trunkHeight;
+  let totalBranchLength = 0;
 
   plant.branches.forEach((branch) => {
     if (branch.pivot.visible) {
       const length = (branch.mesh.geometry as THREE.CylinderGeometry).parameters.height;
-      const bendGroup = branch.pivot.children[0] as THREE.Group;
-      const bendAngle = bendGroup.rotation.z;
-      const verticalComponent = length * Math.cos(bendAngle);
-      const totalHeight = 3 * branch.baseHeightRatio + verticalComponent;
-      if (totalHeight > maxHeight) {
-        maxHeight = totalHeight;
-      }
+      totalBranchLength += length;
     }
   });
 
-  return maxHeight;
+  return trunkHeight + totalBranchLength;
 }

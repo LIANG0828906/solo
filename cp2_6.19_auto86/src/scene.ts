@@ -66,7 +66,18 @@ export function initScene(container: HTMLElement): SceneData {
   const groundCtx = groundCanvas.getContext('2d')!;
   groundCtx.fillStyle = '#8B4513';
   groundCtx.fillRect(0, 0, 512, 512);
-  groundCtx.strokeStyle = 'rgba(60, 30, 15, 0.3)';
+
+  const imageData = groundCtx.getImageData(0, 0, 512, 512);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 40;
+    data[i] = Math.max(0, Math.min(255, data[i] + noise));
+    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise * 0.8));
+    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise * 0.6));
+  }
+  groundCtx.putImageData(imageData, 0, 0);
+
+  groundCtx.strokeStyle = 'rgba(60, 30, 15, 0.25)';
   groundCtx.lineWidth = 1;
   const gridSize = 32;
   for (let i = 0; i <= 512; i += gridSize) {
@@ -79,6 +90,7 @@ export function initScene(container: HTMLElement): SceneData {
     groundCtx.lineTo(512, i);
     groundCtx.stroke();
   }
+
   const groundTexture = new THREE.CanvasTexture(groundCanvas);
   groundTexture.wrapS = THREE.RepeatWrapping;
   groundTexture.wrapT = THREE.RepeatWrapping;
