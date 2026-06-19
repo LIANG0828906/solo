@@ -259,10 +259,10 @@ def toggle_record(payload: ToggleRecordPayload):
         return new_record
 
 @app.get("/api/stats", response_model=StatsData)
-def get_stats():
+def get_stats(days: int = 30):
     today = date.today()
     completionRateByDay = []
-    for i in range(29, -1, -1):
+    for i in range(days - 1, -1, -1):
         d = today - timedelta(days=i)
         rate = 0.4 + random.random() * 0.5
         completionRateByDay.append({
@@ -271,11 +271,31 @@ def get_stats():
         })
 
     heatmapData = []
-    for hour in range(6, 23):
+    for hour in range(0, 24):
         for weekday in range(7):
             count = random.randint(0, 10)
-            if count > 2:
-                heatmapData.append({"hour": hour, "weekday": weekday, "count": count})
+            completion_rate = random.uniform(0.2, 1.0)
+            if count > 1:
+                heatmapData.append({
+                    "hour": hour, 
+                    "weekday": weekday, 
+                    "count": count,
+                    "completionRate": completion_rate,
+                })
+
+    habitHeatmapData = []
+    for habit in habits_db:
+        for hour in range(0, 24):
+            count = random.randint(0, 8)
+            completion_rate = random.uniform(0.3, 1.0)
+            if count > 1:
+                habitHeatmapData.append({
+                    "hour": hour,
+                    "habitId": habit["id"],
+                    "habitName": habit["name"],
+                    "count": count,
+                    "completionRate": completion_rate,
+                })
 
     streakRanking = sorted(
         [{"habitName": h["name"], "streak": h["streak"], "habitId": h["id"]} for h in habits_db],
@@ -283,10 +303,14 @@ def get_stats():
         reverse=True,
     )[:5]
 
+    habits = [{"id": h["id"], "name": h["name"]} for h in habits_db]
+
     return {
         "completionRateByDay": completionRateByDay,
         "heatmapData": heatmapData,
+        "habitHeatmapData": habitHeatmapData,
         "streakRanking": streakRanking,
+        "habits": habits,
     }
 
 @app.get("/api/challenges", response_model=List[Challenge])

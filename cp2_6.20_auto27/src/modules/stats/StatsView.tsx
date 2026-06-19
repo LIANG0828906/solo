@@ -1,26 +1,47 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Flame, TrendingUp, Clock, Award } from 'lucide-react';
+import { Flame, TrendingUp, Clock, Award, Calendar } from 'lucide-react';
 import { statsApi } from '../../services/api';
-import type { StatsData } from '../habits/types';
+import type { StatsData, WeekdayHeatmapData, HabitHeatmapData } from '../habits/types';
 
-const weekdayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+type HeatmapMode = 'weekday' | 'habit';
+type TimeRange = 7 | 30 | 90;
+
+const weekdayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+const weekdayOrder = [1, 2, 3, 4, 5, 6, 0];
+
+const timeRangeOptions: { value: TimeRange; label: string }[] = [
+  { value: 7, label: '近7天' },
+  { value: 30, label: '近30天' },
+  { value: 90, label: '近90天' },
+];
+
+interface HoveredCell {
+  hour: number;
+  xIndex: number;
+  completionRate: number;
+  count: number;
+  xLabel: string;
+}
 
 export default function StatsView() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hoveredCell, setHoveredCell] = useState<{ hour: number; weekday: number; count: number } | null>(null);
+  const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>('weekday');
+  const [timeRange, setTimeRange] = useState<TimeRange>(30);
+  const [hoveredCell, setHoveredCell] = useState<HoveredCell | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     loadStats();
-  }, []);
+  }, [timeRange]);
 
   const loadStats = async () => {
     setLoading(true);
     try {
-      const data = await statsApi.getStats();
+      const data = await statsApi.getStats(timeRange);
       setStats(data);
     } catch (error) {
       console.error('加载统计数据失败:', error);
@@ -29,29 +50,72 @@ export default function StatsView() {
     }
   };
 
-  const chartData = stats?.completionRateByDay.map(item => ({
-    ...item,
-    displayDate: format(new Date(item.date), 'M/d', { locale: zhCN }),
-    percentage: Math.round(item.rate * 100),
-  })) || [];
-
-  const getHeatmapColor = (count: number) => {
-    const maxCount = 10;
-    const intensity = Math.min(count / maxCount, 1);
-    if (intensity === 0) return 'rgba(255, 255, 255, 0.05)';
-    if (intensity < 0.3) return 'rgba(162, 155, 254, 0.2)';
-    if (intensity < 0.6) return 'rgba(162, 155, 254, 0.5)';
-    if (intensity < 0.8) return 'rgba(162, 155, 254, 0.7)';
-    return 'rgba(162, 155, 254, 1)';
+  const handleModeChange = (mode: HeatmapMode) => {
+    if (mode === heatmapMode) return;
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setHeatmapMode(mode);
+      setIsTransitioning(false);
+    }, 200);
   };
 
-  const hours = Array.from({ length: 17 }, (_, i) => i + 6);
-  const weekdays = [0, 1, 2, 3, 4, 5, 6];
+  const handleTimeRangeChange = (range: TimeRange) => {
+    if (range === timeRange) return;
+    setTimeRange(range);
+  };
 
-  const getHeatmapCount = (hour: number, weekday: number): number => {
-    if (!stats) return 0;
-    const found = stats.heatmapData.find(d => d.hour === hour && d.weekday === weekday);
-    return found?.count || 0;
+  const chartData = useMemo(() => {
+    return stats?.completionRateByDay.map(item => ({
+      ...item,
+      displayDate: format(new Date(item.date), timeRange === 7 ? 'MM/dd' : 'M/d', { locale: zhCN }),
+      percentage: Math.round(item.rate * 100),
+    })) || [];
+  }, [stats, timeRange]);
+
+  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
+
+  const xAxisLabels = useMemo(() => {
+    if (heatmapMode === 'weekday') {
+      return weekdayLabels;
+    }
+    return stats?.habits.map(h => h.name) || [];
+  }, [heatmapMode, stats]);
+
+  const getHeatmapData = (hour: number, xIndex: number): { completionRate: number; count: number } => {
+    if (!stats) return { completionRate: 0, count: 0 };
+
+    if (heatmapMode === 'weekday') {
+      const weekday = weekdayOrder[xIndex];
+      const found = stats.heatmapData.find(
+        (d: WeekdayHeatmapData) => d.hour === hour && d.weekday === weekday
+      );
+      return {
+        completionRate: found?.completionRate || 0,
+        count: found?.count || 0,
+      };
+    } else {
+      const habit = stats.habits[xIndex];
+      if (!habit) return { completionRate: 0, count: 0 };
+      const found = stats.habitHeatmapData.find(
+        (d: HabitHeatmapData) => d.hour === hour && d.habitId === habit.id
+      );
+      return {
+        completionRate: found?.completionRate || 0,
+        count: found?.count || 0,
+      };
+    }
+  };
+
+  const getHeatmapColor = (completionRate: number) => {
+    if (completionRate === 0) return 'rgba(255, 255, 255, 0.05)';
+    const r = Math.round(255 * (1 - completionRate));
+    const g = Math.round(200 * completionRate);
+    const b = Math.round(100 * (1 - completionRate));
+    return `rgba(${r}, ${g}, ${b}, ${0.3 + completionRate * 0.6})`;
+  };
+
+  const getXLabel = (xIndex: number): string => {
+    return xAxisLabels[xIndex] || '';
   };
 
   const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: { displayDate: string; percentage: number } }[] }) => {
@@ -66,11 +130,22 @@ export default function StatsView() {
     return null;
   };
 
-  const completionColor = (percentage: number) => {
-    if (percentage >= 70) return '#00d26a';
-    if (percentage >= 40) return '#ffd93d';
-    return '#ff6b6b';
-  };
+  const avgCompletionRate = useMemo(() => {
+    if (chartData.length === 0) return 0;
+    return Math.round(chartData.reduce((acc, d) => acc + d.percentage, 0) / chartData.length);
+  }, [chartData]);
+
+  const totalCount = useMemo(() => {
+    if (!stats) return 0;
+    const data = heatmapMode === 'weekday' ? stats.heatmapData : stats.habitHeatmapData;
+    return data.reduce((acc: number, d: { count: number }) => acc + d.count, 0);
+  }, [stats, heatmapMode]);
+
+  const chartInterval = useMemo(() => {
+    if (timeRange === 7) return 0;
+    if (timeRange === 30) return 4;
+    return 12;
+  }, [timeRange]);
 
   return (
     <div className="animate-fade-in">
@@ -83,9 +158,9 @@ export default function StatsView() {
               <TrendingUp size={20} className="text-success" />
             </div>
             <div>
-              <p className="text-text-muted text-xs">月平均完成率</p>
+              <p className="text-text-muted text-xs">平均完成率</p>
               <p className="text-xl font-bold text-text-primary">
-                {loading ? '--' : `${Math.round((chartData.reduce((acc, d) => acc + d.percentage, 0) / Math.max(chartData.length, 1)))}%`}
+                {loading ? '--' : `${avgCompletionRate}%`}
               </p>
             </div>
           </div>
@@ -99,7 +174,7 @@ export default function StatsView() {
             <div>
               <p className="text-text-muted text-xs">总完成次数</p>
               <p className="text-xl font-bold text-text-primary">
-                {loading ? '--' : stats?.heatmapData.reduce((acc, d) => acc + d.count, 0) || 0}
+                {loading ? '--' : totalCount}
               </p>
             </div>
           </div>
@@ -113,7 +188,7 @@ export default function StatsView() {
             <div>
               <p className="text-text-muted text-xs">最长连续天数</p>
               <p className="text-xl font-bold text-text-primary">
-                {loading ? '--' : stats?.streakRanking[0]?.streak || 0} 天
+                {loading ? '--' : `${stats?.streakRanking[0]?.streak || 0} 天`}
               </p>
             </div>
           </div>
@@ -127,7 +202,7 @@ export default function StatsView() {
             <div>
               <p className="text-text-muted text-xs">习惯总数</p>
               <p className="text-xl font-bold text-text-primary">
-                {loading ? '--' : stats?.streakRanking.length || 0}
+                {loading ? '--' : stats?.habits.length || 0}
               </p>
             </div>
           </div>
@@ -136,7 +211,27 @@ export default function StatsView() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="bg-bg-card rounded-2xl p-5 backdrop-blur-sm border border-white/5">
-          <h2 className="text-lg font-semibold text-text-primary mb-4">近30天完成率</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-lg font-semibold text-text-primary">完成率趋势</h2>
+            
+            <div className="flex items-center gap-1 bg-bg-dark/50 rounded-lg p-1">
+              {timeRangeOptions.map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => handleTimeRangeChange(option.value)}
+                  className={`
+                    px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-300 ease-out
+                    ${timeRange === option.value
+                      ? 'bg-accent text-white shadow-md'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                    }
+                  `}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
           
           {loading ? (
             <div className="h-64 bg-white/5 rounded-lg animate-pulse" />
@@ -156,7 +251,7 @@ export default function StatsView() {
                     stroke="rgba(255,255,255,0.4)"
                     fontSize={11}
                     tick={{ fill: 'rgba(255,255,255,0.5)' }}
-                    interval={4}
+                    interval={chartInterval}
                   />
                   <YAxis 
                     stroke="rgba(255,255,255,0.4)"
@@ -175,6 +270,9 @@ export default function StatsView() {
                     fill="url(#colorRate)"
                     dot={false}
                     activeDot={{ r: 6, fill: '#a29bfe', stroke: '#fff', strokeWidth: 2 }}
+                    isAnimationActive={true}
+                    animationDuration={500}
+                    animationEasing="ease-out"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -183,39 +281,108 @@ export default function StatsView() {
         </div>
 
         <div className="bg-bg-card rounded-2xl p-5 backdrop-blur-sm border border-white/5">
-          <h2 className="text-lg font-semibold text-text-primary mb-4">习惯强度热力图</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-lg font-semibold text-text-primary">习惯强度热力图</h2>
+            
+            <div className="flex items-center gap-1 bg-bg-dark/50 rounded-lg p-1">
+              <button
+                onClick={() => handleModeChange('weekday')}
+                className={`
+                  px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-300 ease-out
+                  ${heatmapMode === 'weekday'
+                    ? 'bg-accent text-white shadow-md'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                  }
+                `}
+              >
+                按星期查看
+              </button>
+              <button
+                onClick={() => handleModeChange('habit')}
+                className={`
+                  px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-300 ease-out
+                  ${heatmapMode === 'habit'
+                    ? 'bg-accent text-white shadow-md'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                  }
+                `}
+              >
+                按习惯查看
+              </button>
+            </div>
+          </div>
           
           {loading ? (
             <div className="h-64 bg-white/5 rounded-lg animate-pulse" />
           ) : (
             <div className="relative">
               <div className="overflow-x-auto">
-                <div className="min-w-[400px]">
+                <div 
+                  className={`min-w-[400px] transition-all duration-300 ease-out ${
+                    isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+                  }`}
+                >
                   <div className="flex mb-2">
-                    <div className="w-12" />
-                    {weekdays.map(day => (
-                      <div key={day} className="flex-1 text-center text-xs text-text-muted">
-                        {weekdayLabels[day]}
+                    <div className="w-12 flex-shrink-0" />
+                    {xAxisLabels.map((label, index) => (
+                      <div 
+                        key={`label-${index}`}
+                        className="flex-1 text-center text-xs text-text-muted min-w-0 overflow-hidden text-ellipsis px-1"
+                        style={{ minWidth: heatmapMode === 'habit' ? '80px' : 'auto' }}
+                        title={label}
+                      >
+                        {label}
                       </div>
                     ))}
                   </div>
                   
                   {hours.map(hour => (
-                    <div key={hour} className="flex items-center gap-1 mb-1">
-                      <div className="w-12 text-xs text-text-muted">{hour}:00</div>
-                      {weekdays.map(weekday => {
-                        const count = getHeatmapCount(hour, weekday);
+                    <div key={`row-${hour}`} className="flex items-center gap-1 mb-1">
+                      <div className="w-12 flex-shrink-0 text-xs text-text-muted">
+                        {String(hour).padStart(2, '0')}:00
+                      </div>
+                      {xAxisLabels.map((_, xIndex) => {
+                        const { completionRate, count } = getHeatmapData(hour, xIndex);
                         return (
                           <button
-                            key={`${hour}-${weekday}`}
-                            className="flex-1 aspect-square rounded-md transition-all duration-200 ease-out hover:scale-110 hover:z-10 relative"
-                            style={{ backgroundColor: getHeatmapColor(count) }}
-                            onMouseEnter={() => setHoveredCell({ hour, weekday, count })}
+                            key={`cell-${hour}-${xIndex}`}
+                            className={`
+                              flex-1 aspect-square rounded-md relative
+                              transition-all duration-300 ease-out
+                              hover:scale-110 hover:z-10 hover:shadow-lg
+                            `}
+                            style={{ 
+                              backgroundColor: getHeatmapColor(completionRate),
+                              minWidth: heatmapMode === 'habit' ? '80px' : 'auto',
+                              transform: isTransitioning ? 'scale(0.9)' : 'scale(1)',
+                              opacity: isTransitioning ? 0 : 1,
+                              transitionDelay: `${(hour * 10) + (xIndex * 5)}ms`,
+                            }}
+                            onMouseEnter={() => setHoveredCell({ 
+                              hour, 
+                              xIndex, 
+                              completionRate, 
+                              count,
+                              xLabel: getXLabel(xIndex),
+                            })}
                             onMouseLeave={() => setHoveredCell(null)}
                           >
-                            {hoveredCell?.hour === hour && hoveredCell?.weekday === weekday && (
-                              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-bg-dark border border-white/20 px-2 py-1 rounded text-xs text-text-primary whitespace-nowrap z-20 shadow-lg">
-                                {hour}:00 - {weekdayLabels[weekday]}: {count}次
+                            {hoveredCell?.hour === hour && hoveredCell?.xIndex === xIndex && (
+                              <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-bg-dark border border-white/20 px-3 py-2 rounded-lg text-xs text-text-primary whitespace-nowrap z-30 shadow-xl animate-fade-in">
+                                <div className="font-medium">{hoveredCell.xLabel} · {String(hour).padStart(2, '0')}:00</div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-text-secondary">完成率:</span>
+                                  <span className={`font-bold ${
+                                    completionRate >= 0.7 ? 'text-success' :
+                                    completionRate >= 0.4 ? 'text-warning' : 'text-danger'
+                                  }`}>
+                                    {Math.round(completionRate * 100)}%
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-text-secondary">次数:</span>
+                                  <span className="font-medium">{count}</span>
+                                </div>
                               </div>
                             )}
                           </button>
@@ -227,17 +394,17 @@ export default function StatsView() {
               </div>
               
               <div className="flex items-center justify-end gap-2 mt-4">
-                <span className="text-xs text-text-muted">少</span>
+                <span className="text-xs text-text-muted">低</span>
                 <div className="flex gap-0.5">
                   {[0.1, 0.3, 0.5, 0.7, 1].map((intensity, i) => (
                     <div
                       key={i}
-                      className="w-4 h-4 rounded-sm"
-                      style={{ backgroundColor: `rgba(162, 155, 254, ${intensity})` }}
+                      className="w-4 h-4 rounded-sm transition-all duration-300"
+                      style={{ backgroundColor: getHeatmapColor(intensity) }}
                     />
                   ))}
                 </div>
-                <span className="text-xs text-text-muted">多</span>
+                <span className="text-xs text-text-muted">高</span>
               </div>
             </div>
           )}

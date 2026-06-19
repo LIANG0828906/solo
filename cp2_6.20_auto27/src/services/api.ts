@@ -251,16 +251,16 @@ export const recordApi = {
 };
 
 export const statsApi = {
-  getStats: async (): Promise<StatsData> => {
+  getStats: async (days: number = 30): Promise<StatsData> => {
     try {
-      const response = await api.get<StatsData>('/stats');
+      const response = await api.get<StatsData>('/stats', { params: { days } });
       return response.data;
     } catch {
       await delay(300);
       
       const today = new Date();
       const completionRateByDay = [];
-      for (let i = 29; i >= 0; i--) {
+      for (let i = days - 1; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
@@ -269,24 +269,46 @@ export const statsApi = {
       }
 
       const heatmapData = [];
-      for (let hour = 6; hour <= 22; hour++) {
+      for (let hour = 0; hour <= 23; hour++) {
         for (let weekday = 0; weekday < 7; weekday++) {
           const count = Math.floor(Math.random() * 10);
-          if (count > 2) {
-            heatmapData.push({ hour, weekday, count });
+          const completionRate = Math.random() * 0.8 + 0.2;
+          if (count > 1) {
+            heatmapData.push({ hour, weekday, count, completionRate });
           }
         }
       }
+
+      const habitHeatmapData = [];
+      mockHabits.forEach(habit => {
+        for (let hour = 0; hour <= 23; hour++) {
+          const count = Math.floor(Math.random() * 8);
+          const completionRate = Math.random() * 0.7 + 0.3;
+          if (count > 1) {
+            habitHeatmapData.push({
+              hour,
+              habitId: habit.id,
+              habitName: habit.name,
+              count,
+              completionRate,
+            });
+          }
+        }
+      });
 
       const streakRanking = mockHabits
         .map(h => ({ habitName: h.name, streak: h.streak, habitId: h.id }))
         .sort((a, b) => b.streak - a.streak)
         .slice(0, 5);
 
+      const habits = mockHabits.map(h => ({ id: h.id, name: h.name }));
+
       return {
         completionRateByDay,
         heatmapData,
+        habitHeatmapData,
         streakRanking,
+        habits,
       };
     }
   },

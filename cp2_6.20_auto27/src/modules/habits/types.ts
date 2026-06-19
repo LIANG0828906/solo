@@ -44,10 +44,27 @@ export interface ChallengeParticipant {
   rank: number;
 }
 
+export interface WeekdayHeatmapData {
+  hour: number;
+  weekday: number;
+  completionRate: number;
+  count: number;
+}
+
+export interface HabitHeatmapData {
+  hour: number;
+  habitId: string;
+  habitName: string;
+  completionRate: number;
+  count: number;
+}
+
 export interface StatsData {
   completionRateByDay: { date: string; rate: number }[];
-  heatmapData: { hour: number; weekday: number; count: number }[];
+  heatmapData: WeekdayHeatmapData[];
+  habitHeatmapData: HabitHeatmapData[];
   streakRanking: { habitName: string; streak: number; habitId: string }[];
+  habits: { id: string; name: string }[];
 }
 
 export type DayStatus = 'all' | 'partial' | 'none';
