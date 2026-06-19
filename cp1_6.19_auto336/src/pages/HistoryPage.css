@@ -1,0 +1,75 @@
+.history-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 24px 40px;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.filter-tab {
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 20px;
+  font-size: 14px;
+  backdrop-filter: blur(10px);
+}
+
+.filter-tab:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.filter-tab.active {
+  background: #FFB300;
+  color: #fff;
+}
+
+.orders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.empty-history {
+  text-align: center;
+  padding: 80px 20px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.empty-history p:last-child {
+  font-size: 16px;
+}
+
+@media (max-width: 640px) {
+  .history-page {
+    padding: 76px 16px 30px;
+  }
+
+  .page-header h1 {
+    font-size: 22px;
+  }
+
+  .orders-grid {
+    grid-template-columns: 1fr;
+  }
+}
