@@ -8,6 +8,7 @@ interface FeedListProps {
 }
 
 type SortType = 'date' | 'applauds'
+type DateFilter = 'all' | 'today' | 'week' | 'month'
 
 const ITEMS_PER_PAGE = 5
 const SCROLL_DEBOUNCE_MS = 200
@@ -15,14 +16,28 @@ const SCROLL_DEBOUNCE_MS = 200
 const FeedList: React.FC<FeedListProps> = ({ works, triggerEffect, onWorkUpdate }) => {
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [sortType, setSortType] = useState<SortType>('date')
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all')
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE)
   const [isLoading, setIsLoading] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const userActionsRef = useRef<Set<string>>(new Set())
 
+  const filterByDate = (dateStr: string): boolean => {
+    if (dateFilter === 'all') return true
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    if (dateFilter === 'today') return diffDays < 1
+    if (dateFilter === 'week') return diffDays < 7
+    if (dateFilter === 'month') return diffDays < 30
+    return true
+  }
+
   const filteredWorks = works
     .filter((work) => !selectedTag || work.tags.includes(selectedTag))
+    .filter((work) => filterByDate(work.publishedAt))
     .sort((a, b) => {
       if (sortType === 'applauds') return b.applauds - a.applauds
       return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
@@ -71,7 +86,7 @@ const FeedList: React.FC<FeedListProps> = ({ works, triggerEffect, onWorkUpdate 
 
   useEffect(() => {
     setDisplayedCount(ITEMS_PER_PAGE)
-  }, [selectedTag, sortType])
+  }, [selectedTag, sortType, dateFilter])
 
   const formatDate = (dateStr: string): string => {
     const date = new Date(dateStr)
@@ -129,6 +144,17 @@ const FeedList: React.FC<FeedListProps> = ({ works, triggerEffect, onWorkUpdate 
         >
           <option value="date">按时间排序</option>
           <option value="applauds">按热度排序</option>
+        </select>
+
+        <select
+          className="filter-select"
+          value={dateFilter}
+          onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+        >
+          <option value="all">全部日期</option>
+          <option value="today">今天</option>
+          <option value="week">本周</option>
+          <option value="month">本月</option>
         </select>
 
         <div className="tag-filter">

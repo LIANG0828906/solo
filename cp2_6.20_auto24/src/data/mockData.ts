@@ -136,13 +136,13 @@ const sampleContents = [
 
 function generateWorks(): Work[] {
   const works: Work[] = []
-  const themes = ['一个雨夜', '意外的礼物', '最后一班地铁', '时间的礼物', '消失的明天']
+  const themes = ['一个雨夜', '意外的礼物', '最后一班地铁']
   const styles = ['悬疑', '浪漫', '科幻']
 
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 6; i++) {
     const author = sampleAuthors[i % sampleAuthors.length]
     const template = sampleContents[i % sampleContents.length]
-    const daysAgo = Math.floor(i / 3)
+    const daysAgo = i
     const date = new Date(2026, 5, 20 - daysAgo)
     const hours = 23 - (i % 6)
 

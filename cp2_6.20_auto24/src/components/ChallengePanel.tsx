@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import {
   getTodayChallenge,
@@ -27,16 +27,28 @@ const ChallengePanel: React.FC<ChallengePanelProps> = ({
   const [timerStatus, setTimerStatus] = useState<TimerStatus>('idle')
   const [isLocked, setIsLocked] = useState(false)
   const [isPublished, setIsPublished] = useState(false)
+  const isMountedRef = useRef(true)
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    isMountedRef.current = true
     let interval: ReturnType<typeof setInterval> | null = null
 
     if (timerStatus === 'running' && timeLeft > 0) {
       interval = setInterval(() => {
+        if (!isMountedRef.current) return
         setTimeLeft((prev) => {
+          if (!isMountedRef.current) return prev
           if (prev <= 1) {
-            setTimerStatus('finished')
-            setIsLocked(true)
+            if (autoSaveTimeoutRef.current) {
+              clearTimeout(autoSaveTimeoutRef.current)
+            }
+            autoSaveTimeoutRef.current = setTimeout(() => {
+              if (isMountedRef.current) {
+                setTimerStatus('finished')
+                setIsLocked(true)
+              }
+            }, 0)
             return 0
           }
           return prev - 1
@@ -45,7 +57,15 @@ const ChallengePanel: React.FC<ChallengePanelProps> = ({
     }
 
     return () => {
-      if (interval) clearInterval(interval)
+      isMountedRef.current = false
+      if (interval) {
+        clearInterval(interval)
+        interval = null
+      }
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+        autoSaveTimeoutRef.current = null
+      }
     }
   }, [timerStatus, timeLeft])
 

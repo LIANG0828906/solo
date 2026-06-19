@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { userStats } from '../data/mockData'
 
 const ProfileStats: React.FC = () => {
@@ -8,6 +8,21 @@ const ProfileStats: React.FC = () => {
     return num.toString()
   }
 
+  const warmGradientStyle = useMemo(() => {
+    const intensity = Math.min(userStats.streakDays / 100, 1)
+    const hue1 = 0 + intensity * 15
+    const hue2 = 45 + intensity * 10
+    return {
+      background: `linear-gradient(135deg, hsl(${hue1}, 100%, ${65 - intensity * 10}%), hsl(${hue2}, 100%, ${60 - intensity * 10}%))`,
+    }
+  }, [userStats.streakDays])
+
+  const coolGradientStyle = useMemo(() => {
+    return {
+      background: 'var(--bg-card)',
+    }
+  }, [])
+
   return (
     <div>
       <div className="page-header">
@@ -16,7 +31,7 @@ const ProfileStats: React.FC = () => {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card warm">
+        <div className="stat-card warm" style={warmGradientStyle}>
           <div className="stat-icon">🔥</div>
           <div className="stat-value">{userStats.streakDays}</div>
           <div className="stat-label">连续创作天数</div>

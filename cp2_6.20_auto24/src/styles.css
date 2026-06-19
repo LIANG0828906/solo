@@ -921,6 +921,7 @@ body {
 
   .sidebar {
     display: none;
+    border-right: none;
   }
 
   .top-nav {
