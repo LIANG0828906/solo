@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Track, Effect, useMixerStore } from '../stores/mixerStore';
 import Waveform from './Waveform';
-import Knob from './Knob';
 import VUMeter from './VUMeter';
+import { audioEngine } from '../utils/audioEngine';
 
 interface AudioTrackProps {
   track: Track;
@@ -29,6 +29,9 @@ const effectDefaultParams: Record<string, Record<string, { value: number; min: n
   },
 };
 
+const PREVIEW_DURATION = 2;
+const PREVIEW_VOLUME = 0.3;
+
 const AudioTrack: React.FC<AudioTrackProps> = ({
   track,
   width = 800,
@@ -46,6 +49,13 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
   const [clipOffset, setClipOffset] = useState(0);
   const clipRef = useRef<HTMLDivElement>(null);
   const [vuLevels, setVuLevels] = useState({ left: 0, right: 0 });
+
+  const [isHoveringClip, setIsHoveringClip] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const previewSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const previewGainRef = useRef<GainNode | null>(null);
+  const hoverTimerRef = useRef<number | null>(null);
+  const previewStopTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let animationId: number;
@@ -65,6 +75,91 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
     updateVU();
     return () => cancelAnimationFrame(animationId);
   }, [track.audioBuffer, track.muted, track.volume]);
+
+  const stopPreview = useCallback(() => {
+    if (previewStopTimerRef.current) {
+      window.clearTimeout(previewStopTimerRef.current);
+      previewStopTimerRef.current = null;
+    }
+    if (previewSourceRef.current) {
+      try {
+        previewSourceRef.current.stop();
+      } catch (e) {
+        // ignore stop errors
+      }
+      previewSourceRef.current.disconnect();
+      previewSourceRef.current = null;
+    }
+    if (previewGainRef.current) {
+      previewGainRef.current.disconnect();
+      previewGainRef.current = null;
+    }
+    setIsPreviewing(false);
+  }, []);
+
+  const startPreview = useCallback(() => {
+    if (!track.audioBuffer || isDraggingClip) return;
+
+    stopPreview();
+
+    try {
+      const ctx = audioEngine.getContext();
+      const source = ctx.createBufferSource();
+      source.buffer = track.audioBuffer;
+
+      const previewGain = ctx.createGain();
+      previewGain.gain.value = PREVIEW_VOLUME;
+
+      previewGain.connect(ctx.destination);
+      source.connect(previewGain);
+
+      const duration = Math.min(PREVIEW_DURATION, track.audioBuffer.duration);
+      source.start(ctx.currentTime, 0, duration);
+
+      previewSourceRef.current = source;
+      previewGainRef.current = previewGain;
+      setIsPreviewing(true);
+
+      previewStopTimerRef.current = window.setTimeout(() => {
+        stopPreview();
+      }, duration * 1000);
+
+      source.onended = () => {
+        setIsPreviewing(false);
+      };
+    } catch (e) {
+      console.error('Preview failed:', e);
+    }
+  }, [track.audioBuffer, isDraggingClip, stopPreview]);
+
+  const handleClipMouseEnter = useCallback(() => {
+    if (isDraggingClip) return;
+    setIsHoveringClip(true);
+
+    hoverTimerRef.current = window.setTimeout(() => {
+      startPreview();
+    }, 300);
+  }, [isDraggingClip, startPreview]);
+
+  const handleClipMouseLeave = useCallback(() => {
+    setIsHoveringClip(false);
+
+    if (hoverTimerRef.current) {
+      window.clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+
+    stopPreview();
+  }, [stopPreview]);
+
+  useEffect(() => {
+    return () => {
+      stopPreview();
+      if (hoverTimerRef.current) {
+        window.clearTimeout(hoverTimerRef.current);
+      }
+    };
+  }, [stopPreview]);
 
   const handleToggleMute = useCallback(() => {
     updateTrack(track.id, { muted: !track.muted });
@@ -101,12 +196,13 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
     (e: React.MouseEvent) => {
       if (!clipRef.current || !track.audioBuffer) return;
       e.preventDefault();
+      stopPreview();
       setIsDraggingClip(true);
 
       const rect = clipRef.current.getBoundingClientRect();
       setClipOffset(e.clientX - rect.left);
     },
-    [track.audioBuffer]
+    [track.audioBuffer, stopPreview]
   );
 
   const handleMouseMove = useCallback(
@@ -207,10 +303,21 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
     }
   };
 
+  const handleToggleEffect = (effectId: string, enabled: boolean) => {
+    const effect = track.effects.find((e) => e.id === effectId);
+    if (effect) {
+      updateEffect(effectId, {
+        params: { ...effect.params, _enabled: enabled ? 1 : 0 },
+      });
+    }
+  };
+
   const clipWidth = track.audioBuffer
     ? (track.audioBuffer.length / track.audioBuffer.sampleRate) *
       (waveformHeight / (track.audioBuffer.length / track.audioBuffer.sampleRate))
     : 0;
+
+  const waveformWidth = Math.max(200, width - 192 - 48);
 
   return (
     <div
@@ -288,7 +395,7 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
         <div className="flex-1 relative">
           <Waveform
             audioBuffer={track.audioBuffer}
-            width={width - 48 - 200}
+            width={waveformWidth}
             height={waveformHeight}
             bpm={bpm}
             currentTime={currentTime}
@@ -299,6 +406,8 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
             <div
               ref={clipRef}
               onMouseDown={handleClipMouseDown}
+              onMouseEnter={handleClipMouseEnter}
+              onMouseLeave={handleClipMouseLeave}
               className={`absolute top-0 h-full cursor-move rounded-md transition-all
                 ${isDraggingClip ? 'opacity-80 scale-[1.02]' : 'hover:opacity-90'}
               `}
@@ -309,25 +418,61 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
                 border: `2px solid ${track.color}`,
                 boxShadow: isDraggingClip
                   ? `0 0 20px ${track.color}60, 0 8px 16px rgba(0,0,0,0.4)`
-                  : `0 2px 8px rgba(0,0,0,0.3)`,
+                  : isHoveringClip
+                    ? `0 0 15px ${track.color}40, 0 2px 8px rgba(0,0,0,0.3)`
+                    : `0 2px 8px rgba(0,0,0,0.3)`,
               }}
             >
-              <div className="absolute top-1 left-2 text-xs font-medium text-white/80">
+              <div className="absolute top-1 left-2 text-xs font-medium text-white/80 pr-8">
                 {track.name}
               </div>
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+
+              <div
+                className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200
+                  ${isHoveringClip || isPreviewing ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}
+                `}
+                style={{
+                  background: isPreviewing
+                    ? `linear-gradient(135deg, ${track.color}dd, ${track.color}99)`
+                    : 'rgba(0,0,0,0.6)',
+                  boxShadow: isPreviewing
+                    ? `0 0 12px ${track.color}, 0 0 4px rgba(255,255,255,0.5) inset`
+                    : '0 1px 4px rgba(0,0,0,0.4)',
+                }}
+              >
+                {isPreviewing ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+                    <polygon points="7,4 20,12 7,20" />
+                  </svg>
+                )}
+              </div>
+
+              {isPreviewing && (
+                <div
+                  className="absolute bottom-0 left-0 h-1 bg-white/60 rounded-r transition-all duration-75"
+                  style={{
+                    animation: 'previewProgress 2s linear forwards',
+                  }}
+                />
+              )}
             </div>
           )}
         </div>
       </div>
 
       <div className="mt-4 pt-4 border-t border-gray-700/50">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs text-gray-400 font-medium">效果器槽位</span>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs text-gray-400 font-medium">效果器链</span>
           <div className="flex-1 h-px bg-gray-700/50" />
           <span className="text-[10px] text-gray-500">{track.effects.length}/4</span>
         </div>
-        <div className="flex gap-3 flex-wrap">
+        <div className="space-y-2">
           {track.effects.map((effect) => (
             <EffectSlot
               key={effect.id}
@@ -340,6 +485,7 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
               onResetParam={(paramName) =>
                 handleResetParam(effect.id, paramName)
               }
+              onToggle={(enabled) => handleToggleEffect(effect.id, enabled)}
             />
           ))}
           {track.effects.length < 4 && (
@@ -350,6 +496,13 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
           )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes previewProgress {
+          from { width: 0%; }
+          to { width: 100%; }
+        }
+      `}</style>
     </div>
   );
 };
@@ -360,6 +513,7 @@ interface EffectSlotProps {
   onRemove: () => void;
   onParamChange: (paramName: string, value: number) => void;
   onResetParam: (paramName: string) => void;
+  onToggle: (enabled: boolean) => void;
 }
 
 const EffectSlot: React.FC<EffectSlotProps> = ({
@@ -368,8 +522,10 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
   onRemove,
   onParamChange,
   onResetParam,
+  onToggle,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const isEnabled = effect.params._enabled !== 0;
 
   const getEffectIcon = (type: string) => {
     switch (type) {
@@ -386,92 +542,233 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
 
   const params = effectDefaultParams[effect.type];
 
+  const handleToggleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggle(!isEnabled);
+  };
+
+  const handleResetAll = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (params) {
+      Object.keys(params).forEach((key) => {
+        onResetParam(key);
+      });
+    }
+  };
+
   return (
     <div className="relative group">
       <div
-        className="relative rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02]"
+        className={`relative rounded-lg overflow-hidden transition-all duration-200
+          ${!isEnabled ? 'opacity-60' : ''}
+        `}
         style={{
-          minWidth: 200,
-          background: 'linear-gradient(145deg, rgba(30,41,59,0.9) 0%, rgba(15,23,42,0.95) 100%)',
-          border: `1px solid ${trackColor}60`,
-          boxShadow: `0 4px 12px rgba(0,0,0,0.3), 0 0 0 1px ${trackColor}20 inset`,
+          background: isExpanded
+            ? 'linear-gradient(145deg, rgba(30,41,59,0.95) 0%, rgba(15,23,42,0.98) 100%)'
+            : 'linear-gradient(145deg, rgba(30,41,59,0.8) 0%, rgba(15,23,42,0.9) 100%)',
+          border: `1px solid ${trackColor}${isExpanded ? '80' : '40'}`,
+          boxShadow: isExpanded
+            ? `0 6px 16px rgba(0,0,0,0.4), 0 0 0 1px ${trackColor}30 inset, 0 0 20px ${trackColor}15`
+            : `0 2px 8px rgba(0,0,0,0.25), 0 0 0 1px ${trackColor}15 inset`,
         }}
-        onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="p-3">
+        <div
+          className="p-3 cursor-pointer"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <div
-                className="w-8 h-8 rounded-md flex items-center justify-center text-base"
+                className="relative w-9 h-9 rounded-md flex items-center justify-center text-base flex-shrink-0"
                 style={{
-                  background: `linear-gradient(135deg, ${trackColor}40 0%, ${trackColor}20 100%)`,
+                  background: `linear-gradient(135deg, ${trackColor}${isEnabled ? '50' : '30'} 0%, ${trackColor}${isEnabled ? '25' : '15'} 100%)`,
+                  transition: 'all 0.2s ease',
                 }}
               >
                 {getEffectIcon(effect.type)}
+                {isEnabled && (
+                  <div
+                    className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#16213e]"
+                    style={{
+                      background: trackColor,
+                      boxShadow: `0 0 6px ${trackColor}`,
+                    }}
+                  />
+                )}
               </div>
-              <span className="text-white font-medium text-sm">{effect.type}</span>
+              <div className="flex flex-col">
+                <span className={`text-sm font-medium transition-colors
+                  ${isEnabled ? 'text-white' : 'text-gray-500'}
+                `}>
+                  {effect.type}
+                </span>
+                <span className="text-[10px] text-gray-500">
+                  {params ? `${Object.keys(params).length} 个参数` : ''}
+                  {!isEnabled && ' · 已禁用'}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
+
+            <div className="flex items-center gap-2">
+              <div
+                className={`relative w-9 h-5 rounded-full transition-all duration-300 cursor-pointer
+                  ${isEnabled ? '' : 'opacity-70'}
+                `}
+                style={{
+                  background: isEnabled
+                    ? `linear-gradient(90deg, ${trackColor}, ${trackColor}cc)`
+                    : 'rgba(75,85,99,0.8)',
+                  boxShadow: isEnabled ? `0 0 10px ${trackColor}60` : 'none',
+                }}
+                onClick={handleToggleClick}
+              >
+                <div
+                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ease-out
+                  `}
+                  style={{
+                    left: isEnabled ? 'calc(100% - 18px)' : '2px',
+                    transform: isEnabled ? 'scale(1.05)' : 'scale(1)',
+                  }}
+                />
+              </div>
+
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove();
                 }}
-                className="w-6 h-6 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400 flex items-center justify-center text-sm transition-colors"
+                className="w-7 h-7 rounded-md hover:bg-red-500/20 text-gray-500 hover:text-red-400 flex items-center justify-center text-sm transition-all hover:scale-110"
+                title="移除效果器"
               >
                 ✕
               </button>
+
               <div
-                className="text-gray-400 transition-transform duration-200"
-                style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)' }}
+                className={`w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all
+                  ${isExpanded ? 'rotate-180 bg-white/10 text-white' : ''}
+                `}
               >
-                ▾
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
               </div>
             </div>
           </div>
-
-          {isExpanded && params && (
-            <div className="mt-4 pt-3 border-t border-white/10">
-              <div className="flex justify-center gap-4 flex-wrap">
-                {Object.entries(params).map(([key, config]) => (
-                  <div key={key} className="flex flex-col items-center">
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onResetParam(key);
-                        }}
-                        className="absolute -top-1 left-1/2 -translate-x-1/2 text-[9px] text-gray-500 hover:text-blue-400 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors z-10"
-                        title="重置"
-                      >
-                        ↺
-                      </button>
-                      <div
-                        className="mt-3"
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                      >
-                        <Knob
-                          value={effect.params[key] ?? config.value}
-                          min={config.min}
-                          max={config.max}
-                          step={config.step ?? 0.01}
-                          label={config.label}
-                          defaultValue={config.value}
-                          onChange={(value) => onParamChange(key, value)}
-                          size={50}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div
-          className="absolute inset-x-0 top-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+          className={`overflow-hidden transition-all duration-300 ease-in-out
+            ${isExpanded ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'}
+          `}
+        >
+          <div
+            className="px-3 pb-3 border-t"
+            style={{ borderTopColor: `${trackColor}25` }}
+          >
+            <div className="flex items-center justify-between py-2 mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-gray-500 uppercase tracking-wider">参数调节</span>
+              </div>
+              <button
+                onClick={handleResetAll}
+                className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-blue-400 px-2 py-1 rounded hover:bg-white/10 transition-all"
+                title="重置所有参数"
+              >
+                <span>↺</span>
+                <span>全部重置</span>
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {params && Object.entries(params).map(([key, config]) => {
+                const currentValue = effect.params[key] ?? config.value;
+                const percentage = ((currentValue - config.min) / (config.max - config.min)) * 100;
+                const isModified = Math.abs(currentValue - config.value) > 0.0001;
+
+                return (
+                  <div key={key} className="group/param">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-gray-300 font-medium">{config.label}</span>
+                        {isModified && (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ background: trackColor, boxShadow: `0 0 4px ${trackColor}` }}
+                          />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-gray-400 font-mono bg-black/30 px-1.5 py-0.5 rounded min-w-[48px] text-center">
+                          {Number(currentValue.toFixed(2))}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onResetParam(key);
+                          }}
+                          className={`w-5 h-5 rounded flex items-center justify-center text-[10px] transition-all
+                            ${isModified
+                              ? 'text-gray-400 hover:text-white hover:bg-white/20 opacity-100'
+                              : 'opacity-0 pointer-events-none'
+                            }
+                          `}
+                          title={`重置 ${config.label}`}
+                          style={{ color: isModified ? trackColor : undefined }}
+                        >
+                          ↺
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="range"
+                        min={config.min}
+                        max={config.max}
+                        step={config.step ?? 0.01}
+                        value={currentValue}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          onParamChange(key, parseFloat(e.target.value));
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="w-full h-6 appearance-none bg-transparent cursor-pointer z-10 relative"
+                        style={{
+                          WebkitAppearance: 'none',
+                        }}
+                      />
+                      <div
+                        className="absolute top-1/2 left-0 right-0 h-1.5 rounded-full -translate-y-1/2 pointer-events-none"
+                        style={{
+                          background: `linear-gradient(to right, ${trackColor} 0%, ${trackColor} ${percentage}%, rgba(75,85,99,0.6) ${percentage}%, rgba(75,85,99,0.6) 100%)`,
+                          boxShadow: `inset 0 1px 2px rgba(0,0,0,0.4)`,
+                        }}
+                      />
+                      <div
+                        className="absolute top-1/2 w-3.5 h-3.5 rounded-full -translate-y-1/2 pointer-events-none transition-transform hover:scale-125"
+                        style={{
+                          left: `calc(${percentage}% - 7px)`,
+                          background: 'linear-gradient(145deg, #ffffff, #e5e7eb)',
+                          boxShadow: `0 2px 6px rgba(0,0,0,0.4), 0 0 0 2px ${trackColor}80, 0 0 8px ${trackColor}40`,
+                          border: '1px solid rgba(255,255,255,0.8)',
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between mt-1">
+                      <span className="text-[9px] text-gray-600">{config.min}</span>
+                      <span className="text-[9px] text-gray-600">{config.max}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="absolute inset-x-0 top-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           style={{
             background: `linear-gradient(90deg, transparent 0%, ${trackColor} 50%, transparent 100%)`,
           }}
@@ -498,20 +795,56 @@ const EmptyEffectSlot: React.FC<EmptyEffectSlotProps> = ({ onDrop, trackColor })
       }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={onDrop}
-      className={`rounded-lg flex items-center justify-center transition-all duration-200 ${
-        isDragOver ? 'scale-105' : ''
-      }`}
+      className={`rounded-xl flex items-center justify-center transition-all duration-300 cursor-pointer group
+        ${isDragOver ? 'scale-[1.01]' : 'hover:bg-white/[0.02]'}
+      `}
       style={{
-        width: 120,
-        height: 60,
-        border: `2px dashed ${isDragOver ? trackColor : '#4b5563'}`,
-        background: isDragOver ? `${trackColor}15` : 'transparent',
-        boxShadow: isDragOver ? `0 0 20px ${trackColor}30` : 'none',
+        minHeight: 56,
+        border: `2px dashed ${isDragOver ? trackColor : 'rgba(75,85,99,0.6)'}`,
+        background: isDragOver ? `${trackColor}12` : 'transparent',
+        boxShadow: isDragOver ? `0 0 24px ${trackColor}25, inset 0 0 12px ${trackColor}10` : 'none',
       }}
     >
-      <span className={`text-sm transition-colors ${isDragOver ? 'text-blue-300' : 'text-gray-500'}`}>
-        {isDragOver ? '释放添加' : '+ 添加效果'}
-      </span>
+      <div className={`flex items-center gap-3 transition-all
+        ${isDragOver ? 'scale-105' : ''}
+      `}>
+        <div
+          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all
+            ${isDragOver ? 'scale-110' : 'group-hover:scale-105'}
+          `}
+          style={{
+            background: isDragOver
+              ? `linear-gradient(135deg, ${trackColor}40, ${trackColor}20)`
+              : 'rgba(75,85,99,0.3)',
+            border: `1px solid ${isDragOver ? trackColor : 'rgba(75,85,99,0.5)'}`,
+          }}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={isDragOver ? trackColor : '#9ca3af'}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="transition-colors"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </div>
+        <div className="flex flex-col">
+          <span className={`text-sm font-medium transition-colors
+            ${isDragOver ? 'text-white' : 'text-gray-500 group-hover:text-gray-400'}
+          `}>
+            {isDragOver ? '释放以添加效果器' : '添加效果器'}
+          </span>
+          <span className="text-[10px] text-gray-600">
+            从右侧面板拖拽效果器到此处
+          </span>
+        </div>
+      </div>
     </div>
   );
 };
