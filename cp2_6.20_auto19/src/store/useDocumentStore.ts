@@ -42,18 +42,23 @@ export interface DocumentState {
   meta: DocumentMeta | null;
   isLoading: boolean;
   saveStatuses: Record<string, SaveStatus>;
+  saveGenerations: Record<string, number>;
   currentUser: User;
   availableUsers: User[];
   setParagraphs: (ps: ParagraphItem[], meta?: DocumentMeta) => void;
   setTranslation: (id: string, value: string) => void;
-  markSaving: (id: string) => void;
+  markSaving: (id: string) => number;
   markSaved: (id: string) => void;
+  markSavedWithGeneration: (id: string, generation: number) => void;
   markError: (id: string) => void;
   addComment: (paragraphId: string, comment: Comment) => void;
   setLoading: (v: boolean) => void;
   setCurrentUser: (user: User) => void;
   updateCurrentUserAvatar: (avatarUrl: string) => void;
+  updateCurrentUserColor: (color: string) => void;
 }
+
+const STORAGE_KEY = 'translate_app_user_state';
 
 const defaultUsers: User[] = [
   { id: 'u_001', name: '李译者', initials: 'LZ', color: '#8b6914' },
@@ -63,15 +68,69 @@ const defaultUsers: User[] = [
   { id: 'u_005', name: 'Alex Chen', initials: 'AC', color: '#6a1b9a' },
 ];
 
-export const useDocumentStore = create<DocumentState>((set) => ({
+interface PersistedUserState {
+  currentUserId: string;
+  users: Record<string, { color?: string; avatarUrl?: string }>;
+}
+
+function loadUserState(): { currentUser: User; availableUsers: User[] } {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) {
+      return { currentUser: defaultUsers[0], availableUsers: defaultUsers };
+    }
+    const parsed: PersistedUserState = JSON.parse(stored);
+    const availableUsers = defaultUsers.map((u) => {
+      const custom = parsed.users[u.id];
+      if (custom) {
+        return { ...u, ...custom };
+      }
+      return u;
+    });
+    const currentUser =
+      availableUsers.find((u) => u.id === parsed.currentUserId) || availableUsers[0];
+    return { currentUser, availableUsers };
+  } catch {
+    return { currentUser: defaultUsers[0], availableUsers: defaultUsers };
+  }
+}
+
+function saveUserState(currentUser: User, availableUsers: User[]) {
+  try {
+    const state: PersistedUserState = {
+      currentUserId: currentUser.id,
+      users: {},
+    };
+    availableUsers.forEach((u) => {
+      const defaultUser = defaultUsers.find((d) => d.id === u.id);
+      if (defaultUser) {
+        const hasCustomColor = u.color !== defaultUser.color;
+        const hasCustomAvatar = u.avatarUrl !== undefined;
+        if (hasCustomColor || hasCustomAvatar) {
+          state.users[u.id] = {};
+          if (hasCustomColor) state.users[u.id].color = u.color;
+          if (hasCustomAvatar) state.users[u.id].avatarUrl = u.avatarUrl;
+        }
+      }
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore
+  }
+}
+
+const initialUserState = loadUserState();
+
+export const useDocumentStore = create<DocumentState>((set, get) => ({
   paragraphs: [],
   translations: {},
   comments: {},
   meta: null,
   isLoading: false,
   saveStatuses: {},
-  currentUser: defaultUsers[0],
-  availableUsers: defaultUsers,
+  saveGenerations: {},
+  currentUser: initialUserState.currentUser,
+  availableUsers: initialUserState.availableUsers,
   setParagraphs: (ps, meta) =>
     set({
       paragraphs: ps,
@@ -79,18 +138,30 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       comments: {},
       meta: meta || null,
       saveStatuses: {},
+      saveGenerations: {},
     }),
   setTranslation: (id, value) =>
     set((state) => ({
       translations: { ...state.translations, [id]: value },
     })),
-  markSaving: (id) =>
-    set((state) => ({
-      saveStatuses: {
-        ...state.saveStatuses,
-        [id]: { status: 'saving', timestamp: new Date().toISOString() },
-      },
-    })),
+  markSaving: (id) => {
+    let nextGen = 1;
+    set((state) => {
+      const currentGen = state.saveGenerations[id] || 0;
+      nextGen = currentGen + 1;
+      return {
+        saveStatuses: {
+          ...state.saveStatuses,
+          [id]: { status: 'saving', timestamp: new Date().toISOString() },
+        },
+        saveGenerations: {
+          ...state.saveGenerations,
+          [id]: nextGen,
+        },
+      };
+    });
+    return nextGen;
+  },
   markSaved: (id) =>
     set((state) => ({
       saveStatuses: {
@@ -98,6 +169,19 @@ export const useDocumentStore = create<DocumentState>((set) => ({
         [id]: { status: 'saved', timestamp: new Date().toISOString() },
       },
     })),
+  markSavedWithGeneration: (id, generation) =>
+    set((state) => {
+      const currentGen = state.saveGenerations[id] || 0;
+      if (generation !== currentGen) {
+        return {};
+      }
+      return {
+        saveStatuses: {
+          ...state.saveStatuses,
+          [id]: { status: 'saved', timestamp: new Date().toISOString() },
+        },
+      };
+    }),
   markError: (id) =>
     set((state) => ({
       saveStatuses: {
@@ -116,9 +200,29 @@ export const useDocumentStore = create<DocumentState>((set) => ({
       };
     }),
   setLoading: (v) => set({ isLoading: v }),
-  setCurrentUser: (user) => set({ currentUser: user }),
-  updateCurrentUserAvatar: (avatarUrl) =>
+  setCurrentUser: (user) => {
+    set({ currentUser: user });
+    const state = get();
+    saveUserState(state.currentUser, state.availableUsers);
+  },
+  updateCurrentUserAvatar: (avatarUrl) => {
     set((state) => ({
       currentUser: { ...state.currentUser, avatarUrl },
-    })),
+      availableUsers: state.availableUsers.map((u) =>
+        u.id === state.currentUser.id ? { ...u, avatarUrl } : u
+      ),
+    }));
+    const state = get();
+    saveUserState(state.currentUser, state.availableUsers);
+  },
+  updateCurrentUserColor: (color) => {
+    set((state) => ({
+      currentUser: { ...state.currentUser, color },
+      availableUsers: state.availableUsers.map((u) =>
+        u.id === state.currentUser.id ? { ...u, color } : u
+      ),
+    }));
+    const state = get();
+    saveUserState(state.currentUser, state.availableUsers);
+  },
 }));

@@ -21,7 +21,7 @@ export async function uploadDocument(file: File): Promise<UploadResult[]> {
   }
 }
 
-function getMockParagraphs(fileName: string): UploadResult[] {
+function getMockParagraphs(_fileName: string): UploadResult[] {
   const raw = [
     '这是第一段示例文本，用于演示文档翻译功能。Welcome to the translation platform!',
     '这是第二段示例文本，团队成员可以在此协作翻译和讨论。Our team focuses on high quality translation.',
@@ -38,259 +38,626 @@ function getMockParagraphs(fileName: string): UploadResult[] {
   }));
 }
 
-// ============ 智能语义翻译引擎 ============
-// 该翻译器基于短语模板 + 语法规则模拟真实翻译结果，而非逐词替换
+// ============ 智能语义翻译引擎 v2 ============
+// 基于结构化词典 + 词形还原 + 短语优先匹配 + 音译 + 专有名词保护
 
-const phraseDictEnZh: Array<{ pattern: RegExp; replacement: string }> = [
-  { pattern: /\bWelcome to the translation platform\b/gi, replacement: '欢迎来到翻译平台' },
-  { pattern: /\bWelcome to our platform\b/gi, replacement: '欢迎来到我们的平台' },
-  { pattern: /\bWelcome to\b/gi, replacement: '欢迎来到' },
-  { pattern: /\bOur team focuses on high quality translation\b/gi, replacement: '我们的团队专注于高质量翻译' },
-  { pattern: /\bOur team\b/gi, replacement: '我们的团队' },
-  { pattern: /\bfocuses on high quality\b/gi, replacement: '专注于高品质' },
-  { pattern: /\bfocuses on\b/gi, replacement: '专注于' },
-  { pattern: /\bhigh quality translation\b/gi, replacement: '高质量翻译' },
-  { pattern: /\bhigh quality\b/gi, replacement: '高质量' },
-  { pattern: /\bplease add your comments on the right side of each translation block\b/gi, replacement: '请在每个翻译块的右侧添加您的评论' },
-  { pattern: /\badd your comments\b/gi, replacement: '添加您的评论' },
-  { pattern: /\bon the right side\b/gi, replacement: '在右侧' },
-  { pattern: /\beach translation block\b/gi, replacement: '每个翻译块' },
-  { pattern: /\bthe progress bar at the top shows overall translation progress smoothly\b/gi, replacement: '顶部的进度条平滑地显示整体翻译进度' },
-  { pattern: /\bthe progress bar at the top\b/gi, replacement: '顶部的进度条' },
-  { pattern: /\bprogress bar\b/gi, replacement: '进度条' },
-  { pattern: /\boverall translation progress\b/gi, replacement: '整体翻译进度' },
-  { pattern: /\boverall progress\b/gi, replacement: '整体进度' },
-  { pattern: /\bshows overall\b/gi, replacement: '显示整体' },
-  { pattern: /\bshows\b/gi, replacement: '显示' },
-  { pattern: /\bsmoothly\b/gi, replacement: '平滑地' },
-  { pattern: /\breal-time save uses debounce to ensure performance under 200ms\b/gi, replacement: '实时保存采用防抖机制，确保性能控制在 200 毫秒以内' },
-  { pattern: /\breal-time save\b/gi, replacement: '实时保存' },
-  { pattern: /\buses debounce\b/gi, replacement: '采用防抖机制' },
-  { pattern: /\bensure performance\b/gi, replacement: '确保性能' },
-  { pattern: /\bunder (\d+)ms\b/gi, replacement: '在 $1 毫秒以内' },
-  { pattern: /\bparagraph switch(?:ing)? and document loading response time (?:is )?no more than (\d+) milliseconds\b/gi, replacement: '段落切换和文档加载响应时间不超过 $1 毫秒' },
-  { pattern: /\bparagraph switch(?:ing)?\b/gi, replacement: '段落切换' },
-  { pattern: /\bdocument loading\b/gi, replacement: '文档加载' },
-  { pattern: /\bresponse time\b/gi, replacement: '响应时间' },
-  { pattern: /\bno more than (\d+) milliseconds\b/gi, replacement: '不超过 $1 毫秒' },
-  { pattern: /\bno more than\b/gi, replacement: '不超过' },
-  { pattern: /\bmilliseconds?\b/gi, replacement: '毫秒' },
-  { pattern: /\bexport function supports bilingual or target-only PDF and Markdown formats\b/gi, replacement: '导出功能支持双语对照或纯译文的 PDF 与 Markdown 格式' },
-  { pattern: /\bexport function\b/gi, replacement: '导出功能' },
-  { pattern: /\bsupports bilingual\b/gi, replacement: '支持双语' },
-  { pattern: /\bbilingual\b/gi, replacement: '双语对照' },
-  { pattern: /\btarget-only\b/gi, replacement: '纯译文' },
-  { pattern: /\btranslation platform\b/gi, replacement: '翻译平台' },
-  { pattern: /\btranslation\b/gi, replacement: '翻译' },
-  { pattern: /\bplatform\b/gi, replacement: '平台' },
-  { pattern: /\bdocument\b/gi, replacement: '文档' },
-  { pattern: /\bteam\b/gi, replacement: '团队' },
-  { pattern: /\bcontent\b/gi, replacement: '内容' },
-  { pattern: /\bfile\b/gi, replacement: '文件' },
-  { pattern: /\bupload\b/gi, replacement: '上传' },
-  { pattern: /\bexport\b/gi, replacement: '导出' },
-  { pattern: /\bcomment\b/gi, replacement: '评论' },
-  { pattern: /\bcomments\b/gi, replacement: '评论' },
-  { pattern: /\bparagraph\b/gi, replacement: '段落' },
-  { pattern: /\bparagraphs\b/gi, replacement: '段落' },
-  { pattern: /\bquality\b/gi, replacement: '质量' },
-  { pattern: /\breview\b/gi, replacement: '审核' },
-  { pattern: /\bprogress\b/gi, replacement: '进度' },
-  { pattern: /\bcomplete\b/gi, replacement: '完成' },
-  { pattern: /\bcontinue\b/gi, replacement: '继续' },
-  { pattern: /\bcollaboration\b/gi, replacement: '协作' },
-  { pattern: /\bproject\b/gi, replacement: '项目' },
-  { pattern: /\blanguage\b/gi, replacement: '语言' },
-  { pattern: /\bhello\b/gi, replacement: '你好' },
-  { pattern: /\bworld\b/gi, replacement: '世界' },
-  { pattern: /\bthe\b/gi, replacement: '' },
-  { pattern: /\bof\b/gi, replacement: '' },
-  { pattern: /\band\b/gi, replacement: '和' },
-  { pattern: /\bon\b/gi, replacement: '在' },
-  { pattern: /\bto\b/gi, replacement: '' },
-  { pattern: /\bis\b/gi, replacement: '是' },
-  { pattern: /\bare\b/gi, replacement: '是' },
-  { pattern: /\bin\b/gi, replacement: '在' },
-  { pattern: /\bfor\b/gi, replacement: '为' },
-  { pattern: /\bwith\b/gi, replacement: '与' },
-  { pattern: /\bfrom\b/gi, replacement: '从' },
-  { pattern: /\bat\b/gi, replacement: '在' },
-  { pattern: /\bby\b/gi, replacement: '通过' },
-  { pattern: /\bas\b/gi, replacement: '作为' },
-  { pattern: /\bor\b/gi, replacement: '或' },
-  { pattern: /\bthis\b/gi, replacement: '这个' },
-  { pattern: /\bthat\b/gi, replacement: '那个' },
-  { pattern: /\bthese\b/gi, replacement: '这些' },
-  { pattern: /\bthose\b/gi, replacement: '那些' },
-  { pattern: /\bcan\b/gi, replacement: '可以' },
-  { pattern: /\bwill\b/gi, replacement: '将' },
-  { pattern: /\bwould\b/gi, replacement: '会' },
-  { pattern: /\bshould\b/gi, replacement: '应该' },
-  { pattern: /\bcould\b/gi, replacement: '能够' },
-  { pattern: /\bhave\b/gi, replacement: '已经' },
-  { pattern: /\bhas\b/gi, replacement: '已经' },
-  { pattern: /\bhad\b/gi, replacement: '已经' },
-  { pattern: /\bnot\b/gi, replacement: '不' },
-  { pattern: /\bno\b/gi, replacement: '没有' },
-  { pattern: /\byour\b/gi, replacement: '您的' },
-  { pattern: /\bour\b/gi, replacement: '我们的' },
-  { pattern: /\btheir\b/gi, replacement: '他们的' },
-  { pattern: /\bhis\b/gi, replacement: '他的' },
-  { pattern: /\bher\b/gi, replacement: '她的' },
-  { pattern: /\bits\b/gi, replacement: '它的' },
-  { pattern: /\bmy\b/gi, replacement: '我的' },
-  { pattern: /\bi\b/gi, replacement: '我' },
-  { pattern: /\byou\b/gi, replacement: '您' },
-  { pattern: /\bwe\b/gi, replacement: '我们' },
-  { pattern: /\bthey\b/gi, replacement: '他们' },
-  { pattern: /\bhe\b/gi, replacement: '他' },
-  { pattern: /\bshe\b/gi, replacement: '她' },
-  { pattern: /\bit\b/gi, replacement: '它' },
-  { pattern: /\b(an?)\b/gi, replacement: '' },
+type WordPos = 'noun' | 'verb' | 'adj' | 'adv' | 'prep' | 'conj' | 'pron' | 'det' | 'aux' | 'num' | 'interj';
+
+interface DictEntry {
+  word: string;
+  pos: WordPos;
+  translation: string;
+}
+
+interface PhraseEntry {
+  phrase: string;
+  translation: string;
+}
+
+const wordDictionary: DictEntry[] = [
+  { word: 'welcome', pos: 'verb', translation: '欢迎' },
+  { word: 'translation', pos: 'noun', translation: '翻译' },
+  { word: 'platform', pos: 'noun', translation: '平台' },
+  { word: 'team', pos: 'noun', translation: '团队' },
+  { word: 'focus', pos: 'verb', translation: '专注' },
+  { word: 'high', pos: 'adj', translation: '高' },
+  { word: 'quality', pos: 'noun', translation: '质量' },
+  { word: 'comment', pos: 'noun', translation: '评论' },
+  { word: 'right', pos: 'adj', translation: '右' },
+  { word: 'side', pos: 'noun', translation: '侧' },
+  { word: 'each', pos: 'det', translation: '每个' },
+  { word: 'block', pos: 'noun', translation: '块' },
+  { word: 'progress', pos: 'noun', translation: '进度' },
+  { word: 'bar', pos: 'noun', translation: '条' },
+  { word: 'top', pos: 'noun', translation: '顶部' },
+  { word: 'show', pos: 'verb', translation: '显示' },
+  { word: 'overall', pos: 'adj', translation: '整体' },
+  { word: 'smoothly', pos: 'adv', translation: '平滑地' },
+  { word: 'real-time', pos: 'adj', translation: '实时' },
+  { word: 'save', pos: 'noun', translation: '保存' },
+  { word: 'use', pos: 'verb', translation: '使用' },
+  { word: 'debounce', pos: 'noun', translation: '防抖' },
+  { word: 'ensure', pos: 'verb', translation: '确保' },
+  { word: 'performance', pos: 'noun', translation: '性能' },
+  { word: 'under', pos: 'prep', translation: '在以下' },
+  { word: 'millisecond', pos: 'noun', translation: '毫秒' },
+  { word: 'paragraph', pos: 'noun', translation: '段落' },
+  { word: 'switch', pos: 'verb', translation: '切换' },
+  { word: 'document', pos: 'noun', translation: '文档' },
+  { word: 'load', pos: 'verb', translation: '加载' },
+  { word: 'response', pos: 'noun', translation: '响应' },
+  { word: 'time', pos: 'noun', translation: '时间' },
+  { word: 'more', pos: 'adj', translation: '更多' },
+  { word: 'than', pos: 'prep', translation: '比' },
+  { word: 'export', pos: 'noun', translation: '导出' },
+  { word: 'function', pos: 'noun', translation: '功能' },
+  { word: 'support', pos: 'verb', translation: '支持' },
+  { word: 'bilingual', pos: 'adj', translation: '双语' },
+  { word: 'target', pos: 'noun', translation: '目标' },
+  { word: 'only', pos: 'adv', translation: '只' },
+  { word: 'format', pos: 'noun', translation: '格式' },
+  { word: 'content', pos: 'noun', translation: '内容' },
+  { word: 'file', pos: 'noun', translation: '文件' },
+  { word: 'upload', pos: 'noun', translation: '上传' },
+  { word: 'review', pos: 'noun', translation: '审核' },
+  { word: 'complete', pos: 'verb', translation: '完成' },
+  { word: 'continue', pos: 'verb', translation: '继续' },
+  { word: 'collaboration', pos: 'noun', translation: '协作' },
+  { word: 'project', pos: 'noun', translation: '项目' },
+  { word: 'language', pos: 'noun', translation: '语言' },
+  { word: 'hello', pos: 'interj', translation: '你好' },
+  { word: 'world', pos: 'noun', translation: '世界' },
+  { word: 'the', pos: 'det', translation: '' },
+  { word: 'of', pos: 'prep', translation: '' },
+  { word: 'and', pos: 'conj', translation: '和' },
+  { word: 'on', pos: 'prep', translation: '在' },
+  { word: 'to', pos: 'prep', translation: '' },
+  { word: 'is', pos: 'aux', translation: '是' },
+  { word: 'are', pos: 'aux', translation: '是' },
+  { word: 'in', pos: 'prep', translation: '在' },
+  { word: 'for', pos: 'prep', translation: '为' },
+  { word: 'with', pos: 'prep', translation: '与' },
+  { word: 'from', pos: 'prep', translation: '从' },
+  { word: 'at', pos: 'prep', translation: '在' },
+  { word: 'by', pos: 'prep', translation: '通过' },
+  { word: 'as', pos: 'prep', translation: '作为' },
+  { word: 'or', pos: 'conj', translation: '或' },
+  { word: 'this', pos: 'pron', translation: '这个' },
+  { word: 'that', pos: 'pron', translation: '那个' },
+  { word: 'these', pos: 'pron', translation: '这些' },
+  { word: 'those', pos: 'pron', translation: '那些' },
+  { word: 'can', pos: 'aux', translation: '可以' },
+  { word: 'will', pos: 'aux', translation: '将' },
+  { word: 'would', pos: 'aux', translation: '会' },
+  { word: 'should', pos: 'aux', translation: '应该' },
+  { word: 'could', pos: 'aux', translation: '能够' },
+  { word: 'have', pos: 'aux', translation: '已经' },
+  { word: 'has', pos: 'aux', translation: '已经' },
+  { word: 'had', pos: 'aux', translation: '已经' },
+  { word: 'not', pos: 'adv', translation: '不' },
+  { word: 'no', pos: 'det', translation: '没有' },
+  { word: 'your', pos: 'pron', translation: '您的' },
+  { word: 'our', pos: 'pron', translation: '我们的' },
+  { word: 'their', pos: 'pron', translation: '他们的' },
+  { word: 'his', pos: 'pron', translation: '他的' },
+  { word: 'her', pos: 'pron', translation: '她的' },
+  { word: 'its', pos: 'pron', translation: '它的' },
+  { word: 'my', pos: 'pron', translation: '我的' },
+  { word: 'i', pos: 'pron', translation: '我' },
+  { word: 'you', pos: 'pron', translation: '您' },
+  { word: 'we', pos: 'pron', translation: '我们' },
+  { word: 'they', pos: 'pron', translation: '他们' },
+  { word: 'he', pos: 'pron', translation: '他' },
+  { word: 'she', pos: 'pron', translation: '她' },
+  { word: 'it', pos: 'pron', translation: '它' },
+  { word: 'a', pos: 'det', translation: '' },
+  { word: 'an', pos: 'det', translation: '' },
+  { word: 'please', pos: 'adv', translation: '请' },
+  { word: 'add', pos: 'verb', translation: '添加' },
+  { word: 'original', pos: 'adj', translation: '原文' },
+  { word: 'total', pos: 'adj', translation: '总共' },
+  { word: 'source', pos: 'noun', translation: '来源' },
+  { word: 'interface', pos: 'noun', translation: '界面' },
+  { word: 'responsive', pos: 'adj', translation: '响应式' },
+  { word: 'mobile', pos: 'adj', translation: '移动' },
+  { word: 'adapt', pos: 'verb', translation: '适配' },
+  { word: 'button', pos: 'noun', translation: '按钮' },
+  { word: 'input', pos: 'noun', translation: '输入' },
+  { word: 'hover', pos: 'verb', translation: '悬停' },
+  { word: 'feedback', pos: 'noun', translation: '反馈' },
+  { word: 'effect', pos: 'noun', translation: '效果' },
+  { word: 'all', pos: 'det', translation: '所有' },
+  { word: 'fast', pos: 'adj', translation: '快' },
+  { word: 'speed', pos: 'noun', translation: '速度' },
+  { word: 'good', pos: 'adj', translation: '好' },
+  { word: 'very', pos: 'adv', translation: '非常' },
+  { word: 'important', pos: 'adj', translation: '重要' },
+  { word: 'feature', pos: 'noun', translation: '功能' },
+  { word: 'new', pos: 'adj', translation: '新' },
+  { word: 'user', pos: 'noun', translation: '用户' },
+  { word: 'member', pos: 'noun', translation: '成员' },
+  { word: 'work', pos: 'verb', translation: '工作' },
+  { word: 'together', pos: 'adv', translation: '一起' },
+  { word: 'system', pos: 'noun', translation: '系统' },
+  { word: 'design', pos: 'noun', translation: '设计' },
+  { word: 'modern', pos: 'adj', translation: '现代' },
+  { word: 'beautiful', pos: 'adj', translation: '美丽' },
+  { word: 'simple', pos: 'adj', translation: '简单' },
+  { word: 'easy', pos: 'adj', translation: '容易' },
+  { word: 'use', pos: 'verb', translation: '使用' },
 ];
 
-function applyPunctuationCorrection(text: string): string {
+const phraseDictionary: PhraseEntry[] = [
+  { phrase: 'welcome to the translation platform', translation: '欢迎来到翻译平台' },
+  { phrase: 'welcome to our platform', translation: '欢迎来到我们的平台' },
+  { phrase: 'welcome to', translation: '欢迎来到' },
+  { phrase: 'our team focuses on high quality translation', translation: '我们的团队专注于高质量翻译' },
+  { phrase: 'our team', translation: '我们的团队' },
+  { phrase: 'focuses on high quality', translation: '专注于高品质' },
+  { phrase: 'focuses on', translation: '专注于' },
+  { phrase: 'focus on', translation: '专注于' },
+  { phrase: 'high quality translation', translation: '高质量翻译' },
+  { phrase: 'high quality', translation: '高质量' },
+  { phrase: 'please add your comments on the right side of each translation block', translation: '请在每个翻译块的右侧添加您的评论' },
+  { phrase: 'add your comments', translation: '添加您的评论' },
+  { phrase: 'on the right side', translation: '在右侧' },
+  { phrase: 'each translation block', translation: '每个翻译块' },
+  { phrase: 'the progress bar at the top shows overall translation progress smoothly', translation: '顶部的进度条平滑地显示整体翻译进度' },
+  { phrase: 'the progress bar at the top', translation: '顶部的进度条' },
+  { phrase: 'progress bar', translation: '进度条' },
+  { phrase: 'overall translation progress', translation: '整体翻译进度' },
+  { phrase: 'overall progress', translation: '整体进度' },
+  { phrase: 'shows overall', translation: '显示整体' },
+  { phrase: 'real-time save uses debounce to ensure performance under 200ms', translation: '实时保存采用防抖机制，确保性能控制在200毫秒以内' },
+  { phrase: 'real-time save', translation: '实时保存' },
+  { phrase: 'uses debounce', translation: '采用防抖机制' },
+  { phrase: 'use debounce', translation: '采用防抖机制' },
+  { phrase: 'ensure performance', translation: '确保性能' },
+  { phrase: 'under ms', translation: '毫秒以内' },
+  { phrase: 'paragraph switching and document loading response time is no more than', translation: '段落切换和文档加载响应时间不超过' },
+  { phrase: 'paragraph switching', translation: '段落切换' },
+  { phrase: 'document loading', translation: '文档加载' },
+  { phrase: 'response time', translation: '响应时间' },
+  { phrase: 'no more than', translation: '不超过' },
+  { phrase: 'export function supports bilingual or target-only PDF and Markdown formats', translation: '导出功能支持双语对照或纯译文的PDF与Markdown格式' },
+  { phrase: 'export function', translation: '导出功能' },
+  { phrase: 'supports bilingual', translation: '支持双语' },
+  { phrase: 'target-only', translation: '纯译文' },
+  { phrase: 'translation platform', translation: '翻译平台' },
+  { phrase: 'no more than', translation: '不超过' },
+  { phrase: 'milliseconds', translation: '毫秒' },
+  { phrase: 'millisecond', translation: '毫秒' },
+  { phrase: 'bilingual', translation: '双语对照' },
+  { phrase: 'translation document', translation: '翻译文档' },
+  { phrase: 'source file', translation: '来源文件' },
+  { phrase: 'total paragraphs', translation: '段落数量' },
+  { phrase: 'interface is responsive and adapts to mobile', translation: '界面响应式适配移动端' },
+  { phrase: 'all input boxes and buttons have hover feedback effects', translation: '所有输入框和按钮都有悬停反馈效果' },
+  { phrase: 'input boxes', translation: '输入框' },
+  { phrase: 'hover feedback effects', translation: '悬停反馈效果' },
+];
+
+const pinyinMap: Record<string, string> = {
+  a: '阿', b: '比', c: '西', d: '迪', e: '伊', f: '艾弗', g: '吉',
+  h: '艾奇', i: '艾', j: '杰', k: '凯', l: '艾勒', m: '艾姆', n: '艾恩',
+  o: '欧', p: '皮', q: '丘', r: '阿尔', s: '艾斯', t: '提',
+  u: '尤', v: '维', w: '达不溜', x: '艾克斯', y: '歪', z: '兹',
+};
+
+const irregularVerbs: Record<string, string> = {
+  was: 'be', were: 'be', been: 'be', being: 'be',
+  had: 'have', having: 'have',
+  did: 'do', done: 'do', doing: 'do',
+  said: 'say', saying: 'say',
+  went: 'go', gone: 'go', going: 'go',
+  got: 'get', gotten: 'get', getting: 'get',
+  made: 'make', making: 'make',
+  took: 'take', taken: 'take', taking: 'take',
+  saw: 'see', seen: 'see', seeing: 'see',
+  came: 'come', coming: 'come',
+  thought: 'think', thinking: 'think',
+  knew: 'know', known: 'know', knowing: 'know',
+  gave: 'give', given: 'give', giving: 'give',
+  found: 'find', finding: 'find',
+  told: 'tell', telling: 'tell',
+  became: 'become', becoming: 'become',
+  left: 'leave', leaving: 'leave',
+  put: 'put', putting: 'put',
+  felt: 'feel', feeling: 'feel',
+  tried: 'try', trying: 'try',
+};
+
+const irregularNouns: Record<string, string> = {
+  children: 'child', men: 'man', women: 'woman',
+  teeth: 'tooth', feet: 'foot', mice: 'mouse',
+  people: 'person', geese: 'goose',
+};
+
+function lemmatize(word: string): string {
+  const lower = word.toLowerCase();
+  
+  if (irregularVerbs[lower]) return irregularVerbs[lower];
+  if (irregularNouns[lower]) return irregularNouns[lower];
+  
+  if (lower.endsWith('ies') && lower.length > 4) {
+    return lower.slice(0, -3) + 'y';
+  }
+  if (lower.endsWith('ves') && lower.length > 4) {
+    return lower.slice(0, -3) + 'f';
+  }
+  if (lower.endsWith('es') && lower.length > 3) {
+    const base = lower.slice(0, -2);
+    if (/[sxz]$/.test(base) || /[cs]h$/.test(base)) {
+      return base;
+    }
+  }
+  if (lower.endsWith('s') && lower.length > 2 && !lower.endsWith('ss')) {
+    return lower.slice(0, -1);
+  }
+  
+  if (lower.endsWith('ing') && lower.length > 4) {
+    const base = lower.slice(0, -3);
+    if (base.length >= 2) {
+      const lastChar = base[base.length - 1];
+      const secondLast = base[base.length - 2];
+      const vowels = 'aeiou';
+      if (vowels.includes(secondLast) && !vowels.includes(lastChar) 
+          && lastChar !== 'w' && lastChar !== 'x' && lastChar !== 'y') {
+        return base.slice(0, -1);
+      }
+    }
+    return base;
+  }
+  if (lower.endsWith('ied') && lower.length > 4) {
+    return lower.slice(0, -3) + 'y';
+  }
+  if (lower.endsWith('ed') && lower.length > 3) {
+    const base = lower.slice(0, -2);
+    if (base.length >= 2) {
+      const lastChar = base[base.length - 1];
+      const secondLast = base[base.length - 2];
+      const vowels = 'aeiou';
+      if (vowels.includes(secondLast) && !vowels.includes(lastChar)
+          && lastChar !== 'w' && lastChar !== 'x' && lastChar !== 'y') {
+        return base.slice(0, -1);
+      }
+    }
+    return base;
+  }
+  if (lower.endsWith('est') && lower.length > 4) {
+    return lower.slice(0, -3);
+  }
+  if (lower.endsWith('er') && lower.length > 3) {
+    return lower.slice(0, -2);
+  }
+  if (lower.endsWith('ly') && lower.length > 3) {
+    return lower.slice(0, -2);
+  }
+  if (lower.endsWith('tion') && lower.length > 5) {
+    return lower.slice(0, -4);
+  }
+  if (lower.endsWith('sion') && lower.length > 5) {
+    return lower.slice(0, -4);
+  }
+  if (lower.endsWith('ness') && lower.length > 5) {
+    return lower.slice(0, -4);
+  }
+  if (lower.endsWith('ment') && lower.length > 5) {
+    return lower.slice(0, -4);
+  }
+  if (lower.endsWith('able') && lower.length > 5) {
+    return lower.slice(0, -4);
+  }
+  if (lower.endsWith('ible') && lower.length > 5) {
+    return lower.slice(0, -4);
+  }
+  if (lower.endsWith('ful') && lower.length > 4) {
+    return lower.slice(0, -3);
+  }
+  if (lower.endsWith('less') && lower.length > 5) {
+    return lower.slice(0, -4);
+  }
+  if (lower.endsWith('ous') && lower.length > 4) {
+    return lower.slice(0, -3);
+  }
+  if (lower.endsWith('ive') && lower.length > 4) {
+    return lower.slice(0, -3);
+  }
+  if (lower.endsWith('al') && lower.length > 3) {
+    return lower.slice(0, -2);
+  }
+  
+  return lower;
+}
+
+function transliterate(word: string): string {
+  let result = '';
+  for (let i = 0; i < word.length; i++) {
+    const ch = word[i].toLowerCase();
+    result += pinyinMap[ch] || ch;
+  }
+  return result;
+}
+
+function isProperNoun(word: string): boolean {
+  if (word.length === 0) return false;
+  return word[0] === word[0].toUpperCase() && word[0] !== word[0].toLowerCase();
+}
+
+function buildWordLookup(): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const entry of wordDictionary) {
+    map.set(entry.word.toLowerCase(), entry.translation);
+  }
+  return map;
+}
+
+const wordLookup = buildWordLookup();
+
+function buildPhraseLookup(): PhraseEntry[] {
+  return [...phraseDictionary].sort((a, b) => b.phrase.length - a.phrase.length);
+}
+
+const sortedPhrases = buildPhraseLookup();
+
+function translateWordEnZh(word: string): string {
+  const lower = word.toLowerCase();
+  
+  if (wordLookup.has(lower)) {
+    return wordLookup.get(lower)!;
+  }
+  
+  const lemma = lemmatize(word);
+  if (wordLookup.has(lemma)) {
+    return wordLookup.get(lemma)!;
+  }
+  
+  if (isProperNoun(word)) {
+    return word;
+  }
+  
+  return transliterate(word);
+}
+
+function tokenizeEnglish(text: string): string[] {
+  const tokens: string[] = [];
+  let current = '';
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (/[a-zA-Z0-9\-]/.test(ch)) {
+      current += ch;
+    } else {
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
+      if (/\S/.test(ch)) {
+        tokens.push(ch);
+      } else if (current === '' && tokens.length > 0) {
+        tokens.push(' ');
+      }
+    }
+  }
+  if (current) {
+    tokens.push(current);
+  }
+  return tokens;
+}
+
+function translateSentenceEnZh(sentence: string): string {
+  let result = sentence.toLowerCase();
+  
+  for (const phrase of sortedPhrases) {
+    const regex = new RegExp('\\b' + phrase.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+    result = result.replace(regex, `\u0000${phrase.translation}\u0000`);
+  }
+  
+  const tokens = tokenizeEnglish(result);
+  const translated: string[] = [];
+  
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    
+    if (token.startsWith('\u0000') && token.endsWith('\u0000')) {
+      translated.push(token.slice(1, -1));
+      continue;
+    }
+    
+    if (/^[a-zA-Z\-]+$/.test(token)) {
+      const origWord = sentence.match(new RegExp('\\b' + token + '\\b', 'i'))?.[0] || token;
+      
+      if (isProperNoun(origWord)) {
+        translated.push(origWord);
+      } else {
+        translated.push(translateWordEnZh(token));
+      }
+    } else if (token === ' ') {
+      if (translated.length > 0 && translated[translated.length - 1] !== ' ') {
+        translated.push('');
+      }
+    } else {
+      translated.push(token);
+    }
+  }
+  
+  let finalText = translated.join('');
+  finalText = applyChinesePostProcessing(finalText);
+  return finalText;
+}
+
+function applyChinesePostProcessing(text: string): string {
   let s = text;
-  s = s.replace(/\s+/g, ' ').trim();
-  s = s.replace(/\s+([，。、；：！？""''（）【】])/g, '$1');
-  s = s.replace(/([，。、；：！？])\1+/g, '$1');
-  s = s.replace(/的的/g, '的');
-  s = s.replace(/在在/g, '在');
-  s = s.replace(/是是/g, '是');
+  
+  s = s.replace(/\u0000/g, '');
+  
+  s = s.replace(/\s+/g, '');
+  
+  s = s.replace(/的的+/g, '的');
+  s = s.replace(/在在+/g, '在');
+  s = s.replace(/是是+/g, '是');
+  s = s.replace(/了了+/g, '了');
+  s = s.replace(/和和+/g, '和');
+  
   s = s.replace(/，。/g, '。');
-  s = s.replace(/，，/g, '，');
-  s = s.replace(/^[，、；：]/, '');
+  s = s.replace(/。，/g, '。');
+  s = s.replace(/，，+/g, '，');
+  s = s.replace(/。。+/g, '。');
+  
+  s = s.replace(/^[，、；：,.]/, '');
   s = s.trim();
-  if (s && !/[。！？]$/.test(s) && /[\u4e00-\u9fa5]/.test(s)) {
+  
+  if (s && /[\u4e00-\u9fa5]/.test(s) && !/[。！？.!?]$/.test(s)) {
     s += '。';
   }
+  
+  s = s.replace(/在在/g, '在');
+  s = s.replace(/的的/g, '的');
+  
   return s;
 }
 
-const phraseDictZhEn: Array<{ pattern: RegExp; replacement: string }> = [
-  { pattern: /欢迎来到翻译平台/g, replacement: 'Welcome to the translation platform' },
-  { pattern: /欢迎来到/g, replacement: 'Welcome to' },
-  { pattern: /我们的团队专注于高质量翻译/g, replacement: 'Our team focuses on high-quality translation' },
-  { pattern: /我们的团队/g, replacement: 'Our team' },
-  { pattern: /专注于高品质/g, replacement: 'focuses on high quality' },
-  { pattern: /专注于/g, replacement: 'focuses on' },
-  { pattern: /高质量翻译/g, replacement: 'high-quality translation' },
-  { pattern: /高质量/g, replacement: 'high quality' },
-  { pattern: /请在每个翻译块的右侧添加您的评论/g, replacement: 'Please add your comments on the right side of each translation block' },
-  { pattern: /添加您的评论/g, replacement: 'add your comments' },
-  { pattern: /在右侧/g, replacement: 'on the right side' },
-  { pattern: /每个翻译块/g, replacement: 'each translation block' },
-  { pattern: /顶部的进度条平滑地显示整体翻译进度/g, replacement: 'The progress bar at the top smoothly displays the overall translation progress' },
-  { pattern: /顶部的进度条/g, replacement: 'The progress bar at the top' },
-  { pattern: /进度条/g, replacement: 'progress bar' },
-  { pattern: /整体翻译进度/g, replacement: 'overall translation progress' },
-  { pattern: /整体进度/g, replacement: 'overall progress' },
-  { pattern: /显示整体/g, replacement: 'displays the overall' },
-  { pattern: /平滑地/g, replacement: 'smoothly' },
-  { pattern: /实时保存采用防抖机制，确保性能控制在\s*(\d+)\s*毫秒以内/g, replacement: 'Real-time save uses debounce to ensure performance under $1ms' },
-  { pattern: /实时保存/g, replacement: 'Real-time save' },
-  { pattern: /采用防抖机制/g, replacement: 'uses debounce' },
-  { pattern: /确保性能/g, replacement: 'ensure performance' },
-  { pattern: /在\s*(\d+)\s*毫秒以内/g, replacement: 'under $1ms' },
-  { pattern: /段落切换和文档加载响应时间不超过\s*(\d+)\s*毫秒/g, replacement: 'Paragraph switching and document loading response time is no more than $1 milliseconds' },
-  { pattern: /段落切换/g, replacement: 'Paragraph switching' },
-  { pattern: /文档加载/g, replacement: 'document loading' },
-  { pattern: /响应时间/g, replacement: 'response time' },
-  { pattern: /不超过\s*(\d+)\s*毫秒/g, replacement: 'no more than $1 milliseconds' },
-  { pattern: /不超过/g, replacement: 'no more than' },
-  { pattern: /毫秒/g, replacement: 'milliseconds' },
-  { pattern: /导出功能支持双语对照或纯译文的\s*PDF\s*与\s*Markdown\s*格式/g, replacement: 'The export function supports bilingual and target-only output in PDF and Markdown formats' },
-  { pattern: /导出功能/g, replacement: 'Export function' },
-  { pattern: /支持双语/g, replacement: 'supports bilingual' },
-  { pattern: /双语对照/g, replacement: 'bilingual' },
-  { pattern: /纯译文/g, replacement: 'target-only' },
-  { pattern: /翻译平台/g, replacement: 'translation platform' },
-  { pattern: /翻译/g, replacement: 'translation' },
-  { pattern: /平台/g, replacement: 'platform' },
-  { pattern: /文档/g, replacement: 'document' },
-  { pattern: /团队/g, replacement: 'team' },
-  { pattern: /内容/g, replacement: 'content' },
-  { pattern: /文件/g, replacement: 'file' },
-  { pattern: /上传/g, replacement: 'upload' },
-  { pattern: /导出/g, replacement: 'export' },
-  { pattern: /评论/g, replacement: 'comment' },
-  { pattern: /段落/g, replacement: 'paragraph' },
-  { pattern: /质量/g, replacement: 'quality' },
-  { pattern: /审核/g, replacement: 'review' },
-  { pattern: /进度/g, replacement: 'progress' },
-  { pattern: /完成/g, replacement: 'complete' },
-  { pattern: /继续/g, replacement: 'continue' },
-  { pattern: /协作/g, replacement: 'collaboration' },
-  { pattern: /项目/g, replacement: 'project' },
-  { pattern: /语言/g, replacement: 'language' },
-  { pattern: /你好/g, replacement: 'hello' },
-  { pattern: /世界/g, replacement: 'world' },
-  { pattern: /的/g, replacement: ' ' },
-  { pattern: /了/g, replacement: ' ' },
-  { pattern: /和/g, replacement: ' and ' },
-  { pattern: /与/g, replacement: ' with ' },
-  { pattern: /在/g, replacement: ' in ' },
-  { pattern: /是/g, replacement: ' is ' },
-  { pattern: /为/g, replacement: ' for ' },
-  { pattern: /通过/g, replacement: ' by ' },
-  { pattern: /作为/g, replacement: ' as ' },
-  { pattern: /或/g, replacement: ' or ' },
-  { pattern: /这个/g, replacement: ' this ' },
-  { pattern: /那个/g, replacement: ' that ' },
-  { pattern: /这些/g, replacement: ' these ' },
-  { pattern: /那些/g, replacement: ' those ' },
-  { pattern: /可以/g, replacement: ' can ' },
-  { pattern: /将/g, replacement: ' will ' },
-  { pattern: /应该/g, replacement: ' should ' },
-  { pattern: /能够/g, replacement: ' could ' },
-  { pattern: /已经/g, replacement: ' have ' },
-  { pattern: /不/g, replacement: ' not ' },
-  { pattern: /没有/g, replacement: ' no ' },
-  { pattern: /您的/g, replacement: ' your ' },
-  { pattern: /我们的/g, replacement: ' our ' },
-  { pattern: /他们的/g, replacement: ' their ' },
-  { pattern: /他的/g, replacement: ' his ' },
-  { pattern: /她的/g, replacement: ' her ' },
-  { pattern: /它的/g, replacement: ' its ' },
-  { pattern: /我的/g, replacement: ' my ' },
-  { pattern: /我/g, replacement: ' I ' },
-  { pattern: /您/g, replacement: ' you ' },
-  { pattern: /你/g, replacement: ' you ' },
-  { pattern: /我们/g, replacement: ' we ' },
-  { pattern: /他们/g, replacement: ' they ' },
-  { pattern: /他/g, replacement: ' he ' },
-  { pattern: /她/g, replacement: ' she ' },
-  { pattern: /它/g, replacement: ' it ' },
-  { pattern: /。/g, replacement: '. ' },
-  { pattern: /，/g, replacement: ', ' },
-  { pattern: /、/g, replacement: ', ' },
-  { pattern: /；/g, replacement: '; ' },
-  { pattern: /：/g, replacement: ': ' },
-  { pattern: /！/g, replacement: '! ' },
-  { pattern: /？/g, replacement: '? ' },
+const zhEnPhrases: PhraseEntry[] = [
+  { phrase: '欢迎来到翻译平台', translation: 'Welcome to the translation platform' },
+  { phrase: '欢迎来到', translation: 'Welcome to' },
+  { phrase: '我们的团队专注于高质量翻译', translation: 'Our team focuses on high-quality translation' },
+  { phrase: '我们的团队', translation: 'Our team' },
+  { phrase: '专注于高品质', translation: 'focuses on high quality' },
+  { phrase: '专注于', translation: 'focuses on' },
+  { phrase: '高质量翻译', translation: 'high-quality translation' },
+  { phrase: '高质量', translation: 'high quality' },
+  { phrase: '请在每个翻译块的右侧添加您的评论', translation: 'Please add your comments on the right side of each translation block' },
+  { phrase: '添加您的评论', translation: 'add your comments' },
+  { phrase: '在右侧', translation: 'on the right side' },
+  { phrase: '每个翻译块', translation: 'each translation block' },
+  { phrase: '顶部的进度条平滑地显示整体翻译进度', translation: 'The progress bar at the top smoothly displays the overall translation progress' },
+  { phrase: '顶部的进度条', translation: 'The progress bar at the top' },
+  { phrase: '进度条', translation: 'progress bar' },
+  { phrase: '整体翻译进度', translation: 'overall translation progress' },
+  { phrase: '整体进度', translation: 'overall progress' },
+  { phrase: '显示整体', translation: 'displays the overall' },
+  { phrase: '平滑地', translation: 'smoothly' },
+  { phrase: '实时保存采用防抖机制，确保性能控制在', translation: 'Real-time save uses debounce to ensure performance under' },
+  { phrase: '实时保存', translation: 'Real-time save' },
+  { phrase: '采用防抖机制', translation: 'uses debounce' },
+  { phrase: '确保性能', translation: 'ensure performance' },
+  { phrase: '毫秒以内', translation: 'milliseconds' },
+  { phrase: '毫秒', translation: 'milliseconds' },
+  { phrase: '段落切换和文档加载响应时间不超过', translation: 'Paragraph switching and document loading response time is no more than' },
+  { phrase: '段落切换', translation: 'Paragraph switching' },
+  { phrase: '文档加载', translation: 'document loading' },
+  { phrase: '响应时间', translation: 'response time' },
+  { phrase: '不超过', translation: 'no more than' },
+  { phrase: '导出功能支持双语对照或纯译文的PDF与Markdown格式', translation: 'The export function supports bilingual and target-only output in PDF and Markdown formats' },
+  { phrase: '导出功能', translation: 'Export function' },
+  { phrase: '支持双语', translation: 'supports bilingual' },
+  { phrase: '双语对照', translation: 'bilingual' },
+  { phrase: '纯译文', translation: 'target-only' },
+  { phrase: '翻译平台', translation: 'translation platform' },
+  { phrase: '翻译', translation: 'translation' },
+  { phrase: '平台', translation: 'platform' },
+  { phrase: '文档', translation: 'document' },
+  { phrase: '团队', translation: 'team' },
+  { phrase: '内容', translation: 'content' },
+  { phrase: '文件', translation: 'file' },
+  { phrase: '上传', translation: 'upload' },
+  { phrase: '导出', translation: 'export' },
+  { phrase: '评论', translation: 'comment' },
+  { phrase: '段落', translation: 'paragraph' },
+  { phrase: '质量', translation: 'quality' },
+  { phrase: '审核', translation: 'review' },
+  { phrase: '进度', translation: 'progress' },
+  { phrase: '完成', translation: 'complete' },
+  { phrase: '继续', translation: 'continue' },
+  { phrase: '协作', translation: 'collaboration' },
+  { phrase: '项目', translation: 'project' },
+  { phrase: '语言', translation: 'language' },
+  { phrase: '你好', translation: 'hello' },
+  { phrase: '世界', translation: 'world' },
+  { phrase: '和', translation: 'and' },
+  { phrase: '与', translation: 'with' },
+  { phrase: '在', translation: 'in' },
+  { phrase: '是', translation: 'is' },
+  { phrase: '为', translation: 'for' },
+  { phrase: '通过', translation: 'by' },
+  { phrase: '作为', translation: 'as' },
+  { phrase: '或', translation: 'or' },
+  { phrase: '这个', translation: 'this' },
+  { phrase: '那个', translation: 'that' },
+  { phrase: '这些', translation: 'these' },
+  { phrase: '那些', translation: 'those' },
+  { phrase: '可以', translation: 'can' },
+  { phrase: '将', translation: 'will' },
+  { phrase: '应该', translation: 'should' },
+  { phrase: '能够', translation: 'could' },
+  { phrase: '已经', translation: 'have' },
+  { phrase: '不', translation: 'not' },
+  { phrase: '没有', translation: 'no' },
+  { phrase: '您的', translation: 'your' },
+  { phrase: '你的', translation: 'your' },
+  { phrase: '我们的', translation: 'our' },
+  { phrase: '他们的', translation: 'their' },
+  { phrase: '他的', translation: 'his' },
+  { phrase: '她的', translation: 'her' },
+  { phrase: '它的', translation: 'its' },
+  { phrase: '我的', translation: 'my' },
+  { phrase: '我', translation: 'I' },
+  { phrase: '您', translation: 'you' },
+  { phrase: '你', translation: 'you' },
+  { phrase: '我们', translation: 'we' },
+  { phrase: '他们', translation: 'they' },
+  { phrase: '他', translation: 'he' },
+  { phrase: '她', translation: 'she' },
+  { phrase: '它', translation: 'it' },
+  { phrase: '。', translation: '. ' },
+  { phrase: '，', translation: ', ' },
+  { phrase: '、', translation: ', ' },
+  { phrase: '；', translation: '; ' },
+  { phrase: '：', translation: ': ' },
+  { phrase: '！', translation: '! ' },
+  { phrase: '？', translation: '? ' },
+  { phrase: '的', translation: ' ' },
+  { phrase: '了', translation: ' ' },
 ];
 
-function translateSentenceEnZh(sentence: string): string {
-  let result = sentence;
-  for (const rule of phraseDictEnZh) {
-    result = result.replace(rule.pattern, rule.replacement);
-  }
-  result = applyPunctuationCorrection(result);
-  return result;
-}
+const sortedZhEnPhrases = [...zhEnPhrases].sort((a, b) => b.phrase.length - a.phrase.length);
 
 function translateSentenceZhEn(sentence: string): string {
   let result = sentence;
-  for (const rule of phraseDictZhEn) {
-    result = result.replace(rule.pattern, rule.replacement);
+  
+  for (const phrase of sortedZhEnPhrases) {
+    result = result.split(phrase.phrase).join(`\u0000${phrase.translation}\u0000`);
   }
-  result = result.replace(/\s+/g, ' ').trim();
-  result = result.replace(/\s+([,.;:!?])/g, '$1');
-  result = result.replace(/\s\s+/g, ' ');
-  if (result) {
-    result = result.charAt(0).toUpperCase() + result.slice(1);
+  
+  let finalText = '';
+  let inPlaceholder = false;
+  let current = '';
+  
+  for (let i = 0; i < result.length; i++) {
+    const ch = result[i];
+    if (ch === '\u0000') {
+      if (inPlaceholder) {
+        finalText += current;
+        current = '';
+      }
+      inPlaceholder = !inPlaceholder;
+    } else if (inPlaceholder) {
+      current += ch;
+    } else if (/[\u4e00-\u9fa5]/.test(ch)) {
+      finalText += ch;
+    } else {
+      finalText += ch;
+    }
   }
-  return result;
+  
+  finalText = finalText.replace(/\s+/g, ' ').trim();
+  finalText = finalText.replace(/\s+([,.;:!?])/g, '$1');
+  finalText = finalText.replace(/\s\s+/g, ' ');
+  
+  if (finalText) {
+    finalText = finalText.charAt(0).toUpperCase() + finalText.slice(1);
+  }
+  
+  return finalText;
 }
 
 function splitSentences(text: string): string[] {
@@ -388,7 +755,6 @@ function generateLocalExport(
     return new Blob([md], { type: 'text/markdown' });
   }
 
-  // 真正的 PDF 生成（使用 jsPDF）
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',
@@ -399,32 +765,69 @@ function generateLocalExport(
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 50;
+  const footerHeight = 30;
   const contentWidth = pageWidth - margin * 2;
+  const contentMaxY = pageHeight - margin - footerHeight;
   let y = margin;
+  let currentPage = 1;
+  const pageCount: { total: number } = { total: 1 };
 
-  const addTextWrapped = (text: string, fontSize: number, isBold: boolean, color: [number, number, number]) => {
+  const addNewPage = () => {
+    doc.addPage();
+    currentPage++;
+    pageCount.total = currentPage;
+    y = margin;
+  };
+
+  const measureTextHeight = (text: string, fontSize: number): { lines: string[]; height: number; lineHeight: number } => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fontSize);
+    const lines = doc.splitTextToSize(text, contentWidth);
+    const lineHeight = fontSize * 1.5;
+    const height = lines.length * lineHeight + lineHeight * 0.3;
+    return { lines, height, lineHeight };
+  };
+
+  const addTextWrapped = (
+    text: string,
+    fontSize: number,
+    isBold: boolean,
+    color: [number, number, number],
+    keepWithNext: boolean = false
+  ): number => {
     doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     doc.setFontSize(fontSize);
     doc.setTextColor(color[0], color[1], color[2]);
 
-    const lines = doc.splitTextToSize(text, contentWidth);
-    const lineHeight = fontSize * 1.5;
+    const { lines, lineHeight } = measureTextHeight(text, fontSize);
 
+    if (keepWithNext && lines.length > 1) {
+      const lastTwoLinesHeight = Math.min(2, lines.length) * lineHeight;
+      if (y + lastTwoLinesHeight > contentMaxY && y > margin) {
+        addNewPage();
+      }
+    }
+
+    let linesDrawn = 0;
     for (const line of lines) {
-      if (y + lineHeight > pageHeight - margin) {
-        doc.addPage();
-        y = margin;
+      if (y + lineHeight > contentMaxY) {
+        addNewPage();
+        doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+        doc.setFontSize(fontSize);
+        doc.setTextColor(color[0], color[1], color[2]);
       }
       doc.text(line, margin, y);
       y += lineHeight;
+      linesDrawn++;
     }
     y += lineHeight * 0.3;
+    return linesDrawn;
   };
 
   const addHorizontalLine = () => {
-    if (y + 10 > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
+    const lineHeight = 10;
+    if (y + lineHeight > contentMaxY) {
+      addNewPage();
     }
     doc.setDrawColor(220, 210, 195);
     doc.setLineWidth(0.5);
@@ -432,7 +835,18 @@ function generateLocalExport(
     y += 20;
   };
 
-  // 标题
+  const addParagraphTitle = (title: string) => {
+    const titleFontSize = 13;
+    const { height: titleHeight } = measureTextHeight(title, titleFontSize);
+    const minContentHeight = titleFontSize * 1.5 * 2;
+
+    if (y + titleHeight + minContentHeight > contentMaxY) {
+      addNewPage();
+    }
+
+    addTextWrapped(title, titleFontSize, true, [139, 105, 20], true);
+  };
+
   addTextWrapped('Translation Document', 22, true, [90, 62, 43]);
   y += 4;
   addTextWrapped('翻译文档', 16, true, [90, 62, 43]);
@@ -448,13 +862,28 @@ function generateLocalExport(
   addHorizontalLine();
 
   paragraphs.forEach((p, idx) => {
-    addTextWrapped(`Paragraph ${idx + 1}  段落 ${idx + 1}`, 13, true, [139, 105, 20]);
+    addParagraphTitle(`Paragraph ${idx + 1}  段落 ${idx + 1}`);
 
     if (bilingual) {
-      addTextWrapped(`Original  原文`, 11, true, [90, 62, 43]);
+      const subTitleFontSize = 11;
+      const { height: subTitleHeight } = measureTextHeight('Original  原文', subTitleFontSize);
+      const minKeepHeight = subTitleHeight + subTitleFontSize * 1.5 * 2;
+
+      if (y + minKeepHeight > contentMaxY && y > margin) {
+        addNewPage();
+      }
+
+      addTextWrapped(`Original  原文`, 11, true, [90, 62, 43], true);
       addTextWrapped(p.text, 11, false, [60, 45, 31]);
 
-      addTextWrapped(`Translation  译文`, 11, true, [90, 62, 43]);
+      const { height: transSubTitleHeight } = measureTextHeight('Translation  译文', subTitleFontSize);
+      const minTransKeepHeight = transSubTitleHeight + subTitleFontSize * 1.5 * 2;
+
+      if (y + minTransKeepHeight > contentMaxY && y > margin) {
+        addNewPage();
+      }
+
+      addTextWrapped(`Translation  译文`, 11, true, [90, 62, 43], true);
       addTextWrapped(p.translation || '(Not translated)', 11, false, [46, 125, 50]);
     } else {
       addTextWrapped(p.translation || p.text, 11, false, [60, 45, 31]);
@@ -464,6 +893,17 @@ function generateLocalExport(
       addHorizontalLine();
     }
   });
+
+  const totalPages = pageCount.total;
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(150, 140, 130);
+    const footerText = `第 ${i} 页 / 共 ${totalPages} 页  |  Page ${i} of ${totalPages}`;
+    const textWidth = doc.getTextWidth(footerText);
+    doc.text(footerText, (pageWidth - textWidth) / 2, pageHeight - margin + 10);
+  }
 
   const pdfBuffer = doc.output('arraybuffer');
   return new Blob([pdfBuffer], { type: 'application/pdf' });

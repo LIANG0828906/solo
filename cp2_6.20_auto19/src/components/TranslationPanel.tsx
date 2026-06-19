@@ -5,8 +5,15 @@ import { translateText } from '../api/translate';
 import CommentBubble from './CommentBubble';
 
 export default function TranslationPanel() {
-  const { paragraphs, translations, setTranslation, markSaving, markSaved, saveStatuses } =
-    useDocumentStore();
+  const {
+    paragraphs,
+    translations,
+    setTranslation,
+    markSaving,
+    markSaved,
+    markSavedWithGeneration,
+    saveStatuses,
+  } = useDocumentStore();
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const debounceTimers = useRef<Record<string, number>>({});
   const panelRef = useRef<HTMLDivElement>(null);
@@ -14,16 +21,16 @@ export default function TranslationPanel() {
   const updateDebounced = useCallback(
     (id: string, value: string) => {
       setTranslation(id, value);
-      markSaving(id);
+      const generation = markSaving(id);
       if (debounceTimers.current[id]) {
         window.clearTimeout(debounceTimers.current[id]);
       }
       debounceTimers.current[id] = window.setTimeout(() => {
-        markSaved(id);
+        markSavedWithGeneration(id, generation);
         delete debounceTimers.current[id];
       }, 180);
     },
-    [setTranslation, markSaving, markSaved]
+    [setTranslation, markSaving, markSavedWithGeneration]
   );
 
   useEffect(() => {
