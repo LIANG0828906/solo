@@ -1,20 +1,20 @@
 import type { Direction } from './InputHandler';
+import { SONGS, type SongData, type SongNote, type NoteType } from './songs';
+
+export { type NoteType };
 
 export interface NoteData {
   time: number;
   direction: Direction;
+  type: NoteType;
 }
 
-export interface ChartData {
-  name: string;
-  bpm: number;
-  duration: number;
-  notes: NoteData[];
-}
+export type ChartData = SongData;
 
 export interface Note {
   id: number;
   direction: Direction;
+  type: NoteType;
   spawnTime: number;
   hitTime: number;
   y: number;
@@ -28,9 +28,9 @@ export type JudgeResult = 'perfect' | 'good' | 'normal' | 'miss';
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
 export const DIFFICULTY_CONFIG: Record<Difficulty, { speedMultiplier: number; perfectWindow: number; goodWindow: number; normalWindow: number }> = {
-  easy: { speedMultiplier: 1.0, perfectWindow: 0.09, goodWindow: 0.15, normalWindow: 0.22 },
-  normal: { speedMultiplier: 1.6, perfectWindow: 0.06, goodWindow: 0.11, normalWindow: 0.17 },
-  hard: { speedMultiplier: 2.5, perfectWindow: 0.035, goodWindow: 0.07, normalWindow: 0.12 }
+  easy: { speedMultiplier: 1.0, perfectWindow: 0.05, goodWindow: 0.10, normalWindow: 0.15 },
+  normal: { speedMultiplier: 1.6, perfectWindow: 0.03, goodWindow: 0.07, normalWindow: 0.12 },
+  hard: { speedMultiplier: 2.5, perfectWindow: 0.02, goodWindow: 0.05, normalWindow: 0.09 }
 };
 
 export const JUDGE_SCORE: Record<JudgeResult, number> = {
@@ -47,53 +47,10 @@ export const JUDGE_ENERGY: Record<JudgeResult, number> = {
   miss: 0
 };
 
-const DIRECTIONS: Direction[] = ['up', 'down', 'left', 'right'];
+export const HEAVY_NOTE_SCORE_MULTIPLIER = 1.5;
+export const HEAVY_NOTE_ENERGY_MULTIPLIER = 1.5;
 
-function generateRandomNotes(bpm: number, duration: number, density: number): NoteData[] {
-  const notes: NoteData[] = [];
-  const beatInterval = 60 / bpm;
-  const steps = Math.floor(duration / (beatInterval / density));
-  let lastTime = 0;
-
-  for (let i = 2; i < steps; i++) {
-    if (Math.random() < 0.65) {
-      const time = i * (beatInterval / density);
-      if (time - lastTime < beatInterval * 0.3) continue;
-      const dir = DIRECTIONS[Math.floor(Math.random() * 4)];
-      notes.push({ time, direction: dir });
-      lastTime = time;
-
-      if (Math.random() < 0.18 && i < steps - 1) {
-        const dir2 = DIRECTIONS[Math.floor(Math.random() * 4)];
-        if (dir2 !== dir) {
-          notes.push({ time, direction: dir2 });
-        }
-      }
-    }
-  }
-  return notes;
-}
-
-export const CHARTS: ChartData[] = [
-  {
-    name: 'Neon Pulse',
-    bpm: 110,
-    duration: 45,
-    notes: generateRandomNotes(110, 45, 2)
-  },
-  {
-    name: 'Cyber Beat',
-    bpm: 140,
-    duration: 50,
-    notes: generateRandomNotes(140, 50, 2)
-  },
-  {
-    name: 'Thunder Strike',
-    bpm: 170,
-    duration: 55,
-    notes: generateRandomNotes(170, 55, 3)
-  }
-];
+export const CHARTS: ChartData[] = SONGS;
 
 export class NoteManager {
   private notes: Note[] = [];
@@ -166,6 +123,7 @@ export class NoteManager {
         this.notes.push({
           id: this.noteIdCounter++,
           direction: noteData.direction,
+          type: noteData.type,
           spawnTime: currentSongTime,
           hitTime: noteData.time,
           y: this.topSpawnY,

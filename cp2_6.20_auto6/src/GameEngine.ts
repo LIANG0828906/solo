@@ -1,4 +1,4 @@
-import { NoteManager, CHARTS, DIFFICULTY_CONFIG, JUDGE_SCORE, JUDGE_ENERGY, type Difficulty, type JudgeResult, type Note, type ChartData } from './NoteManager';
+import { NoteManager, CHARTS, DIFFICULTY_CONFIG, JUDGE_SCORE, JUDGE_ENERGY, HEAVY_NOTE_SCORE_MULTIPLIER, HEAVY_NOTE_ENERGY_MULTIPLIER, type Difficulty, type JudgeResult, type Note, type ChartData, type NoteType } from './NoteManager';
 import { EffectManager } from './effects';
 import { InputHandler, type Direction, type GameAction } from './InputHandler';
 import { Renderer } from './Renderer';
@@ -132,10 +132,10 @@ export class GameEngine {
   private updateTouchZones(): void {
     const zones: Array<{ action: GameAction; x: number; y: number; w: number; h: number }> = [];
     if (this.isMobile) {
-      const btnSize = 60;
+      const btnSize = 44;
       const gap = 12;
       const startX = this.width / 2 - (btnSize * 3 + gap * 2) / 2;
-      const y = this.height - btnSize - 14;
+      const y = this.height - btnSize - 40;
       zones.push({ action: 'skill1', x: startX, y, w: btnSize, h: btnSize });
       zones.push({ action: 'skill2', x: startX + btnSize + gap, y, w: btnSize, h: btnSize });
       zones.push({ action: 'skill3', x: startX + (btnSize + gap) * 2, y, w: btnSize, h: btnSize });
@@ -309,6 +309,13 @@ export class GameEngine {
 
     const prevEnergy = this.stats.energy;
     let scoreGain = JUDGE_SCORE[result];
+    let energyGain = JUDGE_ENERGY[result];
+
+    const isHeavy = note?.type === 'heavy';
+    if (isHeavy && result !== 'miss') {
+      scoreGain = Math.floor(scoreGain * HEAVY_NOTE_SCORE_MULTIPLIER);
+      energyGain = Math.floor(energyGain * HEAVY_NOTE_ENERGY_MULTIPLIER);
+    }
 
     if (result === 'miss') {
       if (this.hasShield) {
@@ -320,7 +327,7 @@ export class GameEngine {
       this.stats.combo = 0;
       this.stats.hp--;
       this.stats.missCount++;
-      this.effectManager.addShake(12, 0.3, now);
+      this.effectManager.addShake(isHeavy ? 18 : 12, 0.35, now);
     } else {
       this.stats.combo++;
       if (this.stats.combo > this.stats.maxCombo) this.stats.maxCombo = this.stats.combo;
@@ -334,7 +341,7 @@ export class GameEngine {
       else if (result === 'good') this.stats.goodCount++;
       else this.stats.normalCount++;
 
-      this.stats.energy = Math.min(this.stats.maxEnergy, this.stats.energy + JUDGE_ENERGY[result]);
+      this.stats.energy = Math.min(this.stats.maxEnergy, this.stats.energy + energyGain);
     }
 
     if (prevEnergy < this.stats.maxEnergy && this.stats.energy >= this.stats.maxEnergy) {
@@ -364,15 +371,22 @@ export class GameEngine {
         now
       );
 
+      const glowMult = isHeavy ? 1.4 : 1.0;
+      const particleMult = isHeavy ? 1.5 : 1.0;
+
       if (result === 'perfect') {
-        this.effectManager.addGlow(nx, judgeY, 140, trackColors[note.direction], 0.6);
-        this.effectManager.addParticles(nx, judgeY, 30, trackColors[note.direction], 300);
-        this.effectManager.addDebrisParticles(nx, judgeY, 3 + Math.floor(Math.random() * 3), '#00e5ff');
+        this.effectManager.addGlow(nx, judgeY, 140 * glowMult, trackColors[note.direction], isHeavy ? 0.8 : 0.6);
+        this.effectManager.addParticles(nx, judgeY, Math.floor(30 * particleMult), trackColors[note.direction], isHeavy ? 400 : 300);
+        this.effectManager.addDebrisParticles(nx, judgeY, (3 + Math.floor(Math.random() * 3)) * (isHeavy ? 2 : 1), isHeavy ? '#ffffff' : '#00e5ff');
+        if (isHeavy) {
+          this.effectManager.triggerFlash(trackColors[note.direction], 0.1);
+          this.effectManager.addShake(3, 0.2, now);
+        }
       } else if (result === 'good') {
-        this.effectManager.addGlow(nx, judgeY, 90, trackColors[note.direction], 0.4);
-        this.effectManager.addParticles(nx, judgeY, 15, trackColors[note.direction], 200);
+        this.effectManager.addGlow(nx, judgeY, 90 * glowMult, trackColors[note.direction], isHeavy ? 0.55 : 0.4);
+        this.effectManager.addParticles(nx, judgeY, Math.floor(15 * particleMult), trackColors[note.direction], isHeavy ? 260 : 200);
       } else {
-        this.effectManager.addParticles(nx, judgeY, 8, trackColors[note.direction], 120);
+        this.effectManager.addParticles(nx, judgeY, Math.floor(8 * particleMult), trackColors[note.direction], isHeavy ? 160 : 120);
       }
 
       if ([50, 100, 200].includes(this.stats.combo)) {

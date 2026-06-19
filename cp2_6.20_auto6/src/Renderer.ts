@@ -1,6 +1,6 @@
 import type { GameEngine, GameStats, SkillType, GameState } from './GameEngine';
 import type { Direction } from './InputHandler';
-import type { JudgeResult, Note } from './NoteManager';
+import type { JudgeResult, Note, NoteType } from './NoteManager';
 import { CHARTS, DIFFICULTY_CONFIG, type Difficulty } from './NoteManager';
 
 export interface UIElement {
@@ -196,11 +196,13 @@ export class Renderer {
       ctx.stroke();
     }
 
-    const noteRadius = laneWidth * 0.32;
+    const baseNoteRadius = laneWidth * 0.32;
     for (const note of notes) {
       const laneIdx = laneOrder.indexOf(note.direction);
       const nx = trackX + laneIdx * laneWidth + laneWidth / 2;
       const color = trackColors[note.direction];
+      const isHeavy = note.type === 'heavy';
+      const noteRadius = isHeavy ? baseNoteRadius * 1.15 : baseNoteRadius;
 
       for (let j = 0; j < note.trail.length; j++) {
         const t = note.trail[j];
@@ -222,10 +224,18 @@ export class Renderer {
 
       ctx.fillStyle = gradient;
       ctx.shadowColor = color;
-      ctx.shadowBlur = note.judged ? 5 : 18;
+      ctx.shadowBlur = note.judged ? 5 : (isHeavy ? 28 : 18);
       ctx.beginPath();
       ctx.arc(nx, note.y, noteRadius, 0, Math.PI * 2);
       ctx.fill();
+
+      if (isHeavy) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(nx, note.y, noteRadius + 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = '#ffffff';
@@ -257,13 +267,13 @@ export class Renderer {
       ctx.globalAlpha = 0.25;
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(lx, judgeY, noteRadius * 0.9, 0, Math.PI * 2);
+      ctx.arc(lx, judgeY, baseNoteRadius * 0.9, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(lx, judgeY, noteRadius * 0.9, 0, Math.PI * 2);
+      ctx.arc(lx, judgeY, baseNoteRadius * 0.9, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -505,16 +515,17 @@ export class Renderer {
     ctx.font = 'bold 14px Segoe UI';
     ctx.fillText(`${stats.accuracy.toFixed(0)}%`, this.width - 12, 30);
 
-    let y = this.height - 110;
+    const judgeY = this.height * 0.8;
+    let y = judgeY + 24;
     const barW = this.width - 24;
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(12, y, barW, 10);
+    ctx.fillRect(12, y, barW, 8);
     const energyPct = stats.energy / stats.maxEnergy;
     const energyGrad = ctx.createLinearGradient(12, 0, 12 + barW, 0);
     energyGrad.addColorStop(0, '#00e5ff');
     energyGrad.addColorStop(1, '#ff3d77');
     ctx.fillStyle = energyGrad;
-    ctx.fillRect(12, y, barW * energyPct, 10);
+    ctx.fillRect(12, y, barW * energyPct, 8);
 
     if (stats.energy >= stats.maxEnergy) {
       const pulseAlpha = this.engine.getEffectManager().getEnergyPulseAlpha();
@@ -522,20 +533,20 @@ export class Renderer {
       ctx.shadowBlur = 8 + pulseAlpha * 12;
       ctx.strokeStyle = `rgba(255, 215, 0, ${0.5 + pulseAlpha * 0.5})`;
       ctx.lineWidth = 2;
-      ctx.strokeRect(12, y, barW, 10);
+      ctx.strokeRect(12, y, barW, 8);
       ctx.shadowBlur = 0;
     }
 
-    y += 20;
+    y += 18;
     for (let i = 0; i < stats.maxHp; i++) {
       ctx.fillStyle = i < stats.hp ? '#ff3d77' : 'rgba(255,255,255,0.15)';
-      ctx.fillRect(12 + i * 18, y, 14, 16);
+      ctx.fillRect(12 + i * 16, y, 12, 14);
     }
 
-    const btnSize = 56;
-    const gap = 10;
+    const btnSize = 44;
+    const gap = 12;
     const startX = this.width / 2 - (btnSize * 3 + gap * 2) / 2;
-    y = this.height - btnSize - 14;
+    y = this.height - btnSize - 40;
 
     const skills: Array<{ key: SkillType; label: string; cd: number; color: string }> = [
       { key: 'slow', label: '慢', cd: skillCooldowns.slow, color: '#00e5ff' },
