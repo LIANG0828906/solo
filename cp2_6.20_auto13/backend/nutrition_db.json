@@ -1,0 +1,272 @@
+{
+  "米饭": {
+    "calories": 116,
+    "protein": 2.6,
+    "fat": 0.3,
+    "carbs": 25.9,
+    "fiber": 0.3,
+    "unit": "100g",
+    "replacements": ["面条", "土豆"]
+  },
+  "面条": {
+    "calories": 137,
+    "protein": 4.5,
+    "fat": 0.6,
+    "carbs": 28.4,
+    "fiber": 0.8,
+    "unit": "100g",
+    "replacements": ["米饭", "小麦粉"]
+  },
+  "小麦粉": {
+    "calories": 349,
+    "protein": 11.2,
+    "fat": 1.5,
+    "carbs": 71.5,
+    "fiber": 2.1,
+    "unit": "100g",
+    "replacements": ["面条", "土豆"]
+  },
+  "鸡蛋": {
+    "calories": 144,
+    "protein": 13.3,
+    "fat": 8.8,
+    "carbs": 2.8,
+    "fiber": 0,
+    "unit": "100g",
+    "replacements": ["牛奶", "豆腐"]
+  },
+  "牛奶": {
+    "calories": 54,
+    "protein": 3.0,
+    "fat": 3.2,
+    "carbs": 3.4,
+    "fiber": 0,
+    "unit": "100ml",
+    "replacements": ["奶油", "鸡蛋"]
+  },
+  "猪肉": {
+    "calories": 143,
+    "protein": 20.3,
+    "fat": 6.2,
+    "carbs": 1.5,
+    "fiber": 0,
+    "unit": "100g",
+    "replacements": ["牛肉", "鸡胸肉"]
+  },
+  "牛肉": {
+    "calories": 125,
+    "protein": 19.9,
+    "fat": 4.2,
+    "carbs": 2.0,
+    "fiber": 0,
+    "unit": "100g",
+    "replacements": ["猪肉", "鸡胸肉"]
+  },
+  "鸡胸肉": {
+    "calories": 133,
+    "protein": 23.1,
+    "fat": 3.6,
+    "carbs": 0.8,
+    "fiber": 0,
+    "unit": "100g",
+    "replacements": ["牛肉", "虾仁"]
+  },
+  "三文鱼": {
+    "calories": 139,
+    "protein": 21.6,
+    "fat": 5.2,
+    "carbs": 0,
+    "fiber": 0,
+    "unit": "100g",
+    "replacements": ["虾仁", "鸡胸肉"]
+  },
+  "虾仁": {
+    "calories": 87,
+    "protein": 18.6,
+    "fat": 0.8,
+    "carbs": 1.0,
+    "fiber": 0,
+    "unit": "100g",
+    "replacements": ["三文鱼", "鸡胸肉"]
+  },
+  "豆腐": {
+    "calories": 73,
+    "protein": 7.0,
+    "fat": 3.5,
+    "carbs": 2.8,
+    "fiber": 0.4,
+    "unit": "100g",
+    "replacements": ["鸡蛋", "芝士"]
+  },
+  "白菜": {
+    "calories": 15,
+    "protein": 1.3,
+    "fat": 0.1,
+    "carbs": 2.0,
+    "fiber": 0.8,
+    "unit": "100g",
+    "replacements": ["洋葱", "胡萝卜"]
+  },
+  "胡萝卜": {
+    "calories": 25,
+    "protein": 1.0,
+    "fat": 0.2,
+    "carbs": 5.0,
+    "fiber": 2.6,
+    "unit": "100g",
+    "replacements": ["土豆", "西红柿"]
+  },
+  "西红柿": {
+    "calories": 15,
+    "protein": 0.9,
+    "fat": 0.2,
+    "carbs": 2.5,
+    "fiber": 0.5,
+    "unit": "100g",
+    "replacements": ["胡萝卜", "柠檬"]
+  },
+  "土豆": {
+    "calories": 76,
+    "protein": 2.0,
+    "fat": 0.2,
+    "carbs": 16.5,
+    "fiber": 0.7,
+    "unit": "100g",
+    "replacements": ["胡萝卜", "米饭"]
+  },
+  "洋葱": {
+    "calories": 39,
+    "protein": 1.1,
+    "fat": 0.2,
+    "carbs": 8.0,
+    "fiber": 0.9,
+    "unit": "100g",
+    "replacements": ["大蒜", "生姜"]
+  },
+  "大蒜": {
+    "calories": 128,
+    "protein": 6.4,
+    "fat": 0.5,
+    "carbs": 27.6,
+    "fiber": 1.1,
+    "unit": "100g",
+    "replacements": ["洋葱", "生姜"]
+  },
+  "生姜": {
+    "calories": 41,
+    "protein": 1.3,
+    "fat": 0.6,
+    "carbs": 7.6,
+    "fiber": 2.0,
+    "unit": "100g",
+    "replacements": ["大蒜", "洋葱"]
+  },
+  "酱油": {
+    "calories": 63,
+    "protein": 5.6,
+    "fat": 0.1,
+    "carbs": 10.1,
+    "fiber": 0,
+    "unit": "100ml",
+    "replacements": ["白糖", "蜂蜜"]
+  },
+  "食用油": {
+    "calories": 899,
+    "protein": 0,
+    "fat": 99.9,
+    "carbs": 0,
+    "fiber": 0,
+    "unit": "100ml",
+    "replacements": ["黄油", "奶油"]
+  },
+  "白糖": {
+    "calories": 396,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 99.0,
+    "fiber": 0,
+    "unit": "100g",
+    "replacements": ["蜂蜜", "柠檬"]
+  },
+  "黄油": {
+    "calories": 888,
+    "protein": 1.4,
+    "fat": 98.0,
+    "carbs": 0,
+    "fiber": 0,
+    "unit": "100g",
+    "replacements": ["食用油", "奶油"]
+  },
+  "奶油": {
+    "calories": 309,
+    "protein": 2.1,
+    "fat": 33.0,
+    "carbs": 3.4,
+    "fiber": 0,
+    "unit": "100ml",
+    "replacements": ["黄油", "牛奶"]
+  },
+  "芝士": {
+    "calories": 328,
+    "protein": 20.0,
+    "fat": 25.0,
+    "carbs": 6.5,
+    "fiber": 0,
+    "unit": "100g",
+    "replacements": ["奶油", "豆腐"]
+  },
+  "柠檬": {
+    "calories": 35,
+    "protein": 1.1,
+    "fat": 0.3,
+    "carbs": 6.0,
+    "fiber": 2.8,
+    "unit": "100g",
+    "replacements": ["西红柿", "蜂蜜"]
+  },
+  "黑胡椒": {
+    "calories": 251,
+    "protein": 10.4,
+    "fat": 3.3,
+    "carbs": 38.7,
+    "fiber": 13.0,
+    "unit": "100g",
+    "replacements": ["辣椒粉", "生姜"]
+  },
+  "八角": {
+    "calories": 242,
+    "protein": 10.0,
+    "fat": 4.5,
+    "carbs": 46.0,
+    "fiber": 14.0,
+    "unit": "100g",
+    "replacements": ["桂皮", "辣椒粉"]
+  },
+  "桂皮": {
+    "calories": 247,
+    "protein": 4.0,
+    "fat": 1.2,
+    "carbs": 51.0,
+    "fiber": 15.0,
+    "unit": "100g",
+    "replacements": ["八角", "黑胡椒"]
+  },
+  "辣椒粉": {
+    "calories": 203,
+    "protein": 9.9,
+    "fat": 10.0,
+    "carbs": 33.0,
+    "fiber": 15.0,
+    "unit": "100g",
+    "replacements": ["黑胡椒", "生姜"]
+  },
+  "蜂蜜": {
+    "calories": 321,
+    "protein": 0.4,
+    "fat": 0,
+    "carbs": 80.0,
+    "fiber": 0,
+    "unit": "100g",
+    "replacements": ["白糖", "柠檬"]
+  }
+}
