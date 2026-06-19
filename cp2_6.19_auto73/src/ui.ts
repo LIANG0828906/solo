@@ -37,7 +37,12 @@ export class UIManager {
   private timeChangeCallback: TimeChangeCallback | null = null;
   private buildingSelectCallback: BuildingSelectCallback | null = null;
   private currentTime: number = 12;
+  private isPanelVisible: boolean = false;
 
+  /**
+   * 数据流：构造函数接收来自 main.ts 的容器 DOM 引用
+   * 用于挂载时间滑块和信息面板等 UI 元素
+   */
   constructor(container: HTMLElement) {
     this.container = container;
     this.initStyles();
@@ -141,21 +146,25 @@ export class UIManager {
         position: fixed;
         top: 50%;
         right: 24px;
-        transform: translateY(-50%) translateX(320px);
         width: 260px;
-        background: rgba(15, 23, 42, 0.75);
+        background: rgba(15, 23, 42, 0.78);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border-radius: 12px;
         padding: 24px;
         z-index: 100;
         color: #fff;
-        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+        pointer-events: auto;
+        transform: translateY(-50%) translateX(calc(100% + 40px));
+        opacity: 0;
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                    opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .info-panel.visible {
         transform: translateY(-50%) translateX(0);
+        opacity: 1;
       }
       .info-panel-title {
         font-size: 18px;
@@ -248,6 +257,10 @@ export class UIManager {
     this.timeLabel.className = 'time-label';
     this.updateTimeLabel(12);
 
+    /**
+     * 数据流：滑块 input 事件 → 获取时间值 → 更新 UI 标签
+     * → 调用 timeChangeCallback → 传递给 main.ts → LightManager.updateSunPosition
+     */
     this.slider.addEventListener('input', (e) => {
       const value = parseFloat((e.target as HTMLInputElement).value);
       this.currentTime = value;
@@ -280,6 +293,11 @@ export class UIManager {
     const closeBtn = document.createElement('button');
     closeBtn.className = 'info-close-btn';
     closeBtn.innerHTML = '✕';
+
+    /**
+     * 数据流：关闭按钮点击 → 隐藏信息面板
+     * → 调用 buildingSelectCallback(null) → 通知 BuildingManager 取消选中
+     */
     closeBtn.addEventListener('click', () => {
       this.hideInfoPanel();
       this.buildingSelectCallback?.(null);
@@ -301,14 +319,26 @@ export class UIManager {
     this.timeLabel.textContent = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   }
 
+  /**
+   * 数据流：注册时间变化回调，供 main.ts 监听
+   * UIManager → (time:number) → main.ts → LightManager / 背景更新
+   */
   public onTimeChange(callback: TimeChangeCallback): void {
     this.timeChangeCallback = callback;
   }
 
+  /**
+   * 数据流：注册建筑选择回调，用于通知外部取消选中
+   * 当用户点击关闭按钮时触发 → BuildingManager 清除选中状态
+   */
   public onBuildingSelect(callback: BuildingSelectCallback): void {
     this.buildingSelectCallback = callback;
   }
 
+  /**
+   * 数据流：BuildingManager.onBuildingClick → main.ts → UIManager.showBuildingInfo
+   * 接收 BuildingInfo → 渲染属性列表 → 添加 visible 类 → 触发 CSS 滑入动画（200ms 缓出）
+   */
   public showBuildingInfo(info: BuildingInfo): void {
     const existingItems = this.infoPanel.querySelectorAll('.info-item');
     existingItems.forEach((item) => item.remove());
@@ -335,11 +365,23 @@ export class UIManager {
       this.infoPanel.appendChild(infoItem);
     });
 
-    this.infoPanel.classList.add('visible');
+    if (!this.isPanelVisible) {
+      requestAnimationFrame(() => {
+        this.infoPanel.classList.add('visible');
+        this.isPanelVisible = true;
+      });
+    }
   }
 
+  /**
+   * 数据流：点击空白 / 切换建筑 / 关闭按钮 → hideInfoPanel
+   * 移除 visible 类 → 触发 CSS 滑出动画（200ms 缓出）→ 面板移动到右侧并淡出
+   */
   public hideInfoPanel(): void {
-    this.infoPanel.classList.remove('visible');
+    if (this.isPanelVisible) {
+      this.infoPanel.classList.remove('visible');
+      this.isPanelVisible = false;
+    }
   }
 
   public getCurrentTime(): number {

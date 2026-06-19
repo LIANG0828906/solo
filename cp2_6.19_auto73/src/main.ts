@@ -23,6 +23,16 @@ class CityVisualizationApp {
       throw new Error('Cannot find app container');
     }
     this.container = appContainer;
+
+    /**
+     * 初始化流程数据流：
+     * createScene → createCamera → createRenderer → createStarfield
+     * → BuildingManager（生成建筑群 + 计算包围盒）
+     * → LightManager（使用 BuildingManager 的包围盒计算阴影相机）
+     * → TrafficManager（生成交通路径）
+     * → UIManager（创建滑块和信息面板）
+     * → setupUICallbacks（绑定模块间事件回调）
+     */
     this.init();
     this.animate();
   }
@@ -35,8 +45,15 @@ class CityVisualizationApp {
     this.createStarfield();
     this.setupResizeHandler();
 
-    this.lightManager = new LightManager(this.scene);
     this.buildingManager = new BuildingManager(this.scene, this.camera, this.renderer);
+
+    /**
+     * 数据流：BuildingManager.getSceneBounds() → LightManager 构造函数
+     * 建筑群包围盒数据用于动态计算阴影相机的视锥体范围，确保阴影不被裁剪
+     */
+    const sceneBounds = this.buildingManager.getSceneBounds();
+    this.lightManager = new LightManager(this.scene, sceneBounds);
+
     this.trafficManager = new TrafficManager(this.scene);
 
     this.uiManager = new UIManager(this.container);
@@ -133,20 +150,47 @@ class CityVisualizationApp {
     this.scene.add(this.stars);
   }
 
+  /**
+   * 数据流：设置模块间的事件回调连接
+   *
+   * 时间滑块数据流：
+   * UIManager.onTimeChange → 回调(time)
+   *   → LightManager.updateSunPosition(time)  更新太阳位置、光照颜色、阴影
+   *   → updateBackgroundByTime(time)          更新天空背景和雾颜色
+   *
+   * 建筑点击数据流：
+   * BuildingManager.onBuildingClick → 回调(BuildingInfo | null)
+   *   → UIManager.showBuildingInfo(info)    显示建筑属性面板（滑入动画）
+   *   → UIManager.hideInfoPanel()           隐藏面板（滑出动画）
+   *
+   * UI关闭按钮数据流：
+   * UIManager.onBuildingSelect → 回调(null)
+   *   → BuildingManager.clearSelection()   清除建筑选中状态
+   */
   private setupUICallbacks(): void {
+    /**
+     * 接收 UI 模块的时间值 → 传递给光影模块更新太阳位置 → 触发重绘
+     * 同时根据时间值更新场景背景和雾的颜色
+     */
     this.uiManager.onTimeChange((time: number) => {
       this.lightManager.updateSunPosition(time);
       this.updateBackgroundByTime(time);
     });
 
+    /**
+     * 接收 UI 模块的取消选择事件（用户点击信息面板关闭按钮）
+     * → 通知 BuildingManager 清除建筑选中状态
+     */
     this.uiManager.onBuildingSelect((info: BuildingInfo | null) => {
-      if (info) {
-        this.uiManager.showBuildingInfo(info);
-      } else {
-        this.uiManager.hideInfoPanel();
+      if (info === null) {
+        this.buildingManager.clearSelection();
       }
     });
 
+    /**
+     * 接收建筑模块的点击事件 → 传递 BuildingInfo 给 UI 模块显示/隐藏信息面板
+     * BuildingInfo 包含：建筑名称、楼层数、用途类型等属性
+     */
     this.buildingManager.onBuildingClick((info: BuildingInfo | null) => {
       if (info) {
         this.uiManager.showBuildingInfo(info);
@@ -156,6 +200,12 @@ class CityVisualizationApp {
     });
   }
 
+  /**
+   * 数据流：接收 UI 模块的时间值（6~18小时）
+   * → 插值计算不同时段的天空颜色和雾颜色
+   * → 更新 scene.background 和 scene.fog.color
+   * → 下一帧 renderer.render 时呈现新的天空效果
+   */
   private updateBackgroundByTime(hours: number): void {
     const t = (hours - 6) / 12;
     const clampedT = Math.max(0, Math.min(1, t));
@@ -203,6 +253,13 @@ class CityVisualizationApp {
     });
   }
 
+  /**
+   * 数据流：每帧渲染循环
+   * performance.now() → BuildingManager.updateAnimations  推进选中动画 + 光柱动画
+   * clock.getDelta()   → TrafficManager.update            推进交通光点沿路径移动
+   * clock.getElapsedTime() → stars.rotation               缓慢旋转星空
+   * → renderer.render(scene, camera)  输出最终画面到 Canvas
+   */
   private animate(): void {
     requestAnimationFrame(() => this.animate());
 

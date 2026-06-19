@@ -2,12 +2,13 @@ import * as THREE from 'three';
 
 interface TrafficPath {
   curve: THREE.CatmullRomCurve3;
-  points: THREE.Points;
-  particles: THREE.Points;
+  baseline: THREE.Line;
+  trailPoints: THREE.Points;
+  headParticles: THREE.Points;
   particleCount: number;
+  trailLength: number;
   progress: number;
   speed: number;
-  trailPositions: Float32Array;
 }
 
 export class TrafficManager {
@@ -15,17 +16,30 @@ export class TrafficManager {
   private paths: TrafficPath[] = [];
   private readonly pathCount = 5;
 
+  /**
+   * 数据流：构造函数接收来自 main.ts 的 scene 引用
+   * 用于向场景中添加交通路径线、流动光点和拖尾粒子
+   */
   constructor(scene: THREE.Scene) {
     this.scene = scene;
     this.createTrafficPaths();
   }
 
+  /**
+   * 批量创建交通路径，路径数量由 pathCount 决定
+   * 每条路径包含：基线（半透明参考线）+ 头部光点 + 拖尾粒子
+   */
   private createTrafficPaths(): void {
     for (let i = 0; i < this.pathCount; i++) {
       this.createSinglePath(i);
     }
   }
 
+  /**
+   * 创建单条交通路径及其动画粒子系统
+   * 数据流：generatePathPoints → CatmullRomCurve3 → 路径几何
+   * → Points 粒子系统（头部光点 + 拖尾粒子）
+   */
   private createSinglePath(index: number): void {
     const controlPoints = this.generatePathPoints(index);
     const curve = new THREE.CatmullRomCurve3(controlPoints, true, 'catmullrom', 0.5);
@@ -35,66 +49,66 @@ export class TrafficManager {
     const lineMaterial = new THREE.LineBasicMaterial({
       color: 0x4488ff,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.12,
     });
-    const line = new THREE.Line(lineGeometry, lineMaterial);
-    this.scene.add(line);
+    const baseline = new THREE.Line(lineGeometry, lineMaterial);
+    this.scene.add(baseline);
 
-    const particleCount = 30;
-    const trailLength = 15;
-    const totalPoints = particleCount * trailLength;
+    const particleCount = 8;
+    const trailLength = 25;
+    const totalTrailPoints = particleCount * trailLength;
 
-    const positions = new Float32Array(totalPoints * 3);
-    const colors = new Float32Array(totalPoints * 3);
-    const sizes = new Float32Array(totalPoints);
+    const trailPositions = new Float32Array(totalTrailPoints * 3);
+    const trailColors = new Float32Array(totalTrailPoints * 3);
 
-    for (let i = 0; i < totalPoints; i++) {
-      positions[i * 3] = 0;
-      positions[i * 3 + 1] = 0.5;
-      positions[i * 3 + 2] = 0;
+    for (let i = 0; i < totalTrailPoints; i++) {
+      trailPositions[i * 3] = 0;
+      trailPositions[i * 3 + 1] = 0.5;
+      trailPositions[i * 3 + 2] = 0;
 
       const trailIndex = i % trailLength;
-      const alpha = 1 - trailIndex / trailLength;
+      const alpha = Math.pow(1 - trailIndex / trailLength, 1.5);
 
-      colors[i * 3] = 0.4 * alpha;
-      colors[i * 3 + 1] = 0.8 * alpha;
-      colors[i * 3 + 2] = 1.0 * alpha;
-
-      sizes[i] = 0.08 + alpha * 0.12;
+      trailColors[i * 3] = 0.3 * alpha;
+      trailColors[i * 3 + 1] = 0.7 * alpha;
+      trailColors[i * 3 + 2] = 1.0 * alpha;
     }
 
-    const pointsGeometry = new THREE.BufferGeometry();
-    pointsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    pointsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const trailGeometry = new THREE.BufferGeometry();
+    trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+    trailGeometry.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
 
-    const pointsMaterial = new THREE.PointsMaterial({
-      size: 0.3,
+    const trailMaterial = new THREE.PointsMaterial({
+      size: 0.35,
       vertexColors: true,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.95,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       sizeAttenuation: true,
     });
 
-    const points = new THREE.Points(pointsGeometry, pointsMaterial);
-    this.scene.add(points);
+    const trailPoints = new THREE.Points(trailGeometry, trailMaterial);
+    this.scene.add(trailPoints);
 
     const headPositions = new Float32Array(particleCount * 3);
     const headColors = new Float32Array(particleCount * 3);
+    const headSizes = new Float32Array(particleCount);
 
     for (let i = 0; i < particleCount; i++) {
-      headColors[i * 3] = 0.7;
+      headColors[i * 3] = 0.8;
       headColors[i * 3 + 1] = 0.95;
       headColors[i * 3 + 2] = 1.0;
+      headSizes[i] = 0.6;
     }
 
     const headGeometry = new THREE.BufferGeometry();
     headGeometry.setAttribute('position', new THREE.BufferAttribute(headPositions, 3));
     headGeometry.setAttribute('color', new THREE.BufferAttribute(headColors, 3));
+    headGeometry.setAttribute('size', new THREE.BufferAttribute(headSizes, 1));
 
     const headMaterial = new THREE.PointsMaterial({
-      size: 0.5,
+      size: 0.55,
       vertexColors: true,
       transparent: true,
       opacity: 1,
@@ -108,32 +122,44 @@ export class TrafficManager {
 
     this.paths.push({
       curve,
-      points,
-      particles: headParticles,
+      baseline,
+      trailPoints,
+      headParticles,
       particleCount,
+      trailLength,
       progress: Math.random(),
-      speed: 0.0003 + Math.random() * 0.0004,
-      trailPositions: positions,
+      speed: 0.00008 + Math.random() * 0.00006,
     });
   }
 
+  /**
+   * 生成随机但平滑闭合的路径控制点
+   * 在建筑群周围的街道区域内生成环绕路径
+   */
   private generatePathPoints(index: number): THREE.Vector3[] {
     const points: THREE.Vector3[] = [];
-    const halfArea = 55;
-    const segments = 6 + index;
+    const halfArea = 52;
+    const segments = 7 + (index % 3);
 
-    const startAngle = (index / this.pathCount) * Math.PI * 2;
-    const startX = Math.cos(startAngle) * halfArea * 0.7;
-    const startZ = Math.sin(startAngle) * halfArea * 0.7;
+    const startAngle = (index / this.pathCount) * Math.PI * 2 + Math.random() * 0.3;
+    const startRadius = 30 + Math.random() * 15;
+    const startX = Math.cos(startAngle) * startRadius;
+    const startZ = Math.sin(startAngle) * startRadius;
 
-    points.push(new THREE.Vector3(startX, 0.5, startZ));
+    points.push(new THREE.Vector3(
+      THREE.MathUtils.clamp(startX, -halfArea, halfArea),
+      0.5,
+      THREE.MathUtils.clamp(startZ, -halfArea, halfArea)
+    ));
 
     for (let i = 1; i < segments; i++) {
       const t = i / segments;
-      const angle = startAngle + t * Math.PI * 2 * (0.8 + (index % 3) * 0.15);
-      const radius = halfArea * (0.3 + 0.5 * Math.sin(t * Math.PI + index));
-      const x = Math.cos(angle) * radius + (Math.random() - 0.5) * 15;
-      const z = Math.sin(angle) * radius + (Math.random() - 0.5) * 15;
+      const angleOffset = t * Math.PI * 2 * (0.7 + (index % 3) * 0.15);
+      const angle = startAngle + angleOffset;
+      const radiusVariation = Math.sin(t * Math.PI * 2 + index) * 12;
+      const radius = startRadius + radiusVariation + Math.random() * 8 - 4;
+      const x = Math.cos(angle) * radius + Math.random() * 10 - 5;
+      const z = Math.sin(angle) * radius + Math.random() * 10 - 5;
       points.push(new THREE.Vector3(
         THREE.MathUtils.clamp(x, -halfArea, halfArea),
         0.5,
@@ -141,27 +167,38 @@ export class TrafficManager {
       ));
     }
 
-    points.push(new THREE.Vector3(startX, 0.5, startZ));
     return points;
   }
 
+  /**
+   * 数据流：每帧由 main.ts 的 animate 循环调用
+   * time: 当前时间戳（用于调试）
+   * deltaTime: 帧间隔毫秒数（用于计算光点移动距离，保证不同帧率下速度一致）
+   *
+   * 更新逻辑：
+   * 1. 每条路径有多个光点（particleCount），均匀分布在路径上
+   * 2. 每个光点后方拖出 trailLength 个粒子，逐渐淡出
+   * 3. progress 匀速递增，模 1 循环，实现不间断运动
+   */
   public update(time: number, deltaTime: number): void {
+    const clampedDelta = Math.min(deltaTime, 50);
+
     this.paths.forEach((path) => {
-      const positions = path.points.geometry.attributes.position.array as Float32Array;
-      const headPositions = path.particles.geometry.attributes.position.array as Float32Array;
-      const trailLength = 15;
+      const trailPositions = path.trailPoints.geometry.attributes.position.array as Float32Array;
+      const headPositions = path.headParticles.geometry.attributes.position.array as Float32Array;
 
       for (let i = 0; i < path.particleCount; i++) {
         const particleOffset = i / path.particleCount;
 
-        for (let t = 0; t < trailLength; t++) {
-          const progress = (path.progress + particleOffset - t * 0.002 + 1) % 1;
+        for (let t = 0; t < path.trailLength; t++) {
+          const trailStep = t * 0.004;
+          const progress = (path.progress + particleOffset - trailStep + 1) % 1;
           const point = path.curve.getPointAt(progress);
 
-          const idx = (i * trailLength + t) * 3;
-          positions[idx] = point.x;
-          positions[idx + 1] = point.y;
-          positions[idx + 2] = point.z;
+          const idx = (i * path.trailLength + t) * 3;
+          trailPositions[idx] = point.x;
+          trailPositions[idx + 1] = point.y;
+          trailPositions[idx + 2] = point.z;
         }
 
         const headProgress = (path.progress + particleOffset + 1) % 1;
@@ -171,11 +208,11 @@ export class TrafficManager {
         headPositions[i * 3 + 2] = headPoint.z;
       }
 
-      path.progress = (path.progress + path.speed * deltaTime) % 1;
+      path.progress = (path.progress + path.speed * clampedDelta) % 1;
       if (path.progress < 0) path.progress += 1;
 
-      path.points.geometry.attributes.position.needsUpdate = true;
-      path.particles.geometry.attributes.position.needsUpdate = true;
+      path.trailPoints.geometry.attributes.position.needsUpdate = true;
+      path.headParticles.geometry.attributes.position.needsUpdate = true;
     });
   }
 }
