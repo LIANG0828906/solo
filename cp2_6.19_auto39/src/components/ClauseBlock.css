@@ -1,0 +1,373 @@
+.clause-block {
+  position: relative;
+  padding: 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #e8e8e8;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.clause-block:last-child {
+  border-bottom: none;
+}
+
+.clause-block.highlighted {
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(52, 152, 219, 0.3);
+  z-index: 10;
+}
+
+.status-dot {
+  position: absolute;
+  left: -8px;
+  top: 30px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background-color 0.3s ease;
+}
+
+.status-dot.dot-unresolved {
+  background: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.2);
+}
+
+.status-dot.dot-resolved {
+  background: #27ae60;
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
+}
+
+.clause-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.clause-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.clause-number {
+  font-weight: 700;
+  font-size: 16px;
+  color: #2c3e50;
+  background: #ecf0f1;
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.clause-name {
+  font-weight: 700;
+  font-size: 18px;
+  color: #2c3e50;
+}
+
+.comment-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #7f8c8d;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.comment-icon-btn:hover {
+  color: #3498db;
+  background: rgba(52, 152, 219, 0.1);
+  transform: rotate(15deg) scale(1.1);
+}
+
+.comment-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.comment-count {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #e74c3c;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.comment-input-wrapper {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.comment-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.comment-input:focus {
+  border-color: #3498db;
+}
+
+.comment-input::placeholder {
+  color: #b0b0b0;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+
+.clause-content {
+  line-height: 1.8;
+  color: #34495e;
+  font-size: 15px;
+}
+
+.clause-content.clickable {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.clause-content.clickable:hover {
+  background: #f0f7ff;
+}
+
+.clause-content.editing {
+  padding: 0;
+}
+
+.clause-content p {
+  margin: 0;
+  text-align: justify;
+}
+
+.editable-content {
+  padding: 12px 16px;
+  border: 2px solid #3498db;
+  border-radius: 6px;
+  background: #f8f9fa;
+  outline: none;
+  min-height: 100px;
+  line-height: 1.8;
+  text-align: justify;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+.revisions-section {
+  margin-top: 20px;
+}
+
+.revisions-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 12px 0;
+  padding-left: 8px;
+  border-left: 3px solid #3498db;
+}
+
+.revision-card {
+  background: #fff9e6;
+  border: 1px solid #f5e6a3;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.revision-card.status-accepted {
+  background: #eafaf1;
+  border-color: #a9dfbf;
+}
+
+.revision-card.status-rejected {
+  background: #fdedec;
+  border-color: #f5b7b1;
+  opacity: 0.7;
+}
+
+.revision-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.revision-status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(243, 156, 18, 0.2);
+  color: #d68910;
+}
+
+.status-accepted .revision-status {
+  background: rgba(39, 174, 96, 0.2);
+  color: #27ae60;
+}
+
+.status-rejected .revision-status {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+}
+
+.revision-time {
+  font-size: 12px;
+  color: #95a5a6;
+}
+
+.revision-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.revision-before,
+.revision-after {
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.revision-before {
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.revision-after {
+  background: rgba(39, 174, 96, 0.1);
+}
+
+.revision-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #7f8c8d;
+  margin-bottom: 4px;
+}
+
+.revision-before p,
+.revision-after p {
+  margin: 0;
+  color: #34495e;
+}
+
+.revision-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.btn-primary {
+  background: #3498db;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2980b9;
+}
+
+.btn-secondary {
+  background: #95a5a6;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #7f8c8d;
+}
+
+.btn-success {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #229954;
+}
+
+.btn-danger {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #c0392b;
+}
