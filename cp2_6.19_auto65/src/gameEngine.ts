@@ -1,5 +1,6 @@
 import { Ship, Asteroid, Bullet, Ore, Particle, OreColor, ASTEROID_CONFIG } from './entities';
 import { Renderer, CANVAS_W, CANVAS_H, HUDState, BlackHoleState } from './renderer';
+import { SoundManager } from './audio';
 
 export type GameState = 'menu' | 'playing' | 'gameover';
 
@@ -46,11 +47,22 @@ export class GameEngine {
 
   private _onGameOver: (() => void) | null = null;
   private _scoreThreshold: number = 0;
+  sound: SoundManager;
+  private _blackHoleSounded: boolean = false;
 
   constructor(canvas: HTMLCanvasElement, vortexCanvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.renderer = new Renderer(canvas, vortexCanvas);
     this.ship = new Ship(CANVAS_W / 2, CANVAS_H / 2);
+    this.sound = new SoundManager();
+  }
+
+  toggleMute(): boolean {
+    return this.sound.toggleMute();
+  }
+
+  get muted(): boolean {
+    return this.sound.muted;
   }
 
   onGameOver(callback: () => void): void {
@@ -77,6 +89,7 @@ export class GameEngine {
     this.upgradeEvent = { active: false, text: '', timer: 0, maxTimer: 30 };
     this._damageFlash = { active: false, timer: 0, maxTimer: 20 };
     this._scoreThreshold = 0;
+    this._blackHoleSounded = false;
     this.state = 'playing';
   }
 
@@ -133,6 +146,8 @@ export class GameEngine {
         '#00ccff', 3, 12
       ));
     }
+
+    this.sound.playLaser();
   }
 
   tryCollectOre(): void {
@@ -154,6 +169,7 @@ export class GameEngine {
             3, 25, 0.05
           ));
         }
+        this.sound.playCollect();
         break;
       }
     }
@@ -200,6 +216,7 @@ export class GameEngine {
         25 + Math.random() * 15
       ));
     }
+    this.sound.playUpgrade();
   }
 
   private _spawnAsteroid(): void {
@@ -248,16 +265,15 @@ export class GameEngine {
         this.ship.y += (dy / dist) * pullStrength;
       }
 
-      if (dist < 30) {
+      const enteringPhase2 = (dist < 30 || this.blackHole.progress >= 1);
+      if (enteringPhase2) {
         this.blackHole.phase = 2;
         this.blackHole.progress = 0;
         this._blackScreenTimer = this._blackScreenDuration;
-      }
-
-      if (this.blackHole.progress >= 1) {
-        this.blackHole.phase = 2;
-        this.blackHole.progress = 0;
-        this._blackScreenTimer = this._blackScreenDuration;
+        if (!this._blackHoleSounded) {
+          this._blackHoleSounded = true;
+          this.sound.playBlackHole();
+        }
       }
     } else if (this.blackHole.phase === 2) {
       if (this._blackScreenTimer > 0) {
@@ -453,6 +469,7 @@ export class GameEngine {
             ));
           }
 
+          this.sound.playHit();
           if (asteroid.hit(bullet.damage)) {
             asteroid.alive = false;
             this._explodeAsteroid(asteroid);
@@ -524,7 +541,8 @@ export class GameEngine {
       displayScore: this.displayScore,
       shieldLevel: this.shieldLevel,
       shieldMax: 5,
-      weaponLevel: this.weaponLevel
+      weaponLevel: this.weaponLevel,
+      muted: this.sound.muted
     };
     this.renderer.drawHUD(hudState);
 

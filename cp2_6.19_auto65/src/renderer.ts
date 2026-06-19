@@ -10,6 +10,7 @@ export interface HUDState {
   shieldLevel: number;
   shieldMax: number;
   weaponLevel: number;
+  muted: boolean;
 }
 
 export interface BlackHoleState {
@@ -318,6 +319,49 @@ export class Renderer {
     this._roundRect(pbX, 88, pbW * weaponProgress, pbH, 4);
     this.ctx.fill();
     this.ctx.shadowBlur = 0;
+
+    if (state.muted) {
+      this._drawMuteIcon(CANVAS_W - 28, panelY + 6);
+    }
+
+    this.ctx.restore();
+  }
+
+  private _drawMuteIcon(cx: number, cy: number): void {
+    const s = 16;
+    const x = cx - s / 2;
+    const y = cy - s / 2;
+    this.ctx.save();
+
+    this.ctx.shadowColor = '#ff5566';
+    this.ctx.shadowBlur = 4;
+
+    this.ctx.fillStyle = '#ff6677';
+    this.ctx.fillRect(x + 1, y + 7, 4, 5);
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(x + 5, y + 5);
+    this.ctx.lineTo(x + 9, y + 2);
+    this.ctx.lineTo(x + 9, y + 14);
+    this.ctx.lineTo(x + 5, y + 11);
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    this.ctx.strokeStyle = '#ff88aa';
+    this.ctx.lineWidth = 1;
+    this.ctx.beginPath();
+    this.ctx.arc(x + 10, y + 5, 3, -Math.PI / 3, Math.PI / 3);
+    this.ctx.stroke();
+
+    this.ctx.shadowBlur = 0;
+
+    this.ctx.strokeStyle = '#ff3344';
+    this.ctx.lineWidth = 2;
+    this.ctx.lineCap = 'round';
+    this.ctx.beginPath();
+    this.ctx.moveTo(x + 2, y + 2);
+    this.ctx.lineTo(x + s - 2, y + s - 2);
+    this.ctx.stroke();
 
     this.ctx.restore();
   }

@@ -35,6 +35,9 @@ const handleKeyDown = (e: KeyboardEvent): void => {
   if (e.code === 'KeyE' && !e.repeat) {
     engine.tryCollectOre();
   }
+  if (e.code === 'KeyM' && !e.repeat) {
+    engine.toggleMute();
+  }
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
     e.preventDefault();
   }
@@ -72,6 +75,7 @@ const startGame = (): void => {
   startScreen.classList.add('hidden');
   gameOverScreen.classList.add('hidden');
   engine.reset();
+  engine.sound.resume();
   attachInput();
   lastTime = performance.now();
   accumulator = 0;
