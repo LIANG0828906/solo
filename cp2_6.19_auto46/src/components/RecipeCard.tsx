@@ -11,7 +11,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, index }) => {
   const navigate = useNavigate();
   const { isDragging, dragRecipeId, setDragging, flyingRecipeId } = useRecipeStore();
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (_e: React.MouseEvent) => {
     if (isDragging) return;
     navigate(`/recipe/${recipe.id}`);
   };
@@ -28,6 +28,14 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, index }) => {
 
   const isBeingDragged = dragRecipeId === recipe.id;
   const isFlying = flyingRecipeId === recipe.id;
+
+  const getAspectRatio = () => {
+    const hash = recipe.id.split('-').reduce((acc, val) => acc + val.charCodeAt(0), 0);
+    const ratios = [1.33, 1.0, 1.5, 0.8, 1.2];
+    return ratios[hash % ratios.length];
+  };
+
+  const aspectRatio = getAspectRatio();
 
   const renderStars = (rating: number) => {
     return (
@@ -47,13 +55,13 @@ const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, index }) => {
   return (
     <div
       className={`recipe-card ${isBeingDragged ? 'dragging' : ''} ${isFlying ? 'flying' : ''}`}
-      style={{ animationDelay: `${index * 50}ms` }}
+      style={{ animationDelay: `${index * 100}ms` }}
       onClick={handleClick}
       draggable
-      onDragStart={handleDragStart}
+      onDragStart={(e) => handleDragStart(e)}
       onDragEnd={handleDragEnd}
     >
-      <div className="card-image">
+      <div className="card-image" style={{ aspectRatio: aspectRatio }}>
         <img
           src={recipe.coverImage}
           alt={recipe.title}

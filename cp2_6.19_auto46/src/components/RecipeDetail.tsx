@@ -18,73 +18,61 @@ const StepTimer: React.FC<StepTimerProps> = ({ duration, stepId }) => {
   const [timeLeft, setTimeLeft] = useState(duration);
   const [isRunning, setIsRunning] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const animationRef = useRef<number | null>(null);
-  const startTimeRef = useRef<number>(0);
-  const initialTimeRef = useRef<number>(duration);
+  const intervalRef = useRef<number | null>(null);
 
   const progress = isCompleted ? 0 : ((duration - timeLeft) / duration) * 100;
   const circumference = 2 * Math.PI * 28;
   const strokeDashoffset = circumference - (progress / 100) * circumference;
 
-  const tick = useCallback(() => {
-    const elapsed = (Date.now() - startTimeRef.current) / 1000;
-    const remaining = Math.max(0, initialTimeRef.current - elapsed);
-    setTimeLeft(Math.ceil(remaining));
-
-    if (remaining <= 0) {
-      setIsRunning(false);
-      setIsCompleted(true);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      return;
+  const clearTimer = useCallback(() => {
+    if (intervalRef.current !== null) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-
-    animationRef.current = requestAnimationFrame(tick);
   }, []);
 
   useEffect(() => {
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
+      clearTimer();
     };
-  }, []);
+  }, [clearTimer]);
 
   const handleClick = () => {
     if (isCompleted) {
       setTimeLeft(duration);
       setIsCompleted(false);
-      initialTimeRef.current = duration;
       return;
     }
 
     if (isRunning) {
+      clearTimer();
       setIsRunning(false);
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      initialTimeRef.current = timeLeft;
     } else {
       setIsRunning(true);
-      startTimeRef.current = Date.now();
-      animationRef.current = requestAnimationFrame(tick);
+      intervalRef.current = window.setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearTimer();
+            setIsRunning(false);
+            setIsCompleted(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
   };
 
   const handleReset = (e: React.MouseEvent) => {
     e.stopPropagation();
+    clearTimer();
     setIsRunning(false);
     setIsCompleted(false);
     setTimeLeft(duration);
-    initialTimeRef.current = duration;
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-    }
   };
 
   return (
-    <div className="step-timer">
+    <div className="step-timer" data-step-id={stepId}>
       <button
         className={`timer-button ${isRunning ? 'running' : ''} ${isCompleted ? 'completed' : ''}`}
         onClick={handleClick}
@@ -177,10 +165,16 @@ const RecipeDetail: React.FC = () => {
 
     if (id) {
       addComment(id, rating, commentText.trim());
-      setNewCommentId(Date.now().toString());
       setRating(0);
       setCommentText('');
-      setTimeout(() => setNewCommentId(null), 600);
+      
+      setTimeout(() => {
+        const updatedComments = getCommentsByRecipeId(id);
+        if (updatedComments.length > 0) {
+          setNewCommentId(updatedComments[0].id);
+          setTimeout(() => setNewCommentId(null), 600);
+        }
+      }, 50);
     }
   };
 
@@ -309,11 +303,11 @@ const RecipeDetail: React.FC = () => {
             {comments.length === 0 ? (
               <p className="no-comments">暂无评价，快来抢沙发吧！</p>
             ) : (
-              comments.map((comment, index) => (
+              comments.map((comment) => (
                 <CommentItem
                   key={comment.id}
                   comment={comment}
-                  isNew={index === 0 && newCommentId !== null}
+                  isNew={comment.id === newCommentId}
                 />
               ))
             )}
