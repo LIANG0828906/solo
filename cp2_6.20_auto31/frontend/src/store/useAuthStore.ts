@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { authApi } from '../services/api';
+import { login as apiLogin, register as apiRegister, refreshToken as apiRefreshToken } from '../services/api';
 import type { User } from '../types';
 
 interface AuthState {
@@ -14,6 +14,7 @@ interface AuthState {
   refreshTokenFn: () => Promise<void>;
   setUser: (user: User) => void;
   setLoading: (loading: boolean) => void;
+  ensureDemoUser: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -24,20 +25,42 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
 
-      login: async (email: string, password: string) => {
-        set({ isLoading: true });
+      ensureDemoUser: async () => {
+        if (get().isAuthenticated) return;
         try {
-          const response = await authApi.login({ email, password });
-          const { token, refresh_token, user } = response.data;
+          const demoEmail = `demo_${Date.now()}@vinylhub.com`;
+          const demoUsername = `vinylfan_${Math.floor(Math.random() * 10000)}`;
+          const result = await apiRegister({
+            username: demoUsername,
+            email: demoEmail,
+            password: 'password123',
+            bio: '热爱黑胶唱片的音乐爱好者 🎵',
+          });
+          const { access_token, refresh_token, user } = result;
           set({
-            token,
+            token: access_token,
             user,
             isAuthenticated: true,
             isLoading: false,
           });
-          if (refresh_token) {
-            localStorage.setItem('refresh_token', refresh_token);
-          }
+          localStorage.setItem('refresh_token', refresh_token);
+        } catch (e) {
+          console.warn('Demo user creation failed', e);
+        }
+      },
+
+      login: async (email: string, password: string) => {
+        set({ isLoading: true });
+        try {
+          const result = await apiLogin({ email, password });
+          const { access_token, refresh_token, user } = result;
+          set({
+            token: access_token,
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          localStorage.setItem('refresh_token', refresh_token);
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -47,17 +70,15 @@ export const useAuthStore = create<AuthState>()(
       register: async (data: any) => {
         set({ isLoading: true });
         try {
-          const response = await authApi.register(data);
-          const { token, refresh_token, user } = response.data;
+          const result = await apiRegister(data);
+          const { access_token, refresh_token, user } = result;
           set({
-            token,
+            token: access_token,
             user,
             isAuthenticated: true,
             isLoading: false,
           });
-          if (refresh_token) {
-            localStorage.setItem('refresh_token', refresh_token);
-          }
+          localStorage.setItem('refresh_token', refresh_token);
         } catch (error) {
           set({ isLoading: false });
           throw error;
@@ -72,22 +93,15 @@ export const useAuthStore = create<AuthState>()(
           isLoading: false,
         });
         localStorage.removeItem('refresh_token');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
+        window.location.href = '/collection';
       },
 
       refreshTokenFn: async () => {
         try {
-          const response = await authApi.refreshToken();
-          const { token, refresh_token, user } = response.data;
-          set({
-            token,
-            user,
-            isAuthenticated: true,
-          });
-          if (refresh_token) {
-            localStorage.setItem('refresh_token', refresh_token);
+          const result = await apiRefreshToken();
+          const token = result.access_token || result.token;
+          if (token) {
+            set({ token, isAuthenticated: true });
           }
         } catch (error) {
           get().logout();
