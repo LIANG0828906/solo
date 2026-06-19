@@ -27,6 +27,7 @@ const MemberCard: React.FC<{
 }> = ({ member, isLocal, onVolumeChange, onMuteToggle, onNameChange }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(member.userName);
+  const [isEntering, setIsEntering] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -35,6 +36,13 @@ const MemberCard: React.FC<{
       inputRef.current.select();
     }
   }, [isEditing]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsEntering(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleNameClick = () => {
     if (isLocal) {
@@ -66,7 +74,7 @@ const MemberCard: React.FC<{
     <div
       className={`member-card ${member.isSpeaking ? 'speaking' : ''} ${
         member.isLeaving ? 'leaving' : ''
-      } ${isLocal ? 'local' : ''}`}
+      } ${isEntering ? 'entering' : ''} ${isLocal ? 'local' : ''}`}
       style={{ '--avatar-color': member.avatarColor } as React.CSSProperties}
     >
       {member.muted && (
@@ -79,6 +87,12 @@ const MemberCard: React.FC<{
 
       <div className="member-avatar">
         {getInitials(member.userName)}
+        <span
+          className={`status-dot ${
+            member.isLeaving ? 'offline' : member.muted ? 'muted' : 'online'
+          }`}
+          title={member.isLeaving ? '离线' : member.muted ? '静音' : '在线'}
+        />
       </div>
 
       <div className="member-info">
@@ -183,6 +197,23 @@ const MemberCard: React.FC<{
           transition: all 200ms ease-out;
         }
 
+        .member-card.entering {
+          opacity: 0;
+          transform: translateX(20px);
+          animation: slideInFromRight 300ms ease-out forwards;
+        }
+
+        @keyframes slideInFromRight {
+          from {
+            opacity: 0;
+            transform: translateX(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
         .member-card.local {
           border-color: rgba(74, 74, 255, 0.4);
         }
@@ -219,6 +250,33 @@ const MemberCard: React.FC<{
           font-weight: bold;
           font-size: 18px;
           flex-shrink: 0;
+          position: relative;
+        }
+
+        .status-dot {
+          position: absolute;
+          bottom: -2px;
+          right: -2px;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          border: 2px solid #1a1a2e;
+          transition: background-color 200ms ease-out;
+        }
+
+        .status-dot.online {
+          background-color: #22c55e;
+          box-shadow: 0 0 4px rgba(34, 197, 94, 0.6);
+        }
+
+        .status-dot.muted {
+          background-color: #6b7280;
+          box-shadow: 0 0 4px rgba(107, 114, 128, 0.4);
+        }
+
+        .status-dot.offline {
+          background-color: #ef4444;
+          box-shadow: 0 0 4px rgba(239, 68, 68, 0.6);
         }
 
         .member-info {
@@ -409,9 +467,12 @@ export const RoomUI: React.FC<RoomUIProps> = ({
             <span className="room-id-value">{roomId || '---'}</span>
             <span className="copy-icon">
               {copied ? (
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                </svg>
+                <>
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                  </svg>
+                  <span className="copy-tooltip">已复制!</span>
+                </>
               ) : (
                 <svg viewBox="0 0 24 24" fill="currentColor">
                   <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
@@ -496,11 +557,50 @@ export const RoomUI: React.FC<RoomUIProps> = ({
           color: #888;
           display: flex;
           align-items: center;
+          position: relative;
         }
 
         .copy-icon svg {
           width: 14px;
           height: 14px;
+        }
+
+        .copy-tooltip {
+          position: absolute;
+          top: -28px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #22c55e;
+          color: white;
+          padding: 4px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          white-space: nowrap;
+          opacity: 0;
+          animation: fadeInTooltip 150ms ease-out forwards;
+          box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+        }
+
+        .copy-tooltip::after {
+          content: '';
+          position: absolute;
+          bottom: -4px;
+          left: 50%;
+          transform: translateX(-50%);
+          border-left: 4px solid transparent;
+          border-right: 4px solid transparent;
+          border-top: 4px solid #22c55e;
+        }
+
+        @keyframes fadeInTooltip {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
         }
 
         .leave-btn {
@@ -534,21 +634,22 @@ export const RoomUI: React.FC<RoomUIProps> = ({
         }
 
         .members-list::-webkit-scrollbar {
-          width: 6px;
+          width: 4px;
         }
 
         .members-list::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 3px;
+          background: transparent;
+          border-radius: 2px;
         }
 
         .members-list::-webkit-scrollbar-thumb {
-          background: rgba(74, 74, 255, 0.3);
-          border-radius: 3px;
+          background: rgba(255, 255, 255, 0.15);
+          border-radius: 2px;
+          transition: background 200ms ease-out;
         }
 
         .members-list::-webkit-scrollbar-thumb:hover {
-          background: rgba(74, 74, 255, 0.5);
+          background: rgba(255, 255, 255, 0.25);
         }
 
         @media (max-width: 768px) {
@@ -561,6 +662,26 @@ export const RoomUI: React.FC<RoomUIProps> = ({
             overflow-x: auto;
             overflow-y: hidden;
             gap: 12px;
+            padding-right: 0;
+            padding-bottom: 8px;
+          }
+
+          .members-list::-webkit-scrollbar {
+            height: 4px;
+          }
+
+          .members-list::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 2px;
+          }
+
+          .members-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+          }
+
+          .members-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
           }
 
           .member-card {
