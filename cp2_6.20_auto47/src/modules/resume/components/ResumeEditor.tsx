@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -19,10 +19,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Undo2, Redo2, GripVertical, ChevronDown, ChevronRight, Save, Eye } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
 import type { Resume, ResumeSection } from '@/types';
-import { useHistory } from '@/hooks/useHistory';
+import { resumeService } from '@/modules/resume/services/resumeService';
 
 interface SortableSectionProps {
   section: ResumeSection;
@@ -58,13 +57,13 @@ function SortableSection({ section, isCollapsed, onToggleCollapse, onEdit }: Sor
       className={cn(
         'bg-white rounded-lg border border-gray-200 mb-2 overflow-hidden',
         'transition-all duration-200',
-        isDragging && 'shadow-lg z-10',
+        isDragging && 'shadow-lg z-10 border-blue-300',
         'hover:border-blue-200'
       )}
     >
       <div
-      className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 cursor-pointer select-none"
-      onClick={() => onToggleCollapse(section.id)}
+        className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 cursor-pointer select-none"
+        onClick={() => onToggleCollapse(section.id)}
       >
         <button
           {...attributes}
@@ -77,19 +76,19 @@ function SortableSection({ section, isCollapsed, onToggleCollapse, onEdit }: Sor
 
         {isCollapsed ? (
           <ChevronRight size={16} className="text-gray-500" />
-          ) : (
-            <ChevronDown size={16} className="text-gray-500" />
-            )}
+        ) : (
+          <ChevronDown size={16} className="text-gray-500" />
+        )}
         <span className="font-medium text-gray-700 text-sm flex-1">
           {section.title || sectionLabels[section.type] || '未命名'}
         </span>
       </div>
 
       <div
-      className={cn(
-        'overflow-hidden transition-all duration-300 ease-in-out',
-        isCollapsed ? 'max-h-0' : 'max-h-[500px]'
-      )}
+        className={cn(
+          'overflow-hidden transition-all duration-300 ease-in-out',
+          isCollapsed ? 'max-h-0' : 'max-h-[500px]'
+        )}
       >
         <div className="p-4 text-sm text-gray-600" onClick={onEdit}>
           <SectionContent section={section} />
@@ -100,22 +99,15 @@ function SortableSection({ section, isCollapsed, onToggleCollapse, onEdit }: Sor
 }
 
 function SectionContent({ section }: { section: ResumeSection }) {
-  switch (section.type) {
-    case 'personalInfo':
-      return <div className="space-y-1">
-        <p className="text-gray-500">点击编辑个人信息...</p>
-      </div>;
-    case 'workExperience':
-      return <p className="text-gray-500">点击编辑工作经历...</p>;
-    case 'education':
-      return <p className="text-gray-500">点击编辑教育背景...</p>;
-    case 'skills':
-      return <p className="text-gray-500">点击编辑技能标签...</p>;
-    case 'projects':
-      return <p className="text-gray-500">点击编辑项目经验...</p>;
-    default:
-      return <p className="text-gray-500">点击编辑...</p>;
-  }
+  const labels: Record<string, string> = {
+    personalInfo: '点击编辑个人信息...',
+    workExperience: '点击编辑工作经历...',
+    education: '点击编辑教育背景...',
+    skills: '点击编辑技能标签...',
+    projects: '点击编辑项目经验...',
+    custom: '点击编辑...',
+  };
+  return <p className="text-gray-500">{labels[section.type] || '点击编辑...'}</p>;
 }
 
 interface ResumeEditorProps {
@@ -124,29 +116,63 @@ interface ResumeEditorProps {
   onSave?: (resume: Resume) => void;
 }
 
+function isEditableElement(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return (
+    tag === 'INPUT' ||
+    tag === 'TEXTAREA' ||
+    tag === 'SELECT' ||
+    target.isContentEditable
+  );
+}
+
 export default function ResumeEditor({ resume, onChange, onSave }: ResumeEditorProps) {
+  const [currentResume, setCurrentResume] = useState<Resume>(resume);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const initializedRef = useRef<string | null>(null);
 
-  const {
-    state: historyResume,
-    canUndo,
-    canRedo,
-    push,
-    undo,
-    redo,
-    reset,
-  } = useHistory<Resume>({
-    initialState: resume,
-    maxHistory: 50,
-  });
+  useEffect(() => {
+    if (initializedRef.current !== resume.id) {
+      initializedRef.current = resume.id;
+      resumeService.initHistory(resume.id, resume, 50);
+      setCurrentResume(resume);
+      syncUndoRedoState(resume.id);
+    }
+  }, [resume.id]);
+
+  useEffect(() => {
+    return () => {
+      if (initializedRef.current) {
+        resumeService.disposeHistory(initializedRef.current);
+      }
+    };
+  }, []);
+
+  const syncUndoRedoState = useCallback((resumeId: string) => {
+    setCanUndo(resumeService.canUndo(resumeId));
+    setCanRedo(resumeService.canRedo(resumeId));
+  }, []);
+
+  const handlePushSnapshot = useCallback(
+    (nextState: Resume) => {
+      resumeService.pushSnapshot(resume.id, nextState);
+      setCurrentResume(nextState);
+      syncUndoRedoState(resume.id);
+      if (onChange) {
+        onChange(nextState);
+      }
+    },
+    [resume.id, onChange, syncUndoRedoState]
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
+      activationConstraint: { distance: 5 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -154,33 +180,23 @@ export default function ResumeEditor({ resume, onChange, onSave }: ResumeEditorP
   );
 
   useEffect(() => {
-    reset(resume);
-  }, [resume.id, reset]);
-
-  useEffect(() => {
-    if (onChange) {
-      onChange(historyResume);
-    }
-  }, [historyResume, onChange]);
-
-  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isEditableElement(e.target)) {
+        return;
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        if (canUndo) {
-          undo();
-        }
+        handleUndo();
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault();
-        if (canRedo) {
-          redo();
-        }
+        handleRedo();
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         if (onSave) {
-          onSave(historyResume);
+          onSave(currentResume);
           setSaveSuccess(true);
           setTimeout(() => setSaveSuccess(false), 1500);
         }
@@ -189,7 +205,29 @@ export default function ResumeEditor({ resume, onChange, onSave }: ResumeEditorP
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canUndo, canRedo, undo, redo, onSave, historyResume]);
+  }, [currentResume, onSave]);
+
+  const handleUndo = useCallback(() => {
+    const restored = resumeService.undo(resume.id);
+    if (restored) {
+      setCurrentResume(restored);
+      syncUndoRedoState(resume.id);
+      if (onChange) {
+        onChange(restored);
+      }
+    }
+  }, [resume.id, onChange, syncUndoRedoState]);
+
+  const handleRedo = useCallback(() => {
+    const restored = resumeService.redo(resume.id);
+    if (restored) {
+      setCurrentResume(restored);
+      syncUndoRedoState(resume.id);
+      if (onChange) {
+        onChange(restored);
+      }
+    }
+  }, [resume.id, onChange, syncUndoRedoState]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -200,63 +238,62 @@ export default function ResumeEditor({ resume, onChange, onSave }: ResumeEditorP
     setActiveId(null);
 
     if (over && active.id !== over.id) {
-      const oldIndex = historyResume.sections.findIndex((s) => s.id === active.id);
-      const newIndex = historyResume.sections.findIndex((s) => s.id === over.id);
+      const oldIndex = currentResume.sections.findIndex((s) => s.id === active.id);
+      const newIndex = currentResume.sections.findIndex((s) => s.id === over.id);
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        const newSections = arrayMove(historyResume.sections, oldIndex, newIndex).map(
+        const reordered = arrayMove(currentResume.sections, oldIndex, newIndex).map(
           (section, idx) => ({
             ...section,
             order: idx,
           })
         );
-        push({
-          ...historyResume,
-          sections: newSections,
+        handlePushSnapshot({
+          ...currentResume,
+          sections: reordered,
         });
       }
     }
   };
 
-  const toggleSection = useCallback(
-    (id: string) => {
-      setCollapsedSections((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) {
-          next.delete(id);
-        } else {
-          next.add(id);
-        }
-        return next;
-      });
-    },
-    []
-  );
-
-  const handleEditSection = useCallback(() => {
-    // TODO: 实现内联编辑
+  const toggleSection = useCallback((id: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   }, []);
 
+  const handleEditSection = useCallback(() => {}, []);
+
   const activeSection = useMemo(
-    () => historyResume.sections.find((s) => s.id === activeId),
-    [historyResume.sections, activeId]
+    () => currentResume.sections.find((s) => s.id === activeId),
+    [currentResume.sections, activeId]
   );
 
   const handleSave = () => {
     if (onSave) {
-      onSave(historyResume);
+      onSave(currentResume);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 1500);
     }
   };
 
+  const sortableItemIds = useMemo(
+    () => currentResume.sections.map((s) => s.id),
+    [currentResume.sections]
+  );
+
   return (
     <div className="flex flex-col h-full">
-      {/* 工具栏 */}
       <div className="glass flex items-center justify-between px-4 py-3 border-b border-gray-200/60">
         <div className="flex items-center gap-2">
           <button
-            onClick={undo}
+            onClick={handleUndo}
             disabled={!canUndo}
             className={cn(
               'p-2 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-sm',
@@ -271,7 +308,7 @@ export default function ResumeEditor({ resume, onChange, onSave }: ResumeEditorP
           </button>
 
           <button
-            onClick={redo}
+            onClick={handleRedo}
             disabled={!canRedo}
             className={cn(
               'p-2 rounded-lg transition-all duration-200 flex items-center gap-1.5 text-sm',
@@ -298,7 +335,13 @@ export default function ResumeEditor({ resume, onChange, onSave }: ResumeEditorP
           >
             {saveSuccess ? (
               <>
-                <svg className="w-[18px] h-[18px] text-green-500 animate-check-pop" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg
+                  className="w-[18px] h-[18px] text-green-500 animate-check-pop"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
                 <span className="hidden sm:inline text-green-600 font-medium">已保存</span>
@@ -320,9 +363,7 @@ export default function ResumeEditor({ resume, onChange, onSave }: ResumeEditorP
         </div>
       </div>
 
-      {/* 编辑器主体 */}
-      <div className="flex-1 overflow-hidden">
-        {/* 左侧：模块列表 */}
+      <div className="flex-1 overflow-hidden flex">
         <div className="w-80 h-full overflow-y-auto p-4 bg-gray-50/50 border-r border-gray-200/60">
           <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
             <span>简历模块</span>
@@ -336,10 +377,10 @@ export default function ResumeEditor({ resume, onChange, onSave }: ResumeEditorP
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={historyResume.sections.map((s) => s.id)}
+              items={sortableItemIds}
               strategy={verticalListSortingStrategy}
             >
-              {historyResume.sections.map((section) => (
+              {currentResume.sections.map((section) => (
                 <SortableSection
                   key={section.id}
                   section={section}
@@ -365,10 +406,9 @@ export default function ResumeEditor({ resume, onChange, onSave }: ResumeEditorP
           </DndContext>
         </div>
 
-        {/* 右侧：预览区 */}
         <div className="flex-1 h-full overflow-y-auto p-6 bg-surface-200/50">
           <div className="max-w-2xl mx-auto">
-            <ResumePreview resume={historyResume} />
+            <ResumePreview resume={currentResume} />
           </div>
         </div>
       </div>
@@ -391,7 +431,6 @@ function ResumePreview({ resume }: { resume: Resume }) {
       )}
     >
       <div className="space-y-6">
-        {/* 按顺序渲染各模块预览 */}
         {resume.sections
           .filter((s) => s.visible)
           .sort((a, b) => a.order - b.order)
@@ -403,7 +442,9 @@ function ResumePreview({ resume }: { resume: Resume }) {
               <div className="text-sm opacity-80">
                 {section.type === 'personalInfo' && (
                   <div>
-                    <div className="text-lg font-bold">{resume.personalInfo.name || '您的姓名'}</div>
+                    <div className="text-lg font-bold">
+                      {resume.personalInfo.name || '您的姓名'}
+                    </div>
                     <div className="text-xs opacity-70 mt-0.5">
                       {resume.personalInfo.title || '职位头衔'}
                     </div>

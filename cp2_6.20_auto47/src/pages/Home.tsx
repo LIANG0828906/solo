@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import ResumeEditor from '@/modules/resume/components/ResumeEditor';
 import type { Resume } from '@/types';
@@ -62,25 +62,9 @@ const demoResume: Resume = {
 
 export default function Home() {
   const [resume, setResume] = useState<Resume>(demoResume);
-  const [historyInfo, setHistoryInfo] = useState({ index: 0, total: 1 });
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        if (!e.shiftKey) {
-          console.log('撤销 (Ctrl+Z)');
-        } else {
-          console.log('重做 (Ctrl+Shift+Z)');
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   return (
     <div className="min-h-screen gradient-bg">
-      {/* 顶部导航 */}
       <nav className="glass sticky top-0 z-50 border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -95,7 +79,6 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* 提示栏 */}
       <div className="bg-blue-50/50 border-b border-blue-100 py-2 px-4">
         <div className="max-w-7xl mx-auto flex items-center gap-4 text-sm text-blue-700">
           <span className="font-medium">💡 试试这些操作：</span>
@@ -105,7 +88,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 编辑器主体 */}
       <div className="h-[calc(100vh-3.5rem-2.5rem)]">
         <ResumeEditor resume={resume} onChange={setResume} />
       </div>
