@@ -24,11 +24,15 @@ import {
   getClipEndTime,
   getTotalDuration,
   formatTime,
+  formatTimeMs,
   getStickerSVG,
 } from '../utils/mediaUtils';
 
-const PIXELS_PER_SECOND = 60;
+const BASE_PIXELS_PER_SECOND = 60;
 const MIN_CLIP_DURATION = 0.5;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3;
+const ZOOM_STEP = 0.1;
 
 interface TimelineProps {
   clips: VideoClip[];
@@ -73,8 +77,6 @@ const SortableClip: React.FC<SortableClipProps> = ({
   const handleTrimMouseDown = (side: 'left' | 'right') => (e: React.MouseEvent) => {
     e.stopPropagation();
     const startX = e.clientX;
-    const startTrimIn = clip.trimIn;
-    const startTrimOut = clip.trimOut;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaX = moveEvent.clientX - startX;
@@ -134,8 +136,9 @@ const Timeline: React.FC<TimelineProps> = ({
 }) => {
   const tracksRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [dragStartTime, setDragStartTime] = useState(0);
-  const trimStateRef = useRef<{ clipId: string; mode: 'in' | 'out'; startTrim: number } | null>(null);
+  const [zoom, setZoom] = useState<number>(1);
+
+  const pixelsPerSecond = BASE_PIXELS_PER_SECOND * zoom;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -143,11 +146,11 @@ const Timeline: React.FC<TimelineProps> = ({
   );
 
   const totalDuration = Math.max(30, getTotalDuration(clips));
-  const trackWidth = totalDuration * PIXELS_PER_SECOND;
+  const trackWidth = totalDuration * pixelsPerSecond;
 
   useEffect(() => {
     if (tracksRef.current) {
-      const playheadX = currentTime * PIXELS_PER_SECOND;
+      const playheadX = currentTime * pixelsPerSecond;
       const container = tracksRef.current;
       const visibleLeft = container.scrollLeft;
       const visibleRight = visibleLeft + container.clientWidth;
@@ -158,13 +161,12 @@ const Timeline: React.FC<TimelineProps> = ({
         });
       }
     }
-  }, [currentTime]);
+  }, [currentTime, pixelsPerSecond]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const clip = clips.find((c) => c.id === event.active.id);
     if (clip) {
       setActiveId(clip.id);
-      setDragStartTime(clip.startTime);
     }
   };
 
@@ -209,7 +211,6 @@ const Timeline: React.FC<TimelineProps> = ({
       if (!clip) return;
       const maxTrimIn = clip.duration - clip.trimOut - MIN_CLIP_DURATION;
       const newTrimIn = Math.max(0, Math.min(maxTrimIn, clip.trimIn + deltaSeconds));
-      const startTimeOffset = deltaSeconds > 0 ? deltaSeconds : 0;
       dispatch({
         type: 'UPDATE_CLIP',
         payload: {
@@ -240,7 +241,7 @@ const Timeline: React.FC<TimelineProps> = ({
     if (!tracksRef.current) return;
     const rect = tracksRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left + tracksRef.current.scrollLeft;
-    const time = x / PIXELS_PER_SECOND;
+    const time = x / pixelsPerSecond;
     dispatch({ type: 'SET_CURRENT_TIME', payload: Math.max(0, Math.min(totalDuration, time)) });
     dispatch({ type: 'SELECT_CLIP', payload: null });
     dispatch({ type: 'SELECT_STICKER', payload: null });
@@ -251,14 +252,22 @@ const Timeline: React.FC<TimelineProps> = ({
     dispatch({ type: 'SELECT_STICKER', payload: stickerId });
   };
 
+  const getRulerStep = (): number => {
+    if (zoom >= 2) return 1;
+    if (zoom >= 1) return 1;
+    if (zoom >= 0.7) return 2;
+    return 5;
+  };
+
   const renderRuler = () => {
     const marks = [];
-    for (let t = 0; t <= totalDuration; t += 1) {
+    const step = getRulerStep();
+    for (let t = 0; t <= totalDuration; t += step) {
       marks.push(
         <React.Fragment key={t}>
-          <div className="ruler-tick" style={{ left: t * PIXELS_PER_SECOND }} />
-          {t % 5 === 0 && (
-            <div className="ruler-mark" style={{ left: t * PIXELS_PER_SECOND }}>
+          <div className="ruler-tick" style={{ left: t * pixelsPerSecond }} />
+          {t % (step * 5) === 0 && (
+            <div className="ruler-mark" style={{ left: t * pixelsPerSecond }}>
               {formatTime(t)}
             </div>
           )}
@@ -268,12 +277,30 @@ const Timeline: React.FC<TimelineProps> = ({
     return marks;
   };
 
+  const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    setZoom(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, val)));
+  };
+
   const activeClip = clips.find((c) => c.id === activeId);
 
   return (
     <div className="timeline-container">
       <div className="timeline-header">
         <span className="timeline-title">时间线</span>
+        <div className="zoom-control-bar">
+          <span className="zoom-label">缩放</span>
+          <input
+            type="range"
+            className="zoom-slider"
+            min={MIN_ZOOM}
+            max={MAX_ZOOM}
+            step={ZOOM_STEP}
+            value={zoom}
+            onChange={handleZoomChange}
+          />
+          <span className="zoom-value">{zoom.toFixed(1)}x</span>
+        </div>
         <span className="timeline-title" style={{ color: '#00d2ff' }}>
           {formatTime(currentTime)} / {formatTime(totalDuration)}
         </span>
@@ -308,13 +335,13 @@ const Timeline: React.FC<TimelineProps> = ({
                     onDoubleClick={handleClipDoubleClick}
                     onTrimStart={handleTrimStart}
                     onTrimEnd={handleTrimEnd}
-                    pixelsPerSecond={PIXELS_PER_SECOND}
+                    pixelsPerSecond={pixelsPerSecond}
                   />
                 ))
               )}
               <div
                 className="playhead-line"
-                style={{ left: currentTime * PIXELS_PER_SECOND }}
+                style={{ left: currentTime * pixelsPerSecond }}
               >
                 <div className="playhead-triangle" />
               </div>
@@ -325,7 +352,7 @@ const Timeline: React.FC<TimelineProps> = ({
               <div
                 className="timeline-clip dragging"
                 style={{
-                  width: getClipEffectiveDuration(activeClip) * PIXELS_PER_SECOND,
+                  width: getClipEffectiveDuration(activeClip) * pixelsPerSecond,
                   background: `linear-gradient(90deg, #e94560 0%, #0f3460 100%)`,
                   opacity: 0.9,
                 }}
@@ -346,7 +373,7 @@ const Timeline: React.FC<TimelineProps> = ({
               key={sticker.id}
               className={`timeline-sticker ${selectedStickerId === sticker.id ? 'selected' : ''}`}
               style={{
-                left: sticker.startTime * PIXELS_PER_SECOND,
+                left: sticker.startTime * pixelsPerSecond,
                 transform: 'translateY(-50%) rotate(45deg)',
                 background: '#ffffff',
                 borderRadius: 2,
@@ -361,6 +388,10 @@ const Timeline: React.FC<TimelineProps> = ({
             />
           ))}
         </div>
+      </div>
+      <div className="timeline-indicator-bar">
+        <span className="indicator-label">当前时间</span>
+        <span className="indicator-time">{formatTimeMs(currentTime)}</span>
       </div>
     </div>
   );
