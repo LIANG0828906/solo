@@ -31,6 +31,52 @@ export function calculateFrequencyBands(
   }
 }
 
+export function calculateDetailedBands(
+  frequencyData: Uint8Array,
+  sampleRate: number = 44100,
+  fftSize: number = 512
+): { bandLow: number; bandMid: number; bandHigh: number; total: number } {
+  const binCount = frequencyData.length
+  const freqPerBin = sampleRate / fftSize
+
+  const lowEndBin = Math.min(binCount - 1, Math.floor(250 / freqPerBin))
+  const midEndBin = Math.min(binCount - 1, Math.floor(2000 / freqPerBin))
+  const highStartBin = Math.max(0, Math.floor(2000 / freqPerBin))
+
+  let sumLow = 0, sumMid = 0, sumHigh = 0, sumTotal = 0
+
+  for (let i = 0; i < binCount; i++) {
+    const val = frequencyData[i]
+    sumTotal += val
+    if (i <= lowEndBin) {
+      sumLow += val
+    } else if (i <= midEndBin) {
+      sumMid += val
+    } else if (i >= highStartBin) {
+      sumHigh += val
+    }
+  }
+
+  return {
+    bandLow: sumLow,
+    bandMid: sumMid,
+    bandHigh: sumHigh,
+    total: sumTotal,
+  }
+}
+
+export function calculateRhythmDensity(
+  beatTimestamps: number[],
+  windowMs: number = 5000
+): number {
+  if (beatTimestamps.length < 2) return 0
+  const now = performance.now()
+  const recentBeats = beatTimestamps.filter((t) => now - t <= windowMs)
+  if (recentBeats.length < 2) return 0
+  const density = recentBeats.length / (windowMs / 1000)
+  return Math.min(3, density)
+}
+
 export interface PeakDetectionResult {
   isPeak: boolean
   peakIntensity: number

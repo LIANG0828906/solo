@@ -2,6 +2,17 @@ export type VisualizerPreset = 'nebula' | 'pulse' | 'spiral'
 
 export type VisualizationMode = '3d' | '2d' | 'spectrum'
 
+export interface EnergyDistribution {
+  bandLowRatio: number
+  bandMidRatio: number
+  bandHighRatio: number
+  rhythmDensity: number
+  instantEnergy: number
+  emotionScore: number
+}
+
+export type EmotionMood = 'calm' | 'balanced' | 'intense'
+
 export interface AudioAnalysisResult {
   frequencyData: Uint8Array
   waveformData: Uint8Array
@@ -13,6 +24,7 @@ export interface AudioAnalysisResult {
   timestamp: number
   beatIntensity: number
   estimatedBPM: number | null
+  energyDistribution: EnergyDistribution
 }
 
 export interface ParticleData {

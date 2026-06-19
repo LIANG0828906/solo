@@ -1,6 +1,6 @@
 import { Howl } from 'howler'
-import { BeatDetector, calculateFrequencyBands, validateAudioFile } from '@/utils/audio'
-import { AudioAnalysisResult } from '@/types'
+import { BeatDetector, calculateFrequencyBands, validateAudioFile, calculateDetailedBands, calculateRhythmDensity } from '@/utils/audio'
+import { AudioAnalysisResult, EnergyDistribution } from '@/types'
 
 // 节拍信息回调类型
 export type BeatDetectCallback = (beatInfo: {
@@ -449,6 +449,34 @@ export class AudioAnalyzer {
         }
       }
 
+      // === 情感映射：计算精确频段能量分布 ===
+      const detailedBands = calculateDetailedBands(this.frequencyData, 44100, 512)
+      const totalEnergy = detailedBands.total > 0 ? detailedBands.total : 1
+      const bandLowRatio = detailedBands.bandLow / totalEnergy
+      const bandMidRatio = detailedBands.bandMid / totalEnergy
+      const bandHighRatio = detailedBands.bandHigh / totalEnergy
+
+      // 计算节奏密度
+      const rhythmDensity = calculateRhythmDensity(this.beatTimestamps, 5000)
+
+      // 瞬时能量（归一化0~1）
+      const instantEnergy = Math.min(1, bands.average * 1.5 + beatIntensity * 0.5)
+
+      // 情感综合评分：低频-1，高频+1，节奏密度加权
+      // 范围：-1（舒缓，低频主导，节奏慢） ~ +1（激烈，高频主导，节奏快）
+      const emotionScore =
+        (bandHighRatio - bandLowRatio) * 0.6 +
+        Math.min(1, rhythmDensity / 2) * 0.4
+
+      const energyDistribution: EnergyDistribution = {
+        bandLowRatio,
+        bandMidRatio,
+        bandHighRatio,
+        rhythmDensity,
+        instantEnergy,
+        emotionScore,
+      }
+
       // 组装完整的音频分析结果
       const result: AudioAnalysisResult = {
         frequencyData: this.frequencyData.slice(),
@@ -461,6 +489,7 @@ export class AudioAnalyzer {
         timestamp: currentTime,
         beatIntensity,
         estimatedBPM,
+        energyDistribution,
       }
 
       // 触发分析结果回调

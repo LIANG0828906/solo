@@ -50,6 +50,14 @@ const initialAudioAnalysis: AudioAnalysisResult = {
   timestamp: 0,
   beatIntensity: 0,
   estimatedBPM: null,
+  energyDistribution: {
+    bandLowRatio: 0.33,
+    bandMidRatio: 0.34,
+    bandHighRatio: 0.33,
+    rhythmDensity: 0,
+    instantEnergy: 0,
+    emotionScore: 0,
+  },
 }
 
 export const useVisualizerStore = create<VisualizerState>((set) => ({

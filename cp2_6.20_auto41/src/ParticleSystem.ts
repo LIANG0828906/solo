@@ -32,6 +32,15 @@ const SPIRAL_LOW_COLOR = hexToRgb('#00ff7f')
 const SPIRAL_MID_COLOR = hexToRgb('#00fa9a')
 const SPIRAL_HIGH_COLOR = hexToRgb('#00ced1')
 
+// 情感映射颜色：舒缓（蓝紫）vs 激烈（红橙）
+const CALM_LOW_COLOR = hexToRgb('#1e3a8a')    // 深蓝
+const CALM_MID_COLOR = hexToRgb('#6366f1')    // 靛蓝
+const CALM_HIGH_COLOR = hexToRgb('#a855f7')   // 紫色
+
+const INTENSE_LOW_COLOR = hexToRgb('#dc2626')  // 纯红
+const INTENSE_MID_COLOR = hexToRgb('#f97316')  // 橙色
+const INTENSE_HIGH_COLOR = hexToRgb('#fbbf24') // 金黄
+
 // 粒子最大生命周期（秒）
 const MAX_PARTICLE_LIFESPAN = 30
 
@@ -66,6 +75,26 @@ export class ParticleSystem {
   private tempColor: { r: number; g: number; b: number } = { r: 0, g: 0, b: 0 }
   // 音频播放状态标记
   private isAudioPlaying: boolean = false
+
+  // ========== 情感映射状态 ==========
+  // 当前平滑后的情感评分 (-1 ~ +1)
+  private smoothedEmotionScore: number = 0
+  // 低频主导→高频主导的分布形态系数 (0=云团状聚集, 1=放射状散开)
+  private shapeFactor: number = 0.5
+  // 情感驱动的速度倍率
+  private emotionSpeedFactor: number = 1.0
+  // 平滑过渡用的上一次能量分布
+  private lastEnergy: {
+    bandLowRatio: number
+    bandHighRatio: number
+    rhythmDensity: number
+    instantEnergy: number
+  } = {
+    bandLowRatio: 0.33,
+    bandHighRatio: 0.33,
+    rhythmDensity: 0,
+    instantEnergy: 0,
+  }
 
   constructor() {
     // 初始化预设过渡动画器（2秒）
@@ -314,6 +343,36 @@ export class ParticleSystem {
     const currentConfig = PRESET_CONFIGS[this.currentPreset]
     const targetConfig = PRESET_CONFIGS[this.targetPreset]
 
+    // ========== 情感映射：根据音频特征动态调整 ==========
+    const energy = audioData.energyDistribution
+    if (energy) {
+      // 平滑过渡各能量特征（时间常数~200ms，60fps下alpha≈0.1）
+      const smoothAlpha = Math.min(1, deltaTime * 5)
+      this.lastEnergy.bandLowRatio = lerp(this.lastEnergy.bandLowRatio, energy.bandLowRatio, smoothAlpha)
+      this.lastEnergy.bandHighRatio = lerp(this.lastEnergy.bandHighRatio, energy.bandHighRatio, smoothAlpha)
+      this.lastEnergy.rhythmDensity = lerp(this.lastEnergy.rhythmDensity, energy.rhythmDensity, smoothAlpha)
+      this.lastEnergy.instantEnergy = lerp(this.lastEnergy.instantEnergy, energy.instantEnergy, smoothAlpha)
+
+      // 平滑情感评分：-1(舒缓) ~ +1(激烈)，归一化到0~1
+      this.smoothedEmotionScore = lerp(this.smoothedEmotionScore, energy.emotionScore, smoothAlpha)
+      const emotionT = (this.smoothedEmotionScore + 1) * 0.5 // 映射到0~1
+
+      // 分布形态系数：
+      //  0 = 云团状（聚集，球形紧凑分布，粒子向内收缩，半径缩小30%）
+      //  1 = 放射状（尖锐发散，粒子向外扩散，半径扩大40%，带有径向速度）
+      // 使用低频占比和高频占比的差值驱动
+      const targetShapeFactor = clamp(
+        0.5 + (this.lastEnergy.bandHighRatio - this.lastEnergy.bandLowRatio) * 1.5,
+        0,
+        1
+      )
+      this.shapeFactor = lerp(this.shapeFactor, targetShapeFactor, smoothAlpha)
+
+      // 情感速度因子：舒缓慢(0.6x)，激烈快(1.8x)
+      const targetSpeedFactor = 0.6 + emotionT * 1.2 + this.lastEnergy.rhythmDensity * 0.1
+      this.emotionSpeedFactor = lerp(this.emotionSpeedFactor, targetSpeedFactor, smoothAlpha)
+    }
+
     // 遍历更新所有粒子
     for (let i = 0; i < this.currentCount; i++) {
       const particle = this.particles[i]
@@ -339,7 +398,9 @@ export class ParticleSystem {
         targetConfig,
         presetTransition,
         lowBandAvg,
-        highBandAvg
+        highBandAvg,
+        this.shapeFactor,
+        this.emotionSpeedFactor
       )
 
       // 更新粒子颜色
@@ -348,11 +409,12 @@ export class ParticleSystem {
         i,
         frequencyData,
         controlParams,
-        presetTransition
+        presetTransition,
+        this.smoothedEmotionScore
       )
 
       // 更新粒子大小
-      this.updateParticleSize(particle, frequencyData, audioData, controlParams)
+      this.updateParticleSize(particle, frequencyData, audioData, controlParams, this.lastEnergy.instantEnergy)
 
       // 应用可视化模式变换
       this.applyVisualizationMode(particle, modeTransition, i, this.currentCount, frequencyData)
@@ -435,12 +497,14 @@ export class ParticleSystem {
     targetConfig: typeof PRESET_CONFIGS[VisualizerPreset],
     transition: number,
     lowBandAvg: number,
-    highBandAvg: number
+    highBandAvg: number,
+    shapeFactor: number,
+    emotionSpeedFactor: number
   ): void {
     // 当前频率值（归一化）
     const freqValue = frequencyData[particle.frequencyIndex] / 255
     // 速度系数（帧率归一化）
-    const speed = controlParams.speed * deltaTime * 60
+    const speed = controlParams.speed * deltaTime * 60 * emotionSpeedFactor
 
     // 插值计算当前振幅
     const amplitude = lerp(currentConfig.motion.amplitude, targetConfig.motion.amplitude, transition)
@@ -525,6 +589,27 @@ export class ParticleSystem {
 
     // 更新粒子角度
     particle.angle += 0.01 * speedMult * speed
+
+    // === 情感映射：分布形态调整 ===
+    // shapeFactor: 0→云团聚集（缩小半径，柔和流动），1→放射散开（扩大半径，尖锐爆发）
+    const radialT = shapeFactor
+    const contractionAmount = 1 - radialT * 0.3  // 聚集时收缩到70%
+    const expansionAmount = 1 + radialT * 0.4   // 发散时扩张到140%
+    const shapeScale = contractionAmount * (1 - radialT) + expansionAmount * radialT
+
+    // 对位置做径向缩放（以原点为中心）
+    pos.x *= shapeScale
+    pos.y *= shapeScale
+    pos.z *= shapeScale
+
+    // 放射模式：高频粒子添加额外的向外径向速度（尖锐感）
+    if (radialT > 0.5 && isHighBand) {
+      const radialSpeed = (radialT - 0.5) * 2 * amplitude * 0.03 * speed
+      const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z) || 1
+      pos.x += (pos.x / dist) * radialSpeed
+      pos.y += (pos.y / dist) * radialSpeed * 0.5
+      pos.z += (pos.z / dist) * radialSpeed
+    }
   }
 
   /**
@@ -618,10 +703,12 @@ export class ParticleSystem {
     index: number,
     frequencyData: Uint8Array,
     controlParams: ControlParams,
-    transition: number
+    transition: number,
+    emotionScore: number
   ): void {
     const freqValue = frequencyData[particle.frequencyIndex]
     const normalizedFreq = freqValue / 255
+    const frequencyIndex = particle.frequencyIndex
 
     // 根据当前预设计算颜色
     const currentColor = this.calculatePresetColor(this.currentPreset, particle.frequencyIndex)
@@ -631,6 +718,32 @@ export class ParticleSystem {
     this.tempColor.r = lerp(currentColor.r, targetColor.r, transition)
     this.tempColor.g = lerp(currentColor.g, targetColor.g, transition)
     this.tempColor.b = lerp(currentColor.b, targetColor.b, transition)
+
+    // === 情感映射：颜色混合 ===
+    // emotionScore -1→舒缓(蓝紫)，+1→激烈(红橙)
+    const t = (emotionScore + 1) * 0.5 // 映射到0~1
+
+    // 基于频率索引在情感颜色渐变中取色
+    const freqT = frequencyIndex / 256
+    let calmColor, intenseColor
+    if (freqT < 0.33) {
+      calmColor = CALM_LOW_COLOR
+      intenseColor = INTENSE_LOW_COLOR
+    } else if (freqT < 0.66) {
+      calmColor = CALM_MID_COLOR
+      intenseColor = INTENSE_MID_COLOR
+    } else {
+      calmColor = CALM_HIGH_COLOR
+      intenseColor = INTENSE_HIGH_COLOR
+    }
+    const emotionalColor = lerpColor(calmColor, intenseColor, t)
+
+    // 预设颜色与情感颜色按情感强度混合
+    // 情感强度越大，情感颜色占比越高（最多60%）
+    const emotionBlend = Math.abs(emotionScore) * 0.6
+    this.tempColor.r = lerp(this.tempColor.r, emotionalColor.r, emotionBlend)
+    this.tempColor.g = lerp(this.tempColor.g, emotionalColor.g, emotionBlend)
+    this.tempColor.b = lerp(this.tempColor.b, emotionalColor.b, emotionBlend)
 
     // 应用颜色强度
     const intensity = 0.6 + normalizedFreq * 0.4 * controlParams.colorSensitivity
@@ -696,13 +809,32 @@ export class ParticleSystem {
     particle: ParticleDataExt,
     frequencyData: Uint8Array,
     audioData: AudioAnalysisResult,
-    controlParams: ControlParams
+    controlParams: ControlParams,
+    instantEnergy: number
   ): void {
     const freqValue = frequencyData[particle.frequencyIndex] / 255
-    const beatBoost = this.beatPulse * 2
-    const volumeBoost = audioData.averageVolume * 1.5
+    const beatBoost = this.beatPulse * 1.5
 
-    particle.size = particle.baseSize * (1 + freqValue * 2 * controlParams.colorSensitivity + beatBoost + volumeBoost * 0.5)
+    // === 情感映射：粒子呼吸缩放 ===
+    // 基于瞬时能量值产生细腻的"呼吸"效果：
+    // 使用正弦波叠加能量，让粒子随音乐起伏
+    const breathingPhase = this.time * 2 + particle.phase
+    const breathingWave = 0.5 + 0.5 * Math.sin(breathingPhase)
+    // 呼吸强度：瞬时能量越高越明显（0.1 ~ 0.8倍缩放）
+    const breathingAmount = 0.1 + instantEnergy * 0.7
+    const breathingScale = 1 + (breathingWave - 0.5) * breathingAmount
+
+    // 节奏密度影响：节奏越快，粒子越大（活跃感）
+    const energy = audioData.energyDistribution
+    const rhythmBoost = energy ? energy.rhythmDensity * 0.15 : 0
+
+    // 情感强度影响：激烈时粒子整体更大
+    const emotionT = energy ? (energy.emotionScore + 1) * 0.5 : 0.5
+    const emotionSizeBoost = emotionT * 0.3
+
+    // 综合计算粒子大小
+    const baseScale = 1 + freqValue * 1.5 * controlParams.colorSensitivity
+    particle.size = particle.baseSize * baseScale * breathingScale * (1 + beatBoost + rhythmBoost + emotionSizeBoost)
   }
 
   /**
