@@ -256,12 +256,13 @@ export function setupMockApi() {
 
             if (matchUrl(url, /^\/inspirations$/) && method === 'post') {
               handled = true;
-              const data = body as { content: string };
+              const data = body as { content: string; tags?: string[] };
               const card: InspirationCard = {
                 id: v4(),
                 userId: mockCurrentUser.id,
                 content: data.content,
                 starred: false,
+                tags: data.tags || [],
                 createdAt: new Date().toISOString(),
               };
               inspirationCards = [card, ...inspirationCards];
@@ -271,9 +272,9 @@ export function setupMockApi() {
             const inspMatch = matchUrl(url, /^\/inspirations\/([^/]+)$/);
             if (inspMatch && method === 'put') {
               handled = true;
-              const data = body as { starred?: boolean; content?: string };
+              const data = body as { starred?: boolean; content?: string; tags?: string[] };
               inspirationCards = inspirationCards.map((c) =>
-                c.id === inspMatch[1] ? { ...c, starred: data.starred ?? c.starred, content: data.content ?? c.content } : c
+                c.id === inspMatch[1] ? { ...c, starred: data.starred ?? c.starred, content: data.content ?? c.content, tags: data.tags ?? c.tags } : c
               );
               responseData = await delay({ success: true });
             }

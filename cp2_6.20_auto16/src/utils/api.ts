@@ -35,7 +35,7 @@ export const collaboratorApi = {
 export const inspirationApi = {
   list: () => api.get('/inspirations'),
   create: (data: { content: string }) => api.post('/inspirations', data),
-  update: (id: string, data: { starred?: boolean; content?: string }) =>
+  update: (id: string, data: { starred?: boolean; content?: string; tags?: string[] }) =>
     api.put(`/inspirations/${id}`, data),
   delete: (id: string) => api.delete(`/inspirations/${id}`),
 };

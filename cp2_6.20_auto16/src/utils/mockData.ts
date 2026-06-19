@@ -297,6 +297,7 @@ export const mockInspirationCards: InspirationCard[] = [
     userId: 'user-1',
     content: '月色如水，洒在青瓦上，滴答作响的不是雨，是时光。',
     starred: true,
+    tags: ['意象', '开头句', '夜景'],
     createdAt: '2025-10-01T20:00:00.000Z',
   },
   {
@@ -304,6 +305,7 @@ export const mockInspirationCards: InspirationCard[] = [
     userId: 'user-1',
     content: '风起的时候，芦苇弯腰，不是屈服，是在积蓄力量。',
     starred: false,
+    tags: ['动词', '哲理'],
     createdAt: '2025-10-02T14:30:00.000Z',
   },
   {
@@ -311,6 +313,7 @@ export const mockInspirationCards: InspirationCard[] = [
     userId: 'user-1',
     content: '老槐树的年轮里，藏着一个夏天的蝉鸣。',
     starred: true,
+    tags: ['意象', '回忆'],
     createdAt: '2025-10-03T09:15:00.000Z',
   },
   {
@@ -318,6 +321,7 @@ export const mockInspirationCards: InspirationCard[] = [
     userId: 'user-1',
     content: '她笑的时候，眼里有一条河，流着我从未见过的春天。',
     starred: false,
+    tags: ['开头句', '情感'],
     createdAt: '2025-10-04T16:45:00.000Z',
   },
   {
@@ -325,6 +329,7 @@ export const mockInspirationCards: InspirationCard[] = [
     userId: 'user-1',
     content: '檐角的风铃，替风说了许多不敢说的话。',
     starred: true,
+    tags: ['意象', '动词', '思念'],
     createdAt: '2025-10-05T22:00:00.000Z',
   },
   {
@@ -332,6 +337,7 @@ export const mockInspirationCards: InspirationCard[] = [
     userId: 'user-1',
     content: '把信折成纸船，放入溪流，不知寄往何处，但求顺水而去。',
     starred: false,
+    tags: ['开头句', '动词', '思念'],
     createdAt: '2025-10-06T11:30:00.000Z',
   },
   {
@@ -339,6 +345,7 @@ export const mockInspirationCards: InspirationCard[] = [
     userId: 'user-1',
     content: '雨后的小巷，青石板上的倒影，藏着另一个世界。',
     starred: false,
+    tags: ['意象', '山水', '夜景'],
     createdAt: '2025-10-07T08:00:00.000Z',
   },
   {
@@ -346,6 +353,7 @@ export const mockInspirationCards: InspirationCard[] = [
     userId: 'user-1',
     content: '一壶茶，一本书，一窗雨，便是人间好时节。',
     starred: true,
+    tags: ['结尾句', '闲适'],
     createdAt: '2025-10-08T15:20:00.000Z',
   },
 ];

@@ -186,7 +186,11 @@ const Editor: React.FC = () => {
   const [newAnnotationText, setNewAnnotationText] = useState('');
   const [annotationBtnPosition, setAnnotationBtnPosition] = useState<{ top: number; left: number } | null>(null);
 
+  const [isDraggingOverEditor, setIsDraggingOverEditor] = useState(false);
+  const [insertPosition, setInsertPosition] = useState<number | null>(null);
+
   const editorRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const tonalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevErrorStateRef = useRef<Set<string>>(new Set());
 
@@ -195,6 +199,15 @@ const Editor: React.FC = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const handleWindowDragEnd = () => {
+      setIsDraggingOverEditor(false);
+      setInsertPosition(null);
+    };
+    window.addEventListener('dragend', handleWindowDragEnd);
+    return () => window.removeEventListener('dragend', handleWindowDragEnd);
   }, []);
 
   useEffect(() => {
@@ -446,27 +459,71 @@ const Editor: React.FC = () => {
     setInviteEmail('');
   };
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+    setIsDraggingOverEditor(true);
   }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.target === e.currentTarget) {
+      setIsDraggingOverEditor(false);
+      setInsertPosition(null);
+    }
+  }, []);
+
+  const computeInsertPosition = useCallback((clientY: number, lines: PoemLine[]) => {
+    if (lines.length === 0) {
+      return 0;
+    }
+
+    let pos = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const lineEl = lineRefs.current[lines[i].id];
+      if (lineEl) {
+        const rect = lineEl.getBoundingClientRect();
+        const lineMiddleY = rect.top + rect.height / 2;
+        if (clientY < lineMiddleY) {
+          return i;
+        }
+        pos = i + 1;
+      }
+    }
+    return pos;
+  }, []);
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      if (currentPoem) {
+        const pos = computeInsertPosition(e.clientY, currentPoem.lines);
+        setInsertPosition(pos);
+      }
+    },
+    [currentPoem, computeInsertPosition],
+  );
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      setIsDraggingOverEditor(false);
       const cardData = e.dataTransfer.getData('application/inspiration-card');
       if (!cardData || !currentPoem) return;
       try {
         const card = JSON.parse(cardData);
         if (!card.content) return;
-        const order = currentPoem.lines.length;
-        addPoemLine({
+        const insertIdx = insertPosition != null ? insertPosition : currentPoem.lines.length;
+        const newLine: PoemLine = {
           id: uuidv4(),
           text: card.content,
           rhymeMark: '不押',
           charCount: card.content.length,
-          order,
-        });
+          order: insertIdx,
+        };
+        const updatedLines = [...currentPoem.lines];
+        updatedLines.splice(insertIdx, 0, newLine);
+        const reOrderedLines = updatedLines.map((ln, idx) => ({ ...ln, order: idx }));
+        setCurrentPoem({ ...currentPoem, lines: reOrderedLines });
         send({
           type: 'card_drag',
           poemId: currentPoem.id,
@@ -478,9 +535,11 @@ const Editor: React.FC = () => {
         });
         playDropSound();
       } catch {
+      } finally {
+        setInsertPosition(null);
       }
     },
-    [currentPoem, addPoemLine, send, currentUser.id],
+    [currentPoem, insertPosition, setCurrentPoem, send, currentUser.id],
   );
 
   const handleEditorClick = () => {
@@ -570,9 +629,12 @@ const Editor: React.FC = () => {
       <div
         ref={editorRef}
         className={clsx(
-          'scroll-paper relative flex-1 overflow-y-auto px-4 py-6 md:px-12 md:py-8',
+          'scroll-paper relative flex-1 overflow-y-auto px-4 py-6 md:px-12 md:py-8 transition-all duration-200 ease-out',
           isMobile && 'px-3 py-4',
+          isDraggingOverEditor && 'ring-2 ring-jade-300 ring-offset-2 ring-offset-rice-100',
         )}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         onClick={handleEditorClick}
@@ -601,97 +663,132 @@ const Editor: React.FC = () => {
           />
 
           <div className="space-y-2">
+            {isDraggingOverEditor && insertPosition === 0 && (
+              <div className="relative transition-all duration-200 ease-out">
+                <div className="absolute left-0 top-1/2 z-20 h-2 w-2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-blue-500" />
+                <div
+                  className="h-[3px] w-full transition-all duration-200 ease-out"
+                  style={{ background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)' }}
+                />
+              </div>
+            )}
+
             {currentPoem.lines.map((line, index) => {
               const tonalResult = getTonalResult(line.id);
               const hasTonalError = tonalResult != null && tonalResult.errors.length > 0;
               const lineAnnotations = getLineAnnotations(line.id);
               const hasAnnotations = lineAnnotations.length > 0;
               const segments = buildHighlightedSegments(line);
+              const showInsertAfter = isDraggingOverEditor && insertPosition === index + 1;
 
               return (
-                <div
-                  key={line.id}
-                  className={clsx(
-                    'line-hover-float group relative flex items-center gap-2 rounded-lg px-3 py-2 md:px-4 md:py-2.5',
-                    hasTonalError ? 'bg-red-50/40' : hasAnnotations ? 'bg-annot-50/30' : 'bg-transparent',
-                  )}
-                >
-                  <span className="w-6 shrink-0 text-right text-xs text-ink-100 select-none">
-                    {index + 1}
-                  </span>
+                <React.Fragment key={line.id}>
+                  <div
+                    ref={(el) => {
+                      lineRefs.current[line.id] = el;
+                    }}
+                    className={clsx(
+                      'line-hover-float group relative flex items-center gap-2 rounded-lg px-3 py-2 md:px-4 md:py-2.5',
+                      hasTonalError ? 'bg-red-50/40' : hasAnnotations ? 'bg-annot-50/30' : 'bg-transparent',
+                    )}
+                  >
+                    <span className="w-6 shrink-0 text-right text-xs text-ink-100 select-none">
+                      {index + 1}
+                    </span>
 
-                  <div className="relative flex-1">
-                    <div className="relative">
-                      {hasAnnotations && (
-                        <div className="pointer-events-none absolute inset-0 flex items-center font-serif text-lg text-transparent md:text-xl" aria-hidden>
-                          {segments.map((seg, i) => (
-                            <span
-                              key={i}
-                              className={clsx(
-                                seg.highlighted && 'bg-annot-100 rounded px-0.5',
-                              )}
-                            >
-                              {seg.text || '\u200b'}
-                            </span>
+                    <div className="relative flex-1">
+                      <div className="relative">
+                        {hasAnnotations && (
+                          <div className="pointer-events-none absolute inset-0 flex items-center font-serif text-lg text-transparent md:text-xl" aria-hidden>
+                            {segments.map((seg, i) => (
+                              <span
+                                key={i}
+                                className={clsx(
+                                  seg.highlighted && 'bg-annot-100 rounded px-0.5',
+                                )}
+                              >
+                                {seg.text || '\u200b'}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <input
+                          value={line.text}
+                          onChange={(e) => handleLineTextChange(line.id, e.target.value)}
+                          onMouseUp={(e) => handleTextSelection(line.id, e)}
+                          placeholder="输入诗句..."
+                          className={clsx(
+                            'relative z-10 w-full border-none bg-transparent font-serif text-lg text-ink-500 outline-none placeholder:text-ink-100 md:text-xl',
+                            hasTonalError && 'rhyme-error',
+                          )}
+                        />
+                      </div>
+                      {hasTonalError && tonalResult && (
+                        <div className="mt-0.5 space-y-0.5">
+                          {tonalResult.errors.map((err, ei) => (
+                            <p key={ei} className="text-[10px] text-red-500">
+                              第{err.position + 1}字「{err.char}」应为{err.expected}，实为{err.actual}
+                            </p>
                           ))}
                         </div>
                       )}
-                      <input
-                        value={line.text}
-                        onChange={(e) => handleLineTextChange(line.id, e.target.value)}
-                        onMouseUp={(e) => handleTextSelection(line.id, e)}
-                        placeholder="输入诗句..."
-                        className={clsx(
-                          'relative z-10 w-full border-none bg-transparent font-serif text-lg text-ink-500 outline-none placeholder:text-ink-100 md:text-xl',
-                          hasTonalError && 'rhyme-error',
-                        )}
-                      />
                     </div>
-                    {hasTonalError && tonalResult && (
-                      <div className="mt-0.5 space-y-0.5">
-                        {tonalResult.errors.map((err, ei) => (
-                          <p key={ei} className="text-[10px] text-red-500">
-                            第{err.position + 1}字「{err.char}」应为{err.expected}，实为{err.actual}
-                          </p>
-                        ))}
+
+                    <span className="shrink-0 text-[10px] text-ink-100 tabular-nums">
+                      {line.charCount}
+                    </span>
+
+                    <select
+                      value={line.rhymeMark}
+                      onChange={(e) => handleRhymeMarkChange(line.id, e.target.value)}
+                      className={clsx(
+                        'shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] outline-none',
+                        line.rhymeMark === '押韵'
+                          ? 'border-bark-200 bg-bark-50 text-bark-500'
+                          : 'border-rice-300 bg-rice-50 text-ink-200',
+                      )}
+                    >
+                      {RHYME_MARKS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+
+                    {lineAnnotations.length > 0 && (
+                      <div className={clsx('relative shrink-0', isMobile ? 'static' : '')}>
+                        <AnnotationBubble
+                          annotation={lineAnnotations[0]}
+                          onReply={handleAnnotationReply}
+                          isMobile={isMobile}
+                          onClick={handleAnnotationBubbleClick}
+                        />
                       </div>
                     )}
                   </div>
 
-                  <span className="shrink-0 text-[10px] text-ink-100 tabular-nums">
-                    {line.charCount}
-                  </span>
-
-                  <select
-                    value={line.rhymeMark}
-                    onChange={(e) => handleRhymeMarkChange(line.id, e.target.value)}
-                    className={clsx(
-                      'shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] outline-none',
-                      line.rhymeMark === '押韵'
-                        ? 'border-bark-200 bg-bark-50 text-bark-500'
-                        : 'border-rice-300 bg-rice-50 text-ink-200',
-                    )}
-                  >
-                    {RHYME_MARKS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-
-                  {lineAnnotations.length > 0 && (
-                    <div className={clsx('relative shrink-0', isMobile ? 'static' : '')}>
-                      <AnnotationBubble
-                        annotation={lineAnnotations[0]}
-                        onReply={handleAnnotationReply}
-                        isMobile={isMobile}
-                        onClick={handleAnnotationBubbleClick}
+                  {showInsertAfter && (
+                    <div className="relative transition-all duration-200 ease-out">
+                      <div className="absolute left-0 top-1/2 z-20 h-2 w-2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-blue-500" />
+                      <div
+                        className="h-[3px] w-full transition-all duration-200 ease-out"
+                        style={{ background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)' }}
                       />
                     </div>
                   )}
-                </div>
+                </React.Fragment>
               );
             })}
+
+            {isDraggingOverEditor && currentPoem.lines.length > 0 && insertPosition === currentPoem.lines.length && (
+              <div className="relative transition-all duration-200 ease-out">
+                <div className="absolute left-0 top-1/2 z-20 h-2 w-2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-blue-500" />
+                <div
+                  className="h-[3px] w-full transition-all duration-200 ease-out"
+                  style={{ background: 'linear-gradient(90deg, transparent, #3B82F6, transparent)' }}
+                />
+              </div>
+            )}
           </div>
 
           <button

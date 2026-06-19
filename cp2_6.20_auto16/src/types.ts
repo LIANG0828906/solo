@@ -59,6 +59,7 @@ export interface InspirationCard {
   userId: string;
   content: string;
   starred: boolean;
+  tags: string[];
   createdAt: string;
 }
 
