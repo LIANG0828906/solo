@@ -1,0 +1,63 @@
+:root {
+  --color-bg: #FEFAF0;
+  --color-map-bg: #F5E6C8;
+  --color-nav-bg: #8B6F47;
+  --color-grid-line: #D2B48C;
+  --color-white: #FFFFFF;
+  --color-text: #5C4033;
+  --color-text-light: #8B7355;
+  --color-highlight: #FFE66D;
+
+  --shadow-card: 0 4px 12px rgba(92, 64, 51, 0.15);
+  --shadow-card-hover: 0 8px 24px rgba(92, 64, 51, 0.25);
+
+  --font-handwriting: 'Caveat', cursive;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --radius-card: 12px;
+  --radius-pill: 999px;
+
+  --nav-height: 60px;
+  --sidebar-width: 260px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100%;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+mark {
+  background-color: var(--color-highlight);
+  color: inherit;
+}
