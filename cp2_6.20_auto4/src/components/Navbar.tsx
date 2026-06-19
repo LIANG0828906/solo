@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Menu, X, BookOpen, CheckSquare, MessageSquare, Award, List } from 'lucide-react'
+import { Menu, X, BookOpen, CheckSquare, MessageSquare, Award, List, Library } from 'lucide-react'
 import { useStore } from '@/store/index'
 
 const navItems = [
@@ -17,8 +17,19 @@ export default function Navbar() {
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen)
   const closeMobileMenu = () => setMobileMenuOpen(false)
   const [indicator, setIndicator] = useState({ left: 0, width: 0 })
+  const [shelfCount, setShelfCount] = useState(0)
   const navRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const navContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const updateShelfCount = () => {
+      const shelf = JSON.parse(localStorage.getItem('bookShelf') || '[]')
+      setShelfCount(shelf.length)
+    }
+    updateShelfCount()
+    window.addEventListener('shelfUpdate', updateShelfCount)
+    return () => window.removeEventListener('shelfUpdate', updateShelfCount)
+  }, [])
 
   useEffect(() => {
     const activeIndex = navItems.findIndex((item) => item.path === location.pathname)
@@ -83,6 +94,14 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          <button className="relative p-2 rounded-lg hover:bg-cream-dark/30 transition-colors">
+            <Library size={20} className="text-text" />
+            {shelfCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] bg-orange text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {shelfCount > 99 ? '99+' : shelfCount}
+              </span>
+            )}
+          </button>
           <div className="w-8 h-8 rounded-full bg-orange flex items-center justify-center text-white text-xs font-serif">
             U
           </div>

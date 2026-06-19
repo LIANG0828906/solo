@@ -13,12 +13,15 @@ import {
   format,
   subDays,
   startOfMonth,
+  startOfWeek,
   getDay,
   getDaysInMonth,
   isToday,
+  isThisMonth,
+  isThisWeek,
 } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Clock, CalendarDays } from 'lucide-react';
 import type { CheckInRecord } from '@/types';
 import { useStore } from '@/store';
 import { cn } from '@/lib/utils';
@@ -127,6 +130,18 @@ export default function ReadingCheckIn() {
     return { labels, data };
   }, [recordsMap]);
 
+  const weeklyDuration = useMemo(() => {
+    return records
+      .filter((r) => isThisWeek(new Date(r.date), { weekStartsOn: 1 }))
+      .reduce((sum, r) => sum + r.duration, 0);
+  }, [records]);
+
+  const monthlyDuration = useMemo(() => {
+    return records
+      .filter((r) => isThisMonth(new Date(r.date)))
+      .reduce((sum, r) => sum + r.duration, 0);
+  }, [records]);
+
   const chartData = {
     labels: trendData.labels,
     datasets: [
@@ -180,53 +195,83 @@ export default function ReadingCheckIn() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6">
-      <div className="flex-1">
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={prevMonth} className="p-1 rounded hover:bg-cream-dark transition-colors">
-            <ChevronLeft size={20} />
-          </button>
-          <h3 className="text-lg font-semibold">{format(currentMonth, 'yyyy年M月', { locale: zhCN })}</h3>
-          <button onClick={nextMonth} className="p-1 rounded hover:bg-cream-dark transition-colors">
-            <ChevronRight size={20} />
-          </button>
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-sm">
-          {WEEKDAYS.map((d) => (
-            <div key={d} className="font-medium text-text-muted py-1">
-              {d}
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={prevMonth} className="p-1 rounded hover:bg-cream-dark transition-colors">
+              <ChevronLeft size={20} />
+            </button>
+            <h3 className="text-lg font-semibold">{format(currentMonth, 'yyyy年M月', { locale: zhCN })}</h3>
+            <button onClick={nextMonth} className="p-1 rounded hover:bg-cream-dark transition-colors">
+              <ChevronRight size={20} />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center text-sm">
+            {WEEKDAYS.map((d) => (
+              <div key={d} className="font-medium text-text-muted py-1">
+                {d}
+              </div>
+            ))}
+            {calendarDays.map((day, i) => {
+              if (day === null) return <div key={`empty-${i}`} />;
+              const dateStr = format(
+                new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day),
+                'yyyy-MM-dd'
+              );
+              const record = recordsMap.get(dateStr);
+              const level = getDurationLevel(record?.duration ?? 0);
+              const today = isToday(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day));
+              return (
+                <button
+                  key={dateStr}
+                  onClick={() => handleDayClick(day)}
+                  className={cn(
+                    'aspect-square flex items-center justify-center rounded text-sm transition-colors',
+                    LEVEL_STYLES[level],
+                    today && 'ring-2 ring-orange'
+                  )}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-6 grid grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-cream-dark/50">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock size={16} className="text-orange" />
+                <span className="text-sm text-text-muted">本周累计阅读</span>
+              </div>
+              <p className="text-3xl font-bold text-text font-serif">
+                {Math.floor(weeklyDuration / 60) ? `${Math.floor(weeklyDuration / 60)}h ` : ''}
+                {weeklyDuration % 60}m
+              </p>
+              <p className="text-xs text-text-muted mt-1">
+                共 {weeklyDuration} 分钟
+              </p>
             </div>
-          ))}
-          {calendarDays.map((day, i) => {
-            if (day === null) return <div key={`empty-${i}`} />;
-            const dateStr = format(
-              new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day),
-              'yyyy-MM-dd'
-            );
-            const record = recordsMap.get(dateStr);
-            const level = getDurationLevel(record?.duration ?? 0);
-            const today = isToday(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day));
-            return (
-              <button
-                key={dateStr}
-                onClick={() => handleDayClick(day)}
-                className={cn(
-                  'aspect-square flex items-center justify-center rounded text-sm transition-colors',
-                  LEVEL_STYLES[level],
-                  today && 'ring-2 ring-orange'
-                )}
-              >
-                {day}
-              </button>
-            );
-          })}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-cream-dark/50">
+              <div className="flex items-center gap-2 mb-1">
+                <CalendarDays size={16} className="text-orange" />
+                <span className="text-sm text-text-muted">本月累计阅读</span>
+              </div>
+              <p className="text-3xl font-bold text-text font-serif">
+                {Math.floor(monthlyDuration / 60) ? `${Math.floor(monthlyDuration / 60)}h ` : ''}
+                {monthlyDuration % 60}m
+              </p>
+              <p className="text-xs text-text-muted mt-1">
+                共 {monthlyDuration} 分钟
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="flex-1 min-h-[300px]">
-        <h3 className="text-lg font-semibold mb-4">30天阅读趋势</h3>
-        <div className="h-[280px]">
-          <Line data={chartData} options={chartOptions} />
+        <div className="flex-1 min-h-[300px]">
+          <h3 className="text-lg font-semibold mb-4">30天阅读趋势</h3>
+          <div className="h-[280px]">
+            <Line data={chartData} options={chartOptions} />
+          </div>
         </div>
       </div>
 

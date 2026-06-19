@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Heart, MessageCircle } from 'lucide-react';
+import { Heart, MessageCircle, AlertTriangle, X } from 'lucide-react';
 import { useStore } from '@/store/index';
 import type { Comment } from '@/types';
 
@@ -64,6 +64,7 @@ function CommentItem({
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [liked, setLiked] = useState(false);
+  const [reportConfirmOpen, setReportConfirmOpen] = useState(false);
 
   const handleLike = () => {
     setLiked(!liked);
@@ -75,6 +76,17 @@ function CommentItem({
     onReply(comment.id, replyText.trim());
     setReplyText('');
     setReplyOpen(false);
+  };
+
+  const handleReport = () => {
+    setReportConfirmOpen(true);
+  };
+
+  const confirmReport = () => {
+    setTimeout(() => {
+      alert('举报已提交，感谢您的反馈！');
+    }, 100);
+    setReportConfirmOpen(false);
   };
 
   const barColor = depth === 0 ? 'border-orange-300' : 'border-orange-100';
@@ -115,7 +127,54 @@ function CommentItem({
           <MessageCircle size={14} />
           <span>回复</span>
         </button>
+        <button
+          onClick={handleReport}
+          className="ml-auto flex items-center gap-1 text-xs text-text-muted transition-colors hover:text-red-500"
+        >
+          <AlertTriangle size={14} />
+          <span>举报</span>
+        </button>
       </div>
+
+      {reportConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setReportConfirmOpen(false)}
+          />
+          <div className="relative z-10 bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
+            <button
+              onClick={() => setReportConfirmOpen(false)}
+              className="absolute top-3 right-3 p-1 rounded hover:bg-cream-dark/30 transition-colors"
+            >
+              <X size={16} className="text-text-muted" />
+            </button>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                <AlertTriangle size={20} className="text-red-500" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-text">确认举报此评论？</h4>
+                <p className="text-xs text-text-muted">提交后将由管理员审核处理</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setReportConfirmOpen(false)}
+                className="flex-1 px-4 py-2 rounded-lg border border-cream-dark text-text text-sm font-medium hover:bg-cream-dark/30 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmReport}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors active:scale-95"
+              >
+                确认举报
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className="overflow-hidden transition-all duration-300 ease-in-out"
