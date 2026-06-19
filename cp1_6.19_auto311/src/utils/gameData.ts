@@ -1,0 +1,111 @@
+import type { Item, Clue, Door } from '../types';
+
+export const initialItems: Item[] = [
+  {
+    id: 'item-key-red',
+    type: 'key-red',
+    name: '红色钥匙',
+    description: '一把锈迹斑斑的红色钥匙',
+    x: 150,
+    y: 200,
+    discovered: false,
+    collected: false,
+    relatedClueId: 'clue-red',
+  },
+  {
+    id: 'item-key-blue',
+    type: 'key-blue',
+    name: '蓝色钥匙',
+    description: '一把泛着蓝光的蓝色钥匙',
+    x: 400,
+    y: 150,
+    discovered: false,
+    collected: false,
+    relatedClueId: 'clue-blue',
+  },
+  {
+    id: 'item-key-green',
+    type: 'key-green',
+    name: '绿色钥匙',
+    description: '一把镶嵌翡翠的绿色钥匙',
+    x: 600,
+    y: 300,
+    discovered: false,
+    collected: false,
+    relatedClueId: 'clue-green',
+  },
+  {
+    id: 'item-rune-1',
+    type: 'rune-1',
+    name: '符文石·日',
+    description: '刻有太阳符文的古老石头',
+    x: 250,
+    y: 400,
+    discovered: false,
+    collected: false,
+  },
+  {
+    id: 'item-rune-2',
+    type: 'rune-2',
+    name: '符文石·月',
+    description: '刻有月亮符文的古老石头',
+    x: 500,
+    y: 450,
+    discovered: false,
+    collected: false,
+  },
+];
+
+export const initialClues: Clue[] = [
+  {
+    id: 'clue-red',
+    title: '红色之门',
+    description: '红色的门需要红色的钥匙才能打开',
+    icon: '🔴',
+    collected: false,
+    relatedItemId: 'item-key-red',
+  },
+  {
+    id: 'clue-blue',
+    title: '蓝色之海',
+    description: '蓝色的钥匙隐藏在海浪拍打的地方',
+    icon: '🔵',
+    collected: false,
+    relatedItemId: 'item-key-blue',
+  },
+  {
+    id: 'clue-green',
+    title: '绿色之森',
+    description: '绿色的钥匙被森林守护着',
+    icon: '🟢',
+    collected: false,
+    relatedItemId: 'item-key-green',
+  },
+];
+
+export const initialDoors: Door[] = [
+  {
+    id: 'door-red',
+    color: 'red',
+    x: 100,
+    y: 100,
+    unlocked: false,
+    requiredKey: 'key-red',
+  },
+  {
+    id: 'door-blue',
+    color: 'blue',
+    x: 350,
+    y: 100,
+    unlocked: false,
+    requiredKey: 'key-blue',
+  },
+  {
+    id: 'door-green',
+    color: 'green',
+    x: 600,
+    y: 100,
+    unlocked: false,
+    requiredKey: 'key-green',
+  },
+];
