@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { useContractStore } from './store/useContractStore';
 import ClauseBlock from './components/ClauseBlock';
 import RevisionPanel from './components/RevisionPanel';
@@ -22,13 +22,26 @@ function App() {
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isModalClosing, setIsModalClosing] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (showConfirmModal) {
       setIsModalVisible(true);
       setIsModalClosing(false);
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
     }
   }, [showConfirmModal]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   const modifiedClausesCount = useMemo(() => {
     const clauseIds = new Set(
@@ -37,14 +50,22 @@ function App() {
     return clauseIds.size;
   }, [revisions]);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
+    if (isModalClosing || !isModalVisible) return;
+
     setIsModalClosing(true);
-    setTimeout(() => {
+
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+    }
+
+    closeTimerRef.current = window.setTimeout(() => {
       setIsModalVisible(false);
       setShowConfirmModal(false);
       setIsModalClosing(false);
+      closeTimerRef.current = null;
     }, 300);
-  };
+  }, [isModalClosing, isModalVisible, setShowConfirmModal]);
 
   const handleReset = () => {
     if (confirm('确定要重置合同吗？所有批注和签名都将被清除。')) {

@@ -60,6 +60,7 @@ export interface ContractActions {
   addRevision: (clauseId: string, beforeContent: string, afterContent: string) => void;
   acceptRevision: (revisionId: string) => void;
   rejectRevision: (revisionId: string) => void;
+  restoreRevision: (revisionId: string) => void;
   setCurrentRole: (role: Role) => void;
   saveSignature: (dataUrl: string, role: Role) => void;
   setShowConfirmModal: (show: boolean) => void;

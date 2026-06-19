@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { useContractStore } from '../store/useContractStore';
 import type { FilterType, Comment } from '../types';
 import './RevisionPanel.css';
@@ -14,6 +14,12 @@ const RevisionPanel = () => {
     setHighlightedClause,
   } = useContractStore();
 
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = useState<number | 'none'>('none');
+  const [isAnimating, setIsAnimating] = useState(false);
+  const prevFilterRef = useRef<FilterType>(filterType);
+  const animTimerRef = useRef<number | null>(null);
+
   const filteredComments = useMemo(() => {
     let result = [...comments];
     if (filterType === 'unresolved') {
@@ -23,6 +29,58 @@ const RevisionPanel = () => {
     }
     return result.sort((a, b) => b.createdAt - a.createdAt);
   }, [comments, filterType]);
+
+  useEffect(() => {
+    if (!contentRef.current) {
+      prevFilterRef.current = filterType;
+      return;
+    }
+
+    if (animTimerRef.current) {
+      clearTimeout(animTimerRef.current);
+      animTimerRef.current = null;
+    }
+
+    const el = contentRef.current;
+    const currentHeight = el.scrollHeight;
+
+    if (prevFilterRef.current === filterType) {
+      setMaxHeight(currentHeight);
+      return;
+    }
+
+    setMaxHeight(currentHeight);
+    setIsAnimating(true);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!contentRef.current) return;
+        const newHeight = contentRef.current.scrollHeight;
+        setMaxHeight(newHeight);
+        prevFilterRef.current = filterType;
+
+        animTimerRef.current = window.setTimeout(() => {
+          setIsAnimating(false);
+          setMaxHeight('none');
+          animTimerRef.current = null;
+        }, 350);
+      });
+    });
+
+    return () => {
+      if (animTimerRef.current) {
+        clearTimeout(animTimerRef.current);
+      }
+    };
+  }, [filteredComments.length, filterType]);
+
+  useEffect(() => {
+    return () => {
+      if (animTimerRef.current) {
+        clearTimeout(animTimerRef.current);
+      }
+    };
+  }, []);
 
   const getClauseNumber = (clauseId: string): number => {
     const clause = clauses.find((c) => c.id === clauseId);
@@ -80,36 +138,44 @@ const RevisionPanel = () => {
       </div>
 
       <div className="comment-list">
-        {filteredComments.length === 0 ? (
-          <div className="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" className="empty-icon">
-              <path
-                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <p>暂无批注记录</p>
-          </div>
-        ) : (
-          <div key={filterType} className="comment-list-inner">
-            {filteredComments.map((comment, index) => (
-              <CommentItem
-                key={`${filterType}-${comment.id}`}
-                comment={comment}
-                clauseNumber={getClauseNumber(comment.clauseId)}
-                index={index}
-                roleLabel={getRoleLabel(comment.authorRole)}
-                timeLabel={formatTime(comment.createdAt)}
-                onClick={() => handleCommentClick(comment)}
-                onResolve={() => resolveComment(comment.id)}
-                onDelete={() => deleteComment(comment.id)}
-              />
-            ))}
-          </div>
-        )}
+        <div
+          ref={contentRef}
+          className={`comment-list-wrapper ${isAnimating ? 'animating' : ''}`}
+          style={{
+            maxHeight: maxHeight === 'none' ? undefined : `${maxHeight}px`,
+          }}
+        >
+          {filteredComments.length === 0 ? (
+            <div className="empty-state" key={`empty-${filterType}`}>
+              <svg viewBox="0 0 24 24" fill="none" className="empty-icon">
+                <path
+                  d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <p>暂无批注记录</p>
+            </div>
+          ) : (
+            <div className="comment-list-inner">
+              {filteredComments.map((comment, index) => (
+                <CommentItem
+                  key={`${filterType}-${comment.id}`}
+                  comment={comment}
+                  clauseNumber={getClauseNumber(comment.clauseId)}
+                  index={index}
+                  roleLabel={getRoleLabel(comment.authorRole)}
+                  timeLabel={formatTime(comment.createdAt)}
+                  onClick={() => handleCommentClick(comment)}
+                  onResolve={() => resolveComment(comment.id)}
+                  onDelete={() => deleteComment(comment.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

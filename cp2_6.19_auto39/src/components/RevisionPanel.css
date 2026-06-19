@@ -82,9 +82,31 @@
   padding: 8px;
 }
 
+.comment-list-wrapper {
+  max-height: 2000px;
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.comment-list-wrapper.empty {
+  max-height: 200px;
+}
+
 .comment-list-inner {
   display: flex;
   flex-direction: column;
+  animation: fadeSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .comment-list::-webkit-scrollbar {

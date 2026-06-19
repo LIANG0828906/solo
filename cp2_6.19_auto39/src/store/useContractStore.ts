@@ -67,6 +67,7 @@ const getInitialState = (): Omit<
   | 'addRevision'
   | 'acceptRevision'
   | 'rejectRevision'
+  | 'restoreRevision'
   | 'setCurrentRole'
   | 'saveSignature'
   | 'setShowConfirmModal'
@@ -220,6 +221,15 @@ export const useContractStore = create<ContractStore>((set, get) => {
       set((state) => ({
         revisions: state.revisions.map((r) =>
           r.id === revisionId ? { ...r, status: 'rejected' as const } : r
+        ),
+      }));
+      saveToStorage();
+    },
+
+    restoreRevision: (revisionId: string) => {
+      set((state) => ({
+        revisions: state.revisions.map((r) =>
+          r.id === revisionId ? { ...r, status: 'pending' as const } : r
         ),
       }));
       saveToStorage();

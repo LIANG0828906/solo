@@ -50,7 +50,14 @@ const AcceptSignArea = ({ role, onSigned }: AcceptSignAreaProps) => {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    for (let i = 0; i < 1500; i++) {
+    const area = width * height;
+    const baseArea = 60000;
+    const densityScale = Math.min(Math.max(area / baseArea, 0.5), 2.5);
+
+    const darkNoiseCount = Math.floor(1500 * densityScale);
+    const lightNoiseCount = Math.floor(500 * densityScale);
+
+    for (let i = 0; i < darkNoiseCount; i++) {
       const x = Math.random() * width;
       const y = Math.random() * height;
       const opacity = Math.random() * 0.04 + 0.01;
@@ -59,7 +66,7 @@ const AcceptSignArea = ({ role, onSigned }: AcceptSignAreaProps) => {
       ctx.fillRect(x, y, size, size);
     }
 
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < lightNoiseCount; i++) {
       const x = Math.random() * width;
       const y = Math.random() * height;
       const opacity = Math.random() * 0.03 + 0.01;
@@ -71,12 +78,21 @@ const AcceptSignArea = ({ role, onSigned }: AcceptSignAreaProps) => {
 
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = Math.min(width, height) * 0.35;
+    const minDim = Math.min(width, height);
+    const radius = minDim * 0.35;
+    const innerRadius = radius - minDim * 0.06;
+    const lineWidth = Math.max(1, minDim * 0.009);
+    const innerLineWidth = Math.max(0.5, minDim * 0.006);
+    const dashLength = Math.max(4, minDim * 0.035);
+    const dashGap = Math.max(3, minDim * 0.03);
+    const innerDashLength = Math.max(2, minDim * 0.018);
+    const innerDashGap = Math.max(2, minDim * 0.024);
+    const fontSize = Math.max(10, minDim * 0.07);
 
     ctx.save();
     ctx.strokeStyle = '#c0c4cc';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([6, 5]);
+    ctx.lineWidth = lineWidth;
+    ctx.setLineDash([dashLength, dashGap]);
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -84,18 +100,19 @@ const AcceptSignArea = ({ role, onSigned }: AcceptSignAreaProps) => {
 
     ctx.save();
     ctx.strokeStyle = 'rgba(192, 196, 204, 0.3)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 4]);
+    ctx.lineWidth = innerLineWidth;
+    ctx.setLineDash([innerDashLength, innerDashGap]);
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius - 10, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
 
     ctx.save();
     ctx.fillStyle = '#909399';
-    ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText('请在此区域签名', centerX, centerY + 5);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('请在此区域签名', centerX, centerY);
     ctx.restore();
   };
 

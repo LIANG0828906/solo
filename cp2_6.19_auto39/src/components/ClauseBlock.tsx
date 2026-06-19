@@ -17,6 +17,7 @@ const ClauseBlock = memo(function ClauseBlock({ clause }: ClauseBlockProps) {
     addRevision,
     acceptRevision,
     rejectRevision,
+    restoreRevision,
     setHighlightedClause,
   } = useContractStore();
 
@@ -28,6 +29,8 @@ const ClauseBlock = memo(function ClauseBlock({ clause }: ClauseBlockProps) {
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const blockRef = useRef<HTMLDivElement>(null);
   const editRef = useRef<HTMLDivElement>(null);
+  const focusTimerRef = useRef<number | null>(null);
+  const editFocusTimerRef = useRef<number | null>(null);
 
   const clauseComments = comments.filter((c) => c.clauseId === clause.id);
   const unresolvedCount = clauseComments.filter(
@@ -61,12 +64,19 @@ const ClauseBlock = memo(function ClauseBlock({ clause }: ClauseBlockProps) {
 
   useEffect(() => {
     if (showCommentInput && commentInputRef.current) {
-      const timer = setTimeout(() => {
-        commentInputRef.current?.focus();
-        commentInputRef.current?.setSelectionRange(0, 0);
+      focusTimerRef.current = window.setTimeout(() => {
+        if (commentInputRef.current) {
+          commentInputRef.current.focus();
+          commentInputRef.current.setSelectionRange(0, 0);
+        }
       }, 50);
-      return () => clearTimeout(timer);
     }
+    return () => {
+      if (focusTimerRef.current) {
+        clearTimeout(focusTimerRef.current);
+        focusTimerRef.current = null;
+      }
+    };
   }, [showCommentInput]);
 
   const handleCommentIconClick = () => {
@@ -85,10 +95,20 @@ const ClauseBlock = memo(function ClauseBlock({ clause }: ClauseBlockProps) {
     if (currentRole === 'receiver' && !isEditing) {
       setIsEditing(true);
       setEditContent(clause.content);
-      setTimeout(() => {
+      if (editFocusTimerRef.current) {
+        clearTimeout(editFocusTimerRef.current);
+      }
+      editFocusTimerRef.current = window.setTimeout(() => {
         if (editRef.current) {
           editRef.current.focus();
+          const range = document.createRange();
+          const sel = window.getSelection();
+          range.selectNodeContents(editRef.current);
+          range.collapse(false);
+          sel?.removeAllRanges();
+          sel?.addRange(range);
         }
+        editFocusTimerRef.current = null;
       }, 0);
     }
   };
@@ -111,7 +131,15 @@ const ClauseBlock = memo(function ClauseBlock({ clause }: ClauseBlockProps) {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (focusTimerRef.current) {
+        clearTimeout(focusTimerRef.current);
+      }
+      if (editFocusTimerRef.current) {
+        clearTimeout(editFocusTimerRef.current);
+      }
+    };
   }, [isEditing, handleSaveEdit]);
 
   const statusDot =
@@ -252,7 +280,8 @@ const ClauseBlock = memo(function ClauseBlock({ clause }: ClauseBlockProps) {
             <RevisionCard
               key={revision.id}
               revision={revision}
-              canAccept={false}
+              canAccept={currentRole === 'initiator'}
+              onRestore={() => restoreRevision(revision.id)}
             />
           ))}
         </div>
@@ -266,6 +295,7 @@ interface RevisionCardProps {
   canAccept: boolean;
   onAccept?: () => void;
   onReject?: () => void;
+  onRestore?: () => void;
 }
 
 function RevisionCard({
@@ -273,6 +303,7 @@ function RevisionCard({
   canAccept,
   onAccept,
   onReject,
+  onRestore,
 }: RevisionCardProps) {
   return (
     <div className={`revision-card status-${revision.status}`}>
@@ -328,6 +359,17 @@ function RevisionCard({
             title="拒绝此修订"
           >
             ✕ 拒绝
+          </button>
+        </div>
+      )}
+      {canAccept && revision.status === 'rejected' && (
+        <div className="revision-actions">
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={onRestore}
+            title="重新审核此修订"
+          >
+            ↺ 恢复审核
           </button>
         </div>
       )}
