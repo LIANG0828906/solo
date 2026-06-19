@@ -20,31 +20,30 @@ interface Particle {
   color: string;
   size: number;
   curl: number;
+  curlSpeed: number;
+  curlPhase: number;
 }
 
 const PARTICLE_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e'];
 
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  h = ((h % 360) + 360) % 360;
+  s /= 100;
+  l /= 100;
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
+}
+
 function lerpColor(ratio: number): string {
-  const stops = [
-    { t: 0.0, r: 239, g: 68, b: 68 },
-    { t: 0.5, r: 249, g: 115, b: 22 },
-    { t: 1.0, r: 34, g: 197, b: 94 },
-  ];
-  let a = stops[0];
-  let b = stops[stops.length - 1];
-  for (let i = 0; i < stops.length - 1; i++) {
-    if (ratio >= stops[i].t && ratio <= stops[i + 1].t) {
-      a = stops[i];
-      b = stops[i + 1];
-      break;
-    }
-  }
-  const range = b.t - a.t;
-  const localT = range === 0 ? 0 : (ratio - a.t) / range;
-  const r = Math.round(a.r + (b.r - a.r) * localT);
-  const g = Math.round(a.g + (b.g - a.g) * localT);
-  const bl = Math.round(a.b + (b.b - a.b) * localT);
-  return `rgb(${r}, ${g}, ${bl})`;
+  const hStart = 0;
+  const hEnd = 130;
+  const h = hStart + (hEnd - hStart) * ratio;
+  const s = 85 + ratio * 5;
+  const l = 52 - ratio * 6;
+  const [r, g, b] = hslToRgb(h, s, l);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 interface TimerProps {
@@ -90,7 +89,7 @@ export default function Timer({ onTaskMissing }: TimerProps) {
       const now = ctx.currentTime;
       const duration = 0.3;
 
-      const freqs = [880, 1318.51];
+      const freqs = [523.25, 659.25];
 
       freqs.forEach((freq, i) => {
         const osc = ctx.createOscillator();
@@ -120,13 +119,14 @@ export default function Timer({ onTaskMissing }: TimerProps) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const count = 32 + Math.floor(Math.random() * 9);
+    const count = 30 + Math.floor(Math.random() * 11);
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
     particlesRef.current = Array.from({ length: count }, () => {
       const angle = Math.random() * Math.PI * 2;
       const speed = 1.5 + Math.random() * 4.5;
+      const curlDirection = Math.random() < 0.5 ? -1 : 1;
       return {
         x: cx,
         y: cy,
@@ -136,7 +136,9 @@ export default function Timer({ onTaskMissing }: TimerProps) {
         maxLife: 0.9 + Math.random() * 0.7,
         color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)],
         size: 2 + Math.random() * 3,
-        curl: (Math.random() - 0.5) * 0.25,
+        curl: curlDirection * (0.08 + Math.random() * 0.22),
+        curlSpeed: 0.6 + Math.random() * 1.4,
+        curlPhase: Math.random() * Math.PI * 2,
       };
     });
 
@@ -147,7 +149,8 @@ export default function Timer({ onTaskMissing }: TimerProps) {
 
       const alive: Particle[] = [];
       for (const p of particlesRef.current) {
-        const angle = p.curl * Math.PI * 2;
+        const curlFactor = p.curl + Math.sin(elapsed * p.curlSpeed + p.curlPhase) * p.curl * 0.6;
+        const angle = curlFactor * Math.PI * 2;
         const cos = Math.cos(angle);
         const sin = Math.sin(angle);
         const nvx = p.vx * cos - p.vy * sin;
