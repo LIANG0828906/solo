@@ -18,22 +18,23 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #1a1a1f;
+        background: radial-gradient(ellipse at 50% 40%, #1e2030 0%, #141520 50%, #0e0e14 100%);
       }
       #loading-screen {
         position: fixed;
         inset: 0;
-        background: #1a1a1f;
+        background: radial-gradient(ellipse at 50% 40%, #1e2030 0%, #141520 50%, #0e0e14 100%);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         z-index: 9999;
-        transition: opacity 0.8s ease, visibility 0.8s ease;
+        transition: opacity 1s cubic-bezier(0.4, 0, 0.2, 1);
+        will-change: opacity;
       }
-      #loading-screen.hidden {
+      #loading-screen.fade-out {
         opacity: 0;
-        visibility: hidden;
+        pointer-events: none;
       }
       .loading-logo {
         width: 80px;
@@ -56,9 +57,9 @@
         color: #c9a962;
         letter-spacing: 6px;
         margin-bottom: 16px;
-        animation: pulse 2s ease-in-out infinite;
+        animation: textPulse 2s ease-in-out infinite;
       }
-      @keyframes pulse {
+      @keyframes textPulse {
         0%, 100% { opacity: 0.6; }
         50% { opacity: 1; }
       }
@@ -71,20 +72,43 @@
       }
       .loading-progress {
         width: 240px;
-        height: 2px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 2px;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 3px;
         overflow: hidden;
+        position: relative;
       }
       .loading-progress-bar {
         height: 100%;
         background: linear-gradient(90deg, #c9a962, #e08a3c);
         width: 0%;
-        border-radius: 2px;
-        animation: progress 2s ease-out forwards;
+        border-radius: 3px;
+        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        will-change: width;
       }
-      @keyframes progress {
-        to { width: 100%; }
+      .loading-percent {
+        font-family: 'Cinzel', serif;
+        font-size: 11px;
+        color: rgba(201, 169, 98, 0.6);
+        letter-spacing: 2px;
+        margin-top: 16px;
+        font-variant-numeric: tabular-nums;
+      }
+      #scene-transition-overlay {
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(ellipse at 50% 40%, #1e2030 0%, #141520 50%, #0e0e14 100%);
+        z-index: 9998;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        will-change: opacity;
+      }
+      #scene-transition-overlay.active {
+        opacity: 1;
+      }
+      #scene-transition-overlay.fade-in {
+        opacity: 0;
       }
       #app {
         width: 100%;
@@ -98,9 +122,11 @@
       <div class="loading-title">VIRTUAL MUSEUM</div>
       <div class="loading-subtitle">正在为您开启艺术之门...</div>
       <div class="loading-progress">
-        <div class="loading-progress-bar"></div>
+        <div class="loading-progress-bar" id="loading-progress-bar"></div>
       </div>
+      <div class="loading-percent" id="loading-percent">0%</div>
     </div>
+    <div id="scene-transition-overlay" class="active"></div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -393,12 +393,15 @@ export class SceneManager extends EventEmitter {
 
   async loadExhibits(data: ExhibitData[]) {
     this.exhibitsData = data
-    for (const exhibit of data) {
+    const total = data.length
+    for (let i = 0; i < data.length; i++) {
+      const exhibit = data[i]
       const hallGroup = this.hallGroups.get(exhibit.hallId)
       if (hallGroup) {
         const exhibit3D = await this.exhibitFactory.createExhibit(exhibit)
         hallGroup.add(exhibit3D.group)
       }
+      this.emit('loadProgress', { loaded: i + 1, total })
     }
   }
 

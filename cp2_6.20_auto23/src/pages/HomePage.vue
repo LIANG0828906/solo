@@ -13,16 +13,45 @@ const selectedExhibit = ref<ExhibitData | null>(null)
 const cardVisible = ref(false)
 const cursorStyle = ref('default')
 const loading = ref(true)
+const loadProgress = ref(0)
 
-const hideLoading = () => {
+const updateLoadingBar = (percent: number) => {
+  loadProgress.value = percent
+  const bar = document.getElementById('loading-progress-bar')
+  const pct = document.getElementById('loading-percent')
+  if (bar) {
+    bar.style.width = `${percent}%`
+  }
+  if (pct) {
+    pct.textContent = `${Math.round(percent)}%`
+  }
+}
+
+const transitionToScene = () => {
+  const loadingScreen = document.getElementById('loading-screen')
+  const transitionOverlay = document.getElementById('scene-transition-overlay')
+
+  if (loadingScreen) {
+    loadingScreen.classList.add('fade-out')
+  }
+
+  if (transitionOverlay) {
+    transitionOverlay.classList.add('active')
+    transitionOverlay.classList.remove('fade-in')
+  }
+
   setTimeout(() => {
     loading.value = false
-    const el = document.getElementById('loading-screen')
-    if (el) {
-      el.classList.add('hidden')
-      setTimeout(() => el.remove(), 800)
+
+    if (transitionOverlay) {
+      transitionOverlay.classList.add('fade-in')
+      transitionOverlay.classList.remove('active')
     }
-  }, 2000)
+
+    if (loadingScreen) {
+      loadingScreen.remove()
+    }
+  }, 1000)
 }
 
 onMounted(async () => {
@@ -41,6 +70,10 @@ onMounted(async () => {
   sm.on('cursorChange', (style: string) => {
     cursorStyle.value = style === 'zoom' ? 'zoom-in' : 'default'
   })
+  sm.on('loadProgress', ({ loaded, total }: { loaded: number; total: number }) => {
+    const percent = Math.round((loaded / total) * 100)
+    updateLoadingBar(percent)
+  })
 
   try {
     const { data } = await axios.get<ExhibitData[]>('/api/exhibits')
@@ -52,7 +85,7 @@ onMounted(async () => {
   }
 
   sm.start()
-  hideLoading()
+  transitionToScene()
 })
 
 onUnmounted(() => {
@@ -233,8 +266,6 @@ function getMockExhibits(): ExhibitData[] {
       @audio-pause="handleAudioPause"
       @audio-stop="handleAudioStop"
     />
-
-    <div v-if="loading" class="init-overlay" />
   </div>
 </template>
 
@@ -244,7 +275,7 @@ function getMockExhibits(): ExhibitData[] {
   height: 100%;
   position: relative;
   overflow: hidden;
-  background: #1a1a1f;
+  background: radial-gradient(ellipse at 50% 40%, #1e2030 0%, #141520 50%, #0e0e14 100%);
 }
 
 .scene-container {
@@ -252,13 +283,5 @@ function getMockExhibits(): ExhibitData[] {
   height: 100%;
   position: absolute;
   inset: 0;
-}
-
-.init-overlay {
-  position: fixed;
-  inset: 0;
-  background: #1a1a1f;
-  z-index: 9998;
-  pointer-events: none;
 }
 </style>

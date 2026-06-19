@@ -213,9 +213,9 @@ const handleBackdrop = (e: MouseEvent) => {
 .card-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px) saturate(1.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -237,14 +237,15 @@ const handleBackdrop = (e: MouseEvent) => {
   width: min(520px, 100%);
   max-height: 90vh;
   overflow-y: auto;
-  background: rgba(30, 30, 38, 0.82);
-  backdrop-filter: blur(28px) saturate(1.6);
-  -webkit-backdrop-filter: blur(28px) saturate(1.6);
-  border: 1px solid rgba(201, 169, 98, 0.25);
+  background: rgba(20, 21, 32, 0.72);
+  backdrop-filter: blur(32px) saturate(2);
+  -webkit-backdrop-filter: blur(32px) saturate(2);
+  border: 1px solid rgba(201, 169, 98, 0.22);
   border-radius: 24px;
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 30px rgba(201, 169, 98, 0.1),
     0 0 0 1px rgba(255, 255, 255, 0.02) inset;
   transform-origin: center center;
   animation: cardIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -290,7 +291,7 @@ const handleBackdrop = (e: MouseEvent) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   z-index: 2;
 }
 
@@ -302,7 +303,7 @@ const handleBackdrop = (e: MouseEvent) => {
 }
 
 .close-btn:active {
-  transform: rotate(90deg) scale(0.95);
+  transform: rotate(90deg) scale(0.96);
 }
 
 .card-content {
@@ -436,7 +437,8 @@ const handleBackdrop = (e: MouseEvent) => {
   padding: 18px 20px;
   background: linear-gradient(135deg, rgba(201, 169, 98, 0.08), rgba(224, 138, 60, 0.06));
   border-radius: 14px;
-  border: 1px solid rgba(201, 169, 98, 0.15);
+  border: 1px solid rgba(201, 169, 98, 0.18);
+  box-shadow: 0 0 16px rgba(201, 169, 98, 0.06);
 }
 
 .audio-label {
@@ -471,7 +473,7 @@ const handleBackdrop = (e: MouseEvent) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
   flex-shrink: 0;
 }
 
@@ -485,13 +487,10 @@ const handleBackdrop = (e: MouseEvent) => {
 
 .play-btn:hover {
   transform: scale(1.1);
-  box-shadow:
-    0 6px 24px rgba(224, 138, 60, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .play-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 .play-btn.playing {
@@ -526,7 +525,7 @@ const handleBackdrop = (e: MouseEvent) => {
 }
 
 .stop-btn:active:not(:disabled) {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 .stop-btn:disabled {

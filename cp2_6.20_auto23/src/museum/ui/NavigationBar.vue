@@ -84,14 +84,15 @@ const handleClick = (id: HallId) => {
   align-items: center;
   gap: 24px;
   padding: 14px 24px;
-  background: rgba(26, 26, 31, 0.75);
-  backdrop-filter: blur(20px) saturate(1.5);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  border: 1px solid rgba(201, 169, 98, 0.2);
+  background: rgba(20, 21, 32, 0.65);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  border: 1px solid rgba(201, 169, 98, 0.18);
   border-radius: 20px;
   box-shadow:
     0 10px 40px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 20px rgba(201, 169, 98, 0.08);
 }
 
 .nav-title {
@@ -134,7 +135,7 @@ const handleClick = (id: HallId) => {
   cursor: pointer;
   padding: 6px 10px;
   border-radius: 10px;
-  transition: all 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .nav-dot-btn:hover {
@@ -143,7 +144,7 @@ const handleClick = (id: HallId) => {
 }
 
 .nav-dot-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 .nav-dot {
@@ -153,7 +154,7 @@ const handleClick = (id: HallId) => {
   background: var(--hall-color);
   opacity: 0.4;
   border: 2px solid transparent;
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, border-color 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .nav-dot-btn.active .nav-dot {
