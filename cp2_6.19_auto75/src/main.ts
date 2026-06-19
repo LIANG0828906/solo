@@ -62,6 +62,12 @@ class App {
       },
       onPresetChange: (preset: string) => {
         this.particleSystem.applyPreset(preset);
+      },
+      onShowParticleHalo: (particleIndex: number) => {
+        this.particleSystem.showParticleHalo(particleIndex);
+      },
+      onHideParticleHalo: (particleIndex: number) => {
+        this.particleSystem.hideParticleHalo(particleIndex);
       }
     });
 

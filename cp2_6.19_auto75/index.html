@@ -231,10 +231,16 @@
       border: 1px solid #555;
       border-radius: 8px;
       font-size: 12px;
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: pointer;
       z-index: 200;
       transform-origin: center center;
       animation: tooltipIn 0.2s ease forwards;
+      transition: background-color 0.2s ease;
+    }
+
+    .particle-tooltip:hover {
+      background: rgba(40, 40, 40, 0.95);
     }
 
     .particle-tooltip.closing {
@@ -280,6 +286,31 @@
     .tooltip-value {
       color: #fff;
       font-family: 'SF Mono', Monaco, Consolas, monospace;
+    }
+
+    .copy-btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 6px 10px;
+      background: linear-gradient(135deg, rgba(255, 107, 53, 0.3), rgba(107, 53, 255, 0.3));
+      border: 1px solid rgba(255, 107, 53, 0.5);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+
+    .copy-btn:hover {
+      background: linear-gradient(135deg, rgba(255, 107, 53, 0.5), rgba(107, 53, 255, 0.5));
+      border-color: #ff6b35;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+    }
+
+    .copy-btn:active {
+      transform: translateY(0);
     }
 
     .hamburger-btn {

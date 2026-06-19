@@ -317,36 +317,69 @@ export class UIControls {
     element.style.left = `${screenX + 10}px`;
     element.style.top = `${screenY + 10}px`;
 
+    const posX = position.x.toFixed(2);
+    const posY = position.y.toFixed(2);
+    const posZ = position.z.toFixed(2);
+    const velX = velocity.x.toFixed(2);
+    const velY = velocity.y.toFixed(2);
+    const velZ = velocity.z.toFixed(2);
+
     element.innerHTML = `
       <div class="tooltip-title">粒子 #${particleIndex}</div>
       <div class="tooltip-row">
         <span>位置 X:</span>
-        <span class="tooltip-value">${position.x.toFixed(2)}</span>
+        <span class="tooltip-value">${posX}</span>
       </div>
       <div class="tooltip-row">
         <span>位置 Y:</span>
-        <span class="tooltip-value">${position.y.toFixed(2)}</span>
+        <span class="tooltip-value">${posY}</span>
       </div>
       <div class="tooltip-row">
         <span>位置 Z:</span>
-        <span class="tooltip-value">${position.z.toFixed(2)}</span>
+        <span class="tooltip-value">${posZ}</span>
       </div>
       <div class="tooltip-row">
         <span>速度 X:</span>
-        <span class="tooltip-value">${velocity.x.toFixed(2)}</span>
+        <span class="tooltip-value">${velX}</span>
       </div>
       <div class="tooltip-row">
         <span>速度 Y:</span>
-        <span class="tooltip-value">${velocity.y.toFixed(2)}</span>
+        <span class="tooltip-value">${velY}</span>
       </div>
       <div class="tooltip-row">
         <span>速度 Z:</span>
-        <span class="tooltip-value">${velocity.z.toFixed(2)}</span>
+        <span class="tooltip-value">${velZ}</span>
       </div>
+      <button class="copy-btn" data-coords="${posX},${posY},${posZ}">
+        <span class="copy-btn-text">复制坐标</span>
+      </button>
     `;
+
+    const copyBtn = element.querySelector('.copy-btn') as HTMLButtonElement;
+    copyBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const coords = copyBtn.dataset.coords || '';
+      try {
+        await navigator.clipboard.writeText(coords);
+        const textEl = copyBtn.querySelector('.copy-btn-text');
+        if (textEl) {
+          const originalText = textEl.textContent;
+          textEl.textContent = '已复制';
+          setTimeout(() => {
+            textEl.textContent = originalText;
+          }, 1500);
+        }
+      } catch (err) {
+        console.error('复制失败:', err);
+      }
+    });
 
     element.addEventListener('click', (e) => {
       e.stopPropagation();
+      if ((e.target as HTMLElement).classList.contains('copy-btn') || 
+          (e.target as HTMLElement).closest('.copy-btn')) {
+        return;
+      }
       const tooltip = this.tooltips.find((t) => t.id === tooltipId);
       if (tooltip) {
         this.removeTooltip(tooltip);
@@ -361,6 +394,8 @@ export class UIControls {
       element,
       createdAt: Date.now()
     });
+
+    this.callbacks.onShowParticleHalo(particleIndex);
   }
 
   public updateTooltipPosition(particleIndex: number, screenX: number, screenY: number): void {
@@ -373,6 +408,7 @@ export class UIControls {
 
   private removeTooltip(tooltip: TooltipData): void {
     tooltip.element.classList.add('closing');
+    this.callbacks.onHideParticleHalo(tooltip.particleIndex);
     setTimeout(() => {
       if (tooltip.element.parentNode) {
         tooltip.element.parentNode.removeChild(tooltip.element);
@@ -388,6 +424,7 @@ export class UIControls {
   public clearAllTooltips(): void {
     this.tooltips.forEach((t) => {
       t.element.classList.add('closing');
+      this.callbacks.onHideParticleHalo(t.particleIndex);
       setTimeout(() => {
         if (t.element.parentNode) {
           t.element.parentNode.removeChild(t.element);

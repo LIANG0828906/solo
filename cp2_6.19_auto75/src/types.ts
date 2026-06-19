@@ -28,6 +28,8 @@ export interface UICallbacks {
   onSpringStrengthChange: (strength: number) => void;
   onColorModeChange: (mode: ColorMode) => void;
   onPresetChange: (preset: string) => void;
+  onShowParticleHalo: (particleIndex: number) => void;
+  onHideParticleHalo: (particleIndex: number) => void;
 }
 
 export interface SliderConfig {
@@ -51,7 +53,7 @@ export const PRESETS: Record<string, PresetConfig> = {
   nebula: {
     name: 'nebula',
     label: '星云',
-    generatePosition: (index: number, total: number) => {
+    generatePosition: (_index: number, _total: number) => {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       const radius = 5 + Math.random() * 3 + (Math.random() - 0.5);
@@ -80,7 +82,7 @@ export const PRESETS: Record<string, PresetConfig> = {
   explosion: {
     name: 'explosion',
     label: '爆炸',
-    generatePosition: (index: number, total: number) => {
+    generatePosition: (_index: number, _total: number) => {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       const radius = 8;

@@ -17,7 +17,6 @@ export class ParticleSystem {
   private colorMode: ColorMode = 'warm';
   private maxParticles: number = 5000;
   private currentCount: number = 2000;
-  private transitionProgress: number = 1;
   private transitionStartPositions: THREE.Vector3[] = [];
   private transitionEndPositions: THREE.Vector3[] = [];
   private isTransitioning: boolean = false;
@@ -26,6 +25,8 @@ export class ParticleSystem {
   private fadeParticles: Map<number, number> = new Map();
   private raycaster: THREE.Raycaster;
   private mouseVector: THREE.Vector2;
+  private halos: Map<number, { mesh: THREE.Mesh; startTime: number }> = new Map();
+  private haloGroup: THREE.Group;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -88,6 +89,10 @@ export class ParticleSystem {
     this.trailLines = new THREE.LineSegments(this.trailGeometry, this.trailMaterial);
     this.trailLines.renderOrder = 1;
     this.scene.add(this.trailLines);
+
+    this.haloGroup = new THREE.Group();
+    this.haloGroup.renderOrder = 3;
+    this.scene.add(this.haloGroup);
 
     this.generateParticles(this.currentCount, 'nebula');
   }
@@ -326,6 +331,7 @@ export class ParticleSystem {
     }
 
     this.updateBufferAttributes();
+    this.updateHalos();
   }
 
   private updateBufferAttributes(): void {
@@ -431,6 +437,92 @@ export class ParticleSystem {
     };
   }
 
+  private createHaloMesh(): THREE.Mesh {
+    const innerRadius = 0.5;
+    const outerRadius = 0.9;
+    const geometry = new THREE.RingGeometry(innerRadius, outerRadius, 64);
+    const positionAttr = geometry.attributes.position;
+    const colors = new Float32Array(positionAttr.count * 3);
+
+    const colorStart = new THREE.Color(0xff6b35);
+    const colorEnd = new THREE.Color(0x6b35ff);
+
+    for (let i = 0; i < positionAttr.count; i++) {
+      const x = positionAttr.getX(i);
+      const y = positionAttr.getY(i);
+      const dist = Math.sqrt(x * x + y * y);
+      const t = (dist - innerRadius) / (outerRadius - innerRadius);
+      const color = colorStart.clone().lerp(colorEnd, t);
+      const idx = i * 3;
+      colors[idx] = color.r;
+      colors[idx + 1] = color.g;
+      colors[idx + 2] = color.b;
+    }
+
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    return new THREE.Mesh(geometry, material);
+  }
+
+  public showParticleHalo(particleIndex: number): void {
+    if (this.halos.has(particleIndex)) return;
+    if (particleIndex < 0 || particleIndex >= this.currentCount) return;
+
+    const particle = this.particles[particleIndex];
+    if (!particle) return;
+
+    const mesh = this.createHaloMesh();
+    mesh.position.copy(particle.position);
+    mesh.lookAt(new THREE.Vector3(0, 0, -100));
+
+    this.haloGroup.add(mesh);
+    this.halos.set(particleIndex, { mesh, startTime: performance.now() });
+  }
+
+  public hideParticleHalo(particleIndex: number): void {
+    const halo = this.halos.get(particleIndex);
+    if (!halo) return;
+
+    this.haloGroup.remove(halo.mesh);
+    (halo.mesh.geometry as THREE.BufferGeometry).dispose();
+    (halo.mesh.material as THREE.Material).dispose();
+    this.halos.delete(particleIndex);
+  }
+
+  private updateHalos(): void {
+    const now = performance.now();
+    const breathCycle = 2000;
+
+    this.halos.forEach((halo, particleIndex) => {
+      const particle = this.particles[particleIndex];
+      if (!particle) {
+        this.hideParticleHalo(particleIndex);
+        return;
+      }
+
+      halo.mesh.position.copy(particle.position);
+      halo.mesh.lookAt(new THREE.Vector3(0, 0, -100));
+
+      const elapsed = now - halo.startTime;
+      const t = (elapsed % breathCycle) / breathCycle;
+      const breath = 0.5 + 0.5 * Math.sin(t * Math.PI * 2);
+      const scale = 0.8 + breath * 0.4;
+      halo.mesh.scale.set(scale, scale, scale);
+
+      const material = halo.mesh.material as THREE.MeshBasicMaterial;
+      material.opacity = 0.2 + breath * 0.2;
+    });
+  }
+
   public dispose(): void {
     this.geometry.dispose();
     this.material.dispose();
@@ -439,6 +531,13 @@ export class ParticleSystem {
     if (this.particleTexture) {
       this.particleTexture.dispose();
     }
+    this.halos.forEach((halo) => {
+      this.haloGroup.remove(halo.mesh);
+      (halo.mesh.geometry as THREE.BufferGeometry).dispose();
+      (halo.mesh.material as THREE.Material).dispose();
+    });
+    this.halos.clear();
+    this.scene.remove(this.haloGroup);
     this.scene.remove(this.points);
     this.scene.remove(this.trailLines);
   }
