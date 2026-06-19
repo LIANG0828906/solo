@@ -1,0 +1,1 @@
+{"root":["./src/animationengine.ts","./src/app.tsx","./src/canvasrenderer.ts","./src/eventbus.ts","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/statusbar.tsx","./src/components/themeswitcher.tsx","./src/components/toolpanel.tsx"],"version":"5.8.3"}
