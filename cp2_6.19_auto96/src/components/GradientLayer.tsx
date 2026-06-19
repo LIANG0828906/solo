@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { GripVertical, Pipette, Trash2 } from "lucide-react";
+import { GripVertical, Pipette, Trash2, ChevronDown } from "lucide-react";
 import type { GradientLayer as GradientLayerType } from "@/utils/gradientUtils";
 import { generateLayerGradientCSS } from "@/utils/gradientUtils";
 import ColorPicker from "@/components/ColorPicker";
@@ -34,6 +34,7 @@ export default function GradientLayerCard({
   const [startPickerOpen, setStartPickerOpen] = useState(false);
   const [endPickerOpen, setEndPickerOpen] = useState(false);
   const [isDraggingKnob, setIsDraggingKnob] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const knobRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
 
@@ -119,6 +120,10 @@ export default function GradientLayerCard({
     [layer.id, onToggleEyedropper]
   );
 
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((prev) => !prev);
+  }, []);
+
   const ticks = Array.from({ length: 12 }, (_, i) => i * 30);
 
   return (
@@ -131,15 +136,15 @@ export default function GradientLayerCard({
         position: "relative",
         background: "#1e1e1e",
         borderRadius: 8,
-        padding: 16,
         borderBottom: "1px solid #333",
         transition: isDragTarget
           ? "border-top 300ms, transform 0.5s"
           : "transform 0.5s",
         borderTop: isDragTarget ? "2px solid #4a9eff" : "none",
+        overflow: "hidden",
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px 0 16px" }}>
         <div
           draggable
           onDragStart={() => onDragStart(index)}
@@ -155,16 +160,114 @@ export default function GradientLayerCard({
           <GripVertical size={18} />
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
-          <div
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          <span
             style={{
-              height: 24,
-              borderRadius: 4,
-              background: generateLayerGradientCSS(layer),
-              transition: "background 200ms",
+              width: 14,
+              height: 14,
+              borderRadius: 3,
+              background: layer.startColor,
+              border: "1px solid #555",
+              flexShrink: 0,
             }}
           />
+          <span style={{ fontSize: 11, color: "#888", flexShrink: 0 }}>→</span>
+          <span
+            style={{
+              width: 14,
+              height: 14,
+              borderRadius: 3,
+              background: layer.endColor,
+              border: "1px solid #555",
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontSize: 12, color: "#aaa", marginLeft: 8, whiteSpace: "nowrap" }}>
+            {layer.angle}°
+          </span>
+        </div>
 
+        <button
+          onClick={() => onRemove(layer.id)}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#555",
+            transition: "color 150ms, transform 150ms",
+            padding: 4,
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.color = "#888";
+            (e.currentTarget as HTMLElement).style.transform = "scale(1.05)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.color = "#555";
+            (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+          }}
+        >
+          <Trash2 size={16} />
+        </button>
+
+        <button
+          onClick={toggleCollapsed}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#555",
+            transition: "color 150ms, transform 150ms",
+            padding: 4,
+            display: "flex",
+            alignItems: "center",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.color = "#888";
+            (e.currentTarget as HTMLElement).style.transform = "scale(1.05)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.color = "#555";
+            (e.currentTarget as HTMLElement).style.transform = "scale(1)";
+          }}
+        >
+          <ChevronDown
+            size={18}
+            style={{
+              transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
+              transition: "transform 200ms ease",
+            }}
+          />
+        </button>
+      </div>
+
+      <div style={{ padding: "8px 16px 0 16px" }}>
+        <div
+          style={{
+            height: 24,
+            borderRadius: 4,
+            background: generateLayerGradientCSS(layer),
+            transition: "background 200ms",
+          }}
+        />
+      </div>
+
+      <div
+        style={{
+          maxHeight: collapsed ? 0 : 600,
+          opacity: collapsed ? 0 : 1,
+          overflow: "hidden",
+          transition: "max-height 200ms ease, opacity 200ms ease",
+        }}
+      >
+        <div style={{ padding: "12px 16px 16px 16px" }}>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: "1 1 140px", minWidth: 140 }}>
               <div style={{ fontSize: 12, color: "#999" }}>Start Color</div>
@@ -301,7 +404,7 @@ export default function GradientLayerCard({
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginTop: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
               <div style={{ fontSize: 12, color: "#999" }}>Angle</div>
               <div
@@ -400,28 +503,6 @@ export default function GradientLayerCard({
             </div>
           </div>
         </div>
-
-        <button
-          onClick={() => onRemove(layer.id)}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "#555",
-            transition: "color 150ms, transform 150ms",
-            padding: 4,
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.color = "#888";
-            (e.currentTarget as HTMLElement).style.transform = "scale(1.05)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.color = "#555";
-            (e.currentTarget as HTMLElement).style.transform = "scale(1)";
-          }}
-        >
-          <Trash2 size={16} />
-        </button>
       </div>
     </div>
   );
