@@ -101,9 +101,9 @@ export function formatDate(timestamp: number): string {
 
 export function formatDateFull(timestamp: number): string {
   const date = new Date(timestamp)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
   return `${year}年${month}月${day}日`
 }
 
@@ -111,6 +111,20 @@ export function formatFolderPath(path: string): string {
   if (!path || path === '/') return '根目录'
   return path.split('/').filter(p => p).join(' / ')
 }
+
+export function truncateFolderPath(path: string, maxLevels: number = 2): string {
+  if (!path || path === '/') return '根目录'
+
+  const parts = path.split('/').filter(p => p)
+  if (parts.length <= maxLevels) {
+    return parts.join(' / ')
+  }
+
+  const lastParts = parts.slice(-maxLevels)
+  return '... / ' + lastParts.join(' / ')
+}
+
+export const DEFAULT_BOOKMARK_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%234a90d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`
 
 export function hashToColor(str: string): string {
   let hash = 0

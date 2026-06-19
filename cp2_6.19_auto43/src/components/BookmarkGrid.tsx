@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import type { Bookmark } from '../modules/parser/bookmarkParser'
 import type { Tag } from '../modules/storage/storageService'
-import { getFaviconUrl, getDomain, formatDateFull, formatFolderPath, saveBookmarks, saveTags } from '../modules/storage/storageService'
+import { getFaviconUrl, getDomain, formatDateFull, truncateFolderPath, formatFolderPath, DEFAULT_BOOKMARK_SVG, saveBookmarks, saveTags } from '../modules/storage/storageService'
 import { useStore } from '../store'
 
 interface BookmarkGridProps {
@@ -139,7 +139,8 @@ const BookmarkGrid: React.FC<BookmarkGridProps> = ({
     const faviconUrl = getFaviconUrl(bookmark.url)
     const domain = getDomain(bookmark.url)
     const dateStr = formatDateFull(bookmark.addTime)
-    const folderPathStr = formatFolderPath(bookmark.folderPath)
+    const fullPathStr = formatFolderPath(bookmark.folderPath)
+    const displayPathStr = truncateFolderPath(bookmark.folderPath, 2)
     const hasFaviconError = faviconErrors.has(bookmark.id)
 
     return (
@@ -163,7 +164,11 @@ const BookmarkGrid: React.FC<BookmarkGridProps> = ({
                 onError={() => handleFaviconError(bookmark.id)}
               />
             ) : (
-              <span className="default-icon" style={{ color: 'var(--accent-blue)' }}>🔖</span>
+              <img
+                src={DEFAULT_BOOKMARK_SVG}
+                alt=""
+                className="default-icon"
+              />
             )}
           </div>
           <div className="card-info">
@@ -279,9 +284,9 @@ const BookmarkGrid: React.FC<BookmarkGridProps> = ({
         ) : null}
 
         <div className="card-footer">
-          <div className="card-path" title={folderPathStr}>
+          <div className="card-path" title={fullPathStr}>
             <span className="card-path-icon">📁</span>
-            <span>{folderPathStr}</span>
+            <span className="card-path-text">{displayPathStr}</span>
           </div>
           <div className="card-date-full">{dateStr}</div>
         </div>

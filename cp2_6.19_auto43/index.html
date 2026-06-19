@@ -379,28 +379,25 @@
         width: 36px;
         height: 36px;
         border-radius: 6px;
-        background: rgba(74, 144, 217, 0.15);
+        background: rgba(74, 144, 217, 0.1);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 18px;
         flex-shrink: 0;
-        color: var(--accent-blue);
+        overflow: hidden;
       }
 
       .favicon img {
         width: 100%;
         height: 100%;
-        border-radius: 6px;
         object-fit: contain;
+        display: block;
       }
 
       .favicon .default-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
+        width: 20px;
+        height: 20px;
+        display: block;
       }
 
       .card-info {
@@ -415,13 +412,29 @@
         font-size: 14px;
         font-weight: 600;
         color: var(--text-primary);
+        line-height: 1.4;
+        max-height: 39.2px;
+        overflow: hidden;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
-        overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 1.4;
-        max-height: 39.2px;
+      }
+
+      @supports not (display: -webkit-box) {
+        .card-title {
+          display: block;
+          position: relative;
+        }
+
+        .card-title::after {
+          content: '...';
+          position: absolute;
+          right: 0;
+          bottom: 0;
+          background: var(--card-bg);
+          padding-left: 4px;
+        }
       }
 
       .card-url {
@@ -451,18 +464,24 @@
       .card-path {
         font-size: 10px;
         color: rgba(160, 160, 160, 0.6);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 70%;
         display: flex;
         align-items: center;
         gap: 4px;
+        flex: 1;
+        min-width: 0;
       }
 
       .card-path-icon {
         font-size: 10px;
         opacity: 0.7;
+        flex-shrink: 0;
+      }
+
+      .card-path-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
       }
 
       .card-date-full {
