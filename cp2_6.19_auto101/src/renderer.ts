@@ -2,8 +2,9 @@ import { FormationMode, clamp } from './types';
 import { Player } from './player';
 import { Meteor } from './enemy';
 import { Ally } from './ally';
-import { ParticleSystem, Particle } from './particle';
+import { ParticleSystem } from './particle';
 import { Bullet } from './types';
+import { easeInOut, easeOutElastic, lerp, MODE_SWITCH_THUMBNAIL_TRANSITION } from './animation';
 
 export interface Star {
   x: number;
@@ -21,10 +22,26 @@ export class Renderer {
   stars: Star[] = [];
   modePulseTime: number = 0;
 
+  healthDisplay: number = 100;
+  healthBounceTime: number = 0;
+  healthBounceActive: boolean = false;
+
+  currentMode: FormationMode = 'follow';
+  prevMode: FormationMode = 'follow';
+  modeTransition: number = 1;
+  modeTransitionDuration: number = MODE_SWITCH_THUMBNAIL_TRANSITION;
+
   constructor(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
     this.ctx = ctx;
     this.canvas = canvas;
     this.initStars();
+  }
+
+  setMode(mode: FormationMode): void {
+    if (this.currentMode === mode) return;
+    this.prevMode = this.currentMode;
+    this.currentMode = mode;
+    this.modeTransition = 0;
   }
 
   initStars(count: number = 150): void {
@@ -200,19 +217,52 @@ export class Renderer {
     }
   }
 
-  drawUI(player: Player, mode: FormationMode, currentPulse: number, allies: Ally[]): void {
+  updateUIAnimations(dt: number, player: Player): void {
+    this.modePulseTime += dt;
+    this.modeTransition = Math.min(1, this.modeTransition + dt / this.modeTransitionDuration);
+
+    if (player.healthChanged) {
+      this.healthBounceTime = 0;
+      this.healthBounceActive = true;
+    }
+
+    if (this.healthBounceActive) {
+      this.healthBounceTime += dt;
+      if (this.healthBounceTime > 0.5) {
+        this.healthBounceActive = false;
+      }
+    }
+
+    if (player.health <= 0) {
+      this.healthDisplay = 0;
+    } else {
+      const elasticSpeed = 8;
+      this.healthDisplay += (player.health - this.healthDisplay) * Math.min(1, dt * elasticSpeed);
+      if (Math.abs(this.healthDisplay - player.health) < 0.5) {
+        this.healthDisplay = player.health;
+      }
+    }
+  }
+
+  drawUI(player: Player, mode: FormationMode, allies: Ally[], dt: number): void {
+    this.updateUIAnimations(dt, player);
+
     const { ctx, canvas } = this;
-    this.modePulseTime += 0.016;
 
     const barW = 200;
     const barH = 20;
     const barX = 20;
     const barY = canvas.height - 45;
 
-    const pct = clamp(player.displayHealth / player.maxHealth, 0, 1);
-    const displayPct = pct;
-    const bounce = player.healthAnimTime < 0.5 ? Math.sin(player.healthAnimTime * 20) * (1 - player.healthAnimTime / 0.5) * 0.1 : 0;
-    const w = barW * displayPct * (1 + bounce);
+    const pct = clamp(this.healthDisplay / player.maxHealth, 0, 1);
+
+    let bounce = 0;
+    if (this.healthBounceActive && player.health > 0) {
+      const t = this.healthBounceTime / 0.5;
+      bounce = easeOutElastic(1 - t) * 0.12 * (1 - t);
+    }
+
+    const w = barW * pct * (1 + bounce);
 
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
@@ -234,7 +284,7 @@ export class Renderer {
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 13px Segoe UI, sans-serif';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.ceil(player.displayHealth)} / ${player.maxHealth}`, barX + barW / 2, barY + barH / 2);
+    ctx.fillText(`${Math.ceil(this.healthDisplay)} / ${player.maxHealth}`, barX + barW / 2, barY + barH / 2);
 
     const scoreX = canvas.width / 2;
     ctx.fillStyle = '#ffffff';
@@ -299,13 +349,27 @@ export class Renderer {
     const cx = thumbX + thumbW / 2;
     const cy = thumbY + thumbH / 2;
 
+    const t = easeInOut(this.modeTransition);
+    const ringColor = this.getModeColor(this.currentMode);
+    const ringColorPrev = this.getModeColor(this.prevMode);
+
     ctx.save();
     ctx.fillStyle = 'rgba(10, 15, 40, 0.75)';
-    ctx.strokeStyle = 'rgba(100, 150, 255, 0.6)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = this.lerpColor(ringColorPrev, ringColor, t);
+    ctx.lineWidth = 1.5 + (1 - t) * 1.5;
     this.roundRect(ctx, thumbX, thumbY, thumbW, thumbH, 6);
     ctx.fill();
     ctx.stroke();
+
+    if (this.modeTransition < 1) {
+      ctx.globalAlpha = 1 - t;
+      ctx.strokeStyle = ringColorPrev;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 42 + (1 - t) * 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
 
     ctx.strokeStyle = 'rgba(255,255,255,0.15)';
     ctx.lineWidth = 1;
@@ -322,19 +386,36 @@ export class Renderer {
       const ax = cx + rx * scale;
       const ay = cy + ry * scale;
       if (ax < thumbX + 3 || ax > thumbX + thumbW - 3 || ay < thumbY + 3 || ay > thumbY + thumbH - 3) continue;
+
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(ally.angle);
       ctx.fillStyle = ally.color;
       ctx.beginPath();
-      ctx.arc(ax, ay, 3, 0, Math.PI * 2);
+      ctx.moveTo(5, 0);
+      ctx.lineTo(-3.5, -3);
+      ctx.lineTo(-1.5, 0);
+      ctx.lineTo(-3.5, 3);
+      ctx.closePath();
       ctx.fill();
+      ctx.restore();
     }
 
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(player.angle);
     ctx.fillStyle = player.color;
     ctx.beginPath();
-    ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+    ctx.moveTo(7, 0);
+    ctx.lineTo(-5, -4.5);
+    ctx.lineTo(-2.5, 0);
+    ctx.lineTo(-5, 4.5);
+    ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 0.8;
     ctx.stroke();
+    ctx.restore();
 
     ctx.fillStyle = 'rgba(200, 220, 255, 0.8)';
     ctx.font = '10px Segoe UI, sans-serif';
@@ -343,6 +424,35 @@ export class Renderer {
     ctx.textAlign = 'left';
 
     ctx.restore();
+  }
+
+  private getModeColor(mode: FormationMode): string {
+    switch (mode) {
+      case 'defense': return 'rgba(60,120,255,0.7)';
+      case 'attack': return 'rgba(255,72,72,0.7)';
+      case 'follow': return 'rgba(80,255,120,0.7)';
+    }
+  }
+
+  private lerpColor(a: string, b: string, t: number): string {
+    const pa = this.parseRgba(a);
+    const pb = this.parseRgba(b);
+    const r = Math.round(lerp(pa.r, pb.r, t));
+    const g = Math.round(lerp(pa.g, pb.g, t));
+    const bl = Math.round(lerp(pa.b, pb.b, t));
+    const al = lerp(pa.a, pb.a, t);
+    return `rgba(${r},${g},${bl},${al})`;
+  }
+
+  private parseRgba(c: string): { r: number; g: number; b: number; a: number } {
+    const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+    if (!m) return { r: 255, g: 255, b: 255, a: 1 };
+    return {
+      r: parseInt(m[1]),
+      g: parseInt(m[2]),
+      b: parseInt(m[3]),
+      a: m[4] !== undefined ? parseFloat(m[4]) : 1
+    };
   }
 
   private roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
@@ -366,8 +476,7 @@ export class Renderer {
     meteors: Meteor[],
     bullets: Bullet[],
     particles: ParticleSystem,
-    mode: FormationMode,
-    modePulse: number
+    mode: FormationMode
   ): void {
     this.drawBackground(dt);
     this.drawParticles(particles);
@@ -375,6 +484,6 @@ export class Renderer {
     for (const b of bullets) this.drawBullet(b);
     for (const a of allies) this.drawAlly(a);
     this.drawPlayer(player);
-    this.drawUI(player, mode, modePulse, allies);
+    this.drawUI(player, mode, allies, dt);
   }
 }

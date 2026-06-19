@@ -11,8 +11,8 @@ export class Player {
   radius: number = 18;
   health: number = 100;
   maxHealth: number = 100;
-  displayHealth: number = 100;
-  healthAnimTime: number = 0;
+  lastHealth: number = 100;
+  healthChanged: boolean = false;
   shootCooldown: number = 0;
   shootInterval: number = 0.2;
   color: string = '#4dc9ff';
@@ -30,6 +30,7 @@ export class Player {
   }
 
   update(dt: number, canvasWidth: number, canvasHeight: number, bullets: Bullet[], particles: ParticleSystem): void {
+    this.healthChanged = false;
     let moveX = 0;
     let moveY = 0;
     if (this.keys.has('w') || this.keys.has('arrowup')) moveY -= 1;
@@ -70,15 +71,6 @@ export class Player {
     }
 
     this.invulnerable = Math.max(0, this.invulnerable - dt);
-
-    const targetHealth = this.health;
-    const prevDisplay = this.displayHealth;
-    this.healthAnimTime += dt;
-    const elasticSpeed = 8;
-    this.displayHealth += (targetHealth - this.displayHealth) * Math.min(1, dt * elasticSpeed);
-    if (Math.abs(this.displayHealth - targetHealth) < 0.5) {
-      this.displayHealth = targetHealth;
-    }
   }
 
   shoot(bullets: Bullet[]): void {
@@ -97,9 +89,10 @@ export class Player {
 
   takeDamage(amount: number, particles: ParticleSystem): boolean {
     if (this.invulnerable > 0) return false;
+    this.lastHealth = this.health;
     this.health = Math.max(0, this.health - amount);
+    this.healthChanged = true;
     this.invulnerable = 0.5;
-    this.healthAnimTime = 0;
     particles.spawnExplosion(this.x, this.y, 10);
     return this.health <= 0;
   }

@@ -1,4 +1,4 @@
-import { FormationMode, Bullet, Vec2, randRange } from './types';
+import { FormationMode, Bullet, randRange } from './types';
 import { Player } from './player';
 import { Meteor, MAX_METEORS } from './enemy';
 import { Ally, findSharedTarget } from './ally';
@@ -20,7 +20,6 @@ class Game {
 
   mode: FormationMode = 'follow';
   formationRotation: number = 0;
-  modePulseTime: number = 0;
 
   meteorSpawnTimer: number = 0;
   meteorSpawnInterval: number = 5;
@@ -42,6 +41,7 @@ class Game {
 
     this.particles = new ParticleSystem();
     this.renderer = new Renderer(this.ctx, this.canvas);
+    this.renderer.setMode(this.mode);
 
     this.bindEvents();
     this.scheduleNextMeteor();
@@ -100,7 +100,7 @@ class Game {
   setMode(m: FormationMode): void {
     if (this.mode === m) return;
     this.mode = m;
-    this.modePulseTime = 0;
+    this.renderer.setMode(m);
     for (const a of this.allies) a.triggerModeAura(m);
   }
 
@@ -137,7 +137,6 @@ class Game {
     }
 
     for (const m of this.meteors) m.update(dt);
-    this.meteors = this.meteors.filter(m => m.alive && !m.isOffScreen(this.width, this.height));
 
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
@@ -150,10 +149,11 @@ class Game {
       }
 
       for (const m of this.meteors) {
+        if (!m.alive) continue;
         if (m.checkBullet(b)) {
           this.bullets.splice(i, 1);
           if (m.takeDamage(1)) {
-            m.alive = false;
+            m.destroy();
             this.particles.spawnExplosion(m.x, m.y, 20);
             this.player.score += Math.round(m.maxHealth * 10);
           }
@@ -169,10 +169,11 @@ class Game {
           this.running = false;
         }
         if (!this.player.invulnerable) {
-          m.alive = false;
+          m.destroy();
           this.particles.spawnExplosion(m.x, m.y, 15);
         }
       }
+      if (!m.alive) continue;
       for (const ally of this.allies) {
         if (!m.alive) break;
         if (ally.checkCollision(m)) {
@@ -180,24 +181,23 @@ class Game {
           if (this.player.takeDamage(10, this.particles)) {
             this.running = false;
           }
-          m.alive = false;
+          m.destroy();
         }
       }
     }
 
-    this.meteors = this.meteors.filter(m => m.alive);
+    this.meteors = this.meteors.filter(m => m.alive && !m.isOffScreen(this.width, this.height));
 
     this.particles.update(dt);
 
     this.meteorSpawnTimer += dt;
     if (this.meteorSpawnTimer >= this.meteorSpawnInterval) {
       if (this.meteors.length < MAX_METEORS) {
-        this.meteors.push(Meteor.spawnRandom(this.width, this.height));
+        const m = Meteor.spawnRandom(this.width, this.height);
+        if (m) this.meteors.push(m);
       }
       this.scheduleNextMeteor();
     }
-
-    this.modePulseTime += dt;
   }
 
   loop(now: number): void {
@@ -216,8 +216,7 @@ class Game {
       this.meteors,
       this.bullets,
       this.particles,
-      this.mode,
-      this.modePulseTime
+      this.mode
     );
 
     requestAnimationFrame(this.loop.bind(this));

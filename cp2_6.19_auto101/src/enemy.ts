@@ -2,6 +2,8 @@ import { Vec2, Bullet, distance, randRange } from './types';
 
 export const MAX_METEORS = 15;
 
+let globalMeteorCount = 0;
+
 export class Meteor {
   x: number;
   y: number;
@@ -24,7 +26,15 @@ export class Meteor {
     this.vy = vy;
     this.radius = radius;
     this.rotation = Math.random() * Math.PI * 2;
-    this.rotationSpeed = randRange(0.6, 1.8);
+
+    const minR = 20;
+    const maxR = 40;
+    const sizeT = (radius - minR) / (maxR - minR);
+    const baseSpeed = 2.5 - sizeT * 1.8;
+    const variance = randRange(-0.4, 0.4);
+    const direction = Math.random() < 0.5 ? 1 : -1;
+    this.rotationSpeed = (baseSpeed + variance) * direction;
+
     this.health = Math.ceil(radius / 10);
     this.maxHealth = this.health;
 
@@ -61,7 +71,17 @@ export class Meteor {
     return this.health <= 0;
   }
 
-  static spawnRandom(w: number, h: number): Meteor {
+  destroy(): void {
+    if (this.alive) {
+      this.alive = false;
+      globalMeteorCount = Math.max(0, globalMeteorCount - 1);
+    }
+  }
+
+  static spawnRandom(w: number, h: number): Meteor | null {
+    if (globalMeteorCount >= MAX_METEORS) {
+      return null;
+    }
     const side = Math.floor(Math.random() * 4);
     let x: number, y: number;
     const margin = 60;
@@ -92,7 +112,17 @@ export class Meteor {
     const vy = Math.sin(angle) * speed;
     const radius = randRange(20, 40);
 
-    return new Meteor(x, y, vx, vy, radius);
+    const meteor = new Meteor(x, y, vx, vy, radius);
+    globalMeteorCount++;
+    return meteor;
+  }
+
+  static getGlobalCount(): number {
+    return globalMeteorCount;
+  }
+
+  static resetGlobalCount(): void {
+    globalMeteorCount = 0;
   }
 
   checkCollision(obj: { x: number; y: number; radius: number }): boolean {

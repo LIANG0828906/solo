@@ -1,6 +1,11 @@
 import { randRange, clamp } from './types';
+import { interpolateHsl } from './animation';
+
+export type ParticleKind = 'explosion' | 'trail';
 
 export interface Particle {
+  kind: ParticleKind;
+  priority: number;
   x: number;
   y: number;
   vx: number;
@@ -22,9 +27,10 @@ export class ParticleSystem {
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = randRange(2, 5);
-      const radius = randRange(30, 50);
       const life = 0.6;
       this.addParticle({
+        kind: 'explosion',
+        priority: 2,
         x,
         y,
         vx: Math.cos(angle) * speed,
@@ -46,6 +52,8 @@ export class ParticleSystem {
       const speed = randRange(1, 3);
       const life = 0.3;
       this.addParticle({
+        kind: 'trail',
+        priority: 1,
         x,
         y,
         vx: Math.cos(dir) * speed + (Math.random() - 0.5),
@@ -62,9 +70,28 @@ export class ParticleSystem {
 
   private addParticle(p: Particle): void {
     if (this.particles.length >= MAX_PARTICLES) {
-      this.particles.shift();
+      this.evictLowPriority();
     }
-    this.particles.push(p);
+    if (this.particles.length < MAX_PARTICLES) {
+      this.particles.push(p);
+    }
+  }
+
+  private evictLowPriority(): void {
+    let worstIdx = -1;
+    let worstScore = Infinity;
+    for (let i = 0; i < this.particles.length; i++) {
+      const p = this.particles[i];
+      const remainingRatio = p.life / p.maxLife;
+      const score = p.priority * 10 + remainingRatio;
+      if (score < worstScore) {
+        worstScore = score;
+        worstIdx = i;
+      }
+    }
+    if (worstIdx >= 0) {
+      this.particles.splice(worstIdx, 1);
+    }
   }
 
   update(dt: number): void {
@@ -84,11 +111,9 @@ export class ParticleSystem {
 
   getParticleColor(p: Particle): string {
     const t = clamp(1 - p.life / p.maxLife, 0, 1);
-    const r = Math.round(p.colorStart.r + (p.colorEnd.r - p.colorStart.r) * t);
-    const g = Math.round(p.colorStart.g + (p.colorEnd.g - p.colorStart.g) * t);
-    const b = Math.round(p.colorStart.b + (p.colorEnd.b - p.colorStart.b) * t);
+    const rgb = interpolateHsl(p.colorStart, p.colorEnd, t);
     const alpha = clamp(p.life / p.maxLife, 0, 1);
-    return `rgba(${r},${g},${b},${alpha})`;
+    return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
   }
 
   getParticleSize(p: Particle): number {

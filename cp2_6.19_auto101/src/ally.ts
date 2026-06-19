@@ -1,7 +1,8 @@
-import { Vec2, Bullet, FormationMode, distance, distSq, easeInOut, lerp, clamp, randRange } from './types';
+import { Vec2, Bullet, FormationMode, distance, distSq, clamp, lerp } from './types';
 import { Player } from './player';
 import { Meteor } from './enemy';
 import { ParticleSystem } from './particle';
+import { easeInOut, FORMATION_TRANSITION_DURATION, MODE_AURA_DURATION } from './animation';
 
 export class Ally {
   x: number;
@@ -25,11 +26,12 @@ export class Ally {
   targetFormationX: number;
   targetFormationY: number;
   formationTransition: number = 1;
-  formationTransitionDuration: number = 0.8;
 
-  assignedTarget: Meteor | null = null;
+  prevMeteorPos: WeakMap<Meteor, Vec2> = new WeakMap();
+  playerHistory: Vec2[] = [];
 
   static FORMATION_OFFSET = 70;
+  static FORMATION_TRANSITION_DURATION = FORMATION_TRANSITION_DURATION;
 
   constructor(slotIndex: number, player: Player) {
     this.slotIndex = slotIndex;
@@ -70,7 +72,7 @@ export class Ally {
 
   updateFormation(dt: number): void {
     if (this.formationTransition < 1) {
-      this.formationTransition = Math.min(1, this.formationTransition + dt / this.formationTransitionDuration);
+      this.formationTransition = Math.min(1, this.formationTransition + dt / Ally.FORMATION_TRANSITION_DURATION);
       const t = easeInOut(this.formationTransition);
       this.currentFormationX = lerp(this.currentFormationX, this.targetFormationX, t);
       this.currentFormationY = lerp(this.currentFormationY, this.targetFormationY, t);
@@ -86,7 +88,7 @@ export class Ally {
 
   triggerModeAura(mode: FormationMode): void {
     this.lastMode = mode;
-    this.modeAuraTimer = 0.5;
+    this.modeAuraTimer = MODE_AURA_DURATION;
   }
 
   update(
@@ -104,13 +106,16 @@ export class Ally {
     this.shootCooldown = Math.max(0, this.shootCooldown - dt);
     this.modeAuraTimer = Math.max(0, this.modeAuraTimer - dt);
 
+    this.playerHistory.unshift({ x: player.x, y: player.y });
+    if (this.playerHistory.length > 10) this.playerHistory.pop();
+
     let targetPos: Vec2;
     let shootAtTarget: Meteor | null = null;
 
     if (mode === 'follow') {
       targetPos = this.getWorldFormationPos(player.x, player.y);
     } else if (mode === 'defense') {
-      targetPos = this.computeDefensePosition(player, meteors);
+      targetPos = this.computeDefensePosition(player, meteors, dt);
       shootAtTarget = this.findNearestMeteor(meteors, this.x, this.y);
     } else {
       shootAtTarget = sharedTarget || this.findNearestMeteor(meteors, this.x, this.y);
@@ -171,21 +176,37 @@ export class Ally {
     }
   }
 
-  private computeDefensePosition(player: Player, meteors: Meteor[]): Vec2 {
+  private computeDefensePosition(player: Player, meteors: Meteor[], dt: number): Vec2 {
     const form = this.getWorldFormationPos(player.x, player.y);
     const nearest = this.findNearestMeteor(meteors, player.x, player.y);
     if (!nearest) return form;
 
-    const mDx = nearest.vx;
-    const mDy = nearest.vy;
-    const mSpeed = Math.sqrt(mDx * mDx + mDy * mDy) || 1;
-    const mNx = mDx / mSpeed;
-    const mNy = mDy / mSpeed;
+    const prev = this.prevMeteorPos.get(nearest);
+    let mVx = nearest.vx;
+    let mVy = nearest.vy;
+    if (prev) {
+      mVx = (nearest.x - prev.x) / Math.max(dt, 0.001) / 60;
+      mVy = (nearest.y - prev.y) / Math.max(dt, 0.001) / 60;
+    }
+    this.prevMeteorPos.set(nearest, { x: nearest.x, y: nearest.y });
 
-    const lookahead = 30 + this.slotIndex * 5;
+    let pVx = 0;
+    let pVy = 0;
+    if (this.playerHistory.length >= 2) {
+      pVx = (this.playerHistory[0].x - this.playerHistory[1].x) / Math.max(dt, 0.001) / 60;
+      pVy = (this.playerHistory[0].y - this.playerHistory[1].y) / Math.max(dt, 0.001) / 60;
+    }
+
+    const relVx = mVx - pVx;
+    const relVy = mVy - pVy;
+    const relSpeed = Math.sqrt(relVx * relVx + relVy * relVy) || 1;
+    const relNx = relVx / relSpeed;
+    const relNy = relVy / relSpeed;
+
+    const lookahead = 45 + this.slotIndex * 8;
     const intercept: Vec2 = {
-      x: nearest.x + mNx * lookahead,
-      y: nearest.y + mNy * lookahead
+      x: nearest.x + relNx * lookahead,
+      y: nearest.y + relNy * lookahead
     };
 
     const dPx = player.x - intercept.x;
@@ -194,10 +215,16 @@ export class Ally {
     const nX = dPx / dLen;
     const nY = dPy / dLen;
 
-    const shieldDist = 45 + this.slotIndex * 15;
-    return {
+    const shieldDist = 50 + this.slotIndex * 18;
+    const ideal: Vec2 = {
       x: player.x - nX * shieldDist,
       y: player.y - nY * shieldDist
+    };
+
+    const blend = clamp(dLen / 300, 0.3, 1);
+    return {
+      x: lerp(form.x, ideal.x, blend),
+      y: lerp(form.y, ideal.y, blend)
     };
   }
 
@@ -239,16 +266,35 @@ export class Ally {
 
 export function findSharedTarget(player: Player, meteors: Meteor[]): Meteor | null {
   if (meteors.length === 0) return null;
-  let nearest: Meteor | null = null;
-  let minD = Infinity;
+  let best: Meteor | null = null;
+  let bestScore = -Infinity;
+
+  const playerCenterX = player.x;
+  const playerCenterY = player.y;
+
   for (const m of meteors) {
-    const dx = m.x - player.x;
-    const dy = m.y - player.y;
-    const threat = dx * dx + dy * dy - m.radius * 50;
-    if (threat < minD) {
-      minD = threat;
-      nearest = m;
+    const dx = m.x - playerCenterX;
+    const dy = m.y - playerCenterY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    const vx = m.vx;
+    const vy = m.vy;
+    const vLen = Math.sqrt(vx * vx + vy * vy) || 1;
+    const toPlayerNx = -dx / (dist || 1);
+    const toPlayerNy = -dy / (dist || 1);
+    const headingDot = (vx / vLen) * toPlayerNx + (vy / vLen) * toPlayerNy;
+
+    const sizeFactor = m.maxHealth * 0.6;
+    const proximityFactor = Math.max(0, 600 - dist) * 0.02;
+    const headingFactor = Math.max(0, headingDot) * 20;
+    const healthFactor = m.health * 0.4;
+
+    const score = sizeFactor + proximityFactor + headingFactor + healthFactor;
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = m;
     }
   }
-  return nearest;
+  return best;
 }
