@@ -19,6 +19,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { AgendaItem, AgendaStatus, Comment } from '@/types';
 import { useAppStore } from '@/store';
+import { meetingWS } from '@/api';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -70,6 +71,7 @@ export default function AgendaItemCard({ item, meetingId, index }: AgendaItemCar
   const handleSubmitComment = () => {
     if (!commentInput.trim()) return;
     addComment(meetingId, item.id, commentInput.trim());
+    meetingWS.sendComment(item.id, commentInput.trim());
     const tempId = `temp-${Date.now()}`;
     setNewCommentId(tempId);
     setCommentInput('');
@@ -85,10 +87,12 @@ export default function AgendaItemCard({ item, meetingId, index }: AgendaItemCar
 
   const handleVote = (type: 'agree' | 'disagree' | 'abstain') => {
     castVote(meetingId, item.id, type);
+    meetingWS.sendVote(item.id, type);
   };
 
   const handleStatusChange = (status: AgendaStatus) => {
     updateAgendaStatus(meetingId, item.id, status);
+    meetingWS.sendStatusChange(item.id, status);
     setShowStatusMenu(false);
   };
 

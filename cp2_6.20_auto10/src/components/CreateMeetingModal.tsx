@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Plus, Trash2, GripVertical } from 'lucide-react';
 import { useAppStore } from '@/store';
+import type { AgendaItem } from '@/types';
 import {
   DndContext,
   closestCenter,
@@ -96,7 +97,7 @@ export default function CreateMeetingModal({ onClose }: CreateMeetingModalProps)
       time,
       location: location || '线上会议',
       participants: [],
-      agendaItems: validAgendaItems,
+      agendaItems: validAgendaItems as Omit<AgendaItem, 'id' | 'comments' | 'votes'>[],
       status: 'upcoming',
     });
 

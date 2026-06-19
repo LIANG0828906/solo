@@ -112,6 +112,63 @@ function generateMockMeetings(count: number): Meeting[] {
 
 const initialMeetings = generateMockMeetings(50);
 
+class MeetingSearchIndex {
+  private index: Map<string, Set<number>> = new Map();
+  private meetings: Meeting[] = [];
+
+  rebuild(meetings: Meeting[]) {
+    this.meetings = meetings;
+    this.index.clear();
+    for (let i = 0; i < meetings.length; i++) {
+      const chars = new Set(meetings[i].title.toLowerCase().split(''));
+      chars.forEach((ch) => {
+        if (!this.index.has(ch)) {
+          this.index.set(ch, new Set());
+        }
+        this.index.get(ch)!.add(i);
+      });
+    }
+  }
+
+  search(query: string): Meeting[] {
+    if (!query.trim()) return this.meetings;
+    const q = query.toLowerCase();
+    const chars = q.split('');
+    if (chars.length === 0) return this.meetings;
+
+    let candidateIndices: Set<number> | null = null;
+    for (const ch of chars) {
+      const charSet = this.index.get(ch);
+      if (!charSet) return [];
+      if (candidateIndices === null) {
+        candidateIndices = new Set(charSet);
+      } else {
+        const next = new Set<number>();
+        for (const idx of candidateIndices) {
+          if (charSet.has(idx)) {
+            next.add(idx);
+          }
+        }
+        candidateIndices = next;
+      }
+      if (candidateIndices.size === 0) return [];
+    }
+
+    const result: Meeting[] = [];
+    if (candidateIndices) {
+      for (const idx of candidateIndices) {
+        if (this.meetings[idx] && this.meetings[idx].title.toLowerCase().includes(q)) {
+          result.push(this.meetings[idx]);
+        }
+      }
+    }
+    return result;
+  }
+}
+
+const searchIndex = new MeetingSearchIndex();
+searchIndex.rebuild(initialMeetings);
+
 function generateTasksFromMeetings(meetings: Meeting[]): Task[] {
   const tasks: Task[] = [];
   let taskId = 0;
@@ -185,8 +242,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   getFilteredMeetings: () => {
     const { meetings, searchQuery } = get();
     if (!searchQuery.trim()) return meetings;
-    const query = searchQuery.toLowerCase();
-    return meetings.filter((m) => m.title.toLowerCase().includes(query));
+    return searchIndex.search(searchQuery);
   },
 
   getMeeting: (id) => get().meetings.find((m) => m.id === id),
@@ -209,6 +265,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       meetings: [newMeeting, ...state.meetings],
     }));
+    searchIndex.rebuild(get().meetings);
   },
 
   addAgendaItem: (meetingId, item) => {

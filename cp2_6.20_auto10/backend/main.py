@@ -462,15 +462,93 @@ async def websocket_endpoint(websocket: WebSocket, meeting_id: str):
     try:
         while True:
             data = await websocket.receive_json()
+
             event_type = data.get("type", "message")
+            user_id = data.get("userId", "anonymous")
 
             message = {
                 "type": event_type,
                 "meetingId": meeting_id,
-                "data": data.get("data", {}),
-                "userId": data.get("userId", "anonymous"),
+                "userId": user_id,
                 "timestamp": int(datetime.now().timestamp() * 1000),
             }
+
+            if event_type == "comment":
+                agenda_item_id = data.get("agendaItemId", "")
+                content = data.get("content", "")
+                current_user = mock_users[0]
+                new_comment = Comment(
+                    id=f"c-{uuid.uuid4().hex[:8]}",
+                    userId=current_user.id,
+                    userName=current_user.name,
+                    userAvatar=current_user.avatar,
+                    userColor=current_user.color,
+                    content=content,
+                    timestamp=int(datetime.now().timestamp() * 1000),
+                )
+                for meeting in meetings_db:
+                    if meeting.id == meeting_id:
+                        for item in meeting.agendaItems:
+                            if item.id == agenda_item_id:
+                                item.comments.append(new_comment)
+                                break
+                message["data"] = {
+                    "agendaItemId": agenda_item_id,
+                    "comment": new_comment.model_dump(),
+                }
+
+            elif event_type == "vote":
+                agenda_item_id = data.get("agendaItemId", "")
+                vote_type = data.get("type", "agree")
+                current_user = mock_users[0]
+                new_vote = Vote(userId=current_user.id, type=vote_type)
+                for meeting in meetings_db:
+                    if meeting.id == meeting_id:
+                        for item in meeting.agendaItems:
+                            if item.id == agenda_item_id:
+                                existing = next((v for v in item.votes if v.userId == current_user.id), None)
+                                if existing:
+                                    existing.type = vote_type
+                                else:
+                                    item.votes.append(new_vote)
+                                new_vote = Vote(userId=current_user.id, type=vote_type)
+                                break
+                message["data"] = {
+                    "agendaItemId": agenda_item_id,
+                    "vote": new_vote.model_dump(),
+                }
+
+            elif event_type == "status_change":
+                agenda_item_id = data.get("agendaItemId", "")
+                status = data.get("status", "pending")
+                for meeting in meetings_db:
+                    if meeting.id == meeting_id:
+                        for i, item in enumerate(meeting.agendaItems):
+                            if item.id == agenda_item_id:
+                                meeting.agendaItems[i] = item.model_copy(update={"status": status})
+                                break
+                message["data"] = {
+                    "agendaItemId": agenda_item_id,
+                    "status": status,
+                }
+
+            elif event_type == "agenda_order":
+                item_ids = data.get("itemIds", [])
+                for meeting in meetings_db:
+                    if meeting.id == meeting_id:
+                        item_map = {item.id: item for item in meeting.agendaItems}
+                        sorted_items = []
+                        for idx, item_id in enumerate(item_ids):
+                            if item_id in item_map:
+                                item = item_map[item_id].model_copy(update={"order": idx})
+                                sorted_items.append(item)
+                        meeting.agendaItems = sorted_items
+                message["data"] = {
+                    "itemIds": item_ids,
+                }
+
+            else:
+                message["data"] = data.get("data", {})
 
             await manager.broadcast(meeting_id, message)
     except WebSocketDisconnect:

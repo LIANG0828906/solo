@@ -1,10 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, Plus, Menu, Calendar, Users, Clock } from 'lucide-react';
 import { useAppStore } from '@/store';
-import { formatDistanceToNow } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
 
-export default function Sidebar() {
+interface SidebarProps {
+  onSelectMeeting: (id: string) => void;
+}
+
+export default function Sidebar({ onSelectMeeting }: SidebarProps) {
   const {
     meetings,
     searchQuery,
@@ -12,13 +14,11 @@ export default function Sidebar() {
     sidebarOpen,
     toggleSidebar,
     selectedMeetingId,
-    selectMeeting,
     setCreateModalOpen,
   } = useAppStore();
 
   const [displayCount, setDisplayCount] = useState(50);
   const listRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const filteredMeetings = useMemo(() => {
@@ -75,7 +75,7 @@ export default function Sidebar() {
   }, []);
 
   const handleMeetingClick = (id: string) => {
-    selectMeeting(id);
+    onSelectMeeting(id);
     if (window.innerWidth < 1024) {
       toggleSidebar();
     }
@@ -137,7 +137,6 @@ export default function Sidebar() {
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400"
                 />
                 <input
-                  ref={searchInputRef}
                   type="text"
                   placeholder="搜索会议标题..."
                   defaultValue={searchQuery}

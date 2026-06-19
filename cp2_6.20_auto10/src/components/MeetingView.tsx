@@ -24,11 +24,11 @@ import {
   Play,
   Square,
   ListTodo,
-  Share2,
+  CheckCircle,
 } from 'lucide-react';
 import { useAppStore } from '@/store';
 import AgendaItemCard from './AgendaItem';
-import CreateMeetingModal from './CreateMeetingModal';
+import { meetingWS } from '@/api';
 import type { AgendaItem } from '@/types';
 
 interface MeetingViewProps {
@@ -38,7 +38,7 @@ interface MeetingViewProps {
 }
 
 export default function MeetingView({ meetingId, onBack, onOpenTaskBoard }: MeetingViewProps) {
-  const { getMeeting, updateAgendaOrder, addAgendaItem, meetings, setCreateModalOpen, createModalOpen } = useAppStore();
+  const { getMeeting, updateAgendaOrder, addAgendaItem, meetings } = useAppStore();
   const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([]);
   const [isAddingAgenda, setIsAddingAgenda] = useState(false);
   const [newAgendaTitle, setNewAgendaTitle] = useState('');
@@ -49,14 +49,8 @@ export default function MeetingView({ meetingId, onBack, onOpenTaskBoard }: Meet
   const meeting = getMeeting(meetingId);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   useEffect(() => {
@@ -69,9 +63,9 @@ export default function MeetingView({ meetingId, onBack, onOpenTaskBoard }: Meet
   useEffect(() => {
     if (meeting) {
       const sortedItems = [...meeting.agendaItems].sort((a, b) => a.order - b.order);
-      const idsMatch = sortedItems.length === agendaItems.length &&
-        sortedItems.every((item, i) => item.id === agendaItems[i]?.id);
-      if (!idsMatch || JSON.stringify(sortedItems) !== JSON.stringify(agendaItems)) {
+      const needsUpdate = sortedItems.length !== agendaItems.length ||
+        sortedItems.some((item, i) => item.id !== agendaItems[i]?.id || item.status !== agendaItems[i]?.status || item.comments.length !== agendaItems[i]?.comments.length);
+      if (needsUpdate) {
         setAgendaItems(sortedItems);
       }
     }
@@ -96,7 +90,9 @@ export default function MeetingView({ meetingId, onBack, onOpenTaskBoard }: Meet
       const newItems = arrayMove(agendaItems, oldIndex, newIndex);
       const reordered = newItems.map((item, index) => ({ ...item, order: index }));
       setAgendaItems(reordered);
-      updateAgendaOrder(meetingId, reordered.map((item) => item.id));
+      const itemIds = reordered.map((item) => item.id);
+      updateAgendaOrder(meetingId, itemIds);
+      meetingWS.sendAgendaOrder(itemIds);
     }
   };
 
@@ -138,44 +134,24 @@ export default function MeetingView({ meetingId, onBack, onOpenTaskBoard }: Meet
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold text-dark-50 truncate">{meeting.title}</h2>
             <div className="flex items-center gap-4 mt-2 text-sm text-dark-400 flex-wrap">
-              <span className="flex items-center gap-1.5">
-                <Calendar size={16} />
-                {meeting.date}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock size={16} />
-                {meeting.time}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <MapPin size={16} />
-                {meeting.location}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Users size={16} />
-                {meeting.participants.length} 位参与人
-              </span>
+              <span className="flex items-center gap-1.5"><Calendar size={16} />{meeting.date}</span>
+              <span className="flex items-center gap-1.5"><Clock size={16} />{meeting.time}</span>
+              <span className="flex items-center gap-1.5"><MapPin size={16} />{meeting.location}</span>
+              <span className="flex items-center gap-1.5"><Users size={16} />{meeting.participants.length} 位参与人</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={onOpenTaskBoard}
-              className="btn-secondary flex items-center gap-2"
-            >
+            <button onClick={onOpenTaskBoard} className="btn-secondary flex items-center gap-2">
               <ListTodo size={16} />
               任务看板
             </button>
             <button
               onClick={handleStatusToggle}
-              className={`btn-primary flex items-center gap-2 ${
-                meetingStatus === 'ended' ? 'opacity-50' : ''
-              }`}
+              className={`btn-primary flex items-center gap-2 ${meetingStatus === 'ended' ? 'opacity-50' : ''}`}
             >
-              {meetingStatus === 'upcoming' && <Play size={16} />}
-              {meetingStatus === 'ongoing' && <Square size={16} />}
-              {meetingStatus === 'ended' && <CheckCircle size={16} />}
-              {meetingStatus === 'upcoming' && '开始会议'}
-              {meetingStatus === 'ongoing' && '结束会议'}
-              {meetingStatus === 'ended' && '已结束'}
+              {meetingStatus === 'upcoming' && <><Play size={16} />开始会议</>}
+              {meetingStatus === 'ongoing' && <><Square size={16} />结束会议</>}
+              {meetingStatus === 'ended' && <><CheckCircle size={16} />已结束</>}
             </button>
           </div>
         </div>
@@ -195,9 +171,7 @@ export default function MeetingView({ meetingId, onBack, onOpenTaskBoard }: Meet
               ))}
             </div>
             {meeting.participants.length > 5 && (
-              <span className="text-dark-400 text-xs">
-                +{meeting.participants.length - 5}
-              </span>
+              <span className="text-dark-400 text-xs">+{meeting.participants.length - 5}</span>
             )}
           </div>
           <div className="text-dark-400">
@@ -212,10 +186,7 @@ export default function MeetingView({ meetingId, onBack, onOpenTaskBoard }: Meet
       <div className="flex-1 overflow-y-auto p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-dark-100">议程列表</h3>
-          <button
-            onClick={() => setIsAddingAgenda(true)}
-            className="btn-secondary flex items-center gap-2 text-sm"
-          >
+          <button onClick={() => setIsAddingAgenda(true)} className="btn-secondary flex items-center gap-2 text-sm">
             <Plus size={16} />
             添加议程
           </button>
@@ -227,32 +198,15 @@ export default function MeetingView({ meetingId, onBack, onOpenTaskBoard }: Meet
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div className="md:col-span-3">
                 <label className="block text-sm text-dark-400 mb-1">议程标题</label>
-                <input
-                  type="text"
-                  value={newAgendaTitle}
-                  onChange={(e) => setNewAgendaTitle(e.target.value)}
-                  placeholder="输入议程标题..."
-                  className="input-field"
-                  autoFocus
-                />
+                <input type="text" value={newAgendaTitle} onChange={(e) => setNewAgendaTitle(e.target.value)} placeholder="输入议程标题..." className="input-field" autoFocus />
               </div>
               <div>
                 <label className="block text-sm text-dark-400 mb-1">负责人</label>
-                <input
-                  type="text"
-                  value={newAgendaResponsible}
-                  onChange={(e) => setNewAgendaResponsible(e.target.value)}
-                  placeholder="负责人姓名"
-                  className="input-field"
-                />
+                <input type="text" value={newAgendaResponsible} onChange={(e) => setNewAgendaResponsible(e.target.value)} placeholder="负责人姓名" className="input-field" />
               </div>
               <div>
                 <label className="block text-sm text-dark-400 mb-1">预计时长（分钟）</label>
-                <select
-                  value={newAgendaDuration}
-                  onChange={(e) => setNewAgendaDuration(Number(e.target.value))}
-                  className="input-field"
-                >
+                <select value={newAgendaDuration} onChange={(e) => setNewAgendaDuration(Number(e.target.value))} className="input-field">
                   {[5, 10, 15, 20, 30, 45, 60].map((m) => (
                     <option key={m} value={m}>{m} 分钟</option>
                   ))}
@@ -260,19 +214,8 @@ export default function MeetingView({ meetingId, onBack, onOpenTaskBoard }: Meet
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setIsAddingAgenda(false)}
-                className="btn-secondary"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleAddAgenda}
-                disabled={!newAgendaTitle.trim()}
-                className="btn-primary disabled:opacity-50"
-              >
-                添加
-              </button>
+              <button onClick={() => setIsAddingAgenda(false)} className="btn-secondary">取消</button>
+              <button onClick={handleAddAgenda} disabled={!newAgendaTitle.trim()} className="btn-primary disabled:opacity-50">添加</button>
             </div>
           </div>
         )}
@@ -284,54 +227,17 @@ export default function MeetingView({ meetingId, onBack, onOpenTaskBoard }: Meet
             <p className="text-sm mt-1">点击上方"添加议程"按钮创建第一个议程</p>
           </div>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={agendaItems.map((item) => item.id)}
-              strategy={verticalListSortingStrategy}
-            >
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={agendaItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-3">
                 {agendaItems.map((item, index) => (
-                  <AgendaItemCard
-                    key={item.id}
-                    item={item}
-                    meetingId={meetingId}
-                    index={index}
-                  />
+                  <AgendaItemCard key={item.id} item={item} meetingId={meetingId} index={index} />
                 ))}
               </div>
             </SortableContext>
           </DndContext>
         )}
       </div>
-
-      {createModalOpen && (
-        <CreateMeetingModal
-          onClose={() => setCreateModalOpen(false)}
-        />
-      )}
     </div>
-  );
-}
-
-function CheckCircle({ size }: { size: number }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
-    </svg>
   );
 }

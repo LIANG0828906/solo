@@ -1,23 +1,23 @@
 import { useState } from 'react';
 import {
   DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
   DragOverlay,
   DragStartEvent,
+  DragEndEvent,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  closestCorners,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, User, Flag, ArrowLeft, X } from 'lucide-react';
+import { Calendar, User, Flag, ArrowLeft } from 'lucide-react';
 import { useAppStore } from '@/store';
 import type { Task, TaskStatus } from '@/types';
 
@@ -25,10 +25,10 @@ interface TaskBoardProps {
   onBack?: () => void;
 }
 
-const columns: { id: TaskStatus; title: string; color: string }[] = [
-  { id: 'todo', title: '待办', color: 'bg-dark-300' },
-  { id: 'in-progress', title: '进行中', color: 'bg-primary-500' },
-  { id: 'done', title: '已完成', color: 'bg-green-500' },
+const columns: { id: TaskStatus; title: string; color: string; accent: string }[] = [
+  { id: 'todo', title: '待办', color: 'bg-dark-300', accent: '#a8a7c0' },
+  { id: 'in-progress', title: '进行中', color: 'bg-primary-500', accent: '#6c63ff' },
+  { id: 'done', title: '已完成', color: 'bg-green-500', accent: '#4ade80' },
 ];
 
 const priorityConfig = {
@@ -43,11 +43,7 @@ export default function TaskBoard({ onBack }: TaskBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
 
@@ -75,28 +71,24 @@ export default function TaskBoard({ onBack }: TaskBoardProps) {
     if (!over) return;
 
     const activeId = String(active.id);
-    const overId = String(over.id);
+    const draggedTask = tasks.find((t) => t.id === activeId);
+    if (!draggedTask) return;
 
-    const activeTask = tasks.find((t) => t.id === activeId);
-    if (!activeTask) return;
+    let targetStatus: TaskStatus | null = null;
 
-    if (columns.some((col) => col.id === overId)) {
-      if (activeTask.status !== overId) {
-        updateTaskStatus(activeId, overId as TaskStatus);
+    const overColumn = columns.find((col) => col.id === over.id);
+    if (overColumn) {
+      targetStatus = overColumn.id;
+    } else {
+      const overTaskId = String(over.id);
+      const overTask = tasks.find((t) => t.id === overTaskId);
+      if (overTask) {
+        targetStatus = overTask.status;
       }
-      return;
     }
 
-    const overTask = tasks.find((t) => t.id === overId);
-    if (overTask && activeTask.status === overTask.status) {
-      const statusTasks = tasksByStatus[activeTask.status];
-      const oldIndex = statusTasks.findIndex((t) => t.id === activeId);
-      const newIndex = statusTasks.findIndex((t) => t.id === overId);
-      if (oldIndex !== newIndex) {
-        arrayMove(statusTasks, oldIndex, newIndex);
-      }
-    } else if (overTask && activeTask.status !== overTask.status) {
-      updateTaskStatus(activeId, overTask.status);
+    if (targetStatus && draggedTask.status !== targetStatus) {
+      updateTaskStatus(activeId, targetStatus);
     }
   };
 
@@ -105,10 +97,7 @@ export default function TaskBoard({ onBack }: TaskBoardProps) {
       <div className="p-6 border-b border-white/5">
         <div className="flex items-center gap-4">
           {onBack && (
-            <button
-              onClick={onBack}
-              className="p-2 rounded-lg hover:bg-white/5 transition-all hover:scale-105"
-            >
+            <button onClick={onBack} className="p-2 rounded-lg hover:bg-white/5 transition-all hover:scale-105">
               <ArrowLeft size={20} className="text-dark-300" />
             </button>
           )}
@@ -124,26 +113,25 @@ export default function TaskBoard({ onBack }: TaskBoardProps) {
       <div className="flex-1 overflow-auto p-6">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={closestCorners}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             {columns.map((column) => (
-              <KanbanColumn
+              <DroppableKanbanColumn
                 key={column.id}
                 id={column.id}
                 title={column.title}
                 color={column.color}
+                accent={column.accent}
                 tasks={tasksByStatus[column.id]}
               />
             ))}
           </div>
 
           <DragOverlay>
-            {activeTask ? (
-              <TaskCard task={activeTask} isDragging />
-            ) : null}
+            {activeTask ? <TaskCard task={activeTask} isDragging /> : null}
           </DragOverlay>
         </DndContext>
       </div>
@@ -151,16 +139,24 @@ export default function TaskBoard({ onBack }: TaskBoardProps) {
   );
 }
 
-interface KanbanColumnProps {
+interface DroppableKanbanColumnProps {
   id: TaskStatus;
   title: string;
   color: string;
+  accent: string;
   tasks: Task[];
 }
 
-function KanbanColumn({ id, title, color, tasks }: KanbanColumnProps) {
+function DroppableKanbanColumn({ id, title, color, accent, tasks }: DroppableKanbanColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id, data: { type: 'column', status: id } });
+
   return (
-    <div className="kanban-column">
+    <div
+      ref={setNodeRef}
+      data-column-id={id}
+      className={`kanban-column ${isOver ? 'drag-over' : ''}`}
+      style={isOver ? { borderColor: accent } : undefined}
+    >
       <div className="flex items-center gap-2 mb-2">
         <div className={`w-3 h-3 rounded-full ${color}`} />
         <h3 className="font-semibold text-dark-100">{title}</h3>
@@ -172,8 +168,8 @@ function KanbanColumn({ id, title, color, tasks }: KanbanColumnProps) {
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         <div className="flex-1 space-y-3 min-h-[100px]">
           {tasks.length === 0 ? (
-            <div className="text-center py-8 text-dark-500 text-sm">
-              暂无任务
+            <div className="text-center py-8 text-dark-500 text-sm border-2 border-dashed border-white/5 rounded-xl">
+              拖拽任务到此处
             </div>
           ) : (
             tasks.map((task) => <TaskCard key={task.id} task={task} />)
@@ -192,6 +188,7 @@ interface TaskCardProps {
 function TaskCard({ task, isDragging }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: task.id,
+    data: { type: 'task', status: task.status },
   });
 
   const style = {
@@ -205,6 +202,7 @@ function TaskCard({ task, isDragging }: TaskCardProps) {
     <div
       ref={setNodeRef}
       style={style}
+      data-task-id={task.id}
       {...attributes}
       {...listeners}
       className={`task-card ${isDragging ? 'dragging' : ''}`}
