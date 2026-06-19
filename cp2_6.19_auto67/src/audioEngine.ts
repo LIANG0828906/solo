@@ -281,15 +281,17 @@ export class AudioEngine {
 
     let needsOffline = false;
     let nodes: Array<'echo' | 'lowpass'> = [];
+    const delays: number[] = [];
     if (params.echoDelay !== undefined && params.echoDelay > 0) {
       nodes.push('echo');
       needsOffline = true;
-      processingDelayMs = params.echoDelay;
+      delays.push(params.echoDelay);
     }
     if (params.lowpassFreq !== undefined && params.lowpassFreq < 5000) {
       nodes.push('lowpass');
       needsOffline = true;
     }
+    processingDelayMs = delays.length > 0 ? Math.max(...delays) : 0;
 
     if (needsOffline) {
       const extraDelay = (params.echoDelay ?? 0) / 1000;

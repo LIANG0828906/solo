@@ -80,6 +80,11 @@ export class SpectrumRenderer {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, W, H);
 
+    if (this._currentHeights.length !== N || this._peakHold.length !== N) {
+      this._currentHeights = new Float32Array(N);
+      this._peakHold = new Float32Array(N);
+    }
+
     const hasAnalyser = !!this._analyser;
     if (hasAnalyser) {
       this._analyser!.getByteFrequencyData(this._frequencyData);

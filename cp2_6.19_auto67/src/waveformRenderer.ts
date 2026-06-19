@@ -281,7 +281,7 @@ export class WaveformRenderer {
       return;
     }
 
-    const interpStep = 2;
+    const maxGap = 3;
 
     ctx.beginPath();
     for (let pi = 0; pi < points.length - 1; pi++) {
@@ -289,14 +289,16 @@ export class WaveformRenderer {
       const p1 = points[pi];
       const p2 = points[Math.min(points.length - 1, pi + 1)];
       const p3 = points[Math.min(points.length - 1, pi + 2)];
+      const segGap = Math.abs(p2.x - p1.x);
+      const stepCount = Math.max(2, Math.min(16, Math.ceil(segGap / maxGap)));
 
-      for (let s = 0; s < interpStep; s++) {
-        const t = s / interpStep;
-        const yTop = this._catmullRomPoint(p0.yTop, p1.yTop, p2.yTop, p3.yTop, t);
-        const yBot = this._catmullRomPoint(p0.yBot, p1.yBot, p2.yBot, p3.yBot, t);
-        const x = this._catmullRomPoint(p0.x, p1.x, p2.x, p3.x, t);
+      for (let s = 0; s < stepCount; s++) {
+        const st = s / stepCount;
+        const yTop = this._catmullRomPoint(p0.yTop, p1.yTop, p2.yTop, p3.yTop, st);
+        const yBot = this._catmullRomPoint(p0.yBot, p1.yBot, p2.yBot, p3.yBot, st);
+        const x = this._catmullRomPoint(p0.x, p1.x, p2.x, p3.x, st);
         const h = Math.max(1, yBot - yTop);
-        ctx.rect(x, yTop, subsample * 0.7, h);
+        ctx.rect(x, yTop, segGap / stepCount * 0.9, h);
       }
     }
     ctx.fill();
@@ -352,21 +354,23 @@ export class WaveformRenderer {
       return;
     }
 
-    const interpStep = 2;
+    const maxGap = 3;
     ctx.beginPath();
     for (let pi = 0; pi < points.length - 1; pi++) {
       const p0 = points[Math.max(0, pi - 1)];
       const p1 = points[pi];
       const p2 = points[Math.min(points.length - 1, pi + 1)];
       const p3 = points[Math.min(points.length - 1, pi + 2)];
+      const segGap = Math.abs(p2.x - p1.x);
+      const stepCount = Math.max(2, Math.min(16, Math.ceil(segGap / maxGap)));
 
-      for (let s = 0; s < interpStep; s++) {
-        const st = s / interpStep;
+      for (let s = 0; s < stepCount; s++) {
+        const st = s / stepCount;
         const yTop = this._catmullRomPoint(p0.yTop, p1.yTop, p2.yTop, p3.yTop, st);
         const yBot = this._catmullRomPoint(p0.yBot, p1.yBot, p2.yBot, p3.yBot, st);
         const x = this._catmullRomPoint(p0.x, p1.x, p2.x, p3.x, st);
         const h = Math.max(1, yBot - yTop);
-        ctx.rect(x, yTop, subsample * 0.7, h);
+        ctx.rect(x, yTop, segGap / stepCount * 0.9, h);
       }
     }
     ctx.fill();
@@ -406,18 +410,21 @@ export class WaveformRenderer {
     this._trail.unshift(x);
 
     const fps = Math.max(1, this._currentFps);
-    const targetTrailLength = Math.max(4, Math.min(18, Math.round(fps * 0.3)));
-    const trailSpacing = Math.max(1, Math.round(30 / fps));
+    const trailCount = 18;
+    const trailStep = Math.max(1, Math.round(60 / fps));
+    const maxTrailLen = trailCount * trailStep;
 
-    if (this._trail.length > targetTrailLength) {
-      this._trail.length = targetTrailLength;
+    if (this._trail.length > maxTrailLen) {
+      this._trail.length = maxTrailLen;
     }
 
     const color = this._options.indicatorColor;
 
-    for (let i = this._trail.length - 1; i >= 0; i -= trailSpacing) {
-      const tx = this._trail[i];
-      const progress = i / this._trail.length;
+    for (let i = 0; i < trailCount; i++) {
+      const idx = i * trailStep;
+      if (idx >= this._trail.length) break;
+      const tx = this._trail[idx];
+      const progress = i / trailCount;
       const alpha = (1 - progress) * 0.35;
       const blur = (i + 1) * 1.6;
       ctx.save();
