@@ -16,6 +16,7 @@ export interface Recipe {
   ingredients: Ingredient[];
   steps: string[];
   glassType: string;
+  standardOrder?: string[];
 }
 
 export interface MixStep {

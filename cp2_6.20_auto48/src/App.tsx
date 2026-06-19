@@ -1,22 +1,80 @@
-import { useEffect, useState } from 'react';
-import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
+import { memo, useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, DragStartEvent } from '@dnd-kit/core';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { BarShelf } from './components/BarShelf';
 import { MixingArea } from './components/MixingArea';
 import { useCartStore } from './stores/cartStore';
 import { Recipe, BottleData } from './types';
 
-function OrderPanel() {
+const ALL_BOTTLES: BottleData[] = [
+  { id: 'whiskey', name: '波本威士忌', color: '#d4a574', abv: 40, type: 'base', labelColor: '#f4d03f' },
+  { id: 'vodka', name: '伏特加', color: '#e8e8e8', abv: 40, type: 'base', labelColor: '#3498db' },
+  { id: 'gin', name: '金酒', color: '#d5f5e3', abv: 37.5, type: 'base', labelColor: '#27ae60' },
+  { id: 'rum', name: '朗姆酒', color: '#f5cba7', abv: 38, type: 'base', labelColor: '#e67e22' },
+  { id: 'tequila', name: '龙舌兰', color: '#f9e79f', abv: 38, type: 'base', labelColor: '#f1c40f' },
+  { id: 'mint', name: '薄荷酒', color: '#82e0aa', abv: 25, type: 'mixer', labelColor: '#1abc9c' },
+  { id: 'bitters', name: '安格斯特拉苦精', color: '#7b241c', abv: 44.7, type: 'mixer', labelColor: '#922b21' },
+  { id: 'vermouth', name: '味美思', color: '#a93226', abv: 18, type: 'mixer', labelColor: '#c0392b' },
+  { id: 'triple-sec', name: '橙味力娇酒', color: '#f9e79f', abv: 30, type: 'mixer', labelColor: '#f39c12' },
+  { id: 'lime-juice', name: '青柠汁', color: '#abebc6', abv: 0, type: 'mixer', labelColor: '#2ecc71' },
+  { id: 'simple-syrup', name: '糖浆', color: '#fef9e7', abv: 0, type: 'mixer', labelColor: '#f7dc6f' },
+  { id: 'cola', name: '可乐', color: '#4a235a', abv: 0, type: 'mixer', labelColor: '#884ea0' },
+  { id: 'lemon', name: '柠檬片', color: '#f7dc6f', abv: 0, type: 'garnish' },
+  { id: 'olive', name: '橄榄', color: '#1e8449', abv: 0, type: 'garnish' },
+  { id: 'cherry', name: '樱桃', color: '#e74c3c', abv: 0, type: 'garnish' },
+  { id: 'straw', name: '吸管', color: '#f1948a', abv: 0, type: 'garnish' },
+  { id: 'mint-leaf', name: '薄荷叶', color: '#27ae60', abv: 0, type: 'garnish' },
+];
+
+const DEFAULT_RECIPE: Recipe = {
+  id: 'whiskey-sour',
+  name: '威士忌酸',
+  description: '经典威士忌鸡尾酒，酸甜平衡，口感清爽',
+  glassType: '古典杯',
+  ingredients: [
+    { id: 'whiskey', name: '波本威士忌', type: 'base', color: '#d4a574', abv: 40, amount: 60, unit: 'ml', labelColor: '#f4d03f' },
+    { id: 'lime-juice', name: '青柠汁', type: 'mixer', color: '#abebc6', abv: 0, amount: 30, unit: 'ml', labelColor: '#2ecc71' },
+    { id: 'simple-syrup', name: '糖浆', type: 'mixer', color: '#fef9e7', abv: 0, amount: 20, unit: 'ml', labelColor: '#f7dc6f' },
+    { id: 'bitters', name: '安格斯特拉苦精', type: 'mixer', color: '#7b241c', abv: 44.7, amount: 2, unit: 'dash', labelColor: '#922b21' },
+    { id: 'cherry', name: '樱桃', type: 'garnish', color: '#e74c3c', abv: 0, amount: 1, unit: '颗' },
+    { id: 'lemon', name: '柠檬片', type: 'garnish', color: '#f7dc6f', abv: 0, amount: 1, unit: '片' },
+  ],
+  steps: [
+    '将波本威士忌倒入调酒壶',
+    '加入青柠汁和糖浆',
+    '加入安格斯特拉苦精',
+    '加入冰块摇匀',
+    '过滤倒入古典杯',
+    '用樱桃和柠檬片装饰'
+  ],
+  standardOrder: ['whiskey', 'lime-juice', 'simple-syrup', 'bitters', 'cherry', 'lemon']
+};
+
+const OrderPanel = memo(function OrderPanel() {
   const { currentRecipe, completedIngredients } = useCartStore();
   const [animatingId, setAnimatingId] = useState<string | null>(null);
+  const lastAnimIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     completedIngredients.forEach((id) => {
-      setAnimatingId(id);
-      const timer = setTimeout(() => setAnimatingId(null), 1000);
-      return () => clearTimeout(timer);
+      if (lastAnimIdRef.current !== id) {
+        lastAnimIdRef.current = id;
+        setAnimatingId(id);
+        const timer = window.setTimeout(() => setAnimatingId(null), 1000);
+        return () => window.clearTimeout(timer);
+      }
     });
   }, [completedIngredients]);
+
+  const ingredientList = useMemo(() => {
+    if (!currentRecipe) return [];
+    return currentRecipe.ingredients;
+  }, [currentRecipe]);
+
+  const stepList = useMemo(() => {
+    if (!currentRecipe) return [];
+    return currentRecipe.steps;
+  }, [currentRecipe]);
 
   if (!currentRecipe) {
     return (
@@ -32,7 +90,7 @@ function OrderPanel() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-xs text-yellow-500/70 uppercase tracking-widest mb-1">当前订单</div>
-            <h2 
+            <h2
               className="text-2xl font-bold text-yellow-400 tracking-wide"
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
@@ -47,10 +105,10 @@ function OrderPanel() {
         <p className="text-xs text-gray-400 mt-2">{currentRecipe.description}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4" style={{ scrollbarWidth: 'thin' }}>
         <div className="text-xs text-yellow-500/70 uppercase tracking-wider mb-3">所需材料</div>
         <div className="space-y-2">
-          {currentRecipe.ingredients.map((ingredient) => {
+          {ingredientList.map((ingredient) => {
             const isComplete = completedIngredients.has(ingredient.id);
             const isAnimating = animatingId === ingredient.id;
 
@@ -58,14 +116,14 @@ function OrderPanel() {
               <div
                 key={ingredient.id}
                 className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
-                  isComplete 
-                    ? 'bg-green-900/30 border border-green-500/30' 
+                  isComplete
+                    ? 'bg-green-900/30 border border-green-500/30'
                     : 'bg-gray-800/50 border border-gray-700/50 hover:bg-gray-800/70'
                 } ${isAnimating ? 'animate-green-flash' : ''}`}
               >
-                <div 
+                <div
                   className="w-4 h-4 rounded-full flex-shrink-0 border-2"
-                  style={{ 
+                  style={{
                     backgroundColor: isComplete ? 'transparent' : ingredient.color,
                     borderColor: isComplete ? '#22c55e' : 'transparent',
                     opacity: isComplete ? 0.5 : 1
@@ -77,7 +135,7 @@ function OrderPanel() {
                     </svg>
                   )}
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className={`text-sm font-medium ${isComplete ? 'text-green-400 line-through' : 'text-gray-200'}`}>
                     {ingredient.name}
@@ -103,7 +161,7 @@ function OrderPanel() {
         <div className="mt-6">
           <div className="text-xs text-yellow-500/70 uppercase tracking-wider mb-3">调制步骤</div>
           <ol className="space-y-2">
-            {currentRecipe.steps.map((step, index) => (
+            {stepList.map((step, index) => (
               <li key={index} className="flex gap-3 text-sm text-gray-400">
                 <span className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs flex-shrink-0">
                   {index + 1}
@@ -126,38 +184,22 @@ function OrderPanel() {
       `}</style>
     </div>
   );
+});
+
+interface DragOverlayContentProps {
+  activeId: string | null;
 }
 
-function DragOverlayContent({ activeId }: { activeId: string | null }) {
+const DragOverlayContent = memo(function DragOverlayContent({ activeId }: DragOverlayContentProps) {
   if (!activeId) return null;
 
-  const allBottles: BottleData[] = [
-    { id: 'whiskey', name: '波本威士忌', color: '#d4a574', abv: 40, type: 'base', labelColor: '#f4d03f' },
-    { id: 'vodka', name: '伏特加', color: '#e8e8e8', abv: 40, type: 'base', labelColor: '#3498db' },
-    { id: 'gin', name: '金酒', color: '#d5f5e3', abv: 37.5, type: 'base', labelColor: '#27ae60' },
-    { id: 'rum', name: '朗姆酒', color: '#f5cba7', abv: 38, type: 'base', labelColor: '#e67e22' },
-    { id: 'tequila', name: '龙舌兰', color: '#f9e79f', abv: 38, type: 'base', labelColor: '#f1c40f' },
-    { id: 'mint', name: '薄荷酒', color: '#82e0aa', abv: 25, type: 'mixer', labelColor: '#1abc9c' },
-    { id: 'bitters', name: '安格斯特拉苦精', color: '#7b241c', abv: 44.7, type: 'mixer', labelColor: '#922b21' },
-    { id: 'vermouth', name: '味美思', color: '#a93226', abv: 18, type: 'mixer', labelColor: '#c0392b' },
-    { id: 'triple-sec', name: '橙味力娇酒', color: '#f9e79f', abv: 30, type: 'mixer', labelColor: '#f39c12' },
-    { id: 'lime-juice', name: '青柠汁', color: '#abebc6', abv: 0, type: 'mixer', labelColor: '#2ecc71' },
-    { id: 'simple-syrup', name: '糖浆', color: '#fef9e7', abv: 0, type: 'mixer', labelColor: '#f7dc6f' },
-    { id: 'cola', name: '可乐', color: '#4a235a', abv: 0, type: 'mixer', labelColor: '#884ea0' },
-    { id: 'lemon', name: '柠檬片', color: '#f7dc6f', abv: 0, type: 'garnish' },
-    { id: 'olive', name: '橄榄', color: '#1e8449', abv: 0, type: 'garnish' },
-    { id: 'cherry', name: '樱桃', color: '#e74c3c', abv: 0, type: 'garnish' },
-    { id: 'straw', name: '吸管', color: '#f1948a', abv: 0, type: 'garnish' },
-    { id: 'mint-leaf', name: '薄荷叶', color: '#27ae60', abv: 0, type: 'garnish' },
-  ];
-
-  const bottle = allBottles.find(b => b.id === activeId);
+  const bottle = useMemo(() => ALL_BOTTLES.find(b => b.id === activeId), [activeId]);
   if (!bottle) return null;
 
   const isGarnish = bottle.type === 'garnish';
 
   return (
-    <div style={{ transform: 'scale(0.8)', pointerEvents: 'none' }}>
+    <div style={{ transform: 'scale(0.8)', pointerEvents: 'none', filter: 'drop-shadow(0 8px 16px rgba(244,208,63,0.4))' }}>
       {isGarnish ? (
         <GarnishSVG name={bottle.id} color={bottle.color} />
       ) : (
@@ -165,31 +207,32 @@ function DragOverlayContent({ activeId }: { activeId: string | null }) {
       )}
     </div>
   );
-}
+});
 
-function BottleSVG({ color, labelColor }: { color: string; labelColor: string }) {
+const BottleSVG = memo(function BottleSVG({ color, labelColor }: { color: string; labelColor: string }) {
   return (
     <svg width="40" height="70" viewBox="0 0 40 70" className="drop-shadow-2xl">
       <defs>
-        <linearGradient id="overlayBottleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor={color} stopOpacity="0.8" />
+        <linearGradient id={`overlayBottle-${color}`} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor={color} stopOpacity="0.85" />
           <stop offset="50%" stopColor={color} stopOpacity="1" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.7" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.75" />
         </linearGradient>
       </defs>
-      <path d="M15 0 L25 0 L25 10 L27 15 L27 55 Q27 65 20 65 Q13 65 13 55 L13 15 L15 10 Z" 
-            fill="url(#overlayBottleGrad)" stroke="#2c1810" strokeWidth="1" />
+      <path d="M15 0 L25 0 L25 10 L27 15 L27 55 Q27 65 20 65 Q13 65 13 55 L13 15 L15 10 Z"
+            fill={`url(#overlayBottle-${color})`} stroke="#2c1810" strokeWidth="1" />
       <rect x="13" y="10" width="14" height="5" fill="#3d2817" rx="1" />
       <rect x="14" y="40" width="12" height="18" fill={labelColor} rx="1" />
+      <rect x="15" y="41" width="10" height="16" fill="none" stroke="#8b6914" strokeWidth="0.5" rx="0.5" />
     </svg>
   );
-}
+});
 
-function GarnishSVG({ name, color }: { name: string; color: string }) {
+const GarnishSVG = memo(function GarnishSVG({ name, color }: { name: string; color: string }) {
   if (name === 'lemon') {
     return (
       <svg width="45" height="45" viewBox="0 0 45 45">
-        <circle cx="22.5" cy="22.5" r="18" fill={color} fillOpacity="0.6" stroke="#d4ac0d" strokeWidth="1" />
+        <circle cx="22.5" cy="22.5" r="18" fill={color} fillOpacity="0.65" stroke="#d4ac0d" strokeWidth="1" />
         <circle cx="22.5" cy="22.5" r="10" fill="none" stroke="#d4ac0d" strokeWidth="1" />
       </svg>
     );
@@ -208,12 +251,46 @@ function GarnishSVG({ name, color }: { name: string; color: string }) {
       <circle cx="20" cy="20" r="15" fill={color} />
     </svg>
   );
-}
+});
+
+const Timer = memo(function Timer() {
+  const { startTime } = useCartStore();
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startTime) return;
+
+    const updateTimer = () => {
+      setElapsed(Math.floor((Date.now() - startTime) / 1000));
+    };
+    updateTimer();
+    const timer = window.setInterval(updateTimer, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [startTime]);
+
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+
+  return (
+    <div className="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-lg border border-yellow-500/20">
+      <svg className="w-4 h-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <circle cx="12" cy="12" r="10" strokeWidth="2" />
+        <polyline points="12 6 12 12 16 14" strokeWidth="2" />
+      </svg>
+      <span className="text-yellow-400 font-mono text-lg tabular-nums">
+        {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+      </span>
+    </div>
+  );
+});
 
 function BarPage() {
   const { setCurrentRecipe, setStartTime } = useCartStore();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const debounceRef = useRef<number>(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -224,50 +301,21 @@ function BarPage() {
   );
 
   useEffect(() => {
-    const loadRecipe = async () => {
-      try {
-        const recipe: Recipe = {
-          id: 'whiskey-sour',
-          name: '威士忌酸',
-          description: '经典威士忌鸡尾酒，酸甜平衡，口感清爽',
-          glassType: '古典杯',
-          ingredients: [
-            { id: 'whiskey', name: '波本威士忌', type: 'base', color: '#d4a574', abv: 40, amount: 60, unit: 'ml', labelColor: '#f4d03f' },
-            { id: 'lime-juice', name: '青柠汁', type: 'mixer', color: '#abebc6', abv: 0, amount: 30, unit: 'ml', labelColor: '#2ecc71' },
-            { id: 'simple-syrup', name: '糖浆', type: 'mixer', color: '#fef9e7', abv: 0, amount: 20, unit: 'ml', labelColor: '#f7dc6f' },
-            { id: 'bitters', name: '安格斯特拉苦精', type: 'mixer', color: '#7b241c', abv: 44.7, amount: 2, unit: 'dash', labelColor: '#922b21' },
-            { id: 'cherry', name: '樱桃', type: 'garnish', color: '#e74c3c', abv: 0, amount: 1, unit: '颗' },
-            { id: 'lemon', name: '柠檬片', type: 'garnish', color: '#f7dc6f', abv: 0, amount: 1, unit: '片' },
-          ],
-          steps: [
-            '将波本威士忌倒入调酒壶',
-            '加入青柠汁和糖浆',
-            '加入安格斯特拉苦精',
-            '加入冰块摇匀',
-            '过滤倒入古典杯',
-            '用樱桃和柠檬片装饰'
-          ]
-        };
-        
-        setCurrentRecipe(recipe);
-        setStartTime(Date.now());
-        setLoading(false);
-      } catch (error) {
-        console.error('加载配方失败:', error);
-        setLoading(false);
-      }
-    };
-
-    loadRecipe();
+    setCurrentRecipe(DEFAULT_RECIPE);
+    setStartTime(Date.now());
+    setLoading(false);
   }, [setCurrentRecipe, setStartTime]);
 
-  const handleDragStart = (event: { active: { id: string | number } }) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const now = Date.now();
+    if (now - debounceRef.current < 30) return;
+    debounceRef.current = now;
     setActiveId(String(event.active.id));
-  };
+  }, []);
 
-  const handleDragEnd = (_event: DragEndEvent) => {
+  const handleDragEnd = useCallback((_event: DragEndEvent) => {
     setActiveId(null);
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -279,9 +327,9 @@ function BarPage() {
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div 
+      <div
         className="min-h-screen flex flex-col"
-        style={{ 
+        style={{
           backgroundColor: '#1e2a35',
           backgroundImage: `
             radial-gradient(ellipse at 50% 0%, rgba(255, 193, 7, 0.15) 0%, transparent 50%),
@@ -295,7 +343,7 @@ function BarPage() {
               <span className="text-xl">🍸</span>
             </div>
             <div>
-              <h1 
+              <h1
                 className="text-xl font-bold text-yellow-400 tracking-wide"
                 style={{ fontFamily: "'Playfair Display', serif" }}
               >
@@ -304,7 +352,7 @@ function BarPage() {
               <p className="text-xs text-gray-500">技能训练平台</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-6">
             <Timer />
             <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -319,9 +367,9 @@ function BarPage() {
             <OrderPanel />
           </aside>
 
-          <section 
+          <section
             className="flex-1 relative"
-            style={{ 
+            style={{
               background: `
                 linear-gradient(180deg, rgba(74, 44, 26, 0.3) 0%, rgba(74, 44, 26, 0.1) 100%),
                 repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(0,0,0,0.1) 50px, rgba(0,0,0,0.1) 51px),
@@ -330,14 +378,14 @@ function BarPage() {
               backgroundColor: '#3d2817'
             }}
           >
-            <div 
+            <div
               className="absolute inset-0 pointer-events-none"
               style={{
                 background: 'radial-gradient(ellipse at 50% 100%, rgba(255, 193, 7, 0.1) 0%, transparent 60%)'
               }}
             />
-            
-            <div 
+
+            <div
               className="absolute bottom-0 left-0 right-0 h-3/4 rounded-t-3xl mx-8"
               style={{
                 background: `
@@ -349,7 +397,7 @@ function BarPage() {
                 `
               }}
             >
-              <div 
+              <div
                 className="absolute inset-0 rounded-t-3xl opacity-30"
                 style={{
                   backgroundImage: `
@@ -369,7 +417,7 @@ function BarPage() {
               <div className="w-64 border-r border-yellow-500/10 h-full">
                 <BarShelf />
               </div>
-              
+
               <div className="flex-1 h-full">
                 <MixingArea />
               </div>
@@ -377,45 +425,15 @@ function BarPage() {
           </section>
         </main>
       </div>
-      
-      <DragOverlay>
+
+      <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
         <DragOverlayContent activeId={activeId} />
       </DragOverlay>
     </DndContext>
   );
 }
 
-function Timer() {
-  const { startTime } = useCartStore();
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    if (!startTime) return;
-    
-    const timer = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTime) / 1000));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [startTime]);
-
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
-
-  return (
-    <div className="flex items-center gap-2 bg-black/40 px-4 py-2 rounded-lg border border-yellow-500/20">
-      <svg className="w-4 h-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <circle cx="12" cy="12" r="10" strokeWidth="2" />
-        <polyline points="12 6 12 12 16 14" strokeWidth="2" />
-      </svg>
-      <span className="text-yellow-400 font-mono text-lg">
-        {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-      </span>
-    </div>
-  );
-}
-
-export default function App() {
+function App() {
   return (
     <Router>
       <Routes>
@@ -424,3 +442,5 @@ export default function App() {
     </Router>
   );
 }
+
+export default memo(App);
