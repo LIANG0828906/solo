@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { useAuctionStore } from '../store/auctionStore'
 import type { AuctionItem } from '../types'
 
 interface ItemCardProps {
   item: AuctionItem
+  onSelect?: () => void
 }
 
 interface Particle {
@@ -13,9 +15,10 @@ interface Particle {
   y: number
 }
 
-const ItemCard = ({ item }: ItemCardProps) => {
+const ItemCard = ({ item, onSelect }: ItemCardProps) => {
   const navigate = useNavigate()
-  const [isFavorite, setIsFavorite] = useState(false)
+  const { favorites, toggleFavorite } = useAuctionStore()
+  const isFavorite = favorites.includes(item.id)
   const [particles, setParticles] = useState<Particle[]>([])
   const [imageLoaded, setImageLoaded] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
@@ -42,9 +45,17 @@ const ItemCard = ({ item }: ItemCardProps) => {
     return () => observer.disconnect()
   }, [])
 
+  const handleCardClick = () => {
+    if (onSelect) {
+      onSelect()
+    } else {
+      navigate(`/auction/${item.auctionId}`)
+    }
+  }
+
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setIsFavorite(!isFavorite)
+    toggleFavorite(item.id)
 
     if (!isFavorite) {
       const newParticles: Particle[] = []
@@ -70,9 +81,9 @@ const ItemCard = ({ item }: ItemCardProps) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      whileHover={{ scale: 1.05, boxShadow: '0 12px 30px rgba(0, 0, 0, 0.15) }}
+      whileHover={{ scale: 1.05, boxShadow: '0 12px 30px rgba(0, 0, 0, 0.15)' }}
       whileTap={{ scale: 0.97 }}
-      onClick={() => navigate(`/auction/${item.auctionId}`)}
+      onClick={handleCardClick}
       style={{
         backgroundColor: '#ffffff',
         borderRadius: '16px',
@@ -123,9 +134,20 @@ const ItemCard = ({ item }: ItemCardProps) => {
               alignItems: 'center',
               justifyContent: 'center',
               color: '#aaa',
+              fontSize: '13px',
             }}
           >
-            加载中...
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                border: '3px solid #ddd',
+                borderTopColor: '#c9a96e',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+              }}
+            />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         )}
 
@@ -194,50 +216,50 @@ const ItemCard = ({ item }: ItemCardProps) => {
 
       <div style={{ padding: '16px' }}>
         <h3
-        style={{
-          fontSize: '16px',
-          fontWeight: '600',
-          color: '#2d4a3e',
-          margin: '0 0 8px 0',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {item.name}
-      </h3>
+          style={{
+            fontSize: '16px',
+            fontWeight: '600',
+            color: '#2d4a3e',
+            margin: '0 0 8px 0',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {item.name}
+        </h3>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>
-            当前价格
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>
+              当前价格
+            </div>
+            <div
+              style={{
+                fontSize: '20px',
+                fontWeight: 'bold',
+                color: '#c9a96e',
+              }}
+            >
+              ¥{item.currentPrice.toLocaleString()}
+            </div>
           </div>
-          <div
-            style={{
-              fontSize: '20px',
-              fontWeight: 'bold',
-              color: '#c9a96e',
-            }}
-          >
-            ¥{item.currentPrice.toLocaleString()}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>
-            出价人数
-          </div>
-          <div
-            style={{
-              fontSize: '16px',
-              fontWeight: '600',
-              color: '#2d4a3e',
-            }}
-          >
-            {item.bidCount}人
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>
+              出价人数
+            </div>
+            <div
+              style={{
+                fontSize: '16px',
+                fontWeight: '600',
+                color: '#2d4a3e',
+              }}
+            >
+              {item.bidCount}人
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </motion.div>
   )
 }

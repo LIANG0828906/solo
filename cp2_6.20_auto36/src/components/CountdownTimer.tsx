@@ -52,6 +52,7 @@ const CountdownTimer = ({ endTime }: CountdownTimerProps) => {
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 20, opacity: 0 }}
       transition={{ duration: 0.3 }}
+      className={isUrgent ? 'urgent-blink' : ''}
       style={{
         fontSize: '32px',
         fontWeight: 'bold',

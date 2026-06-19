@@ -7,6 +7,7 @@ interface SkeletonProps {
   width?: number | string
   height?: number | string
   count?: number
+  style?: React.CSSProperties
 }
 
 const pulseAnimation = {
@@ -20,7 +21,7 @@ const pulseAnimation = {
   },
 }
 
-const Skeleton = ({ variant = 'text', width, height, count = 1 }: SkeletonProps) => {
+const Skeleton = ({ variant = 'text', width, height, count = 1, style }: SkeletonProps) => {
   const getDefaultSize = () => {
     switch (variant) {
       case 'card':
@@ -44,6 +45,7 @@ const Skeleton = ({ variant = 'text', width, height, count = 1 }: SkeletonProps)
       backgroundColor: '#e8e3de',
       width: typeof finalWidth === 'number' ? `${finalWidth}px` : finalWidth,
       height: typeof finalHeight === 'number' ? `${finalHeight}px` : finalHeight,
+      ...style,
     }
 
     if (variant === 'card') {
@@ -130,8 +132,8 @@ const Skeleton = ({ variant = 'text', width, height, count = 1 }: SkeletonProps)
           ...commonStyle,
           borderRadius: '4px',
           marginBottom: index < count - 1 ? '8px' : 0,
-          width: typeof finalWidth === 'number' 
-            ? `${finalWidth}px` 
+          width: typeof finalWidth === 'number'
+            ? `${finalWidth}px`
             : index === count - 1 && typeof finalWidth === 'string' && finalWidth === '100%'
               ? '60%'
               : finalWidth,
@@ -147,9 +149,9 @@ const Skeleton = ({ variant = 'text', width, height, count = 1 }: SkeletonProps)
   )
 }
 
-export const CardSkeleton = () => <Skeleton variant="card" />
-export const TextSkeleton = (props: Omit<SkeletonProps, 'variant'>) => <Skeleton variant="text" {...props} />
-export const CircleSkeleton = (props: Omit<SkeletonProps, 'variant'>) => <Skeleton variant="circle" {...props} />
-export const ButtonSkeleton = (props: Omit<SkeletonProps, 'variant'>) => <Skeleton variant="button" {...props} />
+export const CardSkeleton = (props?: Omit<SkeletonProps, 'variant'>) => <Skeleton variant="card" {...props} />
+export const TextSkeleton = (props?: Omit<SkeletonProps, 'variant'>) => <Skeleton variant="text" {...props} />
+export const CircleSkeleton = (props?: Omit<SkeletonProps, 'variant'>) => <Skeleton variant="circle" {...props} />
+export const ButtonSkeleton = (props?: Omit<SkeletonProps, 'variant'>) => <Skeleton variant="button" {...props} />
 
 export default Skeleton

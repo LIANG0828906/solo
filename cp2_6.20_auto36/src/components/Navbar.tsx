@@ -3,16 +3,24 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 
 const Navbar = () => {
-  const [scrolled, setScrolled] = useState(false)
+  const [scrollY, setScrollY] = useState(0)
   const [searchOpen, setSearchOpen] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20)
+      setScrollY(window.scrollY)
     }
-    window.addEventListener('scroll', handleScroll)
+    window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  const maxScroll = 300
+  const scrollProgress = Math.min(scrollY / maxScroll, 1)
+  const baseOpacity = 0.6
+  const maxOpacity = 0.95
+  const backgroundOpacity = baseOpacity + (maxOpacity - baseOpacity) * scrollProgress
+  const blurAmount = 8 + scrollProgress * 8
+  const shadowOpacity = 0.05 + scrollProgress * 0.1
 
   return (
     <motion.nav
@@ -29,15 +37,11 @@ const Navbar = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: scrolled
-          ? 'rgba(45, 74, 62, 0.95)'
-          : 'rgba(45, 74, 62, 0.7)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        boxShadow: scrolled
-          ? '0 4px 20px rgba(0, 0, 0, 0.15)'
-          : '0 2px 10px rgba(0, 0, 0, 0.05)',
-        transition: 'all 0.3s ease',
+        backgroundColor: `rgba(45, 74, 62, ${backgroundOpacity})`,
+        backdropFilter: `blur(${blurAmount}px)`,
+        WebkitBackdropFilter: `blur(${blurAmount}px)`,
+        boxShadow: `0 ${2 + scrollProgress * 4}px ${10 + scrollProgress * 20}px rgba(0, 0, 0, ${shadowOpacity})`,
+        transition: 'background-color 0.15s ease, box-shadow 0.15s ease',
       }}
     >
       <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
