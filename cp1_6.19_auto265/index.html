@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>折纸结构与光影折叠模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #1A1A2E;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .panel {
+      position: fixed;
+      width: 240px;
+      background: rgba(30, 30, 50, 0.6);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      color: #E0E0E0;
+      z-index: 10;
+    }
+
+    #left-panel {
+      top: 20px;
+      left: 20px;
+    }
+
+    #right-panel {
+      top: 20px;
+      right: 20px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #FFFFFF;
+      letter-spacing: 0.5px;
+    }
+
+    .panel-section {
+      margin-bottom: 20px;
+    }
+
+    .panel-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8888AA;
+      margin-bottom: 8px;
+    }
+
+    .crease-list {
+      max-height: 180px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #555 #222;
+    }
+
+    .crease-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .crease-list::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 2px;
+    }
+
+    .crease-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+
+    .crease-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .crease-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .crease-index {
+      font-weight: 600;
+      color: #C0C0C0;
+    }
+
+    .crease-angle {
+      color: #8888AA;
+      font-size: 11px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      margin-bottom: 8px;
+      letter-spacing: 0.3px;
+    }
+
+    .btn:last-child {
+      margin-bottom: 0;
+    }
+
+    .btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+      color: white;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #E0E0E0;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-screenshot {
+      background: linear-gradient(135deg, #F093FB 0%, #F5576C 100%);
+      color: white;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .info-item:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #8888AA;
+    }
+
+    .info-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667EEA, #764BA2);
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+
+    .preview-container {
+      width: 100%;
+      aspect-ratio: 1;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #preview-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .hint-text {
+      font-size: 11px;
+      color: #666688;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+
+    .crease-count {
+      font-size: 11px;
+      color: #667EEA;
+      float: right;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="left-panel" class="panel">
+    <div class="panel-title">
+      折痕控制
+      <span class="crease-count" id="crease-count">0 / 8</span>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">折痕列表</div>
+      <div class="crease-list" id="crease-list">
+        <div class="hint-text">点击纸面上的两点添加折痕</div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <button class="btn btn-primary" id="fold-btn" disabled>开始折叠</button>
+      <button class="btn btn-secondary" id="reset-btn">重置</button>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">操作提示</div>
+      <div class="hint-text">
+        • 左键拖拽：旋转视角<br>
+        • 滚轮：缩放<br>
+        • 右键拖拽：平移<br>
+        • 点击纸面两点：添加折痕
+      </div>
+    </div>
+  </div>
+
+  <div id="right-panel" class="panel">
+    <div class="panel-title">折叠信息</div>
+
+    <div class="panel-section">
+      <div class="info-item">
+        <span class="info-label">当前折叠面数</span>
+        <span class="info-value" id="face-count">0</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">已折叠折痕</span>
+        <span class="info-value" id="folded-creases">0 / 0</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">折叠进度</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+      </div>
+      <div class="info-item" style="border-bottom: none; padding: 6px 0 0 0;">
+        <span class="info-label">进度</span>
+        <span class="info-value" id="progress-text">0%</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">3D 预览</div>
+      <div class="preview-container">
+        <canvas id="preview-canvas"></canvas>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <button class="btn btn-screenshot" id="screenshot-btn" disabled>截屏保存</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
