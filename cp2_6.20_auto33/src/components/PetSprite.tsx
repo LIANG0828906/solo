@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { Stage, Layer, Group, Shape, Text } from 'react-konva';
 import type { Pet, PetAnimationState, ColorScheme, PetSpecies } from '../types';
 import { levelBadgeColor } from '../utils/helpers';
@@ -17,6 +17,20 @@ interface Palette {
   eyes: string;
   nose: string;
   belly: string;
+}
+
+interface Particle {
+  id: number;
+  type: 'heart' | 'star' | 'drop';
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  rotation: number;
+  vr: number;
+  size: number;
 }
 
 function getPalette(species: PetSpecies, breed: string, scheme: ColorScheme): Palette {
@@ -61,6 +75,8 @@ function getPalette(species: PetSpecies, breed: string, scheme: ColorScheme): Pa
 
 const VIEW_W = 200;
 const VIEW_H = 180;
+const MOUTH_X = 100;
+const MOUTH_Y = 85;
 
 export const PetSprite: React.FC<Props> = ({ pet, animState = 'idle', facing = 'right', size = 180, onAnimationDone }) => {
   const palette = useMemo(() => getPalette(pet.species, pet.breed, pet.colorScheme), [pet]);
@@ -76,6 +92,14 @@ export const PetSprite: React.FC<Props> = ({ pet, animState = 'idle', facing = '
   const animRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
 
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const particleIdRef = useRef(0);
+  const particleAnimRef = useRef<number>(0);
+  const particleLastTimeRef = useRef<number>(0);
+  const eatingSpawnTimerRef = useRef<number>(0);
+  const drinkingSpawnTimerRef = useRef<number>(0);
+  const prevAnimStateRef = useRef<PetAnimationState>(animState);
+
   useEffect(() => {
     const animate = (time: number) => {
       if (!lastTimeRef.current) lastTimeRef.current = time;
@@ -90,6 +114,103 @@ export const PetSprite: React.FC<Props> = ({ pet, animState = 'idle', facing = '
     return () => cancelAnimationFrame(animRef.current);
   }, []);
 
+  const spawnParticle = useCallback((type: Particle['type']): Particle => {
+    particleIdRef.current += 1;
+    const id = particleIdRef.current;
+    if (type === 'drop') {
+      return {
+        id,
+        type,
+        x: MOUTH_X + (Math.random() - 0.5) * 8,
+        y: MOUTH_Y + 5,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: 1.5 + Math.random() * 2,
+        life: 800,
+        maxLife: 800,
+        rotation: 0,
+        vr: 0,
+        size: 14 + Math.random() * 6,
+      };
+    }
+    return {
+      id,
+      type,
+      x: MOUTH_X + (Math.random() - 0.5) * 10,
+      y: MOUTH_Y,
+      vx: (Math.random() - 0.5) * 3,
+      vy: -(2 + Math.random() * 3),
+      life: 500,
+      maxLife: 500,
+      rotation: (Math.random() - 0.5) * 30,
+      vr: (Math.random() - 0.5) * 4,
+      size: 14 + Math.random() * 8,
+    };
+  }, []);
+
+  useEffect(() => {
+    if (prevAnimStateRef.current !== animState) {
+      eatingSpawnTimerRef.current = 0;
+      drinkingSpawnTimerRef.current = 0;
+      prevAnimStateRef.current = animState;
+    }
+
+    const updateParticles = (time: number) => {
+      if (!particleLastTimeRef.current) particleLastTimeRef.current = time;
+      const dt = time - particleLastTimeRef.current;
+      particleLastTimeRef.current = time;
+
+      setParticles(prevParticles => {
+        let newParticles = prevParticles
+          .map(p => {
+            const gravity = p.type === 'drop' ? 0.15 : 0.12;
+            const newVy = p.vy + gravity;
+            const newLife = p.life - dt;
+            return {
+              ...p,
+              x: p.x + p.vx * (dt / 16),
+              y: p.y + newVy * (dt / 16),
+              vy: newVy,
+              life: newLife,
+              rotation: p.rotation + p.vr * (dt / 16),
+            };
+          })
+          .filter(p => p.life > 0);
+
+        if (animState === 'eating') {
+          eatingSpawnTimerRef.current += dt;
+          const spawnInterval = 80;
+          while (eatingSpawnTimerRef.current >= spawnInterval) {
+            eatingSpawnTimerRef.current -= spawnInterval;
+            const count = 1 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < count; i++) {
+              const type: 'heart' | 'star' = Math.random() > 0.5 ? 'heart' : 'star';
+              newParticles = [...newParticles, spawnParticle(type)];
+            }
+          }
+        }
+
+        if (animState === 'drinking') {
+          drinkingSpawnTimerRef.current += dt;
+          const spawnInterval = 200;
+          while (drinkingSpawnTimerRef.current >= spawnInterval) {
+            drinkingSpawnTimerRef.current -= spawnInterval;
+            const count = 1 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < count; i++) {
+              newParticles = [...newParticles, spawnParticle('drop')];
+            }
+          }
+        }
+
+        return newParticles;
+      });
+
+      particleAnimRef.current = requestAnimationFrame(updateParticles);
+    };
+
+    particleAnimRef.current = requestAnimationFrame(updateParticles);
+    return () => cancelAnimationFrame(particleAnimRef.current);
+  }, [animState, spawnParticle]);
+
   const t = frame * 0.06;
 
   const blinkScale = animState === 'sleeping' ? 0 :
@@ -97,17 +218,24 @@ export const PetSprite: React.FC<Props> = ({ pet, animState = 'idle', facing = '
 
   const tailRot = animState === 'walking' || animState === 'playing' ? Math.sin(t * 4) * 25 :
     animState === 'idle' ? Math.sin(t * 1.2) * 8 :
-    animState === 'eating' ? Math.sin(t * 3) * 12 : 0;
+    animState === 'eating' ? Math.sin(t * 3) * 12 :
+    animState === 'sleeping' ? Math.sin(t * 0.4) * 2 : 0;
 
-  const bodyBob = animState === 'walking' ? Math.sin(t * 6) * 3 :
+  const baseBodyBob = animState === 'walking' ? Math.sin(t * 6) * 3 :
     animState === 'idle' ? Math.sin(t * 1.5) * 1.5 :
-    animState === 'playing' ? Math.abs(Math.sin(t * 5)) * -6 : 0;
+    animState === 'playing' ? Math.abs(Math.sin(t * 5)) * -6 :
+    animState === 'sleeping' ? Math.sin(t * 0.8) * 5 : 0;
+
+  const bodySwayX = animState === 'sleeping' ? Math.sin(t * 0.5) * 1.5 : 0;
+
+  const bodyBob = baseBodyBob;
 
   const legSwing = animState === 'walking' ? Math.sin(t * 6) * 20 :
     animState === 'playing' ? Math.sin(t * 8) * 15 : 0;
 
   const headTilt = animState === 'eating' || animState === 'drinking' ? 12 :
-    animState === 'playing' ? Math.sin(t * 4) * 8 : 0;
+    animState === 'playing' ? Math.sin(t * 4) * 8 :
+    animState === 'sleeping' ? Math.sin(t * 0.5) * 1.5 : 0;
 
   const mouthOpen = animState === 'eating' || animState === 'drinking' ? 1 : 0;
 
@@ -472,6 +600,35 @@ export const PetSprite: React.FC<Props> = ({ pet, animState = 'idle', facing = '
   const legW = isCorgi ? 18 : 14;
   const legH = isCorgi ? 22 : 28;
 
+  const scaleFactor = size / VIEW_W * levelScale;
+  const offsetX = (VIEW_W * levelScale - VIEW_W) / 2;
+  const offsetY = (VIEW_H * levelScale - VIEW_H) / 2;
+
+  const renderParticleEmoji = (p: Particle) => {
+    const alpha = Math.max(0, p.life / p.maxLife);
+    const leftPct = ((p.x - offsetX) / VIEW_W) * 100;
+    const topPct = ((p.y - offsetY) / VIEW_H) * 100;
+    const emoji = p.type === 'heart' ? '❤️' : p.type === 'star' ? '✨' : '💧';
+    return (
+      <div
+        key={p.id}
+        style={{
+          position: 'absolute',
+          left: `${leftPct}%`,
+          top: `${topPct}%`,
+          transform: `translate(-50%, -50%) rotate(${p.rotation}deg)`,
+          fontSize: p.size,
+          opacity: alpha,
+          pointerEvents: 'none',
+          filter: p.type === 'drop' ? 'drop-shadow(0 1px 2px rgba(66,165,245,0.5))' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))',
+          zIndex: 50,
+        }}
+      >
+        {emoji}
+      </div>
+    );
+  };
+
   return (
     <div style={{
       position: 'relative',
@@ -481,15 +638,15 @@ export const PetSprite: React.FC<Props> = ({ pet, animState = 'idle', facing = '
       transition: 'transform 0.4s ease',
       opacity: animState === 'sleeping' ? 0.9 : 1,
     }}>
-      <Stage width={size} height={size * 0.9} scaleX={size / VIEW_W * levelScale} scaleY={size / VIEW_H * levelScale}>
-        <Layer offsetX={(VIEW_W * levelScale - VIEW_W) / 2} offsetY={(VIEW_H * levelScale - VIEW_H) / 2}>
+      <Stage width={size} height={size * 0.9} scaleX={scaleFactor} scaleY={scaleFactor}>
+        <Layer offsetX={offsetX} offsetY={offsetY}>
           <Group x={isCat ? 25 : 170} y={90}>
             <Group rotation={tailRot} offsetX={isCat ? 0 : 0} offsetY={0}>
               <Shape sceneFunc={(ctx, shape) => { ctx.save(); ctx.translate(isCat ? -25 : -170, -90); renderTail(ctx); ctx.restore(); ctx.fillStrokeShape(shape); }} />
             </Group>
           </Group>
 
-          <Group y={bodyBob}>
+          <Group y={bodyBob} x={bodySwayX}>
             <Shape sceneFunc={(ctx, shape) => { renderBody(ctx); ctx.fillStrokeShape(shape); }} />
 
             <Group x={60} y={140}>
@@ -534,14 +691,45 @@ export const PetSprite: React.FC<Props> = ({ pet, animState = 'idle', facing = '
         </Layer>
       </Stage>
 
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+        overflow: 'visible',
+      }}>
+        {particles.map(renderParticleEmoji)}
+      </div>
+
       {animState === 'sleeping' && (
-        <div style={{
-          position: 'absolute', top: 15, right: 10,
-          fontSize: 22, fontWeight: 700,
-          color: '#7E57C2', fontFamily: 'var(--font-cartoon)',
-          animation: 'float-up 2.5s ease-out infinite',
-          transform: facing === 'left' ? 'scaleX(-1)' : 'none',
-        }}>Z</div>
+        <>
+          <div style={{
+            position: 'absolute', top: 8, right: 18,
+            fontSize: 16, fontWeight: 700,
+            color: '#7E57C2', fontFamily: 'var(--font-cartoon)',
+            animation: 'zzz-float-1 2.5s ease-out infinite',
+            transform: facing === 'left' ? 'scaleX(-1)' : 'none',
+            textShadow: '0 1px 3px rgba(126, 87, 194, 0.4)',
+            pointerEvents: 'none',
+          }}>Z</div>
+          <div style={{
+            position: 'absolute', top: 20, right: 6,
+            fontSize: 20, fontWeight: 700,
+            color: '#9575CD', fontFamily: 'var(--font-cartoon)',
+            animation: 'zzz-float-2 2.5s ease-out 0.8s infinite',
+            transform: facing === 'left' ? 'scaleX(-1)' : 'none',
+            textShadow: '0 1px 3px rgba(149, 117, 205, 0.4)',
+            pointerEvents: 'none',
+          }}>z</div>
+          <div style={{
+            position: 'absolute', top: 14, right: 30,
+            fontSize: 14, fontWeight: 700,
+            color: '#B39DDB', fontFamily: 'var(--font-cartoon)',
+            animation: 'zzz-float-3 2.5s ease-out 1.6s infinite',
+            transform: facing === 'left' ? 'scaleX(-1)' : 'none',
+            textShadow: '0 1px 3px rgba(179, 157, 219, 0.4)',
+            pointerEvents: 'none',
+          }}>z</div>
+        </>
       )}
     </div>
   );

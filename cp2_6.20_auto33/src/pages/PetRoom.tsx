@@ -36,6 +36,43 @@ const furnitureLabel: Record<FurnitureType, string> = {
 const FURNITURE_RADIUS = 10;
 const WALK_BOUNDS = { minX: 15, maxX: 85, minY: 50, maxY: 82 };
 
+interface BallTrail {
+  id: string;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  controlX: number;
+  controlY: number;
+  createdAt: number;
+}
+
+interface DustParticle {
+  id: string;
+  x: number;
+  y: number;
+  angle: number;
+  speed: number;
+  size: number;
+  color: string;
+  createdAt: number;
+}
+
+interface Footprint {
+  id: string;
+  x: number;
+  y: number;
+  facing: 'left' | 'right';
+  createdAt: number;
+}
+
+interface Shockwave {
+  id: string;
+  x: number;
+  y: number;
+  createdAt: number;
+}
+
 const isInFurnitureArea = (x: number, y: number): boolean => {
   return Object.values(furniturePos).some(pos => {
     const dx = x - pos.x;
@@ -54,6 +91,8 @@ const getRandomWalkTarget = (): { x: number; y: number } => {
   }
   return { x: 50, y: 72 };
 };
+
+const genId = () => Math.random().toString(36).slice(2, 10);
 
 const PetRoom: React.FC = () => {
   const navigate = useNavigate();
@@ -78,9 +117,26 @@ const PetRoom: React.FC = () => {
   const [catchMode, setCatchMode] = useState(false);
   const [ballPos, setBallPos] = useState<{ x: number; y: number } | null>(null);
   const [isRandomWalking, setIsRandomWalking] = useState(false);
+  const [ballPop, setBallPop] = useState(false);
+
+  const [ballTrails, setBallTrails] = useState<BallTrail[]>([]);
+  const [dustParticles, setDustParticles] = useState<DustParticle[]>([]);
+  const [footprints, setFootprints] = useState<Footprint[]>([]);
+  const [shockwaves, setShockwaves] = useState<Shockwave[]>([]);
+
   const roomRef = useRef<HTMLDivElement>(null);
-  const randomWalkTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const randomWalkTimerRef = useRef<number | null>(null);
   const rafRef = useRef<number>(0);
+  const footprintTimerRef = useRef<number | null>(null);
+  const petPosRef = useRef(petPos);
+  const facingRef = useRef(facing);
+  const animStateRef = useRef(animState);
+  const catchModeRef = useRef(catchMode);
+
+  useEffect(() => { petPosRef.current = petPos; }, [petPos]);
+  useEffect(() => { facingRef.current = facing; }, [facing]);
+  useEffect(() => { animStateRef.current = animState; }, [animState]);
+  useEffect(() => { catchModeRef.current = catchMode; }, [catchMode]);
 
   useEffect(() => {
     if (!pet) {
@@ -124,6 +180,96 @@ const PetRoom: React.FC = () => {
     check('clean', pet.cleanliness, '该洗澡了...', '#8E24AA');
     check('energy', pet.energy, '有点累了...', '#43A047');
   }, [pet?.hunger, pet?.happiness, pet?.cleanliness, pet?.energy]);
+
+  useEffect(() => {
+    const cleanup = setInterval(() => {
+      const now = Date.now();
+      setBallTrails(prev => prev.filter(t => now - t.createdAt < 900));
+      setDustParticles(prev => prev.filter(p => now - p.createdAt < 650));
+      setFootprints(prev => prev.filter(f => now - f.createdAt < 850));
+      setShockwaves(prev => prev.filter(s => now - s.createdAt < 550));
+    }, 200);
+    return () => clearInterval(cleanup);
+  }, []);
+
+  useEffect(() => {
+    const startFootprints = () => {
+      if (footprintTimerRef.current) {
+        clearInterval(footprintTimerRef.current);
+        footprintTimerRef.current = null;
+      }
+      if (catchModeRef.current && animStateRef.current === 'walking') {
+        footprintTimerRef.current = setInterval(() => {
+          if (animStateRef.current !== 'walking' || !catchModeRef.current) {
+            if (footprintTimerRef.current) {
+              clearInterval(footprintTimerRef.current);
+              footprintTimerRef.current = null;
+            }
+            return;
+          }
+          const pos = petPosRef.current;
+          const face = facingRef.current;
+          setFootprints(prev => [...prev, {
+            id: genId(),
+            x: pos.x,
+            y: pos.y + 5,
+            facing: face,
+            createdAt: Date.now(),
+          }]);
+        }, 300);
+      }
+    };
+    startFootprints();
+    return () => {
+      if (footprintTimerRef.current) {
+        clearInterval(footprintTimerRef.current);
+        footprintTimerRef.current = null;
+      }
+    };
+  }, [catchMode, animState]);
+
+  const addBallTrail = (sx: number, sy: number, ex: number, ey: number) => {
+    const cx = (sx + ex) / 2;
+    const cy = Math.min(sy, ey) - 22;
+    setBallTrails(prev => [...prev, {
+      id: genId(),
+      startX: sx,
+      startY: sy,
+      endX: ex,
+      endY: ey,
+      controlX: cx,
+      controlY: cy,
+      createdAt: Date.now(),
+    }]);
+  };
+
+  const addDustParticles = (x: number, y: number) => {
+    const count = 5 + Math.floor(Math.random() * 2);
+    const colors = ['#C4A484', '#D7CCC8', '#BCAAA4'];
+    const particles: DustParticle[] = [];
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        id: genId(),
+        x,
+        y,
+        angle: Math.random() * Math.PI * 2,
+        speed: 20 + Math.random() * 20,
+        size: 3 + Math.random() * 3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        createdAt: Date.now(),
+      });
+    }
+    setDustParticles(prev => [...prev, ...particles]);
+  };
+
+  const addShockwave = (x: number, y: number) => {
+    setShockwaves(prev => [...prev, {
+      id: genId(),
+      x,
+      y,
+      createdAt: Date.now(),
+    }]);
+  };
 
   const walkTo = useCallback((targetX: number, targetY: number, duration = 700): Promise<void> => {
     return new Promise(resolve => {
@@ -224,16 +370,33 @@ const PetRoom: React.FC = () => {
     const doRound = async () => {
       if (!roomRef.current) return;
       for (let round = 0; round < 3; round++) {
+        const startBallX = ballPos ? ballPos.x : 50;
+        const startBallY = ballPos ? ballPos.y : 55;
         const targetX = 20 + Math.random() * 60;
         const targetY = 45 + Math.random() * 25;
+
+        addBallTrail(startBallX, startBallY, targetX, targetY);
+        addShockwave(startBallX, startBallY);
+        setBallPop(true);
+        setTimeout(() => setBallPop(false), 250);
+
         setBallPos({ x: targetX, y: targetY });
         setFacing(targetX > petPos.x ? 'right' : 'left');
+
+        await new Promise(r => setTimeout(r, 480));
+        addDustParticles(targetX, targetY);
+
         await walkTo(targetX, Math.min(targetY + 10, 82), 500);
         setAnimState('playing');
         sfx.play();
         floatText('+快乐!', '#29B6F6');
         await new Promise(r => setTimeout(r, 450));
         setAnimState('idle');
+
+        if (round < 2) {
+          setBallPos({ x: petPos.x, y: Math.max(petPos.y - 12, 48) });
+          await new Promise(r => setTimeout(r, 300));
+        }
       }
     };
     await doRound();
@@ -305,6 +468,36 @@ const PetRoom: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-bg-cream)' }}>
+      <style>{`
+        @keyframes ballTrailDraw {
+          0% { stroke-dashoffset: 1000; opacity: 0; }
+          15% { opacity: 0.7; }
+          70% { stroke-dashoffset: 0; opacity: 0.7; }
+          100% { stroke-dashoffset: 0; opacity: 0; }
+        }
+        @keyframes ballPopScale {
+          0% { transform: translate(-50%, -50%) scale(1); }
+          35% { transform: translate(-50%, -50%) scale(1.4); }
+          100% { transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes shockwaveExpand {
+          0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.8; }
+          100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+        }
+        @keyframes footprintFade {
+          0% { opacity: 0.5; }
+          100% { opacity: 0; }
+        }
+        @keyframes dustMove {
+          0% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        @keyframes bob {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+      `}</style>
+
       <NavBar petName={pet.name} level={pet.level} />
 
       <div style={{ maxWidth: 820, margin: '0 auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -387,6 +580,116 @@ const PetRoom: React.FC = () => {
             >{furnitureEmoji[k]}</button>
           ))}
 
+          <svg
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '100%',
+              height: '100%',
+              zIndex: 15,
+              pointerEvents: 'none',
+              overflow: 'visible',
+            }}
+          >
+            {ballTrails.map(trail => {
+              const pathD = `M ${trail.startX}% ${trail.startY}% Q ${trail.controlX}% ${trail.controlY}% ${trail.endX}% ${trail.endY}%`;
+              return (
+                <path
+                  key={trail.id}
+                  d={pathD}
+                  stroke="#FFE082"
+                  strokeWidth="3"
+                  strokeDasharray="6 6"
+                  strokeDashoffset="1000"
+                  fill="none"
+                  opacity="0.7"
+                  style={{
+                    animation: 'ballTrailDraw 0.8s ease-out forwards',
+                  }}
+                />
+              );
+            })}
+          </svg>
+
+          {shockwaves.map(sw => (
+            <div
+              key={sw.id}
+              style={{
+                position: 'absolute',
+                left: `${sw.x}%`,
+                top: `${sw.y}%`,
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                border: '3px solid #FFE082',
+                zIndex: 19,
+                pointerEvents: 'none',
+                animation: 'shockwaveExpand 0.5s ease-out forwards',
+              }}
+            />
+          ))}
+
+          {footprints.map(fp => (
+            <div
+              key={fp.id}
+              style={{
+                position: 'absolute',
+                left: `${fp.x}%`,
+                top: `${fp.y}%`,
+                transform: `translate(-50%, -50%) scaleX(${fp.facing === 'left' ? -1 : 1})`,
+                zIndex: 19,
+                pointerEvents: 'none',
+                animation: 'footprintFade 0.8s ease-out forwards',
+                display: 'flex',
+                gap: 4,
+                opacity: 0.5,
+              }}
+            >
+              <div style={{
+                width: 6,
+                height: 10,
+                background: '#8D6E63',
+                borderRadius: '50%',
+                transform: 'rotate(-15deg)',
+              }} />
+              <div style={{
+                width: 6,
+                height: 10,
+                background: '#8D6E63',
+                borderRadius: '50%',
+                transform: 'rotate(15deg)',
+              }} />
+            </div>
+          ))}
+
+          {dustParticles.map(dp => {
+            const elapsed = (Date.now() - dp.createdAt) / 600;
+            const progress = Math.min(1, elapsed);
+            const dist = dp.speed * progress;
+            const dx = Math.cos(dp.angle) * dist;
+            const dy = Math.sin(dp.angle) * dist;
+            const scale = 1 - progress * 0.8;
+            return (
+              <div
+                key={dp.id}
+                style={{
+                  position: 'absolute',
+                  left: `calc(${dp.x}% + ${dx}px)`,
+                  top: `calc(${dp.y}% + ${dy}px)`,
+                  width: dp.size,
+                  height: dp.size,
+                  borderRadius: '50%',
+                  background: dp.color,
+                  transform: `translate(-50%, -50%) scale(${scale})`,
+                  zIndex: 19,
+                  pointerEvents: 'none',
+                  animation: 'dustMove 0.6s ease-out forwards',
+                }}
+              />
+            );
+          })}
+
           {ballPos && (
             <div style={{
               position: 'absolute',
@@ -397,7 +700,7 @@ const PetRoom: React.FC = () => {
               transition: 'left 0.45s cubic-bezier(0.34,1.56,0.64,1), top 0.45s cubic-bezier(0.34,1.56,0.64,1)',
               zIndex: 25,
               filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))',
-              animation: 'bob 0.5s ease-in-out infinite',
+              animation: ballPop ? 'ballPopScale 0.25s ease-out, bob 0.5s ease-in-out infinite' : 'bob 0.5s ease-in-out infinite',
             }}>🎾</div>
           )}
 
