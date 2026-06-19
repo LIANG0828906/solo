@@ -64,6 +64,7 @@ export default function TestResultPanel({ results, lintIssues }: TestResultPanel
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const passedCount = useMemo(() => results.filter((r) => r.passed).length, [results]);
+  const failedCount = useMemo(() => results.length - passedCount, [results.length, passedCount]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -78,10 +79,22 @@ export default function TestResultPanel({ results, lintIssues }: TestResultPanel
 
   return (
     <div className="test-result-panel">
+      <div className="stats-summary">
+        <div className="stats-card stats-total">
+          <span className="stats-card-value">{results.length}</span>
+          <span className="stats-card-label">总用例</span>
+        </div>
+        <div className="stats-card stats-passed">
+          <span className="stats-card-value">{passedCount}</span>
+          <span className="stats-card-label">通过</span>
+        </div>
+        <div className="stats-card stats-failed">
+          <span className="stats-card-value">{failedCount}</span>
+          <span className="stats-card-label">失败</span>
+        </div>
+      </div>
+
       <div className="test-result-summary">
-        <span className="test-result-count">
-          {passedCount}/{results.length} passed
-        </span>
         <div className="test-result-progress">
           <div
             className="test-result-progress-fill"
@@ -94,7 +107,7 @@ export default function TestResultPanel({ results, lintIssues }: TestResultPanel
         {results.map((result) => {
           const isExpanded = expandedIds.has(result.testCaseId);
           return (
-            <div key={result.testCaseId} className="test-result-item">
+            <div key={result.testCaseId} className={`test-result-item ${result.passed ? 'item-passed' : 'item-failed'}`}>
               <button
                 className="test-result-header"
                 onClick={() => toggleExpand(result.testCaseId)}
@@ -103,6 +116,9 @@ export default function TestResultPanel({ results, lintIssues }: TestResultPanel
                   {result.passed ? '✓' : '✗'}
                 </span>
                 <span className="test-result-name">{result.testCaseName}</span>
+                <span className={`test-result-status-badge ${result.passed ? 'badge-pass' : 'badge-fail'}`}>
+                  {result.passed ? '通过' : '失败'}
+                </span>
                 <span className="test-result-expand">{isExpanded ? '▼' : '▶'}</span>
               </button>
               <div
@@ -124,7 +140,7 @@ export default function TestResultPanel({ results, lintIssues }: TestResultPanel
                     </pre>
                   </div>
                   {!result.passed && (
-                    <div className="test-result-section">
+                    <div className="test-result-section diff-section">
                       <h4>Diff (差异对比)</h4>
                       <DiffView expected={result.expectedOutput} actual={result.actualOutput} />
                     </div>
