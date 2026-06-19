@@ -1,5 +1,15 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react'
-import { useTokenStore, getColorById, getSpacingById, getShadowById, darkenColor } from '../store/tokenStore'
+import {
+  useTokenStore,
+  getColorById,
+  getSpacingById,
+  getShadowById,
+  getRadiusById,
+  getBorderById,
+  getBorderWidthById,
+  getBorderColorById,
+  darkenColor,
+} from '../store/tokenStore'
 
 const transitionStyle = {
   transition: 'all 200ms ease-out',
@@ -10,20 +20,28 @@ const SampleCard: React.FC<{
   spacing: ReturnType<typeof useTokenStore.getState>['spacing']
   fonts: ReturnType<typeof useTokenStore.getState>['fonts']
   shadows: ReturnType<typeof useTokenStore.getState>['shadows']
-}> = React.memo(({ colors, spacing, fonts, shadows }) => {
+  radii: ReturnType<typeof useTokenStore.getState>['radii']
+  borders: ReturnType<typeof useTokenStore.getState>['borders']
+}> = React.memo(({ colors, spacing, fonts, shadows, radii, borders }) => {
   const [btnHover, setBtnHover] = useState<'primary' | 'secondary' | null>(null)
   const [btnActive, setBtnActive] = useState<'primary' | 'secondary' | null>(null)
 
-  const styles = useMemo(() => {
-    const bg = getColorById(colors, 'background')
-    const text = getColorById(colors, 'text')
-    const primary = getColorById(colors, 'primary')
-    const secondary = getColorById(colors, 'secondary')
-    const sm = getSpacingById(spacing, 'sm')
-    const md = getSpacingById(spacing, 'md')
-    const lg = getSpacingById(spacing, 'lg')
-    const cardShadow = getShadowById(shadows, 'small')
+  const bg = getColorById(colors, 'background')
+  const text = getColorById(colors, 'text')
+  const primary = getColorById(colors, 'primary')
+  const secondary = getColorById(colors, 'secondary')
+  const sm = getSpacingById(spacing, 'sm')
+  const md = getSpacingById(spacing, 'md')
+  const lg = getSpacingById(spacing, 'lg')
+  const cardShadow = getShadowById(shadows, 'small')
+  const cardRadius = getRadiusById(radii, 'md')
+  const btnRadius = getRadiusById(radii, 'sm')
+  const avatarRadius = getRadiusById(radii, 'full')
+  const cardBorder = getBorderById(borders, 'thin')
+  const btnBorderColor = getBorderColorById(borders, 'thin')
+  const btnBorderWidth = getBorderWidthById(borders, 'thin')
 
+  const styles = useMemo(() => {
     const primaryBg =
       btnActive === 'primary'
         ? darkenColor(primary, 0.25)
@@ -41,13 +59,13 @@ const SampleCard: React.FC<{
         ? darkenColor(secondary, 0.25)
         : btnHover === 'secondary'
         ? darkenColor(secondary, 0.15)
-        : secondary
+        : btnBorderColor || secondary
 
     return {
       card: {
         background: bg,
         color: text,
-        borderRadius: `${sm}px`,
+        borderRadius: cardRadius,
         padding: `${lg}px`,
         boxShadow: cardShadow,
         fontFamily: fonts.fontFamily,
@@ -56,6 +74,7 @@ const SampleCard: React.FC<{
         width: '360px',
         maxWidth: '100%',
         boxSizing: 'border-box' as const,
+        border: cardBorder,
         ...transitionStyle,
       },
       header: {
@@ -67,7 +86,7 @@ const SampleCard: React.FC<{
       avatar: {
         width: '48px',
         height: '48px',
-        borderRadius: '50%',
+        borderRadius: avatarRadius,
         background: `linear-gradient(135deg, ${primary}, ${secondary})`,
         display: 'flex' as const,
         alignItems: 'center' as const,
@@ -107,9 +126,9 @@ const SampleCard: React.FC<{
       primaryBtn: {
         background: primaryBg,
         color: '#ffffff',
-        border: 'none',
+        border: `${btnBorderWidth}px solid transparent`,
         padding: `${sm}px ${md}px`,
-        borderRadius: `${sm}px`,
+        borderRadius: btnRadius,
         fontSize: `${fonts.baseSize}px`,
         fontWeight: 600,
         cursor: 'pointer',
@@ -120,9 +139,9 @@ const SampleCard: React.FC<{
       secondaryBtn: {
         background: secondaryBg,
         color: btnHover === 'secondary' || btnActive === 'secondary' ? '#ffffff' : secondary,
-        border: `1.5px solid ${secondaryBorder}`,
+        border: `${Math.max(btnBorderWidth, 1.5)}px solid ${secondaryBorder}`,
         padding: `${sm}px ${md}px`,
-        borderRadius: `${sm}px`,
+        borderRadius: btnRadius,
         fontSize: `${fonts.baseSize}px`,
         fontWeight: 600,
         cursor: 'pointer',
@@ -130,7 +149,12 @@ const SampleCard: React.FC<{
         ...transitionStyle,
       },
     }
-  }, [colors, spacing, fonts, shadows, btnHover, btnActive])
+  }, [
+    bg, text, primary, secondary, sm, md, lg, cardShadow, fonts,
+    cardRadius, btnRadius, avatarRadius, cardBorder,
+    btnBorderColor, btnBorderWidth, shadows,
+    btnHover, btnActive,
+  ])
 
   return (
     <div style={styles.card}>
@@ -142,8 +166,8 @@ const SampleCard: React.FC<{
         </div>
       </div>
       <p style={styles.description}>
-        这是一个示例卡片组件，用于展示当前设计令牌（颜色、间距、字体、阴影）在真实 UI
-        上的渲染效果。所有样式均实时响应令牌变化。
+        这是一个示例卡片组件，用于展示当前设计令牌（颜色、间距、字体、阴影、圆角、边框）在真实
+        UI 上的渲染效果。所有样式均实时响应令牌变化。
       </p>
       <div style={styles.actions}>
         <button
@@ -180,7 +204,9 @@ const ButtonShowcase: React.FC<{
   spacing: ReturnType<typeof useTokenStore.getState>['spacing']
   fonts: ReturnType<typeof useTokenStore.getState>['fonts']
   shadows: ReturnType<typeof useTokenStore.getState>['shadows']
-}> = React.memo(({ colors, spacing, fonts, shadows }) => {
+  radii: ReturnType<typeof useTokenStore.getState>['radii']
+  borders: ReturnType<typeof useTokenStore.getState>['borders']
+}> = React.memo(({ colors, spacing, fonts, shadows, radii, borders }) => {
   const [hoverState, setHoverState] = useState<'p' | 's' | null>(null)
   const [activeState, setActiveState] = useState<'p' | 's' | null>(null)
 
@@ -192,6 +218,11 @@ const ButtonShowcase: React.FC<{
   const bg = getColorById(colors, 'background')
   const text = getColorById(colors, 'text')
   const containerShadow = getShadowById(shadows, 'small')
+  const containerRadius = getRadiusById(radii, 'md')
+  const btnRadius = getRadiusById(radii, 'sm')
+  const containerBorder = getBorderById(borders, 'thin')
+  const btnBorderWidth = getBorderWidthById(borders, 'thin')
+  const btnBorderColor = getBorderColorById(borders, 'thin')
 
   const btnStyles = useMemo(() => {
     const pBg =
@@ -211,15 +242,15 @@ const ButtonShowcase: React.FC<{
         ? darkenColor(secondary, 0.25)
         : hoverState === 's'
         ? darkenColor(secondary, 0.15)
-        : secondary
+        : btnBorderColor || secondary
 
     return {
       primary: {
         background: pBg,
         color: '#fff',
-        border: 'none',
+        border: `${btnBorderWidth}px solid transparent`,
         padding: `${sm}px ${md}px`,
-        borderRadius: `${sm}px`,
+        borderRadius: btnRadius,
         fontSize: `${fonts.baseSize}px`,
         fontWeight: 600,
         cursor: 'pointer',
@@ -232,9 +263,9 @@ const ButtonShowcase: React.FC<{
       secondary: {
         background: sBg,
         color: hoverState === 's' || activeState === 's' ? '#fff' : secondary,
-        border: `1.5px solid ${sBorder}`,
+        border: `${Math.max(btnBorderWidth, 1.5)}px solid ${sBorder}`,
         padding: `${sm}px ${md}px`,
-        borderRadius: `${sm}px`,
+        borderRadius: btnRadius,
         fontSize: `${fonts.baseSize}px`,
         fontWeight: 600,
         cursor: 'pointer',
@@ -247,6 +278,7 @@ const ButtonShowcase: React.FC<{
   }, [
     primary, secondary, sm, md, fonts.baseSize, fonts.fontFamily,
     containerShadow, hoverState, activeState,
+    btnRadius, btnBorderWidth, btnBorderColor,
   ])
 
   return (
@@ -254,12 +286,13 @@ const ButtonShowcase: React.FC<{
       style={{
         background: bg,
         padding: `${lg}px ${lg}px`,
-        borderRadius: `${sm}px`,
+        borderRadius: containerRadius,
         boxShadow: containerShadow,
         fontFamily: fonts.fontFamily,
         width: '360px',
         maxWidth: '100%',
         boxSizing: 'border-box' as const,
+        border: containerBorder,
         ...transitionStyle,
       }}
     >
@@ -314,33 +347,44 @@ const FormInput: React.FC<{
   spacing: ReturnType<typeof useTokenStore.getState>['spacing']
   fonts: ReturnType<typeof useTokenStore.getState>['fonts']
   shadows: ReturnType<typeof useTokenStore.getState>['shadows']
-}> = React.memo(({ colors, spacing, fonts, shadows }) => {
+  radii: ReturnType<typeof useTokenStore.getState>['radii']
+  borders: ReturnType<typeof useTokenStore.getState>['borders']
+}> = React.memo(({ colors, spacing, fonts, shadows, radii, borders }) => {
   const [focused, setFocused] = useState(false)
   const [value, setValue] = useState('')
 
-  const styles = useMemo(() => {
-    const bg = getColorById(colors, 'background')
-    const text = getColorById(colors, 'text')
-    const primary = getColorById(colors, 'primary')
-    const success = getColorById(colors, 'success')
-    const sm = getSpacingById(spacing, 'sm')
-    const md = getSpacingById(spacing, 'md')
-    const lg = getSpacingById(spacing, 'lg')
+  const bg = getColorById(colors, 'background')
+  const text = getColorById(colors, 'text')
+  const primary = getColorById(colors, 'primary')
+  const success = getColorById(colors, 'success')
+  const sm = getSpacingById(spacing, 'sm')
+  const md = getSpacingById(spacing, 'md')
+  const lg = getSpacingById(spacing, 'lg')
+  const inputBg = getColorById(colors, 'background')
+  const containerShadow = getShadowById(shadows, 'small')
+  const containerRadius = getRadiusById(radii, 'md')
+  const inputRadius = getRadiusById(radii, 'sm')
+  const btnRadius = getRadiusById(radii, 'sm')
+  const containerBorder = getBorderById(borders, 'thin')
+  const baseBorderWidth = getBorderWidthById(borders, 'medium')
+  const baseBorderColor = getBorderColorById(borders, 'medium')
 
-    const borderColor = focused ? primary : darkenColor(text, -0.7)
-    const inputBg = getColorById(colors, 'background')
+  const styles = useMemo(() => {
+    const borderWidth = Math.max(baseBorderWidth, 1.5)
+    const borderColor = focused ? primary : baseBorderColor
 
     return {
       container: {
         background: bg,
         padding: `${lg}px ${lg}px`,
-        borderRadius: `${sm}px`,
-        boxShadow: getShadowById(shadows, 'small'),
+        borderRadius: containerRadius,
+        boxShadow: containerShadow,
         fontFamily: fonts.fontFamily,
         fontSize: `${fonts.baseSize}px`,
         width: '360px',
         maxWidth: '100%',
         boxSizing: 'border-box' as const,
+        border: containerBorder,
         ...transitionStyle,
       },
       label: {
@@ -359,24 +403,24 @@ const FormInput: React.FC<{
         width: '100%',
         boxSizing: 'border-box' as const,
         padding: `${sm}px ${md}px`,
-        borderRadius: `${sm}px`,
-        border: `1.5px solid ${borderColor}`,
+        borderRadius: inputRadius,
+        border: `${borderWidth}px solid ${borderColor}`,
         background: inputBg,
         color: text,
         fontSize: `${fonts.baseSize}px`,
         fontFamily: fonts.fontFamily,
         outline: 'none',
         lineHeight: fonts.lineHeight,
-        boxShadow: focused ? `0 0 0 3px ${primary}20` : 'none',
+        boxShadow: focused ? `0 0 0 3px ${primary}22` : 'none',
         ...transitionStyle,
       },
       submit: {
         width: '100%',
-        background: focused ? primary : primary,
+        background: primary,
         color: '#fff',
-        border: 'none',
+        border: `${baseBorderWidth}px solid transparent`,
         padding: `${sm}px ${md}px`,
-        borderRadius: `${sm}px`,
+        borderRadius: btnRadius,
         fontSize: `${fonts.baseSize}px`,
         fontWeight: 600,
         cursor: 'pointer',
@@ -399,7 +443,13 @@ const FormInput: React.FC<{
         ...transitionStyle,
       },
     }
-  }, [colors, spacing, fonts, shadows, focused, value])
+  }, [
+    bg, text, primary, success, sm, md, lg, inputBg,
+    containerShadow, fonts,
+    containerRadius, inputRadius, btnRadius,
+    containerBorder, baseBorderWidth, baseBorderColor,
+    focused, value,
+  ])
 
   return (
     <div style={styles.container}>
@@ -456,12 +506,12 @@ const CanvasPreview: React.FC = () => {
   const spacing = useTokenStore((s) => s.spacing)
   const fonts = useTokenStore((s) => s.fonts)
   const shadows = useTokenStore((s) => s.shadows)
+  const radii = useTokenStore((s) => s.radii)
+  const borders = useTokenStore((s) => s.borders)
   const isResetting = useTokenStore((s) => s.isResetting ?? false)
 
   const bgColor = useMemo(() => {
-    // 使用 store 中 background 的浅色调作为画布背景，否则使用 #f5f5f5
     const bg = getColorById(colors, 'background')
-    // 如果背景色太深，则使用固定浅灰
     try {
       const hex = bg.replace('#', '')
       const r = parseInt(hex.substring(0, 2), 16)
@@ -499,24 +549,87 @@ const CanvasPreview: React.FC = () => {
       >
         {narrow ? (
           <>
-            <div style={{ width: '90%', maxWidth: '420px', display: 'flex', justifyContent: 'center' }}>
-              <SampleCard colors={colors} spacing={spacing} fonts={fonts} shadows={shadows} />
+            <div
+              style={{
+                width: '90%',
+                maxWidth: '420px',
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              <SampleCard
+                colors={colors}
+                spacing={spacing}
+                fonts={fonts}
+                shadows={shadows}
+                radii={radii}
+                borders={borders}
+              />
             </div>
-            <div style={{ width: '90%', maxWidth: '420px', display: 'flex', justifyContent: 'center' }}>
-              <ButtonShowcase colors={colors} spacing={spacing} fonts={fonts} shadows={shadows} />
+            <div
+              style={{
+                width: '90%',
+                maxWidth: '420px',
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              <ButtonShowcase
+                colors={colors}
+                spacing={spacing}
+                fonts={fonts}
+                shadows={shadows}
+                radii={radii}
+                borders={borders}
+              />
             </div>
-            <div style={{ width: '90%', maxWidth: '420px', display: 'flex', justifyContent: 'center' }}>
-              <FormInput colors={colors} spacing={spacing} fonts={fonts} shadows={shadows} />
+            <div
+              style={{
+                width: '90%',
+                maxWidth: '420px',
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              <FormInput
+                colors={colors}
+                spacing={spacing}
+                fonts={fonts}
+                shadows={shadows}
+                radii={radii}
+                borders={borders}
+              />
             </div>
           </>
         ) : (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-              <SampleCard colors={colors} spacing={spacing} fonts={fonts} shadows={shadows} />
+              <SampleCard
+                colors={colors}
+                spacing={spacing}
+                fonts={fonts}
+                shadows={shadows}
+                radii={radii}
+                borders={borders}
+              />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
-              <ButtonShowcase colors={colors} spacing={spacing} fonts={fonts} shadows={shadows} />
-              <FormInput colors={colors} spacing={spacing} fonts={fonts} shadows={shadows} />
+              <ButtonShowcase
+                colors={colors}
+                spacing={spacing}
+                fonts={fonts}
+                shadows={shadows}
+                radii={radii}
+                borders={borders}
+              />
+              <FormInput
+                colors={colors}
+                spacing={spacing}
+                fonts={fonts}
+                shadows={shadows}
+                radii={radii}
+                borders={borders}
+              />
             </div>
           </>
         )}

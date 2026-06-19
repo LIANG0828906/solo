@@ -31,17 +31,36 @@ export interface ShadowToken {
   depth: number
 }
 
+export interface RadiusToken {
+  id: string
+  name: string
+  label: string
+  value: number | 'full'
+}
+
+export interface BorderToken {
+  id: string
+  name: string
+  width: number
+  color: string
+}
+
 export interface TokenState {
   colors: ColorToken[]
   spacing: SpacingToken[]
   fonts: FontTokens
   shadows: ShadowToken[]
+  radii: RadiusToken[]
+  borders: BorderToken[]
   colorOrder: string[]
   isResetting: boolean
   updateColor: (id: string, value: string) => void
   updateSpacing: (id: string, value: number) => void
   updateFont: <K extends keyof FontTokens>(key: K, value: FontTokens[K]) => void
   updateShadow: (id: string, depth: number) => void
+  updateRadius: (id: string, value: number | 'full') => void
+  updateBorderWidth: (id: string, width: number) => void
+  updateBorderColor: (id: string, color: string) => void
   updateColorOrder: (order: string[]) => void
   resetAll: () => void
   getTokensForExport: () => object
@@ -83,6 +102,21 @@ const defaultShadows: ShadowToken[] = [
   { id: 'large', name: 'large', depth: 8 },
 ]
 
+const defaultRadii: RadiusToken[] = [
+  { id: 'none', name: 'none', label: '无圆角', value: 0 },
+  { id: 'sm', name: 'sm', label: '小圆角', value: 4 },
+  { id: 'md', name: 'md', label: '中圆角', value: 8 },
+  { id: 'lg', name: 'lg', label: '大圆角', value: 12 },
+  { id: 'xl', name: 'xl', label: '超大圆角', value: 16 },
+  { id: 'full', name: 'full', label: '圆形', value: 'full' },
+]
+
+const defaultBorders: BorderToken[] = [
+  { id: 'thin', name: '细边框', width: 1, color: '#e5e7eb' },
+  { id: 'medium', name: '中边框', width: 2, color: '#d1d5db' },
+  { id: 'thick', name: '粗边框', width: 4, color: '#9ca3af' },
+]
+
 const getDefaultColorOrder = () => defaultColors.map(c => c.id)
 
 export const generateShadowString = (depth: number): string => {
@@ -116,6 +150,26 @@ export const getShadowById = (shadows: ShadowToken[], id: string): string => {
   return token ? generateShadowString(token.depth) : 'none'
 }
 
+export const getRadiusById = (radii: RadiusToken[], id: string): string => {
+  const token = radii.find(r => r.id === id)
+  if (!token) return '0px'
+  return token.value === 'full' ? '9999px' : `${token.value}px`
+}
+
+export const getBorderById = (borders: BorderToken[], id: string): string => {
+  const token = borders.find(b => b.id === id)
+  if (!token) return 'none'
+  return `${token.width}px solid ${token.color}`
+}
+
+export const getBorderWidthById = (borders: BorderToken[], id: string): number => {
+  return borders.find(b => b.id === id)?.width ?? 0
+}
+
+export const getBorderColorById = (borders: BorderToken[], id: string): string => {
+  return borders.find(b => b.id === id)?.color ?? '#000000'
+}
+
 export const useTokenStore = create<TokenState>()(
   persist(
     (set, get) => ({
@@ -123,6 +177,8 @@ export const useTokenStore = create<TokenState>()(
       spacing: defaultSpacing,
       fonts: defaultFonts,
       shadows: defaultShadows,
+      radii: [...defaultRadii],
+      borders: [...defaultBorders],
       colorOrder: getDefaultColorOrder(),
       isResetting: false,
 
@@ -146,6 +202,21 @@ export const useTokenStore = create<TokenState>()(
           shadows: state.shadows.map(s => (s.id === id ? { ...s, depth } : s)),
         })),
 
+      updateRadius: (id, value) =>
+        set(state => ({
+          radii: state.radii.map(r => (r.id === id ? { ...r, value } : r)),
+        })),
+
+      updateBorderWidth: (id, width) =>
+        set(state => ({
+          borders: state.borders.map(b => (b.id === id ? { ...b, width } : b)),
+        })),
+
+      updateBorderColor: (id, color) =>
+        set(state => ({
+          borders: state.borders.map(b => (b.id === id ? { ...b, color } : b)),
+        })),
+
       updateColorOrder: (order) => set({ colorOrder: order }),
 
       resetAll: () => {
@@ -155,6 +226,8 @@ export const useTokenStore = create<TokenState>()(
           spacing: [...defaultSpacing],
           fonts: { ...defaultFonts },
           shadows: [...defaultShadows],
+          radii: [...defaultRadii],
+          borders: [...defaultBorders],
           colorOrder: getDefaultColorOrder(),
         })
         setTimeout(() => {
@@ -193,6 +266,28 @@ export const useTokenStore = create<TokenState>()(
             (acc, s) => ({
               ...acc,
               [s.id]: { name: s.name, value: generateShadowString(s.depth) },
+            }),
+            {}
+          ),
+          radii: state.radii.reduce(
+            (acc, r) => ({
+              ...acc,
+              [r.id]: {
+                name: r.label,
+                value: r.value === 'full' ? '9999px' : `${r.value}px`,
+              },
+            }),
+            {}
+          ),
+          borders: state.borders.reduce(
+            (acc, b) => ({
+              ...acc,
+              [b.id]: {
+                name: b.name,
+                width: `${b.width}px`,
+                color: b.color,
+                value: `${b.width}px solid ${b.color}`,
+              },
             }),
             {}
           ),
