@@ -1,0 +1,37 @@
+:root {
+  --color-grass: #5a8f4c;
+  --color-yellow: #f5e6a3;
+  --color-soil: #8b6f47;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* 确保动画使用 GPU 加速 */
+.garden-cell,
+.plant-card,
+.action-btn,
+.plant-icon {
+  will-change: transform, opacity;
+}
+
+/* 平滑滚动 */
+html {
+  scroll-behavior: smooth;
+}
+
+/* 减少在不支持动画设备上的动画 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
