@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { KNOWLEDGE_TAGS, QUESTION_TYPE_LABELS, type GenerateRequest } from '@/utils/api';
+import { useRipple } from '@/hooks/useRipple';
 import { Sparkles } from 'lucide-react';
 
 type QuestionType = 'choice' | 'multi_choice' | 'fill_blank' | 'true_false';
@@ -15,21 +16,29 @@ export default function ConfigPanel({ onGenerate, isGenerating }: ConfigPanelPro
   const [count, setCount] = useState(5);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
+  const generateRipple = useRipple('generate-btn');
+
   const tabs: QuestionType[] = ['choice', 'multi_choice', 'fill_blank', 'true_false'];
 
-  const toggleTag = (tag: string) => {
+  const toggleTag = (tag: string, e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = (e: React.MouseEvent<HTMLButtonElement>) => {
+    generateRipple.onClick(e);
     onGenerate({
       question_type: activeTab,
       difficulty,
       count,
       knowledge_tags: selectedTags,
     });
+  };
+
+  const handleTabClick = (tab: QuestionType) => {
+    setActiveTab(tab);
   };
 
   return (
@@ -43,8 +52,8 @@ export default function ConfigPanel({ onGenerate, isGenerating }: ConfigPanelPro
         {tabs.map((tab) => (
           <button
             key={tab}
-            className={`tab-btn ${activeTab === tab ? 'tab-active' : ''}`}
-            onClick={() => setActiveTab(tab)}
+            className={`tab-btn ripple-container ${activeTab === tab ? 'tab-active' : ''}`}
+            onClick={() => handleTabClick(tab)}
           >
             {QUESTION_TYPE_LABELS[tab]}
           </button>
@@ -93,8 +102,8 @@ export default function ConfigPanel({ onGenerate, isGenerating }: ConfigPanelPro
           {KNOWLEDGE_TAGS.map((tag) => (
             <button
               key={tag}
-              className={`tag-btn ${selectedTags.includes(tag) ? 'tag-selected' : ''}`}
-              onClick={() => toggleTag(tag)}
+              className={`tag-btn ripple-container ${selectedTags.includes(tag) ? 'tag-selected' : ''}`}
+              onClick={(e) => toggleTag(tag, e)}
             >
               {tag}
             </button>
@@ -103,7 +112,7 @@ export default function ConfigPanel({ onGenerate, isGenerating }: ConfigPanelPro
       </div>
 
       <button
-        className="generate-btn"
+        className="generate-btn ripple-container"
         onClick={handleGenerate}
         disabled={isGenerating}
       >
@@ -118,6 +127,7 @@ export default function ConfigPanel({ onGenerate, isGenerating }: ConfigPanelPro
             开始生成
           </span>
         )}
+        {generateRipple.rippleElements}
       </button>
     </div>
   );

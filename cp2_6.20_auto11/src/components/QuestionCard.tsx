@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Question } from '@/utils/api';
 import { QUESTION_TYPE_LABELS } from '@/utils/api';
 import { useQuizStore } from '@/hooks/useQuizStore';
+import { useRipple } from '@/hooks/useRipple';
 import { Eye, EyeOff, BookmarkPlus, Check } from 'lucide-react';
 
 interface QuestionCardProps {
@@ -14,14 +15,23 @@ export default function QuestionCard({ question, index }: QuestionCardProps) {
   const [saved, setSaved] = useState(false);
   const addToQuizBank = useQuizStore((s) => s.addToQuizBank);
 
-  const handleSave = () => {
+  const eyeRipple = useRipple(`eye-btn-${question.id}`);
+  const saveRipple = useRipple(`save-btn-${question.id}`);
+
+  const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (saved) return;
+    saveRipple.onClick(e);
     addToQuizBank({
       id: crypto.randomUUID(),
       question,
       added_at: new Date().toISOString(),
     });
     setSaved(true);
+  };
+
+  const handleToggleAnswer = (e: React.MouseEvent<HTMLButtonElement>) => {
+    eyeRipple.onClick(e);
+    setShowAnswer(!showAnswer);
   };
 
   const typeLabel = QUESTION_TYPE_LABELS[question.type] || question.type;
@@ -70,17 +80,22 @@ export default function QuestionCard({ question, index }: QuestionCardProps) {
       )}
 
       <div className="card-actions">
-        <button className="action-btn" onClick={() => setShowAnswer(!showAnswer)}>
+        <button
+          className="action-btn ripple-container"
+          onClick={handleToggleAnswer}
+        >
           {showAnswer ? <EyeOff size={16} /> : <Eye size={16} />}
           {showAnswer ? '收起答案' : '查看答案'}
+          {eyeRipple.rippleElements}
         </button>
         <button
-          className={`action-btn ${saved ? 'action-saved' : ''}`}
+          className={`action-btn ripple-container ${saved ? 'action-saved' : ''}`}
           onClick={handleSave}
           disabled={saved}
         >
           {saved ? <Check size={16} /> : <BookmarkPlus size={16} />}
           {saved ? '已收藏' : '收藏到题库'}
+          {saveRipple.rippleElements}
         </button>
       </div>
     </div>

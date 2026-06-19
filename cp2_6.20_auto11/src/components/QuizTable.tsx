@@ -2,33 +2,58 @@ import { useState, useMemo } from 'react';
 import { useQuizStore } from '@/hooks/useQuizStore';
 import { QUESTION_TYPE_LABELS, type Question } from '@/utils/api';
 import { exportToTxt, exportToJson } from '@/utils/exportUtils';
+import { useRipple } from '@/hooks/useRipple';
 import { Search, Download, Trash2, Edit3, Check, X } from 'lucide-react';
 
 export default function QuizTable() {
   const { quizBank, removeFromQuizBank, updateQuizRecord } = useQuizStore();
   const [searchText, setSearchText] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterDifficulty, setFilterDifficulty] = useState('');
-  const [filterTag, setFilterTag] = useState('');
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  const [filterDifficulties, setFilterDifficulties] = useState<number[]>([]);
+  const [filterTags, setFilterTags] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Partial<Question>>({});
+
+  const txtRipple = useRipple('export-txt-btn');
+  const jsonRipple = useRipple('export-json-btn');
+  const clearRipple = useRipple('clear-filters-btn');
 
   const filtered = useMemo(() => {
     const records = quizBank.filter((r) => {
       const q = r.question;
-      if (searchText && !q.stem.includes(searchText)) return false;
-      if (filterType && q.type !== filterType) return false;
-      if (filterDifficulty && q.difficulty !== Number(filterDifficulty)) return false;
-      if (filterTag && q.knowledge_tag !== filterTag) return false;
+      if (searchText && !q.stem.includes(searchText) && !q.knowledge_tag.includes(searchText)) return false;
+      if (filterTypes.length > 0 && !filterTypes.includes(q.type)) return false;
+      if (filterDifficulties.length > 0 && !filterDifficulties.includes(q.difficulty)) return false;
+      if (filterTags.length > 0 && !filterTags.includes(q.knowledge_tag)) return false;
       return true;
     });
     return records;
-  }, [quizBank, searchText, filterType, filterDifficulty, filterTag]);
+  }, [quizBank, searchText, filterTypes, filterDifficulties, filterTags]);
 
   const uniqueTags = useMemo(() => {
     const tags = new Set(quizBank.map((r) => r.question.knowledge_tag).filter(Boolean));
     return Array.from(tags);
   }, [quizBank]);
+
+  const toggleType = (type: string) => {
+    setFilterTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
+  };
+
+  const toggleDifficulty = (d: number) => {
+    setFilterDifficulties((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
+  };
+
+  const toggleTag = (tag: string) => {
+    setFilterTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  };
+
+  const clearFilters = (e: React.MouseEvent<HTMLButtonElement>) => {
+    clearRipple.onClick(e);
+    setFilterTypes([]);
+    setFilterDifficulties([]);
+    setFilterTags([]);
+    setSearchText('');
+  };
 
   const startEdit = (id: string, question: Question) => {
     setEditingId(id);
@@ -48,7 +73,17 @@ export default function QuizTable() {
     setEditData({});
   };
 
-  const selectedIds = filtered.map((r) => r.id);
+  const hasActiveFilters = filterTypes.length > 0 || filterDifficulties.length > 0 || filterTags.length > 0;
+
+  const handleTxtExport = (e: React.MouseEvent<HTMLButtonElement>) => {
+    txtRipple.onClick(e);
+    exportToTxt(filtered);
+  };
+
+  const handleJsonExport = (e: React.MouseEvent<HTMLButtonElement>) => {
+    jsonRipple.onClick(e);
+    exportToJson(filtered);
+  };
 
   return (
     <div className="quiz-table-wrapper">
@@ -57,51 +92,93 @@ export default function QuizTable() {
           <Search size={16} className="search-icon" />
           <input
             type="text"
-            placeholder="搜索题干..."
+            placeholder="搜索题干或知识点..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             className="search-input"
           />
         </div>
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="filter-select"
-        >
-          <option value="">全部题型</option>
-          {Object.entries(QUESTION_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-        <select
-          value={filterDifficulty}
-          onChange={(e) => setFilterDifficulty(e.target.value)}
-          className="filter-select"
-        >
-          <option value="">全部难度</option>
-          {[1, 2, 3, 4, 5].map((d) => (
-            <option key={d} value={d}>难度 {d}</option>
-          ))}
-        </select>
-        <select
-          value={filterTag}
-          onChange={(e) => setFilterTag(e.target.value)}
-          className="filter-select"
-        >
-          <option value="">全部知识点</option>
-          {uniqueTags.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
+        {hasActiveFilters && (
+          <button
+            className="clear-filters-btn ripple-container"
+            onClick={clearFilters}
+          >
+            清除筛选
+            {clearRipple.rippleElements}
+          </button>
+        )}
+      </div>
+
+      <div className="filter-chips-row">
+        <div className="filter-group">
+          <span className="filter-label">题型:</span>
+          <div className="filter-chips">
+            {Object.entries(QUESTION_TYPE_LABELS).map(([k, v]) => (
+              <button
+                key={k}
+                className={`filter-chip ripple-container ${filterTypes.includes(k) ? 'chip-active' : ''}`}
+                onClick={() => toggleType(k)}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="filter-group">
+          <span className="filter-label">难度:</span>
+          <div className="filter-chips">
+            {[1, 2, 3, 4, 5].map((d) => (
+              <button
+                key={d}
+                className={`filter-chip ripple-container ${filterDifficulties.includes(d) ? 'chip-active' : ''}`}
+                onClick={() => toggleDifficulty(d)}
+              >
+                {d}级
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {uniqueTags.length > 0 && (
+          <div className="filter-group">
+            <span className="filter-label">知识点:</span>
+            <div className="filter-chips">
+              {uniqueTags.map((t) => (
+                <button
+                  key={t}
+                  className={`filter-chip ripple-container ${filterTags.includes(t) ? 'chip-active' : ''}`}
+                  onClick={() => toggleTag(t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="export-row">
         <div className="export-group">
-          <button className="export-btn" onClick={() => exportToTxt(filtered)}>
+          <button
+            className="export-btn ripple-container"
+            onClick={handleTxtExport}
+          >
             <Download size={14} />
             导出TXT
+            {txtRipple.rippleElements}
           </button>
-          <button className="export-btn" onClick={() => exportToJson(filtered)}>
+          <button
+            className="export-btn ripple-container"
+            onClick={handleJsonExport}
+          >
             <Download size={14} />
             导出JSON
+            {jsonRipple.rippleElements}
           </button>
+        </div>
+        <div className="filter-info">
+          筛选后 {filtered.length} / 共 {quizBank.length} 条
         </div>
       </div>
 
@@ -122,7 +199,9 @@ export default function QuizTable() {
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="empty-cell">
-                  暂无题目，请先生成并收藏题目
+                  {quizBank.length === 0
+                    ? '暂无题目，请先生成并收藏题目'
+                    : '没有符合筛选条件的题目'}
                 </td>
               </tr>
             ) : (
@@ -188,10 +267,6 @@ export default function QuizTable() {
             )}
           </tbody>
         </table>
-      </div>
-
-      <div className="table-footer">
-        共 {selectedIds.length} 条记录
       </div>
     </div>
   );

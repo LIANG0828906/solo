@@ -2,9 +2,28 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 30000,
+  timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+async function retryRequest<T>(
+  requestFn: () => Promise<T>,
+  maxRetries: number = 3,
+  delay: number = 500
+): Promise<T> {
+  let lastError: unknown;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      lastError = error;
+      if (i < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delay * (i + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
 
 export interface Question {
   id: string;
@@ -43,8 +62,10 @@ export interface PracticeResult {
 }
 
 export async function generateQuestions(req: GenerateRequest): Promise<GenerateResponse> {
-  const { data } = await api.post<GenerateResponse>('/generate', req);
-  return data;
+  return retryRequest(async () => {
+    const { data } = await api.post<GenerateResponse>('/generate', req, { timeout: 10000 });
+    return data;
+  });
 }
 
 export async function getQuizRecords(): Promise<QuizRecord[]> {
