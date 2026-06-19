@@ -12,12 +12,10 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   BarChart,
   Bar,
   Cell,
-  ReferenceLine,
 } from 'recharts';
 import { format } from 'date-fns';
 
@@ -117,7 +115,7 @@ const COLOR_B_LIGHT = '#448aff';
 const TestDashboard: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { abTests, setCurrentPromotion } = usePromotionStore();
+  const { abTests } = usePromotionStore();
 
   const [selectedTest, setSelectedTest] = useState<ABTest | null>(null);
   const [realtimeStats, setRealtimeStats] = useState<any>(null);

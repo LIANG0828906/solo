@@ -4,6 +4,7 @@ import { useStore } from '../store';
 import RippleButton from './RippleButton';
 import type { PromotionType, DiscountConfig, FullReductionConfig, GiftConfig } from '../types';
 import { format } from 'date-fns';
+import { CATEGORIES, DATE_FORMAT } from '../constants';
 
 interface FormData {
   name: string;
@@ -24,15 +25,8 @@ interface FormErrors {
   categories?: string;
 }
 
-const CATEGORIES = ['电子产品', '服装', '食品', '家居', '美妆', '图书', '运动', '其他'];
-
 const formatDateTimeLocal = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  return format(date, "yyyy-MM-dd'T'HH:mm");
 };
 
 const parseDateTimeLocal = (dateStr: string): Date => {
@@ -54,7 +48,7 @@ const setMinutesToTime = (datetimeStr: string, totalMinutes: number): string => 
 
 const formatDisplayDate = (dateStr: string): string => {
   try {
-    return format(parseDateTimeLocal(dateStr), 'yyyy-MM-dd HH:mm');
+    return format(parseDateTimeLocal(dateStr), DATE_FORMAT.DATETIME);
   } catch {
     return dateStr;
   }

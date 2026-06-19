@@ -1,9 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { isAfter, isBefore, parseISO } from 'date-fns';
+import { isAfter, isBefore, parseISO, format } from 'date-fns';
 import type { Promotion, PromotionType } from '../types';
-import { format } from 'date-fns';
 import RippleButton from './RippleButton';
+import { PROMOTION_TYPE_CONFIG, TIME_STATUS_CONFIG, DATE_FORMAT, type TimeStatus } from '../constants';
 
 interface ActivityCardProps {
   promotion: Promotion;
@@ -13,32 +13,6 @@ interface ActivityCardProps {
   style?: React.CSSProperties;
   index?: number;
 }
-
-type TimeStatus = 'NOT_STARTED' | 'ONGOING' | 'ENDED';
-
-const getTypeConfig = (type: PromotionType) => {
-  switch (type) {
-    case 'DISCOUNT':
-      return { label: '折扣', color: '#2962ff', bgColor: 'rgba(41, 98, 255, 0.15)' };
-    case 'FULL_REDUCTION':
-      return { label: '满减', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)' };
-    case 'GIFT':
-      return { label: '赠品', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)' };
-    default:
-      return { label: '未知', color: '#6b7280', bgColor: 'rgba(107, 114, 128, 0.15)' };
-  }
-};
-
-const getTimeStatusConfig = (status: TimeStatus) => {
-  switch (status) {
-    case 'ONGOING':
-      return { label: '进行中', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.15)', dot: '#10b981' };
-    case 'NOT_STARTED':
-      return { label: '未开始', color: '#6b7280', bgColor: 'rgba(107, 114, 128, 0.15)', dot: '#6b7280' };
-    case 'ENDED':
-      return { label: '已结束', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)', dot: '#ef4444' };
-  }
-};
 
 const calculateTimeStatus = (startTime: string, endTime: string): TimeStatus => {
   const now = new Date();
@@ -54,6 +28,14 @@ const calculateTimeStatus = (startTime: string, endTime: string): TimeStatus => 
   return 'ONGOING';
 };
 
+const formatDateTime = (dateStr: string): string => {
+  try {
+    return format(parseISO(dateStr), DATE_FORMAT.DATETIME);
+  } catch {
+    return dateStr;
+  }
+};
+
 const getConfigDisplay = (promotion: Promotion): string => {
   switch (promotion.type) {
     case 'DISCOUNT':
@@ -66,6 +48,10 @@ const getConfigDisplay = (promotion: Promotion): string => {
       return '-';
   }
 };
+
+const getTypeConfig = (type: PromotionType) => PROMOTION_TYPE_CONFIG[type];
+
+const getTimeStatusConfig = (status: TimeStatus) => TIME_STATUS_CONFIG[status];
 
 const ActivityCard = React.memo<ActivityCardProps>(({
   promotion,
@@ -80,14 +66,6 @@ const ActivityCard = React.memo<ActivityCardProps>(({
   const timeStatus = calculateTimeStatus(promotion.startTime, promotion.endTime);
   const timeStatusConfig = getTimeStatusConfig(timeStatus);
   const isPaused = promotion.status === 'INACTIVE';
-
-  const formatDateTime = (dateStr: string) => {
-    try {
-      return format(parseISO(dateStr), 'yyyy-MM-dd HH:mm');
-    } catch {
-      return dateStr;
-    }
-  };
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -128,31 +106,15 @@ const ActivityCard = React.memo<ActivityCardProps>(({
         </div>
       )}
 
-      <div style={styles.statusBadgeTopRight}>
-        <span
-          style={{
-            ...styles.statusDot,
-            backgroundColor: timeStatusConfig.dot,
-          }}
-        />
-        <span
-          style={{
-            ...styles.statusBadgeText,
-            color: timeStatusConfig.color,
-          }}
-        >
-          {timeStatusConfig.label}
-        </span>
+      <div className={`status-badge ${timeStatusConfig.className}`} style={styles.statusBadgeTopRight}>
+        <span className="status-dot" />
+        <span>{timeStatusConfig.label}</span>
       </div>
 
       <div style={styles.cardHeader}>
         <h3 style={styles.title}>{promotion.name}</h3>
         <div style={styles.typeBadgeContainer}>
-          <span style={{
-            ...styles.typeBadge,
-            color: typeConfig.color,
-            backgroundColor: typeConfig.bgColor,
-          }}>
+          <span className={`promotion-type-badge ${typeConfig.className}`}>
             {typeConfig.label}
           </span>
         </div>
@@ -267,22 +229,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'absolute',
     top: '12px',
     right: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '4px 10px',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderRadius: '9999px',
     zIndex: 5,
-  },
-  statusDot: {
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%',
-  },
-  statusBadgeText: {
-    fontSize: '11px',
-    fontWeight: 600,
   },
   cardHeader: {
     display: 'flex',
@@ -305,12 +252,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   typeBadgeContainer: {
     flexShrink: 0,
-  },
-  typeBadge: {
-    padding: '4px 12px',
-    borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: 600,
   },
   cardBody: {
     display: 'flex',

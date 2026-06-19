@@ -39,6 +39,8 @@ interface StoreState {
   setSearchTerm: (term: string) => void;
   setTypeFilter: (type: PromotionType | 'ALL') => void;
   setStatusFilter: (status: PromotionStatus | 'ALL') => void;
+  togglePromotionLocal: (id: string) => void;
+  deletePromotionLocal: (id: string) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -187,7 +189,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ promotions: data, loading: false });
   },
 
-  togglePromotionLocal: (id) => set((state) => ({
+  togglePromotionLocal: (id: string) => set((state) => ({
     promotions: state.promotions.map(p =>
       p.id === id
         ? { ...p, status: p.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' as PromotionStatus }
@@ -195,7 +197,7 @@ export const useStore = create<StoreState>((set, get) => ({
     )
   })),
 
-  deletePromotionLocal: (id) => set((state) => ({
+  deletePromotionLocal: (id: string) => set((state) => ({
     promotions: state.promotions.filter(p => p.id !== id)
   })),
 }));

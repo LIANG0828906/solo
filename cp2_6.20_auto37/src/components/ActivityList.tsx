@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Grid } from 'react-window';
 import type { Promotion, PromotionType, PromotionStatus } from '../types';
 import ActivityCard from './ActivityCard';
 import { usePromotionStore, useFilteredPromotions } from '../store';
@@ -9,13 +8,13 @@ const CARD_HEIGHT = 280;
 const GAP = 16;
 
 const getGridConfig = (width: number) => {
-  if (width >= 1024) return { columns: 3, cardWidth: (width - GAP * 4) / 3 };
-  if (width >= 768) return { columns: 2, cardWidth: (width - GAP * 3) / 2 };
-  return { columns: 1, cardWidth: width - GAP * 2 };
+  if (width >= 1024) return { columns: 3 };
+  if (width >= 768) return { columns: 2 };
+  return { columns: 1 };
 };
 
-const SkeletonCard: React.FC<{ style?: React.CSSProperties }> = ({ style }) => (
-  <div style={{ ...styles.skeletonCard, ...style }}>
+const SkeletonCard: React.FC = () => (
+  <div style={styles.skeletonCard}>
     <div style={styles.skeletonHeader}>
       <div style={styles.skeletonTitle} />
       <div style={styles.skeletonBadge} />
@@ -35,51 +34,6 @@ const SkeletonCard: React.FC<{ style?: React.CSSProperties }> = ({ style }) => (
     </div>
   </div>
 );
-
-interface CellData {
-  promotions: Promotion[];
-  columns: number;
-  cardWidth: number;
-  onToggle: (id: string) => void;
-  onEdit: (promotion: Promotion) => void;
-  onDelete: (id: string) => void;
-}
-
-interface CellProps {
-  columnIndex: number;
-  rowIndex: number;
-  style: React.CSSProperties;
-  data: CellData;
-}
-
-const Cell: React.FC<CellProps> = ({ columnIndex, rowIndex, style, data }) => {
-  const { promotions, columns, cardWidth, onToggle, onEdit, onDelete } = data;
-  const index = rowIndex * columns + columnIndex;
-
-  if (index >= promotions.length) {
-    return null;
-  }
-
-  const promotion = promotions[index];
-  const cardStyle = {
-    ...style,
-    width: cardWidth,
-    height: CARD_HEIGHT,
-    left: (style.left as number) + GAP,
-    top: (style.top as number) + GAP,
-  };
-
-  return (
-    <ActivityCard
-      promotion={promotion}
-      onToggle={onToggle}
-      onEdit={onEdit}
-      onDelete={onDelete}
-      style={cardStyle}
-      index={index}
-    />
-  );
-};
 
 const ActivityList: React.FC = () => {
   const navigate = useNavigate();
@@ -117,13 +71,10 @@ const ActivityList: React.FC = () => {
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
-  const { columns, cardWidth } = useMemo(
+  const { columns } = useMemo(
     () => getGridConfig(containerWidth),
     [containerWidth]
   );
-
-  const rowCount = Math.ceil(filteredPromotions.length / columns);
-  const gridHeight = Math.min(rowCount * (CARD_HEIGHT + GAP) + GAP, 800);
 
   const handleToggle = useCallback((id: string) => {
     togglePromotionLocal(id);
@@ -154,15 +105,6 @@ const ActivityList: React.FC = () => {
     { value: 'EXPIRED', label: '已过期' },
     { value: 'DRAFT', label: '草稿' },
   ];
-
-  const gridData = useMemo(() => ({
-    promotions: filteredPromotions,
-    columns,
-    cardWidth,
-    onToggle: handleToggle,
-    onEdit: handleEdit,
-    onDelete: handleDelete,
-  }), [filteredPromotions, columns, cardWidth, handleToggle, handleEdit, handleDelete]);
 
   return (
     <div style={styles.container}>
@@ -212,43 +154,43 @@ const ActivityList: React.FC = () => {
 
       <div ref={containerRef} style={styles.gridContainer}>
         {loading ? (
-          <div style={styles.skeletonGrid}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <SkeletonCard
-                key={i}
+          <div
+            style={{
+              ...styles.grid,
+              gridTemplateColumns: `repeat(${columns}, 1fr)`,
+            }}
+          >
+            {Array.from({ length: Math.min(6, columns * 2) }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : filteredPromotions.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">📋</div>
+            <h3 className="empty-state-title">暂无活动</h3>
+            <p className="empty-state-text">点击"创建活动"来开始您的第一个促销活动</p>
+          </div>
+        ) : (
+          <div
+            style={{
+              ...styles.grid,
+              gridTemplateColumns: `repeat(${columns}, 1fr)`,
+            }}
+          >
+            {filteredPromotions.map((promotion, index) => (
+              <ActivityCard
+                key={promotion.id}
+                promotion={promotion}
+                onToggle={handleToggle}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                index={index}
                 style={{
-                  width: cardWidth,
-                  height: CARD_HEIGHT,
+                  animationDelay: `${index * 0.03}s`,
                 }}
               />
             ))}
           </div>
-        ) : filteredPromotions.length === 0 ? (
-          <div style={styles.emptyState}>
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={styles.emptyIcon}>
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="M3 9h18" />
-              <path d="M9 21V9" />
-            </svg>
-            <p style={styles.emptyText}>暂无活动数据</p>
-          </div>
-        ) : (
-          <Grid
-            columnCount={columns}
-            columnWidth={() => cardWidth + GAP}
-            height={gridHeight}
-            rowCount={rowCount}
-            rowHeight={() => CARD_HEIGHT + GAP}
-            width={containerWidth}
-            itemData={gridData}
-            itemKey={({ columnIndex, rowIndex, data }: { columnIndex: number; rowIndex: number; data: CellData }) => {
-              const index = rowIndex * data.columns + columnIndex;
-              return data.promotions[index]?.id || `empty-${rowIndex}-${columnIndex}`;
-            }}
-            style={{ overflowX: 'hidden' }}
-          >
-            {Cell}
-          </Grid>
         )}
       </div>
     </div>
@@ -321,9 +263,8 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'relative',
     minHeight: '400px',
   },
-  skeletonGrid: {
+  grid: {
     display: 'grid',
-    gridTemplateColumns: `repeat(auto-fill, minmax(300px, 1fr))`,
     gap: `${GAP}px`,
     padding: `${GAP / 2}px`,
   },
@@ -335,6 +276,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
+    minHeight: CARD_HEIGHT,
   },
   skeletonHeader: {
     display: 'flex',
@@ -388,22 +330,6 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%)',
     backgroundSize: '200% 100%',
     animation: 'shimmer 1.5s infinite',
-  },
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '80px 20px',
-    gap: '16px',
-  },
-  emptyIcon: {
-    color: 'rgba(255, 255, 255, 0.3)',
-  },
-  emptyText: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: '16px',
-    margin: 0,
   },
 };
 
