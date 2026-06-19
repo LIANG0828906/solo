@@ -5,6 +5,7 @@ import MoodCard from './MoodCard';
 interface MoodCardGroupProps {
   date: string;
   moods: MoodData[];
+  animationIndex?: number;
 }
 
 const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
@@ -30,7 +31,7 @@ const rgbToHex = (r: number, g: number, b: number): string => {
   );
 };
 
-const MoodCardGroup: React.FC<MoodCardGroupProps> = ({ date, moods }) => {
+const MoodCardGroup: React.FC<MoodCardGroupProps> = ({ date, moods, animationIndex = 0 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
 
@@ -67,6 +68,8 @@ const MoodCardGroup: React.FC<MoodCardGroupProps> = ({ date, moods }) => {
   return (
     <div
       style={{
+        opacity: 0,
+        animation: `slideInLeft 0.5s ease-out ${animationIndex * 0.08}s forwards`,
         background: 'white',
         borderRadius: '20px',
         overflow: 'hidden',
