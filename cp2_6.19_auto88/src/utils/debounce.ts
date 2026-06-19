@@ -1,4 +1,4 @@
-export function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(
+export default function debounce<T extends (...args: Parameters<T>) => ReturnType<T>>(
   func: T,
   wait: number,
   immediate = false

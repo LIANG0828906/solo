@@ -142,6 +142,17 @@ export async function put<T extends DataType>(storeName: StoreType, data: T): Pr
   return result as string;
 }
 
+export async function update<T extends DataType>(storeName: StoreType, id: string, data: Partial<T>): Promise<T | undefined> {
+  const store = await getStore(storeName, 'readwrite');
+  const existing = await promisifyRequest(store.get(id));
+  if (!existing) {
+    return undefined;
+  }
+  const updated = { ...existing, ...data } as T;
+  await promisifyRequest(store.put(updated));
+  return updated;
+}
+
 export async function remove(storeName: StoreType, id: string): Promise<void> {
   const store = await getStore(storeName, 'readwrite');
   await promisifyRequest(store.delete(id));
