@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { MindNode, User } from '../services/api';
 import { MindMapSocket } from '../services/websocket';
 
@@ -23,13 +23,29 @@ interface DragState {
   nodeStartY: number;
   offsetX: number;
   offsetY: number;
+  ghostX: number;
+  ghostY: number;
+}
+
+interface RichTextState {
+  bold: boolean;
+  italic: boolean;
+  list: boolean;
 }
 
 const NODE_WIDTH = 160;
 const NODE_HEIGHT = 48;
 const EDGE_SCROLL_THRESHOLD = 50;
 const EDGE_SCROLL_SPEED = 8;
-const BOUNCE_DURATION = 300;
+const SPRING_DURATION = 400;
+
+const colorList: { key: string; value: string; label: string }[] = [
+  { key: 'red', value: '#ff4757', label: '红色' },
+  { key: 'blue', value: '#3742fa', label: '蓝色' },
+  { key: 'green', value: '#2ed573', label: '绿色' },
+  { key: 'yellow', value: '#ffa502', label: '黄色' },
+  { key: 'purple', value: '#a55eea', label: '紫色' },
+];
 
 const colorMap: Record<string, string> = {
   red: '#ff4757',
@@ -88,19 +104,34 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const editToolbarRef = useRef<HTMLDivElement>(null);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [offsetStart, setOffsetStart] = useState({ x: 0, y: 0 });
+
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [hoverDropTargetId, setHoverDropTargetId] = useState<string | null>(null);
   const [dragLabelPos, setDragLabelPos] = useState({ x: 0, y: 0 });
-  const [bouncingNodeIds, setBouncingNodeIds] = useState<Set<string>>(new Set());
+  const [springAnimatingNodeIds, setSpringAnimatingNodeIds] = useState<Set<string>>(new Set());
+  const [animatingFromPos, setAnimatingFromPos] = useState<Map<string, { x: number; y: number }>>(new Map());
+
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [editRichText, setEditRichText] = useState<RichTextState>({ bold: false, italic: false, list: false });
+  const [showRichToolbar, setShowRichToolbar] = useState(false);
+  const [toolbarPos, setToolbarPos] = useState({ x: 0, y: 0 });
+
+  const [colorPickerNodeId, setColorPickerNodeId] = useState<string | null>(null);
+  const [colorPickerPos, setColorPickerPos] = useState({ x: 0, y: 0 });
+
   const edgeScrollRef = useRef<number | null>(null);
   const dragNodeRef = useRef<MindNode | null>(null);
+  const dragVelocityRef = useRef({ vx: 0, vy: 0 });
+  const lastMousePosRef = useRef({ x: 0, y: 0 });
 
   const flatNodes = useMemo(() => flattenNodes(nodes), [nodes]);
   const nodeMap = useMemo(() => {
@@ -110,7 +141,6 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
   }, [flatNodes]);
 
   const generateId = () => `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
   const getNodeById = (id: string): MindNode | undefined => nodeMap.get(id);
 
   const screenToCanvas = (clientX: number, clientY: number) => {
@@ -143,8 +173,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
     const targetNode = target as MindNode | null;
     if (targetNode) {
-      const draggingNode = getNodeById(draggingNodeId);
-      if (draggingNode && isDescendant(draggingNodeId, targetNode.id)) {
+      if (isDescendant(draggingNodeId, targetNode.id)) {
         return null;
       }
     }
@@ -195,18 +224,14 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
         setDragState((prev) => {
           if (!prev) return prev;
-          const newNodeX = prev.nodeStartX + dx / scale;
-          const newNodeY = prev.nodeStartY + dy / scale;
-          return {
-            ...prev,
-            nodeStartX: newNodeX,
-            nodeStartY: newNodeY,
-          };
+          const newGhostX = prev.ghostX + dx / scale;
+          const newGhostY = prev.ghostY + dy / scale;
+          return { ...prev, ghostX: newGhostX, ghostY: newGhostY };
         });
 
         const canvasPos = {
-          x: dragState.nodeStartX + (dragState.offsetX + dx) / scale,
-          y: dragState.nodeStartY + (dragState.offsetY + dy) / scale,
+          x: dragState.ghostX + dragState.offsetX + dx / scale,
+          y: dragState.ghostY + dragState.offsetY + dy / scale,
         };
         const dropTarget = findDropTarget(canvasPos.x, canvasPos.y, dragState.nodeId);
         setHoverDropTargetId(dropTarget?.id || null);
@@ -226,7 +251,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent, node: MindNode) => {
-    if (historyMode || editingNodeId) return;
+    if (historyMode || editingNodeId || colorPickerNodeId) return;
     e.stopPropagation();
     onNodeSelect(node.id);
 
@@ -240,8 +265,12 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
       nodeStartY: node.y,
       offsetX: canvasPos.x - node.x,
       offsetY: canvasPos.y - node.y,
+      ghostX: node.x,
+      ghostY: node.y,
     });
     dragNodeRef.current = node;
+    dragVelocityRef.current = { vx: 0, vy: 0 };
+    lastMousePosRef.current = { x: e.clientX, y: e.clientY };
     setDragLabelPos({ x: e.clientX, y: e.clientY });
   };
 
@@ -257,16 +286,25 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
 
       if (dragState.isDragging) {
         const canvasPos = screenToCanvas(e.clientX, e.clientY);
-        const newX = canvasPos.x - dragState.offsetX;
-        const newY = canvasPos.y - dragState.offsetY;
+        const ghostX = canvasPos.x - dragState.offsetX;
+        const ghostY = canvasPos.y - dragState.offsetY;
 
-        updateNodePosition(dragState.nodeId, newX, newY);
+        setDragState((prev) => {
+          if (!prev) return prev;
+          return { ...prev, ghostX, ghostY };
+        });
 
         const dropTarget = findDropTarget(canvasPos.x, canvasPos.y, dragState.nodeId);
         setHoverDropTargetId(dropTarget?.id || null);
 
         setDragLabelPos({ x: e.clientX, y: e.clientY });
         startEdgeScroll(e.clientX, e.clientY);
+
+        dragVelocityRef.current = {
+          vx: e.clientX - lastMousePosRef.current.x,
+          vy: e.clientY - lastMousePosRef.current.y,
+        };
+        lastMousePosRef.current = { x: e.clientX, y: e.clientY };
       }
     } else if (isPanning) {
       const dx = e.clientX - panStart.x;
@@ -283,11 +321,34 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
       const canvasPos = screenToCanvas(e.clientX, e.clientY);
       const dropTarget = findDropTarget(canvasPos.x, canvasPos.y, dragState.nodeId);
 
+      const fromX = dragState.nodeStartX;
+      const fromY = dragState.nodeStartY;
+
+      let finalX = dragState.ghostX;
+      let finalY = dragState.ghostY;
+
       if (dropTarget && dropTarget.id !== dragState.nodeId) {
-        moveNodeToParent(dragState.nodeId, dropTarget.id);
+        const siblings = flatNodes.filter((n) => n.parentId === dropTarget.id);
+        finalX = dropTarget.x + NODE_WIDTH + 60;
+        finalY = dropTarget.y + siblings.length * (NODE_HEIGHT + 20);
+
+        moveNodeToParent(dragState.nodeId, dropTarget.id, finalX, finalY);
+      } else {
+        updateNodePosition(dragState.nodeId, finalX, finalY);
+        if (socket) {
+          const node = getNodeById(dragState.nodeId);
+          if (node) {
+            socket.emitNodeMove({
+              nodeId: dragState.nodeId,
+              newParentId: node.parentId || '',
+              x: finalX,
+              y: finalY,
+            });
+          }
+        }
       }
 
-      triggerBounceAnimation(dragState.nodeId);
+      triggerSpringAnimation(dragState.nodeId, fromX, fromY, finalX, finalY);
       stopEdgeScroll();
     }
 
@@ -297,9 +358,47 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     setIsPanning(false);
   };
 
+  const triggerSpringAnimation = (nodeId: string, fromX: number, fromY: number, toX: number, toY: number) => {
+    setAnimatingFromPos((prev) => {
+      const next = new Map(prev);
+      next.set(nodeId, { x: fromX, y: fromY });
+      return next;
+    });
+    setSpringAnimatingNodeIds((prev) => new Set(prev).add(nodeId));
+
+    requestAnimationFrame(() => {
+      setSpringAnimatingNodeIds((prev) => {
+        const next = new Set(prev);
+        next.delete(nodeId);
+        return next;
+      });
+      setAnimatingFromPos((prev) => {
+        const next = new Map(prev);
+        next.delete(nodeId);
+        return next;
+      });
+    });
+
+    setTimeout(() => {
+      setSpringAnimatingNodeIds((prev) => {
+        const next = new Set(prev);
+        next.delete(nodeId);
+        return next;
+      });
+      setAnimatingFromPos((prev) => {
+        const next = new Map(prev);
+        next.delete(nodeId);
+        return next;
+      });
+    }, SPRING_DURATION);
+  };
+
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (e.target === canvasRef.current || e.target === containerRef.current) {
       onNodeSelect(null);
+      setColorPickerNodeId(null);
+      setEditingNodeId(null);
+      setShowRichToolbar(false);
       setIsPanning(true);
       setPanStart({ x: e.clientX, y: e.clientY });
       setOffsetStart({ ...offset });
@@ -332,34 +431,34 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     onNodesChange(buildTree(newFlatNodes));
   };
 
-  const moveNodeToParent = (nodeId: string, newParentId: string) => {
+  const moveNodeToParent = (nodeId: string, newParentId: string, x: number, y: number) => {
     const newFlatNodes = flatNodes.map((node) =>
-      node.id === nodeId ? { ...node, parentId: newParentId } : node
+      node.id === nodeId ? { ...node, parentId: newParentId, x, y } : node
     );
     onNodesChange(buildTree(newFlatNodes));
 
     if (socket) {
-      const node = getNodeById(nodeId);
-      if (node) {
-        socket.emitNodeMove({
-          nodeId,
-          newParentId,
-          x: node.x,
-          y: node.y,
-        });
-      }
+      socket.emitNodeMove({
+        nodeId,
+        newParentId,
+        x,
+        y,
+      });
     }
   };
 
-  const triggerBounceAnimation = (nodeId: string) => {
-    setBouncingNodeIds((prev) => new Set(prev).add(nodeId));
-    setTimeout(() => {
-      setBouncingNodeIds((prev) => {
-        const next = new Set(prev);
-        next.delete(nodeId);
-        return next;
-      });
-    }, BOUNCE_DURATION);
+  const updateNode = (nodeId: string, updates: Partial<MindNode>) => {
+    const newFlatNodes = flatNodes.map((node) =>
+      node.id === nodeId ? { ...node, ...updates } : node
+    );
+    onNodesChange(buildTree(newFlatNodes));
+
+    if (socket) {
+      const updated = flatNodes.find((n) => n.id === nodeId);
+      if (updated) {
+        socket.emitNodeUpdate({ ...updated, ...updates });
+      }
+    }
   };
 
   const handleDoubleClick = (e: React.MouseEvent) => {
@@ -374,8 +473,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     );
 
     if (clickedNode) {
-      setEditingNodeId(clickedNode.id);
-      setEditText(clickedNode.text);
+      startEditing(clickedNode.id, e.clientX, e.clientY);
     } else if (flatNodes.length === 0) {
       const newNode: MindNode = {
         id: generateId(),
@@ -384,6 +482,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         x: canvasPos.x - NODE_WIDTH / 2,
         y: canvasPos.y - NODE_HEIGHT / 2,
         children: [],
+        richText: { bold: false, italic: false, list: false },
       };
       onNodesChange([...nodes, newNode]);
       if (socket) socket.emitNodeCreate(newNode);
@@ -391,8 +490,36 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     }
   };
 
+  const startEditing = (nodeId: string, clientX: number, clientY: number) => {
+    const node = getNodeById(nodeId);
+    if (!node) return;
+
+    setEditingNodeId(nodeId);
+    setEditText(node.text);
+    setEditRichText({
+      bold: node.richText?.bold || false,
+      italic: node.richText?.italic || false,
+      list: node.richText?.list || false,
+    });
+    setShowRichToolbar(true);
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      setToolbarPos({
+        x: clientX - rect.left,
+        y: node.y * scale + offset.y - 42,
+      });
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (historyMode || !selectedNodeId || editingNodeId) return;
+    if (historyMode) return;
+
+    if (editingNodeId) {
+      return;
+    }
+
+    if (!selectedNodeId) return;
 
     if (e.key === 'Tab') {
       e.preventDefault();
@@ -418,6 +545,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
       x: parent.x + NODE_WIDTH + 60,
       y: parent.y + siblings.length * (NODE_HEIGHT + 20),
       children: [],
+      richText: { bold: false, italic: false, list: false },
     };
 
     onNodesChange(buildTree([...flatNodes, newNode]));
@@ -425,6 +553,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     onNodeSelect(newNode.id);
     setEditingNodeId(newNode.id);
     setEditText('新节点');
+    setEditRichText({ bold: false, italic: false, list: false });
+    setShowRichToolbar(false);
   };
 
   const addSiblingNode = (nodeId: string) => {
@@ -438,6 +568,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
       x: node.x,
       y: node.y + NODE_HEIGHT + 20,
       children: [],
+      richText: { bold: false, italic: false, list: false },
     };
 
     onNodesChange(buildTree([...flatNodes, newNode]));
@@ -445,6 +576,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     onNodeSelect(newNode.id);
     setEditingNodeId(newNode.id);
     setEditText('新节点');
+    setEditRichText({ bold: false, italic: false, list: false });
+    setShowRichToolbar(false);
   };
 
   const deleteNode = (nodeId: string) => {
@@ -463,35 +596,89 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     onNodeSelect(null);
   };
 
-  const handleEditBlur = () => {
+  const finishEditing = () => {
     if (editingNodeId) {
-      const newFlatNodes = flatNodes.map((node) =>
-        node.id === editingNodeId ? { ...node, text: editText } : node
-      );
-      onNodesChange(buildTree(newFlatNodes));
-      if (socket) {
-        const node = getNodeById(editingNodeId);
-        if (node) socket.emitNodeUpdate({ ...node, text: editText });
-      }
+      updateNode(editingNodeId, {
+        text: editText,
+        richText: { ...editRichText },
+      });
       setEditingNodeId(null);
       setEditText('');
+      setShowRichToolbar(false);
+      setEditRichText({ bold: false, italic: false, list: false });
     }
+  };
+
+  const handleEditBlur = () => {
+    setTimeout(() => {
+      if (!colorPickerNodeId) {
+        finishEditing();
+      }
+    }, 150);
   };
 
   const handleEditKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleEditBlur();
+      finishEditing();
     } else if (e.key === 'Escape') {
       setEditingNodeId(null);
       setEditText('');
+      setShowRichToolbar(false);
+      setEditRichText({ bold: false, italic: false, list: false });
     }
+  };
+
+  const toggleRichText = (key: keyof RichTextState) => {
+    setEditRichText((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleColorDotClick = (e: React.MouseEvent, nodeId: string) => {
+    e.stopPropagation();
+    if (historyMode) return;
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      const node = getNodeById(nodeId);
+      if (node) {
+        setColorPickerNodeId(nodeId);
+        setColorPickerPos({
+          x: node.x * scale + offset.x - 10,
+          y: node.y * scale + offset.y + NODE_HEIGHT / 2 - 16,
+        });
+        onNodeSelect(nodeId);
+      }
+    }
+  };
+
+  const selectColor = (colorKey: string) => {
+    if (!colorPickerNodeId) return;
+
+    const color = colorKey === 'none' ? undefined : (colorKey as MindNode['color']);
+    updateNode(colorPickerNodeId, { color });
+
+    setColorPickerNodeId(null);
   };
 
   const truncateText = (text: string, maxLength: number): string => {
     if (text.length <= maxLength) return text;
     return text.slice(0, maxLength) + '...';
   };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
+        setColorPickerNodeId(null);
+      }
+      if (editToolbarRef.current && !editToolbarRef.current.contains(e.target as Node) &&
+          !(e.target as HTMLElement).closest('.mind-map-node textarea')) {
+        // 工具栏外的点击由 handleEditBlur 处理
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const renderConnections = () => {
     const connections: JSX.Element[] = [];
@@ -526,57 +713,65 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
     const isSelected = node.id === selectedNodeId;
     const isHoverDropTarget = node.id === hoverDropTargetId;
     const isDragging = dragState?.isDragging && dragState.nodeId === node.id;
-    const isBouncing = bouncingNodeIds.has(node.id);
+    const isSpringAnimating = springAnimatingNodeIds.has(node.id);
+    const fromPos = animatingFromPos.get(node.id);
     const isEditing = editingNodeId === node.id;
     const isHighlighted = highlightedNodeId === node.id;
+    const showColorPicker = colorPickerNodeId === node.id;
+
+    const displayX = isSpringAnimating && fromPos ? fromPos.x : node.x;
+    const displayY = isSpringAnimating && fromPos ? fromPos.y : node.y;
 
     const nodeStyle: React.CSSProperties = {
       position: 'absolute',
-      left: node.x,
-      top: node.y,
+      left: displayX,
+      top: displayY,
       width: NODE_WIDTH,
       minHeight: NODE_HEIGHT,
       padding: '10px 14px 10px 14px',
-      paddingLeft: node.color ? '18px' : '14px',
+      paddingLeft: '22px',
       background: 'white',
       borderRadius: 8,
       boxShadow: isSelected
         ? '0 0 0 3px #3ebf8f55, 0 2px 8px rgba(0,0,0,0.1)'
-        : '0 2px 8px rgba(0,0,0,0.1)',
-      transform: isSelected ? 'scale(1.02)' : isBouncing ? undefined : 'scale(1)',
-      transition: isBouncing
-        ? 'none'
+        : isHoverDropTarget
+          ? '0 0 0 2px rgba(100, 180, 255, 0.8), 0 2px 8px rgba(0,0,0,0.12)'
+          : '0 2px 8px rgba(0,0,0,0.1)',
+      transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+      transition: isSpringAnimating
+        ? 'left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease-in-out, transform 0.3s ease-in-out, background-color 0.2s ease'
         : 'box-shadow 0.3s ease-in-out, transform 0.3s ease-in-out, background-color 0.2s ease',
       cursor: historyMode ? 'default' : 'move',
       zIndex: isSelected || isDragging ? 100 : isHoverDropTarget ? 50 : 1,
-      opacity: historyMode ? 0.5 : 1,
+      opacity: historyMode ? 0.5 : isDragging ? 0.4 : 1,
       color: historyMode ? '#999' : 'inherit',
-      animation: isBouncing ? 'bounce 0.3s ease-out' : undefined,
       userSelect: 'none',
     };
 
-    const dotStyle: React.CSSProperties = node.color
-      ? {
-          position: 'absolute',
-          left: 6,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: colorMap[node.color],
-        }
-      : {};
+    const dotStyle: React.CSSProperties = {
+      position: 'absolute',
+      left: 8,
+      top: '50%',
+      transform: 'translateY(-50%)',
+      width: 10,
+      height: 10,
+      borderRadius: '50%',
+      background: node.color ? colorMap[node.color] : '#cbd5e0',
+      cursor: historyMode ? 'default' : 'pointer',
+      border: node.color ? '2px solid transparent' : '2px dashed #a0aec0',
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+      zIndex: 2,
+    };
 
     const hoverIndicatorStyle: React.CSSProperties = isHoverDropTarget
       ? {
           position: 'absolute',
-          inset: -4,
+          inset: -6,
           borderRadius: 12,
-          border: '2px dashed rgba(100, 180, 255, 0.7)',
-          background: 'rgba(180, 220, 255, 0.25)',
+          border: '2px solid rgba(100, 180, 255, 0.6)',
+          background: 'rgba(200, 230, 255, 0.25)',
           pointerEvents: 'none',
-          animation: 'pulse 1.5s ease-in-out infinite',
+          animation: 'target-pulse 1s ease-in-out infinite',
         }
       : {};
 
@@ -591,14 +786,12 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         onDoubleClick={(e) => {
           e.stopPropagation();
           if (!historyMode) {
-            setEditingNodeId(node.id);
-            setEditText(node.text);
+            startEditing(node.id, e.clientX, e.clientY);
           }
         }}
         onMouseEnter={() => {
           if (dragState?.isDragging && dragState.nodeId !== node.id) {
-            const draggingNode = dragNodeRef.current;
-            if (draggingNode && !isDescendant(dragState.nodeId, node.id)) {
+            if (!isDescendant(dragState.nodeId, node.id)) {
               setHoverDropTargetId(node.id);
             }
           }
@@ -609,7 +802,12 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
           }
         }}
       >
-        {node.color && <div style={dotStyle} />}
+        <div
+          style={dotStyle}
+          onClick={(e) => handleColorDotClick(e, node.id)}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="color-dot-interactive"
+        />
         {isHoverDropTarget && <div style={hoverIndicatorStyle} />}
         {isEditing ? (
           <textarea
@@ -617,6 +815,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             onChange={(e) => setEditText(e.target.value)}
             onBlur={handleEditBlur}
             onKeyDown={handleEditKeyDown}
+            onFocus={() => setShowRichToolbar(true)}
             autoFocus
             style={{
               width: '100%',
@@ -628,6 +827,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
               fontSize: 14,
               fontFamily: 'inherit',
               color: historyMode ? '#999' : 'inherit',
+              fontWeight: editRichText.bold ? 'bold' : 'normal',
+              fontStyle: editRichText.italic ? 'italic' : 'normal',
             }}
           />
         ) : (
@@ -638,12 +839,16 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
               wordBreak: 'break-word',
               fontWeight: node.richText?.bold ? 'bold' : 'normal',
               fontStyle: node.richText?.italic ? 'italic' : 'normal',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '6px',
             }}
           >
-            {node.text}
+            {node.richText?.list && <span style={{ opacity: 0.6 }}>•</span>}
+            <span style={{ flex: 1 }}>{node.text}</span>
           </span>
         )}
-        {isSelected && !historyMode && (
+        {isSelected && !historyMode && !isEditing && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -669,6 +874,121 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             +
           </button>
         )}
+        {showColorPicker && (
+          <div
+            ref={colorPickerRef}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              left: -10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'white',
+              borderRadius: 8,
+              padding: '8px',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+              zIndex: 1000,
+              display: 'flex',
+              gap: 6,
+              animation: 'fadeIn 0.2s ease-out',
+            }}
+          >
+            {colorList.map((c) => (
+              <button
+                key={c.key}
+                onClick={() => selectColor(c.key)}
+                title={c.label}
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: c.value,
+                  border: node.color === c.key ? '2px solid #1e2a3a' : '2px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s ease',
+                  padding: 0,
+                }}
+                onMouseEnter={(e) => {
+                  (e.target as HTMLButtonElement).style.transform = 'scale(1.2)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.target as HTMLButtonElement).style.transform = 'scale(1)';
+                }}
+              />
+            ))}
+            <button
+              onClick={() => selectColor('none')}
+              title="清除颜色"
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                background: 'white',
+                border: '2px dashed #cbd5e0',
+                cursor: 'pointer',
+                fontSize: 10,
+                lineHeight: '16px',
+                padding: 0,
+                color: '#a0aec0',
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderGhostNode = () => {
+    if (!dragState?.isDragging || !dragNodeRef.current) return null;
+
+    const node = dragNodeRef.current;
+    const ghostStyle: React.CSSProperties = {
+      position: 'absolute',
+      left: dragState.ghostX,
+      top: dragState.ghostY,
+      width: NODE_WIDTH,
+      minHeight: NODE_HEIGHT,
+      padding: '10px 14px 10px 22px',
+      background: 'rgba(255, 255, 255, 0.7)',
+      borderRadius: 8,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+      border: '2px dashed #3ebf8f',
+      pointerEvents: 'none',
+      zIndex: 200,
+      opacity: 0.7,
+    };
+
+    return (
+      <div style={ghostStyle}>
+        {node.color && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 8,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: colorMap[node.color],
+            }}
+          />
+        )}
+        <span
+          style={{
+            fontSize: 14,
+            lineHeight: 1.4,
+            wordBreak: 'break-word',
+            fontWeight: node.richText?.bold ? 'bold' : 'normal',
+            fontStyle: node.richText?.italic ? 'italic' : 'normal',
+            color: '#4a5568',
+          }}
+        >
+          {node.text}
+        </span>
       </div>
     );
   };
@@ -676,10 +996,10 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
   const dragLabelStyle: React.CSSProperties = dragState?.isDragging
     ? {
         position: 'fixed',
-        left: dragLabelPos.x + 15,
-        top: dragLabelPos.y + 15,
+        left: dragLabelPos.x + 18,
+        top: dragLabelPos.y + 18,
         padding: '6px 12px',
-        background: 'rgba(30, 42, 58, 0.9)',
+        background: 'rgba(30, 42, 58, 0.92)',
         color: 'white',
         fontSize: 12,
         borderRadius: 6,
@@ -689,7 +1009,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
       }
     : { display: 'none' };
 
@@ -700,7 +1020,7 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
         top: (getNodeById(hoverDropTargetId)?.y || 0) + NODE_HEIGHT / 2 - 16,
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
-        background: 'rgba(62, 191, 143, 0.15)',
+        background: 'rgba(62, 191, 143, 0.12)',
         border: '2px dashed #3ebf8f',
         borderRadius: 8,
         pointerEvents: 'none',
@@ -796,6 +1116,8 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
             {flatNodes.map((node) => renderNode(node))}
           </div>
 
+          {renderGhostNode()}
+
           <div style={ghostIndicatorStyle} />
         </div>
       </div>
@@ -803,6 +1125,90 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
       {dragState?.isDragging && dragNodeRef.current && (
         <div style={dragLabelStyle}>
           {truncateText(dragNodeRef.current.text, 15)}
+        </div>
+      )}
+
+      {showRichToolbar && editingNodeId && (
+        <div
+          ref={editToolbarRef}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            left: toolbarPos.x - 80,
+            top: toolbarPos.y,
+            background: '#1e2a3a',
+            borderRadius: 8,
+            padding: '6px 8px',
+            display: 'flex',
+            gap: 4,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            zIndex: 1000,
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+        >
+          <button
+            onClick={() => toggleRichText('bold')}
+            className="tool-button"
+            title="加粗"
+            style={{
+              width: 28,
+              height: 28,
+              padding: 0,
+              fontWeight: 'bold',
+              fontSize: 14,
+              background: editRichText.bold ? '#3ebf8f' : 'transparent',
+              color: editRichText.bold ? 'white' : '#e2e8f0',
+              borderRadius: 4,
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            B
+          </button>
+          <button
+            onClick={() => toggleRichText('italic')}
+            className="tool-button"
+            title="斜体"
+            style={{
+              width: 28,
+              height: 28,
+              padding: 0,
+              fontStyle: 'italic',
+              fontSize: 14,
+              background: editRichText.italic ? '#3ebf8f' : 'transparent',
+              color: editRichText.italic ? 'white' : '#e2e8f0',
+              borderRadius: 4,
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            I
+          </button>
+          <div
+            style={{
+              width: 1,
+              background: '#4a5568',
+              margin: '4px 2px',
+            }}
+          />
+          <button
+            onClick={() => toggleRichText('list')}
+            className="tool-button"
+            title="列表"
+            style={{
+              width: 28,
+              height: 28,
+              padding: 0,
+              fontSize: 12,
+              background: editRichText.list ? '#3ebf8f' : 'transparent',
+              color: editRichText.list ? 'white' : '#e2e8f0',
+              borderRadius: 4,
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            •≡
+          </button>
         </div>
       )}
 
@@ -860,17 +1266,24 @@ export const CanvasEngine: React.FC<CanvasEngineProps> = ({
       </div>
 
       <style>{`
-        @keyframes bounce {
-          0% { transform: scale(1); }
-          40% { transform: scale(1.08); }
-          60% { transform: scale(0.97); }
-          80% { transform: scale(1.02); }
-          100% { transform: scale(1); }
+        @keyframes target-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
         }
         
         @keyframes pulse {
           0%, 100% { opacity: 1; }
-          50% { opacity: 0.6; }
+          50% { opacity: 0.5; }
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .color-dot-interactive:hover {
+          transform: translateY(-50%) scale(1.3) !important;
+          box-shadow: 0 0 6px rgba(0,0,0,0.2);
         }
       `}</style>
     </div>
