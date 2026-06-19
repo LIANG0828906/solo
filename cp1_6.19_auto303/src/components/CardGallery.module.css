@@ -1,0 +1,258 @@
+.galleryContainer {
+  width: 100%;
+  margin-top: 32px;
+}
+
+.galleryTitle {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #7C4A3A;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.titleIcon {
+  font-size: 26px;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.card {
+  position: relative;
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(124, 74, 58, 0.08);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(124, 74, 58, 0.15);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.cardName {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: #5A4035;
+  margin: 0;
+  flex: 1;
+  line-height: 1.3;
+}
+
+.pixelIcon {
+  font-size: 36px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.cardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ingredientList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ingredientTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #FDF6F0;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #7C4A3A;
+}
+
+.ingredientTag .emoji {
+  font-size: 14px;
+}
+
+.nutritionSummary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #A08070;
+  padding: 10px 12px;
+  background: #FFFBF5;
+  border-radius: 10px;
+}
+
+.nutritionSummary span strong {
+  color: #7C4A3A;
+  font-weight: 600;
+}
+
+.flavorList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.flavorTag {
+  padding: 3px 10px;
+  background: linear-gradient(135deg, #E8B4B8 0%, #F5E6CC 100%);
+  border-radius: 10px;
+  font-size: 11px;
+  color: #7C4A3A;
+  font-weight: 500;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #F5E6CC;
+}
+
+.averageScore {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #7C4A3A;
+}
+
+.averageScore small {
+  font-size: 12px;
+  font-weight: 400;
+  color: #A08070;
+}
+
+.createdAt {
+  font-size: 11px;
+  color: #C0A090;
+}
+
+.deleteBtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #A08070;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  padding: 0;
+  line-height: 1;
+  z-index: 10;
+}
+
+.card:hover .deleteBtn {
+  opacity: 1;
+}
+
+.deleteBtn:hover {
+  background: #FF6B6B;
+  color: white;
+  transform: scale(1.1);
+}
+
+.radarOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.card:hover .radarOverlay {
+  opacity: 1;
+}
+
+.radarContainer {
+  width: 180px;
+  height: 180px;
+}
+
+.radarSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.emptyGallery {
+  text-align: center;
+  padding: 60px 20px;
+  color: #A08070;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  border: 2px dashed #F5E6CC;
+}
+
+.emptyEmoji {
+  font-size: 56px;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.emptyText {
+  font-size: 16px;
+  margin: 0;
+}
+
+.emptyHint {
+  font-size: 13px;
+  margin-top: 8px;
+  color: #C0A090;
+}
+
+@media (max-width: 1024px) {
+  .cardGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .cardGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .pixelIcon {
+    font-size: 32px;
+  }
+}
