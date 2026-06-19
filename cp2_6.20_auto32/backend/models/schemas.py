@@ -30,6 +30,7 @@ class ScoreBreakdown(BaseModel):
     structure: int
     vocabulary: int
     relevance: int
+    coherence: int
     total: int
 
 

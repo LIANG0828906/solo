@@ -1,3 +1,4 @@
+import re
 import math
 from typing import List
 
@@ -88,21 +89,60 @@ def calculate_relevance_score(content: str, title: str) -> int:
         return 1
 
 
+def calculate_coherence_score(content: str) -> int:
+    if not content:
+        return 1
+
+    paragraphs = [p.strip() for p in re.split(r'\n\s*\n|\n', content) if p.strip()]
+
+    if len(paragraphs) < 2:
+        return 2
+
+    transition_words = [
+        "因此", "所以", "然而", "但是", "不过", "此外", "另外",
+        "同时", "与此同时", "另一方面", "不仅如此", "更重要的是",
+        "首先", "其次", "再次", "最后", "总之", "综上所述",
+        "由此可见", "换言之", "也就是说", "相比之下",
+    ]
+
+    transition_count = 0
+    for para in paragraphs:
+        for word in transition_words:
+            if word in para:
+                transition_count += 1
+
+    transition_ratio = transition_count / len(paragraphs) if paragraphs else 0
+
+    score = 2
+
+    if transition_ratio >= 2:
+        score += 2
+    elif transition_ratio >= 1:
+        score += 1
+
+    if len(paragraphs) >= 3:
+        score += 1
+
+    return min(score, 5)
+
+
 def calculate_total_score(
-    grammar: int, structure: int, vocabulary: int, relevance: int
+    grammar: int, structure: int, vocabulary: int, relevance: int, coherence: int
 ) -> int:
     weights = {
-        "grammar": 0.3,
-        "structure": 0.25,
+        "grammar": 0.25,
+        "structure": 0.2,
         "vocabulary": 0.2,
-        "relevance": 0.25,
+        "relevance": 0.15,
+        "coherence": 0.2,
     }
 
     weighted_sum = (
         grammar * weights["grammar"] +
         structure * weights["structure"] +
         vocabulary * weights["vocabulary"] +
-        relevance * weights["relevance"]
+        relevance * weights["relevance"] +
+        coherence * weights["coherence"]
     )
 
     total = int(round((weighted_sum / 5) * 100))
@@ -119,12 +159,14 @@ def calculate_scores(
     structure_score = calculate_structure_score(structure)
     vocabulary = calculate_vocabulary_score(content)
     relevance = calculate_relevance_score(content, title)
-    total = calculate_total_score(grammar, structure_score, vocabulary, relevance)
+    coherence = calculate_coherence_score(content)
+    total = calculate_total_score(grammar, structure_score, vocabulary, relevance, coherence)
 
     return ScoreBreakdown(
         grammar=grammar,
         structure=structure_score,
         vocabulary=vocabulary,
         relevance=relevance,
+        coherence=coherence,
         total=total,
     )

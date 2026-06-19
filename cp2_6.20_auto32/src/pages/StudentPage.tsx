@@ -1,13 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, History, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Send, AlertCircle } from 'lucide-react';
 import { ErrorHighlighter } from '@/components/ErrorHighlighter';
-import { StructureChart } from '@/components/StructureChart';
+import { StructureChart, analyzeStructureLocally } from '@/components/StructureChart';
 import { ScoreRadar } from '@/components/ScoreRadar';
 import { HistoryTrend } from '@/components/HistoryTrend';
 import { Accordion } from '@/components/Accordion';
 import { essayApi } from '@/services/api';
 import { useEssayStore } from '@/stores/essayStore';
+import { precheckInWorker, terminatePrecheckWorker } from '@/utils/precheckWorker';
 import type { EssaySubmission } from '@/types';
 
 const DEFAULT_ESSAY = `信息技术的发展深刻改变了我们的生活方式。
@@ -23,7 +24,6 @@ export function StudentPage() {
   const [title, setTitle] = useState('我的第一篇作文');
   const [content, setContent] = useState(DEFAULT_ESSAY);
   const [submission, setSubmission] = useState<EssaySubmission | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
 
   const {
     precheckErrors,
@@ -50,8 +50,13 @@ export function StudentPage() {
 
       setIsPrechecking(true);
       try {
-        const errors = await essayApi.precheck(text);
-        setPrecheckErrors(errors);
+        try {
+          const errors = await precheckInWorker(text);
+          setPrecheckErrors(errors);
+        } catch {
+          const errors = await essayApi.precheck(text);
+          setPrecheckErrors(errors);
+        }
       } catch {
         // 预检失败静默处理
       } finally {
@@ -70,7 +75,6 @@ export function StudentPage() {
       setSubmission(result);
       addToHistory(result);
     } catch {
-      // 提交失败，使用 mock 数据演示
       const mockResult = createMockSubmission(title, content);
       setSubmission(mockResult);
       addToHistory(mockResult);
@@ -91,6 +95,10 @@ export function StudentPage() {
       }
     };
     loadHistory();
+
+    return () => {
+      terminatePrecheckWorker();
+    };
   }, [setHistory]);
 
   const errors = submission?.errors || precheckErrors;
@@ -102,13 +110,21 @@ export function StudentPage() {
       id: 'structure',
       title: '文章结构',
       icon: <AlertCircle size={18} />,
-      content: structure ? <StructureChart structure={structure} /> : <EmptyPanel text="提交后查看结构分析" />,
+      content: structure ? (
+        <StructureChart structure={structure} />
+      ) : (
+        <EmptyPanel text="提交后查看结构分析" />
+      ),
       defaultOpen: true,
     },
     {
       id: 'score',
       title: '综合评分',
-      content: scores ? <ScoreRadar scores={scores} /> : <EmptyPanel text="提交后查看评分" />,
+      content: scores ? (
+        <ScoreRadar scores={scores} />
+      ) : (
+        <EmptyPanel text="提交后查看评分" />
+      ),
       defaultOpen: true,
     },
     {
@@ -130,17 +146,9 @@ export function StudentPage() {
           >
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
-
           <h1 className="text-lg font-semibold text-gray-800 flex-1">
             学生端 · 作文批改
           </h1>
-
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors md:hidden"
-          >
-            <History size={20} className="text-gray-600" />
-          </button>
         </div>
       </header>
 
@@ -245,9 +253,14 @@ function createMockSubmission(title: string, content: string): EssaySubmission {
     },
   ].filter((e) => e.offset !== -1);
 
+  const structure = analyzeStructureLocally(content);
+
   const introLen = paragraphs[0]?.length || 0;
   const conclusionLen = paragraphs[paragraphs.length - 1]?.length || 0;
   const bodyLen = totalLength - introLen - conclusionLen;
+
+  const hasTransitionWords = content.includes('同时') || content.includes('然而') || content.includes('总之');
+  const coherenceScore = (hasTransitionWords && paragraphs.length >= 3) ? 4 : 3;
 
   return {
     id: 'mock-' + Date.now(),
@@ -255,7 +268,7 @@ function createMockSubmission(title: string, content: string): EssaySubmission {
     content,
     submittedAt: new Date().toISOString(),
     errors,
-    structure: {
+    structure: structure.hasIntro ? structure : {
       hasIntro: paragraphs.length >= 1,
       hasBody: paragraphs.length >= 3,
       hasConclusion: paragraphs.length >= 2,
@@ -273,7 +286,8 @@ function createMockSubmission(title: string, content: string): EssaySubmission {
       structure: 3,
       vocabulary: 4,
       relevance: 4,
-      total: 78,
+      coherence: coherenceScore,
+      total: 76,
     },
   };
 }

@@ -25,8 +25,17 @@ export interface ScoreBreakdown {
   structure: number;
   vocabulary: number;
   relevance: number;
+  coherence: number;
   total: number;
 }
+
+export const SCORE_DIMENSIONS = [
+  { key: 'grammar', label: '语法' },
+  { key: 'structure', label: '结构' },
+  { key: 'vocabulary', label: '词汇' },
+  { key: 'relevance', label: '内容' },
+  { key: 'coherence', label: '逻辑' },
+] as const;
 
 export interface EssaySubmission {
   id: string;

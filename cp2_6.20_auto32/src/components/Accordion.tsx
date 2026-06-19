@@ -1,6 +1,25 @@
-import { useState, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia(query).matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mql.addEventListener('change', handler);
+    setMatches(mql.matches);
+    return () => mql.removeEventListener('change', handler);
+  }, [query]);
+
+  return matches;
+}
 
 interface AccordionItemProps {
   title: string;
@@ -8,6 +27,7 @@ interface AccordionItemProps {
   defaultOpen?: boolean;
   icon?: ReactNode;
   badge?: string | number;
+  forceMobile?: boolean;
 }
 
 export function AccordionItem({
@@ -16,14 +36,28 @@ export function AccordionItem({
   defaultOpen = false,
   icon,
   badge,
+  forceMobile = false,
 }: AccordionItemProps) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  const shouldCollapse = forceMobile || isMobile;
+
+  useEffect(() => {
+    if (!shouldCollapse) {
+      setIsOpen(true);
+    }
+  }, [shouldCollapse]);
+
+  if (!shouldCollapse) {
+    return <div>{children}</div>;
+  }
 
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors min-h-[44px]"
       >
         {icon && <span className="text-gray-500">{icon}</span>}
         <span className="text-sm font-medium text-gray-800 flex-1 text-left">
@@ -67,7 +101,7 @@ interface AccordionProps {
 
 export function Accordion({ items }: AccordionProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 md:hidden">
       {items.map((item) => (
         <AccordionItem
           key={item.id}
@@ -83,4 +117,5 @@ export function Accordion({ items }: AccordionProps) {
   );
 }
 
+export { useMediaQuery };
 export default Accordion;

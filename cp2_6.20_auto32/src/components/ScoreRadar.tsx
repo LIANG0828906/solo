@@ -8,7 +8,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import type { ScoreBreakdown } from '@/types';
-import { SCORE_COLORS, getScoreLevel } from '@/types';
+import { SCORE_COLORS, SCORE_DIMENSIONS, getScoreLevel } from '@/types';
 
 interface ScoreRadarProps {
   scores: ScoreBreakdown;
@@ -16,26 +16,26 @@ interface ScoreRadarProps {
 
 export function ScoreRadar({ scores }: ScoreRadarProps) {
   const [animatedData, setAnimatedData] = useState(
-    Array(4).fill(0).map(() => ({ subject: '', value: 0 }))
+    SCORE_DIMENSIONS.map((d) => ({ subject: d.label, value: 0, fullMark: 5 }))
   );
   const [showScore, setShowScore] = useState(false);
   const scoreLevel = getScoreLevel(scores.total);
 
-  const radarData = [
-    { subject: '语法', value: scores.grammar, fullMark: 5 },
-    { subject: '结构', value: scores.structure, fullMark: 5 },
-    { subject: '词汇', value: scores.vocabulary, fullMark: 5 },
-    { subject: '内容', value: scores.relevance, fullMark: 5 },
-  ];
+  const radarData = SCORE_DIMENSIONS.map((dim) => ({
+    subject: dim.label,
+    value: scores[dim.key as keyof ScoreBreakdown] as number,
+    fullMark: 5,
+  }));
 
   useEffect(() => {
-    let progress = 0;
+    setShowScore(false);
+
     const duration = 800;
     const startTime = performance.now();
+    let rafId: number;
 
     const animate = (currentTime: number) => {
-      progress = Math.min((currentTime - startTime) / duration, 1);
-
+      const progress = Math.min((currentTime - startTime) / duration, 1);
       const easeOut = 1 - Math.pow(1 - progress, 3);
 
       const animated = radarData.map((item) => ({
@@ -46,16 +46,18 @@ export function ScoreRadar({ scores }: ScoreRadarProps) {
       setAnimatedData(animated);
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        rafId = requestAnimationFrame(animate);
       } else {
         setTimeout(() => setShowScore(true), 200);
       }
     };
 
-    requestAnimationFrame(animate);
-  }, [scores]);
+    rafId = requestAnimationFrame(animate);
 
-  const customDot = false;
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [scores]);
 
   return (
     <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm animate-fade-in">
@@ -65,14 +67,9 @@ export function ScoreRadar({ scores }: ScoreRadarProps) {
       </h3>
 
       <div className="relative">
-        <div className="h-56">
+        <div className="h-56" style={{ willChange: 'transform' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <RadarChart
-              cx="50%"
-              cy="50%"
-              outerRadius="70%"
-              data={animatedData}
-            >
+            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={animatedData}>
               <PolarGrid stroke="#e0e0e0" strokeDasharray="3 3" />
               <PolarAngleAxis
                 dataKey="subject"
@@ -92,7 +89,7 @@ export function ScoreRadar({ scores }: ScoreRadarProps) {
                 fill="#FF7043"
                 fillOpacity={0.3}
                 strokeWidth={2}
-                dot={customDot}
+                dot={false}
                 isAnimationActive={false}
               />
             </RadarChart>
@@ -114,18 +111,13 @@ export function ScoreRadar({ scores }: ScoreRadarProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 mt-4">
-        {[
-          { label: '语法', score: scores.grammar },
-          { label: '结构', score: scores.structure },
-          { label: '词汇', score: scores.vocabulary },
-          { label: '内容', score: scores.relevance },
-        ].map((item) => (
-          <div key={item.label} className="text-center">
+      <div className="grid grid-cols-5 gap-2 mt-4">
+        {SCORE_DIMENSIONS.map((dim) => (
+          <div key={dim.key} className="text-center">
             <div className="text-lg font-semibold text-gray-700">
-              {item.score}
+              {scores[dim.key as keyof ScoreBreakdown] as number}
             </div>
-            <div className="text-xs text-gray-500">{item.label}</div>
+            <div className="text-xs text-gray-500">{dim.label}</div>
           </div>
         ))}
       </div>

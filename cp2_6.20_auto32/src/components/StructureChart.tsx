@@ -91,9 +91,7 @@ export function StructureChart({ structure }: StructureChartProps) {
           <div className="flex items-start gap-2">
             <AlertTriangle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
             <div>
-              <p className="text-sm font-medium text-red-700">
-                结构不完整
-              </p>
+              <p className="text-sm font-medium text-red-700">结构不完整</p>
               <p className="text-xs text-red-600 mt-0.5">
                 缺少：{missingParts.join('、')}
               </p>
@@ -164,6 +162,125 @@ export function StructureChart({ structure }: StructureChartProps) {
       )}
     </div>
   );
+}
+
+export function analyzeStructureLocally(content: string): StructureAnalysis {
+  const paragraphs = content.split(/\n\s*\n|\n/).filter((p) => p.trim().length > 0);
+  const totalLength = content.length;
+
+  if (!paragraphs.length) {
+    return {
+      hasIntro: false, hasBody: false, hasConclusion: false,
+      introPercent: 0, bodyPercent: 0, conclusionPercent: 0,
+      suggestions: ['请输入作文内容'],
+    };
+  }
+
+  const INTRO_KEYWORDS = [
+    '随着', '在当今', '如今', '近年来', '众所周知', '随着科技',
+    '随着社会', '随着经济', '在信息时代', '自古以来', '所谓',
+  ];
+  const BODY_KEYWORDS = [
+    '首先', '其次', '再次', '此外', '另外', '同时', '与此同时',
+    '另一方面', '不仅如此', '更重要的是', '例如', '比如', '具体来说',
+  ];
+  const CONCLUSION_KEYWORDS = [
+    '总之', '综上所述', '由此可见', '总而言之', '概括来说',
+    '归根结底', '因此', '所以', '让我们', '我们应该',
+  ];
+
+  let introEndIndex = 1;
+  let conclusionStartIndex = paragraphs.length - 1;
+
+  for (let i = 0; i < Math.min(paragraphs.length, 3); i++) {
+    const p = paragraphs[i];
+    if (INTRO_KEYWORDS.some((kw) => p.includes(kw))) {
+      introEndIndex = Math.max(introEndIndex, i + 1);
+    }
+  }
+
+  for (let i = paragraphs.length - 1; i >= Math.max(0, paragraphs.length - 3); i--) {
+    const p = paragraphs[i];
+    if (CONCLUSION_KEYWORDS.some((kw) => p.includes(kw))) {
+      conclusionStartIndex = Math.min(conclusionStartIndex, i);
+    }
+  }
+
+  if (conclusionStartIndex <= introEndIndex && paragraphs.length >= 3) {
+    conclusionStartIndex = paragraphs.length - 1;
+  }
+
+  const introParagraphs = paragraphs.slice(0, introEndIndex);
+  const bodyParagraphs = paragraphs.slice(introEndIndex, conclusionStartIndex);
+  const conclusionParagraphs = paragraphs.slice(conclusionStartIndex);
+
+  const introLen = introParagraphs.join('').length;
+  const bodyLen = bodyParagraphs.join('').length;
+  const conclusionLen = conclusionParagraphs.join('').length;
+
+  const hasIntro = introLen > 20 && introParagraphs.some(
+    (p) => INTRO_KEYWORDS.some((kw) => p.includes(kw)) || p.length > 20
+  );
+  const hasBody = bodyLen > 50 && bodyParagraphs.some(
+    (p) => BODY_KEYWORDS.some((kw) => p.includes(kw)) || p.length > 50
+  );
+  const hasConclusion = conclusionLen > 15 && conclusionParagraphs.some(
+    (p) => CONCLUSION_KEYWORDS.some((kw) => p.includes(kw)) || p.length > 15
+  );
+
+  const introPercent = totalLength > 0 ? (introLen / totalLength) * 100 : 0;
+  const bodyPercent = totalLength > 0 ? (bodyLen / totalLength) * 100 : 0;
+  const conclusionPercent = totalLength > 0 ? (conclusionLen / totalLength) * 100 : 0;
+
+  const suggestions = generateStructureSuggestions(
+    hasIntro, hasBody, hasConclusion,
+    introPercent, bodyPercent, conclusionPercent,
+    paragraphs.length
+  );
+
+  return {
+    hasIntro, hasBody, hasConclusion,
+    introPercent: Math.round(introPercent * 10) / 10,
+    bodyPercent: Math.round(bodyPercent * 10) / 10,
+    conclusionPercent: Math.round(conclusionPercent * 10) / 10,
+    suggestions,
+  };
+}
+
+function generateStructureSuggestions(
+  hasIntro: boolean, hasBody: boolean, hasConclusion: boolean,
+  introPct: number, bodyPct: number, conclusionPct: number,
+  paraCount: number
+): string[] {
+  const suggestions: string[] = [];
+
+  if (!hasIntro) {
+    suggestions.push('缺少引言部分，建议在开头使用"随着""近年来"等词引出主题和背景');
+  } else if (introPct > 30) {
+    suggestions.push('引言部分过长，建议精简背景介绍，快速切入主题');
+  }
+
+  if (!hasBody) {
+    suggestions.push('缺少正文主体，建议使用"首先""其次""此外"等词展开论述');
+  } else if (bodyPct < 40 && paraCount >= 3) {
+    suggestions.push('正文内容偏少，建议增加论据和细节描写');
+  }
+
+  if (!hasConclusion) {
+    suggestions.push('缺少结论段，建议使用"总之""综上所述"等词总结全文并升华主题');
+  } else if (conclusionPct > 25) {
+    suggestions.push('结论部分过长，建议简洁收尾');
+  }
+
+  if (paraCount < 3 && paraCount > 0) {
+    suggestions.push(`全文仅有 ${paraCount} 个段落，建议分段论述使结构更清晰`);
+  }
+
+  if (!suggestions.length) {
+    suggestions.push('文章结构完整，各部分比例协调，继续保持！');
+  }
+
+  return suggestions;
 }
 
 export default StructureChart;

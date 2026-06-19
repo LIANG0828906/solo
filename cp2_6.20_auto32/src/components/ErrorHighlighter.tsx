@@ -1,5 +1,6 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import { AlertCircle, Check, X } from 'lucide-react';
 import type { GrammarError, ErrorType } from '@/types';
@@ -22,6 +23,76 @@ interface ErrorPopupState {
   y: number;
 }
 
+interface PosMapping {
+  positions: number[];
+  textOffsets: number[];
+}
+
+function buildPosMapping(doc: ProseMirrorNode): PosMapping {
+  const positions: number[] = [];
+  const textOffsets: number[] = [];
+  let textOffset = 0;
+
+  doc.descendants((node, pos) => {
+    if (node.isText) {
+      positions.push(pos);
+      textOffsets.push(textOffset);
+      textOffset += node.textContent?.length || 0;
+    }
+  });
+
+  return { positions, textOffsets };
+}
+
+function textOffsetToDocPos(mapping: PosMapping, textPos: number): number {
+  const { positions, textOffsets } = mapping;
+
+  for (let i = textOffsets.length - 1; i >= 0; i--) {
+    if (textPos >= textOffsets[i]) {
+      const offsetInNode = textPos - textOffsets[i];
+      return positions[i] + offsetInNode;
+    }
+  }
+
+  return -1;
+}
+
+function applyErrorMarks(
+  editor: ReturnType<typeof useEditor>,
+  errors: GrammarError[]
+) {
+  if (!editor) return;
+
+  editor.chain().unsetAllErrorMarks().run();
+
+  const doc = editor.state.doc;
+  const textContent = editor.getText();
+  const mapping = buildPosMapping(doc);
+
+  const sortedErrors = [...errors].sort((a, b) => a.offset - b.offset);
+  const appliedRanges: Array<{ from: number; to: number }> = [];
+
+  for (const error of sortedErrors) {
+    const textFrom = error.offset;
+    const textTo = error.offset + error.length;
+
+    if (textFrom < 0 || textTo > textContent.length || textFrom >= textTo) continue;
+
+    const docFrom = textOffsetToDocPos(mapping, textFrom);
+    const docTo = textOffsetToDocPos(mapping, textTo);
+
+    if (docFrom === -1 || docTo === -1 || docFrom >= docTo) continue;
+
+    const overlaps = appliedRanges.some(
+      (r) => (docFrom >= r.from && docFrom < r.to) || (docTo > r.from && docTo <= r.to)
+    );
+    if (overlaps) continue;
+
+    editor.commands.setErrorMarkAt(docFrom, docTo, error);
+    appliedRanges.push({ from: docFrom, to: docTo });
+  }
+}
+
 export function ErrorHighlighter({
   content,
   errors,
@@ -31,6 +102,7 @@ export function ErrorHighlighter({
   isPrechecking = false,
 }: ErrorHighlighterProps) {
   const [popup, setPopup] = useState<ErrorPopupState | null>(null);
+  const clickHandlerRef = useRef<((e: Event) => void) | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -41,11 +113,10 @@ export function ErrorHighlighter({
     ],
     content,
     editable,
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      const text = editor.getText();
+    onUpdate: ({ editor: ed }) => {
+      const html = ed.getHTML();
+      const text = ed.getText();
       onChange?.(html, text);
-
       if (onPrecheck) {
         debouncedPrecheck(text);
       }
@@ -61,62 +132,84 @@ export function ErrorHighlighter({
 
   useEffect(() => {
     if (!editor || !editable) return;
-    const currentContent = editor.getText();
-    if (currentContent !== content && content.length > 0) {
+    const currentText = editor.getText();
+    if (currentText !== content && content.length > 0) {
       editor.commands.setContent(content);
     }
   }, [content, editor, editable]);
 
   useEffect(() => {
-    if (!editor || !errors.length) return;
+    if (!editor) return;
 
-    editor.chain().unsetAllErrorMarks().run();
+    if (errors.length > 0) {
+      applyErrorMarks(editor, errors);
+    } else {
+      editor.chain().unsetAllErrorMarks().run();
+    }
 
-    const textContent = editor.getText();
+    if (editor.view) {
+      const dom = editor.view.dom;
 
-    errors.forEach((error) => {
-      const { offset, length } = error;
-      const from = offset;
-      const to = offset + length;
-
-      if (from >= 0 && to <= textContent.length && from < to) {
-        const posMap = buildPosMap(editor.state.doc);
-        const docFrom = textToDocPos(posMap, from);
-        const docTo = textToDocPos(posMap, to);
-
-        if (docFrom !== -1 && docTo !== -1 && docFrom < docTo) {
-          editor.commands.setErrorMarkAt(docFrom, docTo, error);
-        }
+      if (clickHandlerRef.current) {
+        dom.removeEventListener('click', clickHandlerRef.current);
       }
-    });
 
-    addErrorClickHandler(editor, setPopup);
+      const handleClick = (e: Event) => {
+        const target = e.target as HTMLElement;
+        const errorEl = target.closest('.error-mark') as HTMLElement | null;
+
+        if (errorEl) {
+          e.stopPropagation();
+          const errorType = errorEl.getAttribute('data-error-type') as ErrorType;
+          const suggestion = errorEl.getAttribute('data-suggestion') || '';
+          const message = errorEl.getAttribute('data-message') || '';
+          const errorId = errorEl.getAttribute('data-error-id') || '';
+          const rect = errorEl.getBoundingClientRect();
+
+          setPopup({
+            error: {
+              id: errorId,
+              type: errorType || 'spelling',
+              text: errorEl.textContent || '',
+              offset: 0,
+              length: 0,
+              suggestion,
+              message,
+            },
+            x: Math.min(rect.left, window.innerWidth - 260),
+            y: rect.bottom,
+          });
+        } else {
+          setPopup(null);
+        }
+      };
+
+      clickHandlerRef.current = handleClick;
+      dom.addEventListener('click', handleClick);
+    }
+
+    return () => {
+      if (editor.view && clickHandlerRef.current) {
+        editor.view.dom.removeEventListener('click', clickHandlerRef.current);
+      }
+    };
   }, [errors, editor]);
 
   const errorsByType = errors.reduce((acc, err) => {
-    if (!acc[err.type]) {
-      acc[err.type] = [];
-    }
+    if (!acc[err.type]) acc[err.type] = [];
     acc[err.type].push(err);
     return acc;
   }, {} as Record<ErrorType, GrammarError[]>);
 
   const handleErrorClick = (error: GrammarError) => {
     if (!editor) return;
-
-    const textContent = editor.getText();
-    const posMap = buildPosMap(editor.state.doc);
-    const docPos = textToDocPos(posMap, error.offset);
+    const mapping = buildPosMapping(editor.state.doc);
+    const docPos = textOffsetToDocPos(mapping, error.offset);
 
     if (docPos !== -1) {
-      editor.chain()
-        .setTextSelection(docPos)
-        .scrollIntoView()
-        .run();
+      editor.chain().setTextSelection(docPos).scrollIntoView().run();
     }
   };
-
-  const closePopup = () => setPopup(null);
 
   return (
     <div className="flex h-full gap-4">
@@ -151,13 +244,10 @@ export function ErrorHighlighter({
           {popup && (
             <div
               className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100 p-4 max-w-xs animate-pop-in"
-              style={{
-                left: popup.x,
-                top: popup.y + 8,
-              }}
+              style={{ left: popup.x, top: popup.y + 8 }}
             >
               <button
-                onClick={closePopup}
+                onClick={() => setPopup(null)}
                 className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
               >
                 <X size={16} />
@@ -170,9 +260,7 @@ export function ErrorHighlighter({
                   {ERROR_LABELS[popup.error.type]}
                 </span>
               </div>
-              <p className="text-sm text-gray-700 mb-2">
-                {popup.error.message}
-              </p>
+              <p className="text-sm text-gray-700 mb-2">{popup.error.message}</p>
               <p className="text-sm">
                 <span className="text-gray-500">建议：</span>
                 <span className="text-green-600 font-medium">
@@ -184,7 +272,7 @@ export function ErrorHighlighter({
         </div>
       </div>
 
-      <div className="w-56 flex-shrink-0 overflow-y-auto space-y-4">
+      <div className="w-56 flex-shrink-0 overflow-y-auto space-y-4 error-sidebar">
         {(Object.keys(errorsByType) as ErrorType[]).map((type) => (
           <div key={type} className="bg-white rounded-lg border border-gray-100 p-3">
             <div className="flex items-center gap-2 mb-2">
@@ -228,93 +316,6 @@ export function ErrorHighlighter({
       </div>
     </div>
   );
-}
-
-function buildPosMap(doc: { nodeSize: number; textContent: string; descendants: (fn: (node: unknown, pos: number) => boolean | undefined | void) => void }) {
-  const positions: number[] = [];
-  const textOffsets: number[] = [];
-  let textOffset = 0;
-
-  doc.descendants((node: unknown, pos: number) => {
-    const n = node as { isText?: boolean; textContent?: string; nodeSize: number };
-    if (n.isText) {
-      positions.push(pos);
-      textOffsets.push(textOffset);
-      textOffset += n.textContent?.length || 0;
-    } else {
-      if (n.textContent) {
-        textOffset += n.textContent.length;
-      }
-    }
-  });
-
-  return { positions, textOffsets };
-}
-
-function textToDocPos(
-  posMap: { positions: number[]; textOffsets: number[] },
-  textPos: number
-): number {
-  const { positions, textOffsets } = posMap;
-
-  for (let i = textOffsets.length - 1; i >= 0; i--) {
-    if (textPos >= textOffsets[i]) {
-      return positions[i] + (textPos - textOffsets[i]);
-    }
-  }
-
-  return -1;
-}
-
-function addErrorClickHandler(
-  editor: ReturnType<typeof useEditor> & {
-    view?: {
-      dom: HTMLElement;
-    };
-  } | null,
-  onPopup: (state: ErrorPopupState | null) => void
-) {
-  if (!editor || !editor.view) return;
-
-  const dom = editor.view.dom;
-
-  const handleClick = (e: Event) => {
-    const target = e.target as HTMLElement;
-    const errorEl = target.closest('.error-mark') as HTMLElement | null;
-
-    if (errorEl) {
-      e.stopPropagation();
-
-      const errorId = errorEl.getAttribute('data-error-id');
-      const errorType = errorEl.getAttribute('data-error-type') as ErrorType;
-      const suggestion = errorEl.getAttribute('data-suggestion') || '';
-      const message = errorEl.getAttribute('data-message') || '';
-
-      const rect = errorEl.getBoundingClientRect();
-
-      onPopup({
-        error: {
-          id: errorId || '',
-          type: errorType || 'spelling',
-          text: errorEl.textContent || '',
-          offset: 0,
-          length: 0,
-          suggestion,
-          message,
-        },
-        x: rect.left,
-        y: rect.bottom,
-      });
-    } else {
-      onPopup(null);
-    }
-  };
-
-  dom.addEventListener('click', handleClick);
-
-  return () => {
-    dom.removeEventListener('click', handleClick);
-  };
 }
 
 export default ErrorHighlighter;

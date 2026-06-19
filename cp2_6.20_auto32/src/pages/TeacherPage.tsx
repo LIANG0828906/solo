@@ -33,7 +33,7 @@ const MOCK_SUBMISSIONS: EssaySubmission[] = [
       { id: 'e1', type: 'spelling', text: '便倢', offset: 10, length: 2, suggestion: '便捷', message: '错别字' },
     ],
     structure: { hasIntro: true, hasBody: true, hasConclusion: true, introPercent: 15, bodyPercent: 70, conclusionPercent: 15, suggestions: [] },
-    scores: { grammar: 4, structure: 5, vocabulary: 4, relevance: 5, total: 92 },
+    scores: { grammar: 4, structure: 5, vocabulary: 4, relevance: 5, coherence: 4, total: 92 },
   },
   {
     id: '2',
@@ -44,7 +44,7 @@ const MOCK_SUBMISSIONS: EssaySubmission[] = [
       { id: 'e1', type: 'grammar', text: '因为所以', offset: 50, length: 4, suggestion: '因此', message: '关联词使用不当' },
     ],
     structure: { hasIntro: true, hasBody: true, hasConclusion: true, introPercent: 20, bodyPercent: 60, conclusionPercent: 20, suggestions: [] },
-    scores: { grammar: 3, structure: 4, vocabulary: 3, relevance: 4, total: 72 },
+    scores: { grammar: 3, structure: 4, vocabulary: 3, relevance: 4, coherence: 3, total: 72 },
   },
   {
     id: '3',
@@ -53,7 +53,7 @@ const MOCK_SUBMISSIONS: EssaySubmission[] = [
     submittedAt: '2024-01-13T09:15:00Z',
     errors: [],
     structure: { hasIntro: true, hasBody: true, hasConclusion: true, introPercent: 12, bodyPercent: 75, conclusionPercent: 13, suggestions: [] },
-    scores: { grammar: 5, structure: 5, vocabulary: 4, relevance: 5, total: 95 },
+    scores: { grammar: 5, structure: 5, vocabulary: 4, relevance: 5, coherence: 5, total: 95 },
   },
 ];
 

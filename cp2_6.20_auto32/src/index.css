@@ -121,12 +121,30 @@ h1, h2, h3, h4, h5, h6 {
   animation: popIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-@media (max-width: 1023px) {
-  .lg\:hidden {
-    display: block;
-  }
-  .lg\:block {
+@media (max-width: 768px) {
+  .error-sidebar {
     display: none;
+  }
+
+  .editor-content .ProseMirror {
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .recharts-responsive-container {
+    min-height: 140px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1023px) {
+  .recharts-responsive-container {
+    min-height: 160px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:hidden {
+    display: none !important;
   }
 }
 

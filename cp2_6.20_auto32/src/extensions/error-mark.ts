@@ -1,6 +1,6 @@
 import { Mark, mergeAttributes } from '@tiptap/core';
 import type { GrammarError } from '@/types';
-import { ERROR_COLORS } from '@/types';
+import { ERROR_COLORS, type ErrorType } from '@/types';
 
 export interface ErrorMarkOptions {
   HTMLAttributes: Record<string, unknown>;
@@ -17,6 +17,12 @@ declare module '@tiptap/core' {
   }
 }
 
+const WAVE_STYLE: Record<ErrorType, string> = {
+  spelling: `text-decoration: underline wavy ${ERROR_COLORS.spelling}; text-decoration-thickness: 2px; text-underline-offset: 3px;`,
+  punctuation: `text-decoration: underline wavy ${ERROR_COLORS.punctuation}; text-decoration-thickness: 2px; text-underline-offset: 3px;`,
+  grammar: `text-decoration: underline wavy ${ERROR_COLORS.grammar}; text-decoration-thickness: 2px; text-underline-offset: 3px;`,
+};
+
 export const ErrorMark = Mark.create<ErrorMarkOptions>({
   name: 'errorMark',
 
@@ -32,9 +38,7 @@ export const ErrorMark = Mark.create<ErrorMarkOptions>({
         default: null,
         parseHTML: (element) => element.getAttribute('data-error-id'),
         renderHTML: (attributes) => {
-          if (!attributes.errorId) {
-            return {};
-          }
+          if (!attributes.errorId) return {};
           return { 'data-error-id': attributes.errorId };
         },
       },
@@ -42,9 +46,7 @@ export const ErrorMark = Mark.create<ErrorMarkOptions>({
         default: 'spelling',
         parseHTML: (element) => element.getAttribute('data-error-type'),
         renderHTML: (attributes) => {
-          if (!attributes.errorType) {
-            return {};
-          }
+          if (!attributes.errorType) return {};
           return { 'data-error-type': attributes.errorType };
         },
       },
@@ -52,9 +54,7 @@ export const ErrorMark = Mark.create<ErrorMarkOptions>({
         default: '',
         parseHTML: (element) => element.getAttribute('data-suggestion'),
         renderHTML: (attributes) => {
-          if (!attributes.suggestion) {
-            return {};
-          }
+          if (!attributes.suggestion) return {};
           return { 'data-suggestion': attributes.suggestion };
         },
       },
@@ -62,9 +62,7 @@ export const ErrorMark = Mark.create<ErrorMarkOptions>({
         default: '',
         parseHTML: (element) => element.getAttribute('data-message'),
         renderHTML: (attributes) => {
-          if (!attributes.message) {
-            return {};
-          }
+          if (!attributes.message) return {};
           return { 'data-message': attributes.message };
         },
       },
@@ -72,27 +70,18 @@ export const ErrorMark = Mark.create<ErrorMarkOptions>({
   },
 
   parseHTML() {
-    return [
-      {
-        tag: 'span.error-mark',
-      },
-    ];
+    return [{ tag: 'span.error-mark' }];
   },
 
   renderHTML({ HTMLAttributes, mark }) {
-    const errorType = mark.attrs.errorType as keyof typeof ERROR_COLORS;
-    const color = ERROR_COLORS[errorType] || ERROR_COLORS.spelling;
+    const errorType = (mark.attrs.errorType as ErrorType) || 'spelling';
+    const waveStyle = WAVE_STYLE[errorType] || WAVE_STYLE.spelling;
 
     return [
       'span',
       mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
         class: 'error-mark',
-        style: `
-          text-decoration: underline wavy ${color};
-          text-underline-offset: 3px;
-          cursor: pointer;
-          position: relative;
-        `,
+        style: `${waveStyle} cursor: pointer; position: relative;`,
       }),
       0,
     ];
@@ -135,23 +124,14 @@ export const ErrorMark = Mark.create<ErrorMarkOptions>({
         () =>
         ({ tr, dispatch }) => {
           if (!dispatch) return false;
-
           const { doc } = tr;
           let hasMarks = false;
-
-          doc.descendants((node, pos) => {
-            if (node.marks && node.marks.length > 0) {
-              const errorMarks = node.marks.filter(
-                (m) => m.type.name === this.name
-              );
-              if (errorMarks.length > 0) {
-                hasMarks = true;
-              }
+          doc.descendants((node) => {
+            if (node.marks?.some((m) => m.type.name === this.name)) {
+              hasMarks = true;
             }
           });
-
           if (!hasMarks) return false;
-
           const newTr = tr.removeMark(0, doc.content.size, this.type);
           dispatch(newTr);
           return true;
