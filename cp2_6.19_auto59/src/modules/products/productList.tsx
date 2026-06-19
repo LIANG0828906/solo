@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useStore } from '@/stores/useStore';
 import { ProductModal } from './productModal';
 import type { Product } from '@/types';
@@ -15,10 +15,25 @@ export const ProductList: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [newProductId, setNewProductId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const previousProductIdsRef = useRef<Set<string>>(new Set());
 
   const [orderModalProduct, setOrderModalProduct] = useState<Product | null>(null);
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderError, setOrderError] = useState('');
+
+  useEffect(() => {
+    const currentIds = new Set(products.map((p) => p.id));
+    if (previousProductIdsRef.current.size > 0 && currentIds.size > previousProductIdsRef.current.size) {
+      const newProduct = products.find(
+        (p) => !previousProductIdsRef.current.has(p.id)
+      );
+      if (newProduct) {
+        setNewProductId(newProduct.id);
+        setTimeout(() => setNewProductId(null), 300);
+      }
+    }
+    previousProductIdsRef.current = currentIds;
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return products;
@@ -56,14 +71,9 @@ export const ProductList: React.FC = () => {
         updateProduct(editingProduct.id, data);
       } else {
         addProduct(data);
-        const newId = products.length > 0 ? products[products.length - 1].id : null;
-        if (newId) {
-          setNewProductId(newId);
-          setTimeout(() => setNewProductId(null), 300);
-        }
       }
     },
-    [editingProduct, updateProduct, addProduct, products]
+    [editingProduct, updateProduct, addProduct]
   );
 
   const handleOpenOrderModal = useCallback((product: Product) => {
@@ -132,7 +142,7 @@ export const ProductList: React.FC = () => {
       </div>
 
       <div className="product-grid">
-        {filteredProducts.map((product, index) => {
+        {filteredProducts.map((product) => {
           const soldPercentage = product.dailyLimit > 0
             ? Math.min(100, (product.sold / product.dailyLimit) * 100)
             : 0;
@@ -140,7 +150,7 @@ export const ProductList: React.FC = () => {
           const remainingStock = product.stock - product.sold;
           const remainingDaily = product.dailyLimit - product.sold;
           const maxAvailable = Math.min(remainingStock, remainingDaily);
-          const isNew = index === filteredProducts.length - 1 && newProductId === product.id;
+          const isNew = newProductId === product.id;
 
           return (
             <div
@@ -319,9 +329,19 @@ export const ProductList: React.FC = () => {
       )}
 
       <style>{`
+        @keyframes scaleIn {
+          0% {
+            opacity: 0;
+            transform: scale(0.8);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
         .product-list-page {
           padding: 24px;
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 0 auto;
           animation: fadeIn 300ms ease-out;
         }
@@ -376,7 +396,7 @@ export const ProductList: React.FC = () => {
         }
         .product-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+          grid-template-columns: repeat(4, 1fr);
           gap: 20px;
         }
         .product-card {
@@ -384,6 +404,15 @@ export const ProductList: React.FC = () => {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          transition: transform 200ms ease, box-shadow 200ms ease;
+          will-change: transform, box-shadow;
+        }
+        .product-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        .product-card.scale-in {
+          animation: scaleIn 300ms ease-out forwards;
         }
         .product-header {
           margin-bottom: 4px;
@@ -627,7 +656,17 @@ export const ProductList: React.FC = () => {
           padding: 16px 24px;
           border-top: 1px solid var(--color-border);
         }
-        @media (max-width: 768px) {
+        @media (max-width: 1200px) {
+          .product-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        @media (max-width: 900px) {
+          .product-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        @media (max-width: 600px) {
           .product-list-page {
             padding: 16px;
           }
