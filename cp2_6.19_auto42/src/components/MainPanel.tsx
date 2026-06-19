@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import SoundMixer from './SoundMixer';
 import { useAppStore, WeatherData as WeatherDataType, SoundTrack } from '../store/useAppStore';
 import { getWeather, PRESET_CITIES } from '../modules/weather/weatherService';
@@ -23,7 +23,9 @@ export default function MainPanel() {
     isFlipping,
     spectrumPeak,
     setTrackVolume,
+    toggleMute,
     reorderTracks,
+    resetTracks,
     setCurrentCity,
     setWeatherData,
     setPlaying,
@@ -35,10 +37,15 @@ export default function MainPanel() {
 
   const audioEngineRef = useRef<AudioEngine>(new AudioEngine());
   const spectrumCanvasRef = useRef<HTMLCanvasElement>(null);
+  const waveformCanvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
+  const waveformAnimRef = useRef<number | null>(null);
   const presetAnimRef = useRef<number | null>(null);
 
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [citySearchOpen, setCitySearchOpen] = useState<boolean>(false);
+  const [citySearchQuery, setCitySearchQuery] = useState<string>('');
+  const cityDropdownRef = useRef<HTMLDivElement>(null);
 
   const animateTracksToPreset = useCallback((targetTracks: SoundTrack[]) => {
     if (presetAnimRef.current !== null) {
@@ -79,8 +86,11 @@ export default function MainPanel() {
     presetAnimRef.current = localAnimFrameId;
   }, [tracks, setTrackVolume]);
 
-  const handleCityChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const city = e.target.value;
+  const handleCitySelect = useCallback(async (city: string) => {
+    setCitySearchOpen(false);
+    setCitySearchQuery('');
+    if (city === currentCity) return;
+
     setCurrentCity(city);
     setIsFlipping(true);
 
@@ -90,7 +100,7 @@ export default function MainPanel() {
       setWeatherData(data);
       setIsFlipping(false);
     }, 400);
-  }, [setCurrentCity, setIsFlipping, setWeatherData]);
+  }, [currentCity, setCurrentCity, setIsFlipping, setWeatherData]);
 
   const handleTogglePlay = useCallback(async () => {
     const engine = audioEngineRef.current;
@@ -127,6 +137,20 @@ export default function MainPanel() {
       });
     }
   }, [loadPreset, animateTracksToPreset, setCurrentCity, setWeatherData]);
+
+  const filteredCities = PRESET_CITIES.filter((city) =>
+    city.toLowerCase().includes(citySearchQuery.toLowerCase())
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(e.target as Node)) {
+        setCitySearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const engine = audioEngineRef.current;
@@ -227,6 +251,91 @@ export default function MainPanel() {
   }, [isPlaying, setSpectrumPeak]);
 
   useEffect(() => {
+    const canvas = waveformCanvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (!isPlaying) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const barCount = 32;
+      const barWidth = canvas.width / barCount - 2;
+      for (let i = 0; i < barCount; i++) {
+        const x = i * (barWidth + 2);
+        const barHeight = 4;
+        const y = canvas.height / 2 - barHeight / 2;
+        const gradient = ctx.createLinearGradient(0, y, 0, y + barHeight);
+        gradient.addColorStop(0, 'rgba(6, 182, 212, 0.3)');
+        gradient.addColorStop(1, 'rgba(168, 85, 247, 0.3)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y, barWidth, barHeight);
+      }
+      return;
+    }
+
+    const engine = audioEngineRef.current;
+    const analyser = engine.getAnalyser();
+    if (!analyser) return;
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    let localWaveformId: number | null = null;
+
+    const drawWaveform = () => {
+      localWaveformId = requestAnimationFrame(drawWaveform);
+      waveformAnimRef.current = localWaveformId;
+
+      analyser.getByteFrequencyData(dataArray);
+
+      const { width, height } = canvas;
+      ctx.clearRect(0, 0, width, height);
+
+      const barCount = 32;
+      const barWidth = width / barCount - 2;
+
+      for (let i = 0; i < barCount; i++) {
+        const dataIndex = Math.floor((i / barCount) * bufferLength);
+        const value = dataArray[dataIndex];
+        const normalized = value / 255;
+        const barHeight = Math.max(normalized * height * 0.8, 4);
+        const x = i * (barWidth + 2);
+        const y = height / 2 - barHeight / 2;
+        const hue = 180 + (i / barCount) * 90;
+        const gradient = ctx.createLinearGradient(0, y, 0, y + barHeight);
+        gradient.addColorStop(0, `hsla(${hue}, 80%, 60%, 0.9)`);
+        gradient.addColorStop(1, `hsla(${hue + 60}, 80%, 40%, 0.7)`);
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        const r = 2;
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + barWidth - r, y);
+        ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + r);
+        ctx.lineTo(x + barWidth, y + barHeight - r);
+        ctx.quadraticCurveTo(x + barWidth, y + barHeight, x + barWidth - r, y + barHeight);
+        ctx.lineTo(x + r, y + barHeight);
+        ctx.quadraticCurveTo(x, y + barHeight, x, y + barHeight - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+    };
+
+    drawWaveform();
+
+    return () => {
+      if (localWaveformId !== null) {
+        cancelAnimationFrame(localWaveformId);
+      }
+      if (waveformAnimRef.current !== null) {
+        cancelAnimationFrame(waveformAnimRef.current);
+      }
+    };
+  }, [isPlaying]);
+
+  useEffect(() => {
     if (weatherData === null) {
       getWeather(currentCity).then((data) => {
         setWeatherData(data);
@@ -241,6 +350,9 @@ export default function MainPanel() {
       }
       if (animFrameRef.current !== 0) {
         cancelAnimationFrame(animFrameRef.current);
+      }
+      if (waveformAnimRef.current !== null) {
+        cancelAnimationFrame(waveformAnimRef.current);
       }
       audioEngineRef.current.stop();
     };
@@ -272,14 +384,41 @@ export default function MainPanel() {
     <div className="main-panel">
       <div className="panel-content">
         <div className="left-panel">
-          <div className="city-selector">
-            <select value={currentCity} onChange={handleCityChange}>
-              {PRESET_CITIES.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
+          <div className="city-selector" ref={cityDropdownRef}>
+            <div
+              className="city-search-input"
+              onClick={() => setCitySearchOpen(!citySearchOpen)}
+            >
+              <span className="city-search-value">{currentCity}</span>
+              <span className="city-search-arrow">{citySearchOpen ? '▲' : '▼'}</span>
+            </div>
+            {citySearchOpen && (
+              <div className="city-dropdown">
+                <input
+                  type="text"
+                  className="city-search-field"
+                  placeholder="搜索城市..."
+                  value={citySearchQuery}
+                  onChange={(e) => setCitySearchQuery(e.target.value)}
+                  autoFocus
+                />
+                <div className="city-list">
+                  {filteredCities.length > 0 ? (
+                    filteredCities.map((city) => (
+                      <div
+                        key={city}
+                        className={`city-option ${city === currentCity ? 'active' : ''}`}
+                        onClick={() => handleCitySelect(city)}
+                      >
+                        {city}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="city-option disabled">未找到匹配城市</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {renderWeatherCard()}
@@ -314,9 +453,23 @@ export default function MainPanel() {
             </div>
           </div>
 
-          <button className="save-preset-btn" onClick={handleSavePreset}>
-            保存预设
-          </button>
+          <div className="waveform-container">
+            <canvas
+              ref={waveformCanvasRef}
+              className="waveform-canvas"
+              width={240}
+              height={40}
+            />
+          </div>
+
+          <div className="action-buttons">
+            <button className="save-preset-btn" onClick={handleSavePreset}>
+              保存预设
+            </button>
+            <button className="reset-btn" onClick={resetTracks}>
+              重置混音
+            </button>
+          </div>
         </div>
 
         <div className="center-panel">
@@ -325,6 +478,7 @@ export default function MainPanel() {
             isPlaying={isPlaying}
             spectrumPeak={spectrumPeak}
             onVolumeChange={setTrackVolume}
+            onToggleMute={toggleMute}
             onReorder={reorderTracks}
           />
         </div>

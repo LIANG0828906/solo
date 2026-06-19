@@ -7,11 +7,12 @@ interface SoundMixerProps {
   isPlaying: boolean;
   spectrumPeak: number;
   onVolumeChange: (id: string, volume: number) => void;
+  onToggleMute: (id: string) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
 }
 
 export default function SoundMixer({
-  tracks, isPlaying, spectrumPeak, onVolumeChange, onReorder,
+  tracks, isPlaying, spectrumPeak, onVolumeChange, onToggleMute, onReorder,
 }: SoundMixerProps) {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -169,10 +170,21 @@ export default function SoundMixer({
                 min={0}
                 max={100}
                 value={track.volume}
+                disabled={track.muted}
                 onChange={(e) => handleVolumeChange(track.id, Number(e.target.value))}
               />
             </div>
             <div className="volume-display">{Math.round(displayVolumes[track.id] ?? 0)}%</div>
+            <button
+              className={`mute-btn ${track.muted ? 'muted' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleMute(track.id);
+              }}
+              title={track.muted ? '取消静音' : '静音'}
+            >
+              {track.muted ? '🔇' : '🔊'}
+            </button>
           </div>
         );
       })}

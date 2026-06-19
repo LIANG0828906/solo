@@ -8,6 +8,8 @@ export interface SoundTrack {
   type: SoundSourceType;
   name: string;
   volume: number;
+  previousVolume: number;
+  muted: boolean;
   color: string;
   hue: number;
 }
@@ -31,11 +33,11 @@ export interface Preset {
 }
 
 const initialTracks: SoundTrack[] = [
-  { id: uuidv4(), type: 'rain', name: '雨声', volume: 30, color: '#3B82F6', hue: 210 },
-  { id: uuidv4(), type: 'wind', name: '风声', volume: 25, color: '#06B6D4', hue: 190 },
-  { id: uuidv4(), type: 'traffic', name: '车流', volume: 20, color: '#F97316', hue: 25 },
-  { id: uuidv4(), type: 'birds', name: '鸟鸣', volume: 15, color: '#22C55E', hue: 140 },
-  { id: uuidv4(), type: 'hum', name: '城市嗡鸣', volume: 10, color: '#A855F7', hue: 270 },
+  { id: uuidv4(), type: 'rain', name: '雨声', volume: 30, previousVolume: 30, muted: false, color: '#3B82F6', hue: 210 },
+  { id: uuidv4(), type: 'wind', name: '风声', volume: 25, previousVolume: 25, muted: false, color: '#06B6D4', hue: 190 },
+  { id: uuidv4(), type: 'traffic', name: '车流', volume: 20, previousVolume: 20, muted: false, color: '#F97316', hue: 25 },
+  { id: uuidv4(), type: 'birds', name: '鸟鸣', volume: 15, previousVolume: 15, muted: false, color: '#22C55E', hue: 140 },
+  { id: uuidv4(), type: 'hum', name: '城市嗡鸣', volume: 10, previousVolume: 10, muted: false, color: '#A855F7', hue: 270 },
 ];
 
 export interface AppState {
@@ -50,7 +52,9 @@ export interface AppState {
 
   setTracks: (tracks: SoundTrack[]) => void;
   setTrackVolume: (id: string, volume: number) => void;
+  toggleMute: (id: string) => void;
   reorderTracks: (fromIndex: number, toIndex: number) => void;
+  resetTracks: () => void;
   setCurrentCity: (city: string) => void;
   setWeatherData: (data: WeatherData | null) => void;
   togglePlay: () => void;
@@ -77,8 +81,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTrackVolume: (id: string, volume: number) =>
     set((state) => ({
       tracks: state.tracks.map((track) =>
-        track.id === id ? { ...track, volume } : track
+        track.id === id ? { ...track, volume, previousVolume: volume, muted: false } : track
       ),
+    })),
+
+  toggleMute: (id: string) =>
+    set((state) => ({
+      tracks: state.tracks.map((track) => {
+        if (track.id !== id) return track;
+        if (track.muted) {
+          return { ...track, muted: false, volume: track.previousVolume };
+        } else {
+          return { ...track, muted: true, previousVolume: track.volume, volume: 0 };
+        }
+      }),
+    })),
+
+  resetTracks: () =>
+    set(() => ({
+      tracks: initialTracks.map((t) => ({ ...t, id: uuidv4(), volume: 50, previousVolume: 50, muted: false })),
     })),
 
   reorderTracks: (fromIndex: number, toIndex: number) =>
