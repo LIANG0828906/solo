@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-multipart
+aiofiles
+aiosqlite
+Pillow
+python-jose[cryptography]
+bcrypt
