@@ -11,11 +11,19 @@ function LoginPage() {
   const [name, setName] = useState('');
   const setPlayerName = useGameStore((s) => s.setPlayerName);
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = () => {
-    if (!name.trim()) return;
-    setPlayerName(name.trim());
-    navigate('/select-industry');
+  const handleSubmit = async () => {
+    if (!name.trim() || isLoading) return;
+    setIsLoading(true);
+    try {
+      await setPlayerName(name.trim());
+      navigate('/select-industry');
+    } catch (e) {
+      console.error('Login failed:', e);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -63,11 +71,11 @@ function LoginPage() {
 
         <button
           onClick={handleSubmit}
-          disabled={!name.trim()}
+          disabled={!name.trim() || isLoading}
           style={{
             width: '100%',
             padding: '14px',
-            background: name.trim()
+            background: (name.trim() && !isLoading)
               ? 'linear-gradient(135deg, #e94560, #c73650)'
               : '#333',
             border: 'none',
@@ -75,13 +83,13 @@ function LoginPage() {
             color: '#fff',
             fontSize: 16,
             fontWeight: 'bold',
-            cursor: name.trim() ? 'pointer' : 'not-allowed',
+            cursor: (name.trim() && !isLoading) ? 'pointer' : 'not-allowed',
             transition: 'all 0.2s',
           }}
-          onMouseDown={(e) => name.trim() && ((e.target as HTMLButtonElement).style.transform = 'scale(0.97)')}
+          onMouseDown={(e) => name.trim() && !isLoading && ((e.target as HTMLButtonElement).style.transform = 'scale(0.97)')}
           onMouseUp={(e) => ((e.target as HTMLButtonElement).style.transform = 'scale(1)')}
         >
-          进入游戏 →
+          {isLoading ? '连接中...' : '进入游戏 →'}
         </button>
 
         <div style={{ marginTop: 30, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
@@ -108,6 +116,7 @@ function IndustrySelectPage() {
   const player = useGameStore((s) => s.getCurrentPlayer());
   const selectIndustry = useGameStore((s) => s.selectIndustry);
   const [selected, setSelected] = useState<Industry | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!player) navigate('/');
@@ -119,10 +128,15 @@ function IndustrySelectPage() {
     { id: 'tech', name: '科技公司', icon: '🔬', desc: '资金雄厚，产品价值高', color: '#e94560' },
   ];
 
-  const handleConfirm = () => {
-    if (!selected) return;
-    selectIndustry(selected);
-    navigate('/game');
+  const handleConfirm = async () => {
+    if (!selected || isLoading) return;
+    setIsLoading(true);
+    try {
+      await selectIndustry(selected);
+      navigate('/game');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!player) return null;
@@ -207,25 +221,25 @@ function IndustrySelectPage() {
 
         <button
           onClick={handleConfirm}
-          disabled={!selected}
+          disabled={!selected || isLoading}
           style={{
             width: '100%',
             padding: '14px',
-            background: selected
+            background: (selected && !isLoading)
               ? 'linear-gradient(135deg, #ffd700, #ff9500)'
               : '#333',
             border: 'none',
             borderRadius: 10,
-            color: selected ? '#1a1a2e' : '#666',
+            color: (selected && !isLoading) ? '#1a1a2e' : '#666',
             fontSize: 16,
             fontWeight: 'bold',
-            cursor: selected ? 'pointer' : 'not-allowed',
+            cursor: (selected && !isLoading) ? 'pointer' : 'not-allowed',
             transition: 'all 0.2s',
           }}
-          onMouseDown={(e) => selected && ((e.target as HTMLButtonElement).style.transform = 'scale(0.97)')}
+          onMouseDown={(e) => selected && !isLoading && ((e.target as HTMLButtonElement).style.transform = 'scale(0.97)')}
           onMouseUp={(e) => ((e.target as HTMLButtonElement).style.transform = 'scale(1)')}
         >
-          开始游戏 🎮
+          {isLoading ? '初始化中...' : '开始游戏 🎮'}
         </button>
       </div>
     </div>
@@ -235,18 +249,26 @@ function IndustrySelectPage() {
 function GamePage() {
   const navigate = useNavigate();
   const player = useGameStore((s) => s.getCurrentPlayer());
-  const tickProduction = useGameStore((s) => s.tickProduction);
-  const tickBuildingProgress = useGameStore((s) => s.tickBuildingProgress);
+  const fetchInitialState = useGameStore((s) => s.fetchInitialState);
+  const startGameLoop = useGameStore((s) => s.startGameLoop);
+  const stopGameLoop = useGameStore((s) => s.stopGameLoop);
+  const disconnectSocket = useGameStore((s) => s.disconnectSocket);
+  const isConnected = useGameStore((s) => s.isConnected);
+  const isPaused = useGameStore((s) => s.isPaused);
+  const currentPlayerId = useGameStore((s) => s.currentPlayerId);
 
   useEffect(() => {
     if (!player) navigate('/');
   }, [player, navigate]);
 
   useEffect(() => {
-    const p1 = setInterval(() => tickProduction(), 1000);
-    const p2 = setInterval(() => tickBuildingProgress(), 300);
-    return () => { clearInterval(p1); clearInterval(p2); };
-  }, [tickProduction, tickBuildingProgress]);
+    fetchInitialState();
+
+    return () => {
+      stopGameLoop();
+      disconnectSocket();
+    };
+  }, [fetchInitialState, stopGameLoop, disconnectSocket, currentPlayerId]);
 
   if (!player) return null;
 

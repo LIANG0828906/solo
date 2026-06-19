@@ -43,6 +43,38 @@ function hexPoints(cx: number, cy: number, size: number): string {
   return points.join(' ');
 }
 
+function screenToHex(screenX: number, screenY: number, svg: SVGSVGElement, centerOffset: { x: number; y: number }, mapOffset: { x: number; y: number }, mapZoom: number): { x: number; y: number } {
+  const rect = svg.getBoundingClientRect();
+  const svgX = screenX - rect.left;
+  const svgY = screenY - rect.top;
+  const worldX = (svgX - centerOffset.x - mapOffset.x) / mapZoom;
+  const worldY = (svgY - centerOffset.y - mapOffset.y) / mapZoom;
+  return { x: worldX, y: worldY };
+}
+
+function pixelToHex(x: number, y: number): { q: number; r: number } {
+  const size = HEX_SIZE;
+  const q = (2 / 3 * x) / size;
+  const r = (-1 / 3 * x + Math.sqrt(3) / 3 * y) / size;
+  return hexRound(q, r);
+}
+
+function hexRound(q: number, r: number): { q: number; r: number } {
+  const s = -q - r;
+  let rq = Math.round(q);
+  let rr = Math.round(r);
+  let rs = Math.round(s);
+  const qDiff = Math.abs(rq - q);
+  const rDiff = Math.abs(rr - r);
+  const sDiff = Math.abs(rs - s);
+  if (qDiff > rDiff && qDiff > sDiff) {
+    rq = -rr - rs;
+  } else if (rDiff > sDiff) {
+    rr = -rq - rs;
+  }
+  return { q: rq, r: rr };
+}
+
 export default function GameMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -67,26 +99,42 @@ export default function GameMap() {
   const [offsetStart, setOffsetStart] = useState({ x: 0, y: 0 });
   const [showBuildMenu, setShowBuildMenu] = useState(false);
   const [centerOffset, setCenterOffset] = useState({ x: 0, y: 0 });
+  const [dragMoved, setDragMoved] = useState(false);
+  const [clickPos, setClickPos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      setCenterOffset({ x: rect.width / 2, y: rect.height / 2 });
-    }
+    const updateCenter = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setCenterOffset({ x: rect.width / 2, y: rect.height / 2 });
+      }
+    };
+    updateCenter();
+    window.addEventListener('resize', updateCenter);
+    return () => window.removeEventListener('resize', updateCenter);
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === 'polygon' || (e.target as HTMLElement).tagName === 'text') return;
+    const target = e.target as HTMLElement;
+    const isHexElement = target.tagName === 'polygon' || target.closest('g[data-tile-id]');
+    if (isHexElement) return;
     setIsDragging(true);
+    setDragMoved(false);
     setDragStart({ x: e.clientX, y: e.clientY });
     setOffsetStart({ x: mapOffset.x, y: mapOffset.y });
+    setClickPos({ x: e.clientX, y: e.clientY });
   }, [mapOffset]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      setDragMoved(true);
+    }
     setMapOffset(
-      offsetStart.x + (e.clientX - dragStart.x),
-      offsetStart.y + (e.clientY - dragStart.y)
+      offsetStart.x + dx,
+      offsetStart.y + dy
     );
   }, [isDragging, dragStart, offsetStart, setMapOffset]);
 
@@ -94,14 +142,46 @@ export default function GameMap() {
     setIsDragging(false);
   }, []);
 
+  const handleSvgClick = useCallback((e: React.MouseEvent) => {
+    if (dragMoved) {
+      setDragMoved(false);
+      return;
+    }
+    const target = e.target as HTMLElement;
+    const gElement = target.closest('g[data-tile-id]');
+    if (gElement) {
+      const tileId = gElement.getAttribute('data-tile-id');
+      if (tileId) {
+        handleTileClick(tileId);
+        return;
+      }
+    }
+    if (!svgRef.current) return;
+    const { x, y } = screenToHex(e.clientX, e.clientY, svgRef.current, centerOffset, mapOffset, mapZoom);
+    const { q, r } = pixelToHex(x, y);
+    const tileId = `${q},${r}`;
+    if (tiles[tileId]) {
+      handleTileClick(tileId);
+    }
+  }, [dragMoved, centerOffset, mapOffset, mapZoom, tiles]);
+
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setMapZoom(mapZoom + delta);
-  }, [mapZoom, setMapZoom]);
+    const newZoom = Math.max(0.5, Math.min(2, mapZoom + delta));
+    const scaleRatio = newZoom / mapZoom;
+    const newOffsetX = mouseX - (mouseX - mapOffset.x) * scaleRatio;
+    const newOffsetY = mouseY - (mouseY - mapOffset.y) * scaleRatio;
+    setMapZoom(newZoom);
+    setMapOffset(centerOffset.x + (newOffsetX - centerOffset.x), centerOffset.y + (newOffsetY - centerOffset.y));
+  }, [mapZoom, mapOffset, centerOffset, setMapZoom, setMapOffset]);
 
-  const handleTileClick = (tile: HexTile) => {
-    selectTile(tile.id);
+  const handleTileClick = (tileId: string) => {
+    selectTile(tileId);
     setShowBuildMenu(true);
   };
 
@@ -159,6 +239,7 @@ export default function GameMap() {
         width="100%"
         height="100%"
         style={{ pointerEvents: isDragging ? 'none' : 'auto' }}
+        onClick={handleSvgClick}
       >
         <defs>
           <filter id="glow">
@@ -190,7 +271,7 @@ export default function GameMap() {
             return (
               <g
                 key={tile.id}
-                onClick={() => handleTileClick(tile)}
+                data-tile-id={tile.id}
                 style={{ cursor: 'pointer', transition: 'transform 0.15s' }}
               >
                 <polygon

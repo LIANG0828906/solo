@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 
 export type Industry = 'farm' | 'factory' | 'tech';
 export type ResourceType = 'money' | 'wood' | 'iron' | 'food' | 'product';
@@ -63,21 +64,35 @@ interface GameState {
   floatingTexts: FloatingText[];
   mapOffset: { x: number; y: number };
   mapZoom: number;
+  isConnected: boolean;
+  isPaused: boolean;
+  socket: WebSocket | null;
+  productionTimer: number | null;
+  buildingTimer: number | null;
+  initSocket: (playerId: string) => void;
+  disconnectSocket: () => void;
+  startGameLoop: () => void;
+  stopGameLoop: () => void;
+  setPaused: (paused: boolean) => void;
   setCurrentPlayer: (id: string | null) => void;
   setPlayerName: (name: string) => void;
   selectIndustry: (industry: Industry) => void;
   selectTile: (tileId: string | null) => void;
-  buyTile: (tileId: string) => void;
-  buildOnTile: (tileId: string, buildingType: BuildingType) => void;
-  upgradeBuilding: (tileId: string) => void;
-  createMarketOrder: (order: Omit<MarketOrder, 'id' | 'createdAt' | 'sellerId' | 'sellerName'>) => void;
-  acceptMarketOrder: (orderId: string) => void;
+  buyTile: (tileId: string) => Promise<boolean>;
+  buildOnTile: (tileId: string, buildingType: BuildingType) => Promise<boolean>;
+  upgradeBuilding: (tileId: string) => Promise<boolean>;
+  createMarketOrder: (order: Omit<MarketOrder, 'id' | 'createdAt' | 'sellerId' | 'sellerName'>) => Promise<boolean>;
+  acceptMarketOrder: (orderId: string) => Promise<boolean>;
   addFloatingText: (text: Omit<FloatingText, 'id' | 'createdAt'>) => void;
   removeFloatingText: (id: string) => void;
   setMapOffset: (x: number, y: number) => void;
   setMapZoom: (zoom: number) => void;
-  tickProduction: () => void;
-  tickBuildingProgress: () => void;
+  updateTile: (tile: HexTile) => void;
+  updatePlayer: (player: Player) => void;
+  updateMarketOrder: (order: MarketOrder) => void;
+  removeMarketOrder: (orderId: string) => void;
+  addMarketOrder: (order: MarketOrder) => void;
+  fetchInitialState: () => Promise<void>;
   getCurrentPlayer: () => Player | null;
 }
 
@@ -148,247 +163,260 @@ const createMockPlayers = (): Record<string, Player> => ({
 
 export const useGameStore = create<GameState>((set, get) => ({
   currentPlayerId: null,
-  players: createMockPlayers(),
-  tiles: generateTiles(),
-  marketOrders: [
-    {
-      id: 'mock1',
-      sellerId: 'ai1',
-      sellerName: '农场主AI',
-      itemType: 'food',
-      quantity: 50,
-      pricePerUnit: 8,
-      isBuyOrder: false,
-      createdAt: Date.now() - 10000,
-    },
-    {
-      id: 'mock2',
-      sellerId: 'ai2',
-      sellerName: '工厂主AI',
-      itemType: 'iron',
-      quantity: 30,
-      pricePerUnit: 15,
-      isBuyOrder: false,
-      createdAt: Date.now() - 5000,
-    },
-    {
-      id: 'mock3',
-      sellerId: 'ai1',
-      sellerName: '农场主AI',
-      itemType: 'wood',
-      quantity: 20,
-      pricePerUnit: 12,
-      isBuyOrder: true,
-      createdAt: Date.now() - 3000,
-    },
-  ],
+  players: {},
+  tiles: {},
+  marketOrders: [],
   selectedTileId: null,
   floatingTexts: [],
   mapOffset: { x: 0, y: 0 },
   mapZoom: 1,
+  isConnected: false,
+  isPaused: false,
+  socket: null,
+  productionTimer: null,
+  buildingTimer: null,
+
+  initSocket: (playerId: string) => {
+    if (get().socket) return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/${playerId}`;
+    const socket = new WebSocket(wsUrl);
+
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const msg = JSON.parse(event.data);
+        const { event: evt, data } = msg;
+
+        switch (evt) {
+          case 'tile_updated':
+            get().updateTile(data as HexTile);
+            break;
+          case 'player_updated':
+            get().updatePlayer(data as Player);
+            break;
+          case 'resources_updated': {
+            const { playerId: pid, resources } = data as { playerId: string; resources: Record<ResourceType, number> };
+            set((state) => ({
+              players: {
+                ...state.players,
+                [pid]: { ...state.players[pid], resources },
+              },
+            }));
+            break;
+          }
+          case 'building_progress': {
+            const { tileId, progress } = data as { tileId: string; progress: number };
+            set((state) => {
+              const tile = state.tiles[tileId];
+              if (!tile || !tile.building) return state;
+              return {
+                tiles: {
+                  ...state.tiles,
+                  [tileId]: {
+                    ...tile,
+                    building: { ...tile.building, buildProgress: progress },
+                  },
+                },
+              };
+            });
+            break;
+          }
+          case 'production': {
+            const { playerId: pid, resource, amount } = data as { playerId: string; resource: ResourceType; amount: number };
+            if (pid === get().currentPlayerId) {
+              get().addFloatingText({
+                text: `+${amount} ${getResourceName(resource)}`,
+                color: '#ffd700',
+                startX: 0,
+                startY: 0,
+                endX: 0,
+                endY: 0,
+              });
+            }
+            break;
+          }
+          case 'market_order_created':
+            get().addMarketOrder(data as MarketOrder);
+            break;
+          case 'market_order_updated':
+            get().updateMarketOrder(data as MarketOrder);
+            break;
+          case 'market_order_removed':
+            get().removeMarketOrder(data as string);
+            break;
+          case 'market_order_filled': {
+            const orderId = data as string;
+            const order = get().marketOrders.find((o) => o.id === orderId);
+            if (order) {
+              get().updateMarketOrder({ ...order, justFilled: true });
+              setTimeout(() => get().removeMarketOrder(orderId), 1500);
+            }
+            break;
+          }
+          case 'player_joined':
+            set((state) => ({
+              players: { ...state.players, [(data as Player).id]: data as Player },
+            }));
+            break;
+        }
+      } catch (e) {
+        console.error('Failed to parse WebSocket message:', e);
+      }
+    };
+
+    const connect = () => {
+      socket.onopen = () => {
+        console.log('WebSocket connected');
+        set({ isConnected: true });
+        reconnectAttempts = 0;
+      };
+
+      socket.onclose = () => {
+        console.log('WebSocket disconnected');
+        set({ isConnected: false });
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          setTimeout(() => {
+            const newSocket = new WebSocket(wsUrl);
+            set({ socket: newSocket });
+            newSocket.onopen = socket.onopen;
+            newSocket.onclose = socket.onclose;
+            newSocket.onmessage = handleMessage;
+          }, 1000 * reconnectAttempts);
+        }
+      };
+
+      socket.onmessage = handleMessage;
+    };
+
+    connect();
+    set({ socket });
+  },
+
+  disconnectSocket: () => {
+    const { socket } = get();
+    if (socket) {
+      socket.close();
+      set({ socket: null, isConnected: false });
+    }
+  },
+
+  startGameLoop: () => {
+    const { productionTimer, buildingTimer, isPaused } = get();
+    if (productionTimer || buildingTimer || isPaused) return;
+
+    const handleVisibility = () => {
+      set({ isPaused: document.hidden });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+  },
+
+  stopGameLoop: () => {
+    const { productionTimer, buildingTimer } = get();
+    if (productionTimer) {
+      clearInterval(productionTimer);
+    }
+    if (buildingTimer) {
+      clearInterval(buildingTimer);
+    }
+    set({ productionTimer: null, buildingTimer: null });
+    document.removeEventListener('visibilitychange', () => {});
+  },
+
+  setPaused: (paused) => set({ isPaused: paused }),
 
   setCurrentPlayer: (id) => set({ currentPlayerId: id }),
 
-  setPlayerName: (name) => {
-    const id = uuidv4();
-    set((state) => ({
-      currentPlayerId: id,
-      players: {
-        ...state.players,
-        [id]: {
-          id,
-          name,
-          industry: 'farm',
-          color: PLAYER_COLORS[0],
-          resources: { money: 500, wood: 0, iron: 0, food: 0, product: 0 },
-        },
-      },
-    }));
+  setPlayerName: async (name) => {
+    try {
+      const res = await axios.post('/api/players', { name });
+      const player = res.data as Player;
+      set((state) => ({
+        currentPlayerId: player.id,
+        players: { ...state.players, [player.id]: player },
+      }));
+      get().initSocket(player.id);
+    } catch (e) {
+      console.error('Failed to create player:', e);
+    }
   },
 
-  selectIndustry: (industry) => {
-    const { currentPlayerId, players } = get();
+  selectIndustry: async (industry) => {
+    const { currentPlayerId } = get();
     if (!currentPlayerId) return;
-    const player = players[currentPlayerId];
-    set({
-      players: {
-        ...players,
-        [currentPlayerId]: {
-          ...player,
-          industry,
-          resources: { ...INDUSTRY_STARTS[industry] },
-        },
-      },
-    });
+    try {
+      const res = await axios.post(`/api/players/${currentPlayerId}/industry`, { industry });
+      get().updatePlayer(res.data);
+    } catch (e) {
+      console.error('Failed to select industry:', e);
+    }
   },
 
   selectTile: (tileId) => set({ selectedTileId: tileId }),
 
-  buyTile: (tileId) => {
-    const { currentPlayerId, tiles, players } = get();
-    if (!currentPlayerId) return;
-    const tile = tiles[tileId];
-    const player = players[currentPlayerId];
-    if (!tile || tile.ownerId || player.resources.money < tile.price) return;
-
-    set({
-      players: {
-        ...players,
-        [currentPlayerId]: {
-          ...player,
-          resources: { ...player.resources, money: player.resources.money - tile.price },
-        },
-      },
-      tiles: {
-        ...tiles,
-        [tileId]: { ...tile, ownerId: currentPlayerId },
-      },
-    });
-  },
-
-  buildOnTile: (tileId, buildingType) => {
-    const { currentPlayerId, tiles, players } = get();
-    if (!currentPlayerId) return;
-    const tile = tiles[tileId];
-    const player = players[currentPlayerId];
-    if (!tile || tile.ownerId !== currentPlayerId || tile.building) return;
-
-    const cost = BUILDING_COSTS[buildingType];
-    for (const [res, amt] of Object.entries(cost)) {
-      if ((player.resources as any)[res] < (amt as number)) return;
-    }
-
-    const newResources = { ...player.resources };
-    for (const [res, amt] of Object.entries(cost)) {
-      (newResources as any)[res] -= amt as number;
-    }
-
-    set({
-      players: { ...players, [currentPlayerId]: { ...player, resources: newResources } },
-      tiles: {
-        ...tiles,
-        [tileId]: {
-          ...tile,
-          building: {
-            id: uuidv4(),
-            type: buildingType,
-            level: 1,
-            buildProgress: 0,
-            lastProduction: Date.now(),
-          },
-        },
-      },
-    });
-  },
-
-  upgradeBuilding: (tileId) => {
-    const { currentPlayerId, tiles, players } = get();
-    if (!currentPlayerId) return;
-    const tile = tiles[tileId];
-    if (!tile || tile.ownerId !== currentPlayerId || !tile.building) return;
-    const building = tile.building;
-    const player = players[currentPlayerId];
-    const upgradeCost = building.level * 300;
-    if (player.resources.money < upgradeCost) return;
-
-    set({
-      players: {
-        ...players,
-        [currentPlayerId]: {
-          ...player,
-          resources: { ...player.resources, money: player.resources.money - upgradeCost },
-        },
-      },
-      tiles: {
-        ...tiles,
-        [tileId]: {
-          ...tile,
-          building: { ...building, level: building.level + 1 },
-        },
-      },
-    });
-  },
-
-  createMarketOrder: (order) => {
-    const { currentPlayerId, players, marketOrders } = get();
-    if (!currentPlayerId) return;
-    const player = players[currentPlayerId];
-
-    if (order.isBuyOrder) {
-      const totalCost = order.quantity * order.pricePerUnit;
-      if (player.resources.money < totalCost) return;
-      set({
-        players: {
-          ...players,
-          [currentPlayerId]: {
-            ...player,
-            resources: { ...player.resources, money: player.resources.money - totalCost },
-          },
-        },
-        marketOrders: [
-          ...marketOrders,
-          { ...order, id: uuidv4(), sellerId: currentPlayerId, sellerName: player.name, createdAt: Date.now() },
-        ],
-      });
-    } else {
-      if ((player.resources as any)[order.itemType] < order.quantity) return;
-      const newResources = { ...player.resources };
-      (newResources as any)[order.itemType] -= order.quantity;
-      set({
-        players: { ...players, [currentPlayerId]: { ...player, resources: newResources } },
-        marketOrders: [
-          ...marketOrders,
-          { ...order, id: uuidv4(), sellerId: currentPlayerId, sellerName: player.name, createdAt: Date.now() },
-        ],
-      });
+  buyTile: async (tileId) => {
+    const { currentPlayerId } = get();
+    if (!currentPlayerId) return false;
+    try {
+      await axios.post(`/api/tiles/${tileId}/buy`, { playerId: currentPlayerId });
+      return true;
+    } catch (e) {
+      console.error('Failed to buy tile:', e);
+      return false;
     }
   },
 
-  acceptMarketOrder: (orderId) => {
-    const { currentPlayerId, players, marketOrders } = get();
-    if (!currentPlayerId) return;
-    const order = marketOrders.find((o) => o.id === orderId);
-    if (!order || order.sellerId === currentPlayerId) return;
-    const buyer = players[currentPlayerId];
-    const seller = players[order.sellerId];
-    if (!buyer || !seller) return;
-
-    if (order.isBuyOrder) {
-      if ((buyer.resources as any)[order.itemType] < order.quantity) return;
-      const buyerRes = { ...buyer.resources };
-      const sellerRes = { ...seller.resources };
-      (buyerRes as any)[order.itemType] -= order.quantity;
-      buyerRes.money += order.quantity * order.pricePerUnit;
-      (sellerRes as any)[order.itemType] += order.quantity;
-      set({
-        players: {
-          ...players,
-          [currentPlayerId]: { ...buyer, resources: buyerRes },
-          [order.sellerId]: { ...seller, resources: sellerRes },
-        },
-        marketOrders: marketOrders.map((o) => (o.id === orderId ? { ...o, justFilled: true } : o)),
-      });
-    } else {
-      const totalCost = order.quantity * order.pricePerUnit;
-      if (buyer.resources.money < totalCost) return;
-      const buyerRes = { ...buyer.resources };
-      const sellerRes = { ...seller.resources };
-      buyerRes.money -= totalCost;
-      (buyerRes as any)[order.itemType] += order.quantity;
-      sellerRes.money += totalCost;
-      set({
-        players: {
-          ...players,
-          [currentPlayerId]: { ...buyer, resources: buyerRes },
-          [order.sellerId]: { ...seller, resources: sellerRes },
-        },
-        marketOrders: marketOrders.map((o) => (o.id === orderId ? { ...o, justFilled: true } : o)),
-      });
+  buildOnTile: async (tileId, buildingType) => {
+    const { currentPlayerId } = get();
+    if (!currentPlayerId) return false;
+    try {
+      await axios.post(`/api/tiles/${tileId}/build`, { playerId: currentPlayerId, buildingType });
+      return true;
+    } catch (e) {
+      console.error('Failed to build:', e);
+      return false;
     }
+  },
 
-    setTimeout(() => {
-      set((s) => ({ marketOrders: s.marketOrders.filter((o) => o.id !== orderId) }));
-    }, 1500);
+  upgradeBuilding: async (tileId) => {
+    const { currentPlayerId } = get();
+    if (!currentPlayerId) return false;
+    try {
+      await axios.post(`/api/tiles/${tileId}/upgrade`, { playerId: currentPlayerId });
+      return true;
+    } catch (e) {
+      console.error('Failed to upgrade:', e);
+      return false;
+    }
+  },
+
+  createMarketOrder: async (order) => {
+    const { currentPlayerId } = get();
+    if (!currentPlayerId) return false;
+    try {
+      await axios.post('/api/market', { ...order, playerId: currentPlayerId });
+      return true;
+    } catch (e) {
+      console.error('Failed to create order:', e);
+      return false;
+    }
+  },
+
+  acceptMarketOrder: async (orderId) => {
+    const { currentPlayerId } = get();
+    if (!currentPlayerId) return false;
+    try {
+      await axios.post(`/api/market/${orderId}/accept`, { playerId: currentPlayerId });
+      return true;
+    } catch (e) {
+      console.error('Failed to accept order:', e);
+      return false;
+    }
   },
 
   addFloatingText: (ft) => {
@@ -408,68 +436,53 @@ export const useGameStore = create<GameState>((set, get) => ({
   setMapOffset: (x, y) => set({ mapOffset: { x, y } }),
   setMapZoom: (zoom) => set({ mapZoom: Math.max(0.5, Math.min(2, zoom)) }),
 
-  tickProduction: () => {
-    const { tiles, players, currentPlayerId } = get();
-    const now = Date.now();
-    const newTiles = { ...tiles };
-    const newPlayers = { ...players };
-    let changed = false;
+  updateTile: (tile) => set((state) => ({
+    tiles: { ...state.tiles, [tile.id]: tile },
+  })),
 
-    for (const tile of Object.values(tiles)) {
-      if (tile.building && tile.building.buildProgress >= 100 && tile.ownerId) {
-        const building = tile.building;
-        if (now - building.lastProduction >= 5000) {
-          const output = BUILDING_OUTPUTS[building.type];
-          const owner = newPlayers[tile.ownerId];
-          if (owner) {
-            const amt = output.amount * building.level;
-            newPlayers[tile.ownerId] = {
-              ...owner,
-              resources: {
-                ...owner.resources,
-                [output.resource]: (owner.resources as any)[output.resource] + amt,
-              },
-            };
-            newTiles[tile.id] = {
-              ...tile,
-              building: { ...building, lastProduction: now },
-            };
-            changed = true;
-            if (tile.ownerId === currentPlayerId) {
-              get().addFloatingText({
-                text: `+${amt} ${getResourceName(output.resource)}`,
-                color: '#ffd700',
-                startX: 0,
-                startY: 0,
-                endX: 0,
-                endY: 0,
-              });
-            }
-          }
-        }
-      }
-    }
+  updatePlayer: (player) => set((state) => ({
+    players: { ...state.players, [player.id]: player },
+  })),
 
-    if (changed) {
-      set({ tiles: newTiles, players: newPlayers });
+  updateMarketOrder: (order) => set((state) => ({
+    marketOrders: state.marketOrders.map((o) => (o.id === order.id ? order : o)),
+  })),
+
+  addMarketOrder: (order) => set((state) => ({
+    marketOrders: [...state.marketOrders, order],
+  })),
+
+  removeMarketOrder: (orderId) => set((state) => ({
+    marketOrders: state.marketOrders.filter((o) => o.id !== orderId),
+  })),
+
+  fetchInitialState: async () => {
+    try {
+      const [tilesRes, marketRes, playersRes] = await Promise.all([
+        axios.get('/api/tiles'),
+        axios.get('/api/market'),
+        axios.get('/api/players'),
+      ]);
+
+      const tilesMap: Record<string, HexTile> = {};
+      tilesRes.data.forEach((t: HexTile) => { tilesMap[t.id] = t; });
+
+      const playersMap: Record<string, Player> = {};
+      playersRes.data.forEach((p: Player) => { playersMap[p.id] = p; });
+
+      set({
+        tiles: tilesMap,
+        players: playersMap,
+        marketOrders: marketRes.data,
+      });
+    } catch (e) {
+      console.error('Failed to fetch initial state:', e);
     }
   },
 
-  tickBuildingProgress: () => {
-    const { tiles } = get();
-    let changed = false;
-    const newTiles = { ...tiles };
-    for (const tile of Object.values(tiles)) {
-      if (tile.building && tile.building.buildProgress < 100) {
-        newTiles[tile.id] = {
-          ...tile,
-          building: { ...tile.building, buildProgress: Math.min(100, tile.building.buildProgress + 5) },
-        };
-        changed = true;
-      }
-    }
-    if (changed) set({ tiles: newTiles });
-  },
+  tickProduction: () => {},
+
+  tickBuildingProgress: () => {},
 
   getCurrentPlayer: () => {
     const { currentPlayerId, players } = get();

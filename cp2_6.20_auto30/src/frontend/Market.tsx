@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useMemo } from 'react';
 import {
   useGameStore,
   ResourceType,
@@ -31,11 +31,13 @@ export default function Market() {
 
   const player = getCurrentPlayer();
 
-  const filteredOrders = marketOrders.filter((o) => {
-    if (tab === 'sell') return !o.isBuyOrder;
-    if (tab === 'buy') return o.isBuyOrder;
-    return true;
-  }).sort((a, b) => b.createdAt - a.createdAt);
+  const filteredOrders = useMemo(() => {
+    return marketOrders.filter((o) => {
+      if (tab === 'sell') return !o.isBuyOrder;
+      if (tab === 'buy') return o.isBuyOrder;
+      return true;
+    }).sort((a, b) => b.createdAt - a.createdAt);
+  }, [marketOrders, tab]);
 
   const handleSubmit = () => {
     if (quantity <= 0 || pricePerUnit <= 0) return;
@@ -217,7 +219,7 @@ export default function Market() {
   );
 }
 
-function OrderCard({ order, isOwn, onAccept }: {
+const OrderCard = memo(function OrderCard({ order, isOwn, onAccept }: {
   order: MarketOrder;
   isOwn: boolean;
   onAccept: () => void;
@@ -319,7 +321,7 @@ function OrderCard({ order, isOwn, onAccept }: {
       `}</style>
     </div>
   );
-}
+});
 
 const panelStyle: React.CSSProperties = {
   background: 'linear-gradient(180deg, #1e1e3a 0%, #16162a 100%)',

@@ -26,14 +26,32 @@ const INDUSTRY_INFO: Record<Industry, { name: string; icon: string; desc: string
 function AnimatedNumber({ value, color }: { value: number; color: string }) {
   const [displayValue, setDisplayValue] = useState(value);
   const [animating, setAnimating] = useState(false);
-  const prevRef = useRef(value);
+  const prevDisplayedRef = useRef(value);
+  const pendingValueRef = useRef<number | null>(null);
+  const debounceTimerRef = useRef<number | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (prevRef.current !== value) {
+    if (prevDisplayedRef.current === value) return;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    pendingValueRef.current = value;
+
+    debounceTimerRef.current = window.setTimeout(() => {
+      const targetValue = pendingValueRef.current!;
+      pendingValueRef.current = null;
+      prevDisplayedRef.current = targetValue;
+
       setAnimating(true);
-      const start = prevRef.current;
-      const end = value;
-      const duration = 300;
+      const start = displayValue;
+      const end = targetValue;
+      const duration = 400;
       const startTime = performance.now();
 
       const animate = (now: number) => {
@@ -43,16 +61,28 @@ function AnimatedNumber({ value, color }: { value: number; color: string }) {
         setDisplayValue(Math.floor(start + (end - start) * eased));
 
         if (progress < 1) {
-          requestAnimationFrame(animate);
+          animationFrameRef.current = requestAnimationFrame(animate);
         } else {
-          setTimeout(() => setAnimating(false), 100);
+          animationFrameRef.current = null;
+          setTimeout(() => setAnimating(false), 150);
         }
       };
 
-      requestAnimationFrame(animate);
-      prevRef.current = value;
-    }
-  }, [value]);
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }, 250);
+
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [value, displayValue]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, []);
 
   return (
     <span
@@ -64,8 +94,8 @@ function AnimatedNumber({ value, color }: { value: number; color: string }) {
         minWidth: 50,
         textAlign: 'right',
         transition: 'transform 0.15s ease',
-        transform: animating ? 'scale(1.3)' : 'scale(1)',
-        textShadow: animating ? `0 0 10px ${color}` : 'none',
+        transform: animating ? 'scale(1.25)' : 'scale(1)',
+        textShadow: animating ? `0 0 12px ${color}, 0 0 20px ${color}40` : 'none',
       }}
     >
       {displayValue.toLocaleString()}
