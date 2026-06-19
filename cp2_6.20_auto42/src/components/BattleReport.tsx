@@ -104,16 +104,21 @@ export default function BattleReport() {
   return (
     <motion.div
       className="w-full max-w-4xl"
-      initial={{ scale: 0.8, opacity: 0 }}
+      initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
+      transition={{
+        duration: 0.6,
+        type: 'spring',
+        stiffness: 120,
+        damping: 18,
+      }}
     >
       <div className="text-center mb-6">
         <motion.div
           className="inline-block"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          transition={{ type: 'spring', delay: 0.2 }}
+          transition={{ type: 'spring', delay: 0.15 }}
         >
           <h2
             className="font-display text-3xl font-bold mb-2"
@@ -129,34 +134,46 @@ export default function BattleReport() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <StatCard label="总回合" value={battleRecord.totalRounds} icon="⚔️" />
-        <StatCard
-          label="你的伤害"
-          value={battleRecord.playerTotalDamage}
-          icon="💥"
-        />
-        <StatCard label="你的命中率" value={`${playerHitRate}%`} icon="🎯" />
-        <StatCard
-          label="MVP技能"
-          value={mvpSkill?.name ?? '-'}
-          icon="🏆"
-        />
+      <div className="glass-card p-5 mb-6">
+        <h3 className="font-display text-sm text-gold mb-4 tracking-wider">— 数据总览 —</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatCard label="总回合" value={battleRecord.totalRounds} icon="⚔️" />
+          <StatCard
+            label="玩家伤害"
+            value={battleRecord.playerTotalDamage}
+            icon="💥"
+          />
+          <StatCard
+            label="敌方伤害"
+            value={battleRecord.enemyTotalDamage}
+            icon="🛡️"
+          />
+          <StatCard label="玩家命中率" value={`${playerHitRate}%`} icon="🎯" />
+          <StatCard label="敌方命中率" value={`${enemyHitRate}%`} icon="🎯" />
+          <StatCard
+            label="MVP技能"
+            value={mvpSkill?.name ?? '-'}
+            icon="🏆"
+          />
+        </div>
       </div>
 
       {mvpSkill && (
         <motion.div
           className="glass-card p-4 mb-6 flex items-center gap-4"
-          style={{ borderLeft: `4px solid ${mvpColor}` }}
+          style={{
+            borderLeft: `4px solid ${mvpColor}`,
+            background: 'linear-gradient(90deg, rgba(212,168,67,0.08), rgba(26,35,50,0.7))',
+          }}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.35 }}
         >
           <span className="text-3xl">🏆</span>
-          <div>
-            <p className="font-display text-gold text-sm">MVP 技能</p>
+          <div className="flex-1">
+            <p className="font-display text-gold text-sm mb-0.5">MVP 技能 · 输出最高</p>
             <p className="text-white font-bold">{mvpSkill.name}</p>
-            <p className="text-xs text-gray-400">{mvpSkill.description}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{mvpSkill.description}</p>
           </div>
         </motion.div>
       )}
@@ -166,10 +183,10 @@ export default function BattleReport() {
           <div className="flex items-center gap-2 mb-3">
             <div
               className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: playerColor }}
+              style={{ backgroundColor: playerColor, boxShadow: `0 0 8px ${playerColor}80` }}
             />
             <span className="font-display text-sm" style={{ color: playerColorLight }}>
-              {CLASS_DATA[player.classId].name}
+              {CLASS_DATA[player.classId].name}（玩家）
             </span>
           </div>
           {Object.entries(battleRecord.playerSkillUsage).map(([id, count]) => {
@@ -193,10 +210,10 @@ export default function BattleReport() {
           <div className="flex items-center gap-2 mb-3">
             <div
               className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: enemyColor }}
+              style={{ backgroundColor: enemyColor, boxShadow: `0 0 8px ${enemyColor}80` }}
             />
             <span className="font-display text-sm" style={{ color: enemyColorLight }}>
-              {CLASS_DATA[enemy.classId].name}
+              {CLASS_DATA[enemy.classId].name}（敌方）
             </span>
           </div>
           {Object.entries(battleRecord.enemySkillUsage).map(([id, count]) => {
