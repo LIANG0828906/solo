@@ -5,6 +5,13 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Card, Tag, Note } from '@/types';
 import { getTagColor, getNoteBackground } from '@/utils/colorUtils';
 
+interface DragState {
+  isDragging: boolean;
+  draggedCardId: string | null;
+  dragStartIndex: number;
+  dragOverIndex: number;
+}
+
 interface BoardState {
   cards: Card[];
   tags: Tag[];
@@ -12,6 +19,7 @@ interface BoardState {
   selectedTagId: string | null;
   selectedCardIds: string[];
   isLoading: boolean;
+  dragState: DragState;
   
   loadFromIndexedDB: () => Promise<void>;
   saveToIndexedDB: () => Promise<void>;
@@ -34,6 +42,7 @@ interface BoardState {
   toggleCardSelection: (id: string, isMultiSelect: boolean) => void;
   clearSelection: () => void;
   setSelectedTag: (tagId: string | null) => void;
+  setDragState: (dragState: Partial<DragState>) => void;
 }
 
 const STORAGE_KEY = 'inspiration-board-data';
@@ -47,6 +56,12 @@ const useBoardStore = create<BoardState>()(
       selectedTagId: null,
       selectedCardIds: [],
       isLoading: false,
+      dragState: {
+        isDragging: false,
+        draggedCardId: null,
+        dragStartIndex: -1,
+        dragOverIndex: -1,
+      },
 
       loadFromIndexedDB: async () => {
         set({ isLoading: true });
@@ -318,6 +333,12 @@ const useBoardStore = create<BoardState>()(
 
       setSelectedTag: (tagId) => {
         set({ selectedTagId: tagId });
+      },
+
+      setDragState: (dragStateUpdates) => {
+        set((state) => ({
+          dragState: { ...state.dragState, ...dragStateUpdates },
+        }));
       },
     }),
     {

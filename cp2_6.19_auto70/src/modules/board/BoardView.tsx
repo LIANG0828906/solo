@@ -276,7 +276,8 @@ export function BoardView({ onOpenCapture, onOpenExport }: BoardViewProps) {
           style={{
             left: ghostPosition.x - dragState.ghostOffsetX,
             top: ghostPosition.y - dragState.ghostOffsetY,
-            width: dragState.ghostOffsetX * 2,
+            width: dragState.ghostWidth,
+            height: dragState.ghostHeight,
           }}
         >
           <img
