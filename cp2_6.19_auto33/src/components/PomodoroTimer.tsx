@@ -4,10 +4,10 @@ import { useBoardStore } from '../store/boardStore';
 
 export default function PomodoroTimer() {
   const { timeLeft, isRunning, completedPomodoros, activeTaskId, start, pause, reset, tick } = useTimerStore();
-  const tasks = useBoardStore((state) => state.tasks);
+  const getTaskById = useBoardStore((state) => state.getTaskById);
   const intervalRef = useRef<number | null>(null);
 
-  const activeTask = activeTaskId ? tasks.find((t) => t.id === activeTaskId) : null;
+  const activeTask = activeTaskId ? getTaskById(activeTaskId) : null;
 
   useEffect(() => {
     if (isRunning) {

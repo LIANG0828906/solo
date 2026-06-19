@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useBoardStore } from './boardStore';
 
 interface TimerState {
   timeLeft: number;
@@ -64,7 +65,6 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     }));
 
     if (activeTaskId) {
-      const { useBoardStore } = require('./boardStore');
       useBoardStore.getState().incrementCompletedPomodoros(activeTaskId);
     }
   },

@@ -1,56 +1,74 @@
-import { create } from 'zustand';
-import { v4 as uuidv4 } from 'uuid';
+import { create } from 'zustand'
+import { v4 as uuidv4 } from 'uuid'
 
-export type Priority = 'high' | 'medium' | 'low';
+export type Priority = 'high' | 'medium' | 'low'
+
+export type ColumnId = 'todo' | 'inProgress' | 'done'
 
 export interface SubTask {
-  id: string;
-  title: string;
-  completed: boolean;
-  timeSpent: number;
+  id: string
+  title: string
+  completed: boolean
+  timeSpent: number
 }
 
 export interface Task {
-  id: string;
-  title: string;
-  priority: Priority;
-  estimatedDuration: number;
-  column: 'todo' | 'inProgress' | 'done';
-  subTasks: SubTask[];
-  completedPomodoros: number;
-  totalTimeSpent: number;
-  createdAt: string;
-  completedAt?: string;
+  id: string
+  title: string
+  priority: Priority
+  estimatedDuration: number
+  column: ColumnId
+  subTasks: SubTask[]
+  completedPomodoros: number
+  totalTimeSpent: number
+  createdAt: string
+  completedAt?: string
+}
+
+export interface Column {
+  id: ColumnId
+  title: string
+  taskIds: string[]
 }
 
 interface BoardState {
-  tasks: Task[];
-  expandedTaskId: string | null;
-  showAddModal: boolean;
-  flyingTaskId: string | null;
-  toggleExpand: (taskId: string | null) => void;
-  setShowAddModal: (show: boolean) => void;
-  setFlyingTaskId: (id: string | null) => void;
-  addTask: (task: Omit<Task, 'id' | 'column' | 'subTasks' | 'completedPomodoros' | 'totalTimeSpent' | 'createdAt'>) => void;
-  moveTask: (taskId: string, targetColumn: 'todo' | 'inProgress' | 'done', targetIndex: number) => void;
-  reorderTask: (column: 'todo' | 'inProgress' | 'done', sourceIndex: number, targetIndex: number) => void;
-  toggleSubTask: (taskId: string, subTaskId: string) => void;
-  addSubTask: (taskId: string, title: string) => void;
-  removeSubTask: (taskId: string, subTaskId: string) => void;
-  incrementCompletedPomodoros: (taskId: string) => void;
-  getTasksByColumn: (column: 'todo' | 'inProgress' | 'done') => Task[];
-  getCompletedTasksByDate: (date: string) => Task[];
-  getCompletedPomodorosByDate: (date: string) => number;
-  getTotalFocusTimeByDate: (date: string) => number;
+  columns: Record<ColumnId, Column>
+  tasks: Record<string, Task>
+  expandedTaskId: string | null
+  showAddModal: boolean
+  flyingTaskId: string | null
+  toggleExpand: (taskId: string | null) => void
+  setShowAddModal: (show: boolean) => void
+  setFlyingTaskId: (id: string | null) => void
+  addTask: (task: Omit<Task, 'id' | 'column' | 'subTasks' | 'completedPomodoros' | 'totalTimeSpent' | 'createdAt'>) => void
+  moveTask: (taskId: string, sourceColumn: ColumnId, destinationColumn: ColumnId, sourceIndex: number, destinationIndex: number) => void
+  reorderTask: (column: ColumnId, sourceIndex: number, destinationIndex: number) => void
+  toggleSubTask: (taskId: string, subTaskId: string) => void
+  addSubTask: (taskId: string, title: string) => void
+  removeSubTask: (taskId: string, subTaskId: string) => void
+  incrementCompletedPomodoros: (taskId: string) => void
+  getTasksByColumn: (column: ColumnId) => Task[]
+  getColumnById: (columnId: ColumnId) => Column
+  getTaskById: (taskId: string) => Task | undefined
+  getCompletedTasksByDate: (date: string) => Task[]
+  getCompletedPomodorosByDate: (date: string) => number
+  getTotalFocusTimeByDate: (date: string) => number
 }
 
 const getTodayString = () => {
-  return new Date().toISOString().split('T')[0];
-};
+  return new Date().toISOString().split('T')[0]
+}
 
-const initialTasks: Task[] = [
-  {
-    id: uuidv4(),
+const createInitialData = () => {
+  const todoIds: string[] = []
+  const inProgressIds: string[] = []
+  const doneIds: string[] = []
+  const tasks: Record<string, Task> = {}
+
+  const task1Id = uuidv4()
+  todoIds.push(task1Id)
+  tasks[task1Id] = {
+    id: task1Id,
     title: '完成项目需求文档',
     priority: 'high',
     estimatedDuration: 120,
@@ -63,9 +81,12 @@ const initialTasks: Task[] = [
     completedPomodoros: 1,
     totalTimeSpent: 25,
     createdAt: getTodayString(),
-  },
-  {
-    id: uuidv4(),
+  }
+
+  const task2Id = uuidv4()
+  inProgressIds.push(task2Id)
+  tasks[task2Id] = {
+    id: task2Id,
     title: '设计系统架构',
     priority: 'high',
     estimatedDuration: 180,
@@ -78,9 +99,12 @@ const initialTasks: Task[] = [
     completedPomodoros: 3,
     totalTimeSpent: 80,
     createdAt: getTodayString(),
-  },
-  {
-    id: uuidv4(),
+  }
+
+  const task3Id = uuidv4()
+  doneIds.push(task3Id)
+  tasks[task3Id] = {
+    id: task3Id,
     title: '搭建开发环境',
     priority: 'medium',
     estimatedDuration: 60,
@@ -94,9 +118,12 @@ const initialTasks: Task[] = [
     totalTimeSpent: 60,
     createdAt: getTodayString(),
     completedAt: getTodayString(),
-  },
-  {
-    id: uuidv4(),
+  }
+
+  const task4Id = uuidv4()
+  todoIds.push(task4Id)
+  tasks[task4Id] = {
+    id: task4Id,
     title: '代码审查',
     priority: 'low',
     estimatedDuration: 45,
@@ -108,11 +135,26 @@ const initialTasks: Task[] = [
     completedPomodoros: 0,
     totalTimeSpent: 0,
     createdAt: getTodayString(),
-  },
-];
+  }
+
+  return {
+    tasks,
+    columns: {
+      todo: { id: 'todo', title: '待办', taskIds: todoIds },
+      inProgress: { id: 'inProgress', title: '进行中', taskIds: inProgressIds },
+      done: { id: 'done', title: '已完成', taskIds: doneIds },
+    },
+  }
+}
+
+const initialData = createInitialData() as {
+  tasks: Record<string, Task>
+  columns: Record<ColumnId, Column>
+}
 
 export const useBoardStore = create<BoardState>((set, get) => ({
-  tasks: initialTasks,
+  columns: initialData.columns,
+  tasks: initialData.tasks,
   expandedTaskId: null,
   showAddModal: false,
   flyingTaskId: null,
@@ -122,151 +164,207 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   setFlyingTaskId: (id) => set({ flyingTaskId: id }),
 
   addTask: (taskData) => {
+    const newTaskId = uuidv4()
     const newTask: Task = {
       ...taskData,
-      id: uuidv4(),
+      id: newTaskId,
       column: 'todo',
       subTasks: [],
       completedPomodoros: 0,
       totalTimeSpent: 0,
       createdAt: getTodayString(),
-    };
-    set((state) => ({ tasks: [...state.tasks, newTask], flyingTaskId: newTask.id }));
-    setTimeout(() => set({ flyingTaskId: null }), 600);
+    }
+
+    set((state) => ({
+      tasks: { ...state.tasks, [newTaskId]: newTask },
+      columns: {
+        ...state.columns,
+        todo: {
+          ...state.columns.todo,
+          taskIds: [newTaskId, ...state.columns.todo.taskIds],
+        },
+      },
+      flyingTaskId: newTaskId,
+    }))
+
+    setTimeout(() => set({ flyingTaskId: null }), 600)
   },
 
-  moveTask: (taskId, targetColumn, targetIndex) => {
+  moveTask: (taskId, sourceColumn, destinationColumn, sourceIndex, destinationIndex) => {
     set((state) => {
-      const task = state.tasks.find((t) => t.id === taskId);
-      if (!task) return state;
+      const task = state.tasks[taskId]
+      if (!task) return state
 
-      const otherTasks = state.tasks.filter((t) => t.id !== taskId);
-      const columnTasks = otherTasks
-        .filter((t) => t.column === targetColumn)
-        .sort((a, b) => state.tasks.indexOf(a) - state.tasks.indexOf(b));
-      
+      const sourceTaskIds = [...state.columns[sourceColumn].taskIds]
+      const destTaskIds = [...state.columns[destinationColumn].taskIds]
+
+      const [removed] = sourceTaskIds.splice(sourceIndex, 1)
+      destTaskIds.splice(destinationIndex, 0, removed)
+
       const updatedTask = {
         ...task,
-        column: targetColumn,
-        completedAt: targetColumn === 'done' ? getTodayString() : task.completedAt,
-      };
+        column: destinationColumn,
+        completedAt: destinationColumn === 'done' ? getTodayString() : undefined,
+      }
 
-      columnTasks.splice(targetIndex, 0, updatedTask);
-
-      const remainingTasks = otherTasks.filter((t) => t.column !== targetColumn);
-      
       return {
-        tasks: [...remainingTasks, ...columnTasks],
-      };
-    });
+        tasks: { ...state.tasks, [taskId]: updatedTask },
+        columns: {
+          ...state.columns,
+          [sourceColumn]: {
+            ...state.columns[sourceColumn],
+            taskIds: sourceTaskIds,
+          },
+          [destinationColumn]: {
+            ...state.columns[destinationColumn],
+            taskIds: destTaskIds,
+          },
+        },
+      }
+    })
   },
 
-  reorderTask: (column, sourceIndex, targetIndex) => {
+  reorderTask: (column, sourceIndex, destinationIndex) => {
     set((state) => {
-      const columnTasks = state.tasks
-        .filter((t) => t.column === column)
-        .sort((a, b) => state.tasks.indexOf(a) - state.tasks.indexOf(b));
-      
-      const [removed] = columnTasks.splice(sourceIndex, 1);
-      columnTasks.splice(targetIndex, 0, removed);
+      const taskIds = [...state.columns[column].taskIds]
+      const [removed] = taskIds.splice(sourceIndex, 1)
+      taskIds.splice(destinationIndex, 0, removed)
 
-      const otherTasks = state.tasks.filter((t) => t.column !== column);
-      
       return {
-        tasks: [...otherTasks, ...columnTasks],
-      };
-    });
+        columns: {
+          ...state.columns,
+          [column]: {
+            ...state.columns[column],
+            taskIds,
+          },
+        },
+      }
+    })
   },
 
   toggleSubTask: (taskId, subTaskId) => {
-    set((state) => ({
-      tasks: state.tasks.map((task) => {
-        if (task.id !== taskId) return task;
-        
-        const updatedSubTasks = task.subTasks.map((st) => {
-          if (st.id !== subTaskId) return st;
-          return {
-            ...st,
-            completed: !st.completed,
-            timeSpent: !st.completed ? st.timeSpent + 25 : Math.max(0, st.timeSpent - 25),
-          };
-        });
+    set((state) => {
+      const task = state.tasks[taskId]
+      if (!task) return state
 
-        const totalTimeSpent = updatedSubTasks.reduce((sum, st) => sum + st.timeSpent, 0);
-        
+      const updatedSubTasks = task.subTasks.map((st) => {
+        if (st.id !== subTaskId) return st
         return {
-          ...task,
-          subTasks: updatedSubTasks,
-          totalTimeSpent,
-        };
-      }),
-    }));
+          ...st,
+          completed: !st.completed,
+          timeSpent: !st.completed ? st.timeSpent + 25 : Math.max(0, st.timeSpent - 25),
+        }
+      })
+
+      const totalTimeSpent = updatedSubTasks.reduce((sum, st) => sum + st.timeSpent, 0)
+
+      return {
+        tasks: {
+          ...state.tasks,
+          [taskId]: {
+            ...task,
+            subTasks: updatedSubTasks,
+            totalTimeSpent,
+          },
+        },
+      }
+    })
   },
 
   addSubTask: (taskId, title) => {
-    set((state) => ({
-      tasks: state.tasks.map((task) => {
-        if (task.id !== taskId || task.subTasks.length >= 10) return task;
-        return {
-          ...task,
-          subTasks: [...task.subTasks, {
-            id: uuidv4(),
-            title,
-            completed: false,
-            timeSpent: 0,
-          }],
-        };
-      }),
-    }));
+    set((state) => {
+      const task = state.tasks[taskId]
+      if (!task || task.subTasks.length >= 10) return state
+
+      return {
+        tasks: {
+          ...state.tasks,
+          [taskId]: {
+            ...task,
+            subTasks: [
+              ...task.subTasks,
+              {
+                id: uuidv4(),
+                title,
+                completed: false,
+                timeSpent: 0,
+              },
+            ],
+          },
+        },
+      }
+    })
   },
 
   removeSubTask: (taskId, subTaskId) => {
-    set((state) => ({
-      tasks: state.tasks.map((task) => {
-        if (task.id !== taskId) return task;
-        const updatedSubTasks = task.subTasks.filter((st) => st.id !== subTaskId);
-        const totalTimeSpent = updatedSubTasks.reduce((sum, st) => sum + st.timeSpent, 0);
-        return {
-          ...task,
-          subTasks: updatedSubTasks,
-          totalTimeSpent,
-        };
-      }),
-    }));
+    set((state) => {
+      const task = state.tasks[taskId]
+      if (!task) return state
+
+      const updatedSubTasks = task.subTasks.filter((st) => st.id !== subTaskId)
+      const totalTimeSpent = updatedSubTasks.reduce((sum, st) => sum + st.timeSpent, 0)
+
+      return {
+        tasks: {
+          ...state.tasks,
+          [taskId]: {
+            ...task,
+            subTasks: updatedSubTasks,
+            totalTimeSpent,
+          },
+        },
+      }
+    })
   },
 
   incrementCompletedPomodoros: (taskId) => {
-    set((state) => ({
-      tasks: state.tasks.map((task) => {
-        if (task.id !== taskId) return task;
-        return {
-          ...task,
-          completedPomodoros: task.completedPomodoros + 1,
-        };
-      }),
-    }));
+    set((state) => {
+      const task = state.tasks[taskId]
+      if (!task) return state
+
+      return {
+        tasks: {
+          ...state.tasks,
+          [taskId]: {
+            ...task,
+            completedPomodoros: task.completedPomodoros + 1,
+          },
+        },
+      }
+    })
   },
 
-  getTasksByColumn: (column) => {
-    const state = get();
-    return state.tasks
-      .filter((t) => t.column === column)
-      .sort((a, b) => state.tasks.indexOf(a) - state.tasks.indexOf(b));
+  getTasksByColumn: (columnId) => {
+    const state = get()
+    const column = state.columns[columnId]
+    return column.taskIds
+      .map((taskId) => state.tasks[taskId])
+      .filter(Boolean) as Task[]
+  },
+
+  getColumnById: (columnId) => {
+    return get().columns[columnId]
+  },
+
+  getTaskById: (taskId) => {
+    return get().tasks[taskId]
   },
 
   getCompletedTasksByDate: (date) => {
-    return get().tasks.filter((t) => t.column === 'done' && t.completedAt === date);
+    return Object.values(get().tasks).filter(
+      (t) => t.column === 'done' && t.completedAt === date
+    )
   },
 
   getCompletedPomodorosByDate: (date) => {
     return get()
       .getCompletedTasksByDate(date)
-      .reduce((sum, t) => sum + t.completedPomodoros, 0);
+      .reduce((sum, t) => sum + t.completedPomodoros, 0)
   },
 
   getTotalFocusTimeByDate: (date) => {
     return get()
       .getCompletedTasksByDate(date)
-      .reduce((sum, t) => sum + t.totalTimeSpent, 0);
+      .reduce((sum, t) => sum + t.totalTimeSpent, 0)
   },
-}));
+}))

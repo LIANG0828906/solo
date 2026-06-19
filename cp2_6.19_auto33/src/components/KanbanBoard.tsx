@@ -1,31 +1,31 @@
-import { useState } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { useBoardStore, Priority } from '../store/boardStore';
-import TaskCard from './TaskCard';
+import { useState } from 'react'
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
+import { useBoardStore, Priority, ColumnId } from '../store/boardStore'
+import TaskCard from './TaskCard'
 
-const columnConfig = {
+const columnConfig: Record<ColumnId, { title: string; color: string }> = {
   todo: { title: '待办', color: '#f59e0b' },
   inProgress: { title: '进行中', color: '#3b82f6' },
   done: { title: '已完成', color: '#10b981' },
-};
+}
 
 const AddTaskModal = ({ onClose }: { onClose: () => void }) => {
-  const [title, setTitle] = useState('');
-  const [priority, setPriority] = useState<Priority>('medium');
-  const [estimatedDuration, setEstimatedDuration] = useState(60);
-  const addTask = useBoardStore((state) => state.addTask);
+  const [title, setTitle] = useState('')
+  const [priority, setPriority] = useState<Priority>('medium')
+  const [estimatedDuration, setEstimatedDuration] = useState(60)
+  const addTask = useBoardStore((state) => state.addTask)
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
     if (title.trim()) {
       addTask({
         title: title.trim(),
         priority,
         estimatedDuration,
-      });
-      onClose();
+      })
+      onClose()
     }
-  };
+  }
 
   return (
     <div
@@ -179,8 +179,8 @@ const AddTaskModal = ({ onClose }: { onClose: () => void }) => {
         </form>
       </div>
     </div>
-  );
-};
+  )
+}
 
 export default function KanbanBoard() {
   const {
@@ -189,25 +189,29 @@ export default function KanbanBoard() {
     reorderTask,
     showAddModal,
     setShowAddModal,
-  } = useBoardStore();
+  } = useBoardStore()
 
   const onDragEnd = (result: DropResult) => {
-    const { source, destination } = result;
-    if (!destination) return;
+    const { source, destination } = result
+    if (!destination) return
 
-    const sourceColumn = source.droppableId as 'todo' | 'inProgress' | 'done';
-    const destColumn = destination.droppableId as 'todo' | 'inProgress' | 'done';
+    const sourceColumn = source.droppableId as ColumnId
+    const destColumn = destination.droppableId as ColumnId
 
     if (sourceColumn === destColumn) {
       if (source.index !== destination.index) {
-        reorderTask(sourceColumn, source.index, destination.index);
+        reorderTask(sourceColumn, source.index, destination.index)
       }
     } else {
-      const sourceTasks = getTasksByColumn(sourceColumn);
-      const taskId = sourceTasks[source.index].id;
-      moveTask(taskId, destColumn, destination.index);
+      moveTask(
+        result.draggableId,
+        sourceColumn,
+        destColumn,
+        source.index,
+        destination.index
+      )
     }
-  };
+  }
 
   return (
     <div style={{ width: '100%' }}>
@@ -254,9 +258,9 @@ export default function KanbanBoard() {
           }}
           className="kanban-columns"
         >
-          {(Object.keys(columnConfig) as ('todo' | 'inProgress' | 'done')[]).map((columnId) => {
-            const tasks = getTasksByColumn(columnId);
-            const config = columnConfig[columnId];
+          {(Object.keys(columnConfig) as ColumnId[]).map((columnId) => {
+            const tasks = getTasksByColumn(columnId)
+            const config = columnConfig[columnId]
             return (
               <Droppable key={columnId} droppableId={columnId}>
                 {(provided, snapshot) => (
@@ -267,14 +271,15 @@ export default function KanbanBoard() {
                       flex: 1,
                       minWidth: 0,
                       backgroundColor: snapshot.isDraggingOver
-                        ? 'rgba(59, 130, 246, 0.1)'
+                        ? 'rgba(59, 130, 246, 0.15)'
                         : 'transparent',
                       borderRadius: '12px',
                       padding: '16px',
-                      transition: 'background-color 0.3s ease-in-out',
+                      transition: 'background-color 0.3s ease, border-color 0.3s ease',
                       border: snapshot.isDraggingOver
                         ? '2px dashed #3b82f6'
                         : '2px solid transparent',
+                      transform: snapshot.isDraggingOver ? 'scale(1.01)' : 'scale(1)',
                     }}
                   >
                     <div
@@ -291,6 +296,7 @@ export default function KanbanBoard() {
                           height: '12px',
                           borderRadius: '50%',
                           backgroundColor: config.color,
+                          boxShadow: `0 0 8px ${config.color}40`,
                         }}
                       />
                       <h3 style={{ fontSize: '16px', fontWeight: 600 }}>{config.title}</h3>
@@ -301,6 +307,7 @@ export default function KanbanBoard() {
                           borderRadius: '12px',
                           fontSize: '12px',
                           color: '#94a3b8',
+                          transition: 'all 0.3s ease',
                         }}
                       >
                         {tasks.length}
@@ -323,16 +330,25 @@ export default function KanbanBoard() {
                               {...provided.dragHandleProps}
                               style={{
                                 ...provided.draggableProps.style,
-                                opacity: snapshot.isDragging ? 0.7 : 1,
+                                opacity: snapshot.isDragging ? 0.5 : 1,
                                 transition: snapshot.isDragging
                                   ? 'none'
                                   : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                transform: snapshot.isDragging
-                                  ? provided.draggableProps.style?.transform
-                                  : undefined,
+                                zIndex: snapshot.isDragging ? 999 : 'auto',
                               }}
                             >
-                              <TaskCard task={task} />
+                              <div
+                                style={{
+                                  transform: snapshot.isDragging ? 'scale(1.03)' : 'scale(1)',
+                                  boxShadow: snapshot.isDragging
+                                    ? '0 12px 40px rgba(0, 0, 0, 0.4)'
+                                    : 'none',
+                                  borderRadius: '8px',
+                                  transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                }}
+                              >
+                                <TaskCard task={task} />
+                              </div>
                             </div>
                           )}
                         </Draggable>
@@ -342,7 +358,7 @@ export default function KanbanBoard() {
                   </div>
                 )}
               </Droppable>
-            );
+            )
           })}
         </div>
       </DragDropContext>
@@ -353,10 +369,9 @@ export default function KanbanBoard() {
         @media (max-width: 768px) {
           .kanban-columns {
             flex-direction: column !important;
-            overflow-y: auto;
           }
         }
       `}</style>
     </div>
-  );
+  )
 }
