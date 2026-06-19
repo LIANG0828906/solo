@@ -1,0 +1,258 @@
+.highlight-span {
+  position: relative;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.highlight-span:hover {
+  background-color: rgba(255, 215, 0, 0.55) !important;
+}
+
+.highlight-delete-btn {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 20;
+  transition: transform 150ms ease;
+}
+
+.highlight-delete-btn:hover {
+  transform: scale(1.1);
+}
+
+.highlight-span:hover .highlight-delete-btn {
+  display: flex;
+}
+
+.floating-toolbar {
+  position: absolute;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: #111827;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  z-index: 100;
+  animation: fadeIn 150ms ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toolbar-btn {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: #f9fafb;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.toolbar-btn:active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.note-input-wrapper {
+  position: absolute;
+  z-index: 100;
+  animation: slideIn 150ms ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.note-input {
+  width: 280px;
+  padding: 10px 14px;
+  background: #f9fafb;
+  border: 1.5px solid #93c5fd;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  resize: none;
+  line-height: 1.5;
+  transition: box-shadow 150ms ease;
+}
+
+.note-input:focus {
+  box-shadow: 0 4px 16px rgba(147, 197, 253, 0.3);
+}
+
+.note-input-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 4px;
+  padding-left: 2px;
+}
+
+.sidebar-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  cursor: grab;
+  transition: all 150ms ease, transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+
+.sidebar-card:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.sidebar-card:active {
+  cursor: grabbing;
+}
+
+.sidebar-card.dragging {
+  opacity: 0.4;
+}
+
+.sidebar-card.drag-over {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  transform: translateY(-2px);
+}
+
+.sidebar-card.highlight-type {
+  border-left: 3px solid #fbbf24;
+}
+
+.sidebar-card.note-type {
+  border-left: 3px solid #60a5fa;
+  margin-left: 16px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.card-type {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.card-type.highlight {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.card-type.note {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.card-time {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.card-text {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-text.full {
+  -webkit-line-clamp: unset;
+}
+
+.card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.card-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #4b5563;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.card-btn:hover {
+  border-color: #9ca3af;
+  color: #111827;
+}
+
+.card-btn.link-mode {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.card-btn.link-mode:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.card-btn.drop-target {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.85;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
