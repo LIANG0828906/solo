@@ -48,6 +48,8 @@ const initialAudioAnalysis: AudioAnalysisResult = {
   averageVolume: 0,
   isBeat: false,
   timestamp: 0,
+  beatIntensity: 0,
+  estimatedBPM: null,
 }
 
 export const useVisualizerStore = create<VisualizerState>((set) => ({

@@ -11,6 +11,8 @@ export interface AudioAnalysisResult {
   averageVolume: number
   isBeat: boolean
   timestamp: number
+  beatIntensity: number
+  estimatedBPM: number | null
 }
 
 export interface ParticleData {

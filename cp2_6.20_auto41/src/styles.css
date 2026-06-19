@@ -215,13 +215,28 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .slider-value.pop {
-  animation: popScale 0.3s ease;
+  animation: popScale 200ms ease-out;
 }
 
 @keyframes popScale {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.3); }
-  100% { transform: scale(1); }
+  0% { transform: scale(1.2); }
+  100% { transform: scale(1.0); }
+}
+
+.slider-value-animate {
+  display: inline-block;
+  min-width: 40px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  transition: transform 200ms ease-out;
+  transform-origin: center;
+}
+.slider-value-animate.changing {
+  animation: scaleDown 200ms ease-out forwards;
+}
+@keyframes scaleDown {
+  0% { transform: scale(1.2); }
+  100% { transform: scale(1.0); }
 }
 
 .play-pause-icon {

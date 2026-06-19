@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { AudioAnalyzer } from '@/AudioAnalyzer'
-import { useVisualizerStore, useAudioState, useControlParams } from '@/store/useStore'
+import { useVisualizerStore, useAudioState, useControlParams, useAudioAnalysis } from '@/store/useStore'
 import { Visualizer3D } from '@/components/Visualizer3D'
 import UploadButton from '@/components/UploadButton'
 import PresetSelector from '@/components/PresetSelector'
@@ -11,6 +11,7 @@ export default function Visualizer() {
   const audioAnalyzerRef = useRef<AudioAnalyzer | null>(null)
   const audioState = useAudioState()
   const controlParams = useControlParams()
+  const audioAnalysis = useAudioAnalysis()
   const { setAudioAnalysis, setAudioState } =
     useVisualizerStore()
 
@@ -70,11 +71,18 @@ export default function Visualizer() {
 
       <div className="ui-overlay top-4 left-4">
         {audioState.currentFileName && (
-          <div className="glass-panel px-4 py-2 flex items-center gap-2 fade-in">
-            <div className="playing-indicator" />
-            <span className="text-xs text-white/80 truncate max-w-[200px]">
-              {audioState.currentFileName}
-            </span>
+          <div className="glass-panel px-4 py-3 fade-in">
+            <div className="flex items-center gap-2">
+              <div className="playing-indicator" />
+              <span className="text-xs text-white/80 truncate max-w-[200px]">
+                {audioState.currentFileName}
+              </span>
+            </div>
+            {audioAnalysis && audioAnalysis.estimatedBPM && audioAnalysis.estimatedBPM > 0 && (
+              <div className="mt-1 text-xs text-cyan-400 font-medium">
+                BPM: {Math.round(audioAnalysis.estimatedBPM)}
+              </div>
+            )}
           </div>
         )}
       </div>

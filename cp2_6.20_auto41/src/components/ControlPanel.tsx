@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   useControlParams,
   useVisualizerStore,
@@ -27,6 +27,7 @@ export default function ControlPanel() {
   const { setControlParams, setVisualizationMode } = useVisualizerStore()
   const audioState = useAudioState()
   const [animatingKey, setAnimatingKey] = useState<string | null>(null)
+  const prevValuesRef = useRef<Record<string, number>>({})
 
   const sliders: SliderConfig[] = [
     { key: 'particleCount', label: '粒子数量', min: 1000, max: 8000, step: 100 },
@@ -42,9 +43,13 @@ export default function ControlPanel() {
   ]
 
   const handleSliderChange = (key: SliderConfig['key'], value: number) => {
+    const prevValue = prevValuesRef.current[key]
     setControlParams({ [key]: value })
-    setAnimatingKey(key)
-    setTimeout(() => setAnimatingKey(null), 300)
+    if (prevValue !== undefined && prevValue !== value) {
+      setAnimatingKey(key)
+      setTimeout(() => setAnimatingKey(null), 200)
+    }
+    prevValuesRef.current[key] = value
   }
 
   const formatValue = (value: number, unit?: string) => {
@@ -71,8 +76,8 @@ export default function ControlPanel() {
                 <span className="text-sm text-gray-300">{slider.label}</span>
                 <span
                   className={cn(
-                    'slider-value text-sm font-medium text-blue-400',
-                    animatingKey === slider.key && 'pop'
+                    'slider-value-animate text-sm font-medium text-blue-400',
+                    animatingKey === slider.key && 'changing'
                   )}
                 >
                   {formatValue(controlParams[slider.key], slider.unit)}

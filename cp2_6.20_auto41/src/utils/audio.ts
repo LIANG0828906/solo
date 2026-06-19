@@ -31,12 +31,22 @@ export function calculateFrequencyBands(
   }
 }
 
+export interface PeakDetectionResult {
+  isPeak: boolean
+  peakIntensity: number
+  beatPeriod: number | null
+}
+
 export class BeatDetector {
   private energyHistory: number[] = []
+  private peakHistory: number[] = []
+  private waveformHistory: number[][] = []
   private readonly historySize: number = 60
-  private readonly threshold: number = 1.3
+  private readonly threshold: number = 1.35
   private lastBeatTime: number = 0
-  private readonly minBeatInterval: number = 150
+  private readonly minBeatInterval: number = 120
+  private beatIntervals: number[] = []
+  private currentBeatStrength: number = 0
 
   detect(averageVolume: number, currentTime: number): boolean {
     this.energyHistory.push(averageVolume)
@@ -49,28 +59,112 @@ export class BeatDetector {
       return false
     }
 
-    const averageEnergy =
-      this.energyHistory.reduce((sum, val) => sum + val, 0) / this.energyHistory.length
+    const recentEnergies = this.energyHistory.slice(-43)
+    const averageEnergy = recentEnergies.reduce((s, v) => s + v, 0) / recentEnergies.length
 
-    const variance =
-      this.energyHistory.reduce((sum, val) => sum + Math.pow(val - averageEnergy, 2), 0) /
-      this.energyHistory.length
+    const variance = recentEnergies.reduce((s, v) => s + Math.pow(v - averageEnergy, 2), 0) / recentEnergies.length
 
-    const dynamicThreshold = averageEnergy * this.threshold + Math.sqrt(variance) * 0.5
+    const C = -0.0025714 * variance + 1.5142857
+    const dynamicThreshold = averageEnergy * Math.min(C, this.threshold)
 
     const isBeat =
-      averageVolume > dynamicThreshold && currentTime - this.lastBeatTime > this.minBeatInterval
+      averageVolume > dynamicThreshold &&
+      currentTime - this.lastBeatTime > this.minBeatInterval &&
+      this.isLocalPeak(this.energyHistory, this.energyHistory.length - 1)
 
     if (isBeat) {
+      if (this.lastBeatTime > 0) {
+        const interval = currentTime - this.lastBeatTime
+        if (interval < 2000) {
+          this.beatIntervals.push(interval)
+          if (this.beatIntervals.length > 20) {
+            this.beatIntervals.shift()
+          }
+        }
+      }
       this.lastBeatTime = currentTime
+      this.peakHistory.push(currentTime)
+      if (this.peakHistory.length > 100) this.peakHistory.shift()
+      this.currentBeatStrength = averageVolume
     }
 
     return isBeat
   }
 
+  private isLocalPeak(arr: number[], idx: number): boolean {
+    if (idx < 3 || idx >= arr.length - 3) return false
+    const val = arr[idx]
+    for (let i = 1; i <= 3; i++) {
+      if (arr[idx - i] >= val || arr[idx + i] > val) return false
+    }
+    return true
+  }
+
+  detectFromWaveform(waveform: Uint8Array, currentTime: number): PeakDetectionResult {
+    let energy = 0
+    for (let i = 0; i < waveform.length; i++) {
+      const normalized = (waveform[i] - 128) / 128
+      energy += normalized * normalized
+    }
+    energy = Math.sqrt(energy / waveform.length)
+
+    const waveformArr = Array.from(waveform)
+    this.waveformHistory.push(waveformArr)
+    if (this.waveformHistory.length > 30) this.waveformHistory.shift()
+
+    const isBeat = this.detect(energy, currentTime)
+
+    let beatPeriod: number | null = null
+    if (this.beatIntervals.length >= 4) {
+      const sorted = [...this.beatIntervals].sort((a, b) => a - b)
+      const median = sorted[Math.floor(sorted.length / 2)]
+      beatPeriod = median
+    }
+
+    return {
+      isPeak: isBeat,
+      peakIntensity: Math.min(1, energy * 2),
+      beatPeriod,
+    }
+  }
+
+  calculateAutocorrelation(waveform: Uint8Array): number[] {
+    const n = waveform.length
+    const result: number[] = new Array(n).fill(0)
+    const normalized = new Float32Array(n)
+    for (let i = 0; i < n; i++) {
+      normalized[i] = (waveform[i] - 128) / 128
+    }
+    for (let lag = 0; lag < n; lag++) {
+      let sum = 0
+      for (let i = 0; i < n - lag; i++) {
+        sum += normalized[i] * normalized[i + lag]
+      }
+      result[lag] = sum / (n - lag)
+    }
+    return result
+  }
+
+  estimateBPM(): number | null {
+    if (this.beatIntervals.length < 4) return null
+    const sum = this.beatIntervals.reduce((s, v) => s + v, 0)
+    const avgInterval = sum / this.beatIntervals.length
+    return Math.round(60000 / avgInterval)
+  }
+
+  getBeatStrength(): number {
+    const decay = 0.92
+    this.currentBeatStrength *= decay
+    return this.currentBeatStrength
+  }
+
   reset(): void {
     this.energyHistory = []
+    this.peakHistory = []
+    this.waveformHistory = []
+    this.beatIntervals = []
     this.lastBeatTime = 0
+    this.currentBeatStrength = 0
   }
 }
 

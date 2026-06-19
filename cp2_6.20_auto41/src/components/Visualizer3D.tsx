@@ -8,9 +8,13 @@ import { getSpectrumBarData } from '@/utils/audio'
 
 function ParticleScene() {
   const particleSystemRef = useRef<ParticleSystem | null>(null)
-  const frameCountRef = useRef(0)
-  const lastTimeRef = useRef(0)
-  const fpsUpdateTimeRef = useRef(0)
+  const recentFrameTimesRef = useRef<number[]>([])
+  const lowFPSStreakRef = useRef(0)
+  const highFPSStreakRef = useRef(0)
+  const downgradeStateRef = useRef<'normal' | 'downgraded' | 'recovering'>('normal')
+  const downgradeStartTimeRef = useRef(0)
+  const recoveryStepRef = useRef(0)
+  const lastRecoveryStepTimeRef = useRef(0)
   const [points, setPoints] = useState<THREE.Points | null>(null)
   const controlParams = useControlParams()
   const audioAnalysis = useAudioAnalysis()
@@ -52,21 +56,101 @@ function ParticleScene() {
       params
     )
 
-    frameCountRef.current++
     const now = performance.now()
-    if (now - fpsUpdateTimeRef.current >= 1000) {
-      const fps = Math.round(frameCountRef.current * 1000 / (now - lastTimeRef.current))
-      const isLowFPS = fps < 30
+    recentFrameTimesRef.current.push(now)
+    if (recentFrameTimesRef.current.length > 60) {
+      recentFrameTimesRef.current.shift()
+    }
 
-      if (!fpsState.manualOverride && isLowFPS && params.particleCount > 2000) {
-        particleSystemRef.current?.setParticleCount(2000)
-        useVisualizerStore.getState().setControlParams({ particleCount: 2000 })
+    let fps = 60
+    const times = recentFrameTimesRef.current
+    if (times.length >= 2) {
+      let totalDiff = 0
+      for (let i = 1; i < times.length; i++) {
+        totalDiff += times[i] - times[i - 1]
+      }
+      const avgDiff = totalDiff / (times.length - 1)
+      fps = Math.round(1000 / avgDiff)
+    }
+
+    const isLowFPS = fps < 30
+    const store = useVisualizerStore.getState()
+
+    if (downgradeStateRef.current === 'normal' && !fpsState.manualOverride) {
+      if (fps < 30) {
+        lowFPSStreakRef.current++
+      } else {
+        lowFPSStreakRef.current = 0
       }
 
-      useVisualizerStore.getState().setFPSState({ fps, isLowFPS })
-      frameCountRef.current = 0
-      fpsUpdateTimeRef.current = now
-      lastTimeRef.current = now
+      if (lowFPSStreakRef.current >= 10) {
+        particleSystemRef.current?.setParticleCount(2000)
+        store.setControlParams({ particleCount: 2000, performanceMode: true })
+        downgradeStateRef.current = 'downgraded'
+        downgradeStartTimeRef.current = now
+        lowFPSStreakRef.current = 0
+        highFPSStreakRef.current = 0
+        recoveryStepRef.current = 0
+      }
+    } else if (downgradeStateRef.current === 'downgraded' && !fpsState.manualOverride) {
+      const timeSinceDowngrade = now - downgradeStartTimeRef.current
+
+      if (fps >= 50) {
+        highFPSStreakRef.current++
+      } else {
+        highFPSStreakRef.current = 0
+      }
+
+      if (timeSinceDowngrade >= 10000 && highFPSStreakRef.current >= 30) {
+        downgradeStateRef.current = 'recovering'
+        recoveryStepRef.current = 1
+        lastRecoveryStepTimeRef.current = now
+        particleSystemRef.current?.setParticleCount(3500)
+        store.setControlParams({ particleCount: 3500 })
+        highFPSStreakRef.current = 0
+      }
+    } else if (downgradeStateRef.current === 'recovering' && !fpsState.manualOverride) {
+      const timeSinceLastStep = now - lastRecoveryStepTimeRef.current
+
+      if (fps >= 50) {
+        highFPSStreakRef.current++
+      } else {
+        highFPSStreakRef.current = 0
+      }
+
+      if (timeSinceLastStep >= 5000 && highFPSStreakRef.current >= 30) {
+        if (recoveryStepRef.current === 1) {
+          recoveryStepRef.current = 2
+          lastRecoveryStepTimeRef.current = now
+          particleSystemRef.current?.setParticleCount(5000)
+          store.setControlParams({ particleCount: 5000 })
+          highFPSStreakRef.current = 0
+        } else if (recoveryStepRef.current === 2) {
+          recoveryStepRef.current = 0
+          downgradeStateRef.current = 'normal'
+          store.setControlParams({ performanceMode: false })
+          highFPSStreakRef.current = 0
+        }
+      }
+
+      if (fps < 30) {
+        lowFPSStreakRef.current++
+        if (lowFPSStreakRef.current >= 10) {
+          particleSystemRef.current?.setParticleCount(2000)
+          store.setControlParams({ particleCount: 2000, performanceMode: true })
+          downgradeStateRef.current = 'downgraded'
+          downgradeStartTimeRef.current = now
+          recoveryStepRef.current = 0
+          lowFPSStreakRef.current = 0
+          highFPSStreakRef.current = 0
+        }
+      } else {
+        lowFPSStreakRef.current = 0
+      }
+    }
+
+    if (times.length >= 2 && store.fpsState.fps !== fps) {
+      store.setFPSState({ fps, isLowFPS })
     }
   })
 
@@ -112,7 +196,10 @@ export function Visualizer3D() {
   return (
     <Canvas
       camera={{ position: [0, 0, 15], fov: 75 }}
-      gl={{ antialias: !controlParams.performanceMode }}
+      gl={{
+        antialias: !controlParams.performanceMode,
+        ...(controlParams.performanceMode ? { shadows: false } : {}),
+      }}
       style={{
         position: 'fixed',
         top: 0,
