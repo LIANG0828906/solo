@@ -1,4 +1,4 @@
-import type { Card, RarityType } from './cardData';
+import type { RarityType } from './cardData';
 import { ALL_CARDS } from './cardData';
 
 const RARITY_PROBABILITY: Record<RarityType, number> = {
@@ -22,7 +22,7 @@ export function synthesize(
   );
 
   if (!matchedCard) {
-    return { success: false, resultCardId: null, newGoldSynthCount: goldSynthCount + 1 };
+    return { success: false, resultCardId: null, newGoldSynthCount: goldSynthCount };
   }
 
   const rarity = matchedCard.rarity;
@@ -35,10 +35,11 @@ export function synthesize(
   const roll = Math.random();
 
   if (roll < probability) {
-    const newGoldSynthCount = rarity === 'legendary' ? 0 : goldSynthCount + 1;
+    const newGoldSynthCount = rarity === 'legendary' ? 0 : goldSynthCount;
     return { success: true, resultCardId: matchedCard.id, newGoldSynthCount };
   } else {
-    return { success: false, resultCardId: null, newGoldSynthCount: goldSynthCount + 1 };
+    const newGoldSynthCount = rarity === 'legendary' ? goldSynthCount + 1 : goldSynthCount;
+    return { success: false, resultCardId: null, newGoldSynthCount };
   }
 }
 

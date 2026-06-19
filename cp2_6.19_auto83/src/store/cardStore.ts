@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Card } from '../utils/cardData'
-import { ALL_CARDS, getCardById, generateInitialCardList } from '../utils/cardData'
+import { generateInitialCardList } from '../utils/cardData'
 import { synthesize, calculateSynthesisProbability } from '../utils/synthesisEngine'
 
 interface CardStoreState {
