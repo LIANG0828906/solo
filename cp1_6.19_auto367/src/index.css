@@ -1,0 +1,293 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0d1117;
+  color: #e6edf3;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+  min-width: 800px;
+  overflow: hidden;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.top-toolbar {
+  height: 56px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+}
+
+.top-toolbar h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #8b5cf6;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-panel {
+  width: 320px;
+  background: #161b22;
+  padding: 20px;
+  border-radius: 8px;
+  margin: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.editor-panel.collapsed {
+  display: none;
+}
+
+.canvas-area {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.canvas-wrapper {
+  position: relative;
+  width: 800px;
+  height: 800px;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  background: #000000;
+}
+
+.btn {
+  background: #8b5cf6;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 500;
+}
+
+.btn:hover {
+  filter: brightness(1.15);
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn.active {
+  background: #a78bfa;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+}
+
+.btn.secondary {
+  background: #21262d;
+  border: 1px solid #30363d;
+}
+
+.btn.secondary:hover {
+  background: #30363d;
+}
+
+.btn-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e6edf3;
+  margin-bottom: 4px;
+}
+
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #8b949e;
+}
+
+.slider-value {
+  color: #8b5cf6;
+  font-weight: 600;
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #30363d;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #8b5cf6;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  background: #a78bfa;
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #8b5cf6;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: all 0.1s ease;
+}
+
+input[type='range']::-moz-range-thumb:hover {
+  background: #a78bfa;
+}
+
+.theme-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.theme-btn {
+  height: 40px;
+  border-radius: 6px;
+  border: 2px solid #30363d;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-btn:hover {
+  border-color: #8b5cf6;
+  transform: scale(0.97);
+}
+
+.theme-btn.active {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+}
+
+.theme-btn .gradient-preview {
+  position: absolute;
+  inset: 0;
+}
+
+.switch-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #30363d;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.switch.on {
+  background: #8b5cf6;
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.switch.on .switch-thumb {
+  transform: translateX(20px);
+}
+
+.drawer-toggle {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  body {
+    min-width: 100%;
+  }
+
+  .main-content {
+    flex-direction: column;
+  }
+
+  .editor-panel {
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    max-height: 50vh;
+  }
+
+  .canvas-wrapper {
+    width: 100%;
+    height: calc(100vh - 56px - 50vh);
+  }
+
+  .drawer-toggle {
+    display: block;
+  }
+}
