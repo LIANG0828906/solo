@@ -117,6 +117,41 @@ body {
   }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 500px;
+  }
+}
+
+@keyframes pulseOutline {
+  0% {
+    box-shadow: 0 0 0 0 rgba(237, 137, 54, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(237, 137, 54, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(237, 137, 54, 0);
+  }
+}
+
+@keyframes pulseGuide {
+  0%, 100% {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(237, 137, 54, 0.6);
+  }
+  50% {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 0 0 8px rgba(237, 137, 54, 0);
+    transform: translateY(-4px);
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease forwards;
 }
@@ -131,6 +166,10 @@ body {
 
 .animate-bounce-soft {
   animation: bounceSoft 0.6s ease-in-out;
+}
+
+.animate-pulse-guide {
+  animation: pulseGuide 0.8s ease-in-out;
 }
 
 /* 毛玻璃效果 */

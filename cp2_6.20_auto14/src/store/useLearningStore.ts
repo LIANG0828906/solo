@@ -11,6 +11,7 @@ interface LearningState {
   abilities: Abilities;
   learningRecords: LearningRecord[];
   error: string | null;
+  isFirstUnitHighlight: boolean;
 
   setSubject: (s: Subject) => void;
   setLevel: (l: Level) => void;
@@ -20,6 +21,7 @@ interface LearningState {
   submitQuiz: (unitId: string, answers: Record<string, number>) => Promise<QuizResult | null>;
   toggleUnitExpand: (unitId: string) => void;
   setUnitInProgress: (unitId: string) => void;
+  clearFirstUnitHighlight: () => void;
 }
 
 const initialAbilities: Abilities = {
@@ -39,17 +41,21 @@ export const useLearningStore = create<LearningState>((set, get) => ({
   abilities: initialAbilities,
   learningRecords: [],
   error: null,
+  isFirstUnitHighlight: false,
 
   setSubject: (s) => set({ subject: s }),
 
   setLevel: (l) => set({ level: l }),
 
   generatePath: async () => {
-    set({ isGenerating: true, error: null });
+    set({ isGenerating: true, error: null, isFirstUnitHighlight: false });
     try {
       const { subject, level, abilities } = get();
       const units = await generatePath(subject, level, abilities);
-      set({ units, isGenerating: false });
+      set({ units, isGenerating: false, isFirstUnitHighlight: true });
+      setTimeout(() => {
+        set({ isFirstUnitHighlight: false });
+      }, 2000);
     } catch (err) {
       set({ error: '路径生成失败，请重试', isGenerating: false });
     }
@@ -138,4 +144,6 @@ export const useLearningStore = create<LearningState>((set, get) => ({
       ),
     }));
   },
+
+  clearFirstUnitHighlight: () => set({ isFirstUnitHighlight: false }),
 }));

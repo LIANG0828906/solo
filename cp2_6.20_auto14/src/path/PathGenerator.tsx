@@ -1,10 +1,19 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useEffect, useRef } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { useLearningStore } from '@/store/useLearningStore';
 import UnitCard from './UnitCard';
 
 const PathGenerator: React.FC = () => {
-  const { units, isGenerating, isAdjusting } = useLearningStore();
+  const { units, isGenerating, isAdjusting, isFirstUnitHighlight } = useLearningStore();
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const prevGeneratingRef = useRef(false);
+
+  useEffect(() => {
+    if (prevGeneratingRef.current && !isGenerating && units.length > 0 && timelineRef.current) {
+      timelineRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+    }
+    prevGeneratingRef.current = isGenerating;
+  }, [isGenerating, units.length]);
 
   const sortedUnits = useMemo(() => {
     return [...units].sort((a, b) => a.order - b.order);
@@ -15,14 +24,22 @@ const PathGenerator: React.FC = () => {
       unit,
       index,
       isLast: index === sortedUnits.length - 1,
+      isFirst: index === 0,
     }));
   }, [sortedUnits]);
 
   const renderUnitCard = useCallback(
-    ({ unit, index, isLast }: { unit: typeof sortedUnits[0]; index: number; isLast: boolean }) => (
-      <UnitCard key={unit.id} unit={unit} index={index} isLast={isLast} />
+    ({ unit, index, isLast, isFirst }: { unit: typeof sortedUnits[0]; index: number; isLast: boolean; isFirst: boolean }) => (
+      <UnitCard
+        key={unit.id}
+        unit={unit}
+        index={index}
+        isLast={isLast}
+        isFirst={isFirst}
+        showPulse={isFirst && isFirstUnitHighlight}
+      />
     ),
-    []
+    [isFirstUnitHighlight]
   );
 
   if (units.length === 0 && !isGenerating) {
@@ -63,9 +80,10 @@ const PathGenerator: React.FC = () => {
 
   return (
     <div
+      ref={timelineRef}
       className={`
         relative w-full overflow-x-auto py-8 px-4
-        transition-opacity duration-300
+        transition-opacity duration-300 scroll-smooth
         ${isAdjusting ? 'opacity-60' : 'opacity-100'}
       `}
     >
