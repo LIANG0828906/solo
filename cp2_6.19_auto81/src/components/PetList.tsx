@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { isSameDay, parseISO } from 'date-fns';
+import { isToday, parseISO } from 'date-fns';
 import type { Pet, PetSpecies, PetRecord } from '../types';
 import { SPECIES_LABELS, CARD_GRADIENTS, AVATAR_COLORS, RECORD_TYPE_ICONS, RECORD_TYPE_LABELS, formatAge, getRelativeTime } from '../types';
 
@@ -14,7 +14,7 @@ interface PetListProps {
 
 export default function PetList({
   pets,
-  records,
+  records: recordsFromProps,
   onAddPet,
   onDeletePet,
   onSelectPet,
@@ -25,26 +25,74 @@ export default function PetList({
   const [newPetAge, setNewPetAge] = useState('');
   const [newPetAgeMonths, setNewPetAgeMonths] = useState('');
   const [newestPetId, setNewestPetId] = useState<string | null>(null);
+  const [allRecords, setAllRecords] = useState<PetRecord[]>([]);
+
+  const loadAllRecordsFromStorage = useCallback((): PetRecord[] => {
+    try {
+      const stored = localStorage.getItem('pet_care_records');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          return parsed as PetRecord[];
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load records from localStorage:', e);
+    }
+    return [];
+  }, []);
+
+  const getAllPetRecordsSorted = useCallback((): PetRecord[] => {
+    const combined = [...recordsFromProps, ...allRecords];
+    const uniqueMap = new Map<string, PetRecord>();
+    combined.forEach(record => {
+      uniqueMap.set(record.id, record);
+    });
+    return Array.from(uniqueMap.values()).sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [recordsFromProps, allRecords]);
+
+  useEffect(() => {
+    const stored = loadAllRecordsFromStorage();
+    setAllRecords(stored);
+  }, [loadAllRecordsFromStorage, recordsFromProps]);
 
   const getPetRecords = useCallback((petId: string) => {
-    return records
-      .filter(r => r.petId === petId)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [records]);
+    const sortedRecords = getAllPetRecordsSorted();
+    return sortedRecords.filter(r => r.petId === petId);
+  }, [getAllPetRecordsSorted]);
 
   const getPetRecentRecords = useCallback((petId: string, limit: number = 3) => {
     const petRecords = getPetRecords(petId);
     return petRecords.slice(0, limit);
   }, [getPetRecords]);
 
+  const getUTCDate = (date: Date): Date => {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  };
+
+  const isUTCToday = (timestamp: string): boolean => {
+    const recordDate = parseISO(timestamp);
+    const recordUTC = getUTCDate(recordDate);
+    const nowUTC = getUTCDate(new Date());
+    return isToday(new Date(
+      recordUTC.getUTCFullYear(),
+      recordUTC.getUTCMonth(),
+      recordUTC.getUTCDate()
+    )) || recordUTC.getTime() === nowUTC.getTime();
+  };
+
   const getTodayStatus = useCallback((petId: string) => {
-    const today = new Date();
     const petRecords = getPetRecords(petId);
-    const todayRecords = petRecords.filter(r => isSameDay(parseISO(r.timestamp), today));
-    
+    const todayRecords = petRecords.filter(r => isUTCToday(r.timestamp));
+
     const hasFood = todayRecords.some(r => r.type === 'food');
     const hasWalk = todayRecords.some(r => r.type === 'walk');
-    
+
+    if (hasFood && hasWalk) {
+      return { status: 'both' as const, color: '#9C27B0' };
+    }
     if (hasFood) {
       return { status: 'fed' as const, color: '#4CAF50' };
     }
@@ -52,7 +100,7 @@ export default function PetList({
       return { status: 'walked' as const, color: '#2196F3' };
     }
     return { status: 'none' as const, color: '#CCCCCC' };
-  }, [getPetRecords]);
+  }, [getPetRecords, isUTCToday]);
 
   const handleAddPet = useCallback(() => {
     if (!newPetName.trim() || !newPetAge) return;
@@ -137,7 +185,9 @@ export default function PetList({
                 className="pet-status-dot"
                 style={{ backgroundColor: todayStatus.color }}
                 title={
-                  todayStatus.status === 'fed'
+                  todayStatus.status === 'both'
+                    ? '今天已喂食和遛弯'
+                    : todayStatus.status === 'fed'
                     ? '今天已喂食'
                     : todayStatus.status === 'walked'
                     ? '今天已遛弯'
@@ -164,9 +214,9 @@ export default function PetList({
                 {recentRecords.length === 0 ? (
                   <p className="pet-recent-empty">暂无记录</p>
                 ) : (
-                  <ul className="pet-recent-list">
+                  <div className="pet-recent-summary">
                     {recentRecords.map((record) => (
-                      <li key={record.id} className="pet-recent-item">
+                      <div key={record.id} className="pet-recent-line">
                         <span className="pet-recent-icon">
                           {RECORD_TYPE_ICONS[record.type]}
                         </span>
@@ -176,9 +226,9 @@ export default function PetList({
                         <span className="pet-recent-time">
                           {getRelativeTime(parseISO(record.timestamp))}
                         </span>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
             </div>

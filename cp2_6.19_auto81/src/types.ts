@@ -14,10 +14,11 @@ export interface Pet {
 
 export function formatAge(years: number, months?: number): string {
   const m = months ?? 0;
-  if (m === 0) {
+  const validMonths = Math.min(Math.max(m, 0), 11);
+  if (validMonths === 0) {
     return `${years}岁`;
   }
-  return `${years}岁${m}个月`;
+  return `${years}岁${validMonths}个月`;
 }
 
 export function getRelativeTime(date: Date): string {
