@@ -34,8 +34,9 @@ function BookCard({ book }: { book: Book }) {
       <div className="p-3">
         <h3 className="truncate text-sm font-semibold text-text">{book.title}</h3>
         <p className="mt-0.5 truncate text-xs text-text-light">{book.author}</p>
-        <div className="mt-1.5">
+        <div className="mt-1.5 flex items-center">
           <RatingStars rating={book.rating} />
+          <span className="text-xs text-orange font-medium ml-1">豆瓣 {book.rating}</span>
         </div>
         <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-text-muted">
           {book.recommendation}

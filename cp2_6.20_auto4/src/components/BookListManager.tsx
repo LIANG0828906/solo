@@ -4,9 +4,9 @@ import { useStore } from '@/store/index';
 import type { BookList } from '@/types';
 
 const TYPE_MAP: Record<BookList['type'], { label: string; color: string }> = {
-  want: { label: '想读', color: 'bg-orange-100 text-orange-700' },
-  reading: { label: '在读', color: 'bg-green-100 text-green-700' },
-  read: { label: '已读', color: 'bg-blue-100 text-blue-700' },
+  want: { label: '想读', color: 'bg-orange/10 text-orange-dark' },
+  reading: { label: '在读', color: 'bg-green-heatmap-1 text-green-heatmap-4' },
+  read: { label: '已读', color: 'bg-blue-50 text-blue-600' },
 };
 
 export default function BookListManager() {
@@ -22,9 +22,9 @@ export default function BookListManager() {
   const dragIndexRef = useRef<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  useState(() => {
+  useEffect(() => {
     fetchBookLists();
-  });
+  }, [fetchBookLists]);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -107,7 +107,7 @@ export default function BookListManager() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-gray-400">
+      <div className="flex items-center justify-center py-20 text-text-muted">
         加载中...
       </div>
     );
@@ -116,10 +116,10 @@ export default function BookListManager() {
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-3">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-800">我的书单</h2>
+        <h2 className="text-xl font-bold font-serif text-text">我的书单</h2>
         <button
           onClick={() => setShowCreateForm(true)}
-          className="flex items-center gap-1 px-3 py-1.5 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 transition-colors"
+          className="flex items-center gap-1 px-3 py-1.5 bg-orange text-white text-sm rounded-lg hover:bg-orange-dark transition-colors"
         >
           <Plus size={16} />
           新建书单
@@ -127,19 +127,19 @@ export default function BookListManager() {
       </div>
 
       {showCreateForm && (
-        <div className="bg-white rounded-xl shadow-sm p-4 space-y-3 border border-orange-200">
+        <div className="bg-white rounded-xl shadow-sm p-4 space-y-3 border border-orange-light">
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="书单名称"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+            className="w-full px-3 py-2 border border-cream-dark rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-light"
             autoFocus
           />
           <select
             value={newType}
             onChange={(e) => setNewType(e.target.value as BookList['type'])}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+            className="w-full px-3 py-2 border border-cream-dark rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-light"
           >
             <option value="want">想读</option>
             <option value="reading">在读</option>
@@ -148,13 +148,13 @@ export default function BookListManager() {
           <div className="flex gap-2 justify-end">
             <button
               onClick={handleCancelCreate}
-              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              className="px-3 py-1.5 text-sm text-text-muted hover:text-text transition-colors"
             >
               取消
             </button>
             <button
               onClick={handleCreate}
-              className="px-4 py-1.5 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+              className="px-4 py-1.5 text-sm bg-orange text-white rounded-lg hover:bg-orange-dark transition-colors"
             >
               创建
             </button>
@@ -185,7 +185,7 @@ export default function BookListManager() {
               onClick={() => toggleExpand(list.id)}
             >
               <div
-                className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
+                className="cursor-grab active:cursor-grabbing text-text-muted/50 hover:text-text-muted"
                 onClick={(e) => e.stopPropagation()}
               >
                 <GripVertical size={18} />
@@ -198,19 +198,19 @@ export default function BookListManager() {
                   className="w-10 h-14 object-cover rounded"
                 />
               ) : (
-                <div className="w-10 h-14 bg-gray-100 rounded flex items-center justify-center text-gray-300">
+                <div className="w-10 h-14 bg-cream-dark/30 rounded flex items-center justify-center text-text-muted/50">
                   <BookPlus size={18} />
                 </div>
               )}
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-800 truncate">{list.name}</span>
+                  <span className="font-medium text-text truncate">{list.name}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${typeInfo.color}`}>
                     {typeInfo.label}
                   </span>
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">{list.books.length} 本书</p>
+                <p className="text-xs text-text-muted mt-0.5">{list.books.length} 本书</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -224,7 +224,7 @@ export default function BookListManager() {
                     </button>
                     <button
                       onClick={() => setDeleteConfirmId(null)}
-                      className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                      className="text-xs px-2 py-1 bg-cream-dark/30 text-text-light rounded hover:bg-cream-dark transition-colors"
                     >
                       取消
                     </button>
@@ -235,16 +235,16 @@ export default function BookListManager() {
                       e.stopPropagation();
                       setDeleteConfirmId(list.id);
                     }}
-                    className="text-gray-300 hover:text-red-400 transition-colors"
+                    className="text-text-muted/50 hover:text-red-400 transition-colors"
                   >
                     <Trash2 size={16} />
                   </button>
                 )}
 
                 {isExpanded ? (
-                  <ChevronUp size={18} className="text-gray-400" />
+                  <ChevronUp size={18} className="text-text-muted" />
                 ) : (
-                  <ChevronDown size={18} className="text-gray-400" />
+                  <ChevronDown size={18} className="text-text-muted" />
                 )}
               </div>
             </div>
@@ -256,13 +256,13 @@ export default function BookListManager() {
             >
               <div className="px-4 pb-4 space-y-2">
                 {list.books.length === 0 && (
-                  <p className="text-sm text-gray-400 text-center py-4">暂无书籍</p>
+                  <p className="text-sm text-text-muted text-center py-4">暂无书籍</p>
                 )}
 
                 {list.books.map((book) => (
                   <div
                     key={book.id}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-cream-dark/20 transition-colors"
                   >
                     {book.cover ? (
                       <img
@@ -271,28 +271,28 @@ export default function BookListManager() {
                         className="w-8 h-11 object-cover rounded"
                       />
                     ) : (
-                      <div className="w-8 h-11 bg-gray-100 rounded flex items-center justify-center">
-                        <BookPlus size={14} className="text-gray-300" />
+                      <div className="w-8 h-11 bg-cream-dark/30 rounded flex items-center justify-center">
+                        <BookPlus size={14} className="text-text-muted/50" />
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-700 truncate">{book.title}</p>
-                      <p className="text-xs text-gray-400 truncate">{book.author}</p>
+                      <p className="text-sm font-medium text-text truncate">{book.title}</p>
+                      <p className="text-xs text-text-muted truncate">{book.author}</p>
                     </div>
                   </div>
                 ))}
 
                 <div className="relative pt-2">
                   {addingToListId === list.id ? (
-                    <div className="border border-gray-200 rounded-lg bg-gray-50 max-h-48 overflow-y-auto">
+                    <div className="border border-cream-dark rounded-lg bg-cream-dark/20 max-h-48 overflow-y-auto">
                       {getAvailableBooks(list.id).length === 0 ? (
-                        <p className="text-sm text-gray-400 text-center py-3">暂无可添加的书籍</p>
+                        <p className="text-sm text-text-muted text-center py-3">暂无可添加的书籍</p>
                       ) : (
                         getAvailableBooks(list.id).map((book) => (
                           <button
                             key={book.id}
                             onClick={() => handleAddBook(list.id, book.id)}
-                            className="w-full flex items-center gap-3 p-2 hover:bg-gray-100 transition-colors text-left"
+                            className="w-full flex items-center gap-3 p-2 hover:bg-cream-dark/30 transition-colors text-left"
                           >
                             {book.cover ? (
                               <img
@@ -301,18 +301,18 @@ export default function BookListManager() {
                                 className="w-7 h-10 object-cover rounded"
                               />
                             ) : (
-                              <div className="w-7 h-10 bg-gray-200 rounded" />
+                              <div className="w-7 h-10 bg-cream-dark rounded" />
                             )}
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm text-gray-700 truncate">{book.title}</p>
-                              <p className="text-xs text-gray-400 truncate">{book.author}</p>
+                              <p className="text-sm text-text truncate">{book.title}</p>
+                              <p className="text-xs text-text-muted truncate">{book.author}</p>
                             </div>
                           </button>
                         ))
                       )}
                       <button
                         onClick={() => setAddingToListId(null)}
-                        className="w-full text-center text-xs text-gray-400 py-2 hover:text-gray-600 transition-colors"
+                        className="w-full text-center text-xs text-text-muted py-2 hover:text-text-light transition-colors"
                       >
                         关闭
                       </button>
@@ -334,7 +334,7 @@ export default function BookListManager() {
       })}
 
       {items.length === 0 && !showCreateForm && (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-text-muted">
           <BookPlus size={40} className="mx-auto mb-3 opacity-40" />
           <p>还没有书单，点击上方按钮创建</p>
         </div>

@@ -17,6 +17,7 @@ import {
   getDaysInMonth,
   isToday,
 } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { CheckInRecord } from '@/types';
 import { useStore } from '@/store';
@@ -40,7 +41,7 @@ const LEVEL_STYLES: Record<DurationLevel, string> = {
   high: 'bg-green-heatmap-4 text-white',
 };
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
 
 export default function ReadingCheckIn() {
   const { checkInRecords: records, fetchRecords, submitRecord, updateRecord } = useStore();
@@ -185,7 +186,7 @@ export default function ReadingCheckIn() {
           <button onClick={prevMonth} className="p-1 rounded hover:bg-cream-dark transition-colors">
             <ChevronLeft size={20} />
           </button>
-          <h3 className="text-lg font-semibold">{format(currentMonth, 'MMMM yyyy')}</h3>
+          <h3 className="text-lg font-semibold">{format(currentMonth, 'yyyy年M月', { locale: zhCN })}</h3>
           <button onClick={nextMonth} className="p-1 rounded hover:bg-cream-dark transition-colors">
             <ChevronRight size={20} />
           </button>
@@ -223,7 +224,7 @@ export default function ReadingCheckIn() {
       </div>
 
       <div className="flex-1 min-h-[300px]">
-        <h3 className="text-lg font-semibold mb-4">30-Day Trend</h3>
+        <h3 className="text-lg font-semibold mb-4">30天阅读趋势</h3>
         <div className="h-[280px]">
           <Line data={chartData} options={chartOptions} />
         </div>
@@ -245,7 +246,7 @@ export default function ReadingCheckIn() {
             <h3 className="text-lg font-semibold mb-4">{selectedDate}</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-text-light mb-1">Duration (min)</label>
+                <label className="block text-sm text-text-light mb-1">阅读时长（分钟）</label>
                 <input
                   type="number"
                   min={0}
@@ -256,7 +257,7 @@ export default function ReadingCheckIn() {
               </div>
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="block text-sm text-text-light mb-1">Start Page</label>
+                  <label className="block text-sm text-text-light mb-1">起始页码</label>
                   <input
                     type="number"
                     min={0}
@@ -266,7 +267,7 @@ export default function ReadingCheckIn() {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm text-text-light mb-1">End Page</label>
+                  <label className="block text-sm text-text-light mb-1">结束页码</label>
                   <input
                     type="number"
                     min={0}
@@ -277,7 +278,7 @@ export default function ReadingCheckIn() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm text-text-light mb-1">Note</label>
+                <label className="block text-sm text-text-light mb-1">打卡备注</label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
@@ -289,7 +290,7 @@ export default function ReadingCheckIn() {
                 onClick={handleSubmit}
                 className="w-full bg-orange text-white py-2 rounded-lg font-medium hover:bg-orange-dark transition-colors"
               >
-                Submit
+                提交打卡
               </button>
             </div>
           </div>

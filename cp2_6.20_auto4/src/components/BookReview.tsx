@@ -126,7 +126,7 @@ function CommentItem({
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
             placeholder="写下你的回复..."
-            className="flex-1 resize-none rounded-lg border border-cream-dark bg-cream-lighter px-3 py-2 text-sm outline-none focus:border-orange"
+            className="flex-1 resize-none rounded-lg border border-cream-dark bg-cream-dark/30 px-3 py-2 text-sm outline-none focus:border-orange"
             rows={2}
           />
           <button
@@ -203,7 +203,7 @@ export default function BookReview({ bookId }: { bookId: string }) {
           <div className="flex gap-2">
             <button
               onClick={() => setShowPreview(!showPreview)}
-              className="rounded-md px-2 py-1 text-xs text-text-muted transition-colors hover:bg-cream-lighter"
+              className="rounded-md px-2 py-1 text-xs text-text-muted transition-colors hover:bg-cream-dark/30"
             >
               {showPreview ? '编辑' : '预览'}
             </button>
@@ -218,7 +218,7 @@ export default function BookReview({ bookId }: { bookId: string }) {
         </div>
 
         {showPreview ? (
-          <div className="mt-2 min-h-[80px] rounded-lg border border-cream-dark bg-cream-lighter p-3 text-sm text-text-light">
+          <div className="mt-2 min-h-[80px] rounded-lg border border-cream-dark bg-cream-dark/30 p-3 text-sm text-text-light">
             {newContent ? renderMarkdown(newContent) : <span className="text-text-muted">暂无内容</span>}
           </div>
         ) : (
@@ -230,7 +230,7 @@ export default function BookReview({ bookId }: { bookId: string }) {
               }}
               placeholder="分享你的读书感悟..."
               maxLength={MAX_CHARS}
-              className="w-full resize-none rounded-lg border border-cream-dark bg-cream-lighter px-3 py-2 text-sm outline-none transition-colors focus:border-orange"
+              className="w-full resize-none rounded-lg border border-cream-dark bg-cream-dark/30 px-3 py-2 text-sm outline-none transition-colors focus:border-orange"
               rows={3}
             />
             <span
@@ -244,7 +244,7 @@ export default function BookReview({ bookId }: { bookId: string }) {
         )}
       </div>
 
-      <div className="flex gap-1 rounded-lg bg-cream-lighter p-1">
+      <div className="flex gap-1 rounded-lg bg-cream-dark/30 p-1">
         {(['latest', 'popular'] as const).map((sort) => (
           <button
             key={sort}
@@ -279,7 +279,7 @@ export default function BookReview({ bookId }: { bookId: string }) {
           {hasMore && (
             <button
               onClick={loadMore}
-              className="w-full rounded-lg border border-cream-dark py-2 text-sm text-text-muted transition-colors hover:bg-cream-lighter hover:text-orange"
+              className="w-full rounded-lg border border-cream-dark py-2 text-sm text-text-muted transition-colors hover:bg-cream-dark/30 hover:text-orange"
             >
               加载更多
             </button>

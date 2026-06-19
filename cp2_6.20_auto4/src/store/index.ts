@@ -96,7 +96,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ booksLoading: true });
     try {
       const data = await api.getBookRecommendations();
-      set({ books: data, booksLoading: false });
+      set({ books: Array.isArray(data) ? data : mockBooks, booksLoading: false });
     } catch {
       set({ books: mockBooks, booksLoading: false });
     }
@@ -106,7 +106,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ booksLoading: true });
     try {
       const data = await api.getBookById(id);
-      set({ currentBook: data, booksLoading: false });
+      set({ currentBook: data && typeof data === 'object' && 'id' in data ? data : mockBooks.find((b) => b.id === id) ?? null, booksLoading: false });
     } catch {
       const book = mockBooks.find((b) => b.id === id) ?? null;
       set({ currentBook: book, booksLoading: false });
@@ -117,7 +117,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ checkInLoading: true });
     try {
       const data = await api.getCheckInRecords();
-      set({ checkInRecords: data, checkInLoading: false });
+      set({ checkInRecords: Array.isArray(data) ? data : mockCheckInRecords, checkInLoading: false });
     } catch {
       set({ checkInRecords: mockCheckInRecords, checkInLoading: false });
     }
@@ -157,11 +157,16 @@ export const useStore = create<StoreState>((set, get) => ({
         10,
         get().commentSortType
       );
-      set({
-        comments: data.items,
-        commentsTotal: data.total,
-        commentsLoading: false,
-      });
+      if (data && typeof data === 'object' && 'items' in data) {
+        set({
+          comments: data.items,
+          commentsTotal: data.total,
+          commentsLoading: false,
+        });
+      } else {
+        const filtered = mockComments.filter((c) => c.bookId === bookId);
+        set({ comments: filtered, commentsTotal: filtered.length, commentsLoading: false });
+      }
     } catch {
       const filtered = mockComments.filter((c) => c.bookId === bookId);
       set({ comments: filtered, commentsTotal: filtered.length, commentsLoading: false });
@@ -245,7 +250,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ achievementsLoading: true });
     try {
       const data = await api.getAchievements();
-      set({ achievements: data, achievementsLoading: false });
+      set({ achievements: Array.isArray(data) ? data : mockAchievements, achievementsLoading: false });
     } catch {
       set({ achievements: mockAchievements, achievementsLoading: false });
     }
@@ -255,7 +260,7 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ bookListsLoading: true });
     try {
       const data = await api.getBookLists();
-      set({ bookLists: data, bookListsLoading: false });
+      set({ bookLists: Array.isArray(data) ? data : mockBookLists, bookListsLoading: false });
     } catch {
       set({ bookLists: mockBookLists, bookListsLoading: false });
     }
