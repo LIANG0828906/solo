@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Flame, TrendingUp, Clock, Award, Calendar } from 'lucide-react';
+import { Flame, TrendingUp, Clock, Award, Loader2 } from 'lucide-react';
 import { statsApi } from '../../services/api';
 import type { StatsData, WeekdayHeatmapData, HabitHeatmapData } from '../habits/types';
 
@@ -23,23 +24,52 @@ interface HoveredCell {
   xIndex: number;
   completionRate: number;
   count: number;
+  totalCount: number;
   xLabel: string;
 }
 
 export default function StatsView() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chartLoading, setChartLoading] = useState(false);
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>('weekday');
   const [timeRange, setTimeRange] = useState<TimeRange>(30);
   const [hoveredCell, setHoveredCell] = useState<HoveredCell | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [prevXAxisLabels, setPrevXAxisLabels] = useState<string[]>([]);
+  const isInitialLoad = useRef(true);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const daysParam = params.get('days');
+    if (daysParam) {
+      const parsedDays = parseInt(daysParam);
+      if ([7, 30, 90].includes(parsedDays)) {
+        setTimeRange(parsedDays as TimeRange);
+      }
+    }
+    isInitialLoad.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (isInitialLoad.current) return;
+    
+    const params = new URLSearchParams(location.search);
+    params.set('days', String(timeRange));
+    navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+    
     loadStats();
   }, [timeRange]);
 
   const loadStats = async () => {
-    setLoading(true);
+    if (isInitialLoad.current) {
+      setLoading(true);
+    } else {
+      setChartLoading(true);
+    }
+    
     try {
       const data = await statsApi.getStats(timeRange);
       setStats(data);
@@ -47,16 +77,21 @@ export default function StatsView() {
       console.error('加载统计数据失败:', error);
     } finally {
       setLoading(false);
+      setChartLoading(false);
     }
   };
 
   const handleModeChange = (mode: HeatmapMode) => {
     if (mode === heatmapMode) return;
+    setPrevXAxisLabels(xAxisLabels);
     setIsTransitioning(true);
     setTimeout(() => {
       setHeatmapMode(mode);
-      setIsTransitioning(false);
-    }, 200);
+      setTimeout(() => {
+        setIsTransitioning(false);
+        setPrevXAxisLabels([]);
+      }, 50);
+    }, 250);
   };
 
   const handleTimeRangeChange = (range: TimeRange) => {
@@ -81,8 +116,10 @@ export default function StatsView() {
     return stats?.habits.map(h => h.name) || [];
   }, [heatmapMode, stats]);
 
-  const getHeatmapData = (hour: number, xIndex: number): { completionRate: number; count: number } => {
-    if (!stats) return { completionRate: 0, count: 0 };
+  const displayXAxisLabels = prevXAxisLabels.length > 0 ? prevXAxisLabels : xAxisLabels;
+
+  const getHeatmapData = (hour: number, xIndex: number): { completionRate: number; count: number; totalCount: number } => {
+    if (!stats) return { completionRate: 0, count: 0, totalCount: 0 };
 
     if (heatmapMode === 'weekday') {
       const weekday = weekdayOrder[xIndex];
@@ -92,26 +129,28 @@ export default function StatsView() {
       return {
         completionRate: found?.completionRate || 0,
         count: found?.count || 0,
+        totalCount: found?.totalCount || 0,
       };
     } else {
       const habit = stats.habits[xIndex];
-      if (!habit) return { completionRate: 0, count: 0 };
+      if (!habit) return { completionRate: 0, count: 0, totalCount: 0 };
       const found = stats.habitHeatmapData.find(
         (d: HabitHeatmapData) => d.hour === hour && d.habitId === habit.id
       );
       return {
         completionRate: found?.completionRate || 0,
         count: found?.count || 0,
+        totalCount: found?.totalCount || 0,
       };
     }
   };
 
   const getHeatmapColor = (completionRate: number) => {
     if (completionRate === 0) return 'rgba(255, 255, 255, 0.05)';
-    const r = Math.round(255 * (1 - completionRate));
-    const g = Math.round(200 * completionRate);
-    const b = Math.round(100 * (1 - completionRate));
-    return `rgba(${r}, ${g}, ${b}, ${0.3 + completionRate * 0.6})`;
+    const r = Math.round(80 * (1 - completionRate));
+    const g = Math.round(150 + 80 * completionRate);
+    const b = Math.round(200 + 55 * completionRate);
+    return `rgba(${r}, ${g}, ${b}, ${0.4 + completionRate * 0.5})`;
   };
 
   const getXLabel = (xIndex: number): string => {
@@ -146,6 +185,45 @@ export default function StatsView() {
     if (timeRange === 30) return 4;
     return 12;
   }, [timeRange]);
+
+  const ChartSkeleton = () => (
+    <div className="h-64 relative">
+      <div className="absolute inset-0 flex flex-col">
+        <div className="flex-1 relative overflow-hidden">
+          <div className="absolute bottom-0 left-0 right-0 h-full">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute bottom-0 bg-white/5 rounded-t animate-pulse"
+                style={{
+                  left: `${i * 10}%`,
+                  width: '8%',
+                  height: `${20 + Math.random() * 60}%`,
+                  animationDelay: `${i * 0.1}s`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="absolute left-0 top-0 bottom-0 w-10 flex flex-col justify-between py-2">
+            {['100%', '50%', '0%'].map(label => (
+              <div key={label} className="text-xs text-text-muted/50">{label}</div>
+            ))}
+          </div>
+        </div>
+        <div className="h-6 flex items-center justify-around px-10">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="w-6 h-1.5 bg-white/5 rounded animate-pulse" />
+          ))}
+        </div>
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-accent">
+          <Loader2 size={18} className="animate-spin" />
+          <span className="text-sm">加载中...</span>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="animate-fade-in">
@@ -225,6 +303,7 @@ export default function StatsView() {
                       ? 'bg-accent text-white shadow-md'
                       : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
                     }
+                    ${chartLoading ? 'opacity-50 pointer-events-none' : ''}
                   `}
                 >
                   {option.label}
@@ -233,10 +312,10 @@ export default function StatsView() {
             </div>
           </div>
           
-          {loading ? (
-            <div className="h-64 bg-white/5 rounded-lg animate-pulse" />
+          {loading || chartLoading ? (
+            <ChartSkeleton />
           ) : (
-            <div className="h-64">
+            <div className="h-64 transition-all duration-500 ease-out">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
@@ -317,18 +396,22 @@ export default function StatsView() {
           ) : (
             <div className="relative">
               <div className="overflow-x-auto">
-                <div 
-                  className={`min-w-[400px] transition-all duration-300 ease-out ${
-                    isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-                  }`}
-                >
+                <div className="min-w-[400px]">
                   <div className="flex mb-2">
                     <div className="w-12 flex-shrink-0" />
-                    {xAxisLabels.map((label, index) => (
+                    {displayXAxisLabels.map((label, index) => (
                       <div 
                         key={`label-${index}`}
-                        className="flex-1 text-center text-xs text-text-muted min-w-0 overflow-hidden text-ellipsis px-1"
-                        style={{ minWidth: heatmapMode === 'habit' ? '80px' : 'auto' }}
+                        className={`
+                          flex-1 text-center text-xs text-text-muted min-w-0 overflow-hidden text-ellipsis px-1
+                          transition-all duration-300 ease-out
+                        `}
+                        style={{ 
+                          minWidth: heatmapMode === 'habit' ? '80px' : 'auto',
+                          opacity: isTransitioning ? 0.3 : 1,
+                          transform: isTransitioning ? 'translateY(-4px)' : 'translateY(0)',
+                          transitionDelay: `${index * 30}ms`,
+                        }}
                         title={label}
                       >
                         {label}
@@ -338,11 +421,21 @@ export default function StatsView() {
                   
                   {hours.map(hour => (
                     <div key={`row-${hour}`} className="flex items-center gap-1 mb-1">
-                      <div className="w-12 flex-shrink-0 text-xs text-text-muted">
+                      <div 
+                        className={`
+                          w-12 flex-shrink-0 text-xs text-text-muted
+                          transition-all duration-300 ease-out
+                        `}
+                        style={{
+                          opacity: isTransitioning ? 0.3 : 1,
+                          transform: isTransitioning ? 'translateX(-4px)' : 'translateX(0)',
+                          transitionDelay: `${hour * 10}ms`,
+                        }}
+                      >
                         {String(hour).padStart(2, '0')}:00
                       </div>
-                      {xAxisLabels.map((_, xIndex) => {
-                        const { completionRate, count } = getHeatmapData(hour, xIndex);
+                      {displayXAxisLabels.map((_, xIndex) => {
+                        const { completionRate, count, totalCount } = getHeatmapData(hour, xIndex);
                         return (
                           <button
                             key={`cell-${hour}-${xIndex}`}
@@ -363,25 +456,27 @@ export default function StatsView() {
                               xIndex, 
                               completionRate, 
                               count,
+                              totalCount,
                               xLabel: getXLabel(xIndex),
                             })}
                             onMouseLeave={() => setHoveredCell(null)}
+                            disabled={isTransitioning}
                           >
-                            {hoveredCell?.hour === hour && hoveredCell?.xIndex === xIndex && (
-                              <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-bg-dark border border-white/20 px-3 py-2 rounded-lg text-xs text-text-primary whitespace-nowrap z-30 shadow-xl animate-fade-in">
+                            {hoveredCell?.hour === hour && hoveredCell?.xIndex === xIndex && !isTransitioning && (
+                              <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-bg-dark border border-white/20 px-3 py-2 rounded-lg text-xs text-text-primary whitespace-nowrap z-30 shadow-xl animate-fade-in">
                                 <div className="font-medium">{hoveredCell.xLabel} · {String(hour).padStart(2, '0')}:00</div>
                                 <div className="flex items-center gap-2 mt-1">
                                   <span className="text-text-secondary">完成率:</span>
                                   <span className={`font-bold ${
-                                    completionRate >= 0.7 ? 'text-success' :
-                                    completionRate >= 0.4 ? 'text-warning' : 'text-danger'
+                                    completionRate >= 0.7 ? 'text-[#4cc9f0]' :
+                                    completionRate >= 0.4 ? 'text-[#90e0ef]' : 'text-[#caf0f8]'
                                   }`}>
                                     {Math.round(completionRate * 100)}%
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-text-secondary">次数:</span>
-                                  <span className="font-medium">{count}</span>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-text-secondary">完成情况:</span>
+                                  <span className="font-medium">{count} / {totalCount || '-'}</span>
                                 </div>
                               </div>
                             )}

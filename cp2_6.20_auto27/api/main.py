@@ -273,27 +273,31 @@ def get_stats(days: int = 30):
     heatmapData = []
     for hour in range(0, 24):
         for weekday in range(7):
-            count = random.randint(0, 10)
-            completion_rate = random.uniform(0.2, 1.0)
+            total_count = random.randint(2, 12)
+            count = int(total_count * random.uniform(0.2, 1.0))
+            completion_rate = count / total_count if total_count > 0 else 0
             if count > 1:
                 heatmapData.append({
                     "hour": hour, 
                     "weekday": weekday, 
                     "count": count,
+                    "totalCount": total_count,
                     "completionRate": completion_rate,
                 })
 
     habitHeatmapData = []
     for habit in habits_db:
         for hour in range(0, 24):
-            count = random.randint(0, 8)
-            completion_rate = random.uniform(0.3, 1.0)
+            total_count = random.randint(2, 10)
+            count = int(total_count * random.uniform(0.3, 1.0))
+            completion_rate = count / total_count if total_count > 0 else 0
             if count > 1:
                 habitHeatmapData.append({
                     "hour": hour,
                     "habitId": habit["id"],
                     "habitName": habit["name"],
                     "count": count,
+                    "totalCount": total_count,
                     "completionRate": completion_rate,
                 })
 

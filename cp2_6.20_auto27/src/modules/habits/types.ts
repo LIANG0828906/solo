@@ -49,6 +49,7 @@ export interface WeekdayHeatmapData {
   weekday: number;
   completionRate: number;
   count: number;
+  totalCount: number;
 }
 
 export interface HabitHeatmapData {
@@ -57,6 +58,7 @@ export interface HabitHeatmapData {
   habitName: string;
   completionRate: number;
   count: number;
+  totalCount: number;
 }
 
 export interface StatsData {

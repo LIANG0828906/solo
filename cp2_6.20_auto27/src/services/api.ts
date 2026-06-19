@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Habit, HabitRecord, CreateHabitPayload, Challenge, ChallengeParticipant, StatsData } from '../modules/habits/types';
+import type { Habit, HabitRecord, CreateHabitPayload, Challenge, ChallengeParticipant, StatsData, HabitHeatmapData, WeekdayHeatmapData } from '../modules/habits/types';
 import { v4 as uuidv4 } from 'uuid';
 
 const api = axios.create({
@@ -271,25 +271,28 @@ export const statsApi = {
       const heatmapData = [];
       for (let hour = 0; hour <= 23; hour++) {
         for (let weekday = 0; weekday < 7; weekday++) {
-          const count = Math.floor(Math.random() * 10);
-          const completionRate = Math.random() * 0.8 + 0.2;
+          const totalCount = Math.floor(Math.random() * 10) + 2;
+          const count = Math.floor(totalCount * (Math.random() * 0.8 + 0.2));
+          const completionRate = count / totalCount;
           if (count > 1) {
-            heatmapData.push({ hour, weekday, count, completionRate });
+            heatmapData.push({ hour, weekday, count, totalCount, completionRate });
           }
         }
       }
 
-      const habitHeatmapData = [];
+      const habitHeatmapData: HabitHeatmapData[] = [];
       mockHabits.forEach(habit => {
         for (let hour = 0; hour <= 23; hour++) {
-          const count = Math.floor(Math.random() * 8);
-          const completionRate = Math.random() * 0.7 + 0.3;
+          const totalCount = Math.floor(Math.random() * 8) + 2;
+          const count = Math.floor(totalCount * (Math.random() * 0.7 + 0.3));
+          const completionRate = count / totalCount;
           if (count > 1) {
             habitHeatmapData.push({
               hour,
               habitId: habit.id,
               habitName: habit.name,
               count,
+              totalCount,
               completionRate,
             });
           }
