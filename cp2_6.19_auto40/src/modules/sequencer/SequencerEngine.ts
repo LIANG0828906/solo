@@ -239,7 +239,9 @@ export class SequencerEngine {
     const { notes, tracks, bpm } = state;
 
     const midiData = this.buildMIDI(notes, tracks, bpm);
-    return new Blob([midiData as unknown as Uint8Array], { type: 'audio/midi' });
+    return new Blob([midiData.buffer.slice(midiData.byteOffset, midiData.byteOffset + midiData.byteLength)], {
+      type: 'audio/midi',
+    });
   }
 
   private buildMIDI(notes: Note[], tracks: Track[], bpm: number): Uint8Array {

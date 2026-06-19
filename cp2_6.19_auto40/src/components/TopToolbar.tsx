@@ -112,8 +112,14 @@ const BPMKnob = memo<BPMKnobProps>(({ value, min, max, onChange }) => {
           height: 52,
           position: 'relative',
           cursor: isDragging ? 'ns-resize' : 'grab',
-          transition: 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
           transform: isDragging ? 'scale(1.08)' : isHovered ? 'scale(1.04)' : 'scale(1)',
+          boxShadow: isDragging
+            ? '0 0 0 3px rgba(15,52,96,0.6), 0 8px 24px rgba(15,52,96,0.5)'
+            : isHovered
+            ? '0 0 0 2px rgba(15,52,96,0.35), 0 4px 14px rgba(15,52,96,0.35)'
+            : 'none',
+          borderRadius: '50%',
         }}
       >
         <svg width="52" height="52" viewBox="0 0 60 60">
@@ -139,7 +145,7 @@ const BPMKnob = memo<BPMKnobProps>(({ value, min, max, onChange }) => {
             cy="30"
             r="20"
             fill="none"
-            stroke="#4ecdc4"
+            stroke="#0f3460"
             strokeWidth="5"
             strokeDasharray={circumference}
             strokeDashoffset={displayDashOffset}
@@ -156,7 +162,7 @@ const BPMKnob = memo<BPMKnobProps>(({ value, min, max, onChange }) => {
             y1="30"
             x2="30"
             y2="18"
-            stroke="#4ecdc4"
+            stroke="#0f3460"
             strokeWidth="2.5"
             strokeLinecap="round"
             transform={`rotate(${displayRotation} 30 30)`}
@@ -182,6 +188,8 @@ const BPMKnob = memo<BPMKnobProps>(({ value, min, max, onChange }) => {
             lineHeight: 1,
             fontFamily: 'monospace',
             letterSpacing: 1,
+            textShadow: isHovered || isDragging ? '0 0 8px rgba(15,52,96,0.8)' : 'none',
+            transition: 'text-shadow 0.2s ease',
           }}
         >
           {Math.round(displayValueRef.current)}
@@ -189,11 +197,12 @@ const BPMKnob = memo<BPMKnobProps>(({ value, min, max, onChange }) => {
         <span
           style={{
             fontSize: 9,
-            color: 'rgba(255,255,255,0.45)',
+            color: isHovered || isDragging ? 'rgba(15,136,220,0.85)' : 'rgba(255,255,255,0.45)',
             fontWeight: 600,
             textTransform: 'uppercase',
             letterSpacing: 1.5,
             marginTop: 2,
+            transition: 'color 0.2s ease',
           }}
         >
           BPM
@@ -402,11 +411,12 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose }) => {
             <div
               style={{
                 width: '100%',
-                height: 10,
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                borderRadius: 5,
+                height: 12,
+                backgroundColor: '#16213e',
+                borderRadius: 8,
                 overflow: 'hidden',
                 position: 'relative',
+                border: '1px solid rgba(255,255,255,0.06)',
               }}
             >
               <div
@@ -415,29 +425,49 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose }) => {
                   width: `${progress}%`,
                   background: isComplete
                     ? 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)'
-                    : 'linear-gradient(90deg, #4ecdc4 0%, #0f3460 100%)',
-                  borderRadius: 5,
-                  transition: isComplete ? 'none' : 'width 0.08s linear',
-                  boxShadow: isComplete ? '0 0 10px rgba(34,197,94,0.5)' : '0 0 8px rgba(78,205,196,0.4)',
+                    : 'linear-gradient(90deg, #0f3460 0%, #1a6fb0 100%)',
+                  borderRadius: 8,
+                  transition: isComplete ? 'none' : 'width 0.08s ease-out',
+                  boxShadow: isComplete
+                    ? '0 0 12px rgba(34,197,94,0.5)'
+                    : '0 0 10px rgba(15,52,96,0.5)',
+                  position: 'relative',
                 }}
-              />
+              >
+                {!isComplete && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background:
+                        'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
+                      animation: 'progressShimmer 1.2s ease-in-out infinite',
+                    }}
+                  />
+                )}
+              </div>
             </div>
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                marginTop: 8,
+                marginTop: 10,
+                alignItems: 'center',
               }}
             >
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
-                {isComplete ? '✓ 导出完成' : '正在打包工程文件...'}
+                {isComplete ? '✓ 导出完成，准备下载...' : '正在打包工程文件...'}
               </span>
               <span
                 style={{
                   fontSize: 11,
-                  color: isComplete ? '#22c55e' : '#4ecdc4',
-                  fontWeight: 600,
+                  color: isComplete ? '#22c55e' : '#0f3460',
+                  fontWeight: 700,
                   fontFamily: 'monospace',
+                  textShadow: !isComplete ? '0 0 6px rgba(15,52,96,0.6)' : 'none',
                 }}
               >
                 {Math.round(progress)}%
@@ -526,6 +556,10 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose }) => {
             opacity: 1;
             transform: translateY(0) scale(1);
           }
+        }
+        @keyframes progressShimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
         }
       `}</style>
     </div>
