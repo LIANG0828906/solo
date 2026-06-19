@@ -14,21 +14,58 @@ const smoothstep = (edge0: number, edge1: number, x: number): number => {
   return t * t * (3 - 2 * t);
 };
 const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
+const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
+
+const FADE_STATE_NORMAL = 0;
+const FADE_STATE_OUT = 1;
+const FADE_STATE_IN = 2;
+const FADE_DURATION = 0.5;
+
+const vertexShader = `
+  attribute float size;
+  attribute float alpha;
+  varying vec3 vColor;
+  varying float vAlpha;
+
+  void main() {
+    vColor = color;
+    vAlpha = alpha;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = size * 300.0 / -mvPosition.z;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const fragmentShader = `
+  varying vec3 vColor;
+  varying float vAlpha;
+  uniform float globalOpacity;
+
+  void main() {
+    vec2 center = gl_PointCoord - vec2(0.5);
+    float dist = length(center);
+    if (dist > 0.5) discard;
+    float softEdge = smoothstep(0.5, 0.15, dist);
+    gl_FragColor = vec4(vColor, softEdge * vAlpha * globalOpacity);
+  }
+`;
 
 export class ParticleSystem {
   private scene: THREE.Scene;
   private particleCount: number;
   private points: THREE.Points;
   private geometry: THREE.BufferGeometry;
-  private material: THREE.PointsMaterial;
+  private material: THREE.ShaderMaterial;
 
   private positions: Float32Array;
   private colors: Float32Array;
   private sizes: Float32Array;
+  private alphas: Float32Array;
 
   private baseSizes: Float32Array;
   private rotations: Float32Array;
   private rotationSpeeds: Float32Array;
+  private speedJitters: Float32Array;
   private targetSizes: Float32Array;
   private currentSizes: Float32Array;
 
@@ -38,12 +75,16 @@ export class ParticleSystem {
   private targetVelocities: Float32Array;
   private currentVelocities: Float32Array;
 
+  private fadeStates: Int8Array;
+  private fadeTimers: Float32Array;
+
   private opacity: number;
   private speedMultiplier: number;
   private sensitivity: number;
 
   private readonly TOP_Y = 10;
   private readonly BOTTOM_Y = -10;
+  private readonly FADE_OUT_Y = -9.2;
   private readonly X_MIN = -8;
   private readonly X_MAX = 8;
   private readonly Z_MIN = -6;
@@ -54,9 +95,6 @@ export class ParticleSystem {
   private readonly MIN_SPEED = 0.1;
   private readonly MAX_SPEED = 2.0;
 
-  private readonly COLOR_LOW = new THREE.Color(0xff3300);
-  private readonly COLOR_MID = new THREE.Color(0xffaa00);
-  private readonly COLOR_HIGH = new THREE.Color(0x9933ff);
   private readonly COLOR_WHITE = new THREE.Color(0xffffff);
 
   private hasAudio: boolean = false;
@@ -64,6 +102,7 @@ export class ParticleSystem {
   private positionAttribute: THREE.BufferAttribute;
   private colorAttribute: THREE.BufferAttribute;
   private sizeAttribute: THREE.BufferAttribute;
+  private alphaAttribute: THREE.BufferAttribute;
 
   constructor(scene: THREE.Scene, options: ParticleSystemOptions) {
     this.scene = scene;
@@ -75,10 +114,12 @@ export class ParticleSystem {
     this.positions = new Float32Array(this.particleCount * 3);
     this.colors = new Float32Array(this.particleCount * 3);
     this.sizes = new Float32Array(this.particleCount);
+    this.alphas = new Float32Array(this.particleCount);
 
     this.baseSizes = new Float32Array(this.particleCount);
     this.rotations = new Float32Array(this.particleCount);
     this.rotationSpeeds = new Float32Array(this.particleCount);
+    this.speedJitters = new Float32Array(this.particleCount);
     this.targetSizes = new Float32Array(this.particleCount);
     this.currentSizes = new Float32Array(this.particleCount);
 
@@ -88,25 +129,32 @@ export class ParticleSystem {
     this.targetVelocities = new Float32Array(this.particleCount);
     this.currentVelocities = new Float32Array(this.particleCount);
 
+    this.fadeStates = new Int8Array(this.particleCount);
+    this.fadeTimers = new Float32Array(this.particleCount);
+
     this.initParticles();
 
     this.geometry = new THREE.BufferGeometry();
     this.positionAttribute = new THREE.BufferAttribute(this.positions, 3);
     this.colorAttribute = new THREE.BufferAttribute(this.colors, 3);
     this.sizeAttribute = new THREE.BufferAttribute(this.sizes, 1);
+    this.alphaAttribute = new THREE.BufferAttribute(this.alphas, 1);
 
     this.geometry.setAttribute('position', this.positionAttribute);
     this.geometry.setAttribute('color', this.colorAttribute);
     this.geometry.setAttribute('size', this.sizeAttribute);
+    this.geometry.setAttribute('alpha', this.alphaAttribute);
 
-    this.material = new THREE.PointsMaterial({
-      size: 1,
+    this.material = new THREE.ShaderMaterial({
+      uniforms: {
+        globalOpacity: { value: this.opacity }
+      },
       vertexColors: true,
+      vertexShader,
+      fragmentShader,
       transparent: true,
-      opacity: this.opacity,
       blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      sizeAttenuation: true
+      depthWrite: false
     });
 
     this.points = new THREE.Points(this.geometry, this.material);
@@ -123,11 +171,17 @@ export class ParticleSystem {
       this.currentSizes[i] = baseSize;
       this.targetSizes[i] = baseSize;
 
+      this.speedJitters[i] = 0.7 + Math.random() * 0.6;
+
       this.currentVelocities[i] = 0;
       this.targetVelocities[i] = 0;
 
       this.rotations[i] = Math.random() * Math.PI * 2;
       this.rotationSpeeds[i] = 0.01 + Math.random() * 0.04;
+
+      this.fadeStates[i] = FADE_STATE_NORMAL;
+      this.fadeTimers[i] = 0;
+      this.alphas[i] = 1.0;
 
       const i3 = i * 3;
       this.colors[i3] = 1;
@@ -158,7 +212,7 @@ export class ParticleSystem {
 
   setOpacity(opacity: number): void {
     this.opacity = opacity;
-    this.material.opacity = opacity;
+    this.material.uniforms.globalOpacity.value = opacity;
   }
 
   setSpeedMultiplier(multiplier: number): void {
@@ -175,6 +229,7 @@ export class ParticleSystem {
 
   update(frequencyBands: FrequencyBands | null, deltaTime: number): void {
     const dt = Math.min(deltaTime * 60, 2);
+    const realDt = Math.min(deltaTime, 0.05);
 
     let low = 0, mid = 0, high = 0;
     if (frequencyBands) {
@@ -183,21 +238,48 @@ export class ParticleSystem {
       high = easeOutCubic(Math.min(frequencyBands.high * this.sensitivity, 1));
     }
 
-    const baseColor = this.hasAudio ? this.COLOR_LOW : this.COLOR_WHITE;
+    const overallIntensity = (low + mid + high) / 3;
 
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3;
+
+      const fadeState = this.fadeStates[i];
+      let fadeAlpha = this.alphas[i];
+
+      if (fadeState === FADE_STATE_OUT) {
+        this.fadeTimers[i] += realDt;
+        const t = clamp01(this.fadeTimers[i] / FADE_DURATION);
+        fadeAlpha = 1 - easeOutCubic(t);
+        if (t >= 1) {
+          this.fadeStates[i] = FADE_STATE_IN;
+          this.fadeTimers[i] = 0;
+          fadeAlpha = 0;
+          this.resetParticle(i, false);
+        }
+      } else if (fadeState === FADE_STATE_IN) {
+        this.fadeTimers[i] += realDt;
+        const t = clamp01(this.fadeTimers[i] / FADE_DURATION);
+        fadeAlpha = easeOutCubic(t);
+        if (t >= 1) {
+          this.fadeStates[i] = FADE_STATE_NORMAL;
+          this.fadeTimers[i] = 0;
+          fadeAlpha = 1;
+        }
+      }
+
+      this.alphas[i] = fadeAlpha;
 
       const noise = (Math.sin(i * 12.9898 + 78.233) * 43758.5453) % 1;
       const jitter = Math.abs(noise) * 0.3;
 
       const lowFactor = smoothstep(0.0, 0.4, low) * (0.7 + jitter * 0.6);
       const midFactor = smoothstep(0.0, 0.3, mid) * (0.7 + ((Math.sin(i * 0.37) + 1) * 0.15));
-      const highFactor = smoothstep(0.0, 0.2, high) * (0.7 + ((Math.cos(i * 0.53) + 1) * 0.15));
+
+      const jitteredLowFactor = lowFactor * this.speedJitters[i];
 
       const targetSpeed = this.hasAudio
-        ? lerp(this.MIN_SPEED, this.MAX_SPEED, lowFactor)
-        : this.MIN_SPEED * 0.3;
+        ? lerp(this.MIN_SPEED, this.MAX_SPEED, clamp01(jitteredLowFactor))
+        : this.MIN_SPEED * 0.3 * this.speedJitters[i];
       this.targetVelocities[i] = targetSpeed;
 
       this.currentVelocities[i] = lerp(this.currentVelocities[i], this.targetVelocities[i], 0.08);
@@ -205,8 +287,9 @@ export class ParticleSystem {
       const y = this.positions[i3 + 1] - this.currentVelocities[i] * this.speedMultiplier * dt;
       this.positions[i3 + 1] = y;
 
-      if (y < this.BOTTOM_Y) {
-        this.resetParticle(i, false);
+      if (fadeState === FADE_STATE_NORMAL && y < this.FADE_OUT_Y) {
+        this.fadeStates[i] = FADE_STATE_OUT;
+        this.fadeTimers[i] = 0;
       }
 
       this.rotations[i] += this.rotationSpeeds[i] * dt;
@@ -232,26 +315,33 @@ export class ParticleSystem {
 
       let r: number, g: number, b: number;
       if (this.hasAudio) {
-        const t = highFactor;
-        if (t < 0.5) {
-          const tt = t * 2;
-          r = lerp(this.COLOR_LOW.r, this.COLOR_MID.r, tt);
-          g = lerp(this.COLOR_LOW.g, this.COLOR_MID.g, tt);
-          b = lerp(this.COLOR_LOW.b, this.COLOR_MID.b, tt);
-        } else {
-          const tt = (t - 0.5) * 2;
-          r = lerp(this.COLOR_MID.r, this.COLOR_HIGH.r, tt);
-          g = lerp(this.COLOR_MID.g, this.COLOR_HIGH.g, tt);
-          b = lerp(this.COLOR_MID.b, this.COLOR_HIGH.b, tt);
+        const lr = smoothstep(0.0, 0.35, low) * (0.85 + jitter * 0.3);
+        const mr = smoothstep(0.0, 0.30, mid) * (0.85 + ((Math.sin(i * 0.19) + 1) * 0.15));
+        const hr = smoothstep(0.0, 0.25, high) * (0.85 + ((Math.cos(i * 0.27) + 1) * 0.15));
+
+        const baseLevel = 0.12;
+        const maxBand = Math.max(lr, mr, hr);
+        const brightnessBoost = 0.5 + overallIntensity * 0.5;
+
+        r = baseLevel + lr * 0.88 * brightnessBoost;
+        g = baseLevel + mr * 0.88 * brightnessBoost;
+        b = baseLevel + hr * 0.88 * brightnessBoost;
+
+        if (maxBand < 0.15) {
+          const warmT = 1 - maxBand / 0.15;
+          r = lerp(r, 0.35, warmT * 0.5);
+          g = lerp(g, 0.20, warmT * 0.5);
+          b = lerp(b, 0.45, warmT * 0.5);
         }
-        const intensityBoost = 0.8 + (low + mid + high) * 0.2 / 3;
-        r = Math.min(r * intensityBoost, 1);
-        g = Math.min(g * intensityBoost, 1);
-        b = Math.min(b * intensityBoost, 1);
+
+        const peakBoost = 1 + maxBand * 0.3;
+        r = Math.min(r * peakBoost, 1);
+        g = Math.min(g * peakBoost, 1);
+        b = Math.min(b * peakBoost, 1);
       } else {
-        r = baseColor.r;
-        g = baseColor.g;
-        b = baseColor.b;
+        r = this.COLOR_WHITE.r;
+        g = this.COLOR_WHITE.g;
+        b = this.COLOR_WHITE.b;
       }
 
       this.targetColors[i3] = r;
@@ -270,6 +360,7 @@ export class ParticleSystem {
     this.positionAttribute.needsUpdate = true;
     this.colorAttribute.needsUpdate = true;
     this.sizeAttribute.needsUpdate = true;
+    this.alphaAttribute.needsUpdate = true;
   }
 
   dispose(): void {
