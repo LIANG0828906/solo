@@ -1,18 +1,74 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Trophy } from 'lucide-react';
 import { useGameStore, SKILLS, getClassColor, getClassColorLight, CLASS_DATA } from '@/store/gameStore';
 import type { BattleLog } from '@/store/gameStore';
 
-function StatCard({ label, value, icon }: { label: string; value: string | number; icon: string }) {
+function useCountUp(target: number, duration = 1, delay = 0): number {
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    let startTimestamp: number | null = null;
+    let rafId: number;
+    let timeoutId: number;
+
+    const start = () => {
+      const step = (timestamp: number) => {
+        if (startTimestamp === null) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / (duration * 1000), 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.round(eased * target));
+        if (progress < 1) {
+          rafId = requestAnimationFrame(step);
+        }
+      };
+      rafId = requestAnimationFrame(step);
+    };
+
+    if (delay > 0) {
+      timeoutId = window.setTimeout(start, delay * 1000);
+    } else {
+      start();
+    }
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [target, duration, delay]);
+
+  return value;
+}
+
+function StatCard({
+  label,
+  value,
+  icon,
+  animated,
+  delay = 0,
+  suffix = '',
+}: {
+  label: string;
+  value: number;
+  icon: string;
+  animated?: boolean;
+  delay?: number;
+  suffix?: string;
+}) {
+  const displayValue = useCountUp(value, 1, delay);
+
   return (
     <motion.div
       className="glass-card p-4 flex flex-col items-center gap-1"
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
-      transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.5, ease: 'easeOut', delay: delay + 0.1 }}
     >
       <span className="text-2xl">{icon}</span>
-      <span className="font-display text-xl text-gold">{value}</span>
+      <span className="font-display text-xl text-gold">
+        {animated ? displayValue : value}
+        {suffix}
+      </span>
       <span className="text-xs text-gray-500">{label}</span>
     </motion.div>
   );
@@ -24,35 +80,53 @@ function SkillBar({
   maxCount,
   color,
   onClick,
-  highlight,
+  selected,
 }: {
   name: string;
   count: number;
   maxCount: number;
   color: string;
   onClick: () => void;
-  highlight: boolean;
+  selected: boolean;
 }) {
   const pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
   return (
-    <div
-      className={`cursor-pointer transition-all duration-200 ${highlight ? 'ring-1 ring-gold/50' : ''}`}
+    <motion.div
+      className={`cursor-pointer transition-all duration-200 rounded p-1 -m-1 ${
+        selected ? 'bg-gold/10' : 'hover:bg-white/5'
+      }`}
       onClick={onClick}
+      whileHover={{ x: 4 }}
+      whileTap={{ scale: 0.98 }}
     >
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-xs text-gray-400 w-20 truncate">{name}</span>
-        <span className="font-display text-xs text-gold">{count}</span>
+        <span
+          className={`text-xs w-20 truncate ${selected ? 'text-gold' : 'text-gray-400'}`}
+        >
+          {name}
+        </span>
+        <span
+          className={`font-display text-xs ${selected ? 'text-gold-light' : 'text-gold'}`}
+        >
+          {count}
+        </span>
       </div>
       <div className="h-4 bg-black/40 rounded overflow-hidden">
         <motion.div
           className="h-full rounded"
-          style={{ backgroundColor: color }}
+          style={{
+            backgroundColor: color,
+            boxShadow: selected ? `0 0 12px ${color}` : 'none',
+          }}
           initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
+          animate={{
+            width: `${pct}%`,
+            filter: selected ? 'brightness(1.3)' : 'brightness(1)',
+          }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -60,10 +134,8 @@ export default function BattleReport() {
   const battleRecord = useGameStore((s) => s.battleRecord);
   const resetGame = useGameStore((s) => s.resetGame);
   const setPhase = useGameStore((s) => s.setPhase);
-  const setHighlightedLogRound = useGameStore((s) => s.setHighlightedLogRound);
-  const highlightedLogRound = useGameStore((s) => s.highlightedLogRound);
 
-  const [filterRound, setFilterRound] = useState<number | null>(null);
+  const [highlightedSkillId, setHighlightedSkillId] = useState<string | null>(null);
 
   if (!battleRecord) return null;
 
@@ -89,36 +161,23 @@ export default function BattleReport() {
   ];
   const maxUsage = Math.max(...allUsageEntries.map(([, c]) => c), 1);
 
-  const filteredLogs = filterRound !== null
-    ? logs.filter((l) => l.round === filterRound)
-    : logs;
-
   const handleBarClick = (skillId: string) => {
-    const logEntry = logs.find((l) => l.skillId === skillId);
-    if (logEntry) {
-      setFilterRound(logEntry.round);
-      setHighlightedLogRound(logEntry.round);
-    }
+    setHighlightedSkillId((prev) => (prev === skillId ? null : skillId));
   };
 
   return (
     <motion.div
       className="w-full max-w-4xl"
-      initial={{ scale: 0, opacity: 0 }}
+      initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      transition={{
-        duration: 0.6,
-        type: 'spring',
-        stiffness: 120,
-        damping: 18,
-      }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
     >
       <div className="text-center mb-6">
         <motion.div
           className="inline-block"
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', delay: 0.15 }}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.15, ease: 'easeOut', duration: 0.5 }}
         >
           <h2
             className="font-display text-3xl font-bold mb-2"
@@ -135,25 +194,31 @@ export default function BattleReport() {
       </div>
 
       <div className="glass-card p-5 mb-6">
-        <h3 className="font-display text-sm text-gold mb-4 tracking-wider">— 数据总览 —</h3>
+        <h3 className="font-display text-sm text-gold mb-4 tracking-wider text-center">— 数据总览 —</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard label="总回合" value={battleRecord.totalRounds} icon="⚔️" />
+          <StatCard label="总回合" value={battleRecord.totalRounds} icon="⚔️" animated delay={0.1} />
           <StatCard
             label="玩家伤害"
             value={battleRecord.playerTotalDamage}
             icon="💥"
+            animated
+            delay={0.2}
           />
           <StatCard
             label="敌方伤害"
             value={battleRecord.enemyTotalDamage}
             icon="🛡️"
+            animated
+            delay={0.3}
           />
-          <StatCard label="玩家命中率" value={`${playerHitRate}%`} icon="🎯" />
-          <StatCard label="敌方命中率" value={`${enemyHitRate}%`} icon="🎯" />
+          <StatCard label="玩家命中率" value={playerHitRate} icon="🎯" animated delay={0.4} suffix="%" />
+          <StatCard label="敌方命中率" value={enemyHitRate} icon="🎯" animated delay={0.5} suffix="%" />
           <StatCard
-            label="MVP技能"
-            value={mvpSkill?.name ?? '-'}
+            label="MVP技能次数"
+            value={mvpSkill ? logs.filter(l => l.skillId === mvpSkill.id).length : 0}
             icon="🏆"
+            animated
+            delay={0.6}
           />
         </div>
       </div>
@@ -167,12 +232,17 @@ export default function BattleReport() {
           }}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.35 }}
+          transition={{ delay: 0.35, duration: 0.5, ease: 'easeOut' }}
         >
-          <span className="text-3xl">🏆</span>
+          <motion.div
+            animate={{ y: [0, -6, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Trophy size={36} className="text-gold" />
+          </motion.div>
           <div className="flex-1">
             <p className="font-display text-gold text-sm mb-0.5">MVP 技能 · 输出最高</p>
-            <p className="text-white font-bold">{mvpSkill.name}</p>
+            <p className="text-white font-bold text-lg">{mvpSkill.name}</p>
             <p className="text-xs text-gray-400 mt-0.5">{mvpSkill.description}</p>
           </div>
         </motion.div>
@@ -199,7 +269,7 @@ export default function BattleReport() {
                   maxCount={maxUsage}
                   color={playerColor}
                   onClick={() => handleBarClick(id)}
-                  highlight={filterRound !== null}
+                  selected={highlightedSkillId === id}
                 />
               </div>
             ) : null;
@@ -226,7 +296,7 @@ export default function BattleReport() {
                   maxCount={maxUsage}
                   color={enemyColor}
                   onClick={() => handleBarClick(id)}
-                  highlight={filterRound !== null}
+                  selected={highlightedSkillId === id}
                 />
               </div>
             ) : null;
@@ -237,26 +307,32 @@ export default function BattleReport() {
       <div className="glass-card p-4 mb-6 max-h-60 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-display text-sm text-gold">战斗日志</h3>
-          {filterRound !== null && (
+          {highlightedSkillId && (
             <button
-              onClick={() => { setFilterRound(null); setHighlightedLogRound(null); }}
+              onClick={() => setHighlightedSkillId(null)}
               className="text-xs text-gray-400 hover:text-gold transition-colors"
             >
-              清除筛选
+              清除高亮
             </button>
           )}
         </div>
         <div className="space-y-1">
-          {filteredLogs.map((log: BattleLog, i: number) => {
+          {logs.map((log: BattleLog, i: number) => {
             const actorColor = log.isPlayer ? playerColor : enemyColor;
-            const isHighlighted = highlightedLogRound === log.round;
+            const isHighlighted = highlightedSkillId === log.skillId;
             return (
               <div
                 key={i}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-all duration-200 ${
-                  isHighlighted ? 'bg-gold/10' : ''
+                  isHighlighted
+                    ? 'bg-gold/15 scale-[1.01]'
+                    : highlightedSkillId
+                      ? 'opacity-40'
+                      : ''
                 }`}
-                style={{ borderLeft: `3px solid ${actorColor}` }}
+                style={{
+                  borderLeft: isHighlighted ? `4px solid #d4a843` : `3px solid ${actorColor}`,
+                }}
               >
                 <span className="text-gold font-display w-8">R{log.round}</span>
                 <span style={{ color: actorColor }}>{log.actorName}</span>
