@@ -1,0 +1,29 @@
+:root {
+  --bg-gradient-start: #ece8e1;
+  --bg-gradient-end: #d6d1c6;
+  --color-app: #6b9ac4;
+  --color-folder: #8fb98f;
+  --color-document: #e6b87d;
+  --color-link: #c48fb1;
+  --color-note: #f5e68c;
+  --color-note-yellow: #f5e68c;
+  --color-note-blue: #8fb9d6;
+  --color-note-pink: #e6a5b8;
+  --color-note-green: #a5d6a5;
+  --radius-icon: 20px;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.2);
+  --transition-base: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --transition-fast: 200ms var(--transition-base);
+  --transition-normal: 250ms var(--transition-base);
+  --transition-slow: 300ms var(--transition-base);
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+  --backdrop-blur: blur(8px);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-dark: rgba(30, 30, 30, 0.85);
+  --text-primary: #2d2d2d;
+  --text-secondary: #666;
+  --text-white: #ffffff;
+}
