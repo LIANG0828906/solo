@@ -359,12 +359,13 @@ export default function TrendRadar({
             .attr('fill-opacity', 0.2)
             .attr('stroke-opacity', 1);
 
-          dots.each(function (this: SVGCircleElement, d: DotDatumLite) {
-            const dataPoint = s.data.find((p) => p.dimension === d.dimension);
+          dots.each(function (d: unknown) {
+            const datum = d as DotDatumLite;
+            const dataPoint = s.data.find((p) => p.dimension === datum.dimension);
             const value = dataPoint?.value ?? 0;
-            const pos = getPointPosition(d.index, value);
+            const pos = getPointPosition(datum.index, value);
 
-            d3.select(this)
+            d3.select(this as SVGCircleElement)
               .transition()
               .duration(750)
               .ease(d3.easeCubicInOut)

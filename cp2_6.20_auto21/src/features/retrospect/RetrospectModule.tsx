@@ -4,7 +4,6 @@ import {
   MessageSquare,
   ThumbsUp,
   ChevronRight,
-  ChevronLeft,
   User,
   Send,
 } from 'lucide-react';
@@ -36,6 +35,7 @@ const RetrospectModule: React.FC = () => {
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [hoveredStar, setHoveredStar] = useState<Record<string, number>>({});
 
   const currentPhase = phases[currentPhaseIndex];
   const currentPhaseQuestions = currentPhase?.questions ?? [];
@@ -103,6 +103,9 @@ const RetrospectModule: React.FC = () => {
     currentRating: number = 0,
     interactive: boolean = true
   ) => {
+    const hoveredValue = hoveredStar[questionId] ?? 0;
+    const displayRating = hoveredValue || currentRating;
+
     return (
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -111,17 +114,29 @@ const RetrospectModule: React.FC = () => {
             type="button"
             disabled={!interactive}
             onClick={() => interactive && handleRatingChange(questionId, star)}
+            onMouseEnter={() =>
+              interactive &&
+              setHoveredStar((prev) => ({ ...prev, [questionId]: star }))
+            }
+            onMouseLeave={() =>
+              interactive &&
+              setHoveredStar((prev) => {
+                const next = { ...prev };
+                delete next[questionId];
+                return next;
+              })
+            }
             className={cn(
               'transition-all duration-200',
-              interactive && 'cursor-pointer hover:scale-110',
+              interactive && 'cursor-pointer',
               !interactive && 'cursor-default'
             )}
           >
             <Star
               size={interactive ? 24 : 18}
               className={cn(
-                'transition-all duration-200',
-                star <= currentRating
+                'star-rating-item',
+                star <= displayRating
                   ? 'star-gold fill-current'
                   : 'text-white/20'
               )}
@@ -352,6 +367,19 @@ const RetrospectModule: React.FC = () => {
     }));
   }, [phases]);
 
+  const anonymousFeedbackCount = useMemo(() => {
+    let count = 0;
+    currentPhaseQuestions.forEach((question) => {
+      const stat = getQuestionStats(question.id);
+      if (stat) {
+        count += stat.answers.filter(
+          (a) => a.isAnonymous && (a.content || a.rating !== undefined)
+        ).length;
+      }
+    });
+    return count;
+  }, [currentPhaseQuestions, getQuestionStats]);
+
   return (
     <div className="h-full w-full flex gap-4 p-4 bg-dark-500 bg-grid-pattern">
       {/* 左侧阶段列表 - 20% */}
@@ -372,9 +400,8 @@ const RetrospectModule: React.FC = () => {
                 type="button"
                 onClick={() => setCurrentPhase(index)}
                 className={cn(
-                  'sidebar-indicator glass-card p-4 text-left transition-all duration-300',
-                  isActive && 'active bg-white/10 border-primary-500/30',
-                  !isActive && 'hover:bg-white/8'
+                  'sidebar-indicator glass-card p-4 text-left transition-all duration-300 hover:bg-white/[0.08]',
+                  isActive && 'active bg-white/15 border-primary-500/40 shadow-lg shadow-primary-500/10'
                 )}
                 style={{
                   animationDelay: `${index * 50}ms`,
@@ -524,13 +551,21 @@ const RetrospectModule: React.FC = () => {
           <button
             type="button"
             onClick={() => setPanelCollapsed(!panelCollapsed)}
-            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white"
+            className={cn(
+              'p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white',
+              panelCollapsed && 'panel-collapsed-button'
+            )}
+            data-count={panelCollapsed && anonymousFeedbackCount > 0 ? anonymousFeedbackCount : ''}
           >
-            {panelCollapsed ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+            {panelCollapsed ? (
+              <span className="w-2 h-2 rounded-full bg-primary-500 block" />
+            ) : (
+              <ChevronRight size={20} />
+            )}
           </button>
         </div>
 
-        {!panelCollapsed && (
+        <div className={cn('panel-content', !panelCollapsed && 'expanded')}>
           <div className="flex-1 overflow-y-auto scrollbar-thin pr-1 space-y-4">
             {currentPhaseQuestions.map((question, qIndex) => {
               const stat = getQuestionStats(question.id);
@@ -581,7 +616,7 @@ const RetrospectModule: React.FC = () => {
               );
             })}
           </div>
-        )}
+        </div>
       </aside>
     </div>
   );
