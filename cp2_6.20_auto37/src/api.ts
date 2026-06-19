@@ -135,6 +135,10 @@ export const mockPromotions = async (): Promise<Promotion[]> => {
     const endTime = new Date(now.getTime() + endOffset * 24 * 60 * 60 * 1000);
     const createdAt = new Date(now.getTime() - Math.floor(Math.random() * 90) * 24 * 60 * 60 * 1000);
 
+    const allCategories = ['电子产品', '服装', '食品', '家居', '美妆', '图书', '运动', '其他'];
+    const shuffled = allCategories.sort(() => 0.5 - Math.random());
+    const selectedCategories = shuffled.slice(0, Math.floor(Math.random() * 3) + 1);
+
     promotions.push({
       id: `promo-${i}-${Math.random().toString(36).substr(2, 9)}`,
       name,
@@ -143,6 +147,7 @@ export const mockPromotions = async (): Promise<Promotion[]> => {
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       status,
+      categories: selectedCategories,
       createdAt: createdAt.toISOString(),
       updatedAt: createdAt.toISOString(),
     });

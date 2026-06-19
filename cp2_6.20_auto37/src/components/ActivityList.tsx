@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Grid } from 'react-window';
 import type { Promotion, PromotionType, PromotionStatus } from '../types';
 import ActivityCard from './ActivityCard';
@@ -81,6 +82,7 @@ const Cell: React.FC<CellProps> = ({ columnIndex, rowIndex, style, data }) => {
 };
 
 const ActivityList: React.FC = () => {
+  const navigate = useNavigate();
   const {
     loading,
     searchTerm,
@@ -92,6 +94,7 @@ const ActivityList: React.FC = () => {
     loadPromotions,
     togglePromotionLocal,
     deletePromotionLocal,
+    setCurrentPromotion,
   } = usePromotionStore();
 
   const filteredPromotions = useFilteredPromotions();
@@ -127,8 +130,9 @@ const ActivityList: React.FC = () => {
   }, [togglePromotionLocal]);
 
   const handleEdit = useCallback((promotion: Promotion) => {
-    console.log('Edit promotion:', promotion);
-  }, []);
+    setCurrentPromotion(promotion);
+    navigate(`/edit/${promotion.id}`);
+  }, [setCurrentPromotion, navigate]);
 
   const handleDelete = useCallback((id: string) => {
     if (window.confirm('确定要删除这个活动吗？')) {

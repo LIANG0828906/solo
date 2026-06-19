@@ -1,5 +1,7 @@
 import React from 'react';
-import type { Promotion, PromotionType, PromotionStatus } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { isAfter, isBefore, parseISO } from 'date-fns';
+import type { Promotion, PromotionType } from '../types';
 import { format } from 'date-fns';
 import RippleButton from './RippleButton';
 
@@ -12,31 +14,56 @@ interface ActivityCardProps {
   index?: number;
 }
 
+type TimeStatus = 'NOT_STARTED' | 'ONGOING' | 'ENDED';
+
 const getTypeConfig = (type: PromotionType) => {
   switch (type) {
     case 'DISCOUNT':
-      return { label: '折扣', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.15)' };
+      return { label: '折扣', color: '#2962ff', bgColor: 'rgba(41, 98, 255, 0.15)' };
     case 'FULL_REDUCTION':
-      return { label: '满减', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)' };
+      return { label: '满减', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)' };
     case 'GIFT':
-      return { label: '赠品', color: '#8b5cf6', bgColor: 'rgba(139, 92, 246, 0.15)' };
+      return { label: '赠品', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)' };
     default:
       return { label: '未知', color: '#6b7280', bgColor: 'rgba(107, 114, 128, 0.15)' };
   }
 };
 
-const getStatusConfig = (status: PromotionStatus) => {
+const getTimeStatusConfig = (status: TimeStatus) => {
   switch (status) {
-    case 'ACTIVE':
-      return { label: '进行中', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.15)' };
-    case 'INACTIVE':
-      return { label: '已暂停', color: '#6b7280', bgColor: 'rgba(107, 114, 128, 0.15)' };
-    case 'EXPIRED':
-      return { label: '已过期', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)' };
-    case 'DRAFT':
-      return { label: '草稿', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)' };
+    case 'ONGOING':
+      return { label: '进行中', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.15)', dot: '#10b981' };
+    case 'NOT_STARTED':
+      return { label: '未开始', color: '#6b7280', bgColor: 'rgba(107, 114, 128, 0.15)', dot: '#6b7280' };
+    case 'ENDED':
+      return { label: '已结束', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)', dot: '#ef4444' };
+  }
+};
+
+const calculateTimeStatus = (startTime: string, endTime: string): TimeStatus => {
+  const now = new Date();
+  const start = parseISO(startTime);
+  const end = parseISO(endTime);
+
+  if (isBefore(now, start)) {
+    return 'NOT_STARTED';
+  }
+  if (isAfter(now, end)) {
+    return 'ENDED';
+  }
+  return 'ONGOING';
+};
+
+const getConfigDisplay = (promotion: Promotion): string => {
+  switch (promotion.type) {
+    case 'DISCOUNT':
+      return `折扣 ${((promotion.config as any).discountRate * 10).toFixed(1)}折`;
+    case 'FULL_REDUCTION':
+      return `满${(promotion.config as any).fullAmount}减${(promotion.config as any).reductionAmount}`;
+    case 'GIFT':
+      return `赠品: ${(promotion.config as any).giftName || '未设置'}`;
     default:
-      return { label: '未知', color: '#6b7280', bgColor: 'rgba(107, 114, 128, 0.15)' };
+      return '-';
   }
 };
 
@@ -48,24 +75,51 @@ const ActivityCard = React.memo<ActivityCardProps>(({
   style,
   index = 0,
 }) => {
+  const navigate = useNavigate();
   const typeConfig = getTypeConfig(promotion.type);
-  const statusConfig = getStatusConfig(promotion.status);
+  const timeStatus = calculateTimeStatus(promotion.startTime, promotion.endTime);
+  const timeStatusConfig = getTimeStatusConfig(timeStatus);
   const isPaused = promotion.status === 'INACTIVE';
 
-  const formatDate = (dateStr: string) => {
+  const formatDateTime = (dateStr: string) => {
     try {
-      return format(new Date(dateStr), 'yyyy-MM-dd');
+      return format(parseISO(dateStr), 'yyyy-MM-dd HH:mm');
     } catch {
       return dateStr;
     }
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return;
+    onEdit(promotion);
+    navigate(`/edit/${promotion.id}`);
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit(promotion);
+    navigate(`/edit/${promotion.id}`);
+  };
+
+  const handleToggleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggle(promotion.id);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(promotion.id);
+  };
+
   return (
     <div
+      onClick={handleCardClick}
       style={{
         ...styles.card,
         ...style,
         animationDelay: `${index * 0.05}s`,
+        cursor: 'pointer',
       }}
     >
       {isPaused && (
@@ -73,6 +127,23 @@ const ActivityCard = React.memo<ActivityCardProps>(({
           <span style={styles.pausedLabel}>已暂停</span>
         </div>
       )}
+
+      <div style={styles.statusBadgeTopRight}>
+        <span
+          style={{
+            ...styles.statusDot,
+            backgroundColor: timeStatusConfig.dot,
+          }}
+        />
+        <span
+          style={{
+            ...styles.statusBadgeText,
+            color: timeStatusConfig.color,
+          }}
+        >
+          {timeStatusConfig.label}
+        </span>
+      </div>
 
       <div style={styles.cardHeader}>
         <h3 style={styles.title}>{promotion.name}</h3>
@@ -89,51 +160,59 @@ const ActivityCard = React.memo<ActivityCardProps>(({
 
       <div style={styles.cardBody}>
         <div style={styles.infoRow}>
-          <span style={styles.infoLabel}>时间范围</span>
+          <span style={styles.infoLabel}>起止时间</span>
           <span style={styles.infoValue}>
-            {formatDate(promotion.startTime)} ~ {formatDate(promotion.endTime)}
+            {formatDateTime(promotion.startTime)}
+          </span>
+        </div>
+
+        <div style={styles.infoRow}>
+          <span style={styles.infoLabel}>至</span>
+          <span style={styles.infoValue}>
+            {formatDateTime(promotion.endTime)}
+          </span>
+        </div>
+
+        <div style={styles.infoRow}>
+          <span style={styles.infoLabel}>促销规则</span>
+          <span style={styles.infoValue}>
+            {getConfigDisplay(promotion)}
           </span>
         </div>
 
         <div style={styles.infoRow}>
           <span style={styles.infoLabel}>适用类别</span>
-          <span style={styles.infoValue}>
-            {promotion.type === 'DISCOUNT' && `折扣 ${(promotion.config as any).discountRate}折`}
-            {promotion.type === 'FULL_REDUCTION' && `满${(promotion.config as any).fullAmount}减${(promotion.config as any).reductionAmount}`}
-            {promotion.type === 'GIFT' && `赠品: ${(promotion.config as any).giftName}`}
-          </span>
-        </div>
-
-        <div style={styles.infoRow}>
-          <span style={styles.infoLabel}>状态</span>
-          <span style={{
-            ...styles.statusBadge,
-            color: statusConfig.color,
-            backgroundColor: statusConfig.bgColor,
-          }}>
-            {statusConfig.label}
-          </span>
+          <div style={styles.categoriesContainer}>
+            {(promotion.categories || []).map((cat, idx) => (
+              <span key={idx} style={styles.categoryTag}>
+                {cat}
+              </span>
+            ))}
+            {(!promotion.categories || promotion.categories.length === 0) && (
+              <span style={{ ...styles.infoValue, opacity: 0.5 }}>未设置</span>
+            )}
+          </div>
         </div>
       </div>
 
       <div style={styles.cardFooter}>
         <RippleButton
           variant="outline"
-          onClick={() => onEdit(promotion)}
+          onClick={handleEditClick}
           className="edit-btn"
         >
           编辑
         </RippleButton>
         <RippleButton
           variant="secondary"
-          onClick={() => onDelete(promotion.id)}
+          onClick={handleDeleteClick}
           className="delete-btn"
         >
           删除
         </RippleButton>
         <RippleButton
           variant="primary"
-          onClick={() => onToggle(promotion.id)}
+          onClick={handleToggleClick}
           className="toggle-btn"
         >
           {isPaused ? '恢复' : '暂停'}
@@ -160,6 +239,7 @@ const styles: Record<string, React.CSSProperties> = {
     animation: 'slideInUp 0.4s ease-out forwards',
     opacity: 0,
     transform: 'translateY(30px)',
+    transition: 'all 0.3s ease',
   },
   pausedOverlay: {
     position: 'absolute',
@@ -173,6 +253,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
+    pointerEvents: 'none',
   },
   pausedLabel: {
     padding: '8px 24px',
@@ -182,11 +263,33 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '16px',
     fontWeight: 600,
   },
+  statusBadgeTopRight: {
+    position: 'absolute',
+    top: '12px',
+    right: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '4px 10px',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: '9999px',
+    zIndex: 5,
+  },
+  statusDot: {
+    width: '6px',
+    height: '6px',
+    borderRadius: '50%',
+  },
+  statusBadgeText: {
+    fontSize: '11px',
+    fontWeight: 600,
+  },
   cardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: '12px',
+    paddingRight: '80px',
   },
   title: {
     margin: 0,
@@ -212,18 +315,19 @@ const styles: Record<string, React.CSSProperties> = {
   cardBody: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
+    gap: '8px',
   },
   infoRow: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '12px',
   },
   infoLabel: {
     fontSize: '13px',
     color: 'rgba(255, 255, 255, 0.5)',
     flexShrink: 0,
+    minWidth: '64px',
   },
   infoValue: {
     fontSize: '13px',
@@ -233,16 +337,26 @@ const styles: Record<string, React.CSSProperties> = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  statusBadge: {
-    padding: '4px 10px',
-    borderRadius: '6px',
-    fontSize: '12px',
-    fontWeight: 600,
+  categoriesContainer: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '4px',
+    justifyContent: 'flex-end',
+    maxWidth: '70%',
+  },
+  categoryTag: {
+    fontSize: '11px',
+    padding: '2px 8px',
+    backgroundColor: 'rgba(226, 183, 20, 0.15)',
+    color: '#e2b714',
+    borderRadius: '4px',
+    fontWeight: 500,
   },
   cardFooter: {
     display: 'flex',
     gap: '8px',
     marginTop: 'auto',
+    paddingTop: '8px',
   },
 };
 
