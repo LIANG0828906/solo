@@ -10,6 +10,7 @@ interface AppState {
   selectedArtworkId: string | null;
   showDetailModal: boolean;
   detailArtworkId: string | null;
+  successfullyAdheredArtworkId: string | null;
 
   setWalls: (walls: Wall[]) => void;
   setArtworks: (artworks: Artwork[]) => void;
@@ -23,6 +24,7 @@ interface AppState {
 
   addArtworkToWall: (wallId: string, artworkId: string, positionOnWall: number) => void;
   removeArtworkFromWall: (wallId: string, artworkOnWallId: string) => void;
+  clearAdheredSuccess: (artworkId: string) => void;
 
   openDetailModal: (artworkId: string) => void;
   closeDetailModal: () => void;
@@ -148,6 +150,7 @@ export const useStore = create<AppState>((set, get) => ({
   selectedArtworkId: null,
   showDetailModal: false,
   detailArtworkId: null,
+  successfullyAdheredArtworkId: null,
 
   setWalls: (walls) => {
     set({ walls });
@@ -183,6 +186,10 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   addArtworkToWall: (wallId, artworkId, positionOnWall) => {
+    const wasExisting = get().walls.some(
+      (w) => w.id === wallId && w.artworks.some((a) => a.artworkId === artworkId)
+    );
+
     set((state) => {
       const walls = state.walls.map((w) => {
         if (w.id !== wallId) return w;
@@ -218,9 +225,25 @@ export const useStore = create<AppState>((set, get) => ({
         return { ...w, artworks: newArtworks };
       });
 
-      return { walls };
+      return {
+        walls,
+        successfullyAdheredArtworkId: wasExisting ? null : artworkId,
+      };
     });
     get().saveToStorage();
+
+    if (!wasExisting) {
+      setTimeout(() => {
+        get().clearAdheredSuccess(artworkId);
+      }, 1000);
+    }
+  },
+
+  clearAdheredSuccess: (artworkId) => {
+    set((state) => ({
+      successfullyAdheredArtworkId:
+        state.successfullyAdheredArtworkId === artworkId ? null : state.successfullyAdheredArtworkId,
+    }));
   },
 
   removeArtworkFromWall: (wallId, artworkOnWallId) => {

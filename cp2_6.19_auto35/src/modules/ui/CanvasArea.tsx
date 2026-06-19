@@ -458,8 +458,9 @@ const CanvasArea: React.FC = () => {
                 />
 
                 {showGuides && isSelected && (
-                  <g className="wall-guides">
+                  <g key={`guides-${wall.id}`} className="wall-guides">
                     <line
+                      key={`guide-v-${wall.id}`}
                       x1={wall.x}
                       y1={wall.y - wall.height / 2 - 20}
                       x2={wall.x}
@@ -471,6 +472,7 @@ const CanvasArea: React.FC = () => {
                       transform={`rotate(${(wall.rotation * 180) / Math.PI}, ${wall.x}, ${wall.y})`}
                     />
                     <line
+                      key={`guide-h-${wall.id}`}
                       x1={wall.x - wall.width / 2 - 20}
                       y1={wall.y}
                       x2={wall.x + wall.width / 2 + 20}
@@ -525,7 +527,7 @@ const CanvasArea: React.FC = () => {
                 })}
 
                 {isSelected && (
-                  <g className="wall-handles">
+                  <g key={`handles-${wall.id}`} className="wall-handles">
                     {(['nw', 'ne', 'sw', 'se'] as ResizeCorner[]).map((corner) => {
                       const hw = wall.width / 2;
                       const hh = wall.height / 2;
@@ -552,7 +554,7 @@ const CanvasArea: React.FC = () => {
 
                       return (
                         <rect
-                          key={`handle-${corner}`}
+                          key={`handle-${wall.id}-${corner}`}
                           x={wx - 5}
                           y={wy - 5}
                           width={10}
@@ -568,11 +570,13 @@ const CanvasArea: React.FC = () => {
                     })}
 
                     <g
+                      key={`rotate-${wall.id}`}
                       className="rotate-handle-group"
                       onMouseDown={(e) => handleRotateMouseDown(e, wall)}
                       style={{ cursor: 'grab' }}
                     >
                       <line
+                        key={`rotate-line-${wall.id}`}
                         x1={wall.x}
                         y1={wall.y - wall.height / 2}
                         x2={wall.x}
@@ -582,6 +586,7 @@ const CanvasArea: React.FC = () => {
                         transform={`rotate(${(wall.rotation * 180) / Math.PI}, ${wall.x}, ${wall.y - wall.height / 2 - 10})`}
                       />
                       <rect
+                        key={`rotate-rect-${wall.id}`}
                         x={wall.x - 5}
                         y={wall.y - wall.height / 2 - 25}
                         width={10}
