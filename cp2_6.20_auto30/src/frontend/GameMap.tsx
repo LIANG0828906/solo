@@ -7,25 +7,36 @@ import {
   BUILDING_COSTS,
   getResourceName,
   ResourceType,
+  TerrainType,
+  getTerrainName,
 } from './store';
 
-const HEX_SIZE = 45;
+const HEX_SIZE = 40;
 const HEX_WIDTH = HEX_SIZE * 2;
 const HEX_HEIGHT = Math.sqrt(3) * HEX_SIZE;
 
+const TERRAIN_COLORS: Record<TerrainType, string> = {
+  forest: '#1a4a2e',
+  mountain: '#4a3a2e',
+  plain: '#3a4a2e',
+  water: '#1a3a5a',
+  empty: '#2a3a2e',
+};
+
+const TERRAIN_EMOJI: Record<TerrainType, string> = {
+  forest: '🌲',
+  mountain: '⛰️',
+  plain: '🌾',
+  water: '💧',
+  empty: '',
+};
+
 const BUILDING_EMOJI: Record<BuildingType, string> = {
-  lumbermill: '🌲',
+  lumbermill: '🪓',
   mine: '⛏️',
   factory: '🏭',
   farm: '🌾',
   techlab: '🔬',
-};
-
-const RESOURCE_EMOJI: Record<string, string> = {
-  wood: '🪵',
-  iron: '⛓️',
-  food: '🍞',
-  empty: '',
 };
 
 function hexToPixel(q: number, r: number): { x: number; y: number } {
@@ -34,28 +45,50 @@ function hexToPixel(q: number, r: number): { x: number; y: number } {
   return { x, y };
 }
 
-function hexPoints(cx: number, cy: number, size: number): string {
-  const points: string[] = [];
+function drawHex(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+  fill: string,
+  stroke: string,
+  lineWidth: number,
+) {
+  ctx.beginPath();
   for (let i = 0; i < 6; i++) {
     const angle = (Math.PI / 180) * (60 * i - 30);
-    points.push(`${cx + size * Math.cos(angle)},${cy + size * Math.sin(angle)}`);
+    const px = cx + size * Math.cos(angle);
+    const py = cy + size * Math.sin(angle);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
   }
-  return points.join(' ');
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = lineWidth;
+  ctx.stroke();
 }
 
-function screenToHex(screenX: number, screenY: number, svg: SVGSVGElement, centerOffset: { x: number; y: number }, mapOffset: { x: number; y: number }, mapZoom: number): { x: number; y: number } {
-  const rect = svg.getBoundingClientRect();
-  const svgX = screenX - rect.left;
-  const svgY = screenY - rect.top;
-  const worldX = (svgX - centerOffset.x - mapOffset.x) / mapZoom;
-  const worldY = (svgY - centerOffset.y - mapOffset.y) / mapZoom;
+function screenToWorld(
+  screenX: number,
+  screenY: number,
+  canvas: HTMLCanvasElement,
+  centerOffset: { x: number; y: number },
+  mapOffset: { x: number; y: number },
+  mapZoom: number,
+): { x: number; y: number } {
+  const rect = canvas.getBoundingClientRect();
+  const canvasX = screenX - rect.left;
+  const canvasY = screenY - rect.top;
+  const worldX = (canvasX - centerOffset.x - mapOffset.x) / mapZoom;
+  const worldY = (canvasY - centerOffset.y - mapOffset.y) / mapZoom;
   return { x: worldX, y: worldY };
 }
 
 function pixelToHex(x: number, y: number): { q: number; r: number } {
-  const size = HEX_SIZE;
-  const q = (2 / 3 * x) / size;
-  const r = (-1 / 3 * x + Math.sqrt(3) / 3 * y) / size;
+  const q = (2 / 3 * x) / HEX_SIZE;
+  const r = (-1 / 3 * x + Math.sqrt(3) / 3 * y) / HEX_SIZE;
   return hexRound(q, r);
 }
 
@@ -77,7 +110,11 @@ function hexRound(q: number, r: number): { q: number; r: number } {
 
 export default function GameMap() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationRef = useRef<number>(0);
+  const needsRenderRef = useRef(true);
+  const lastTimeRef = useRef(0);
+
   const {
     tiles,
     players,
@@ -100,29 +137,161 @@ export default function GameMap() {
   const [showBuildMenu, setShowBuildMenu] = useState(false);
   const [centerOffset, setCenterOffset] = useState({ x: 0, y: 0 });
   const [dragMoved, setDragMoved] = useState(false);
-  const [clickPos, setClickPos] = useState({ x: 0, y: 0 });
 
-  useEffect(() => {
-    const updateCenter = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setCenterOffset({ x: rect.width / 2, y: rect.height / 2 });
-      }
-    };
-    updateCenter();
-    window.addEventListener('resize', updateCenter);
-    return () => window.removeEventListener('resize', updateCenter);
+  const player = getCurrentPlayer();
+  const selectedTile = selectedTileId ? tiles[selectedTileId] : null;
+
+  const canBuy = selectedTile && !selectedTile.ownerId && player && player.resources.money >= selectedTile.price;
+  const isOwned = selectedTile && selectedTile.ownerId === currentPlayerId;
+
+  const availableBuildings: BuildingType[] = ['farm', 'lumbermill', 'mine', 'factory', 'techlab'];
+
+  const requestRender = useCallback(() => {
+    needsRenderRef.current = true;
   }, []);
 
+  const render = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.width / dpr;
+    const height = canvas.height / dpr;
+
+    ctx.clearRect(0, 0, width, height);
+
+    const bgGradient = ctx.createLinearGradient(0, 0, width, height);
+    bgGradient.addColorStop(0, '#1a3a2e');
+    bgGradient.addColorStop(0.5, '#0d2818');
+    bgGradient.addColorStop(1, '#1a2a1a');
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.translate(centerOffset.x + mapOffset.x, centerOffset.y + mapOffset.y);
+    ctx.scale(mapZoom, mapZoom);
+
+    Object.values(tiles).forEach((tile) => {
+      const { x, y } = hexToPixel(tile.q, tile.r);
+      const owner = tile.ownerId ? players[tile.ownerId] : null;
+      const isSelected = selectedTileId === tile.id;
+
+      const fillColor = TERRAIN_COLORS[tile.resourceType];
+      const strokeColor = owner ? owner.color : (isSelected ? '#ffd700' : '#2a4a2a');
+      const lineWidth = isSelected ? 3 : (owner ? 2 : 1);
+
+      const size = HEX_SIZE - 2;
+
+      drawHex(ctx, x, y, size, fillColor, strokeColor, lineWidth / mapZoom);
+
+      if (isSelected) {
+        ctx.save();
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 10;
+        drawHex(ctx, x, y, size + 2, 'transparent', '#ffd700', 2 / mapZoom);
+        ctx.restore();
+      }
+
+      if (tile.resourceType !== 'empty' && !tile.building) {
+        ctx.font = `${16 / mapZoom}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(TERRAIN_EMOJI[tile.resourceType], x, y - 5 / mapZoom);
+      }
+
+      if (!tile.ownerId) {
+        ctx.font = `bold ${10 / mapZoom}px sans-serif`;
+        ctx.fillStyle = '#ffd700';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`💰${tile.price}`, x, y + 15 / mapZoom);
+      }
+
+      if (tile.building) {
+        ctx.font = `${22 / mapZoom}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(BUILDING_EMOJI[tile.building.type], x, y + 4 / mapZoom);
+
+        if (tile.building.buildProgress < 100) {
+          const barWidth = 40 / mapZoom;
+          const barHeight = 5 / mapZoom;
+          const barX = x - barWidth / 2;
+          const barY = y + 20 / mapZoom;
+
+          ctx.fillStyle = '#1a1a2e';
+          ctx.fillRect(barX, barY, barWidth, barHeight);
+          ctx.fillStyle = '#ffd700';
+          ctx.fillRect(barX, barY, barWidth * (tile.building.buildProgress / 100), barHeight);
+        }
+
+        if (tile.building.buildProgress >= 100) {
+          ctx.font = `bold ${9 / mapZoom}px sans-serif`;
+          ctx.fillStyle = '#ffd700';
+          ctx.textAlign = 'left';
+          ctx.fillText(`Lv${tile.building.level}`, x + 18 / mapZoom, y - 15 / mapZoom);
+        }
+      }
+
+      if (owner) {
+        const dotR = 6 / mapZoom;
+        ctx.beginPath();
+        ctx.arc(x + HEX_SIZE * 0.6, y - HEX_SIZE * 0.5, dotR, 0, Math.PI * 2);
+        ctx.fillStyle = owner.color;
+        ctx.strokeStyle = '#1a1a2e';
+        ctx.lineWidth = 2 / mapZoom;
+        ctx.fill();
+        ctx.stroke();
+      }
+    });
+
+    ctx.restore();
+  }, [tiles, players, selectedTileId, mapOffset, mapZoom, centerOffset]);
+
+  useEffect(() => {
+    const animate = (time: number) => {
+      if (time - lastTimeRef.current >= 16 && needsRenderRef.current) {
+        render();
+        needsRenderRef.current = false;
+        lastTimeRef.current = time;
+      }
+      animationRef.current = requestAnimationFrame(animate);
+    };
+    animationRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationRef.current);
+  }, [render]);
+
+  useEffect(() => {
+    requestRender();
+  }, [tiles, players, selectedTileId, mapOffset, mapZoom, centerOffset, requestRender]);
+
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current && canvasRef.current) {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = containerRef.current.getBoundingClientRect();
+        canvasRef.current.width = rect.width * dpr;
+        canvasRef.current.height = rect.height * dpr;
+        const ctx = canvasRef.current.getContext('2d');
+        if (ctx) {
+          ctx.scale(dpr, dpr);
+        }
+        setCenterOffset({ x: rect.width / 2, y: rect.height / 2 });
+        requestRender();
+      }
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, [requestRender]);
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const isHexElement = target.tagName === 'polygon' || target.closest('g[data-tile-id]');
-    if (isHexElement) return;
     setIsDragging(true);
     setDragMoved(false);
     setDragStart({ x: e.clientX, y: e.clientY });
     setOffsetStart({ x: mapOffset.x, y: mapOffset.y });
-    setClickPos({ x: e.clientX, y: e.clientY });
   }, [mapOffset]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -134,7 +303,7 @@ export default function GameMap() {
     }
     setMapOffset(
       offsetStart.x + dx,
-      offsetStart.y + dy
+      offsetStart.y + dy,
     );
   }, [isDragging, dragStart, offsetStart, setMapOffset]);
 
@@ -142,33 +311,25 @@ export default function GameMap() {
     setIsDragging(false);
   }, []);
 
-  const handleSvgClick = useCallback((e: React.MouseEvent) => {
+  const handleClick = useCallback((e: React.MouseEvent) => {
     if (dragMoved) {
       setDragMoved(false);
       return;
     }
-    const target = e.target as HTMLElement;
-    const gElement = target.closest('g[data-tile-id]');
-    if (gElement) {
-      const tileId = gElement.getAttribute('data-tile-id');
-      if (tileId) {
-        handleTileClick(tileId);
-        return;
-      }
-    }
-    if (!svgRef.current) return;
-    const { x, y } = screenToHex(e.clientX, e.clientY, svgRef.current, centerOffset, mapOffset, mapZoom);
+    if (!canvasRef.current) return;
+    const { x, y } = screenToWorld(e.clientX, e.clientY, canvasRef.current, centerOffset, mapOffset, mapZoom);
     const { q, r } = pixelToHex(x, y);
     const tileId = `${q},${r}`;
     if (tiles[tileId]) {
-      handleTileClick(tileId);
+      selectTile(tileId);
+      setShowBuildMenu(true);
     }
-  }, [dragMoved, centerOffset, mapOffset, mapZoom, tiles]);
+  }, [dragMoved, centerOffset, mapOffset, mapZoom, tiles, selectTile]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    if (!svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     const delta = e.deltaY > 0 ? -0.1 : 0.1;
@@ -180,19 +341,6 @@ export default function GameMap() {
     setMapOffset(centerOffset.x + (newOffsetX - centerOffset.x), centerOffset.y + (newOffsetY - centerOffset.y));
   }, [mapZoom, mapOffset, centerOffset, setMapZoom, setMapOffset]);
 
-  const handleTileClick = (tileId: string) => {
-    selectTile(tileId);
-    setShowBuildMenu(true);
-  };
-
-  const player = getCurrentPlayer();
-  const selectedTile = selectedTileId ? tiles[selectedTileId] : null;
-
-  const canBuy = selectedTile && !selectedTile.ownerId && player && player.resources.money >= selectedTile.price;
-  const isOwned = selectedTile && selectedTile.ownerId === currentPlayerId;
-
-  const availableBuildings: BuildingType[] = ['farm', 'lumbermill', 'mine', 'factory', 'techlab'];
-
   return (
     <div
       ref={containerRef}
@@ -200,7 +348,6 @@ export default function GameMap() {
         width: '100%',
         height: '100%',
         position: 'relative',
-        background: 'linear-gradient(135deg, #1a3a1a 0%, #0d2818 50%, #1a2a1a 100%)',
         overflow: 'hidden',
         cursor: isDragging ? 'grabbing' : 'grab',
         borderRadius: 12,
@@ -210,8 +357,18 @@ export default function GameMap() {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onClick={handleClick}
       onWheel={handleWheel}
     >
+      <canvas
+        ref={canvasRef}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '100%',
+        }}
+      />
+
       <div style={{
         position: 'absolute',
         top: 10,
@@ -220,176 +377,26 @@ export default function GameMap() {
         gap: 6,
         zIndex: 10,
       }}>
-        <button
-          onClick={() => setMapZoom(mapZoom + 0.2)}
-          style={zoomBtnStyle}
-        >+</button>
-        <button
-          onClick={() => setMapZoom(mapZoom - 0.2)}
-          style={zoomBtnStyle}
-        >−</button>
-        <button
-          onClick={() => { setMapOffset(0, 0); setMapZoom(1); }}
-          style={{ ...zoomBtnStyle, fontSize: 12 }}
-        >⟲</button>
+        <button onClick={() => setMapZoom(mapZoom + 0.2)} style={zoomBtnStyle}>+</button>
+        <button onClick={() => setMapZoom(mapZoom - 0.2)} style={zoomBtnStyle}>−</button>
+        <button onClick={() => { setMapOffset(0, 0); setMapZoom(1); }} style={{ ...zoomBtnStyle, fontSize: 12 }}>⟲</button>
       </div>
 
-      <svg
-        ref={svgRef}
-        width="100%"
-        height="100%"
-        style={{ pointerEvents: isDragging ? 'none' : 'auto' }}
-        onClick={handleSvgClick}
-      >
-        <defs>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id="shadow">
-            <feDropShadow dx="2" dy="2" stdDeviation="3" floodOpacity="0.5" />
-          </filter>
-        </defs>
-        <g
-          transform={`translate(${centerOffset.x + mapOffset.x}, ${centerOffset.y + mapOffset.y}) scale(${mapZoom})`}
-        >
-          {Object.values(tiles).map((tile) => {
-            const { x, y } = hexToPixel(tile.q, tile.r);
-            const owner = tile.ownerId ? players[tile.ownerId] : null;
-            const isSelected = selectedTileId === tile.id;
-            const fillColor = tile.resourceType === 'wood'
-              ? '#2d4a2d'
-              : tile.resourceType === 'iron'
-              ? '#3a3a4a'
-              : tile.resourceType === 'food'
-              ? '#4a3a2d'
-              : '#2a3a2a';
-
-            return (
-              <g
-                key={tile.id}
-                data-tile-id={tile.id}
-                style={{ cursor: 'pointer', transition: 'transform 0.15s' }}
-              >
-                <polygon
-                  points={hexPoints(x, y, HEX_SIZE - 2)}
-                  fill={fillColor}
-                  stroke={owner ? owner.color : (isSelected ? '#ffd700' : '#2a4a2a')}
-                  strokeWidth={isSelected ? 4 : (owner ? 3 : 1.5)}
-                  filter={isSelected ? 'url(#glow)' : undefined}
-                  style={{
-                    transition: 'all 0.2s ease',
-                  }}
-                />
-                {tile.resourceType !== 'empty' && !tile.building && (
-                  <text
-                    x={x}
-                    y={y - 5}
-                    textAnchor="middle"
-                    fontSize="18"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {RESOURCE_EMOJI[tile.resourceType]}
-                  </text>
-                )}
-                {!tile.ownerId && (
-                  <text
-                    x={x}
-                    y={y + 15}
-                    textAnchor="middle"
-                    fontSize="11"
-                    fill="#ffd700"
-                    fontWeight="bold"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    💰{tile.price}
-                  </text>
-                )}
-                {tile.building && (
-                  <g style={{ pointerEvents: 'none' }}>
-                    <text
-                      x={x}
-                      y={y + 6}
-                      textAnchor="middle"
-                      fontSize="26"
-                      style={{
-                        transformOrigin: `${x}px ${y}px`,
-                        animation: tile.building.buildProgress >= 100 ? 'spin3d 4s linear infinite' : undefined,
-                      }}
-                    >
-                      {BUILDING_EMOJI[tile.building.type]}
-                    </text>
-                    {tile.building.buildProgress < 100 && (
-                      <>
-                        <rect
-                          x={x - 25}
-                          y={y + 20}
-                          width={50}
-                          height={6}
-                          fill="#1a1a2e"
-                          rx={3}
-                        />
-                        <rect
-                          x={x - 25}
-                          y={y + 20}
-                          width={50 * (tile.building.buildProgress / 100)}
-                          height={6}
-                          fill="#ffd700"
-                          rx={3}
-                          style={{ transition: 'width 0.3s ease' }}
-                        />
-                      </>
-                    )}
-                    {tile.building.buildProgress >= 100 && (
-                      <text
-                        x={x + 18}
-                        y={y - 15}
-                        fontSize="10"
-                        fill="#ffd700"
-                        fontWeight="bold"
-                      >
-                        Lv{tile.building.level}
-                      </text>
-                    )}
-                  </g>
-                )}
-                {owner && (
-                  <circle
-                    cx={x + HEX_SIZE * 0.6}
-                    cy={y - HEX_SIZE * 0.5}
-                    r={7}
-                    fill={owner.color}
-                    stroke="#1a1a2e"
-                    strokeWidth={2}
-                    style={{ pointerEvents: 'none' }}
-                  />
-                )}
-              </g>
-            );
-          })}
-        </g>
-      </svg>
-
       {showBuildMenu && selectedTile && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 20,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(26, 26, 46, 0.95)',
-            border: '1px solid #e94560',
-            borderRadius: 12,
-            padding: 16,
-            minWidth: 320,
-            boxShadow: '0 4px 20px rgba(233, 69, 96, 0.3)',
-            zIndex: 20,
-            backdropFilter: 'blur(8px)',
-          }}
-        >
+        <div style={{
+          position: 'absolute',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(26, 26, 46, 0.95)',
+          border: '1px solid #e94560',
+          borderRadius: 12,
+          padding: 16,
+          minWidth: 320,
+          boxShadow: '0 4px 20px rgba(233, 69, 96, 0.3)',
+          zIndex: 20,
+          backdropFilter: 'blur(8px)',
+        }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div style={{ color: '#ffd700', fontSize: 16, fontWeight: 'bold' }}>
               地块 ({selectedTile.q}, {selectedTile.r})
@@ -401,7 +408,7 @@ export default function GameMap() {
           </div>
 
           <div style={{ fontSize: 13, color: '#aaa', marginBottom: 8 }}>
-            资源类型: {getResourceName(selectedTile.resourceType as ResourceType) || '空地'}
+            地形: {getTerrainName(selectedTile.resourceType)}
             {selectedTile.ownerId && (
               <span style={{ marginLeft: 10, color: players[selectedTile.ownerId]?.color }}>
                 所有者: {players[selectedTile.ownerId]?.name}
@@ -409,7 +416,7 @@ export default function GameMap() {
             )}
           </div>
 
-          {!selectedTile.ownerId && (
+          {!selectedTile.ownerId && selectedTile.resourceType !== 'water' && (
             <button
               onClick={() => { buyTile(selectedTile.id); }}
               disabled={!canBuy}
@@ -425,7 +432,13 @@ export default function GameMap() {
             </button>
           )}
 
-          {isOwned && !selectedTile.building && (
+          {selectedTile.resourceType === 'water' && (
+            <div style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
+              水域无法购买和建造
+            </div>
+          )}
+
+          {isOwned && !selectedTile.building && selectedTile.resourceType !== 'water' && (
             <div>
               <div style={{ fontSize: 13, color: '#aaa', marginBottom: 8 }}>选择建筑类型:</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
@@ -497,17 +510,6 @@ export default function GameMap() {
           )}
         </div>
       )}
-
-      <style>{`
-        @keyframes spin3d {
-          0% { transform: rotateY(0deg) scale(1); }
-          50% { transform: rotateY(180deg) scale(1.1); }
-          100% { transform: rotateY(360deg) scale(1); }
-        }
-        polygon:hover {
-          filter: brightness(1.3);
-        }
-      `}</style>
     </div>
   );
 }

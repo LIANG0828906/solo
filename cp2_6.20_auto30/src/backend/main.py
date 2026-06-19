@@ -166,20 +166,36 @@ tiles: Dict[str, HexTile] = {}
 market_orders: List[MarketOrder] = []
 
 
+TERRAIN_NAMES = {
+    "forest": "森林",
+    "mountain": "矿山",
+    "plain": "平原",
+    "water": "水域",
+    "empty": "空地",
+}
+
+
+def getTerrainName(terrain_type: str) -> str:
+    return TERRAIN_NAMES.get(terrain_type, terrain_type)
+
+
 def init_tiles():
     import random
     radius = 4
-    types = ["wood", "iron", "food", "empty", "empty"]
+    terrain_types = ["empty", "forest", "plain", "mountain", "water"]
+    weights = [35, 25, 20, 15, 5]
     random.seed(int(time.time()))
     for q in range(-radius, radius + 1):
         for r in range(-radius, radius + 1):
             if abs(q + r) <= radius:
                 tid = f"{q},{r}"
                 dist = abs(q) + abs(r) + abs(q + r)
+                base_price = 500 - dist * 40
+                price = max(100, min(500, base_price + random.randint(-30, 30)))
                 tiles[tid] = HexTile(
                     id=tid, q=q, r=r,
-                    price=100 + dist * 30 + random.randint(0, 50),
-                    resourceType=random.choice(types),
+                    price=price,
+                    resourceType=random.choices(terrain_types, weights=weights, k=1)[0],
                 )
 
 

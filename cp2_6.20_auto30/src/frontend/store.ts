@@ -4,6 +4,7 @@ import axios from 'axios';
 
 export type Industry = 'farm' | 'factory' | 'tech';
 export type ResourceType = 'money' | 'wood' | 'iron' | 'food' | 'product';
+export type TerrainType = 'forest' | 'mountain' | 'plain' | 'water' | 'empty';
 export type BuildingType = 'lumbermill' | 'mine' | 'factory' | 'farm' | 'techlab';
 
 export interface Player {
@@ -27,7 +28,7 @@ export interface HexTile {
   q: number;
   r: number;
   price: number;
-  resourceType: Exclude<ResourceType, 'money' | 'product'> | 'empty';
+  resourceType: TerrainType;
   ownerId: string | null;
   building: Building | null;
 }
@@ -123,18 +124,32 @@ const BUILDING_OUTPUTS: Record<BuildingType, { resource: Exclude<ResourceType, '
 const generateTiles = (): Record<string, HexTile> => {
   const tiles: Record<string, HexTile> = {};
   const radius = 4;
+  const terrainTypes: TerrainType[] = ['empty', 'forest', 'plain', 'mountain', 'water'];
+  const weights = [35, 25, 20, 15, 5];
+
+  const weightedRandom = (): TerrainType => {
+    const total = weights.reduce((a, b) => a + b, 0);
+    let random = Math.random() * total;
+    for (let i = 0; i < terrainTypes.length; i++) {
+      random -= weights[i];
+      if (random <= 0) return terrainTypes[i];
+    }
+    return terrainTypes[0];
+  };
+
   for (let q = -radius; q <= radius; q++) {
     for (let r = -radius; r <= radius; r++) {
       if (Math.abs(q + r) <= radius) {
         const id = `${q},${r}`;
-        const types: HexTile['resourceType'][] = ['wood', 'iron', 'food', 'empty', 'empty'];
         const dist = Math.abs(q) + Math.abs(r) + Math.abs(q + r);
+        const basePrice = 500 - dist * 40;
+        const price = Math.max(100, Math.min(500, basePrice + Math.floor(Math.random() * 61) - 30));
         tiles[id] = {
           id,
           q,
           r,
-          price: 100 + dist * 30 + Math.floor(Math.random() * 50),
-          resourceType: types[Math.floor(Math.random() * types.length)],
+          price,
+          resourceType: weightedRandom(),
           ownerId: null,
           building: null,
         };
@@ -497,6 +512,17 @@ export function getResourceName(type: ResourceType): string {
     iron: '铁矿',
     food: '食物',
     product: '产品',
+  };
+  return names[type];
+}
+
+export function getTerrainName(type: TerrainType): string {
+  const names: Record<TerrainType, string> = {
+    forest: '森林',
+    mountain: '矿山',
+    plain: '平原',
+    water: '水域',
+    empty: '空地',
   };
   return names[type];
 }
