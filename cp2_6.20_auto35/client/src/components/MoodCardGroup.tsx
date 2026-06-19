@@ -1,16 +1,61 @@
-import React, { useState } from 'react';
-import { MoodData } from '../types';
+import React, { useState, useMemo } from 'react';
+import { MoodData, MOOD_CONFIGS } from '../types';
 import MoodCard from './MoodCard';
 
 interface MoodCardGroupProps {
   date: string;
   moods: MoodData[];
-  avgColor: string;
 }
 
-const MoodCardGroup: React.FC<MoodCardGroupProps> = ({ date, moods, avgColor }) => {
+const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 0, g: 0, b: 0 };
+};
+
+const rgbToHex = (r: number, g: number, b: number): string => {
+  return (
+    '#' +
+    [r, g, b]
+      .map((x) => {
+        const hex = Math.round(Math.max(0, Math.min(255, x))).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      })
+      .join('')
+  );
+};
+
+const MoodCardGroup: React.FC<MoodCardGroupProps> = ({ date, moods }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+
+  const avgColor = useMemo(() => {
+    if (moods.length === 0) return '#ccc';
+
+    let totalWeight = 0;
+    let totalR = 0;
+    let totalG = 0;
+    let totalB = 0;
+
+    moods.forEach((mood) => {
+      const color = MOOD_CONFIGS[mood.type].color;
+      const { r, g, b } = hexToRgb(color);
+      const weight = mood.intensity;
+      totalR += r * weight;
+      totalG += g * weight;
+      totalB += b * weight;
+      totalWeight += weight;
+    });
+
+    if (totalWeight === 0) return '#ccc';
+
+    return rgbToHex(totalR / totalWeight, totalG / totalWeight, totalB / totalWeight);
+  }, [moods]);
 
   const formattedDate = new Date(date).toLocaleDateString('zh-CN', {
     year: 'numeric',

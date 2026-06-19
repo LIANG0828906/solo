@@ -6,7 +6,6 @@ import MoodCardGroup from './MoodCardGroup';
 import CalendarView from './CalendarView';
 import AnalysisView from './AnalysisView';
 import ReportView from './ReportView';
-import { MOOD_CONFIGS } from '../types';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState('record');
@@ -66,17 +65,6 @@ const App: React.FC = () => {
     return acc;
   }, {} as Record<string, MoodData[]>);
 
-  const getAvgColor = (dateMoods: MoodData[]) => {
-    if (dateMoods.length === 0) return '#e0e0e0';
-    const totalIntensity = dateMoods.reduce((sum, m) => sum + m.intensity, 0);
-    const weightedHue = dateMoods.reduce(
-      (sum, m) => sum + MOOD_CONFIGS[m.type].hue * m.intensity,
-      0
-    );
-    const avgHue = weightedHue / totalIntensity;
-    return `hsl(${avgHue}, 70%, 60%)`;
-  };
-
   const sortedDates = Object.keys(moodsByDate).sort().reverse();
 
   const renderContent = () => {
@@ -91,7 +79,6 @@ const App: React.FC = () => {
                   key={date}
                   date={date}
                   moods={moodsByDate[date]}
-                  avgColor={getAvgColor(moodsByDate[date])}
                 />
               ))}
             </div>

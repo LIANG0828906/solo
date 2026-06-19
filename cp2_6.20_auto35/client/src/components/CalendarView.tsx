@@ -1,10 +1,66 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { MoodData, MOOD_CONFIGS } from '../types';
 import MoodCard from './MoodCard';
 
 interface CalendarViewProps {
   moods?: MoodData[];
 }
+
+interface DayCellData {
+  day: number | null;
+  dateStr: string | null;
+  dayMoods: MoodData[];
+  avgColor: string;
+  dots: { color: string; size: number }[];
+  isToday: boolean;
+  hasMoods: boolean;
+}
+
+const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 0, g: 0, b: 0 };
+};
+
+const rgbToHex = (r: number, g: number, b: number): string => {
+  return (
+    '#' +
+    [r, g, b]
+      .map((x) => {
+        const hex = Math.round(Math.max(0, Math.min(255, x))).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      })
+      .join('')
+  );
+};
+
+const calculateAvgColor = (moods: MoodData[]): string => {
+  if (moods.length === 0) return '#e0e0e0';
+
+  let totalWeight = 0;
+  let totalR = 0;
+  let totalG = 0;
+  let totalB = 0;
+
+  moods.forEach((mood) => {
+    const color = MOOD_CONFIGS[mood.type].color;
+    const { r, g, b } = hexToRgb(color);
+    const weight = mood.intensity;
+    totalR += r * weight;
+    totalG += g * weight;
+    totalB += b * weight;
+    totalWeight += weight;
+  });
+
+  if (totalWeight === 0) return '#e0e0e0';
+
+  return rgbToHex(totalR / totalWeight, totalG / totalWeight, totalB / totalWeight);
+};
 
 const CalendarView: React.FC<CalendarViewProps> = ({ moods = [] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -13,38 +69,63 @@ const CalendarView: React.FC<CalendarViewProps> = ({ moods = [] }) => {
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const startDay = firstDay.getDay();
-  const daysInMonth = lastDay.getDate();
+  const moodsByDate = useMemo(() => {
+    const map: Record<string, MoodData[]> = {};
+    moods.forEach((mood) => {
+      const dateStr = mood.timestamp.slice(0, 10);
+      if (!map[dateStr]) {
+        map[dateStr] = [];
+      }
+      map[dateStr].push(mood);
+    });
+    return map;
+  }, [moods]);
 
-  const days = useMemo(() => {
-    const result: (number | null)[] = [];
+  const firstDay = useMemo(() => new Date(year, month, 1), [year, month]);
+  const lastDay = useMemo(() => new Date(year, month + 1, 0), [year, month]);
+  const startDay = useMemo(() => firstDay.getDay(), [firstDay]);
+  const daysInMonth = useMemo(() => lastDay.getDate(), [lastDay]);
+
+  const dayCells = useMemo<DayCellData[]>(() => {
+    const cells: DayCellData[] = [];
+    const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+
     for (let i = 0; i < startDay; i++) {
-      result.push(null);
+      cells.push({
+        day: null,
+        dateStr: null,
+        dayMoods: [],
+        avgColor: 'transparent',
+        dots: [],
+        isToday: false,
+        hasMoods: false,
+      });
     }
-    for (let i = 1; i <= daysInMonth; i++) {
-      result.push(i);
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${monthStr}-${String(day).padStart(2, '0')}`;
+      const dayMoods = moodsByDate[dateStr] || [];
+      const avgColor = calculateAvgColor(dayMoods);
+      const dots = dayMoods.slice(0, 3).map((mood) => ({
+        color: MOOD_CONFIGS[mood.type].color,
+        size: mood.intensity * 3,
+      }));
+
+      cells.push({
+        day,
+        dateStr,
+        dayMoods,
+        avgColor,
+        dots,
+        isToday: dateStr === todayStr,
+        hasMoods: dayMoods.length > 0,
+      });
     }
-    return result;
-  }, [startDay, daysInMonth]);
 
-  const getMoodsForDate = (dateStr: string) => {
-    return moods.filter((m) => m.timestamp.startsWith(dateStr));
-  };
-
-  const getAvgColorForDate = (dateStr: string) => {
-    const dayMoods = getMoodsForDate(dateStr);
-    if (dayMoods.length === 0) return '#e0e0e0';
-    const totalIntensity = dayMoods.reduce((sum, m) => sum + m.intensity, 0);
-    const weightedHue = dayMoods.reduce(
-      (sum, m) => sum + MOOD_CONFIGS[m.type].hue * m.intensity,
-      0
-    );
-    const avgHue = weightedHue / totalIntensity;
-    return `hsl(${avgHue}, 70%, 60%)`;
-  };
+    return cells;
+  }, [year, month, startDay, daysInMonth, moodsByDate, todayStr]);
 
   const stats = useMemo(() => {
     const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -72,15 +153,94 @@ const CalendarView: React.FC<CalendarViewProps> = ({ moods = [] }) => {
     };
   }, [moods, year, month]);
 
-  const navigateMonth = (direction: number) => {
-    setSlideDirection(direction > 0 ? 'right' : 'left');
-    setTimeout(() => {
-      setCurrentDate(new Date(year, month + direction, 1));
-      setSlideDirection(null);
-    }, 150);
-  };
+  const navigateMonth = useCallback(
+    (direction: number) => {
+      setSlideDirection(direction > 0 ? 'right' : 'left');
+      setTimeout(() => {
+        setCurrentDate(new Date(year, month + direction, 1));
+        setSlideDirection(null);
+      }, 200);
+    },
+    [year, month]
+  );
 
-  const selectedDateMoods = selectedDate ? getMoodsForDate(selectedDate) : [];
+  const selectedDateMoods = selectedDate ? moodsByDate[selectedDate] || [] : [];
+
+  const DayCell = React.memo(({ cell }: { cell: DayCellData }) => {
+    if (cell.day === null) {
+      return <div style={{ aspectRatio: '1' }} />;
+    }
+
+    const handleClick = () => {
+      if (cell.hasMoods && cell.dateStr) {
+        setSelectedDate(cell.dateStr);
+      }
+    };
+
+    return (
+      <div
+        onClick={handleClick}
+        style={{
+          aspectRatio: '1',
+          borderRadius: '12px',
+          background: cell.isToday
+            ? `${cell.avgColor}15`
+            : cell.hasMoods
+            ? '#fafafa'
+            : 'transparent',
+          border: cell.isToday ? `2px solid ${cell.avgColor}` : '2px solid transparent',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: cell.hasMoods ? 'pointer' : 'default',
+          transition: 'all 0.2s ease',
+          position: 'relative',
+        }}
+        onMouseEnter={(e) => {
+          if (cell.hasMoods) {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.background = `${cell.avgColor}20`;
+          }
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.background = cell.isToday
+            ? `${cell.avgColor}15`
+            : cell.hasMoods
+            ? '#fafafa'
+            : 'transparent';
+        }}
+      >
+        <span
+          style={{
+            fontSize: '14px',
+            fontWeight: cell.isToday ? 700 : 500,
+            color: cell.isToday ? cell.avgColor : '#333',
+          }}
+        >
+          {cell.day}
+        </span>
+        {cell.dots.length > 0 && (
+          <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
+            {cell.dots.map((dot, i) => (
+              <div
+                key={i}
+                style={{
+                  width: `${dot.size}px`,
+                  height: `${dot.size}px`,
+                  borderRadius: '50%',
+                  background: dot.color,
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  });
+
+  DayCell.displayName = 'DayCell';
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease' }}>
@@ -166,9 +326,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({ moods = [] }) => {
             alignItems: 'center',
             justifyContent: 'space-between',
             marginBottom: '24px',
-            transform: slideDirection === 'left' ? 'translateX(-20px)' : slideDirection === 'right' ? 'translateX(20px)' : 'translateX(0)',
+            transform:
+              slideDirection === 'left'
+                ? 'translateX(-20px)'
+                : slideDirection === 'right'
+                ? 'translateX(20px)'
+                : 'translateX(0)',
             opacity: slideDirection ? 0 : 1,
-            transition: 'all 0.3s ease',
+            transition: 'all 0.25s ease',
           }}
         >
           <button
@@ -251,75 +416,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({ moods = [] }) => {
             display: 'grid',
             gridTemplateColumns: 'repeat(7, 1fr)',
             gap: '8px',
-            transform: slideDirection === 'left' ? 'translateX(-20px)' : slideDirection === 'right' ? 'translateX(20px)' : 'translateX(0)',
+            transform:
+              slideDirection === 'left'
+                ? 'translateX(-20px)'
+                : slideDirection === 'right'
+                ? 'translateX(20px)'
+                : 'translateX(0)',
             opacity: slideDirection ? 0 : 1,
-            transition: 'all 0.3s ease',
+            transition: 'all 0.25s ease',
           }}
         >
-          {days.map((day, index) => {
-            if (day === null) {
-              return <div key={`empty-${index}`} />;
-            }
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const dayMoods = getMoodsForDate(dateStr);
-            const avgColor = getAvgColorForDate(dateStr);
-            const isToday = dateStr === new Date().toISOString().slice(0, 10);
-
-            return (
-              <div
-                key={day}
-                onClick={() => dayMoods.length > 0 && setSelectedDate(dateStr)}
-                style={{
-                  aspectRatio: '1',
-                  borderRadius: '12px',
-                  background: isToday ? `${avgColor}15` : dayMoods.length > 0 ? '#fafafa' : 'transparent',
-                  border: isToday ? `2px solid ${avgColor}` : '2px solid transparent',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: dayMoods.length > 0 ? 'pointer' : 'default',
-                  transition: 'all 0.2s ease',
-                  position: 'relative',
-                }}
-                onMouseEnter={(e) => {
-                  if (dayMoods.length > 0) {
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                    e.currentTarget.style.background = `${avgColor}20`;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.background = isToday ? `${avgColor}15` : dayMoods.length > 0 ? '#fafafa' : 'transparent';
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: isToday ? 700 : 500,
-                    color: isToday ? avgColor : '#333',
-                  }}
-                >
-                  {day}
-                </span>
-                {dayMoods.length > 0 && (
-                  <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
-                    {dayMoods.slice(0, 3).map((mood, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          width: `${mood.intensity * 3}px`,
-                          height: `${mood.intensity * 3}px`,
-                          borderRadius: '50%',
-                          background: `hsl(${MOOD_CONFIGS[mood.type].hue}, 70%, 60%)`,
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {dayCells.map((cell, index) => (
+            <DayCell key={`cell-${index}-${cell.day}`} cell={cell} />
+          ))}
         </div>
       </div>
 

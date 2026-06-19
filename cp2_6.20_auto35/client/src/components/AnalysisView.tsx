@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, subDays } from 'date-fns';
 import { MoodData, MOOD_CONFIGS, TAG_LABELS, TagType } from '../types';
@@ -12,6 +12,17 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ moods = [] }) => {
   const [timeRange, setTimeRange] = useState<7 | 30 | 90>(30);
   const [selectedTag, setSelectedTag] = useState<TagType | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [pieAnimationKey, setPieAnimationKey] = useState(0);
+  const [pieEndAngle, setPieEndAngle] = useState(0);
+
+  useEffect(() => {
+    setPieEndAngle(0);
+    setPieAnimationKey((prev) => prev + 1);
+    const timer = setTimeout(() => {
+      setPieEndAngle(360);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [timeRange, moods]);
 
   const filteredMoods = useMemo(() => {
     const cutoff = subDays(new Date(), timeRange);
@@ -137,7 +148,7 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ moods = [] }) => {
           </h3>
           <div style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart key={pieAnimationKey}>
                 <Pie
                   data={pieData}
                   cx="50%"
@@ -146,8 +157,10 @@ const AnalysisView: React.FC<AnalysisViewProps> = ({ moods = [] }) => {
                   outerRadius={100}
                   paddingAngle={4}
                   dataKey="value"
+                  startAngle={90}
+                  endAngle={90 - pieEndAngle}
                   animationBegin={0}
-                  animationDuration={1000}
+                  animationDuration={1200}
                   animationEasing="ease-out"
                 >
                   {pieData.map((entry, index) => (
