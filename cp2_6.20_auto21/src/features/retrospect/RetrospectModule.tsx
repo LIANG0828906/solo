@@ -108,41 +108,46 @@ const RetrospectModule: React.FC = () => {
 
     return (
       <div className="flex items-center gap-1">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            disabled={!interactive}
-            onClick={() => interactive && handleRatingChange(questionId, star)}
-            onMouseEnter={() =>
-              interactive &&
-              setHoveredStar((prev) => ({ ...prev, [questionId]: star }))
-            }
-            onMouseLeave={() =>
-              interactive &&
-              setHoveredStar((prev) => {
-                const next = { ...prev };
-                delete next[questionId];
-                return next;
-              })
-            }
-            className={cn(
-              'transition-all duration-200',
-              interactive && 'cursor-pointer',
-              !interactive && 'cursor-default'
-            )}
-          >
-            <Star
-              size={interactive ? 24 : 18}
+        {[1, 2, 3, 4, 5].map((star) => {
+          const isHovered = hoveredValue === star;
+
+          return (
+            <button
+              key={star}
+              type="button"
+              disabled={!interactive}
+              onClick={() => interactive && handleRatingChange(questionId, star)}
+              onMouseEnter={() =>
+                interactive &&
+                setHoveredStar((prev) => ({ ...prev, [questionId]: star }))
+              }
+              onMouseLeave={() =>
+                interactive &&
+                setHoveredStar((prev) => {
+                  const next = { ...prev };
+                  delete next[questionId];
+                  return next;
+                })
+              }
               className={cn(
-                'star-rating-item',
-                star <= displayRating
-                  ? 'star-gold fill-current'
-                  : 'text-white/20'
+                'transition-all duration-200',
+                interactive && 'cursor-pointer',
+                !interactive && 'cursor-default'
               )}
-            />
-          </button>
-        ))}
+            >
+              <Star
+                size={interactive ? 24 : 18}
+                className={cn(
+                  'star-rating-item',
+                  isHovered && interactive && 'hovered',
+                  star <= displayRating
+                    ? 'star-gold fill-current'
+                    : 'text-white/20'
+                )}
+              />
+            </button>
+          );
+        })}
       </div>
     );
   };
@@ -565,7 +570,12 @@ const RetrospectModule: React.FC = () => {
           </button>
         </div>
 
-        <div className={cn('panel-content', !panelCollapsed && 'expanded')}>
+        <div
+          className={cn(
+            'panel-content',
+            panelCollapsed ? 'collapsed' : 'expanded'
+          )}
+        >
           <div className="flex-1 overflow-y-auto scrollbar-thin pr-1 space-y-4">
             {currentPhaseQuestions.map((question, qIndex) => {
               const stat = getQuestionStats(question.id);
