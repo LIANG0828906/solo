@@ -8,27 +8,12 @@ export type DrawPoint = {
   timestamp: number;
 };
 
-export const PRESET_COLORS = [
-  '#000000',
-  '#e53935',
-  '#fb8c00',
-  '#fdd835',
-  '#43a047',
-  '#00acc1',
-  '#1e88e5',
-  '#8e24aa',
-  '#ec407a',
-  '#6d4c41',
-  '#757575',
-  '#424242',
-];
-
 interface CanvasProps {
   currentColor: string;
   currentSize: number;
   userId: string;
   onStrokeComplete: (strokeId: string, points: DrawPoint[]) => void;
-  remoteStrokes: Map<string, { userId: string; points: DrawPoint[] }>;
+  remoteStrokes: Map<string, { userId: string; points: DrawPoint[]; alpha?: number }>;
 }
 
 interface GlowStroke {
@@ -40,85 +25,137 @@ function bezierInterpolate(points: DrawPoint[]): DrawPoint[] {
   if (points.length < 2) return points;
 
   const result: DrawPoint[] = [];
+  const maxTotal = points.length * 5;
+  const maxSegmentsPerCurve = 20;
 
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i - 1] || points[i];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2] || p2;
-
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-
-    const segments = 20;
-    for (let t = 0; t <= segments; t++) {
-      const tt = t / segments;
-      const tt2 = tt * tt;
-      const tt3 = tt2 * tt;
-      const mt = 1 - tt;
-      const mt2 = mt * mt;
-      const mt3 = mt2 * mt;
-
-      const x = mt3 * p1.x + 3 * mt2 * tt * cp1x + 3 * mt * tt2 * cp2x + tt3 * p2.x;
-      const y = mt3 * p1.y + 3 * mt2 * tt * cp1y + 3 * mt * tt2 * cp2y + tt3 * p2.y;
-
-      if (t > 0 || i === 0) {
-        result.push({
-          x,
-          y,
-          color: p1.color,
-          size: p1.size,
-          timestamp: p1.timestamp + (p2.timestamp - p1.timestamp) * tt,
-        });
-      }
+  const addPoint = (p: DrawPoint) => {
+    if (result.length < maxTotal) {
+      result.push(p);
     }
+  };
+
+  const lerpPoint = (a: DrawPoint, b: DrawPoint, t: number): DrawPoint => ({
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    color: a.color,
+    size: a.size,
+    timestamp: a.timestamp + (b.timestamp - a.timestamp) * t,
+  });
+
+  if (points.length === 2) {
+    const segs = Math.min(maxSegmentsPerCurve, maxTotal);
+    for (let t = 0; t <= segs; t++) {
+      addPoint(lerpPoint(points[0], points[1], t / segs));
+    }
+    return result;
+  }
+
+  addPoint({ ...points[0] });
+
+  for (let i = 0; i < points.length - 2; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    const c = points[i + 2];
+
+    const startX = (a.x + b.x) / 2;
+    const startY = (a.y + b.y) / 2;
+    const cpX = b.x;
+    const cpY = b.y;
+    const endX = (b.x + c.x) / 2;
+    const endY = (b.y + c.y) / 2;
+
+    const remaining = maxTotal - result.length;
+    const segs = Math.max(1, Math.min(maxSegmentsPerCurve, remaining));
+
+    for (let t = 1; t <= segs; t++) {
+      if (result.length >= maxTotal) break;
+      const tt = t / segs;
+      const mt = 1 - tt;
+
+      const x = mt * mt * startX + 2 * mt * tt * cpX + tt * tt * endX;
+      const y = mt * mt * startY + 2 * mt * tt * cpY + tt * tt * endY;
+
+      const startTime = a.timestamp + (b.timestamp - a.timestamp) * 0.5;
+      const endTime = b.timestamp + (c.timestamp - b.timestamp) * 0.5;
+
+      result.push({
+        x,
+        y,
+        color: b.color,
+        size: b.size,
+        timestamp: startTime + (endTime - startTime) * tt,
+      });
+    }
+  }
+
+  const lastIdx = points.length - 1;
+  const secondLast = points[lastIdx - 1];
+  const last = points[lastIdx];
+  const midToLastX = (secondLast.x + last.x) / 2;
+  const midToLastY = (secondLast.y + last.y) / 2;
+  const remaining = maxTotal - result.length;
+  const segs = Math.max(1, Math.min(maxSegmentsPerCurve, remaining));
+
+  for (let t = 1; t <= segs; t++) {
+    if (result.length >= maxTotal) break;
+    addPoint(lerpPoint(
+      { ...secondLast, x: midToLastX, y: midToLastY },
+      last,
+      t / segs
+    ));
   }
 
   return result;
 }
 
-function drawStroke(
+function drawBezierPath(
   ctx: CanvasRenderingContext2D,
   points: DrawPoint[],
-  glowIntensity: number = 0
+  glowIntensity: number = 0,
+  alpha: number = 1
 ) {
-  if (points.length < 2) {
-    if (points.length === 1) {
-      const p = points[0];
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
-      ctx.fillStyle = p.color;
-      if (glowIntensity > 0) {
-        ctx.shadowColor = p.color;
-        ctx.shadowBlur = 15 * glowIntensity;
-      }
-      ctx.fill();
-      ctx.shadowBlur = 0;
+  if (points.length === 0) return;
+
+  const smoothPoints = bezierInterpolate(points);
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  if (smoothPoints.length < 2) {
+    const p = smoothPoints[0];
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    if (glowIntensity > 0) {
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 15 * glowIntensity;
     }
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
     return;
   }
 
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = points[0].color;
-  ctx.lineWidth = points[0].size;
+  ctx.strokeStyle = smoothPoints[0].color;
+  ctx.lineWidth = smoothPoints[0].size;
 
   if (glowIntensity > 0) {
-    ctx.shadowColor = points[0].color;
+    ctx.shadowColor = smoothPoints[0].color;
     ctx.shadowBlur = 15 * glowIntensity;
   }
 
   ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
+  ctx.moveTo(smoothPoints[0].x, smoothPoints[0].y);
 
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(points[i].x, points[i].y);
+  for (let i = 1; i < smoothPoints.length; i++) {
+    ctx.lineTo(smoothPoints[i].x, smoothPoints[i].y);
   }
 
   ctx.stroke();
   ctx.shadowBlur = 0;
+  ctx.restore();
 }
 
 export default function Canvas({
@@ -167,8 +204,7 @@ export default function Canvas({
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     remoteStrokes.forEach((stroke) => {
-      const interpolated = bezierInterpolate(stroke.points);
-      drawStroke(ctx, interpolated);
+      drawBezierPath(ctx, stroke.points, 0, stroke.alpha ?? 1);
     });
 
     const now = Date.now();
@@ -177,12 +213,11 @@ export default function Canvas({
       const elapsed = now - gs.startTime;
       if (elapsed < 200) {
         const intensity = 1 - elapsed / 200;
-        const interpolated = bezierInterpolate(gs.points);
-        drawStroke(ctx, interpolated, intensity);
+        drawBezierPath(ctx, gs.points, intensity);
+        drawBezierPath(ctx, gs.points, 0);
         activeGlows.push(gs);
       } else {
-        const interpolated = bezierInterpolate(gs.points);
-        drawStroke(ctx, interpolated);
+        drawBezierPath(ctx, gs.points, 0);
       }
     });
     if (activeGlows.length !== glowStrokes.length) {
@@ -190,8 +225,7 @@ export default function Canvas({
     }
 
     if (currentPointsRef.current.length > 0) {
-      const interpolated = bezierInterpolate(currentPointsRef.current);
-      drawStroke(ctx, interpolated);
+      drawBezierPath(ctx, currentPointsRef.current, 0);
     }
   }, [remoteStrokes, glowStrokes]);
 
@@ -280,7 +314,6 @@ export default function Canvas({
       style={{
         border: '1px solid #e0e0e0',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-        borderRadius: '4px',
         background: '#ffffff',
         overflow: 'hidden',
       }}

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 
 export type DrawPoint = {
   x: number;
@@ -23,27 +23,34 @@ interface PlaybackControllerProps {
   isPlaying: boolean;
   onTogglePlayback: () => void;
   playbackProgress: number;
+  onSeek?: (progress: number) => void;
   onClearRecording: () => void;
 }
 
-const buttonBaseStyle: React.CSSProperties = {
-  padding: '8px 16px',
-  borderRadius: '8px',
-  border: 'none',
-  cursor: 'pointer',
-  fontSize: '14px',
-  fontWeight: 500,
-  transition: 'background-color 150ms ease-out',
-  color: '#374151',
-  backgroundColor: '#f3f4f6',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-};
-
-const buttonHoverStyle = {
-  backgroundColor: '#e5e7eb',
-};
+function validateRecordingData(data: unknown): data is RecordingData {
+  if (typeof data !== 'object' || data === null) return false;
+  const d = data as Record<string, unknown>;
+  if (!Array.isArray(d.strokes)) return false;
+  if (typeof d.startTime !== 'number') return false;
+  if (typeof d.endTime !== 'number') return false;
+  for (const stroke of d.strokes) {
+    if (typeof stroke !== 'object' || stroke === null) return false;
+    const s = stroke as Record<string, unknown>;
+    if (typeof s.strokeId !== 'string') return false;
+    if (typeof s.userId !== 'string') return false;
+    if (!Array.isArray(s.points)) return false;
+    for (const pt of s.points) {
+      if (typeof pt !== 'object' || pt === null) return false;
+      const p = pt as Record<string, unknown>;
+      if (typeof p.x !== 'number') return false;
+      if (typeof p.y !== 'number') return false;
+      if (typeof p.color !== 'string') return false;
+      if (typeof p.size !== 'number') return false;
+      if (typeof p.timestamp !== 'number') return false;
+    }
+  }
+  return true;
+}
 
 export default function PlaybackController({
   isRecording,
@@ -54,9 +61,47 @@ export default function PlaybackController({
   isPlaying,
   onTogglePlayback,
   playbackProgress,
+  onSeek,
   onClearRecording,
 }: PlaybackControllerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const hasData = recordedData !== null && recordedData.strokes.length > 0;
+  const clampedProgress = Math.min(1, Math.max(0, playbackProgress));
+
+  const handleSeek = useCallback(
+    (clientX: number) => {
+      if (!trackRef.current || !onSeek) return;
+      const rect = trackRef.current.getBoundingClientRect();
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      onSeek(ratio);
+    },
+    [onSeek]
+  );
+
+  const handleTrackMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onSeek) return;
+    setIsDragging(true);
+    handleSeek(e.clientX);
+  };
+
+  React.useEffect(() => {
+    if (!isDragging) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      handleSeek(e.clientX);
+    };
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, handleSeek]);
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -69,8 +114,12 @@ export default function PlaybackController({
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const data = JSON.parse(event.target?.result as string) as RecordingData;
-        onImport(data);
+        const raw = JSON.parse(event.target?.result as string);
+        if (validateRecordingData(raw)) {
+          onImport(raw);
+        } else {
+          console.error('Invalid recording data format');
+        }
       } catch (err) {
         console.error('Failed to import recording:', err);
       }
@@ -82,154 +131,73 @@ export default function PlaybackController({
     }
   };
 
-  return (
-    <div
-      style={{
-        backgroundColor: '#ffffff',
-        color: '#374151',
-        padding: '16px',
-        borderRadius: '8px',
-        border: '1px solid #e5e7eb',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          height: '8px',
-          backgroundColor: '#e5e7eb',
-          borderRadius: '4px',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            height: '100%',
-            width: `${Math.min(100, Math.max(0, playbackProgress * 100))}%`,
-            backgroundColor: isRecording ? '#ef4444' : '#3b82f6',
-            transition: 'width 100ms linear',
-          }}
-        />
-      </div>
+  const progressColor = isRecording ? 'var(--progress-recording)' : 'var(--progress-playing)';
 
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-        <button
-          onClick={onToggleRecording}
-          style={{
-            ...buttonBaseStyle,
-            backgroundColor: isRecording ? '#fee2e2' : '#f3f4f6',
-            color: isRecording ? '#dc2626' : '#374151',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = isRecording ? '#fecaca' : buttonHoverStyle.backgroundColor;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = isRecording ? '#fee2e2' : buttonBaseStyle.backgroundColor;
-          }}
+  return (
+    <div className="playback-controller">
+      <div className="progress-container">
+        <div
+          ref={trackRef}
+          className={`progress-track ${onSeek ? 'interactive' : ''}`}
+          onMouseDown={handleTrackMouseDown}
         >
-          <span
+          <div
+            className="progress-fill"
             style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              backgroundColor: isRecording ? '#ef4444' : '#9ca3af',
-              display: 'inline-block',
-              animation: isRecording ? 'pulse 1s infinite' : 'none',
+              width: `${clampedProgress * 100}%`,
+              backgroundColor: progressColor,
             }}
           />
+          {onSeek && (
+            <div
+              className="progress-handle"
+              style={{
+                left: `${clampedProgress * 100}%`,
+                backgroundColor: progressColor,
+              }}
+            />
+          )}
+        </div>
+        <span className="progress-text">{Math.round(clampedProgress * 100)}%</span>
+      </div>
+
+      <div className="playback-buttons">
+        <button
+          className={`pb-btn pb-btn-record ${isRecording ? 'recording' : ''}`}
+          onClick={onToggleRecording}
+        >
+          <span className="record-dot" />
           {isRecording ? '停止录制' : '开始录制'}
         </button>
 
         <button
+          className="pb-btn"
           onClick={onTogglePlayback}
-          disabled={!recordedData || recordedData.strokes.length === 0}
-          style={{
-            ...buttonBaseStyle,
-            opacity: !recordedData || recordedData.strokes.length === 0 ? 0.5 : 1,
-            cursor: !recordedData || recordedData.strokes.length === 0 ? 'not-allowed' : 'pointer',
-          }}
-          onMouseEnter={(e) => {
-            if (recordedData && recordedData.strokes.length > 0) {
-              e.currentTarget.style.backgroundColor = buttonHoverStyle.backgroundColor;
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = buttonBaseStyle.backgroundColor;
-          }}
+          disabled={!hasData}
         >
           {isPlaying ? '⏸ 暂停' : '▶ 回放 (5x)'}
         </button>
 
-        <button
-          onClick={onExport}
-          disabled={!recordedData || recordedData.strokes.length === 0}
-          style={{
-            ...buttonBaseStyle,
-            opacity: !recordedData || recordedData.strokes.length === 0 ? 0.5 : 1,
-            cursor: !recordedData || recordedData.strokes.length === 0 ? 'not-allowed' : 'pointer',
-          }}
-          onMouseEnter={(e) => {
-            if (recordedData && recordedData.strokes.length > 0) {
-              e.currentTarget.style.backgroundColor = buttonHoverStyle.backgroundColor;
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = buttonBaseStyle.backgroundColor;
-          }}
-        >
-          ⬇ 导出
+        <button className="pb-btn" onClick={onExport} disabled={!hasData}>
+          ⬇ 导出 JSON
         </button>
 
-        <button
-          onClick={handleImportClick}
-          style={buttonBaseStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = buttonHoverStyle.backgroundColor;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = buttonBaseStyle.backgroundColor;
-          }}
-        >
-          ⬆ 导入
+        <button className="pb-btn" onClick={handleImportClick}>
+          ⬆ 导入 JSON
         </button>
 
-        <button
-          onClick={onClearRecording}
-          disabled={!recordedData || recordedData.strokes.length === 0}
-          style={{
-            ...buttonBaseStyle,
-            opacity: !recordedData || recordedData.strokes.length === 0 ? 0.5 : 1,
-            cursor: !recordedData || recordedData.strokes.length === 0 ? 'not-allowed' : 'pointer',
-          }}
-          onMouseEnter={(e) => {
-            if (recordedData && recordedData.strokes.length > 0) {
-              e.currentTarget.style.backgroundColor = buttonHoverStyle.backgroundColor;
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = buttonBaseStyle.backgroundColor;
-          }}
-        >
-          ✕ 清除
+        <button className="pb-btn" onClick={onClearRecording} disabled={!hasData}>
+          ✕ 清除录制
         </button>
 
         <input
           ref={fileInputRef}
           type="file"
           accept=".json"
-          style={{ display: 'none' }}
+          className="hidden-file-input"
           onChange={handleFileChange}
         />
       </div>
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
     </div>
   );
 }
