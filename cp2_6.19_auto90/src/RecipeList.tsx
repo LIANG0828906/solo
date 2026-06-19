@@ -75,23 +75,41 @@ const styles = `
     overflow: hidden;
     box-shadow: 0 2px 12px rgba(139, 69, 19, 0.08);
     cursor: pointer;
-    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.35s ease,
+                border-color 0.35s ease;
     border: 1px solid rgba(139, 69, 19, 0.06);
     display: inline-block;
     width: 100%;
+    transform-origin: center bottom;
+    will-change: transform;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: cardEnter 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @keyframes cardEnter {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   @media (min-width: 769px) {
     .recipe-card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 18px 40px rgba(139, 69, 19, 0.16),
-                  0 8px 18px rgba(139, 69, 19, 0.08);
-      border-color: rgba(249, 115, 22, 0.25);
+      transform: translateY(-8px) rotate(2deg);
+      box-shadow: 0 18px 40px rgba(139, 69, 19, 0.18),
+                  0 8px 18px rgba(139, 69, 19, 0.1);
+      border-color: rgba(249, 115, 22, 0.3);
     }
   }
 
   .recipe-card:active {
-    transform: translateY(-4px) scale(0.99);
+    transform: translateY(-4px) rotate(1deg) scale(0.99);
     transition-duration: 0.1s;
   }
 
@@ -147,13 +165,20 @@ const styles = `
     border-radius: 999px;
     color: #fff;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     backdrop-filter: blur(8px);
     z-index: 2;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
+    letter-spacing: 0.2px;
+  }
+
+  .clock-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
   }
 
   .card-body {
@@ -237,7 +262,8 @@ const styles = `
     border-radius: 999px;
     background: linear-gradient(90deg, #EF4444 0%, #F97316 50%, #22C55E 100%);
     background-size: 200% 100%;
-    transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: width 0.55s cubic-bezier(0.34, 1.56, 0.64, 1),
+                background-position 0.55s ease;
     position: relative;
   }
 
@@ -245,8 +271,23 @@ const styles = `
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, rgba(255,255,255,0.2), transparent 60%);
+    background: linear-gradient(90deg, rgba(255,255,255,0.25), transparent 60%);
     pointer-events: none;
+  }
+
+  .recipe-card:hover .match-bar-fill {
+    animation: pulse-shine 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-shine {
+    0%, 100% {
+      filter: brightness(1);
+      box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+    }
+    50% {
+      filter: brightness(1.18);
+      box-shadow: 0 0 12px rgba(249, 115, 22, 0.5);
+    }
   }
 
   .card-meta {
@@ -385,9 +426,6 @@ const RecipeList: React.FC<Props> = ({ matches, onSelectRecipe }) => {
                 className="recipe-card"
                 style={{
                   animationDelay: `${delay}s`,
-                  opacity: mounted ? 1 : 0,
-                  transform: mounted ? 'translateY(0)' : 'translateY(20px)',
-                  transition: `opacity 0.5s ease ${delay}s, transform 0.5s cubic-bezier(0.22,1,0.36,1) ${delay}s, box-shadow 0.35s ease, border-color 0.35s ease`,
                 }}
                 onClick={() => onSelectRecipe(m.recipe)}
               >
@@ -402,7 +440,19 @@ const RecipeList: React.FC<Props> = ({ matches, onSelectRecipe }) => {
                     className="card-time-tag"
                     style={{ background: timeColor + 'CC' }}
                   >
-                    ⏱ {m.recipe.cookTime}分钟
+                    <svg
+                      className="clock-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 7v5l3 2" />
+                    </svg>
+                    {m.recipe.cookTime}分钟
                   </span>
                   <span className="card-emoji">{emoji}</span>
                 </div>
