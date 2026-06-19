@@ -1,13 +1,18 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import type { KnowledgeNode, NodeCreationPayload } from '@/types';
+import type { KnowledgeNode, NodeCreationPayload, PanelKey, KnowledgeLink } from '@/types';
 import { nodeBackgroundColor } from '@/types';
 
 interface NodeStore {
   nodes: KnowledgeNode[];
   selectedIds: string[];
   lastAddedId: string | null;
+  activePanel: PanelKey;
+  nodeModalOpen: boolean;
+  editingNode: KnowledgeNode | null;
+  forceLayoutRunning: boolean;
+
   addNode: (data: NodeCreationPayload) => KnowledgeNode;
   updateNode: (id: string, data: Partial<KnowledgeNode>) => void;
   deleteNode: (id: string) => void;
@@ -19,6 +24,11 @@ interface NodeStore {
   setBatchPositions: (updates: { id: string; x: number; y: number }[]) => void;
   getNode: (id: string) => KnowledgeNode | undefined;
   clearLastAdded: () => void;
+
+  togglePanel: (key: PanelKey) => void;
+  openNodeModal: (node?: KnowledgeNode | null) => void;
+  closeNodeModal: () => void;
+  setForceLayoutRunning: (v: boolean) => void;
 }
 
 export const useNodeStore = create<NodeStore>()(
@@ -27,6 +37,10 @@ export const useNodeStore = create<NodeStore>()(
       nodes: [],
       selectedIds: [],
       lastAddedId: null,
+      activePanel: null,
+      nodeModalOpen: false,
+      editingNode: null,
+      forceLayoutRunning: false,
 
       addNode: (data) => {
         const now = Date.now();
@@ -132,6 +146,16 @@ export const useNodeStore = create<NodeStore>()(
       getNode: (id) => get().nodes.find((n) => n.id === id),
 
       clearLastAdded: () => set({ lastAddedId: null }),
+
+      togglePanel: (key) =>
+        set((state) => ({ activePanel: state.activePanel === key ? null : key })),
+
+      openNodeModal: (node = null) =>
+        set({ nodeModalOpen: true, editingNode: node }),
+
+      closeNodeModal: () => set({ nodeModalOpen: false, editingNode: null }),
+
+      setForceLayoutRunning: (v) => set({ forceLayoutRunning: v }),
     }),
     {
       name: 'knowledge-node-store',

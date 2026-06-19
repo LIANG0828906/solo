@@ -21,18 +21,17 @@ import LinkPanel from './modules/links/components/LinkPanel';
 import LearningPathPanel from './modules/path/components/LearningPathPanel';
 import { useNodeStore } from './stores/NodeStore';
 import { useLinkStore } from './stores/LinkStore';
-import { useUIPanelStore } from './stores/UIPanelStore';
 import type { PanelKey } from './types';
 
 export default function App() {
   const engineRef = useRef<GraphEngine | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [viewportNarrow, setViewportNarrow] = useState(false);
-  const activePanel = useUIPanelStore((s) => s.activePanel);
-  const togglePanel = useUIPanelStore((s) => s.togglePanel);
-  const openNodeModal = useUIPanelStore((s) => s.openNodeModal);
-  const editingNode = useUIPanelStore((s) => s.editingNode);
-  const setForceLayoutRunning = useUIPanelStore((s) => s.setForceLayoutRunning);
+  const activePanel = useNodeStore((s) => s.activePanel);
+  const togglePanel = useNodeStore((s) => s.togglePanel);
+  const openNodeModal = useNodeStore((s) => s.openNodeModal);
+  const editingNode = useNodeStore((s) => s.editingNode);
+  const setForceLayoutRunning = useNodeStore((s) => s.setForceLayoutRunning);
   const nodes = useNodeStore((s) => s.nodes);
   const links = useLinkStore((s) => s.links);
   const selectedIds = useNodeStore((s) => s.selectedIds);
@@ -285,7 +284,10 @@ export default function App() {
 
       <div className="flex-1 flex relative overflow-hidden">
         <div className="flex-1 relative">
-          <Canvas onOpenNodeModal={handleEditNode} engineRef={engineRef} />
+          <Canvas
+            onOpenNodeModal={(id) => (id ? handleEditNode(id) : handleNewNode())}
+            engineRef={engineRef}
+          />
           {nodes.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div

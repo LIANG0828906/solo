@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { GraphEngine, type PendingLinkDrag } from '../core/GraphEngine';
 import { useNodeStore } from '@/stores/NodeStore';
 import { useLinkStore } from '@/stores/LinkStore';
-import { useUIPanelStore } from '@/stores/UIPanelStore';
 import type { LinkType, KnowledgeLink } from '@/types';
 import { NODE_WIDTH, NODE_HEIGHT } from '@/types';
 
@@ -31,13 +30,13 @@ export default function Canvas({ onOpenNodeModal, engineRef: extRef }: Props) {
   const clearSelection = useNodeStore((s) => s.clearSelection);
   const setBatchPositions = useNodeStore((s) => s.setBatchPositions);
   const addLink = useLinkStore((s) => s.addLink);
-  const openLinkTypeModal = useUIPanelStore((s) => s.openLinkTypeModal);
-  const openLinkEditor = useUIPanelStore((s) => s.openLinkEditor);
-  const pendingLink = useUIPanelStore((s) => s.pendingLink);
-  const closeLinkTypeModal = useUIPanelStore((s) => s.closeLinkTypeModal);
-  const linkTypeModalOpen = useUIPanelStore((s) => s.linkTypeModalOpen);
-  const setForceLayoutRunning = useUIPanelStore((s) => s.setForceLayoutRunning);
-  const forceLayoutRunning = useUIPanelStore((s) => s.forceLayoutRunning);
+  const openLinkTypeModal = useLinkStore((s) => s.openLinkTypeModal);
+  const openLinkEditor = useLinkStore((s) => s.openLinkEditor);
+  const pendingLink = useLinkStore((s) => s.pendingLink);
+  const closeLinkTypeModal = useLinkStore((s) => s.closeLinkTypeModal);
+  const linkTypeModalOpen = useLinkStore((s) => s.linkTypeModalOpen);
+  const setForceLayoutRunning = useNodeStore((s) => s.setForceLayoutRunning);
+  const forceLayoutRunning = useNodeStore((s) => s.forceLayoutRunning);
 
   const getNodes = useCallback(() => useNodeStore.getState().nodes, []);
   const getLinks = useCallback(() => useLinkStore.getState().links, []);

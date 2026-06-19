@@ -23,9 +23,116 @@ const CENTER_GRAVITY = 0.0008;
 const DAMPING = 0.82;
 const MIN_VELOCITY = 0.05;
 const VELOCITY_LIMIT = 12;
+const GRID_CELL_SIZE = 250;
 
 function clamp(v: number, min: number, max: number) {
   return v < min ? min : v > max ? max : v;
+}
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+interface SpatialGrid {
+  get(nodeId: string): { gx: number; gy: number } | null;
+  update(node: KnowledgeNode): void;
+  remove(nodeId: string): void;
+  queryRange(rect: Rect): KnowledgeNode[];
+  getNearby(node: KnowledgeNode, radius: number): KnowledgeNode[];
+  rebuild(nodes: KnowledgeNode[]): void;
+}
+
+function createSpatialGrid(): SpatialGrid {
+  const map = new Map<string, { gx: number; gy: number; node: KnowledgeNode }>();
+  const grid = new Map<string, KnowledgeNode[]>();
+
+  const key = (gx: number, gy: number) => `${gx},${gy}`;
+  const toGrid = (x: number, y: number) => ({
+    gx: Math.floor(x / GRID_CELL_SIZE),
+    gy: Math.floor(y / GRID_CELL_SIZE),
+  });
+
+  return {
+    get(nodeId) {
+      return map.get(nodeId) || null;
+    },
+    update(node) {
+      const prev = map.get(node.id);
+      const { gx, gy } = toGrid(node.x + NODE_WIDTH / 2, node.y + NODE_HEIGHT / 2);
+      if (prev && prev.gx === gx && prev.gy === gy) {
+        map.set(node.id, { gx, gy, node });
+        return;
+      }
+      if (prev) {
+        const arr = grid.get(key(prev.gx, prev.gy));
+        if (arr) {
+          const idx = arr.findIndex((n) => n.id === node.id);
+          if (idx >= 0) arr.splice(idx, 1);
+        }
+      }
+      map.set(node.id, { gx, gy, node });
+      const k = key(gx, gy);
+      if (!grid.has(k)) grid.set(k, []);
+      grid.get(k)!.push(node);
+    },
+    remove(nodeId) {
+      const prev = map.get(nodeId);
+      if (prev) {
+        const arr = grid.get(key(prev.gx, prev.gy));
+        if (arr) {
+          const idx = arr.findIndex((n) => n.id === nodeId);
+          if (idx >= 0) arr.splice(idx, 1);
+        }
+        map.delete(nodeId);
+      }
+    },
+    queryRange(rect) {
+      const result: KnowledgeNode[] = [];
+      const start = toGrid(rect.x, rect.y);
+      const end = toGrid(rect.x + rect.w, rect.y + rect.h);
+      for (let gx = start.gx; gx <= end.gx; gx++) {
+        for (let gy = start.gy; gy <= end.gy; gy++) {
+          const arr = grid.get(key(gx, gy));
+          if (arr) result.push(...arr);
+        }
+      }
+      return result;
+    },
+    getNearby(node, radius) {
+      const center = toGrid(node.x + NODE_WIDTH / 2, node.y + NODE_HEIGHT / 2);
+      const cellRadius = Math.ceil(radius / GRID_CELL_SIZE);
+      const result: KnowledgeNode[] = [];
+      for (let gx = center.gx - cellRadius; gx <= center.gx + cellRadius; gx++) {
+        for (let gy = center.gy - cellRadius; gy <= center.gy + cellRadius; gy++) {
+          const arr = grid.get(key(gx, gy));
+          if (arr) {
+            for (const n of arr) {
+              if (n.id !== node.id) result.push(n);
+            }
+          }
+        }
+      }
+      return result;
+    },
+    rebuild(nodes) {
+      map.clear();
+      grid.clear();
+      for (const n of nodes) {
+        const { gx, gy } = toGrid(n.x + NODE_WIDTH / 2, n.y + NODE_HEIGHT / 2);
+        map.set(n.id, { gx, gy, node: n });
+        const k = key(gx, gy);
+        if (!grid.has(k)) grid.set(k, []);
+        grid.get(k)!.push(n);
+      }
+    },
+  };
+}
+
+function rectsIntersect(a: Rect, b: Rect) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
 export class GraphEngine {
@@ -49,6 +156,20 @@ export class GraphEngine {
   private gridCache: HTMLCanvasElement | null = null;
   private gridCacheScale: number = 0;
 
+  private fpsAccumulator = 0;
+  private fpsFrameCount = 0;
+  private currentFps = 60;
+  private adaptiveFrameSkip = 0;
+  private frameCounter = 0;
+  private lastMiniMapRender = 0;
+  private lastNodePositions = new Map<string, { x: number; y: number; vx: number; vy: number }>();
+  private prevSelectedIds: string[] = [];
+  private dirtyRect: Rect | null = null;
+  private viewportRect: Rect = { x: 0, y: 0, w: 0, h: 0 };
+  private spatialGrid: SpatialGrid = createSpatialGrid();
+  private nodeCache = new Map<string, { bitmap: ImageBitmap | null; lastProps: string; building: boolean }>();
+  private lastViewport: CanvasViewport = { offsetX: 0, offsetY: 0, scale: 0 };
+
   constructor(canvas: HTMLCanvasElement, callbacks: EngineCallbacks) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
@@ -67,8 +188,12 @@ export class GraphEngine {
   }
 
   setViewport(vp: CanvasViewport) {
+    const old = this.viewport;
     vp.scale = clamp(vp.scale, 0.3, 3);
     this.viewport = vp;
+    if (Math.abs(vp.offsetX - old.offsetX) > 2 || Math.abs(vp.offsetY - old.offsetY) > 2 || vp.scale !== old.scale) {
+      this.markAllDirty();
+    }
   }
 
   setForceLayoutEnabled(e: boolean) {
@@ -85,18 +210,56 @@ export class GraphEngine {
 
   setPendingLinkDrag(p: PendingLinkDrag | null) {
     this.pendingLinkDrag = p;
+    this.markAllDirty();
   }
 
   setDraggingNodeId(id: string | null) {
     this.draggingNodeId = id;
+    this.markAllDirty();
   }
 
   setHoveredLinkId(id: string | null) {
+    if (this.hoveredLinkId !== id) {
+      this.markAllDirty();
+    }
     this.hoveredLinkId = id;
   }
 
   setHoveredNodeId(id: string | null) {
+    if (this.hoveredNodeId !== id) {
+      this.markAllDirty();
+    }
     this.hoveredNodeId = id;
+  }
+
+  private markAllDirty() {
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+    this.dirtyRect = { x: 0, y: 0, w, h };
+  }
+
+  private markNodeDirty(n: KnowledgeNode) {
+    const margin = 80;
+    const screen = this.worldToScreen(n.x - margin, n.y - margin);
+    const screen2 = this.worldToScreen(
+      n.x + NODE_WIDTH + margin,
+      n.y + NODE_HEIGHT + margin,
+    );
+    const rect: Rect = {
+      x: Math.max(0, screen.x),
+      y: Math.max(0, screen.y),
+      w: Math.min(this.canvas.clientWidth, screen2.x - screen.x),
+      h: Math.min(this.canvas.clientHeight, screen2.y - screen.y),
+    };
+    if (!this.dirtyRect) {
+      this.dirtyRect = rect;
+    } else {
+      const x = Math.min(this.dirtyRect.x, rect.x);
+      const y = Math.min(this.dirtyRect.y, rect.y);
+      const x2 = Math.max(this.dirtyRect.x + this.dirtyRect.w, rect.x + rect.w);
+      const y2 = Math.max(this.dirtyRect.y + this.dirtyRect.h, rect.y + rect.h);
+      this.dirtyRect = { x, y, w: x2 - x, h: y2 - y };
+    }
   }
 
   worldToScreen(wx: number, wy: number) {
@@ -128,6 +291,8 @@ export class GraphEngine {
       if (this.miniMapCtx) this.miniMapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     this.gridCache = null;
+    this.nodeCache.clear();
+    this.markAllDirty();
   }
 
   start() {
@@ -138,9 +303,37 @@ export class GraphEngine {
       if (!this.running) return;
       const dt = Math.min((t - this.lastFrameTime) / 16.67, 2.5);
       this.lastFrameTime = t;
-      this.step(dt);
-      this.render();
-      this.renderMiniMap();
+
+      this.fpsAccumulator += t - this.lastFrameTime + 16.67;
+      this.fpsFrameCount++;
+      if (this.fpsAccumulator >= 1000) {
+        this.currentFps = Math.round((this.fpsFrameCount * 1000) / this.fpsAccumulator);
+        this.fpsAccumulator = 0;
+        this.fpsFrameCount = 0;
+        if (this.currentFps < 40) {
+          this.adaptiveFrameSkip = Math.min(2, this.adaptiveFrameSkip + 1);
+        } else if (this.currentFps > 55 && this.adaptiveFrameSkip > 0) {
+          this.adaptiveFrameSkip = Math.max(0, this.adaptiveFrameSkip - 1);
+        }
+      }
+
+      this.frameCounter++;
+
+      const shouldSimulate = this.simulating && this.frameCounter % (this.adaptiveFrameSkip + 1) === 0;
+      if (shouldSimulate) {
+        this.step(dt);
+      }
+
+      const renderNeeded = this.dirtyRect !== null || this.pendingLinkDrag || this.simulating;
+      if (renderNeeded) {
+        this.render();
+      }
+
+      if (t - this.lastMiniMapRender > 120) {
+        this.lastMiniMapRender = t;
+        this.renderMiniMap();
+      }
+
       this.rafId = requestAnimationFrame(loop);
     };
     this.rafId = requestAnimationFrame(loop);
@@ -152,26 +345,40 @@ export class GraphEngine {
     this.rafId = null;
   }
 
+  private updateSpatialGrid(nodes: KnowledgeNode[]) {
+    const currentIds = new Set(nodes.map((n) => n.id));
+    for (const [id] of Array.from(this.nodeCache.entries())) {
+      if (!currentIds.has(id)) {
+        this.nodeCache.delete(id);
+      }
+    }
+    this.spatialGrid.rebuild(nodes);
+  }
+
   private step(dt: number) {
     this.edgeIndicatorPhase += dt * 0.06;
-    if (!this.simulating) return;
     const nodes = this.callbacks.getNodes();
     const links = this.callbacks.getLinks();
+
     if (nodes.length < 2 && this.forceLayoutEnabled) {
       this.simulating = false;
       return;
     }
 
+    this.updateSpatialGrid(nodes);
+
     const nodesArr = nodes.map((n) => ({ ...n }));
     const nodeById = new Map(nodesArr.map((n) => [n.id, n]));
+
+    const searchRadius = IDEAL_DISTANCE * 3;
 
     for (let i = 0; i < nodesArr.length; i++) {
       const a = nodesArr[i];
       let fx = 0,
         fy = 0;
-      for (let j = 0; j < nodesArr.length; j++) {
-        if (i === j) continue;
-        const b = nodesArr[j];
+      const nearby = this.spatialGrid.getNearby(a, searchRadius);
+      for (const b of nearby) {
+        if (a.id === b.id) continue;
         let dx = a.x - b.x;
         let dy = a.y - b.y;
         let dist2 = dx * dx + dy * dy;
@@ -180,6 +387,21 @@ export class GraphEngine {
         const f = REPULSION_STRENGTH / dist2;
         fx += (dx / dist) * f;
         fy += (dy / dist) * f;
+      }
+      if (nearby.length < nodesArr.length - 1) {
+        for (const b of nodesArr) {
+          if (a.id === b.id) continue;
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const cdist2 = dx * dx + dy * dy;
+          if (cdist2 < searchRadius * searchRadius) continue;
+          let dist2 = cdist2;
+          if (dist2 < 400) dist2 = 400;
+          const dist = Math.sqrt(dist2);
+          const f = REPULSION_STRENGTH / dist2 * 0.5;
+          fx += (dx / dist) * f;
+          fy += (dy / dist) * f;
+        }
       }
       fx += -a.x * CENTER_GRAVITY * 1000;
       fy += -a.y * CENTER_GRAVITY * 1000;
@@ -204,6 +426,7 @@ export class GraphEngine {
     }
 
     let maxV = 0;
+    let moved = false;
     const updates: { id: string; x: number; y: number }[] = [];
     for (const n of nodesArr) {
       if (n.id === this.draggingNodeId) {
@@ -218,15 +441,35 @@ export class GraphEngine {
         n.vx = (n.vx / vlen) * VELOCITY_LIMIT;
         n.vy = (n.vy / vlen) * VELOCITY_LIMIT;
       }
-      n.x += n.vx * dt;
-      n.y += n.vy * dt;
+
+      const prev = this.lastNodePositions.get(n.id);
+      const nx = n.x + n.vx * dt;
+      const ny = n.y + n.vy * dt;
+
+      if (!prev || Math.abs(nx - prev.x) > 0.3 || Math.abs(ny - prev.y) > 0.3) {
+        n.x = nx;
+        n.y = ny;
+        this.lastNodePositions.set(n.id, { x: n.x, y: n.y, vx: n.vx, vy: n.vy });
+        updates.push({ id: n.id, x: n.x, y: n.y });
+        this.markNodeDirty(n);
+        moved = true;
+      }
+
       maxV = Math.max(maxV, Math.abs(n.vx), Math.abs(n.vy));
-      updates.push({ id: n.id, x: n.x, y: n.y });
     }
 
-    if (updates.length > 0) this.callbacks.onBatchUpdate(updates);
+    if (updates.length > 0) {
+      this.callbacks.onBatchUpdate(updates);
+      this.spatialGrid.rebuild(this.callbacks.getNodes());
+    }
 
-    if (maxV < MIN_VELOCITY) {
+    const selectedIds = useNodeStore.getState().selectedIds;
+    if (JSON.stringify(selectedIds) !== JSON.stringify(this.prevSelectedIds)) {
+      this.prevSelectedIds = selectedIds;
+      this.markAllDirty();
+    }
+
+    if (!moved && maxV < MIN_VELOCITY) {
       this.idleFrames += dt;
       if (this.idleFrames > 60 && !this.forceLayoutEnabled) {
         this.simulating = false;
@@ -239,6 +482,7 @@ export class GraphEngine {
   kickSimulation() {
     this.simulating = true;
     this.idleFrames = 0;
+    this.markAllDirty();
   }
 
   private buildGridCache(width: number, height: number, scale: number) {
@@ -279,20 +523,52 @@ export class GraphEngine {
     }
   }
 
+  private getVisibleNodes(): KnowledgeNode[] {
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+    const margin = 100;
+    const topLeft = this.screenToWorld(-margin, -margin);
+    const bottomRight = this.screenToWorld(w + margin, h + margin);
+    const rect: Rect = {
+      x: topLeft.x,
+      y: topLeft.y,
+      w: bottomRight.x - topLeft.x,
+      h: bottomRight.y - topLeft.y,
+    };
+    this.viewportRect = rect;
+    return this.spatialGrid.queryRange(rect);
+  }
+
   private render() {
     const width = this.canvas.clientWidth;
     const height = this.canvas.clientHeight;
-    this.ctx.clearRect(0, 0, width, height);
+
+    if (!this.dirtyRect) {
+      this.dirtyRect = { x: 0, y: 0, w: width, h: height };
+    }
+
+    const dr = this.dirtyRect;
+    this.ctx.save();
+    this.ctx.beginPath();
+    this.ctx.rect(dr.x, dr.y, dr.w, dr.h);
+    this.ctx.clip();
+
+    this.ctx.clearRect(dr.x, dr.y, dr.w, dr.h);
     this.renderGrid(width, height);
-    const nodes = this.callbacks.getNodes();
+
+    const allNodes = this.callbacks.getNodes();
+    const visibleNodes = new Set(
+      this.getVisibleNodes().length > 0 ? this.getVisibleNodes().map((n) => n.id) : allNodes.map((n) => n.id),
+    );
     const links = this.callbacks.getLinks();
     const highlightedIds = new Set(this.callbacks.getHighlightedPathIds());
-    const nodeById = new Map(nodes.map((n) => [n.id, n]));
+    const nodeById = new Map(allNodes.map((n) => [n.id, n]));
 
     for (const link of links) {
       const a = nodeById.get(link.sourceId);
       const b = nodeById.get(link.targetId);
       if (!a || !b) continue;
+      if (!visibleNodes.has(a.id) && !visibleNodes.has(b.id)) continue;
       this.drawLink(link, a, b, highlightedIds.has(link.id), this.hoveredLinkId === link.id);
     }
 
@@ -311,11 +587,14 @@ export class GraphEngine {
       );
     }
 
-    for (const n of nodes) {
+    for (const n of allNodes) {
+      if (!visibleNodes.has(n.id)) continue;
       this.drawNodeCard(n);
     }
 
-    this.drawEdgeIndicators(nodes, width, height);
+    this.drawEdgeIndicators(allNodes, width, height);
+    this.ctx.restore();
+    this.dirtyRect = null;
   }
 
   private bezierPoint(
@@ -418,15 +697,13 @@ export class GraphEngine {
       null,
       hovered ? 1 : highlighted ? 0.95 : 0.82,
     );
-    const mid = this.quadPoint(
-      0.5,
-      sa.x,
-      sa.y,
-      (sa.x + sb.x) / 2 + (-(sb.y - sa.y) / Math.sqrt((sb.x - sa.x) ** 2 + (sb.y - sa.y) ** 2 || 1)) * Math.min(60, Math.sqrt((sb.x - sa.x) ** 2 + (sb.y - sa.y) ** 2) * 0.18),
-      (sa.y + sb.y) / 2 + ((sb.x - sa.x) / Math.sqrt((sb.x - sa.x) ** 2 + (sb.y - sa.y) ** 2 || 1)) * Math.min(60, Math.sqrt((sb.x - sa.x) ** 2 + (sb.y - sa.y) ** 2) * 0.18),
-      sb.x,
-      sb.y,
-    );
+    const dx = sb.x - sa.x;
+    const dy = sb.y - sa.y;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const curve = Math.min(60, len * 0.18);
+    const cx = (sa.x + sb.x) / 2 + (-dy / len) * curve;
+    const cy = (sa.y + sb.y) / 2 + (dx / len) * curve;
+    const mid = this.quadPoint(0.5, sa.x, sa.y, cx, cy, sb.x, sb.y);
     const ctx = this.ctx;
     ctx.save();
     ctx.font = '11px "PingFang SC", "Microsoft YaHei", sans-serif';
@@ -745,10 +1022,11 @@ export class GraphEngine {
   }
 
   hitTestNode(sx: number, sy: number): KnowledgeNode | null {
-    const nodes = this.callbacks.getNodes();
     const { x, y } = this.screenToWorld(sx, sy);
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      const n = nodes[i];
+    const rect: Rect = { x: x - 5, y: y - 5, w: 10, h: 10 };
+    const candidates = this.spatialGrid.queryRange(rect);
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const n = candidates[i];
       if (x >= n.x && x <= n.x + NODE_WIDTH && y >= n.y && y <= n.y + NODE_HEIGHT) {
         return n;
       }
@@ -759,13 +1037,15 @@ export class GraphEngine {
   hitTestCorner(sx: number, sy: number): { nodeId: string; x: number; y: number } | null {
     const { x, y } = this.screenToWorld(sx, sy);
     const threshold = 16 / this.viewport.scale;
+    const rect: Rect = { x: x - threshold, y: y - threshold, w: threshold * 2, h: threshold * 2 };
+    const candidates = this.spatialGrid.queryRange(rect);
     const corners = [
       { ox: 0, oy: 0 },
       { ox: NODE_WIDTH, oy: 0 },
       { ox: 0, oy: NODE_HEIGHT },
       { ox: NODE_WIDTH, oy: NODE_HEIGHT },
     ];
-    for (const n of this.callbacks.getNodes()) {
+    for (const n of candidates) {
       for (const c of corners) {
         const cx = n.x + c.ox;
         const cy = n.y + c.oy;
@@ -782,9 +1062,13 @@ export class GraphEngine {
   hitTestLink(sx: number, sy: number): KnowledgeLink | null {
     const { x, y } = this.screenToWorld(sx, sy);
     const threshold = 8 / this.viewport.scale;
+    const rect: Rect = { x: x - threshold * 3, y: y - threshold * 3, w: threshold * 6, h: threshold * 6 };
+    const candidates = this.spatialGrid.queryRange(rect);
+    const candidateIds = new Set(candidates.map((n) => n.id));
     const nodes = this.callbacks.getNodes();
     const nodeById = new Map(nodes.map((n) => [n.id, n]));
     for (const l of this.callbacks.getLinks()) {
+      if (!candidateIds.has(l.sourceId) && !candidateIds.has(l.targetId)) continue;
       const a = nodeById.get(l.sourceId);
       const b = nodeById.get(l.targetId);
       if (!a || !b) continue;
@@ -836,6 +1120,7 @@ export class GraphEngine {
     this.viewport.scale = scale;
     this.viewport.offsetX = -minX * scale + (w - (maxX - minX) * scale) / 2;
     this.viewport.offsetY = -minY * scale + (h - (maxY - minY) * scale) / 2;
+    this.markAllDirty();
   }
 }
 

@@ -7,6 +7,10 @@ import { LINK_TYPE_LABELS } from '@/types';
 interface LinkStore {
   links: KnowledgeLink[];
   highlightedPathIds: string[];
+  editingLink: KnowledgeLink | null;
+  linkTypeModalOpen: boolean;
+  pendingLink: { sourceId: string; targetId: string } | null;
+
   addLink: (data: { sourceId: string; targetId: string; type: LinkType }) => KnowledgeLink | null;
   updateLink: (id: string, data: Partial<KnowledgeLink>) => void;
   deleteLink: (id: string) => void;
@@ -14,6 +18,10 @@ interface LinkStore {
   getLinksByNode: (nodeId: string) => KnowledgeLink[];
   findLink: (sourceId: string, targetId: string) => KnowledgeLink | undefined;
   setHighlightedPathIds: (ids: string[]) => void;
+  openLinkEditor: (link: KnowledgeLink) => void;
+  closeLinkEditor: () => void;
+  openLinkTypeModal: (sourceId: string, targetId: string) => void;
+  closeLinkTypeModal: () => void;
 }
 
 export const useLinkStore = create<LinkStore>()(
@@ -21,6 +29,9 @@ export const useLinkStore = create<LinkStore>()(
     (set, get) => ({
       links: [],
       highlightedPathIds: [],
+      editingLink: null,
+      linkTypeModalOpen: false,
+      pendingLink: null,
 
       addLink: (data) => {
         const { sourceId, targetId, type } = data;
@@ -71,6 +82,13 @@ export const useLinkStore = create<LinkStore>()(
         get().links.find((l) => l.sourceId === sourceId && l.targetId === targetId),
 
       setHighlightedPathIds: (ids) => set({ highlightedPathIds: ids }),
+
+      openLinkEditor: (link) => set({ editingLink: link }),
+      closeLinkEditor: () => set({ editingLink: null }),
+
+      openLinkTypeModal: (sourceId, targetId) =>
+        set({ linkTypeModalOpen: true, pendingLink: { sourceId, targetId } }),
+      closeLinkTypeModal: () => set({ linkTypeModalOpen: false, pendingLink: null }),
     }),
     {
       name: 'knowledge-link-store',

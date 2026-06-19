@@ -2,7 +2,6 @@ import { Trash2, Edit3, ArrowRight, GitBranch, Link as LinkIcon, ChevronDown, Ch
 import { useState } from 'react';
 import { useLinkStore } from '@/stores/LinkStore';
 import { useNodeStore } from '@/stores/NodeStore';
-import { useUIPanelStore } from '@/stores/UIPanelStore';
 import type { LinkType, KnowledgeLink } from '@/types';
 import { LINK_TYPE_LABELS, LINK_TYPE_COLORS } from '@/types';
 
@@ -11,9 +10,9 @@ export default function LinkPanel() {
   const deleteLink = useLinkStore((s) => s.deleteLink);
   const updateLink = useLinkStore((s) => s.updateLink);
   const nodes = useNodeStore((s) => s.nodes);
-  const editingLink = useUIPanelStore((s) => s.editingLink);
-  const openLinkEditor = useUIPanelStore((s) => s.openLinkEditor);
-  const closeLinkEditor = useUIPanelStore((s) => s.closeLinkEditor);
+  const editingLink = useLinkStore((s) => s.editingLink);
+  const openLinkEditor = useLinkStore((s) => s.openLinkEditor);
+  const closeLinkEditor = useLinkStore((s) => s.closeLinkEditor);
   const setHighlightedPathIds = useLinkStore((s) => s.setHighlightedPathIds);
 
   const [filterType, setFilterType] = useState<LinkType | 'all'>('all');

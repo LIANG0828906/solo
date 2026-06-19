@@ -3,7 +3,6 @@ import { Plus, Trash2, Edit3, Search } from 'lucide-react';
 import { useState } from 'react';
 import { useNodeStore } from '@/stores/NodeStore';
 import { useLinkStore } from '@/stores/LinkStore';
-import { useUIPanelStore } from '@/stores/UIPanelStore';
 
 interface Props {
   onNewNode: () => void;
@@ -16,7 +15,7 @@ export default function NodePanel({ onNewNode, onEditNode }: Props) {
   const selectNode = useNodeStore((s) => s.selectNode);
   const deleteNodes = useNodeStore((s) => s.deleteNodes);
   const deleteLinksByNode = useLinkStore((s) => s.deleteLinksByNode);
-  const togglePanel = useUIPanelStore((s) => s.togglePanel);
+  const togglePanel = useNodeStore((s) => s.togglePanel);
   const [q, setQ] = useState('');
 
   const filtered = useMemo(() => {

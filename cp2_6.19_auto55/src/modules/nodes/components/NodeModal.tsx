@@ -2,13 +2,12 @@ import { useEffect, useState, useRef } from 'react';
 import { X, Tag, AlignLeft, FileText, Hash } from 'lucide-react';
 import { marked } from 'marked';
 import { useNodeStore } from '@/stores/NodeStore';
-import { useUIPanelStore } from '@/stores/UIPanelStore';
 import type { NodeCreationPayload } from '@/types';
 
 export default function NodeModal() {
-  const open = useUIPanelStore((s) => s.nodeModalOpen);
-  const editingNode = useUIPanelStore((s) => s.editingNode);
-  const close = useUIPanelStore((s) => s.closeNodeModal);
+  const open = useNodeStore((s) => s.nodeModalOpen);
+  const editingNode = useNodeStore((s) => s.editingNode);
+  const close = useNodeStore((s) => s.closeNodeModal);
   const addNode = useNodeStore((s) => s.addNode);
   const updateNode = useNodeStore((s) => s.updateNode);
 
