@@ -131,31 +131,49 @@ export const downloadImage = (dataUrl: string, filename: string) => {
   document.body.removeChild(link)
 }
 
+export const formatCreatedAt = (dateIso: string): string => {
+  return new Date(dateIso).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
+
 export const saveToCommunity = async (
   layers: Layer[],
   creatorName: string
 ): Promise<void> => {
   const imageUrl = await exportCanvasAsPNG(layers, 300)
   const thumbnailUrl = await exportCanvasAsPNG(layers, 150)
+  const now = new Date()
+  const createdAtIso = now.toISOString()
+  const createdAtFormatted = formatCreatedAt(createdAtIso)
 
   const memeData = {
     id: Date.now().toString(),
     imageUrl,
     thumbnailUrl,
     creatorName,
-    createdAt: new Date().toISOString(),
+    createdAt: createdAtIso,
+    createdAtFormatted,
     likes: 0,
     isFavorite: false,
   }
 
   console.log('========== 表情包导出成功 ==========')
   console.log('创作者昵称:', memeData.creatorName)
-  console.log('创作时间:', new Date(memeData.createdAt).toLocaleString('zh-CN'))
+  console.log('创作时间 (ISO):', memeData.createdAt)
+  console.log('创作时间 (本地格式化):', memeData.createdAtFormatted)
   console.log('表情包ID:', memeData.id)
   console.log('缩略卡片数据:', {
     id: memeData.id,
     creatorName: memeData.creatorName,
     createdAt: memeData.createdAt,
+    createdAtFormatted: memeData.createdAtFormatted,
     thumbnailSize: memeData.thumbnailUrl.length,
   })
   console.log('图层数量:', layers.length)
@@ -189,14 +207,25 @@ export const getFavoriteMemes = () => {
   return memes.filter((m: any) => m.isFavorite)
 }
 
-const generateSampleMeme = (
+const emojiToCodePoint = (emoji: string): string => {
+  const code = emoji.codePointAt(0)
+  if (code) return code.toString(16)
+  return '1f600'
+}
+
+const getEmojiImageUrl = (emoji: string, size: number = 128): string => {
+  const codePoint = emojiToCodePoint(emoji)
+  return `https://emoji.aranja.com/static/emoji/${codePoint}.png`
+}
+
+const generateSampleMeme = async (
   id: string,
   bgColor: string,
   text: string,
   emoji: string,
   creator: string,
   hoursAgo: number
-) => {
+): Promise<any> => {
   const canvas = document.createElement('canvas')
   canvas.width = 300
   canvas.height = 300
@@ -209,10 +238,30 @@ const generateSampleMeme = (
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, 300, 300)
 
-  ctx.font = '80px Arial'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(emoji, 150, 120)
+  try {
+    const emojiUrl = getEmojiImageUrl(emoji)
+    await new Promise<void>((resolve) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        ctx.drawImage(img, 150 - 60, 60, 120, 120)
+        resolve()
+      }
+      img.onerror = () => {
+        ctx.font = '100px Arial'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(emoji, 150, 120)
+        resolve()
+      }
+      img.src = emojiUrl
+    })
+  } catch {
+    ctx.font = '100px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(emoji, 150, 120)
+  }
 
   ctx.font = 'bold 28px "Microsoft YaHei", sans-serif'
   ctx.strokeStyle = '#000000'
@@ -246,7 +295,7 @@ const generateSampleMeme = (
   }
 }
 
-export const initSampleData = () => {
+export const initSampleData = async () => {
   const existing = localStorage.getItem('community_memes')
   const existingData = existing ? JSON.parse(existing) : []
   const hasAllSamples = [
@@ -266,14 +315,15 @@ export const initSampleData = () => {
     { id: 'sample-8', bgColor: '#7209b7', text: '真香警告', emoji: '😋', creator: '吃货本货', hoursAgo: 96 },
   ]
 
-  const sampleMemes = samples
-    .map((s) =>
+  const sampleMemes = await Promise.all(
+    samples.map((s) =>
       generateSampleMeme(s.id, s.bgColor, s.text, s.emoji, s.creator, s.hoursAgo)
     )
-    .filter(Boolean)
+  )
 
+  const validSamples = sampleMemes.filter(Boolean)
   const existingIds = new Set(existingData.map((m: any) => m.id))
-  const newSamples = sampleMemes.filter((m: any) => !existingIds.has(m.id))
+  const newSamples = validSamples.filter((m: any) => !existingIds.has(m.id))
   const merged = [...newSamples, ...existingData]
 
   localStorage.setItem('community_memes', JSON.stringify(merged.slice(0, 100)))

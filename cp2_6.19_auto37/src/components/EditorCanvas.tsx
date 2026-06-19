@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useEditorStore, Layer, TextLayer, StickerLayer, BrushLayer } from '../store/editorStore'
-import { exportCanvasAsPNG, downloadImage, saveToCommunity } from '../utils/exportImage'
+import { exportCanvasAsPNG, downloadImage, saveToCommunity, formatCreatedAt } from '../utils/exportImage'
 import '../styles/canvas.css'
 
 const EditorCanvas: React.FC = () => {
@@ -60,11 +60,23 @@ const EditorCanvas: React.FC = () => {
 
     setIsExporting(true)
     try {
+      const now = new Date()
+      const createdAtIso = now.toISOString()
+      const createdAtFormatted = formatCreatedAt(createdAtIso)
+      const creatorName = '画布创作者'
+
+      console.log('========== EditorCanvas 开始导出 ==========')
+      console.log('创作者昵称:', creatorName)
+      console.log('创作时间 (本地格式化):', createdAtFormatted)
+      console.log('画布尺寸: 300x300 像素')
+      console.log('PNG格式导出')
+      console.log('图层总数:', layers.length)
+      console.log('============================================')
+
       const dataUrl = await exportCanvasAsPNG(layers, 300)
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const timestamp = createdAtIso.replace(/[:.]/g, '-')
       downloadImage(dataUrl, `meme_${timestamp}.png`)
 
-      const creatorName = '画布创作者'
       await saveToCommunity(layers, creatorName)
     } catch (error) {
       console.error('导出失败:', error)
