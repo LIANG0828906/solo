@@ -2,6 +2,11 @@ export type Priority = 'high' | 'medium' | 'low';
 
 export type TaskStatus = 'todo' | 'in-progress' | 'done';
 
+export interface AssignmentHistoryEntry {
+  assignee: string | null;
+  date: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -12,6 +17,7 @@ export interface Task {
   estimate: number;
   sprintId: string | null;
   createdAt: string;
+  assignmentHistory: AssignmentHistoryEntry[];
 }
 
 export interface Sprint {

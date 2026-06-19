@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Task, Sprint, TeamMember } from '@/types';
+import type { Task, Sprint, TeamMember, AssignmentHistoryEntry } from '@/types';
 
 let tasks: Task[] = [];
 let sprints: Sprint[] = [];
@@ -39,6 +39,9 @@ const initializeMockData = () => {
       estimate: 8,
       sprintId: sprintId,
       createdAt: new Date('2024-01-02').toISOString(),
+      assignmentHistory: [
+        { assignee: teamMembers[0].id, date: new Date('2024-01-02').toISOString() },
+      ],
     },
     {
       id: uuidv4(),
@@ -50,6 +53,9 @@ const initializeMockData = () => {
       estimate: 5,
       sprintId: sprintId,
       createdAt: new Date('2024-01-02').toISOString(),
+      assignmentHistory: [
+        { assignee: teamMembers[1].id, date: new Date('2024-01-02').toISOString() },
+      ],
     },
     {
       id: uuidv4(),
@@ -61,6 +67,9 @@ const initializeMockData = () => {
       estimate: 3,
       sprintId: sprintId,
       createdAt: new Date('2024-01-01').toISOString(),
+      assignmentHistory: [
+        { assignee: teamMembers[2].id, date: new Date('2024-01-01').toISOString() },
+      ],
     },
     {
       id: uuidv4(),
@@ -72,6 +81,9 @@ const initializeMockData = () => {
       estimate: 4,
       sprintId: null,
       createdAt: new Date('2024-01-03').toISOString(),
+      assignmentHistory: [
+        { assignee: null, date: new Date('2024-01-03').toISOString() },
+      ],
     },
     {
       id: uuidv4(),
@@ -83,6 +95,9 @@ const initializeMockData = () => {
       estimate: 6,
       sprintId: null,
       createdAt: new Date('2024-01-04').toISOString(),
+      assignmentHistory: [
+        { assignee: null, date: new Date('2024-01-04').toISOString() },
+      ],
     },
   ];
 };
@@ -94,12 +109,15 @@ export const fetchTasks = async (): Promise<Task[]> => {
   return [...tasks];
 };
 
-export const createTask = async (task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> => {
+export const createTask = async (task: Omit<Task, 'id' | 'createdAt' | 'assignmentHistory'>): Promise<Task> => {
   await delay();
   const newTask: Task = {
     ...task,
     id: uuidv4(),
     createdAt: new Date().toISOString(),
+    assignmentHistory: [
+      { assignee: task.assignee, date: new Date().toISOString() },
+    ],
   };
   tasks.push(newTask);
   return { ...newTask };
@@ -111,7 +129,20 @@ export const updateTask = async (id: string, updates: Partial<Task>): Promise<Ta
   if (index === -1) {
     throw new Error(`Task with id ${id} not found`);
   }
-  tasks[index] = { ...tasks[index], ...updates };
+  const currentTask = tasks[index];
+  const newHistoryEntry: AssignmentHistoryEntry | null =
+    'assignee' in updates && updates.assignee !== currentTask.assignee
+      ? { assignee: updates.assignee ?? null, date: new Date().toISOString() }
+      : null;
+
+  const updatedTask: Task = {
+    ...currentTask,
+    ...updates,
+    assignmentHistory: newHistoryEntry
+      ? [...currentTask.assignmentHistory, newHistoryEntry]
+      : currentTask.assignmentHistory,
+  };
+  tasks[index] = updatedTask;
   return { ...tasks[index] };
 };
 
