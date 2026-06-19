@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Plus, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
 import type { AssetFormData, FormErrors, AssetType } from '@/types';
 import { useAssetStore } from './assetStore';
@@ -17,14 +17,19 @@ const initialFormData: AssetFormData = {
   buyDate: new Date().toISOString().split('T')[0],
 };
 
-const ASSET_TYPE_OPTIONS: { value: AssetType; label: string }[] = [
-  { value: 'stock', label: '股票' },
-  { value: 'fund', label: '基金' },
-  { value: 'bank', label: '银行理财' },
-  { value: 'bond', label: '债券' },
-  { value: 'gold', label: '黄金' },
-  { value: 'other', label: '其他' },
+const ASSET_TYPE_OPTIONS: { value: AssetType; label: string; color: string }[] = [
+  { value: 'stock', label: '股票', color: '#FF6B6B' },
+  { value: 'fund', label: '基金', color: '#50C878' },
+  { value: 'bank', label: '银行理财', color: '#4A90D9' },
+  { value: 'bond', label: '债券', color: '#F59E0B' },
+  { value: 'gold', label: '黄金', color: '#D4AF37' },
+  { value: 'other', label: '其他', color: '#94A3B8' },
 ];
+
+const getTypeColor = (type: AssetType): string => {
+  const found = ASSET_TYPE_OPTIONS.find((opt) => opt.value === type);
+  return found?.color || '#94A3B8';
+};
 
 const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
   editingAsset,
@@ -36,6 +41,26 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
   const [errors, setErrors] = useState<FormErrors>({});
   const [shakeFields, setShakeFields] = useState<Set<string>>(new Set());
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [successVisible, setSuccessVisible] = useState(false);
+
+  const timersRef = useRef<number[]>([]);
+
+  const setSafeTimeout = useRef((callback: () => void, delay: number) => {
+    const timerId = window.setTimeout(callback, delay);
+    timersRef.current.push(timerId);
+    return timerId;
+  }).current;
+
+  const clearAllTimers = useCallback(() => {
+    timersRef.current.forEach((timerId) => clearTimeout(timerId));
+    timersRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearAllTimers();
+    };
+  }, [clearAllTimers]);
 
   const isEditing = !!editingAsset;
 
@@ -53,10 +78,19 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
     }
   }, [editingAsset]);
 
-  const showSuccess = (message: string) => {
-    setSuccessMessage(message);
-    setTimeout(() => setSuccessMessage(null), 3000);
-  };
+  const showSuccess = useCallback(
+    (message: string) => {
+      setSuccessMessage(message);
+      setSuccessVisible(true);
+      setSafeTimeout(() => {
+        setSuccessVisible(false);
+        setSafeTimeout(() => {
+          setSuccessMessage(null);
+        }, 200);
+      }, 3000);
+    },
+    [setSafeTimeout]
+  );
 
   const validateForm = useCallback((): boolean => {
     const newErrors: FormErrors = {};
@@ -67,38 +101,48 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
       newShakeFields.add('name');
     }
 
-    if (formData.buyPrice <= 0) {
+    if (formData.buyPrice <= 0 || isNaN(formData.buyPrice)) {
       newErrors.buyPrice = '买入价必须大于0';
       newShakeFields.add('buyPrice');
     }
 
-    if (formData.currentPrice <= 0) {
+    if (formData.currentPrice <= 0 || isNaN(formData.currentPrice)) {
       newErrors.currentPrice = '当前价必须大于0';
       newShakeFields.add('currentPrice');
     }
 
-    if (formData.quantity <= 0) {
+    if (formData.quantity <= 0 || isNaN(formData.quantity)) {
       newErrors.quantity = '持有数量必须大于0';
       newShakeFields.add('quantity');
     }
 
-    const buyDate = new Date(formData.buyDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (buyDate > today) {
-      newErrors.buyDate = '买入日期不能晚于今天';
+    if (!formData.buyDate) {
+      newErrors.buyDate = '请选择买入日期';
       newShakeFields.add('buyDate');
+    } else {
+      const buyDate = new Date(formData.buyDate);
+      if (isNaN(buyDate.getTime())) {
+        newErrors.buyDate = '日期格式不正确';
+        newShakeFields.add('buyDate');
+      } else {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (buyDate > today) {
+          newErrors.buyDate = '买入日期不能晚于今天';
+          newShakeFields.add('buyDate');
+        }
+      }
     }
 
     setErrors(newErrors);
     setShakeFields(newShakeFields);
 
     if (newShakeFields.size > 0) {
-      setTimeout(() => setShakeFields(new Set()), 200);
+      setSafeTimeout(() => setShakeFields(new Set()), 200);
     }
 
     return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  }, [formData, setSafeTimeout]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +154,9 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
     if (isEditing && editingAsset) {
       updateAsset(editingAsset.id, formData);
       showSuccess('资产更新成功！');
-      onEditComplete?.();
+      setSafeTimeout(() => {
+        onEditComplete?.();
+      }, 500);
     } else {
       addAsset(formData);
       showSuccess('资产添加成功！');
@@ -119,9 +165,9 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
 
     if (!isEditing) {
       setIsExpanded(false);
-      setTimeout(() => {
+      setSafeTimeout(() => {
         setIsExpanded(true);
-        setFormData(initialFormData);
+        setFormData({ ...initialFormData, buyDate: new Date().toISOString().split('T')[0] });
       }, 300);
     }
   };
@@ -152,12 +198,14 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
   };
 
   const handleCancel = () => {
+    clearAllTimers();
     if (isEditing) {
       onEditComplete?.();
     } else {
       setFormData(initialFormData);
       setErrors({});
       setSuccessMessage(null);
+      setSuccessVisible(false);
     }
   };
 
@@ -194,11 +242,14 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
 
       <div
         className={`overflow-hidden transition-all duration-300 ${
-          isExpanded ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'
+          isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
         {successMessage && (
-          <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-success/15 border border-success/40 rounded-lg text-success animate-fade-in-up">
+          <div
+            className="mb-4 flex items-center gap-3 px-4 py-3 bg-success/15 border border-success/40 rounded-lg text-success transition-opacity duration-200"
+            style={{ opacity: successVisible ? 1 : 0 }}
+          >
             <CheckCircle size={20} />
             <span className="font-medium">{successMessage}</span>
           </div>
@@ -251,9 +302,10 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
                 value={formData.type}
                 onChange={handleInputChange}
                 className="form-input appearance-none cursor-pointer"
+                style={{ borderLeftColor: getTypeColor(formData.type), borderLeftWidth: '4px' }}
               >
                 {ASSET_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
+                  <option key={option.value} value={option.value} style={{ color: option.color }}>
                     {option.label}
                   </option>
                 ))}
