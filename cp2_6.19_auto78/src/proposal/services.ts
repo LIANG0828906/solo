@@ -346,6 +346,339 @@ const sampleProposals: Proposal[] = [
     createdAt: Date.now() - 86400000 * 1,
     updatedAt: Date.now() - 86400000 * 0.5,
   },
+  {
+    id: 'p9',
+    title: '自动化测试覆盖率提升计划',
+    summary: '通过引入自动化测试框架和CI/CD集成，将单元测试覆盖率从40%提升到80%，减少线上bug数量。',
+    content: `## 现状分析
+
+当前单元测试覆盖率仅 40%，回归测试主要依赖人工，效率低下且容易遗漏。
+
+## 实施方案
+
+### 技术选型
+- 单元测试：Jest + Testing Library
+- E2E测试：Cypress
+- 覆盖率报告：Istanbul
+
+### 实施步骤
+1. 搭建测试基础框架
+2. 核心模块优先覆盖
+3. CI 流水线集成
+4. 覆盖率门禁机制
+
+## 预期目标
+- 单元测试覆盖率 ≥ 80%
+- 核心流程 100% 覆盖
+- 线上 bug 减少 40%`,
+    category: '技术',
+    status: '已通过',
+    authorId: 'u9',
+    authorName: '吴昊',
+    authorAvatar: '',
+    upVotes: 34,
+    downVotes: 2,
+    commentCount: 7,
+    isPinned: false,
+    createdAt: Date.now() - 86400000 * 8,
+    updatedAt: Date.now() - 86400000 * 4,
+  },
+  {
+    id: 'p10',
+    title: '新员工入职导师制优化方案',
+    summary: '建立完善的导师制度，为每位新员工配备专属导师，帮助新员工快速融入团队，降低试用期离职率。',
+    content: `## 问题现状
+
+新员工融入周期长，试用期离职率偏高，缺乏系统化的辅导机制。
+
+## 方案设计
+
+### 导师选拔标准
+- 入职满1年以上
+- 绩效评定良好以上
+- 具备良好的沟通能力
+- 自愿参与
+
+### 导师职责
+- 第一周：环境搭建与文化融入
+- 第一个月：业务知识与技能培训
+- 前三个月：工作指导与心理建设
+
+### 激励机制
+- 导师津贴
+- 优秀导师评选
+- 晋升加分项`,
+    category: '管理',
+    status: '审核中',
+    authorId: 'u10',
+    authorName: '郑雯',
+    authorAvatar: '',
+    upVotes: 28,
+    downVotes: 5,
+    commentCount: 10,
+    isPinned: false,
+    createdAt: Date.now() - 86400000 * 9,
+    updatedAt: Date.now() - 86400000 * 5,
+  },
+  {
+    id: 'p11',
+    title: '产品用户反馈收集系统建设',
+    summary: '建立系统化的用户反馈收集和处理机制，包括产品内反馈入口、用户调研、反馈工单跟踪等。',
+    content: `## 建设目标
+
+建立从反馈收集到落地闭环的全流程管理体系。
+
+## 系统组成
+
+### 反馈入口
+- 产品内意见反馈按钮
+- 官网反馈表单
+- 客服系统对接
+
+### 处理流程
+1. 反馈收集与分类
+2. 产品评审与排期
+3. 开发与上线
+4. 反馈用户回访
+
+### 数据分析
+- 反馈趋势分析
+- 满意度追踪
+- NPS 评分体系`,
+    category: '市场',
+    status: '已通过',
+    authorId: 'u11',
+    authorName: '黄鑫',
+    authorAvatar: '',
+    upVotes: 22,
+    downVotes: 3,
+    commentCount: 5,
+    isPinned: false,
+    createdAt: Date.now() - 86400000 * 11,
+    updatedAt: Date.now() - 86400000 * 7,
+  },
+  {
+    id: 'p12',
+    title: '前端性能优化专项',
+    summary: '针对首屏加载时间、页面渲染性能进行专项优化，目标首屏加载时间控制在1.5秒以内，LCP提升40%。',
+    content: `## 性能现状
+
+当前首屏加载时间约 3.2 秒，LCP 指标 2.8 秒，有较大优化空间。
+
+## 优化方向
+
+### 资源优化
+- 图片懒加载与 WebP 格式
+- 代码分割与动态导入
+- 第三方库按需加载
+- CDN 资源优化
+
+### 渲染优化
+- 虚拟列表
+- 组件懒渲染
+- 减少重排重绘
+- React 渲染优化
+
+### 缓存策略
+- 强缓存与协商缓存
+- Service Worker
+- 本地存储优化
+
+## 预期目标
+- 首屏加载 < 1.5s
+- LCP < 2.0s
+- 页面评分 ≥ 90`,
+    category: '技术',
+    status: '已通过',
+    authorId: 'u12',
+    authorName: '杨帆',
+    authorAvatar: '',
+    upVotes: 36,
+    downVotes: 1,
+    commentCount: 9,
+    isPinned: false,
+    createdAt: Date.now() - 86400000 * 12,
+    updatedAt: Date.now() - 86400000 * 8,
+  },
+  {
+    id: 'p13',
+    title: '企业文化墙线上化',
+    summary: '将企业文化墙搬到线上，包括员工风采、荣誉墙、生日祝福、团队活动等板块，增强团队凝聚力。',
+    content: `## 项目背景
+
+企业文化墙目前只有线下版本，覆盖范围有限，互动性不足。
+
+## 功能板块
+
+### 员工风采
+- 新人介绍
+- 员工专访
+- 技能分享
+
+### 荣誉体系
+- 月度之星
+- 季度优秀员工
+- 团队奖项
+
+### 互动板块
+- 生日祝福
+- 入职周年
+- 话题讨论
+
+### 活动相册
+- 团队建设
+- 节日活动
+- 公益活动
+
+## 运营计划
+- 每周更新内容
+- 每月专题活动
+- 鼓励员工投稿`,
+    category: '管理',
+    status: '审核中',
+    authorId: 'u13',
+    authorName: '林小燕',
+    authorAvatar: '',
+    upVotes: 41,
+    downVotes: 3,
+    commentCount: 14,
+    isPinned: false,
+    createdAt: Date.now() - 86400000 * 13,
+    updatedAt: Date.now() - 86400000 * 6,
+  },
+  {
+    id: 'p14',
+    title: '私域流量运营体系搭建',
+    summary: '构建企业微信+公众号+社群的私域流量矩阵，提升用户粘性和复购率，降低获客成本。',
+    content: `## 市场趋势
+
+公域流量成本攀升，私域运营成为必选项。
+
+## 体系架构
+
+### 流量入口
+- 官网引导
+- 产品内置入口
+- 客服体系
+- 线下渠道
+
+### 用户分层
+- 潜在客户
+- 新用户
+- 活跃用户
+- 付费用户
+- 超级用户
+
+### 运营策略
+- 内容运营：干货输出
+- 活动运营：促销互动
+- 用户运营：1v1 服务
+- 社群运营：圈层打造
+
+## KPI 指标
+- 私域用户数：10万+
+- 月活跃度：60%+
+- 复购率提升：30%`,
+    category: '市场',
+    status: '已通过',
+    authorId: 'u14',
+    authorName: '徐明',
+    authorAvatar: '',
+    upVotes: 25,
+    downVotes: 6,
+    commentCount: 8,
+    isPinned: false,
+    createdAt: Date.now() - 86400000 * 14,
+    updatedAt: Date.now() - 86400000 * 9,
+  },
+  {
+    id: 'p15',
+    title: '数据中台建设规划',
+    summary: '搭建统一数据中台，整合各业务线数据，提供统一的数据服务和分析能力，支撑数据驱动决策。',
+    content: `## 建设背景
+
+各业务系统数据孤岛，数据口径不统一，分析效率低下。
+
+## 总体架构
+
+### 数据接入层
+- 业务数据库同步
+- 日志数据采集
+- 第三方数据对接
+
+### 数据存储层
+- 数据仓库（ODS/DWD/DWS/ADS）
+- 实时数据存储
+- 数据湖
+
+### 数据服务层
+- BI 报表平台
+- 数据 API 服务
+- 标签画像系统
+- 自助分析平台
+
+## 分期建设
+- 一期：基础平台 + 核心指标
+- 二期：自助分析 + 标签体系
+- 三期：智能应用 + 数据产品`,
+    category: '技术',
+    status: '审核中',
+    authorId: 'u15',
+    authorName: '马涛',
+    authorAvatar: '',
+    upVotes: 30,
+    downVotes: 8,
+    commentCount: 16,
+    isPinned: false,
+    createdAt: Date.now() - 86400000 * 15,
+    updatedAt: Date.now() - 86400000 * 10,
+  },
+  {
+    id: 'p16',
+    title: 'OKR目标管理系统',
+    summary: '引入OKR目标管理方法，建设线上OKR管理系统，对齐团队目标，提升组织执行力。',
+    content: `## 管理理念
+
+OKR = Objectives + Key Results
+目标对齐 + 关键结果衡量
+
+## 系统功能
+
+### 目标管理
+- 公司级 OKR
+- 部门级 OKR
+- 个人级 OKR
+- 目标对齐关系图
+
+### 进度追踪
+- 周进度更新
+- 月度复盘
+- 季度评估
+- 评分机制
+
+### 协作功能
+- 评论反馈
+- @提醒
+- 关联项目
+- 进度可视化
+
+## 实施计划
+1. 管理培训
+2. 试点运行
+3. 全面推广
+4. 持续优化`,
+    category: '管理',
+    status: '已通过',
+    authorId: 'u16',
+    authorName: '高琳',
+    authorAvatar: '',
+    upVotes: 33,
+    downVotes: 4,
+    commentCount: 11,
+    isPinned: false,
+    createdAt: Date.now() - 86400000 * 16,
+    updatedAt: Date.now() - 86400000 * 11,
+  },
 ];
 
 const sampleComments: Comment[] = [

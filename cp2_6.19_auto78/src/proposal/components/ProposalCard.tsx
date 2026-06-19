@@ -11,25 +11,29 @@ interface ProposalCardProps {
 
 const AnimatedNumber = ({ value, className }: { value: number; className?: string }) => {
   const [displayValue, setDisplayValue] = useState(value);
+  const [isAnimating, setIsAnimating] = useState(false);
   const prevValue = useRef(value);
 
   useEffect(() => {
     if (prevValue.current === value) return;
     
+    setIsAnimating(true);
     const startValue = prevValue.current;
     const endValue = value;
-    const duration = 300;
+    const duration = 500;
     const startTime = performance.now();
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(startValue + (endValue - startValue) * easeOut);
+      const easeOutElastic = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress) * Math.sin((progress * 10 - 0.75) * Math.PI / 2);
+      const current = Math.round(startValue + (endValue - startValue) * easeOutElastic);
       setDisplayValue(current);
 
       if (progress < 1) {
         requestAnimationFrame(animate);
+      } else {
+        setIsAnimating(false);
       }
     };
 
@@ -37,7 +41,11 @@ const AnimatedNumber = ({ value, className }: { value: number; className?: strin
     prevValue.current = value;
   }, [value]);
 
-  return <span className={className}>{displayValue}</span>;
+  return (
+    <span className={`${className || ''} ${isAnimating ? 'animating' : ''}`}>
+      {displayValue}
+    </span>
+  );
 };
 
 export const ProposalCard = ({ proposal, onDelete }: ProposalCardProps) => {
