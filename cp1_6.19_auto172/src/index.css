@@ -1,0 +1,95 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #1E1E2E;
+  color: #FFFFFF;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #00BFFF;
+  cursor: pointer;
+  margin-top: -5px;
+  box-shadow: 0 0 0 0 rgba(0, 191, 255, 0);
+  transition: box-shadow 0.2s ease;
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 8px 2px rgba(0, 191, 255, 0.5);
+}
+
+input[type='range']::-moz-range-track {
+  height: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #00BFFF;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 0 0 rgba(0, 191, 255, 0);
+  transition: box-shadow 0.2s ease;
+}
+
+input[type='range']::-moz-range-thumb:hover {
+  box-shadow: 0 0 8px 2px rgba(0, 191, 255, 0.5);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3A3A50;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4A4A60;
+}
+
+button {
+  font-family: inherit;
+}
