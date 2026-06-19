@@ -1,0 +1,86 @@
+import { useMemo } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+import type { UsageLog } from '@/types';
+import { getUsageChartData, getDailyUsageStats } from '@/utils/productUtils';
+
+interface UsageChartProps {
+  productId?: string;
+  usageLogs: UsageLog[];
+  height?: number;
+  showAmount?: boolean;
+}
+
+export const UsageChart = ({ productId, usageLogs, height = 200, showAmount = true }: UsageChartProps) => {
+  const chartData = useMemo(() => {
+    if (productId) {
+      return getUsageChartData(productId, usageLogs);
+    }
+    return getDailyUsageStats(usageLogs).map(item => ({
+      ...item,
+      dayName: new Date(item.date).toLocaleDateString('zh-CN', { weekday: 'short' }),
+    }));
+  }, [productId, usageLogs]);
+
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ value: number; name: string }> }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-gray-100">
+          <p className="text-sm font-medium text-gray-800">
+            {showAmount ? `${payload[0].value} ml/g` : `${payload[0].value} 件产品`}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="w-full" style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={chartData}
+          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+        >
+          <XAxis
+            dataKey="dayName"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: '#9CA3AF' }}
+          />
+          <YAxis
+            hide={true}
+            domain={[0, 'auto']}
+          />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(139, 157, 175, 0.1)' }} />
+          <Bar
+            dataKey={showAmount ? 'amount' : 'count'}
+            radius={[6, 6, 0, 0]}
+            animationDuration={800}
+            animationEasing="ease-out"
+          >
+            {chartData.map((_, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill="url(#colorGradient)"
+              />
+            ))}
+          </Bar>
+          <defs>
+            <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8B9DAF" />
+              <stop offset="100%" stopColor="#B5C0CA" />
+            </linearGradient>
+          </defs>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
