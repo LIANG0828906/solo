@@ -1,0 +1,86 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #F4F1E1;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #2E3A22;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D6CFB8;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B0A896;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  filter: invert(0.3);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+input::placeholder {
+  color: #B0A896;
+}
+
+@media (max-width: 768px) {
+  .main-layout {
+    flex-direction: column !important;
+    padding: 16px !important;
+    max-width: 100% !important;
+  }
+  .content-area {
+    width: 100% !important;
+  }
+  .equipment-grid {
+    justify-content: center !important;
+  }
+  .equipment-grid > div {
+    width: 100% !important;
+    max-width: 340px;
+  }
+  .rental-panel {
+    position: static !important;
+    width: 100% !important;
+    max-height: none !important;
+    margin-top: 20px;
+  }
+  .top-bar-inner {
+    padding: 0 16px !important;
+  }
+  .header-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .search-box {
+    width: 100% !important;
+  }
+  .category-tabs {
+    flex-wrap: wrap;
+  }
+}
