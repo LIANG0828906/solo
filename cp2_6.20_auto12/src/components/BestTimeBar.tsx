@@ -1,8 +1,6 @@
 import { memo } from 'react';
-import { Clock, Users, TrendingUp } from 'lucide-react';
+import { Clock, Users, TrendingUp, Sparkles } from 'lucide-react';
 import type { BestTimeRecommendation } from '@/types';
-import { format, parseISO } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
 
 interface BestTimeBarProps {
   recommendation: BestTimeRecommendation | null;
@@ -18,9 +16,7 @@ const BestTimeBar = memo(function BestTimeBar({ recommendation }: BestTimeBarPro
           </div>
           <div>
             <div className="text-sm text-dark-300">等待投票数据</div>
-            <div className="text-xs text-dark-500">
-              暂无足够投票数据计算最佳时间
-            </div>
+            <div className="text-xs text-dark-500">暂无足够投票数据计算最佳时间</div>
           </div>
         </div>
       </div>
@@ -32,26 +28,72 @@ const BestTimeBar = memo(function BestTimeBar({ recommendation }: BestTimeBarPro
 
   return (
     <div
-      className={`rounded-card p-4 border transition-all duration-500 ${
+      className={`rounded-card p-4 border relative overflow-hidden transition-all duration-500 ${
         isHighCoverage
-          ? 'bg-gradient-to-r from-primary-600/30 to-primary-700/20 border-primary-500/50 shadow-glow'
+          ? 'bg-gradient-to-r from-primary-600/30 to-primary-700/20 border-primary-500/50'
           : 'bg-gradient-to-r from-dark-800 to-dark-700 border-dark-600'
       }`}
     >
-      <div className="flex items-center justify-between">
+      {isHighCoverage && (
+        <>
+          <div
+            className="absolute inset-0 opacity-40 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(ellipse at 20% 50%, rgba(79, 70, 229, 0.35) 0%, transparent 60%)',
+              animation: 'breathe 3s ease-in-out infinite',
+            }}
+          />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                'linear-gradient(90deg, transparent 0%, rgba(129, 140, 248, 0.15) 50%, transparent 100%)',
+              animation: 'shimmer 2.5s ease-in-out infinite',
+            }}
+          />
+        </>
+      )}
+
+      <div className="relative flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            className={`w-10 h-10 rounded-full flex items-center justify-center relative ${
               isHighCoverage
                 ? 'bg-primary-600 text-white'
                 : 'bg-dark-700 text-dark-300'
             }`}
           >
-            <TrendingUp className="w-5 h-5" />
+            {isHighCoverage ? (
+              <Sparkles
+                className="w-5 h-5"
+                style={{ animation: 'sparkle-pulse 2s ease-in-out infinite' }}
+              />
+            ) : (
+              <TrendingUp className="w-5 h-5" />
+            )}
+            {isHighCoverage && (
+              <span
+                className="absolute inset-0 rounded-full border-2 border-primary-400 opacity-75"
+                style={{ animation: 'ping-soft 2s cubic-bezier(0, 0, 0.2, 1) infinite' }}
+              />
+            )}
           </div>
           <div>
-            <div className="text-sm font-medium text-dark-200">
-              {isHighCoverage ? '推荐最佳时间' : '当前最优选'}
+            <div className="text-sm font-medium text-dark-200 flex items-center gap-2">
+              {isHighCoverage ? (
+                <>
+                  推荐最佳时间
+                  <span
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-primary-500/30 text-primary-300 font-semibold"
+                    style={{ animation: 'badge-pop 3s ease-in-out infinite' }}
+                  >
+                    推荐
+                  </span>
+                </>
+              ) : (
+                '当前最优选'
+              )}
             </div>
             <div className="text-lg font-bold text-dark-100">
               {recommendation.date}
@@ -64,7 +106,14 @@ const BestTimeBar = memo(function BestTimeBar({ recommendation }: BestTimeBarPro
 
         <div className="text-right">
           <div
-          className="text-2xl font-bold text-primary-400"
+            className={`text-2xl font-bold ${
+              isHighCoverage ? 'text-primary-400' : 'text-dark-300'
+            }`}
+            style={
+              isHighCoverage
+                ? { animation: 'number-pulse 2.5s ease-in-out infinite' }
+                : undefined
+            }
           >
             {coveragePercent}%
           </div>
@@ -75,12 +124,71 @@ const BestTimeBar = memo(function BestTimeBar({ recommendation }: BestTimeBarPro
         </div>
       </div>
 
-      <div className="mt-3 h-2 bg-dark-700 rounded-full overflow-hidden">
+      <div className="relative mt-3 h-2 bg-dark-700 rounded-full overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all duration-1000 ease-out"
-          style={{ width: `${coveragePercent}%` }}
-        />
+          className="h-full rounded-full transition-all duration-1000 ease-out relative"
+          style={{
+            width: `${coveragePercent}%`,
+            background: isHighCoverage
+              ? 'linear-gradient(90deg, #4F46E5, #818CF8, #4F46E5)'
+              : 'linear-gradient(90deg, #475569, #64748b)',
+            backgroundSize: isHighCoverage ? '200% 100%' : undefined,
+            animation: isHighCoverage ? 'progress-shine 2s ease-in-out infinite' : undefined,
+          }}
+        >
+          {isHighCoverage && (
+            <div
+              className="absolute inset-0 opacity-50"
+              style={{
+                background:
+                  'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)',
+                animation: 'shimmer-fast 1.5s ease-in-out infinite',
+              }}
+            />
+          )}
+        </div>
       </div>
+
+      <style>{`
+        @keyframes breathe {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.05); }
+        }
+
+        @keyframes shimmer {
+          0%, 100% { transform: translateX(-100%); }
+          50% { transform: translateX(100%); }
+        }
+
+        @keyframes shimmer-fast {
+          0%, 100% { transform: translateX(-100%); opacity: 0.3; }
+          50% { transform: translateX(100%); opacity: 0.7; }
+        }
+
+        @keyframes sparkle-pulse {
+          0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+          50% { transform: scale(1.15) rotate(5deg); opacity: 0.85; }
+        }
+
+        @keyframes ping-soft {
+          75%, 100% { transform: scale(1.6); opacity: 0; }
+        }
+
+        @keyframes number-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.08); }
+        }
+
+        @keyframes badge-pop {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+
+        @keyframes progress-shine {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+      `}</style>
     </div>
   );
 });

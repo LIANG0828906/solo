@@ -1,5 +1,6 @@
 import uuid
 import json
+import colorsys
 from datetime import datetime, date as date_type, timedelta
 from typing import List, Dict, Optional
 from fastapi import FastAPI, HTTPException
@@ -18,11 +19,7 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-COLOR_PALETTE = [
-    '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444',
-    '#EC4899', '#6366F1', '#14B8A6', '#F97316', '#84CC16',
-    '#A855F7', '#3B82F6', '#22C55E', '#EAB308', '#DC2626',
-]
+GOLDEN_ANGLE = 137.508
 
 polls: Dict[str, dict] = {}
 user_colors: Dict[str, str] = {}
@@ -49,10 +46,29 @@ class ClosePollRequest(BaseModel):
     adminToken: str
 
 
+def _hash_code(s: str) -> int:
+    h = 0
+    for ch in s:
+        h = ord(ch) + ((h << 5) - h)
+    return abs(h)
+
+
+def _hsl_to_hex(h: float, s: float, l: float) -> str:
+    s /= 100.0
+    l /= 100.0
+    r, g, b = colorsys.hls_to_rgb(h / 360.0, l, s)
+    return '#{:02x}{:02x}{:02x}'.format(int(r * 255), int(g * 255), int(b * 255))
+
+
 def get_user_color(user_name: str) -> str:
     if user_name not in user_colors:
-        color_index = len(user_colors) % len(COLOR_PALETTE)
-        user_colors[user_name] = COLOR_PALETTE[color_index]
+        base_hash = _hash_code(user_name)
+        hue = (base_hash * GOLDEN_ANGLE) % 360.0
+        saturation_variation = (base_hash % 20) - 10
+        saturation = max(60, min(85, 70 + saturation_variation))
+        lightness_variation = (base_hash % 15) - 7
+        lightness = max(45, min(65, 55 + lightness_variation))
+        user_colors[user_name] = _hsl_to_hex(hue, saturation, lightness)
     return user_colors[user_name]
 
 

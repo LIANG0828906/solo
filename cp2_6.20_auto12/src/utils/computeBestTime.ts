@@ -181,32 +181,61 @@ export function computeBestTime(
   return null;
 }
 
-export function getColorForUser(userName: string): string {
-  const colors = [
-    '#8B5CF6',
-    '#06B6D4',
-    '#10B981',
-    '#F59E0B',
-    '#EF4444',
-    '#EC4899',
-    '#6366F1',
-    '#14B8A6',
-    '#F97316',
-    '#84CC16',
-    '#A855F7',
-    '#3B82F6',
-    '#22C55E',
-    '#EAB308',
-    '#DC2626',
-  ];
-
+function hashCode(str: string): number {
   let hash = 0;
-  for (let i = 0; i < userName.length; i++) {
-    hash = userName.charCodeAt(i) + ((hash << 5) - hash);
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash);
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100;
+  l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+export function getColorForUser(userName: string, totalUsers: number = 1): string {
+  const GOLDEN_ANGLE = 137.508;
+  const baseHash = hashCode(userName);
+
+  const hue = (baseHash * GOLDEN_ANGLE) % 360;
+
+  const saturationVariation = (baseHash % 20) - 10;
+  const saturation = Math.max(60, Math.min(85, 70 + saturationVariation));
+
+  const lightnessVariation = (baseHash % 15) - 7;
+  const lightness = Math.max(45, Math.min(65, 55 + lightnessVariation));
+
+  return hslToHex(hue, saturation, lightness);
+}
+
+export function generateDistinctColorPalette(count: number): string[] {
+  const GOLDEN_ANGLE = 137.508;
+  const palette: string[] = [];
+  const baseHue = Math.floor(Math.random() * 360);
+
+  for (let i = 0; i < count; i++) {
+    const hue = (baseHue + i * GOLDEN_ANGLE) % 360;
+    const saturation = 70 + (i % 3) * 5 - 5;
+    const lightness = 55 + (i % 4) * 3 - 4;
+    palette.push(hslToHex(hue, saturation, lightness));
   }
 
-  const index = Math.abs(hash) % colors.length;
-  return colors[index];
+  return palette;
+}
+
+export function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 export function generateId(): string {
