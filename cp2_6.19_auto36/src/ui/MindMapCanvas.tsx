@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { MindMapNode, Theme, Viewport, NodeDragState, CreateDragState } from '../types';
 import { mapEngine } from '../core/MapEngine';
-import { X } from 'lucide-react';
 
 interface MindMapCanvasProps {
   theme: Theme;
@@ -50,6 +49,8 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   const [isThumbDragging, setIsThumbDragging] = useState(false);
   const [newlyCreatedNodeId, setNewlyCreatedNodeId] = useState<string | null>(null);
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
+  const [mouseWorldPos, setMouseWorldPos] = useState<{ x: number; y: number } | null>(null);
+  const [isOverDeleteBtn, setIsOverDeleteBtn] = useState<string | null>(null);
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
@@ -178,9 +179,83 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     [screenToWorld]
   );
 
+  const bezierDistance = (
+    px: number,
+    py: number,
+    p0x: number,
+    p0y: number,
+    p1x: number,
+    p1y: number,
+    p2x: number,
+    p2y: number,
+    p3x: number,
+    p3y: number
+  ): number => {
+    let minDist = Infinity;
+    const samples = 40;
+    for (let i = 0; i <= samples; i++) {
+      const t = i / samples;
+      const u = 1 - t;
+      const bx =
+        u * u * u * p0x +
+        3 * u * u * t * p1x +
+        3 * u * t * t * p2x +
+        t * t * t * p3x;
+      const by =
+        u * u * u * p0y +
+        3 * u * u * t * p1y +
+        3 * u * t * t * p2y +
+        t * t * t * p3y;
+      const dist = Math.sqrt((px - bx) * (px - bx) + (py - by) * (py - by));
+      if (dist < minDist) {
+        minDist = dist;
+      }
+    }
+    return minDist;
+  };
+
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       const { x, y } = screenToWorld(e.clientX, e.clientY);
+      setMouseWorldPos({ x, y });
+
+      if (!isOverDeleteBtn) {
+        let closestId: string | null = null;
+        let closestDist = Infinity;
+        const hitThreshold = 12 / viewport.scale;
+
+        nodes.forEach((node) => {
+          if (!node.parentId) return;
+          const parent = nodes.find((n) => n.id === node.parentId);
+          if (!parent) return;
+
+          const startX = parent.x + parent.width;
+          const startY = parent.y + parent.height / 2;
+          const endX = node.x;
+          const endY = node.y + node.height / 2;
+          const midX = (startX + endX) / 2;
+
+          const dist = bezierDistance(
+            x,
+            y,
+            startX,
+            startY,
+            midX,
+            startY,
+            midX,
+            endY,
+            endX,
+            endY
+          );
+
+          if (dist < hitThreshold && dist < closestDist) {
+            closestDist = dist;
+            closestId = node.id;
+          }
+        });
+
+        setHoveredConnectionId(closestId);
+      }
 
       if (nodeDragState.isDragging && nodeDragState.nodeId) {
         const newX = Math.round((x - nodeDragState.offsetX) / SNAP_THRESHOLD) * SNAP_THRESHOLD;
@@ -214,7 +289,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
         setPanStart({ x: e.clientX, y: e.clientY });
       }
     },
-    [nodeDragState, createDragState, isPanning, panStart, viewport, onViewportChange, screenToWorld]
+    [nodeDragState, createDragState, isPanning, panStart, viewport, onViewportChange, screenToWorld, nodes, isOverDeleteBtn]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -256,6 +331,9 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
       cancelAnimationFrame(animationFrameRef.current);
     }
     setIsThumbDragging(false);
+    setHoveredConnectionId(null);
+    setIsOverDeleteBtn(null);
+    setMouseWorldPos(null);
   }, [createDragState]);
 
   const handleThumbnailClick = useCallback(
@@ -395,17 +473,24 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
 
   const handleDeleteConnection = useCallback(
     (e: React.MouseEvent, childNodeId: string) => {
+      e.preventDefault();
       e.stopPropagation();
+      e.nativeEvent.stopImmediatePropagation();
+
       const node = mapEngine.getNode(childNodeId);
       if (node && node.parentId) {
+        const parentId = node.parentId;
         mapEngine.updateNode(childNodeId, { parentId: null });
-        const parent = mapEngine.getNode(node.parentId);
+        const parent = mapEngine.getNode(parentId);
         if (parent) {
-          mapEngine.updateNode(node.parentId, {
+          mapEngine.updateNode(parentId, {
             children: parent.children.filter((id) => id !== childNodeId),
           });
         }
       }
+
+      setHoveredConnectionId(null);
+      setIsOverDeleteBtn(null);
     },
     []
   );
@@ -431,12 +516,10 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
         const lineColor = isHovered ? '#2563EB' : theme.lineColor;
         const lineWidth = isHovered ? 3 : 2;
 
-        const arrowSize = 1.5;
-        const arrowW = 8 * arrowSize;
-        const arrowH = 5 * arrowSize;
+        const arrowW = 12;
+        const arrowH = 9;
 
-        const midPointT = 0.5;
-        const mt = midPointT;
+        const mt = 0.5;
         const control1x = midX;
         const control1y = startY;
         const control2x = midX;
@@ -458,13 +541,28 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
         };
 
         const deleteBtnPos = bezierPoint(mt);
+        const btnRadius = 12;
+
+        const handleBtnMouseEnter = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          setIsOverDeleteBtn(node.id);
+          setHoveredConnectionId(node.id);
+        };
+
+        const handleBtnMouseLeave = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          setIsOverDeleteBtn(null);
+        };
+
+        const handleBtnMouseDown = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          e.preventDefault();
+        };
 
         return (
           <g
             key={`conn-${node.id}`}
             style={{ opacity: isFaded ? 0.3 : 1, transition: 'opacity 0.2s ease' }}
-            onMouseEnter={() => setHoveredConnectionId(node.id)}
-            onMouseLeave={() => setHoveredConnectionId(null)}
           >
             <defs>
               <linearGradient
@@ -482,14 +580,6 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
             <path
               d={path}
               fill="none"
-              stroke="transparent"
-              strokeWidth="16"
-              style={{ cursor: 'pointer' }}
-            />
-
-            <path
-              d={path}
-              fill="none"
               stroke={`url(#gradient-${node.id})`}
               strokeWidth={lineWidth}
               style={{
@@ -499,7 +589,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
             />
 
             <polygon
-              points={`${endX},${endY} ${endX - arrowW},${endY - arrowH} ${endX - arrowW},${endY + arrowH}`}
+              points={`${endX},${endY} ${endX - arrowW},${endY - arrowH} ${endX - arrowW * 0.7},${endY} ${endX - arrowW},${endY + arrowH}`}
               fill={lineColor}
               style={{
                 transition: 'fill 0.2s ease',
@@ -509,32 +599,39 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
 
             {isHovered && (
               <g
-                transform={`translate(${deleteBtnPos.x - 10}, ${deleteBtnPos.y - 10})`}
+                transform={`translate(${deleteBtnPos.x}, ${deleteBtnPos.y})`}
                 style={{ cursor: 'pointer' }}
+                onMouseEnter={handleBtnMouseEnter}
+                onMouseLeave={handleBtnMouseLeave}
+                onMouseDown={handleBtnMouseDown}
                 onClick={(e) => handleDeleteConnection(e, node.id)}
               >
                 <circle
-                  cx="10"
-                  cy="10"
-                  r="11"
+                  cx="0"
+                  cy="0"
+                  r={btnRadius}
                   fill="#FFFFFF"
                   stroke="#2563EB"
                   strokeWidth="1.5"
                 />
-                <foreignObject x="3" y="3" width="14" height="14">
-                  <div
-                    style={{
-                      width: '14px',
-                      height: '14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#2563EB',
-                    }}
-                  >
-                    <X size={12} strokeWidth={3} />
-                  </div>
-                </foreignObject>
+                <line
+                  x1="-5"
+                  y1="-5"
+                  x2="5"
+                  y2="5"
+                  stroke="#2563EB"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                />
+                <line
+                  x1="5"
+                  y1="-5"
+                  x2="-5"
+                  y2="5"
+                  stroke="#2563EB"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                />
               </g>
             )}
           </g>
