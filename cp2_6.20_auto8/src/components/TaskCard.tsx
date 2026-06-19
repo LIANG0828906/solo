@@ -41,14 +41,13 @@ function TaskCard(props: TaskCardProps) {
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || 'all ease-out 0.3s',
     opacity: isDragging ? 0.4 : isFiltered ? 0.35 : 1,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 10,
     padding: 14,
     borderLeft: `4px solid ${PRIORITY_COLORS[task.priority]}`,
     cursor: isDragging ? 'grabbing' : 'grab',
-    transition: 'all ease-out 0.3s',
     touchAction: 'none',
   };
 
@@ -177,6 +176,10 @@ function TaskCard(props: TaskCardProps) {
         {...listeners}
       >
         <div style={cardStyles.title}>{task.title}</div>
+
+        <div style={cardStyles.description}>
+          {task.description ? task.description : <span style={cardStyles.descriptionPlaceholder}>暂无描述</span>}
+        </div>
 
         {task.tags.length > 0 && (
           <div style={cardStyles.tags}>
@@ -466,10 +469,26 @@ function TaskCard(props: TaskCardProps) {
 const cardStyles: Record<string, React.CSSProperties> = {
   title: {
     fontSize: 14,
-    fontWeight: 500,
+    fontWeight: 600,
     color: '#fff',
     lineHeight: 1.4,
-    marginBottom: 8,
+    marginBottom: 6,
+  },
+  description: {
+    fontSize: 12,
+    color: 'var(--text-secondary)',
+    lineHeight: 1.5,
+    marginBottom: 10,
+    maxHeight: 48,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical' as any,
+  },
+  descriptionPlaceholder: {
+    color: 'rgba(160, 160, 176, 0.5)',
+    fontStyle: 'italic',
   },
   tags: {
     display: 'flex',

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import Board from './components/Board';
 import { fetchAllData, createTask, createLane, deleteLane, deleteTask, updateLane } from './api/tasks';
@@ -10,6 +10,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -184,9 +185,24 @@ function App() {
 
   const allTags = Array.from(new Set(tasks.flatMap((t) => t.tags)));
 
-  const filteredTasks = selectedTag
-    ? tasks.filter((t) => t.tags.includes(selectedTag))
-    : tasks;
+  const filteredTasks = useMemo(() => {
+    let result = tasks;
+
+    if (selectedTag) {
+      result = result.filter((t) => t.tags.includes(selectedTag));
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (t) =>
+          t.title.toLowerCase().includes(query) ||
+          t.description.toLowerCase().includes(query)
+      );
+    }
+
+    return result;
+  }, [tasks, selectedTag, searchQuery]);
 
   if (loading) {
     return (
@@ -202,6 +218,23 @@ function App() {
       <header style={styles.header}>
         <div style={styles.headerContent}>
           <h1 style={styles.title}>团队任务看板</h1>
+          <div style={styles.searchContainer}>
+            <input
+              type="text"
+              placeholder="🔍 搜索任务标题或描述..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={styles.searchInput}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                style={styles.searchClearBtn}
+              >
+                ×
+              </button>
+            )}
+          </div>
           <div style={styles.tagFilter}>
             <span style={styles.tagLabel}>标签筛选:</span>
             <div style={styles.tagList}>
@@ -249,6 +282,7 @@ function App() {
           onDeleteLane={handleDeleteLane}
           selectedTag={selectedTag}
           highlightedTaskId={highlightedTaskId}
+          searchQuery={searchQuery}
         />
       </main>
     </div>
@@ -338,6 +372,39 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 500,
     cursor: 'pointer',
+    transition: 'all ease-out 0.3s',
+  },
+  searchContainer: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    minWidth: 320,
+  },
+  searchInput: {
+    width: '100%',
+    padding: '10px 40px 10px 14px',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: 8,
+    color: '#fff',
+    fontSize: 14,
+    outline: 'none',
+    transition: 'all ease-out 0.3s',
+  },
+  searchClearBtn: {
+    position: 'absolute',
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    border: 'none',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    color: '#fff',
+    fontSize: 18,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     transition: 'all ease-out 0.3s',
   },
   main: {

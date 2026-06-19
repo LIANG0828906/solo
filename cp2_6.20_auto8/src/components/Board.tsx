@@ -32,6 +32,7 @@ interface BoardProps {
   onDeleteLane: (laneId: string) => void;
   selectedTag: string | null;
   highlightedTaskId: string | null;
+  searchQuery: string;
 }
 
 function Board(props: BoardProps) {
@@ -47,6 +48,7 @@ function Board(props: BoardProps) {
     onDeleteLane,
     selectedTag,
     highlightedTaskId,
+    searchQuery,
   } = props;
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -76,6 +78,8 @@ function Board(props: BoardProps) {
       .filter((t) => t.status === laneId)
       .sort((a, b) => a.order - b.order);
   };
+
+  const isSearching = searchQuery.trim().length > 0;
 
   const getAllTasksByLane = (laneId: string): Task[] => {
     return allTasks
@@ -251,10 +255,21 @@ function Board(props: BoardProps) {
                         onTaskUpdate={onTaskUpdate}
                         onDelete={onDeleteTask}
                         isHighlighted={highlightedTaskId === task.id}
-                        isFiltered={selectedTag !== null && !task.tags.includes(selectedTag)}
+                        isFiltered={
+                          (selectedTag !== null && !task.tags.includes(selectedTag)) ||
+                          (isSearching &&
+                            !task.title.toLowerCase().includes(searchQuery.toLowerCase().trim()) &&
+                            !task.description.toLowerCase().includes(searchQuery.toLowerCase().trim()))
+                        }
                       />
                     ))}
                   </SortableContext>
+                  {laneTasks.length === 0 && isSearching && (
+                    <div style={styles.noMatch}>
+                      <span style={styles.noMatchIcon}>🔍</span>
+                      <span style={styles.noMatchText}>无匹配任务</span>
+                    </div>
+                  )}
                 </div>
 
                 <div style={styles.addTaskArea}>
@@ -517,6 +532,26 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     cursor: 'pointer',
     transition: 'all ease-out 0.3s',
+  },
+  noMatch: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '30px 16px',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 10,
+    border: '1px dashed rgba(255,255,255,0.1)',
+  },
+  noMatchIcon: {
+    fontSize: 28,
+    marginBottom: 8,
+    opacity: 0.5,
+  },
+  noMatchText: {
+    fontSize: 13,
+    color: 'var(--text-secondary)',
+    opacity: 0.6,
   },
 };
 
