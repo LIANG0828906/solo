@@ -1,5 +1,6 @@
 import type { GameEngine, GameStats, SkillType, GameState } from './GameEngine';
-import type { Direction, JudgeResult, Note } from './NoteManager';
+import type { Direction } from './InputHandler';
+import type { JudgeResult, Note } from './NoteManager';
 import { CHARTS, DIFFICULTY_CONFIG, type Difficulty } from './NoteManager';
 
 export interface UIElement {
@@ -266,6 +267,8 @@ export class Renderer {
       ctx.stroke();
     }
 
+    this.engine.getEffectManager().renderJudgeLineGlows(ctx);
+
     this.drawHUD(ctx, now);
 
     if (lastJudge && now - lastJudge.time < 0.8) {
@@ -286,6 +289,8 @@ export class Renderer {
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
     }
+
+    this.engine.getEffectManager().renderComboPopups(ctx, this.width / 2, this.height * 0.35, now);
   }
 
   private drawHUD(ctx: CanvasRenderingContext2D, now: number): void {
@@ -416,9 +421,10 @@ export class Renderer {
     ctx.fillStyle = energyGrad;
     ctx.fillRect(panelX + padX, y, barW * energyPct, 14);
     if (stats.energy >= stats.maxEnergy) {
-      ctx.shadowColor = '#ff3d77';
-      ctx.shadowBlur = 10 + Math.sin(now * 6) * 5;
-      ctx.strokeStyle = '#ff3d77';
+      const pulseAlpha = this.engine.getEffectManager().getEnergyPulseAlpha();
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 10 + pulseAlpha * 15;
+      ctx.strokeStyle = `rgba(255, 215, 0, ${0.5 + pulseAlpha * 0.5})`;
       ctx.lineWidth = 2;
       ctx.strokeRect(panelX + padX, y, barW, 14);
       ctx.shadowBlur = 0;
@@ -509,6 +515,16 @@ export class Renderer {
     energyGrad.addColorStop(1, '#ff3d77');
     ctx.fillStyle = energyGrad;
     ctx.fillRect(12, y, barW * energyPct, 10);
+
+    if (stats.energy >= stats.maxEnergy) {
+      const pulseAlpha = this.engine.getEffectManager().getEnergyPulseAlpha();
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 8 + pulseAlpha * 12;
+      ctx.strokeStyle = `rgba(255, 215, 0, ${0.5 + pulseAlpha * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(12, y, barW, 10);
+      ctx.shadowBlur = 0;
+    }
 
     y += 20;
     for (let i = 0; i < stats.maxHp; i++) {

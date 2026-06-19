@@ -25,13 +25,36 @@ export interface GlowEffect {
   color: string;
 }
 
+export interface JudgeLineGlow {
+  trackX: number;
+  trackWidth: number;
+  laneIndex: number;
+  totalLanes: number;
+  y: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  intensity: number;
+}
+
+export interface ComboPopup {
+  combo: number;
+  startTime: number;
+  duration: number;
+  color: string;
+}
+
 export class EffectManager {
   private particles: Particle[] = [];
   private shakes: ScreenShake[] = [];
   private glows: GlowEffect[] = [];
+  private judgeLineGlows: JudgeLineGlow[] = [];
+  private comboPopups: ComboPopup[] = [];
   private flashAlpha = 0;
   private flashColor = '#00e5ff';
   private screenTint: { color: string; alpha: number; duration: number; startTime: number } | null = null;
+  private energyPulsePhase = 0;
+  private energyFull = false;
 
   addParticles(x: number, y: number, count: number, color: string, speed = 200): void {
     for (let i = 0; i < count; i++) {
@@ -75,6 +98,66 @@ export class EffectManager {
     this.screenTint = { color, alpha, duration, startTime: currentTime };
   }
 
+  addJudgeLineGlow(
+    trackX: number,
+    trackWidth: number,
+    laneIndex: number,
+    totalLanes: number,
+    y: number,
+    color: string,
+    currentTime: number
+  ): void {
+    this.judgeLineGlows.push({
+      trackX,
+      trackWidth,
+      laneIndex,
+      totalLanes,
+      y,
+      life: 0.3,
+      maxLife: 0.3,
+      color,
+      intensity: 1.0
+    });
+  }
+
+  addDebrisParticles(x: number, y: number, count: number, color: string): void {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 60 + Math.random() * 40;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0.4,
+        maxLife: 0.4,
+        color,
+        size: 2 + Math.random() * 2
+      });
+    }
+  }
+
+  addComboPopup(combo: number, currentTime: number): void {
+    this.comboPopups.push({
+      combo,
+      startTime: currentTime,
+      duration: 0.6,
+      color: '#ffffff'
+    });
+  }
+
+  setEnergyFull(full: boolean): void {
+    this.energyFull = full;
+    if (!full) {
+      this.energyPulsePhase = 0;
+    }
+  }
+
+  getEnergyPulseAlpha(): number {
+    if (!this.energyFull) return 0;
+    return (Math.sin(this.energyPulsePhase) + 1) / 2;
+  }
+
   getShakeOffset(currentTime: number): { x: number; y: number } {
     let totalIntensity = 0;
     for (let i = this.shakes.length - 1; i >= 0; i--) {
@@ -116,6 +199,29 @@ export class EffectManager {
       }
       const t = 1 - g.life / g.maxLife;
       g.radius = 5 + (g.maxRadius - 5) * t;
+    }
+
+    for (let i = this.judgeLineGlows.length - 1; i >= 0; i--) {
+      const jlg = this.judgeLineGlows[i];
+      jlg.life -= dt;
+      if (jlg.life <= 0) {
+        this.judgeLineGlows.splice(i, 1);
+        continue;
+      }
+      const t = jlg.life / jlg.maxLife;
+      jlg.intensity = t * t;
+    }
+
+    for (let i = this.comboPopups.length - 1; i >= 0; i--) {
+      const cp = this.comboPopups[i];
+      const elapsed = currentTime - cp.startTime;
+      if (elapsed >= cp.duration) {
+        this.comboPopups.splice(i, 1);
+      }
+    }
+
+    if (this.energyFull) {
+      this.energyPulsePhase += dt * Math.PI * 4;
     }
 
     if (this.flashAlpha > 0) {
@@ -167,5 +273,71 @@ export class EffectManager {
       ctx.fillRect(0, 0, width, height);
       ctx.globalAlpha = 1;
     }
+  }
+
+  renderJudgeLineGlows(ctx: CanvasRenderingContext2D): void {
+    for (const jlg of this.judgeLineGlows) {
+      const laneWidth = jlg.trackWidth / jlg.totalLanes;
+      const glowX = jlg.trackX + jlg.laneIndex * laneWidth + laneWidth / 2;
+      const glowWidth = laneWidth * 0.9;
+      const halfWidth = glowWidth / 2;
+
+      ctx.save();
+      ctx.globalAlpha = jlg.intensity * 0.7;
+      ctx.shadowColor = jlg.color;
+      ctx.shadowBlur = 30 * jlg.intensity;
+
+      const gradient = ctx.createRadialGradient(glowX, jlg.y, 0, glowX, jlg.y, halfWidth);
+      gradient.addColorStop(0, jlg.color);
+      gradient.addColorStop(0.4, jlg.color + 'aa');
+      gradient.addColorStop(1, jlg.color + '00');
+
+      ctx.fillStyle = gradient;
+      ctx.fillRect(glowX - halfWidth, jlg.y - 6, glowWidth, 12);
+      ctx.restore();
+    }
+  }
+
+  renderComboPopups(ctx: CanvasRenderingContext2D, cx: number, cy: number, currentTime: number): void {
+    for (const cp of this.comboPopups) {
+      const elapsed = currentTime - cp.startTime;
+      const t = elapsed / cp.duration;
+
+      let scale: number;
+      if (t < 0.3) {
+        scale = 1 + (t / 0.3) * 0.5;
+      } else {
+        scale = 1.5 - ((t - 0.3) / 0.7) * 0.5;
+      }
+
+      const colorT = Math.min(1, t * 1.5);
+      const r = Math.floor(255 + (255 - 255) * colorT);
+      const g = Math.floor(255 + (215 - 255) * colorT);
+      const b = Math.floor(255 + (0 - 255) * colorT);
+      const color = `rgb(${r}, ${g}, ${b})`;
+
+      const alpha = 1 - t * t;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(scale, scale);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 20;
+      ctx.font = 'bold 48px Segoe UI';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(cp.combo.toString(), 0, 0);
+      ctx.restore();
+    }
+  }
+
+  getJudgeLineGlows(): JudgeLineGlow[] {
+    return this.judgeLineGlows;
+  }
+
+  getComboPopups(): ComboPopup[] {
+    return this.comboPopups;
   }
 }

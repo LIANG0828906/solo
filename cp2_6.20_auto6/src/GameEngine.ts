@@ -240,7 +240,12 @@ export class GameEngine {
       return;
     }
 
-    if (this.state === 'gameover' || this.state === 'finished') return;
+    if (this.state === 'gameover' || this.state === 'finished') {
+      if (action === 'confirm') {
+        this.startGame();
+      }
+      return;
+    }
     if (this.state !== 'playing') return;
 
     const now = performance.now() / 1000;
@@ -269,6 +274,7 @@ export class GameEngine {
     this.stats.energy -= SKILL_ENERGY_COST;
     this.skillCooldowns[cdKey] = SKILL_COOLDOWN;
     this.stats.skillUsedCount++;
+    this.effectManager.setEnergyFull(false);
 
     if (type === 'slow') {
       this.activeSkills.push({ type, endTime: now + 5 });
@@ -294,6 +300,14 @@ export class GameEngine {
       right: '#7c4dff'
     };
 
+    const judgeResultColors: Record<JudgeResult, string> = {
+      perfect: '#00e5ff',
+      good: '#00ff88',
+      normal: '#ffeb3b',
+      miss: '#ff3d77'
+    };
+
+    const prevEnergy = this.stats.energy;
     let scoreGain = JUDGE_SCORE[result];
 
     if (result === 'miss') {
@@ -323,6 +337,10 @@ export class GameEngine {
       this.stats.energy = Math.min(this.stats.maxEnergy, this.stats.energy + JUDGE_ENERGY[result]);
     }
 
+    if (prevEnergy < this.stats.maxEnergy && this.stats.energy >= this.stats.maxEnergy) {
+      this.effectManager.setEnergyFull(true);
+    }
+
     this.stats.score += scoreGain;
     this.lastJudge = { result, time: now };
     this.updateAccuracy();
@@ -336,9 +354,20 @@ export class GameEngine {
       const laneIdx = laneOrder.indexOf(note.direction);
       const nx = trackX + laneIdx * laneWidth + laneWidth / 2;
 
+      this.effectManager.addJudgeLineGlow(
+        trackX,
+        trackWidth,
+        laneIdx,
+        4,
+        judgeY,
+        judgeResultColors[result],
+        now
+      );
+
       if (result === 'perfect') {
         this.effectManager.addGlow(nx, judgeY, 140, trackColors[note.direction], 0.6);
         this.effectManager.addParticles(nx, judgeY, 30, trackColors[note.direction], 300);
+        this.effectManager.addDebrisParticles(nx, judgeY, 3 + Math.floor(Math.random() * 3), '#00e5ff');
       } else if (result === 'good') {
         this.effectManager.addGlow(nx, judgeY, 90, trackColors[note.direction], 0.4);
         this.effectManager.addParticles(nx, judgeY, 15, trackColors[note.direction], 200);
@@ -350,6 +379,7 @@ export class GameEngine {
         this.effectManager.addShake(this.stats.combo >= 200 ? 10 : this.stats.combo >= 100 ? 7 : 4, 0.4, now);
         this.effectManager.addParticles(this.width / 2, this.height / 2, this.stats.combo >= 100 ? 80 : 40, '#ffffff', 400);
         this.effectManager.triggerFlash('#ffffff', 0.15);
+        this.effectManager.addComboPopup(this.stats.combo, now);
       }
     }
   }
@@ -412,6 +442,7 @@ export class GameEngine {
     this.gameTime = 0;
     this.state = 'playing';
     this.lastJudge = null;
+    this.effectManager.setEnergyFull(false);
   }
 
   getStats(): GameStats {
@@ -436,6 +467,10 @@ export class GameEngine {
 
   getSelectedMenuIndex(): number {
     return this.selectedMenuIndex;
+  }
+
+  getEffectManager(): EffectManager {
+    return this.effectManager;
   }
 
   getRating(): string {
