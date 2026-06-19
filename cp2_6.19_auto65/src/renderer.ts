@@ -10,7 +10,7 @@ export interface HUDState {
   shieldLevel: number;
   shieldMax: number;
   weaponLevel: number;
-  muted: boolean;
+  muted?: boolean;
 }
 
 export interface BlackHoleState {
@@ -320,7 +320,7 @@ export class Renderer {
     this.ctx.fill();
     this.ctx.shadowBlur = 0;
 
-    if (state.muted) {
+    if (!!state.muted) {
       this._drawMuteIcon(CANVAS_W - 28, panelY + 6);
     }
 

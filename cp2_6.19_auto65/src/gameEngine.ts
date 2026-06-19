@@ -48,7 +48,7 @@ export class GameEngine {
   private _onGameOver: (() => void) | null = null;
   private _scoreThreshold: number = 0;
   sound: SoundManager;
-  private _blackHoleSounded: boolean = false;
+  private _prevBlackHolePhase: number = -1;
 
   constructor(canvas: HTMLCanvasElement, vortexCanvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -89,7 +89,7 @@ export class GameEngine {
     this.upgradeEvent = { active: false, text: '', timer: 0, maxTimer: 30 };
     this._damageFlash = { active: false, timer: 0, maxTimer: 20 };
     this._scoreThreshold = 0;
-    this._blackHoleSounded = false;
+    this._prevBlackHolePhase = -1;
     this.state = 'playing';
   }
 
@@ -242,7 +242,12 @@ export class GameEngine {
   }
 
   private _updateBlackHole(): void {
-    if (!this.blackHole.active) return;
+    const prevPhase = this.blackHole.active ? this.blackHole.phase : -1;
+
+    if (!this.blackHole.active) {
+      this._prevBlackHolePhase = -1;
+      return;
+    }
 
     const p0Dur = 90;
     const p1Dur = 70;
@@ -265,15 +270,10 @@ export class GameEngine {
         this.ship.y += (dy / dist) * pullStrength;
       }
 
-      const enteringPhase2 = (dist < 30 || this.blackHole.progress >= 1);
-      if (enteringPhase2) {
+      if (dist < 30 || this.blackHole.progress >= 1) {
         this.blackHole.phase = 2;
         this.blackHole.progress = 0;
         this._blackScreenTimer = this._blackScreenDuration;
-        if (!this._blackHoleSounded) {
-          this._blackHoleSounded = true;
-          this.sound.playBlackHole();
-        }
       }
     } else if (this.blackHole.phase === 2) {
       if (this._blackScreenTimer > 0) {
@@ -306,6 +306,12 @@ export class GameEngine {
         this.blackHole.active = false;
       }
     }
+
+    if (prevPhase === 1 && this.blackHole.phase === 2) {
+      this.sound.playBlackHole();
+    }
+
+    this._prevBlackHolePhase = this.blackHole.active ? this.blackHole.phase : -1;
   }
 
   private _collideBulletAsteroid(bullet: Bullet, asteroid: Asteroid): boolean {

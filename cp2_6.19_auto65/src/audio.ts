@@ -4,6 +4,7 @@ export class SoundManager {
   private _muted: boolean = false;
   private _volume: number = 0.3;
   private _initialized: boolean = false;
+  private _activeNodes: Set<AudioNode> = new Set();
 
   constructor() {
   }
@@ -50,36 +51,58 @@ export class SoundManager {
     }
   }
 
+  private _registerNode(node: AudioNode): void {
+    this._activeNodes.add(node);
+  }
+
+  private _unregisterNode(node: AudioNode): void {
+    this._activeNodes.delete(node);
+    try {
+      node.disconnect();
+    } catch (_e) {}
+  }
+
   private _makeOsc(type: OscillatorType, startFreq: number, endFreq: number, duration: number, startTime: number, volume: number = 1): void {
     if (!this.ctx || !this.masterGain) return;
 
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
+    this._registerNode(osc);
+    this._registerNode(gain);
+
     osc.type = type;
     osc.frequency.setValueAtTime(startFreq, startTime);
-    osc.frequency.exponentialRampToValueAtTime(Math.max(endFreq, 1), startTime + duration);
+    if (startFreq !== endFreq) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(endFreq, 1), startTime + duration);
+    }
 
     gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.exponentialRampToValueAtTime(volume, startTime + duration * 0.05);
+    gain.gain.exponentialRampToValueAtTime(volume, startTime + Math.min(duration * 0.05, duration));
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
     osc.connect(gain);
     gain.connect(this.masterGain);
 
+    const stopTime = startTime + duration + 0.05;
+    osc.onended = () => {
+      this._unregisterNode(osc);
+      this._unregisterNode(gain);
+    };
+
     osc.start(startTime);
-    osc.stop(startTime + duration + 0.02);
+    osc.stop(stopTime);
   }
 
   private _makeNoise(duration: number, startTime: number, filterFreq: number = 800, volume: number = 0.6): void {
     if (!this.ctx || !this.masterGain) return;
 
     const sampleRate = this.ctx.sampleRate;
-    const bufferSize = Math.floor(sampleRate * duration);
+    const bufferSize = Math.max(1, Math.floor(sampleRate * duration));
     const buffer = this.ctx.createBuffer(1, bufferSize, sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize * 0.3);
     }
 
     const source = this.ctx.createBufferSource();
@@ -88,19 +111,30 @@ export class SoundManager {
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.setValueAtTime(filterFreq, startTime);
-    filter.frequency.exponentialRampToValueAtTime(50, startTime + duration);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(50, filterFreq * 0.05), startTime + duration);
 
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.exponentialRampToValueAtTime(volume, startTime + duration * 0.05);
+    gain.gain.exponentialRampToValueAtTime(volume, startTime + Math.min(duration * 0.05, duration));
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+    this._registerNode(source);
+    this._registerNode(filter);
+    this._registerNode(gain);
 
     source.connect(filter);
     filter.connect(gain);
     gain.connect(this.masterGain);
 
+    const stopTime = startTime + duration + 0.05;
+    source.onended = () => {
+      this._unregisterNode(source);
+      this._unregisterNode(filter);
+      this._unregisterNode(gain);
+    };
+
     source.start(startTime);
-    source.stop(startTime + duration + 0.02);
+    source.stop(stopTime);
   }
 
   playLaser(): void {
