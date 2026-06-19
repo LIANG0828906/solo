@@ -34,8 +34,6 @@ export class Game {
     this.onResizeBound = this.resize.bind(this);
     window.addEventListener('resize', this.onResizeBound);
 
-    this.resize(false);
-
     this.renderer = new Renderer(this.canvas);
 
     this.runeSystem = new RuneSystem();
@@ -63,6 +61,8 @@ export class Game {
         onCancel: this.onCancel.bind(this),
       }
     );
+
+    this.resize(true);
   }
 
   private onStart(): void {

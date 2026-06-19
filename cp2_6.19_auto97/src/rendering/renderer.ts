@@ -149,7 +149,7 @@ export class Renderer {
 
     this.circleX = w / 2;
     this.circleY = h / 2;
-    this.circleR = Math.min(w, h) * 0.3;
+    this.circleR = Math.max(32, Math.min(w, h) * 0.3);
 
     this.scorePosition = { x: w - 30, y: 30 };
   }
@@ -211,8 +211,8 @@ export class Renderer {
 
     for (let i = this.cardFlashes.length - 1; i >= 0; i--) {
       const cf = this.cardFlashes[i];
-      cf.life -= deltaTime;
-      if (cf.life <= 0) {
+      cf.life += deltaTime;
+      if (cf.life >= cf.maxLife) {
         this.cardFlashes.splice(i, 1);
       }
     }
@@ -259,6 +259,12 @@ export class Renderer {
     currentTrajectory: TrajectoryPoint[],
     currentElement: 'fire' | 'ice' | 'lightning'
   ): void {
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.width || this.canvas.clientWidth, this.height || this.canvas.clientHeight);
+    const w = this.width || this.canvas.clientWidth || window.innerWidth;
+    const h = this.height || this.canvas.clientHeight || window.innerHeight;
+    if (w <= 0 || h <= 0) return;
     this.drawBackground();
     this.drawAmbientParticles();
     this.drawShockwaves();
@@ -266,6 +272,13 @@ export class Renderer {
     this.drawCircleArea();
     this.drawTrajectories(segments, currentTrajectory, currentElement);
     this.drawFlyingCoins();
+    // DEBUG: 二分法诊断
+    const _ctx = this.ctx;
+    _ctx.save();
+    _ctx.globalAlpha = 0.99;
+    _ctx.fillStyle = '#00ff00';
+    _ctx.fillRect(0, 0, Math.max(1, this.width), Math.max(1, this.height));
+    _ctx.restore();
     this.drawParticles();
     this.drawManaBar(mana, maxMana);
     this.drawScore(score);
@@ -313,33 +326,36 @@ export class Renderer {
     const ctx = this.ctx;
     ctx.save();
 
+    const w = Math.max(1, this.width || this.canvas.clientWidth || 800);
+    const h = Math.max(1, this.height || this.canvas.clientHeight || 600);
+
     if (this.bgPatternCanvas) {
       try {
         const pattern = ctx.createPattern(this.bgPatternCanvas, 'repeat');
         if (pattern) {
           ctx.fillStyle = pattern;
-          ctx.fillRect(0, 0, this.width, this.height);
+          ctx.fillRect(0, 0, w, h);
         } else {
           ctx.fillStyle = '#2d1f0f';
-          ctx.fillRect(0, 0, this.width, this.height);
+          ctx.fillRect(0, 0, w, h);
         }
       } catch (e) {
         ctx.fillStyle = '#2d1f0f';
-        ctx.fillRect(0, 0, this.width, this.height);
+        ctx.fillRect(0, 0, w, h);
       }
     } else {
       ctx.fillStyle = '#2d1f0f';
-      ctx.fillRect(0, 0, this.width, this.height);
+      ctx.fillRect(0, 0, w, h);
     }
 
     const vignette = ctx.createRadialGradient(
-      this.width / 2, this.height / 2, Math.min(this.width, this.height) * 0.2,
-      this.width / 2, this.height / 2, Math.max(this.width, this.height) * 0.75
+      w / 2, h / 2, Math.min(w, h) * 0.2,
+      w / 2, h / 2, Math.max(w, h) * 0.75
     );
     vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
     vignette.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
     ctx.fillStyle = vignette;
-    ctx.fillRect(0, 0, this.width, this.height);
+    ctx.fillRect(0, 0, w, h);
 
     ctx.restore();
   }
@@ -375,7 +391,7 @@ export class Renderer {
       ctx.shadowColor = p.color;
       ctx.fillStyle = p.color;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, Math.max(0.1, p.size), 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -393,22 +409,23 @@ export class Renderer {
     ctx.shadowBlur = 20;
     ctx.shadowColor = '#d4a84b';
 
+    ctx.fillStyle = '#3a2817';
     const fillGrad = ctx.createRadialGradient(
-      this.circleX, this.circleY, 0,
-      this.circleX, this.circleY, cr
+      this.circleX, this.circleY, 0.1,
+      this.circleX, this.circleY, Math.max(1, cr)
     );
-    fillGrad.addColorStop(0, 'rgba(212, 168, 75, 0.05)');
-    fillGrad.addColorStop(0.8, 'rgba(212, 168, 75, 0.02)');
-    fillGrad.addColorStop(1, 'rgba(212, 168, 75, 0)');
+    fillGrad.addColorStop(0, 'rgba(60, 40, 20, 0.95)');
+    fillGrad.addColorStop(0.6, 'rgba(55, 35, 18, 0.92)');
+    fillGrad.addColorStop(1, 'rgba(45, 28, 15, 0.90)');
     ctx.fillStyle = fillGrad;
     ctx.beginPath();
-    ctx.arc(this.circleX, this.circleY, cr, 0, Math.PI * 2);
+    ctx.arc(this.circleX, this.circleY, Math.max(0.1, cr), 0, Math.PI * 2);
     ctx.fill();
 
     ctx.strokeStyle = '#d4a84b';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(this.circleX, this.circleY, cr, 0, Math.PI * 2);
+    ctx.arc(this.circleX, this.circleY, Math.max(0.1, cr), 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.shadowBlur = 10;
@@ -416,7 +433,7 @@ export class Renderer {
     ctx.strokeStyle = 'rgba(212, 168, 75, 0.3)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(this.circleX, this.circleY, innerR, 0, Math.PI * 2);
+    ctx.arc(this.circleX, this.circleY, Math.max(0.1, innerR), 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.restore();
@@ -537,7 +554,7 @@ export class Renderer {
       ctx.shadowColor = s.color;
 
       ctx.beginPath();
-      ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, Math.max(0.1, s.radius), 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -558,6 +575,7 @@ export class Renderer {
 
   private drawEnemies(enemies: Enemy[]): void {
     const ctx = this.ctx;
+    ctx.save();
     const now = performance.now();
 
     for (const enemy of enemies) {
@@ -604,7 +622,7 @@ export class Renderer {
           ctx.globalAlpha = 0.4;
           ctx.fillStyle = '#ff3333';
           ctx.beginPath();
-          ctx.arc(enemy.x, drawY, enemy.size * 0.7, 0, Math.PI * 2);
+          ctx.arc(enemy.x, drawY, Math.max(0.1, enemy.size * 0.7), 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
         }
@@ -614,6 +632,7 @@ export class Renderer {
 
       this.drawEnemyHealthBar(enemy, drawY);
     }
+    ctx.restore();
   }
 
   private drawSkeleton(enemy: Enemy, drawY: number): void {
@@ -628,14 +647,14 @@ export class Renderer {
     ctx.lineWidth = 2;
 
     ctx.beginPath();
-    ctx.arc(x, y - s * 0.3, s * 0.35, 0, Math.PI * 2);
+    ctx.arc(x, y - s * 0.3, Math.max(0.1, s * 0.35), 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = '#1a1a1a';
     ctx.beginPath();
-    ctx.arc(x - s * 0.12, y - s * 0.35, s * 0.07, 0, Math.PI * 2);
-    ctx.arc(x + s * 0.12, y - s * 0.35, s * 0.07, 0, Math.PI * 2);
+    ctx.arc(x - s * 0.12, y - s * 0.35, Math.max(0.1, s * 0.07), 0, Math.PI * 2);
+    ctx.arc(x + s * 0.12, y - s * 0.35, Math.max(0.1, s * 0.07), 0, Math.PI * 2);
     ctx.fill();
 
     ctx.strokeStyle = '#e8e4d9';
@@ -682,7 +701,7 @@ export class Renderer {
 
     ctx.fillStyle = '#ffe680';
     ctx.beginPath();
-    ctx.arc(x, y, s * 0.2, 0, Math.PI * 2);
+    ctx.arc(x, y, Math.max(0.1, s * 0.2), 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -764,8 +783,8 @@ export class Renderer {
     ctx.shadowBlur = 10;
     ctx.shadowColor = '#ff0066';
     ctx.beginPath();
-    ctx.arc(x - s * 0.15, y - s * 0.15, s * 0.08, 0, Math.PI * 2);
-    ctx.arc(x + s * 0.15, y - s * 0.15, s * 0.08, 0, Math.PI * 2);
+    ctx.arc(x - s * 0.15, y - s * 0.15, Math.max(0.1, s * 0.08), 0, Math.PI * 2);
+    ctx.arc(x + s * 0.15, y - s * 0.15, Math.max(0.1, s * 0.08), 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -895,15 +914,15 @@ export class Renderer {
       if (idx < 0) continue;
 
       const y = CARD_START_Y + idx * (CARD_HEIGHT + CARD_SPACING);
-      const progress = 1 - cf.life / cf.maxLife;
-      const alpha = 1 - progress;
+      const progress = cf.life / cf.maxLife;
+      const alpha = -4 * progress * (progress - 1);
       const expand = progress * 20;
 
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.strokeStyle = '#ffdd66';
       ctx.lineWidth = 4;
-      ctx.shadowBlur = 40 * (1 - progress);
+      ctx.shadowBlur = 40 * alpha;
       ctx.shadowColor = '#ffdd66';
 
       ctx.beginPath();
@@ -923,7 +942,7 @@ export class Renderer {
   triggerCardFlash(runeId: RuneType): void {
     this.cardFlashes.push({
       runeId,
-      life: 500,
+      life: 0,
       maxLife: 500,
     });
   }
@@ -937,7 +956,7 @@ export class Renderer {
     let scale = 1;
     if (this.scoreBounce) {
       const progress = this.scoreBounce.life / this.scoreBounce.maxLife;
-      scale = 1 + Math.sin(progress * Math.PI) * 0.3;
+      scale = 1 + (-4 * progress * (progress - 1)) * 0.3;
     }
 
     ctx.translate(x, y);
@@ -1196,7 +1215,7 @@ export class Renderer {
           ctx.restore();
         } else {
           ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, Math.max(0.1, p.size), 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -1217,7 +1236,7 @@ export class Renderer {
         ctx.shadowBlur = 8;
         ctx.shadowColor = '#ffd700';
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size + 2, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, Math.max(0.1, p.size + 2), 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.restore();
@@ -1239,46 +1258,60 @@ export class Renderer {
       masterGain.gain.setValueAtTime(0.4, now);
       masterGain.connect(ctx.destination);
 
-      const bufferSize = ctx.sampleRate * 0.15;
+      const lowOsc = ctx.createOscillator();
+      lowOsc.type = 'sine';
+      lowOsc.frequency.setValueAtTime(90, now);
+      lowOsc.frequency.exponentialRampToValueAtTime(50, now + 0.12);
+
+      const lowOscGain = ctx.createGain();
+      lowOscGain.gain.setValueAtTime(0, now);
+      lowOscGain.gain.linearRampToValueAtTime(0.35, now + 0.002);
+      lowOscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+      lowOsc.connect(lowOscGain);
+      lowOscGain.connect(masterGain);
+      lowOsc.start(now);
+      lowOsc.stop(now + 0.12);
+
+      const bufferSize = ctx.sampleRate * 0.12;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) {
-        output[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+        output[i] = Math.random() * 2 - 1;
       }
 
       const noise = ctx.createBufferSource();
       noise.buffer = noiseBuffer;
 
       const noiseFilter = ctx.createBiquadFilter();
-      noiseFilter.type = 'lowpass';
-      noiseFilter.frequency.setValueAtTime(2000, now);
-      noiseFilter.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.setValueAtTime(175, now);
+      noiseFilter.Q.setValueAtTime(2, now);
 
       const noiseGain = ctx.createGain();
       noiseGain.gain.setValueAtTime(0, now);
-      noiseGain.gain.linearRampToValueAtTime(0.8, now + 0.005);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      noiseGain.gain.linearRampToValueAtTime(0.4, now + 0.002);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
       noise.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
       noiseGain.connect(masterGain);
       noise.start(now);
-      noise.stop(now + 0.15);
+      noise.stop(now + 0.12);
 
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(80, now);
-      osc.frequency.exponentialRampToValueAtTime(40, now + 0.12);
+      const highOsc = ctx.createOscillator();
+      highOsc.type = 'sine';
+      highOsc.frequency.setValueAtTime(800, now);
 
-      const oscGain = ctx.createGain();
-      oscGain.gain.setValueAtTime(0, now);
-      oscGain.gain.linearRampToValueAtTime(0.6, now + 0.005);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      const highOscGain = ctx.createGain();
+      highOscGain.gain.setValueAtTime(0, now);
+      highOscGain.gain.linearRampToValueAtTime(0.25, now + 0.002);
+      highOscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
 
-      osc.connect(oscGain);
-      oscGain.connect(masterGain);
-      osc.start(now);
-      osc.stop(now + 0.12);
+      highOsc.connect(highOscGain);
+      highOscGain.connect(masterGain);
+      highOsc.start(now);
+      highOsc.stop(now + 0.03);
     } catch (e) {
     }
   }

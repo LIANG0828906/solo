@@ -32,7 +32,7 @@ export interface MatchResult {
   damageMultiplier: number;
   castTime: number;
   matchedRune: RuneDefinition | null;
-  rune?: RuneDefinition;
+  rune: RuneDefinition | null;
   damage: number;
   drawTime: number;
 }
@@ -439,6 +439,7 @@ export class RuneSystem {
       drawTime: 0,
       castTime: 0,
       matchedRune: null,
+      rune: null,
     };
 
     if (points.length < 3) return emptyResult;
@@ -466,6 +467,7 @@ export class RuneSystem {
         similarity: bestSimilarity,
         drawTime,
         castTime: drawTime,
+        rune: null,
       };
     }
 

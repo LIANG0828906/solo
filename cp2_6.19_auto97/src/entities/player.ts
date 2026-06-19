@@ -6,7 +6,6 @@ export interface PlayerState {
   selectedRuneId: RuneType | null;
   score: number;
   combo: number;
-  lastCastTime: Map<RuneType, number>;
 }
 
 export interface PlayerEvents {
@@ -36,7 +35,6 @@ export class Player {
       selectedRuneId: null,
       score: 0,
       combo: 0,
-      lastCastTime: new Map<RuneType, number>(),
     };
     this.events = events ?? {};
     this.runeCooldowns = new Map<RuneType, RuneCooldownEntry>();
@@ -79,7 +77,6 @@ export class Player {
       castTime: now,
       cooldownMs: rune.cooldown,
     });
-    this.state.lastCastTime.set(rune.id, now);
 
     this.state.combo += 1;
     this.events.onComboChange?.(this.state.combo);
