@@ -1,0 +1,124 @@
+.header {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 24px;
+  flex-shrink: 0;
+  animation: slideDown 0.5s ease-out;
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.titleSection {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+
+.totalCount {
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.statsSection {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 60px;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.statNumber {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.exportSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.exportButton {
+  padding: 8px 20px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all var(--transition-fast);
+  min-width: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+}
+
+.exportButton:hover {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(233, 69, 96, 0.3);
+}
+
+.exportButton:active {
+  transform: translateY(0);
+}
+
+.exportSuccess {
+  background: #4caf50 !important;
+  border-color: #4caf50 !important;
+  color: white;
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+  animation: checkmark 0.5s ease-out forwards;
+}
+
+@media (max-width: 1200px) {
+  .headerContent {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .statsSection {
+    gap: 16px;
+  }
+
+  .statNumber {
+    font-size: 24px;
+  }
+}

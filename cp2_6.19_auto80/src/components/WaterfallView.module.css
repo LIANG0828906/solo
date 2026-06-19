@@ -1,0 +1,74 @@
+.waterfallContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 8px;
+  min-height: 0;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.waterfallGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.levelIndicator {
+  width: 4px;
+  height: 24px;
+  border-radius: 2px;
+}
+
+.groupTitle {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.groupCount {
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.groupContent {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.cardWrapper {
+  animation: slideUp 0.4s ease-out both;
+}
+
+.emptyState {
+  grid-column: 1 / -1;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 1200px) {
+  .groupContent {
+    grid-template-columns: 1fr;
+  }
+}
