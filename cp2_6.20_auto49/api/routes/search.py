@@ -27,7 +27,7 @@ async def search_notes(
         if tag_list:
             placeholders = ",".join("?" for _ in tag_list)
             conditions.append(
-                f"n.id IN (SELECT nt.note_id FROM note_tags nt JOIN tags t ON nt.tag_id = t.id WHERE t.name IN ({placeholders}))"
+                f"n.id IN (SELECT nt.note_id FROM note_tags nt JOIN tags t ON nt.tag_id = t.id WHERE t.category IN ({placeholders}))"
             )
             params.extend(tag_list)
 

@@ -26,6 +26,8 @@ export interface GraphNode {
   title: string;
   tags: Tag[];
   radius: number;
+  fx?: number | null;
+  fy?: number | null;
 }
 
 export interface GraphEdge {

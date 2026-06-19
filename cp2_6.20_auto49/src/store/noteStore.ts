@@ -12,6 +12,8 @@ interface NoteState {
   graphData: GraphData | null;
   backlinks: BacklinkItem[];
   loading: boolean;
+  linkedNotes: Record<string, string[]>;
+  linkedNotesCache: Record<string, Note[]>;
   fetchNotes: () => Promise<void>;
   fetchNote: (id: string) => Promise<void>;
   addNote: (data: Partial<Note>) => Promise<void>;
@@ -22,9 +24,12 @@ interface NoteState {
   searchNotes: (keyword: string, tags?: string[], from?: string, to?: string) => Promise<void>;
   setSearchKeyword: (kw: string) => void;
   setTagFilter: (tags: string[]) => void;
+  fetchLinkedNotes: (noteId: string) => Promise<Note[]>;
+  updateGraphNodePosition: (nodeId: string, x: number, y: number) => void;
+  clearNodePositions: () => void;
 }
 
-export const useNoteStore = create<NoteState>((set) => ({
+export const useNoteStore = create<NoteState>((set, get) => ({
   notes: [],
   currentNote: null,
   searchKeyword: '',
@@ -32,6 +37,8 @@ export const useNoteStore = create<NoteState>((set) => ({
   graphData: null,
   backlinks: [],
   loading: false,
+  linkedNotes: {},
+  linkedNotesCache: {},
 
   fetchNotes: async () => {
     set({ loading: true });
@@ -57,7 +64,20 @@ export const useNoteStore = create<NoteState>((set) => ({
     set({ loading: true });
     try {
       const res = await api.post<Note>('/notes', data);
-      set((s) => ({ notes: [...s.notes, res.data] }));
+      const newNote = res.data;
+      set((s) => {
+        const newLinkedNotesCache = { ...s.linkedNotesCache };
+        delete newLinkedNotesCache[newNote.id];
+        Object.keys(newLinkedNotesCache).forEach((id) => {
+          if (newNote.referenceIds?.includes(id) || s.notes.find(n => n.id === id)?.referenceIds?.includes(newNote.id)) {
+            delete newLinkedNotesCache[id];
+          }
+        });
+        return {
+          notes: [...s.notes, newNote],
+          linkedNotesCache: newLinkedNotesCache,
+        };
+      });
     } finally {
       set({ loading: false });
     }
@@ -67,10 +87,21 @@ export const useNoteStore = create<NoteState>((set) => ({
     set({ loading: true });
     try {
       const res = await api.put<Note>(`/notes/${id}`, data);
-      set((s) => ({
-        notes: s.notes.map((n) => (n.id === id ? res.data : n)),
-        currentNote: s.currentNote?.id === id ? res.data : s.currentNote,
-      }));
+      const updatedNote = res.data;
+      set((s) => {
+        const newLinkedNotesCache = { ...s.linkedNotesCache };
+        delete newLinkedNotesCache[id];
+        s.notes.forEach((n) => {
+          if (n.referenceIds?.includes(id) || updatedNote.referenceIds?.includes(n.id)) {
+            delete newLinkedNotesCache[n.id];
+          }
+        });
+        return {
+          notes: s.notes.map((n) => (n.id === id ? updatedNote : n)),
+          currentNote: s.currentNote?.id === id ? updatedNote : s.currentNote,
+          linkedNotesCache: newLinkedNotesCache,
+        };
+      });
     } finally {
       set({ loading: false });
     }
@@ -125,4 +156,56 @@ export const useNoteStore = create<NoteState>((set) => ({
 
   setSearchKeyword: (kw) => set({ searchKeyword: kw }),
   setTagFilter: (tags) => set({ tagFilter: tags }),
+
+  fetchLinkedNotes: async (noteId: string) => {
+    const { linkedNotesCache, notes } = get();
+    if (linkedNotesCache[noteId]) {
+      return linkedNotesCache[noteId];
+    }
+    const note = notes.find((n) => n.id === noteId);
+    if (!note) {
+      return [];
+    }
+    const referenceIds = note.referenceIds || [];
+    const resolvedNotes = referenceIds
+      .map((refId) => notes.find((n) => n.id === refId))
+      .filter((n): n is Note => n !== undefined);
+    set((s) => ({
+      linkedNotes: {
+        ...s.linkedNotes,
+        [noteId]: referenceIds,
+      },
+      linkedNotesCache: {
+        ...s.linkedNotesCache,
+        [noteId]: resolvedNotes,
+      },
+    }));
+    return resolvedNotes;
+  },
+
+  updateGraphNodePosition: (nodeId: string, x: number, y: number) => {
+    set((s) => {
+      if (!s.graphData) return {};
+      return {
+        graphData: {
+          ...s.graphData,
+          nodes: s.graphData.nodes.map((node) =>
+            node.id === nodeId ? { ...node, fx: x, fy: y } : node
+          ),
+        },
+      };
+    });
+  },
+
+  clearNodePositions: () => {
+    set((s) => {
+      if (!s.graphData) return {};
+      return {
+        graphData: {
+          ...s.graphData,
+          nodes: s.graphData.nodes.map((node) => ({ ...node, fx: null, fy: null })),
+        },
+      };
+    });
+  },
 }));

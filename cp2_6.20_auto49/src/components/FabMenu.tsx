@@ -19,21 +19,21 @@ export default function FabMenu() {
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3">
+    <div className={`fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3 ${open ? 'fab-open' : ''}`}>
       {open && (
         <div className="flex flex-col items-end gap-2">
-          {menuItems.map((item, i) => (
-            <button
-              key={item.label}
-              onClick={() => handleItemClick(item.path)}
-              className="animate-slide-up flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-lg transition-colors hover:bg-garden-warm"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <item.icon size={18} className="text-garden-teal" />
-              <span className="text-sm text-gray-700">{item.label}</span>
-            </button>
-          ))}
-        </div>
+        {menuItems.map((item, i) => (
+          <button
+            key={item.label}
+            onClick={() => handleItemClick(item.path)}
+            className="fab-subitem flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-lg transition-colors hover:bg-garden-warm"
+            style={{ transitionDelay: `${i * 60}ms` }}
+          >
+            <item.icon size={18} className="text-garden-teal" />
+            <span className="text-sm text-gray-700">{item.label}</span>
+          </button>
+        ))}
+      </div>
       )}
       <button
         onClick={() => setOpen((v) => !v)}

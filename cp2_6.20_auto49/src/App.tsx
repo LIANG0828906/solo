@@ -1,10 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from '@/pages/Home';
+import EditorPage from '@/pages/EditorPage';
+import GraphPage from '@/pages/GraphPage';
+import SearchPage from '@/pages/SearchPage';
 import FabMenu from '@/components/FabMenu';
-
-const EditorPage = () => <div className="p-8 text-center text-lg">Editor Page</div>;
-const GraphPage = () => <div className="p-8 text-center text-lg">Graph Page</div>;
-const SearchPage = () => <div className="p-8 text-center text-lg">Search Page</div>;
 
 export default function App() {
   return (
