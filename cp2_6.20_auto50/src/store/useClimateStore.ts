@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { DataType, ClimateDataMap, DataPoint, loadClimateData } from '@/utils/dataLoader'
+import { DataType, ClimateDataMap, loadClimateData } from '@/utils/dataLoader'
 
 export type ViewPreset = 'global' | 'northPole' | 'equator'
 
@@ -15,8 +15,8 @@ interface State {
 }
 
 interface Actions {
-  setYear: (year: number) => void
-  setDisplayYear: (year: number) => void
+  setYear: (year: number | ((prev: number) => number)) => void
+  setDisplayYear: (year: number | ((prev: number) => number)) => void
   setDataType: (type: DataType) => void
   togglePlaying: () => void
   toggleAutoRotate: () => void
@@ -34,8 +34,14 @@ export const useClimateStore = create<State & Actions>((set) => ({
   climateData: {},
   isLoading: true,
 
-  setYear: (year: number) => set({ currentYear: year }),
-  setDisplayYear: (year: number) => set({ displayYear: year }),
+  setYear: (year) =>
+    set((state) => ({
+      currentYear: typeof year === 'function' ? year(state.currentYear) : year,
+    })),
+  setDisplayYear: (year) =>
+    set((state) => ({
+      displayYear: typeof year === 'function' ? year(state.displayYear) : year,
+    })),
   setDataType: (type: DataType) => set({ dataType: type }),
   togglePlaying: () => set((state) => ({ isPlaying: !state.isPlaying })),
   toggleAutoRotate: () => set((state) => ({ autoRotate: !state.autoRotate })),
