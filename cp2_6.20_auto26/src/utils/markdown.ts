@@ -1,97 +1,5 @@
 import { marked } from 'marked';
 
-const codeBlockStyles: React.CSSProperties = {
-  backgroundColor: '#2d2d2d',
-  color: '#f8f8f2',
-  padding: '16px',
-  borderRadius: '8px',
-  overflowX: 'auto',
-  fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
-  fontSize: '14px',
-  lineHeight: '1.5',
-  margin: '12px 0'
-};
-
-const inlineCodeStyles: React.CSSProperties = {
-  backgroundColor: '#fff3e0',
-  color: '#e65100',
-  padding: '2px 6px',
-  borderRadius: '4px',
-  fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
-  fontSize: '0.9em'
-};
-
-const tableStyles: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  margin: '16px 0',
-  borderRadius: '8px',
-  overflow: 'hidden'
-};
-
-const thStyles: React.CSSProperties = {
-  backgroundColor: '#fff3e0',
-  color: '#e65100',
-  padding: '12px',
-  textAlign: 'left',
-  fontWeight: '600',
-  borderBottom: '2px solid #ffcc80'
-};
-
-const tdStyles: React.CSSProperties = {
-  padding: '12px',
-  borderBottom: '1px solid #ffe0b2',
-  color: '#5d4037'
-};
-
-const trEvenStyles: React.CSSProperties = {
-  backgroundColor: '#fffaf0'
-};
-
-const headingBaseStyles: React.CSSProperties = {
-  color: '#bf360c',
-  fontWeight: '700',
-  lineHeight: '1.3',
-  marginBottom: '16px'
-};
-
-const paragraphStyles: React.CSSProperties = {
-  color: '#5d4037',
-  lineHeight: '1.7',
-  marginBottom: '12px'
-};
-
-const listStyles: React.CSSProperties = {
-  color: '#5d4037',
-  lineHeight: '1.7',
-  marginBottom: '12px',
-  paddingLeft: '24px'
-};
-
-const blockquoteStyles: React.CSSProperties = {
-  borderLeft: '4px solid #ff8a65',
-  padding: '12px 16px',
-  margin: '16px 0',
-  backgroundColor: '#fff3e0',
-  borderRadius: '0 8px 8px 0',
-  color: '#6d4c41',
-  fontStyle: 'italic'
-};
-
-const linkStyles: React.CSSProperties = {
-  color: '#e65100',
-  textDecoration: 'none',
-  borderBottom: '1px solid #ffcc80',
-  transition: 'color 0.2s'
-};
-
-const hrStyles: React.CSSProperties = {
-  border: 'none',
-  height: '2px',
-  background: 'linear-gradient(90deg, transparent, #ffcc80, transparent)',
-  margin: '24px 0'
-};
-
 export function renderMarkdown(content: string): string {
   return marked.parse(content) as string;
 }
@@ -103,37 +11,169 @@ export function applyMarkdownStyles(): void {
   const style = document.createElement('style');
   style.id = styleId;
   style.textContent = `
-    .markdown-body h1 { font-size: 2em; margin-top: 0; }
-    .markdown-body h2 { font-size: 1.5em; margin-top: 24px; }
-    .markdown-body h3 { font-size: 1.25em; margin-top: 20px; }
-    .markdown-body h4 { font-size: 1.1em; margin-top: 16px; }
-    .markdown-body ul { list-style-type: disc; }
-    .markdown-body ol { list-style-type: decimal; }
-    .markdown-body li { margin-bottom: 8px; }
-    .markdown-body img { max-width: 100%; border-radius: 8px; }
-    .markdown-body strong { color: #bf360c; font-weight: 700; }
-    .markdown-body em { color: #6d4c41; }
+    .markdown-body {
+      color: #5d4037;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+    .markdown-body h1 { 
+      font-size: 2em; 
+      margin-top: 0; 
+      color: #bf360c; 
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #ffe0b2;
+    }
+    .markdown-body h2 { 
+      font-size: 1.5em; 
+      margin-top: 24px; 
+      color: #bf360c; 
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 16px;
+    }
+    .markdown-body h3 { 
+      font-size: 1.25em; 
+      margin-top: 20px; 
+      color: #e65100; 
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 12px;
+    }
+    .markdown-body h4 { 
+      font-size: 1.1em; 
+      margin-top: 16px; 
+      color: #e65100; 
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 12px;
+    }
+    .markdown-body p {
+      color: #5d4037;
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+    .markdown-body ul { 
+      list-style-type: disc; 
+      color: #5d4037;
+      line-height: 1.7;
+      margin-bottom: 12px;
+      padding-left: 24px;
+    }
+    .markdown-body ol { 
+      list-style-type: decimal; 
+      color: #5d4037;
+      line-height: 1.7;
+      margin-bottom: 12px;
+      padding-left: 24px;
+    }
+    .markdown-body li { 
+      margin-bottom: 8px; 
+    }
+    .markdown-body img { 
+      max-width: 100%; 
+      border-radius: 8px; 
+      margin: 16px 0;
+    }
+    .markdown-body strong { 
+      color: #bf360c; 
+      font-weight: 700; 
+    }
+    .markdown-body em { 
+      color: #6d4c41; 
+      font-style: italic;
+    }
+    .markdown-body a {
+      color: #e65100;
+      text-decoration: none;
+      border-bottom: 1px solid #ffcc80;
+      transition: all 0.2s ease;
+    }
+    .markdown-body a:hover {
+      color: #bf360c;
+      border-bottom-color: #e65100;
+    }
+    .markdown-body blockquote {
+      border-left: 4px solid #ff8a65;
+      padding: 12px 16px;
+      margin: 16px 0;
+      background-color: #fff3e0;
+      border-radius: 0 8px 8px 0;
+      color: #6d4c41;
+      font-style: italic;
+    }
+    .markdown-body blockquote p {
+      margin-bottom: 0;
+    }
+    .markdown-body hr {
+      border: none;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #ffcc80, transparent);
+      margin: 24px 0;
+    }
+    .markdown-body code {
+      background-color: #fff3e0;
+      color: #e65100;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    .markdown-body pre {
+      background-color: #2d2d2d;
+      color: #f8f8f2;
+      padding: 16px 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 16px 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    .markdown-body pre code {
+      background-color: transparent;
+      color: #f8f8f2;
+      padding: 0;
+      border-radius: 0;
+      font-size: 14px;
+    }
+    .markdown-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+    .markdown-body table th {
+      background-color: #fff3e0;
+      color: #e65100;
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #ffcc80;
+    }
+    .markdown-body table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #ffe0b2;
+      color: #5d4037;
+    }
+    .markdown-body table tr:nth-child(even) {
+      background-color: #fffaf0;
+    }
+    .markdown-body table tr:hover {
+      background-color: #fff8e1;
+    }
+    .markdown-body table tr:last-child td {
+      border-bottom: none;
+    }
   `;
   document.head.appendChild(style);
 }
 
 export function getMarkdownStyle(property: string): React.CSSProperties {
-  const stylesMap: Record<string, React.CSSProperties> = {
-    code: codeBlockStyles,
-    'inline-code': inlineCodeStyles,
-    table: tableStyles,
-    th: thStyles,
-    td: tdStyles,
-    'tr-even': trEvenStyles,
-    h1: { ...headingBaseStyles, fontSize: '2em', marginTop: '0' },
-    h2: { ...headingBaseStyles, fontSize: '1.5em', marginTop: '24px' },
-    h3: { ...headingBaseStyles, fontSize: '1.25em', marginTop: '20px' },
-    h4: { ...headingBaseStyles, fontSize: '1.1em', marginTop: '16px' },
-    p: paragraphStyles,
-    'ul,ol': listStyles,
-    blockquote: blockquoteStyles,
-    a: linkStyles,
-    hr: hrStyles
-  };
-  return stylesMap[property] || {};
+  return {};
 }
