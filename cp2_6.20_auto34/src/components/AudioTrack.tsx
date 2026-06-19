@@ -1,8 +1,142 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Track, Effect, useMixerStore } from '../stores/mixerStore';
 import Waveform from './Waveform';
+import Knob from './Knob';
 import VUMeter from './VUMeter';
 import { audioEngine } from '../utils/audioEngine';
+
+// ============================================================
+// 全局常量配置
+// ============================================================
+
+/** 悬停触发预览的延迟时间（毫秒）。防止用户快速扫过时误触发预览 */
+const HOVER_PREVIEW_DELAY_MS = 300;
+
+/** 悬停预览的播放时长（秒）。默认取前2秒，若音频更短则播放完整内容 */
+const PREVIEW_DURATION_SECONDS = 2;
+
+/**
+ * 悬停预览音量相对于主音量的比例。
+ * - 设置为30%是为了在用户快速判断内容时不干扰主混音或其他预览
+ * - 可根据需要与audioEngine或全局store同步调整
+ */
+const PREVIEW_VOLUME_RATIO = 0.3;
+
+/** 效果器折叠/展开状态在localStorage中的存储键名前缀 */
+const EFFECT_EXPANDED_STORAGE_KEY = 'mcs_effect_expanded_';
+
+// ============================================================
+// 效果器参数配置
+// ============================================================
+
+type ParamControl = 'slider' | 'knob';
+
+interface ParamConfig {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  label: string;
+  /** 指定使用旋钮还是滑块。对数级/大范围/需要精细调节的参数优先使用knob */
+  control?: ParamControl;
+  /** 该参数是否在对数尺度下分布，会影响滑块视觉体验 */
+  logarithmic?: boolean;
+}
+
+const effectDefaultParams: Record<string, Record<string, ParamConfig>> = {
+  Echo: {
+    delayTime: {
+      value: 0.3,
+      min: 0,
+      max: 2,
+      step: 0.01,
+      label: '延迟',
+      control: 'slider',
+    },
+    feedback: {
+      value: 0.3,
+      min: 0,
+      max: 0.95,
+      step: 0.01,
+      label: '反馈',
+      control: 'slider',
+    },
+    mix: {
+      value: 0.5,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: '混合',
+      control: 'slider',
+    },
+  },
+  Compressor: {
+    threshold: {
+      value: -24,
+      min: -60,
+      max: 0,
+      step: 1,
+      label: '阈值 (dB)',
+      control: 'slider',
+    },
+    ratio: {
+      value: 12,
+      min: 1,
+      max: 20,
+      step: 0.5,
+      label: '压缩比',
+      control: 'knob',
+    },
+    attack: {
+      value: 0.003,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      label: '启动 (s)',
+      control: 'knob',
+    },
+    release: {
+      value: 0.25,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: '释放 (s)',
+      control: 'knob',
+    },
+  },
+  Filter: {
+    frequency: {
+      value: 1000,
+      min: 20,
+      max: 20000,
+      step: 10,
+      label: '频率 (Hz)',
+      control: 'knob',
+      logarithmic: true,
+    },
+    Q: {
+      value: 1,
+      min: 0.1,
+      max: 20,
+      step: 0.1,
+      label: 'Q值',
+      control: 'knob',
+      logarithmic: true,
+    },
+    gain: {
+      value: 0,
+      min: -40,
+      max: 40,
+      step: 1,
+      label: '增益 (dB)',
+      control: 'slider',
+    },
+  },
+};
+
+// ============================================================
+// AudioTrackProps
+// ============================================================
 
 interface AudioTrackProps {
   track: Track;
@@ -10,27 +144,9 @@ interface AudioTrackProps {
   waveformHeight?: number;
 }
 
-const effectDefaultParams: Record<string, Record<string, { value: number; min: number; max: number; step?: number; label: string }>> = {
-  Echo: {
-    delayTime: { value: 0.3, min: 0, max: 2, step: 0.01, label: '延迟' },
-    feedback: { value: 0.3, min: 0, max: 0.95, step: 0.01, label: '反馈' },
-    mix: { value: 0.5, min: 0, max: 1, step: 0.01, label: '混合' },
-  },
-  Compressor: {
-    threshold: { value: -24, min: -60, max: 0, step: 1, label: '阈值' },
-    ratio: { value: 12, min: 1, max: 20, step: 0.5, label: '比率' },
-    attack: { value: 0.003, min: 0, max: 1, step: 0.001, label: '启动' },
-    release: { value: 0.25, min: 0, max: 1, step: 0.01, label: '释放' },
-  },
-  Filter: {
-    frequency: { value: 1000, min: 20, max: 20000, step: 10, label: '频率' },
-    Q: { value: 1, min: 0.1, max: 20, step: 0.1, label: 'Q值' },
-    gain: { value: 0, min: -40, max: 40, step: 1, label: '增益' },
-  },
-};
-
-const PREVIEW_DURATION = 2;
-const PREVIEW_VOLUME = 0.3;
+// ============================================================
+// AudioTrack 主组件
+// ============================================================
 
 const AudioTrack: React.FC<AudioTrackProps> = ({
   track,
@@ -44,19 +160,38 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
   const bpm = useMixerStore((state) => state.bpm);
   const currentTime = useMixerStore((state) => state.currentTime);
 
+  // ---------- 拖拽相关状态 ----------
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDraggingClip, setIsDraggingClip] = useState(false);
   const [clipOffset, setClipOffset] = useState(0);
   const clipRef = useRef<HTMLDivElement>(null);
+
+  // ---------- VU表状态 ----------
   const [vuLevels, setVuLevels] = useState({ left: 0, right: 0 });
 
+  // ---------- 悬停预览相关状态 ----------
   const [isHoveringClip, setIsHoveringClip] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  /** JS控制的预览进度条宽度百分比（0-100） */
+  const [previewProgress, setPreviewProgress] = useState(0);
+
   const previewSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const previewGainRef = useRef<GainNode | null>(null);
-  const hoverTimerRef = useRef<number | null>(null);
-  const previewStopTimerRef = useRef<number | null>(null);
 
+  /** 悬停延迟定时器。mouseleave必须立即清除，避免快速扫过多个片段误触发 */
+  const hoverTimerRef = useRef<number | null>(null);
+  /** 预览自动停止定时器 */
+  const previewStopTimerRef = useRef<number | null>(null);
+  /** 预览进度条requestAnimationFrame编号 */
+  const previewProgressRafRef = useRef<number | null>(null);
+  /** 预览启动时的AudioContext.currentTime，用于计算进度 */
+  const previewStartAudioTimeRef = useRef<number>(0);
+  /** 本次预览的实际播放时长，用于进度条计算 */
+  const previewActualDurationRef = useRef<number>(0);
+
+  // ============================================================
+  // VU表动画
+  // ============================================================
   useEffect(() => {
     let animationId: number;
     const updateVU = () => {
@@ -76,30 +211,78 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
     return () => cancelAnimationFrame(animationId);
   }, [track.audioBuffer, track.muted, track.volume]);
 
+  // ============================================================
+  // 预览停止 - 完整的资源清理逻辑
+  // ============================================================
   const stopPreview = useCallback(() => {
-    if (previewStopTimerRef.current) {
+    // 1) 清除预览停止定时器
+    if (previewStopTimerRef.current !== null) {
       window.clearTimeout(previewStopTimerRef.current);
       previewStopTimerRef.current = null;
     }
-    if (previewSourceRef.current) {
+
+    // 2) 清除预览进度条RAF
+    if (previewProgressRafRef.current !== null) {
+      cancelAnimationFrame(previewProgressRafRef.current);
+      previewProgressRafRef.current = null;
+    }
+
+    // 3) 停止并断开音频源节点
+    if (previewSourceRef.current !== null) {
       try {
+        previewSourceRef.current.onended = null;
         previewSourceRef.current.stop();
-      } catch (e) {
-        // ignore stop errors
+      } catch {
+        // 已停止或未启动，忽略错误
       }
-      previewSourceRef.current.disconnect();
+      try {
+        previewSourceRef.current.disconnect();
+      } catch {
+        // ignore disconnect errors
+      }
       previewSourceRef.current = null;
     }
-    if (previewGainRef.current) {
-      previewGainRef.current.disconnect();
+
+    // 4) 断开增益节点
+    if (previewGainRef.current !== null) {
+      try {
+        previewGainRef.current.disconnect();
+      } catch {
+        // ignore disconnect errors
+      }
       previewGainRef.current = null;
     }
+
+    // 5) 重置UI状态
     setIsPreviewing(false);
+    setPreviewProgress(0);
   }, []);
 
+  // ============================================================
+  // 预览进度条动画 (JS控制，保证与实际音频严格同步)
+  // ============================================================
+  const runPreviewProgressAnimation = useCallback(() => {
+    const step = () => {
+      const ctx = audioEngine.getContext();
+      const elapsed = ctx.currentTime - previewStartAudioTimeRef.current;
+      const duration = previewActualDurationRef.current;
+      const percent = duration > 0 ? Math.min(100, (elapsed / duration) * 100) : 100;
+      setPreviewProgress(percent);
+      if (percent < 100) {
+        previewProgressRafRef.current = requestAnimationFrame(step);
+      }
+    };
+    previewProgressRafRef.current = requestAnimationFrame(step);
+  }, []);
+
+  // ============================================================
+  // 启动预览
+  // ============================================================
   const startPreview = useCallback(() => {
+    // 防御性检查：正在拖拽或无音频不播放
     if (!track.audioBuffer || isDraggingClip) return;
 
+    // 先停止任何正在播放的预览，避免多个音频节点资源竞争、内存泄漏
     stopPreview();
 
     try {
@@ -107,60 +290,107 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
       const source = ctx.createBufferSource();
       source.buffer = track.audioBuffer;
 
+      // 预览音量 = 主音量 × 预览比例。始终保持预览比主混音安静。
+      const masterVol = useMixerStore.getState().masterVolume;
       const previewGain = ctx.createGain();
-      previewGain.gain.value = PREVIEW_VOLUME;
+      previewGain.gain.value = masterVol * PREVIEW_VOLUME_RATIO;
 
       previewGain.connect(ctx.destination);
       source.connect(previewGain);
 
-      const duration = Math.min(PREVIEW_DURATION, track.audioBuffer.duration);
+      // 计算实际预览时长（音频更短则播放完整内容）
+      const duration = Math.min(PREVIEW_DURATION_SECONDS, track.audioBuffer.duration);
       source.start(ctx.currentTime, 0, duration);
 
+      // 保存引用以便后续清理
       previewSourceRef.current = source;
       previewGainRef.current = previewGain;
+      previewStartAudioTimeRef.current = ctx.currentTime;
+      previewActualDurationRef.current = duration;
+
       setIsPreviewing(true);
 
+      // 启动进度条动画 (JS严格同步)
+      runPreviewProgressAnimation();
+
+      // 音频播放完毕自动停止
       previewStopTimerRef.current = window.setTimeout(() => {
         stopPreview();
-      }, duration * 1000);
+      }, duration * 1000 + 50);
 
       source.onended = () => {
-        setIsPreviewing(false);
+        stopPreview();
       };
     } catch (e) {
       console.error('Preview failed:', e);
+      stopPreview();
     }
-  }, [track.audioBuffer, isDraggingClip, stopPreview]);
+  }, [track.audioBuffer, isDraggingClip, stopPreview, runPreviewProgressAnimation]);
 
+  // ============================================================
+  // 悬停进入片段
+  // ============================================================
   const handleClipMouseEnter = useCallback(() => {
     if (isDraggingClip) return;
     setIsHoveringClip(true);
 
-    hoverTimerRef.current = window.setTimeout(() => {
-      startPreview();
-    }, 300);
-  }, [isDraggingClip, startPreview]);
-
-  const handleClipMouseLeave = useCallback(() => {
-    setIsHoveringClip(false);
-
-    if (hoverTimerRef.current) {
+    // 清除旧的定时器（理论上mouseleave时已清除，此处双保险）
+    if (hoverTimerRef.current !== null) {
       window.clearTimeout(hoverTimerRef.current);
       hoverTimerRef.current = null;
     }
 
+    // 延迟触发预览，防止快速扫过多个片段时误触发
+    hoverTimerRef.current = window.setTimeout(() => {
+      hoverTimerRef.current = null;
+      startPreview();
+    }, HOVER_PREVIEW_DELAY_MS);
+  }, [isDraggingClip, startPreview]);
+
+  // ============================================================
+  // 悬停离开片段 - 立即清理所有预览相关资源
+  // ============================================================
+  const handleClipMouseLeave = useCallback(() => {
+    setIsHoveringClip(false);
+
+    // 关键修复1：立即清除悬停延迟定时器，防止延迟触发
+    if (hoverTimerRef.current !== null) {
+      window.clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+
+    // 关键修复2：立即停止正在播放的预览，避免音频资源竞争
     stopPreview();
   }, [stopPreview]);
 
+  // ============================================================
+  // 组件卸载：兜底清理所有定时器和音频节点
+  // ============================================================
   useEffect(() => {
     return () => {
-      stopPreview();
-      if (hoverTimerRef.current) {
+      // 悬停定时器
+      if (hoverTimerRef.current !== null) {
         window.clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = null;
       }
+      // 预览停止定时器
+      if (previewStopTimerRef.current !== null) {
+        window.clearTimeout(previewStopTimerRef.current);
+        previewStopTimerRef.current = null;
+      }
+      // 进度条动画
+      if (previewProgressRafRef.current !== null) {
+        cancelAnimationFrame(previewProgressRafRef.current);
+        previewProgressRafRef.current = null;
+      }
+      // 音频节点
+      stopPreview();
     };
   }, [stopPreview]);
 
+  // ============================================================
+  // 静音/独奏/音量控制
+  // ============================================================
   const handleToggleMute = useCallback(() => {
     updateTrack(track.id, { muted: !track.muted });
   }, [track.id, track.muted, updateTrack]);
@@ -184,6 +414,9 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
     [track.id, updateTrack]
   );
 
+  // ============================================================
+  // 节拍吸附
+  // ============================================================
   const snapToBeat = useCallback(
     (time: number): number => {
       const beatDuration = 60 / bpm;
@@ -192,13 +425,22 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
     [bpm]
   );
 
+  // ============================================================
+  // 音频片段拖拽（位置调整）
+  // ============================================================
   const handleClipMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (!clipRef.current || !track.audioBuffer) return;
       e.preventDefault();
-      stopPreview();
-      setIsDraggingClip(true);
 
+      // 开始拖拽前立即停止预览，确保不影响拖拽逻辑
+      stopPreview();
+      if (hoverTimerRef.current !== null) {
+        window.clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = null;
+      }
+
+      setIsDraggingClip(true);
       const rect = clipRef.current.getBoundingClientRect();
       setClipOffset(e.clientX - rect.left);
     },
@@ -237,6 +479,9 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
     };
   }, [isDraggingClip, handleMouseMove, handleMouseUp]);
 
+  // ============================================================
+  // 效果器拖放
+  // ============================================================
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
@@ -328,6 +573,7 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
       onDrop={handleDrop}
     >
       <div className="flex items-start gap-4">
+        {/* -------- 左侧控制面板 -------- */}
         <div className="flex flex-col gap-3 w-48 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="flex gap-1">
@@ -392,6 +638,7 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
           />
         </div>
 
+        {/* -------- 中间波形区域 -------- */}
         <div className="flex-1 relative">
           <Waveform
             audioBuffer={track.audioBuffer}
@@ -428,6 +675,7 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
               </div>
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
 
+              {/* 悬停预览图标提示 */}
               <div
                 className={`absolute top-1 right-1 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200
                   ${isHoveringClip || isPreviewing ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}
@@ -453,12 +701,11 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
                 )}
               </div>
 
-              {isPreviewing && (
+              {/* 修复4：JS控制的预览进度条，与实际音频时长严格同步 */}
+              {isPreviewing && previewProgress > 0 && (
                 <div
-                  className="absolute bottom-0 left-0 h-1 bg-white/60 rounded-r transition-all duration-75"
-                  style={{
-                    animation: 'previewProgress 2s linear forwards',
-                  }}
+                  className="absolute bottom-0 left-0 h-1 bg-white/60 rounded-r"
+                  style={{ width: `${previewProgress}%` }}
                 />
               )}
             </div>
@@ -466,6 +713,7 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
         </div>
       </div>
 
+      {/* -------- 效果器链区域 -------- */}
       <div className="mt-4 pt-4 border-t border-gray-700/50">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs text-gray-400 font-medium">效果器链</span>
@@ -496,16 +744,13 @@ const AudioTrack: React.FC<AudioTrackProps> = ({
           )}
         </div>
       </div>
-
-      <style>{`
-        @keyframes previewProgress {
-          from { width: 0%; }
-          to { width: 100%; }
-        }
-      `}</style>
     </div>
   );
 };
+
+// ============================================================
+// EffectSlot 效果器槽位组件
+// ============================================================
 
 interface EffectSlotProps {
   effect: Effect;
@@ -524,8 +769,55 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
   onResetParam,
   onToggle,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  // 修复6：从localStorage读取折叠状态，刷新后保留
+  const storageKey = `${EFFECT_EXPANDED_STORAGE_KEY}${effect.id}`;
+  const getInitialExpanded = (): boolean => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored !== null) {
+        return stored === '1';
+      }
+    } catch {
+      // localStorage 不可用时（隐私模式等），默认折叠
+    }
+    return false;
+  };
+
+  const [isExpanded, setIsExpanded] = useState<boolean>(getInitialExpanded);
+
+  // 修复3：动态计算内容实际高度，避免动画截断或延迟
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<number>(0);
+
   const isEnabled = effect.params._enabled !== 0;
+
+  // 折叠状态变化时：1) 测量实际高度并设置；2) 持久化到localStorage
+  useEffect(() => {
+    if (isExpanded && contentRef.current) {
+      // 使用requestAnimationFrame确保DOM已渲染后测量
+      const measure = () => {
+        if (contentRef.current) {
+          const h = contentRef.current.getBoundingClientRect().height;
+          setContentHeight(Math.ceil(h) + 1); // +1px避免亚像素截断
+        }
+      };
+      requestAnimationFrame(measure);
+      // 再次测量以防字体/布局在首帧后变化
+      const id = window.setTimeout(measure, 50);
+      return () => window.clearTimeout(id);
+    } else {
+      setContentHeight(0);
+    }
+  }, [isExpanded, effect.type, effect.params]);
+
+  // 持久化折叠状态
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, isExpanded ? '1' : '0');
+    } catch {
+      // ignore storage errors
+    }
+  }, [isExpanded, storageKey]);
 
   const getEffectIcon = (type: string) => {
     switch (type) {
@@ -556,6 +848,10 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
     }
   };
 
+  const handleToggleExpanded = () => {
+    setIsExpanded((prev) => !prev);
+  };
+
   return (
     <div className="relative group">
       <div
@@ -573,8 +869,8 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
         }}
       >
         <div
-          className="p-3 cursor-pointer"
-          onClick={() => setIsExpanded(!isExpanded)}
+          className="p-3 cursor-pointer select-none"
+          onClick={handleToggleExpanded}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -610,6 +906,7 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* 开关 */}
               <div
                 className={`relative w-9 h-5 rounded-full transition-all duration-300 cursor-pointer
                   ${isEnabled ? '' : 'opacity-70'}
@@ -623,8 +920,7 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
                 onClick={handleToggleClick}
               >
                 <div
-                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ease-out
-                  `}
+                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-300 ease-out`}
                   style={{
                     left: isEnabled ? 'calc(100% - 18px)' : '2px',
                     transform: isEnabled ? 'scale(1.05)' : 'scale(1)',
@@ -632,9 +928,15 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
                 />
               </div>
 
+              {/* 删除按钮 */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  try {
+                    localStorage.removeItem(storageKey);
+                  } catch {
+                    /* ignore */
+                  }
                   onRemove();
                 }}
                 className="w-7 h-7 rounded-md hover:bg-red-500/20 text-gray-500 hover:text-red-400 flex items-center justify-center text-sm transition-all hover:scale-110"
@@ -643,6 +945,7 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
                 ✕
               </button>
 
+              {/* 展开箭头 */}
               <div
                 className={`w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all
                   ${isExpanded ? 'rotate-180 bg-white/10 text-white' : ''}
@@ -656,12 +959,17 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
           </div>
         </div>
 
+        {/* 修复3：使用动态计算的max-height值，避免动画截断或延迟 */}
         <div
-          className={`overflow-hidden transition-all duration-300 ease-in-out
-            ${isExpanded ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'}
-          `}
+          className="overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out"
+          style={{
+            maxHeight: `${contentHeight}px`,
+            opacity: isExpanded ? 1 : 0,
+          }}
         >
+          {/* 用这个容器测量实际高度 */}
           <div
+            ref={contentRef}
             className="px-3 pb-3 border-t"
             style={{ borderTopColor: `${trackColor}25` }}
           >
@@ -679,88 +987,32 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
               </button>
             </div>
 
+            {/* 修复5：根据参数配置动态选择旋钮(Knob)或滑块(Slider) */}
             <div className="space-y-3">
               {params && Object.entries(params).map(([key, config]) => {
                 const currentValue = effect.params[key] ?? config.value;
-                const percentage = ((currentValue - config.min) / (config.max - config.min)) * 100;
-                const isModified = Math.abs(currentValue - config.value) > 0.0001;
+                const control = config.control ?? 'slider';
 
-                return (
-                  <div key={key} className="group/param">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-gray-300 font-medium">{config.label}</span>
-                        {isModified && (
-                          <span
-                            className="w-1.5 h-1.5 rounded-full"
-                            style={{ background: trackColor, boxShadow: `0 0 4px ${trackColor}` }}
-                          />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-gray-400 font-mono bg-black/30 px-1.5 py-0.5 rounded min-w-[48px] text-center">
-                          {Number(currentValue.toFixed(2))}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onResetParam(key);
-                          }}
-                          className={`w-5 h-5 rounded flex items-center justify-center text-[10px] transition-all
-                            ${isModified
-                              ? 'text-gray-400 hover:text-white hover:bg-white/20 opacity-100'
-                              : 'opacity-0 pointer-events-none'
-                            }
-                          `}
-                          title={`重置 ${config.label}`}
-                          style={{ color: isModified ? trackColor : undefined }}
-                        >
-                          ↺
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="relative">
-                      <input
-                        type="range"
-                        min={config.min}
-                        max={config.max}
-                        step={config.step ?? 0.01}
-                        value={currentValue}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          onParamChange(key, parseFloat(e.target.value));
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="w-full h-6 appearance-none bg-transparent cursor-pointer z-10 relative"
-                        style={{
-                          WebkitAppearance: 'none',
-                        }}
-                      />
-                      <div
-                        className="absolute top-1/2 left-0 right-0 h-1.5 rounded-full -translate-y-1/2 pointer-events-none"
-                        style={{
-                          background: `linear-gradient(to right, ${trackColor} 0%, ${trackColor} ${percentage}%, rgba(75,85,99,0.6) ${percentage}%, rgba(75,85,99,0.6) 100%)`,
-                          boxShadow: `inset 0 1px 2px rgba(0,0,0,0.4)`,
-                        }}
-                      />
-                      <div
-                        className="absolute top-1/2 w-3.5 h-3.5 rounded-full -translate-y-1/2 pointer-events-none transition-transform hover:scale-125"
-                        style={{
-                          left: `calc(${percentage}% - 7px)`,
-                          background: 'linear-gradient(145deg, #ffffff, #e5e7eb)',
-                          boxShadow: `0 2px 6px rgba(0,0,0,0.4), 0 0 0 2px ${trackColor}80, 0 0 8px ${trackColor}40`,
-                          border: '1px solid rgba(255,255,255,0.8)',
-                        }}
-                      />
-                    </div>
-
-                    <div className="flex justify-between mt-1">
-                      <span className="text-[9px] text-gray-600">{config.min}</span>
-                      <span className="text-[9px] text-gray-600">{config.max}</span>
-                    </div>
-                  </div>
+                return control === 'knob' ? (
+                  <KnobParamRow
+                    key={key}
+                    paramKey={key}
+                    config={config}
+                    currentValue={currentValue}
+                    trackColor={trackColor}
+                    onChange={(val) => onParamChange(key, val)}
+                    onReset={() => onResetParam(key)}
+                  />
+                ) : (
+                  <SliderParamRow
+                    key={key}
+                    paramKey={key}
+                    config={config}
+                    currentValue={currentValue}
+                    trackColor={trackColor}
+                    onChange={(val) => onParamChange(key, val)}
+                    onReset={() => onResetParam(key)}
+                  />
                 );
               })}
             </div>
@@ -777,6 +1029,197 @@ const EffectSlot: React.FC<EffectSlotProps> = ({
     </div>
   );
 };
+
+// ============================================================
+// SliderParamRow - 滑块参数行 (适合直观的大范围线性调节)
+// ============================================================
+
+interface ParamRowProps {
+  paramKey: string;
+  config: ParamConfig;
+  currentValue: number;
+  trackColor: string;
+  onChange: (value: number) => void;
+  onReset: () => void;
+}
+
+const SliderParamRow: React.FC<ParamRowProps> = ({
+  config,
+  currentValue,
+  trackColor,
+  onChange,
+  onReset,
+}) => {
+  const isModified = Math.abs(currentValue - config.value) > 0.0001;
+  const percentage = ((currentValue - config.min) / (config.max - config.min)) * 100;
+
+  const formatValue = (v: number) => {
+    if (config.step && config.step >= 1) return String(Math.round(v));
+    return Number(v.toFixed(3)).toString();
+  };
+
+  return (
+    <div className="group/param">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-gray-300 font-medium">{config.label}</span>
+          {isModified && (
+            <span
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: trackColor, boxShadow: `0 0 4px ${trackColor}` }}
+            />
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-gray-400 font-mono bg-black/30 px-1.5 py-0.5 rounded min-w-[48px] text-center">
+            {formatValue(currentValue)}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onReset();
+            }}
+            className={`w-5 h-5 rounded flex items-center justify-center text-[10px] transition-all
+              ${isModified
+                ? 'text-gray-400 hover:text-white hover:bg-white/20 opacity-100'
+                : 'opacity-0 pointer-events-none'
+              }
+            `}
+            title={`重置 ${config.label}`}
+            style={{ color: isModified ? trackColor : undefined }}
+          >
+            ↺
+          </button>
+        </div>
+      </div>
+
+      <div className="relative">
+        <input
+          type="range"
+          min={config.min}
+          max={config.max}
+          step={config.step ?? 0.01}
+          value={currentValue}
+          onChange={(e) => {
+            e.stopPropagation();
+            onChange(parseFloat(e.target.value));
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="w-full h-6 appearance-none bg-transparent cursor-pointer z-10 relative"
+          style={{ WebkitAppearance: 'none' }}
+        />
+        <div
+          className="absolute top-1/2 left-0 right-0 h-1.5 rounded-full -translate-y-1/2 pointer-events-none"
+          style={{
+            background: `linear-gradient(to right, ${trackColor} 0%, ${trackColor} ${percentage}%, rgba(75,85,99,0.6) ${percentage}%, rgba(75,85,99,0.6) 100%)`,
+            boxShadow: `inset 0 1px 2px rgba(0,0,0,0.4)`,
+          }}
+        />
+        <div
+          className="absolute top-1/2 w-3.5 h-3.5 rounded-full -translate-y-1/2 pointer-events-none transition-transform hover:scale-125"
+          style={{
+            left: `calc(${percentage}% - 7px)`,
+            background: 'linear-gradient(145deg, #ffffff, #e5e7eb)',
+            boxShadow: `0 2px 6px rgba(0,0,0,0.4), 0 0 0 2px ${trackColor}80, 0 0 8px ${trackColor}40`,
+            border: '1px solid rgba(255,255,255,0.8)',
+          }}
+        />
+      </div>
+
+      <div className="flex justify-between mt-1">
+        <span className="text-[9px] text-gray-600">{formatValue(config.min)}</span>
+        <span className="text-[9px] text-gray-600">{formatValue(config.max)}</span>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// KnobParamRow - 旋钮参数行 (适合精细调节的参数如频率/Q值/压缩比)
+// ============================================================
+
+const KnobParamRow: React.FC<ParamRowProps> = ({
+  config,
+  currentValue,
+  trackColor,
+  onChange,
+  onReset,
+}) => {
+  const isModified = Math.abs(currentValue - config.value) > 0.0001;
+
+  const formatValue = (v: number) => {
+    if (config.step && config.step >= 1) return String(Math.round(v));
+    return Number(v.toFixed(3)).toString();
+  };
+
+  return (
+    <div className="group/param flex items-center gap-3 py-1">
+      <div className="relative flex-shrink-0" style={{ width: 56, height: 56 }}>
+        <Knob
+          value={currentValue}
+          min={config.min}
+          max={config.max}
+          step={config.step ?? 0.01}
+          defaultValue={config.value}
+          label=""
+          size={56}
+          onChange={onChange}
+          accentColor={trackColor}
+        />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-300 font-medium">{config.label}</span>
+            {isModified && (
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: trackColor, boxShadow: `0 0 4px ${trackColor}` }}
+              />
+            )}
+            {config.logarithmic && (
+              <span className="text-[9px] text-gray-600 px-1 rounded bg-black/20">
+                LOG
+              </span>
+            )}
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onReset();
+            }}
+            className={`w-5 h-5 rounded flex items-center justify-center text-[10px] transition-all
+              ${isModified
+                ? 'text-gray-400 hover:text-white hover:bg-white/20 opacity-100'
+                : 'opacity-0 pointer-events-none'
+              }
+            `}
+            title={`重置 ${config.label}`}
+            style={{ color: isModified ? trackColor : undefined }}
+          >
+            ↺
+          </button>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-gray-400 font-mono bg-black/30 px-1.5 py-0.5 rounded">
+            {formatValue(currentValue)}
+          </span>
+          <div className="flex gap-1">
+            <span className="text-[9px] text-gray-600">{formatValue(config.min)}</span>
+            <span className="text-[9px] text-gray-700">~</span>
+            <span className="text-[9px] text-gray-600">{formatValue(config.max)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// EmptyEffectSlot - 空效果器槽位
+// ============================================================
 
 interface EmptyEffectSlotProps {
   onDrop: (e: React.DragEvent) => void;
