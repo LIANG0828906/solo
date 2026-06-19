@@ -59,11 +59,18 @@ export const isPointNearLine = (point: Point, linePoints: Point[], threshold: nu
   return false;
 };
 
-export const catmullRomSpline = (points: Point[], alpha: number = 0.5, resolution: number = 5): Point[] => {
+const PIXELS_PER_POINT = 3;
+const MIN_RESOLUTION = 3;
+const MAX_RESOLUTION = 20;
+
+const getDynamicResolution = (p1: Point, p2: Point): number => {
+  const dist = distance(p1, p2);
+  const resolution = Math.ceil(dist / PIXELS_PER_POINT);
+  return Math.max(MIN_RESOLUTION, Math.min(MAX_RESOLUTION, resolution));
+};
+
+export const catmullRomSpline = (points: Point[], alpha: number = 0.5, fixedResolution?: number): Point[] => {
   if (points.length < 2) return points;
-  if (points.length === 2) {
-    return interpolateLinear(points[0], points[1], resolution);
-  }
 
   const result: Point[] = [];
 
@@ -72,6 +79,8 @@ export const catmullRomSpline = (points: Point[], alpha: number = 0.5, resolutio
     const p1 = points[i];
     const p2 = points[i + 1];
     const p3 = i === points.length - 2 ? points[points.length - 1] : points[i + 2];
+
+    const resolution = fixedResolution ?? getDynamicResolution(p1, p2);
 
     for (let t = 0; t < 1; t += 1 / resolution) {
       const t2 = t * t;

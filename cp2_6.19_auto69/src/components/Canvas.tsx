@@ -8,7 +8,6 @@ import {
   isPointNearLine,
   getBoundingBox,
   getCenter,
-  rotatePoint,
   distance,
   getAngle,
 } from '../utils/geometry';
@@ -28,9 +27,60 @@ interface DragState {
   startPoints: Point[];
 }
 
+const CURSOR_LABEL_WIDTH = 120;
+const CURSOR_LABEL_HEIGHT = 40;
+const CURSOR_LABEL_OFFSET = 16;
+
+const drawAntiAliasedLine = (
+  ctx: CanvasRenderingContext2D,
+  points: Point[],
+  color: string,
+  strokeWidth: number,
+) => {
+  if (points.length < 2) return;
+
+  ctx.save();
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = 0.15;
+  ctx.lineWidth = strokeWidth + 2;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.stroke();
+
+  ctx.globalAlpha = 0.35;
+  ctx.lineWidth = strokeWidth + 1;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.stroke();
+
+  ctx.globalAlpha = 1.0;
+  ctx.lineWidth = strokeWidth;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x + 0.5, points[0].y + 0.5);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x + 0.5, points[i].y + 0.5);
+  }
+  ctx.stroke();
+
+  ctx.restore();
+};
+
 const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastService }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const cursorLabelRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>();
   const lastFrameTimeRef = useRef<number>(0);
 
@@ -56,6 +106,7 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
   const [drawingPoints, setDrawingPoints] = useState<Point[]>([]);
   const [mousePos, setMousePos] = useState<Point>({ x: 0, y: 0 });
   const [showCursorLabel, setShowCursorLabel] = useState(false);
+  const [labelPosition, setLabelPosition] = useState({ left: 0, top: 0 });
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
 
@@ -86,6 +137,117 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
       y: (clientY - rect.top - offset.y) / scale,
     };
   }, [offset, scale]);
+
+  const updateLabelPosition = useCallback((canvasX: number, canvasY: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const screenX = canvasX * scale + offset.x;
+    const screenY = canvasY * scale + offset.y;
+
+    let left = screenX + CURSOR_LABEL_OFFSET;
+    let top = screenY + CURSOR_LABEL_OFFSET;
+
+    if (screenX + CURSOR_LABEL_OFFSET + CURSOR_LABEL_WIDTH > containerRect.width) {
+      left = screenX - CURSOR_LABEL_WIDTH - CURSOR_LABEL_OFFSET;
+    }
+
+    if (screenY + CURSOR_LABEL_OFFSET + CURSOR_LABEL_HEIGHT > containerRect.height) {
+      top = screenY - CURSOR_LABEL_HEIGHT - CURSOR_LABEL_OFFSET;
+    }
+
+    left = Math.max(0, Math.min(left, containerRect.width - CURSOR_LABEL_WIDTH));
+    top = Math.max(0, Math.min(top, containerRect.height - CURSOR_LABEL_HEIGHT));
+
+    setLabelPosition({ left, top });
+  }, [scale, offset]);
+
+  const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
+    if (!dragStateRef.current.isDragging) return;
+
+    const pos = getCanvasCoords(e.clientX, e.clientY);
+    setMousePos(pos);
+    updateLabelPosition(e.clientX - (containerRef.current?.getBoundingClientRect().left ?? 0),
+                        e.clientY - (containerRef.current?.getBoundingClientRect().top ?? 0));
+
+    const { elementId, handleType, startX, startY, startElementX, startElementY, startRotation, startPoints } = dragStateRef.current;
+    if (!elementId) return;
+
+    const element = elements.find(el => el.id === elementId) as LineElement | null;
+    if (!element) return;
+
+    if (handleType === 'move') {
+      const dx = pos.x - startX;
+      const dy = pos.y - startY;
+      updateElement(elementId, {
+        x: startElementX + dx,
+        y: startElementY + dy,
+      });
+    } else if (handleType === 'rotate') {
+      const bbox = getBoundingBox(element.smoothedPoints);
+      const center = getCenter(bbox);
+      const centerPos = { x: center.x + element.x, y: center.y + element.y };
+      const startAngle = getAngle(centerPos, { x: startX, y: startY });
+      const currentAngle = getAngle(centerPos, pos);
+      const deltaAngle = currentAngle - startAngle;
+      updateElement(elementId, {
+        rotation: startRotation + deltaAngle,
+      });
+    } else if (handleType && ['tl', 'tr', 'bl', 'br'].includes(handleType)) {
+      const center = getCenter(getBoundingBox(startPoints));
+      const dx = pos.x - startX;
+      const dy = pos.y - startY;
+      let scaleFactor = 1;
+
+      if (handleType === 'br') scaleFactor = 1 + (dx + dy) / 200;
+      if (handleType === 'tl') scaleFactor = 1 - (dx + dy) / 200;
+      if (handleType === 'tr') scaleFactor = 1 + (dx - dy) / 200;
+      if (handleType === 'bl') scaleFactor = 1 + (-dx + dy) / 200;
+
+      scaleFactor = Math.max(0.2, Math.min(3, scaleFactor));
+
+      const scaledPoints = startPoints.map(p => ({
+        x: center.x + (p.x - center.x) * scaleFactor,
+        y: center.y + (p.y - center.y) * scaleFactor,
+      }));
+
+      updateElement(elementId, {
+        smoothedPoints: scaledPoints,
+        points: startPoints.map(p => ({
+          x: center.x + (p.x - center.x) * scaleFactor,
+          y: center.y + (p.y - center.y) * scaleFactor,
+        })),
+      });
+    }
+  }, [elements, getCanvasCoords, updateElement, updateLabelPosition]);
+
+  const handleGlobalMouseUp = useCallback(() => {
+    if (isDrawing && drawingPoints.length > 1) {
+      const smoothedPoints = catmullRomSpline(drawingPoints, 0.5);
+      addElement({
+        type: 'line',
+        points: drawingPoints,
+        smoothedPoints,
+        color: currentColor,
+        strokeWidth: 3,
+        x: 0,
+        y: 0,
+        rotation: 0,
+        scale: 1,
+      });
+    }
+
+    setIsDrawing(false);
+    setDrawingPoints([]);
+    setShowCursorLabel(false);
+    dragStateRef.current.isDragging = false;
+    dragStateRef.current.elementId = null;
+    dragStateRef.current.handleType = null;
+
+    window.removeEventListener('mousemove', handleGlobalMouseMove);
+    window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [isDrawing, drawingPoints, addElement, currentColor, handleGlobalMouseMove]);
 
   useEffect(() => {
     const handleMessage = (message: BroadcastMessage) => {
@@ -176,14 +338,14 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
 
     for (let x = Math.floor(startX / gridSize) * gridSize; x < endX; x += gridSize) {
       ctx.beginPath();
-      ctx.moveTo(x, startY);
-      ctx.lineTo(x, endY);
+      ctx.moveTo(x + 0.5, startY);
+      ctx.lineTo(x + 0.5, endY);
       ctx.stroke();
     }
     for (let y = Math.floor(startY / gridSize) * gridSize; y < endY; y += gridSize) {
       ctx.beginPath();
-      ctx.moveTo(startX, y);
-      ctx.lineTo(endX, y);
+      ctx.moveTo(startX, y + 0.5);
+      ctx.lineTo(endX, y + 0.5);
       ctx.stroke();
     }
 
@@ -195,41 +357,14 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
         ctx.rotate((element.rotation * Math.PI) / 180);
         ctx.translate(-center.x, -center.y);
 
-        ctx.strokeStyle = element.color;
-        ctx.lineWidth = element.strokeWidth;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-
-        const points = element.smoothedPoints;
-        if (points.length > 1) {
-          ctx.beginPath();
-          ctx.moveTo(points[0].x, points[0].y);
-          for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
-          }
-          ctx.stroke();
-        }
+        drawAntiAliasedLine(ctx, element.smoothedPoints, element.color, element.strokeWidth);
         ctx.restore();
       }
     });
 
     if (isDrawing && drawingPoints.length > 1) {
-      const smoothedPoints = catmullRomSpline(drawingPoints, 0.5, 3);
-      ctx.strokeStyle = currentColor;
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-
-      ctx.beginPath();
-      ctx.moveTo(smoothedPoints[0].x, smoothedPoints[0].y);
-      for (let i = 1; i < smoothedPoints.length; i++) {
-        ctx.lineTo(smoothedPoints[i].x, smoothedPoints[i].y);
-      }
-      ctx.stroke();
+      const smoothedPoints = catmullRomSpline(drawingPoints, 0.5, 4);
+      drawAntiAliasedLine(ctx, smoothedPoints, currentColor, 3);
     }
 
     ctx.restore();
@@ -266,10 +401,19 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
     for (let i = elements.length - 1; i >= 0; i--) {
       const element = elements[i];
       if (element.type === 'line') {
-        const transformedPoints = element.smoothedPoints.map(p => ({
-          x: p.x + element.x,
-          y: p.y + element.y,
-        }));
+        const bbox = getBoundingBox(element.smoothedPoints);
+        const center = getCenter(bbox);
+        const transformedPoints = element.smoothedPoints.map(p => {
+          const rad = (element.rotation * Math.PI) / 180;
+          const cos = Math.cos(rad);
+          const sin = Math.sin(rad);
+          const dx = p.x - center.x;
+          const dy = p.y - center.y;
+          return {
+            x: center.x + dx * cos - dy * sin + element.x,
+            y: center.y + dx * sin + dy * cos + element.y,
+          };
+        });
         if (isPointNearLine(point, transformedPoints, 10)) {
           return element;
         }
@@ -282,19 +426,35 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
     const bbox = getBoundingBox(element.smoothedPoints);
     const center = getCenter(bbox);
 
+    const rad = (element.rotation * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
+    const rotateAroundCenter = (p: Point): Point => {
+      const dx = p.x - center.x;
+      const dy = p.y - center.y;
+      return {
+        x: center.x + dx * cos - dy * sin + element.x,
+        y: center.y + dx * sin + dy * cos + element.y,
+      };
+    };
+
     const handles = [
-      { type: 'tl' as HandleType, x: bbox.minX - 6, y: bbox.minY - 6 },
-      { type: 'tr' as HandleType, x: bbox.maxX - 6, y: bbox.minY - 6 },
-      { type: 'bl' as HandleType, x: bbox.minX - 6, y: bbox.maxY - 6 },
-      { type: 'br' as HandleType, x: bbox.maxX - 6, y: bbox.maxY - 6 },
-      { type: 'rotate' as HandleType, x: center.x - 8, y: bbox.minY - 40 },
+      { type: 'tl' as HandleType, local: { x: bbox.minX - 6, y: bbox.minY - 6 } },
+      { type: 'tr' as HandleType, local: { x: bbox.maxX - 6, y: bbox.minY - 6 } },
+      { type: 'bl' as HandleType, local: { x: bbox.minX - 6, y: bbox.maxY - 6 } },
+      { type: 'br' as HandleType, local: { x: bbox.maxX - 6, y: bbox.maxY - 6 } },
+      { type: 'rotate' as HandleType, local: { x: center.x - 8, y: bbox.minY - 40 } },
     ];
 
-    return handles.map(h => ({
-      ...h,
-      x: h.x + element.x,
-      y: h.y + element.y,
-    }));
+    return handles.map(h => {
+      const rotated = rotateAroundCenter({ x: h.local.x + 6, y: h.local.y + 6 });
+      return {
+        type: h.type,
+        x: rotated.x - (h.type === 'rotate' ? 9 : 6),
+        y: rotated.y - (h.type === 'rotate' ? 9 : 6),
+      };
+    });
   };
 
   const getHandleAtPoint = (point: Point): { elementId: string; handleType: HandleType } | null => {
@@ -304,11 +464,31 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
 
     const handles = getHandles(element);
     for (const handle of handles) {
-      if (distance(point, { x: handle.x + 8, y: handle.y + 8 }) < 15) {
+      const handleCenter = {
+        x: handle.x + (handle.type === 'rotate' ? 9 : 6),
+        y: handle.y + (handle.type === 'rotate' ? 9 : 6),
+      };
+      if (distance(point, handleCenter) < 18) {
         return { elementId: element.id, handleType: handle.type };
       }
     }
     return null;
+  };
+
+  const startDrag = (elementId: string, handleType: HandleType, pos: Point, startElementX: number, startElementY: number, startRotation: number, startPoints: Point[] = []) => {
+    dragStateRef.current = {
+      isDragging: true,
+      elementId,
+      handleType,
+      startX: pos.x,
+      startY: pos.y,
+      startElementX,
+      startElementY,
+      startRotation,
+      startPoints: [...startPoints],
+    };
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -318,6 +498,11 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
       setIsDrawing(true);
       setDrawingPoints([pos]);
       setShowCursorLabel(true);
+      setMousePos(pos);
+      updateLabelPosition(e.clientX - e.currentTarget.getBoundingClientRect().left,
+                          e.clientY - e.currentTarget.getBoundingClientRect().top);
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
       return;
     }
 
@@ -342,17 +527,15 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
       if (handleInfo) {
         const element = elements.find(e => e.id === handleInfo.elementId) as LineElement;
         if (element) {
-          dragStateRef.current = {
-            isDragging: true,
-            elementId: handleInfo.elementId,
-            handleType: handleInfo.handleType,
-            startX: pos.x,
-            startY: pos.y,
-            startElementX: element.x,
-            startElementY: element.y,
-            startRotation: element.rotation,
-            startPoints: [...element.smoothedPoints],
-          };
+          startDrag(
+            handleInfo.elementId,
+            handleInfo.handleType,
+            pos,
+            element.x,
+            element.y,
+            element.rotation,
+            element.smoothedPoints,
+          );
           return;
         }
       }
@@ -360,17 +543,7 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
       const line = findLineAtPoint(pos);
       if (line) {
         setSelectedElement(line.id);
-        dragStateRef.current = {
-          isDragging: true,
-          elementId: line.id,
-          handleType: 'move',
-          startX: pos.x,
-          startY: pos.y,
-          startElementX: line.x,
-          startElementY: line.y,
-          startRotation: line.rotation,
-          startPoints: [],
-        };
+        startDrag(line.id, 'move', pos, line.x, line.y, line.rotation);
         return;
       }
 
@@ -379,8 +552,12 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (dragStateRef.current.isDragging) return;
+
+    const containerRect = e.currentTarget.getBoundingClientRect();
     const pos = getCanvasCoords(e.clientX, e.clientY);
     setMousePos(pos);
+    updateLabelPosition(e.clientX - containerRect.left, e.clientY - containerRect.top);
 
     if (isDrawing && currentTool === 'pen') {
       setDrawingPoints(prev => {
@@ -390,79 +567,7 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
         }
         return prev;
       });
-      return;
     }
-
-    if (dragStateRef.current.isDragging && dragStateRef.current.elementId) {
-      const { elementId, handleType, startX, startY, startElementX, startElementY, startRotation, startPoints } = dragStateRef.current;
-      const element = elements.find(e => e.id === elementId) as LineElement;
-      if (!element) return;
-
-      if (handleType === 'move') {
-        const dx = pos.x - startX;
-        const dy = pos.y - startY;
-        updateElement(elementId, {
-          x: startElementX + dx,
-          y: startElementY + dy,
-        });
-      } else if (handleType === 'rotate') {
-        const center = getCenter(getBoundingBox(element.smoothedPoints));
-        const centerPos = { x: center.x + element.x, y: center.y + element.y };
-        const angle = getAngle(centerPos, pos) - getAngle(centerPos, { x: startX, y: startY });
-        updateElement(elementId, {
-          rotation: startRotation + angle,
-        });
-      } else if (handleType && ['tl', 'tr', 'bl', 'br'].includes(handleType)) {
-        const center = getCenter(getBoundingBox(startPoints));
-        const dx = pos.x - startX;
-        const dy = pos.y - startY;
-        let scaleFactor = 1;
-
-        if (handleType === 'br') scaleFactor = 1 + (dx + dy) / 200;
-        if (handleType === 'tl') scaleFactor = 1 - (dx + dy) / 200;
-        if (handleType === 'tr') scaleFactor = 1 + (dx - dy) / 200;
-        if (handleType === 'bl') scaleFactor = 1 + (-dx + dy) / 200;
-
-        scaleFactor = Math.max(0.2, Math.min(3, scaleFactor));
-
-        const scaledPoints = startPoints.map(p => ({
-          x: center.x + (p.x - center.x) * scaleFactor,
-          y: center.y + (p.y - center.y) * scaleFactor,
-        }));
-
-        updateElement(elementId, {
-          smoothedPoints: scaledPoints,
-          points: startPoints.map(p => ({
-            x: center.x + (p.x - center.x) * scaleFactor,
-            y: center.y + (p.y - center.y) * scaleFactor,
-          })),
-        });
-      }
-    }
-  };
-
-  const handleMouseUp = () => {
-    if (isDrawing && drawingPoints.length > 1) {
-      const smoothedPoints = catmullRomSpline(drawingPoints, 0.5, 5);
-      addElement({
-        type: 'line',
-        points: drawingPoints,
-        smoothedPoints,
-        color: currentColor,
-        strokeWidth: 3,
-        x: 0,
-        y: 0,
-        rotation: 0,
-        scale: 1,
-      });
-    }
-
-    setIsDrawing(false);
-    setDrawingPoints([]);
-    setShowCursorLabel(false);
-    dragStateRef.current.isDragging = false;
-    dragStateRef.current.elementId = null;
-    dragStateRef.current.handleType = null;
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -533,7 +638,7 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
   const handleTouchEnd = () => {
     pinchStateRef.current.active = false;
     if (isDrawing) {
-      handleMouseUp();
+      handleGlobalMouseUp();
     }
   };
 
@@ -561,9 +666,9 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
         }
 
         .cursor-label {
-          position: fixed;
+          position: absolute;
           pointer-events: none;
-          background: rgba(30, 41, 59, 0.9);
+          background: rgba(30, 41, 59, 0.92);
           color: white;
           padding: 6px 10px;
           border-radius: 6px;
@@ -573,8 +678,9 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
           display: flex;
           align-items: center;
           gap: 8px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
           transition: opacity 0.15s ease;
+          backdrop-filter: blur(4px);
         }
 
         .cursor-label.hidden {
@@ -586,6 +692,7 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
           height: 14px;
           border-radius: 3px;
           border: 1px solid rgba(255, 255, 255, 0.5);
+          box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
         }
 
         .cursor-label-text {
@@ -608,10 +715,13 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
           border-radius: 2px;
           cursor: pointer;
           z-index: 50;
+          box-sizing: border-box;
+          transition: transform 0.1s ease;
         }
 
         .handle:hover {
           background: #3b82f6;
+          transform: scale(1.15);
         }
 
         .handle.rotate {
@@ -620,13 +730,14 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
           border-radius: 50%;
           cursor: grab;
           background: #3b82f6;
-          border-color: white;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+          border: 2px solid white;
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5);
         }
 
         .handle.rotate:hover {
-          transform: scale(1.1);
+          transform: scale(1.2);
           background: #2563eb;
+          cursor: grabbing;
         }
 
         .handle.rotate::after {
@@ -637,6 +748,7 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
           transform: translate(-50%, -50%);
           color: white;
           font-size: 10px;
+          font-weight: bold;
         }
 
         .rotate-line {
@@ -644,13 +756,15 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
           width: 2px;
           background: #3b82f6;
           z-index: 49;
+          transform-origin: top center;
         }
 
         .selection-outline {
           position: absolute;
-          border: 1px dashed #3b82f6;
+          border: 1.5px dashed #3b82f6;
           pointer-events: none;
           z-index: 40;
+          border-radius: 2px;
         }
 
         .sticky-notes-layer {
@@ -673,8 +787,6 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
           className="canvas-element"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
           onDoubleClick={handleDoubleClick}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -682,10 +794,11 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
         />
 
         <div
+          ref={cursorLabelRef}
           className={`cursor-label ${!showCursorLabel && !isDrawing ? 'hidden' : ''}`}
           style={{
-            left: mousePos.x * scale + offset.x + 20,
-            top: mousePos.y * scale + offset.y + 68,
+            left: labelPosition.left,
+            top: labelPosition.top,
           }}
         >
           <div
@@ -709,17 +822,7 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
                 element={element}
                 onDragStart={(e) => {
                   const pos = getCanvasCoords(e.clientX, e.clientY);
-                  dragStateRef.current = {
-                    isDragging: true,
-                    elementId: element.id,
-                    handleType: 'move',
-                    startX: pos.x,
-                    startY: pos.y,
-                    startElementX: element.x,
-                    startElementY: element.y,
-                    startRotation: element.rotation,
-                    startPoints: [],
-                  };
+                  startDrag(element.id, 'move', pos, element.x, element.y, element.rotation);
                 }}
               />
             ))}
@@ -729,51 +832,95 @@ const Canvas: React.FC<{ broadcastService: IBroadcastService }> = ({ broadcastSe
           const bbox = getBoundingBox(selectedElement.smoothedPoints);
           const handles = getHandles(selectedElement);
           const center = getCenter(bbox);
-          const centerX = center.x + selectedElement.x;
-          const centerY = center.y + selectedElement.y;
+
+          const rad = (selectedElement.rotation * Math.PI) / 180;
+          const cos = Math.cos(rad);
+          const sin = Math.sin(rad);
+
+          const rotateScreenPoint = (p: Point): Point => {
+            const dx = p.x - center.x;
+            const dy = p.y - center.y;
+            return {
+              x: center.x + dx * cos - dy * sin + selectedElement.x,
+              y: center.y + dx * sin + dy * cos + selectedElement.y,
+            };
+          };
+
+          const topCenter = rotateScreenPoint({ x: center.x, y: bbox.minY });
+          const rotateHandleCenter = rotateScreenPoint({ x: center.x, y: bbox.minY - 30 });
+
+          const outlineTopLeft = rotateScreenPoint({ x: bbox.minX, y: bbox.minY });
+          const outlineTopRight = rotateScreenPoint({ x: bbox.maxX, y: bbox.minY });
+          const outlineBottomLeft = rotateScreenPoint({ x: bbox.minX, y: bbox.maxY });
+          const outlineBottomRight = rotateScreenPoint({ x: bbox.maxX, y: bbox.maxY });
+
+          const allOutlineX = [outlineTopLeft.x, outlineTopRight.x, outlineBottomLeft.x, outlineBottomRight.x];
+          const allOutlineY = [outlineTopLeft.y, outlineTopRight.y, outlineBottomLeft.y, outlineBottomRight.y];
+          const outlineMinX = Math.min(...allOutlineX);
+          const outlineMaxX = Math.max(...allOutlineX);
+          const outlineMinY = Math.min(...allOutlineY);
+          const outlineMaxY = Math.max(...allOutlineY);
+
+          const lineAngle = getAngle(topCenter, rotateHandleCenter);
 
           return (
             <>
-              <div
-                className="selection-outline"
+              <svg
                 style={{
-                  left: (bbox.minX + selectedElement.x) * scale + offset.x - 4,
-                  top: (bbox.minY + selectedElement.y) * scale + offset.y - 4,
-                  width: (bbox.maxX - bbox.minX) * scale + 8,
-                  height: (bbox.maxY - bbox.minY) * scale + 8,
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  zIndex: 40,
                 }}
-              />
-              <div
-                className="rotate-line"
-                style={{
-                  left: centerX * scale + offset.x - 1,
-                  top: (bbox.minY + selectedElement.y - 30) * scale + offset.y,
-                  height: (centerY - (bbox.minY + selectedElement.y - 30)) * scale,
-                }}
-              />
+              >
+                <g transform={`translate(${offset.x}, ${offset.y}) scale(${scale})`}>
+                  <polygon
+                    points={`
+                      ${outlineTopLeft.x},${outlineTopLeft.y}
+                      ${outlineTopRight.x},${outlineTopRight.y}
+                      ${outlineBottomRight.x},${outlineBottomRight.y}
+                      ${outlineBottomLeft.x},${outlineBottomLeft.y}
+                    `}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="1.5"
+                    strokeDasharray="6 4"
+                  />
+                  <line
+                    x1={topCenter.x}
+                    y1={topCenter.y}
+                    x2={rotateHandleCenter.x}
+                    y2={rotateHandleCenter.y}
+                    stroke="#3b82f6"
+                    strokeWidth="2"
+                  />
+                </g>
+              </svg>
+
               {handles.map((handle, index) => (
                 <div
                   key={index}
                   className={`handle ${handle.type}`}
                   style={{
-                    left: handle.x * scale + offset.x - (handle.type === 'rotate' ? 9 : 6),
-                    top: handle.y * scale + offset.y - (handle.type === 'rotate' ? 9 : 6),
-                    transform: handle.type === 'rotate' ? 'none' : undefined,
+                    left: handle.x * scale + offset.x,
+                    top: handle.y * scale + offset.y,
                   }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     const pos = getCanvasCoords(e.clientX, e.clientY);
-                    dragStateRef.current = {
-                      isDragging: true,
-                      elementId: selectedElement.id,
-                      handleType: handle.type,
-                      startX: pos.x,
-                      startY: pos.y,
-                      startElementX: selectedElement.x,
-                      startElementY: selectedElement.y,
-                      startRotation: selectedElement.rotation,
-                      startPoints: [...selectedElement.smoothedPoints],
-                    };
+                    startDrag(
+                      selectedElement.id,
+                      handle.type,
+                      pos,
+                      selectedElement.x,
+                      selectedElement.y,
+                      selectedElement.rotation,
+                      selectedElement.smoothedPoints,
+                    );
                   }}
                 />
               ))}
