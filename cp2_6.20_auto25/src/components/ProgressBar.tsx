@@ -8,18 +8,25 @@ interface ProgressBarProps {
 
 export default function ProgressBar({ progress, visible }: ProgressBarProps) {
   const [isComplete, setIsComplete] = useState(false)
-  const [showCheck, setShowCheck] = useState(false)
+  const [checkState, setCheckState] = useState<'hidden' | 'show' | 'fadeout'>('hidden')
 
   useEffect(() => {
     if (progress >= 100) {
       setIsComplete(true)
-      setShowCheck(true)
-      const timer = setTimeout(() => {
-        setShowCheck(false)
-      }, 1000)
-      return () => clearTimeout(timer)
+      setCheckState('show')
+      const fadeTimer = setTimeout(() => {
+        setCheckState('fadeout')
+      }, 800)
+      const hideTimer = setTimeout(() => {
+        setCheckState('hidden')
+      }, 1200)
+      return () => {
+        clearTimeout(fadeTimer)
+        clearTimeout(hideTimer)
+      }
     } else {
       setIsComplete(false)
+      setCheckState('hidden')
     }
   }, [progress])
 
@@ -36,10 +43,20 @@ export default function ProgressBar({ progress, visible }: ProgressBarProps) {
         />
       </div>
       <p className="mt-1 text-xs text-white/60 text-right flex items-center justify-end gap-1">
-        {showCheck ? (
+        {checkState !== 'hidden' ? (
           <>
-            <Check className="w-3.5 h-3.5 text-green-400 animate-pulse" />
-            <span className="text-green-400">上传完成</span>
+            <Check
+              className={`w-3.5 h-3.5 text-green-400 transition-all duration-400 ${
+                checkState === 'show' ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+              }`}
+            />
+            <span
+              className={`text-green-400 transition-all duration-400 ${
+                checkState === 'show' ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              上传完成
+            </span>
           </>
         ) : (
           <span>{Math.round(Math.min(progress, 100))}%</span>

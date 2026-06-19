@@ -1,13 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { CheckCircle, AlertCircle, Send } from "lucide-react";
 import DropzoneUploader from "@/components/DropzoneUploader";
 import ProgressBar from "@/components/ProgressBar";
 import { uploadWork } from "@/api/client";
-import { useWorkStore } from "@/stores/useWorkStore";
 
 export default function UploadPage() {
-  const navigate = useNavigate();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -51,17 +48,18 @@ export default function UploadPage() {
     try {
       await uploadWork(data, (p: number) => setProgress(p));
       setUploadSuccess(true);
-      setShowSuccessMessage(true);
-      useWorkStore.getState().refresh();
+
+      setTimeout(() => {
+        setShowSuccessMessage(true);
+      }, 1200);
 
       setTimeout(() => {
         setShowSuccessMessage(false);
         setUploading(false);
+        setUploadSuccess(false);
         setProgress(0);
         setFormData({ title: "", uploader: "", email: "" });
-      }, 2200);
-
-      setTimeout(() => navigate("/"), 2800);
+      }, 2500);
     } catch (err: any) {
       setError(err?.message || "上传失败，请重试");
       setUploading(false);
@@ -129,9 +127,9 @@ export default function UploadPage() {
           )}
 
           {showSuccessMessage && (
-            <div className="flex items-center justify-center gap-2 text-green-400 animate-pulse py-2">
+            <div className="flex items-center justify-center gap-2 text-green-400 py-2">
               <CheckCircle className="h-5 w-5" />
-              <span className="font-medium">上传成功！即将跳转至展示墙...</span>
+              <span className="font-medium">上传成功</span>
             </div>
           )}
 
@@ -151,19 +149,10 @@ export default function UploadPage() {
               ) as HTMLInputElement;
               input?.click();
             }}
-            className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold text-white transition-all duration-300 ${
-              showSuccessMessage
-                ? 'bg-gradient-to-r from-green-500 to-emerald-600'
-                : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-3 font-semibold text-white transition hover:from-indigo-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {showSuccessMessage ? (
-              <><CheckCircle className="h-4 w-4" /> 上传成功</>
-            ) : uploading ? (
-              <><span className="animate-pulse">上传中...</span></>
-            ) : (
-              <><Send className="h-4 w-4" /> 提交上传</>
-            )}
+            <Send className="h-4 w-4" />
+            {uploading ? "上传中..." : "提交上传"}
           </button>
         </div>
       </div>

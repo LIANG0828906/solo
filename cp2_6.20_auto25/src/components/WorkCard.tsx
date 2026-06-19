@@ -47,7 +47,7 @@ export default function WorkCard({ work, onClick, index }: WorkCardProps) {
         transform: transform || undefined,
         transition: isHovering ? 'none' : 'transform 0.3s ease, box-shadow 0.3s ease',
         boxShadow: isHovering
-          ? '0 25px 50px rgba(79, 70, 229, 0.35), 0 8px 25px rgba(0, 0, 0, 0.45)'
+          ? '0 25px 50px rgba(0, 0, 0, 0.5), 0 8px 25px rgba(0, 0, 0, 0.4)'
           : '0 4px 20px rgba(0, 0, 0, 0.25)',
         animationDelay: `${index * 0.08}s`,
         opacity: 0,

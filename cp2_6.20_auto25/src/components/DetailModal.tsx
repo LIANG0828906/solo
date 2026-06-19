@@ -54,12 +54,8 @@ export default function DetailModal({ work, onClose }: DetailModalProps) {
       onClick={handleOverlayClick}
     >
       <div
-        className={`relative w-full max-w-4xl mx-4 transition-all duration-300 ${
-          visible && !closing
-            ? "animate-scaleIn"
-            : closing
-            ? "scale-95 opacity-0"
-            : "scale-100"
+        className={`relative w-full max-w-4xl mx-4 ${
+          visible && !closing ? "animate-scaleIn" : ""
         }`}
       >
         <button
