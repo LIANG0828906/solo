@@ -27,6 +27,7 @@ const VoteMain: React.FC = () => {
   const [activeOptionId, setActiveOptionId] = useState<string | null>(null);
   const [previousRanks, setPreviousRanks] = useState<Record<string, number>>({});
   const [rankChangeAnimation, setRankChangeAnimation] = useState<Record<string, 'up' | 'down' | null>>({});
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const voterIdRef = useRef<string>(
@@ -141,6 +142,15 @@ const VoteMain: React.FC = () => {
     };
   }, [voteId]);
 
+  useEffect(() => {
+    if (vote) {
+      document.title = `${vote.title} - 加权投票`;
+    }
+    return () => {
+      document.title = '加权投票与偏好分析';
+    };
+  }, [vote]);
+
   const handleWeightChange = useCallback((optionId: string, value: number) => {
     const clamped = Math.max(1, Math.min(10, value));
     setWeights((prev) => ({
@@ -175,6 +185,10 @@ const VoteMain: React.FC = () => {
     try {
       if (socketRef.current && socketRef.current.connected) {
         socketRef.current.emit('submit_weights', submission);
+        setSubmitSuccess(true);
+        setTimeout(() => {
+          setSubmitSuccess(false);
+        }, 2000);
       } else {
         setError('WebSocket未连接，请刷新页面重试');
       }
@@ -291,19 +305,30 @@ const VoteMain: React.FC = () => {
               <p style={optionDescStyle}>{option.description}</p>
             )}
 
-            <div style={sliderContainerStyle}>
-              <input
-                type="range"
-                min={1}
-                max={10}
-                step={1}
-                value={weights[option.id] ?? 5}
-                onChange={(e) => handleSliderChange(option.id, e)}
-                style={{
-                  ...sliderStyle,
-                  background: getSliderBackground(weights[option.id] ?? 5),
-                }}
-              />
+            <div style={sliderWrapperStyle}>
+              <div style={sliderTrackContainerStyle}>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={weights[option.id] ?? 5}
+                  onChange={(e) => handleSliderChange(option.id, e)}
+                  style={{
+                    ...sliderStyle,
+                    background: getSliderBackground(weights[option.id] ?? 5),
+                  }}
+                />
+                <div
+                  style={{
+                    ...sliderBubbleStyle,
+                    left: `calc(${((weights[option.id] ?? 5) - 1) / 9 * 100}% - 12px)`,
+                  }}
+                >
+                  {weights[option.id] ?? 5}
+                  <span style={sliderBubbleArrow} />
+                </div>
+              </div>
               <div style={scoreDisplayStyle}>
                 <input
                   type="number"
@@ -345,6 +370,13 @@ const VoteMain: React.FC = () => {
           '提交权重'
         )}
       </button>
+
+      {submitSuccess && (
+        <div style={successBannerStyle}>
+          <span style={successCheckStyle}>&#10003;</span>
+          提交成功
+        </div>
+      )}
 
       <div style={{ height: 40 }} />
 
@@ -461,6 +493,35 @@ const errorBannerStyle: React.CSSProperties = {
   border: '1px solid #fed7d7',
 };
 
+const successBannerStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  background: '#f0fff4',
+  color: '#276749',
+  padding: '12px 16px',
+  borderRadius: 8,
+  marginTop: 12,
+  border: '1px solid #c6f6d5',
+  fontSize: 15,
+  fontWeight: 600,
+  animation: 'fadeIn 0.3s ease',
+};
+
+const successCheckStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 22,
+  height: 22,
+  background: '#38a169',
+  color: 'white',
+  borderRadius: '50%',
+  fontSize: 13,
+  fontWeight: 700,
+};
+
 const sectionTitleStyle: React.CSSProperties = {
   fontSize: 20,
   fontWeight: 600,
@@ -513,11 +574,47 @@ const optionDescStyle: React.CSSProperties = {
   marginTop: 0,
 };
 
-const sliderContainerStyle: React.CSSProperties = {
+const sliderWrapperStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 12,
   marginBottom: 8,
+};
+
+const sliderTrackContainerStyle: React.CSSProperties = {
+  position: 'relative',
+  width: 300,
+  flexShrink: 0,
+};
+
+const sliderBubbleStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: -26,
+  width: 24,
+  height: 22,
+  background: '#3182ce',
+  color: 'white',
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 12,
+  fontWeight: 700,
+  transition: 'left 0.1s ease-out',
+  pointerEvents: 'none',
+  zIndex: 1,
+};
+
+const sliderBubbleArrow: React.CSSProperties = {
+  position: 'absolute',
+  bottom: -4,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  width: 0,
+  height: 0,
+  borderLeft: '4px solid transparent',
+  borderRight: '4px solid transparent',
+  borderTop: '4px solid #3182ce',
 };
 
 const sliderStyle: React.CSSProperties = {
@@ -670,6 +767,10 @@ const mobileStyles = `
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   @media (max-width: 768px) {
     .vote-main-container {

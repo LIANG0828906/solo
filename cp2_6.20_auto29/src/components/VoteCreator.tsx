@@ -275,7 +275,7 @@ const VoteCreator: React.FC = () => {
                             onChange={(e) =>
                               handleOptionChange(option.id, 'description', e.target.value)
                             }
-                            placeholder="请输入选项描述（可选）"
+                            placeholder="可选说明"
                           />
                         </div>
                       )}
