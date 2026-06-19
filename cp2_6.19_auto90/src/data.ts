@@ -21,20 +21,42 @@ export interface RecipeStep {
   image?: string;
 }
 
+export type RecipeCategory =
+  | '家常菜'
+  | '快手菜'
+  | '汤羹'
+  | '川菜'
+  | '凉菜'
+  | '硬菜';
+
 export interface Recipe {
   id: string;
   name: string;
   cookTime: number;
   servings: number;
+  category: RecipeCategory;
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
   imageTint: number;
 }
 
 const DB_NAME = 'FamilyKitchenDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const INGREDIENTS_STORE = 'ingredients';
 const RECIPES_STORE = 'recipes';
+
+const defaultCategories: Record<string, RecipeCategory> = {
+  '番茄炒蛋': '快手菜',
+  '蒜蓉西兰花': '家常菜',
+  '红烧肉': '硬菜',
+  '酸辣土豆丝': '家常菜',
+  '凉拌黄瓜': '凉菜',
+  '青椒炒肉丝': '家常菜',
+  '麻婆豆腐': '川菜',
+  '紫菜蛋花汤': '汤羹',
+  '宫保鸡丁': '川菜',
+  '干煸豆角': '家常菜',
+};
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -46,6 +68,7 @@ export function openDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion || 0;
 
       if (!db.objectStoreNames.contains(INGREDIENTS_STORE)) {
         const store = db.createObjectStore(INGREDIENTS_STORE, { keyPath: 'id' });
@@ -55,6 +78,23 @@ export function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(RECIPES_STORE)) {
         const store = db.createObjectStore(RECIPES_STORE, { keyPath: 'id' });
         store.createIndex('name', 'name', { unique: false });
+      } else if (oldVersion < 2) {
+        const tx = (event.target as IDBOpenDBRequest).transaction;
+        if (tx) {
+          const store = tx.objectStore(RECIPES_STORE);
+          const req = store.openCursor();
+          req.onsuccess = (ev) => {
+            const cursor = (ev.target as IDBRequest<IDBCursorWithValue | null>).result;
+            if (cursor) {
+              const recipe = cursor.value as Recipe;
+              if (!recipe.category) {
+                recipe.category = defaultCategories[recipe.name] || '家常菜';
+                cursor.update(recipe);
+              }
+              cursor.continue();
+            }
+          };
+        }
       }
     };
 
@@ -164,6 +204,7 @@ export async function seedRecipesIfEmpty(): Promise<void> {
       name: '番茄炒蛋',
       cookTime: 12,
       servings: 2,
+      category: '快手菜',
       imageTint: 0,
       ingredients: [
         { name: '番茄', quantity: 2, unit: '个' },
@@ -184,6 +225,7 @@ export async function seedRecipesIfEmpty(): Promise<void> {
       name: '蒜蓉西兰花',
       cookTime: 15,
       servings: 2,
+      category: '家常菜',
       imageTint: 1,
       ingredients: [
         { name: '西兰花', quantity: 1, unit: '棵' },
@@ -203,6 +245,7 @@ export async function seedRecipesIfEmpty(): Promise<void> {
       name: '红烧肉',
       cookTime: 60,
       servings: 4,
+      category: '硬菜',
       imageTint: 2,
       ingredients: [
         { name: '五花肉', quantity: 500, unit: '克' },
@@ -226,6 +269,7 @@ export async function seedRecipesIfEmpty(): Promise<void> {
       name: '酸辣土豆丝',
       cookTime: 20,
       servings: 2,
+      category: '家常菜',
       imageTint: 3,
       ingredients: [
         { name: '土豆', quantity: 2, unit: '个' },
@@ -247,6 +291,7 @@ export async function seedRecipesIfEmpty(): Promise<void> {
       name: '凉拌黄瓜',
       cookTime: 10,
       servings: 2,
+      category: '凉菜',
       imageTint: 4,
       ingredients: [
         { name: '黄瓜', quantity: 2, unit: '根' },
@@ -268,6 +313,7 @@ export async function seedRecipesIfEmpty(): Promise<void> {
       name: '青椒炒肉丝',
       cookTime: 25,
       servings: 3,
+      category: '家常菜',
       imageTint: 5,
       ingredients: [
         { name: '猪肉', quantity: 300, unit: '克' },
@@ -290,6 +336,7 @@ export async function seedRecipesIfEmpty(): Promise<void> {
       name: '麻婆豆腐',
       cookTime: 30,
       servings: 3,
+      category: '川菜',
       imageTint: 6,
       ingredients: [
         { name: '豆腐', quantity: 1, unit: '盒' },
@@ -313,6 +360,7 @@ export async function seedRecipesIfEmpty(): Promise<void> {
       name: '紫菜蛋花汤',
       cookTime: 10,
       servings: 3,
+      category: '汤羹',
       imageTint: 7,
       ingredients: [
         { name: '紫菜', quantity: 5, unit: '克' },
@@ -334,6 +382,7 @@ export async function seedRecipesIfEmpty(): Promise<void> {
       name: '宫保鸡丁',
       cookTime: 35,
       servings: 3,
+      category: '川菜',
       imageTint: 8,
       ingredients: [
         { name: '鸡胸肉', quantity: 400, unit: '克' },
@@ -358,6 +407,7 @@ export async function seedRecipesIfEmpty(): Promise<void> {
       name: '干煸豆角',
       cookTime: 28,
       servings: 2,
+      category: '家常菜',
       imageTint: 9,
       ingredients: [
         { name: '四季豆', quantity: 400, unit: '克' },

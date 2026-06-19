@@ -122,21 +122,38 @@ const styles = `
     filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
   }
 
+  .card-category-tag {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    padding: 7px 13px;
+    border-radius: 10px;
+    background: rgba(255, 243, 230, 0.95);
+    backdrop-filter: blur(10px);
+    color: #9A3412;
+    font-size: 12px;
+    font-weight: 700;
+    z-index: 2;
+    box-shadow: 0 3px 10px rgba(154, 52, 18, 0.2);
+    letter-spacing: 0.3px;
+    border: 1px solid rgba(249, 115, 22, 0.25);
+  }
+
   .card-time-tag {
     position: absolute;
     top: 12px;
     right: 12px;
-    padding: 5px 12px;
+    padding: 7px 14px;
     border-radius: 999px;
     color: #fff;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     backdrop-filter: blur(8px);
     z-index: 2;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
   }
 
   .card-body {
@@ -180,12 +197,39 @@ const styles = `
     color: #5D4037;
   }
 
+  .match-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
   .match-bar {
-    width: 100%;
+    flex: 1;
     height: 8px;
     background: rgba(139, 69, 19, 0.08);
     border-radius: 999px;
     overflow: hidden;
+  }
+
+  .match-bar-percent {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9E9E9E;
+    min-width: 38px;
+    text-align: right;
+    transition: color 0.4s ease;
+  }
+
+  .match-bar-percent.high {
+    color: #15803D;
+  }
+
+  .match-bar-percent.mid {
+    color: #C2410C;
+  }
+
+  .match-bar-percent.low {
+    color: #B91C1C;
   }
 
   .match-bar-fill {
@@ -351,6 +395,9 @@ const RecipeList: React.FC<Props> = ({ matches, onSelectRecipe }) => {
                   className="card-image"
                   style={{ background: gradient }}
                 >
+                  <span className="card-category-tag">
+                    {m.recipe.category}
+                  </span>
                   <span
                     className="card-time-tag"
                     style={{ background: timeColor + 'CC' }}
@@ -367,17 +414,26 @@ const RecipeList: React.FC<Props> = ({ matches, onSelectRecipe }) => {
                     <div className="match-bar-label">
                       <span>食材匹配度</span>
                       <span className="count">
-                        {m.matchedCount}/{m.totalCount} · {percent}%
+                        {m.matchedCount}/{m.totalCount}
                       </span>
                     </div>
-                    <div className="match-bar">
-                      <div
-                        className="match-bar-fill"
-                        style={{
-                          width: mounted ? `${percent}%` : '0%',
-                          backgroundPosition: `${100 - percent}% 0`,
-                        }}
-                      />
+                    <div className="match-bar-row">
+                      <div className="match-bar">
+                        <div
+                          className="match-bar-fill"
+                          style={{
+                            width: mounted ? `${percent}%` : '0%',
+                            backgroundPosition: `${100 - percent}% 0`,
+                          }}
+                        />
+                      </div>
+                      <span
+                        className={`match-bar-percent ${
+                          percent >= 70 ? 'high' : percent >= 40 ? 'mid' : 'low'
+                        }`}
+                      >
+                        {percent}%
+                      </span>
                     </div>
                   </div>
 
