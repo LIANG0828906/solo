@@ -1,5 +1,6 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import type { Submission } from '../types';
+import { useStore } from '../store/useStore';
 import { drawLineChart, type ChartDataPoint } from '../utils/chart';
 
 interface ClassStatsPanelProps {
@@ -8,7 +9,7 @@ interface ClassStatsPanelProps {
 }
 
 export const ClassStatsPanel: React.FC<ClassStatsPanelProps> = ({
-  submissions,
+  submissions: propSubmissions,
   className = '',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -17,6 +18,22 @@ export const ClassStatsPanel: React.FC<ClassStatsPanelProps> = ({
   const [displayAvg, setDisplayAvg] = useState(0);
   const prevGradedRef = useRef(0);
   const prevAvgRef = useRef(0);
+
+  const classes = useStore((state) => state.classes);
+  const currentClassId = useStore((state) => state.currentClassId);
+  const allSubmissions = useStore((state) => state.submissions);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(currentClassId);
+
+  useEffect(() => {
+    setSelectedClassId(currentClassId);
+  }, [currentClassId]);
+
+  const submissions = useMemo(() => {
+    if (selectedClassId === currentClassId) return propSubmissions;
+    return allSubmissions
+      .filter((s) => s.classId === selectedClassId)
+      .sort((a, b) => b.submittedAt - a.submittedAt);
+  }, [selectedClassId, currentClassId, propSubmissions, allSubmissions]);
 
   const total = submissions.length;
   const gradedSubmissions = submissions.filter((s) => s.score !== null);
@@ -119,8 +136,32 @@ export const ClassStatsPanel: React.FC<ClassStatsPanelProps> = ({
 
   const progressPercent = total > 0 ? (gradedCount / total) * 100 : 0;
 
+  const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setSelectedClassId(value || null);
+  };
+
   return (
     <div className={`stats-panel ${className}`}>
+      <div className="stats-header">
+        <div className="stats-title">班级统计</div>
+        <div className="class-selector">
+          <label htmlFor="class-stats-select">切换班级：</label>
+          <select
+            id="class-stats-select"
+            value={selectedClassId || ''}
+            onChange={handleClassChange}
+            className="class-select"
+          >
+            {classes.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="stats-row">
         <div className="stat-card">
           <div className="stat-label">批改进度</div>
@@ -168,6 +209,45 @@ export const ClassStatsPanel: React.FC<ClassStatsPanelProps> = ({
           background: #fff;
           padding: 16px 20px;
           border-bottom: 1px solid #e5e5e5;
+        }
+
+        .stats-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 14px;
+        }
+
+        .stats-title {
+          font-size: 15px;
+          font-weight: 600;
+          color: #333;
+        }
+
+        .class-selector {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .class-selector label {
+          font-size: 12px;
+          color: #888;
+        }
+
+        .class-select {
+          padding: 4px 8px;
+          border: 1px solid #ddd;
+          border-radius: 6px;
+          font-size: 13px;
+          background: #fff;
+          cursor: pointer;
+          min-width: 120px;
+        }
+
+        .class-select:focus {
+          outline: none;
+          border-color: #4a90d9;
         }
 
         .stats-row {
@@ -274,6 +354,12 @@ export const ClassStatsPanel: React.FC<ClassStatsPanelProps> = ({
         }
 
         @media (max-width: 768px) {
+          .stats-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+          }
+
           .stats-row {
             flex-direction: column;
             gap: 10px;

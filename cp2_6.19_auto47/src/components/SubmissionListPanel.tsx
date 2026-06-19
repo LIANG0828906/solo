@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Submission } from '../types';
 import { useStore } from '../store/useStore';
 
@@ -22,6 +22,26 @@ export const SubmissionListPanel: React.FC<SubmissionListPanelProps> = ({
   const classData = useStore((state) =>
     state.classes.find((c) => c.id === state.currentClassId)
   );
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const togglePreview = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const getPreviewText = (content: string) => {
+    const plain = content.replace(/\n/g, ' ').trim();
+    if (plain.length <= 100) return plain;
+    return plain.slice(0, 100) + '…';
+  };
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -69,38 +89,56 @@ export const SubmissionListPanel: React.FC<SubmissionListPanelProps> = ({
             <p className="empty-hint">点击上方按钮添加作业</p>
           </div>
         ) : (
-          submissions.map((sub, index) => (
-            <div
-              key={sub.id}
-              className={`submission-item fade-in-item ${
-                currentSubmissionId === sub.id ? 'active' : ''
-              }`}
-              onClick={() => onSelect(sub.id)}
-              style={{ animationDelay: `${index * 0.03}s` }}
-            >
-              <div className="item-left-bar"></div>
-              <div className="item-content">
-                <div className="item-header">
-                  <span className="student-name">{sub.studentName}</span>
-                  <span className={`status-badge ${getStatusClass(sub)}`}>
-                    {getStatusText(sub)}
-                  </span>
-                </div>
-                <div className="item-title">{sub.title}</div>
-                <div className="item-footer">
-                  <span className="submit-time">{formatDate(sub.submittedAt)}</span>
-                  <div className="item-meta">
-                    {sub.score !== null && (
-                      <span className="score-badge">{sub.score}分</span>
-                    )}
-                    <span className="annotation-count">
-                      {sub.annotations.length} 条批注
+          submissions.map((sub, index) => {
+            const isExpanded = expandedIds.has(sub.id);
+            return (
+              <div
+                key={sub.id}
+                className={`submission-item fade-in-item ${
+                  currentSubmissionId === sub.id ? 'active' : ''
+                } ${isExpanded ? 'expanded' : ''}`}
+                onClick={() => onSelect(sub.id)}
+                style={{ animationDelay: `${index * 0.03}s` }}
+              >
+                <div className="item-left-bar"></div>
+                <div className="item-content">
+                  <div className="item-header">
+                    <span className="student-name">{sub.studentName}</span>
+                    <span className={`status-badge ${getStatusClass(sub)}`}>
+                      {getStatusText(sub)}
                     </span>
+                  </div>
+                  <div className="item-title">{sub.title}</div>
+                  <div className="item-footer">
+                    <span className="submit-time">{formatDate(sub.submittedAt)}</span>
+                    <div className="item-meta">
+                      {sub.score !== null && (
+                        <span className="score-badge">{sub.score}分</span>
+                      )}
+                      <span className="annotation-count">
+                        {sub.annotations.length} 条批注
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    className="preview-toggle-btn"
+                    onClick={(e) => togglePreview(e, sub.id)}
+                  >
+                    {isExpanded ? '收起预览 ▲' : '展开预览 ▼'}
+                  </button>
+                  <div
+                    className={`preview-area ${isExpanded ? 'open' : ''}`}
+                  >
+                    {isExpanded && (
+                      <div className="preview-text">
+                        {getPreviewText(sub.content)}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -194,11 +232,10 @@ export const SubmissionListPanel: React.FC<SubmissionListPanelProps> = ({
         }
 
         .submission-item {
-          height: 52px;
           padding: 8px 16px 8px 0;
           cursor: pointer;
           display: flex;
-          align-items: stretch;
+          align-items: flex-start;
           position: relative;
           transition: background 0.2s;
           opacity: 0;
@@ -227,12 +264,19 @@ export const SubmissionListPanel: React.FC<SubmissionListPanelProps> = ({
           background: #f0f6fc;
         }
 
+        .submission-item:not(.expanded) {
+          min-height: 52px;
+          align-items: center;
+        }
+
         .item-left-bar {
           width: 4px;
+          align-self: stretch;
           background: transparent;
           margin-right: 12px;
           border-radius: 0 2px 2px 0;
           transition: background 0.2s;
+          flex-shrink: 0;
         }
 
         .submission-item.active .item-left-bar {
@@ -244,7 +288,6 @@ export const SubmissionListPanel: React.FC<SubmissionListPanelProps> = ({
           min-width: 0;
           display: flex;
           flex-direction: column;
-          justify-content: center;
         }
 
         .item-header {
@@ -317,6 +360,43 @@ export const SubmissionListPanel: React.FC<SubmissionListPanelProps> = ({
         .annotation-count {
           font-size: 11px;
           color: #999;
+        }
+
+        .preview-toggle-btn {
+          background: none;
+          border: none;
+          color: #4a90d9;
+          font-size: 11px;
+          padding: 3px 0;
+          margin-top: 4px;
+          cursor: pointer;
+          align-self: flex-start;
+        }
+
+        .preview-toggle-btn:hover {
+          color: #3a7bc8;
+          text-decoration: underline;
+        }
+
+        .preview-area {
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.25s ease;
+        }
+
+        .preview-area.open {
+          max-height: 120px;
+        }
+
+        .preview-text {
+          margin-top: 6px;
+          padding: 8px 10px;
+          background: #f8f9fa;
+          border-radius: 6px;
+          font-size: 12px;
+          color: #555;
+          line-height: 1.6;
+          border-left: 3px solid #4a90d9;
         }
 
         @media (max-width: 768px) {

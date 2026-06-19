@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import { ClassGrid } from './components/ClassGrid';
-import { 作业列表面板 } from './components/作业列表面板';
+import { SubmissionListPanel } from './components/SubmissionListPanel';
 import { GradingEditor } from './components/GradingEditor';
-import { 班级统计面板 } from './components/班级统计面板';
+import { ClassStatsPanel } from './components/ClassStatsPanel';
 import { AddSubmissionModal } from './components/AddSubmissionModal';
 
 function App() {
@@ -96,8 +96,8 @@ function App() {
           <div className="mobile-content">
             {mobileTab === 'list' ? (
               <>
-                <班级统计面板 submissions={classSubmissions} />
-                <作业列表面板
+                <ClassStatsPanel submissions={classSubmissions} />
+                <SubmissionListPanel
                   submissions={classSubmissions}
                   currentSubmissionId={currentSubmissionId}
                   onSelect={handleSelectSubmission}
@@ -119,7 +119,7 @@ function App() {
         </div>
       ) : (
         <div className="desktop-layout">
-          <作业列表面板
+          <SubmissionListPanel
             submissions={classSubmissions}
             currentSubmissionId={currentSubmissionId}
             onSelect={handleSelectSubmission}
@@ -127,7 +127,7 @@ function App() {
             onBackClick={handleBackToList}
           />
           <div className="main-content">
-            <班级统计面板 submissions={classSubmissions} />
+            <ClassStatsPanel submissions={classSubmissions} />
             {currentSubmission ? (
               <GradingEditor
                 submission={currentSubmission}
