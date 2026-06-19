@@ -77,6 +77,7 @@ export class SceneManager extends EventEmitter {
   private labelRenderer: CSS2DRenderer
   private inputController: InputController
   private exhibitFactory: ExhibitFactory
+  private loadingManager: THREE.LoadingManager
   private clock: THREE.Clock
   private animationFrameId: number = 0
   private currentHall: HallId = 'lobby'
@@ -94,6 +95,8 @@ export class SceneManager extends EventEmitter {
   private hoveredExhibitId: string | null = null
   private elapsedTime: number = 0
   private transitioning: boolean = false
+  private totalResources: number = 0
+  private loadedResources: number = 0
 
   constructor(container: HTMLElement) {
     super()
@@ -128,6 +131,16 @@ export class SceneManager extends EventEmitter {
     this.labelRenderer.domElement.style.pointerEvents = 'none'
     container.appendChild(this.labelRenderer.domElement)
 
+    this.loadingManager = new THREE.LoadingManager()
+    this.loadingManager.onProgress = (url, loaded, total) => {
+      this.totalResources = total
+      this.loadedResources = loaded
+      this.emit('loadProgress', { loaded, total, url })
+    }
+    this.loadingManager.onLoad = () => {
+      this.emit('loadComplete')
+    }
+
     this.clock = new THREE.Clock()
     this.raycaster = new THREE.Raycaster()
     this.mouseVector = new THREE.Vector2()
@@ -135,7 +148,7 @@ export class SceneManager extends EventEmitter {
     this.inputController = new InputController()
     this.inputController.init(this.renderer.domElement)
 
-    this.exhibitFactory = new ExhibitFactory(this.scene, this.labelRenderer)
+    this.exhibitFactory = new ExhibitFactory(this.scene, this.labelRenderer, this.loadingManager)
 
     this.bindEvents()
     this.initHalls()
@@ -401,7 +414,7 @@ export class SceneManager extends EventEmitter {
         const exhibit3D = await this.exhibitFactory.createExhibit(exhibit)
         hallGroup.add(exhibit3D.group)
       }
-      this.emit('loadProgress', { loaded: i + 1, total })
+      this.emit('exhibitLoadProgress', { loaded: i + 1, total })
     }
   }
 

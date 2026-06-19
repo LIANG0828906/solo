@@ -84,15 +84,16 @@ const handleClick = (id: HallId) => {
   align-items: center;
   gap: 24px;
   padding: 14px 24px;
-  background: rgba(20, 21, 32, 0.65);
-  backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
-  border: 1px solid rgba(201, 169, 98, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px) saturate(2);
+  -webkit-backdrop-filter: blur(20px) saturate(2);
+  border: 1px solid rgba(201, 169, 98, 0.22);
   border-radius: 20px;
   box-shadow:
-    0 10px 40px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 0 20px rgba(201, 169, 98, 0.08);
+    0 10px 40px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 15px rgba(201, 169, 98, 0.2),
+    0 0 30px rgba(201, 169, 98, 0.08);
 }
 
 .nav-title {

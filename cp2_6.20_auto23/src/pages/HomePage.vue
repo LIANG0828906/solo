@@ -14,6 +14,21 @@ const cardVisible = ref(false)
 const cursorStyle = ref('default')
 const loading = ref(true)
 const loadProgress = ref(0)
+const exhibitTotal = ref(0)
+const exhibitLoaded = ref(0)
+const textureTotal = ref(0)
+const textureLoaded = ref(0)
+
+const computeOverallProgress = () => {
+  const exhibitWeight = 0.4
+  const textureWeight = 0.6
+
+  const exhibitProgress = exhibitTotal.value > 0 ? exhibitLoaded.value / exhibitTotal.value : 0
+  const textureProgress = textureTotal.value > 0 ? textureLoaded.value / textureTotal.value : 0
+
+  const percent = Math.round((exhibitProgress * exhibitWeight + textureProgress * textureWeight) * 100)
+  return Math.min(percent, 100)
+}
 
 const updateLoadingBar = (percent: number) => {
   loadProgress.value = percent
@@ -23,11 +38,12 @@ const updateLoadingBar = (percent: number) => {
     bar.style.width = `${percent}%`
   }
   if (pct) {
-    pct.textContent = `${Math.round(percent)}%`
+    pct.textContent = `${percent}%`
   }
 }
 
 const transitionToScene = () => {
+  updateLoadingBar(100)
   const loadingScreen = document.getElementById('loading-screen')
   const transitionOverlay = document.getElementById('scene-transition-overlay')
 
@@ -70,9 +86,18 @@ onMounted(async () => {
   sm.on('cursorChange', (style: string) => {
     cursorStyle.value = style === 'zoom' ? 'zoom-in' : 'default'
   })
+  sm.on('exhibitLoadProgress', ({ loaded, total }: { loaded: number; total: number }) => {
+    exhibitLoaded.value = loaded
+    exhibitTotal.value = total
+    updateLoadingBar(computeOverallProgress())
+  })
   sm.on('loadProgress', ({ loaded, total }: { loaded: number; total: number }) => {
-    const percent = Math.round((loaded / total) * 100)
-    updateLoadingBar(percent)
+    textureLoaded.value = loaded
+    textureTotal.value = total
+    updateLoadingBar(computeOverallProgress())
+  })
+  sm.on('loadComplete', () => {
+    updateLoadingBar(computeOverallProgress())
   })
 
   try {

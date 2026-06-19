@@ -213,9 +213,9 @@ const handleBackdrop = (e: MouseEvent) => {
 .card-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(10px) saturate(1.4);
-  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px) saturate(1.6);
+  -webkit-backdrop-filter: blur(12px) saturate(1.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -237,15 +237,16 @@ const handleBackdrop = (e: MouseEvent) => {
   width: min(520px, 100%);
   max-height: 90vh;
   overflow-y: auto;
-  background: rgba(20, 21, 32, 0.72);
-  backdrop-filter: blur(32px) saturate(2);
-  -webkit-backdrop-filter: blur(32px) saturate(2);
-  border: 1px solid rgba(201, 169, 98, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px) saturate(2);
+  -webkit-backdrop-filter: blur(20px) saturate(2);
+  border: 1px solid rgba(201, 169, 98, 0.25);
   border-radius: 24px;
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 30px rgba(201, 169, 98, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 15px rgba(201, 169, 98, 0.2),
+    0 0 35px rgba(201, 169, 98, 0.08),
     0 0 0 1px rgba(255, 255, 255, 0.02) inset;
   transform-origin: center center;
   animation: cardIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -435,10 +436,12 @@ const handleBackdrop = (e: MouseEvent) => {
 
 .audio-section {
   padding: 18px 20px;
-  background: linear-gradient(135deg, rgba(201, 169, 98, 0.08), rgba(224, 138, 60, 0.06));
+  background: rgba(255, 255, 255, 0.03);
   border-radius: 14px;
-  border: 1px solid rgba(201, 169, 98, 0.18);
-  box-shadow: 0 0 16px rgba(201, 169, 98, 0.06);
+  border: 1px solid rgba(201, 169, 98, 0.2);
+  box-shadow:
+    0 0 15px rgba(201, 169, 98, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .audio-label {

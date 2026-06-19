@@ -30,18 +30,46 @@ export class ExhibitFactory {
   private labelRenderer: CSS2DRenderer
   private exhibits: Map<string, Exhibit3D> = new Map()
   private textureCache: Map<string, THREE.Texture> = new Map()
+  private loadingManager: THREE.LoadingManager
 
-  constructor(scene: THREE.Scene, labelRenderer: CSS2DRenderer) {
+  constructor(scene: THREE.Scene, labelRenderer: CSS2DRenderer, loadingManager?: THREE.LoadingManager) {
     this.scene = scene
     this.labelRenderer = labelRenderer
+    this.loadingManager = loadingManager ?? new THREE.LoadingManager()
+  }
+
+  getLoadingManager(): THREE.LoadingManager {
+    return this.loadingManager
   }
 
   private async loadTexture(url: string): Promise<THREE.Texture> {
     if (this.textureCache.has(url)) {
       return this.textureCache.get(url)!
     }
-    const loader = new THREE.TextureLoader()
+    const loader = new THREE.TextureLoader(this.loadingManager)
     return new Promise((resolve) => {
+      if (!url) {
+        const canvas = document.createElement('canvas')
+        canvas.width = 512
+        canvas.height = 512
+        const ctx = canvas.getContext('2d')!
+        const gradient = ctx.createLinearGradient(0, 0, 512, 512)
+        gradient.addColorStop(0, '#c9a962')
+        gradient.addColorStop(0.5, '#e08a3c')
+        gradient.addColorStop(1, '#c9a962')
+        ctx.fillStyle = gradient
+        ctx.fillRect(0, 0, 512, 512)
+        ctx.fillStyle = 'rgba(255,255,255,0.1)'
+        ctx.font = 'bold 36px Cinzel, serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText('ARTWORK', 256, 256)
+        const texture = new THREE.CanvasTexture(canvas)
+        texture.colorSpace = THREE.SRGBColorSpace
+        this.textureCache.set(url, texture)
+        resolve(texture)
+        return
+      }
       loader.load(
         url,
         (texture) => {
