@@ -5,10 +5,13 @@ import { Idea, VoteType, CARD_COLORS } from '../../types';
 
 dayjs.extend(relativeTime);
 
+export type IdeaSize = 'low' | 'medium' | 'high';
+
 interface IdeaCardProps {
   idea: Idea;
   onVote: (ideaId: string, voteType: VoteType) => void;
   onClick?: () => void;
+  size?: IdeaSize;
 }
 
 const voteConfig: Record<VoteType, { label: string; emoji: string; activeBg: string }> = {
@@ -25,7 +28,7 @@ function getCardColor(ideaId: string): string {
   return colorMap[ideaId];
 }
 
-export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => {
+export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick, size = 'low' }) => {
   const [hovered, setHovered] = useState(false);
   const [bouncingVote, setBouncingVote] = useState<VoteType | null>(null);
   const [pressingVote, setPressingVote] = useState<VoteType | null>(null);
@@ -35,6 +38,51 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
   const totalVotes = idea.votes.agree + idea.votes.disagree + idea.votes.neutral;
   const isHot = idea.votes.agree >= 10;
   const cardColor = idea.bgColor || getCardColor(idea.id);
+
+  const sizeConfig = useMemo(() => {
+    switch (size) {
+      case 'high':
+        return {
+          padding: '24px',
+          titleFont: '18px',
+          descFont: '14px',
+          avatarSize: '36px',
+          borderRadius: '16px',
+          gridColumn: 'span 2',
+          descriptionLines: 4,
+          transform: hovered ? 'translateY(-6px) scale(1.02)' : 'translateY(0)',
+          shadowHover:
+            '0 20px 40px rgba(0,0,0,0.5), 0 0 0 2px rgba(249,115,22,0.4)',
+        };
+      case 'medium':
+        return {
+          padding: '20px',
+          titleFont: '16px',
+          descFont: '13px',
+          avatarSize: '32px',
+          borderRadius: '14px',
+          gridColumn: 'span 1',
+          descriptionLines: 3,
+          transform: hovered ? 'translateY(-5px) scale(1.01)' : 'translateY(0)',
+          shadowHover:
+            '0 16px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(249,115,22,0.35)',
+        };
+      case 'low':
+      default:
+        return {
+          padding: '16px',
+          titleFont: '15px',
+          descFont: '13px',
+          avatarSize: '28px',
+          borderRadius: '12px',
+          gridColumn: 'span 1',
+          descriptionLines: 2,
+          transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+          shadowHover:
+            '0 12px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(249,115,22,0.3)',
+        };
+    }
+  }, [size, hovered]);
 
   const handleVote = useCallback(
     (type: VoteType) => {
@@ -63,7 +111,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
   return (
     <>
       <div
-        className="idea-card fade-in"
+        className={`idea-card fade-in idea-card-${size}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={handleCardClick}
@@ -72,18 +120,19 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
           backdropFilter: 'blur(10px)',
           WebkitBackdropFilter: 'blur(10px)',
           border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: '12px',
-          padding: '16px',
+          borderRadius: sizeConfig.borderRadius,
+          padding: sizeConfig.padding,
           cursor: 'pointer',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          transform: hovered ? 'translateY(-4px)' : 'translateY(0)',
+          transform: sizeConfig.transform,
           boxShadow: hovered
-            ? '0 12px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(249,115,22,0.3)'
+            ? sizeConfig.shadowHover
             : '0 4px 12px rgba(0,0,0,0.2)',
           breakInside: 'avoid',
           marginBottom: '0',
           position: 'relative',
           overflow: 'hidden',
+          gridColumn: sizeConfig.gridColumn,
         }}
       >
         <div
@@ -118,8 +167,8 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
                 src={idea.author.avatar}
                 alt={idea.author.name}
                 style={{
-                  width: '28px',
-                  height: '28px',
+                  width: sizeConfig.avatarSize,
+                  height: sizeConfig.avatarSize,
                   borderRadius: '50%',
                   border: '2px solid rgba(255,255,255,0.2)',
                   background: '#334155',
@@ -136,10 +185,10 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
 
           <h3
             style={{
-              fontSize: '15px',
+              fontSize: sizeConfig.titleFont,
               fontWeight: 600,
               color: '#f1f5f9',
-              marginBottom: '6px',
+              marginBottom: '8px',
               lineHeight: 1.4,
             }}
           >
@@ -149,12 +198,12 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
           {idea.description && (
             <p
               style={{
-                fontSize: '13px',
+                fontSize: sizeConfig.descFont,
                 color: '#94a3b8',
                 lineHeight: 1.5,
-                marginBottom: '12px',
+                marginBottom: '14px',
                 display: '-webkit-box',
-                WebkitLineClamp: 2,
+                WebkitLineClamp: sizeConfig.descriptionLines,
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
               }}

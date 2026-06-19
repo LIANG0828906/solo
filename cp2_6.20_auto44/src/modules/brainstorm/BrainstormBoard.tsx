@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { IdeaCard } from './IdeaCard';
+import { IdeaCard, IdeaSize } from './IdeaCard';
 import { useIdeasStore } from '../../store/ideasStore';
-import { PRESET_TAGS, VoteType } from '../../types';
+import { PRESET_TAGS, VoteType, Idea } from '../../types';
 
 export const BrainstormBoard: React.FC = () => {
   const { ideas, users, voteIdea, addIdea, currentUser } = useIdeasStore();
@@ -13,6 +13,15 @@ export const BrainstormBoard: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const onlineUsers = useMemo(() => users.filter((u) => u.online), [users]);
+
+  const getIdeaSize = useCallback((idea: Idea): IdeaSize => {
+    const total = idea.votes.agree + idea.votes.disagree + idea.votes.neutral;
+    const agreeWeight = idea.votes.agree * 1.35;
+    const score = agreeWeight + idea.votes.neutral * 0.8 + idea.votes.disagree * 0.15;
+    if (score >= 42 || total >= 55) return 'high';
+    if (score >= 22 || total >= 30) return 'medium';
+    return 'low';
+  }, []);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -368,14 +377,22 @@ export const BrainstormBoard: React.FC = () => {
         }}
       >
         <div
-          className="masonry-layout"
+          className="idea-grid-layout"
           style={{
-            columnCount: 2,
-            columnGap: '16px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gridAutoRows: 'minmax(120px, auto)',
+            gridAutoFlow: 'dense',
+            gap: '16px',
           }}
         >
           {ideas.map((idea) => (
-            <IdeaCard key={idea.id} idea={idea} onVote={handleVote} />
+            <IdeaCard
+              key={idea.id}
+              idea={idea}
+              onVote={handleVote}
+              size={getIdeaSize(idea)}
+            />
           ))}
         </div>
 
