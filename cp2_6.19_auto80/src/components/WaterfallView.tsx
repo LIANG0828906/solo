@@ -29,7 +29,7 @@ const WaterfallView = ({ risks, newRiskId, transitionPhase, onViewDetail }: Wate
 
   return (
     <div className="waterfall-container">
-      {levels.map((level) => (
+      {levels.map((level, groupIndex) => (
         <div key={level} className="waterfall-group">
           <div className="waterfall-group-header">
             <div
@@ -45,7 +45,7 @@ const WaterfallView = ({ risks, newRiskId, transitionPhase, onViewDetail }: Wate
                 <RiskCard
                   risk={risk}
                   isNew={risk.id === newRiskId}
-                  animationDelay={index * 20}
+                  animationDelay={groupIndex * 60 + index * 20}
                   transitionPhase={transitionPhase}
                   onViewDetail={onViewDetail}
                 />

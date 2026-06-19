@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { memo } from 'react';
 import type { Risk } from '@/types';
 import { RISK_LEVEL_COLORS, STATUS_LABELS, LEVEL_LABELS } from '@/types';
 import { formatDate } from '@/utils/date';
@@ -18,14 +18,13 @@ const RiskCard = memo(function RiskCard({
   onViewDetail,
   transitionPhase = 'stable',
 }: RiskCardProps) {
-  const [isHovered, setIsHovered] = useState(false);
-
   const levelColor = RISK_LEVEL_COLORS[risk.level];
   const statusLabel = STATUS_LABELS[risk.status];
   const levelLabel = LEVEL_LABELS[risk.level];
 
   const getCardClasses = () => {
     const classes = ['risk-card'];
+    classes.push(`level-${risk.level}`);
     if (isNew) classes.push('risk-card-new');
     if (transitionPhase === 'out') classes.push('risk-card-exit');
     if (transitionPhase === 'in') classes.push('risk-card-enter');
@@ -37,13 +36,7 @@ const RiskCard = memo(function RiskCard({
       className={getCardClasses()}
       style={{
         animationDelay: `${animationDelay}ms`,
-        borderLeft: isHovered
-          ? `3px solid ${levelColor}`
-          : '3px solid transparent',
-        borderLeftStyle: 'solid',
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       onClick={() => onViewDetail(risk)}
       role="button"
       tabIndex={0}

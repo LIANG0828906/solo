@@ -29,7 +29,7 @@ const BoardView = ({ risks, newRiskId, transitionPhase, onViewDetail }: BoardVie
 
   return (
     <div className="board-view-container">
-      {statuses.map((status) => (
+      {statuses.map((status, columnIndex) => (
         <div key={status} className="board-column">
           <div className="board-column-header">
             <h3 className="board-column-title">{STATUS_LABELS[status]}</h3>
@@ -41,7 +41,7 @@ const BoardView = ({ risks, newRiskId, transitionPhase, onViewDetail }: BoardVie
                 key={risk.id}
                 risk={risk}
                 isNew={risk.id === newRiskId}
-                animationDelay={index * 20}
+                animationDelay={columnIndex * 60 + index * 20}
                 transitionPhase={transitionPhase}
                 onViewDetail={onViewDetail}
               />

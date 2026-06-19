@@ -306,7 +306,7 @@ select {
   padding: 16px;
   box-shadow: var(--shadow-soft);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-left-color var(--transition-fast);
   position: relative;
   overflow: hidden;
   contain: layout paint style;
@@ -318,6 +318,19 @@ select {
   transform: scale(1);
   border-left: 3px solid transparent;
   border-left-style: solid;
+  --risk-color: #e94560;
+}
+
+.risk-card.level-high {
+  --risk-color: #e94560;
+}
+
+.risk-card.level-medium {
+  --risk-color: #ffd700;
+}
+
+.risk-card.level-low {
+  --risk-color: #ffa500;
 }
 
 .risk-card:hover,
@@ -325,6 +338,8 @@ select {
   transform: translateY(-3px);
   box-shadow: var(--shadow-hover);
   outline: none;
+  border-left: 3px solid var(--risk-color);
+  border-left-style: solid;
 }
 
 .risk-card:focus-visible {

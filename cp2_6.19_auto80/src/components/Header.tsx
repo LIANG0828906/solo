@@ -2,31 +2,43 @@ import { useEffect, useRef, useState } from 'react';
 import { useRiskStore } from '@/store/useRiskStore';
 import { exportToCSV, exportToPNG } from '@/utils/export';
 import type { RiskLevel } from '@/types';
+import { RISK_LEVEL_COLORS } from '@/types';
 
 const AnimatedNumber = ({ value, color }: { value: number; color: string }) => {
   const [displayValue, setDisplayValue] = useState(value);
   const prevValue = useRef(value);
+  const rafId = useRef<number | null>(null);
 
   useEffect(() => {
+    if (prevValue.current === value) return;
+
     const startValue = prevValue.current;
     const endValue = value;
     const duration = 500;
     const startTime = performance.now();
 
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(startValue + (endValue - startValue) * easeProgress);
+      const easedProgress = easeOutCubic(progress);
+      const current = Math.round(startValue + (endValue - startValue) * easedProgress);
       setDisplayValue(current);
 
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        rafId.current = requestAnimationFrame(animate);
       }
     };
 
-    requestAnimationFrame(animate);
+    rafId.current = requestAnimationFrame(animate);
     prevValue.current = value;
+
+    return () => {
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+      }
+    };
   }, [value]);
 
   return (
@@ -37,36 +49,45 @@ const AnimatedNumber = ({ value, color }: { value: number; color: string }) => {
 };
 
 const ExportButton = ({ type, label }: { type: 'csv' | 'png'; label: string }) => {
-  const [showCheck, setShowCheck] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const risks = useRiskStore((state) => state.risks);
 
   const handleExport = async () => {
-    if (showCheck) return;
+    if (isExporting) return;
 
-    setShowCheck(true);
+    setIsExporting(true);
 
-    if (type === 'csv') {
-      exportToCSV(risks);
-    } else {
-      await exportToPNG('risk-board-container');
+    try {
+      if (type === 'csv') {
+        exportToCSV(risks);
+      } else {
+        await exportToPNG('risk-board-container');
+      }
+    } catch (error) {
+      console.error(`Export ${type} failed:`, error);
     }
 
-    setTimeout(() => setShowCheck(false), 1000);
+    setTimeout(() => setIsExporting(false), 1000);
   };
 
   return (
     <button
       type="button"
-      className={`app-export-button ${showCheck ? 'app-export-success' : ''}`}
+      className={`app-export-button ${isExporting ? 'app-export-success' : ''}`}
       onClick={handleExport}
+      aria-label={`导出${type.toUpperCase()}`}
+      aria-busy={isExporting}
     >
-      {showCheck ? (
+      {isExporting ? (
         <svg
           className="app-checkmark"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
           strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
         >
           <path d="M5 13l4 4L19 7" />
         </svg>
@@ -87,9 +108,9 @@ const Header = () => {
   };
 
   const levelColors: Record<RiskLevel, string> = {
-    high: 'var(--risk-high)',
-    medium: 'var(--risk-medium)',
-    low: 'var(--risk-low)',
+    high: RISK_LEVEL_COLORS.high,
+    medium: RISK_LEVEL_COLORS.medium,
+    low: RISK_LEVEL_COLORS.low,
   };
 
   const levelLabels: Record<RiskLevel, string> = {

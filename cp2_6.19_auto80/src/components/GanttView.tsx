@@ -13,14 +13,37 @@ const GanttView = ({ risks, onViewDetail }: GanttViewProps) => {
 
   useEffect(() => {
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
-    const interval = setInterval(() => {
+
+    const getMsUntilMidnight = (): number => {
+      const now = new Date();
+      const midnight = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        0, 0, 0, 0
+      );
+      return midnight.getTime() - now.getTime();
+    };
+
+    let initialTimer: ReturnType<typeof setTimeout>;
+    let dailyInterval: ReturnType<typeof setInterval>;
+
+    const refreshToday = () => {
       const newToday = getTodayString();
       if (newToday !== today) {
         setToday(newToday);
       }
-    }, TWENTY_FOUR_HOURS);
+    };
 
-    return () => clearInterval(interval);
+    initialTimer = setTimeout(() => {
+      refreshToday();
+      dailyInterval = setInterval(refreshToday, TWENTY_FOUR_HOURS);
+    }, getMsUntilMidnight());
+
+    return () => {
+      if (initialTimer) clearTimeout(initialTimer);
+      if (dailyInterval) clearInterval(dailyInterval);
+    };
   }, [today]);
 
   const { dateRange, totalDays, dayWidth, todayPosition } = useMemo(() => {
