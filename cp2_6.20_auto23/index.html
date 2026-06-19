@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>虚拟博物馆 | Virtual Museum</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #1a1a1f;
+      }
+      #loading-screen {
+        position: fixed;
+        inset: 0;
+        background: #1a1a1f;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.8s ease, visibility 0.8s ease;
+      }
+      #loading-screen.hidden {
+        opacity: 0;
+        visibility: hidden;
+      }
+      .loading-logo {
+        width: 80px;
+        height: 80px;
+        border: 3px solid transparent;
+        border-top-color: #c9a962;
+        border-right-color: #e08a3c;
+        border-radius: 50%;
+        animation: spin 1.2s linear infinite;
+        margin-bottom: 32px;
+        box-shadow: 0 0 30px rgba(201, 169, 98, 0.3);
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .loading-title {
+        font-family: 'Cinzel', serif;
+        font-size: 28px;
+        font-weight: 600;
+        color: #c9a962;
+        letter-spacing: 6px;
+        margin-bottom: 16px;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
+      }
+      .loading-subtitle {
+        font-family: 'Noto Sans SC', sans-serif;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.5);
+        letter-spacing: 4px;
+        margin-bottom: 48px;
+      }
+      .loading-progress {
+        width: 240px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .loading-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #c9a962, #e08a3c);
+        width: 0%;
+        border-radius: 2px;
+        animation: progress 2s ease-out forwards;
+      }
+      @keyframes progress {
+        to { width: 100%; }
+      }
+      #app {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading-screen">
+      <div class="loading-logo"></div>
+      <div class="loading-title">VIRTUAL MUSEUM</div>
+      <div class="loading-subtitle">正在为您开启艺术之门...</div>
+      <div class="loading-progress">
+        <div class="loading-progress-bar"></div>
+      </div>
+    </div>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
