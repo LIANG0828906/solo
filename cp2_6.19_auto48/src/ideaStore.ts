@@ -15,13 +15,35 @@ export interface Idea {
   createdAt: number
 }
 
+export type SortType = 'votes' | 'time' | 'trending'
+
 interface IdeaStore {
   ideas: Idea[]
-  sortBy: 'votes' | 'time'
+  sortBy: SortType
   addIdea: (title: string, description: string, category: Category) => void
   toggleVote: (id: string) => void
   toggleFavorite: (id: string) => void
-  setSortBy: (sort: 'votes' | 'time') => void
+  setSortBy: (sort: SortType) => void
+}
+
+export const getHeatRate = (idea: Idea): number => {
+  const now = Date.now()
+  const ageMs = Math.max(now - idea.createdAt, 3600000)
+  const ageDays = ageMs / 86400000
+  return idea.votes / Math.sqrt(ageDays)
+}
+
+export const getHeatLevel = (rate: number, maxRate: number): 'hot' | 'warm' | 'cold' => {
+  if (maxRate === 0) return 'cold'
+  const ratio = rate / maxRate
+  if (ratio >= 0.6) return 'hot'
+  if (ratio >= 0.25) return 'warm'
+  return 'cold'
+}
+
+export const getMaxHeatRate = (ideas: Idea[]): number => {
+  if (ideas.length === 0) return 0
+  return Math.max(...ideas.map((i) => getHeatRate(i)))
 }
 
 const sampleIdeas: Idea[] = [
@@ -212,10 +234,13 @@ export const useIdeaStore = create<IdeaStore>((set) => ({
   setSortBy: (sort) => set({ sortBy: sort }),
 }))
 
-export const getSortedIdeas = (ideas: Idea[], sortBy: 'votes' | 'time'): Idea[] => {
+export const getSortedIdeas = (ideas: Idea[], sortBy: SortType): Idea[] => {
   return [...ideas].sort((a, b) => {
     if (sortBy === 'votes') {
       return b.votes - a.votes
+    }
+    if (sortBy === 'trending') {
+      return getHeatRate(b) - getHeatRate(a)
     }
     return b.createdAt - a.createdAt
   })

@@ -1,5 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useIdeaStore, getSortedIdeas, type Idea, type Category } from './ideaStore'
+import {
+  useIdeaStore,
+  getSortedIdeas,
+  getHeatRate,
+  getHeatLevel,
+  getMaxHeatRate,
+  type Idea,
+  type Category,
+  type SortType,
+} from './ideaStore'
 
 const categoryColors: Record<Category, { bg: string; text: string }> = {
   技术: { bg: 'rgba(74, 144, 217, 0.2)', text: '#4A90D9' },
@@ -12,10 +21,12 @@ function IdeaCard({
   idea,
   index,
   isAnimating,
+  maxHeatRate,
 }: {
   idea: Idea
   index: number
   isAnimating: boolean
+  maxHeatRate: number
 }) {
   const toggleVote = useIdeaStore((state) => state.toggleVote)
   const toggleFavorite = useIdeaStore((state) => state.toggleFavorite)
@@ -44,6 +55,9 @@ function IdeaCard({
       : idea.description
 
   const catStyle = categoryColors[idea.category]
+  const heatRate = getHeatRate(idea)
+  const heatLevel = getHeatLevel(heatRate, maxHeatRate)
+  const heatPercent = maxHeatRate > 0 ? (heatRate / maxHeatRate) * 100 : 0
 
   return (
     <div
@@ -65,6 +79,7 @@ function IdeaCard({
           aria-label={idea.favorited ? '取消收藏' : '收藏'}
         >
           {rippleActive && <span className="ripple-effect" />}
+          {idea.favorited && <span className="favorite-pulse-glow" />}
           <svg
             viewBox="0 0 24 24"
             width="20"
@@ -72,6 +87,7 @@ function IdeaCard({
             fill={idea.favorited ? '#FFD700' : 'none'}
             stroke={idea.favorited ? '#FFD700' : 'currentColor'}
             strokeWidth="2"
+            className="favorite-star"
           >
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
@@ -81,6 +97,16 @@ function IdeaCard({
 
       <h3 className="card-title">{idea.title}</h3>
       <p className="card-summary">{summary}</p>
+
+      <div className="heat-bar-container">
+        <div
+          className={`heat-bar heat-${heatLevel}`}
+          style={{ width: `${Math.max(heatPercent, 2)}%` }}
+        />
+        <span className="heat-label">
+          {heatLevel === 'hot' ? '🔥 热度飙升' : heatLevel === 'warm' ? '📈 稳步上升' : '💤 暂无热度'}
+        </span>
+      </div>
 
       <div className="card-footer">
         <button
@@ -102,13 +128,13 @@ function SortBar({
   sortBy,
   onSortChange,
 }: {
-  sortBy: 'votes' | 'time'
-  onSortChange: (sort: 'votes' | 'time') => void
+  sortBy: SortType
+  onSortChange: (sort: SortType) => void
 }) {
   const [isTransitioning, setIsTransitioning] = useState(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleSort = (sort: 'votes' | 'time') => {
+  const handleSort = (sort: SortType) => {
     if (sort === sortBy) return
     setIsTransitioning(true)
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
@@ -126,6 +152,12 @@ function SortBar({
           onClick={() => handleSort('votes')}
         >
           🏆 热门排行
+        </button>
+        <button
+          className={`sort-tab ${sortBy === 'trending' ? 'active' : ''}`}
+          onClick={() => handleSort('trending')}
+        >
+          🔥 热度趋势
         </button>
         <button
           className={`sort-tab ${sortBy === 'time' ? 'active' : ''}`}
@@ -200,18 +232,20 @@ export default function IdeaList() {
   }, [])
 
   const sortedIdeas = useMemo(() => getSortedIdeas(ideas, sortBy), [ideas, sortBy])
+  const maxHeatRate = useMemo(() => getMaxHeatRate(ideas), [ideas])
 
   return (
     <div className="main-layout">
       <div className="content-area">
         <SortBar sortBy={sortBy} onSortChange={setSortBy} />
-        <div className={`ideas-grid ${sortBy === 'time' ? 'sorting-time' : 'sorting-votes'}`}>
+        <div className={`ideas-grid sorting-${sortBy}`}>
           {sortedIdeas.map((idea, index) => (
             <IdeaCard
               key={idea.id}
               idea={idea}
               index={index}
               isAnimating={initialAnim}
+              maxHeatRate={maxHeatRate}
             />
           ))}
         </div>
