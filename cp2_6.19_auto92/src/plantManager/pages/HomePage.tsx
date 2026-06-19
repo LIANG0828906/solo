@@ -168,6 +168,7 @@ export default function HomePage() {
               plants={filteredAndSortedPlants}
               onPlantClick={handlePlantClick}
               highlightedId={highlightedPlantId ?? undefined}
+              groupByCategory={sortType === 'category'}
             />
           )}
         </div>

@@ -49,3 +49,32 @@ export function generateGradient(seed: string): string {
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs))
 }
+
+export function padZero(num: number, len: number = 2): string {
+  return String(num).padStart(len, '0')
+}
+
+export function toLocalDateTimeInput(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const y = d.getFullYear()
+  const m = padZero(d.getMonth() + 1)
+  const day = padZero(d.getDate())
+  const h = padZero(d.getHours())
+  const min = padZero(d.getMinutes())
+  return `${y}-${m}-${day}T${h}:${min}`
+}
+
+export function fromLocalDateTimeInput(localStr: string): string {
+  if (!localStr) return ''
+  const [datePart, timePart] = localStr.split('T')
+  const [y, m, d] = datePart.split('-').map(Number)
+  const [h, min] = timePart.split(':').map(Number)
+  const localDate = new Date(y, m - 1, d, h, min)
+  return localDate.toISOString()
+}
+
+export function utcToLocal(utcStr: string): string {
+  if (!utcStr) return ''
+  const d = new Date(utcStr)
+  return toLocalDateTimeInput(d)
+}

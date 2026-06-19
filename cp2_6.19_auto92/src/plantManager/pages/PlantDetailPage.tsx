@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Droplets, Leaf, Scissors, RefreshCw, Clover, Flower2, Sprout } from 'lucide-react'
+import { ArrowLeft, Droplets, Leaf, Scissors, RefreshCw, Sun, Clover, Flower2, Sprout } from 'lucide-react'
 import AnalyticsCharts from '@/analyticsModules/components/AnalyticsCharts'
+import { useAnalytics } from '@/analyticsModules/hooks/useAnalytics'
 import CareLogList from '@/plantManager/components/CareLogList'
 import CareLogForm from '@/plantManager/components/CareLogForm'
 import type { Plant, CareLog, CareLogType } from '@/plantManager/core/plantModel'
@@ -44,6 +45,13 @@ const actionButtons: { type: CareLogType; icon: typeof Droplets; color: string; 
     bgColor: 'bg-purple-100',
     shadowColor: 'shadow-purple-500/40',
   },
+  {
+    type: 'light',
+    icon: Sun,
+    color: 'bg-amber-500 hover:bg-amber-600',
+    bgColor: 'bg-amber-100',
+    shadowColor: 'shadow-amber-500/40',
+  },
 ]
 
 export default function PlantDetailPage() {
@@ -54,6 +62,8 @@ export default function PlantDetailPage() {
   const [activeFormType, setActiveFormType] = useState<CareLogType | null>(null)
   const [newLogId, setNewLogId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const { wateringFrequency, fertilizingTrend, lightDistribution } = useAnalytics(id ?? '', logs)
 
   useEffect(() => {
     if (id) {
@@ -100,40 +110,10 @@ export default function PlantDetailPage() {
     }
   }
 
-  const generateChartData = () => {
-    const wateringData = Array.from({ length: 4 }, (_, i) => ({
-      week: `第${4 - i}周`,
-      count: logs.filter((log) => {
-        if (log.type !== 'watering') return false
-        const logDate = new Date(log.date)
-        const weekAgo = new Date()
-        weekAgo.setDate(weekAgo.getDate() - (4 - i) * 7)
-        const weekEnd = new Date(weekAgo)
-        weekEnd.setDate(weekEnd.getDate() + 7)
-        return logDate >= weekAgo && logDate < weekEnd
-      }).length,
-    })).reverse()
-
-    const fertilizingData = Array.from({ length: 6 }, (_, i) => {
-      const date = new Date()
-      date.setMonth(date.getMonth() - (5 - i))
-      return {
-        month: `${date.getMonth() + 1}月`,
-        count: logs.filter((log) => {
-          if (log.type !== 'fertilizing') return false
-          const logDate = new Date(log.date)
-          return logDate.getMonth() === date.getMonth() && logDate.getFullYear() === date.getFullYear()
-        }).length,
-      }
-    })
-
-    const lightData = [
-      { name: '低光照', value: 30, color: '#86efac' },
-      { name: '中光照', value: 50, color: '#22c55e' },
-      { name: '高光照', value: 20, color: '#15803d' },
-    ]
-
-    return { wateringData, fertilizingData, lightData }
+  const chartData = {
+    wateringData: wateringFrequency,
+    fertilizingData: fertilizingTrend,
+    lightData: lightDistribution,
   }
 
   if (loading) {
@@ -160,7 +140,6 @@ export default function PlantDetailPage() {
 
   const CategoryIcon = categoryIcons[plant.category as keyof typeof categoryIcons] ?? Sprout
   const gradientStyle = generateGradient(plant.name + plant.category)
-  const chartData = generateChartData()
 
   return (
     <div className="min-h-screen bg-gray-50 pb-28">

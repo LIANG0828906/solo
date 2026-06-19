@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
-import { X, Droplets, Leaf, Scissors, RefreshCw } from 'lucide-react'
-import type { CareLog, CareLogType } from '@/plantManager/core/plantModel'
-import { cn, formatDate } from '@/shared/utils'
+import { X, Droplets, Leaf, Scissors, RefreshCw, Sun } from 'lucide-react'
+import type { CareLog, CareLogType, LightLevel } from '@/plantManager/core/plantModel'
+import { cn, toLocalDateTimeInput, fromLocalDateTimeInput } from '@/shared/utils'
 import { v4 as uuidv4 } from 'uuid'
+
+function localToUTC(localStr: string): string {
+  return fromLocalDateTimeInput(localStr)
+}
 
 interface CareLogFormProps {
   plantId: string
@@ -47,7 +51,20 @@ const typeConfig: Record<CareLogType, {
     bgColor: 'bg-purple-50',
     borderColor: 'border-purple-200',
   },
+  light: {
+    label: '光照',
+    icon: Sun,
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-50',
+    borderColor: 'border-amber-200',
+  },
 }
+
+const lightLevelOptions: { value: LightLevel; label: string; icon: string }[] = [
+  { value: 'low', label: '低光照', icon: '🌤️' },
+  { value: 'medium', label: '中光照', icon: '⛅' },
+  { value: 'high', label: '高光照', icon: '☀️' },
+]
 
 export default function CareLogForm({
   plantId,
@@ -58,6 +75,7 @@ export default function CareLogForm({
 }: CareLogFormProps) {
   const [date, setDate] = useState('')
   const [note, setNote] = useState('')
+  const [lightLevel, setLightLevel] = useState<LightLevel | ''>('')
 
   const config = typeConfig[type]
   const Icon = config.icon
@@ -65,9 +83,10 @@ export default function CareLogForm({
   useEffect(() => {
     if (isOpen) {
       const now = new Date()
-      const localDateTime = formatDate(now, "yyyy-MM-dd'T'HH:mm")
+      const localDateTime = toLocalDateTimeInput(now)
       setDate(localDateTime)
       setNote('')
+      setLightLevel('')
     }
   }, [isOpen, type])
 
@@ -79,8 +98,9 @@ export default function CareLogForm({
       id: uuidv4(),
       plantId,
       type,
-      date: new Date(date).toISOString(),
+      date: localToUTC(date),
       note: note.trim() || undefined,
+      lightLevel: lightLevel || undefined,
       createdAt: new Date().toISOString(),
     }
 
@@ -137,6 +157,33 @@ export default function CareLogForm({
                 'focus:bg-white'
               )}
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">光照情况（可选）</label>
+            <div className="grid grid-cols-3 gap-2">
+              {lightLevelOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setLightLevel(lightLevel === option.value ? '' : option.value)}
+                  className={cn(
+                    'flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 transition-all duration-200',
+                    lightLevel === option.value
+                      ? 'border-amber-400 bg-amber-50 shadow-sm'
+                      : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                  )}
+                >
+                  <span className="text-2xl">{option.icon}</span>
+                  <span className={cn(
+                    'text-xs font-medium',
+                    lightLevel === option.value ? 'text-amber-700' : 'text-gray-600'
+                  )}>
+                    {option.label}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-2">

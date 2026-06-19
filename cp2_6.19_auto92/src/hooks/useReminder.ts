@@ -39,30 +39,20 @@ export function useReminder() {
   const blinkTimerRef = useRef<number | null>(null)
   const checkTimerRef = useRef<number | null>(null)
   const isShowingReminderRef = useRef(false)
+  const lastOverdueCountRef = useRef(0)
 
-  const checkReminders = async () => {
-    try {
-      const plants = await getAllPlants()
-      const overduePlants = calculateOverduePlants(plants)
-      const count = overduePlants.length
-      setOverdueCount(count)
-      updateTitleBlink(count)
-    } catch (error) {
-      console.error('检查植物提醒失败:', error)
-    }
-  }
-
-  const updateTitleBlink = (count: number) => {
+  const stopBlinking = () => {
     if (blinkTimerRef.current) {
       clearInterval(blinkTimerRef.current)
       blinkTimerRef.current = null
     }
+    document.title = ORIGINAL_TITLE
+    isShowingReminderRef.current = false
+  }
 
-    if (count <= 0) {
-      document.title = ORIGINAL_TITLE
-      isShowingReminderRef.current = false
-      return
-    }
+  const startBlinking = (count: number) => {
+    stopBlinking()
+    if (count <= 0) return
 
     const reminderText = `${count}盆植物需要照料`
     isShowingReminderRef.current = true
@@ -77,6 +67,63 @@ export function useReminder() {
     }, BLINK_INTERVAL)
   }
 
+  const checkReminders = async () => {
+    try {
+      const plants = await getAllPlants()
+      const overduePlants = calculateOverduePlants(plants)
+      const count = overduePlants.length
+      setOverdueCount(count)
+      lastOverdueCountRef.current = count
+      updateTitleBlink(count)
+    } catch (error) {
+      console.error('检查植物提醒失败:', error)
+    }
+  }
+
+  const updateTitleBlink = (count: number) => {
+    if (count <= 0) {
+      stopBlinking()
+      return
+    }
+
+    const reminderText = `${count}盆植物需要照料`
+
+    if (document.hidden) {
+      startBlinking(count)
+    } else {
+      stopBlinking()
+      document.title = reminderText
+    }
+  }
+
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      if (lastOverdueCountRef.current > 0) {
+        startBlinking(lastOverdueCountRef.current)
+      }
+    } else {
+      stopBlinking()
+      if (lastOverdueCountRef.current > 0) {
+        const reminderText = `${lastOverdueCountRef.current}盆植物需要照料`
+        document.title = reminderText
+      }
+    }
+  }
+
+  const handleWindowBlur = () => {
+    if (lastOverdueCountRef.current > 0) {
+      startBlinking(lastOverdueCountRef.current)
+    }
+  }
+
+  const handleWindowFocus = () => {
+    stopBlinking()
+    if (lastOverdueCountRef.current > 0) {
+      const reminderText = `${lastOverdueCountRef.current}盆植物需要照料`
+      document.title = reminderText
+    }
+  }
+
   const startChecking = () => {
     checkReminders()
     checkTimerRef.current = window.setInterval(checkReminders, CHECK_INTERVAL)
@@ -87,15 +134,18 @@ export function useReminder() {
       clearInterval(checkTimerRef.current)
       checkTimerRef.current = null
     }
-    if (blinkTimerRef.current) {
-      clearInterval(blinkTimerRef.current)
-      blinkTimerRef.current = null
-    }
-    document.title = ORIGINAL_TITLE
+    stopBlinking()
   }
 
   useEffect(() => {
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('blur', handleWindowBlur)
+    window.addEventListener('focus', handleWindowFocus)
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('blur', handleWindowBlur)
+      window.removeEventListener('focus', handleWindowFocus)
       stopChecking()
     }
   }, [])

@@ -1,4 +1,4 @@
-import { Clover, Leaf, Flower2, Sprout } from 'lucide-react'
+import { Clover, Leaf, Flower, Sprout } from 'lucide-react'
 import type { Plant } from '@/plantManager/core/plantModel'
 import { cn, addDays } from '@/shared/utils'
 
@@ -12,7 +12,7 @@ interface PlantCardProps {
 const categoryIcons = {
   succulent: Clover,
   foliage: Leaf,
-  flowering: Flower2,
+  flowering: Flower,
   other: Sprout,
 }
 

@@ -176,41 +176,53 @@ export default function AnalyticsCharts({
             activeTab === 'light' ? 'opacity-100 z-10' : 'opacity-0 z-0'
           )}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={lightData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={2}
-                dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                labelLine={{ stroke: GREEN_COLORS.dark }}
-              >
-                {lightData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                  border: '1px solid #bbf7d0',
-                  borderRadius: '8px',
-                  color: GREEN_COLORS.text,
-                }}
-                formatter={(value: number) => [`${value}%`, '占比']}
-              />
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                formatter={(value) => (
-                  <span style={{ color: GREEN_COLORS.text }}>{value}</span>
-                )}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+          {lightData.every((item) => item.value === 0) ? (
+            <div className="w-full h-full flex flex-col items-center justify-center text-center p-6">
+              <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+                <span className="text-3xl">☀️</span>
+              </div>
+              <p className="text-sm font-medium text-gray-700 mb-1">暂无光照记录</p>
+              <p className="text-xs text-gray-500 max-w-[240px]">
+                在养护操作中记录光照情况后，这里将显示实际光照分布统计
+              </p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={lightData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={{ stroke: GREEN_COLORS.dark }}
+                >
+                  {lightData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '8px',
+                    color: GREEN_COLORS.text,
+                  }}
+                  formatter={(value: number) => [`${value}%`, '占比']}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  formatter={(value) => (
+                    <span style={{ color: GREEN_COLORS.text }}>{value}</span>
+                  )}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import {
   startOfWeek,
   endOfWeek,
@@ -10,8 +10,7 @@ import {
   format,
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import type { CareLog, Plant } from '@/plantManager/core/plantModel'
-import { getPlant } from '@/plantManager/core/careLogService'
+import type { CareLog } from '@/plantManager/core/plantModel'
 
 interface WateringFrequencyItem {
   week: string
@@ -49,36 +48,6 @@ const LIGHT_NAMES = {
 }
 
 export function useAnalytics(plantId: string, logs: CareLog[]): UseAnalyticsReturn {
-  const [plant, setPlant] = useState<Plant | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function fetchPlant() {
-      setIsLoading(true)
-      try {
-        const result = await getPlant(plantId)
-        if (!cancelled) {
-          setPlant(result)
-        }
-      } catch {
-        if (!cancelled) {
-          setPlant(null)
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    fetchPlant()
-
-    return () => {
-      cancelled = true
-    }
-  }, [plantId])
 
   const wateringFrequency = useMemo<WateringFrequencyItem[]>(() => {
     const now = new Date()
@@ -123,7 +92,23 @@ export function useAnalytics(plantId: string, logs: CareLog[]): UseAnalyticsRetu
   }, [logs])
 
   const lightDistribution = useMemo<LightDistributionItem[]>(() => {
-    if (!plant) {
+    const counts: Record<'low' | 'medium' | 'high', number> = {
+      low: 0,
+      medium: 0,
+      high: 0,
+    }
+
+    let total = 0
+
+    for (const log of logs) {
+      if (!log.lightLevel) continue
+      if (log.lightLevel === 'low' || log.lightLevel === 'medium' || log.lightLevel === 'high') {
+        counts[log.lightLevel]++
+        total++
+      }
+    }
+
+    if (total === 0) {
       return [
         { name: LIGHT_NAMES.low, value: 0, color: LIGHT_COLORS.low },
         { name: LIGHT_NAMES.medium, value: 0, color: LIGHT_COLORS.medium },
@@ -131,33 +116,17 @@ export function useAnalytics(plantId: string, logs: CareLog[]): UseAnalyticsRetu
       ]
     }
 
-    const lightReq = plant.lightRequirement
-
-    if (lightReq === 'low') {
-      return [
-        { name: LIGHT_NAMES.low, value: 60, color: LIGHT_COLORS.low },
-        { name: LIGHT_NAMES.medium, value: 30, color: LIGHT_COLORS.medium },
-        { name: LIGHT_NAMES.high, value: 10, color: LIGHT_COLORS.high },
-      ]
-    } else if (lightReq === 'medium') {
-      return [
-        { name: LIGHT_NAMES.low, value: 20, color: LIGHT_COLORS.low },
-        { name: LIGHT_NAMES.medium, value: 60, color: LIGHT_COLORS.medium },
-        { name: LIGHT_NAMES.high, value: 20, color: LIGHT_COLORS.high },
-      ]
-    } else {
-      return [
-        { name: LIGHT_NAMES.low, value: 10, color: LIGHT_COLORS.low },
-        { name: LIGHT_NAMES.medium, value: 30, color: LIGHT_COLORS.medium },
-        { name: LIGHT_NAMES.high, value: 60, color: LIGHT_COLORS.high },
-      ]
-    }
-  }, [plant])
+    return [
+      { name: LIGHT_NAMES.low, value: Math.round((counts.low / total) * 100), color: LIGHT_COLORS.low },
+      { name: LIGHT_NAMES.medium, value: Math.round((counts.medium / total) * 100), color: LIGHT_COLORS.medium },
+      { name: LIGHT_NAMES.high, value: Math.round((counts.high / total) * 100), color: LIGHT_COLORS.high },
+    ]
+  }, [logs])
 
   return {
     wateringFrequency,
     fertilizingTrend,
     lightDistribution,
-    isLoading,
+    isLoading: false,
   }
 }
