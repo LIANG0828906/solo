@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import TripCard from './TripCard';
 import type { TripFormData } from './types';
-import { useAppStore } from '../expense/store';
+import { useTripStore } from './store';
 import { CURRENCY_LIST } from '@/utils/currency';
 
 interface TripManagerProps {
@@ -16,7 +16,7 @@ interface FormErrors {
 }
 
 export const TripManager: React.FC<TripManagerProps> = ({ onSelectTrip }) => {
-  const { trips, currentTripId, addTrip } = useAppStore((state) => ({
+  const { trips, currentTripId, addTrip } = useTripStore((state) => ({
     trips: state.trips,
     currentTripId: state.currentTripId,
     addTrip: state.addTrip,

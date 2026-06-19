@@ -1,48 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ChartPanel from './ChartPanel';
-import { useAppStore } from './store';
+import { useExpenseStore } from './store';
+import { useTripStore } from '../trip/store';
 import type { ExpenseCategory, ExpenseFormData } from './types';
 import { EXPENSE_CATEGORIES, CATEGORY_ICONS, CATEGORY_CLASS_MAP } from './types';
 import { convertCurrency, CURRENCY_LIST, formatCurrency } from '@/utils/currency';
 import type { CurrencyCode } from '../trip/types';
 import { CURRENCY_SYMBOLS } from '../trip/types';
-
-interface NumberRollerProps {
-  value: number;
-  currency: string;
-}
-
-const NumberRoller: React.FC<NumberRollerProps> = ({ value, currency }) => {
-  const [displayValue, setDisplayValue] = useState(0);
-  const symbol = CURRENCY_SYMBOLS[currency as CurrencyCode] || currency;
-  
-  useEffect(() => {
-    const startValue = displayValue;
-    const endValue = value;
-    const duration = 300;
-    const startTime = performance.now();
-    
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = 1 - Math.pow(1 - progress, 3);
-      const currentValue = startValue + (endValue - startValue) * easeProgress;
-      setDisplayValue(Math.round(currentValue * 100) / 100);
-      
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
-    };
-    
-    requestAnimationFrame(animate);
-  }, [value]);
-  
-  return (
-    <span className="number-roll">
-      {symbol}{displayValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-    </span>
-  );
-};
+import NumberRoller from '@/components/NumberRoller';
 
 interface ExpenseTrackerProps {
   tripId: string;
@@ -56,8 +21,9 @@ interface FormErrors {
 }
 
 export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
+  const trip = useTripStore((state) => state.getTripById(tripId));
+  
   const {
-    trip,
     expenses,
     totalExpenses,
     budgetPercentage,
@@ -67,19 +33,18 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
     addExpense,
     highlightedExpenseId,
     setHighlightedExpense,
-  } = useAppStore((state) => ({
-    trip: state.getTripById(tripId),
+  } = useExpenseStore((state) => ({
     expenses: state.getExpensesByTrip(tripId),
     totalExpenses: state.getTotalExpenses(tripId),
-    budgetPercentage: state.getBudgetPercentage(tripId),
-    dailyBudget: state.getDailyBudget(tripId),
+    budgetPercentage: trip ? state.getBudgetPercentage(tripId, trip.budget) : 0,
+    dailyBudget: trip ? state.getDailyBudget(trip) : 0,
     categoryTotals: state.getCategoryTotals(tripId),
-    cumulativeExpenses: state.getCumulativeExpenses(tripId),
+    cumulativeExpenses: trip ? state.getCumulativeExpenses(trip) : [],
     addExpense: state.addExpense,
     highlightedExpenseId: state.highlightedExpenseId,
     setHighlightedExpense: state.setHighlightedExpense,
   }));
-  
+
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<Omit<ExpenseFormData, 'amount'>>({
     tripId,
@@ -92,10 +57,10 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
   const [convertedAmount, setConvertedAmount] = useState(0);
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  
+
   const expenseListRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  
+
   useEffect(() => {
     if (trip) {
       setFormData((prev) => ({
@@ -105,7 +70,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
       }));
     }
   }, [tripId, trip]);
-  
+
   useEffect(() => {
     if (formData.originalAmount > 0 && formData.originalCurrency && trip) {
       const result = convertCurrency(
@@ -118,7 +83,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
       setConvertedAmount(0);
     }
   }, [formData.originalAmount, formData.originalCurrency, trip]);
-  
+
   useEffect(() => {
     if (highlightedExpenseId) {
       const timer = setTimeout(() => {
@@ -127,7 +92,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
       return () => clearTimeout(timer);
     }
   }, [highlightedExpenseId, setHighlightedExpense]);
-  
+
   useEffect(() => {
     if (highlightedExpenseId && expenseListRef.current) {
       const element = document.getElementById(`expense-${highlightedExpenseId}`);
@@ -136,33 +101,46 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
       }
     }
   }, [highlightedExpenseId]);
-  
+
   const playAlertSound = useCallback(() => {
     try {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       const ctx = audioContextRef.current;
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-      oscillator.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
-      oscillator.frequency.setValueAtTime(880, ctx.currentTime + 0.2);
-      
-      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-      
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.4);
+
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      const playTone = (freq: number, startTime: number, duration: number) => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        oscillator.frequency.setValueAtTime(freq, startTime);
+        oscillator.type = 'sine';
+
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, startTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+
+      const now = ctx.currentTime;
+      playTone(880, now, 0.15);
+      playTone(660, now + 0.15, 0.15);
+      playTone(440, now + 0.30, 0.15);
+
     } catch (e) {
       console.log('Audio not supported');
     }
   }, []);
-  
+
   const validateField = useCallback((name: keyof ExpenseFormData, value: string | number): string | undefined => {
     switch (name) {
       case 'category':
@@ -181,34 +159,34 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
         return undefined;
     }
   }, []);
-  
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     const processedValue = name === 'originalAmount' ? parseFloat(value) || 0 : value;
-    
+
     setFormData((prev) => ({ ...prev, [name]: processedValue }));
-    
+
     if (touched[name]) {
       const error = validateField(name as keyof ExpenseFormData, processedValue);
       setErrors((prev) => ({ ...prev, [name]: error }));
     }
   };
-  
+
   const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     const processedValue = name === 'originalAmount' ? parseFloat(value) || 0 : value;
-    
+
     setTouched((prev) => ({ ...prev, [name]: true }));
     const error = validateField(name as keyof ExpenseFormData, processedValue);
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
-  
+
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     let isValid = true;
-    
+
     const fieldsToValidate: Array<keyof ExpenseFormData> = ['category', 'originalAmount', 'originalCurrency', 'timestamp'];
-    
+
     fieldsToValidate.forEach((key) => {
       const value = formData[key];
       const error = validateField(key, value as string | number);
@@ -217,7 +195,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
         isValid = false;
       }
     });
-    
+
     setErrors(newErrors);
     setTouched({
       category: true,
@@ -225,27 +203,27 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
       originalCurrency: true,
       timestamp: true,
     });
-    
+
     return isValid;
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm() || !trip) return;
-    
+
     const prevPercentage = budgetPercentage;
-    
+
     addExpense({
       ...formData,
       amount: convertedAmount,
     });
-    
-    const newPercentage = useAppStore.getState().getBudgetPercentage(tripId);
+
+    const newPercentage = useExpenseStore.getState().getBudgetPercentage(tripId, trip.budget);
     if (prevPercentage < 100 && newPercentage >= 100) {
       playAlertSound();
     }
-    
+
     setShowForm(false);
     setFormData({
       tripId,
@@ -258,22 +236,22 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
     setErrors({});
     setTouched({});
   };
-  
+
   const handleCloseForm = () => {
     setShowForm(false);
     setErrors({});
     setTouched({});
   };
-  
+
   const formatDateTime = (timestamp: string) => {
     const date = new Date(timestamp);
     return `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   };
-  
+
   if (!trip) {
     return <div className="text-center py-16 text-muted">未找到该旅行项目</div>;
   }
-  
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -287,28 +265,28 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
           + 记录开销
         </button>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="card">
+        <div className="card animate-fade-in-up stagger-1">
           <div className="text-sm text-muted mb-1">总预算</div>
           <div className="text-xl font-semibold text-cyan">
             {CURRENCY_SYMBOLS[trip.currency]}{trip.budget.toLocaleString()}
           </div>
         </div>
-        <div className="card">
+        <div className="card animate-fade-in-up stagger-2">
           <div className="text-sm text-muted mb-1">已花费</div>
           <div className="text-xl font-semibold">
-            {formatCurrency(totalExpenses, trip.currency)}
+            <NumberRoller value={totalExpenses} currency={trip.currency} decimals={0} />
           </div>
         </div>
-        <div className="card">
+        <div className="card animate-fade-in-up stagger-3">
           <div className="text-sm text-muted mb-1">每日预算</div>
           <div className="text-xl font-semibold">
-            {formatCurrency(dailyBudget, trip.currency)}
+            <NumberRoller value={dailyBudget} currency={trip.currency} decimals={0} />
           </div>
         </div>
       </div>
-      
+
       <div className="mb-6">
         <div className="flex justify-between text-sm mb-2">
           <span className="text-secondary">预算使用进度</span>
@@ -325,11 +303,11 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
           />
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div>
           <h2 className="text-lg font-semibold mb-4">开销记录</h2>
-          <div 
+          <div
             ref={expenseListRef}
             className="max-h-[500px] overflow-y-auto pr-2"
           >
@@ -377,7 +355,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
             )}
           </div>
         </div>
-        
+
         <div>
           <h2 className="text-lg font-semibold mb-4">数据统计</h2>
           <ChartPanel
@@ -389,11 +367,11 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
           />
         </div>
       </div>
-      
+
       <div className={`modal-overlay ${showForm ? 'show' : ''}`} onClick={handleCloseForm}>
         <div className="modal-content glass" onClick={(e) => e.stopPropagation()}>
           <h2 className="text-xl font-bold mb-6">记录开销</h2>
-          
+
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label className="form-label">类别</label>
@@ -415,7 +393,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
                 ))}
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group">
                 <label className="form-label">金额</label>
@@ -434,7 +412,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
                   {errors.originalAmount}
                 </div>
               </div>
-              
+
               <div className="form-group">
                 <label className="form-label">货币类型</label>
                 <select
@@ -451,9 +429,9 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
                 </select>
               </div>
             </div>
-            
+
             {convertedAmount > 0 && formData.originalCurrency !== trip.currency && (
-              <div className="form-group p-4 bg-[#0f3460] rounded-lg">
+              <div className="form-group p-4 bg-[#0f3460] rounded-lg animate-scale-in">
                 <div className="text-sm text-muted mb-1">换算结果</div>
                 <div className="text-xl font-semibold text-cyan">
                   <NumberRoller value={convertedAmount} currency={trip.currency} />
@@ -463,7 +441,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
                 </div>
               </div>
             )}
-            
+
             <div className="form-group">
               <label className="form-label">备注</label>
               <textarea
@@ -475,7 +453,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
                 rows={2}
               />
             </div>
-            
+
             <div className="form-group">
               <label className="form-label">发生时间</label>
               <input
@@ -490,7 +468,7 @@ export const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ tripId }) => {
                 {errors.timestamp}
               </div>
             </div>
-            
+
             <div className="flex gap-4 mt-6">
               <button type="button" className="btn btn-secondary flex-1" onClick={handleCloseForm}>
                 取消

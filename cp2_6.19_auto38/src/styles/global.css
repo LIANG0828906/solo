@@ -80,6 +80,17 @@ html, body {
   transition: var(--transition);
 }
 
+@media (min-width: 1025px) {
+  .nav-sidebar {
+    max-height: none !important;
+    overflow-y: auto !important;
+  }
+  
+  .hamburger-menu {
+    display: none !important;
+  }
+}
+
 @media (max-width: 1024px) {
   .app-container {
     grid-template-columns: 1fr;
@@ -194,7 +205,7 @@ html, body {
 }
 
 .card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-4px) scale(1.02);
   box-shadow: var(--shadow-card-hover), var(--shadow-glow);
 }
 
@@ -208,7 +219,13 @@ html, body {
   background-clip: padding-box;
 }
 
-@keyframes orangeGradientPulse {
+.card-warning-blink {
+  animation: cardWarningBlink 1.5s ease-in-out infinite;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+@keyframes cardWarningBlink {
   0%, 100% {
     box-shadow: var(--shadow-card), 
                 0 0 15px rgba(255, 107, 107, 0.3),
@@ -218,6 +235,40 @@ html, body {
   50% {
     box-shadow: var(--shadow-card), 
                 0 0 30px rgba(255, 107, 107, 0.7),
+                inset 0 0 0 2px rgba(255, 107, 107, 0.5);
+    border-color: rgba(255, 107, 107, 0.8);
+  }
+}
+
+@keyframes orangeGradientPulse {
+  0%, 100% {
+    box-shadow: var(--shadow-card),
+                0 0 15px rgba(255, 107, 107, 0.3),
+                inset 0 0 0 2px rgba(255, 107, 107, 0.2);
+    border-color: rgba(255, 107, 107, 0.5);
+  }
+  50% {
+    box-shadow: var(--shadow-card),
+                0 0 30px rgba(255, 107, 107, 0.7),
+                inset 0 0 0 2px rgba(255, 107, 107, 0.5);
+    border-color: rgba(255, 107, 107, 0.8);
+  }
+}
+
+.card-warning-blink {
+  animation: cardWarningBlink 1.5s ease-in-out infinite;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+@keyframes cardWarningBlink {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(255, 107, 107, 0.3),
+                inset 0 0 0 2px rgba(255, 107, 107, 0.2);
+    border-color: rgba(255, 107, 107, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 107, 107, 0.8),
                 inset 0 0 0 2px rgba(255, 107, 107, 0.5);
     border-color: rgba(255, 107, 107, 0.8);
   }

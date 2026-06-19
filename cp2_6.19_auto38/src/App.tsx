@@ -1,135 +1,163 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import TripManager from './modules/trip/TripManager';
 import ExpenseTracker from './modules/expense/ExpenseTracker';
-import { useAppStore } from './modules/expense/store';
+import { useTripStore } from './modules/trip/store';
+import { useExpenseStore } from './modules/expense/store';
+import { initializeMockData } from './modules/expense/store';
 import { formatCurrency } from './utils/currency';
 import { CURRENCY_SYMBOLS } from './modules/trip/types';
 import { CATEGORY_ICONS, CATEGORY_CLASS_MAP } from './modules/expense/types';
+import BudgetAlert from './components/BudgetAlert';
 
 type ViewMode = 'dashboard' | 'detail';
 
 const App: React.FC = () => {
+  const { trips, currentTripId, switchTrip } = useTripStore((state) => ({
+    trips: state.trips,
+    currentTripId: state.currentTripId,
+    switchTrip: state.switchTrip,
+  }));
+
   const {
-    trips,
-    currentTripId,
-    switchTrip,
     getTotalExpenses,
     getBudgetPercentage,
     getCategoryTotals,
     getExpensesByTrip,
-  } = useAppStore((state) => ({
-    trips: state.trips,
-    currentTripId: state.currentTripId,
-    switchTrip: state.switchTrip,
+  } = useExpenseStore((state) => ({
     getTotalExpenses: state.getTotalExpenses,
     getBudgetPercentage: state.getBudgetPercentage,
     getCategoryTotals: state.getCategoryTotals,
     getExpensesByTrip: state.getExpensesByTrip,
   }));
-  
+
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!initializedRef.current && trips.length > 0) {
+      initializeMockData(trips.map((t) => t.id));
+      initializedRef.current = true;
+    }
+  }, [trips]);
+
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const [showAlert, setShowAlert] = useState(false);
   const [alertType, setAlertType] = useState<'warning' | 'danger' | null>(null);
+  const [alertMessage, setAlertMessage] = useState('');
   const [alertDismissed, setAlertDismissed] = useState(false);
-  
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const currentTrip = useMemo(() => {
     if (!currentTripId) return null;
     return trips.find((t) => t.id === currentTripId) || null;
   }, [currentTripId, trips]);
-  
-  const overallStats = useMemo(() => {
-    let totalBudget = 0;
-    let totalSpent = 0;
-    let maxPercentage = 0;
-    
-    trips.forEach((trip) => {
-      totalBudget += trip.budget;
-      const spent = getTotalExpenses(trip.id);
-      totalSpent += spent;
-      const percentage = getBudgetPercentage(trip.id);
-      maxPercentage = Math.max(maxPercentage, percentage);
-    });
-    
-    return {
-      totalBudget,
-      totalSpent,
-      maxPercentage,
-      remaining: totalBudget - totalSpent,
-    };
-  }, [trips, getTotalExpenses, getBudgetPercentage]);
-  
+
   useEffect(() => {
     if (alertDismissed) return;
-    
-    const { maxPercentage } = overallStats;
+
+    let maxPercentage = 0;
+    let dangerTrip = '';
+
+    trips.forEach((trip) => {
+      const percentage = getBudgetPercentage(trip.id, trip.budget);
+      if (percentage > maxPercentage) {
+        maxPercentage = percentage;
+        if (percentage >= 80) {
+          dangerTrip = trip.destination;
+        }
+      }
+    });
+
     if (maxPercentage >= 100) {
       setAlertType('danger');
+      setAlertMessage(`「${dangerTrip}」已超出预算！请立即控制开销。`);
       setShowAlert(true);
     } else if (maxPercentage >= 80) {
       setAlertType('warning');
+      setAlertMessage(`「${dangerTrip}」预算使用已超过80%，请注意控制花费。`);
       setShowAlert(true);
     } else {
       setShowAlert(false);
       setAlertType(null);
     }
-  }, [overallStats, alertDismissed]);
-  
+  }, [trips, getBudgetPercentage, alertDismissed]);
+
   const handleSelectTrip = useCallback((tripId: string) => {
     switchTrip(tripId);
     setViewMode('detail');
     setAlertDismissed(false);
+    setMobileMenuOpen(false);
   }, [switchTrip]);
-  
+
   const handleBackToDashboard = useCallback(() => {
     setViewMode('dashboard');
     setAlertDismissed(false);
+    setMobileMenuOpen(false);
   }, []);
-  
+
   const handleDismissAlert = useCallback(() => {
     setShowAlert(false);
     setAlertDismissed(true);
   }, []);
-  
+
+  const toggleMobileMenu = useCallback(() => {
+    setMobileMenuOpen((prev) => !prev);
+  }, []);
+
+  const overallStats = useMemo(() => {
+    let totalBudget = 0;
+    let totalSpent = 0;
+
+    trips.forEach((trip) => {
+      totalBudget += trip.budget;
+      totalSpent += getTotalExpenses(trip.id);
+    });
+
+    return {
+      totalBudget,
+      totalSpent,
+      remaining: totalBudget - totalSpent,
+    };
+  }, [trips, getTotalExpenses]);
+
   const rightPanelContent = useMemo(() => {
     if (viewMode === 'dashboard') {
       return (
         <div>
           <h3 className="text-lg font-semibold mb-4">总览统计</h3>
-          
+
           <div className="space-y-4">
-            <div className="glass p-4">
+            <div className="glass p-4 animate-fade-in-up stagger-1">
               <div className="text-sm text-muted mb-1">总预算</div>
               <div className="text-xl font-semibold text-cyan">
                 ¥{overallStats.totalBudget.toLocaleString()}
               </div>
             </div>
-            
-            <div className="glass p-4">
+
+            <div className="glass p-4 animate-fade-in-up stagger-2">
               <div className="text-sm text-muted mb-1">已花费</div>
               <div className="text-xl font-semibold">
                 ¥{overallStats.totalSpent.toLocaleString()}
               </div>
             </div>
-            
-            <div className="glass p-4">
+
+            <div className="glass p-4 animate-fade-in-up stagger-3">
               <div className="text-sm text-muted mb-1">剩余预算</div>
               <div className={`text-xl font-semibold ${overallStats.remaining < 0 ? 'text-orange' : ''}`}>
                 ¥{overallStats.remaining.toLocaleString()}
               </div>
             </div>
-            
-            <div className="glass p-4">
+
+            <div className="glass p-4 animate-fade-in-up stagger-4">
               <div className="text-sm text-muted mb-2">旅行项目</div>
               <div className="text-2xl font-bold text-cyan">{trips.length}</div>
             </div>
           </div>
-          
+
           {trips.length > 0 && (
             <div className="mt-6">
               <h4 className="text-base font-semibold mb-3">快速切换</h4>
               <div className="space-y-2">
                 {trips.map((trip) => {
-                  const percentage = getBudgetPercentage(trip.id);
+                  const percentage = getBudgetPercentage(trip.id, trip.budget);
                   return (
                     <div
                       key={trip.id}
@@ -163,16 +191,16 @@ const App: React.FC = () => {
         </div>
       );
     }
-    
+
     if (!currentTrip) return null;
-    
+
     const categoryTotals = getCategoryTotals(currentTrip.id);
     const recentExpenses = getExpensesByTrip(currentTrip.id).slice(0, 5);
-    
+
     return (
       <div>
         <h3 className="text-lg font-semibold mb-4">项目统计</h3>
-        
+
         <div className="space-y-4">
           <div className="glass p-4">
             <div className="text-sm text-muted mb-1">项目预算</div>
@@ -180,14 +208,14 @@ const App: React.FC = () => {
               {CURRENCY_SYMBOLS[currentTrip.currency]}{currentTrip.budget.toLocaleString()}
             </div>
           </div>
-          
+
           <div className="glass p-4">
             <div className="text-sm text-muted mb-1">已花费</div>
             <div className="text-xl font-semibold">
               {formatCurrency(getTotalExpenses(currentTrip.id), currentTrip.currency)}
             </div>
           </div>
-          
+
           <div className="glass p-4">
             <div className="text-sm text-muted mb-2">类别分布</div>
             <div className="space-y-2">
@@ -208,7 +236,7 @@ const App: React.FC = () => {
               ))}
             </div>
           </div>
-          
+
           <div className="glass p-4">
             <div className="text-sm text-muted mb-2">最近开销</div>
             <div className="space-y-2">
@@ -235,82 +263,76 @@ const App: React.FC = () => {
       </div>
     );
   }, [viewMode, currentTrip, overallStats, trips, currentTripId, getTotalExpenses, getBudgetPercentage, getCategoryTotals, getExpensesByTrip, handleSelectTrip]);
-  
+
   return (
     <div className="app-container">
-      {showAlert && alertType && (
-        <div className={`alert-banner ${alertType} ${showAlert ? 'show' : ''}`}>
-          <div className="flex items-center gap-3">
-            <span className="text-xl">{alertType === 'danger' ? '🚨' : '⚠️'}</span>
-            <span className="font-medium">
-              {alertType === 'danger'
-                ? '警告：有项目已超出预算！请控制开销。'
-                : '提醒：有项目预算使用已超过80%，请注意控制花费。'}
-            </span>
-          </div>
-          <button
-            className="px-3 py-1 rounded bg-white/20 hover:bg-white/30 transition-all text-sm"
-            onClick={handleDismissAlert}
-          >
-            知道了
-          </button>
-        </div>
-      )}
-      
-      <nav className="nav-sidebar">
+      <BudgetAlert
+        type={alertType || 'warning'}
+        message={alertMessage}
+        visible={showAlert && alertType !== null}
+        onDismiss={handleDismissAlert}
+      />
+
+      <button
+        className="hamburger-menu"
+        onClick={toggleMobileMenu}
+        aria-label="切换导航菜单"
+      >
+        {mobileMenuOpen ? '✕' : '☰'}
+      </button>
+
+      <nav className={`nav-sidebar ${mobileMenuOpen ? 'expanded' : 'collapsed'}`}>
         <div className="mb-8">
           <h1 className="text-xl font-bold text-cyan mb-1">✈️ 旅行管家</h1>
           <p className="text-xs text-muted">Trip Expense Tracker</p>
         </div>
-        
+
         <div className="space-y-2">
           <div
             className={`nav-item ${viewMode === 'dashboard' ? 'active' : ''}`}
             onClick={handleBackToDashboard}
           >
             <span className="nav-item-icon">📊</span>
-            <span className="hidden lg:inline">仪表盘</span>
+            <span>仪表盘</span>
           </div>
-          
+
           {viewMode === 'detail' && currentTrip && (
             <div className="nav-item active">
               <span className="nav-item-icon">📍</span>
-              <span className="hidden lg:inline">{currentTrip.destination}</span>
+              <span>{currentTrip.destination}</span>
             </div>
           )}
         </div>
-        
+
         {viewMode === 'detail' && currentTrip && (
           <div className="mt-8">
-            <div className="hidden lg:block">
-              <h4 className="text-sm font-semibold text-muted mb-3 px-4">其他项目</h4>
-              <div className="space-y-1">
-                {trips
-                  .filter((t) => t.id !== currentTripId)
-                  .map((trip) => {
-                    const percentage = getBudgetPercentage(trip.id);
-                    return (
-                      <div
-                        key={trip.id}
-                        className="nav-item text-sm"
-                        onClick={() => handleSelectTrip(trip.id)}
-                      >
-                        <span className="nav-item-icon">✈️</span>
-                        <span className="hidden lg:inline">
-                          {trip.destination}
-                          <span className={`ml-2 text-xs ${percentage >= 80 ? 'text-orange' : 'text-cyan'}`}>
-                            {percentage}%
-                          </span>
+            <h4 className="text-sm font-semibold text-muted mb-3 px-4">其他项目</h4>
+            <div className="space-y-1">
+              {trips
+                .filter((t) => t.id !== currentTripId)
+                .map((trip) => {
+                  const percentage = getBudgetPercentage(trip.id, trip.budget);
+                  return (
+                    <div
+                      key={trip.id}
+                      className="nav-item text-sm"
+                      onClick={() => handleSelectTrip(trip.id)}
+                    >
+                      <span className="nav-item-icon">✈️</span>
+                      <span>
+                        {trip.destination}
+                        <span className={`ml-2 text-xs ${percentage >= 80 ? 'text-orange' : 'text-cyan'}`}>
+                          {percentage}%
                         </span>
-                      </div>
-                    );
-                  })}
-              </div>
+                      </span>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
       </nav>
-      
+
       <main className="main-content">
         {viewMode === 'dashboard' ? (
           <TripManager onSelectTrip={handleSelectTrip} />
@@ -328,7 +350,7 @@ const App: React.FC = () => {
           <TripManager onSelectTrip={handleSelectTrip} />
         )}
       </main>
-      
+
       <aside className="stats-panel">
         {rightPanelContent}
       </aside>

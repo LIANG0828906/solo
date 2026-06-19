@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { Trip, TripFormData } from './types';
+import { useExpenseStore } from '../expense/store';
 
 const STORAGE_KEY = 'trip_tracker_trips';
 
@@ -13,6 +14,8 @@ interface TripState {
   getTripById: (tripId: string) => Trip | undefined;
   updateTrip: (tripId: string, updates: Partial<TripFormData>) => void;
   deleteTrip: (tripId: string) => void;
+  getTripExpenses: (tripId: string) => number;
+  getTripBudgetPercentage: (tripId: string, budget: number) => number;
 }
 
 const loadFromStorage = (): Trip[] | null => {
@@ -110,6 +113,14 @@ export const useTripStore = create<TripState>((set, get) => ({
         : state.currentTripId;
       return { trips, currentTripId: newCurrentId };
     });
+  },
+  
+  getTripExpenses: (tripId) => {
+    return useExpenseStore.getState().getTotalExpenses(tripId);
+  },
+  
+  getTripBudgetPercentage: (tripId, budget) => {
+    return useExpenseStore.getState().getBudgetPercentage(tripId, budget);
   },
 }));
 

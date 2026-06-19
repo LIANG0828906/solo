@@ -13,7 +13,6 @@ import {
   type ChartData,
   type ChartOptions,
   type Plugin,
-  type ChartEvent,
   type ActiveElement,
 } from 'chart.js';
 import { Pie, Line } from 'react-chartjs-2';
@@ -70,7 +69,7 @@ interface CrosshairState {
 const crosshairPlugin: Plugin<'line', CrosshairState> = {
   id: 'crosshair',
   beforeInit: (chart) => {
-    chart.crosshair = {
+    (chart as any).crosshair = {
       x: null,
       y: null,
       xValue: null,
@@ -78,37 +77,35 @@ const crosshairPlugin: Plugin<'line', CrosshairState> = {
       visible: false,
     };
   },
-  afterEvent: (chart, args: { event: ChartEvent; replay: boolean; changed: boolean; cancelable: boolean }) => {
+  afterEvent: (chart, args) => {
     const { event } = args;
-    const crosshair = chart.crosshair;
+    const crosshair = (chart as any).crosshair as CrosshairState;
     
     if (event.type === 'mousemove' && event.x !== undefined && event.y !== undefined) {
       const xAxis = chart.scales.x;
       const yAxis = chart.scales.y;
       
       if (xAxis && yAxis) {
-        const xValue = xAxis.getValueForPixel(event.x);
-        const yValue = yAxis.getValueForPixel(event.y);
+        const xVal = xAxis.getValueForPixel(event.x ?? 0);
+        const yVal = yAxis.getValueForPixel(event.y ?? 0);
         
-        if (xValue !== undefined && yValue !== undefined) {
-          crosshair.x = event.x;
-          crosshair.y = event.y;
-          crosshair.xValue = xAxis.getLabelForValue(Math.round(xValue)) || null;
-          crosshair.yValue = Math.round(yValue);
+        if (xVal !== undefined && yVal !== undefined) {
+          crosshair.x = event.x ?? null;
+          crosshair.y = event.y ?? null;
+          crosshair.xValue = xAxis.getLabelForValue(Math.round(xVal)) || null;
+          crosshair.yValue = Math.round(yVal);
           crosshair.visible = true;
-          args.changed = true;
         }
       }
     } else if (event.type === 'mouseout') {
       crosshair.visible = false;
       crosshair.x = null;
       crosshair.y = null;
-      args.changed = true;
     }
   },
   afterDatasetsDraw: (chart) => {
     const { ctx, chartArea } = chart;
-    const crosshair = chart.crosshair;
+    const crosshair = (chart as any).crosshair as CrosshairState;
     
     if (!crosshair.visible || !crosshair.x || !crosshair.y || !chartArea) {
       return;
@@ -192,15 +189,16 @@ interface PieAnimationState {
 const pieAnimationPlugin: Plugin<'pie', PieAnimationState> = {
   id: 'pieAnimation',
   beforeInit: (chart) => {
-    chart.pieAnimState = {
+    (chart as any).pieAnimState = {
       progress: 0,
       animating: false,
     };
   },
   beforeUpdate: (chart, args) => {
     if (args.mode === 'default' || args.mode === 'active') {
-      chart.pieAnimState.animating = true;
-      chart.pieAnimState.progress = 0;
+      const state = (chart as any).pieAnimState as PieAnimationState;
+      state.animating = true;
+      state.progress = 0;
       
       const startTime = performance.now();
       const duration = 800;
@@ -210,12 +208,12 @@ const pieAnimationPlugin: Plugin<'pie', PieAnimationState> = {
         const progress = Math.min(elapsed / duration, 1);
         const easeProgress = 1 - Math.pow(1 - progress, 4);
         
-        chart.pieAnimState.progress = easeProgress;
+        state.progress = easeProgress;
         
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
-          chart.pieAnimState.animating = false;
+          state.animating = false;
         }
       };
       
@@ -224,7 +222,7 @@ const pieAnimationPlugin: Plugin<'pie', PieAnimationState> = {
   },
   beforeDatasetDraw: (chart) => {
     const { ctx } = chart;
-    const state = chart.pieAnimState;
+    const state = (chart as any).pieAnimState as PieAnimationState;
     
     if (state.animating && state.progress < 1) {
       ctx.save();
@@ -239,7 +237,7 @@ const pieAnimationPlugin: Plugin<'pie', PieAnimationState> = {
   },
   afterDatasetDraw: (chart) => {
     const { ctx } = chart;
-    const state = chart.pieAnimState;
+    const state = (chart as any).pieAnimState as PieAnimationState;
     
     if (state.animating && state.progress < 1) {
       ctx.restore();
