@@ -30,8 +30,10 @@ interface AppState {
   notes: Note[];
   facingWall: 'north' | 'south' | 'east' | 'west';
   sidebarOpen: boolean;
+  roomName: string;
   addImage: (image: ImageItem) => void;
   removeImage: (id: string) => void;
+  reorderImages: (fromIndex: number, toIndex: number) => void;
   addFrame: (frame: Frame) => void;
   removeFrame: (id: string) => void;
   updateFramePosition: (id: string, x: number, y: number) => void;
@@ -40,6 +42,7 @@ interface AppState {
   updateNote: (id: string, content: string) => void;
   setFacingWall: (wall: 'north' | 'south' | 'east' | 'west') => void;
   setSidebarOpen: (open: boolean) => void;
+  setRoomName: (name: string) => void;
 }
 
 const STORAGE_KEY = 'inspiration-gallery';
@@ -54,8 +57,8 @@ const loadState = (): Partial<AppState> => {
 
 const saveState = (state: AppState) => {
   try {
-    const { images, frames, notes } = state;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ images, frames, notes }));
+    const { images, frames, notes, roomName } = state;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ images, frames, notes, roomName }));
   } catch { /* empty */ }
 };
 
@@ -67,6 +70,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   notes: loaded.notes || [],
   facingWall: 'north' as const,
   sidebarOpen: true,
+  roomName: loaded.roomName || '我的灵感画廊',
 
   addImage: (image) => {
     set((state) => {
@@ -79,6 +83,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeImage: (id) => {
     set((state) => {
       const newState = { ...state, images: state.images.filter((i) => i.id !== id) };
+      saveState(newState);
+      return newState;
+    });
+  },
+
+  reorderImages: (fromIndex, toIndex) => {
+    set((state) => {
+      const arr = [...state.images];
+      const [removed] = arr.splice(fromIndex, 1);
+      if (!removed) return state;
+      arr.splice(toIndex, 0, removed);
+      const newState = { ...state, images: arr };
       saveState(newState);
       return newState;
     });
@@ -152,5 +168,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setSidebarOpen: (open) => {
     set({ sidebarOpen: open });
+  },
+
+  setRoomName: (name) => {
+    set((state) => {
+      const newState = { ...state, roomName: name };
+      saveState(newState);
+      return newState;
+    });
   },
 }));

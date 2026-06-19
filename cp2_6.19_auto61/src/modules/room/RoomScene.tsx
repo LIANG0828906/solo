@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useCallback } from 'react';
+import { Plus, Minus } from 'lucide-react';
 import * as THREE from 'three';
 import { useAppStore, Frame, Note } from '@/store/appStore';
 
@@ -257,6 +258,12 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
 
+  const snapLinesRef = useRef<{ type: 'vertical' | 'horizontal'; value: number }[]>([]);
+  const snapLinesGroupRef = useRef<THREE.Group | null>(null);
+
+  const minimapZoomRef = useRef(1);
+  const currentZoomRef = useRef(1);
+
   const storeFrames = useAppStore((s) => s.frames);
   const storeNotes = useAppStore((s) => s.notes);
   const removeFrame = useAppStore((s) => s.removeFrame);
@@ -442,6 +449,10 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
     ceiling.position.y = ROOM_HEIGHT;
     scene.add(ceiling);
 
+    const snapLinesGroup = new THREE.Group();
+    scene.add(snapLinesGroup);
+    snapLinesGroupRef.current = snapLinesGroup;
+
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
@@ -515,7 +526,80 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
             px = intersection.z;
             py = intersection.y;
           }
-          const clamped = clampDragPosition(dragFrameWallRef.current, px, py);
+          let clamped = clampDragPosition(dragFrameWallRef.current, px, py);
+          snapLinesRef.current = [];
+
+          const curCx = clamped.x;
+          const curCy = clamped.y;
+          const halfW = 0.65;
+          const halfH = 0.5;
+          const curLeft = curCx - halfW;
+          const curRight = curCx + halfW;
+          const curTop = curCy + halfH;
+          const curBottom = curCy - halfH;
+          const threshold = 0.18;
+
+          let finalX = curCx;
+          let finalY = curCy;
+
+          storeFrames.forEach((neighbor) => {
+            if (neighbor.wallId !== dragFrameWallRef.current) return;
+            if (neighbor.id === dragFrameIdRef.current) return;
+
+            const nCx = neighbor.positionX;
+            const nCy = neighbor.positionY;
+            const nLeft = nCx - halfW;
+            const nRight = nCx + halfW;
+            const nTop = nCy + halfH;
+            const nBottom = nCy - halfH;
+
+            const diffs: { val: number; axis: 'x' | 'y'; type: 'vertical' | 'horizontal' }[] = [
+              { val: curLeft - nLeft, axis: 'x', type: 'vertical' },
+              { val: curRight - nRight, axis: 'x', type: 'vertical' },
+              { val: curLeft - nRight, axis: 'x', type: 'vertical' },
+              { val: curRight - nLeft, axis: 'x', type: 'vertical' },
+              { val: curCx - nCx, axis: 'x', type: 'vertical' },
+              { val: curTop - nTop, axis: 'y', type: 'horizontal' },
+              { val: curBottom - nBottom, axis: 'y', type: 'horizontal' },
+              { val: curTop - nBottom, axis: 'y', type: 'horizontal' },
+              { val: curBottom - nTop, axis: 'y', type: 'horizontal' },
+              { val: curCy - nCy, axis: 'y', type: 'horizontal' },
+            ];
+
+            diffs.forEach((d) => {
+              if (Math.abs(d.val) < threshold) {
+                if (d.axis === 'x') {
+                  finalX = curCx - d.val;
+                  let lineVal = 0;
+                  if (d.val === curLeft - nLeft) lineVal = nLeft;
+                  else if (d.val === curRight - nRight) lineVal = nRight;
+                  else if (d.val === curLeft - nRight) lineVal = nRight;
+                  else if (d.val === curRight - nLeft) lineVal = nLeft;
+                  else lineVal = nCx;
+                  snapLinesRef.current.push({ type: 'vertical', value: lineVal });
+                } else {
+                  finalY = curCy - d.val;
+                  let lineVal = 0;
+                  if (d.val === curTop - nTop) lineVal = nTop;
+                  else if (d.val === curBottom - nBottom) lineVal = nBottom;
+                  else if (d.val === curTop - nBottom) lineVal = nBottom;
+                  else if (d.val === curBottom - nTop) lineVal = nTop;
+                  else lineVal = nCy;
+                  snapLinesRef.current.push({ type: 'horizontal', value: lineVal });
+                }
+              }
+            });
+          });
+
+          const seen = new Set<string>();
+          snapLinesRef.current = snapLinesRef.current.filter((l) => {
+            const key = `${l.type}-${l.value.toFixed(4)}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          clamped = clampDragPosition(dragFrameWallRef.current, finalX, finalY);
           dragTargetPosRef.current = { x: clamped.x, y: clamped.y };
         }
       }
@@ -579,6 +663,7 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
         dragFrameIdRef.current = null;
         isRotatingRef.current = false;
         mouseDownPosRef.current = null;
+        snapLinesRef.current = [];
       }
     };
 
@@ -618,11 +703,27 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
       const mh = 150;
       minimapCanvas.width = mw;
       minimapCanvas.height = mh;
-      ctx.fillStyle = '#2a2520';
-      ctx.fillRect(0, 0, mw, mh);
+
+      currentZoomRef.current += (minimapZoomRef.current - currentZoomRef.current) * 0.18;
+      const zoom = currentZoomRef.current;
+
       const margin = 15;
       const drawW = mw - margin * 2;
       const drawH = mh - margin * 2;
+
+      const px = margin + ((camera.position.x + HALF_W) / ROOM_WIDTH) * drawW;
+      const py = margin + ((camera.position.z + HALF_D) / ROOM_DEPTH) * drawH;
+
+      ctx.save();
+      ctx.translate(mw / 2, mh / 2);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-mw / 2, -mh / 2);
+      if (zoom > 1) {
+        ctx.translate(mw / 2 - px, mh / 2 - py);
+      }
+
+      ctx.fillStyle = '#2a2520';
+      ctx.fillRect(0, 0, mw, mh);
       ctx.strokeStyle = '#B8AFA6';
       ctx.lineWidth = 2;
       ctx.strokeRect(margin, margin, drawW, drawH);
@@ -646,8 +747,6 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
         ctx.fillRect(mx - 3, my - 3, 6, 6);
       });
 
-      const px = margin + ((camera.position.x + HALF_W) / ROOM_WIDTH) * drawW;
-      const py = margin + ((camera.position.z + HALF_D) / ROOM_DEPTH) * drawH;
       ctx.fillStyle = '#4cda6b';
       ctx.beginPath();
       ctx.arc(px, py, 4, 0, Math.PI * 2);
@@ -662,6 +761,17 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
       ctx.moveTo(px, py);
       ctx.lineTo(px + dirX * dirLen, py + dirZ * dirLen);
       ctx.stroke();
+
+      ctx.restore();
+
+      const displayZoom = Math.round(zoom * 10) / 10;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      const label = `×${displayZoom}`;
+      ctx.font = '8px sans-serif';
+      const textW = ctx.measureText(label).width + 6;
+      ctx.fillRect(mw - textW - 4, 4, textW, 14);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, mw - textW - 1, 14);
     };
 
     const animate = (time: number) => {
@@ -736,6 +846,82 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
         }
       });
 
+      const slg = snapLinesGroupRef.current;
+      if (slg) {
+        while (slg.children.length > 0) {
+          const child = slg.children[0];
+          slg.remove(child);
+          if (child instanceof THREE.Line) {
+            child.geometry?.dispose();
+            if (child.material) {
+              if (Array.isArray(child.material)) {
+                child.material.forEach((m) => m.dispose());
+              } else {
+                child.material.dispose();
+              }
+            }
+          }
+        }
+        const wallId = dragFrameWallRef.current;
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 1 });
+        let zOffset = 0.02;
+        snapLinesRef.current.forEach((sl) => {
+          let points: THREE.Vector3[] = [];
+          if (wallId === 'north') {
+            if (sl.type === 'vertical') {
+              points = [
+                new THREE.Vector3(sl.value, 0.15, -HALF_D + zOffset),
+                new THREE.Vector3(sl.value, 2.85, -HALF_D + zOffset),
+              ];
+            } else {
+              points = [
+                new THREE.Vector3(-4.5, sl.value, -HALF_D + zOffset),
+                new THREE.Vector3(4.5, sl.value, -HALF_D + zOffset),
+              ];
+            }
+          } else if (wallId === 'south') {
+            if (sl.type === 'vertical') {
+              points = [
+                new THREE.Vector3(sl.value, 0.15, HALF_D - zOffset),
+                new THREE.Vector3(sl.value, 2.85, HALF_D - zOffset),
+              ];
+            } else {
+              points = [
+                new THREE.Vector3(-4.5, sl.value, HALF_D - zOffset),
+                new THREE.Vector3(4.5, sl.value, HALF_D - zOffset),
+              ];
+            }
+          } else if (wallId === 'west') {
+            if (sl.type === 'vertical') {
+              points = [
+                new THREE.Vector3(-HALF_W + zOffset, 0.15, sl.value),
+                new THREE.Vector3(-HALF_W + zOffset, 2.85, sl.value),
+              ];
+            } else {
+              points = [
+                new THREE.Vector3(-HALF_W + zOffset, sl.value, -3.0),
+                new THREE.Vector3(-HALF_W + zOffset, sl.value, 3.0),
+              ];
+            }
+          } else {
+            if (sl.type === 'vertical') {
+              points = [
+                new THREE.Vector3(HALF_W - zOffset, 0.15, sl.value),
+                new THREE.Vector3(HALF_W - zOffset, 2.85, sl.value),
+              ];
+            } else {
+              points = [
+                new THREE.Vector3(HALF_W - zOffset, sl.value, -3.0),
+                new THREE.Vector3(HALF_W - zOffset, sl.value, 3.0),
+              ];
+            }
+          }
+          const geo = new THREE.BufferGeometry().setFromPoints(points);
+          const line = new THREE.Line(geo, lineMat);
+          slg.add(line);
+        });
+      }
+
       renderer.render(scene, camera);
       drawMinimap();
     };
@@ -801,21 +987,48 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      <canvas
-        ref={minimapRef}
-        width={200}
-        height={150}
+      <div
         style={{
           position: 'absolute',
           top: 8,
           left: 8,
           width: 200,
           height: 150,
-          pointerEvents: 'none',
           borderRadius: 6,
-          opacity: 0.85,
         }}
-      />
+        className="relative"
+      >
+        <canvas
+          ref={minimapRef}
+          width={200}
+          height={150}
+          style={{
+            width: 200,
+            height: 150,
+            pointerEvents: 'none',
+            borderRadius: 6,
+            opacity: 0.85,
+          }}
+        />
+        <div className="absolute bottom-1.5 right-1.5 flex flex-col gap-1">
+          <button
+            onClick={() => {
+              minimapZoomRef.current = Math.min(3, minimapZoomRef.current + 1);
+            }}
+            className="w-6 h-6 rounded-full bg-[#F5F0EB]/90 border border-[#D9D0C7] text-[#5C524A] hover:bg-white transition duration-200 flex items-center justify-center"
+          >
+            <Plus size={14} />
+          </button>
+          <button
+            onClick={() => {
+              minimapZoomRef.current = Math.max(1, minimapZoomRef.current - 1);
+            }}
+            className="w-6 h-6 rounded-full bg-[#F5F0EB]/90 border border-[#D9D0C7] text-[#5C524A] hover:bg-white transition duration-200 flex items-center justify-center"
+          >
+            <Minus size={14} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
