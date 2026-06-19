@@ -174,6 +174,18 @@ export class SceneManager {
     }
   }
 
+  private atomsEqual(atom1: Atom, atom2: Atom): boolean {
+    if (atom1.id === atom2.id) return true
+    return (
+      atom1.x === atom2.x &&
+      atom1.y === atom2.y &&
+      atom1.z === atom2.z &&
+      atom1.chainId === atom2.chainId &&
+      atom1.residueId === atom2.residueId &&
+      atom1.name === atom2.name
+    )
+  }
+
   private handleAtomClick(atom: Atom): void {
     if (this.isMeasuringMode) {
       if (!this.measuringAtom) {
@@ -181,8 +193,11 @@ export class SceneManager {
         if (this.callbacks.onMeasuringAtomChange) {
           this.callbacks.onMeasuringAtomChange(atom)
         }
-      } else if (this.measuringAtom.id !== atom.id) {
-        this.addMeasurement(this.measuringAtom, atom)
+      } else {
+        const isSameAtom = this.atomsEqual(this.measuringAtom, atom)
+        if (!isSameAtom) {
+          this.addMeasurement(this.measuringAtom, atom)
+        }
         this.measuringAtom = null
         if (this.callbacks.onMeasuringAtomChange) {
           this.callbacks.onMeasuringAtomChange(null)
@@ -493,6 +508,10 @@ export class SceneManager {
     })
   }
 
+  private easeInOutCubic(t: number): number {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+  }
+
   private fadeTransition(
     fadeOut: THREE.Group,
     fadeIn: THREE.Group,
@@ -501,40 +520,46 @@ export class SceneManager {
   ): void {
     const startTime = performance.now()
 
+    fadeIn.visible = true
+    this.setGroupOpacity(fadeIn, 0, true)
+
     const animate = () => {
       const elapsed = performance.now() - startTime
-      const progress = Math.min(elapsed / duration, 1)
+      const linearProgress = Math.min(elapsed / duration, 1)
+      const easedProgress = this.easeInOutCubic(linearProgress)
 
-      const fadeOutOpacity = 1 - progress
-      const fadeInOpacity = progress
+      const fadeOutOpacity = 1 - easedProgress
+      const fadeInOpacity = easedProgress
 
-      this.setGroupOpacity(fadeOut, fadeOutOpacity)
-      this.setGroupOpacity(fadeIn, fadeInOpacity)
+      this.setGroupOpacity(fadeOut, fadeOutOpacity, true)
+      this.setGroupOpacity(fadeIn, fadeInOpacity, true)
 
-      if (progress < 1) {
+      if (linearProgress < 1) {
         requestAnimationFrame(animate)
       } else {
         fadeOut.visible = false
+        this.setGroupOpacity(fadeOut, 1, false)
+        this.setGroupOpacity(fadeIn, 1, false)
         if (callback) callback()
       }
     }
 
-    fadeIn.visible = true
-    this.setGroupOpacity(fadeIn, 0)
     animate()
   }
 
-  private setGroupOpacity(group: THREE.Group, opacity: number): void {
+  private setGroupOpacity(group: THREE.Group, opacity: number, transparent: boolean): void {
     group.traverse((child) => {
       if (child instanceof THREE.Mesh && child.material) {
         if (Array.isArray(child.material)) {
           child.material.forEach(mat => {
             mat.opacity = opacity
-            mat.transparent = opacity < 1
+            mat.transparent = transparent
+            mat.needsUpdate = true
           })
         } else {
           child.material.opacity = opacity
-          child.material.transparent = opacity < 1
+          child.material.transparent = transparent
+          child.material.needsUpdate = true
         }
       }
     })

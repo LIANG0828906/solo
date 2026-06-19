@@ -37,6 +37,8 @@ const App: React.FC = () => {
       setIsMobile(mobile)
       if (!mobile) {
         setSidebarOpen(true)
+      } else {
+        setSidebarOpen(false)
       }
     }
 
@@ -111,15 +113,23 @@ const App: React.FC = () => {
         setLoadProgress(progress * 0.5)
       })
 
-      if (!pdbLoader.validate(text)) {
-        throw new Error('PDB文件格式错误，请检查文件内容')
+      const validation = pdbLoader.validate(text)
+      if (!validation.valid) {
+        throw new Error(validation.error || 'PDB文件格式错误，请检查文件内容')
       }
 
-      const data = pdbLoader.parse(text)
+      setLoadProgress(60)
+
+      const result = pdbLoader.parse(text)
+
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'PDB文件解析失败')
+      }
+
       setLoadProgress(100)
 
-      setStructureData(data)
-      sceneManager.loadStructure(data)
+      setStructureData(result.data)
+      sceneManager.loadStructure(result.data)
       setSelectedResidue(null)
       setMeasurements([])
       setLabels([])

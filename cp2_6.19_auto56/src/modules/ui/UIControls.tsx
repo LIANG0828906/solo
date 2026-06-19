@@ -37,6 +37,19 @@ const UIControls: React.FC<UIControlsProps> = ({
   onToggleSidebar
 }) => {
   const [labelText, setLabelText] = useState('')
+  const [removingMeasurementIds, setRemovingMeasurementIds] = useState<Set<string>>(new Set())
+
+  const handleRemoveMeasurement = (id: string) => {
+    setRemovingMeasurementIds(prev => new Set(prev).add(id))
+    setTimeout(() => {
+      setRemovingMeasurementIds(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+      onRemoveMeasurement(id)
+    }, 300)
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -204,7 +217,12 @@ const UIControls: React.FC<UIControlsProps> = ({
         {measurements.length > 0 ? (
           <div className="measurement-list">
             {measurements.map((measurement) => (
-              <div key={measurement.id} className="measurement-item">
+              <div
+                key={measurement.id}
+                className={`measurement-item ${
+                  removingMeasurementIds.has(measurement.id) ? 'removing' : ''
+                }`}
+              >
                 <div className="measurement-info">
                   <div className="measurement-atoms">
                     {measurement.atom1.name} ({measurement.atom1.chainId}{measurement.atom1.residueId})
@@ -217,7 +235,7 @@ const UIControls: React.FC<UIControlsProps> = ({
                 </div>
                 <button
                   className="delete-btn"
-                  onClick={() => onRemoveMeasurement(measurement.id)}
+                  onClick={() => handleRemoveMeasurement(measurement.id)}
                 >
                   删除
                 </button>
