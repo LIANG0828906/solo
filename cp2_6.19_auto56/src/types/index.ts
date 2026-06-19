@@ -1,5 +1,6 @@
 export interface Atom {
   id: number
+  uid: string
   name: string
   element: string
   x: number
@@ -7,6 +8,7 @@ export interface Atom {
   z: number
   residueId: number
   chainId: string
+  serial: number
 }
 
 export interface Residue {

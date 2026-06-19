@@ -175,14 +175,24 @@ export class SceneManager {
   }
 
   private atomsEqual(atom1: Atom, atom2: Atom): boolean {
-    if (atom1.id === atom2.id) return true
+    if (atom1.uid && atom2.uid) {
+      return atom1.uid === atom2.uid
+    }
+    if (atom1.serial !== undefined && atom2.serial !== undefined &&
+        atom1.serial !== 0 && atom2.serial !== 0) {
+      return atom1.serial === atom2.serial &&
+             atom1.chainId === atom2.chainId
+    }
+    if (atom1.id === atom2.id && atom1.id !== 0 && atom2.id !== 0) {
+      return true
+    }
     return (
-      atom1.x === atom2.x &&
-      atom1.y === atom2.y &&
-      atom1.z === atom2.z &&
+      atom1.name === atom2.name &&
       atom1.chainId === atom2.chainId &&
       atom1.residueId === atom2.residueId &&
-      atom1.name === atom2.name
+      atom1.x === atom2.x &&
+      atom1.y === atom2.y &&
+      atom1.z === atom2.z
     )
   }
 
@@ -520,8 +530,11 @@ export class SceneManager {
   ): void {
     const startTime = performance.now()
 
+    const fadeOutClonedMaterials = this.cloneGroupMaterials(fadeOut)
+    const fadeInClonedMaterials = this.cloneGroupMaterials(fadeIn)
+
     fadeIn.visible = true
-    this.setGroupOpacity(fadeIn, 0, true)
+    this.setClonedGroupOpacity(fadeInClonedMaterials, 0, true)
 
     const animate = () => {
       const elapsed = performance.now() - startTime
@@ -531,20 +544,70 @@ export class SceneManager {
       const fadeOutOpacity = 1 - easedProgress
       const fadeInOpacity = easedProgress
 
-      this.setGroupOpacity(fadeOut, fadeOutOpacity, true)
-      this.setGroupOpacity(fadeIn, fadeInOpacity, true)
+      this.setClonedGroupOpacity(fadeOutClonedMaterials, fadeOutOpacity, true)
+      this.setClonedGroupOpacity(fadeInClonedMaterials, fadeInOpacity, true)
 
       if (linearProgress < 1) {
         requestAnimationFrame(animate)
       } else {
         fadeOut.visible = false
-        this.setGroupOpacity(fadeOut, 1, false)
+        this.restoreOriginalMaterials(fadeOut, fadeOutClonedMaterials)
+        this.restoreOriginalMaterials(fadeIn, fadeInClonedMaterials)
         this.setGroupOpacity(fadeIn, 1, false)
         if (callback) callback()
       }
     }
 
     animate()
+  }
+
+  private cloneGroupMaterials(group: THREE.Group): Map<THREE.Mesh, THREE.Material[]> {
+    const meshMaterials = new Map<THREE.Mesh, THREE.Material[]>()
+    group.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material) {
+        if (Array.isArray(child.material)) {
+          const clones = child.material.map(mat => mat.clone())
+          meshMaterials.set(child, clones)
+          child.material = clones
+        } else {
+          const clone = child.material.clone()
+          meshMaterials.set(child, [clone])
+          child.material = clone
+        }
+      }
+    })
+    return meshMaterials
+  }
+
+  private setClonedGroupOpacity(
+    meshMaterials: Map<THREE.Mesh, THREE.Material[]>,
+    opacity: number,
+    transparent: boolean
+  ): void {
+    meshMaterials.forEach((materials) => {
+      for (const mat of materials) {
+        mat.opacity = opacity
+        mat.transparent = transparent
+        mat.needsUpdate = true
+      }
+    })
+  }
+
+  private restoreOriginalMaterials(
+    group: THREE.Group,
+    clonedMaterials: Map<THREE.Mesh, THREE.Material[]>
+  ): void {
+    clonedMaterials.forEach((_, mesh) => {
+      if (mesh.parent === null || !group.children.includes(mesh)) return
+      const mats = mesh.material
+      if (Array.isArray(mats)) {
+        for (const mat of mats) {
+          mat.dispose()
+        }
+      } else {
+        ;(mats as THREE.Material).dispose()
+      }
+    })
   }
 
   private setGroupOpacity(group: THREE.Group, opacity: number, transparent: boolean): void {

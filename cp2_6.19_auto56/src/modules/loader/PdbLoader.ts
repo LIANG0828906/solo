@@ -45,8 +45,8 @@ export class PdbLoader {
       const line = rawLine.replace(/\r$/, '')
 
       if (line.startsWith('ATOM') || line.startsWith('HETATM')) {
-        if (line.length < 54) {
-          parseErrors.push(`第${lineNumber}行: 列数不足(至少需要54列，当前${line.length}列)`)
+        if (line.length < 66) {
+          parseErrors.push(`第${lineNumber}行: 列数不足(至少需要66列，当前${line.length}列)`)
           continue
         }
 
@@ -127,7 +127,7 @@ export class PdbLoader {
     errors: string[]
   ): Atom | null {
     try {
-      if (line.length < 54) {
+      if (line.length < 66) {
         errors.push(`第${lineNumber}行: 格式错误，列数不足`)
         return null
       }
@@ -180,15 +180,23 @@ export class PdbLoader {
         return null
       }
 
+      const serialStr = line.substring(6, 11).trim()
+      const serial = parseInt(serialStr, 10)
+      const validSerial = isNaN(serial) ? atomId : serial
+
+      const uid = `${chainId}:${residueId}:${name}:${validSerial}`
+
       return {
         id: atomId,
+        uid,
         name,
         element,
         x,
         y,
         z,
         residueId,
-        chainId
+        chainId,
+        serial: validSerial
       }
     } catch (e) {
       errors.push(`第${lineNumber}行: 解析异常 - ${e instanceof Error ? e.message : String(e)}`)
@@ -276,10 +284,10 @@ export class PdbLoader {
       const line = lines[i].replace(/\r$/, '')
       
       if (line.startsWith('ATOM') || line.startsWith('HETATM')) {
-        if (line.length < 54) {
+        if (line.length < 66) {
           invalidAtomCount++
           if (sampleErrors.length < 3) {
-            sampleErrors.push(`第${i + 1}行: 列数不足(需要≥54列，当前${line.length}列)`)
+            sampleErrors.push(`第${i + 1}行: 列数不足(需要≥66列，当前${line.length}列)`)
           }
           continue
         }

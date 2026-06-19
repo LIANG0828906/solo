@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { Residue, Measurement, ModelMode, ResidueLabel, Atom } from '../../types'
 
 interface UIControlsProps {
@@ -19,6 +19,8 @@ interface UIControlsProps {
   onToggleSidebar: () => void
 }
 
+const ANIMATION_DURATION = 300
+
 const UIControls: React.FC<UIControlsProps> = ({
   modelMode,
   selectedResidue,
@@ -38,17 +40,33 @@ const UIControls: React.FC<UIControlsProps> = ({
 }) => {
   const [labelText, setLabelText] = useState('')
   const [removingMeasurementIds, setRemovingMeasurementIds] = useState<Set<string>>(new Set())
+  const pendingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
-  const handleRemoveMeasurement = (id: string) => {
+  useEffect(() => {
+    const timers = pendingTimersRef.current
+    return () => {
+      timers.forEach(timer => clearTimeout(timer))
+      timers.clear()
+      setRemovingMeasurementIds(new Set())
+    }
+  }, [])
+
+  const removeMeasurementWithAnimation = (id: string) => {
+    if (removingMeasurementIds.has(id)) return
+
     setRemovingMeasurementIds(prev => new Set(prev).add(id))
-    setTimeout(() => {
+
+    const timer = setTimeout(() => {
+      pendingTimersRef.current.delete(id)
       setRemovingMeasurementIds(prev => {
         const next = new Set(prev)
         next.delete(id)
         return next
       })
       onRemoveMeasurement(id)
-    }, 300)
+    }, ANIMATION_DURATION)
+
+    pendingTimersRef.current.set(id, timer)
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -235,7 +253,7 @@ const UIControls: React.FC<UIControlsProps> = ({
                 </div>
                 <button
                   className="delete-btn"
-                  onClick={() => handleRemoveMeasurement(measurement.id)}
+                  onClick={() => removeMeasurementWithAnimation(measurement.id)}
                 >
                   删除
                 </button>

@@ -182,9 +182,22 @@ const App: React.FC = () => {
     }
   }, [structureData])
 
+  useEffect(() => {
+    if (isMobile && isInitialized) {
+      const timer = setTimeout(() => {
+        window.dispatchEvent(new Event('resize'))
+      }, 400)
+      return () => clearTimeout(timer)
+    }
+  }, [sidebarOpen, isMobile, isInitialized])
+
   return (
     <div className="app-container">
-      <div className="scene-container" ref={sceneContainerRef}>
+      <div
+        className="scene-container"
+        ref={sceneContainerRef}
+        style={isMobile ? { height: sidebarOpen ? '50vh' : '100vh' } : undefined}
+      >
         <canvas className="scene-canvas" />
 
         {loading && (
