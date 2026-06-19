@@ -11,9 +11,31 @@ const bonusRanges = [
   { label: '2万以上', min: 20000, max: Infinity },
 ];
 
+function getSuccessRate(referrals: { jobId: string; status: string }[], jobId: string): number {
+  const jobReferrals = referrals.filter((r) => r.jobId === jobId);
+  if (jobReferrals.length === 0) return -1;
+  const hired = jobReferrals.filter((r) => r.status === '已入职').length;
+  return Math.round((hired / jobReferrals.length) * 100);
+}
+
+function getSuccessRateColor(rate: number): { bg: string; text: string } {
+  if (rate < 0) return { bg: '#F1F3F4', text: '#9AA0A6' };
+  if (rate >= 60) return { bg: '#E6F4EA', text: '#137333' };
+  if (rate >= 30) return { bg: '#FEF7E0', text: '#B06000' };
+  return { bg: '#FCE8E6', text: '#C5221F' };
+}
+
+function getBonusTier(bonus: number): { bg: string; text: string; border: string } {
+  if (bonus >= 20000) return { bg: 'linear-gradient(135deg, #1A73E8 0%, #6EB1FF 100%)', text: '#FFFFFF', border: 'transparent' };
+  if (bonus >= 15000) return { bg: 'linear-gradient(135deg, #34A853 0%, #66DF80 100%)', text: '#FFFFFF', border: 'transparent' };
+  return { bg: '#FFF3E0', text: '#E65100', border: 'transparent' };
+}
+
 export default function JobList() {
   const navigate = useNavigate();
-  const { jobs, getLeaderboard } = useJobStore();
+  const jobs = useJobStore((state) => state.jobs);
+  const referrals = useJobStore((state) => state.referrals);
+  const getLeaderboard = useJobStore((state) => state.getLeaderboard);
   const [selectedDepartment, setSelectedDepartment] = useState('全部');
   const [selectedBonusRange, setSelectedBonusRange] = useState(bonusRanges[0]);
   const [leaderboardJob, setLeaderboardJob] = useState<Job | null>(null);
@@ -119,8 +141,33 @@ export default function JobList() {
             </div>
 
             <div style={styles.cardFooter}>
-              <div style={styles.bonusBadge}>
-                🎁 ¥{job.bonus.toLocaleString()}
+              <div style={styles.footerLeft}>
+                <div
+                  style={{
+                    ...styles.bonusBadge,
+                    background: getBonusTier(job.bonus).bg,
+                    color: getBonusTier(job.bonus).text,
+                    border: `1px solid ${getBonusTier(job.bonus).border}`,
+                  }}
+                >
+                  <span style={styles.bonusIcon}>💰</span>
+                  <span style={styles.bonusText}>¥{job.bonus.toLocaleString()}</span>
+                </div>
+                {(() => {
+                  const rate = getSuccessRate(referrals, job.id);
+                  const color = getSuccessRateColor(rate);
+                  return (
+                    <div
+                      style={{
+                        ...styles.successRateTag,
+                        backgroundColor: color.bg,
+                        color: color.text,
+                      }}
+                    >
+                      {rate < 0 ? '暂无数据' : `成功率 ${rate}%`}
+                    </div>
+                  );
+                })()}
               </div>
               <div style={styles.referrerCount}>
                 👥 已推荐 {job.referrerCount} 人
@@ -320,13 +367,36 @@ const styles: Record<string, React.CSSProperties> = {
     paddingTop: '16px',
     borderTop: '1px solid #F0F0F0',
   },
+  footerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+  },
   bonusBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
     padding: '6px 14px',
-    backgroundColor: '#FFF3E0',
-    color: '#E65100',
     borderRadius: '20px',
     fontSize: '14px',
+    fontWeight: 700,
+    letterSpacing: '0.5px',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+  },
+  bonusIcon: {
+    fontSize: '14px',
+  },
+  bonusText: {
+    fontSize: '14px',
+    fontWeight: 700,
+  },
+  successRateTag: {
+    padding: '4px 10px',
+    borderRadius: '10px',
+    fontSize: '12px',
     fontWeight: 600,
+    whiteSpace: 'nowrap',
   },
   referrerCount: {
     fontSize: '14px',

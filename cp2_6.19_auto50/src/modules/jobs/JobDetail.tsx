@@ -19,8 +19,9 @@ interface FormErrors {
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getJobById, addReferral } = useJobStore();
-  const job = id ? getJobById(id) : undefined;
+  const job = id ? useJobStore((s) => s.getJobById(id)) : undefined;
+  const referrals = useJobStore((s) => s.referrals);
+  const addReferral = useJobStore((s) => s.addReferral);
 
   const [showForm, setShowForm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -152,6 +153,61 @@ export default function JobDetail() {
           <h2 style={styles.sectionTitle}>任职要求</h2>
           <p style={styles.sectionContent}>{job.requirements}</p>
         </div>
+
+        {(() => {
+          const jobReferrals = referrals.filter((r) => r.jobId === job.id);
+          const statusList: { key: string; label: string; color: string; icon: string }[] = [
+            { key: '已投递', label: '已投递', color: '#1A73E8', icon: '📤' },
+            { key: '面试中', label: '面试中', color: '#FB8C00', icon: '💬' },
+            { key: '已录用', label: '已录用', color: '#34A853', icon: '🏆' },
+            { key: '已入职', label: '已入职', color: '#137333', icon: '✅' },
+          ];
+          const counts = statusList.map((s) => ({
+            ...s,
+            count: jobReferrals.filter((r) => r.status === s.key).length,
+          }));
+          const total = jobReferrals.length;
+
+          return (
+            <div style={styles.progressSection}>
+              <h2 style={styles.sectionTitle}>推荐进度概览</h2>
+              <p style={styles.progressSubtitle}>
+                该职位共收到 <strong>{total}</strong> 份推荐
+              </p>
+              {total === 0 ? (
+                <div style={styles.progressEmpty}>暂无推荐记录，快去推荐候选人吧！</div>
+              ) : (
+                <div style={styles.progressBars}>
+                  {counts.map((item) => {
+                    const pct = total > 0 ? (item.count / total) * 100 : 0;
+                    return (
+                      <div key={item.key} style={styles.progressRow}>
+                        <div style={styles.progressLabel}>
+                          <span>{item.icon}</span>
+                          <span style={styles.progressLabelText}>{item.label}</span>
+                          <span style={styles.progressCount}>{item.count} 人</span>
+                        </div>
+                        <div style={styles.progressTrack}>
+                          <div
+                            style={{
+                              ...styles.progressFill,
+                              width: `${Math.max(pct, 0)}%`,
+                              backgroundColor: item.color,
+                              transition: 'width 0.6s ease-out',
+                            }}
+                          />
+                        </div>
+                        <span style={styles.progressPct}>
+                          {total > 0 ? `${Math.round(pct)}%` : '0%'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <div style={styles.footer}>
           <div style={styles.referrerInfo}>
@@ -423,6 +479,70 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#666',
     lineHeight: 1.8,
     margin: 0,
+  },
+  progressSection: {
+    marginBottom: '24px',
+    padding: '24px',
+    backgroundColor: '#F8F9FA',
+    borderRadius: '12px',
+  },
+  progressSubtitle: {
+    fontSize: '14px',
+    color: '#5F6368',
+    margin: '0 0 20px 0',
+  },
+  progressEmpty: {
+    fontSize: '14px',
+    color: '#9AA0A6',
+    textAlign: 'center',
+    padding: '24px 0',
+  },
+  progressBars: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  progressRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  progressLabel: {
+    width: '100px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    flexShrink: 0,
+  },
+  progressLabelText: {
+    fontSize: '13px',
+    fontWeight: 500,
+    color: '#333',
+  },
+  progressCount: {
+    fontSize: '12px',
+    color: '#5F6368',
+    marginLeft: 'auto',
+  },
+  progressTrack: {
+    flex: 1,
+    height: '10px',
+    backgroundColor: '#E8EAED',
+    borderRadius: '5px',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: '5px',
+    minWidth: '0px',
+  },
+  progressPct: {
+    width: '40px',
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#5F6368',
+    textAlign: 'right',
+    flexShrink: 0,
   },
   footer: {
     display: 'flex',
