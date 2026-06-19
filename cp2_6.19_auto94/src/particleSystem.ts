@@ -62,6 +62,9 @@ export class ParticleSystem {
   private sizes: Float32Array;
   private alphas: Float32Array;
 
+  private basePositionsX: Float32Array;
+  private basePositionsZ: Float32Array;
+
   private baseSizes: Float32Array;
   private rotations: Float32Array;
   private rotationSpeeds: Float32Array;
@@ -69,8 +72,17 @@ export class ParticleSystem {
   private targetSizes: Float32Array;
   private currentSizes: Float32Array;
 
+  private driftAmplitudes: Float32Array;
+  private driftFrequenciesX: Float32Array;
+  private driftFrequenciesZ: Float32Array;
+  private driftPhasesX: Float32Array;
+  private driftPhasesZ: Float32Array;
+  private globalTime: number;
+
   private targetColors: Float32Array;
   private currentColors: Float32Array;
+  private tempColor: THREE.Color;
+  private tempHsl: { h: number; s: number; l: number };
 
   private targetVelocities: Float32Array;
   private currentVelocities: Float32Array;
@@ -110,11 +122,15 @@ export class ParticleSystem {
     this.opacity = options.opacity;
     this.speedMultiplier = options.speedMultiplier;
     this.sensitivity = options.sensitivity;
+    this.globalTime = 0;
 
     this.positions = new Float32Array(this.particleCount * 3);
     this.colors = new Float32Array(this.particleCount * 3);
     this.sizes = new Float32Array(this.particleCount);
     this.alphas = new Float32Array(this.particleCount);
+
+    this.basePositionsX = new Float32Array(this.particleCount);
+    this.basePositionsZ = new Float32Array(this.particleCount);
 
     this.baseSizes = new Float32Array(this.particleCount);
     this.rotations = new Float32Array(this.particleCount);
@@ -123,8 +139,16 @@ export class ParticleSystem {
     this.targetSizes = new Float32Array(this.particleCount);
     this.currentSizes = new Float32Array(this.particleCount);
 
+    this.driftAmplitudes = new Float32Array(this.particleCount);
+    this.driftFrequenciesX = new Float32Array(this.particleCount);
+    this.driftFrequenciesZ = new Float32Array(this.particleCount);
+    this.driftPhasesX = new Float32Array(this.particleCount);
+    this.driftPhasesZ = new Float32Array(this.particleCount);
+
     this.targetColors = new Float32Array(this.particleCount * 3);
     this.currentColors = new Float32Array(this.particleCount * 3);
+    this.tempColor = new THREE.Color();
+    this.tempHsl = { h: 0, s: 0, l: 0 };
 
     this.targetVelocities = new Float32Array(this.particleCount);
     this.currentVelocities = new Float32Array(this.particleCount);
@@ -179,6 +203,12 @@ export class ParticleSystem {
       this.rotations[i] = Math.random() * Math.PI * 2;
       this.rotationSpeeds[i] = 0.01 + Math.random() * 0.04;
 
+      this.driftAmplitudes[i] = 0.1 + Math.random() * 0.2;
+      this.driftFrequenciesX[i] = 0.5 + Math.random() * 1.5;
+      this.driftFrequenciesZ[i] = 0.5 + Math.random() * 1.5;
+      this.driftPhasesX[i] = Math.random() * Math.PI * 2;
+      this.driftPhasesZ[i] = Math.random() * Math.PI * 2;
+
       this.fadeStates[i] = FADE_STATE_NORMAL;
       this.fadeTimers[i] = 0;
       this.alphas[i] = 1.0;
@@ -200,8 +230,18 @@ export class ParticleSystem {
 
   private resetParticle(i: number, initial: boolean = false): void {
     const i3 = i * 3;
-    this.positions[i3] = this.X_MIN + Math.random() * (this.X_MAX - this.X_MIN);
-    this.positions[i3 + 2] = this.Z_MIN + Math.random() * (this.Z_MAX - this.Z_MIN);
+    const bx = this.X_MIN + Math.random() * (this.X_MAX - this.X_MIN);
+    const bz = this.Z_MIN + Math.random() * (this.Z_MAX - this.Z_MIN);
+    this.basePositionsX[i] = bx;
+    this.basePositionsZ[i] = bz;
+    this.positions[i3] = bx;
+    this.positions[i3 + 2] = bz;
+
+    this.driftAmplitudes[i] = 0.1 + Math.random() * 0.2;
+    this.driftFrequenciesX[i] = 0.5 + Math.random() * 1.5;
+    this.driftFrequenciesZ[i] = 0.5 + Math.random() * 1.5;
+    this.driftPhasesX[i] = Math.random() * Math.PI * 2;
+    this.driftPhasesZ[i] = Math.random() * Math.PI * 2;
 
     if (initial) {
       this.positions[i3 + 1] = this.BOTTOM_Y + Math.random() * (this.TOP_Y - this.BOTTOM_Y);
@@ -230,6 +270,7 @@ export class ParticleSystem {
   update(frequencyBands: FrequencyBands | null, deltaTime: number): void {
     const dt = Math.min(deltaTime * 60, 2);
     const realDt = Math.min(deltaTime, 0.05);
+    this.globalTime += realDt;
 
     let low = 0, mid = 0, high = 0;
     if (frequencyBands) {
@@ -267,7 +308,29 @@ export class ParticleSystem {
         }
       }
 
-      this.alphas[i] = fadeAlpha;
+      const y = this.positions[i3 + 1];
+      const totalHeight = this.TOP_Y - this.BOTTOM_Y;
+      const normalizedLife = clamp01((this.TOP_Y - y) / totalHeight);
+
+      let lifeAlphaCoef: number;
+      if (normalizedLife < 0.15) {
+        lifeAlphaCoef = lerp(0.3, 1.0, normalizedLife / 0.15);
+      } else if (normalizedLife > 0.8) {
+        lifeAlphaCoef = lerp(1.0, 0.2, (normalizedLife - 0.8) / 0.2);
+      } else {
+        lifeAlphaCoef = 1.0;
+      }
+
+      let lifeSizeCoef: number;
+      if (normalizedLife < 0.12) {
+        lifeSizeCoef = lerp(0.35, 1.0, normalizedLife / 0.12);
+      } else if (normalizedLife > 0.85) {
+        lifeSizeCoef = lerp(1.0, 0.4, (normalizedLife - 0.85) / 0.15);
+      } else {
+        lifeSizeCoef = 1.0;
+      }
+
+      this.alphas[i] = fadeAlpha * lifeAlphaCoef;
 
       const noise = (Math.sin(i * 12.9898 + 78.233) * 43758.5453) % 1;
       const jitter = Math.abs(noise) * 0.3;
@@ -284,34 +347,42 @@ export class ParticleSystem {
 
       this.currentVelocities[i] = lerp(this.currentVelocities[i], this.targetVelocities[i], 0.08);
 
-      const y = this.positions[i3 + 1] - this.currentVelocities[i] * this.speedMultiplier * dt;
-      this.positions[i3 + 1] = y;
+      const newY = y - this.currentVelocities[i] * this.speedMultiplier * dt;
+      this.positions[i3 + 1] = newY;
 
-      if (fadeState === FADE_STATE_NORMAL && y < this.FADE_OUT_Y) {
+      if (fadeState === FADE_STATE_NORMAL && newY < this.FADE_OUT_Y) {
         this.fadeStates[i] = FADE_STATE_OUT;
         this.fadeTimers[i] = 0;
       }
+
+      const driftAmp = this.driftAmplitudes[i] * (this.hasAudio ? (0.8 + low * 0.6) : 1.0);
+      const driftX = Math.sin(this.globalTime * this.driftFrequenciesX[i] + this.driftPhasesX[i]) * driftAmp;
+      const driftZ = Math.cos(this.globalTime * this.driftFrequenciesZ[i] + this.driftPhasesZ[i]) * driftAmp;
+
+      let baseX = this.basePositionsX[i];
+      let baseZ = this.basePositionsZ[i];
 
       this.rotations[i] += this.rotationSpeeds[i] * dt;
       const sinR = Math.sin(this.rotations[i]);
       const cosR = Math.cos(this.rotations[i]);
       const rotAmount = this.hasAudio ? (0.02 + low * 0.08) : 0.01;
 
-      const x = this.positions[i3];
-      const z = this.positions[i3 + 2];
       const cx = 0;
       const cz = 0;
-      const dx = x - cx;
-      const dz = z - cz;
-      this.positions[i3] = cx + dx * cosR * rotAmount - dz * sinR * rotAmount + x * (1 - rotAmount);
-      this.positions[i3 + 2] = cz + dx * sinR * rotAmount + dz * cosR * rotAmount + z * (1 - rotAmount);
+      const dx = baseX - cx;
+      const dz = baseZ - cz;
+      const rotatedX = cx + dx * cosR * rotAmount - dz * sinR * rotAmount + baseX * (1 - rotAmount);
+      const rotatedZ = cz + dx * sinR * rotAmount + dz * cosR * rotAmount + baseZ * (1 - rotAmount);
+
+      this.positions[i3] = Math.max(this.X_MIN, Math.min(this.X_MAX, rotatedX + driftX));
+      this.positions[i3 + 2] = Math.max(this.Z_MIN, Math.min(this.Z_MAX, rotatedZ + driftZ));
 
       const targetSize = this.hasAudio
         ? lerp(this.MIN_SIZE, this.MAX_SIZE, midFactor) * (0.8 + this.baseSizes[i])
         : this.baseSizes[i];
       this.targetSizes[i] = targetSize;
       this.currentSizes[i] = lerp(this.currentSizes[i], this.targetSizes[i], 0.1);
-      this.sizes[i] = this.currentSizes[i];
+      this.sizes[i] = this.currentSizes[i] * lifeSizeCoef;
 
       let r: number, g: number, b: number;
       if (this.hasAudio) {
@@ -338,6 +409,15 @@ export class ParticleSystem {
         r = Math.min(r * peakBoost, 1);
         g = Math.min(g * peakBoost, 1);
         b = Math.min(b * peakBoost, 1);
+
+        const satFactor = clamp01(0.55 + low * 0.75 - mid * 0.55);
+        this.tempColor.setRGB(r, g, b);
+        this.tempColor.getHSL(this.tempHsl);
+        this.tempHsl.s = lerp(0.18, 1.0, satFactor);
+        this.tempColor.setHSL(this.tempHsl.h, this.tempHsl.s, this.tempHsl.l);
+        r = this.tempColor.r;
+        g = this.tempColor.g;
+        b = this.tempColor.b;
       } else {
         r = this.COLOR_WHITE.r;
         g = this.COLOR_WHITE.g;
