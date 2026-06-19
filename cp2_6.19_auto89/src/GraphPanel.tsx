@@ -22,6 +22,8 @@ interface Props {
 interface SimNode extends GraphNode, SimulationNodeDatum {
   color: string;
   size: number;
+  fullText: string;
+  nodeType: 'highlight' | 'note';
 }
 
 interface SimLink extends SimulationLinkDatum<SimNode> {
@@ -55,6 +57,12 @@ export default function GraphPanel({
   const linksRef = useRef<SimLink[]>([]);
   const [, forceRender] = useState(0);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [tooltip, setTooltip] = useState<{
+    text: string;
+    type: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     const updateSize = () => {
@@ -88,6 +96,8 @@ export default function GraphPanel({
         highlightId: h.id,
         color: generateColor(h.id),
         size: Math.min(30, Math.max(5, 8 + connections * 3)),
+        fullText: h.text,
+        nodeType: 'highlight',
       });
     });
     notes.forEach((n) => {
@@ -99,6 +109,8 @@ export default function GraphPanel({
         highlightId: n.highlightId,
         color: generateColor(n.id),
         size: Math.min(30, Math.max(5, 8 + connections * 3)),
+        fullText: n.content,
+        nodeType: 'note',
       });
     });
 
@@ -298,7 +310,20 @@ export default function GraphPanel({
               key={node.id}
               className={`graph-node ${isFlashing ? 'highlight-flash-node' : ''}`}
               transform={`translate(${node.x}, ${node.y})`}
+              onMouseEnter={(e) => {
+                const svgRect = svgRef.current?.getBoundingClientRect();
+                if (!svgRect) return;
+                const gRect = (e.currentTarget as SVGGElement).getBoundingClientRect();
+                setTooltip({
+                  text: node.fullText,
+                  type: node.nodeType,
+                  x: gRect.left - svgRect.left + gRect.width / 2,
+                  y: gRect.top - svgRect.top - 8,
+                });
+              }}
+              onMouseLeave={() => setTooltip(null)}
             >
+              <title>{node.fullText}</title>
               <circle
                 className="graph-node-circle"
                 r={node.size}
@@ -315,6 +340,17 @@ export default function GraphPanel({
           );
         })}
       </svg>
+      {tooltip && (
+        <div
+          className={`graph-tooltip graph-tooltip-${tooltip.type}`}
+          style={{
+            left: tooltip.x,
+            top: tooltip.y,
+          }}
+        >
+          {tooltip.text}
+        </div>
+      )}
     </div>
   );
 }

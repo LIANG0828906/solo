@@ -426,13 +426,25 @@ export default function NoteCollector({
   };
 
   const toolbarStyle = selection
-    ? {
-        top: selection.rect.top + window.scrollY - 44,
-        left: Math.max(
-          10,
-          selection.rect.left + window.scrollX + selection.rect.width / 2 - 80,
-        ),
-      }
+    ? (() => {
+        const TOOLBAR_W = 160;
+        const TOOLBAR_H = 36;
+        const GAP = 8;
+        const scrollArea = articleRef.current?.closest('.main-area') as HTMLElement | null;
+        const areaRect = scrollArea?.getBoundingClientRect();
+        const selCenterX = selection.rect.left + selection.rect.width / 2;
+        const spaceAbove = selection.rect.top - (areaRect?.top ?? 0);
+        const showAbove = spaceAbove >= TOOLBAR_H + GAP;
+        const top = showAbove
+          ? selection.rect.top + window.scrollY - TOOLBAR_H - GAP
+          : selection.rect.bottom + window.scrollY + GAP;
+        let left = selCenterX + window.scrollX - TOOLBAR_W / 2;
+        const viewportLeft = areaRect?.left ?? 0;
+        const viewportRight = areaRect?.right ?? window.innerWidth;
+        if (left < viewportLeft + 8) left = viewportLeft + 8;
+        if (left + TOOLBAR_W > viewportRight - 8) left = viewportRight - TOOLBAR_W - 8;
+        return { top, left };
+      })()
     : null;
 
   return (
@@ -499,7 +511,10 @@ export default function NoteCollector({
             }}
             rows={3}
           />
-          <div className="note-input-hint">按 Enter 提交 · Shift+Enter 换行</div>
+          <div className="note-input-hint">
+            按 Enter 提交 · Shift+Enter 换行
+            <span className="note-input-count">{noteText.length} 字</span>
+          </div>
         </div>
       )}
     </>

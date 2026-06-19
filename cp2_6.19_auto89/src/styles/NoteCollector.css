@@ -123,6 +123,14 @@
   color: #9ca3af;
   margin-top: 4px;
   padding-left: 2px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.note-input-count {
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
 }
 
 .sidebar-card {
@@ -193,6 +201,18 @@
 .card-time {
   font-size: 11px;
   color: #9ca3af;
+}
+
+.card-paragraph {
+  font-size: 10px;
+  color: #9ca3af;
+  background: #f3f4f6;
+  padding: 1px 6px;
+  border-radius: 3px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-text {

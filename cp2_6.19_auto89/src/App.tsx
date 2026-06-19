@@ -283,6 +283,7 @@ export default function App() {
                   onRemove={handleRemoveHighlight}
                   onCreateLink={handleCreateLink}
                   onJump={handleJumpToHighlight}
+                  paragraphLabel={getParagraphLabel(articleText, h.startOffset)}
                 />
                 {notes
                   .filter((n) => n.highlightId === h.id)
@@ -317,11 +318,33 @@ function formatTime(ts: number): string {
   return `${hh}:${mm}`;
 }
 
+function getParagraphLabel(articleText: string, startOffset: number): string {
+  const textBefore = articleText.slice(0, startOffset);
+  const headingMatch = textBefore.match(/(?:^|\n)(#{1,6}\s[^\n]*)[^]*$/);
+  if (headingMatch) {
+    const heading = headingMatch[1].replace(/^#+\s/, '').trim();
+    return heading.length > 12 ? heading.slice(0, 12) + '…' : heading;
+  }
+  const lines = textBefore.split('\n');
+  let paraIndex = 0;
+  let inEmpty = false;
+  for (const line of lines) {
+    if (line.trim() === '') {
+      if (!inEmpty) paraIndex++;
+      inEmpty = true;
+    } else {
+      inEmpty = false;
+    }
+  }
+  return `段落 ${paraIndex + 1}`;
+}
+
 function SidebarHighlightCard({
   highlight,
   onRemove,
   onCreateLink,
   onJump,
+  paragraphLabel,
 }: {
   highlight: Highlight;
   onRemove: (id: string) => void;
@@ -332,6 +355,7 @@ function SidebarHighlightCard({
     targetType: 'highlight' | 'note',
   ) => void;
   onJump: (id: string) => void;
+  paragraphLabel: string;
 }) {
   const [isLinkMode, setIsLinkMode] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -372,7 +396,10 @@ function SidebarHighlightCard({
       onDrop={isLinkMode ? handleDrop : undefined}
     >
       <div className="card-header">
-        <span className="card-type highlight">高亮</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className="card-type highlight">高亮</span>
+          <span className="card-paragraph">{paragraphLabel}</span>
+        </div>
         <span className="card-time">{formatTime(highlight.createdAt)}</span>
       </div>
       <div

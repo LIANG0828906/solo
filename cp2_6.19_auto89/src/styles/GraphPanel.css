@@ -103,6 +103,43 @@
   }
 }
 
+.graph-tooltip {
+  position: absolute;
+  max-width: 260px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #1f2937;
+  pointer-events: none;
+  z-index: 10;
+  transform: translateX(-50%) translateY(-100%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  animation: tooltipFadeIn 150ms ease;
+  word-break: break-word;
+}
+
+.graph-tooltip-highlight {
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+}
+
+.graph-tooltip-note {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(calc(-100% + 4px));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-100%);
+  }
+}
+
 @media (max-width: 768px) {
   .graph-panel {
     width: 100%;
