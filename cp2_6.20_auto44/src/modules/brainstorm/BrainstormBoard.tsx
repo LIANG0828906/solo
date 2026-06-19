@@ -1,9 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { IdeaCard } from './IdeaCard';
 import { useIdeasStore } from '../../store/ideasStore';
-import { Idea, PRESET_TAGS, VoteType } from '../../types';
-
-const COL_COUNT = 2;
+import { PRESET_TAGS, VoteType } from '../../types';
 
 export const BrainstormBoard: React.FC = () => {
   const { ideas, users, voteIdea, addIdea, currentUser } = useIdeasStore();
@@ -13,17 +11,8 @@ export const BrainstormBoard: React.FC = () => {
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 30 });
 
   const onlineUsers = useMemo(() => users.filter((u) => u.online), [users]);
-
-  const columnedIdeas = useMemo(() => {
-    const cols: Idea[][] = Array.from({ length: COL_COUNT }, () => []);
-    ideas.forEach((idea, i) => {
-      cols[i % COL_COUNT].push(idea);
-    });
-    return cols;
-  }, [ideas]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -50,30 +39,6 @@ export const BrainstormBoard: React.FC = () => {
     },
     [voteIdea]
   );
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const scrollTop = container.scrollTop;
-      const viewportHeight = container.clientHeight;
-      const itemHeight = 250;
-      const buffer = 5;
-      const start = Math.max(0, Math.floor(scrollTop / itemHeight) * COL_COUNT - buffer);
-      const end = start + Math.ceil(viewportHeight / itemHeight) * COL_COUNT + buffer * COL_COUNT;
-      setVisibleRange({ start, end });
-    };
-
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const visibleIdeas = useMemo(() => {
-    return ideas.slice(visibleRange.start, visibleRange.end);
-  }, [ideas, visibleRange]);
-
-  const visibleIds = useMemo(() => new Set(visibleIdeas.map((i) => i.id)), [visibleIdeas]);
 
   return (
     <div
@@ -241,12 +206,7 @@ export const BrainstormBoard: React.FC = () => {
                     fontFamily: 'inherit',
                   }}
                 />
-                <div
-                  style={{
-                    width: '100%',
-                    position: 'relative',
-                  }}
-                >
+                <div style={{ width: '100%', position: 'relative' }}>
                   <div
                     onClick={() => setShowTagPicker(!showTagPicker)}
                     style={{
@@ -263,9 +223,7 @@ export const BrainstormBoard: React.FC = () => {
                     }}
                   >
                     {selectedTags.length === 0 ? (
-                      <span style={{ color: '#64748b', fontSize: '13px' }}>
-                        选择标签（最多3个）
-                      </span>
+                      <span style={{ color: '#64748b', fontSize: '13px' }}>选择标签（最多3个）</span>
                     ) : (
                       selectedTags.map((tag) => (
                         <span
@@ -283,9 +241,7 @@ export const BrainstormBoard: React.FC = () => {
                           }}
                         >
                           {tag}
-                          <span onClick={(e) => { e.stopPropagation(); toggleTag(tag); }} style={{ cursor: 'pointer' }}>
-                            ✕
-                          </span>
+                          <span onClick={(e) => { e.stopPropagation(); toggleTag(tag); }} style={{ cursor: 'pointer' }}>✕</span>
                         </span>
                       ))
                     )}
@@ -370,9 +326,7 @@ export const BrainstormBoard: React.FC = () => {
                       fontSize: '13px',
                       fontWeight: 600,
                       cursor: title.trim() ? 'pointer' : 'not-allowed',
-                      boxShadow: title.trim()
-                        ? '0 4px 12px rgba(249, 115, 22, 0.35)'
-                        : 'none',
+                      boxShadow: title.trim() ? '0 4px 12px rgba(249, 115, 22, 0.35)' : 'none',
                     }}
                   >
                     ✨ 发布点子
@@ -414,31 +368,14 @@ export const BrainstormBoard: React.FC = () => {
         }}
       >
         <div
+          className="masonry-layout"
           style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${COL_COUNT}, 1fr)`,
-            gap: '16px',
-            alignItems: 'start',
+            columnCount: 2,
+            columnGap: '16px',
           }}
         >
-          {columnedIdeas.map((col, colIdx) => (
-            <div key={colIdx} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {col.map((idea) =>
-                visibleIds.has(idea.id) ? (
-                  <IdeaCard key={idea.id} idea={idea} onVote={handleVote} />
-                ) : (
-                  <div
-                    key={idea.id}
-                    style={{
-                      height: '220px',
-                      marginBottom: '16px',
-                      borderRadius: '12px',
-                      background: 'rgba(255,255,255,0.02)',
-                    }}
-                  />
-                )
-              )}
-            </div>
+          {ideas.map((idea) => (
+            <IdeaCard key={idea.id} idea={idea} onVote={handleVote} />
           ))}
         </div>
 

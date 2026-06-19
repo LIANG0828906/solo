@@ -1,186 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
+import { RoomEntry } from './modules/RoomEntry';
 import { BrainstormBoard } from './modules/brainstorm/BrainstormBoard';
 import { VotingPanel } from './modules/voting/VotingPanel';
 import { useIdeasStore } from './store/ideasStore';
 
-const JoinRoom: React.FC = () => {
-  const [roomId, setRoomId] = useState('');
-  const [userName, setUserName] = useState('');
-  const navigate = useNavigate();
-  const { initRoom, loading } = useIdeasStore();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!roomId.trim() || !userName.trim()) return;
-    await initRoom(roomId.trim(), userName.trim());
-    navigate(`/room/${roomId.trim()}`);
-  };
-
-  return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #111827 0%, #1e293b 100%)',
-        padding: '20px',
-      }}
-    >
-      <div
-        className="fade-in"
-        style={{
-          width: '100%',
-          maxWidth: '420px',
-          padding: '40px 32px',
-          background: 'rgba(30, 41, 59, 0.7)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '0 24px 48px rgba(0,0,0,0.4)',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ fontSize: '56px', marginBottom: '12px' }}>💡</div>
-          <h1
-            style={{
-              fontSize: '26px',
-              fontWeight: 700,
-              color: '#f8fafc',
-              marginBottom: '8px',
-              background: 'linear-gradient(135deg, #f97316, #fb923c)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            团队创意头脑风暴
-          </h1>
-          <p style={{ fontSize: '13px', color: '#64748b' }}>实时协作，激发无限创意</p>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: '#cbd5e1',
-                marginBottom: '6px',
-              }}
-            >
-              房间号
-            </label>
-            <input
-              type="text"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              placeholder="如：idea-2024"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.05)',
-                color: '#f1f5f9',
-                fontSize: '14px',
-                outline: 'none',
-                transition: 'all 0.2s ease',
-              }}
-              onFocusCapture={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(249, 115, 22, 0.6)';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-              }}
-              onBlurCapture={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: '#cbd5e1',
-                marginBottom: '6px',
-              }}
-            >
-              你的名字
-            </label>
-            <input
-              type="text"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="输入你的名字"
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.05)',
-                color: '#f1f5f9',
-                fontSize: '14px',
-                outline: 'none',
-                transition: 'all 0.2s ease',
-              }}
-              onFocusCapture={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(249, 115, 22, 0.6)';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-              }}
-              onBlurCapture={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-              }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading || !roomId.trim() || !userName.trim()}
-            style={{
-              width: '100%',
-              padding: '14px 24px',
-              borderRadius: '12px',
-              border: 'none',
-              background:
-                roomId.trim() && userName.trim()
-                  ? 'linear-gradient(135deg, #f97316, #ea580c)'
-                  : 'rgba(249, 115, 22, 0.3)',
-              color: '#fff',
-              fontSize: '15px',
-              fontWeight: 600,
-              cursor: roomId.trim() && userName.trim() ? 'pointer' : 'not-allowed',
-              boxShadow:
-                roomId.trim() && userName.trim()
-                  ? '0 6px 20px rgba(249, 115, 22, 0.35)'
-                  : 'none',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {loading ? '进入中...' : '🚀 进入头脑风暴'}
-          </button>
-        </form>
-
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <p style={{ fontSize: '11px', color: '#475569' }}>
-            提示：输入相同房间号即可和团队成员一起头脑风暴
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const RoomPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { ideas, currentUser, cleanup, initRoom } = useIdeasStore();
+  const { ideas, currentUser, cleanup } = useIdeasStore();
   const [isMobile, setIsMobile] = useState(false);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
 
@@ -195,9 +23,6 @@ const RoomPage: React.FC = () => {
     if (!currentUser && roomId) {
       navigate('/');
     }
-    return () => {
-      // cleanup handled by report page or unmount
-    };
   }, [currentUser, roomId, navigate]);
 
   const handleGenerateReport = () => {
@@ -209,15 +34,7 @@ const RoomPage: React.FC = () => {
   }
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'linear-gradient(135deg, #111827 0%, #1e293b 100%)',
-      }}
-    >
+    <div className="room-layout">
       <div
         style={{
           display: 'flex',
@@ -272,8 +89,9 @@ const RoomPage: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
+      <div className="room-content" style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
         <div
+          className="room-main"
           style={{
             width: isMobile ? '100%' : '70%',
             height: '100%',
@@ -295,6 +113,7 @@ const RoomPage: React.FC = () => {
 
         {!isMobile && (
           <div
+            className="room-sidebar"
             style={{
               width: '30%',
               height: '100%',
@@ -309,6 +128,7 @@ const RoomPage: React.FC = () => {
         {isMobile && (
           <>
             <button
+              className="mobile-vote-fab"
               onClick={() => setShowMobilePanel(true)}
               style={{
                 position: 'fixed',
@@ -331,6 +151,7 @@ const RoomPage: React.FC = () => {
 
             {showMobilePanel && (
               <div
+                className="mobile-drawer-overlay"
                 style={{
                   position: 'fixed',
                   inset: 0,
@@ -347,6 +168,7 @@ const RoomPage: React.FC = () => {
                   }}
                 />
                 <div
+                  className="mobile-drawer"
                   style={{
                     maxHeight: '75vh',
                     background: '#111827',
@@ -412,12 +234,7 @@ const ReportPage: React.FC = () => {
         overflowY: 'auto',
       }}
     >
-      <div
-        style={{
-          maxWidth: '800px',
-          margin: '0 auto',
-        }}
-      >
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         <div
           style={{
             display: 'flex',
@@ -486,14 +303,7 @@ const ReportPage: React.FC = () => {
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div style={{ textAlign: 'center', marginBottom: '40px', paddingBottom: '24px', borderBottom: '2px solid #d97706' }}>
               <div style={{ fontSize: '40px', marginBottom: '8px' }}>🏆</div>
-              <h1
-                style={{
-                  fontSize: '32px',
-                  fontWeight: 800,
-                  color: '#1e293b',
-                  marginBottom: '8px',
-                }}
-              >
+              <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#1e293b', marginBottom: '8px' }}>
                 头脑风暴 TOP 3 创意报告
               </h1>
               <p style={{ fontSize: '14px', color: '#64748b' }}>
@@ -528,55 +338,25 @@ const ReportPage: React.FC = () => {
                       ? 'linear-gradient(135deg, rgba(148, 163, 184, 0.1), rgba(100, 116, 139, 0.05))'
                       : 'linear-gradient(135deg, rgba(180, 83, 9, 0.1), rgba(146, 64, 14, 0.05))',
                     border: `1px solid ${
-                      idx === 0
-                        ? 'rgba(245, 158, 11, 0.3)'
-                        : idx === 1
-                        ? 'rgba(148, 163, 184, 0.3)'
-                        : 'rgba(180, 83, 9, 0.3)'
+                      idx === 0 ? 'rgba(245, 158, 11, 0.3)' : idx === 1 ? 'rgba(148, 163, 184, 0.3)' : 'rgba(180, 83, 9, 0.3)'
                     }`,
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
                     <div style={{ fontSize: '44px' }}>{medals[idx]}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', color: '#92400e', fontWeight: 600, marginBottom: '4px' }}>
-                        第 {idx + 1} 名
-                      </div>
-                      <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                        {idea.title}
-                      </h2>
+                      <div style={{ fontSize: '12px', color: '#92400e', fontWeight: 600, marginBottom: '4px' }}>第 {idx + 1} 名</div>
+                      <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{idea.title}</h2>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-                    <img
-                      src={idea.author.avatar}
-                      alt={idea.author.name}
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        border: '2px solid #d97706',
-                      }}
-                    />
-                    <span style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>
-                      作者：{idea.author.name}
-                    </span>
+                    <img src={idea.author.avatar} alt={idea.author.name} style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2px solid #d97706' }} />
+                    <span style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>作者：{idea.author.name}</span>
                     {idea.tags.length > 0 && (
                       <div style={{ display: 'flex', gap: '4px', marginLeft: 'auto' }}>
                         {idea.tags.map((t) => (
-                          <span
-                            key={t}
-                            style={{
-                              fontSize: '11px',
-                              color: '#92400e',
-                              background: 'rgba(217, 119, 6, 0.15)',
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                            }}
-                          >
-                            #{t}
-                          </span>
+                          <span key={t} style={{ fontSize: '11px', color: '#92400e', background: 'rgba(217, 119, 6, 0.15)', padding: '2px 8px', borderRadius: '6px' }}>#{t}</span>
                         ))}
                       </div>
                     )}
@@ -586,14 +366,7 @@ const ReportPage: React.FC = () => {
                     {idea.description || '暂无详细描述'}
                   </p>
 
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: '12px',
-                      marginBottom: '16px',
-                    }}
-                  >
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
                     <div style={{ padding: '12px', background: 'rgba(34, 197, 94, 0.12)', borderRadius: '10px', textAlign: 'center' }}>
                       <div style={{ fontSize: '11px', color: '#15803d', marginBottom: '4px' }}>👍 赞成</div>
                       <div style={{ fontSize: '22px', fontWeight: 700, color: '#166534' }}>{idea.votes.agree}</div>
@@ -615,33 +388,14 @@ const ReportPage: React.FC = () => {
                         <span style={{ fontWeight: 600, color: '#166534' }}>{agreeRate}%</span>
                       </div>
                       <div style={{ height: '8px', background: 'rgba(0,0,0,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${agreeRate}%`,
-                            background: 'linear-gradient(90deg, #22c55e, #16a34a)',
-                            borderRadius: '4px',
-                            transition: 'width 0.5s ease',
-                          }}
-                        />
+                        <div style={{ height: '100%', width: `${agreeRate}%`, background: 'linear-gradient(90deg, #22c55e, #16a34a)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
                       </div>
                     </div>
                   )}
 
-                  <div
-                    style={{
-                      padding: '14px 18px',
-                      background: 'rgba(255,255,255,0.6)',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(0,0,0,0.05)',
-                    }}
-                  >
-                    <div style={{ fontSize: '12px', color: '#92400e', fontWeight: 600, marginBottom: '6px' }}>
-                      💼 管理员评语
-                    </div>
-                    <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.7, margin: 0 }}>
-                      {ADMIN_COMMENTS[idx]}
-                    </p>
+                  <div style={{ padding: '14px 18px', background: 'rgba(255,255,255,0.6)', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: '12px', color: '#92400e', fontWeight: 600, marginBottom: '6px' }}>💼 管理员评语</div>
+                    <p style={{ fontSize: '13px', color: '#475569', lineHeight: 1.7, margin: 0 }}>{ADMIN_COMMENTS[idx]}</p>
                   </div>
                 </div>
               );
@@ -654,16 +408,7 @@ const ReportPage: React.FC = () => {
               </div>
             )}
 
-            <div
-              style={{
-                marginTop: '40px',
-                paddingTop: '20px',
-                borderTop: '1px dashed #d97706',
-                textAlign: 'center',
-                fontSize: '12px',
-                color: '#94a3b8',
-              }}
-            >
+            <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px dashed #d97706', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>
               本报告由创意头脑风暴系统自动生成 · {currentUser?.name || '管理员'} 审阅
             </div>
           </div>
@@ -676,7 +421,7 @@ const ReportPage: React.FC = () => {
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<JoinRoom />} />
+      <Route path="/" element={<RoomEntry />} />
       <Route path="/room/:roomId" element={<RoomPage />} />
       <Route path="/room/:roomId/report" element={<ReportPage />} />
     </Routes>

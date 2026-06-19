@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { Idea, VoteType } from '../../types';
+import { Idea, VoteType, CARD_COLORS } from '../../types';
 
 dayjs.extend(relativeTime);
 
@@ -17,20 +17,32 @@ const voteConfig: Record<VoteType, { label: string; emoji: string; activeBg: str
   neutral: { label: '吃瓜', emoji: '🍉', activeBg: 'rgba(251, 191, 36, 0.4)' },
 };
 
+const colorMap: Record<string, string> = {};
+function getCardColor(ideaId: string): string {
+  if (!colorMap[ideaId]) {
+    colorMap[ideaId] = CARD_COLORS[Math.floor(Math.random() * CARD_COLORS.length)];
+  }
+  return colorMap[ideaId];
+}
+
 export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => {
   const [hovered, setHovered] = useState(false);
   const [bouncingVote, setBouncingVote] = useState<VoteType | null>(null);
+  const [pressingVote, setPressingVote] = useState<VoteType | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const totalVotes = idea.votes.agree + idea.votes.disagree + idea.votes.neutral;
   const isHot = idea.votes.agree >= 10;
+  const cardColor = idea.bgColor || getCardColor(idea.id);
 
   const handleVote = useCallback(
     (type: VoteType) => {
       setBouncingVote(type);
+      setPressingVote(type);
       onVote(idea.id, type);
       setTimeout(() => setBouncingVote(null), 300);
+      setTimeout(() => setPressingVote(null), 150);
     },
     [idea.id, onVote]
   );
@@ -51,12 +63,12 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
   return (
     <>
       <div
-        className="fade-in"
+        className="idea-card fade-in"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={handleCardClick}
         style={{
-          background: `linear-gradient(135deg, ${idea.bgColor} 0%, rgba(255,255,255,0.08) 100%)`,
+          background: `linear-gradient(135deg, ${cardColor} 0%, rgba(255,255,255,0.08) 100%)`,
           backdropFilter: 'blur(10px)',
           WebkitBackdropFilter: 'blur(10px)',
           border: '1px solid rgba(255,255,255,0.1)',
@@ -69,7 +81,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
             ? '0 12px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(249,115,22,0.3)'
             : '0 4px 12px rgba(0,0,0,0.2)',
           breakInside: 'avoid',
-          marginBottom: '16px',
+          marginBottom: '0',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -81,7 +93,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
             left: 0,
             right: 0,
             bottom: 0,
-            background: `linear-gradient(135deg, ${idea.bgColor} 0%, transparent 60%)`,
+            background: `linear-gradient(135deg, ${cardColor} 0%, transparent 60%)`,
             pointerEvents: 'none',
             zIndex: 0,
           }}
@@ -183,11 +195,12 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
             {(Object.keys(voteConfig) as VoteType[]).map((type) => {
               const config = voteConfig[type];
               const isBouncing = bouncingVote === type;
+              const isPressing = pressingVote === type;
               return (
                 <button
                   key={type}
                   onClick={() => handleVote(type)}
-                  className={isBouncing ? 'scale-bounce' : ''}
+                  className={`vote-btn ${isBouncing ? 'scale-bounce' : ''}`}
                   style={{
                     flex: 1,
                     padding: '6px 8px',
@@ -201,7 +214,8 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({ idea, onVote, onClick }) => 
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '4px',
-                    transition: 'all 0.2s ease',
+                    transition: 'transform 0.15s ease, background 0.2s ease',
+                    transform: isPressing ? 'scale(0.85)' : 'scale(1)',
                     fontWeight: 500,
                   }}
                 >

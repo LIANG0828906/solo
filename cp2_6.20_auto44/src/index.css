@@ -103,3 +103,108 @@ html, body, #root {
 .flame-icon {
   animation: flame 1s ease-in-out infinite;
 }
+
+.room-layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #111827 0%, #1e293b 100%);
+}
+
+.masonry-layout {
+  column-count: 2;
+  column-gap: 16px;
+}
+
+.masonry-layout .idea-card {
+  break-inside: avoid;
+  margin-bottom: 16px;
+  display: inline-block;
+  width: 100%;
+}
+
+.vote-btn:active {
+  transform: scale(0.85) !important;
+  transition: transform 0.1s ease;
+}
+
+.mobile-drawer {
+  transition: transform 0.3s ease-out;
+}
+
+@media (max-width: 768px) {
+  .room-content {
+    flex-direction: column !important;
+  }
+
+  .room-main {
+    width: 100% !important;
+    flex: 1;
+  }
+
+  .room-sidebar {
+    display: none !important;
+  }
+
+  .masonry-layout {
+    column-count: 1 !important;
+  }
+
+  .mobile-vote-fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(249, 115, 22, 0.4);
+    z-index: 99;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-drawer {
+    max-height: 75vh;
+    background: #111827;
+    border-radius: 20px 20px 0 0;
+    overflow: hidden;
+    animation: slideUpDown 0.3s ease-out;
+    touch-action: pan-y;
+  }
+
+  .mobile-drawer-handle {
+    width: 40px;
+    height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+    margin: 10px auto;
+    cursor: grab;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-vote-fab {
+    display: none;
+  }
+}
+
+@media (min-width: 1200px) {
+  .masonry-layout {
+    column-count: 3 !important;
+  }
+}

@@ -12,7 +12,6 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
-  Cell,
 } from 'recharts';
 import { useIdeasStore } from '../../store/ideasStore';
 import { VoteStats } from './VoteStats';
@@ -26,6 +25,7 @@ export const VotingPanel: React.FC<{ onGenerateReport?: () => void }> = ({ onGen
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'list' | 'charts' | 'stats'>('list');
   const [bouncingVotes, setBouncingVotes] = useState<Record<string, VoteType>>({});
+  const [pressingVotes, setPressingVotes] = useState<Record<string, VoteType>>({});
 
   const allTags = useMemo(() => {
     const set = new Set<string>();
@@ -84,6 +84,7 @@ export const VotingPanel: React.FC<{ onGenerateReport?: () => void }> = ({ onGen
   const handleVote = useCallback(
     (ideaId: string, voteType: VoteType) => {
       setBouncingVotes((prev) => ({ ...prev, [ideaId]: voteType }));
+      setPressingVotes((prev) => ({ ...prev, [ideaId]: voteType }));
       voteIdea(ideaId, voteType);
       setTimeout(() => {
         setBouncingVotes((prev) => {
@@ -92,6 +93,13 @@ export const VotingPanel: React.FC<{ onGenerateReport?: () => void }> = ({ onGen
           return next;
         });
       }, 300);
+      setTimeout(() => {
+        setPressingVotes((prev) => {
+          const next = { ...prev };
+          delete next[ideaId];
+          return next;
+        });
+      }, 150);
     },
     [voteIdea]
   );
@@ -252,6 +260,7 @@ export const VotingPanel: React.FC<{ onGenerateReport?: () => void }> = ({ onGen
             {sortedIdeas.map((idea: Idea, idx: number) => {
               const total = idea.votes.agree + idea.votes.disagree + idea.votes.neutral;
               const isBouncing = bouncingVotes[idea.id];
+              const isPressing = pressingVotes[idea.id];
               return (
                 <div
                   key={idea.id}
@@ -326,11 +335,12 @@ export const VotingPanel: React.FC<{ onGenerateReport?: () => void }> = ({ onGen
                     {(Object.keys(voteBtnConfig) as VoteType[]).map((type) => {
                       const cfg = voteBtnConfig[type];
                       const bouncing = isBouncing === type;
+                      const pressing = isPressing === type;
                       return (
                         <button
                           key={type}
                           onClick={() => handleVote(idea.id, type)}
-                          className={bouncing ? 'scale-bounce' : ''}
+                          className={`vote-btn ${bouncing ? 'scale-bounce' : ''}`}
                           style={{
                             flex: 1,
                             padding: '6px',
@@ -344,7 +354,8 @@ export const VotingPanel: React.FC<{ onGenerateReport?: () => void }> = ({ onGen
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '3px',
-                            transition: 'all 0.15s ease',
+                            transition: 'transform 0.15s ease, background 0.2s ease',
+                            transform: pressing ? 'scale(0.85)' : 'scale(1)',
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.background = cfg.color;
@@ -398,9 +409,9 @@ export const VotingPanel: React.FC<{ onGenerateReport?: () => void }> = ({ onGen
                         fontSize: '12px',
                       }}
                     />
-                    <Bar dataKey="赞成" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} animationDuration={700} />
-                    <Bar dataKey="吃瓜" stackId="a" fill="#fbbf24" animationDuration={700} />
-                    <Bar dataKey="反对" stackId="a" fill="#ef4444" radius={[0, 4, 4, 0]} animationDuration={700} />
+                    <Bar dataKey="赞成" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+                    <Bar dataKey="吃瓜" stackId="a" fill="#fbbf24" isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
+                    <Bar dataKey="反对" stackId="a" fill="#ef4444" radius={[0, 4, 4, 0]} isAnimationActive={true} animationDuration={800} animationEasing="ease-out" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -423,7 +434,9 @@ export const VotingPanel: React.FC<{ onGenerateReport?: () => void }> = ({ onGen
                         stroke="#f97316"
                         fill="#f97316"
                         fillOpacity={0.4}
-                        animationDuration={700}
+                        isAnimationActive={true}
+                        animationDuration={800}
+                        animationEasing="ease-out"
                       />
                       <Tooltip
                         contentStyle={{

@@ -14,8 +14,6 @@ import {
 } from 'recharts';
 import { useIdeasStore } from '../../store/ideasStore';
 
-const COLORS = ['#22c55e', '#ef4444', '#fbbf24'];
-
 export const VoteStats: React.FC = () => {
   const { ideas } = useIdeasStore();
 
@@ -97,14 +95,7 @@ export const VoteStats: React.FC = () => {
       </div>
 
       <div style={{ marginBottom: '24px' }}>
-        <div
-          style={{
-            fontSize: '13px',
-            fontWeight: 600,
-            color: '#e2e8f0',
-            marginBottom: '12px',
-          }}
-        >
+        <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', marginBottom: '12px' }}>
           投票类型分布
         </div>
         <div style={{ height: '180px' }}>
@@ -118,7 +109,8 @@ export const VoteStats: React.FC = () => {
                 outerRadius={70}
                 paddingAngle={4}
                 dataKey="value"
-                animationDuration={600}
+                isAnimationActive={true}
+                animationDuration={800}
                 animationEasing="ease-out"
               >
                 {stats.pieData.map((entry, index) => (
@@ -145,14 +137,7 @@ export const VoteStats: React.FC = () => {
 
       {stats.tagData.length > 0 && (
         <div style={{ marginBottom: '24px' }}>
-          <div
-            style={{
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#e2e8f0',
-              marginBottom: '12px',
-            }}
-          >
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', marginBottom: '12px' }}>
             标签分布
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -176,14 +161,7 @@ export const VoteStats: React.FC = () => {
       )}
 
       <div>
-        <div
-          style={{
-            fontSize: '13px',
-            fontWeight: 600,
-            color: '#e2e8f0',
-            marginBottom: '12px',
-          }}
-        >
+        <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', marginBottom: '12px' }}>
           24小时投票趋势
         </div>
         <div style={{ height: '160px' }}>
@@ -225,7 +203,8 @@ export const VoteStats: React.FC = () => {
                 strokeWidth={2.5}
                 dot={{ fill: '#f97316', r: 3 }}
                 activeDot={{ r: 5, fill: '#f97316' }}
-                animationDuration={800}
+                isAnimationActive={true}
+                animationDuration={1000}
                 animationEasing="ease-out"
               />
             </LineChart>
