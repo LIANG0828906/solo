@@ -75,7 +75,7 @@ const TaskBar = memo(function TaskBar({
 
   return (
     <g
-      transform={`translate(${startX}, 0)`}
+      transform={`translate(${startX}, ${HEADER_HEIGHT + (task ? 0 : 0)})`}
       style={{ cursor: 'move' }}
       className={isCritical ? 'critical-task' : ''}
       onMouseEnter={onMouseEnter}
@@ -288,6 +288,7 @@ const DependencyArrow = memo(function DependencyArrow({
 const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const pendingUpdateRef = useRef<{ id: string; start: string; end: string } | null>(null);
 
@@ -416,6 +417,15 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (scrollContainerRef.current && tasks.length > 0) {
+      const todayX = getDateX(new Date());
+      const clientWidth = scrollContainerRef.current.clientWidth;
+      const targetScroll = Math.max(0, todayX - clientWidth / 3);
+      scrollContainerRef.current.scrollLeft = targetScroll;
+    }
+  }, [dateRange, viewMode, getDateX, tasks.length]);
 
   const handleMouseDown = useCallback(
     (taskId: string, type: 'start' | 'end' | 'move', clientX: number) => {
@@ -1040,7 +1050,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
             </button>
           </div>
         </div>
-        <div style={{ overflow: 'auto' }}>
+        <div ref={scrollContainerRef} style={{ overflow: 'auto' }}>
           <svg ref={svgRef} width={chartWidth} height={chartHeight} style={{ display: 'block' }}>
             {renderTimeHeaders}
             {renderGrid}
@@ -1060,7 +1070,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
             ))}
             {connectingLine}
             {memoizedTasks.map(({ task, index, startX, taskWidth, isCritical }) => (
-              <g key={task.id} transform={`translate(0, ${HEADER_HEIGHT + index * ROW_HEIGHT})`}>
+              <g key={task.id} transform={`translate(0, ${index * ROW_HEIGHT})`}>
                 <TaskBar
                   task={task}
                   index={index}
