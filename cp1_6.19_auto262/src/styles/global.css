@@ -1,0 +1,122 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-primary: #1B1B2F;
+  --bg-glass: rgba(255, 255, 255, 0.06);
+  --border-glass: rgba(255, 255, 255, 0.1);
+  --hex-base: #D4A574;
+  --hex-border: #8B5A2B;
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.5);
+  
+  --fire: #FF4500;
+  --water: #1E90FF;
+  --wind: #32CD32;
+  --earth: #D2691E;
+  --light: #FFD700;
+  --dark: #8A2BE2;
+  
+  --summon-start: #5B86E5;
+  --summon-end: #36D1DC;
+  --end-turn-start: #E67E22;
+  --end-turn-end: #E74C3C;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0);
+  }
+}
+
+.can-act {
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+.btn-summon {
+  background: linear-gradient(135deg, var(--summon-start) 0%, var(--summon-end) 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.btn-summon:hover {
+  opacity: 0.9;
+}
+
+.btn-summon:active {
+  transform: scale(0.95);
+}
+
+.btn-end-turn {
+  background: linear-gradient(135deg, var(--end-turn-start) 0%, var(--end-turn-end) 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.btn-end-turn:hover {
+  opacity: 0.9;
+}
+
+.btn-end-turn:active {
+  transform: scale(0.95);
+}
+
+.btn-summon:disabled,
+.btn-end-turn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
