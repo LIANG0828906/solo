@@ -23,7 +23,7 @@ export default function WorkCard({ work, onClick, index }: WorkCardProps) {
     const centerY = rect.height / 2
     const rotateX = ((y - centerY) / centerY) * -10
     const rotateY = ((x - centerX) / centerX) * 10
-    setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.05)`)
+    setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.08)`)
   }, [])
 
   const handleMouseEnter = useCallback(() => {
@@ -42,10 +42,13 @@ export default function WorkCard({ work, onClick, index }: WorkCardProps) {
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="card-3d rounded-card overflow-hidden bg-surface-light cursor-pointer animate-fadeInUp"
+      className="card-3d rounded-card overflow-hidden bg-surface-light cursor-pointer animate-fadeInUp shadow-lg"
       style={{
         transform: transform || undefined,
-        transition: isHovering ? 'none' : 'transform 0.5s ease',
+        transition: isHovering ? 'none' : 'transform 0.3s ease, box-shadow 0.3s ease',
+        boxShadow: isHovering
+          ? '0 25px 50px rgba(79, 70, 229, 0.35), 0 8px 25px rgba(0, 0, 0, 0.45)'
+          : '0 4px 20px rgba(0, 0, 0, 0.25)',
         animationDelay: `${index * 0.08}s`,
         opacity: 0,
       }}

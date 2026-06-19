@@ -37,7 +37,7 @@ export default function ReviewModal({ work, onReview, onClose }: ReviewModalProp
       setShowRejectInput(false);
       setRejectReason("");
       onClose();
-    }, 200);
+    }, 300);
   };
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -68,14 +68,20 @@ export default function ReviewModal({ work, onReview, onClose }: ReviewModalProp
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-200 ${
+      className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
         closing ? "opacity-0" : "opacity-100"
       }`}
       style={{ backgroundColor: "rgba(0,0,0,0.8)" }}
       onClick={handleOverlayClick}
     >
       <div
-        className={`relative w-full max-w-2xl mx-4 ${visible && !closing ? "animate-scaleIn" : "scale-100"}`}
+        className={`relative w-full max-w-2xl mx-4 transition-all duration-300 ${
+          visible && !closing
+            ? "animate-scaleIn"
+            : closing
+            ? "scale-95 opacity-0"
+            : "scale-100"
+        }`}
       >
         <button
           onClick={handleClose}

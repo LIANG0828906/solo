@@ -14,6 +14,7 @@ interface WorkState {
   removeWork: (id: string) => void;
   setSearchParams: (params: SearchParams) => void;
   loadWorks: () => Promise<void>;
+  refresh: () => Promise<void>;
   setAdminToken: (token: string | null) => void;
 }
 
@@ -53,6 +54,10 @@ export const useWorkStore = create<WorkState>((set, get) => ({
         loading: false,
       });
     }
+  },
+
+  refresh: async () => {
+    await get().loadWorks();
   },
 
   setAdminToken: (token) => {
