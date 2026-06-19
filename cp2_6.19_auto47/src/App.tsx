@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import { ClassGrid } from './components/ClassGrid';
 import { 作业列表面板 } from './components/作业列表面板';
-import { 批改编辑器 } from './components/批改编辑器';
+import { GradingEditor } from './components/GradingEditor';
 import { 班级统计面板 } from './components/班级统计面板';
 import { AddSubmissionModal } from './components/AddSubmissionModal';
 
@@ -106,7 +106,7 @@ function App() {
                 />
               </>
             ) : currentSubmission ? (
-              <批改编辑器
+              <GradingEditor
                 submission={currentSubmission}
                 studentHistory={studentHistory}
               />
@@ -129,7 +129,7 @@ function App() {
           <div className="main-content">
             <班级统计面板 submissions={classSubmissions} />
             {currentSubmission ? (
-              <批改编辑器
+              <GradingEditor
                 submission={currentSubmission}
                 studentHistory={studentHistory}
               />

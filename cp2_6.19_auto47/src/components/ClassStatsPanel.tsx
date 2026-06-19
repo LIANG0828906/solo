@@ -2,12 +2,12 @@ import React, { useRef, useEffect, useState } from 'react';
 import type { Submission } from '../types';
 import { drawLineChart, type ChartDataPoint } from '../utils/chart';
 
-interface StatsPanelProps {
+interface ClassStatsPanelProps {
   submissions: Submission[];
   className?: string;
 }
 
-export const StatsPanel: React.FC<StatsPanelProps> = ({
+export const ClassStatsPanel: React.FC<ClassStatsPanelProps> = ({
   submissions,
   className = '',
 }) => {
@@ -27,15 +27,16 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({
       : 0;
 
   const chartData: ChartDataPoint[] = (() => {
-    const sorted = [...gradedSubmissions].sort((a, b) => a.gradedAt! - b.gradedAt!);
+    const sorted = [...gradedSubmissions].sort((a, b) => (a.gradedAt ?? 0) - (b.gradedAt ?? 0));
     const points: ChartDataPoint[] = [];
     let cumulativeSum = 0;
     let cumulativeCount = 0;
 
     sorted.forEach((s, i) => {
+      if (s.gradedAt === null) return;
       cumulativeSum += s.score ?? 0;
       cumulativeCount++;
-      const date = new Date(s.gradedAt!);
+      const date = new Date(s.gradedAt);
       const label = `${date.getMonth() + 1}/${date.getDate()}`;
       points.push({
         label: i % 2 === 0 ? label : '',
@@ -90,7 +91,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({
 
     const dpr = window.devicePixelRatio || 1;
     const rect = container.getBoundingClientRect();
-    
+
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     canvas.style.width = `${rect.width}px`;
@@ -180,6 +181,12 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({
           background: #f8f9fa;
           border-radius: 10px;
           padding: 12px 16px;
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         .stat-label {

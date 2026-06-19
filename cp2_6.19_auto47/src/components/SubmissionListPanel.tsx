@@ -2,7 +2,7 @@ import React from 'react';
 import type { Submission } from '../types';
 import { useStore } from '../store/useStore';
 
-interface 作业列表面板Props {
+interface SubmissionListPanelProps {
   submissions: Submission[];
   currentSubmissionId: string | null;
   onSelect: (id: string) => void;
@@ -11,7 +11,7 @@ interface 作业列表面板Props {
   className?: string;
 }
 
-export const 作业列表面板: React.FC<作业列表面板Props> = ({
+export const SubmissionListPanel: React.FC<SubmissionListPanelProps> = ({
   submissions,
   currentSubmissionId,
   onSelect,
