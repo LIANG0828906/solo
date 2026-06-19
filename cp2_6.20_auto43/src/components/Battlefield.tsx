@@ -94,7 +94,7 @@ const Battlefield: React.FC = () => {
   const [attackAnim, setAttackAnim] = useState<string | null>(null);
   const [enemyDeckName, setEnemyDeckName] = useState('AI敌方卡组');
   const [flyingCards, setFlyingCards] = useState<FlyingCard[]>([]);
-  const [screenShake, setScreenShake] = useState(false);
+  const [shakeConfig, setShakeConfig] = useState<{ direction: 'leftToRight' | 'rightToLeft' | 'none'; intensity: number } | null>(null);
   const [flashWhite, setFlashWhite] = useState(false);
   const [showEndScreen, setShowEndScreen] = useState(false);
   const [playerHandRefs, setPlayerHandRefs] = useState<Map<number, HTMLDivElement | null>>(new Map());
@@ -111,7 +111,7 @@ const Battlefield: React.FC = () => {
     setShowEndScreen(false);
     setFlashWhite(false);
     setFlyingCards([]);
-    setScreenShake(false);
+    setShakeConfig(null);
   }, [selectedDeck, updateCurrentGame]);
 
   useEffect(() => {
@@ -127,10 +127,15 @@ const Battlefield: React.FC = () => {
       setFlashWhite(true);
       setTimeout(() => {
         setFlashWhite(false);
-        setShowEndScreen(true);
-      }, 300);
+      }, 450);
     }
   }, [gameState, updateCurrentGame, selectedDeck.name, enemyDeckName, saveBattleRecord, showEndScreen, flashWhite]);
+
+  const handleFlashWhiteExitComplete = useCallback(() => {
+    if (gameState?.phase === 'ended' && gameState.result) {
+      setShowEndScreen(true);
+    }
+  }, [gameState]);
 
   const addDamage = useCallback((key: string, amount: number) => {
     const id = Date.now() + Math.random();
@@ -140,9 +145,9 @@ const Battlefield: React.FC = () => {
     }, 900);
   }, []);
 
-  const triggerShake = useCallback(() => {
-    setScreenShake(true);
-    setTimeout(() => setScreenShake(false), 150);
+  const triggerShake = useCallback((direction: 'leftToRight' | 'rightToLeft' = 'leftToRight', intensity: number = 1) => {
+    setShakeConfig({ direction, intensity });
+    setTimeout(() => setShakeConfig(null), 150);
   }, []);
 
   const triggerCardFlight = useCallback((
@@ -218,13 +223,15 @@ const Battlefield: React.FC = () => {
 
   const handleTargetEnemyCard = (targetInstanceId: string) => {
     if (!gameState || !selectedAttacker) return;
-    const prevHp = gameState.enemyBoard.find((c) => c.instanceId === targetInstanceId)?.currentHealth || 0;
     const attacker = gameState.playerBoard.find((c) => c.instanceId === selectedAttacker);
+    const target = gameState.enemyBoard.find((c) => c.instanceId === targetInstanceId);
+    const attackerIdx = gameState.playerBoard.findIndex((c) => c.instanceId === selectedAttacker);
+    const targetIdx = gameState.enemyBoard.findIndex((c) => c.instanceId === targetInstanceId);
+    const direction = targetIdx >= attackerIdx ? 'leftToRight' : 'rightToLeft';
     setAttackAnim(selectedAttacker);
-    triggerShake();
+    triggerShake(direction, attacker ? attacker.attack / 5 : 1);
     setTimeout(() => {
       const newState = attack(gameState, selectedAttacker, { type: 'minion', instanceId: targetInstanceId }, 'player');
-      const afterHp = newState.enemyBoard.find((c) => c.instanceId === targetInstanceId)?.currentHealth || 0;
       if (attacker) addDamage(`enemy-${targetInstanceId}`, attacker.attack);
       setAttackAnim(null);
       setGameState(newState);
@@ -241,8 +248,10 @@ const Battlefield: React.FC = () => {
     );
     if (tauntMinions.length > 0) return;
     const prevHp = gameState.enemyHp;
+    const attackerIdx = gameState.playerBoard.findIndex((c) => c.instanceId === selectedAttacker);
+    const direction = attackerIdx <= gameState.playerBoard.length / 2 ? 'leftToRight' : 'rightToLeft';
     setAttackAnim(selectedAttacker);
-    triggerShake();
+    triggerShake(direction, attacker.attack / 5);
     setTimeout(() => {
       const newState = attack(gameState, selectedAttacker, { type: 'hero' }, 'player');
       if (newState.enemyHp < prevHp) {
@@ -311,6 +320,22 @@ const Battlefield: React.FC = () => {
 
   const tauntOnField = gameState.enemyBoard.some((c) => c.id === 'c3' || c.id === 'c9' || c.id === 'c12');
 
+  const getShakeKeyframes = () => {
+    if (!shakeConfig) return { x: [0, 0], y: [0, 0] };
+    const baseX = 3 * shakeConfig.intensity;
+    const baseY = 2 * shakeConfig.intensity;
+    if (shakeConfig.direction === 'leftToRight') {
+      return {
+        x: [0, baseX * 0.6, -baseX * 0.4, baseX * 0.3, -baseX * 0.2, 0],
+        y: [0, -baseY * 0.3, baseY * 0.4, -baseY * 0.2, baseY * 0.1, 0],
+      };
+    }
+    return {
+      x: [0, -baseX * 0.6, baseX * 0.4, -baseX * 0.3, baseX * 0.2, 0],
+      y: [0, baseY * 0.3, -baseY * 0.4, baseY * 0.2, -baseY * 0.1, 0],
+    };
+  };
+
   return (
     <div className="battle-container">
       <AnimatePresence>
@@ -319,7 +344,8 @@ const Battlefield: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.15, ease: 'easeInOut' }}
+            onAnimationComplete={handleFlashWhiteExitComplete}
             style={{
               position: 'fixed',
               top: 0,
@@ -334,14 +360,32 @@ const Battlefield: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <motion.div
-        animate={screenShake ? {
-          x: [0, -3, 3, -2, 2, 0],
-          y: [0, 2, -2, 3, -3, 0],
-        } : {}}
-        transition={{ duration: 0.15, ease: 'easeInOut' }}
-        style={{ width: '100%', height: '100%' }}
-      >
+      <AnimatePresence>
+        {shakeConfig && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{
+              opacity: 1,
+              x: getShakeKeyframes().x,
+              y: getShakeKeyframes().y,
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: 'easeInOut' }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'radial-gradient(circle at center, rgba(255,255,255,0.08) 0%, transparent 60%)',
+              zIndex: 5000,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <div style={{ width: '100%', height: '100%' }}>
         <div className="page-header">
           <h1 className="page-title">对战模拟器</h1>
           <div style={{ display: 'flex', gap: 10 }}>
@@ -556,10 +600,20 @@ const Battlefield: React.FC = () => {
         const startX = handRect.left;
         const startY = handRect.top;
 
-        const arcHeight = Math.min(-120, targetY - startY - 120);
-
         const totalDeltaX = targetX - startX;
         const totalDeltaY = targetY - startY;
+        const distance = Math.sqrt(totalDeltaX * totalDeltaX + totalDeltaY * totalDeltaY);
+
+        const minArc = -40;
+        const maxArc = -150;
+        const minDistance = 100;
+        const maxDistance = 600;
+        const distanceRatio = Math.min(1, Math.max(0, (distance - minDistance) / (maxDistance - minDistance)));
+        const arcHeight = minArc + (maxArc - minArc) * (0.3 + distanceRatio * 0.7);
+
+        const midY = totalDeltaY + arcHeight;
+
+        const peakTime = 0.4 + distanceRatio * 0.1;
 
         return (
           <div
@@ -579,27 +633,27 @@ const Battlefield: React.FC = () => {
               customInitial={{
                 x: 0,
                 y: 0,
-                scale: 0.75,
+                scale: 0.7,
                 opacity: 1,
                 rotate: -5,
               }}
               customAnimate={{
-                x: [0, totalDeltaX * 0.4, totalDeltaX * 0.7, totalDeltaX * 0.9, totalDeltaX * 0.97, totalDeltaX],
-                y: [0, arcHeight, arcHeight * 0.4, arcHeight * 0.1, totalDeltaY + 8, totalDeltaY],
-                scale: [0.75, 1.05, 1.15, 1.2, 0.95, 1],
+                x: [0, totalDeltaX * 0.3, totalDeltaX * 0.6, totalDeltaX * 0.85, totalDeltaX * 0.97, totalDeltaX],
+                y: [0, arcHeight * 0.9, midY * 0.6, totalDeltaY + 12, totalDeltaY + 4, totalDeltaY],
+                scale: [0.7, 0.9, 1.05, 1.15, 0.95, 1],
                 opacity: 1,
-                rotate: [-5, -3, 0, 2, 1, 0],
+                rotate: [-5, -3, 0, 3, 1, 0],
               }}
               customTransition={{
                 duration: 0.55,
                 ease: 'easeOut',
-                times: [0, 0.2, 0.4, 0.6, 0.85, 1],
+                times: [0, peakTime * 0.5, peakTime, 0.75, 0.92, 1],
               }}
             />
           </div>
         );
       })}
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {hoveredEnemyCard && flippedEnemy && (
