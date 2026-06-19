@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/controllers/buildingcontroller.ts","./src/controllers/windcontroller.ts","./src/types/index.ts","./src/utils/diagramgenerator.ts","./src/views/buildingscene.tsx","./src/views/controlpanel.tsx"],"version":"5.8.3"}
