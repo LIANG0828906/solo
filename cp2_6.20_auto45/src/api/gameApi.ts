@@ -97,6 +97,15 @@ export const gameApi = {
     }
   },
 
+  async getAnimals(): Promise<Animal[]> {
+    try {
+      const { data } = await api.get('/animals');
+      return data;
+    } catch {
+      return [];
+    }
+  },
+
   async getContributions(): Promise<Contribution[]> {
     try {
       const { data } = await api.get('/coop/contributions');

@@ -1,0 +1,29 @@
+{
+  "a1": {
+    "id": "a1",
+    "type": "chicken",
+    "health": 80,
+    "lastFed": 1781908357162,
+    "productReadyAt": 1781908417162,
+    "buildingId": "b1",
+    "icon": "🐔"
+  },
+  "a2": {
+    "id": "a2",
+    "type": "chicken",
+    "health": 65,
+    "lastFed": 1781908327162,
+    "productReadyAt": 1781908477162,
+    "buildingId": "b1",
+    "icon": "🐔"
+  },
+  "a3": {
+    "id": "a3",
+    "type": "cow",
+    "health": 90,
+    "lastFed": 1781908357162,
+    "productReadyAt": 1781908537162,
+    "buildingId": "b2",
+    "icon": "🐮"
+  }
+}

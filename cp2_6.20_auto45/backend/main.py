@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import plots, orders, user
+from .routes import plots, orders, user
 
 app = FastAPI(title="虚拟农场API", version="1.0.0")
 
