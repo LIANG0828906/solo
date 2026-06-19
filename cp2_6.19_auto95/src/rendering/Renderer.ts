@@ -559,14 +559,24 @@ export class Renderer {
     if (this.engine.phase === 'diceRolling') {
       const elapsed = performance.now() - dice.rollStartTime;
       if (!this.diceVisual) {
-        this.diceVisual = createDiceVisual(centerX, -diceSize * 2);
+        this.diceVisual = createDiceVisual(
+          centerX,
+          -diceSize * 2,
+          dice.value,
+          this.engine.currentPlayer
+        );
       }
       updateDiceVisual(this.diceVisual, elapsed, 1500, rollCenterY, diceSize);
       drawDice(this.ctx, this.diceVisual, dice.value, diceSize, this.engine.currentPlayer, 0);
     } else if (this.engine.phase === 'diceHolding') {
       const holdElapsed = performance.now() - dice.holdStartTime;
       if (!this.diceVisual) {
-        this.diceVisual = createDiceVisual(centerX, rollCenterY);
+        this.diceVisual = createDiceVisual(
+          centerX,
+          rollCenterY,
+          dice.value,
+          this.engine.currentPlayer
+        );
         this.diceVisual.showValue = true;
         this.diceVisual.landed = true;
         this.diceVisual.bounced = true;

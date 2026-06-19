@@ -22,6 +22,11 @@ export interface DiceVisualState {
   landed: boolean;
   landParticlesSpawned: boolean;
   showValue: boolean;
+  mass: number;
+  impactVelocity: number;
+  bounceCount: number;
+  seed: number;
+  playerColor: 'red' | 'blue';
 }
 
 export const COLORS = {
@@ -115,7 +120,14 @@ export function clearParticles(): void {
   particleCount = 0;
 }
 
-export function createDiceVisual(centerX: number, topY: number): DiceVisualState {
+export function createDiceVisual(
+  centerX: number,
+  topY: number,
+  diceValue = 3,
+  playerColor: 'red' | 'blue' = 'red'
+): DiceVisualState {
+  const seed = Math.random() * 1000;
+  const mass = 0.7 + (diceValue / 6) * 0.6;
   return {
     x: centerX,
     y: topY,
@@ -127,7 +139,36 @@ export function createDiceVisual(centerX: number, topY: number): DiceVisualState
     landed: false,
     landParticlesSpawned: false,
     showValue: false,
+    mass,
+    impactVelocity: 0,
+    bounceCount: 0,
+    seed,
+    playerColor,
   };
+}
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function easeOutQuad(t: number): number {
+  return 1 - (1 - t) * (1 - t);
+}
+
+function easeInQuad(t: number): number {
+  return t * t;
+}
+
+function computeBounceY(
+  bounceProgress: number,
+  bounceIndex: number,
+  decayFactor: number,
+  baseHeight: number
+): number {
+  const height = baseHeight * Math.pow(decayFactor, bounceIndex);
+  const phase = Math.min(1, bounceProgress);
+  const arc = Math.sin(phase * Math.PI);
+  return height * arc;
 }
 
 export function updateDiceVisual(
@@ -139,48 +180,151 @@ export function updateDiceVisual(
 ): void {
   const t = Math.min(1, elapsed / duration);
   const fallStartY = state.y;
+  const fallDuration = 0.7;
+  const bounceDuration = 0.18;
+  const settleDuration = 1 - fallDuration - bounceDuration;
+  const decayFactor = 0.38 + (1 - state.mass) * 0.25;
+  const baseBounceHeight = diceSize * (0.22 + state.mass * 0.1);
+  const rotationSpeed = 0.6 + (1 - state.mass) * 0.3;
 
-  if (t < 0.7) {
-    const fallT = t / 0.7;
-    const parabola = fallT * fallT;
-    state.y = fallStartY + (centerY - fallStartY) * parabola;
-    state.rotationX += 0.55;
-    state.rotationY += 0.72;
+  if (t < fallDuration) {
+    const fallT = t / fallDuration;
+    const fallEase = easeInQuad(fallT);
+    state.y = fallStartY + (centerY - fallStartY) * fallEase;
+    state.impactVelocity = fallEase;
+    state.rotationX += 0.55 * rotationSpeed;
+    state.rotationY += 0.72 * rotationSpeed;
     state.scale = 0.85 + fallT * 0.15;
-  } else if (t < 0.8) {
-    if (!state.bounced) {
+    state.bounceCount = 0;
+  } else if (t < fallDuration + bounceDuration) {
+    const bounceT = (t - fallDuration) / bounceDuration;
+    const totalBounces = 3;
+    const bounceSegment = 1 / totalBounces;
+    const currentBounce = Math.min(
+      totalBounces - 1,
+      Math.floor(bounceT / bounceSegment)
+    );
+    const bounceProgress = (bounceT - currentBounce * bounceSegment) / bounceSegment;
+
+    if (!state.bounced || currentBounce > state.bounceCount) {
       state.bounced = true;
-      state.y = centerY;
-      spawnDiceLandParticles(state.x, state.y + diceSize * 0.4);
+      if (currentBounce === 0) {
+        state.y = centerY;
+        spawnDiceLandParticles(
+          state.x,
+          state.y + diceSize * 0.4,
+          state.mass,
+          state.seed,
+          state.playerColor
+        );
+      }
+      state.bounceCount = currentBounce;
     }
-    const bounceT = (t - 0.7) / 0.1;
-    const bounceHeight = diceSize * 0.25 * Math.sin(bounceT * Math.PI);
+
+    const bounceHeight = computeBounceY(
+      bounceProgress,
+      currentBounce,
+      decayFactor,
+      baseBounceHeight
+    );
     state.y = centerY - bounceHeight;
-    state.rotationX += 0.15;
-    state.rotationY += 0.18;
-    state.scale = 1.0 + Math.sin(bounceT * Math.PI) * 0.06;
+    state.rotationX += 0.12 * rotationSpeed * Math.pow(decayFactor, currentBounce);
+    state.rotationY += 0.15 * rotationSpeed * Math.pow(decayFactor, currentBounce);
+
+    const squash = 1 - Math.sin(bounceProgress * Math.PI) * 0.05 * Math.pow(decayFactor, currentBounce);
+    state.scale = squash;
   } else {
     if (!state.landed) {
       state.landed = true;
       state.showValue = true;
-      state.rotationX = 0;
-      state.rotationY = 0;
     }
-    const settleT = (t - 0.8) / 0.2;
-    state.scale = 1.0 + (1 - settleT) * 0.02;
-    state.rotationX *= 0.85;
-    state.rotationY *= 0.85;
+    const settleT = (t - fallDuration - bounceDuration) / settleDuration;
+    const settleEase = easeOutQuad(settleT);
+    state.scale = 1.0 + (1 - settleEase) * 0.03;
+    state.rotationX *= 0.82;
+    state.rotationY *= 0.82;
+    state.y = centerY + Math.sin(settleT * Math.PI * 2) * 0.5 * (1 - settleEase);
   }
 }
 
-function spawnDiceLandParticles(x: number, y: number): void {
-  spawnParticles(x, y, 18, {
-    colorPalette: ['#D4A574', '#C4956A', '#B8860B', '#FFD700', '#FFFFFF'],
-    size: 2.5,
-    maxLife: 500,
-    gravity: 0.15,
-    vx: 2, vy: -1.5,
-  });
+function spawnDiceLandParticles(
+  x: number,
+  y: number,
+  mass: number,
+  seed: number,
+  playerColor: 'red' | 'blue' = 'red'
+): void {
+  const baseCount = 14 + Math.floor(mass * 10);
+  const impactIntensity = 0.6 + mass * 0.7;
+  const seededRand = (offset: number): number => {
+    const s = Math.sin(seed + offset * 12.9898) * 43758.5453;
+    return s - Math.floor(s);
+  };
+
+  const playerAccent = playerColor === 'red'
+    ? ['#C0392B', '#E74C3C', '#FF6B6B']
+    : ['#2980B9', '#3498DB', '#5DADE2'];
+
+  const woodPalette = ['#D4A574', '#C4956A', '#B8860B', '#FFD700', '#FFFFFF'];
+  const combinedPalette = [...woodPalette, ...playerAccent];
+
+  for (let i = 0; i < baseCount; i++) {
+    const r1 = seededRand(i * 2.3);
+    const r2 = seededRand(i * 3.7 + 100);
+    const r3 = seededRand(i * 5.1 + 200);
+    const r4 = seededRand(i * 7.3 + 300);
+    const r5 = seededRand(i * 11.7 + 400);
+
+    const angleBias = Math.atan2(r2 - 0.5, r1 - 0.5);
+    const angleSpread = (r3 - 0.5) * Math.PI * 0.4;
+    const angle = angleBias + angleSpread + Math.PI * 0.5;
+
+    const speed = (1.5 + r4 * 3.5) * impactIntensity;
+    const vyUp = -Math.abs(Math.sin(angle) * speed) * (0.7 + r2 * 0.6);
+    const vxSide = Math.cos(angle) * speed;
+
+    const sizeFactor = 0.8 + r1 * 1.8;
+    const size = (1.5 + sizeFactor) * impactIntensity * 0.8;
+
+    const lifeFactor = 0.6 + r5 * 0.9;
+    const maxLife = (350 + lifeFactor * 350) * impactIntensity;
+
+    const gravFactor = 0.8 + r3 * 0.8;
+    const gravity = 0.12 * gravFactor;
+
+    const offsetX = (r2 - 0.5) * 16;
+    const offsetY = (r4 - 0.5) * 6;
+
+    spawnParticles(x + offsetX, y + offsetY, 1, {
+      colorPalette: combinedPalette,
+      size,
+      maxLife,
+      gravity,
+      vx: vxSide,
+      vy: vyUp,
+    });
+  }
+
+  const dustCount = Math.floor(6 + mass * 5);
+  for (let i = 0; i < dustCount; i++) {
+    const r = seededRand(i * 13.9 + 500);
+    const r2 = seededRand(i * 17.3 + 600);
+    const angle = r * Math.PI * 2;
+    const speed = 0.6 + r2 * 1.4;
+    spawnParticles(
+      x + (r - 0.5) * 20,
+      y + 3,
+      1,
+      {
+        colorPalette: ['#8D6E63', '#A1887F', '#BCAAA4', '#D7CCC8'],
+        size: 1.2 + r2 * 1.8,
+        maxLife: 600 + r * 400,
+        gravity: 0.04,
+        vx: Math.cos(angle) * speed,
+        vy: -0.8 - r * 0.6,
+      }
+    );
+  }
 }
 
 export function drawDice(
@@ -205,7 +349,7 @@ export function drawDice(
   const actualH = Math.max(30, projectedHeight);
 
   if (holdElapsed > 0) {
-    drawDiceHalo(ctx, actualW, actualH, playerColor, holdElapsed);
+    drawDiceHalo(ctx, actualW, actualH, playerColor, holdElapsed, 2000);
   }
 
   const shadowOffset = 6 + state.scale * 2;
@@ -240,46 +384,78 @@ function drawDiceHalo(
   ctx: CanvasRenderingContext2D,
   w: number, h: number,
   playerColor: 'red' | 'blue',
-  holdElapsed: number
+  holdElapsed: number,
+  holdTotal: number = 2000
 ): void {
+  const remaining = Math.max(0, holdTotal - holdElapsed);
+  const progress = Math.min(1, holdElapsed / holdTotal);
+  const urgencyFactor = 1 + (1 - remaining / holdTotal) * 2.2;
+
   const baseColor = playerColor === 'red' ? '192, 57, 43' : '41, 128, 185';
-  const haloPulse = 0.7 + Math.sin(holdElapsed * 0.004) * 0.3;
-  const rotationAngle = holdElapsed * 0.0015;
+  const baseColorLight = playerColor === 'red' ? '231, 76, 60' : '52, 152, 219';
+  const haloPulse = 0.6 + Math.sin(holdElapsed * 0.005 * urgencyFactor) * 0.4;
+  const rotationAngle = holdElapsed * 0.0018 * urgencyFactor;
+
+  const brightnessBoost = 1 + (1 - remaining / holdTotal) * 0.6;
 
   ctx.save();
   ctx.rotate(rotationAngle);
 
   for (let ring = 0; ring < 2; ring++) {
     const ringOffset = ring * 6;
-    const ringSize = Math.max(w, h) * 0.58 + ringOffset + haloPulse * 4;
+    const ringSize = Math.max(w, h) * 0.58 + ringOffset + haloPulse * 5;
     ctx.beginPath();
     for (let i = 0; i <= 72; i++) {
       const a = (i / 72) * Math.PI * 2;
-      const wobble = 1 + Math.sin(a * 6 + holdElapsed * 0.003 + ring) * 0.04;
+      const wobble = 1 + Math.sin(a * 6 + holdElapsed * 0.004 * urgencyFactor + ring * 1.3) * 0.05;
       const rx = Math.cos(a) * ringSize * wobble;
       const ry = Math.sin(a) * ringSize * wobble;
       if (i === 0) ctx.moveTo(rx, ry);
       else ctx.lineTo(rx, ry);
     }
     ctx.closePath();
-    ctx.strokeStyle = `rgba(${baseColor}, ${0.35 * haloPulse - ring * 0.12})`;
+    ctx.strokeStyle = `rgba(${baseColor}, ${(0.35 * haloPulse - ring * 0.12) * brightnessBoost})`;
     ctx.lineWidth = 3 - ring;
     ctx.stroke();
   }
 
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2 + rotationAngle;
-    const dist = Math.max(w, h) * 0.66 + haloPulse * 5;
+  const innerGlowSize = Math.max(w, h) * 0.42;
+  const innerGrad = ctx.createRadialGradient(0, 0, innerGlowSize * 0.3, 0, 0, innerGlowSize);
+  innerGrad.addColorStop(0, `rgba(${baseColorLight}, ${0.12 * brightnessBoost})`);
+  innerGrad.addColorStop(1, `rgba(${baseColor}, 0)`);
+  ctx.fillStyle = innerGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, innerGlowSize, 0, Math.PI * 2);
+  ctx.fill();
+
+  const dotCount = 8 + Math.floor(urgencyFactor * 2);
+  for (let i = 0; i < dotCount; i++) {
+    const angle = (i / dotCount) * Math.PI * 2 + rotationAngle * 1.5;
+    const dist = Math.max(w, h) * 0.66 + haloPulse * 6;
     const px = Math.cos(angle) * dist;
     const py = Math.sin(angle) * dist;
-    const pulseSize = 3 + Math.sin(holdElapsed * 0.005 + i) * 1.5;
-    const grad = ctx.createRadialGradient(px, py, 0, px, py, pulseSize * 2);
-    grad.addColorStop(0, `rgba(${baseColor}, 0.9)`);
+    const pulseSize = 2.5 + Math.sin(holdElapsed * 0.006 * urgencyFactor + i * 0.7) * 2;
+    const grad = ctx.createRadialGradient(px, py, 0, px, py, pulseSize * 2.5);
+    grad.addColorStop(0, `rgba(${baseColorLight}, ${0.95 * brightnessBoost})`);
+    grad.addColorStop(0.4, `rgba(${baseColor}, ${0.5 * brightnessBoost})`);
     grad.addColorStop(1, `rgba(${baseColor}, 0)`);
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(px, py, pulseSize * 2, 0, Math.PI * 2);
+    ctx.arc(px, py, pulseSize * 2.5, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  if (progress > 0.7 && progress < 1) {
+    const blinkAlpha = Math.sin(holdElapsed * 0.03) * 0.5 + 0.5;
+    ctx.strokeStyle = `rgba(${baseColorLight}, ${0.6 * blinkAlpha * brightnessBoost})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.lineDashOffset = -holdElapsed * 0.08;
+    const warnSize = Math.max(w, h) * 0.72;
+    ctx.beginPath();
+    ctx.arc(0, 0, warnSize, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   ctx.restore();
@@ -334,38 +510,69 @@ export function drawDiceNumberPop(
   const t = elapsed / duration;
   const color = playerColor === 'red' ? COLORS.red : COLORS.blue;
   const colorLight = playerColor === 'red' ? COLORS.redLight : COLORS.blueLight;
+  const colorRGB = playerColor === 'red' ? '231, 76, 60' : '52, 152, 219';
+
+  const expandPhase = 0.28;
+  const contractPhase = 0.22;
+  const holdPhase = 0.5;
 
   let scale: number;
-  if (t < 0.25) {
-    const st = t / 0.25;
-    scale = 0.3 + st * 2.7;
-  } else if (t < 0.45) {
-    const st = (t - 0.25) / 0.2;
-    scale = 3.0 - st * 0.8;
+  if (t < expandPhase) {
+    const st = t / expandPhase;
+    const ease = easeOutCubic(st);
+    scale = 0.3 + ease * 2.7;
+  } else if (t < expandPhase + contractPhase) {
+    const st = (t - expandPhase) / contractPhase;
+    const ease = easeOutQuad(st);
+    scale = 3.0 - ease * 0.8;
   } else {
-    scale = 2.2;
+    const st = (t - expandPhase - contractPhase) / holdPhase;
+    const ease = easeOutQuad(st);
+    scale = 2.2 - ease * 0.12;
   }
-  const alpha = t < 0.85 ? 1 : 1 - (t - 0.85) / 0.15;
+
+  const alphaIn = Math.min(1, t / 0.08);
+  const alphaOut = t > 0.85 ? 1 - (t - 0.85) / 0.15 : 1;
+  const alpha = Math.min(alphaIn, alphaOut) * 0.95;
 
   ctx.save();
   ctx.translate(centerX, centerY);
   ctx.scale(scale, scale);
-  ctx.globalAlpha = alpha * 0.95;
+  ctx.globalAlpha = alpha;
 
-  const haloR = 70 + t * 60;
+  const haloBase = 60;
+  const haloGrow = t < expandPhase
+    ? easeOutQuad(t / expandPhase) * 90
+    : 90 + (t - expandPhase) * 30;
+
   for (let i = 0; i < 3; i++) {
-    const g = ctx.createRadialGradient(0, 0, haloR * 0.2, 0, 0, haloR + i * 12);
-    g.addColorStop(0, `rgba(${playerColor === 'red' ? '231,76,60' : '52,152,219'}, ${0.3 - i * 0.08})`);
+    const haloR = haloBase + haloGrow + i * 16;
+    const innerFade = Math.min(1, t / 0.15);
+    const outerFade = t < 0.3
+      ? easeOutQuad(t / 0.3)
+      : 1 - easeOutQuad((t - 0.3) / 0.7) * 0.6;
+    const haloAlpha = (0.32 - i * 0.09) * innerFade * outerFade;
+
+    const g = ctx.createRadialGradient(0, 0, haloR * 0.15, 0, 0, haloR);
+    g.addColorStop(0, `rgba(${colorRGB}, ${haloAlpha + 0.05})`);
+    g.addColorStop(0.5, `rgba(${colorRGB}, ${haloAlpha * 0.6})`);
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(0, 0, haloR + i * 12, 0, Math.PI * 2);
+    ctx.arc(0, 0, haloR, 0, Math.PI * 2);
     ctx.fill();
   }
 
+  const ringPulse = Math.sin(t * Math.PI * 4) * 0.15 + 0.85;
+  ctx.strokeStyle = `rgba(${colorRGB}, ${0.45 * alpha})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, haloBase + haloGrow * 0.6 + 8 * ringPulse, 0, Math.PI * 2);
+  ctx.stroke();
+
   const textGrad = ctx.createLinearGradient(0, -50, 0, 50);
   textGrad.addColorStop(0, '#FFFFFF');
-  textGrad.addColorStop(0.5, colorLight);
+  textGrad.addColorStop(0.4, colorLight);
   textGrad.addColorStop(1, color);
   ctx.fillStyle = textGrad;
   ctx.font = 'bold 72px Georgia, "Times New Roman", serif';
@@ -377,25 +584,30 @@ export function drawDiceNumberPop(
   ctx.fillText(String(value), 0, 0);
 
   ctx.shadowColor = color;
-  ctx.shadowBlur = 24;
+  ctx.shadowBlur = 28;
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 72px Georgia, "Times New Roman", serif';
   ctx.fillText(String(value), 0, 0);
+  ctx.shadowBlur = 0;
 
   ctx.restore();
 
-  if (t < 0.4 && Math.random() < 0.5) {
+  if (t < 0.45 && Math.random() < 0.35) {
     const angle = Math.random() * Math.PI * 2;
-    const dist = 40 + Math.random() * 50;
+    const dist = 35 + Math.random() * 55;
+    const spawnT = Math.min(1, t / 0.45);
+    const speedMul = 1 + (1 - spawnT) * 2;
     spawnParticles(
       centerX + Math.cos(angle) * dist,
       centerY + Math.sin(angle) * dist,
       1,
       {
         colorPalette: [color, colorLight, '#FFFFFF', '#FFD700'],
-        size: 2 + Math.random() * 2,
-        maxLife: 500,
-        gravity: 0.05,
+        size: 1.8 + Math.random() * 2.5,
+        maxLife: 450 + Math.random() * 350,
+        gravity: 0.04,
+        vx: Math.cos(angle) * speedMul,
+        vy: Math.sin(angle) * speedMul,
       }
     );
   }
