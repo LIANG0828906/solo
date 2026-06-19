@@ -31,11 +31,21 @@ export interface PlantConfig {
   fertilizerBoost: number;
 }
 
+export interface GrowthLogDetails {
+  oldProgress?: number;
+  newProgress?: number;
+  boostValue?: number;
+  stageChanged?: boolean;
+  oldStage?: GrowthStage;
+  newStage?: GrowthStage;
+}
+
 export interface GrowthLogEntry {
   id: string;
   timestamp: number;
   action: ActionType;
   description: string;
+  details: GrowthLogDetails;
 }
 
 export interface Plant {
@@ -63,7 +73,7 @@ export const PLANT_CONFIGS: Record<PlantType, PlantConfig> = {
     name: '玫瑰',
     color: '#e74c3c',
     seedlingIcon: '🌱',
-    growingIcon: '🌿',
+    growingIcon: '🥀',
     matureIcon: '🌹',
     waterBoost: 8,
     fertilizerBoost: 20
@@ -73,7 +83,7 @@ export const PLANT_CONFIGS: Record<PlantType, PlantConfig> = {
     name: '向日葵',
     color: '#f1c40f',
     seedlingIcon: '🌱',
-    growingIcon: '🌿',
+    growingIcon: '�',
     matureIcon: '🌻',
     waterBoost: 7,
     fertilizerBoost: 18
@@ -83,7 +93,7 @@ export const PLANT_CONFIGS: Record<PlantType, PlantConfig> = {
     name: '薰衣草',
     color: '#9b59b6',
     seedlingIcon: '🌱',
-    growingIcon: '🌿',
+    growingIcon: '💐',
     matureIcon: '💜',
     waterBoost: 6,
     fertilizerBoost: 15
@@ -103,7 +113,7 @@ export const PLANT_CONFIGS: Record<PlantType, PlantConfig> = {
     name: '番茄',
     color: '#e67e22',
     seedlingIcon: '🌱',
-    growingIcon: '🌿',
+    growingIcon: '🪴',
     matureIcon: '🍅',
     waterBoost: 7,
     fertilizerBoost: 19
@@ -113,7 +123,7 @@ export const PLANT_CONFIGS: Record<PlantType, PlantConfig> = {
     name: '草莓',
     color: '#e91e63',
     seedlingIcon: '🌱',
-    growingIcon: '🌿',
+    growingIcon: '�',
     matureIcon: '🍓',
     waterBoost: 8,
     fertilizerBoost: 17

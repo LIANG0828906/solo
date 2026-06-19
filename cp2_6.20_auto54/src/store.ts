@@ -12,6 +12,7 @@ import {
   FERTILIZE_COOLDOWN,
   GRID_SIZE
 } from './types';
+import { soundManager } from './utils/sound';
 
 interface GardenState {
   grid: GridCell[][];
@@ -27,10 +28,11 @@ interface GardenState {
   plantInCell: (row: number, col: number, plantType: PlantType) => void;
   removePlant: (row: number, col: number) => void;
   waterPlant: (plantId: string) => void;
-  fertilizePlant: (plantId: string) => void;
+  fertilizePlant: (plantId: string) => boolean;
   toggleExpandPlant: (plantId: string) => void;
   updateTime: () => void;
   getFertilizeCooldownRemaining: (plantId: string) => number;
+  playSound: (type: 'click' | 'success' | 'fail') => void;
 }
 
 const calculateStage = (progress: number): GrowthStage => {
@@ -65,6 +67,19 @@ const findCellByPlantId = (
   return null;
 };
 
+const getStageLabel = (stage: GrowthStage): string => {
+  switch (stage) {
+    case GrowthStage.SEEDLING:
+      return '幼苗期';
+    case GrowthStage.GROWING:
+      return '生长期';
+    case GrowthStage.MATURE:
+      return '成熟期';
+    default:
+      return '';
+  }
+};
+
 export const useGardenStore = create<GardenState>((set, get) => ({
   grid: [],
   selectedCell: null,
@@ -72,6 +87,10 @@ export const useGardenStore = create<GardenState>((set, get) => ({
   expandedPlantId: null,
   fertilizeCooldowns: {},
   currentTime: Date.now(),
+
+  playSound: (type) => {
+    soundManager.play(type);
+  },
 
   initGrid: () => {
     set({ grid: createEmptyGrid() });
@@ -88,18 +107,27 @@ export const useGardenStore = create<GardenState>((set, get) => ({
   plantInCell: (row, col, plantType) => {
     const plantId = uuidv4();
     const now = Date.now();
+    const initialProgress = 5;
     const logEntry: GrowthLogEntry = {
       id: uuidv4(),
       timestamp: now,
       action: ActionType.PLANT,
-      description: `种植了${PLANT_CONFIGS[plantType].name}`
+      description: `种植了${PLANT_CONFIGS[plantType].name}，初始成长值 ${initialProgress}%`,
+      details: {
+        oldProgress: 0,
+        newProgress: initialProgress,
+        boostValue: initialProgress,
+        stageChanged: true,
+        oldStage: GrowthStage.SEEDLING,
+        newStage: GrowthStage.SEEDLING
+      }
     };
 
     const newPlant: Plant = {
       id: plantId,
       type: plantType,
       stage: GrowthStage.SEEDLING,
-      progress: 5,
+      progress: initialProgress,
       plantedAt: now,
       lastWateredAt: null,
       lastFertilizedAt: null,
@@ -120,6 +148,7 @@ export const useGardenStore = create<GardenState>((set, get) => ({
         selectedCell: null
       };
     });
+    soundManager.play('success');
   },
 
   removePlant: (row, col) => {
@@ -140,17 +169,37 @@ export const useGardenStore = create<GardenState>((set, get) => ({
 
     const cell = state.grid[cellPos.row][cellPos.col];
     if (!cell.plant) return;
+    if (cell.plant.progress >= 100) {
+      soundManager.play('fail');
+      return;
+    }
 
     const config = PLANT_CONFIGS[cell.plant.type];
     const now = Date.now();
-    const newProgress = Math.min(100, cell.plant.progress + config.waterBoost);
+    const oldProgress = cell.plant.progress;
+    const oldStage = cell.plant.stage;
+    const newProgress = Math.min(100, oldProgress + config.waterBoost);
     const newStage = calculateStage(newProgress);
+    const stageChanged = oldStage !== newStage;
+
+    let description = `浇水：成长值 ${oldProgress}% → ${newProgress}%（+${config.waterBoost}%）`;
+    if (stageChanged) {
+      description += `，进入${getStageLabel(newStage)}`;
+    }
 
     const logEntry: GrowthLogEntry = {
       id: uuidv4(),
       timestamp: now,
       action: ActionType.WATER,
-      description: `浇水，成长值 +${config.waterBoost}%`
+      description,
+      details: {
+        oldProgress,
+        newProgress,
+        boostValue: config.waterBoost,
+        stageChanged,
+        oldStage,
+        newStage
+      }
     };
 
     set((state) => {
@@ -175,6 +224,8 @@ export const useGardenStore = create<GardenState>((set, get) => ({
       return { grid: newGrid };
     });
 
+    soundManager.play('success');
+
     setTimeout(() => {
       set((state) => {
         const newGrid = state.grid.map((r, ri) =>
@@ -193,24 +244,47 @@ export const useGardenStore = create<GardenState>((set, get) => ({
   fertilizePlant: (plantId) => {
     const state = get();
     const remaining = state.getFertilizeCooldownRemaining(plantId);
-    if (remaining > 0) return;
+    if (remaining > 0) {
+      soundManager.play('fail');
+      return false;
+    }
 
     const cellPos = findCellByPlantId(state.grid, plantId);
-    if (!cellPos) return;
+    if (!cellPos) return false;
 
     const cell = state.grid[cellPos.row][cellPos.col];
-    if (!cell.plant) return;
+    if (!cell.plant) return false;
+    if (cell.plant.progress >= 100) {
+      soundManager.play('fail');
+      return false;
+    }
 
     const config = PLANT_CONFIGS[cell.plant.type];
     const now = Date.now();
-    const newProgress = Math.min(100, cell.plant.progress + config.fertilizerBoost);
+    const oldProgress = cell.plant.progress;
+    const oldStage = cell.plant.stage;
+    const newProgress = Math.min(100, oldProgress + config.fertilizerBoost);
     const newStage = calculateStage(newProgress);
+    const stageChanged = oldStage !== newStage;
+
+    let description = `施肥：成长值 ${oldProgress}% → ${newProgress}%（+${config.fertilizerBoost}%）`;
+    if (stageChanged) {
+      description += `，进入${getStageLabel(newStage)}`;
+    }
 
     const logEntry: GrowthLogEntry = {
       id: uuidv4(),
       timestamp: now,
       action: ActionType.FERTILIZE,
-      description: `施肥，成长值 +${config.fertilizerBoost}%`
+      description,
+      details: {
+        oldProgress,
+        newProgress,
+        boostValue: config.fertilizerBoost,
+        stageChanged,
+        oldStage,
+        newStage
+      }
     };
 
     set((state) => {
@@ -241,6 +315,8 @@ export const useGardenStore = create<GardenState>((set, get) => ({
       };
     });
 
+    soundManager.play('success');
+
     setTimeout(() => {
       set((state) => {
         const newGrid = state.grid.map((r, ri) =>
@@ -254,6 +330,8 @@ export const useGardenStore = create<GardenState>((set, get) => ({
         return { grid: newGrid };
       });
     }, 800);
+
+    return true;
   },
 
   toggleExpandPlant: (plantId) => {
