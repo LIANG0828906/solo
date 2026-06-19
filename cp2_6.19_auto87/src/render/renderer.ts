@@ -39,6 +39,7 @@ interface FlyingCard {
   arcHeight: number;
   settled: boolean;
   settleProgress: number;
+  settleVelocity: number;
 }
 
 interface RippleEffect {
@@ -84,6 +85,7 @@ export class Renderer {
   private layout: LayoutState;
   private selectedCardId: string | null = null;
   private hoveredCell: CellPosition | null = null;
+  private cardSelectionAnimations: Map<string, { progress: number; target: number }> = new Map();
 
   private flyingCards: FlyingCard[] = [];
   private rippleEffects: RippleEffect[] = [];
@@ -256,24 +258,35 @@ export class Renderer {
   }
 
   private update(deltaTime: number): void {
-    this.animator.update(deltaTime);
-
-    this.updateFlyingCards(deltaTime);
-    this.updateRippleEffects(deltaTime);
-    this.updateTurnIndicator(deltaTime);
-    this.updateCardSettle(deltaTime);
-    this.updateScoreAnimations(deltaTime);
-
-    if (this.isSwitchingTurn) {
-      this.turnFadeProgress -= deltaTime / 0.15;
-      if (this.turnFadeProgress <= 0) {
-        this.turnFadeProgress = 0;
-        this.isSwitchingTurn = false;
-        this.playerManager.switchPlayer();
-        this.selectedCardId = null;
-        this.showTurnIndicator();
-        this.turnFadeProgress = 1;
+    try {
+      if (this.isSwitchingTurn) {
+        console.log('UPDATE: isSwitchingTurn is true at start');
       }
+      this.animator.update(deltaTime);
+
+      this.updateFlyingCards(deltaTime);
+      this.updateRippleEffects(deltaTime);
+      this.updateTurnIndicator(deltaTime);
+      this.updateCardSettle(deltaTime);
+      this.updateScoreAnimations(deltaTime);
+      this.updateCardSelectionAnimations(deltaTime);
+
+      if (this.isSwitchingTurn) {
+        console.log('Processing turn switch, turnFadeProgress:', this.turnFadeProgress);
+        this.turnFadeProgress -= deltaTime / 0.15;
+        if (this.turnFadeProgress <= 0) {
+          console.log('Turn fade complete, switching player');
+          this.turnFadeProgress = 0;
+          this.isSwitchingTurn = false;
+          const newPlayer = this.playerManager.switchPlayer();
+          console.log('New player:', newPlayer);
+          this.selectedCardId = null;
+          this.showTurnIndicator();
+          this.turnFadeProgress = 1;
+        }
+      }
+    } catch (e) {
+      console.error('ERROR in update():', e);
     }
   }
 
@@ -288,6 +301,7 @@ export class Renderer {
           fc.progress = 1;
           fc.settled = true;
           fc.settleProgress = 0;
+          fc.settleVelocity = 0;
           this.audio.playCardDrop();
 
           this.cardSettleAnims.push({
@@ -299,12 +313,18 @@ export class Renderer {
         }
 
         const t = Easing.easeOutQuad(fc.progress);
+        const arcT = Math.sin(t * Math.PI);
+        const arcHeight = fc.arcHeight * arcT;
+
         fc.currentX = lerp(fc.startX, fc.targetX, t);
-        fc.currentY = lerp(fc.startY, fc.targetY, t) - Math.sin(t * Math.PI) * fc.arcHeight;
-        fc.currentRotation = lerpAngle(fc.startRotation, 0, t);
-        fc.currentScale = lerp(1, 0.9, t);
+        fc.currentY = lerp(fc.startY, fc.targetY, t) - arcHeight;
+        fc.currentRotation = lerpAngle(fc.startRotation, 0, Easing.easeOutQuad(t));
+        fc.currentScale = lerp(1, 0.9, Easing.easeOutQuad(t));
       } else {
         fc.settleProgress += deltaTime / 0.3;
+        const damping = Math.exp(-fc.settleProgress * 8);
+        fc.settleVelocity *= damping;
+        fc.settleVelocity += Math.sin(fc.settleProgress * 12) * deltaTime * 2;
 
         if (fc.settleProgress >= 1) {
           this.flyingCards.splice(i, 1);
@@ -346,6 +366,42 @@ export class Renderer {
     }
   }
 
+  private updateCardSelectionAnimations(deltaTime: number): void {
+    const animSpeed = 1 / 0.2;
+    const currentPlayer = this.playerManager.getCurrentPlayerId();
+    const player = this.playerManager.getPlayer(currentPlayer);
+    const hand = player.getHand();
+
+    for (const card of hand) {
+      const isSelected = this.selectedCardId === card.id;
+      const target = isSelected ? 1 : 0;
+
+      let anim = this.cardSelectionAnimations.get(card.id);
+      if (!anim) {
+        anim = { progress: target, target };
+        this.cardSelectionAnimations.set(card.id, anim);
+      }
+
+      if (anim.target !== target) {
+        anim.target = target;
+      }
+
+      if (anim.progress !== target) {
+        if (anim.progress < target) {
+          anim.progress = Math.min(anim.progress + deltaTime * animSpeed, target);
+        } else {
+          anim.progress = Math.max(anim.progress - deltaTime * animSpeed, target);
+        }
+      }
+    }
+
+    for (const [cardId] of this.cardSelectionAnimations) {
+      if (!hand.some(c => c.id === cardId)) {
+        this.cardSelectionAnimations.delete(cardId);
+      }
+    }
+  }
+
   private updateScoreAnimations(deltaTime: number): void {
     const animSpeed = 1 / 0.3;
 
@@ -362,22 +418,26 @@ export class Renderer {
   }
 
   private render(): void {
-    const ctx = this.ctx;
+    try {
+      const ctx = this.ctx;
 
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
-    this.drawBackground();
-    // this.drawScoreboard();
-    this.drawBoard();
-    this.drawBoardCards();
-    this.drawRippleEffects();
-    this.drawCellGlows();
-    this.drawFlyingCards();
-    this.drawHands();
-    this.drawTurnIndicator();
+      this.drawBackground();
+      this.drawScoreboard();
+      this.drawBoard();
+      this.drawBoardCards();
+      this.drawRippleEffects();
+      this.drawCellGlows();
+      this.drawFlyingCards();
+      this.drawHands();
+      this.drawTurnIndicator();
 
-    if (this.showFPS) {
-      this.drawFPS();
+      if (this.showFPS) {
+        this.drawFPS();
+      }
+    } catch (e) {
+      console.error('ERROR in render():', e);
     }
   }
 
@@ -503,78 +563,152 @@ export class Renderer {
     const progress = digit.progress;
     const prevValue = digit.prevValue;
     const value = digit.value;
+    const halfHeight = height / 2;
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
 
     ctx.save();
 
-    ctx.fillStyle = 'rgba(15, 40, 25, 0.9)';
+    const bgGrad = ctx.createLinearGradient(x, y, x, y + height);
+    bgGrad.addColorStop(0, 'rgba(20, 50, 30, 0.95)');
+    bgGrad.addColorStop(0.5, 'rgba(15, 40, 25, 0.95)');
+    bgGrad.addColorStop(1, 'rgba(10, 30, 20, 0.95)');
+
+    ctx.fillStyle = bgGrad;
     this.roundRect(ctx, x, y, width, height, 4);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1;
     this.roundRect(ctx, x, y, width, height, 4);
     ctx.stroke();
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillRect(x, y + halfHeight - 0.5, width, 1);
 
     ctx.fillStyle = color;
     ctx.font = 'bold 20px Georgia, serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    const centerX = x + width / 2;
-    const centerY = y + height / 2;
-
     if (progress >= 1) {
       ctx.shadowColor = color;
-      ctx.shadowBlur = 4;
+      ctx.shadowBlur = 6;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, width, halfHeight);
+      ctx.clip();
       ctx.fillText(String(value), centerX, centerY);
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y + halfHeight, width, halfHeight);
+      ctx.clip();
+      ctx.fillText(String(value), centerX, centerY);
+      ctx.restore();
+
+      ctx.shadowBlur = 0;
     } else if (progress < 0.5) {
       const flipProgress = progress * 2;
-      const scaleY = Math.cos(flipProgress * Math.PI / 2);
+      const eased = Easing.easeOutQuad(flipProgress);
+      const angle = eased * Math.PI / 2;
+      const scaleY = Math.cos(angle);
 
       ctx.save();
       ctx.beginPath();
-      ctx.rect(x, y, width, height / 2);
+      ctx.rect(x, y, width, halfHeight);
       ctx.clip();
-
-      ctx.save();
-      ctx.translate(centerX, centerY);
-      ctx.scale(1, scaleY);
-      ctx.translate(-centerX, -centerY);
       ctx.fillText(String(prevValue), centerX, centerY);
-      ctx.restore();
-
       ctx.restore();
 
       ctx.save();
       ctx.beginPath();
-      ctx.rect(x, y + height / 2, width, height / 2);
+      ctx.rect(x, y + halfHeight, width, halfHeight);
       ctx.clip();
       ctx.fillText(String(prevValue), centerX, centerY);
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, width, halfHeight);
+      ctx.clip();
+
+      ctx.save();
+      ctx.translate(centerX, y + halfHeight);
+      ctx.transform(1, 0, 0, scaleY, 0, 0);
+      ctx.translate(-centerX, -(y + halfHeight));
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.fillRect(x, y, width, halfHeight);
+      ctx.restore();
+
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 4;
+      ctx.fillText(String(prevValue), centerX, centerY);
+      ctx.restore();
       ctx.restore();
     } else {
       const flipProgress = (progress - 0.5) * 2;
-      const scaleY = Math.sin(flipProgress * Math.PI / 2);
+      const eased = Easing.easeOutQuad(flipProgress);
+      const angle = (1 - eased) * Math.PI / 2;
+      const scaleY = Math.sin(angle + Math.PI / 2);
 
       ctx.save();
       ctx.beginPath();
-      ctx.rect(x, y, width, height / 2);
+      ctx.rect(x, y, width, halfHeight);
       ctx.clip();
       ctx.fillText(String(value), centerX, centerY);
       ctx.restore();
 
       ctx.save();
       ctx.beginPath();
-      ctx.rect(x, y + height / 2, width, height / 2);
+      ctx.rect(x, y + halfHeight, width, halfHeight);
+      ctx.clip();
+      ctx.fillText(String(prevValue), centerX, centerY);
+      ctx.restore();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y + halfHeight, width, halfHeight);
       ctx.clip();
 
       ctx.save();
-      ctx.translate(centerX, centerY);
-      ctx.scale(1, scaleY);
-      ctx.translate(-centerX, -centerY);
-      ctx.fillText(String(value), centerX, centerY);
+      ctx.translate(centerX, y + halfHeight);
+      ctx.transform(1, 0, 0, scaleY, 0, 0);
+      ctx.translate(-centerX, -(y + halfHeight));
+
+      const shadowAlpha = 1 - scaleY;
+      ctx.save();
+      ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha * 0.5})`;
+      ctx.fillRect(x, y + halfHeight, width, halfHeight);
       ctx.restore();
 
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 4;
+      ctx.fillText(String(value), centerX, centerY);
       ctx.restore();
+      ctx.restore();
+
+      if (progress < 0.75) {
+        const edgeProgress = (progress - 0.5) * 4;
+        const edgeAlpha = 1 - edgeProgress;
+        ctx.save();
+        ctx.globalAlpha = edgeAlpha * 0.6;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y + halfHeight);
+        ctx.lineTo(x + width, y + halfHeight);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     ctx.restore();
@@ -639,24 +773,31 @@ export class Renderer {
 
           let scale = 1;
           let offsetY = 0;
+          let offsetX = 0;
+          let rotation = 0;
 
           const settleAnim = this.cardSettleAnims.find(a => a.row === row && a.col === col);
           if (settleAnim) {
             const t = settleAnim.progress;
-            const wobble = Math.sin(t * Math.PI * 3) * (1 - t) * 3;
+            const damping = Math.exp(-t * 6);
+            const wobble = Math.sin(t * Math.PI * 4) * damping * 4;
+            const sideWobble = Math.cos(t * Math.PI * 3) * damping * 2;
+            const rotateWobble = Math.sin(t * Math.PI * 5) * damping * 0.05;
             scale = 1 - Math.sin(t * Math.PI) * 0.1;
             offsetY = wobble;
+            offsetX = sideWobble;
+            rotation = rotateWobble;
           }
 
           this.drawCard(
             ctx,
-            x + layout.cellSize / 2,
+            x + layout.cellSize / 2 + offsetX,
             y + layout.cellSize / 2 + offsetY,
             layout.cellSize * 0.85 * scale,
             layout.cellSize * 1.2 * scale,
             cell.card,
             cell.owner,
-            0
+            rotation
           );
         }
       }
@@ -858,7 +999,6 @@ export class Renderer {
     const angleStep = cardCount > 1 ? fanAngle / (cardCount - 1) : 0;
 
     const radius = layout.handCardHeight * 0.9;
-    const isSelected = (cardId: string) => this.selectedCardId === cardId && isCurrentPlayer;
 
     ctx.save();
     if (!isCurrentPlayer) {
@@ -874,14 +1014,17 @@ export class Renderer {
       let scale = 1;
       let alpha = 1;
 
-      const selected = isSelected(card.id);
-
       if (isCurrentPlayer && this.selectedCardId) {
-        if (selected) {
-          offsetY = -20;
-          scale = 1.1;
+        const anim = this.cardSelectionAnimations.get(card.id);
+        let animProgress = anim ? anim.progress : (this.selectedCardId === card.id ? 1 : 0);
+        const eased = Easing.easeOutQuad(animProgress);
+
+        if (this.selectedCardId === card.id) {
+          offsetY = -20 * eased;
+          scale = 1 + 0.1 * eased;
+          alpha = 1;
         } else {
-          alpha = 0.5;
+          alpha = 1 - 0.5 * (1 - animProgress);
         }
       }
 
@@ -946,34 +1089,54 @@ export class Renderer {
     }
 
     const color = indicator.player === 'red' ? '#ff5252' : '#448aff';
+    const colorDark = indicator.player === 'red' ? '#c62828' : '#1565c0';
     const size = layout.cellSize * 1.5;
 
     ctx.save();
     ctx.globalAlpha = clamp(alpha, 0, 1);
 
-    const glowGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, size * 1.5);
-    glowGradient.addColorStop(0, color + '80');
-    glowGradient.addColorStop(0.5, color + '30');
-    glowGradient.addColorStop(1, color + '00');
+    const outerGlowGrad = ctx.createRadialGradient(centerX, centerY, size * 0.5, centerX, centerY, size * 2.5);
+    outerGlowGrad.addColorStop(0, color + '60');
+    outerGlowGrad.addColorStop(0.3, color + '30');
+    outerGlowGrad.addColorStop(0.6, color + '15');
+    outerGlowGrad.addColorStop(1, color + '00');
 
-    ctx.fillStyle = glowGradient;
+    ctx.fillStyle = outerGlowGrad;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, size * 1.5, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, size * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    const pulseSize = size * (1 + Math.sin(indicator.progress * Math.PI * 4) * 0.1);
+    const pulseGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, pulseSize * 1.5);
+    pulseGrad.addColorStop(0, color + '00');
+    pulseGrad.addColorStop(0.6, color + '40');
+    pulseGrad.addColorStop(0.8, color + '20');
+    pulseGrad.addColorStop(1, color + '00');
+
+    ctx.fillStyle = pulseGrad;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, pulseSize * 1.5, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.translate(centerX, centerY);
     ctx.rotate(indicator.rotation);
 
-    const medalGrad = ctx.createRadialGradient(-size * 0.2, -size * 0.2, 0, 0, 0, size);
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 20;
+
+    const medalGrad = ctx.createRadialGradient(-size * 0.3, -size * 0.3, 0, 0, 0, size * 1.2);
     medalGrad.addColorStop(0, '#ffffff');
+    medalGrad.addColorStop(0.15, '#fff8e7');
     medalGrad.addColorStop(0.3, color);
-    medalGrad.addColorStop(1, color + '80');
+    medalGrad.addColorStop(0.6, colorDark);
+    medalGrad.addColorStop(0.85, color);
+    medalGrad.addColorStop(1, '#ffffff40');
 
     ctx.fillStyle = medalGrad;
     ctx.beginPath();
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const r = i % 2 === 0 ? size : size * 0.7;
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2;
+      const r = i % 2 === 0 ? size : size * 0.75;
       const x = Math.cos(angle) * r;
       const y = Math.sin(angle) * r;
       if (i === 0) ctx.moveTo(x, y);
@@ -982,20 +1145,85 @@ export class Renderer {
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 3;
+    ctx.shadowBlur = 0;
+
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.rotate(Math.PI / 6);
+    const highlightGrad = ctx.createLinearGradient(-size * 0.8, -size * 0.8, size * 0.8, size * 0.8);
+    highlightGrad.addColorStop(0, '#ffffff00');
+    highlightGrad.addColorStop(0.4, '#ffffff80');
+    highlightGrad.addColorStop(0.5, '#ffffffc0');
+    highlightGrad.addColorStop(0.6, '#ffffff80');
+    highlightGrad.addColorStop(1, '#ffffff00');
+
+    ctx.fillStyle = highlightGrad;
+    ctx.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2;
+      const r = i % 2 === 0 ? size * 0.95 : size * 0.72;
+      const x = Math.cos(angle) * r;
+      const y = Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = '#ffffff80';
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2;
+      const r = i % 2 === 0 ? size : size * 0.75;
+      const x = Math.cos(angle) * r;
+      const y = Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    const innerCircleGrad = ctx.createRadialGradient(-size * 0.1, -size * 0.1, 0, 0, 0, size * 0.55);
+    innerCircleGrad.addColorStop(0, '#ffffff');
+    innerCircleGrad.addColorStop(0.2, '#fff8e7');
+    innerCircleGrad.addColorStop(0.5, color + 'cc');
+    innerCircleGrad.addColorStop(1, colorDark);
+
+    ctx.fillStyle = innerCircleGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#ffffff80';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.55, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.rotate(-indicator.rotation);
-    ctx.fillStyle = '#fff';
-    ctx.font = `bold ${size * 0.35}px Georgia, serif`;
+
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `bold ${size * 0.32}px Georgia, serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 4;
-    ctx.fillText(indicator.player === 'red' ? '红方' : '蓝方', 0, 0);
-    ctx.font = `${size * 0.2}px Georgia, serif`;
-    ctx.fillText('回合', 0, size * 0.35);
+    ctx.fillText(indicator.player === 'red' ? '红方' : '蓝方', 0, -size * 0.05);
+
+    ctx.font = `${size * 0.18}px Georgia, serif`;
+    ctx.fillText('回合', 0, size * 0.25);
+
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
 
     ctx.restore();
   }
@@ -1141,6 +1369,8 @@ export class Renderer {
 
     const result = this.board.placeCard(row, col, this.selectedCardId);
 
+    console.log('tryPlaceCard result:', { success: result.success, lineCells: result.lineCells.length, player: currentPlayerId });
+
     if (result.success && result.card && result.position) {
       this.spawnFlyingCard(result.card, currentPlayerId, result.position);
 
@@ -1156,9 +1386,12 @@ export class Renderer {
 
       this.selectedCardId = null;
 
+      const delay = result.lineCells.length > 0 ? 1000 : 600;
+      console.log('Scheduling turn switch in', delay, 'ms');
       setTimeout(() => {
+        console.log('Calling switchTurn()');
         this.switchTurn();
-      }, result.lineCells.length > 0 ? 1000 : 600);
+      }, delay);
     }
   }
 
@@ -1220,7 +1453,8 @@ export class Renderer {
       currentScale: 1,
       arcHeight: 80,
       settled: false,
-      settleProgress: 0
+      settleProgress: 0,
+      settleVelocity: 0
     });
   }
 
@@ -1245,6 +1479,7 @@ export class Renderer {
   }
 
   private switchTurn(): void {
+    console.log('switchTurn() called, setting isSwitchingTurn = true');
     this.isSwitchingTurn = true;
     this.audio.playTurnSwitch();
   }

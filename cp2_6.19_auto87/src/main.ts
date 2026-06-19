@@ -19,6 +19,10 @@ function initGame(): void {
 
   renderer.start();
 
+  (window as any).gameRenderer = renderer;
+  (window as any).gameBoard = board;
+  (window as any).gamePlayerManager = playerManager;
+
   console.log('Card Battle Game initialized');
   console.log('红方手牌数:', playerManager.getPlayer('red').getHand().length);
   console.log('蓝方手牌数:', playerManager.getPlayer('blue').getHand().length);
