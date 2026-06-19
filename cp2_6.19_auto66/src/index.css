@@ -116,16 +116,28 @@ input:-webkit-autofill:focus {
     @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
   }
 
-  .type-tag-bank {
-    @apply bg-bank/20 text-bank;
+  .type-tag-stock {
+    @apply bg-stock/20 text-stock;
   }
 
   .type-tag-fund {
     @apply bg-fund/20 text-fund;
   }
 
-  .type-tag-stock {
-    @apply bg-stock/20 text-stock;
+  .type-tag-bank {
+    @apply bg-bank/20 text-bank;
+  }
+
+  .type-tag-bond {
+    @apply bg-bond/20 text-bond;
+  }
+
+  .type-tag-gold {
+    @apply bg-gold/20 text-gold;
+  }
+
+  .type-tag-other {
+    @apply bg-other/20 text-other;
   }
 
   .chart-container {

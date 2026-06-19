@@ -68,7 +68,7 @@ export interface TypeAllocation {
 }
 
 export const calculateTypeAllocation = (assets: Asset[]): TypeAllocation[] => {
-  const typeValues: Record<AssetType, number> = { bank: 0, fund: 0, stock: 0 };
+  const typeValues: Record<AssetType, number> = { stock: 0, fund: 0, bank: 0, bond: 0, gold: 0, other: 0 };
   const totalValue = calculateTotalMarketValue(assets);
 
   assets.forEach((asset) => {
@@ -76,15 +76,21 @@ export const calculateTypeAllocation = (assets: Asset[]): TypeAllocation[] => {
   });
 
   const typeLabels: Record<AssetType, string> = {
-    bank: '银行',
-    fund: '基金',
     stock: '股票',
+    fund: '基金',
+    bank: '银行理财',
+    bond: '债券',
+    gold: '黄金',
+    other: '其他',
   };
 
   const typeColors: Record<AssetType, string> = {
-    bank: '#4A90D9',
-    fund: '#50C878',
     stock: '#FF6B6B',
+    fund: '#50C878',
+    bank: '#4A90D9',
+    bond: '#F59E0B',
+    gold: '#D4AF37',
+    other: '#94A3B8',
   };
 
   return (Object.keys(typeValues) as AssetType[]).map((type) => ({

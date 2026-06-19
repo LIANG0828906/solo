@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
-import type { AssetFormData, FormErrors } from '@/types';
+import { X, Plus, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
+import type { AssetFormData, FormErrors, AssetType } from '@/types';
 import { useAssetStore } from './assetStore';
 
 interface AssetEntryFormProps {
@@ -10,12 +10,21 @@ interface AssetEntryFormProps {
 
 const initialFormData: AssetFormData = {
   name: '',
-  type: 'bank',
+  type: 'stock',
   buyPrice: 0,
   currentPrice: 0,
   quantity: 0.01,
   buyDate: new Date().toISOString().split('T')[0],
 };
+
+const ASSET_TYPE_OPTIONS: { value: AssetType; label: string }[] = [
+  { value: 'stock', label: '股票' },
+  { value: 'fund', label: '基金' },
+  { value: 'bank', label: '银行理财' },
+  { value: 'bond', label: '债券' },
+  { value: 'gold', label: '黄金' },
+  { value: 'other', label: '其他' },
+];
 
 const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
   editingAsset,
@@ -26,6 +35,7 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
   const [formData, setFormData] = useState<AssetFormData>(initialFormData);
   const [errors, setErrors] = useState<FormErrors>({});
   const [shakeFields, setShakeFields] = useState<Set<string>>(new Set());
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const isEditing = !!editingAsset;
 
@@ -42,6 +52,11 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
       setIsExpanded(true);
     }
   }, [editingAsset]);
+
+  const showSuccess = (message: string) => {
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
 
   const validateForm = useCallback((): boolean => {
     const newErrors: FormErrors = {};
@@ -94,9 +109,11 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
 
     if (isEditing && editingAsset) {
       updateAsset(editingAsset.id, formData);
+      showSuccess('资产更新成功！');
       onEditComplete?.();
     } else {
       addAsset(formData);
+      showSuccess('资产添加成功！');
       setFormData({ ...initialFormData, buyDate: new Date().toISOString().split('T')[0] });
     }
 
@@ -140,6 +157,7 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
     } else {
       setFormData(initialFormData);
       setErrors({});
+      setSuccessMessage(null);
     }
   };
 
@@ -176,9 +194,16 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
 
       <div
         className={`overflow-hidden transition-all duration-300 ${
-          isExpanded ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
+          isExpanded ? 'max-h-[700px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
+        {successMessage && (
+          <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-success/15 border border-success/40 rounded-lg text-success animate-fade-in-up">
+            <CheckCircle size={20} />
+            <span className="font-medium">{successMessage}</span>
+          </div>
+        )}
+
         {isEditing && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={handleCancel} />
         )}
@@ -227,9 +252,11 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
                 onChange={handleInputChange}
                 className="form-input appearance-none cursor-pointer"
               >
-                <option value="bank">银行</option>
-                <option value="fund">基金</option>
-                <option value="stock">股票</option>
+                {ASSET_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -242,6 +269,7 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
                 name="buyDate"
                 value={formData.buyDate}
                 onChange={handleInputChange}
+                max={new Date().toISOString().split('T')[0]}
                 className={inputClass('buyDate')}
               />
               {errors.buyDate && (
