@@ -5,6 +5,7 @@ import { ComponentSandbox } from './components/ComponentSandbox';
 import { ControlPanel } from './components/ControlPanel';
 import { CodeExport } from './components/CodeExport';
 import { Toast } from './components/Toast';
+import { ConfirmModal } from './components/ConfirmModal';
 import { useToast } from './hooks/useToast';
 
 const App: React.FC = () => {
@@ -26,9 +27,14 @@ const App: React.FC = () => {
   const [animKey, setAnimKey] = useState<number>(0);
   const [isPresetChange, setIsPresetChange] = useState<boolean>(false);
   const [mobilePanelOpen, setMobilePanelOpen] = useState<boolean>(false);
-  const { toasts, showToast } = useToast();
+  const [resetModalOpen, setResetModalOpen] = useState<boolean>(false);
 
-  const currentComponent = useMemo(() => getComponentById(selectedId)!, [selectedId]);
+  const { toasts, showSuccess, showError } = useToast();
+
+  const currentComponent = useMemo(
+    () => getComponentById(selectedId)!,
+    [selectedId]
+  );
   const currentProps = propsMap[selectedId];
   const currentPresetIndex = presetIndexMap[selectedId];
 
@@ -37,11 +43,14 @@ const App: React.FC = () => {
     setAnimKey((k) => k + 1);
   }, []);
 
-  const handleSelectComponent = useCallback((id: string) => {
-    setSelectedId(id);
-    triggerAnim(true);
-    setMobilePanelOpen(false);
-  }, [triggerAnim]);
+  const handleSelectComponent = useCallback(
+    (id: string) => {
+      setSelectedId(id);
+      triggerAnim(true);
+      setMobilePanelOpen(false);
+    },
+    [triggerAnim]
+  );
 
   const handlePropChange = useCallback(
     (key: string, value: any) => {
@@ -76,13 +85,17 @@ const App: React.FC = () => {
         [selectedId]: presetIndex,
       }));
       triggerAnim(true);
+      showSuccess(`已切换到「${comp.presets[presetIndex].name}」预设`);
     },
-    [selectedId, triggerAnim]
+    [selectedId, triggerAnim, showSuccess]
   );
 
-  const handleReset = useCallback(() => {
+  const doReset = useCallback(() => {
     const comp = getComponentById(selectedId);
-    if (!comp) return;
+    if (!comp) {
+      showError('组件不存在，重置失败');
+      return;
+    }
     setPropsMap((prev) => ({
       ...prev,
       [selectedId]: {
@@ -94,8 +107,20 @@ const App: React.FC = () => {
       [selectedId]: 0,
     }));
     triggerAnim(true);
-    showToast('已重置为默认值');
-  }, [selectedId, triggerAnim, showToast]);
+    setResetModalOpen(false);
+    showSuccess(`「${comp.name}」已重置为默认值`);
+  }, [selectedId, triggerAnim, showSuccess, showError]);
+
+  const handleResetRequest = useCallback(() => {
+    setResetModalOpen(true);
+  }, []);
+
+  const handleCopyCode = useCallback(
+    (msg: string) => {
+      showSuccess(msg);
+    },
+    [showSuccess]
+  );
 
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -195,7 +220,7 @@ const App: React.FC = () => {
           <CodeExport
             componentId={selectedId}
             props={currentProps}
-            onToast={showToast}
+            onToast={handleCopyCode}
           />
         </div>
 
@@ -205,7 +230,7 @@ const App: React.FC = () => {
             props={currentProps}
             onPropChange={handlePropChange}
             onPresetSelect={handlePresetSelect}
-            onReset={handleReset}
+            onReset={handleResetRequest}
             currentPresetIndex={currentPresetIndex}
           />
         )}
@@ -260,7 +285,7 @@ const App: React.FC = () => {
                   props={currentProps}
                   onPropChange={handlePropChange}
                   onPresetSelect={handlePresetSelect}
-                  onReset={handleReset}
+                  onReset={handleResetRequest}
                   currentPresetIndex={currentPresetIndex}
                 />
               </div>
@@ -270,6 +295,16 @@ const App: React.FC = () => {
       )}
 
       <Toast toasts={toasts} />
+      <ConfirmModal
+        open={resetModalOpen}
+        title="确认重置组件？"
+        message={`此操作会将「${currentComponent.name}」的所有属性恢复为默认值，当前所有自定义调整将丢失，且无法撤销。是否继续？`}
+        confirmText="确认重置"
+        cancelText="取消"
+        confirmColor="#f38ba8"
+        onConfirm={doReset}
+        onCancel={() => setResetModalOpen(false)}
+      />
     </div>
   );
 };
