@@ -325,13 +325,40 @@ export function checkPowerUpCollision(powerUp: PowerUp, paddle: Paddle): boolean
   );
 }
 
-export function updateCelebrationParticles(particles: Particle[], dt: number): Particle[] {
+export function updateCelebrationParticles(
+  particles: Particle[],
+  dt: number,
+  canvasHeight: number = CANVAS_HEIGHT
+): Particle[] {
+  const baseUpwardAccel = canvasHeight * 0.12;
+  const horizontalDamping = 1 - Math.min(0.9, 1.5 * dt);
+  const verticalDamping = 1 - Math.min(0.8, 1.0 * dt);
+  const boundaryMargin = 20;
+
   return particles.filter(p => {
     p.x += p.vx * dt;
     p.y += p.vy * dt;
-    p.vx *= 1 - 1.2 * dt;
-    p.vy *= 1 - 0.8 * dt;
-    p.vy -= 60 * dt;
+    p.vx *= horizontalDamping;
+    p.vy *= verticalDamping;
+    p.vy -= baseUpwardAccel * dt;
+
+    if (p.x < boundaryMargin) {
+      p.x = boundaryMargin;
+      p.vx = Math.abs(p.vx) * 0.3;
+    }
+    if (p.x > CANVAS_WIDTH - boundaryMargin) {
+      p.x = CANVAS_WIDTH - boundaryMargin;
+      p.vx = -Math.abs(p.vx) * 0.3;
+    }
+    if (p.y < boundaryMargin) {
+      p.y = boundaryMargin;
+      p.vy = Math.abs(p.vy) * 0.2;
+    }
+    if (p.y > canvasHeight - boundaryMargin) {
+      p.y = canvasHeight - boundaryMargin;
+      p.vy = -Math.abs(p.vy) * 0.2;
+    }
+
     p.life -= dt;
     return p.life > 0;
   });

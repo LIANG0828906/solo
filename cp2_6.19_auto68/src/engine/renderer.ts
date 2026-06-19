@@ -244,21 +244,24 @@ export class Renderer {
     let size: number;
 
     if (particle.celebration) {
-      const t = 1 - particle.life / particle.maxLife;
-      alpha = Math.sin(Math.max(0, Math.min(Math.PI, particle.life / particle.maxLife * Math.PI)));
-      const sizeGrow = 1 + t * 0.6;
-      size = particle.size * (0.6 + alpha * 0.8) * sizeGrow;
-      ctx.shadowBlur = 12 * alpha;
+      const lifeRatio = Math.max(0, Math.min(1, particle.life / particle.maxLife));
+      const t = 1 - lifeRatio;
+      const sinCurve = Math.sin(lifeRatio * Math.PI);
+      alpha = Math.max(0, Math.pow(sinCurve, 1.15));
+      const sizeGrow = 1 + t * 0.5;
+      const baseSize = particle.size * (0.55 + alpha * 0.75);
+      size = baseSize * sizeGrow;
+      ctx.shadowBlur = 10 * alpha + 2;
       ctx.shadowColor = particle.color;
     } else {
       alpha = particle.life / particle.maxLife;
       size = particle.size * alpha;
     }
 
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = Math.max(0.01, alpha);
     ctx.fillStyle = particle.color;
     ctx.beginPath();
-    ctx.arc(particle.x, particle.y, size, 0, Math.PI * 2);
+    ctx.arc(particle.x, particle.y, Math.max(0.5, size), 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
@@ -423,7 +426,18 @@ export class Renderer {
           ? 1 - (phaseProgress - 0.8) / 0.2
           : 1;
       const alpha = easeInOutQuad(fadeT);
-      const scale = 0.3 + t * 1;
+
+      ctx.font = 'bold 60px sans-serif';
+      const mainMetrics = ctx.measureText('关卡完成');
+      const mainTextWidth = mainMetrics.width;
+      const subText = `第 ${state.level} 关`;
+      ctx.font = 'bold 28px sans-serif';
+      const subMetrics = ctx.measureText(subText);
+      const subTextWidth = subMetrics.width;
+
+      const maxTextWidth = Math.max(mainTextWidth, subTextWidth) + 80;
+      const safeMaxScale = Math.min(1.3, (CANVAS_WIDTH - 80) / maxTextWidth);
+      const scale = Math.max(0.3, Math.min(safeMaxScale, 0.3 + t * safeMaxScale * 0.77));
 
       ctx.save();
       ctx.translate(cx, cy - 10);
@@ -446,7 +460,7 @@ export class Renderer {
       ctx.shadowColor = 'rgba(250, 204, 21, 0.7)';
       ctx.font = 'bold 28px sans-serif';
       ctx.fillStyle = '#fde68a';
-      ctx.fillText(`第 ${state.level} 关`, 0, 58);
+      ctx.fillText(subText, 0, 58);
 
       ctx.restore();
       ctx.globalAlpha = 1;
@@ -457,18 +471,26 @@ export class Renderer {
       let scale: number;
       let alpha: number;
 
+      ctx.font = 'bold 48px sans-serif';
+      const previewMetrics = ctx.measureText(`第 ${nextLevel} 关`);
+      const previewTextWidth = previewMetrics.width + 120;
+      const safeMaxPreviewScale = Math.min(1.3, (CANVAS_WIDTH - 100) / previewTextWidth);
+      const maxEnterScale = safeMaxPreviewScale * 2.7;
+
       if (t < 0.35) {
         const enterT = t / 0.35;
-        scale = 3.5 - easeOutBack(enterT) * 2.5;
+        scale = maxEnterScale - easeOutBack(enterT) * (maxEnterScale - safeMaxPreviewScale);
         alpha = easeOutQuad(enterT);
       } else if (t < 0.7) {
-        scale = 1;
+        scale = safeMaxPreviewScale;
         alpha = 1;
       } else {
         const exitT = (t - 0.7) / 0.3;
-        scale = 1 - exitT * 0.4;
+        scale = safeMaxPreviewScale * (1 - exitT * 0.4);
         alpha = 1 - easeInOutQuad(exitT);
       }
+
+      const bgRadius = Math.min(200, CANVAS_WIDTH / 2 - 40);
 
       ctx.save();
       ctx.translate(cx, cy);
@@ -478,12 +500,12 @@ export class Renderer {
       ctx.shadowBlur = 35;
       ctx.shadowColor = 'rgba(99, 102, 241, 0.9)';
 
-      const bgGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, 200);
+      const bgGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, bgRadius);
       bgGrad.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
       bgGrad.addColorStop(1, 'rgba(99, 102, 241, 0)');
       ctx.fillStyle = bgGrad;
       ctx.beginPath();
-      ctx.arc(0, 0, 200, 0, Math.PI * 2);
+      ctx.arc(0, 0, bgRadius, 0, Math.PI * 2);
       ctx.fill();
 
       const textGrad = ctx.createLinearGradient(0, -60, 0, 60);
