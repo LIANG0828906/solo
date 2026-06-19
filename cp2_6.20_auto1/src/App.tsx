@@ -357,13 +357,21 @@ const App: React.FC = () => {
           padding: 12,
           backgroundColor: '#16162a',
           borderBottom: '1px solid #2d2d44',
-          display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          flexWrap: 'wrap',
-          gap: 12,
-          alignItems: 'center',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'nowrap',
+            gap: 12,
+            alignItems: 'center',
+            minWidth: 'max-content',
+          }}
+        >
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: 14, color: '#aaa', marginRight: 8 }}>工具:</span>
           <button style={toolButtonStyle(tool === 'pen')} onClick={() => setTool('pen')}>
@@ -463,7 +471,7 @@ const App: React.FC = () => {
           </button>
         </div>
 
-        <div style={{ marginLeft: isMobile ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ marginLeft: 0, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div
             style={{
               width: 10,
@@ -475,6 +483,7 @@ const App: React.FC = () => {
           <span style={{ fontSize: 14, color: '#aaa' }}>
             在线: {userCount} 人
           </span>
+        </div>
         </div>
       </div>
 

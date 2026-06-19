@@ -106,6 +106,13 @@ const Note: React.FC<NoteProps> = ({ note, onUpdate, onDelete, zIndex, onDragSta
 
   const bgColor = NOTE_COLORS[note.color];
 
+  const getTransform = () => {
+    if (isDragging && isVisible) {
+      return 'scale(1.05)';
+    }
+    return isVisible ? 'scale(1)' : 'scale(0.8)';
+  };
+
   return (
     <div
       style={{
@@ -119,14 +126,18 @@ const Note: React.FC<NoteProps> = ({ note, onUpdate, onDelete, zIndex, onDragSta
         padding: 12,
         cursor: isEditing ? 'text' : 'move',
         boxShadow: isDragging
-          ? '0 4px 8px rgba(0,0,0,0.2)'
+          ? '0 12px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.1)'
           : '0 2px 4px rgba(0,0,0,0.1)',
         zIndex,
-        transform: isVisible ? 'scale(1)' : 'scale(0)',
+        transform: getTransform(),
+        transformOrigin: 'center center',
         opacity: isVisible ? 1 : 0,
-        transition: 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out',
+        transition: isDragging
+          ? 'box-shadow 0.15s ease-out, opacity 0.3s ease-in-out'
+          : 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out, box-shadow 0.15s ease-in',
         userSelect: 'none',
         color: '#333',
+        willChange: 'transform, box-shadow',
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
