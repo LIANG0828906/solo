@@ -1,5 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 
+/// <reference types="vite/client" />
+
 export interface MindNode {
   id: string;
   text: string;
