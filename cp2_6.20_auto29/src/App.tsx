@@ -1,21 +1,7 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-
-const VoteCreator: React.FC = () => {
-  return (
-    <div>
-      <h1>Vote Creator</h1>
-    </div>
-  );
-};
-
-const VoteMain: React.FC = () => {
-  return (
-    <div>
-      <h1>Vote Main</h1>
-    </div>
-  );
-};
+import VoteCreator from './components/VoteCreator';
+import VoteMain from './components/VoteMain';
 
 const App: React.FC = () => {
   return (
