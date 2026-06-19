@@ -27,6 +27,7 @@ function TaskCard(props: TaskCardProps) {
   const [newNoteContent, setNewNoteContent] = useState('');
   const [noteAuthor, setNoteAuthor] = useState('');
   const [saving, setSaving] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -177,9 +178,29 @@ function TaskCard(props: TaskCardProps) {
       >
         <div style={cardStyles.title}>{task.title}</div>
 
-        <div style={cardStyles.description}>
-          {task.description ? task.description : <span style={cardStyles.descriptionPlaceholder}>暂无描述</span>}
-        </div>
+        {task.description ? (
+          <div
+            style={{
+              ...cardStyles.description,
+              ...(descriptionExpanded ? cardStyles.descriptionExpanded : {}),
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDescriptionExpanded(!descriptionExpanded);
+            }}
+          >
+            {task.description}
+            {task.description.length > 40 && (
+              <span style={cardStyles.expandToggle}>
+                {descriptionExpanded ? '收起' : '展开'}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div style={cardStyles.description}>
+            <span style={cardStyles.descriptionPlaceholder}>暂无描述</span>
+          </div>
+        )}
 
         {task.tags.length > 0 && (
           <div style={cardStyles.tags}>
@@ -485,10 +506,28 @@ const cardStyles: Record<string, React.CSSProperties> = {
     display: '-webkit-box',
     WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical' as any,
+    cursor: 'pointer',
+    transition: 'max-height ease-out 0.3s',
+    userSelect: 'none',
+    position: 'relative' as any,
+  },
+  descriptionExpanded: {
+    maxHeight: 'none',
+    overflow: 'visible',
+    display: 'block',
+    WebkitLineClamp: 'unset' as any,
   },
   descriptionPlaceholder: {
     color: 'rgba(160, 160, 176, 0.5)',
     fontStyle: 'italic',
+    cursor: 'default',
+  },
+  expandToggle: {
+    display: 'inline-block',
+    marginLeft: 6,
+    color: '#e94560',
+    fontWeight: 500,
+    fontSize: 11,
   },
   tags: {
     display: 'flex',

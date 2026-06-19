@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import Board from './components/Board';
 import { fetchAllData, createTask, createLane, deleteLane, deleteTask, updateLane } from './api/tasks';
 import type { Task, Lane, WSMessage, Note } from './types';
+import { PRIORITY_LABELS } from './types';
 
 function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -194,11 +195,30 @@ function App() {
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
-      result = result.filter(
-        (t) =>
-          t.title.toLowerCase().includes(query) ||
-          t.description.toLowerCase().includes(query)
-      );
+      result = result.filter((t) => {
+        const titleMatch = t.title.toLowerCase().includes(query);
+        const descMatch = t.description.toLowerCase().includes(query);
+        const priorityMatch = PRIORITY_LABELS[t.priority].toLowerCase().includes(query);
+        const priorityKeyMatch = t.priority.toLowerCase().includes(query);
+        const dueDateMatch = t.dueDate ? t.dueDate.toLowerCase().includes(query) : false;
+        const assigneeMatch = t.assignee ? t.assignee.toLowerCase().includes(query) : false;
+        const tagsMatch = t.tags.some((tag) => tag.toLowerCase().includes(query));
+        const notesMatch = t.notes.some(
+          (n) =>
+            n.content.toLowerCase().includes(query) ||
+            n.author.toLowerCase().includes(query)
+        );
+        return (
+          titleMatch ||
+          descMatch ||
+          priorityMatch ||
+          priorityKeyMatch ||
+          dueDateMatch ||
+          assigneeMatch ||
+          tagsMatch ||
+          notesMatch
+        );
+      });
     }
 
     return result;
@@ -221,7 +241,7 @@ function App() {
           <div style={styles.searchContainer}>
             <input
               type="text"
-              placeholder="🔍 搜索任务标题或描述..."
+              placeholder="搜索任务..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={styles.searchInput}

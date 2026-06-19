@@ -19,6 +19,7 @@ import {
 import TaskCard from './TaskCard';
 import { updateTask } from '../api/tasks';
 import type { Task, Lane } from '../types';
+import { PRIORITY_LABELS } from '../types';
 
 interface BoardProps {
   tasks: Task[];
@@ -259,15 +260,20 @@ function Board(props: BoardProps) {
                           (selectedTag !== null && !task.tags.includes(selectedTag)) ||
                           (isSearching &&
                             !task.title.toLowerCase().includes(searchQuery.toLowerCase().trim()) &&
-                            !task.description.toLowerCase().includes(searchQuery.toLowerCase().trim()))
+                            !task.description.toLowerCase().includes(searchQuery.toLowerCase().trim()) &&
+                            !PRIORITY_LABELS[task.priority].toLowerCase().includes(searchQuery.toLowerCase().trim()) &&
+                            !task.priority.toLowerCase().includes(searchQuery.toLowerCase().trim()) &&
+                            !(task.dueDate && task.dueDate.toLowerCase().includes(searchQuery.toLowerCase().trim())) &&
+                            !(task.assignee && task.assignee.toLowerCase().includes(searchQuery.toLowerCase().trim())) &&
+                            !task.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase().trim())) &&
+                            !task.notes.some((n) => n.content.toLowerCase().includes(searchQuery.toLowerCase().trim()) || n.author.toLowerCase().includes(searchQuery.toLowerCase().trim())))
                         }
                       />
                     ))}
                   </SortableContext>
                   {laneTasks.length === 0 && isSearching && (
                     <div style={styles.noMatch}>
-                      <span style={styles.noMatchIcon}>🔍</span>
-                      <span style={styles.noMatchText}>无匹配任务</span>
+                      <span style={styles.noMatchText}>{lane.title}泳道无匹配任务</span>
                     </div>
                   )}
                 </div>
@@ -535,23 +541,18 @@ const styles: Record<string, React.CSSProperties> = {
   },
   noMatch: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '30px 16px',
+    padding: '24px 16px',
     backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: 10,
     border: '1px dashed rgba(255,255,255,0.1)',
-  },
-  noMatchIcon: {
-    fontSize: 28,
-    marginBottom: 8,
-    opacity: 0.5,
   },
   noMatchText: {
     fontSize: 13,
     color: 'var(--text-secondary)',
     opacity: 0.6,
+    textAlign: 'center',
   },
 };
 
