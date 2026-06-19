@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Droplets } from 'lucide-react';
 
 interface UsageSliderProps {
@@ -18,7 +18,20 @@ export const UsageSlider = ({
 }: UsageSliderProps) => {
   const [isDragging, setIsDragging] = useState(false);
 
+  const roundToStep = useCallback((val: number): number => {
+    const steps = Math.round(val / step) * step;
+    return Math.round(steps * 10) / 10;
+  }, [step]);
+
   const percentage = ((value - min) / (max - min)) * 100;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = parseFloat(e.target.value);
+    const roundedValue = roundToStep(rawValue);
+    onChange(roundedValue);
+  };
+
+  const displayValue = roundToStep(value);
 
   return (
     <div className="w-full">
@@ -28,7 +41,7 @@ export const UsageSlider = ({
           <span className="text-gray-600 font-medium">今日用量</span>
         </div>
         <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-bold text-primary">{value}</span>
+          <span className="text-3xl font-bold text-primary">{displayValue}</span>
           <span className="text-gray-500">ml/g</span>
         </div>
       </div>
@@ -45,8 +58,8 @@ export const UsageSlider = ({
         min={min}
         max={max}
         step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        value={displayValue}
+        onChange={handleChange}
         onMouseDown={() => setIsDragging(true)}
         onMouseUp={() => setIsDragging(false)}
         onTouchStart={() => setIsDragging(true)}
@@ -65,7 +78,7 @@ export const UsageSlider = ({
           border-radius: 50%;
           background: #8B9DAF;
           cursor: pointer;
-          box-shadow: ${isDragging ? '0 0 0 8px rgba(139, 157, 175, 0.2)' : '0 2px 6px rgba(0,0,0,0.2)'};
+          box-shadow: ${isDragging ? '0 0 0 8px rgba(139, 157, 175, 0.2)' : '0 2px 8px rgba(0,0,0,0.2)'};
           transition: box-shadow 0.2s;
           margin-top: -2px;
         }
@@ -76,7 +89,7 @@ export const UsageSlider = ({
           background: #8B9DAF;
           cursor: pointer;
           border: none;
-          box-shadow: ${isDragging ? '0 0 0 8px rgba(139, 157, 175, 0.2)' : '0 2px 6px rgba(0,0,0,0.2)'};
+          box-shadow: ${isDragging ? '0 0 0 8px rgba(139, 157, 175, 0.2)' : '0 2px 8px rgba(0,0,0,0.2)'};
           transition: box-shadow 0.2s;
         }
         input[type="range"]::-webkit-slider-runnable-track {

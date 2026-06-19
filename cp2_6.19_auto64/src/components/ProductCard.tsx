@@ -8,9 +8,9 @@ import {
   getEstimatedDaysLeft, 
   getProductStatus, 
   isLowStock,
-  formatDisplayDate,
   getExpireDate
 } from '@/utils/productUtils';
+import { formatDisplayDate } from '@/utils/dateUtils';
 
 interface ProductCardProps {
   product: Product;
@@ -37,7 +37,16 @@ export const ProductCard = memo(({ product, usageLogs, index }: ProductCardProps
     <div
       onClick={handleClick}
       className="relative bg-white rounded-card shadow-card hover:shadow-card-hover hover:-translate-y-2 transition-all duration-300 cursor-pointer overflow-hidden animate-scaleIn"
-      style={{ animationDelay: `${index * 0.05}s` }}
+      style={{
+        animationDelay: `${index * 0.05}s`,
+        boxShadow: '0 2px 10px rgba(139, 157, 175, 0.1)',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = '0 12px 40px rgba(139, 157, 175, 0.28)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = '0 2px 10px rgba(139, 157, 175, 0.1)';
+      }}
     >
       {lowStock && status === '进行中' && (
         <div className="absolute top-3 right-3 z-10">

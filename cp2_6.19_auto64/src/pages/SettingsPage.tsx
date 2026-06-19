@@ -8,10 +8,6 @@ export const SettingsPage = () => {
   const updateSettings = useStore((state) => state.updateSettings);
   const products = useProducts();
   const usageLogs = useUsageLogs();
-  const clearAllData = useStore((state) => {
-    state.products = [];
-    state.usageLogs = [];
-  });
 
   const { requestPermission, permission, isSupported } = useNotification();
 

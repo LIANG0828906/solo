@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback } from 'react';
-import { Search, Filter, X, ChevronDown } from 'lucide-react';
-import type { Product, ProductType, ProductStatus, FilterStatus } from '@/types';
-import { getUniqueBrands } from '@/utils/productUtils';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { Search, Filter, X, ChevronDown, Check } from 'lucide-react';
+import type { Product, ProductType, FilterStatus } from '@/types';
+import { getUniqueBrands, getProductStatus } from '@/utils/productUtils';
 
 interface FilterBarProps {
   products: Product[];
@@ -22,6 +22,11 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showBrandSuggestions, setShowBrandSuggestions] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  
+  const brandInputRef = useRef<HTMLInputElement>(null);
+  const typeDropdownRef = useRef<HTMLDivElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
 
   const brands = useMemo(() => getUniqueBrands(products), [products]);
   
@@ -31,16 +36,6 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
       b.toLowerCase().includes(brandSearch.toLowerCase())
     );
   }, [brands, brandSearch]);
-
-  const getProductStatus = useCallback((product: Product): ProductStatus => {
-    if (product.usedAmount >= product.capacity) return '已用完';
-    const expireDate = new Date(product.openDate);
-    expireDate.setMonth(expireDate.getMonth() + product.shelfLife);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (expireDate < today) return '已过期';
-    return '进行中';
-  }, []);
 
   const applyFilters = useCallback(() => {
     let filtered = [...products];
@@ -60,11 +55,25 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
     }
 
     onFilter(filtered);
-  }, [products, selectedTypes, brandSearch, statusFilter, onFilter, getProductStatus]);
+  }, [products, selectedTypes, brandSearch, statusFilter, onFilter]);
 
-  useMemo(() => {
+  useEffect(() => {
     applyFilters();
   }, [applyFilters]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(e.target as Node)) {
+        setShowTypeDropdown(false);
+      }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const toggleType = (type: ProductType) => {
     setSelectedTypes(prev => 
@@ -74,13 +83,25 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
     );
   };
 
+  const selectBrand = (brand: string) => {
+    setBrandSearch(brand);
+    setShowBrandSuggestions(false);
+  };
+
   const clearAll = () => {
     setSelectedTypes([]);
     setBrandSearch('');
     setStatusFilter('all');
   };
 
+  const handleStatusSelect = (status: FilterStatus) => {
+    setStatusFilter(status);
+    setShowStatusDropdown(false);
+  };
+
   const hasActiveFilters = selectedTypes.length > 0 || brandSearch.trim() || statusFilter !== 'all';
+
+  const statusLabel = statusOptions.find(s => s.value === statusFilter)?.label || '全部状态';
 
   return (
     <div className="bg-white rounded-card shadow-card p-4 mb-6">
@@ -88,6 +109,7 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
+            ref={brandInputRef}
             type="text"
             placeholder="搜索品牌..."
             value={brandSearch}
@@ -97,16 +119,15 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
             className="w-full pl-10 pr-4 py-2.5 rounded-input border-2 border-gray-200 focus:border-primary focus:shadow-input transition-all duration-300 outline-none"
           />
           {showBrandSuggestions && filteredBrands.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-100 max-h-48 overflow-y-auto z-10">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 max-h-48 overflow-y-auto z-20 animate-fadeIn">
+              <p className="px-4 py-2 text-xs text-gray-400 border-b border-gray-50">可用品牌</p>
               {filteredBrands.map(brand => (
                 <button
                   key={brand}
                   type="button"
-                  onClick={() => {
-                    setBrandSearch(brand);
-                    setShowBrandSuggestions(false);
-                  }}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors"
+                  onMouseDown={() => selectBrand(brand)}
+                  onTouchStart={() => selectBrand(brand)}
+                  className="w-full text-left px-4 py-2.5 hover:bg-primary/5 transition-colors text-sm"
                 >
                   {brand}
                 </button>
@@ -115,9 +136,12 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
           )}
         </div>
 
-        <div className="relative">
+        <div className="relative" ref={typeDropdownRef}>
           <button
-            onClick={() => setShowTypeDropdown(!showTypeDropdown)}
+            onClick={() => {
+              setShowTypeDropdown(!showTypeDropdown);
+              setShowStatusDropdown(false);
+            }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-input border-2 border-gray-200 hover:border-primary transition-all duration-200"
           >
             <Filter className="w-4 h-4 text-gray-500" />
@@ -126,23 +150,24 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
                 ? `类型 (${selectedTypes.length})` 
                 : '产品类型'}
             </span>
-            <ChevronDown className="w-4 h-4 text-gray-400" />
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showTypeDropdown ? 'rotate-180' : ''}`} />
           </button>
 
           {showTypeDropdown && (
-            <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-100 p-2 min-w-[200px] z-10">
-              <div className="grid grid-cols-2 gap-1">
+            <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 p-3 min-w-[240px] z-20 animate-fadeIn">
+              <div className="grid grid-cols-2 gap-2">
                 {productTypes.map(type => (
                   <button
                     key={type}
                     type="button"
                     onClick={() => toggleType(type)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
                       selectedTypes.includes(type)
                         ? 'bg-primary text-white'
                         : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                     }`}
                   >
+                    {selectedTypes.includes(type) && <Check className="w-4 h-4" />}
                     {type}
                   </button>
                 ))}
@@ -151,17 +176,52 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
           )}
         </div>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as FilterStatus)}
-          className="px-4 py-2.5 rounded-input border-2 border-gray-200 focus:border-primary focus:shadow-input transition-all duration-300 outline-none bg-white"
-        >
-          {statusOptions.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <div className="relative" ref={statusDropdownRef}>
+          <button
+            onClick={() => {
+              setShowStatusDropdown(!showStatusDropdown);
+              setShowTypeDropdown(false);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-input border-2 border-gray-200 hover:border-primary transition-all duration-200 min-w-[120px]"
+          >
+            <span className={`w-2 h-2 rounded-full ${
+              statusFilter === '进行中' ? 'bg-success' :
+              statusFilter === '已用完' ? 'bg-gray-400' :
+              statusFilter === '已过期' ? 'bg-warning' :
+              'bg-gray-300'
+            }`} />
+            <span className="text-gray-700">{statusLabel}</span>
+            <ChevronDown className={`w-4 h-4 text-gray-400 ml-auto transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showStatusDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 p-1 z-20 animate-fadeIn">
+              {statusOptions.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleStatusSelect(option.value)}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                    statusFilter === option.value
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${
+                    option.value === '进行中' ? 'bg-success' :
+                    option.value === '已用完' ? 'bg-gray-400' :
+                    option.value === '已过期' ? 'bg-warning' :
+                    'bg-gray-300'
+                  }`} />
+                  {option.label}
+                  {statusFilter === option.value && (
+                    <Check className="w-4 h-4 ml-auto" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {hasActiveFilters && (
           <button
@@ -174,7 +234,7 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
         )}
       </div>
 
-      {selectedTypes.length > 0 && (
+      {(selectedTypes.length > 0 || brandSearch.trim() || statusFilter !== 'all') && (
         <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
           {selectedTypes.map(type => (
             <span
@@ -190,6 +250,28 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
               </button>
             </span>
           ))}
+          {brandSearch.trim() && (
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-secondary/30 text-gray-600 rounded-full text-sm">
+              品牌: {brandSearch}
+              <button
+                onClick={() => setBrandSearch('')}
+                className="hover:text-gray-800 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {statusFilter !== 'all' && (
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-warning/10 text-warning rounded-full text-sm">
+              状态: {statusLabel}
+              <button
+                onClick={() => setStatusFilter('all')}
+                className="hover:text-warning/80 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
         </div>
       )}
     </div>

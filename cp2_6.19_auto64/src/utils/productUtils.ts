@@ -87,7 +87,7 @@ export const getUsageChartData = (productId: string, logs: UsageLog[]): Array<{ 
   });
 };
 
-export const sortProducts = (products: Product[], logs: UsageLog[]): Product[] => {
+export const sortProducts = (products: Product[], _logs: UsageLog[]): Product[] => {
   return [...products].sort((a, b) => {
     const aLowStock = isLowStock(a);
     const bLowStock = isLowStock(b);

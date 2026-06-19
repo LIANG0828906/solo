@@ -16,15 +16,28 @@ export const getTypeColor = (type: ProductType): string => {
 };
 
 export const getProgressGradient = (percent: number): string => {
-  const startColor = { r: 129, g: 199, b: 132 };
-  const endColor = { r: 229, g: 115, b: 115 };
+  const green = { r: 129, g: 199, b: 132 };
+  const yellow = { r: 255, g: 213, b: 79 };
+  const red = { r: 229, g: 115, b: 115 };
   
-  const ratio = percent / 100;
-  const r = Math.round(startColor.r + (endColor.r - startColor.r) * (1 - ratio));
-  const g = Math.round(startColor.g + (endColor.g - startColor.g) * (1 - ratio));
-  const b = Math.round(startColor.b + (endColor.b - startColor.b) * (1 - ratio));
+  let color;
+  if (percent >= 50) {
+    const ratio = (percent - 50) / 50;
+    color = {
+      r: Math.round(yellow.r + (green.r - yellow.r) * ratio),
+      g: Math.round(yellow.g + (green.g - yellow.g) * ratio),
+      b: Math.round(yellow.b + (green.b - yellow.b) * ratio),
+    };
+  } else {
+    const ratio = percent / 50;
+    color = {
+      r: Math.round(red.r + (yellow.r - red.r) * ratio),
+      g: Math.round(red.g + (yellow.g - red.g) * ratio),
+      b: Math.round(red.b + (yellow.b - red.b) * ratio),
+    };
+  }
   
-  return `rgb(${r}, ${g}, ${b})`;
+  return `rgb(${color.r}, ${color.g}, ${color.b})`;
 };
 
 export const generateSoftColor = (seed: string): string => {

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -19,6 +19,9 @@ interface UsageChartProps {
 }
 
 export const UsageChart = ({ productId, usageLogs, height = 200, showAmount = true }: UsageChartProps) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [key, setKey] = useState(0);
+
   const chartData = useMemo(() => {
     if (productId) {
       return getUsageChartData(productId, usageLogs);
@@ -29,11 +32,20 @@ export const UsageChart = ({ productId, usageLogs, height = 200, showAmount = tr
     }));
   }, [productId, usageLogs]);
 
-  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ value: number; name: string }> }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+      setKey(prev => prev + 1);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [productId, usageLogs.length]);
+
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string }>; label?: string }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-gray-100">
-          <p className="text-sm font-medium text-gray-800">
+        <div className="bg-white px-4 py-2 rounded-xl shadow-lg border border-gray-100">
+          <p className="text-sm text-gray-500 mb-1">{label}</p>
+          <p className="text-base font-semibold text-primary">
             {showAmount ? `${payload[0].value} ml/g` : `${payload[0].value} 件产品`}
           </p>
         </div>
@@ -46,6 +58,7 @@ export const UsageChart = ({ productId, usageLogs, height = 200, showAmount = tr
     <div className="w-full" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
+          key={key}
           data={chartData}
           margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
         >
@@ -59,26 +72,33 @@ export const UsageChart = ({ productId, usageLogs, height = 200, showAmount = tr
             hide={true}
             domain={[0, 'auto']}
           />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(139, 157, 175, 0.1)' }} />
+          <Tooltip
+            content={<CustomTooltip />}
+            cursor={{ fill: 'rgba(139, 157, 175, 0.08)' }}
+            offset={10}
+          />
+          <defs>
+            <linearGradient id="barColorGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8B9DAF" stopOpacity={1} />
+              <stop offset="100%" stopColor="#B5C0CA" stopOpacity={0.8} />
+            </linearGradient>
+          </defs>
           <Bar
             dataKey={showAmount ? 'amount' : 'count'}
+            fill="url(#barColorGradient)"
             radius={[6, 6, 0, 0]}
             animationDuration={800}
             animationEasing="ease-out"
+            animationBegin={isVisible ? 0 : 300}
+            maxBarSize={40}
           >
             {chartData.map((_, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill="url(#colorGradient)"
+                fill="url(#barColorGradient)"
               />
             ))}
           </Bar>
-          <defs>
-            <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8B9DAF" />
-              <stop offset="100%" stopColor="#B5C0CA" />
-            </linearGradient>
-          </defs>
         </BarChart>
       </ResponsiveContainer>
     </div>
