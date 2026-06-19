@@ -125,9 +125,17 @@ body {
 
 .stats-section {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin-bottom: 28px;
+}
+
+.expiring-value {
+  color: var(--color-warning) !important;
+}
+
+.alert-icon {
+  color: var(--color-warning);
 }
 
 @keyframes fadeInUp {
@@ -202,9 +210,22 @@ body {
 
 .filter-section {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
   margin-bottom: 20px;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -212,11 +233,39 @@ body {
   font-size: 14px;
   color: var(--color-text-secondary);
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .filter-options {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sort-select {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: white;
+  color: var(--color-text);
+  transition: all 0.2s;
+  font-family: inherit;
+  min-width: 120px;
+}
+
+.sort-select:hover {
+  border-color: var(--color-primary);
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .filter-btn {
@@ -859,7 +908,7 @@ body {
   }
 
   .stats-section {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
 
@@ -867,8 +916,14 @@ body {
     padding: 16px;
   }
 
+  .stat-icon {
+    font-size: 24px;
+    width: 44px;
+    height: 44px;
+  }
+
   .stat-value {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .subscriptions-grid {
@@ -896,7 +951,18 @@ body {
 
   .filter-section {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+  }
+
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .filter-group {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .filter-options {
@@ -908,5 +974,21 @@ body {
   .filter-btn {
     width: 100%;
     text-align: center;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .sort-select {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-section {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-options {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

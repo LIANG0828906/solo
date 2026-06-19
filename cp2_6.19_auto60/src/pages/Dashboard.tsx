@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, TrendingUp, TrendingDown, CreditCard, X } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, CreditCard, X, AlertTriangle, ArrowUpDown } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -16,14 +16,16 @@ import {
 } from 'recharts';
 import { SubscriptionCard } from '@/components/SubscriptionCard';
 import { useSubscriptionStore } from '@/store/subscriptionStore';
-import type { FilterType } from '@/store/subscriptionStore';
+import type { FilterType, CategoryFilterType, SortType } from '@/store/subscriptionStore';
 import {
   calculateTotalMonthly,
   calculateExpenseChange,
   getMonthlyTrend,
   getCategoryBreakdown,
   CATEGORY_COLORS,
+  CATEGORY_EMOJIS,
 } from '@/utils/dateUtils';
+import type { Category } from '@/utils/dateUtils';
 
 function AnimatedNumber({ value, prefix = '', suffix = '', decimals = 0 }: { value: number; prefix?: string; suffix?: string; decimals?: number }) {
   const [display, setDisplay] = useState(0);
@@ -54,8 +56,14 @@ export default function Dashboard() {
   const {
     subscriptions,
     filter,
+    categoryFilter,
+    sortBy,
     setFilter,
+    setCategoryFilter,
+    setSortBy,
     getFilteredSubscriptions,
+    getExpiringCount,
+    getTotalMonthlyFee,
     deleteSubscription,
     showNotification,
     notificationMessage,
@@ -66,10 +74,12 @@ export default function Dashboard() {
   const [listVisible, setListVisible] = useState(true);
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
 
-  const filteredSubscriptions = useMemo(() => getFilteredSubscriptions(), [subscriptions, filter]);
+  const filteredSubscriptions = useMemo(() => getFilteredSubscriptions(), [subscriptions, filter, categoryFilter, sortBy]);
 
   const monthlyTotal = useMemo(() => calculateTotalMonthly(subscriptions), [subscriptions]);
   const expenseChange = useMemo(() => calculateExpenseChange(subscriptions), [subscriptions]);
+  const expiringCount = useMemo(() => getExpiringCount(), [subscriptions]);
+  const totalMonthlyFee = useMemo(() => getTotalMonthlyFee(), [subscriptions]);
   const trendData = useMemo(() => getMonthlyTrend(subscriptions, 6), [subscriptions]);
   const categoryData = useMemo(() => getCategoryBreakdown(subscriptions), [subscriptions]);
 
@@ -97,10 +107,39 @@ export default function Dashboard() {
     }, 300);
   };
 
-  const filterOptions: { value: FilterType; label: string }[] = [
+  const handleCategoryFilterChange = (newFilter: CategoryFilterType) => {
+    setListVisible(false);
+    setTimeout(() => {
+      setCategoryFilter(newFilter);
+      setTimeout(() => setListVisible(true), 50);
+    }, 200);
+  };
+
+  const handleSortChange = (newSort: SortType) => {
+    setSortBy(newSort);
+  };
+
+  const statusFilterOptions: { value: FilterType; label: string }[] = [
     { value: 'all', label: '全部' },
     { value: 'expiring', label: '临近到期' },
     { value: 'expired', label: '已过期' },
+  ];
+
+  const categoryFilterOptions: { value: CategoryFilterType; label: string }[] = [
+    { value: 'all', label: '全部类别' },
+    { value: 'entertainment', label: '🎬 娱乐' },
+    { value: 'office', label: '💼 办公' },
+    { value: 'cloud', label: '☁️ 云服务' },
+    { value: 'music', label: '🎵 音乐' },
+    { value: 'other', label: '📦 其他' },
+  ];
+
+  const sortOptions: { value: SortType; label: string }[] = [
+    { value: 'expiry', label: '到期日 ↑' },
+    { value: 'expiryDesc', label: '到期日 ↓' },
+    { value: 'fee', label: '费用 ↑' },
+    { value: 'feeDesc', label: '费用 ↓' },
+    { value: 'name', label: '名称' },
   ];
 
   return (
@@ -141,6 +180,18 @@ export default function Dashboard() {
         </div>
 
         <div className="stat-card">
+          <div className="stat-icon">
+            <AlertTriangle size={28} className="alert-icon" />
+          </div>
+          <div className="stat-content">
+            <span className="stat-label">临近到期</span>
+            <span className="stat-value expiring-value">
+              <AnimatedNumber value={expiringCount} suffix=" 个" />
+            </span>
+          </div>
+        </div>
+
+        <div className="stat-card">
           <div className="stat-icon">📈</div>
           <div className="stat-content">
             <span className="stat-label">较上月变化</span>
@@ -153,17 +204,53 @@ export default function Dashboard() {
       </section>
 
       <section className="filter-section">
-        <div className="filter-label">筛选：</div>
-        <div className="filter-options">
-          {filterOptions.map((opt) => (
-            <button
-              key={opt.value}
-              className={`filter-btn ${filter === opt.value ? 'active' : ''}`}
-              onClick={() => handleFilterChange(opt.value)}
+        <div className="filter-row">
+          <div className="filter-group">
+            <span className="filter-label">状态：</span>
+            <div className="filter-options">
+              {statusFilterOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  className={`filter-btn ${filter === opt.value ? 'active' : ''}`}
+                  onClick={() => handleFilterChange(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="filter-row">
+          <div className="filter-group">
+            <span className="filter-label">类别：</span>
+            <div className="filter-options">
+              {categoryFilterOptions.map((opt) => (
+                <button
+                  key={opt.value}
+                  className={`filter-btn ${categoryFilter === opt.value ? 'active' : ''}`}
+                  onClick={() => handleCategoryFilterChange(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="filter-group">
+            <span className="filter-label">
+              <ArrowUpDown size={14} /> 排序：
+            </span>
+            <select
+              className="sort-select"
+              value={sortBy}
+              onChange={(e) => handleSortChange(e.target.value as SortType)}
             >
-              {opt.label}
-            </button>
-          ))}
+              {sortOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </section>
 
