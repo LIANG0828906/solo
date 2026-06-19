@@ -1,0 +1,29 @@
+[
+  {
+    "name": "番茄炒蛋",
+    "description": "经典家常菜，酸甜可口，营养丰富，简单易做",
+    "ingredients": [
+      {
+        "name": "番茄",
+        "amount": "2个"
+      },
+      {
+        "name": "鸡蛋",
+        "amount": "3个"
+      }
+    ],
+    "steps": [
+      "番茄切块，鸡蛋打散备用"
+    ],
+    "cookingTime": 30,
+    "difficulty": "简单",
+    "coverImage": "",
+    "tags": [
+      "快手菜",
+      "午餐"
+    ],
+    "id": "281f47d4-be9c-495f-b6e3-2f1ce2ef6c31",
+    "createdAt": "2026-06-20T00:33:17",
+    "updatedAt": "2026-06-20T00:33:17"
+  }
+]
