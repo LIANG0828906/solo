@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { useResumeStore } from '@/store/resumeStore';
 import type { ResumeComponent } from '@/store/types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/store/types';
@@ -21,6 +22,8 @@ function SkillBar({ content, color }: { content: string; color: string }) {
   );
 }
 
+type ResizeDir = 'nw' | 'ne' | 'sw' | 'se';
+
 interface CanvasComponentProps {
   comp: ResumeComponent;
   isSelected: boolean;
@@ -28,6 +31,7 @@ interface CanvasComponentProps {
   onSelect: () => void;
   onMove: (id: string, x: number, y: number) => void;
   onResize: (id: string, w: number, h: number) => void;
+  onRemove: (id: string) => void;
 }
 
 export default function CanvasComponent({
@@ -37,6 +41,7 @@ export default function CanvasComponent({
   onSelect,
   onMove,
   onResize,
+  onRemove,
 }: CanvasComponentProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -49,8 +54,11 @@ export default function CanvasComponent({
   const resizeState = useRef({
     startCanvasX: 0,
     startCanvasY: 0,
+    startX: 0,
+    startY: 0,
     startW: 0,
     startH: 0,
+    dir: 'se' as ResizeDir,
   });
 
   const getCanvasCoords = useCallback((clientX: number, clientY: number): { x: number; y: number } | null => {
@@ -85,7 +93,7 @@ export default function CanvasComponent({
   );
 
   const handleResizeMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent, dir: ResizeDir) => {
       e.stopPropagation();
       e.preventDefault();
 
@@ -95,13 +103,25 @@ export default function CanvasComponent({
       resizeState.current = {
         startCanvasX: coords.x,
         startCanvasY: coords.y,
+        startX: comp.x,
+        startY: comp.y,
         startW: comp.width,
         startH: comp.height,
+        dir,
       };
 
       setIsResizing(true);
     },
-    [comp.width, comp.height, getCanvasCoords]
+    [comp.x, comp.y, comp.width, comp.height, getCanvasCoords]
+  );
+
+  const handleRemoveClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      onRemove(comp.id);
+    },
+    [comp.id, onRemove]
   );
 
   useEffect(() => {
@@ -138,7 +158,43 @@ export default function CanvasComponent({
 
       const dx = coords.x - resizeState.current.startCanvasX;
       const dy = coords.y - resizeState.current.startCanvasY;
-      onResize(comp.id, resizeState.current.startW + dx, resizeState.current.startH + dy);
+      const { startX, startY, startW, startH, dir } = resizeState.current;
+
+      let newX = startX;
+      let newY = startY;
+      let newW = startW;
+      let newH = startH;
+
+      switch (dir) {
+        case 'se':
+          newW = startW + dx;
+          newH = startH + dy;
+          break;
+        case 'sw':
+          newX = Math.max(0, Math.min(startX + dx, startX + startW - 60));
+          newW = startW - (newX - startX);
+          newH = startH + dy;
+          break;
+        case 'ne':
+          newW = startW + dx;
+          newY = Math.max(0, Math.min(startY + dy, startY + startH - 30));
+          newH = startH - (newY - startY);
+          break;
+        case 'nw':
+          newX = Math.max(0, Math.min(startX + dx, startX + startW - 60));
+          newW = startW - (newX - startX);
+          newY = Math.max(0, Math.min(startY + dy, startY + startH - 30));
+          newH = startH - (newY - startY);
+          break;
+      }
+
+      newW = Math.max(60, newW);
+      newH = Math.max(30, newH);
+
+      if (newX !== startX || newY !== startY) {
+        onMove(comp.id, newX, newY);
+      }
+      onResize(comp.id, newW, newH);
     };
 
     const handleMouseUp = () => {
@@ -152,9 +208,10 @@ export default function CanvasComponent({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, comp.id, onResize, getCanvasCoords]);
+  }, [isResizing, comp.id, onMove, onResize, getCanvasCoords]);
 
   const isSkillBar = comp.type === 'skill-bar';
+  const showControls = isSelected;
 
   return (
     <div
@@ -170,13 +227,13 @@ export default function CanvasComponent({
         color: comp.style.color,
         backgroundColor: comp.style.backgroundColor,
         fontWeight: Number(comp.style.fontWeight) || 400,
-        transition: isDragging || isResizing ? 'none' : 'box-shadow 0.2s ease, transform 0.15s ease',
+        transition: isDragging || isResizing ? 'none' : 'box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         boxShadow: isDragging
-          ? '0 12px 40px -8px rgba(107,123,141,0.25), 0 4px 12px -2px rgba(107,123,141,0.15)'
+          ? '0 2px 8px 0 rgba(107,123,141,0.2)'
           : isSelected
             ? '0 0 0 2px rgba(107,123,141,0.4), 0 2px 8px rgba(107,123,141,0.1)'
             : 'none',
-        transform: isDragging ? 'scale(1.02)' : 'scale(1)',
+        transform: isDragging ? 'scale(1.01)' : 'scale(1)',
         zIndex: isSelected ? 10 : 1,
         borderRadius: 6,
         overflow: 'hidden',
@@ -191,7 +248,21 @@ export default function CanvasComponent({
         }}
       />
 
-      <div className="w-full h-full px-3 py-2 overflow-hidden whitespace-pre-wrap leading-relaxed">
+      <button
+        onClick={handleRemoveClick}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        className={`absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:border-rose-300 hover:bg-rose-50 transition-all duration-150 shadow-sm z-40 ${
+          showControls ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto'
+        }`}
+        title="删除组件"
+      >
+        <X size={11} strokeWidth={2.5} />
+      </button>
+
+      <div className="w-full h-full px-3 py-2 overflow-hidden whitespace-pre-wrap leading-relaxed break-words">
         {isSkillBar ? (
           <SkillBar content={comp.content} color={comp.style.color} />
         ) : (
@@ -202,22 +273,24 @@ export default function CanvasComponent({
       {isSelected && (
         <>
           <div
-            onMouseDown={handleResizeMouseDown}
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30"
-            style={{
-              background: 'linear-gradient(135deg, transparent 50%, rgba(107,123,141,0.5) 50%)',
-              borderRadius: '0 0 4px 0',
-            }}
+            onMouseDown={(e) => handleResizeMouseDown(e, 'nw')}
+            className="absolute -top-1.5 -left-1.5 w-3 h-3 rounded-full bg-white border-2 border-slate-400 cursor-nw-resize z-30 hover:border-slate-600 hover:scale-110 transition-transform"
+            title="左上缩放"
           />
           <div
-            onMouseDown={handleResizeMouseDown}
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-1.5 cursor-s-resize z-30 rounded-full"
-            style={{ backgroundColor: 'rgba(107,123,141,0.4)' }}
+            onMouseDown={(e) => handleResizeMouseDown(e, 'ne')}
+            className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-white border-2 border-slate-400 cursor-ne-resize z-30 hover:border-slate-600 hover:scale-110 transition-transform"
+            title="右上缩放"
           />
           <div
-            onMouseDown={handleResizeMouseDown}
-            className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-6 cursor-e-resize z-30 rounded-full"
-            style={{ backgroundColor: 'rgba(107,123,141,0.4)' }}
+            onMouseDown={(e) => handleResizeMouseDown(e, 'sw')}
+            className="absolute -bottom-1.5 -left-1.5 w-3 h-3 rounded-full bg-white border-2 border-slate-400 cursor-sw-resize z-30 hover:border-slate-600 hover:scale-110 transition-transform"
+            title="左下缩放"
+          />
+          <div
+            onMouseDown={(e) => handleResizeMouseDown(e, 'se')}
+            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 rounded-full bg-white border-2 border-slate-400 cursor-se-resize z-30 hover:border-slate-600 hover:scale-110 transition-transform"
+            title="右下缩放"
           />
         </>
       )}

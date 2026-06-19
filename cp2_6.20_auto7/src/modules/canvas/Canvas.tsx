@@ -5,7 +5,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT, type ComponentType } from '@/store/types';
 import CanvasComponent from './CanvasComponent';
 
 export default function Canvas() {
-  const { components, selectedId, selectComponent, moveComponent, resizeComponent, addComponent } = useResumeStore();
+  const { components, selectedId, selectComponent, moveComponent, resizeComponent, addComponent, removeComponent } = useResumeStore();
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
@@ -40,6 +40,12 @@ export default function Canvas() {
     }
   };
 
+  const handleCanvasDoubleClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      selectComponent(null);
+    }
+  };
+
   const canvasStyle: React.CSSProperties = {
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
@@ -53,6 +59,7 @@ export default function Canvas() {
       <div
         ref={setRefs}
         onClick={handleCanvasClick}
+        onDoubleClick={handleCanvasDoubleClick}
         className="relative bg-white flex-shrink-0"
         style={{
           ...canvasStyle,
@@ -82,6 +89,7 @@ export default function Canvas() {
             onSelect={() => selectComponent(comp.id)}
             onMove={moveComponent}
             onResize={resizeComponent}
+            onRemove={removeComponent}
           />
         ))}
       </div>

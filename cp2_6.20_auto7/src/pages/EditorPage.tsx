@@ -10,7 +10,7 @@ import { Undo2, Redo2, Download, FileText } from 'lucide-react';
 import { useState } from 'react';
 
 export default function EditorPage() {
-  const { selectedId, undo, redo, historyIndex, history, components } = useResumeStore();
+  const { undo, redo, historyIndex, history, components } = useResumeStore();
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
@@ -74,7 +74,7 @@ export default function EditorPage() {
         <div className="flex flex-1 overflow-hidden">
           <Panel />
           <Canvas />
-          {selectedId && <PropertyPanel />}
+          <PropertyPanel />
         </div>
       </div>
     </DndProvider>

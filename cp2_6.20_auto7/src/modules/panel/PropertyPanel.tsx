@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useResumeStore } from '@/store/resumeStore';
 import { FONT_OPTIONS, FONT_WEIGHT_OPTIONS } from '@/store/types';
-import { X, Type, Palette } from 'lucide-react';
+import { X, Type, Palette, MousePointerClick } from 'lucide-react';
 
 export default function PropertyPanel() {
   const selectedId = useResumeStore((s) => s.selectedId);
@@ -46,7 +46,27 @@ export default function PropertyPanel() {
     pushHistory();
   }, [pushHistory]);
 
-  if (!selected) return null;
+  if (!selected) {
+    return (
+      <aside className="w-[280px] flex-shrink-0 bg-white border-l border-slate-200/60 flex flex-col h-full animate-slide-in">
+        <div className="flex items-center justify-between px-4 pt-5 pb-3">
+          <div className="flex items-center gap-2">
+            <Palette size={16} className="text-slate-400" />
+            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">属性面板</h2>
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 pb-16">
+          <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center mb-4">
+            <MousePointerClick size={22} className="text-slate-300" />
+          </div>
+          <p className="text-sm font-medium text-slate-500 mb-1">请选择一个组件</p>
+          <p className="text-xs text-slate-300 text-center leading-relaxed">
+            点击画布上的任意组件即可查看和编辑其属性
+          </p>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="w-[280px] flex-shrink-0 bg-white border-l border-slate-200/60 flex flex-col h-full animate-slide-in">
