@@ -224,7 +224,9 @@ export class AudioEngine {
     if (!track || !this.audioContext) return;
 
     const normalizedVolume = Math.max(0, Math.min(100, volume)) / 100;
-    track.gain.gain.setTargetAtTime(normalizedVolume, this.audioContext.currentTime, 0.1);
+    const now = this.audioContext.currentTime;
+    track.gain.gain.setValueAtTime(track.gain.gain.value, now);
+    track.gain.gain.setTargetAtTime(normalizedVolume, now, 0.1);
   }
 
   public setPan(type: SoundSourceType, pan: number): void {

@@ -138,7 +138,7 @@ export default function SoundMixer({
   return (
     <div className="sound-mixer">
       {tracks.map((track, index) => {
-        const bgColor = mapToColor(track.volume, track.color);
+        const bgColor = mapToColor(track.volume, track.hue);
         const isDragging = draggingIndex === index;
         const isDragOver = dragOverIndex === index && draggingIndex !== index;
 
@@ -163,6 +163,7 @@ export default function SoundMixer({
             <div className="slider-wrapper">
               <input
                 type="range"
+                // @ts-expect-error - orient is a non-standard attribute for vertical sliders
                 orient="vertical"
                 className="vertical-slider"
                 min={0}

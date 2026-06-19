@@ -53,6 +53,7 @@ export default function MainPanel() {
 
     const duration = 800;
     const startTime = performance.now();
+    let localAnimFrameId: number | null = null;
 
     const step = (currentTime: number) => {
       const elapsed = currentTime - startTime;
@@ -66,13 +67,16 @@ export default function MainPanel() {
       });
 
       if (progress < 1) {
-        presetAnimRef.current = requestAnimationFrame(step);
+        localAnimFrameId = requestAnimationFrame(step);
+        presetAnimRef.current = localAnimFrameId;
       } else {
         presetAnimRef.current = null;
+        localAnimFrameId = null;
       }
     };
 
-    presetAnimRef.current = requestAnimationFrame(step);
+    localAnimFrameId = requestAnimationFrame(step);
+    presetAnimRef.current = localAnimFrameId;
   }, [tracks, setTrackVolume]);
 
   const handleCityChange = useCallback(async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -158,9 +162,11 @@ export default function MainPanel() {
 
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
+    let localAnimFrameId: number | null = null;
 
     const draw = () => {
-      animFrameRef.current = requestAnimationFrame(draw);
+      localAnimFrameId = requestAnimationFrame(draw);
+      animFrameRef.current = localAnimFrameId;
 
       analyser.getByteFrequencyData(dataArray);
 
@@ -211,7 +217,12 @@ export default function MainPanel() {
     draw();
 
     return () => {
-      cancelAnimationFrame(animFrameRef.current);
+      if (localAnimFrameId !== null) {
+        cancelAnimationFrame(localAnimFrameId);
+      }
+      if (animFrameRef.current !== 0) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
     };
   }, [isPlaying, setSpectrumPeak]);
 
