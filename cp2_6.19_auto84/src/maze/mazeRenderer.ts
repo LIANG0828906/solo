@@ -47,7 +47,6 @@ export class MazeRenderer {
   private redCells: RedCellState[];
   private beatConfidence: number;
   private beatPulse: number;
-  private strongBeatTime: number;
   private comboDisplay: number;
   private comboScale: number;
   private comboTimer: number;
@@ -70,7 +69,6 @@ export class MazeRenderer {
     this.redCells = [];
     this.beatConfidence = 0;
     this.beatPulse = 0;
-    this.strongBeatTime = 0;
     this.comboDisplay = 0;
     this.comboScale = 1;
     this.comboTimer = 0;
@@ -98,7 +96,6 @@ export class MazeRenderer {
     this.beatConfidence = event.confidence;
     if (event.isStrongBeat) {
       this.beatPulse = 1;
-      this.strongBeatTime = event.timestamp;
     }
   }
 
@@ -146,20 +143,30 @@ export class MazeRenderer {
     });
   }
 
-  private ensureParticleCapacity(need: number): void {
+  private addParticles(newParticles: Particle[]): void {
+    if (newParticles.length === 0) return;
+    if (newParticles.length >= this.maxParticles) {
+      this.particles.length = 0;
+      this.particles = newParticles.slice(newParticles.length - this.maxParticles);
+      return;
+    }
     const available = this.maxParticles - this.particles.length;
-    if (available < need) {
-      const removeCount = need - available;
+    if (available < newParticles.length) {
+      const removeCount = newParticles.length - available;
       this.particles.splice(0, removeCount);
+    }
+    for (let i = 0; i < newParticles.length; i++) {
+      this.particles.push(newParticles[i]);
     }
   }
 
   private spawnGreenExpand(x: number, y: number): void {
     const count = 20;
-    this.ensureParticleCapacity(count);
+    const batch: Particle[] = new Array(count);
+    const now = performance.now();
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count;
-      this.addParticleInternal({
+      batch[i] = {
         x,
         y,
         vx: Math.cos(angle) * 3,
@@ -169,9 +176,10 @@ export class MazeRenderer {
         color: '#4ade80',
         size: 6,
         type: 'green_expand',
-        createdAt: performance.now()
-      });
+        createdAt: now
+      };
     }
+    this.addParticles(batch);
   }
 
   private spawnRedShatter(gx: number, gy: number, x: number, y: number): void {
@@ -182,11 +190,12 @@ export class MazeRenderer {
       duration: 500
     });
     const count = 15;
-    this.ensureParticleCapacity(count);
+    const batch: Particle[] = new Array(count);
+    const now = performance.now();
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 1 + Math.random() * 4;
-      this.addParticleInternal({
+      batch[i] = {
         x,
         y,
         vx: Math.cos(angle) * speed,
@@ -196,17 +205,19 @@ export class MazeRenderer {
         color: '#ef4444',
         size: 4 + Math.random() * 4,
         type: 'red_shatter',
-        createdAt: performance.now()
-      });
+        createdAt: now
+      };
     }
+    this.addParticles(batch);
   }
 
   private spawnBlueRing(x: number, y: number): void {
     const count = 16;
-    this.ensureParticleCapacity(count);
+    const batch: Particle[] = new Array(count);
+    const now = performance.now();
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count;
-      this.addParticleInternal({
+      batch[i] = {
         x,
         y,
         vx: Math.cos(angle) * 2.5,
@@ -216,18 +227,20 @@ export class MazeRenderer {
         color: '#60a5fa',
         size: 5,
         type: 'blue_ring',
-        createdAt: performance.now()
-      });
+        createdAt: now
+      };
     }
+    this.addParticles(batch);
   }
 
   private spawnYellowSpark(x: number, y: number): void {
     const count = 25;
-    this.ensureParticleCapacity(count);
+    const batch: Particle[] = new Array(count);
+    const now = performance.now();
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 2 + Math.random() * 5;
-      this.addParticleInternal({
+      batch[i] = {
         x,
         y,
         vx: Math.cos(angle) * speed,
@@ -237,18 +250,20 @@ export class MazeRenderer {
         color: '#facc15',
         size: 3 + Math.random() * 3,
         type: 'yellow_spark',
-        createdAt: performance.now()
-      });
+        createdAt: now
+      };
     }
+    this.addParticles(batch);
   }
 
   private spawnPurpleTwirl(x: number, y: number): void {
     const count = 30;
-    this.ensureParticleCapacity(count);
+    const batch: Particle[] = new Array(count);
+    const now = performance.now();
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count;
       const speed = 1.5 + (i % 3) * 1;
-      this.addParticleInternal({
+      batch[i] = {
         x,
         y,
         vx: Math.cos(angle) * speed,
@@ -258,16 +273,10 @@ export class MazeRenderer {
         color: '#a855f7',
         size: 5,
         type: 'purple_twirl',
-        createdAt: performance.now()
-      });
+        createdAt: now
+      };
     }
-  }
-
-  private addParticleInternal(p: Particle): void {
-    if (this.particles.length >= this.maxParticles) {
-      this.particles.shift();
-    }
-    this.particles.push(p);
+    this.addParticles(batch);
   }
 
   private updateParticles(deltaTime: number): void {

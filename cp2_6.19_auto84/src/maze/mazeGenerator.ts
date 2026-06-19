@@ -13,25 +13,72 @@ export type MazeGrid = Cell[][];
 
 export class SeededRandom {
   private state: number;
+  private static readonly SCALE = 2 ** 32;
 
   constructor(seed: number) {
-    this.state = seed >>> 0;
+    this.state = (seed >>> 0) || 1;
   }
 
   next(): number {
-    this.state = (this.state + 0x6D2B79F5) >>> 0;
-    let t = this.state;
+    let t = (this.state += 0x6d2b79f5);
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    return ((t ^ (t >>> 14)) >>> 0) / SeededRandom.SCALE;
   }
 
   nextInt(min: number, max: number): number {
-    return Math.floor(this.next() * (max - min + 1)) + min;
+    if (max < min) {
+      const tmp = max;
+      max = min;
+      min = tmp;
+    }
+    const range = (max - min + 1) >>> 0;
+    const limit = SeededRandom.SCALE - (SeededRandom.SCALE % range);
+    let r: number;
+    do {
+      let t = (this.state += 0x6d2b79f5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      r = (t ^ (t >>> 14)) >>> 0;
+    } while (r >= limit);
+    return min + (r % range);
+  }
+
+  nextIndex(length: number): number {
+    if (length <= 0) return 0;
+    return this.nextInt(0, length - 1);
+  }
+
+  pick<T>(arr: readonly T[]): T {
+    return arr[this.nextIndex(arr.length)];
+  }
+
+  weightedIndex(weights: readonly number[]): number {
+    let sum = 0;
+    for (let i = 0; i < weights.length; i++) sum += weights[i];
+    if (sum <= 0) return 0;
+
+    const scaled: number[] = [];
+    const PRECISION = 10000;
+    let acc = 0;
+    for (let i = 0; i < weights.length; i++) {
+      acc += weights[i] / sum;
+      scaled[i] = Math.floor(acc * PRECISION);
+    }
+
+    const r = this.nextInt(0, PRECISION - 1);
+    for (let i = 0; i < scaled.length; i++) {
+      if (r < scaled[i]) return i;
+    }
+    return scaled.length - 1;
   }
 
   getSeed(): number {
     return this.state;
+  }
+
+  reset(seed: number): void {
+    this.state = (seed >>> 0) || 1;
   }
 }
 
@@ -43,13 +90,13 @@ export class MazeGenerator {
 
   constructor(size = 10, seed = Date.now()) {
     this.size = size;
-    this.seed = seed >>> 0;
+    this.seed = (seed >>> 0) || 1;
     this.rng = new SeededRandom(this.seed);
     this.grid = [];
   }
 
   setSeed(seed: number): void {
-    this.seed = seed >>> 0;
+    this.seed = (seed >>> 0) || 1;
     this.rng = new SeededRandom(this.seed);
   }
 
@@ -66,20 +113,11 @@ export class MazeGenerator {
     return this.generate();
   }
 
-  private random(): number {
-    return this.rng.next();
-  }
-
   private randomColor(): CellColor {
     const colors: CellColor[] = ['red', 'green', 'blue', 'yellow', 'purple'];
-    const weights = [0.15, 0.25, 0.2, 0.2, 0.2];
-    const r = this.random();
-    let cumulative = 0;
-    for (let i = 0; i < colors.length; i++) {
-      cumulative += weights[i];
-      if (r <= cumulative) return colors[i];
-    }
-    return 'green';
+    const weights = [15, 25, 20, 20, 20];
+    const idx = this.rng.weightedIndex(weights);
+    return colors[idx];
   }
 
   generate(): MazeGrid {

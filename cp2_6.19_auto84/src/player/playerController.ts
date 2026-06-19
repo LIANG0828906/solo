@@ -18,19 +18,18 @@ export interface PlayerData {
   beatFlash: boolean;
 }
 
-export interface PendingMove {
-  direction: Direction | null;
+export interface QueuedMove {
+  direction: Direction;
   timestamp: number;
-  consumed: boolean;
 }
 
 export class PlayerController {
   private maze: MazeGenerator;
   private events: EventSystem;
   private player: PlayerData;
-  private pendingMove: PendingMove;
+  private moveQueue: QueuedMove[];
+  private maxQueueSize: number;
   private beatWindow: number;
-  private lastStrongBeatTime: number;
   private hasPressedSinceLastBeat: boolean;
   private onStateChange: (() => void) | null = null;
   private onParticleEffect: ((effect: ParticleEffect) => void) | null = null;
@@ -52,9 +51,9 @@ export class PlayerController {
       flashTimer: 0,
       beatFlash: false
     };
-    this.pendingMove = { direction: null, timestamp: 0, consumed: false };
-    this.beatWindow = 400;
-    this.lastStrongBeatTime = 0;
+    this.moveQueue = [];
+    this.maxQueueSize = 8;
+    this.beatWindow = 500;
     this.hasPressedSinceLastBeat = false;
   }
 
@@ -81,7 +80,11 @@ export class PlayerController {
   queueMove(direction: Direction): void {
     if (this.player.isMoving) return;
     const now = performance.now();
-    this.pendingMove = { direction, timestamp: now, consumed: false };
+
+    if (this.moveQueue.length >= this.maxQueueSize) {
+      this.moveQueue.shift();
+    }
+    this.moveQueue.push({ direction, timestamp: now });
     this.hasPressedSinceLastBeat = true;
   }
 
@@ -92,28 +95,51 @@ export class PlayerController {
   }
 
   private onStrongBeat(event: BeatEvent): void {
-    this.lastStrongBeatTime = event.timestamp;
     this.player.beatFlash = true;
     this.player.flashTimer = 150;
 
-    if (this.pendingMove.direction && !this.pendingMove.consumed) {
-      const timeDiff = event.timestamp - this.pendingMove.timestamp;
-      if (timeDiff <= this.beatWindow && timeDiff >= 0) {
-        this.pendingMove.consumed = true;
-        this.executeMove(this.pendingMove.direction);
-      } else {
-        this.resetCombo('超时!');
+    this.purgeExpiredMoves(event.timestamp);
+
+    let moveConsumed = false;
+    while (this.moveQueue.length > 0 && !moveConsumed) {
+      const candidate = this.moveQueue.shift()!;
+      const timeDiff = event.timestamp - candidate.timestamp;
+      if (timeDiff >= 0 && timeDiff <= this.beatWindow) {
+        if (!this.player.isMoving) {
+          this.executeMove(candidate.direction);
+          moveConsumed = true;
+        } else {
+          this.moveQueue.unshift(candidate);
+          break;
+        }
       }
-      this.pendingMove = { direction: null, timestamp: 0, consumed: false };
-    } else {
+    }
+
+    if (!moveConsumed) {
       if (this.hasPressedSinceLastBeat === false && this.player.combo > 0) {
         this.player.combo = Math.max(0, this.player.combo - 1);
         this.player.energy = Math.max(0, this.player.energy - 2);
         if (this.onComboChange) this.onComboChange(this.player.combo);
         if (this.onStateChange) this.onStateChange();
+      } else if (this.hasPressedSinceLastBeat && this.moveQueue.length === 0) {
+        // user pressed keys but they were all expired
+        this.resetCombo('超时!');
       }
     }
+
     this.hasPressedSinceLastBeat = false;
+  }
+
+  private purgeExpiredMoves(now: number): void {
+    while (this.moveQueue.length > 0) {
+      const head = this.moveQueue[0];
+      const age = now - head.timestamp;
+      if (age > this.beatWindow) {
+        this.moveQueue.shift();
+      } else {
+        break;
+      }
+    }
   }
 
   private executeMove(direction: Direction): void {
@@ -214,20 +240,32 @@ export class PlayerController {
   }
 
   checkMissedBeat(): void {
-    if (this.pendingMove.direction && !this.pendingMove.consumed) {
-      const timeDiff = performance.now() - this.pendingMove.timestamp;
-      if (timeDiff > this.beatWindow + 600) {
-        this.resetCombo('节拍错过!');
-        this.pendingMove = { direction: null, timestamp: 0, consumed: false };
+    const now = performance.now();
+    while (this.moveQueue.length > 0) {
+      const head = this.moveQueue[0];
+      if (now - head.timestamp > this.beatWindow + 700) {
+        this.moveQueue.shift();
+      } else {
+        break;
       }
+    }
+    if (this.moveQueue.length === 0) return;
+    const oldest = this.moveQueue[0];
+    if (now - oldest.timestamp > this.beatWindow + 900) {
+      this.resetCombo('节拍错过!');
+      this.moveQueue.length = 0;
     }
   }
 
   hasPendingMove(): boolean {
-    return this.pendingMove.direction !== null;
+    return this.moveQueue.length > 0;
   }
 
   getPendingDirection(): Direction | null {
-    return this.pendingMove.direction;
+    return this.moveQueue.length > 0 ? this.moveQueue[0].direction : null;
+  }
+
+  getQueueSize(): number {
+    return this.moveQueue.length;
   }
 }
