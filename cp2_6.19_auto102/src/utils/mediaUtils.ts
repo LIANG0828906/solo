@@ -1,5 +1,90 @@
 import type { VideoClip, ClipTitle, Sticker, StickerType } from '../types';
 
+interface GradientPair {
+  light: string;
+  dark: string;
+}
+
+const GRADIENT_PALETTE: Record<string, GradientPair> = {
+  '#e94560': { light: '#ff6b82', dark: '#b82a42' },
+  '#0f3460': { light: '#1e5799', dark: '#08213f' },
+  '#533483': { light: '#7a54c4', dark: '#39225c' },
+  '#27ae60': { light: '#4ec883', dark: '#1a7d45' },
+  '#e74c3c': { light: '#ff7060', dark: '#b03225' },
+  '#2980b9': { light: '#56a6d9', dark: '#1a5782' },
+  '#f39c12': { light: '#ffb74d', dark: '#c87d08' },
+  '#9b59b6': { light: '#b97ed0', dark: '#723c89' },
+  '#1abc9c': { light: '#43d3b4', dark: '#108a70' },
+  '#e67e22': { light: '#ff9e55', dark: '#b55c11' },
+  '#3498db': { light: '#5eaee4', dark: '#1d6fa8' },
+};
+
+const DEFAULT_GRADIENTS: GradientPair[] = [
+  { light: '#4A90D9', dark: '#2C5F8A' },
+  { light: '#E74C3C', dark: '#C0392B' },
+  { light: '#27AE60', dark: '#1E8449' },
+  { light: '#F39C12', dark: '#B7950B' },
+  { light: '#9B59B6', dark: '#76448A' },
+  { light: '#1ABC9C', dark: '#148F77' },
+  { light: '#E67E22', dark: '#AF601A' },
+  { light: '#3498DB', dark: '#21618C' },
+  { light: '#E94560', dark: '#A92E44' },
+  { light: '#16A085', dark: '#0E6655' },
+];
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : null;
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return (
+    '#' +
+    [r, g, b]
+      .map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0'))
+      .join('')
+  );
+}
+
+function adjustLightness(hex: string, factor: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  return rgbToHex(rgb.r * factor, rgb.g * factor, rgb.b * factor);
+}
+
+function hashStringToIndex(str: string, max: number): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) % max;
+}
+
+export function getClipGradient(baseColor: string, name?: string): GradientPair {
+  if (GRADIENT_PALETTE[baseColor]) {
+    return GRADIENT_PALETTE[baseColor];
+  }
+  const light = adjustLightness(baseColor, 1.35);
+  const dark = adjustLightness(baseColor, 0.6);
+  if (light && dark && light !== baseColor) {
+    return { light, dark };
+  }
+  const idx = name ? hashStringToIndex(name, DEFAULT_GRADIENTS.length) : 0;
+  return DEFAULT_GRADIENTS[idx];
+}
+
+export function getVerticalGradientCSS(baseColor: string, name?: string): string {
+  const g = getClipGradient(baseColor, name);
+  return `linear-gradient(180deg, ${g.light} 0%, ${g.dark} 100%)`;
+}
+
 export function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);

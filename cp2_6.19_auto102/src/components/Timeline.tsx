@@ -26,6 +26,7 @@ import {
   formatTime,
   formatTimeMs,
   getStickerSVG,
+  getVerticalGradientCSS,
 } from '../utils/mediaUtils';
 
 const BASE_PIXELS_PER_SECOND = 60;
@@ -71,7 +72,7 @@ const SortableClip: React.FC<SortableClipProps> = ({
     transition,
     left: clip.startTime * pixelsPerSecond,
     width: getClipEffectiveDuration(clip) * pixelsPerSecond,
-    background: `linear-gradient(90deg, #e94560 0%, #0f3460 100%)`,
+    background: getVerticalGradientCSS(clip.color, clip.name),
   };
 
   const handleTrimMouseDown = (side: 'left' | 'right') => (e: React.MouseEvent) => {
@@ -114,6 +115,7 @@ const SortableClip: React.FC<SortableClipProps> = ({
       {...listeners}
     >
       <div className="trim-handle left" onMouseDown={handleTrimMouseDown('left')} />
+      <div className="timeline-clip-overlay" />
       <div className="timeline-clip-content">
         <span className="clip-name">{clip.name}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -353,10 +355,11 @@ const Timeline: React.FC<TimelineProps> = ({
                 className="timeline-clip dragging"
                 style={{
                   width: getClipEffectiveDuration(activeClip) * pixelsPerSecond,
-                  background: `linear-gradient(90deg, #e94560 0%, #0f3460 100%)`,
-                  opacity: 0.9,
+                  background: getVerticalGradientCSS(activeClip.color, activeClip.name),
+                  opacity: 0.95,
                 }}
               >
+                <div className="timeline-clip-overlay" />
                 <div className="timeline-clip-content">
                   <span className="clip-name">{activeClip.name}</span>
                   <span className="clip-duration">
