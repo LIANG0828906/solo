@@ -7,12 +7,13 @@ export interface Building {
   group: THREE.Group;
   mesh: THREE.Mesh;
   halo: THREE.Mesh;
+  lod: THREE.LOD;
+  materials: THREE.MeshStandardMaterial[];
   targetHeight: number;
   currentHeight: number;
   baseY: number;
   targetPosition: THREE.Vector3;
   originalColor: THREE.Color;
-  glowMaterial?: THREE.MeshBasicMaterial;
   isHovered: boolean;
   isAnimating: boolean;
 }
@@ -24,6 +25,7 @@ export class CityBuilder {
   private buildingsGroup: THREE.Group;
   private ground?: THREE.Mesh;
   private windowTexture?: THREE.CanvasTexture;
+  private eventHandlers: Map<string, Function[]> = new Map();
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -40,22 +42,32 @@ export class CityBuilder {
     canvas.width = 128;
     canvas.height = 256;
     const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#1a1f2e';
+    ctx.fillStyle = '#0a0d15';
     ctx.fillRect(0, 0, 128, 256);
     const cols = 6;
     const rows = 14;
+    const border = 3;
     const cellW = 128 / cols;
     const cellH = 256 / rows;
+    const windowW = cellW - border * 2;
+    const windowH = cellH - border * 2;
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const isLit = Math.random() > 0.35;
-        const brightness = isLit ? 120 + Math.random() * 80 : 30 + Math.random() * 20;
-        ctx.fillStyle = `rgb(${brightness + 40}, ${brightness + 30}, ${brightness})`;
-        const px = x * cellW + cellW * 0.2;
-        const py = y * cellH + cellH * 0.15;
-        const pw = cellW * 0.6;
-        const ph = cellH * 0.7;
-        ctx.fillRect(px, py, pw, ph);
+        if (isLit) {
+          const r = 255;
+          const g = 200 + Math.random() * 40;
+          const b = 120 + Math.random() * 40;
+          ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        } else {
+          const r = 30 + Math.random() * 20;
+          const g = 40 + Math.random() * 20;
+          const b = 60 + Math.random() * 20;
+          ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        }
+        const px = x * cellW + border;
+        const py = y * cellH + border;
+        ctx.fillRect(px, py, windowW, windowH);
       }
     }
     this.windowTexture = new THREE.CanvasTexture(canvas);
@@ -141,41 +153,56 @@ export class CityBuilder {
     const colorHex = getCategoryColor(data.category, data.value);
     const color = new THREE.Color(colorHex);
 
-    const materials: THREE.Material[] = [
-      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.85), roughness: 0.7, metalness: 0.1 }),
-      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.85), roughness: 0.7, metalness: 0.1 }),
-      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(1.1), roughness: 0.6, metalness: 0.2 }),
-      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.5), roughness: 0.8, metalness: 0.05 }),
+    const materials: THREE.MeshStandardMaterial[] = [
+      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.85), roughness: 0.7, metalness: 0.1, emissive: 0x000000, emissiveIntensity: 0 }),
+      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.85), roughness: 0.7, metalness: 0.1, emissive: 0x000000, emissiveIntensity: 0 }),
+      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(1.1), roughness: 0.6, metalness: 0.2, emissive: 0x000000, emissiveIntensity: 0 }),
+      new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.5), roughness: 0.8, metalness: 0.05, emissive: 0x000000, emissiveIntensity: 0 }),
       new THREE.MeshStandardMaterial({
         color: color,
         map: this.windowTexture,
         roughness: 0.5,
         metalness: 0.15,
+        emissive: 0x000000,
+        emissiveIntensity: 0,
       }),
       new THREE.MeshStandardMaterial({
         color: color,
         map: this.windowTexture,
         roughness: 0.5,
         metalness: 0.15,
+        emissive: 0x000000,
+        emissiveIntensity: 0,
       }),
     ];
 
-    const geo = new THREE.BoxGeometry(baseSize, height, baseSize);
-    const mesh = new THREE.Mesh(geo, materials);
-    mesh.position.y = height / 2;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    const lod = new THREE.LOD();
 
-    const glowGeo = new THREE.BoxGeometry(baseSize * 1.08, height * 1.02, baseSize * 1.08);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: color,
-      transparent: true,
-      opacity: 0,
-      side: THREE.BackSide,
-    });
-    const glowMesh = new THREE.Mesh(glowGeo, glowMat);
-    glowMesh.position.y = height / 2;
-    glowMesh.name = 'glow';
+    const geo0 = new THREE.BoxGeometry(baseSize, height, baseSize);
+    const mesh0 = new THREE.Mesh(geo0, materials);
+    mesh0.position.y = height / 2;
+    mesh0.castShadow = true;
+    mesh0.receiveShadow = true;
+    lod.addLevel(mesh0, 0);
+
+    const geo1 = new THREE.BoxGeometry(baseSize, height, baseSize);
+    const mat1 = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7, metalness: 0.1, emissive: 0x000000, emissiveIntensity: 0 });
+    const mesh1 = new THREE.Mesh(geo1, mat1);
+    mesh1.position.y = height / 2;
+    mesh1.castShadow = true;
+    mesh1.receiveShadow = true;
+    lod.addLevel(mesh1, 25);
+
+    const geo2 = new THREE.BoxGeometry(baseSize * 0.9, height * 0.95, baseSize * 0.9, 1, 1, 1);
+    const mat2 = new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.8), roughness: 0.8, metalness: 0.05, emissive: 0x000000, emissiveIntensity: 0 });
+    const mesh2 = new THREE.Mesh(geo2, mat2);
+    mesh2.position.y = height / 2;
+    mesh2.castShadow = true;
+    mesh2.receiveShadow = true;
+    lod.addLevel(mesh2, 50);
+
+    lod.position.y = 0;
+    lod.userData.buildingId = data.id;
 
     const haloGeo = new THREE.CircleGeometry(baseSize * 0.9, 32);
     const haloMat = new THREE.MeshBasicMaterial({
@@ -188,8 +215,7 @@ export class CityBuilder {
     halo.rotation.x = -Math.PI / 2;
     halo.position.y = 0.02;
 
-    group.add(mesh);
-    group.add(glowMesh);
+    group.add(lod);
     group.add(halo);
     group.position.copy(position);
 
@@ -197,22 +223,27 @@ export class CityBuilder {
       id: data.id,
       data,
       group,
-      mesh,
+      mesh: mesh0,
       halo,
+      lod,
+      materials,
       targetHeight: height,
       currentHeight: height,
       baseY: position.y,
       targetPosition: position.clone(),
       originalColor: color.clone(),
-      glowMaterial: glowMat,
       isHovered: false,
       isAnimating: false,
     };
 
-    mesh.userData.buildingId = data.id;
+    mesh0.userData.buildingId = data.id;
+    mesh1.userData.buildingId = data.id;
+    mesh2.userData.buildingId = data.id;
+    this.buildingMeshes.push(mesh0);
+    this.buildingMeshes.push(mesh1);
+    this.buildingMeshes.push(mesh2);
     this.buildingsGroup.add(group);
     this.buildings.set(data.id, building);
-    this.buildingMeshes.push(mesh);
 
     return building;
   }
