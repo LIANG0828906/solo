@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { HistoryItem, PasswordMode } from '../utils/passwordGenerator';
 
 interface HistoryPanelProps {
@@ -49,17 +49,24 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
-  const handleFavoriteClick = (id: string) => {
-    setFavAnimatingIds(prev => new Set(prev).add(id));
+  const handleFavoriteClick = useCallback((id: string) => {
+    setFavAnimatingIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     setTimeout(() => {
-      setFavAnimatingIds(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }, 400);
+      setFavAnimatingIds(prev => new Set(prev).add(id));
+      setTimeout(() => {
+        setFavAnimatingIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, 450);
+    }, 10);
     onToggleFavorite(id);
-  };
+  }, [onToggleFavorite]);
 
   const handleCopyClick = async (id: string, password: string) => {
     const success = await onCopy(password);
@@ -99,13 +106,23 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
     setDragOverId(null);
   };
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setDraggedItemId(null);
     setDragOverId(null);
-  };
+  }, [setDraggedItemId]);
 
-  const favorites = history.filter(item => item.isFavorite);
-  const regular = history.filter(item => !item.isFavorite);
+  const { favorites, regular } = useMemo(() => {
+    const favs: HistoryItem[] = [];
+    const regs: HistoryItem[] = [];
+    history.forEach(item => {
+      if (item.isFavorite) {
+        favs.push(item);
+      } else {
+        regs.push(item);
+      }
+    });
+    return { favorites: favs, regular: regs };
+  }, [history]);
 
   return (
     <section className="history-panel animate-fade-in">

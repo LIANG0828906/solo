@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
   generatePassword,
@@ -72,6 +72,12 @@ export function usePassword() {
     setStrength(newStrength);
   }, [currentPassword]);
 
+  useEffect(() => {
+    if (currentPassword && displayedPassword === currentPassword) {
+      setIsAnimating(false);
+    }
+  }, [displayedPassword, currentPassword]);
+
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     const id = uuidv4();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -85,19 +91,41 @@ export function usePassword() {
     setDisplayedPassword('');
     let index = 0;
     const chars = password.split('');
+    const totalSteps = chars.length + 1;
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+    
+    const cleanup = () => {
+      if (safetyTimer) {
+        clearTimeout(safetyTimer);
+        safetyTimer = null;
+      }
+    };
     
     const animate = () => {
-      if (index <= chars.length) {
+      if (index < totalSteps) {
         setDisplayedPassword(password.slice(0, index));
         index++;
-        if (index <= chars.length) {
+        if (index < totalSteps) {
           setTimeout(animate, 30);
         } else {
           setIsAnimating(false);
+          cleanup();
         }
+      } else {
+        setIsAnimating(false);
+        cleanup();
       }
     };
+    
+    safetyTimer = setTimeout(() => {
+      setIsAnimating(false);
+      setDisplayedPassword(password);
+      cleanup();
+    }, (totalSteps + 10) * 30);
+    
     setTimeout(animate, 0);
+    
+    return cleanup;
   }, []);
 
   const handleGenerate = useCallback(() => {
@@ -205,12 +233,14 @@ export function usePassword() {
     setConfig(prev => ({ ...prev, ...updates }));
   }, []);
 
-  const sortedHistory = [...history].sort((a, b) => {
-    if (a.isFavorite !== b.isFavorite) {
-      return a.isFavorite ? -1 : 1;
-    }
-    return b.createdAt - a.createdAt;
-  });
+  const sortedHistory = useMemo(() => {
+    return [...history].sort((a, b) => {
+      if (a.isFavorite !== b.isFavorite) {
+        return a.isFavorite ? -1 : 1;
+      }
+      return b.createdAt - a.createdAt;
+    });
+  }, [history]);
 
   return {
     config,

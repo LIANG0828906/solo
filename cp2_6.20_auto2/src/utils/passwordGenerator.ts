@@ -1,5 +1,26 @@
 export type PasswordMode = 'random' | 'phrase' | 'readable';
 
+export const STRENGTH_THRESHOLDS = {
+  WEAK_MAX: 40,
+  MEDIUM_MAX: 60,
+  STRONG_MAX: 80,
+  VERY_STRONG_MIN: 80
+} as const;
+
+export const SCORE_THRESHOLDS = {
+  WEAK_MAX: 25,
+  MEDIUM_MAX: 50,
+  STRONG_MAX: 75,
+  VERY_STRONG_MIN: 75
+} as const;
+
+export const STRENGTH_COLORS = {
+  WEAK: '#ff4444',
+  MEDIUM: '#ffaa00',
+  STRONG: '#88ff44',
+  VERY_STRONG: '#44ff44'
+} as const;
+
 export interface PasswordConfig {
   mode: PasswordMode;
   length: number;
@@ -304,20 +325,20 @@ export function calculateStrength(password: string): StrengthResult {
   let level: StrengthResult['level'];
   let label: string;
 
-  if (finalEntropy < 40) {
-    score = Math.min(25, (finalEntropy / 40) * 25);
+  if (finalEntropy < STRENGTH_THRESHOLDS.WEAK_MAX) {
+    score = Math.min(SCORE_THRESHOLDS.WEAK_MAX, (finalEntropy / STRENGTH_THRESHOLDS.WEAK_MAX) * SCORE_THRESHOLDS.WEAK_MAX);
     level = 'weak';
     label = '弱';
-  } else if (finalEntropy < 60) {
-    score = 25 + ((finalEntropy - 40) / 20) * 25;
+  } else if (finalEntropy < STRENGTH_THRESHOLDS.MEDIUM_MAX) {
+    score = SCORE_THRESHOLDS.WEAK_MAX + ((finalEntropy - STRENGTH_THRESHOLDS.WEAK_MAX) / (STRENGTH_THRESHOLDS.MEDIUM_MAX - STRENGTH_THRESHOLDS.WEAK_MAX)) * SCORE_THRESHOLDS.WEAK_MAX;
     level = 'medium';
     label = '中';
-  } else if (finalEntropy < 80) {
-    score = 50 + ((finalEntropy - 60) / 20) * 25;
+  } else if (finalEntropy < STRENGTH_THRESHOLDS.STRONG_MAX) {
+    score = SCORE_THRESHOLDS.MEDIUM_MAX + ((finalEntropy - STRENGTH_THRESHOLDS.MEDIUM_MAX) / (STRENGTH_THRESHOLDS.STRONG_MAX - STRENGTH_THRESHOLDS.MEDIUM_MAX)) * SCORE_THRESHOLDS.WEAK_MAX;
     level = 'strong';
     label = '强';
   } else {
-    score = Math.min(100, 75 + ((finalEntropy - 80) / 40) * 25);
+    score = Math.min(100, SCORE_THRESHOLDS.STRONG_MAX + ((finalEntropy - STRENGTH_THRESHOLDS.STRONG_MAX) / 40) * SCORE_THRESHOLDS.WEAK_MAX);
     level = 'very-strong';
     label = '极强';
   }
@@ -347,16 +368,17 @@ export function calculateStrength(password: string): StrengthResult {
   };
 }
 
-export function getStrengthGradient(_score: number): string {
+export function getStrengthGradient(score: number): string {
+  void score;
   const colorStops: { stop: number; color: string }[] = [
-    { stop: 0, color: '#ff4444' },
-    { stop: 25, color: '#ff4444' },
-    { stop: 25, color: '#ffaa00' },
-    { stop: 50, color: '#ffaa00' },
-    { stop: 50, color: '#88ff44' },
-    { stop: 75, color: '#88ff44' },
-    { stop: 75, color: '#44ff44' },
-    { stop: 100, color: '#44ff44' }
+    { stop: 0, color: STRENGTH_COLORS.WEAK },
+    { stop: SCORE_THRESHOLDS.WEAK_MAX, color: STRENGTH_COLORS.WEAK },
+    { stop: SCORE_THRESHOLDS.WEAK_MAX, color: STRENGTH_COLORS.MEDIUM },
+    { stop: SCORE_THRESHOLDS.MEDIUM_MAX, color: STRENGTH_COLORS.MEDIUM },
+    { stop: SCORE_THRESHOLDS.MEDIUM_MAX, color: STRENGTH_COLORS.STRONG },
+    { stop: SCORE_THRESHOLDS.STRONG_MAX, color: STRENGTH_COLORS.STRONG },
+    { stop: SCORE_THRESHOLDS.STRONG_MAX, color: STRENGTH_COLORS.VERY_STRONG },
+    { stop: 100, color: STRENGTH_COLORS.VERY_STRONG }
   ];
 
   const stops = colorStops

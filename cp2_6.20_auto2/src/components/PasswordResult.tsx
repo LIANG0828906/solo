@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { CSSTransition } from 'react-transition-group';
 import { StrengthResult, getStrengthGradient } from '../utils/passwordGenerator';
 import { Toast } from '../hooks/usePassword';
@@ -27,6 +27,7 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
   const [copyRipples, setCopyRipples] = useState<{ id: number; x: number; y: number }[]>([]);
   const [strengthPulse, setStrengthPulse] = useState(false);
   const prevStrengthRef = useRef(strength.score);
+  const strengthBarRef = useRef<HTMLDivElement>(null);
   const rippleIdRef = useRef(0);
   const copyRippleIdRef = useRef(0);
 
@@ -34,36 +35,40 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
     if (prevStrengthRef.current !== strength.score) {
       prevStrengthRef.current = strength.score;
       setStrengthPulse(true);
-      const timer = setTimeout(() => {
-        setStrengthPulse(false);
-      }, 600);
-      return () => clearTimeout(timer);
     }
   }, [strength.score]);
 
-  const createRipple = (e: React.MouseEvent<HTMLButtonElement>, setFn: typeof setRipples, idRef: React.MutableRefObject<number>) => {
+  const handleStrengthAnimationEnd = useCallback(() => {
+    setStrengthPulse(false);
+  }, []);
+
+  const createRipple = useCallback((e: React.MouseEvent<HTMLButtonElement>, setFn: typeof setRipples, idRef: React.MutableRefObject<number>, duration: number) => {
     const button = e.currentTarget;
     const rect = button.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const id = idRef.current++;
+    
     setFn(prev => [...prev, { id, x, y }]);
+    
     setTimeout(() => {
       setFn(prev => prev.filter(r => r.id !== id));
-    }, 600);
-  };
+    }, duration);
+  }, []);
 
-  const createCopyRipple = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const createCopyRipple = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     const button = e.currentTarget;
     const rect = button.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const id = copyRippleIdRef.current++;
+    
     setCopyRipples(prev => [...prev, { id, x, y }]);
+    
     setTimeout(() => {
       setCopyRipples(prev => prev.filter(r => r.id !== id));
     }, 300);
-  };
+  }, []);
 
   const handleCopy = async () => {
     if (!currentPassword) return;
@@ -140,7 +145,7 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
       <div className="action-buttons">
         <button
           className="btn btn--primary"
-          onClick={(e) => { createRipple(e, setRipples, rippleIdRef); onGenerate(); }}
+          onClick={(e) => { createRipple(e, setRipples, rippleIdRef, 600); onGenerate(); }}
           disabled={isAnimating}
         >
           {ripples.map(ripple => (
@@ -161,7 +166,7 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
         <button
           className="btn btn--secondary"
           onClick={(e) => {
-            createRipple(e, setRipples, rippleIdRef);
+            createRipple(e, setRipples, rippleIdRef, 600);
             if (currentPassword) handleCopy();
           }}
           disabled={!currentPassword}
@@ -197,11 +202,13 @@ export const PasswordResult: React.FC<PasswordResultProps> = ({
         </div>
         <div className="strength-bar">
           <div
+            ref={strengthBarRef}
             className={`strength-bar__fill ${strengthPulse ? 'strength-bar__fill--pulse' : ''}`}
             style={{
               width: `${strength.score}%`,
               background: getStrengthGradient(strength.score)
             }}
+            onAnimationEnd={handleStrengthAnimationEnd}
           />
         </div>
       </div>
