@@ -1,8 +1,8 @@
 {
   "task_name": "auto15",
-  "round": 1,
+  "round": 2,
   "folder_name": "cp2_6.20_auto15",
-  "uploaded_at": "2026-06-19T17:31:12Z",
+  "uploaded_at": "2026-06-19T17:54:21Z",
   "note": "placeholder metadata to ensure every round has a verifiable commit",
   "empty_fields": {
     "github_url": "",

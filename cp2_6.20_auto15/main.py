@@ -1,5 +1,10 @@
 import csv
 import io
+import os
+import signal
+import socket
+import subprocess
+import sys
 import uuid as uuid_lib
 from datetime import datetime
 from typing import Optional
@@ -8,6 +13,52 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+
+def is_port_in_use(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("0.0.0.0", port))
+            return False
+        except OSError:
+            return True
+
+
+def kill_process_on_port(port: int) -> bool:
+    try:
+        if os.name == "nt":
+            result = subprocess.run(
+                ["netstat", "-ano"], capture_output=True, text=True
+            )
+            for line in result.stdout.splitlines():
+                if f":{port}" in line and "LISTENING" in line:
+                    parts = line.split()
+                    pid = parts[-1]
+                    subprocess.run(
+                        ["taskkill", "/F", "/PID", pid],
+                        capture_output=True,
+                    )
+                    return True
+        else:
+            result = subprocess.run(
+                ["lsof", "-ti", f":{port}"], capture_output=True, text=True
+            )
+            pids = result.stdout.strip().split("\n")
+            for pid in pids:
+                if pid:
+                    os.kill(int(pid), signal.SIGTERM)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+DEFAULT_PORT = 8000
+if is_port_in_use(DEFAULT_PORT):
+    print(f"Port {DEFAULT_PORT} is in use, attempting to release...")
+    kill_process_on_port(DEFAULT_PORT)
+    import time
+    time.sleep(0.5)
 
 app = FastAPI(title="Survey API")
 
