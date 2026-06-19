@@ -112,9 +112,11 @@ export class GameEngine {
   private gridSizes: number[] = [6, 7, 8, 9];
   private gemIdCounter: number = 0;
   private chainCount: number = 0;
-  private readonly GEM_FLOAT_HEIGHT: number = 0.3;
+  private readonly GEM_FLOAT_HEIGHT: number = 0.5;
   private readonly CELL_MIN_HEIGHT: number = 0.2;
   private readonly CELL_MAX_HEIGHT: number = 2.0;
+  private readonly MAX_HEIGHT_DIFF: number = 0.4;
+  private readonly MIN_MATCH_GROUPS: number = 3;
 
   constructor() {
     this.loadHighScore();
@@ -166,23 +168,153 @@ export class GameEngine {
 
   private generateMaze(): void {
     this.cells = [];
-    const heightRange = this.CELL_MAX_HEIGHT - this.CELL_MIN_HEIGHT;
+    const heightMap: number[][] = [];
+
     for (let row = 0; row < this.gridSize; row++) {
       this.cells[row] = [];
+      heightMap[row] = [];
       for (let col = 0; col < this.gridSize; col++) {
         const isWall = Math.random() < this.wallRatio;
-        const height = isWall ? 0 : this.CELL_MIN_HEIGHT + Math.random() * heightRange;
+        heightMap[row][col] = isWall ? 0 : -1;
         const cell: Cell = {
           row,
           col,
-          height,
+          height: 0,
           isWall,
           gem: null
         };
-        if (!isWall) {
+        this.cells[row][col] = cell;
+      }
+    }
+
+    this.generateSmoothHeights(heightMap);
+
+    for (let row = 0; row < this.gridSize; row++) {
+      for (let col = 0; col < this.gridSize; col++) {
+        const cell = this.cells[row][col];
+        if (!cell.isWall) {
+          cell.height = heightMap[row][col];
           cell.gem = this.createRandomGem();
         }
-        this.cells[row][col] = cell;
+      }
+    }
+  }
+
+  private generateSmoothHeights(heightMap: number[][]): void {
+    const size = this.gridSize;
+    const startRow = Math.floor(Math.random() * size);
+    const startCol = Math.floor(Math.random() * size);
+
+    if (!this.cells[startRow][startCol].isWall) {
+      heightMap[startRow][startCol] =
+        this.CELL_MIN_HEIGHT +
+        Math.random() * (this.CELL_MAX_HEIGHT - this.CELL_MIN_HEIGHT);
+    }
+
+    const visited = new Set<string>();
+    const queue: { row: number; col: number }[] = [];
+
+    if (heightMap[startRow][startCol] > 0) {
+      queue.push({ row: startRow, col: startCol });
+      visited.add(`${startRow},${startCol}`);
+    }
+
+    const directions = [
+      { dr: -1, dc: 0 },
+      { dr: 1, dc: 0 },
+      { dr: 0, dc: -1 },
+      { dr: 0, dc: 1 }
+    ];
+
+    while (queue.length > 0) {
+      const idx = Math.floor(Math.random() * queue.length);
+      const current = queue.splice(idx, 1)[0];
+
+      for (const dir of directions) {
+        const nr = current.row + dir.dr;
+        const nc = current.col + dir.dc;
+        const key = `${nr},${nc}`;
+
+        if (
+          nr < 0 || nr >= size || nc < 0 || nc >= size ||
+          visited.has(key) ||
+          this.cells[nr][nc].isWall
+        ) {
+          continue;
+        }
+
+        const neighborHeights: number[] = [];
+        for (const d of directions) {
+          const br = nr + d.dr;
+          const bc = nc + d.dc;
+          if (
+            br >= 0 && br < size && bc >= 0 && bc < size &&
+            !this.cells[br][bc].isWall &&
+            heightMap[br][bc] > 0
+          ) {
+            neighborHeights.push(heightMap[br][bc]);
+          }
+        }
+
+        if (neighborHeights.length > 0) {
+          const avgHeight =
+            neighborHeights.reduce((s, h) => s + h, 0) / neighborHeights.length;
+          const jitter = (Math.random() - 0.5) * this.MAX_HEIGHT_DIFF * 2;
+          let newHeight = avgHeight + jitter;
+          newHeight = Math.max(
+            this.CELL_MIN_HEIGHT,
+            Math.min(this.CELL_MAX_HEIGHT, newHeight)
+          );
+
+          for (const nh of neighborHeights) {
+            if (Math.abs(newHeight - nh) > this.MAX_HEIGHT_DIFF) {
+              if (newHeight > nh) {
+                newHeight = nh + this.MAX_HEIGHT_DIFF;
+              } else {
+                newHeight = nh - this.MAX_HEIGHT_DIFF;
+              }
+            }
+          }
+
+          heightMap[nr][nc] = newHeight;
+        } else {
+          heightMap[nr][nc] =
+            this.CELL_MIN_HEIGHT +
+            Math.random() * (this.CELL_MAX_HEIGHT - this.CELL_MIN_HEIGHT);
+        }
+
+        visited.add(key);
+        queue.push({ row: nr, col: nc });
+      }
+    }
+
+    for (let row = 0; row < size; row++) {
+      for (let col = 0; col < size; col++) {
+        if (!this.cells[row][col].isWall && heightMap[row][col] <= 0) {
+          let assigned = false;
+          for (const dir of directions) {
+            const nr = row + dir.dr;
+            const nc = col + dir.dc;
+            if (
+              nr >= 0 && nr < size && nc >= 0 && nc < size &&
+              !this.cells[nr][nc].isWall &&
+              heightMap[nr][nc] > 0
+            ) {
+              const jitter = (Math.random() - 0.5) * this.MAX_HEIGHT_DIFF;
+              heightMap[row][col] = Math.max(
+                this.CELL_MIN_HEIGHT,
+                Math.min(this.CELL_MAX_HEIGHT, heightMap[nr][nc] + jitter)
+              );
+              assigned = true;
+              break;
+            }
+          }
+          if (!assigned) {
+            heightMap[row][col] =
+              this.CELL_MIN_HEIGHT +
+              Math.random() * (this.CELL_MAX_HEIGHT - this.CELL_MIN_HEIGHT);
+          }
+        }
       }
     }
   }
@@ -240,21 +372,38 @@ export class GameEngine {
       }
     }
 
-    if (matches.length < 2) return false;
+    if (matches.length < this.MIN_MATCH_GROUPS) return false;
 
-    for (let i = 0; i < matches.length; i++) {
-      for (let j = i + 1; j < matches.length; j++) {
-        const dist = Math.sqrt(
-          Math.pow(matches[i].center.row - matches[j].center.row, 2) +
-          Math.pow(matches[i].center.col - matches[j].center.col, 2)
-        );
-        if (dist >= this.gridSize / 3) {
-          return true;
+    let maxIndependent = 0;
+    const n = matches.length;
+    const minDist = this.gridSize / 4;
+
+    for (let mask = 0; mask < (1 << n); mask++) {
+      const bits: number[] = [];
+      for (let i = 0; i < n; i++) {
+        if (mask & (1 << i)) bits.push(i);
+      }
+      if (bits.length < this.MIN_MATCH_GROUPS) continue;
+
+      let ok = true;
+      for (let a = 0; a < bits.length && ok; a++) {
+        for (let b = a + 1; b < bits.length && ok; b++) {
+          const ma = matches[bits[a]];
+          const mb = matches[bits[b]];
+          const dist = Math.sqrt(
+            Math.pow(ma.center.row - mb.center.row, 2) +
+            Math.pow(ma.center.col - mb.center.col, 2)
+          );
+          if (dist < minDist) ok = false;
         }
+      }
+      if (ok) {
+        maxIndependent = Math.max(maxIndependent, bits.length);
+        if (maxIndependent >= this.MIN_MATCH_GROUPS) return true;
       }
     }
 
-    return false;
+    return maxIndependent >= this.MIN_MATCH_GROUPS;
   }
 
   private reshuffleGems(): void {
@@ -293,12 +442,55 @@ export class GameEngine {
       }
     }
 
-    const shuffled = triplets.sort(() => Math.random() - 0.5);
+    for (let row = 0; row < this.gridSize; row++) {
+      for (let col = 0; col < this.gridSize - 2; col++) {
+        if (
+          !this.cells[row][col].isWall &&
+          !this.cells[row][col + 1].isWall &&
+          !this.cells[row][col + 2].isWall
+        ) {
+          triplets.push([
+            { row, col },
+            { row, col: col + 1 },
+            { row, col: col + 2 }
+          ]);
+        }
+      }
+    }
+
+    for (let col = 0; col < this.gridSize; col++) {
+      for (let row = 0; row < this.gridSize - 2; row++) {
+        if (
+          !this.cells[row][col].isWall &&
+          !this.cells[row + 1][col].isWall &&
+          !this.cells[row + 2][col].isWall
+        ) {
+          triplets.push([
+            { row, col },
+            { row: row + 1, col },
+            { row: row + 2, col }
+          ]);
+        }
+      }
+    }
+
+    const uniqueTriplets: { row: number; col: number }[][] = [];
+    const seen = new Set<string>();
+    for (const t of triplets) {
+      const key = t.map((p) => `${p.row},${p.col}`).sort().join('|');
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueTriplets.push(t);
+      }
+    }
+
+    const shuffled = uniqueTriplets.sort(() => Math.random() - 0.5);
     const usedColors = new Set<GemColor>();
     const placed: { center: { row: number; col: number }; positions: { row: number; col: number }[] }[] = [];
+    const minDist = this.gridSize / 4;
 
     for (const triplet of shuffled) {
-      if (placed.length >= 2) break;
+      if (placed.length >= this.MIN_MATCH_GROUPS) break;
 
       const centerRow = triplet.reduce((s, p) => s + p.row, 0) / triplet.length;
       const centerCol = triplet.reduce((s, p) => s + p.col, 0) / triplet.length;
@@ -309,12 +501,27 @@ export class GameEngine {
           Math.pow(centerRow - p.center.row, 2) +
           Math.pow(centerCol - p.center.col, 2)
         );
-        if (dist < this.gridSize / 3) {
+        if (dist < minDist) {
           farEnough = false;
           break;
         }
       }
       if (!farEnough) continue;
+
+      let overlaps = false;
+      for (const p of placed) {
+        for (const pos of triplet) {
+          for (const other of p.positions) {
+            if (pos.row === other.row && pos.col === other.col) {
+              overlaps = true;
+              break;
+            }
+          }
+          if (overlaps) break;
+        }
+        if (overlaps) break;
+      }
+      if (overlaps) continue;
 
       let color: GemColor | null = null;
       for (const c of this.gemColors) {
@@ -336,19 +543,38 @@ export class GameEngine {
       });
     }
 
-    if (placed.length < 2 && shuffled.length >= 2) {
-      const lastTriplet = shuffled[shuffled.length - 1];
-      let color: GemColor | null = null;
-      for (const c of this.gemColors) {
-        if (!usedColors.has(c)) {
-          color = c;
-          break;
+    if (placed.length < this.MIN_MATCH_GROUPS && shuffled.length > placed.length) {
+      for (const triplet of shuffled) {
+        if (placed.length >= this.MIN_MATCH_GROUPS) break;
+
+        const alreadyPlaced = placed.some((p) =>
+          p.positions.every((pp) =>
+            triplet.some((tp) => tp.row === pp.row && tp.col === pp.col)
+          )
+        );
+        if (alreadyPlaced) continue;
+
+        let color: GemColor | null = null;
+        for (const c of this.gemColors) {
+          if (!usedColors.has(c)) {
+            color = c;
+            break;
+          }
         }
+        if (!color) color = this.getRandomGemColor();
+        usedColors.add(color);
+
+        triplet.forEach((p) => {
+          this.cells[p.row][p.col].gem!.color = color!;
+        });
+
+        const centerRow = triplet.reduce((s, p) => s + p.row, 0) / triplet.length;
+        const centerCol = triplet.reduce((s, p) => s + p.col, 0) / triplet.length;
+        placed.push({
+          center: { row: centerRow, col: centerCol },
+          positions: triplet
+        });
       }
-      if (!color) color = this.getRandomGemColor();
-      lastTriplet.forEach((p) => {
-        this.cells[p.row][p.col].gem!.color = color!;
-      });
     }
   }
 

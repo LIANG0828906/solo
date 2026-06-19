@@ -533,9 +533,9 @@ export class Renderer {
 
         if (!cell.isWall && cell.gem) {
           const gemData = this.createGemMesh(cell.gem.color, row, col, cell.gem.id);
-          gemData.mesh.position.set(x, cell.height + 0.3, z);
+          gemData.mesh.position.set(x, cell.height + 0.5, z);
           gemData.baseX = x;
-          gemData.baseY = cell.height + 0.3;
+          gemData.baseY = cell.height + 0.5;
           gemData.baseZ = z;
         }
       }
