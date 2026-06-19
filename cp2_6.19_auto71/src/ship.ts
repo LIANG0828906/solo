@@ -85,11 +85,11 @@ export class Ship {
       }
     }
 
-    this.vx *= this.friction;
-    this.vy *= this.friction;
-
     this.vx += ax;
     this.vy += ay;
+
+    this.vx *= this.friction;
+    this.vy *= this.friction;
 
     const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
     if (speed > this.maxSpeed) {

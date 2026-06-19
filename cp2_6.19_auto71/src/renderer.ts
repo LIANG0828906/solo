@@ -394,7 +394,8 @@ export class Renderer {
       this.scoreScale = 1.2;
       this.currentScore = score;
     }
-    this.scoreScale = 1 + (this.scoreScale - 1) * 0.9;
+    const scaleDelta = this.scoreScale - 1;
+    this.scoreScale = 1 + scaleDelta * Math.max(0, 1 - 16 / 200);
 
     ctx.save();
     const baseFontSize = 20;
@@ -426,7 +427,7 @@ export class Renderer {
     let glowIntensity = 0;
 
     if (this.portal.active) {
-      glowIntensity = 0.3 + Math.sin(time * 0.005) * 0.15;
+      glowIntensity = 0.3 + Math.sin(time * 0.003) * 0.15;
     } else if (this.edgeGlow > 0) {
       glowIntensity = this.edgeGlow * 0.3;
       this.edgeGlow = Math.max(0, this.edgeGlow - deltaTime / 2000);

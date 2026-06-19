@@ -160,7 +160,7 @@ export class AsteroidManager {
 
   public updateOres(): void {
     for (const ore of this.ores) {
-      ore.pulsePhase += 0.03;
+      ore.pulsePhase += 0.075;
     }
   }
 
