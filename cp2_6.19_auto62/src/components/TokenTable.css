@@ -1,0 +1,151 @@
+.token-table-container {
+  overflow-x: auto;
+}
+
+.token-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+.token-table thead th {
+  text-align: left;
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748B;
+  background-color: #F8FAFC;
+  border-bottom: 2px solid #E2E8F0;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.token-row {
+  transition: background-color 200ms ease, transform 200ms ease;
+  cursor: default;
+  contain: content;
+}
+
+.token-row:hover {
+  background-color: #E0F2FE;
+  transform: translateX(-4px);
+}
+
+.token-row td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.token-name {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 13px;
+  color: #1E293B;
+  font-weight: 500;
+}
+
+.category-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.category-color {
+  background-color: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.category-spacing {
+  background-color: #D1FAE5;
+  color: #047857;
+}
+
+.category-typography {
+  background-color: #FDE68A;
+  color: #92400E;
+}
+
+.token-value {
+  min-width: 180px;
+}
+
+.value-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background-color: #F8FAFC;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: text;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.value-display:hover {
+  border-color: #CBD5E1;
+}
+
+.value-text {
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 13px;
+  color: #334155;
+}
+
+.color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.value-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: 13px;
+  color: #1E293B;
+  background-color: #FFFFFF;
+  border: 2px solid #0EA5E9;
+  border-radius: 6px;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.token-description {
+  color: #64748B;
+  font-size: 13px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px;
+  color: #94A3B8;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .token-table {
+    font-size: 14px;
+  }
+
+  .token-row td {
+    padding: 10px 12px;
+  }
+
+  .token-name {
+    font-size: 12px;
+  }
+
+  .value-text {
+    font-size: 12px;
+  }
+}

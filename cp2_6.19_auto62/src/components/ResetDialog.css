@@ -1,0 +1,110 @@
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeInOverlay 200ms ease-out;
+}
+
+@keyframes fadeInOverlay {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dialog-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: scaleIn 250ms ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.dialog-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: #FEF3C7;
+  color: #D97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.dialog-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1E293B;
+  margin: 0 0 12px 0;
+}
+
+.dialog-description {
+  font-size: 14px;
+  color: #64748B;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.dialog-btn {
+  flex: 1;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  border: none;
+  transition: all 200ms ease;
+}
+
+.dialog-btn-primary {
+  background-color: #EF4444;
+  color: #FFFFFF;
+}
+
+.dialog-btn-primary:hover {
+  background-color: #DC2626;
+}
+
+.dialog-btn-secondary {
+  background-color: #F1F5F9;
+  color: #475569;
+}
+
+.dialog-btn-secondary:hover {
+  background-color: #E2E8F0;
+}
