@@ -1,18 +1,31 @@
-export type BeatListener = (confidence: number, isStrongBeat: boolean) => void;
+export interface BeatEvent {
+  timestamp: number;
+  confidence: number;
+  isStrongBeat: boolean;
+  beatIndex: number;
+  bpm: number;
+  timeSinceLastBeat: number;
+  timeToNextBeat: number;
+}
+
+export type BeatListener = (event: BeatEvent) => void;
 
 export class BeatDetector {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private gainNode: GainNode | null = null;
   private listeners: BeatListener[] = [];
-  private lastBeatTime = 0;
+  private lastBeatTimestamp = 0;
+  private lastStrongBeatTimestamp = 0;
   private beatInterval = 500;
-  private confidence = 0;
-  private currentTime = 0;
+  private currentConfidence = 0;
   private schedulerTimer: number | null = null;
-  private analyserTimer: number | null = null;
+  private rafId: number | null = null;
   private bpm = 120;
   private beatCount = 0;
+  private strongBeatCount = 0;
+  private lastEmitTime = 0;
+  private emitInterval = 16;
 
   constructor() {
     this.beatInterval = 60000 / this.bpm;
@@ -26,8 +39,10 @@ export class BeatDetector {
     this.gainNode.gain.value = 0.5;
     this.gainNode.connect(this.audioContext.destination);
     this.analyser.connect(this.gainNode);
+    this.lastBeatTimestamp = performance.now();
+    this.lastStrongBeatTimestamp = performance.now();
     this.startDrumSequence();
-    this.startAnalyser();
+    this.startFrameLoop();
   }
 
   private startDrumSequence(): void {
@@ -85,34 +100,55 @@ export class BeatDetector {
     this.schedulerTimer = window.setInterval(scheduler, lookahead);
 
     const beatChecker = () => {
-      const currentTime = ctx.currentTime;
-      while (notesInQueue.length && notesInQueue[0].noteTime < currentTime) {
+      const audioCurrentTime = ctx.currentTime;
+      while (notesInQueue.length && notesInQueue[0].noteTime < audioCurrentTime) {
         const note = notesInQueue.shift()!;
         const isStrong = note.note % 4 === 0;
         const conf = isStrong ? 0.95 : 0.6;
-        this.lastBeatTime = performance.now();
-        this.confidence = conf;
-        this.emitBeat(conf, isStrong);
+        const now = performance.now();
+        this.lastBeatTimestamp = now;
+        this.currentConfidence = conf;
+        if (isStrong) {
+          this.lastStrongBeatTimestamp = now;
+          this.strongBeatCount++;
+        }
+        this.emitBeatEvent(conf, isStrong);
       }
-      requestAnimationFrame(beatChecker);
     };
-    requestAnimationFrame(beatChecker);
+
+    const beatCheckerInterval = window.setInterval(beatChecker, 5);
+    (this as unknown as { _beatCheckerInterval: number })._beatCheckerInterval = beatCheckerInterval;
   }
 
-  private startAnalyser(): void {
-    this.analyserTimer = window.setInterval(() => {
-      this.currentTime = performance.now();
-      const timeSinceLastBeat = this.currentTime - this.lastBeatTime;
-      if (timeSinceLastBeat > this.beatInterval * 1.5) {
-        this.confidence = Math.max(0, this.confidence - 0.05);
+  private startFrameLoop(): void {
+    const tick = () => {
+      const now = performance.now();
+      if (now - this.lastEmitTime >= this.emitInterval) {
+        this.lastEmitTime = now;
+        const timeSinceLastBeat = now - this.lastBeatTimestamp;
+        if (timeSinceLastBeat > this.beatInterval * 1.5) {
+          this.currentConfidence = Math.max(0, this.currentConfidence - 0.02);
+        }
+        this.emitBeatEvent(this.currentConfidence, false);
       }
-      this.emitBeat(this.confidence, false);
-    }, 100);
+      this.rafId = requestAnimationFrame(tick);
+    };
+    this.rafId = requestAnimationFrame(tick);
   }
 
-  private emitBeat(confidence: number, isStrongBeat: boolean): void {
+  private emitBeatEvent(confidence: number, isStrongBeat: boolean): void {
+    const now = performance.now();
+    const event: BeatEvent = {
+      timestamp: now,
+      confidence,
+      isStrongBeat,
+      beatIndex: this.beatCount,
+      bpm: this.bpm,
+      timeSinceLastBeat: now - this.lastBeatTimestamp,
+      timeToNextBeat: this.getTimeToNextBeat()
+    };
     for (const listener of this.listeners) {
-      listener(confidence, isStrongBeat);
+      listener(event);
     }
   }
 
@@ -137,7 +173,11 @@ export class BeatDetector {
   }
 
   getTimeSinceLastBeat(): number {
-    return performance.now() - this.lastBeatTime;
+    return performance.now() - this.lastBeatTimestamp;
+  }
+
+  getTimeSinceLastStrongBeat(): number {
+    return performance.now() - this.lastStrongBeatTimestamp;
   }
 
   getTimeToNextBeat(): number {
@@ -145,9 +185,18 @@ export class BeatDetector {
     return Math.max(0, this.beatInterval - (elapsed % this.beatInterval));
   }
 
+  getTimeToNextStrongBeat(): number {
+    const strongInterval = this.beatInterval * 2;
+    const elapsed = this.getTimeSinceLastStrongBeat();
+    return Math.max(0, strongInterval - (elapsed % strongInterval));
+  }
+
   destroy(): void {
     if (this.schedulerTimer) clearInterval(this.schedulerTimer);
-    if (this.analyserTimer) clearInterval(this.analyserTimer);
+    const bci = (this as unknown as { _beatCheckerInterval?: number })._beatCheckerInterval;
+    if (bci) clearInterval(bci);
+    if (this.rafId) cancelAnimationFrame(this.rafId);
     if (this.audioContext) this.audioContext.close();
+    this.listeners = [];
   }
 }

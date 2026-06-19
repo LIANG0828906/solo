@@ -1,7 +1,7 @@
 import type { MazeGrid, Cell } from './mazeGenerator';
 import type { PlayerData } from '../player/playerController';
 import type { ParticleEffect } from '../player/events';
-import type { BeatDetector } from '../audio/beatDetector';
+import type { BeatDetector, BeatEvent } from '../audio/beatDetector';
 
 interface Particle {
   x: number;
@@ -13,6 +13,7 @@ interface Particle {
   color: string;
   size: number;
   type: string;
+  createdAt: number;
 }
 
 interface FloatingText {
@@ -46,6 +47,7 @@ export class MazeRenderer {
   private redCells: RedCellState[];
   private beatConfidence: number;
   private beatPulse: number;
+  private strongBeatTime: number;
   private comboDisplay: number;
   private comboScale: number;
   private comboTimer: number;
@@ -68,6 +70,7 @@ export class MazeRenderer {
     this.redCells = [];
     this.beatConfidence = 0;
     this.beatPulse = 0;
+    this.strongBeatTime = 0;
     this.comboDisplay = 0;
     this.comboScale = 1;
     this.comboTimer = 0;
@@ -91,10 +94,11 @@ export class MazeRenderer {
     this.mazeOffsetY = Math.floor((h - bottomViz - this.cellSize * this.mazeSize) / 2);
   }
 
-  onBeat(confidence: number, isStrong: boolean): void {
-    this.beatConfidence = confidence;
-    if (isStrong) {
+  onBeat(event: BeatEvent): void {
+    this.beatConfidence = event.confidence;
+    if (event.isStrongBeat) {
       this.beatPulse = 1;
+      this.strongBeatTime = event.timestamp;
     }
   }
 
@@ -142,10 +146,20 @@ export class MazeRenderer {
     });
   }
 
+  private ensureParticleCapacity(need: number): void {
+    const available = this.maxParticles - this.particles.length;
+    if (available < need) {
+      const removeCount = need - available;
+      this.particles.splice(0, removeCount);
+    }
+  }
+
   private spawnGreenExpand(x: number, y: number): void {
-    for (let i = 0; i < 20; i++) {
-      const angle = (Math.PI * 2 * i) / 20;
-      this.addParticle({
+    const count = 20;
+    this.ensureParticleCapacity(count);
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
+      this.addParticleInternal({
         x,
         y,
         vx: Math.cos(angle) * 3,
@@ -154,7 +168,8 @@ export class MazeRenderer {
         maxLife: 300,
         color: '#4ade80',
         size: 6,
-        type: 'green_expand'
+        type: 'green_expand',
+        createdAt: performance.now()
       });
     }
   }
@@ -166,10 +181,12 @@ export class MazeRenderer {
       startTime: performance.now(),
       duration: 500
     });
-    for (let i = 0; i < 15; i++) {
+    const count = 15;
+    this.ensureParticleCapacity(count);
+    for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 1 + Math.random() * 4;
-      this.addParticle({
+      this.addParticleInternal({
         x,
         y,
         vx: Math.cos(angle) * speed,
@@ -178,15 +195,18 @@ export class MazeRenderer {
         maxLife: 500,
         color: '#ef4444',
         size: 4 + Math.random() * 4,
-        type: 'red_shatter'
+        type: 'red_shatter',
+        createdAt: performance.now()
       });
     }
   }
 
   private spawnBlueRing(x: number, y: number): void {
-    for (let i = 0; i < 16; i++) {
-      const angle = (Math.PI * 2 * i) / 16;
-      this.addParticle({
+    const count = 16;
+    this.ensureParticleCapacity(count);
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
+      this.addParticleInternal({
         x,
         y,
         vx: Math.cos(angle) * 2.5,
@@ -195,16 +215,19 @@ export class MazeRenderer {
         maxLife: 400,
         color: '#60a5fa',
         size: 5,
-        type: 'blue_ring'
+        type: 'blue_ring',
+        createdAt: performance.now()
       });
     }
   }
 
   private spawnYellowSpark(x: number, y: number): void {
-    for (let i = 0; i < 25; i++) {
+    const count = 25;
+    this.ensureParticleCapacity(count);
+    for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 2 + Math.random() * 5;
-      this.addParticle({
+      this.addParticleInternal({
         x,
         y,
         vx: Math.cos(angle) * speed,
@@ -213,16 +236,19 @@ export class MazeRenderer {
         maxLife: 350,
         color: '#facc15',
         size: 3 + Math.random() * 3,
-        type: 'yellow_spark'
+        type: 'yellow_spark',
+        createdAt: performance.now()
       });
     }
   }
 
   private spawnPurpleTwirl(x: number, y: number): void {
-    for (let i = 0; i < 30; i++) {
-      const angle = (Math.PI * 2 * i) / 30;
+    const count = 30;
+    this.ensureParticleCapacity(count);
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
       const speed = 1.5 + (i % 3) * 1;
-      this.addParticle({
+      this.addParticleInternal({
         x,
         y,
         vx: Math.cos(angle) * speed,
@@ -231,12 +257,13 @@ export class MazeRenderer {
         maxLife: 500,
         color: '#a855f7',
         size: 5,
-        type: 'purple_twirl'
+        type: 'purple_twirl',
+        createdAt: performance.now()
       });
     }
   }
 
-  private addParticle(p: Particle): void {
+  private addParticleInternal(p: Particle): void {
     if (this.particles.length >= this.maxParticles) {
       this.particles.shift();
     }
@@ -273,6 +300,15 @@ export class MazeRenderer {
         this.redCells.splice(i, 1);
       }
     }
+  }
+
+  private getBeatPulse(): number {
+    if (!this.beatDetector) return this.beatPulse;
+    const interval = this.beatDetector.getBeatInterval();
+    const sinceStrong = this.beatDetector.getTimeSinceLastStrongBeat();
+    const progress = Math.min(1, sinceStrong / interval);
+    const pulse = Math.max(0, 1 - progress);
+    return Math.max(pulse, this.beatPulse);
   }
 
   render(player: PlayerData, deltaTime: number): void {
@@ -340,6 +376,7 @@ export class MazeRenderer {
   private drawMaze(): void {
     const ctx = this.ctx;
     const size = this.cellSize;
+    const beatPulse = this.getBeatPulse();
 
     for (let y = 0; y < this.mazeSize; y++) {
       for (let x = 0; x < this.mazeSize; x++) {
@@ -357,8 +394,8 @@ export class MazeRenderer {
         }
 
         if (cell.isExit) {
-          const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 150 + this.beatPulse * 2);
-          fillColor = `rgba(251, 191, 36, ${0.4 + 0.4 * pulse})`;
+          const pulseAlpha = 0.4 + 0.4 * beatPulse;
+          fillColor = `rgba(251, 191, 36, ${pulseAlpha})`;
         }
 
         ctx.fillStyle = fillColor;
@@ -381,10 +418,10 @@ export class MazeRenderer {
           ctx.fillText('起', px + size / 2, py + size / 2);
         }
         if (cell.isExit) {
-          const glowSize = size * 0.4 + this.beatPulse * 4;
+          const glowSize = size * 0.4 + beatPulse * 8;
           ctx.save();
           ctx.shadowColor = '#fbbf24';
-          ctx.shadowBlur = 15 + this.beatPulse * 20;
+          ctx.shadowBlur = 15 + beatPulse * 30;
           ctx.fillStyle = '#fde68a';
           ctx.font = `bold ${Math.floor(glowSize)}px 'Courier New', monospace`;
           ctx.textAlign = 'center';
@@ -399,7 +436,6 @@ export class MazeRenderer {
   private drawPlayer(player: PlayerData): void {
     const ctx = this.ctx;
     const size = this.cellSize;
-    let offsetX = 0;
     let offsetY = 0;
 
     if (player.isMoving) {
@@ -407,7 +443,7 @@ export class MazeRenderer {
       offsetY = -bounce;
     }
 
-    const cx = this.mazeOffsetX + player.x * size + size / 2 + offsetX;
+    const cx = this.mazeOffsetX + player.x * size + size / 2;
     const cy = this.mazeOffsetY + player.y * size + size / 2 + offsetY;
     const ps = Math.min(size * 0.6, 32);
 
@@ -423,12 +459,12 @@ export class MazeRenderer {
     }
 
     if (this.comboDisplay > 5) {
-      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 200);
+      const beatPulse = this.getBeatPulse();
       ctx.save();
-      ctx.strokeStyle = `rgba(96, 165, 250, ${0.5 + 0.3 * pulse})`;
+      ctx.strokeStyle = `rgba(96, 165, 250, ${0.5 + 0.3 * beatPulse})`;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(cx, cy, ps * (1.1 + 0.1 * pulse), 0, Math.PI * 2);
+      ctx.arc(cx, cy, ps * (1.1 + 0.15 * beatPulse), 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -535,7 +571,7 @@ export class MazeRenderer {
       ctx.globalAlpha = this.comboTimer / 300;
       ctx.fillStyle = '#fde047';
       ctx.font = `bold 24px 'Courier New', monospace`;
-      ctx.fillText(`+${this.comboDisplay > 1 ? '1' : ''}`, plusX, currentY + 5);
+      ctx.fillText(`+1`, plusX, currentY + 5);
       ctx.restore();
     }
     this.newCombo = false;
@@ -627,10 +663,11 @@ export class MazeRenderer {
       ctx.restore();
     }
 
+    const beatPulse = this.getBeatPulse();
     ctx.save();
-    ctx.fillStyle = `rgba(96, 165, 250, ${0.3 + this.beatPulse * 0.5})`;
+    ctx.fillStyle = `rgba(96, 165, 250, ${0.3 + beatPulse * 0.5})`;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 10 + this.beatPulse * 5, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, 10 + beatPulse * 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
@@ -653,6 +690,7 @@ export class MazeRenderer {
     const barCount = 32;
     const gap = 4;
     const barW = (vizW - gap * (barCount - 1)) / barCount;
+    const beatPulse = this.getBeatPulse();
 
     ctx.save();
     ctx.fillStyle = 'rgba(15, 15, 25, 0.6)';
@@ -681,13 +719,13 @@ export class MazeRenderer {
       ctx.fill();
     }
 
-    const nextBeat = this.beatDetector ? this.beatDetector.getTimeToNextBeat() : 0;
-    const beatInterval = this.beatDetector ? this.beatDetector.getBeatInterval() : 500;
+    const nextBeat = this.beatDetector ? this.beatDetector.getTimeToNextStrongBeat() : 0;
+    const beatInterval = this.beatDetector ? (this.beatDetector.getBeatInterval() * 2) : 500;
     const beatProgress = 1 - nextBeat / beatInterval;
     const beatX = padding + vizW * beatProgress;
 
-    ctx.strokeStyle = `rgba(251, 191, 36, ${0.5 + this.beatPulse * 0.5})`;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(251, 191, 36, ${0.5 + beatPulse * 0.5})`;
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(beatX, vizY + 5);
     ctx.lineTo(beatX, vizY + vizH - 5);

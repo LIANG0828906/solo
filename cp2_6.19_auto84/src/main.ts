@@ -1,4 +1,4 @@
-import { BeatDetector } from './audio/beatDetector';
+import { BeatDetector, type BeatEvent } from './audio/beatDetector';
 import { MazeGenerator } from './maze/mazeGenerator';
 import { MazeRenderer } from './maze/mazeRenderer';
 import { PlayerController, type Direction } from './player/playerController';
@@ -35,12 +35,9 @@ class Game {
   }
 
   private setupCallbacks(): void {
-    this.beatDetector.onBeat((confidence: number, isStrongBeat: boolean) => {
-      this.renderer.onBeat(confidence, isStrongBeat);
-      this.playerController.onBeat(confidence, isStrongBeat);
-      if (isStrongBeat) {
-        this.playerController.onStrongBeat();
-      }
+    this.beatDetector.onBeat((event: BeatEvent) => {
+      this.renderer.onBeat(event);
+      this.playerController.onBeat(event);
     });
 
     this.playerController.setStateChangeCallback(() => {

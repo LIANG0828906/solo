@@ -1,6 +1,7 @@
 import type { Cell } from '../maze/mazeGenerator';
 import { MazeGenerator } from '../maze/mazeGenerator';
 import { EventSystem, type ParticleEffect, type EventResult } from './events';
+import type { BeatEvent } from '../audio/beatDetector';
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
@@ -20,6 +21,7 @@ export interface PlayerData {
 export interface PendingMove {
   direction: Direction | null;
   timestamp: number;
+  consumed: boolean;
 }
 
 export class PlayerController {
@@ -28,6 +30,8 @@ export class PlayerController {
   private player: PlayerData;
   private pendingMove: PendingMove;
   private beatWindow: number;
+  private lastStrongBeatTime: number;
+  private hasPressedSinceLastBeat: boolean;
   private onStateChange: (() => void) | null = null;
   private onParticleEffect: ((effect: ParticleEffect) => void) | null = null;
   private onMessage: ((msg: string) => void) | null = null;
@@ -48,8 +52,10 @@ export class PlayerController {
       flashTimer: 0,
       beatFlash: false
     };
-    this.pendingMove = { direction: null, timestamp: 0 };
-    this.beatWindow = 200;
+    this.pendingMove = { direction: null, timestamp: 0, consumed: false };
+    this.beatWindow = 400;
+    this.lastStrongBeatTime = 0;
+    this.hasPressedSinceLastBeat = false;
   }
 
   setStateChangeCallback(cb: () => void): void {
@@ -75,34 +81,39 @@ export class PlayerController {
   queueMove(direction: Direction): void {
     if (this.player.isMoving) return;
     const now = performance.now();
-    this.pendingMove = { direction, timestamp: now };
+    this.pendingMove = { direction, timestamp: now, consumed: false };
+    this.hasPressedSinceLastBeat = true;
   }
 
-  onStrongBeat(): void {
+  onBeat(event: BeatEvent): void {
+    if (event.isStrongBeat) {
+      this.onStrongBeat(event);
+    }
+  }
+
+  private onStrongBeat(event: BeatEvent): void {
+    this.lastStrongBeatTime = event.timestamp;
     this.player.beatFlash = true;
     this.player.flashTimer = 150;
 
-    if (this.pendingMove.direction) {
-      const timeDiff = performance.now() - this.pendingMove.timestamp;
-      if (timeDiff <= this.beatWindow + 300) {
+    if (this.pendingMove.direction && !this.pendingMove.consumed) {
+      const timeDiff = event.timestamp - this.pendingMove.timestamp;
+      if (timeDiff <= this.beatWindow && timeDiff >= 0) {
+        this.pendingMove.consumed = true;
         this.executeMove(this.pendingMove.direction);
+      } else {
+        this.resetCombo('超时!');
       }
-      this.pendingMove = { direction: null, timestamp: 0 };
+      this.pendingMove = { direction: null, timestamp: 0, consumed: false };
     } else {
-      if (this.player.combo > 0) {
+      if (this.hasPressedSinceLastBeat === false && this.player.combo > 0) {
         this.player.combo = Math.max(0, this.player.combo - 1);
         this.player.energy = Math.max(0, this.player.energy - 2);
         if (this.onComboChange) this.onComboChange(this.player.combo);
+        if (this.onStateChange) this.onStateChange();
       }
     }
-  }
-
-  onBeat(confidence: number, isStrong: boolean): void {
-    if (!isStrong && confidence > 0.7 && this.pendingMove.direction) {
-      const timeDiff = performance.now() - this.pendingMove.timestamp;
-      if (timeDiff <= this.beatWindow + 200) {
-      }
-    }
+    this.hasPressedSinceLastBeat = false;
   }
 
   private executeMove(direction: Direction): void {
@@ -117,7 +128,7 @@ export class PlayerController {
     }
 
     if (!this.maze.isWalkable(newX, newY)) {
-      this.resetCombo('MISSED!');
+      this.resetCombo('边界!');
       return;
     }
 
@@ -203,11 +214,11 @@ export class PlayerController {
   }
 
   checkMissedBeat(): void {
-    if (this.pendingMove.direction) {
+    if (this.pendingMove.direction && !this.pendingMove.consumed) {
       const timeDiff = performance.now() - this.pendingMove.timestamp;
-      if (timeDiff > this.beatWindow + 500) {
+      if (timeDiff > this.beatWindow + 600) {
         this.resetCombo('节拍错过!');
-        this.pendingMove = { direction: null, timestamp: 0 };
+        this.pendingMove = { direction: null, timestamp: 0, consumed: false };
       }
     }
   }

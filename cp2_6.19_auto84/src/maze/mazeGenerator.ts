@@ -11,20 +11,63 @@ export interface Cell {
 
 export type MazeGrid = Cell[][];
 
+export class SeededRandom {
+  private state: number;
+
+  constructor(seed: number) {
+    this.state = seed >>> 0;
+  }
+
+  next(): number {
+    this.state = (this.state + 0x6D2B79F5) >>> 0;
+    let t = this.state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+
+  nextInt(min: number, max: number): number {
+    return Math.floor(this.next() * (max - min + 1)) + min;
+  }
+
+  getSeed(): number {
+    return this.state;
+  }
+}
+
 export class MazeGenerator {
   private size: number;
   private seed: number;
+  private rng: SeededRandom;
   private grid: MazeGrid;
 
   constructor(size = 10, seed = Date.now()) {
     this.size = size;
-    this.seed = seed;
+    this.seed = seed >>> 0;
+    this.rng = new SeededRandom(this.seed);
     this.grid = [];
   }
 
+  setSeed(seed: number): void {
+    this.seed = seed >>> 0;
+    this.rng = new SeededRandom(this.seed);
+  }
+
+  getSeed(): number {
+    return this.seed;
+  }
+
+  regenerate(newSeed?: number): MazeGrid {
+    if (newSeed !== undefined) {
+      this.setSeed(newSeed);
+    } else {
+      this.rng = new SeededRandom(this.seed);
+    }
+    return this.generate();
+  }
+
   private random(): number {
-    this.seed = (this.seed * 9301 + 49297) % 233280;
-    return this.seed / 233280;
+    return this.rng.next();
   }
 
   private randomColor(): CellColor {
