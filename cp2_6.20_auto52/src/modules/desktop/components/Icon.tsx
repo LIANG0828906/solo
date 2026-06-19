@@ -11,6 +11,7 @@ interface IconProps {
   isDragging?: boolean;
   showBadge?: boolean;
   badgeCount?: number;
+  isMobile?: boolean;
 }
 
 const getIconComponent = (type: string, name: string) => {
@@ -42,7 +43,7 @@ const getIconComponent = (type: string, name: string) => {
   }
 };
 
-const Icon: React.FC<IconProps> = ({ icon, isDragging = false, showBadge = false, badgeCount = 0 }) => {
+const Icon: React.FC<IconProps> = ({ icon, isDragging = false, showBadge = false, badgeCount = 0, isMobile = false }) => {
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickCountRef = useRef(0);
   
@@ -64,11 +65,12 @@ const Icon: React.FC<IconProps> = ({ icon, isDragging = false, showBadge = false
   const openFolder = useStore((state) => state.openFolder);
   const highlightIcon = useStore((state) => state.highlightIcon);
 
-  const style: React.CSSProperties = {
+  const style: React.CSSProperties = isMobile ? {} : {
     transform: CSS.Translate.toString(transform),
     left: icon.x,
     top: icon.y,
-    backgroundColor: isDragging ? 'transparent' : undefined,
+    opacity: isDragging ? 0.3 : 1,
+    transition: isDragging ? 'opacity 200ms ease' : 'left 250ms cubic-bezier(0.25, 0.1, 0.25, 1), top 250ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 200ms ease',
   };
 
   const handleClick = useCallback(() => {
@@ -118,6 +120,10 @@ const Icon: React.FC<IconProps> = ({ icon, isDragging = false, showBadge = false
       className={`desktop-icon ${isDragging ? 'dragging' : ''} ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}`}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
+      data-icon-id={icon.id}
+      data-id={icon.id}
+      data-type={icon.type}
+      data-label={icon.label}
       {...attributes}
       {...listeners}
     >

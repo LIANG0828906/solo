@@ -6,6 +6,14 @@ export function analyzeIconType(icon: DesktopIcon): string | null {
   const name = icon.name.toLowerCase();
   const label = icon.label.toLowerCase();
   
+  const tags: string[] = icon.metadata?.tags ? 
+    (icon.metadata.tags as string[]).map(t => t.toLowerCase()) : [];
+  
+  const metadataStr = icon.metadata ? 
+    Object.values(icon.metadata).map(v => String(v).toLowerCase()).join(' ') : '';
+  
+  const combinedText = `${name} ${label} ${tags.join(' ')} ${metadataStr}`;
+  
   for (const rule of CATEGORIZE_RULES) {
     for (const ext of rule.extensions) {
       if (name.endsWith(ext) || label.endsWith(ext)) {
@@ -13,15 +21,30 @@ export function analyzeIconType(icon: DesktopIcon): string | null {
       }
     }
     for (const keyword of rule.keywords) {
-      if (name.includes(keyword) || label.includes(keyword)) {
+      if (combinedText.includes(keyword)) {
         return rule.name;
       }
     }
   }
   
+  for (const tag of tags) {
+    const matched = CATEGORIZE_RULES.find(r => 
+      r.name.toLowerCase() === tag ||
+      r.keywords.some(k => k.includes(tag) || tag.includes(k))
+    );
+    if (matched) return matched.name;
+  }
+  
   if (icon.type === 'document') return '文档';
   if (icon.type === 'app') return '应用';
   if (icon.type === 'link') return '链接';
+  if (icon.color) {
+    const color = icon.color.toLowerCase();
+    if (color.includes('6b9ac4')) return '应用';
+    if (color.includes('8fb98f')) return '文件夹';
+    if (color.includes('e6b87d')) return '文档';
+    if (color.includes('c48fb1')) return '链接';
+  }
   
   return null;
 }

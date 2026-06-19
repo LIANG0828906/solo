@@ -90,7 +90,11 @@ const ContextMenu: React.FC = () => {
 
   return (
     <>
-      <div ref={menuRef} className="context-menu" style={menuStyle}>
+      <div
+        ref={menuRef}
+        className="context-menu context-menu-animated"
+        style={menuStyle}
+      >
         {icon.type === 'folder' && icon.metadata?.folderId && (
           <>
             <div className="context-menu-item" onClick={handleOpen}>
@@ -125,7 +129,7 @@ const ContextMenu: React.FC = () => {
 
         {showMoveMenu && availableFolders.length > 0 && (
           <div
-            className="context-menu"
+            className="context-menu context-menu-animated"
             style={{
               left: contextMenu.x + 180,
               top: contextMenu.y,

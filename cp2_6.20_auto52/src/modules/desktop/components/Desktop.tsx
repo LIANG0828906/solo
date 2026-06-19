@@ -199,6 +199,17 @@ const Desktop: React.FC = () => {
     [locked, setContextMenu]
   );
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   return (
     <DndContext
       sensors={sensors}
@@ -209,7 +220,7 @@ const Desktop: React.FC = () => {
     >
       <div
         ref={containerRef}
-        className="desktop-container"
+        className={`desktop-container ${isMobile ? 'desktop-mobile' : ''}`}
         onClick={handleContainerClick}
         onContextMenu={handleContextMenu}
       >
@@ -231,28 +242,31 @@ const Desktop: React.FC = () => {
           </div>
         </div>
 
-        {desktopIcons.map((icon) => {
-          const isFolder = icon.type === 'folder' && icon.metadata?.folderId;
-          const folder = isFolder
-            ? folders.find((f) => f.id === icon.metadata?.folderId)
-            : null;
+        <div className={isMobile ? 'desktop-icons-list' : 'desktop-icons-grid'}>
+          {desktopIcons.map((icon) => {
+            const isFolder = icon.type === 'folder' && icon.metadata?.folderId;
+            const folder = isFolder
+              ? folders.find((f) => f.id === icon.metadata?.folderId)
+              : null;
 
-          return (
-            <Icon
-              key={icon.id}
-              icon={icon}
-              isDragging={activeId === icon.id}
-              showBadge={isFolder}
-              badgeCount={folder?.iconIds.length || 0}
-            />
-          );
-        })}
+            return (
+              <Icon
+                key={icon.id}
+                icon={icon}
+                isDragging={activeId === icon.id}
+                showBadge={isFolder}
+                badgeCount={folder?.iconIds.length || 0}
+                isMobile={isMobile}
+              />
+            );
+          })}
+        </div>
 
         {notes.map((note) => (
           <StickyNote key={note.id} note={note} />
         ))}
 
-        {dropPlaceholder && (
+        {dropPlaceholder && !isMobile && (
           <div
             className="drop-placeholder"
             style={{
@@ -264,9 +278,13 @@ const Desktop: React.FC = () => {
           />
         )}
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={{
+          duration: 250,
+          easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+        }}>
           {activeIcon && (
             <div
+              className="drag-overlay-item"
               style={{
                 width: activeIcon.width,
                 height: activeIcon.height,
@@ -277,6 +295,7 @@ const Desktop: React.FC = () => {
                 transform: 'scale(1.1)',
                 opacity: 0.9,
                 cursor: 'grabbing',
+                animation: 'drag-overlay-pop 200ms cubic-bezier(0.25, 0.1, 0.25, 1)',
               }}
             >
               <div
@@ -292,7 +311,7 @@ const Desktop: React.FC = () => {
                   fontWeight: 600,
                   marginBottom: 8,
                   backgroundColor: activeIcon.color,
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                  boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
                 }}
               >
                 {activeIcon.name.charAt(0).toUpperCase()}
@@ -316,6 +335,78 @@ const Desktop: React.FC = () => {
         <ContextMenu />
         <OrganizerPanel />
         {currentFolderId && <FolderItem />}
+
+        <style>{`
+          @keyframes drag-overlay-pop {
+            0% {
+              transform: scale(1);
+            }
+            50% {
+              transform: scale(1.15);
+            }
+            100% {
+              transform: scale(1.1);
+            }
+          }
+          
+          .desktop-icons-grid {
+            position: relative;
+            width: 100%;
+            height: 100%;
+          }
+          
+          .desktop-icons-list {
+            position: relative;
+            width: 100%;
+            padding: 80px 16px 16px;
+            overflow-y: auto;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+          
+          .desktop-mobile .desktop-icon {
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            width: 100% !important;
+            height: 70px !important;
+            flex-direction: row !important;
+            padding: 0 16px;
+            justify-content: flex-start;
+            gap: 16px;
+            border-radius: 12px;
+            margin-bottom: 0;
+            background: var(--glass-bg);
+            backdrop-filter: var(--backdrop-blur);
+            -webkit-backdrop-filter: var(--backdrop-blur);
+            box-shadow: var(--shadow-sm);
+          }
+          
+          .desktop-mobile .desktop-icon-content {
+            width: 48px !important;
+            height: 48px !important;
+            margin-bottom: 0 !important;
+            font-size: 20px !important;
+            border-radius: 12px !important;
+            flex-shrink: 0;
+          }
+          
+          .desktop-mobile .desktop-icon-label {
+            font-size: 15px;
+            text-align: left;
+            max-width: none;
+            flex: 1;
+          }
+          
+          .desktop-mobile .folder-badge {
+            position: relative;
+            top: auto;
+            right: auto;
+            margin-left: auto;
+          }
+        `}</style>
       </div>
     </DndContext>
   );

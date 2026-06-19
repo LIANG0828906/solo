@@ -80,15 +80,45 @@ const StickyNote: React.FC<StickyNoteProps> = ({ note }) => {
     }
   }, []);
 
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        opacity: isHovered ? 1 : 0.6,
+        transition: 'opacity 250ms cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 250ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+      }}
       className="sticky-note"
       onMouseDown={handleDragStart}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        setShowColorPicker(false);
+      }}
+      data-note-id={note.id}
+      data-id={note.id}
+      data-color={note.color}
     >
-      {showToolbar && (
-        <div className="sticky-note-toolbar">
+      <div
+        className="sticky-note-toolbar-wrapper"
+        style={{
+          position: 'absolute',
+          top: -50,
+          right: 0,
+          overflow: 'hidden',
+          pointerEvents: showToolbar ? 'auto' : 'none',
+        }}
+      >
+        <div
+          className="sticky-note-toolbar"
+          style={{
+            transform: showToolbar ? 'translateX(0)' : 'translateX(100%)',
+            opacity: showToolbar ? 1 : 0,
+            transition: 'transform 250ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 200ms ease',
+          }}
+        >
           <button
             className={isBold ? 'active' : ''}
             onClick={() => formatText('bold')}
@@ -99,7 +129,7 @@ const StickyNote: React.FC<StickyNoteProps> = ({ note }) => {
           <button onClick={() => formatText('insertUnorderedList')} title="列表">
             <List size={16} />
           </button>
-          <button onClick={() => formatText('formatBlock', 'h3')} title="标题">
+          <button onClick={() => { document.execCommand('formatBlock', false, 'h3'); handleContentChange(); }} title="标题">
             <Type size={16} />
           </button>
           <div style={{ position: 'relative' }}>
@@ -124,7 +154,7 @@ const StickyNote: React.FC<StickyNoteProps> = ({ note }) => {
             )}
           </div>
         </div>
-      )}
+      </div>
 
       <div className="sticky-note-header">
         <input
@@ -137,7 +167,13 @@ const StickyNote: React.FC<StickyNoteProps> = ({ note }) => {
           {...(!locked ? attributes : {})}
           {...(!locked ? listeners : {})}
         />
-        <div className="sticky-note-tools">
+        <div
+          className="sticky-note-tools"
+          style={{
+            opacity: isHovered ? 1 : 0,
+            transition: 'opacity 200ms ease',
+          }}
+        >
           <div
             className="sticky-note-tool"
             onClick={(e) => {
@@ -164,6 +200,10 @@ const StickyNote: React.FC<StickyNoteProps> = ({ note }) => {
         contentEditable={!locked}
         onInput={handleContentChange}
         suppressContentEditableWarning
+        style={{
+          opacity: isHovered ? 1 : 0.85,
+          transition: 'opacity 250ms ease',
+        }}
       />
     </div>
   );
