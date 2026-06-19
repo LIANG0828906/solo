@@ -80,7 +80,7 @@ const GalleryPanel: React.FC = () => {
             {images.map((image) => (
               <div
                 key={image.id}
-                className="relative group rounded-lg overflow-hidden cursor-pointer transition duration-300 ease-out hover:scale-[1.2] hover:shadow-lg hover:z-10"
+                className="relative group rounded-lg overflow-hidden cursor-pointer shadow-md ring-1 ring-[#D9D0C7] transition duration-300 ease-out hover:scale-[1.2] hover:shadow-[0_10px_30px_-5px_rgba(92,82,74,0.45),0_4px_12px_-2px_rgba(92,82,74,0.25)] hover:ring-2 hover:ring-[#C4A882] hover:z-20 origin-center"
                 onClick={() => handleThumbnailClick(image)}
               >
                 <img
@@ -144,7 +144,7 @@ const GalleryPanel: React.FC = () => {
                 {images.map((image) => (
                   <div
                     key={image.id}
-                    className="relative group rounded-lg overflow-hidden cursor-pointer transition duration-300 ease-out hover:scale-[1.2] hover:shadow-lg hover:z-10"
+                    className="relative group rounded-lg overflow-hidden cursor-pointer shadow-md ring-1 ring-[#D9D0C7] transition duration-300 ease-out hover:scale-[1.2] hover:shadow-[0_10px_30px_-5px_rgba(92,82,74,0.45),0_4px_12px_-2px_rgba(92,82,74,0.25)] hover:ring-2 hover:ring-[#C4A882] hover:z-20 origin-center"
                     onClick={() => handleThumbnailClick(image)}
                   >
                     <img

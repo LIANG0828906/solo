@@ -67,10 +67,15 @@ const ShareButton: React.FC = () => {
       {toastVisible && (
         <div
           onTransitionEnd={handleTransitionEnd}
-          className={`fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#5C524A] text-white px-6 py-3 rounded-xl shadow-lg transition-all duration-300 ease-out ${
+          style={{
+            transitionTimingFunction: toastEntering
+              ? 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+              : 'cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+          className={`fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#5C524A] text-white px-6 py-3 rounded-xl shadow-lg transition-all duration-400 ${
             toastEntering
               ? 'opacity-100 translate-y-0'
-              : 'opacity-0 translate-y-4'
+              : 'opacity-0 translate-y-6'
           }`}
         >
           已复制到剪贴板

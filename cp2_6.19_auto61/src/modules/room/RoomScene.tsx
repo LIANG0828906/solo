@@ -18,28 +18,107 @@ const CLAMP_X: [number, number] = [-4.5, 4.5];
 const CLAMP_Z: [number, number] = [-3.5, 3.5];
 const DRAG_THRESHOLD = 5;
 
-function createNoiseTexture(
+function createFabricTexture(
   width: number,
   height: number,
   baseR: number,
   baseG: number,
   baseB: number,
-  noiseAmt: number = 8
+  weaveIntensity: number = 6,
+  grainIntensity: number = 4,
+  stitchPattern: boolean = true
 ): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d')!;
+  const imgData = ctx.createImageData(width, height);
+  const data = imgData.data;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const n = (Math.random() - 0.5) * noiseAmt;
-      const r = Math.max(0, Math.min(255, baseR + n));
-      const g = Math.max(0, Math.min(255, baseG + n));
-      const b = Math.max(0, Math.min(255, baseB + n));
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
-      ctx.fillRect(x, y, 1, 1);
+      const idx = (y * width + x) * 4;
+      let n = (Math.random() - 0.5) * grainIntensity;
+      if (stitchPattern) {
+        const weaveX = Math.sin(x * 0.18) * weaveIntensity * 0.5;
+        const weaveY = Math.sin(y * 0.18) * weaveIntensity * 0.5;
+        const crossHatch = ((x % 4 < 2 ? 1 : -1) * (y % 4 < 2 ? 1 : -1)) * weaveIntensity * 0.25;
+        n += weaveX * 0.35 + weaveY * 0.35 + crossHatch;
+        const threadLine =
+          ((x % 8 === 0) || (y % 8 === 0)) ? weaveIntensity * 0.35 : 0;
+        n -= threadLine * 0.25;
+      }
+      data[idx] = Math.max(0, Math.min(255, baseR + n));
+      data[idx + 1] = Math.max(0, Math.min(255, baseG + n));
+      data[idx + 2] = Math.max(0, Math.min(255, baseB + n));
+      data[idx + 3] = 255;
     }
   }
+  ctx.putImageData(imgData, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function createWoodGrainTexture(
+  width: number,
+  height: number,
+  baseR: number,
+  baseG: number,
+  baseB: number
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+  const imgData = ctx.createImageData(width, height);
+  const data = imgData.data;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const wave1 = Math.sin((x + y * 0.35) * 0.14) * 4;
+      const wave2 = Math.sin((x * 1.7 + y * 0.18) * 0.22) * 2.5;
+      const grain = ((x * 7 + Math.floor(y / 3) * 13) % 11) * 0.35;
+      const n = (Math.random() - 0.5) * 2 + wave1 + wave2 + grain;
+      data[idx] = Math.max(0, Math.min(255, baseR + n));
+      data[idx + 1] = Math.max(0, Math.min(255, baseG + n * 0.92));
+      data[idx + 2] = Math.max(0, Math.min(255, baseB + n * 0.8));
+      data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function createStuccoTexture(
+  width: number,
+  height: number,
+  baseR: number,
+  baseG: number,
+  baseB: number
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+  const imgData = ctx.createImageData(width, height);
+  const data = imgData.data;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const blotch = Math.sin(x * 0.08) * Math.cos(y * 0.09) * 5;
+      const swirl = Math.sin((x + y) * 0.06) * 3;
+      const n = (Math.random() - 0.5) * 3 + blotch + swirl;
+      data[idx] = Math.max(0, Math.min(255, baseR + n));
+      data[idx + 1] = Math.max(0, Math.min(255, baseG + n));
+      data[idx + 2] = Math.max(0, Math.min(255, baseB + n * 0.95));
+      data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
@@ -166,6 +245,7 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
   const isDraggingRef = useRef(false);
   const dragFrameIdRef = useRef<string | null>(null);
   const dragFrameWallRef = useRef<Frame['wallId']>('north');
+  const dragTargetPosRef = useRef<{ x: number; y: number } | null>(null);
   const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null);
   const isRotatingRef = useRef(false);
   const hoveredFrameIdRef = useRef<string | null>(null);
@@ -317,9 +397,9 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
     pointLight.position.set(0, ROOM_HEIGHT, 0);
     scene.add(pointLight);
 
-    const wallTex = createNoiseTexture(256, 256, 184, 175, 166);
-    wallTex.repeat.set(2, 1);
-    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, side: THREE.DoubleSide });
+    const wallTex = createFabricTexture(256, 256, 184, 175, 166, 7, 4, true);
+    wallTex.repeat.set(3, 2);
+    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, side: THREE.DoubleSide, roughness: 0.92 });
 
     const northWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_WIDTH, ROOM_HEIGHT), wallMat);
     northWall.position.set(0, ROOM_HEIGHT / 2, -HALF_D);
@@ -327,33 +407,36 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
 
     const southWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_WIDTH, ROOM_HEIGHT), wallMat.clone());
     (southWall.material as THREE.MeshStandardMaterial).map = wallTex.clone();
+    (southWall.material as THREE.MeshStandardMaterial).roughness = 0.92;
     southWall.position.set(0, ROOM_HEIGHT / 2, HALF_D);
     southWall.rotation.y = Math.PI;
     scene.add(southWall);
 
     const westWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_DEPTH, ROOM_HEIGHT), wallMat.clone());
     (westWall.material as THREE.MeshStandardMaterial).map = wallTex.clone();
+    (westWall.material as THREE.MeshStandardMaterial).roughness = 0.92;
     westWall.position.set(-HALF_W, ROOM_HEIGHT / 2, 0);
     westWall.rotation.y = Math.PI / 2;
     scene.add(westWall);
 
     const eastWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_DEPTH, ROOM_HEIGHT), wallMat.clone());
     (eastWall.material as THREE.MeshStandardMaterial).map = wallTex.clone();
+    (eastWall.material as THREE.MeshStandardMaterial).roughness = 0.92;
     eastWall.position.set(HALF_W, ROOM_HEIGHT / 2, 0);
     eastWall.rotation.y = -Math.PI / 2;
     scene.add(eastWall);
 
-    const floorTex = createNoiseTexture(256, 256, 160, 150, 136);
-    floorTex.repeat.set(4, 3);
-    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, side: THREE.DoubleSide });
+    const floorTex = createWoodGrainTexture(256, 256, 160, 150, 136);
+    floorTex.repeat.set(5, 4);
+    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, side: THREE.DoubleSide, roughness: 0.85 });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_WIDTH, ROOM_DEPTH), floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = 0;
     scene.add(floor);
 
-    const ceilTex = createNoiseTexture(256, 256, 197, 189, 180);
-    ceilTex.repeat.set(2, 2);
-    const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTex, side: THREE.DoubleSide });
+    const ceilTex = createStuccoTexture(256, 256, 197, 189, 180);
+    ceilTex.repeat.set(3, 3);
+    const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTex, side: THREE.DoubleSide, roughness: 0.95 });
     const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_WIDTH, ROOM_DEPTH), ceilMat);
     ceiling.rotation.x = Math.PI / 2;
     ceiling.position.y = ROOM_HEIGHT;
@@ -433,19 +516,7 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
             py = intersection.y;
           }
           const clamped = clampDragPosition(dragFrameWallRef.current, px, py);
-          const group = frameGroupsRef.current.get(dragFrameIdRef.current);
-          if (group) {
-            const { pos } = getWallPositionAndRotation({
-              ...storeFrames.find((f) => f.id === dragFrameIdRef.current)!,
-              positionX: clamped.x,
-              positionY: clamped.y,
-            });
-            group.position.x = pos.x;
-            group.position.y = pos.y;
-            group.position.z = pos.z;
-            group.userData._posX = clamped.x;
-            group.userData._posY = clamped.y;
-          }
+          dragTargetPosRef.current = { x: clamped.x, y: clamped.y };
         }
       }
 
@@ -627,10 +698,32 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
       frameGroupsRef.current.forEach((group, id) => {
         const border = group.children[0] as THREE.Mesh;
         const mat = border.material as THREE.MeshStandardMaterial;
-        if (id === hoveredFrameIdRef.current) {
+        const isDraggingThis = isDraggingRef.current && dragFrameIdRef.current === id;
+
+        if (isDraggingThis && dragTargetPosRef.current) {
+          const frame = storeFrames.find((f) => f.id === id);
+          if (frame) {
+            const { pos } = getWallPositionAndRotation({
+              ...frame,
+              positionX: dragTargetPosRef.current.x,
+              positionY: dragTargetPosRef.current.y,
+            });
+            group.position.x += (pos.x - group.position.x) * 0.25;
+            group.position.y += (pos.y + 0.06 - group.position.y) * 0.25;
+            group.position.z += (pos.z - group.position.z) * 0.25;
+            group.userData._posX = dragTargetPosRef.current.x;
+            group.userData._posY = dragTargetPosRef.current.y;
+          }
+          const targetScale = 1.12;
+          group.scale.x += (targetScale - group.scale.x) * 0.2;
+          group.scale.y += (targetScale - group.scale.y) * 0.2;
+          mat.emissive.lerp(new THREE.Color(0xc98f55), 0.35);
+        } else if (id === hoveredFrameIdRef.current) {
           mat.emissive.lerp(new THREE.Color(0xd4a574), 0.15);
           const baseY = hoveredOriginalYRef.current;
           group.position.y += (baseY + targetHoverYRef.current - group.position.y) * 0.12;
+          group.scale.x += (1.0 - group.scale.x) * 0.12;
+          group.scale.y += (1.0 - group.scale.y) * 0.12;
         } else {
           mat.emissive.lerp(new THREE.Color(0x000000), 0.15);
           const frame = storeFrames.find((f) => f.id === id);
@@ -638,6 +731,8 @@ const RoomScene: React.FC<RoomSceneProps> = ({ onFrameClick, onFrameContextMenu 
             const targetY = frame.positionY;
             group.position.y += (targetY - group.position.y) * 0.12;
           }
+          group.scale.x += (1.0 - group.scale.x) * 0.12;
+          group.scale.y += (1.0 - group.scale.y) * 0.12;
         }
       });
 
