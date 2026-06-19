@@ -14,8 +14,7 @@ import type {
   RecipeUpdateData,
   Comment,
 } from '../types';
-
-type ToastType = 'success' | 'error' | 'info' | 'warning';
+import type { ToastType } from '../components/Toast';
 
 interface Toast {
   message: string;
@@ -81,7 +80,11 @@ export const useUiController = create<UiControllerState>((set, get) => ({
           avatarColor: gradient.start,
           createdAt: getCurrentTimestamp(),
         };
-        await db.add('users', user);
+        try {
+          await db.add('users', user);
+        } catch {
+          user = await db.get<User>('users', DEFAULT_USER_ID) || user;
+        }
       }
 
       set({ currentUser: user });

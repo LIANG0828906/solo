@@ -46,11 +46,19 @@ export default function RecipeCreate() {
     }
   };
 
-  const handleSubmit = async (data: RecipeCreateData | RecipeUpdateData): Promise<Recipe> => {
-    if (isEditing && id) {
-      return await updateRecipe(id, data as RecipeUpdateData);
-    } else {
-      return await createRecipe(data as RecipeCreateData);
+  const handleSubmit = async (data: RecipeCreateData | RecipeUpdateData): Promise<void> => {
+    try {
+      if (isEditing && id) {
+        await updateRecipe(id, data as RecipeUpdateData);
+        showToast('食谱更新成功！', 'success');
+      } else {
+        await createRecipe(data as RecipeCreateData);
+        showToast('食谱创建成功！', 'success');
+      }
+      navigate('/');
+    } catch (error) {
+      console.error('Failed to save recipe:', error);
+      showToast(isEditing ? '更新食谱失败' : '创建食谱失败', 'error');
     }
   };
 

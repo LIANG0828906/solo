@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -8,12 +7,14 @@ interface ToastProps {
   message: string;
   type?: ToastType;
   onClose: () => void;
+  duration?: number;
 }
 
 export default function Toast({
   message,
   type = 'info',
   onClose,
+  duration = 3000,
 }: ToastProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
@@ -25,10 +26,10 @@ export default function Toast({
         setIsVisible(false);
         onClose();
       }, 300);
-    }, 3000);
+    }, duration);
 
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, [onClose, duration]);
 
   const handleClose = () => {
     setIsExiting(true);
@@ -48,22 +49,26 @@ export default function Toast({
   if (!isVisible) return null;
 
   return (
-    <div
-      className={cn(
-        'toast',
-        type,
-        isExiting && 'hide'
-      )}
-    >
-      <div className="flex items-center gap-3">
+    <div className={`toast ${type} ${isExiting ? 'hide' : ''}`}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         {icons[type]}
-        <span className="text-gray-800 font-medium">{message}</span>
+        <span style={{ color: '#333', fontWeight: 500 }}>{message}</span>
         <button
           type="button"
           onClick={handleClose}
-          className="ml-2 p-1 rounded-full hover:bg-gray-100 transition-colors"
+          style={{
+            marginLeft: '0.5rem',
+            padding: '0.25rem',
+            borderRadius: '9999px',
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            transition: 'background 200ms ease-out',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#f3f4f6')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
         >
-          <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+          <X className="w-4 h-4 text-gray-400" />
         </button>
       </div>
     </div>

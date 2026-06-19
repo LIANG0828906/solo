@@ -7,7 +7,7 @@ import EmptyState from '../components/EmptyState';
 import Toast from '../components/Toast';
 import { useUiController as useStore } from '../module3/uiController';
 import { ChefHat } from 'lucide-react';
-import { debounce } from '../utils/debounce';
+import debounce from '../utils/debounce';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -18,13 +18,11 @@ export default function Home() {
     searchKeyword,
     toast,
     currentUser,
-    userFavorites,
     loadRecipes,
     loadActivities,
     searchRecipes,
     initUser,
     hideToast,
-    toggleFavorite,
     loadUserProfile,
   } = useStore();
 
@@ -56,19 +54,6 @@ export default function Home() {
 
   const handleSearch = (value: string) => {
     searchRecipes(value);
-  };
-
-  const favoritedMap = userFavorites.reduce((acc, recipe) => {
-    acc[recipe.id] = true;
-    return acc;
-  }, {} as Record<string, boolean>);
-
-  const handleRecipeClick = (recipeId: string) => {
-    navigate(`/recipe/${recipeId}`);
-  };
-
-  const handleFavoriteToggle = async (recipeId: string) => {
-    await toggleFavorite(recipeId);
   };
 
   return (
@@ -103,9 +88,7 @@ export default function Home() {
             ) : (
               <MasonryGrid
                 recipes={recipes}
-                onRecipeClick={handleRecipeClick}
-                onFavoriteToggle={handleFavoriteToggle}
-                favoritedMap={favoritedMap}
+                loading={loading}
               />
             )}
           </div>

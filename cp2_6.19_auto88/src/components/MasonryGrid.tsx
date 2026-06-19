@@ -6,29 +6,23 @@ import { ChefHat } from 'lucide-react';
 interface MasonryGridProps {
   recipes: Recipe[];
   loading?: boolean;
-  onRecipeClick?: (recipeId: string) => void;
-  onFavoriteToggle?: (recipeId: string) => void;
-  favoritedMap?: Record<string, boolean>;
 }
 
 export default function MasonryGrid({
   recipes,
   loading,
-  onRecipeClick,
-  onFavoriteToggle,
-  favoritedMap = {},
 }: MasonryGridProps) {
   if (loading) {
     return (
       <div className="masonry-grid">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="recipe-card animate-pulse">
-            <div className="recipe-card-image bg-gray-200" />
+          <div key={i} className="recipe-card" style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
+            <div className="recipe-card-image" style={{ background: '#e5e7eb' }} />
             <div className="recipe-card-content">
-              <div className="h-6 bg-gray-200 rounded mb-2" />
-              <div className="h-4 bg-gray-200 rounded mb-1" />
-              <div className="h-4 bg-gray-200 rounded mb-1" />
-              <div className="h-4 bg-gray-200 rounded w-2/3" />
+              <div style={{ height: '1.5rem', background: '#e5e7eb', borderRadius: '0.25rem', marginBottom: '0.5rem' }} />
+              <div style={{ height: '1rem', background: '#e5e7eb', borderRadius: '0.25rem', marginBottom: '0.25rem' }} />
+              <div style={{ height: '1rem', background: '#e5e7eb', borderRadius: '0.25rem', marginBottom: '0.25rem' }} />
+              <div style={{ height: '1rem', background: '#e5e7eb', borderRadius: '0.25rem', width: '66.666%' }} />
             </div>
           </div>
         ))}
@@ -55,12 +49,7 @@ export default function MasonryGrid({
             animation: `fadeIn 300ms ease-out ${index * 50}ms both`,
           }}
         >
-          <RecipeCard
-            recipe={recipe}
-            isFavorited={!!favoritedMap[recipe.id]}
-            onFavoriteToggle={onFavoriteToggle}
-            onClick={onRecipeClick}
-          />
+          <RecipeCard recipe={recipe} />
         </div>
       ))}
     </div>

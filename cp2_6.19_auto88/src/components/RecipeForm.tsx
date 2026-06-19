@@ -17,7 +17,7 @@ import type {
 
 interface RecipeFormProps {
   initialData?: Recipe;
-  onSubmit: (data: RecipeCreateData) => void;
+  onSubmit: (data: RecipeCreateData) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -185,7 +185,7 @@ export default function RecipeForm({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validate()) {
@@ -213,7 +213,7 @@ export default function RecipeForm({
       authorName: initialData?.authorName || '美食家',
     };
 
-    onSubmit(data);
+    await onSubmit(data);
   };
 
   return (
