@@ -15,6 +15,7 @@ interface RecipeState {
   selectedVersionId: string | null;
   favoriteFolders: FavoriteFolder[];
   conflictData: { localOp: unknown; remoteOp: unknown } | null;
+  favoritedRecipeIds: Set<string>;
 
   setRecipes: (recipes: Recipe[], total: number) => void;
   setCurrentRecipe: (recipe: Recipe | null) => void;
@@ -34,9 +35,11 @@ interface RecipeState {
   renameFavoriteFolder: (id: string, name: string) => void;
   setConflictData: (data: { localOp: unknown; remoteOp: unknown } | null) => void;
   updateRecipeInList: (recipe: Recipe) => void;
+  toggleFavorite: (recipeId: string) => void;
+  rateRecipe: (recipeId: string, rating: number) => void;
 }
 
-const useRecipeStore = create<RecipeState>((set) => ({
+const useRecipeStore = create<RecipeState>((set, get) => ({
   recipes: [],
   currentRecipe: null,
   isLoading: false,
@@ -50,6 +53,7 @@ const useRecipeStore = create<RecipeState>((set) => ({
   selectedVersionId: null,
   favoriteFolders: [],
   conflictData: null,
+  favoritedRecipeIds: new Set<string>(),
 
   setRecipes: (recipes, total) => set({ recipes, totalRecipes: total }),
   setCurrentRecipe: (recipe) => set({ currentRecipe: recipe }),
@@ -72,7 +76,26 @@ const useRecipeStore = create<RecipeState>((set) => ({
   setConflictData: (conflictData) => set({ conflictData }),
   updateRecipeInList: (recipe) => set((s) => ({
     recipes: s.recipes.map((r) => r.id === recipe.id ? recipe : r),
+    currentRecipe: s.currentRecipe?.id === recipe.id ? recipe : s.currentRecipe,
   })),
+  toggleFavorite: (recipeId) => set((s) => {
+    const next = new Set(s.favoritedRecipeIds);
+    if (next.has(recipeId)) next.delete(recipeId);
+    else next.add(recipeId);
+    return { favoritedRecipeIds: next };
+  }),
+  rateRecipe: (recipeId, rating) => set((s) => {
+    const updatedRecipes = s.recipes.map((r) => {
+      if (r.id !== recipeId) return r;
+      const newCount = r.ratingCount + 1;
+      const newAvg = (r.avgRating * r.ratingCount + rating) / newCount;
+      const dist = [...r.ratingDistribution];
+      dist[rating - 1] = (dist[rating - 1] || 0) + 1;
+      return { ...r, avgRating: newAvg, ratingCount: newCount, ratingDistribution: dist };
+    });
+    const updatedCurrent = s.currentRecipe?.id === recipeId ? updatedRecipes.find((r) => r.id === recipeId)! : s.currentRecipe;
+    return { recipes: updatedRecipes, currentRecipe: updatedCurrent };
+  }),
 }));
 
 export default useRecipeStore;

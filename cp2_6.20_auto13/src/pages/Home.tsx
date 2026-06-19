@@ -8,6 +8,7 @@ import { recipeApi, favoriteApi } from '@/services/api';
 import RecipeCard from '@/components/RecipeCard';
 import FavoriteSidebar from '@/components/FavoriteSidebar';
 import RippleButton from '@/components/RippleButton';
+import QuickPreviewModal from '@/components/QuickPreviewModal';
 import type { Recipe, Difficulty } from '@/types';
 
 const mockRecipes: Recipe[] = [
@@ -194,9 +195,13 @@ const difficulties: { value: Difficulty | ''; label: string }[] = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const { recipes, setRecipes, searchQuery, setSearchQuery, isLoading, setLoading, favoriteFolders, setFavoriteFolders } = useRecipeStore();
+  const {
+    recipes, setRecipes, searchQuery, setSearchQuery, isLoading, setLoading,
+    favoriteFolders, setFavoriteFolders, favoritedRecipeIds, toggleFavorite, rateRecipe,
+  } = useRecipeStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty | ''>('');
+  const [previewRecipe, setPreviewRecipe] = useState<Recipe | null>(null);
 
   useEffect(() => {
     const fetchRecipes = async () => {
@@ -223,7 +228,36 @@ export default function Home() {
     fetchFavorites();
   }, []);
 
-  const filteredRecipes = recipes.length > 0 ? recipes : mockRecipes;
+  const handleToggleFavorite = (recipeId: string) => {
+    toggleFavorite(recipeId);
+  };
+
+  const handleRate = (recipeId: string, rating: number) => {
+    rateRecipe(recipeId, rating);
+    try {
+      recipeApi.rate(recipeId, rating);
+    } catch {}
+  };
+
+  const handleQuickPreview = (recipe: Recipe) => {
+    setPreviewRecipe(recipe);
+  };
+
+  const handleOpenDetail = (recipeId: string) => {
+    setPreviewRecipe(null);
+    navigate(`/recipe/${recipeId}`);
+  };
+
+  const displayRecipes = recipes.length > 0 ? recipes : mockRecipes;
+  const filtered = difficulty
+    ? displayRecipes.filter((r) => r.difficulty === difficulty)
+    : displayRecipes;
+  const searched = searchQuery
+    ? filtered.filter((r) =>
+        r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.description.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : filtered;
 
   return (
     <div className="min-h-screen bg-cream flex">
@@ -254,7 +288,7 @@ export default function Home() {
         </nav>
 
         <main className="max-w-7xl mx-auto px-4 md:px-8 py-6">
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-6 flex-wrap">
             {difficulties.map((d) => (
               <button
                 key={d.value}
@@ -285,20 +319,34 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {filteredRecipes.map((recipe) => (
-                <RecipeCard key={recipe.id} recipe={recipe} />
+              {searched.map((recipe) => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  isFavorited={favoritedRecipeIds.has(recipe.id)}
+                  onToggleFavorite={handleToggleFavorite}
+                  onRate={handleRate}
+                  onQuickPreview={handleQuickPreview}
+                />
               ))}
             </div>
           )}
 
-          {!isLoading && filteredRecipes.length === 0 && (
+          {!isLoading && searched.length === 0 && (
             <div className="text-center py-20">
               <p className="text-warm-gray text-lg">没有找到相关食谱</p>
             </div>
           )}
         </main>
       </div>
+
+      <QuickPreviewModal
+        recipe={previewRecipe}
+        isOpen={previewRecipe !== null}
+        onClose={() => setPreviewRecipe(null)}
+        onRate={handleRate}
+        onOpenDetail={handleOpenDetail}
+      />
     </div>
   );
 }
-
