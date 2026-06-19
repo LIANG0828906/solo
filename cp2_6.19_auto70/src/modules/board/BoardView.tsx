@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Plus, Download, Menu, X } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Plus, Download, Menu } from 'lucide-react';
 import type { Card } from '@/types';
 import useBoardStore from '@/store/boardStore';
 import { CardItem } from './CardItem';
@@ -7,6 +7,7 @@ import { TagSidebar } from './TagSidebar';
 import { StickyNote } from './StickyNote';
 import { TrashZone } from './TrashZone';
 import { CardDetailModal } from './CardDetailModal';
+import { InlineNoteEditor } from './InlineNoteEditor';
 import { useDragDrop } from '@/hooks/useDragDrop';
 
 interface BoardViewProps {
@@ -33,7 +34,9 @@ export function BoardView({ onOpenCapture, onOpenExport }: BoardViewProps) {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [filterAnimationKey, setFilterAnimationKey] = useState(0);
+  const [activeNoteCardId, setActiveNoteCardId] = useState<string | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const filteredCards = useMemo(() => {
     let result = [...cards].sort((a, b) => a.order - b.order);
@@ -54,30 +57,15 @@ export function BoardView({ onOpenCapture, onOpenExport }: BoardViewProps) {
 
   const {
     dragState,
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDrop,
-  } = useDragDrop(filteredCards, reorderCards);
-
-  const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
-
-  const handleCardDragStart = (e: React.DragEvent, cardId: string) => {
-    setDraggingCardId(cardId);
-    handleDragStart(e, cardId);
-  };
-
-  const handleCardDragEnd = () => {
-    setDraggingCardId(null);
-    handleDragEnd();
-  };
+    ghostPosition,
+    startDrag,
+  } = useDragDrop(gridRef, filteredCards, reorderCards);
 
   const handleTrashDrop = useCallback(() => {
-    if (draggingCardId) {
-      deleteCard(draggingCardId);
-      setDraggingCardId(null);
+    if (dragState.dragItemId) {
+      deleteCard(dragState.dragItemId);
     }
-  }, [draggingCardId, deleteCard]);
+  }, [dragState.dragItemId, deleteCard]);
 
   const handleCardClick = (card: Card) => {
     setSelectedCard(card);
@@ -89,6 +77,24 @@ export function BoardView({ onOpenCapture, onOpenExport }: BoardViewProps) {
     const isMultiSelect = e.shiftKey;
     toggleCardSelection(card.id, isMultiSelect);
   };
+
+  const handleCreateNote = useCallback((cardId: string) => {
+    setActiveNoteCardId(prev => prev === cardId ? null : cardId);
+  }, []);
+
+  const handleSaveInlineNote = useCallback((content: string) => {
+    if (content.trim()) {
+      addNote({
+        content: content.trim(),
+        x: 50,
+        y: 50,
+        width: 220,
+        height: 160,
+        backgroundColor: '#FFF8C9',
+      });
+    }
+    setActiveNoteCardId(null);
+  }, [addNote]);
 
   const handleBoardDoubleClick = (e: React.MouseEvent) => {
     if (e.target === boardRef.current) {
@@ -111,6 +117,7 @@ export function BoardView({ onOpenCapture, onOpenExport }: BoardViewProps) {
     if (selectedCardIds.length > 0) {
       clearSelection();
     }
+    setActiveNoteCardId(null);
   };
 
   const [columns, setColumns] = useState(4);
@@ -125,25 +132,44 @@ export function BoardView({ onOpenCapture, onOpenExport }: BoardViewProps) {
     return () => window.removeEventListener('resize', updateColumns);
   }, []);
 
+  const draggedCard = useMemo(() => {
+    if (!dragState.dragItemId) return null;
+    return filteredCards.find(c => c.id === dragState.dragItemId);
+  }, [dragState.dragItemId, filteredCards]);
+
   const memoizedCards = useMemo(() => {
-    return filteredCards.map((card, index) => (
-      <CardItem
-        key={`${card.id}-${filterAnimationKey}`}
-        card={card}
-        tags={tags}
-        index={index}
-        isDragging={dragState.dragItemId === card.id}
-        isDragOver={dragState.dragOverIndex === index}
-        onDragStart={handleCardDragStart}
-        onDragEnd={handleCardDragEnd}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        onClick={() => handleCardClick(card)}
-        onSelect={(e) => handleCardSelect(e, card)}
-        animationDelay={Math.min(index * 30, 300)}
-      />
-    ));
-  }, [filteredCards, tags, dragState, filterAnimationKey, handleCardDragStart, handleCardDragEnd, handleDragOver, handleDrop, handleCardClick, handleCardSelect]);
+    return filteredCards.map((card, index) => {
+      const isDragging = dragState.dragItemId === card.id;
+      const isDragOver = dragState.dragOverIndex === index && !isDragging;
+      const isShiftTarget = dragState.isDragging && !isDragging && (
+        (dragState.dragStartIndex < dragState.dragOverIndex && index > dragState.dragStartIndex && index <= dragState.dragOverIndex) ||
+        (dragState.dragStartIndex > dragState.dragOverIndex && index < dragState.dragStartIndex && index >= dragState.dragOverIndex)
+      );
+
+      return (
+        <div key={`${card.id}-${filterAnimationKey}`} className="card-item-wrapper">
+          <CardItem
+            card={card}
+            tags={tags}
+            isDragging={isDragging}
+            isDragOver={isDragOver}
+            isShiftTarget={isShiftTarget}
+            onStartDrag={startDrag}
+            onClick={() => handleCardClick(card)}
+            onSelect={(e) => handleCardSelect(e, card)}
+            onCreateNote={handleCreateNote}
+            animationDelay={Math.min(index * 30, 300)}
+          />
+          {activeNoteCardId === card.id && (
+            <InlineNoteEditor
+              onSave={handleSaveInlineNote}
+              onCancel={() => setActiveNoteCardId(null)}
+            />
+          )}
+        </div>
+      );
+    });
+  }, [filteredCards, tags, dragState, filterAnimationKey, startDrag, handleCardClick, handleCardSelect, handleCreateNote, activeNoteCardId, handleSaveInlineNote]);
 
   if (isLoading) {
     return (
@@ -222,6 +248,7 @@ export function BoardView({ onOpenCapture, onOpenExport }: BoardViewProps) {
             </div>
           ) : (
             <div
+              ref={gridRef}
               className="card-grid"
               style={{
                 gridTemplateColumns: `repeat(${columns}, 1fr)`,
@@ -242,6 +269,26 @@ export function BoardView({ onOpenCapture, onOpenExport }: BoardViewProps) {
           />
         </main>
       </div>
+      
+      {dragState.isDragging && draggedCard && (
+        <div
+          className="drag-ghost"
+          style={{
+            left: ghostPosition.x - dragState.ghostOffsetX,
+            top: ghostPosition.y - dragState.ghostOffsetY,
+            width: dragState.ghostOffsetX * 2,
+          }}
+        >
+          <img
+            src={draggedCard.thumbnailUrl}
+            alt="拖拽预览"
+            className="drag-ghost-image"
+          />
+          <div className="drag-ghost-label">
+            {draggedCard.caption || '移动素材'}
+          </div>
+        </div>
+      )}
       
       <button className="fab-button" onClick={onOpenCapture}>
         <Plus size={28} />

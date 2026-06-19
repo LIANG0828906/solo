@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Type, Bold, Italic, List, X } from 'lucide-react';
 import type { Note } from '@/types';
 import useBoardStore from '@/store/boardStore';

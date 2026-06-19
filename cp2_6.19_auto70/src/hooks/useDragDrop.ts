@@ -1,13 +1,21 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 
 interface DragState {
   isDragging: boolean;
   dragItemId: string | null;
   dragStartIndex: number;
   dragOverIndex: number;
+  ghostOffsetX: number;
+  ghostOffsetY: number;
+}
+
+interface Position {
+  x: number;
+  y: number;
 }
 
 export function useDragDrop(
+  containerRef: React.RefObject<HTMLDivElement | null>,
   items: { id: string }[],
   onReorder: (startIndex: number, endIndex: number) => void
 ) {
@@ -16,81 +24,110 @@ export function useDragDrop(
     dragItemId: null,
     dragStartIndex: -1,
     dragOverIndex: -1,
+    ghostOffsetX: 0,
+    ghostOffsetY: 0,
   });
-  
-  const dragImageRef = useRef<HTMLDivElement | null>(null);
 
-  const handleDragStart = useCallback((e: React.DragEvent, itemId: string) => {
+  const [ghostPosition, setGhostPosition] = useState<Position>({ x: 0, y: 0 });
+
+  const dragStartRef = useRef<{ mouseX: number; mouseY: number }>({ mouseX: 0, mouseY: 0 });
+  const rafRef = useRef<number>(0);
+
+  const startDrag = useCallback((
+    e: React.MouseEvent,
+    itemId: string,
+    element: HTMLElement
+  ) => {
     const index = items.findIndex(item => item.id === itemId);
+    const rect = element.getBoundingClientRect();
+
     setDragState({
       isDragging: true,
       dragItemId: itemId,
       dragStartIndex: index,
       dragOverIndex: index,
+      ghostOffsetX: e.clientX - rect.left,
+      ghostOffsetY: e.clientY - rect.top,
     });
-    
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', itemId);
-    
-    if (e.currentTarget instanceof HTMLElement) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const dragImage = document.createElement('div');
-      dragImage.style.position = 'absolute';
-      dragImage.style.top = '-1000px';
-      dragImage.style.width = `${rect.width}px`;
-      dragImage.style.height = `${rect.height}px`;
-      dragImage.style.background = 'rgba(26, 39, 68, 0.1)';
-      dragImage.style.borderRadius = '8px';
-      document.body.appendChild(dragImage);
-      e.dataTransfer.setDragImage(dragImage, e.clientX - rect.left, e.clientY - rect.top);
-      dragImageRef.current = dragImage;
-    }
+
+    setGhostPosition({ x: e.clientX, y: e.clientY });
+    dragStartRef.current = { mouseX: e.clientX, mouseY: e.clientY };
   }, [items]);
 
-  const handleDragEnd = useCallback(() => {
-    if (dragImageRef.current) {
-      document.body.removeChild(dragImageRef.current);
-      dragImageRef.current = null;
-    }
-    setDragState({
-      isDragging: false,
-      dragItemId: null,
-      dragStartIndex: -1,
-      dragOverIndex: -1,
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+    rafRef.current = requestAnimationFrame(() => {
+      setGhostPosition({ x: e.clientX, y: e.clientY });
+
+      if (!containerRef.current) return;
+
+      const cardElements = containerRef.current.querySelectorAll('[data-card-id]');
+      let closestIndex = -1;
+      let closestDist = Infinity;
+
+      cardElements.forEach((el, idx) => {
+        const rect = el.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const dist = Math.hypot(e.clientX - centerX, e.clientY - centerY);
+
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestIndex = idx;
+        }
+      });
+
+      if (closestIndex !== -1) {
+        setDragState(prev => {
+          if (prev.dragOverIndex !== closestIndex) {
+            return { ...prev, dragOverIndex: closestIndex };
+          }
+          return prev;
+        });
+      }
     });
-  }, []);
+  }, [containerRef]);
 
-  const handleDragOver = useCallback((e: React.DragEvent, itemId: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    
-    const overIndex = items.findIndex(item => item.id === itemId);
-    setDragState(prev => ({
-      ...prev,
-      dragOverIndex: overIndex,
-    }));
-  }, [items]);
+  const handleMouseUp = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const itemId = e.dataTransfer.getData('text/plain');
-    const startIndex = items.findIndex(item => item.id === itemId);
-    const endIndex = items.findIndex(item => item.id === dragState.dragOverIndex !== -1 
-      ? items[dragState.dragOverIndex]?.id 
-      : itemId);
-    
-    if (startIndex !== -1 && endIndex !== -1 && startIndex !== endIndex) {
-      onReorder(startIndex, endIndex);
+    setDragState(prev => {
+      if (prev.isDragging && prev.dragStartIndex !== prev.dragOverIndex && prev.dragOverIndex !== -1) {
+        setTimeout(() => {
+          onReorder(prev.dragStartIndex, prev.dragOverIndex);
+        }, 300);
+      }
+      return {
+        isDragging: false,
+        dragItemId: null,
+        dragStartIndex: -1,
+        dragOverIndex: -1,
+        ghostOffsetX: 0,
+        ghostOffsetY: 0,
+      };
+    });
+  }, [onReorder]);
+
+  useEffect(() => {
+    if (dragState.isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'grabbing';
     }
-    
-    handleDragEnd();
-  }, [items, dragState.dragOverIndex, onReorder, handleDragEnd]);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [dragState.isDragging, handleMouseMove, handleMouseUp]);
 
   return {
     dragState,
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDrop,
+    ghostPosition,
+    startDrag,
   };
 }

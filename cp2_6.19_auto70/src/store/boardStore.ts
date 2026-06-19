@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { get, set } from 'idb-keyval';
+import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { v4 as uuidv4 } from 'uuid';
 import type { Card, Tag, Note } from '@/types';
 import { getTagColor, getNoteBackground } from '@/utils/colorUtils';
@@ -27,6 +27,7 @@ interface BoardState {
   deleteTag: (tagId: string) => void;
   
   addNote: (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addNoteFromCard: (cardId: string, content: string) => void;
   updateNote: (id: string, updates: Partial<Note>) => void;
   deleteNote: (id: string) => void;
   
@@ -50,9 +51,10 @@ const useBoardStore = create<BoardState>()(
       loadFromIndexedDB: async () => {
         set({ isLoading: true });
         try {
-          const data = await get(STORAGE_KEY);
+          const data = await idbGet(STORAGE_KEY);
           if (data) {
-            const parsed = JSON.parse(data as string);
+            const raw = typeof data === 'string' ? data : JSON.stringify(data);
+            const parsed = JSON.parse(raw);
             set({
               cards: parsed.cards?.map((c: Card) => ({ ...c, createdAt: new Date(c.createdAt) })) || [],
               tags: parsed.tags || [],
@@ -74,7 +76,7 @@ const useBoardStore = create<BoardState>()(
         try {
           const { cards, tags, notes } = get();
           const data = JSON.stringify({ cards, tags, notes });
-          await set(STORAGE_KEY, data);
+          await idbSet(STORAGE_KEY, data);
         } catch (error) {
           console.error('Failed to save to IndexedDB:', error);
         }
@@ -235,6 +237,27 @@ const useBoardStore = create<BoardState>()(
           updatedAt: new Date(),
           backgroundColor: noteData.backgroundColor || getNoteBackground(),
         };
+        set({ notes: [...notes, newNote] });
+        saveToIndexedDB();
+      },
+
+      addNoteFromCard: (cardId, content) => {
+        const { cards, notes, saveToIndexedDB } = get();
+        const card = cards.find(c => c.id === cardId);
+        if (!card) return;
+
+        const newNote: Note = {
+          id: uuidv4(),
+          content,
+          x: 0,
+          y: 0,
+          width: 200,
+          height: 150,
+          backgroundColor: getNoteBackground(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
         set({ notes: [...notes, newNote] });
         saveToIndexedDB();
       },

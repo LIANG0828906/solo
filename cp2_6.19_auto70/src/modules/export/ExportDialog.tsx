@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Download, Image, FileText, Settings } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Download, Image, FileText, Settings } from 'lucide-react';
 import type { Card, ExportFormat, ExportLayout } from '@/types';
 import useBoardStore from '@/store/boardStore';
 import { Modal } from '@/components/Modal';

@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Clock, Tag as TagIcon } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { Clock, Tag as TagIcon, GripVertical, StickyNote } from 'lucide-react';
 import type { Card, Tag } from '@/types';
 import { formatRelativeTime } from '@/utils/dateUtils';
 import { adjustColorBrightness } from '@/utils/colorUtils';
@@ -7,47 +7,48 @@ import { adjustColorBrightness } from '@/utils/colorUtils';
 interface CardItemProps {
   card: Card;
   tags: Tag[];
-  index: number;
   isDragging: boolean;
   isDragOver: boolean;
-  onDragStart: (e: React.DragEvent, id: string) => void;
-  onDragEnd: () => void;
-  onDragOver: (e: React.DragEvent, id: string) => void;
-  onDrop: (e: React.DragEvent) => void;
+  isShiftTarget: boolean;
+  onStartDrag: (e: React.MouseEvent, itemId: string, element: HTMLElement) => void;
   onClick: () => void;
   onSelect: (e: React.MouseEvent) => void;
+  onCreateNote: (cardId: string) => void;
   animationDelay: number;
 }
 
 export function CardItem({
   card,
   tags,
-  index,
   isDragging,
   isDragOver,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDrop,
+  isShiftTarget,
+  onStartDrag,
   onClick,
   onSelect,
+  onCreateNote,
   animationDelay,
 }: CardItemProps) {
   const [isLoaded, setIsLoaded] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const cardTags = tags.filter(t => card.tags.includes(t.name));
 
   const aspectRatioClass = card.aspectRatio === '1:1' ? 'aspect-square' : 'aspect-video';
 
+  const handleDragHandleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (cardRef.current) {
+      onStartDrag(e, card.id, cardRef.current);
+    }
+  }, [onStartDrag, card.id]);
+
   return (
     <div
-      className={`card-item ${card.selected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
-      draggable
-      onDragStart={(e) => onDragStart(e, card.id)}
-      onDragEnd={onDragEnd}
-      onDragOver={(e) => onDragOver(e, card.id)}
-      onDrop={onDrop}
+      ref={cardRef}
+      data-card-id={card.id}
+      className={`card-item ${card.selected ? 'selected' : ''} ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''} ${isShiftTarget ? 'shift-right' : 'shift-left'}`}
       onClick={onSelect}
       onDoubleClick={(e) => {
         e.stopPropagation();
@@ -59,7 +60,6 @@ export function CardItem({
     >
       <div className={`card-image-wrapper ${aspectRatioClass}`}>
         <img
-          ref={imgRef}
           src={card.thumbnailUrl}
           alt={card.caption || '素材卡片'}
           className={`card-image ${isLoaded ? 'loaded' : ''}`}
@@ -107,6 +107,27 @@ export function CardItem({
       {card.caption && (
         <div className="card-caption">{card.caption}</div>
       )}
+
+      <div className="card-footer">
+        <button
+          className="card-create-note-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCreateNote(card.id);
+          }}
+          title="创建文字便签"
+        >
+          <StickyNote size={14} />
+          <span>便签</span>
+        </button>
+        <div
+          className="drag-handle"
+          onMouseDown={handleDragHandleMouseDown}
+          title="拖拽排序"
+        >
+          <GripVertical size={16} />
+        </div>
+      </div>
     </div>
   );
 }

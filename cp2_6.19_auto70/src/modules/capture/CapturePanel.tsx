@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Camera, Upload, X, Check, ZoomIn, ZoomOut } from 'lucide-react';
 import type { AspectRatio } from '@/types';
 import useBoardStore from '@/store/boardStore';

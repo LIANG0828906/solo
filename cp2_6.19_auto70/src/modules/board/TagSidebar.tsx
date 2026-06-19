@@ -1,8 +1,6 @@
-import React, { useState } from 'react';
-import { Tag, Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
-import type { Tag as TagType } from '@/types';
+import { useState } from 'react';
+import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
 import useBoardStore from '@/store/boardStore';
-import { adjustColorBrightness } from '@/utils/colorUtils';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
 interface TagSidebarProps {

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Plus, Type, Bold, Italic, List, Tag as TagIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Plus, Type, Bold, Italic, List } from 'lucide-react';
 import type { Card, Tag } from '@/types';
 import useBoardStore from '@/store/boardStore';
 import { Modal } from '@/components/Modal';

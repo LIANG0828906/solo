@@ -2,8 +2,6 @@ const HARMONIOUS_HUES = [
   0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330
 ];
 
-const GOLDEN_RATIO_CONJUGATE = 0.618033988749895;
-
 let hueIndex = 0;
 
 export function generateHarmoniousColors(count: number): string[] {
