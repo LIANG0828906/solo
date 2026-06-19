@@ -12,12 +12,19 @@ interface EditorProps {
   errorLine: number;
 }
 
-const DEFAULT_CODE = `function max(a, b) {
-  if (a > b) return a;
-  return b;
+const DEFAULT_CODE = `// 求 1 到 5 的和
+let sum = 0;
+for (let i = 1; i <= 5; i++) {
+  sum += i;
 }
 
-let result = max(5, 3);
+// 计算阶乘
+function factorial(n) {
+  if (n <= 1) return 1;
+  return n * factorial(n - 1);
+}
+
+let result = factorial(5);
 `;
 
 export default function Editor({

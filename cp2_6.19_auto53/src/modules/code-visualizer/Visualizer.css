@@ -201,13 +201,15 @@
 .variable-item {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   background: var(--bg-tertiary);
-  border-radius: 4px;
-  font-family: 'Consolas', 'Monaco', monospace;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 12px;
   transition: all 300ms ease-in-out;
+  line-height: 1.5;
 }
 
 .variable-item.flash {
@@ -216,29 +218,36 @@
 
 .var-name {
   color: var(--accent);
-  font-weight: 500;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .var-separator {
   color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
 .var-value {
   color: var(--text-primary);
   font-weight: 600;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  word-break: break-all;
+  min-width: 0;
 }
 
 .var-type {
-  margin-left: 6px;
+  margin-left: auto;
   font-size: 10px;
   color: var(--primary);
-  padding: 2px 6px;
+  padding: 2px 8px;
   background: rgba(137, 180, 250, 0.15);
   border-radius: 4px;
   font-family: 'Consolas', 'Monaco', monospace;
   font-weight: 500;
   text-transform: lowercase;
+  flex-shrink: 0;
+  align-self: center;
+  white-space: nowrap;
 }
 
 .no-change {

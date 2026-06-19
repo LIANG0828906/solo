@@ -221,7 +221,17 @@ export function highlightCode(code: string): { html: string; lineCount: number }
 }
 
 export function splitStatements(code: string): { statements: ParsedStatement[]; error?: { message: string; line: number } } {
-  const tokens = tokenize(code).filter(t => t.type !== 'whitespace' && t.type !== 'comment');
+  const lines = code.split('\n');
+  const preservedLines = lines.map(line => {
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
+      return '';
+    }
+    return line;
+  });
+
+  const processedCode = preservedLines.join('\n');
+  const tokens = tokenize(processedCode).filter(t => t.type !== 'whitespace' && t.type !== 'comment');
   const statements: ParsedStatement[] = [];
   let i = 0;
 
@@ -467,10 +477,7 @@ export function splitStatements(code: string): { statements: ParsedStatement[]; 
   return { statements };
 }
 
-function parseInnerStatements(tokens: Token[], code: string): { statements: ParsedStatement[]; error?: { message: string; line: number } } {
-  const statements: ParsedStatement[] = [];
-  let i = 0;
-
+function createParseHelpers(tokens: Token[], code: string) {
   const findMatchingBrace = (startIdx: number): number => {
     let depth = 1;
     let j = startIdx + 1;
@@ -500,128 +507,181 @@ function parseInnerStatements(tokens: Token[], code: string): { statements: Pars
     return lines.slice(startLine - 1, endLine).join('\n');
   };
 
-  while (i < tokens.length) {
-    const token = tokens[i];
-
-    if (token.value === '}') {
-      i++;
-      continue;
+  const findEndOfStatement = (startIdx: number): number => {
+    let j = startIdx;
+    while (j < tokens.length && tokens[j].value !== ';' && tokens[j].value !== '}') {
+      j++;
     }
+    return j;
+  };
 
-    if (token.type === 'keyword') {
-      if (token.value === 'let' || token.value === 'const' || token.value === 'var') {
-        let j = i;
-        while (j < tokens.length && tokens[j].value !== ';' && tokens[j].value !== '}') {
-          j++;
-        }
-        const endLine = j < tokens.length ? tokens[j].line : tokens[tokens.length - 1].line;
-        statements.push({
+  return { findMatchingBrace, findMatchingParen, getCodeRange, findEndOfStatement };
+}
+
+function parseSingleStatement(
+  tokens: Token[],
+  startIdx: number,
+  helpers: ReturnType<typeof createParseHelpers>,
+  code: string
+): { statement: ParsedStatement | null; nextIdx: number; error?: { message: string; line: number } } {
+  const { findMatchingBrace, findMatchingParen, getCodeRange, findEndOfStatement } = helpers;
+  
+  let i = startIdx;
+  
+  while (i < tokens.length && tokens[i].value === '}') {
+    i++;
+  }
+  
+  if (i >= tokens.length) {
+    return { statement: null, nextIdx: i };
+  }
+  
+  const token = tokens[i];
+  
+  if (token.type === 'keyword') {
+    if (token.value === 'let' || token.value === 'const' || token.value === 'var') {
+      const j = findEndOfStatement(i);
+      const endLine = j < tokens.length ? tokens[j].line : tokens[tokens.length - 1].line;
+      return {
+        statement: {
           type: 'declaration',
           line: token.line,
           endLine,
           raw: getCodeRange(token.line, endLine),
-        });
-        i = j + 1;
-        continue;
+        },
+        nextIdx: j + 1,
+      };
+    }
+
+    if (token.value === 'if' || token.value === 'while') {
+      const keyword = token.value;
+      const parenOpen = i + 1;
+      const parenClose = findMatchingParen(parenOpen);
+      if (parenClose === -1) {
+        return { statement: null, nextIdx: i, error: { message: 'Unmatched parenthesis', line: token.line } };
       }
 
-      if (token.value === 'if' || token.value === 'while') {
-        const keyword = token.value;
-        const parenOpen = i + 1;
-        const parenClose = findMatchingParen(parenOpen);
-        if (parenClose === -1) {
-          return { statements: [], error: { message: 'Unmatched parenthesis', line: token.line } };
+      let endLine = tokens[parenClose].line;
+      const body: ParsedStatement[] = [];
+      let nextIdx = parenClose + 2;
+
+      if (tokens[parenClose + 1]?.value === '{') {
+        const braceClose = findMatchingBrace(parenClose + 1);
+        if (braceClose === -1) {
+          return { statement: null, nextIdx: i, error: { message: 'Unmatched brace', line: tokens[parenClose + 1].line } };
         }
+        endLine = tokens[braceClose].line;
+        const innerTokens = tokens.slice(parenClose + 2, braceClose);
+        const innerResult = parseInnerStatements(innerTokens, code);
+        if (innerResult.error) return { statement: null, nextIdx: i, error: innerResult.error };
+        body.push(...innerResult.statements);
+        nextIdx = braceClose + 1;
+      } else {
+        const singleResult = parseSingleStatement(tokens, parenClose + 2, helpers, code);
+        if (singleResult.error) return { statement: null, nextIdx: i, error: singleResult.error };
+        if (singleResult.statement) {
+          body.push(singleResult.statement);
+          endLine = singleResult.statement.endLine;
+        }
+        nextIdx = singleResult.nextIdx;
+      }
 
-        let endLine = tokens[parenClose].line;
-        const body: ParsedStatement[] = [];
+      const statement: ParsedStatement = {
+        type: keyword,
+        line: token.line,
+        endLine,
+        raw: getCodeRange(token.line, endLine),
+        body,
+      };
 
-        if (tokens[parenClose + 1]?.value === '{') {
-          const braceClose = findMatchingBrace(parenClose + 1);
+      if (keyword === 'if' && tokens[nextIdx]?.value === 'else') {
+        const elseToken = tokens[nextIdx];
+        let elseEndLine = elseToken.line;
+        const elseBody: ParsedStatement[] = [];
+        let elseNextIdx = nextIdx + 2;
+
+        if (tokens[nextIdx + 1]?.value === '{') {
+          const braceClose = findMatchingBrace(nextIdx + 1);
           if (braceClose === -1) {
-            return { statements: [], error: { message: 'Unmatched brace', line: tokens[parenClose + 1].line } };
+            return { statement: null, nextIdx: i, error: { message: 'Unmatched brace', line: tokens[nextIdx + 1].line } };
           }
-          endLine = tokens[braceClose].line;
-          const innerTokens = tokens.slice(parenClose + 2, braceClose);
+          elseEndLine = tokens[braceClose].line;
+          const innerTokens = tokens.slice(nextIdx + 2, braceClose);
           const innerResult = parseInnerStatements(innerTokens, code);
-          if (innerResult.error) return { statements: [], error: innerResult.error };
-          body.push(...innerResult.statements);
-          i = braceClose + 1;
+          if (innerResult.error) return { statement: null, nextIdx: i, error: innerResult.error };
+          elseBody.push(...innerResult.statements);
+          elseNextIdx = braceClose + 1;
         } else {
-          i = parenClose + 2;
-        }
-
-        statements.push({
-          type: keyword,
-          line: token.line,
-          endLine,
-          raw: getCodeRange(token.line, endLine),
-          body,
-        });
-
-        if (keyword === 'if' && tokens[i]?.value === 'else') {
-          const elseToken = tokens[i];
-          let elseEndLine = elseToken.line;
-          const elseBody: ParsedStatement[] = [];
-
-          if (tokens[i + 1]?.value === '{') {
-            const braceClose = findMatchingBrace(i + 1);
-            if (braceClose === -1) {
-              return { statements: [], error: { message: 'Unmatched brace', line: tokens[i + 1].line } };
-            }
-            elseEndLine = tokens[braceClose].line;
-            const innerTokens = tokens.slice(i + 2, braceClose);
-            const innerResult = parseInnerStatements(innerTokens, code);
-            if (innerResult.error) return { statements: [], error: innerResult.error };
-            elseBody.push(...innerResult.statements);
-            i = braceClose + 1;
-          } else {
-            i += 2;
+          const singleResult = parseSingleStatement(tokens, nextIdx + 2, helpers, code);
+          if (singleResult.error) return { statement: null, nextIdx: i, error: singleResult.error };
+          if (singleResult.statement) {
+            elseBody.push(singleResult.statement);
+            elseEndLine = singleResult.statement.endLine;
           }
-
-          statements.push({
-            type: 'else',
-            line: elseToken.line,
-            endLine: elseEndLine,
-            raw: getCodeRange(elseToken.line, elseEndLine),
-            body: elseBody,
-          });
+          elseNextIdx = singleResult.nextIdx;
         }
-        continue;
+
+        (statement as any).elseStatement = {
+          type: 'else',
+          line: elseToken.line,
+          endLine: elseEndLine,
+          raw: getCodeRange(elseToken.line, elseEndLine),
+          body: elseBody,
+        };
+        
+        nextIdx = elseNextIdx;
       }
 
-      if (token.value === 'return' || token.value === 'break' || token.value === 'continue') {
-        let j = i;
-        while (j < tokens.length && tokens[j].value !== ';' && tokens[j].value !== '}') {
-          j++;
-        }
-        const endLine = j < tokens.length ? tokens[j].line : tokens[tokens.length - 1].line;
-        statements.push({
+      return { statement, nextIdx };
+    }
+
+    if (token.value === 'return' || token.value === 'break' || token.value === 'continue') {
+      const j = findEndOfStatement(i);
+      const endLine = j < tokens.length ? tokens[j].line : tokens[tokens.length - 1].line;
+      return {
+        statement: {
           type: token.value,
           line: token.line,
           endLine,
           raw: getCodeRange(token.line, endLine),
-        });
-        i = j + 1;
-        continue;
-      }
+        },
+        nextIdx: j + 1,
+      };
     }
+  }
 
-    let j = i;
-    while (j < tokens.length && tokens[j].value !== ';' && tokens[j].value !== '}') {
-      j++;
-    }
-    const endLine = j < tokens.length ? tokens[j].line : tokens[tokens.length - 1].line;
+  const j = findEndOfStatement(i);
+  const endLine = j < tokens.length ? tokens[j].line : tokens[tokens.length - 1].line;
 
-    if (token.value !== '}') {
-      statements.push({
-        type: 'expression',
-        line: token.line,
-        endLine,
-        raw: getCodeRange(token.line, endLine),
-      });
+  if (token.value === '}') {
+    return { statement: null, nextIdx: j + 1 };
+  }
+
+  return {
+    statement: {
+      type: 'expression',
+      line: token.line,
+      endLine,
+      raw: getCodeRange(token.line, endLine),
+    },
+    nextIdx: j + 1,
+  };
+}
+
+function parseInnerStatements(tokens: Token[], code: string): { statements: ParsedStatement[]; error?: { message: string; line: number } } {
+  const statements: ParsedStatement[] = [];
+  const helpers = createParseHelpers(tokens, code);
+  let i = 0;
+
+  while (i < tokens.length) {
+    const result = parseSingleStatement(tokens, i, helpers, code);
+    if (result.error) {
+      return { statements: [], error: result.error };
     }
-    i = j + 1;
+    if (result.statement) {
+      statements.push(result.statement);
+    }
+    i = result.nextIdx;
   }
 
   return { statements };

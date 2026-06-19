@@ -45,6 +45,89 @@ function stripComments(code: string): string {
     .trim();
 }
 
+function extractParenContent(code: string, startPos: number): { content: string; endPos: number } | null {
+  let depth = 1;
+  let inString = false;
+  let stringChar = '';
+  let i = startPos;
+
+  while (i < code.length && depth > 0) {
+    const char = code[i];
+
+    if (inString) {
+      if (char === stringChar && code[i - 1] !== '\\') {
+        inString = false;
+      }
+      i++;
+      continue;
+    }
+
+    if (char === '"' || char === "'" || char === '`') {
+      inString = true;
+      stringChar = char;
+      i++;
+      continue;
+    }
+
+    if (char === '(') depth++;
+    if (char === ')') depth--;
+
+    if (depth === 0) {
+      return {
+        content: code.slice(startPos, i),
+        endPos: i,
+      };
+    }
+    i++;
+  }
+
+  return null;
+}
+
+function extractForParts(code: string): { init: string; condition: string; update: string } | null {
+  const parenStart = code.indexOf('(');
+  if (parenStart === -1) return null;
+
+  const innerContent = extractParenContent(code, parenStart + 1);
+  if (!innerContent) return null;
+
+  const parts = innerContent.content;
+  let depth = 0;
+  let inString = false;
+  let stringChar = '';
+  const separators: number[] = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    const char = parts[i];
+
+    if (inString) {
+      if (char === stringChar && parts[i - 1] !== '\\') inString = false;
+      continue;
+    }
+
+    if (char === '"' || char === "'" || char === '`') {
+      inString = true;
+      stringChar = char;
+      continue;
+    }
+
+    if (char === '(' || char === '[' || char === '{') depth++;
+    if (char === ')' || char === ']' || char === '}') depth--;
+
+    if (char === ';' && depth === 0) {
+      separators.push(i);
+    }
+  }
+
+  if (separators.length !== 2) return null;
+
+  return {
+    init: parts.slice(0, separators[0]).trim(),
+    condition: parts.slice(separators[0] + 1, separators[1]).trim(),
+    update: parts.slice(separators[1] + 1).trim(),
+  };
+}
+
 export function executeCode(code: string): ExecutionResult {
   const parseResult = splitStatements(code);
 
@@ -330,14 +413,21 @@ function executeExpressionStatement(stmt: ParsedStatement, context: ExecutionCon
 
 function executeIf(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
   const raw = stripComments(stmt.raw);
-  const conditionMatch = raw.match(/^if\s*\(([^)]+)\)\s*\{?/);
+  const parenStart = raw.indexOf('(');
+  let condition = '';
 
-  if (!conditionMatch) {
+  if (parenStart !== -1) {
+    const innerContent = extractParenContent(raw, parenStart + 1);
+    if (innerContent) {
+      condition = innerContent.content.trim();
+    }
+  }
+
+  if (!condition) {
     if (!addStep(context, stmt.line, 'if 语句', prevVarNames)) return;
     return;
   }
 
-  const condition = conditionMatch[1].trim();
   const conditionResult = evaluateExpression(condition, context);
   const isTrue = Boolean(conditionResult);
 
@@ -346,19 +436,28 @@ function executeIf(stmt: ParsedStatement, context: ExecutionContext, prevVarName
 
   if (isTrue && stmt.body) {
     executeStatements(stmt.body, context);
+  } else if (!isTrue && (stmt as any).elseStatement) {
+    executeStatements([(stmt as any).elseStatement], context);
   }
 }
 
 function executeWhile(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
   const raw = stripComments(stmt.raw);
-  const conditionMatch = raw.match(/^while\s*\(([^)]+)\)\s*\{?/);
+  const parenStart = raw.indexOf('(');
+  let condition = '';
 
-  if (!conditionMatch) {
+  if (parenStart !== -1) {
+    const innerContent = extractParenContent(raw, parenStart + 1);
+    if (innerContent) {
+      condition = innerContent.content.trim();
+    }
+  }
+
+  if (!condition) {
     if (!addStep(context, stmt.line, 'while 语句', prevVarNames)) return;
     return;
   }
 
-  const condition = conditionMatch[1].trim();
   let iteration = 0;
 
   while (true) {
@@ -383,16 +482,16 @@ function executeWhile(stmt: ParsedStatement, context: ExecutionContext, prevVarN
 
 function executeFor(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
   const raw = stripComments(stmt.raw);
-  const forMatch = raw.match(/^for\s*\(([^;]*);([^;]*);([^)]*)\)\s*\{?/);
+  const forParts = extractForParts(raw);
 
-  if (!forMatch) {
+  if (!forParts) {
     if (!addStep(context, stmt.line, 'for 语句', prevVarNames)) return;
     return;
   }
 
-  const initStr = forMatch[1].trim();
-  const conditionStr = forMatch[2].trim();
-  const updateStr = forMatch[3].trim();
+  const initStr = forParts.init;
+  const conditionStr = forParts.condition;
+  const updateStr = forParts.update;
 
   if (initStr) {
     const initMatch = initStr.match(/^(let|const|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*([^;]+)$/);
@@ -466,16 +565,28 @@ function executeFor(stmt: ParsedStatement, context: ExecutionContext, prevVarNam
 
 function executeFunctionDeclaration(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
   const raw = stripComments(stmt.raw);
-  const funcMatch = raw.match(/^function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(([^)]*)\)\s*\{?/);
+  const parenStart = raw.indexOf('(');
+  let paramsStr = '';
+  let name = '';
 
-  if (!funcMatch) {
+  const nameMatch = raw.match(/^function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/);
+  if (nameMatch) {
+    name = nameMatch[1];
+  }
+
+  if (parenStart !== -1 && name) {
+    const innerContent = extractParenContent(raw, parenStart + 1);
+    if (innerContent) {
+      paramsStr = innerContent.content.trim();
+    }
+  }
+
+  if (!name) {
     if (!addStep(context, stmt.line, '函数声明', prevVarNames)) return;
     return;
   }
 
-  const name = funcMatch[1];
-  const paramsStr = funcMatch[2].trim();
-  const params = paramsStr ? paramsStr.split(',').map(p => p.trim()) : [];
+  const params = paramsStr ? paramsStr.split(',').map(p => p.trim()).filter(Boolean) : [];
 
   context.functions.set(name, {
     params,

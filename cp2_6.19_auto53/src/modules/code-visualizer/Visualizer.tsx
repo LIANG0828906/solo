@@ -240,6 +240,29 @@ interface TimelineNodeProps {
   flashVars: boolean;
 }
 
+function formatType(type: string): string {
+  switch (type) {
+    case 'undefined':
+      return 'undefined';
+    case 'null':
+      return 'null';
+    case 'boolean':
+      return 'boolean';
+    case 'number':
+      return 'number';
+    case 'string':
+      return 'string';
+    case 'object':
+      return 'object';
+    case 'array':
+      return 'array';
+    case 'function':
+      return 'function';
+    default:
+      return type;
+  }
+}
+
 function TimelineNode({ step, index, isActive, isPast, onClick, flashVars }: TimelineNodeProps) {
   const changedVars = step.variables.filter(v => step.changedVariables.includes(v.name));
 
@@ -274,7 +297,7 @@ function TimelineNode({ step, index, isActive, isPast, onClick, flashVars }: Tim
                 <span className="var-value" title={v.type}>
                   {v.value}
                 </span>
-                <span className="var-type">{v.type}</span>
+                <span className="var-type">{formatType(v.type)}</span>
               </div>
             ))}
           </div>
