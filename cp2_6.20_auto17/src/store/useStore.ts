@@ -17,6 +17,7 @@ interface AppState {
   hideNotification: (id: string) => void;
   getUserSubmissions: (userId: string) => Submission[];
   getUserErrorBook: (userId: string) => ErrorBookEntry[];
+  getSubmissionForAssignment: (userId: string, assignmentId: string) => Submission | undefined;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -35,6 +36,29 @@ export const useStore = create<AppState>((set, get) => ({
     const state = get();
     const currentUser = state.currentUser;
     if (!currentUser) return;
+
+    const existingSub = state.submissions.find(
+      (s) => s.userId === currentUser.id && s.assignmentId === assignmentId && s.status !== 'grading'
+    );
+    if (existingSub) {
+      set((state) => ({
+        submissions: state.submissions.map((s) =>
+          s.id === existingSub.id
+            ? {
+                ...s,
+                answers: answers.map((a) => ({ questionId: a.questionId, content: a.content })),
+                gradingResults: [],
+                submittedAt: new Date().toISOString(),
+                status: 'grading' as const,
+              }
+            : s
+        ),
+      }));
+      setTimeout(() => {
+        get().gradeSubmission(existingSub.id);
+      }, 2000);
+      return;
+    }
 
     const submission: Submission = {
       id: `sub_${Date.now()}`,
@@ -65,13 +89,18 @@ export const useStore = create<AppState>((set, get) => ({
 
     const gradingResults = gradeAssignment(assignment.questions, submission.answers);
 
+    const existingErrors = state.errorBook.filter(
+      (e) => e.userId === submission.userId && e.assignmentId === assignment.id
+    );
+    const existingErrorQids = new Set(existingErrors.map((e) => e.question.id));
+
     const newErrorEntries: ErrorBookEntry[] = gradingResults
-      .filter((r) => r.score < 60 && r.errorType)
+      .filter((r) => r.score < 60 && r.errorType && !existingErrorQids.has(r.questionId))
       .map((result) => {
         const question = assignment.questions.find((q) => q.id === result.questionId)!;
         const answer = submission.answers.find((a) => a.questionId === result.questionId);
         return {
-          id: `err_${Date.now()}_${result.questionId}`,
+          id: `err_${Date.now()}_${result.questionId}_${Math.random().toString(36).slice(2, 7)}`,
           userId: submission.userId,
           assignmentId: assignment.id,
           assignmentTitle: assignment.title,
@@ -139,4 +168,20 @@ export const useStore = create<AppState>((set, get) => ({
   getUserErrorBook: (userId: string) => {
     return get().errorBook.filter((e) => e.userId === userId);
   },
+
+  getSubmissionForAssignment: (userId: string, assignmentId: string) => {
+    return get().submissions.find(
+      (s) => s.userId === userId && s.assignmentId === assignmentId
+    );
+  },
 }));
+
+declare global {
+  interface Window {
+    __store: typeof useStore;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__store = useStore;
+}
