@@ -1,0 +1,24 @@
+:root {
+  --bg-primary: #F5F0E6;
+  --bg-navbar: #5D4037;
+  --text-primary: #424242;
+  --text-title: #5D4037;
+  --text-white: #FFFFFF;
+  --accent-brown: #8B6F47;
+  --accent-brown-hover: #6D4C2E;
+  --accent-light-brown: #C49A6C;
+  --accent-green: #4CAF50;
+  --status-design: #FF8C00;
+  --status-cutting: #4FC3F7;
+  --status-stitching: #81C784;
+  --status-edge: #CE93D8;
+  --status-quality: #FFD54F;
+  --status-done: #BDBDBD;
+  --border-radius-card: 8px;
+  --border-radius-panel: 12px;
+  --border-radius-tag: 16px;
+  --shadow-card: 0 2px 4px rgba(0,0,0,0.08);
+  --shadow-card-hover: 0 8px 16px rgba(0,0,0,0.12);
+  --font-serif: 'Noto Serif SC', serif;
+  --font-sans: 'Noto Sans SC', sans-serif;
+}
