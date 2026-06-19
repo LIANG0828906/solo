@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import useUserStore from '../user/UserStore'
 import PetAvatar from '../../components/PetAvatar'
 
@@ -49,15 +49,69 @@ function ProgressBar({ label, value, color, gradient }: ProgressBarProps) {
 
 function PetPanel() {
   const user = useUserStore((s) => s.user)
+  const socket = useUserStore((s) => s.socket)
+  const fetchUser = useUserStore((s) => s.fetchUser)
+  const updatePetStats = useUserStore((s) => s.updatePetStats)
   const pet = user?.pet
-  const [, setTick] = useState(0)
+
+  const lastUpdateRef = useRef<number>(Date.now())
+  const localStatsRef = useRef<{ hunger: number; happiness: number; energy: number } | null>(null)
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTick((t) => t + 1)
+    if (pet) {
+      localStatsRef.current = {
+        hunger: pet.hunger,
+        happiness: pet.happiness,
+        energy: pet.energy,
+      }
+      lastUpdateRef.current = pet.lastUpdate * 1000
+    }
+  }, [pet?.id])
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (!pet || !localStatsRef.current) return
+
+      const isSocketConnected = socket?.connected
+      const now = Date.now()
+      const elapsed = now - lastUpdateRef.current
+      const cycles = Math.floor(elapsed / 30000)
+
+      if (cycles > 0) {
+        const newHunger = Math.max(0, localStatsRef.current.hunger - cycles * 2)
+        const newHappiness = Math.max(0, localStatsRef.current.happiness - cycles * 3)
+        const newEnergy = Math.max(0, localStatsRef.current.energy - cycles * 1)
+
+        localStatsRef.current = {
+          hunger: newHunger,
+          happiness: newHappiness,
+          energy: newEnergy,
+        }
+        lastUpdateRef.current = lastUpdateRef.current + cycles * 30000
+
+        if (!isSocketConnected) {
+          updatePetStats({
+            id: pet.id,
+            hunger: newHunger,
+            happiness: newHappiness,
+            energy: newEnergy,
+          })
+        }
+      }
+
+      if (isSocketConnected) {
+        fetchUser()
+      }
     }, 10000)
-    return () => clearInterval(interval)
-  }, [])
+
+    return () => clearInterval(intervalId)
+  }, [pet?.id, socket?.connected, fetchUser, updatePetStats, pet])
+
+  const displayStats = localStatsRef.current || {
+    hunger: pet?.hunger || 0,
+    happiness: pet?.happiness || 0,
+    energy: pet?.energy || 0,
+  }
 
   if (!pet) {
     return (
@@ -71,6 +125,13 @@ function PetPanel() {
         <p style={{ color: 'var(--text-secondary)' }}>还没有宠物，快去领养一只吧！</p>
       </div>
     )
+  }
+
+  const displayPet = {
+    ...pet,
+    hunger: displayStats.hunger,
+    happiness: displayStats.happiness,
+    energy: displayStats.energy,
   }
 
   return (
@@ -90,6 +151,26 @@ function PetPanel() {
             {pet.type === 'cat' ? '🐱 小猫咪' : pet.type === 'dog' ? '🐶 小狗狗' : '🐲 小龙龙'}
           </p>
         </div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '4px 10px',
+          borderRadius: 999,
+          background: socket?.connected ? 'rgba(126,196,160,0.15)' : 'rgba(255,100,100,0.1)',
+          fontSize: 11,
+        }}>
+          <span style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: socket?.connected ? 'var(--accent-green)' : '#ff6464',
+            animation: socket?.connected ? 'twinkle 2s ease-in-out infinite' : undefined,
+          }} />
+          <span style={{ color: socket?.connected ? 'var(--accent-green)' : '#ff6464', fontWeight: 600 }}>
+            {socket?.connected ? '在线' : '离线模式'}
+          </span>
+        </div>
       </div>
 
       <div style={{
@@ -99,25 +180,25 @@ function PetPanel() {
         background: 'linear-gradient(180deg, rgba(255,248,220,0.5), transparent)',
         borderRadius: 'var(--radius-md)',
       }}>
-        <PetAvatar pet={pet} size={120} />
+        <PetAvatar pet={displayPet} size={120} />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <ProgressBar
           label="🍗 饥饿"
-          value={pet.hunger}
+          value={displayStats.hunger}
           color="orange"
           gradient="linear-gradient(90deg, #ffb347, #ff7e5f)"
         />
         <ProgressBar
           label="💖 快乐"
-          value={pet.happiness}
+          value={displayStats.happiness}
           color="pink"
           gradient="linear-gradient(90deg, #ffb3c6, #ff6b9d)"
         />
         <ProgressBar
           label="⚡ 精力"
-          value={pet.energy}
+          value={displayStats.energy}
           color="blue"
           gradient="linear-gradient(90deg, #a8d8ea, #5eb8e0)"
         />

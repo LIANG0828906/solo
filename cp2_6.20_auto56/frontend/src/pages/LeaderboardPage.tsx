@@ -34,11 +34,18 @@ function LeaderboardPage() {
 
   const displayData = leaderboard.length > 0 ? leaderboard : mockLeaderboard
 
-  const getCrown = (rank: number) => {
-    if (rank === 1) return { icon: '👑', color: '#ffd700', label: '金' }
-    if (rank === 2) return { icon: '👑', color: '#c0c0c0', label: '银' }
-    if (rank === 3) return { icon: '👑', color: '#cd7f32', label: '铜' }
+  const getCrownInfo = (rank: number) => {
+    if (rank === 1) return { icon: '👑', className: 'crown-gold', size: 28, label: '金' }
+    if (rank === 2) return { icon: '👑', className: 'crown-silver', size: 24, label: '银' }
+    if (rank === 3) return { icon: '👑', className: 'crown-bronze', size: 22, label: '铜' }
     return null
+  }
+
+  const getRankBg = (rank: number) => {
+    if (rank === 1) return 'linear-gradient(90deg, rgba(255,215,0,0.18), rgba(255,215,0,0.02))'
+    if (rank === 2) return 'linear-gradient(90deg, rgba(192,192,192,0.15), rgba(192,192,192,0.02))'
+    if (rank === 3) return 'linear-gradient(90deg, rgba(205,127,50,0.15), rgba(205,127,50,0.02))'
+    return 'transparent'
   }
 
   return (
@@ -97,7 +104,7 @@ function LeaderboardPage() {
         <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 8px 12px' }}>🎖️ 全服排名</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {displayData.map((entry) => {
-            const crown = getCrown(entry.rank)
+            const crown = getCrownInfo(entry.rank)
             const isMe = user && entry.userId === user.id
             return (
               <div
@@ -106,57 +113,96 @@ function LeaderboardPage() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 12,
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  background: isMe ? 'rgba(255,154,90,0.1)' : entry.rank <= 3 ? 'linear-gradient(90deg, rgba(255,215,0,0.05), transparent)' : 'transparent',
-                  border: isMe ? '1px solid var(--accent-orange)' : 'none',
-                  animation: `fade-drop 0.3s ease-out ${entry.rank * 0.05}s both`,
+                  padding: '12px 14px',
+                  borderRadius: entry.rank <= 3 ? 14 : 'var(--radius-md)',
+                  background: isMe
+                    ? 'rgba(255,154,90,0.12)'
+                    : getRankBg(entry.rank),
+                  border: isMe ? '1.5px solid var(--accent-orange)' : entry.rank <= 3 ? '1px solid rgba(255,215,0,0.2)' : 'none',
+                  animation: `fade-drop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) ${entry.rank * 0.06}s both`,
+                  position: 'relative',
+                  overflow: 'hidden',
                 }}
               >
+                {entry.rank <= 3 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    width: 60,
+                    height: 60,
+                    background: entry.rank === 1
+                      ? 'radial-gradient(circle at top right, rgba(255,215,0,0.25), transparent 70%)'
+                      : entry.rank === 2
+                        ? 'radial-gradient(circle at top right, rgba(192,192,192,0.2), transparent 70%)'
+                        : 'radial-gradient(circle at top right, rgba(205,127,50,0.2), transparent 70%)',
+                    pointerEvents: 'none',
+                  }} />
+                )}
+
                 <div style={{
-                  width: 32,
+                  width: 40,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexShrink: 0,
                 }}>
                   {crown ? (
                     <span
+                      className={crown.className}
                       style={{
-                        fontSize: 22,
-                        filter: `drop-shadow(0 0 4px ${crown.color})`,
-                        animation: entry.rank <= 3 ? 'crown-pulse 1.5s ease-in-out infinite' : undefined,
-                        animationDelay: `${entry.rank * 0.2}s`,
+                        fontSize: crown.size,
+                        display: 'inline-block',
                       }}
                     >{crown.icon}</span>
                   ) : (
-                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                    <span style={{
+                      fontSize: 15,
+                      fontWeight: 800,
+                      color: 'var(--text-secondary)',
+                      background: 'rgba(120,120,120,0.1)',
+                      padding: '4px 10px',
+                      borderRadius: 8,
+                    }}>
                       #{entry.rank}
                     </span>
                   )}
                 </div>
 
                 <div style={{
-                  width: 40, height: 40, borderRadius: '50%',
-                  background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-orange))',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 20,
+                  width: entry.rank <= 3 ? 48 : 40,
+                  height: entry.rank <= 3 ? 48 : 40,
+                  borderRadius: '50%',
+                  background: entry.rank <= 3
+                    ? `linear-gradient(135deg, ${entry.rank === 1 ? '#ffd700' : entry.rank === 2 ? '#c0c0c0' : '#cd7f32'}, #ff9a5a)`
+                    : 'linear-gradient(135deg, var(--accent-pink), var(--accent-orange))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: entry.rank <= 3 ? 24 : 20,
+                  flexShrink: 0,
+                  boxShadow: entry.rank <= 3 ? `0 0 12px ${entry.rank === 1 ? 'rgba(255,215,0,0.4)' : entry.rank === 2 ? 'rgba(192,192,192,0.4)' : 'rgba(205,127,50,0.4)'}` : 'none',
                 }}>
                   {entry.avatar}
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontSize: entry.rank <= 3 ? 16 : 14,
+                      fontWeight: entry.rank <= 3 ? 800 : 700,
+                      color: entry.rank <= 3 ? (entry.rank === 1 ? '#b8860b' : entry.rank === 2 ? '#666' : '#8b5a2b') : 'var(--text-primary)',
+                    }}>
                       {entry.userName}
                     </span>
                     {isMe && (
                       <span style={{
                         fontSize: 10,
-                        padding: '1px 6px',
-                        borderRadius: 6,
+                        padding: '2px 8px',
+                        borderRadius: 8,
                         background: 'var(--accent-orange)',
                         color: 'white',
-                        fontWeight: 600,
+                        fontWeight: 700,
                       }}>我</span>
                     )}
                   </div>
@@ -165,11 +211,16 @@ function LeaderboardPage() {
                   </span>
                 </div>
 
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent-orange)' }}>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{
+                    fontSize: entry.rank <= 3 ? 20 : 17,
+                    fontWeight: 900,
+                    color: entry.rank <= 3 ? (entry.rank === 1 ? '#ffa500' : entry.rank === 2 ? '#ff7e5f' : '#e67e22') : 'var(--accent-orange)',
+                    textShadow: entry.rank <= 3 ? '0 1px 2px rgba(255,150,50,0.3)' : 'none',
+                  }}>
                     {entry.totalHappiness}
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>快乐度</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 500 }}>快乐度</div>
                 </div>
               </div>
             )

@@ -3,6 +3,7 @@ import useUserStore from '../user/UserStore'
 import PetAvatar from '../../components/PetAvatar'
 
 type AnimationType = 'feed' | 'play' | 'clean' | null
+type LoadingButton = 'feed' | 'play' | 'clean' | null
 
 function PetInteraction() {
   const user = useUserStore((s) => s.user)
@@ -13,12 +14,14 @@ function PetInteraction() {
 
   const [animation, setAnimation] = useState<AnimationType>(null)
   const [gainedText, setGainedText] = useState<string | null>(null)
+  const [loadingButton, setLoadingButton] = useState<LoadingButton>(null)
 
   useEffect(() => {
     if (animation) {
       const timer = setTimeout(() => {
         setAnimation(null)
         setGainedText(null)
+        setLoadingButton(null)
       }, 1500)
       return () => clearTimeout(timer)
     }
@@ -27,21 +30,24 @@ function PetInteraction() {
   if (!pet) return null
 
   const handleFeed = async () => {
-    if (animation) return
+    if (loadingButton) return
+    setLoadingButton('feed')
     const gained = await feedPet()
     setAnimation('feed')
     setGainedText(`+${gained} 饱食`)
   }
 
   const handlePlay = async () => {
-    if (animation) return
+    if (loadingButton) return
+    setLoadingButton('play')
     const gained = await playPet()
     setAnimation('play')
     setGainedText(`+${gained} 快乐`)
   }
 
   const handleClean = async () => {
-    if (animation) return
+    if (loadingButton) return
+    setLoadingButton('clean')
     const gained = await cleanPet()
     setAnimation('clean')
     setGainedText(`+${gained} 精力`)
@@ -58,6 +64,71 @@ function PetInteraction() {
       default:
         return {}
     }
+  }
+
+  const Spinner = () => (
+    <span style={{
+      display: 'inline-block',
+      width: 14,
+      height: 14,
+      border: '2px solid rgba(255,255,255,0.3)',
+      borderTop: '2px solid white',
+      borderRadius: '50%',
+      animation: 'jump-spin 0.8s linear infinite',
+    }} />
+  )
+
+  const renderButton = (
+    type: LoadingButton,
+    onClick: () => void,
+    icon: string,
+    label: string,
+    gradient: string,
+    shadow: string
+  ) => {
+    const isLoading = loadingButton === type
+    const disabled = loadingButton !== null
+    return (
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className="btn-press"
+        style={{
+          position: 'relative',
+          flex: 1,
+          padding: '12px 16px',
+          borderRadius: 999,
+          border: 'none',
+          background: disabled
+            ? isLoading
+              ? gradient
+              : '#ccc'
+            : gradient,
+          color: 'white',
+          fontWeight: 600,
+          fontSize: 14,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          boxShadow: disabled ? 'none' : shadow,
+          opacity: disabled && !isLoading ? 0.6 : 1,
+          transition: 'all 0.2s ease',
+        }}
+      >
+        {isLoading && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(255,255,255,0.15)',
+            borderRadius: 999,
+          }} />
+        )}
+        {isLoading ? <Spinner /> : <span>{icon}</span>}
+        {label}
+      </button>
+    )
   }
 
   return (
@@ -158,75 +229,30 @@ function PetInteraction() {
       </div>
 
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-        <button
-          onClick={handleFeed}
-          disabled={!!animation}
-          className="btn-press"
-          style={{
-            flex: 1,
-            padding: '12px 16px',
-            borderRadius: 999,
-            border: 'none',
-            background: animation ? '#ccc' : 'linear-gradient(135deg, #ffb347, #ff9a5a)',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: animation ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            boxShadow: '0 2px 8px rgba(255,154,90,0.4)',
-          }}
-        >
-          <span>🍗</span> 喂食
-        </button>
-        <button
-          onClick={handlePlay}
-          disabled={!!animation}
-          className="btn-press"
-          style={{
-            flex: 1,
-            padding: '12px 16px',
-            borderRadius: 999,
-            border: 'none',
-            background: animation ? '#ccc' : 'linear-gradient(135deg, #ffb3c6, #ff8fab)',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: animation ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            boxShadow: '0 2px 8px rgba(255,143,171,0.4)',
-          }}
-        >
-          <span>🎾</span> 玩耍
-        </button>
-        <button
-          onClick={handleClean}
-          disabled={!!animation}
-          className="btn-press"
-          style={{
-            flex: 1,
-            padding: '12px 16px',
-            borderRadius: 999,
-            border: 'none',
-            background: animation ? '#ccc' : 'linear-gradient(135deg, #a8d8ea, #7ec8e3)',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: animation ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            boxShadow: '0 2px 8px rgba(126,200,227,0.4)',
-          }}
-        >
-          <span>🧼</span> 清洁
-        </button>
+        {renderButton(
+          'feed',
+          handleFeed,
+          '🍗',
+          '喂食',
+          'linear-gradient(135deg, #ffb347, #ff9a5a)',
+          '0 2px 8px rgba(255,154,90,0.4)'
+        )}
+        {renderButton(
+          'play',
+          handlePlay,
+          '🎾',
+          '玩耍',
+          'linear-gradient(135deg, #ffb3c6, #ff8fab)',
+          '0 2px 8px rgba(255,143,171,0.4)'
+        )}
+        {renderButton(
+          'clean',
+          handleClean,
+          '🧼',
+          '清洁',
+          'linear-gradient(135deg, #a8d8ea, #7ec8e3)',
+          '0 2px 8px rgba(126,200,227,0.4)'
+        )}
       </div>
     </div>
   )

@@ -49,6 +49,11 @@
   100% { transform: translateY(0) rotate(360deg); }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @keyframes mouth-open {
   0%, 100% { transform: scaleY(1); }
   50% { transform: scaleY(1.8); }
@@ -77,18 +82,72 @@
 }
 
 @keyframes crown-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
+  0%, 100% { transform: scale(1) translateY(0); }
+  25% { transform: scale(1.25) translateY(-3px); }
+  50% { transform: scale(1.1) translateY(0); }
+  75% { transform: scale(1.2) translateY(-2px); }
+}
+
+@keyframes crown-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px var(--crown-color)) drop-shadow(0 0 4px var(--crown-color)); }
+  50% { filter: drop-shadow(0 0 6px var(--crown-color)) drop-shadow(0 0 12px var(--crown-color)); }
 }
 
 @keyframes fade-drop {
-  0% { opacity: 0; transform: translateY(-30px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% { opacity: 0; transform: translateY(-40px) scale(0.95); }
+  60% { opacity: 1; transform: translateY(4px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes card-drop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-60px) rotateX(30deg);
+    filter: blur(4px);
+  }
+  50% {
+    opacity: 0.8;
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg);
+    filter: blur(0);
+  }
 }
 
 @keyframes badge-shine {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@keyframes particle-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0) translate(0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.6) translate(var(--px, 10px), var(--py, -10px));
+  }
+}
+
+@keyframes hexagon-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 5px rgba(255, 215, 0, 0.4),
+      inset 0 0 10px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 20px rgba(255, 215, 0, 0.8),
+      0 0 30px rgba(255, 180, 0, 0.4),
+      inset 0 0 20px rgba(255, 255, 255, 0.6);
+  }
 }
 
 .pet-breathe {
@@ -132,7 +191,7 @@
 }
 
 .btn-press {
-  transition: transform 0.15s ease, filter 0.15s ease;
+  transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
 }
 
 .btn-press:active {
@@ -142,4 +201,40 @@
 
 .drop-shadow-pet {
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
+}
+
+.crown-gold {
+  --crown-color: #ffd700;
+  animation: crown-pulse 1.8s ease-in-out infinite, crown-glow 2s ease-in-out infinite;
+  color: #ffd700;
+}
+
+.crown-silver {
+  --crown-color: #c0c0c0;
+  animation: crown-pulse 1.8s ease-in-out 0.3s infinite, crown-glow 2s ease-in-out 0.3s infinite;
+  color: #c0c0c0;
+}
+
+.crown-bronze {
+  --crown-color: #cd7f32;
+  animation: crown-pulse 1.8s ease-in-out 0.6s infinite, crown-glow 2s ease-in-out 0.6s infinite;
+  color: #cd7f32;
+}
+
+.badge-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: radial-gradient(circle, #fff, #ffd700);
+  border-radius: 50%;
+  animation: particle-burst 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.hexagon-badge {
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+.hexagon-unlocked {
+  animation: hexagon-glow 3s ease-in-out infinite;
 }

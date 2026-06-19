@@ -8,14 +8,13 @@ const GRID_ROWS = 6
 const CELL_SIZE = 70
 
 interface InteractionMenuProps {
-  pet: Pet
   onClose: () => void
   onWave: () => void
   onDance: () => void
   onGift: () => void
 }
 
-function InteractionMenu({ pet, onClose, onWave, onDance, onGift }: InteractionMenuProps) {
+function InteractionMenu({ onClose, onWave, onDance, onGift }: InteractionMenuProps) {
   return (
     <div style={{
       position: 'absolute',
@@ -89,6 +88,8 @@ function GardenMap() {
   const gardenEvents = useUserStore((s) => s.gardenEvents)
   const movePet = useUserStore((s) => s.movePet)
   const sendGardenEvent = useUserStore((s) => s.sendGardenEvent)
+  const sendGift = useUserStore((s) => s.sendGift)
+  const gifts = useUserStore((s) => s.gifts)
   const socket = useUserStore((s) => s.socket)
 
   const [isMobile, setIsMobile] = useState(false)
@@ -126,7 +127,10 @@ function GardenMap() {
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!user?.pet) return
+    const target = e.target as HTMLElement
+    if (!target.closest('.my-pet-container')) return
     e.preventDefault()
+    e.stopPropagation()
     setDragging(true)
     const rect = mapRef.current?.getBoundingClientRect()
     if (rect) {
@@ -163,6 +167,8 @@ function GardenMap() {
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!user?.pet) return
+    const target = e.target as HTMLElement
+    if (!target.closest('.my-pet-container')) return
     const touch = e.touches[0]
     setDragging(true)
     const rect = mapRef.current?.getBoundingClientRect()
@@ -212,6 +218,7 @@ function GardenMap() {
   const simplifiedCount = allPets.length - 50
 
   const handlePetClick = (pet: Pet, e: React.MouseEvent) => {
+    if (dragging) return
     e.stopPropagation()
     if (user?.pet && pet.id !== user.pet.id) {
       setSelectedPet(pet)
@@ -235,6 +242,12 @@ function GardenMap() {
       setShowGiftSender(selectedPet)
       setSelectedPet(null)
     }
+  }
+
+  const handleSendGift = (giftId: string) => {
+    if (!showGiftSender) return
+    sendGift(showGiftSender.id, giftId)
+    setShowGiftSender(null)
   }
 
   return (
@@ -270,8 +283,9 @@ function GardenMap() {
             : 'linear-gradient(135deg, #7ec4a0 0%, #5aa87e 50%, #4a946e 100%)',
           borderRadius: 'var(--radius-md)',
           overflow: 'hidden',
-          cursor: user?.pet ? 'grab' : 'default',
+          cursor: user?.pet ? (dragging ? 'grabbing' : 'grab') : 'default',
           boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.15)',
+          touchAction: 'none',
         }}
       >
         {[...Array(GRID_ROWS)].map((_, row) =>
@@ -319,6 +333,7 @@ function GardenMap() {
               left: `${[10, 35, 55, 75, 90][i]}%`,
               top: `${[20, 60, 30, 70, 45][i]}%`,
               opacity: 0.7,
+              pointerEvents: 'none',
             }}
           >{['🌼', '🌸', '🌺', '🌻', '🌷'][i]}</span>
         ))}
@@ -327,31 +342,36 @@ function GardenMap() {
           const pos = getPetPixelPosition(pet)
           const isMyPet = user?.pet?.id === pet.id
           const isAnimating = animatingEvents[pet.id]
+          const isDraggingThis = dragging && isMyPet
           return (
             <div
               key={pet.id}
+              className={isMyPet ? 'my-pet-container' : ''}
               onClick={(e) => handlePetClick(pet, e)}
               onMouseDown={isMyPet ? handleMouseDown : undefined}
               onTouchStart={isMyPet ? handleTouchStart : undefined}
               style={{
                 position: 'absolute',
-                left: dragging && isMyPet && dragPos ? dragPos.x : pos.x,
-                top: dragging && isMyPet && dragPos ? dragPos.y : pos.y,
+                left: isDraggingThis && dragPos ? dragPos.x : pos.x,
+                top: isDraggingThis && dragPos ? dragPos.y : pos.y,
                 transform: 'translate(-50%, -50%)',
-                zIndex: Math.floor(pos.y),
+                zIndex: isDraggingThis ? 999 : Math.floor(pos.y),
                 cursor: isMyPet ? (dragging ? 'grabbing' : 'grab') : 'pointer',
-                transition: dragging && isMyPet ? 'none' : 'left 0.3s ease, top 0.3s ease',
+                transition: isDraggingThis ? 'none' : 'left 0.3s ease, top 0.3s ease',
+                opacity: isDraggingThis ? 0.6 : 1,
+                transitionProperty: 'opacity',
+                transitionDuration: '0.15s',
               }}
             >
-              {dragging && isMyPet && (
+              {isDraggingThis && (
                 <div style={{
                   position: 'absolute',
-                  bottom: -5,
+                  bottom: -8,
                   left: '50%',
                   transform: 'translateX(-50%)',
                   width: 50,
                   height: 16,
-                  background: 'rgba(0,0,0,0.3)',
+                  background: 'rgba(0,0,0,0.4)',
                   borderRadius: '50%',
                   filter: 'blur(4px)',
                 }} />
@@ -384,12 +404,12 @@ function GardenMap() {
                 fontWeight: 600,
                 whiteSpace: 'nowrap',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                pointerEvents: 'none',
               }}>
                 {pet.ownerName}
               </div>
               {selectedPet?.id === pet.id && (
                 <InteractionMenu
-                  pet={pet}
                   onClose={() => setSelectedPet(null)}
                   onWave={handleWave}
                   onDance={handleDance}
@@ -410,6 +430,7 @@ function GardenMap() {
             borderRadius: 10,
             fontSize: 11,
             color: 'var(--text-secondary)',
+            pointerEvents: 'none',
           }}>
             还有 {simplifiedCount} 只宠物...
           </div>
@@ -425,6 +446,7 @@ function GardenMap() {
             borderRadius: 10,
             fontSize: 10,
             color: 'var(--text-secondary)',
+            pointerEvents: 'none',
           }}>
             💡 拖动你的宠物移动位置
           </div>
@@ -447,39 +469,53 @@ function GardenMap() {
             borderRadius: 'var(--radius-lg)',
             width: '90%',
             maxWidth: 350,
+            boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
           }}>
-            <h4 style={{ marginBottom: 12 }}>选择礼物送给 {showGiftSender.ownerName} 的宠物</h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-              {user?.inventory.map((item) => {
-                const gift = useUserStore.getState().gifts.find((g) => g.id === item.giftId)
-                if (!gift || item.quantity <= 0) return null
-                return (
-                  <button
-                    key={item.giftId}
-                    onClick={() => {
-                      useUserStore.getState().sendGift(showGiftSender.id, item.giftId)
-                      setShowGiftSender(null)
-                    }}
-                    className="btn-press"
-                    style={{
-                      padding: '10px 14px',
-                      border: 'none',
-                      borderRadius: 10,
-                      background: 'linear-gradient(135deg, #fff3e0, #ffe0b2)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 2,
-                      minWidth: 70,
-                    }}
-                  >
-                    <span style={{ fontSize: 24 }}>{gift.icon}</span>
-                    <span style={{ fontSize: 10 }}>{gift.name}</span>
-                    <span style={{ fontSize: 9, color: 'var(--accent-orange)' }}>x{item.quantity}</span>
-                  </button>
-                )
-              })}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h4 style={{ fontSize: 16, fontWeight: 700 }}>🎁 送礼物给 {showGiftSender.ownerName} 的宠物</h4>
+              <button
+                onClick={() => setShowGiftSender(null)}
+                style={{ border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >✕</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+              {user?.inventory.length === 0 || (!user || user.inventory.filter(i => i.quantity > 0).length === 0) ? (
+                <p style={{ gridColumn: '1/-1', textAlign: 'center', padding: 20, color: 'var(--text-secondary)', fontSize: 13 }}>
+                  还没有礼物，去商店购买吧！
+                </p>
+              ) : (
+                user?.inventory.map((item) => {
+                  const gift = gifts.find((g) => g.id === item.giftId)
+                  if (!gift || item.quantity <= 0) return null
+                  return (
+                    <button
+                      key={item.giftId}
+                      onClick={() => handleSendGift(item.giftId)}
+                      className="btn-press"
+                      style={{
+                        position: 'relative',
+                        padding: '12px 8px',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'linear-gradient(135deg, #fff3e0, #ffe0b2)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 2,
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute', top: 4, right: 4,
+                        background: 'var(--accent-orange)', color: 'white',
+                        fontSize: 10, padding: '1px 6px', borderRadius: 8, fontWeight: 700,
+                      }}>x{item.quantity}</span>
+                      <span style={{ fontSize: 28 }}>{gift.icon}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600 }}>{gift.name}</span>
+                    </button>
+                  )
+                })
+              )}
             </div>
             <button
               onClick={() => setShowGiftSender(null)}
@@ -490,6 +526,8 @@ function GardenMap() {
                 borderRadius: 8,
                 background: '#f5f5f5',
                 cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 600,
               }}
             >取消</button>
           </div>
