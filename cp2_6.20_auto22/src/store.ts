@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { addDays, differenceInDays, isBefore, isAfter, parseISO } from 'date-fns';
+import { addDays, differenceInDays, isBefore, isAfter, parseISO, isSameDay, startOfDay } from 'date-fns';
 import {
   Project,
   Task,
@@ -20,11 +20,13 @@ interface AppState {
   dragState: DragState;
   criticalPath: string[];
   dependencyConflicts: DependencyConflict[];
+  pendingDependency: { fromId: string; toId: string } | null;
   isLoading: boolean;
 
   setCurrentProject: (id: string | null) => void;
   setViewMode: (mode: ViewMode) => void;
   setDragState: (state: DragState) => void;
+  setPendingDependency: (dep: { fromId: string; toId: string } | null) => void;
 
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
@@ -43,7 +45,8 @@ interface AppState {
 
   calculateCriticalPath: () => void;
   checkDependencyConflicts: () => void;
-  getResourceLoad: (resourceId: string, date: string) => number;
+  detectCycle: (taskId: string, dependentId: string) => boolean;
+  getResourceLoad: (resourceId: string, date: string | Date) => number;
 }
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -175,7 +178,7 @@ const defaultTasks: Task[] = [
   },
 ];
 
-const detectCycle = (tasks: Task[], taskId: string, dependentId: string): boolean => {
+const detectCycleUtil = (tasks: Task[], taskId: string, dependentId: string): boolean => {
   const visited = new Set<string>();
   const stack = [dependentId];
   while (stack.length > 0) {
@@ -191,6 +194,42 @@ const detectCycle = (tasks: Task[], taskId: string, dependentId: string): boolea
   return false;
 };
 
+const topologicalSort = (tasks: Task[]): Task[] => {
+  const inDegree: Record<string, number> = {};
+  const graph: Record<string, string[]> = {};
+  tasks.forEach((t) => {
+    inDegree[t.id] = 0;
+    graph[t.id] = [];
+  });
+  tasks.forEach((t) => {
+    t.dependencies.forEach((depId) => {
+      if (inDegree[depId] !== undefined) {
+        inDegree[t.id]++;
+        graph[depId].push(t.id);
+      }
+    });
+  });
+  const queue: string[] = [];
+  tasks.forEach((t) => {
+    if (inDegree[t.id] === 0) queue.push(t.id);
+  });
+  const result: Task[] = [];
+  const taskMap = new Map(tasks.map((t) => [t.id, t]));
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const task = taskMap.get(id);
+    if (task) result.push(task);
+    graph[id].forEach((nextId) => {
+      inDegree[nextId]--;
+      if (inDegree[nextId] === 0) queue.push(nextId);
+    });
+  }
+  tasks.forEach((t) => {
+    if (!result.find((r) => r.id === t.id)) result.push(t);
+  });
+  return result;
+};
+
 export const useAppStore = create<AppState>((set, get) => ({
   projects: defaultProjects,
   tasks: defaultTasks,
@@ -201,11 +240,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   dragState: { taskId: null, type: null, startX: 0, originalStart: '', originalEnd: '' },
   criticalPath: [],
   dependencyConflicts: [],
+  pendingDependency: null,
   isLoading: false,
 
   setCurrentProject: (id) => set({ currentProjectId: id }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setDragState: (state) => set({ dragState: state }),
+  setPendingDependency: (dep) => set({ pendingDependency: dep }),
 
   addProject: (project) => {
     const newProject: Project = {
@@ -266,16 +307,19 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { tasks: taskIds.map((id) => taskMap.get(id)!).filter(Boolean) };
     }),
 
+  detectCycle: (taskId, dependentId) => detectCycleUtil(get().tasks, taskId, dependentId),
+
   addDependency: (taskId, dependentId) => {
     const state = get();
     if (taskId === dependentId) return false;
-    if (detectCycle(state.tasks, taskId, dependentId)) return false;
+    if (detectCycleUtil(state.tasks, taskId, dependentId)) return false;
     set((s) => ({
       tasks: s.tasks.map((t) =>
         t.id === taskId && !t.dependencies.includes(dependentId)
           ? { ...t, dependencies: [...t.dependencies, dependentId] }
           : t
       ),
+      pendingDependency: null,
     }));
     setTimeout(() => {
       get().calculateCriticalPath();
@@ -327,20 +371,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     const earlyFinish: Record<string, number> = {};
     const lateStart: Record<string, number> = {};
     const lateFinish: Record<string, number> = {};
+    const durationMap: Record<string, number> = {};
 
-    const sorted = [...tasks].sort((a, b) => {
-      const aDeps = a.dependencies.length;
-      const bDeps = b.dependencies.length;
-      if (a.dependencies.includes(b.id)) return 1;
-      if (b.dependencies.includes(a.id)) return -1;
-      return aDeps - bDeps;
+    tasks.forEach((task) => {
+      const start = startOfDay(parseISO(task.startDate));
+      const end = startOfDay(parseISO(task.endDate));
+      const duration = Math.max(1, differenceInDays(end, start) + 1);
+      durationMap[task.id] = duration;
     });
 
+    const sorted = topologicalSort(tasks);
+
     for (const task of sorted) {
-      const duration = Math.max(
-        1,
-        differenceInDays(parseISO(task.endDate), parseISO(task.startDate)) + 1
-      );
+      const duration = durationMap[task.id];
       let maxDepFinish = 0;
       for (const depId of task.dependencies) {
         if (earlyFinish[depId] !== undefined) {
@@ -351,29 +394,47 @@ export const useAppStore = create<AppState>((set, get) => ({
       earlyFinish[task.id] = maxDepFinish + duration;
     }
 
-    const maxFinish = Math.max(...Object.values(earlyFinish));
+    const maxFinish = Math.max(...Object.values(earlyFinish), 0);
     const reversed = [...sorted].reverse();
 
     for (const task of reversed) {
-      const duration = Math.max(
-        1,
-        differenceInDays(parseISO(task.endDate), parseISO(task.startDate)) + 1
-      );
-      let minDepStart = maxFinish;
+      const duration = durationMap[task.id];
+      let minSuccessorStart = maxFinish;
       for (const other of tasks) {
         if (other.dependencies.includes(task.id)) {
-          minDepStart = Math.min(minDepStart, lateStart[other.id] ?? maxFinish);
+          minSuccessorStart = Math.min(minSuccessorStart, lateStart[other.id] ?? maxFinish);
         }
       }
-      lateFinish[task.id] = minDepStart;
-      lateStart[task.id] = minDepStart - duration;
+      lateFinish[task.id] = minSuccessorStart;
+      lateStart[task.id] = minSuccessorStart - duration;
     }
 
-    const critical = tasks
-      .filter((task) => Math.abs((earlyFinish[task.id] ?? 0) - (lateFinish[task.id] ?? 0)) < 0.1)
-      .map((t) => t.id);
+    const critical: string[] = [];
+    for (const task of tasks) {
+      const es = earlyStart[task.id] ?? 0;
+      const ef = earlyFinish[task.id] ?? 0;
+      const ls = lateStart[task.id] ?? 0;
+      const lf = lateFinish[task.id] ?? 0;
+      const slack = Math.min(Math.abs(ls - es), Math.abs(lf - ef));
+      const isMilestone = durationMap[task.id] <= 1;
+      if (slack < 0.1 || (isMilestone && Math.abs(ls - es) < 0.1)) {
+        critical.push(task.id);
+      }
+    }
 
-    set({ criticalPath: critical });
+    const criticalSet = new Set(critical);
+    for (const taskId of critical) {
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) {
+        for (const depId of task.dependencies) {
+          if (criticalSet.has(depId)) {
+            criticalSet.add(depId);
+          }
+        }
+      }
+    }
+
+    set({ criticalPath: Array.from(criticalSet) });
   },
 
   checkDependencyConflicts: () => {
@@ -381,16 +442,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     const conflicts: DependencyConflict[] = [];
 
     for (const task of tasks) {
+      const taskStart = startOfDay(parseISO(task.startDate));
       for (const depId of task.dependencies) {
         const depTask = tasks.find((t) => t.id === depId);
-        if (depTask && isBefore(parseISO(task.startDate), parseISO(depTask.endDate))) {
+        if (!depTask) continue;
+        const depEnd = startOfDay(parseISO(depTask.endDate));
+        if (isBefore(taskStart, depEnd) && !isSameDay(taskStart, depEnd)) {
           conflicts.push({
             taskId: task.id,
             dependentId: depId,
             message: `任务「${task.name}」开始日期早于依赖任务「${depTask.name}」的结束日期`,
           });
         }
-        if (detectCycle(tasks, task.id, depId)) {
+        if (detectCycleUtil(tasks, task.id, depId)) {
           conflicts.push({
             taskId: task.id,
             dependentId: depId,
@@ -408,20 +472,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     const resource = resources.find((r) => r.id === resourceId);
     if (!resource) return 0;
 
+    const checkDate = typeof date === 'string' ? startOfDay(parseISO(date)) : startOfDay(date);
+    const checkTime = checkDate.getTime();
+
     let totalHours = 0;
     for (const task of tasks) {
       if (task.assigneeId !== resourceId) continue;
-      const taskStart = parseISO(task.startDate);
-      const taskEnd = parseISO(task.endDate);
-      const checkDate = parseISO(date);
-      if (
-        (isBefore(checkDate, taskEnd) || checkDate.getTime() === taskEnd.getTime()) &&
-        (isAfter(checkDate, taskStart) || checkDate.getTime() === taskStart.getTime())
-      ) {
-        const taskDays = Math.max(
-          1,
-          differenceInDays(taskEnd, taskStart) + 1
-        );
+      const taskStart = startOfDay(parseISO(task.startDate)).getTime();
+      const taskEnd = startOfDay(parseISO(task.endDate)).getTime();
+      if (checkTime >= taskStart && checkTime <= taskEnd) {
+        const taskDays = Math.max(1, Math.round((taskEnd - taskStart) / (1000 * 60 * 60 * 24)) + 1);
         totalHours += task.estimatedHours / taskDays;
       }
     }

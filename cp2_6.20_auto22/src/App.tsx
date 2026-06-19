@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { format } from 'date-fns';
+import html2canvas from 'html2canvas';
 import GanttChart from './components/GanttChart';
 import ResourcePanel from './components/ResourcePanel';
 import { useAppStore } from './store';
@@ -32,42 +33,20 @@ const App: React.FC = () => {
       const container = ganttContainerRef.current;
       if (!container) return;
 
-      const svg = container.querySelector('svg');
-      if (!svg) return;
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+      });
 
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const scale = 2;
-        canvas.width = (svg.clientWidth || 1200) * scale;
-        canvas.height = (svg.clientHeight || 800) * scale;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.scale(scale, scale);
-          ctx.drawImage(img, 0, 0);
-        }
-
-        const link = document.createElement('a');
-        link.download = `gantt-chart-${format(new Date(), 'yyyy-MM-dd')}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-
-        URL.revokeObjectURL(url);
-        setIsExporting(false);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        setIsExporting(false);
-      };
-      img.src = url;
+      const link = document.createElement('a');
+      link.download = `gantt-chart-${format(new Date(), 'yyyy-MM-dd')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
     } catch (e) {
       console.error('Export failed:', e);
+    } finally {
       setIsExporting(false);
     }
   };
@@ -376,6 +355,48 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {isExporting && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            animation: 'fadeIn 0.2s',
+          }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 16,
+              padding: '32px 48px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 16,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              animation: 'scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            }}
+          >
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              style={{ animation: 'spin 1s linear infinite' }}
+            >
+              <circle cx="12" cy="12" r="10" stroke="#1a237e" strokeWidth="3" strokeLinecap="round" strokeDasharray="30 60" />
+            </svg>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#1a237e' }}>正在导出PNG...</div>
+            <div style={{ fontSize: 12, color: '#78909c' }}>请稍候，正在生成高清图片</div>
+          </div>
+        </div>
+      )}
+
       {showNewTaskModal && (
         <div
           onClick={() => setShowNewTaskModal(false)}
@@ -561,6 +582,10 @@ const App: React.FC = () => {
         @keyframes scaleIn {
           from { opacity: 0; transform: scale(0.9); }
           to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
         @media (max-width: 768px) {
           .main-content {

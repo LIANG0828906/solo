@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   format,
   addDays,
@@ -9,7 +9,8 @@ import {
   differenceInDays,
   parseISO,
   isSameDay,
-  isSameMonth,
+  startOfDay,
+  getDaysInMonth,
 } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { Task, Project, Resource } from '../types';
@@ -28,9 +29,268 @@ const ROW_HEIGHT = 50;
 const HEADER_HEIGHT = 80;
 const TASK_LIST_WIDTH = 220;
 
+const colorMap: Record<string, string> = {
+  'blue-200': '#bbdefb', 'blue-600': '#1e88e5',
+  'green-200': '#c8e6c9', 'green-600': '#43a047',
+  'purple-200': '#e1bee7', 'purple-600': '#8e24aa',
+  'pink-200': '#f8bbd0', 'pink-600': '#d81b60',
+  'orange-200': '#ffe0b2', 'orange-600': '#fb8c00',
+  'gray-200': '#eeeeee', 'gray-600': '#757575',
+};
+
+interface TaskBarProps {
+  task: Task;
+  index: number;
+  startX: number;
+  taskWidth: number;
+  isCritical: boolean;
+  isDragging: boolean;
+  isConnecting: boolean;
+  isHovered: boolean;
+  projectColor: string;
+  onMouseDown: (e: React.MouseEvent, type: 'start' | 'end' | 'move') => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  onConnectorClick: (e: React.MouseEvent) => void;
+  getResourceName: (id: string | null) => string;
+}
+
+const TaskBar = memo(function TaskBar({
+  task,
+  startX,
+  taskWidth,
+  isCritical,
+  isDragging,
+  isConnecting,
+  isHovered,
+  projectColor,
+  onMouseDown,
+  onMouseEnter,
+  onMouseLeave,
+  onConnectorClick,
+}: TaskBarProps) {
+  const y = 8;
+  const gradientId = `grad-${task.id}`;
+  const [c1, c2] = projectColor.replace('from-', '').replace('to-', '').split(' ');
+
+  return (
+    <g
+      transform={`translate(${startX}, 0)`}
+      style={{ cursor: 'move' }}
+      className={isCritical ? 'critical-task' : ''}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={colorMap[c1] || '#bbdefb'} />
+          <stop offset="100%" stopColor={colorMap[c2] || '#1e88e5'} />
+        </linearGradient>
+      </defs>
+
+      {isDragging && (
+        <rect
+          x={-2}
+          y={y - 2}
+          width={taskWidth + 4}
+          height={38}
+          rx={8}
+          fill="rgba(25, 118, 210, 0.25)"
+          style={{ filter: 'blur(4px)' }}
+        />
+      )}
+
+      <g transform={`translate(0, ${y})`}>
+        <rect
+          x={0}
+          y={0}
+          width={taskWidth}
+          height={34}
+          rx={6}
+          fill={`url(#${gradientId})`}
+          stroke={isCritical ? '#ffc107' : isConnecting ? '#1976d2' : 'rgba(0,0,0,0.15)'}
+          strokeWidth={isCritical ? 3 : isConnecting ? 2.5 : 1.5}
+          style={{
+            transition: isDragging ? 'none' : 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            filter: isHovered && !isDragging ? 'brightness(1.08) drop-shadow(0 4px 8px rgba(0,0,0,0.2))' : 'none',
+            transformOrigin: 'center',
+          }}
+          className={isCritical ? 'critical-task-rect' : ''}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onMouseDown(e, 'move');
+          }}
+        />
+
+        <rect
+          x={0}
+          y={0}
+          width={taskWidth * (task.progress / 100)}
+          height={34}
+          rx={6}
+          fill="rgba(0,0,0,0.2)"
+          style={{ pointerEvents: 'none' }}
+        />
+
+        <text
+          x={10}
+          y={22}
+          fill="white"
+          fontSize={12}
+          fontWeight="600"
+          style={{ pointerEvents: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+        >
+          {taskWidth > 80 ? task.name : task.name.slice(0, Math.floor(taskWidth / 10)) + '...'}
+        </text>
+
+        {taskWidth > 100 && (
+          <text
+            x={taskWidth - 10}
+            y={22}
+            fill="rgba(255,255,255,0.95)"
+            fontSize={11}
+            textAnchor="end"
+            style={{ pointerEvents: 'none' }}
+          >
+            {task.progress}%
+          </text>
+        )}
+
+        <rect
+          x={-3}
+          y={4}
+          width={6}
+          height={26}
+          rx={3}
+          fill="#1976d2"
+          style={{
+            cursor: 'ew-resize',
+            opacity: isHovered || isDragging ? 1 : 0,
+            transition: 'opacity 0.2s',
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onMouseDown(e, 'start');
+          }}
+        />
+
+        <rect
+          x={taskWidth - 3}
+          y={4}
+          width={6}
+          height={26}
+          rx={3}
+          fill="#1976d2"
+          style={{
+            cursor: 'ew-resize',
+            opacity: isHovered || isDragging ? 1 : 0,
+            transition: 'opacity 0.2s',
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onMouseDown(e, 'end');
+          }}
+        />
+
+        <circle
+          cx={taskWidth + 10}
+          cy={17}
+          r={7}
+          fill={isConnecting ? '#1976d2' : '#ffffff'}
+          stroke="#1976d2"
+          strokeWidth={2}
+          style={{
+            cursor: 'pointer',
+            opacity: isHovered || isConnecting ? 1 : 0,
+            transition: 'opacity 0.2s',
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onConnectorClick(e);
+          }}
+        >
+          {isConnecting && (
+            <animate attributeName="r" values="7;9;7" dur="1s" repeatCount="indefinite" />
+          )}
+        </circle>
+        <text
+          x={taskWidth + 10}
+          y={21}
+          fill={isConnecting ? '#ffffff' : '#1976d2'}
+          fontSize={12}
+          fontWeight="bold"
+          textAnchor="middle"
+          style={{ pointerEvents: 'none', opacity: isHovered || isConnecting ? 1 : 0 }}
+        >
+          →
+        </text>
+      </g>
+    </g>
+  );
+});
+
+interface DependencyArrowProps {
+  taskId: string;
+  depId: string;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  isConflict: boolean;
+  isCritical: boolean;
+  isPending: boolean;
+}
+
+const DependencyArrow = memo(function DependencyArrow({
+  taskId,
+  depId,
+  fromX,
+  fromY,
+  toX,
+  toY,
+  isConflict,
+  isCritical,
+  isPending,
+}: DependencyArrowProps) {
+  const midX = (fromX + toX) / 2;
+  const path = `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`;
+  const markerId = `arrow-${taskId}-${depId}`;
+  const strokeColor = isConflict ? '#e53935' : isCritical ? '#ffc107' : '#90a4ae';
+
+  return (
+    <g>
+      <defs>
+        <marker
+          id={markerId}
+          markerWidth="10"
+          markerHeight="10"
+          refX="8"
+          refY="3"
+          orient="auto"
+        >
+          <polygon points="0 0, 10 3, 0 6" fill={strokeColor} />
+        </marker>
+      </defs>
+      <path
+        d={path}
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth={isCritical ? 2.5 : 1.8}
+        strokeDasharray={isPending ? '6 4' : '0'}
+        markerEnd={`url(#${markerId})`}
+        opacity={isConflict ? 1 : 0.7}
+        style={{ transition: 'all 0.3s ease' }}
+      />
+    </g>
+  );
+});
+
 const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingUpdateRef = useRef<{ id: string; start: string; end: string } | null>(null);
+
   const viewMode = useAppStore((s) => s.viewMode);
   const setViewMode = useAppStore((s) => s.setViewMode);
   const dragState = useAppStore((s) => s.dragState);
@@ -39,12 +299,20 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
   const criticalPath = useAppStore((s) => s.criticalPath);
   const dependencyConflicts = useAppStore((s) => s.dependencyConflicts);
   const addDependency = useAppStore((s) => s.addDependency);
+  const pendingDependency = useAppStore((s) => s.pendingDependency);
+  const setPendingDependency = useAppStore((s) => s.setPendingDependency);
+  const detectCycle = useAppStore((s) => s.detectCycle);
 
   const [hoveredTask, setHoveredTask] = useState<string | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [showConflictAlert, setShowConflictAlert] = useState<string | null>(null);
+  const [localDragData, setLocalDragData] = useState<{
+    taskId: string;
+    startDate: Date;
+    endDate: Date;
+  } | null>(null);
 
   const dayWidth = viewMode === 'month' ? DAY_WIDTH_MONTH : DAY_WIDTH_WEEK;
 
@@ -53,11 +321,11 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
       const today = new Date();
       return { start: startOfMonth(today), end: addMonths(startOfMonth(today), 1) };
     }
-    let minDate = parseISO(tasks[0].startDate);
-    let maxDate = parseISO(tasks[0].endDate);
+    let minDate = startOfDay(parseISO(tasks[0].startDate));
+    let maxDate = startOfDay(parseISO(tasks[0].endDate));
     for (const task of tasks) {
-      const start = parseISO(task.startDate);
-      const end = parseISO(task.endDate);
+      const start = startOfDay(parseISO(task.startDate));
+      const end = startOfDay(parseISO(task.endDate));
       if (start < minDate) minDate = start;
       if (end > maxDate) maxDate = end;
     }
@@ -68,12 +336,21 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
     }
   }, [tasks, viewMode]);
 
-  const totalDays = differenceInDays(dateRange.end, dateRange.start);
-  const chartWidth = totalDays * dayWidth;
-  const chartHeight = HEADER_HEIGHT + tasks.length * ROW_HEIGHT + 20;
+  const totalDays = useMemo(
+    () => differenceInDays(dateRange.end, dateRange.start),
+    [dateRange]
+  );
+  const chartWidth = useMemo(() => totalDays * dayWidth, [totalDays, dayWidth]);
+  const chartHeight = useMemo(
+    () => HEADER_HEIGHT + tasks.length * ROW_HEIGHT + 20,
+    [tasks.length]
+  );
 
   const getDateX = useCallback(
-    (date: Date) => differenceInDays(date, dateRange.start) * dayWidth,
+    (date: Date) => {
+      const days = differenceInDays(startOfDay(date), startOfDay(dateRange.start));
+      return days * dayWidth;
+    },
     [dateRange.start, dayWidth]
   );
 
@@ -82,76 +359,129 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
     []
   );
 
-  const getResourceName = (id: string | null) => {
-    if (!id) return '未分配';
-    return resources.find((r) => r.id === id)?.name || '未知';
-  };
+  const getResourceName = useCallback(
+    (id: string | null) => {
+      if (!id) return '未分配';
+      return resources.find((r) => r.id === id)?.name || '未知';
+    },
+    [resources]
+  );
 
-  const getProjectColor = (projectId: string) => {
-    const project = projects.find((p) => p.id === projectId);
-    return project?.color || 'from-gray-200 to-gray-600';
-  };
+  const getProjectColor = useCallback(
+    (projectId: string) => {
+      const project = projects.find((p) => p.id === projectId);
+      return project?.color || 'from-gray-200 to-gray-600';
+    },
+    [projects]
+  );
 
-  const hasConflict = (taskId: string, depId: string) => {
-    return dependencyConflicts.some(
-      (c) => (c.taskId === taskId && c.dependentId === depId) ||
-             (c.taskId === depId && c.dependentId === taskId)
-    );
-  };
+  const hasConflict = useCallback(
+    (taskId: string, depId: string) => {
+      return dependencyConflicts.some(
+        (c) =>
+          (c.taskId === taskId && c.dependentId === depId) ||
+          (c.taskId === depId && c.dependentId === taskId)
+      );
+    },
+    [dependencyConflicts]
+  );
 
-  const handleMouseDown = (e: React.MouseEvent, taskId: string, type: 'start' | 'end' | 'move') => {
-    e.stopPropagation();
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-    setDragState({
-      taskId,
-      type,
-      startX: e.clientX,
-      originalStart: task.startDate,
-      originalEnd: task.endDate,
-    });
-  };
+  const flushPendingUpdate = useCallback(() => {
+    if (pendingUpdateRef.current && rafRef.current !== null) {
+      const { id, start, end } = pendingUpdateRef.current;
+      updateTask(id, { startDate: start, endDate: end });
+      pendingUpdateRef.current = null;
+      rafRef.current = null;
+    }
+  }, [updateTask]);
+
+  const scheduleTaskUpdate = useCallback(
+    (id: string, newStart: Date, newEnd: Date) => {
+      pendingUpdateRef.current = {
+        id,
+        start: format(newStart, 'yyyy-MM-dd'),
+        end: format(newEnd, 'yyyy-MM-dd'),
+      };
+      if (rafRef.current === null) {
+        rafRef.current = requestAnimationFrame(flushPendingUpdate);
+      }
+    },
+    [flushPendingUpdate]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
+
+  const handleMouseDown = useCallback(
+    (taskId: string, type: 'start' | 'end' | 'move', clientX: number) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return;
+      const startDate = startOfDay(parseISO(task.startDate));
+      const endDate = startOfDay(parseISO(task.endDate));
+      setLocalDragData({ taskId, startDate, endDate });
+      setDragState({
+        taskId,
+        type,
+        startX: clientX,
+        originalStart: task.startDate,
+        originalEnd: task.endDate,
+      });
+    },
+    [tasks, setDragState]
+  );
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       setMousePos({ x: e.clientX, y: e.clientY });
-      if (!dragState.taskId || !dragState.type) return;
+      if (!dragState.taskId || !dragState.type || !localDragData) return;
 
       const deltaX = e.clientX - dragState.startX;
-      const deltaDays = Math.round(deltaX / dayWidth);
-      const task = tasks.find((t) => t.id === dragState.taskId);
-      if (!task) return;
 
-      let newStart = parseISO(dragState.originalStart);
-      let newEnd = parseISO(dragState.originalEnd);
-      const duration = differenceInDays(newEnd, newStart);
+      let pixelPerDay = dayWidth;
+      if (viewMode === 'month' && localDragData) {
+        const baseMonth = localDragData.startDate;
+        const daysInCurrentMonth = getDaysInMonth(baseMonth);
+        pixelPerDay = (DAY_WIDTH_MONTH * 30) / daysInCurrentMonth;
+      }
+
+      const deltaDays = Math.round(deltaX / pixelPerDay);
+      let newStart = new Date(localDragData.startDate);
+      let newEnd = new Date(localDragData.endDate);
+      const durationMs = newEnd.getTime() - newStart.getTime();
+      const durationDays = Math.max(1, Math.round(durationMs / (1000 * 60 * 60 * 24)) + 1);
 
       if (dragState.type === 'start') {
         newStart = addDays(newStart, deltaDays);
-        if (differenceInDays(newEnd, newStart) < 1) {
-          newStart = addDays(newEnd, -1);
+        const minEnd = addDays(newStart, 1);
+        if (newEnd.getTime() < minEnd.getTime()) {
+          newEnd = minEnd;
         }
       } else if (dragState.type === 'end') {
         newEnd = addDays(newEnd, deltaDays);
-        if (differenceInDays(newEnd, newStart) < 1) {
-          newEnd = addDays(newStart, 1);
+        const maxStart = addDays(newEnd, -durationDays);
+        if (newStart.getTime() > maxStart.getTime()) {
+          newStart = maxStart;
         }
       } else if (dragState.type === 'move') {
         newStart = addDays(newStart, deltaDays);
         newEnd = addDays(newEnd, deltaDays);
       }
 
-      updateTask(dragState.taskId, {
-        startDate: format(newStart, 'yyyy-MM-dd'),
-        endDate: format(newEnd, 'yyyy-MM-dd'),
-      });
+      scheduleTaskUpdate(dragState.taskId, newStart, newEnd);
     },
-    [dragState, dayWidth, tasks, updateTask]
+    [dragState, localDragData, dayWidth, viewMode, scheduleTaskUpdate]
   );
 
   const handleMouseUp = useCallback(() => {
+    flushPendingUpdate();
+    setLocalDragData(null);
     setDragState({ taskId: null, type: null, startX: 0, originalStart: '', originalEnd: '' });
-  }, [setDragState]);
+  }, [flushPendingUpdate, setDragState]);
 
   useEffect(() => {
     if (dragState.taskId) {
@@ -173,21 +503,34 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
     }
   }, [dependencyConflicts]);
 
-  const handleConnectorClick = (taskId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (connectingFrom === null) {
-      setConnectingFrom(taskId);
-    } else if (connectingFrom !== taskId) {
-      const success = addDependency(taskId, connectingFrom);
-      if (!success) {
-        setShowConflictAlert('无法创建依赖：可能造成循环依赖');
-        setTimeout(() => setShowConflictAlert(null), 3000);
+  const handleConnectorClick = useCallback(
+    (taskId: string) => {
+      if (connectingFrom === null) {
+        setConnectingFrom(taskId);
+      } else if (connectingFrom !== taskId) {
+        const wouldCycle = detectCycle(taskId, connectingFrom);
+        if (wouldCycle) {
+          setShowConflictAlert('无法创建依赖：检测到循环依赖');
+          setTimeout(() => setShowConflictAlert(null), 3000);
+          setConnectingFrom(null);
+          return;
+        }
+        setPendingDependency({ fromId: connectingFrom, toId: taskId });
+        const confirm = window.confirm(
+          `确认创建依赖关系？\n任务将按照: 前置任务 → 当前任务 的顺序执行`
+        );
+        if (confirm) {
+          addDependency(taskId, connectingFrom);
+        } else {
+          setPendingDependency(null);
+        }
+        setConnectingFrom(null);
+      } else {
+        setConnectingFrom(null);
       }
-      setConnectingFrom(null);
-    } else {
-      setConnectingFrom(null);
-    }
-  };
+    },
+    [connectingFrom, detectCycle, addDependency, setPendingDependency]
+  );
 
   useEffect(() => {
     if (connectingFrom) {
@@ -199,16 +542,72 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
     }
   }, [connectingFrom]);
 
-  const renderTimeHeaders = () => {
+  const memoizedTasks = useMemo(
+    () =>
+      tasks.map((task, index) => {
+        const startX = getDateX(parseISO(task.startDate));
+        const endX = getDateX(parseISO(task.endDate));
+        return {
+          task,
+          index,
+          startX,
+          taskWidth: Math.max(endX - startX, dayWidth * 0.5),
+          isCritical: criticalPath.includes(task.id),
+        };
+      }),
+    [tasks, getDateX, dayWidth, criticalPath]
+  );
+
+  const memoizedDependencies = useMemo(() => {
+    const deps: Array<{
+      taskId: string;
+      depId: string;
+      fromX: number;
+      fromY: number;
+      toX: number;
+      toY: number;
+      isConflict: boolean;
+      isCritical: boolean;
+      isPending: boolean;
+    }> = [];
+    tasks.forEach((task, taskIndex) => {
+      task.dependencies.forEach((depId) => {
+        const depTask = tasks.find((t) => t.id === depId);
+        if (!depTask) return;
+        const depIndex = tasks.findIndex((t) => t.id === depId);
+        if (depIndex === -1) return;
+        const fromX = getDateX(parseISO(depTask.endDate)) + dayWidth * 0.5;
+        const fromY = getTaskY(depIndex) + 17;
+        const toX = getDateX(parseISO(task.startDate));
+        const toY = getTaskY(taskIndex) + 17;
+        deps.push({
+          taskId: task.id,
+          depId,
+          fromX,
+          fromY,
+          toX,
+          toY,
+          isConflict: hasConflict(task.id, depId),
+          isCritical: criticalPath.includes(task.id) && criticalPath.includes(depId),
+          isPending:
+            pendingDependency !== null &&
+            ((pendingDependency.fromId === depId && pendingDependency.toId === task.id) ||
+              (pendingDependency.fromId === task.id && pendingDependency.toId === depId)),
+        });
+      });
+    });
+    return deps;
+  }, [tasks, getDateX, getTaskY, dayWidth, hasConflict, criticalPath, pendingDependency]);
+
+  const renderTimeHeaders = useMemo(() => {
     const headers: JSX.Element[] = [];
     let current = new Date(dateRange.start);
     const end = dateRange.end;
 
     if (viewMode === 'month') {
-      let monthX = 0;
       while (current < end) {
         const monthStart = current;
-        const monthDays = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+        const monthDays = getDaysInMonth(current);
         const monthWidth = monthDays * dayWidth;
         headers.push(
           <g key={`month-${format(current, 'yyyy-MM')}`}>
@@ -232,13 +631,12 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
             </text>
           </g>
         );
-        monthX += monthWidth;
         current = addMonths(current, 1);
       }
       current = new Date(dateRange.start);
-      let dayIndex = 0;
       while (current < end) {
         const isWeekend = current.getDay() === 0 || current.getDay() === 6;
+        const isToday = isSameDay(current, new Date());
         headers.push(
           <g key={`day-${format(current, 'yyyy-MM-dd')}`}>
             <rect
@@ -252,10 +650,10 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
             <text
               x={getDateX(current) + dayWidth / 2}
               y={58}
-              fill={isSameDay(current, new Date()) ? '#d32f2f' : '#37474f'}
+              fill={isToday ? '#d32f2f' : '#37474f'}
               fontSize={11}
               textAnchor="middle"
-              fontWeight={isSameDay(current, new Date()) ? 'bold' : 'normal'}
+              fontWeight={isToday ? 'bold' : 'normal'}
             >
               {format(current, 'd')}
             </text>
@@ -270,15 +668,14 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
             </text>
           </g>
         );
-        dayIndex++;
         current = addDays(current, 1);
       }
     } else {
-      let current2 = new Date(dateRange.start);
-      while (current2 < end) {
-        const weekStart = current2;
+      let cur = new Date(dateRange.start);
+      while (cur < end) {
+        const weekStart = cur;
         headers.push(
-          <g key={`week-${format(current2, 'yyyy-ww')}`}>
+          <g key={`week-${format(cur, 'yyyy-ww')}`}>
             <rect
               x={getDateX(weekStart)}
               y={0}
@@ -295,19 +692,20 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
               fontWeight="bold"
               textAnchor="middle"
             >
-              {`第${format(current2, 'I', { locale: zhCN })}周 - ${format(current2, 'M月d日', { locale: zhCN })}`}
+              {`第${format(cur, 'I', { locale: zhCN })}周 - ${format(cur, 'M月d日', { locale: zhCN })}`}
             </text>
           </g>
         );
-        current2 = addWeeks(current2, 1);
+        cur = addWeeks(cur, 1);
       }
-      current2 = new Date(dateRange.start);
-      while (current2 < end) {
-        const isWeekend = current2.getDay() === 0 || current2.getDay() === 6;
+      cur = new Date(dateRange.start);
+      while (cur < end) {
+        const isWeekend = cur.getDay() === 0 || cur.getDay() === 6;
+        const isToday = isSameDay(cur, new Date());
         headers.push(
-          <g key={`day-${format(current2, 'yyyy-MM-dd')}`}>
+          <g key={`day-${format(cur, 'yyyy-MM-dd')}`}>
             <rect
-              x={getDateX(current2)}
+              x={getDateX(cur)}
               y={40}
               width={dayWidth}
               height={40}
@@ -315,40 +713,41 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
               stroke="#cfd8dc"
             />
             <text
-              x={getDateX(current2) + dayWidth / 2}
+              x={getDateX(cur) + dayWidth / 2}
               y={58}
-              fill={isSameDay(current2, new Date()) ? '#d32f2f' : '#37474f'}
+              fill={isToday ? '#d32f2f' : '#37474f'}
               fontSize={12}
-              fontWeight={isSameDay(current2, new Date()) ? 'bold' : 'normal'}
+              fontWeight={isToday ? 'bold' : 'normal'}
               textAnchor="middle"
             >
-              {format(current2, 'd')}
+              {format(cur, 'd')}
             </text>
             <text
-              x={getDateX(current2) + dayWidth / 2}
+              x={getDateX(cur) + dayWidth / 2}
               y={74}
               fill="#78909c"
               fontSize={10}
               textAnchor="middle"
             >
-              {format(current2, 'EEEE', { locale: zhCN })}
+              {format(cur, 'EEEE', { locale: zhCN })}
             </text>
           </g>
         );
-        current2 = addDays(current2, 1);
+        cur = addDays(cur, 1);
       }
     }
-
     return headers;
-  };
+  }, [dateRange, viewMode, dayWidth, getDateX]);
 
-  const renderGrid = () => {
+  const renderGrid = useMemo(() => {
     const lines: JSX.Element[] = [];
     let current = new Date(dateRange.start);
     let dayIndex = 0;
+    const today = new Date();
     while (current < dateRange.end) {
       const isWeekend = current.getDay() === 0 || current.getDay() === 6;
-      if (isWeekend || isSameDay(current, new Date())) {
+      const isToday = isSameDay(current, today);
+      if (isWeekend || isToday) {
         lines.push(
           <rect
             key={`bg-${dayIndex}`}
@@ -356,7 +755,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
             y={HEADER_HEIGHT}
             width={dayWidth}
             height={tasks.length * ROW_HEIGHT}
-            fill={isSameDay(current, new Date()) ? 'rgba(211, 47, 47, 0.06)' : 'rgba(0, 0, 0, 0.02)'}
+            fill={isToday ? 'rgba(211, 47, 47, 0.06)' : 'rgba(0, 0, 0, 0.02)'}
           />
         );
       }
@@ -388,250 +787,9 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
       );
     }
     return lines;
-  };
+  }, [dateRange, dayWidth, tasks.length, getDateX, chartWidth]);
 
-  const renderDependencies = () => {
-    const arrows: JSX.Element[] = [];
-    tasks.forEach((task, taskIndex) => {
-      task.dependencies.forEach((depId) => {
-        const depTask = tasks.find((t) => t.id === depId);
-        if (!depTask) return;
-        const depIndex = tasks.findIndex((t) => t.id === depId);
-        if (depIndex === -1) return;
-
-        const fromX = getDateX(parseISO(depTask.endDate)) + dayWidth * 0.5;
-        const fromY = getTaskY(depIndex) + 17;
-        const toX = getDateX(parseISO(task.startDate));
-        const toY = getTaskY(taskIndex) + 17;
-
-        const isConflict = hasConflict(task.id, depId);
-        const isCritical = criticalPath.includes(task.id) && criticalPath.includes(depId);
-
-        const midX = (fromX + toX) / 2;
-        const path = `M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`;
-
-        arrows.push(
-          <g key={`dep-${task.id}-${depId}`}>
-            <defs>
-              <marker
-                id={`arrow-${task.id}-${depId}`}
-                markerWidth="10"
-                markerHeight="10"
-                refX="8"
-                refY="3"
-                orient="auto"
-              >
-                <polygon
-                  points="0 0, 10 3, 0 6"
-                  fill={isConflict ? '#e53935' : isCritical ? '#ffc107' : '#90a4ae'}
-                />
-              </marker>
-            </defs>
-            <path
-              d={path}
-              fill="none"
-              stroke={isConflict ? '#e53935' : isCritical ? '#ffc107' : '#90a4ae'}
-              strokeWidth={isCritical ? 2.5 : 1.8}
-              markerEnd={`url(#arrow-${task.id}-${depId})`}
-              opacity={isConflict ? 1 : 0.7}
-              style={{ transition: 'all 0.3s ease' }}
-            />
-          </g>
-        );
-      });
-    });
-
-    if (connectingFrom) {
-      const fromTask = tasks.find((t) => t.id === connectingFrom);
-      if (fromTask && containerRef.current) {
-        const fromIndex = tasks.findIndex((t) => t.id === connectingFrom);
-        const rect = containerRef.current.getBoundingClientRect();
-        const fromX = getDateX(parseISO(fromTask.endDate));
-        const fromY = getTaskY(fromIndex) + 17;
-        const toX = mousePos.x - rect.left;
-        const toY = mousePos.y - rect.top;
-        const midX = (fromX + toX) / 2;
-        arrows.push(
-          <path
-            key="connecting-line"
-            d={`M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`}
-            fill="none"
-            stroke="#1976d2"
-            strokeWidth={2}
-            strokeDasharray="6 4"
-          />
-        );
-      }
-    }
-
-    return arrows;
-  };
-
-  const renderTasks = () => {
-    return tasks.map((task, index) => {
-      const startX = getDateX(parseISO(task.startDate));
-      const endX = getDateX(parseISO(task.endDate));
-      const taskWidth = Math.max(endX - startX, dayWidth * 0.5);
-      const y = getTaskY(index);
-      const isCritical = criticalPath.includes(task.id);
-      const isDragging = dragState.taskId === task.id;
-      const isConnecting = connectingFrom === task.id;
-      const gradientId = `grad-${task.id}`;
-      const [color1, color2] = getProjectColor(task.projectId).replace('from-', '').replace('to-', '').split(' ');
-
-      const colorMap: Record<string, string> = {
-        'blue-200': '#bbdefb', 'blue-600': '#1e88e5',
-        'green-200': '#c8e6c9', 'green-600': '#43a047',
-        'purple-200': '#e1bee7', 'purple-600': '#8e24aa',
-        'pink-200': '#f8bbd0', 'pink-600': '#d81b60',
-        'orange-200': '#ffe0b2', 'orange-600': '#fb8c00',
-        'gray-200': '#eeeeee', 'gray-600': '#757575',
-      };
-
-      return (
-        <g
-          key={task.id}
-          transform={`translate(${startX}, ${y})`}
-          onMouseEnter={(e) => {
-            setHoveredTask(task.id);
-            setTooltipPos({ x: e.clientX, y: e.clientY });
-          }}
-          onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
-          onMouseLeave={() => setHoveredTask(null)}
-          style={{ cursor: 'move' }}
-        >
-          <defs>
-            <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={colorMap[color1] || '#bbdefb'} />
-              <stop offset="100%" stopColor={colorMap[color2] || '#1e88e5'} />
-            </linearGradient>
-          </defs>
-
-          {isDragging && (
-            <rect
-              x={-2}
-              y={-2}
-              width={taskWidth + 4}
-              height={38}
-              rx={8}
-              fill="rgba(25, 118, 210, 0.25)"
-              style={{ filter: 'blur(4px)' }}
-            />
-          )}
-
-          <rect
-            x={0}
-            y={0}
-            width={taskWidth}
-            height={34}
-            rx={6}
-            fill={`url(#${gradientId})`}
-            stroke={isCritical ? '#ffc107' : isConnecting ? '#1976d2' : 'rgba(0,0,0,0.15)'}
-            strokeWidth={isCritical ? 3 : isConnecting ? 2.5 : 1.5}
-            style={{
-              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-              filter: hoveredTask === task.id ? 'brightness(1.08) drop-shadow(0 4px 8px rgba(0,0,0,0.2))' : 'none',
-              transform: hoveredTask === task.id && !isDragging ? 'scaleY(1.05)' : 'scaleY(1)',
-              transformOrigin: 'center',
-            }}
-            className={isCritical ? 'critical-task' : ''}
-            onMouseDown={(e) => handleMouseDown(e, task.id, 'move')}
-          />
-
-          <rect
-            x={0}
-            y={0}
-            width={taskWidth * (task.progress / 100)}
-            height={34}
-            rx={6}
-            fill="rgba(0,0,0,0.2)"
-            style={{ pointerEvents: 'none' }}
-          />
-
-          <text
-            x={10}
-            y={22}
-            fill="white"
-            fontSize={12}
-            fontWeight="600"
-            style={{
-              pointerEvents: 'none',
-              textShadow: '0 1px 2px rgba(0,0,0,0.3)',
-            }}
-          >
-            {taskWidth > 80 ? task.name : task.name.slice(0, Math.floor(taskWidth / 10)) + '...'}
-          </text>
-
-          {taskWidth > 100 && (
-            <text
-              x={taskWidth - 10}
-              y={22}
-              fill="rgba(255,255,255,0.95)"
-              fontSize={11}
-              textAnchor="end"
-              style={{ pointerEvents: 'none' }}
-            >
-              {task.progress}%
-            </text>
-          )}
-
-          <rect
-            x={-3}
-            y={4}
-            width={6}
-            height={26}
-            rx={3}
-            fill="#1976d2"
-            style={{ cursor: 'ew-resize', opacity: hoveredTask === task.id || isDragging ? 1 : 0 }}
-            onMouseDown={(e) => handleMouseDown(e, task.id, 'start')}
-          />
-
-          <rect
-            x={taskWidth - 3}
-            y={4}
-            width={6}
-            height={26}
-            rx={3}
-            fill="#1976d2"
-            style={{ cursor: 'ew-resize', opacity: hoveredTask === task.id || isDragging ? 1 : 0 }}
-            onMouseDown={(e) => handleMouseDown(e, task.id, 'end')}
-          />
-
-          <circle
-            cx={taskWidth + 10}
-            cy={17}
-            r={7}
-            fill={isConnecting ? '#1976d2' : '#ffffff'}
-            stroke="#1976d2"
-            strokeWidth={2}
-            style={{
-              cursor: 'pointer',
-              opacity: hoveredTask === task.id || connectingFrom ? 1 : 0,
-              transition: 'opacity 0.2s',
-            }}
-            onClick={(e) => handleConnectorClick(task.id, e)}
-          >
-            {isConnecting && (
-              <animate attributeName="r" values="7;9;7" dur="1s" repeatCount="indefinite" />
-            )}
-          </circle>
-          <text
-            x={taskWidth + 10}
-            y={21}
-            fill={isConnecting ? '#ffffff' : '#1976d2'}
-            fontSize={12}
-            fontWeight="bold"
-            textAnchor="middle"
-            style={{ pointerEvents: 'none', opacity: hoveredTask === task.id || connectingFrom ? 1 : 0 }}
-          >
-            →
-          </text>
-        </g>
-      );
-    });
-  };
-
-  const renderTaskList = () => {
+  const renderTaskList = useMemo(() => {
     return (
       <div
         className="task-list"
@@ -657,8 +815,19 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
         >
           任务列表
         </div>
-        {tasks.map((task, index) => {
+        {tasks.map((task) => {
           const project = projects.find((p) => p.id === task.projectId);
+          const colorDot = project?.color.includes('blue')
+            ? '#1e88e5'
+            : project?.color.includes('green')
+            ? '#43a047'
+            : project?.color.includes('purple')
+            ? '#8e24aa'
+            : project?.color.includes('pink')
+            ? '#d81b60'
+            : project?.color.includes('orange')
+            ? '#fb8c00'
+            : '#757575';
           return (
             <div
               key={task.id}
@@ -676,21 +845,35 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
               onMouseEnter={() => setHoveredTask(task.id)}
               onMouseLeave={() => setHoveredTask(null)}
             >
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#263238', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#263238',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {task.name}
               </div>
-              <div style={{ fontSize: 11, color: '#78909c', marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: '#78909c',
+                  marginTop: 3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
                 <span
                   style={{
                     display: 'inline-block',
                     width: 8,
                     height: 8,
                     borderRadius: 2,
-                    background: project?.color.includes('blue') ? '#1e88e5' :
-                               project?.color.includes('green') ? '#43a047' :
-                               project?.color.includes('purple') ? '#8e24aa' :
-                               project?.color.includes('pink') ? '#d81b60' :
-                               project?.color.includes('orange') ? '#fb8c00' : '#757575',
+                    background: colorDot,
                   }}
                 />
                 {getResourceName(task.assigneeId)}
@@ -700,7 +883,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
         })}
       </div>
     );
-  };
+  }, [tasks, projects, hoveredTask, getResourceName]);
 
   const renderTooltip = () => {
     if (!hoveredTask) return null;
@@ -727,7 +910,9 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
           pointerEvents: 'none',
         }}
       >
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#1a237e', marginBottom: 10 }}>{task.name}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#1a237e', marginBottom: 10 }}>
+          {task.name}
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#455a64' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>项目：</span>
@@ -753,19 +938,73 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
             <span>进度：</span>
             <span style={{ fontWeight: 600, color: '#1976d2' }}>{task.progress}%</span>
           </div>
-          <div style={{ marginTop: 6, width: '100%', height: 6, background: '#e0e0e0', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ width: `${task.progress}%`, height: '100%', background: 'linear-gradient(90deg, #42a5f5, #1976d2)', borderRadius: 3 }} />
+          <div
+            style={{
+              marginTop: 6,
+              width: '100%',
+              height: 6,
+              background: '#e0e0e0',
+              borderRadius: 3,
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                width: `${task.progress}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #42a5f5, #1976d2)',
+                borderRadius: 3,
+              }}
+            />
           </div>
         </div>
       </div>
     );
   };
 
+  const connectingLine = useMemo(() => {
+    if (!connectingFrom) return null;
+    const fromTask = tasks.find((t) => t.id === connectingFrom);
+    if (!fromTask || !containerRef.current) return null;
+    const fromIndex = tasks.findIndex((t) => t.id === connectingFrom);
+    if (fromIndex === -1) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    const fromX = getDateX(parseISO(fromTask.endDate));
+    const fromY = getTaskY(fromIndex) + 17;
+    const toX = mousePos.x - rect.left;
+    const toY = mousePos.y - rect.top;
+    const midX = (fromX + toX) / 2;
+    return (
+      <path
+        d={`M ${fromX} ${fromY} C ${midX} ${fromY}, ${midX} ${toY}, ${toX} ${toY}`}
+        fill="none"
+        stroke="#1976d2"
+        strokeWidth={2}
+        strokeDasharray="6 4"
+      />
+    );
+  }, [connectingFrom, tasks, getDateX, getTaskY, mousePos]);
+
   return (
-    <div ref={containerRef} style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative', background: 'white' }}>
-      {renderTaskList()}
+    <div
+      ref={containerRef}
+      style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative', background: 'white' }}
+    >
+      {renderTaskList}
       <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-        <div style={{ position: 'sticky', top: 0, right: 0, zIndex: 10, display: 'flex', justifyContent: 'flex-end', padding: 8, background: 'rgba(255,255,255,0.95)', borderBottom: '1px solid #e0e0e0' }}>
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            right: 0,
+            zIndex: 10,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            padding: 8,
+            background: 'rgba(255,255,255,0.95)',
+            borderBottom: '1px solid #e0e0e0',
+          }}
+        >
           <div style={{ display: 'flex', gap: 4, background: '#eceff1', borderRadius: 8, padding: 3 }}>
             <button
               onClick={() => setViewMode('week')}
@@ -802,16 +1041,48 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
           </div>
         </div>
         <div style={{ overflow: 'auto' }}>
-          <svg
-            ref={svgRef}
-            width={chartWidth}
-            height={chartHeight}
-            style={{ display: 'block' }}
-          >
-            {renderTimeHeaders()}
-            {renderGrid()}
-            {renderDependencies()}
-            {renderTasks()}
+          <svg ref={svgRef} width={chartWidth} height={chartHeight} style={{ display: 'block' }}>
+            {renderTimeHeaders}
+            {renderGrid}
+            {memoizedDependencies.map((dep) => (
+              <DependencyArrow
+                key={`dep-${dep.taskId}-${dep.depId}`}
+                taskId={dep.taskId}
+                depId={dep.depId}
+                fromX={dep.fromX}
+                fromY={dep.fromY}
+                toX={dep.toX}
+                toY={dep.toY}
+                isConflict={dep.isConflict}
+                isCritical={dep.isCritical}
+                isPending={dep.isPending}
+              />
+            ))}
+            {connectingLine}
+            {memoizedTasks.map(({ task, index, startX, taskWidth, isCritical }) => (
+              <g key={task.id} transform={`translate(0, ${HEADER_HEIGHT + index * ROW_HEIGHT})`}>
+                <TaskBar
+                  task={task}
+                  index={index}
+                  startX={startX}
+                  taskWidth={taskWidth}
+                  isCritical={isCritical}
+                  isDragging={dragState.taskId === task.id}
+                  isConnecting={connectingFrom === task.id}
+                  isHovered={hoveredTask === task.id}
+                  projectColor={getProjectColor(task.projectId)}
+                  onMouseDown={(e, type) => {
+                    handleMouseDown(task.id, type, e.clientX);
+                  }}
+                  onMouseEnter={() => setHoveredTask(task.id)}
+                  onMouseLeave={() => setHoveredTask(null)}
+                  onConnectorClick={() => {
+                    handleConnectorClick(task.id);
+                  }}
+                  getResourceName={getResourceName}
+                />
+              </g>
+            ))}
           </svg>
         </div>
       </div>
@@ -871,15 +1142,17 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, projects, resources }) =
           50% { opacity: 0.7; }
         }
         .critical-task {
+        }
+        .critical-task-rect {
           animation: criticalPulse 2s ease-in-out infinite;
         }
         @keyframes criticalPulse {
           0%, 100% { filter: drop-shadow(0 0 2px rgba(255,193,7,0.4)); }
-          50% { filter: drop-shadow(0 0 10px rgba(255,193,7,0.8)); }
+          50% { filter: drop-shadow(0 0 10px rgba(255,193,7,0.9)); }
         }
       `}</style>
     </div>
   );
 };
 
-export default GanttChart;
+export default memo(GanttChart);
