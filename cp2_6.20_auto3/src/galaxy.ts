@@ -20,12 +20,12 @@ export class Galaxy {
   private rotationSpeed: number = 0.015;
   private time: number = 0;
 
-  private pixelRatio: number = Math.min(window.devicePixelRatio, 2);
-
-  private color1 = new THREE.Color(0x1a0a3e);
-  private color2 = new THREE.Color(0x4c1d95);
-  private color3 = new THREE.Color(0x7c3aed);
-  private color4 = new THREE.Color(0x2d1b69);
+  private innerColor = new THREE.Color(0x0f0530);
+  private innerMidColor = new THREE.Color(0x2d1b69);
+  private midColor = new THREE.Color(0x5b21b6);
+  private outerMidColor = new THREE.Color(0x8b5cf6);
+  private outerColor = new THREE.Color(0xc084fc);
+  private outerEdgeColor = new THREE.Color(0xe879a8);
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -72,26 +72,36 @@ export class Galaxy {
       this.basePositions[i3 + 1] = y;
       this.basePositions[i3 + 2] = z;
 
-      const distanceFactor = Math.min(1, radius / 770);
+      const t = Math.min(1, (radius - 120) / 650);
 
       let baseColor: THREE.Color;
-      if (distanceFactor < 0.3) {
-        baseColor = this.color1.clone().lerp(this.color2, distanceFactor / 0.3);
-      } else if (distanceFactor < 0.6) {
-        baseColor = this.color2.clone().lerp(this.color3, (distanceFactor - 0.3) / 0.3);
+      if (t < 0.15) {
+        baseColor = this.innerColor.clone().lerp(this.innerMidColor, t / 0.15);
+      } else if (t < 0.35) {
+        baseColor = this.innerMidColor.clone().lerp(this.midColor, (t - 0.15) / 0.2);
+      } else if (t < 0.55) {
+        baseColor = this.midColor.clone().lerp(this.outerMidColor, (t - 0.35) / 0.2);
+      } else if (t < 0.8) {
+        baseColor = this.outerMidColor.clone().lerp(this.outerColor, (t - 0.55) / 0.25);
       } else {
-        baseColor = this.color3.clone().lerp(this.color4, (distanceFactor - 0.6) / 0.4);
+        baseColor = this.outerColor.clone().lerp(this.outerEdgeColor, (t - 0.8) / 0.2);
       }
 
-      const hueShift = (Math.random() - 0.5) * 0.08;
-      const satShift = (Math.random() - 0.5) * 0.2;
-      const lightShift = (Math.random() - 0.5) * 0.15;
+      const armAngleOffset = (finalAngle % (Math.PI / 2)) / (Math.PI / 2);
+      const angleHueShift = Math.sin(armAngleOffset * Math.PI) * 0.03;
+
+      const distFromArmCenter = Math.sqrt(randomOffsetX * randomOffsetX + randomOffsetZ * randomOffsetZ) / Math.max(1, spread);
+      const edgeWarmShift = distFromArmCenter * 0.04;
+
+      const hueShift = angleHueShift + edgeWarmShift + (Math.random() - 0.5) * 0.025;
+      const satShift = (Math.random() - 0.5) * 0.1;
+      const lightShift = (Math.random() - 0.5) * 0.08;
 
       const hsl = { h: 0, s: 0, l: 0 };
       baseColor.getHSL(hsl);
       hsl.h = Math.max(0, Math.min(1, hsl.h + hueShift));
-      hsl.s = Math.max(0.2, Math.min(0.9, hsl.s + satShift));
-      hsl.l = Math.max(0.1, Math.min(0.5, hsl.l + lightShift));
+      hsl.s = Math.max(0.15, Math.min(0.85, hsl.s + satShift));
+      hsl.l = Math.max(0.05, Math.min(0.55, hsl.l + lightShift));
       baseColor.setHSL(hsl.h, hsl.s, hsl.l);
 
       this.colors[i3] = baseColor.r;
@@ -102,8 +112,8 @@ export class Galaxy {
       this.baseColors[i3 + 1] = baseColor.g;
       this.baseColors[i3 + 2] = baseColor.b;
 
-      this.sizes[i] = 1 + Math.random() * 3 + (1 - distanceFactor) * 3;
-      this.alphas[i] = 0.15 + Math.random() * 0.4 + (1 - distanceFactor) * 0.3;
+      this.sizes[i] = 1 + Math.random() * 3 + (1 - t) * 3;
+      this.alphas[i] = 0.15 + Math.random() * 0.4 + (1 - t) * 0.3;
     }
 
     this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
@@ -120,7 +130,6 @@ export class Galaxy {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       map: texture,
-      alphaMap: texture
     });
 
     this.mesh = new THREE.Points(this.geometry, this.material);
@@ -168,37 +177,19 @@ export class Galaxy {
     const positions = this.geometry.attributes.position.array as Float32Array;
     const colors = this.geometry.attributes.color.array as Float32Array;
 
-    let avgAlpha = 0;
-
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3;
 
-      const wave = Math.sin(this.time * 0.5 + this.basePositions[i3] * 0.01 + this.basePositions[i3 + 2] * 0.01);
-      avgAlpha += this.alphas[i] * (0.85 + wave * 0.15);
-
-      const colorWave = Math.sin(this.time * 0.3 + i * 0.002) * 0.05;
+      const colorWave = Math.sin(this.time * 0.3 + i * 0.002) * 0.04;
       colors[i3] = Math.max(0, Math.min(1, this.baseColors[i3] + colorWave));
-      colors[i3 + 1] = Math.max(0, Math.min(1, this.baseColors[i3 + 1] + colorWave * 0.8));
-      colors[i3 + 2] = Math.max(0, Math.min(1, this.baseColors[i3 + 2] + colorWave * 0.6));
+      colors[i3 + 1] = Math.max(0, Math.min(1, this.baseColors[i3 + 1] + colorWave * 0.7));
+      colors[i3 + 2] = Math.max(0, Math.min(1, this.baseColors[i3 + 2] + colorWave * 0.5));
 
       positions[i3 + 1] = this.basePositions[i3 + 1] + Math.sin(this.time * 0.3 + this.basePositions[i3] * 0.005 + this.basePositions[i3 + 2] * 0.005) * 0.5;
     }
 
-    this.material.opacity = Math.max(0.1, avgAlpha / this.particleCount) * 0.6;
-    this.material.size = this.computeAverageSize() * this.pixelRatio;
-
     this.geometry.attributes.position.needsUpdate = true;
     this.geometry.attributes.color.needsUpdate = true;
-  }
-
-  private computeAverageSize(): number {
-    let sum = 0;
-    const samples = Math.min(200, this.sizes.length);
-    const step = Math.floor(this.sizes.length / samples);
-    for (let i = 0; i < this.sizes.length; i += step) {
-      sum += this.sizes[i];
-    }
-    return Math.max(0.5, sum / samples);
   }
 
   public getMesh(): THREE.Points {

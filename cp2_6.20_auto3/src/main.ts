@@ -23,6 +23,20 @@ class StarfieldApp {
     this.clock = new THREE.Clock();
 
     this.scene = new THREE.Scene();
+
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = 2;
+    bgCanvas.height = 512;
+    const bgCtx = bgCanvas.getContext('2d')!;
+    const bgGradient = bgCtx.createLinearGradient(0, 0, 0, 512);
+    bgGradient.addColorStop(0, '#1a0a3e');
+    bgGradient.addColorStop(0.5, '#0f0826');
+    bgGradient.addColorStop(1, '#0a0a2e');
+    bgCtx.fillStyle = bgGradient;
+    bgCtx.fillRect(0, 0, 2, 512);
+    const bgTexture = new THREE.CanvasTexture(bgCanvas);
+    this.scene.background = bgTexture;
+
     this.camera = new THREE.PerspectiveCamera(
       75,
       window.innerWidth / window.innerHeight,
@@ -33,15 +47,11 @@ class StarfieldApp {
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true,
       powerPreference: 'high-performance'
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setClearColor(0x0a0a2e, 1);
     this.container.appendChild(this.renderer.domElement);
-
-    this.setupBackground();
 
     this.starField = new StarField(this.scene, 5200);
     this.galaxy = new Galaxy(this.scene);
@@ -89,55 +99,6 @@ class StarfieldApp {
     });
 
     this.animate();
-  }
-
-  private setupBackground(): void {
-    const bgGeometry = new THREE.SphereGeometry(1400, 64, 64);
-    const bgMaterial = new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      uniforms: {
-        topColor: { value: new THREE.Color(0x1a0a3e) },
-        bottomColor: { value: new THREE.Color(0x0a0a2e) },
-        offset: { value: 300 },
-        exponent: { value: 0.6 }
-      },
-      vertexShader: `
-        varying vec3 vWorldPosition;
-        void main() {
-          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-          vWorldPosition = worldPosition.xyz;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform vec3 topColor;
-        uniform vec3 bottomColor;
-        uniform float offset;
-        uniform float exponent;
-        varying vec3 vWorldPosition;
-
-        float noise(vec3 p) {
-          return fract(sin(dot(p, vec3(12.9898, 78.233, 45.543))) * 43758.5453);
-        }
-
-        void main() {
-          float h = normalize(vWorldPosition + offset).y;
-          float t = max(pow(max(h, 0.0), exponent), 0.0);
-          vec3 color = mix(bottomColor, topColor, t);
-
-          float n = noise(vWorldPosition * 0.001) * 0.05;
-          color += n;
-
-          gl_FragColor = vec4(color, 1.0);
-        }
-      `
-    });
-
-    const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
-    this.scene.add(bgMesh);
-
-    const ambientLight = new THREE.AmbientLight(0x404080, 0.5);
-    this.scene.add(ambientLight);
   }
 
   private animate(): void {

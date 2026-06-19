@@ -31,7 +31,6 @@ export class Interaction {
   private initialTarget: THREE.Vector3;
 
   private autoRotate: boolean = false;
-  private autoRotateSpeed: number = 0.003;
 
   constructor(
     container: HTMLElement,
@@ -64,6 +63,7 @@ export class Interaction {
     this.controls.maxDistance = 1200;
     this.controls.zoomSpeed = 0.8;
     this.controls.rotateSpeed = 0.5;
+    this.controls.autoRotateSpeed = 0.5;
     this.controls.touches = {
       ONE: THREE.TOUCH.ROTATE,
       TWO: THREE.TOUCH.DOLLY_PAN
@@ -77,7 +77,6 @@ export class Interaction {
     domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
     domElement.addEventListener('mouseup', this.onMouseUp.bind(this));
     domElement.addEventListener('mouseleave', this.onMouseLeave.bind(this));
-    domElement.addEventListener('wheel', this.onWheel.bind(this), { passive: true });
 
     domElement.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
     domElement.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
@@ -124,10 +123,6 @@ export class Interaction {
   private onMouseLeave(): void {
     this.container.style.cursor = 'grab';
     this.isDragging = false;
-  }
-
-  private onWheel(): void {
-    this.controls.update();
   }
 
   private onTouchStart(event: TouchEvent): void {
@@ -252,7 +247,6 @@ export class Interaction {
   public enableAutoRotate(): void {
     this.autoRotate = true;
     this.controls.autoRotate = true;
-    this.controls.autoRotateSpeed = this.autoRotateSpeed * 60;
   }
 
   public disableAutoRotate(): void {
@@ -280,17 +274,5 @@ export class Interaction {
 
   public dispose(): void {
     this.controls.dispose();
-
-    const domElement = this.renderer.domElement;
-    domElement.removeEventListener('mousedown', this.onMouseDown.bind(this));
-    domElement.removeEventListener('mousemove', this.onMouseMove.bind(this));
-    domElement.removeEventListener('mouseup', this.onMouseUp.bind(this));
-    domElement.removeEventListener('mouseleave', this.onMouseLeave.bind(this));
-    domElement.removeEventListener('wheel', this.onWheel.bind(this));
-    domElement.removeEventListener('touchstart', this.onTouchStart.bind(this));
-    domElement.removeEventListener('touchmove', this.onTouchMove.bind(this));
-    domElement.removeEventListener('touchend', this.onTouchEnd.bind(this));
-
-    window.removeEventListener('resize', this.onResize.bind(this));
   }
 }

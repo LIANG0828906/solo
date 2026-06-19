@@ -9,12 +9,62 @@ export interface StarData {
   position: THREE.Vector3;
 }
 
-const CONSTELLATIONS = [
-  '猎户座', '大熊座', '小熊座', '仙女座', '英仙座',
-  '仙后座', '狮子座', '天蝎座', '射手座', '双子座',
-  '处女座', '天秤座', '水瓶座', '白羊座', '金牛座',
-  '巨蟹座', '摩羯座', '双鱼座', '天鹅座', '天琴座'
+interface ConstellationRegion {
+  name: string;
+  centerRA: number;
+  centerDec: number;
+  spread: number;
+}
+
+const CONSTELLATION_REGIONS: ConstellationRegion[] = [
+  { name: '猎户座', centerRA: 5.5, centerDec: 0, spread: 25 },
+  { name: '大熊座', centerRA: 11, centerDec: 55, spread: 30 },
+  { name: '小熊座', centerRA: 15, centerDec: 78, spread: 18 },
+  { name: '仙女座', centerRA: 0.5, centerDec: 38, spread: 25 },
+  { name: '英仙座', centerRA: 3.5, centerDec: 45, spread: 22 },
+  { name: '仙后座', centerRA: 1, centerDec: 60, spread: 22 },
+  { name: '狮子座', centerRA: 10.5, centerDec: 15, spread: 25 },
+  { name: '天蝎座', centerRA: 16.5, centerDec: -30, spread: 25 },
+  { name: '射手座', centerRA: 18.5, centerDec: -28, spread: 25 },
+  { name: '双子座', centerRA: 7, centerDec: 23, spread: 20 },
+  { name: '处女座', centerRA: 13, centerDec: -2, spread: 25 },
+  { name: '天秤座', centerRA: 15, centerDec: -15, spread: 18 },
+  { name: '水瓶座', centerRA: 22, centerDec: -10, spread: 25 },
+  { name: '白羊座', centerRA: 2.5, centerDec: 20, spread: 18 },
+  { name: '金牛座', centerRA: 4.5, centerDec: 16, spread: 22 },
+  { name: '巨蟹座', centerRA: 8.5, centerDec: 18, spread: 15 },
+  { name: '摩羯座', centerRA: 21, centerDec: -20, spread: 20 },
+  { name: '双鱼座', centerRA: 0.5, centerDec: 8, spread: 25 },
+  { name: '天鹅座', centerRA: 20.5, centerDec: 42, spread: 22 },
+  { name: '天琴座', centerRA: 19, centerDec: 38, spread: 15 },
 ];
+
+function assignConstellation(x: number, y: number, z: number): string {
+  const radius = Math.sqrt(x * x + y * y + z * z);
+  if (radius < 0.001) return CONSTELLATION_REGIONS[0].name;
+
+  const dec = Math.asin(y / radius) * (180 / Math.PI);
+
+  let ra = Math.atan2(z, x) * (12 / Math.PI);
+  if (ra < 0) ra += 24;
+
+  let bestName = CONSTELLATION_REGIONS[0].name;
+  let bestDist = Infinity;
+
+  for (const region of CONSTELLATION_REGIONS) {
+    const raDiff = Math.abs(ra - region.centerRA);
+    const raDist = Math.min(raDiff, 24 - raDiff) * 15;
+    const decDist = dec - region.centerDec;
+    const dist = Math.sqrt(raDist * raDist + decDist * decDist) / region.spread;
+
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestName = region.name;
+    }
+  }
+
+  return bestName;
+}
 
 const STAR_PREFIXES = ['NGC', 'HD', 'HIP', 'SAO', 'BD', 'Gliese', 'Alpha', 'Beta', 'Gamma', 'Delta'];
 const STAR_SUFFIXES = ['A', 'B', 'C', 'D', 'I', 'II', 'III', 'IV', 'V', 'X'];
@@ -26,10 +76,6 @@ function generateStarName(id: number): string {
   return `${prefix}-${number.toString().padStart(4, '0')}${suffix}`;
 }
 
-function getRandomConstellation(): string {
-  return CONSTELLATIONS[Math.floor(Math.random() * CONSTELLATIONS.length)];
-}
-
 export class StarField {
   private scene: THREE.Scene;
   private count: number;
@@ -39,7 +85,6 @@ export class StarField {
 
   private haloMesh!: THREE.Points;
   private haloGeometry!: THREE.BufferGeometry;
-  private haloMaterial!: THREE.PointsMaterial;
 
   private trailMesh!: THREE.Points;
   private trailGeometry!: THREE.BufferGeometry;
@@ -47,6 +92,7 @@ export class StarField {
 
   private positions!: Float32Array;
   private colors!: Float32Array;
+  private baseColors!: Float32Array;
   private sizes!: Float32Array;
   private alphas!: Float32Array;
 
@@ -60,7 +106,7 @@ export class StarField {
   private lodDistance1: number = 600;
   private lodDistance2: number = 1000;
 
-  private pixelRatio: number = Math.min(window.devicePixelRatio, 2);
+  private highlightedIndex: number | null = null;
 
   private starColor1 = new THREE.Color(0xffffff);
   private starColor2 = new THREE.Color(0xffd700);
@@ -79,6 +125,7 @@ export class StarField {
 
     this.positions = new Float32Array(this.count * 3);
     this.colors = new Float32Array(this.count * 3);
+    this.baseColors = new Float32Array(this.count * 3);
     this.sizes = new Float32Array(this.count);
     this.alphas = new Float32Array(this.count);
 
@@ -86,8 +133,7 @@ export class StarField {
     this.twinkleAmplitudes = new Float32Array(this.count);
     this.twinkleOffsets = new Float32Array(this.count);
 
-    const trailCount = this.count;
-    this.trailPositions = new Float32Array(trailCount * 3);
+    this.trailPositions = new Float32Array(this.count * 3);
 
     for (let i = 0; i < this.count; i++) {
       const i3 = i * 3;
@@ -121,6 +167,9 @@ export class StarField {
       this.colors[i3] = color.r;
       this.colors[i3 + 1] = color.g;
       this.colors[i3 + 2] = color.b;
+      this.baseColors[i3] = color.r;
+      this.baseColors[i3 + 1] = color.g;
+      this.baseColors[i3 + 2] = color.b;
 
       const sizeFactor = Math.pow(Math.random(), 2);
       this.sizes[i] = 1.5 + sizeFactor * 4.5;
@@ -134,7 +183,7 @@ export class StarField {
       this.starDataList.push({
         id: i,
         name: generateStarName(i),
-        constellation: getRandomConstellation(),
+        constellation: assignConstellation(x, y, z),
         brightness: 0.1 + Math.random() * 4.8,
         distance: 10 + Math.random() * 490,
         position: new THREE.Vector3(x, y, z)
@@ -150,13 +199,9 @@ export class StarField {
     this.trailGeometry.setAttribute('position', new THREE.BufferAttribute(this.trailPositions, 3));
     this.trailGeometry.setAttribute('color', new THREE.BufferAttribute(this.colors.slice(), 3));
 
-    const starCanvas = this.createStarTexture();
-    const haloCanvas = this.createHaloTexture();
-    const trailCanvas = this.createTrailTexture();
-
-    const starTexture = new THREE.CanvasTexture(starCanvas);
-    const haloTexture = new THREE.CanvasTexture(haloCanvas);
-    const trailTexture = new THREE.CanvasTexture(trailCanvas);
+    const starTexture = new THREE.CanvasTexture(this.createStarTexture());
+    const haloTexture = new THREE.CanvasTexture(this.createHaloTexture());
+    const trailTexture = new THREE.CanvasTexture(this.createTrailTexture());
 
     this.starsMaterial = new THREE.PointsMaterial({
       size: 3,
@@ -167,10 +212,9 @@ export class StarField {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       map: starTexture,
-      alphaMap: starTexture
     });
 
-    this.haloMaterial = new THREE.PointsMaterial({
+    const haloMaterial = new THREE.PointsMaterial({
       size: 12,
       sizeAttenuation: true,
       vertexColors: true,
@@ -179,7 +223,6 @@ export class StarField {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       map: haloTexture,
-      alphaMap: haloTexture
     });
 
     const trailMaterial = new THREE.PointsMaterial({
@@ -191,11 +234,10 @@ export class StarField {
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       map: trailTexture,
-      alphaMap: trailTexture
     });
 
     this.starsMesh = new THREE.Points(this.starsGeometry, this.starsMaterial);
-    this.haloMesh = new THREE.Points(this.haloGeometry, this.haloMaterial);
+    this.haloMesh = new THREE.Points(this.haloGeometry, haloMaterial);
     this.trailMesh = new THREE.Points(this.trailGeometry, trailMaterial);
 
     this.starsMesh.userData.isStarField = true;
@@ -263,16 +305,11 @@ export class StarField {
   public update(camera: THREE.Camera, deltaTime: number): void {
     this.time += deltaTime;
 
-    const positions = this.starsGeometry.attributes.position.array as Float32Array;
     const colors = this.starsGeometry.attributes.color.array as Float32Array;
-
     const trailPositions = this.trailGeometry.attributes.position.array as Float32Array;
+    const positions = this.starsGeometry.attributes.position.array as Float32Array;
 
     const cameraPos = camera.position;
-
-    const starSizes = new Float32Array(this.count);
-    const starAlphas = new Float32Array(this.count);
-    const haloSizes = new Float32Array(this.count);
 
     for (let i = 0; i < this.count; i++) {
       const i3 = i * 3;
@@ -294,18 +331,15 @@ export class StarField {
       const twinkle = Math.sin(this.time * speed * slowFactor + offset);
       const twinkleValue = 0.5 + twinkle * 0.5;
 
-      const baseSize = this.sizes[i];
       const lodFactor = distance > this.lodDistance2 ? 0.3 : (distance > this.lodDistance1 ? 0.6 : 1);
 
-      starSizes[i] = baseSize * (1 + twinkle * amplitude * 0.4) * lodFactor;
-      starAlphas[i] = (0.5 + twinkleValue * 0.5) * this.alphas[i] * lodFactor;
+      const isHighlighted = this.highlightedIndex === i;
+      const colorScale = (isHighlighted ? 1.4 : 1.0) * (0.3 + twinkleValue * 0.7) * lodFactor;
+      const colorBoost = isHighlighted ? 0.15 : 0;
 
-      const colorIntensity = 0.8 + twinkleValue * 0.2;
-      colors[i3] = Math.min(1, this.colors[i3] * colorIntensity);
-      colors[i3 + 1] = Math.min(1, this.colors[i3 + 1] * colorIntensity);
-      colors[i3 + 2] = Math.min(1, this.colors[i3 + 2] * colorIntensity);
-
-      haloSizes[i] = starSizes[i] * 4 * (0.8 + twinkleValue * 0.4) * lodFactor;
+      colors[i3] = Math.min(1, this.baseColors[i3] * colorScale + colorBoost);
+      colors[i3 + 1] = Math.min(1, this.baseColors[i3 + 1] * colorScale + colorBoost);
+      colors[i3 + 2] = Math.min(1, this.baseColors[i3 + 2] * colorScale + colorBoost * 0.6);
 
       const trailSpeed = 0.015 * lodFactor;
       trailPositions[i3] += (x - trailPositions[i3]) * trailSpeed;
@@ -313,32 +347,11 @@ export class StarField {
       trailPositions[i3 + 2] += (z - trailPositions[i3 + 2]) * trailSpeed;
     }
 
-    this.starsMaterial.size = this.computeAverageSize(starSizes) * this.pixelRatio;
-    this.starsMaterial.opacity = this.computeAverageOpacity(starAlphas);
-    this.haloMaterial.size = this.computeAverageSize(haloSizes) * this.pixelRatio;
-
     this.starsGeometry.attributes.color.needsUpdate = true;
     this.trailGeometry.attributes.position.needsUpdate = true;
-  }
 
-  private computeAverageSize(sizes: Float32Array): number {
-    let sum = 0;
-    const samples = Math.min(200, sizes.length);
-    const step = Math.floor(sizes.length / samples);
-    for (let i = 0; i < sizes.length; i += step) {
-      sum += sizes[i];
-    }
-    return Math.max(0.5, sum / samples);
-  }
-
-  private computeAverageOpacity(alphas: Float32Array): number {
-    let sum = 0;
-    const samples = Math.min(200, alphas.length);
-    const step = Math.floor(alphas.length / samples);
-    for (let i = 0; i < alphas.length; i += step) {
-      sum += alphas[i];
-    }
-    return Math.max(0.1, sum / samples);
+    this.starsMaterial.size = 3 + Math.sin(this.time * 0.5) * 0.15;
+    this.starsMaterial.opacity = 0.85 + Math.sin(this.time * 0.3) * 0.05;
   }
 
   public getStarsMesh(): THREE.Points {
@@ -354,37 +367,17 @@ export class StarField {
   }
 
   public highlightStar(index: number): void {
-    const colors = this.starsGeometry.attributes.color.array as Float32Array;
-
-    const i3 = index * 3;
-
-    colors[i3] = Math.min(1, this.colors[i3] * 1.5 + 0.2);
-    colors[i3 + 1] = Math.min(1, this.colors[i3 + 1] * 1.5 + 0.2);
-    colors[i3 + 2] = Math.min(1, this.colors[i3 + 2] * 1.2);
-
-    this.starsGeometry.attributes.color.needsUpdate = true;
-
-    this.starsMaterial.size = this.sizes[index] * 2.5 * this.pixelRatio;
-    this.starsMaterial.opacity = 1;
+    this.highlightedIndex = index;
   }
 
-  public resetHighlight(index: number): void {
-    const colors = this.starsGeometry.attributes.color.array as Float32Array;
-
-    const i3 = index * 3;
-
-    colors[i3] = this.colors[i3];
-    colors[i3 + 1] = this.colors[i3 + 1];
-    colors[i3 + 2] = this.colors[i3 + 2];
-
-    this.starsGeometry.attributes.color.needsUpdate = true;
+  public resetHighlight(_index: number): void {
+    this.highlightedIndex = null;
   }
 
   public dispose(): void {
     this.starsGeometry.dispose();
     this.starsMaterial.dispose();
     this.haloGeometry.dispose();
-    this.haloMaterial.dispose();
     this.trailGeometry.dispose();
     this.scene.remove(this.starsMesh);
     this.scene.remove(this.haloMesh);
