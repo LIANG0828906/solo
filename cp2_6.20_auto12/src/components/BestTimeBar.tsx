@@ -1,5 +1,5 @@
-import { memo } from 'react';
-import { Clock, Users, TrendingUp, Sparkles } from 'lucide-react';
+import { memo, useState } from 'react';
+import { Clock, Users, TrendingUp, Sparkles, Copy, Check } from 'lucide-react';
 import type { BestTimeRecommendation } from '@/types';
 
 interface BestTimeBarProps {
@@ -7,6 +7,8 @@ interface BestTimeBarProps {
 }
 
 const BestTimeBar = memo(function BestTimeBar({ recommendation }: BestTimeBarProps) {
+  const [copied, setCopied] = useState(false);
+
   if (!recommendation) {
     return (
       <div className="bg-gradient-to-r from-dark-800 to-dark-700 rounded-card p-4 border border-dark-600">
@@ -25,6 +27,18 @@ const BestTimeBar = memo(function BestTimeBar({ recommendation }: BestTimeBarPro
 
   const coveragePercent = Math.round(recommendation.coverage * 100);
   const isHighCoverage = recommendation.coverage >= 0.5;
+
+  const recommendationText = `${recommendation.date} ${recommendation.startTime}-${recommendation.endTime}，覆盖 ${recommendation.participantCount}/${recommendation.totalParticipants} 人（${coveragePercent}%）`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(recommendationText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('复制失败:', err);
+    }
+  };
 
   return (
     <div
@@ -55,10 +69,10 @@ const BestTimeBar = memo(function BestTimeBar({ recommendation }: BestTimeBarPro
         </>
       )}
 
-      <div className="relative flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="relative flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <div
-            className={`w-10 h-10 rounded-full flex items-center justify-center relative ${
+            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 relative ${
               isHighCoverage
                 ? 'bg-primary-600 text-white'
                 : 'bg-dark-700 text-dark-300'
@@ -79,8 +93,8 @@ const BestTimeBar = memo(function BestTimeBar({ recommendation }: BestTimeBarPro
               />
             )}
           </div>
-          <div>
-            <div className="text-sm font-medium text-dark-200 flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-dark-200 flex items-center gap-2 flex-wrap">
               {isHighCoverage ? (
                 <>
                   推荐最佳时间
@@ -95,7 +109,7 @@ const BestTimeBar = memo(function BestTimeBar({ recommendation }: BestTimeBarPro
                 '当前最优选'
               )}
             </div>
-            <div className="text-lg font-bold text-dark-100">
+            <div className="text-lg font-bold text-dark-100 truncate">
               {recommendation.date}
               <span className="text-sm font-normal text-dark-400 ml-2">
                 {recommendation.startTime} - {recommendation.endTime}
@@ -104,23 +118,49 @@ const BestTimeBar = memo(function BestTimeBar({ recommendation }: BestTimeBarPro
           </div>
         </div>
 
-        <div className="text-right">
-          <div
-            className={`text-2xl font-bold ${
-              isHighCoverage ? 'text-primary-400' : 'text-dark-300'
+        <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="text-right">
+            <div
+              className={`text-2xl font-bold ${
+                isHighCoverage ? 'text-primary-400' : 'text-dark-300'
+              }`}
+              style={
+                isHighCoverage
+                  ? { animation: 'number-pulse 2.5s ease-in-out infinite' }
+                  : undefined
+              }
+            >
+              {coveragePercent}%
+            </div>
+            <div className="text-xs text-dark-400 flex items-center gap-1 justify-end">
+              <Users className="w-3 h-3" />
+              {recommendation.participantCount}/{recommendation.totalParticipants} 人
+            </div>
+          </div>
+
+          <button
+            onClick={handleCopy}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 ease-bounce-subtle hover:scale-105 ${
+              copied
+                ? 'bg-green-600 text-white'
+                : isHighCoverage
+                ? 'bg-primary-600/80 hover:bg-primary-600 text-white'
+                : 'bg-dark-700 hover:bg-dark-600 text-dark-200'
             }`}
-            style={
-              isHighCoverage
-                ? { animation: 'number-pulse 2.5s ease-in-out infinite' }
-                : undefined
-            }
+            title="复制推荐时间"
           >
-            {coveragePercent}%
-          </div>
-          <div className="text-xs text-dark-400 flex items-center gap-1 justify-end">
-            <Users className="w-3 h-3" />
-            {recommendation.participantCount}/{recommendation.totalParticipants} 人
-          </div>
+            {copied ? (
+              <>
+                <Check className="w-4 h-4" />
+                已复制
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                复制
+              </>
+            )}
+          </button>
         </div>
       </div>
 

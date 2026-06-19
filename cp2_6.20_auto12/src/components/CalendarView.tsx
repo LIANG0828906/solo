@@ -17,6 +17,8 @@ interface CalendarViewProps {
   isMobile?: boolean;
 }
 
+type EventType = 'slot' | 'heatmap' | 'vote-tag' | 'overlay';
+
 interface CalendarEventInput {
   id: string;
   title: string;
@@ -25,12 +27,16 @@ interface CalendarEventInput {
   backgroundColor: string;
   borderColor: string;
   extendedProps: {
-    type: 'slot' | 'vote' | 'overlay';
+    type: EventType;
     slotId?: string;
     userName?: string;
+    userColor?: string;
     voteId?: string;
     userNames?: string[];
     count?: number;
+    heatmapIntensity?: number;
+    tagPosition?: number;
+    totalTags?: number;
   };
   className: string;
   display?: 'block' | 'background' | 'inverse-background';
@@ -90,8 +96,8 @@ const CalendarView = memo(function CalendarView({
         start: `${slot.date}T${slot.startTime}:00`,
         end: `${slot.date}T${slot.endTime}:00`,
         backgroundColor: isSelected
-          ? 'rgba(79, 70, 229, 0.35)'
-          : 'rgba(51, 65, 85, 0.4)',
+          ? 'rgba(79, 70, 229, 0.25)'
+          : 'rgba(51, 65, 85, 0.35)',
         borderColor: isSelected ? '#4F46E5' : '#475569',
         extendedProps: {
           type: 'slot',
@@ -101,23 +107,42 @@ const CalendarView = memo(function CalendarView({
       });
 
       if (voteCount > 0) {
-        const intensity = Math.min(0.6, 0.15 + (voteCount / Math.max(totalVoters, 1)) * 0.45);
+        const intensity = Math.min(0.55, 0.12 + (voteCount / Math.max(totalVoters, 1)) * 0.45);
+        result.push({
+          id: `heatmap-${slot.id}`,
+          title: '',
+          start: `${slot.date}T${slot.startTime}:00`,
+          end: `${slot.date}T${slot.endTime}:00`,
+          backgroundColor: `rgba(79, 70, 229, ${intensity})`,
+          borderColor: 'transparent',
+          extendedProps: {
+            type: 'heatmap',
+            slotId: slot.id,
+            heatmapIntensity: intensity,
+          },
+          className: 'fc-heatmap-layer',
+        });
+
+        const positions = calculateTagPositions(slotVotes.length);
         slotVotes.forEach((vote, idx) => {
           const userColor = getColorForUser(vote.userName, totalVoters);
           result.push({
-            id: `vote-${vote.id}-${slot.id}`,
+            id: `vote-tag-${vote.id}-${slot.id}`,
             title: vote.userName,
             start: `${slot.date}T${slot.startTime}:00`,
             end: `${slot.date}T${slot.endTime}:00`,
-            backgroundColor: hexToRgba(userColor, 0.28),
-            borderColor: hexToRgba(userColor, 0.55),
+            backgroundColor: 'transparent',
+            borderColor: 'transparent',
             extendedProps: {
-              type: 'vote',
+              type: 'vote-tag',
               userName: vote.userName,
+              userColor,
               voteId: vote.id,
               slotId: slot.id,
+              tagPosition: positions[idx],
+              totalTags: slotVotes.length,
             },
-            className: `fc-vote-block fc-vote-${idx % 5}`,
+            className: `fc-vote-tag-layer`,
           });
         });
 
@@ -141,6 +166,33 @@ const CalendarView = memo(function CalendarView({
 
     return result;
   }, [timeSlots, votes, selectedSlotIds, slotVoteMap]);
+
+  function calculateTagPositions(count: number): number[] {
+    const positions: number[] = [];
+    const maxPerRow = 4;
+    for (let i = 0; i < count; i++) {
+      const row = Math.floor(i / maxPerRow);
+      const col = i % maxPerRow;
+      const rowCount = Math.min(maxPerRow, count - row * maxPerRow);
+      const colSpacing = 100 / (rowCount + 1);
+      positions.push(row * 100 + colSpacing * (col + 1));
+    }
+    return positions;
+  }
+
+  function getAbbreviation(name: string): string {
+    if (!name) return '?';
+    if (name.length <= 2) return name.toUpperCase();
+    const chineseMatch = name.match(/[\u4e00-\u9fa5]/);
+    if (chineseMatch && name.length >= 2) {
+      return name.slice(0, 2);
+    }
+    const words = name.split(/[\s_-]+/);
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  }
 
   const handleDateClick = useCallback(
     (arg: { date: Date; dateStr: string }) => {
@@ -303,7 +355,7 @@ const CalendarView = memo(function CalendarView({
                   onSlotSelect([...selectedSlotIds, slot.id]);
                 }
               }}
-              className={`card p-4 cursor-pointer transition-all duration-200 ease-bounce-subtle hover:scale-[1.02] relative ${
+              className={`card p-4 cursor-pointer transition-all duration-200 ease-bounce-subtle hover:scale-[1.02] relative overflow-hidden ${
                 isSelected ? 'border-primary-500 shadow-glow' : ''
               }`}
               style={{
@@ -312,17 +364,26 @@ const CalendarView = memo(function CalendarView({
               }}
             >
               {slotVotes.length > 0 && (
-                <div className="absolute top-3 right-3 flex items-center gap-1 bg-primary-600/90 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: `linear-gradient(135deg, ${hexToRgba('#4F46E5', Math.min(0.35, slotVotes.length / Math.max(votes.length, 1) * 0.3))} 0%, transparent 60%)`,
+                  }}
+                />
+              )}
+
+              {slotVotes.length > 0 && (
+                <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-primary-600/95 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
                   <Users className="w-3 h-3" />
-                  {slotVotes.length}
+                  {slotVotes.length}人
                 </div>
               )}
 
-              <div className="flex items-center justify-between mb-3 pr-12">
+              <div className="relative flex items-center justify-between mb-4 pr-16">
                 <div>
                   <div className="text-lg font-semibold text-dark-100">{slot.date}</div>
-                  <div className="text-sm text-dark-400">
-                    {slot.startTime} - {slot.endTime}
+                  <div className="text-sm text-dark-400 flex items-center gap-1">
+                    <span>{slot.startTime} - {slot.endTime}</span>
                   </div>
                 </div>
                 <div
@@ -350,44 +411,64 @@ const CalendarView = memo(function CalendarView({
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-1.5">
-                {slotVotes.slice(0, 8).map((vote, vIdx) => {
-                  const color = getColorForUser(vote.userName, slotVotes.length);
-                  return (
-                    <div
-                      key={vote.id}
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium text-white border-2 border-dark-800 shadow-sm transition-transform hover:scale-125 hover:z-10"
-                      style={{
-                        backgroundColor: color,
-                        animation: `fade-in-up 0.4s ease-out ${vIdx * 0.05}s both`,
-                      }}
-                      title={`${vote.userName} - 可用`}
-                    >
-                      {vote.userName.charAt(0).toUpperCase()}
-                    </div>
-                  );
-                })}
-                {slotVotes.length > 8 && (
+              <div className="relative flex flex-wrap gap-1.5">
+                {slotVotes.length === 0 ? (
+                  <div className="text-xs text-dark-500 py-2 px-3 bg-dark-800/50 rounded-lg">
+                    暂无参与者选择
+                  </div>
+                ) : (
+                  slotVotes.map((vote, vIdx) => {
+                    const color = getColorForUser(vote.userName, slotVotes.length);
+                    const abbr = getAbbreviation(vote.userName);
+                    return (
+                      <div
+                        key={vote.id}
+                        className="group relative"
+                        title={`${vote.userName} - 可用`}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white border-2 shadow-md transition-all duration-200 ease-bounce-subtle hover:scale-125 hover:z-10 hover:shadow-xl"
+                          style={{
+                            backgroundColor: color,
+                            borderColor: hexToRgba(color, 0.5),
+                            animation: `fade-in-up 0.4s ease-out ${vIdx * 0.04}s both`,
+                            boxShadow: `0 2px 8px ${hexToRgba(color, 0.4)}`,
+                          }}
+                        >
+                          {abbr}
+                        </div>
+                        <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 z-20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <div className="bg-dark-900 text-dark-100 text-[11px] px-2 py-1 rounded shadow-xl whitespace-nowrap border border-dark-600">
+                            {vote.userName}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                {slotVotes.length > 12 && (
                   <div
-                    className="w-7 h-7 rounded-full bg-dark-600 flex items-center justify-center text-xs font-medium text-dark-200 border-2 border-dark-800"
-                    title={`还有 ${slotVotes.length - 8} 人可用`}
+                    className="w-8 h-8 rounded-lg bg-dark-700 flex items-center justify-center text-[11px] font-bold text-dark-300 border-2 border-dark-600"
+                    title={`还有 ${slotVotes.length - 12} 人可用`}
                   >
-                    +{slotVotes.length - 8}
+                    +{slotVotes.length - 12}
                   </div>
                 )}
               </div>
 
-              <div className="mt-3 flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-dark-700 rounded-full overflow-hidden">
+              <div className="relative mt-4 flex items-center gap-2">
+                <div className="flex-1 h-2 bg-dark-700 rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-full transition-all duration-700 ease-out"
+                    className="h-full rounded-full transition-all duration-1000 ease-out"
                     style={{
                       width: `${votes.length > 0 ? (slotVotes.length / votes.length) * 100 : 0}%`,
-                      background: 'linear-gradient(90deg, #4F46E5, #818CF8)',
+                      background: 'linear-gradient(90deg, #4F46E5, #818CF8, #4F46E5)',
+                      backgroundSize: '200% 100%',
+                      animation: slotVotes.length > 0 ? 'progress-shine 3s ease-in-out infinite' : undefined,
                     }}
                   />
                 </div>
-                <span className="text-sm text-dark-400 flex-shrink-0 min-w-[3rem] text-right">
+                <span className="text-xs text-dark-400 flex-shrink-0 min-w-[3.5rem] text-right font-medium">
                   {slotVotes.length}/{votes.length} 人
                 </span>
               </div>
@@ -400,6 +481,13 @@ const CalendarView = memo(function CalendarView({
 
   return (
     <div className="fc-dark-theme relative">
+      <style>{`
+        @keyframes progress-shine {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+      `}</style>
+
       {tooltip.visible && (
         <div
           className="fixed z-[9999] pointer-events-none animate-fade-in"
@@ -408,25 +496,28 @@ const CalendarView = memo(function CalendarView({
             top: tooltip.y,
           }}
         >
-          <div className="bg-dark-900/95 backdrop-blur-sm border border-dark-600 rounded-card shadow-2xl p-3 min-w-[180px] max-w-[240px]">
+          <div className="bg-dark-900/95 backdrop-blur-md border border-dark-600 rounded-card shadow-2xl p-3 min-w-[200px] max-w-[280px]">
             <div className="text-sm font-semibold text-dark-100 mb-1">{tooltip.date}</div>
             <div className="text-xs text-dark-400 mb-3">{tooltip.time}</div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dark-700">
               <Users className="w-4 h-4 text-primary-400" />
-              <span className="text-sm font-medium text-primary-300">
+              <span className="text-sm font-bold text-primary-300">
                 {tooltip.count} 人可用
               </span>
             </div>
             {tooltip.userNames.length > 0 && (
-              <div className="space-y-1 max-h-32 overflow-y-auto">
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
                 {tooltip.userNames.map((name, i) => {
                   const color = getColorForUser(name, tooltip.userNames.length);
+                  const abbr = getAbbreviation(name);
                   return (
                     <div key={i} className="flex items-center gap-2 text-xs text-dark-300">
                       <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
                         style={{ backgroundColor: color }}
-                      />
+                      >
+                        {abbr}
+                      </div>
                       <span className="truncate">{name}</span>
                     </div>
                   );
@@ -466,14 +557,14 @@ const CalendarView = memo(function CalendarView({
         validRange={validRange}
         height="auto"
         eventOrderStrict={true}
-        eventOrder={(a: { extendedProps: { type: string } }, b: { extendedProps: { type: string } }) => {
-          const order = { slot: 0, vote: 1, overlay: 2 };
+        eventOrder={((a: any, b: any) => {
+          const order = { slot: 0, heatmap: 1, 'vote-tag': 2, overlay: 3 };
           const aType = a.extendedProps.type as keyof typeof order;
           const bType = b.extendedProps.type as keyof typeof order;
           return order[aType] - order[bType];
-        }}
+        }) as any}
         eventContent={(arg) => {
-          const type = arg.event.extendedProps.type;
+          const type = arg.event.extendedProps.type as EventType;
 
           if (type === 'overlay') {
             const count = arg.event.extendedProps.count || 0;
@@ -482,7 +573,7 @@ const CalendarView = memo(function CalendarView({
 
             return (
               <div
-                className="w-full h-full flex items-start justify-end p-1 pointer-events-auto cursor-help"
+                className="w-full h-full flex items-start justify-end p-1.5 pointer-events-auto cursor-help"
                 onMouseEnter={(e) => showTooltip(e, slotId)}
                 onMouseLeave={hideTooltip}
                 onMouseMove={(e) => {
@@ -497,37 +588,97 @@ const CalendarView = memo(function CalendarView({
                   }));
                 }}
               >
-                <div className="flex items-center gap-1 bg-primary-600/90 backdrop-blur-sm text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-lg animate-fade-in">
+                <div
+                  className="flex items-center gap-1 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-lg animate-fade-in"
+                  style={{
+                    background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
+                    boxShadow: '0 2px 8px rgba(79, 70, 229, 0.5)',
+                  }}
+                >
                   <Users className="w-3 h-3" />
-                  {count}
+                  {count}人
                 </div>
               </div>
             );
           }
 
-          if (type === 'vote') {
+          if (type === 'vote-tag') {
             const userName = arg.event.extendedProps.userName || '';
-            const userColor = getColorForUser(userName, votes.length);
+            const userColor = arg.event.extendedProps.userColor || '#8B5CF6';
+            const position = arg.event.extendedProps.tagPosition || 50;
+            const totalTags = arg.event.extendedProps.totalTags || 1;
+            const abbr = getAbbreviation(userName);
+
+            const row = Math.floor(position / 100);
+            const colPercent = position % 100;
+            const tagHeight = 24;
+            const topOffset = 6 + row * (tagHeight + 4);
+
             return (
               <div
-                className="w-full h-full"
+                className="w-full h-full pointer-events-none"
+                style={{ position: 'relative' }}
+              >
+                <div
+                  className="absolute group"
+                  style={{
+                    top: `${topOffset}px`,
+                    left: `${colPercent}%`,
+                    transform: 'translateX(-50%)',
+                    animation: `fade-in-up 0.3s ease-out`,
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-center text-[10px] font-bold text-white rounded-md border shadow-sm transition-all duration-200"
+                    style={{
+                      width: totalTags > 8 ? '20px' : '24px',
+                      height: totalTags > 8 ? '20px' : '24px',
+                      backgroundColor: userColor,
+                      borderColor: hexToRgba(userColor, 0.7),
+                      boxShadow: `0 2px 6px ${hexToRgba(userColor, 0.35)}`,
+                    }}
+                    title={userName}
+                  >
+                    {abbr}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (type === 'heatmap') {
+            return (
+              <div
+                className="w-full h-full pointer-events-none"
                 style={{
-                  background: `linear-gradient(135deg, ${hexToRgba(userColor, 0.35)} 0%, ${hexToRgba(userColor, 0.15)} 100%)`,
-                  borderLeft: `3px solid ${userColor}`,
-                  borderRadius: '4px',
+                  background: arg.event.backgroundColor,
+                  borderRadius: '6px',
+                  mixBlendMode: 'multiply',
                 }}
               />
             );
           }
 
+          if (type === 'slot') {
+            return null;
+          }
+
           return null;
         }}
         eventDidMount={(info) => {
-          const type = info.event.extendedProps.type;
-          if (type === 'vote') {
-            info.el.style.zIndex = '2';
+          const type = info.event.extendedProps.type as EventType;
+          if (type === 'vote-tag') {
+            info.el.style.zIndex = '5';
+            info.el.style.background = 'transparent';
+            info.el.style.border = 'none';
+            info.el.style.boxShadow = 'none';
             info.el.style.pointerEvents = 'none';
-            info.el.style.margin = '1px';
+          } else if (type === 'heatmap') {
+            info.el.style.zIndex = '2';
+            info.el.style.background = 'transparent';
+            info.el.style.border = 'none';
+            info.el.style.boxShadow = 'none';
+            info.el.style.pointerEvents = 'none';
           } else if (type === 'slot') {
             info.el.style.zIndex = '1';
           } else if (type === 'overlay') {
