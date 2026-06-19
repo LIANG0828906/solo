@@ -318,7 +318,7 @@ class Game {
       this.score,
       this.gameTime
     );
-    this.renderer.drawEdgeGlow(16);
+    this.renderer.drawEdgeGlow(16, this.gameTime);
     this.renderer.drawScreenFlash(16);
   }
 }

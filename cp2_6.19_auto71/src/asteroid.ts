@@ -160,7 +160,7 @@ export class AsteroidManager {
 
   public updateOres(): void {
     for (const ore of this.ores) {
-      ore.pulsePhase += 0.05;
+      ore.pulsePhase += 0.03;
     }
   }
 
@@ -208,7 +208,7 @@ export class AsteroidManager {
     return { destroyed, oreCreated };
   }
 
-  private createParticles(x: number, y: number, color: string): void {
+  private createParticles(x: number, y: number, _color: string): void {
     for (let i = 0; i < 5; i++) {
       const angle = (Math.PI * 2 * i) / 5 + randomRange(-0.3, 0.3);
       const speed = randomRange(1, 3);

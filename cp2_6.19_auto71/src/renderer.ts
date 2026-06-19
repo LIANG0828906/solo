@@ -44,6 +44,8 @@ export class Renderer {
   private scoreAnimations: ScoreAnimation[] = [];
   private screenFlash: number = 0;
   private edgeGlow: number = 0;
+  private currentScore: number = 0;
+  private scoreScale: number = 1;
   private readonly starCount: number = 200;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -68,13 +70,13 @@ export class Renderer {
     }
   }
 
-  public updateStars(time: number): void {
+  public updateStars(_time: number): void {
     for (const star of this.stars) {
       star.phase += star.speed;
     }
   }
 
-  public drawBackground(time: number): void {
+  public drawBackground(_time: number): void {
     const ctx = this.ctx;
     const gradient = ctx.createRadialGradient(
       this.canvas.width / 2,
@@ -167,22 +169,27 @@ export class Renderer {
     }
   }
 
-  public drawOres(ores: Ore[], time: number): void {
+  public drawOres(ores: Ore[], _time: number): void {
     const ctx = this.ctx;
     for (const ore of ores) {
-      const pulse = Math.sin(ore.pulsePhase) * 0.3 + 0.7;
-      const size = 5 * pulse;
+      const pulse = Math.sin(ore.pulsePhase) * 0.4 + 0.6;
+      const size = 5 + pulse * 3;
+      const alpha = 0.7 + pulse * 0.3;
 
       ctx.save();
+      ctx.globalAlpha = alpha;
       ctx.shadowColor = ore.color;
-      ctx.shadowBlur = 10 * pulse;
+      ctx.shadowBlur = 15 * pulse;
 
       ctx.fillStyle = ore.color;
       ctx.fillRect(ore.x - size / 2, ore.y - size / 2, size, size);
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 + pulse * 0.3})`;
       ctx.lineWidth = 1;
       ctx.strokeRect(ore.x - size / 2, ore.y - size / 2, size, size);
+
+      ctx.fillStyle = `rgba(255, 255, 255, ${pulse * 0.5})`;
+      ctx.fillRect(ore.x - size / 4, ore.y - size / 4, size / 2, size / 2);
 
       ctx.shadowBlur = 0;
       ctx.restore();
@@ -252,7 +259,7 @@ export class Renderer {
     this.edgeGlow = 1;
   }
 
-  public drawPortal(time: number): void {
+  public drawPortal(_time: number): void {
     if (!this.portal.active) return;
 
     const ctx = this.ctx;
@@ -383,11 +390,18 @@ export class Renderer {
     ctx.fillText(`燃料: ${fuel.toFixed(1)}%`, fuelBarX + fuelBarWidth / 2, fuelBarY + fuelBarHeight + 12);
     ctx.restore();
 
+    if (score !== this.currentScore) {
+      this.scoreScale = 1.2;
+      this.currentScore = score;
+    }
+    this.scoreScale = 1 + (this.scoreScale - 1) * 0.9;
+
     ctx.save();
-    ctx.font = 'bold 20px monospace';
+    const baseFontSize = 20;
+    ctx.font = `bold ${baseFontSize * this.scoreScale}px monospace`;
     ctx.fillStyle = '#ffd700';
     ctx.shadowColor = '#ffd700';
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 8 * this.scoreScale;
     ctx.textAlign = 'right';
     ctx.fillText(`得分: ${score}`, this.canvas.width - 20, 38);
     ctx.restore();
@@ -408,8 +422,17 @@ export class Renderer {
     }
   }
 
-  public drawEdgeGlow(deltaTime: number): void {
-    if (this.edgeGlow <= 0) return;
+  public drawEdgeGlow(deltaTime: number, time: number): void {
+    let glowIntensity = 0;
+
+    if (this.portal.active) {
+      glowIntensity = 0.3 + Math.sin(time * 0.005) * 0.15;
+    } else if (this.edgeGlow > 0) {
+      glowIntensity = this.edgeGlow * 0.3;
+      this.edgeGlow = Math.max(0, this.edgeGlow - deltaTime / 2000);
+    }
+
+    if (glowIntensity <= 0) return;
 
     const ctx = this.ctx;
     const gradient = ctx.createRadialGradient(
@@ -421,11 +444,9 @@ export class Renderer {
       this.canvas.width * 0.5
     );
     gradient.addColorStop(0, 'rgba(255, 68, 68, 0)');
-    gradient.addColorStop(1, `rgba(255, 68, 68, ${this.edgeGlow * 0.3})`);
+    gradient.addColorStop(1, `rgba(255, 68, 68, ${glowIntensity})`);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-    this.edgeGlow = Math.max(0, this.edgeGlow - deltaTime / 2000);
   }
 
   public triggerScreenFlash(): void {
