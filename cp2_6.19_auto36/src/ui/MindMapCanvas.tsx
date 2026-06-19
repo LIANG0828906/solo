@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { MindMapNode, Theme, Viewport, NodeDragState, CreateDragState } from '../types';
 import { mapEngine } from '../core/MapEngine';
+import { X } from 'lucide-react';
 
 interface MindMapCanvasProps {
   theme: Theme;
@@ -48,6 +49,7 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [isThumbDragging, setIsThumbDragging] = useState(false);
   const [newlyCreatedNodeId, setNewlyCreatedNodeId] = useState<string | null>(null);
+  const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(null);
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
@@ -391,6 +393,23 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     };
   }, [handleMouseMove, handleMouseUp]);
 
+  const handleDeleteConnection = useCallback(
+    (e: React.MouseEvent, childNodeId: string) => {
+      e.stopPropagation();
+      const node = mapEngine.getNode(childNodeId);
+      if (node && node.parentId) {
+        mapEngine.updateNode(childNodeId, { parentId: null });
+        const parent = mapEngine.getNode(node.parentId);
+        if (parent) {
+          mapEngine.updateNode(node.parentId, {
+            children: parent.children.filter((id) => id !== childNodeId),
+          });
+        }
+      }
+    },
+    []
+  );
+
   const renderConnections = () => {
     return nodes
       .filter((node) => node.parentId)
@@ -408,9 +427,45 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
 
         const isFaded =
           nodeDragState.isDragging && nodeDragState.nodeId !== node.id;
+        const isHovered = hoveredConnectionId === node.id;
+        const lineColor = isHovered ? '#2563EB' : theme.lineColor;
+        const lineWidth = isHovered ? 3 : 2;
+
+        const arrowSize = 1.5;
+        const arrowW = 8 * arrowSize;
+        const arrowH = 5 * arrowSize;
+
+        const midPointT = 0.5;
+        const mt = midPointT;
+        const control1x = midX;
+        const control1y = startY;
+        const control2x = midX;
+        const control2y = endY;
+
+        const bezierPoint = (t: number) => {
+          const u = 1 - t;
+          const x =
+            u * u * u * startX +
+            3 * u * u * t * control1x +
+            3 * u * t * t * control2x +
+            t * t * t * endX;
+          const y =
+            u * u * u * startY +
+            3 * u * u * t * control1y +
+            3 * u * t * t * control2y +
+            t * t * t * endY;
+          return { x, y };
+        };
+
+        const deleteBtnPos = bezierPoint(mt);
 
         return (
-          <g key={`conn-${node.id}`} style={{ opacity: isFaded ? 0.3 : 1, transition: 'opacity 0.2s ease' }}>
+          <g
+            key={`conn-${node.id}`}
+            style={{ opacity: isFaded ? 0.3 : 1, transition: 'opacity 0.2s ease' }}
+            onMouseEnter={() => setHoveredConnectionId(node.id)}
+            onMouseLeave={() => setHoveredConnectionId(null)}
+          >
             <defs>
               <linearGradient
                 id={`gradient-${node.id}`}
@@ -419,20 +474,69 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
                 x2="100%"
                 y2="0%"
               >
-                <stop offset="0%" stopColor={theme.lineColor} stopOpacity="0.6" />
-                <stop offset="100%" stopColor={theme.lineColor} stopOpacity="1" />
+                <stop offset="0%" stopColor={lineColor} stopOpacity="0.6" />
+                <stop offset="100%" stopColor={lineColor} stopOpacity="1" />
               </linearGradient>
             </defs>
+
+            <path
+              d={path}
+              fill="none"
+              stroke="transparent"
+              strokeWidth="16"
+              style={{ cursor: 'pointer' }}
+            />
+
             <path
               d={path}
               fill="none"
               stroke={`url(#gradient-${node.id})`}
-              strokeWidth="2"
+              strokeWidth={lineWidth}
+              style={{
+                transition: 'stroke-width 0.2s ease',
+                pointerEvents: 'none',
+              }}
             />
+
             <polygon
-              points={`${endX},${endY} ${endX - 8},${endY - 5} ${endX - 8},${endY + 5}`}
-              fill={theme.lineColor}
+              points={`${endX},${endY} ${endX - arrowW},${endY - arrowH} ${endX - arrowW},${endY + arrowH}`}
+              fill={lineColor}
+              style={{
+                transition: 'fill 0.2s ease',
+                pointerEvents: 'none',
+              }}
             />
+
+            {isHovered && (
+              <g
+                transform={`translate(${deleteBtnPos.x - 10}, ${deleteBtnPos.y - 10})`}
+                style={{ cursor: 'pointer' }}
+                onClick={(e) => handleDeleteConnection(e, node.id)}
+              >
+                <circle
+                  cx="10"
+                  cy="10"
+                  r="11"
+                  fill="#FFFFFF"
+                  stroke="#2563EB"
+                  strokeWidth="1.5"
+                />
+                <foreignObject x="3" y="3" width="14" height="14">
+                  <div
+                    style={{
+                      width: '14px',
+                      height: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#2563EB',
+                    }}
+                  >
+                    <X size={12} strokeWidth={3} />
+                  </div>
+                </foreignObject>
+              </g>
+            )}
           </g>
         );
       });
