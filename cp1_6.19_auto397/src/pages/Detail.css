@@ -1,0 +1,254 @@
+.detail-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+  min-height: calc(100vh - 80px);
+}
+
+.detail-back {
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: white;
+  border: 1px solid var(--color-border);
+  color: var(--color-gray-dark);
+  font-size: 14px;
+  margin-bottom: 20px;
+  transition: all var(--transition);
+}
+
+.detail-back:hover {
+  background: var(--color-gray-light);
+}
+
+.detail-content {
+  display: flex;
+  gap: 24px;
+  background: white;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.detail-image-wrap {
+  flex: 1;
+  min-width: 300px;
+  background: var(--color-gray-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+}
+
+.detail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.detail-info {
+  width: 360px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-gray-light);
+}
+
+.detail-author-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.detail-description {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.detail-tag {
+  padding: 4px 12px;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detail-like {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: var(--color-gray-light);
+  font-size: 14px;
+  transition: all var(--transition);
+}
+
+.detail-like.liked {
+  background: #FFEBEE;
+  color: var(--color-like);
+}
+
+.detail-like:hover {
+  transform: scale(1.05);
+}
+
+.detail-comment-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: var(--color-gray-light);
+  font-size: 14px;
+  color: var(--color-gray-dark);
+}
+
+.detail-comments-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.detail-comments-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.detail-comments {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.detail-no-comments {
+  font-size: 13px;
+  color: var(--color-gray-dark);
+  text-align: center;
+  padding: 20px;
+}
+
+.detail-comment-item {
+  padding: 10px 12px;
+  background: var(--color-gray-light);
+  border-radius: 12px;
+}
+
+.detail-comment-author {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  margin-bottom: 4px;
+}
+
+.detail-comment-content {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.5;
+}
+
+.detail-comment-input-wrap {
+  display: flex;
+  gap: 8px;
+}
+
+.detail-comment-input {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 20px;
+  border: none;
+  background: var(--color-gray-light);
+  font-size: 13px;
+  transition: all var(--transition);
+}
+
+.detail-comment-input:focus {
+  background: white;
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.detail-comment-send {
+  padding: 10px 20px;
+  border-radius: 20px;
+  background: var(--color-primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+
+.detail-comment-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.detail-comment-send:not(:disabled):hover {
+  background: var(--color-primary-dark);
+}
+
+.detail-not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+}
+
+.detail-not-found p {
+  font-size: 16px;
+  color: var(--color-gray-dark);
+}
+
+.detail-not-found button {
+  padding: 10px 24px;
+  border-radius: 20px;
+  background: var(--color-primary);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .detail-content {
+    flex-direction: column;
+  }
+
+  .detail-info {
+    width: 100%;
+  }
+}
