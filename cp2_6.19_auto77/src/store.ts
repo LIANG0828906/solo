@@ -61,40 +61,15 @@ const computeHeatmap = (records: DayRecord[]): HeatmapCell[] => {
   const startDate = addDays(today, -29);
   const cells: HeatmapCell[] = [];
 
-  const completedSet = new Set<string>();
-  for (const r of records) if (r.completed) completedSet.add(r.date);
-
   for (let i = 0; i < 30; i++) {
     const d = addDays(startDate, i);
     const ds = formatDate(d);
     const rec = recordMap.get(ds);
     const completed = rec?.completed ?? false;
-
-    let level: StreakLevel = 0;
-    if (completed) {
-      let runBack = 0;
-      let cursor = d;
-      while (completedSet.has(formatDate(cursor))) {
-        runBack++;
-        cursor = addDays(cursor, -1);
-      }
-      let runForward = 0;
-      cursor = addDays(d, 1);
-      while (completedSet.has(formatDate(cursor)) && i + runForward + 1 < 30) {
-        runForward++;
-        cursor = addDays(cursor, 1);
-      }
-      const localStreak = runBack + runForward;
-      if (localStreak >= 7) {
-        level = 2;
-      } else {
-        level = 1;
-      }
-    }
     cells.push({
       date: ds,
       completed,
-      streakLevel: level,
+      streakLevel: 0,
       completedAt: rec?.completedAt,
     });
   }
@@ -102,22 +77,26 @@ const computeHeatmap = (records: DayRecord[]): HeatmapCell[] => {
   const allCompleted = cells.every((c) => c.completed);
   if (allCompleted) {
     for (const c of cells) c.streakLevel = 3;
-  } else {
-    for (const c of cells) {
-      if (c.streakLevel === 2) {
-        let run = 1;
-        let idx = cells.indexOf(c);
-        while (idx > 0 && cells[idx - 1].completed) {
-          run++;
-          idx--;
-        }
-        idx = cells.indexOf(c);
-        while (idx < cells.length - 1 && cells[idx + 1].completed) {
-          run++;
-          idx++;
-        }
-        if (run < 7) c.streakLevel = 1;
-      }
+    return cells;
+  }
+
+  const runs: Array<{ start: number; end: number; length: number }> = [];
+  let i = 0;
+  while (i < cells.length) {
+    if (cells[i].completed) {
+      const start = i;
+      while (i < cells.length && cells[i].completed) i++;
+      const end = i - 1;
+      runs.push({ start, end, length: end - start + 1 });
+    } else {
+      i++;
+    }
+  }
+
+  for (const run of runs) {
+    const level: StreakLevel = run.length >= 7 ? 2 : 1;
+    for (let j = run.start; j <= run.end; j++) {
+      cells[j].streakLevel = level;
     }
   }
 

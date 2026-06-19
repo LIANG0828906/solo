@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useHabitStore, todayStr } from '../store';
 import { HabitCard } from './HabitCard';
@@ -14,7 +14,9 @@ function getAudioCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null;
   try {
     if (!audioCtx) {
-      const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const Ctor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       audioCtx = new Ctor();
     }
     return audioCtx;
@@ -23,35 +25,46 @@ function getAudioCtx(): AudioContext | null {
   }
 }
 
-function playSoftTone() {
+function playSoftTone(): void {
   const ctx = getAudioCtx();
   if (!ctx) return;
   try {
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+    }
     const now = ctx.currentTime;
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.22, now + 0.018);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+    master.connect(ctx.destination);
 
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(880, now);
-    osc1.frequency.exponentialRampToValueAtTime(1320, now + 0.12);
+    const oscA = ctx.createOscillator();
+    oscA.type = 'sine';
+    oscA.frequency.setValueAtTime(660, now);
+    oscA.frequency.exponentialRampToValueAtTime(990, now + 0.11);
 
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(660, now);
+    const oscB = ctx.createOscillator();
+    oscB.type = 'triangle';
+    oscB.frequency.setValueAtTime(1320, now + 0.05);
+    oscB.frequency.exponentialRampToValueAtTime(1760, now + 0.18);
 
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+    const gA = ctx.createGain();
+    gA.gain.setValueAtTime(0.45, now);
+    gA.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
 
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(ctx.destination);
+    const gB = ctx.createGain();
+    gB.gain.setValueAtTime(0.0001, now);
+    gB.gain.exponentialRampToValueAtTime(0.28, now + 0.07);
+    gB.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
 
-    osc1.start(now);
-    osc2.start(now);
-    osc1.stop(now + 0.34);
-    osc2.stop(now + 0.34);
+    oscA.connect(gA).connect(master);
+    oscB.connect(gB).connect(master);
+
+    oscA.start(now);
+    oscB.start(now + 0.05);
+    oscA.stop(now + 0.42);
+    oscB.stop(now + 0.44);
   } catch {
     /* noop */
   }
@@ -67,25 +80,50 @@ export function TodayList({ onOpenDetail, onAllCompleted }: TodayListProps) {
     }))
   );
   const wasAllRef = useRef(false);
+  const [poppingMap, setPoppingMap] = useState<Record<string, boolean>>({});
+  const popTimersRef = useRef<Record<string, number>>({});
   const today = todayStr();
 
   useEffect(() => {
     wasAllRef.current = false;
   }, [habits.length]);
 
+  useEffect(() => {
+    const timers = popTimersRef.current;
+    return () => {
+      for (const k of Object.keys(timers)) {
+        window.clearTimeout(timers[k]);
+      }
+    };
+  }, []);
+
   const handleCheck = useCallback(
     (habitId: string) => {
-      toggleHabit(habitId, today);
+      setPoppingMap((m) => ({ ...m, [habitId]: true }));
       playSoftTone();
-      setTimeout(() => {
-        const allNow = isTodayAllCompleted();
-        if (allNow && !wasAllRef.current) {
-          wasAllRef.current = true;
-          onAllCompleted();
-        } else if (!allNow) {
-          wasAllRef.current = false;
-        }
-      }, 0);
+
+      if (popTimersRef.current[habitId]) {
+        window.clearTimeout(popTimersRef.current[habitId]);
+      }
+
+      popTimersRef.current[habitId] = window.setTimeout(() => {
+        toggleHabit(habitId, today);
+        delete popTimersRef.current[habitId];
+        setPoppingMap((m) => {
+          const next = { ...m };
+          delete next[habitId];
+          return next;
+        });
+        setTimeout(() => {
+          const allNow = isTodayAllCompleted();
+          if (allNow && !wasAllRef.current) {
+            wasAllRef.current = true;
+            onAllCompleted();
+          } else if (!allNow) {
+            wasAllRef.current = false;
+          }
+        }, 0);
+      }, 420);
     },
     [toggleHabit, today, isTodayAllCompleted, onAllCompleted]
   );
@@ -105,17 +143,45 @@ export function TodayList({ onOpenDetail, onAllCompleted }: TodayListProps) {
       {habits.map((h, i) => {
         const rec = getTodayRecord(h.id, today);
         const checked = !!rec?.completed;
+        const popping = poppingMap[h.id] === true;
+        let btnClassName = 'check-btn';
+        if (popping) btnClassName += ' popping';
+        if (checked || popping) btnClassName += ' checked';
+        if (checked && !popping) btnClassName += ' disabled';
+
+        const shouldDisable = checked && !popping;
         return (
-          <HabitCard
-            key={h.id}
-            habit={h}
-            weeklyCount={useHabitStore.getState().getWeeklyCount(h.id)}
-            showCheck
-            checkedToday={checked}
-            animationDelay={i * 40}
-            onCheck={handleCheck}
-            onClick={onOpenDetail}
-          />
+          <div key={h.id} style={{ position: 'relative' }}>
+            <HabitCard
+              habit={h}
+              weeklyCount={useHabitStore.getState().getWeeklyCount(h.id)}
+              showCheck={false}
+              checkedToday={checked}
+              animationDelay={i * 40}
+              onClick={onOpenDetail}
+            />
+            <button
+              type="button"
+              className={btnClassName}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (shouldDisable) return;
+                handleCheck(h.id);
+              }}
+              aria-label={checked ? '已完成打卡' : '点击打卡'}
+              disabled={shouldDisable}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                right: '28px',
+                transform: 'translateY(-50%)',
+              }}
+            >
+              <svg className="check-svg" viewBox="0 0 24 24" aria-hidden>
+                <polyline points="4 12 10 18 20 6" />
+              </svg>
+            </button>
+          </div>
         );
       })}
     </div>

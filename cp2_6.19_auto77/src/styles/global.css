@@ -236,18 +236,42 @@ input, select {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform var(--dur) var(--ease), filter var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 300ms ease-in-out,
+    box-shadow 300ms ease-in-out;
+  will-change: transform, filter, box-shadow;
+}
+.habit-icon-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0;
+  filter: blur(10px);
+  transition: opacity 300ms ease-in-out;
+  z-index: 0;
 }
 .habit-card:hover .habit-icon-wrap {
-  transform: scale(1.15);
-  filter: brightness(1.35) saturate(1.1);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.06);
+  transform: scale(1.25);
+  filter: brightness(1.5) saturate(1.25);
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.08),
+    0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.habit-card:hover .habit-icon-wrap::before {
+  opacity: 0.75;
 }
 .habit-icon {
   font-size: 24px;
   position: relative;
   z-index: 2;
   user-select: none;
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), text-shadow 300ms ease-in-out;
+}
+.habit-card:hover .habit-icon {
+  transform: scale(1.1);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .habit-main {
@@ -287,46 +311,80 @@ input, select {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease),
-    border-color var(--dur) var(--ease), opacity var(--dur) var(--ease);
+  transition: transform 300ms ease-in-out,
+    background 300ms ease-in-out,
+    border-color 300ms ease-in-out,
+    opacity 300ms ease-in-out,
+    box-shadow 300ms ease-in-out;
   will-change: transform;
   min-width: 40px;
   min-height: 40px;
+  overflow: hidden;
+  position: relative;
 }
-.check-btn:hover:not(.disabled) {
+.check-btn::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(63, 185, 80, 0.45), transparent 70%);
+  opacity: 0;
+  transition: opacity 300ms ease-in-out;
+}
+.check-btn:hover:not(.disabled):not(.checked) {
   border-color: var(--accent);
-  transform: scale(1.06);
+  transform: scale(1.08);
+  box-shadow: 0 0 0 4px rgba(233, 69, 96, 0.12);
+}
+.check-btn.popping {
+  animation: check-pulse 650ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 .check-btn.checked {
-  background: linear-gradient(135deg, #3fb950, #1f883d);
   border-color: transparent;
-  animation: check-pop 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.check-btn.checked::after {
+  opacity: 1;
+  animation: check-glow 700ms ease-out;
 }
 .check-btn.disabled {
   opacity: 0.45;
   cursor: not-allowed;
   background: rgba(255, 255, 255, 0.05);
   border-color: transparent;
+  animation: check-fade-gray 300ms ease-in-out;
 }
 .check-svg {
   width: 20px;
   height: 20px;
-  stroke: #fff;
+  stroke: transparent;
   stroke-width: 3;
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 24;
   stroke-dashoffset: 24;
-  transition: stroke-dashoffset 350ms ease-out 100ms;
+  transition: stroke 200ms ease-in-out, stroke-dashoffset 400ms cubic-bezier(0.5, 0, 0.2, 1) 200ms;
+  position: relative;
+  z-index: 2;
 }
 .check-btn.checked .check-svg {
+  stroke: #fff;
   stroke-dashoffset: 0;
 }
-@keyframes check-pop {
-  0% { transform: scale(1) rotate(0deg); }
-  40% { transform: scale(1.35) rotate(-15deg); }
-  100% { transform: scale(1) rotate(360deg); }
+@keyframes check-pulse {
+  0%   { transform: scale(1)    rotate(0deg)   translateX(0); background: transparent; border-color: var(--accent); }
+  25%  { transform: scale(1.5)  rotate(-25deg) translateX(0); background: rgba(233, 69, 96, 0.25); border-color: var(--accent); box-shadow: 0 0 0 6px rgba(233, 69, 96, 0.18); }
+  50%  { transform: scale(1.25) rotate(20deg)  translateX(0); background: rgba(63, 185, 80, 0.4); border-color: #3fb950; }
+  75%  { transform: scale(1.1)  rotate(340deg) translateX(0); background: linear-gradient(135deg, #3fb950, #1f883d); border-color: transparent; }
+  100% { transform: scale(1)    rotate(360deg) translateX(0); background: linear-gradient(135deg, #3fb950, #1f883d); border-color: transparent; }
+}
+@keyframes check-glow {
+  0%   { transform: scale(0.3); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes check-fade-gray {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0.45; transform: scale(0.96); }
 }
 
 /* Today list */
@@ -345,18 +403,25 @@ input, select {
   padding: 4px;
   border: 1px solid var(--border-subtle);
   background: rgba(255, 255, 255, 0.015);
+  contain: strict;
 }
 .virtual-scroll::-webkit-scrollbar { width: 6px; }
 .virtual-scroll::-webkit-scrollbar-thumb {
   background: rgba(255,255,255,0.1);
   border-radius: 3px;
 }
-.virtual-inner { position: relative; }
+.virtual-inner { position: relative; width: 100%; }
 .virtual-item {
   position: absolute;
-  left: 0;
-  right: 0;
-  padding: 0 4px;
+  left: 4px;
+  right: 4px;
+  padding: 0;
+}
+.virtual-item[data-static="1"] {
+  position: static;
+  left: auto;
+  right: auto;
+  width: 100%;
 }
 .habit-list-inner {
   display: flex;

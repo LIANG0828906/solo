@@ -1,5 +1,4 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import { useHabitStore } from '../store';
 import type { HeatmapCell } from '../types';
 
@@ -67,17 +66,17 @@ const HeatCell = memo(function HeatCell({ cell }: CellProps) {
 });
 
 export function HabitDetail({ habitId, onBack }: HabitDetailProps) {
-  const { habit, streak, total, heatmap } = useHabitStore(
-    useShallow((s) => {
-      const h = s.getHabitById(habitId);
-      return {
-        habit: h,
-        streak: h ? s.getStreak(habitId) : 0,
-        total: h ? s.getTotalCompletions(habitId) : 0,
-        heatmap: h ? s.getHeatmapData(habitId) : [],
-      };
-    })
-  );
+  const habit = useHabitStore((s) => s.getHabitById(habitId));
+  const s = useHabitStore.getState();
+  const { streak, total, heatmap } = useMemo(() => {
+    if (!habit) return { streak: 0, total: 0, heatmap: [] as HeatmapCell[] };
+    const state = useHabitStore.getState();
+    return {
+      streak: state.getStreak(habitId),
+      total: state.getTotalCompletions(habitId),
+      heatmap: state.getHeatmapData(habitId),
+    };
+  }, [habit, habitId, s.habits.length]);
 
   if (!habit) {
     return (
