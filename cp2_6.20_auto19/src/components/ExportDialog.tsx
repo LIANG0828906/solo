@@ -9,7 +9,7 @@ interface Props {
 type Format = 'markdown' | 'pdf';
 
 export default function ExportDialog({ onClose }: Props) {
-  const { paragraphs, translations, fileName } = useDocumentStore();
+  const { paragraphs, translations, meta } = useDocumentStore();
   const [format, setFormat] = useState<Format>('markdown');
   const [bilingual, setBilingual] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -23,9 +23,9 @@ export default function ExportDialog({ onClose }: Props) {
         text: p.text,
         translation: translations[p.id] || '',
       }));
-      const blob = await exportDocument(data, format, bilingual);
-      const baseName = fileName.replace(/\.[^.]+$/, '') || 'translation';
-      const ext = format === 'markdown' ? '.md' : '.txt';
+      const blob = await exportDocument(data, format, bilingual, meta?.fileName);
+      const baseName = (meta?.fileName || 'translation').replace(/\.[^.]+$/, '');
+      const ext = format === 'markdown' ? '.md' : '.pdf';
       const downloadName = `${baseName}_${bilingual ? 'bilingual' : 'target'}${ext}`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -50,7 +50,9 @@ export default function ExportDialog({ onClose }: Props) {
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>📤 导出文档</h3>
-          <button className="icon-btn" onClick={onClose} disabled={loading}>✕</button>
+          <button className="icon-btn" onClick={onClose} disabled={loading}>
+            ✕
+          </button>
         </div>
 
         <div className="modal-body">
@@ -77,8 +79,8 @@ export default function ExportDialog({ onClose }: Props) {
                   onChange={() => setFormat('pdf')}
                 />
                 <div className="option-content">
-                  <div className="option-title">PDF / TXT</div>
-                  <div className="option-desc">纯文本格式，便于打印与分享</div>
+                  <div className="option-title">PDF</div>
+                  <div className="option-desc">使用 jsPDF 真正生成 PDF 文档</div>
                 </div>
               </label>
             </div>
@@ -117,11 +119,13 @@ export default function ExportDialog({ onClose }: Props) {
           </div>
 
           <div className="preview-info">
-            共 <b>{paragraphs.length}</b> 段，已翻译{' '}
-            <b>
-              {paragraphs.filter((p) => translations[p.id]?.trim()).length}
-            </b>{' '}
-            段
+            <div>
+              共 <b>{paragraphs.length}</b> 段，已翻译{' '}
+              <b>{paragraphs.filter((p) => translations[p.id]?.trim()).length}</b> 段
+            </div>
+            {meta?.fileName && (
+              <div className="preview-file">来源文件：<b>{meta.fileName}</b></div>
+            )}
           </div>
         </div>
 

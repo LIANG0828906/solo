@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import dayjs from 'dayjs';
 import { useDocumentStore } from '../store/useDocumentStore';
 import { translateText } from '../api/translate';
 import CommentBubble from './CommentBubble';
 
 export default function TranslationPanel() {
-  const { paragraphs, translations, setTranslation } = useDocumentStore();
+  const { paragraphs, translations, setTranslation, markSaving, markSaved, saveStatuses } =
+    useDocumentStore();
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const debounceTimers = useRef<Record<string, number>>({});
   const panelRef = useRef<HTMLDivElement>(null);
@@ -12,15 +14,16 @@ export default function TranslationPanel() {
   const updateDebounced = useCallback(
     (id: string, value: string) => {
       setTranslation(id, value);
+      markSaving(id);
       if (debounceTimers.current[id]) {
         window.clearTimeout(debounceTimers.current[id]);
       }
       debounceTimers.current[id] = window.setTimeout(() => {
-        // 模拟实时保存（可在此处调用后端 API）
+        markSaved(id);
         delete debounceTimers.current[id];
       }, 180);
     },
-    [setTranslation]
+    [setTranslation, markSaving, markSaved]
   );
 
   useEffect(() => {
@@ -35,8 +38,48 @@ export default function TranslationPanel() {
     try {
       const result = await translateText(text, 'zh');
       setTranslation(id, result);
+      markSaved(id);
     } finally {
       setTranslatingId(null);
+    }
+  };
+
+  const renderSaveStatus = (id: string, translated: string | undefined) => {
+    const status = saveStatuses[id];
+    if (!status && translated) {
+      return <span className="unsaved">待翻译</span>;
+    }
+    if (!status) {
+      return <span className="unsaved">待翻译</span>;
+    }
+    switch (status.status) {
+      case 'saving':
+        return (
+          <span className="saving">
+            <span className="save-dot" />
+            保存中…
+          </span>
+        );
+      case 'saved':
+        return (
+          <span className="saved">
+            <span className="saved-check">✓</span>
+            已自动保存
+            {status.timestamp && (
+              <span className="saved-time">
+                （{dayjs(status.timestamp).format('HH:mm:ss')}）
+              </span>
+            )}
+          </span>
+        );
+      case 'error':
+        return <span className="save-error">⚠ 保存失败，重试中…</span>;
+      default:
+        return translated ? (
+          <span className="saved">✓ 已自动保存</span>
+        ) : (
+          <span className="unsaved">待翻译</span>
+        );
     }
   };
 
@@ -57,12 +100,16 @@ export default function TranslationPanel() {
     );
   }
 
+  const translatedCount = paragraphs.filter((p) => translations[p.id]?.trim()).length;
+
   return (
     <section className="panel panel-translation" ref={panelRef}>
       <div className="panel-header sticky">
         <h2 className="panel-title">✍️ 译文</h2>
         <div className="panel-actions">
-          <span className="panel-count">{paragraphs.length} 段待翻译</span>
+          <span className="panel-count">
+            已译 {translatedCount} / {paragraphs.length} 段
+          </span>
         </div>
       </div>
 
@@ -116,13 +163,7 @@ export default function TranslationPanel() {
                   />
                   <div className="translation-footer">
                     <span className="save-indicator">
-                      {debounceTimers.current[p.id] ? (
-                        <span className="saving">⏳ 保存中…</span>
-                      ) : translated ? (
-                        <span className="saved">✓ 已自动保存</span>
-                      ) : (
-                        <span className="unsaved">待翻译</span>
-                      )}
+                      {renderSaveStatus(p.id, translated)}
                     </span>
                   </div>
                 </div>
