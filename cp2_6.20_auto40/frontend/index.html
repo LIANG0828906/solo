@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto40 - 互动故事编辑器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        transition: all 0.3s ease;
+      }
+
+      body {
+        background-color: #1a1a2e;
+        margin: 0;
+        padding: 0;
+        font-family: 'Noto Sans SC', sans-serif;
+        color: #e4e4e7;
+        min-height: 100vh;
+      }
+
+      .font-playfair {
+        font-family: 'Playfair Display', serif;
+      }
+
+      @keyframes flowDash {
+        0% {
+          stroke-dashoffset: 24;
+        }
+        100% {
+          stroke-dashoffset: 0;
+        }
+      }
+
+      @keyframes pulseDot {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.5);
+          opacity: 0.6;
+        }
+      }
+
+      @keyframes bounceNumber {
+        0%,
+        100% {
+          transform: translateY(0) scaleY(1);
+        }
+        25% {
+          transform: translateY(-8px) scaleY(1.1);
+        }
+        50% {
+          transform: translateY(0) scaleY(0.9);
+        }
+        75% {
+          transform: translateY(-4px) scaleY(1.05);
+        }
+      }
+
+      @keyframes starRotate {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes fadeIn {
+        0% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      @keyframes scalePop {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.3);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      .animate-flowDash {
+        animation: flowDash 1s linear infinite;
+      }
+
+      .animate-pulseDot {
+        animation: pulseDot 1.5s ease-in-out infinite;
+      }
+
+      .animate-bounceNumber {
+        animation: bounceNumber 0.6s ease-out;
+      }
+
+      .animate-starRotate {
+        animation: starRotate 20s linear infinite;
+      }
+
+      .animate-fadeIn {
+        animation: fadeIn 0.5s ease-out;
+      }
+
+      .animate-scalePop {
+        animation: scalePop 0.3s ease-out;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

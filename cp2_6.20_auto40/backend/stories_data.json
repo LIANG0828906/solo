@@ -1,0 +1,351 @@
+{
+  "stories": {
+    "6eae06de-34de-419c-b0a7-681955b45a55": {
+      "id": "6eae06de-34de-419c-b0a7-681955b45a55",
+      "title": "魔法森林冒险",
+      "author": "星辰写手",
+      "coverImageUrl": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=600&h=400&fit=crop",
+      "playCount": 128,
+      "averageRating": 4.7,
+      "ratingCount": 42,
+      "createdAt": "2026-06-20T05:23:27.101660",
+      "published": true,
+      "shortUrl": "https://game.example.com/rQBqbU",
+      "nodes": [
+        {
+          "id": "ed3f5060-9884-44be-ad4d-e6877cf85d40",
+          "title": "森林入口",
+          "description": "你站在一片古老魔法森林的入口处。空气中弥漫着神秘的气息，树干上闪烁着微弱的荧光。两条小路在你面前分叉——左边通向幽深的密林，右边似乎有光亮。",
+          "backgroundImageUrl": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=500&fit=crop",
+          "backgroundMusicUrl": "",
+          "variableRules": [],
+          "position": {
+            "x": 100.0,
+            "y": 200.0
+          },
+          "isStart": true
+        },
+        {
+          "id": "62092e35-e819-453b-bce8-6843f5894b0c",
+          "title": "精灵树屋",
+          "description": "你沿着光亮的小路走去，发现了一座建在巨大橡树上的精灵树屋。一位友善的精灵向你招手，邀请你喝杯茶。她似乎有东西要送给你。",
+          "backgroundImageUrl": "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=800&h=500&fit=crop",
+          "backgroundMusicUrl": "",
+          "variableRules": [
+            {
+              "variableId": "1d127c20-62c8-41da-b190-d7386d181950",
+              "operation": "add",
+              "value": 50
+            },
+            {
+              "variableId": "9c7c751e-b4ac-451b-a8a4-14082c1fce41",
+              "operation": "set",
+              "value": true
+            }
+          ],
+          "position": {
+            "x": 400.0,
+            "y": 80.0
+          },
+          "isStart": false
+        },
+        {
+          "id": "3fcdb157-2583-4ce3-93fc-3a7f2d6a88a9",
+          "title": "幽暗密林",
+          "description": "你选择了左边的幽径。树木遮天蔽日，四周寂静得可怕。突然，一只巨大的暗影狼从灌木丛中跃出，挡住了你的去路！",
+          "backgroundImageUrl": "https://images.unsplash.com/photo-1476231682828-37e571bc172f?w=800&h=500&fit=crop",
+          "backgroundMusicUrl": "",
+          "variableRules": [
+            {
+              "variableId": "1d127c20-62c8-41da-b190-d7386d181950",
+              "operation": "subtract",
+              "value": 20
+            }
+          ],
+          "position": {
+            "x": 400.0,
+            "y": 350.0
+          },
+          "isStart": false
+        },
+        {
+          "id": "022716e8-b5ea-4c65-a579-9a76a761b4b5",
+          "title": "森林之心",
+          "description": "凭借精灵赠送的护身符和你的勇气，你终于抵达了森林中心。一棵散发着七彩光芒的古树矗立在此，这就是传说中的生命之树。你的冒险成功了！",
+          "backgroundImageUrl": "https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=800&h=500&fit=crop",
+          "backgroundMusicUrl": "",
+          "variableRules": [
+            {
+              "variableId": "1d127c20-62c8-41da-b190-d7386d181950",
+              "operation": "add",
+              "value": 100
+            }
+          ],
+          "position": {
+            "x": 750.0,
+            "y": 200.0
+          },
+          "isStart": false
+        }
+      ],
+      "edges": [
+        {
+          "id": "2e464f13-18a4-4202-b0cf-a288dce2ff52",
+          "source": "ed3f5060-9884-44be-ad4d-e6877cf85d40",
+          "target": "62092e35-e819-453b-bce8-6843f5894b0c",
+          "label": "走右边明亮的小路",
+          "conditions": []
+        },
+        {
+          "id": "ea0c80b9-8590-4ba7-9aa0-1bae9255e9ef",
+          "source": "ed3f5060-9884-44be-ad4d-e6877cf85d40",
+          "target": "3fcdb157-2583-4ce3-93fc-3a7f2d6a88a9",
+          "label": "走左边幽暗的密林",
+          "conditions": []
+        },
+        {
+          "id": "38e3f830-2a43-43fd-9d0a-1b683600ea37",
+          "source": "62092e35-e819-453b-bce8-6843f5894b0c",
+          "target": "022716e8-b5ea-4c65-a579-9a76a761b4b5",
+          "label": "带着精灵的祝福继续前进",
+          "conditions": []
+        },
+        {
+          "id": "6d667caf-993e-45d5-9b64-8e52b596bec7",
+          "source": "3fcdb157-2583-4ce3-93fc-3a7f2d6a88a9",
+          "target": "022716e8-b5ea-4c65-a579-9a76a761b4b5",
+          "label": "勇敢地击退暗影狼",
+          "conditions": [
+            {
+              "variableId": "9c7c751e-b4ac-451b-a8a4-14082c1fce41",
+              "operator": "==",
+              "value": true
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "id": "1d127c20-62c8-41da-b190-d7386d181950",
+          "name": "生命值",
+          "type": "number",
+          "initialValue": 100,
+          "minValue": 0,
+          "maxValue": 200,
+          "color": "#e94560"
+        },
+        {
+          "id": "9c7c751e-b4ac-451b-a8a4-14082c1fce41",
+          "name": "拥有护身符",
+          "type": "boolean",
+          "initialValue": false,
+          "minValue": null,
+          "maxValue": null,
+          "color": "#fbbf24"
+        }
+      ],
+      "startNodeId": "ed3f5060-9884-44be-ad4d-e6877cf85d40"
+    },
+    "13f20eda-65c3-4877-b66b-9a3d4a16c1de": {
+      "id": "13f20eda-65c3-4877-b66b-9a3d4a16c1de",
+      "title": "星际侦探：量子谋杀案",
+      "author": "银河推理社",
+      "coverImageUrl": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&h=400&fit=crop",
+      "playCount": 89,
+      "averageRating": 4.5,
+      "ratingCount": 31,
+      "createdAt": "2026-06-20T05:23:27.101660",
+      "published": true,
+      "shortUrl": "https://game.example.com/lmMxfr",
+      "nodes": [
+        {
+          "id": "964dcb73-95c5-404c-bb60-9bdce4fed2ec",
+          "title": "案发深夜",
+          "description": "星际历2287年，你是星际警署的王牌侦探。在繁华的太空站「新希望」上，一位著名的星际商人被发现死在自己的豪华舱内。门锁完好无损，房间里没有打斗痕迹...",
+          "backgroundImageUrl": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&h=500&fit=crop",
+          "backgroundMusicUrl": "",
+          "variableRules": [],
+          "position": {
+            "x": 100.0,
+            "y": 200.0
+          },
+          "isStart": true
+        },
+        {
+          "id": "8acf2dcc-48ba-4737-b264-cb5fdbf88f49",
+          "title": "审问助手",
+          "description": "你决定先审问死者的人工智能助手。它眼中闪过一丝犹豫...等等，它的记忆模块似乎被篡改过？你需要更多线索来拼凑真相。",
+          "backgroundImageUrl": "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&h=500&fit=crop",
+          "backgroundMusicUrl": "",
+          "variableRules": [
+            {
+              "variableId": "c4878138-df0e-4c0f-8273-4abf48b70107",
+              "operation": "add",
+              "value": 1
+            }
+          ],
+          "position": {
+            "x": 400.0,
+            "y": 100.0
+          },
+          "isStart": false
+        },
+        {
+          "id": "ad4298ed-d2ba-4564-a842-24b3adb3b458",
+          "title": "真相大白",
+          "description": "根据收集到的所有证据，你终于锁定了真凶——竟然是合伙人！他利用量子隧道隐形潜入，伪造不在场证明。案件告破，你又一次维护了星际正义！",
+          "backgroundImageUrl": "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=800&h=500&fit=crop",
+          "backgroundMusicUrl": "",
+          "variableRules": [
+            {
+              "variableId": "c4878138-df0e-4c0f-8273-4abf48b70107",
+              "operation": "add",
+              "value": 2
+            }
+          ],
+          "position": {
+            "x": 750.0,
+            "y": 200.0
+          },
+          "isStart": false
+        }
+      ],
+      "edges": [
+        {
+          "id": "7f4646f0-b5e2-47a8-bc0d-d75763cbe37b",
+          "source": "964dcb73-95c5-404c-bb60-9bdce4fed2ec",
+          "target": "8acf2dcc-48ba-4737-b264-cb5fdbf88f49",
+          "label": "审问AI助手",
+          "conditions": []
+        },
+        {
+          "id": "1b3547e2-1256-444a-8339-61531d41f947",
+          "source": "8acf2dcc-48ba-4737-b264-cb5fdbf88f49",
+          "target": "ad4298ed-d2ba-4564-a842-24b3adb3b458",
+          "label": "指出真凶",
+          "conditions": [
+            {
+              "variableId": "c4878138-df0e-4c0f-8273-4abf48b70107",
+              "operator": ">=",
+              "value": 1
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "id": "c4878138-df0e-4c0f-8273-4abf48b70107",
+          "name": "线索数量",
+          "type": "number",
+          "initialValue": 0,
+          "minValue": 0,
+          "maxValue": 10,
+          "color": "#0f3460"
+        }
+      ],
+      "startNodeId": "964dcb73-95c5-404c-bb60-9bdce4fed2ec"
+    },
+    "0ec92726-cb8e-4ca4-b48d-78b653fc611e": {
+      "id": "0ec92726-cb8e-4ca4-b48d-78b653fc611e",
+      "title": "废土求生：绿洲传说",
+      "author": "末日叙事者",
+      "coverImageUrl": "https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=600&h=400&fit=crop",
+      "playCount": 256,
+      "averageRating": 4.8,
+      "ratingCount": 78,
+      "createdAt": "2026-06-20T05:23:27.101660",
+      "published": true,
+      "shortUrl": "https://game.example.com/aEmENC",
+      "nodes": [
+        {
+          "id": "86c16983-1074-4460-ae7d-c4ebba9c9e96",
+          "title": "废土黎明",
+          "description": "核战百年后，你是废土上的幸存者。清晨的阳光穿过厚厚的辐射云，你必须在今天找到新的水源，否则整个营地都撑不过一周...",
+          "backgroundImageUrl": "https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=800&h=500&fit=crop",
+          "backgroundMusicUrl": "",
+          "variableRules": [],
+          "position": {
+            "x": 100.0,
+            "y": 200.0
+          },
+          "isStart": true
+        },
+        {
+          "id": "e6f1fb82-9e06-4a2b-8a4e-b5de3f097059",
+          "title": "绿洲希望",
+          "description": "经历重重险阻，你在废墟深处发现了一座未被破坏的净水站！营地得救了，你成为了废土上的传奇英雄。",
+          "backgroundImageUrl": "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&h=500&fit=crop",
+          "backgroundMusicUrl": "",
+          "variableRules": [
+            {
+              "variableId": "017a6c52-fab5-4dcb-a2be-d22256849ab4",
+              "operation": "set",
+              "value": true
+            }
+          ],
+          "position": {
+            "x": 500.0,
+            "y": 200.0
+          },
+          "isStart": false
+        }
+      ],
+      "edges": [
+        {
+          "id": "c5c58401-edaa-485f-bc57-249efe0e382a",
+          "source": "86c16983-1074-4460-ae7d-c4ebba9c9e96",
+          "target": "e6f1fb82-9e06-4a2b-8a4e-b5de3f097059",
+          "label": "踏上寻水之旅",
+          "conditions": []
+        }
+      ],
+      "variables": [
+        {
+          "id": "017a6c52-fab5-4dcb-a2be-d22256849ab4",
+          "name": "任务完成",
+          "type": "boolean",
+          "initialValue": false,
+          "minValue": null,
+          "maxValue": null,
+          "color": "#10b981"
+        }
+      ],
+      "startNodeId": "86c16983-1074-4460-ae7d-c4ebba9c9e96"
+    },
+    "ada327c9-76db-4745-920f-a8a7fe405607": {
+      "id": "ada327c9-76db-4745-920f-a8a7fe405607",
+      "title": "????",
+      "author": "????",
+      "coverImageUrl": "",
+      "playCount": 0,
+      "averageRating": 0.0,
+      "ratingCount": 0,
+      "createdAt": "2026-06-20T05:23:51.998339",
+      "published": false,
+      "shortUrl": null,
+      "nodes": [
+        {
+          "id": "aab9805a-3de3-43ea-885a-cb01376cfcfa",
+          "title": "起始场景",
+          "description": "在这里写下你的故事开始...",
+          "backgroundImageUrl": "",
+          "backgroundMusicUrl": "",
+          "variableRules": [],
+          "position": {
+            "x": 200.0,
+            "y": 200.0
+          },
+          "isStart": true
+        }
+      ],
+      "edges": [],
+      "variables": [],
+      "startNodeId": "aab9805a-3de3-43ea-885a-cb01376cfcfa"
+    }
+  },
+  "short_url_map": {
+    "rQBqbU": "6eae06de-34de-419c-b0a7-681955b45a55",
+    "lmMxfr": "13f20eda-65c3-4877-b66b-9a3d4a16c1de",
+    "aEmENC": "0ec92726-cb8e-4ca4-b48d-78b653fc611e"
+  }
+}
