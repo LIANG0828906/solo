@@ -108,21 +108,28 @@ export const SettingsPage = () => {
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Clock className="w-4 h-4 inline mr-2" />
-                提醒时间
-              </label>
+            <div className="bg-primary/5 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-5 h-5 text-primary" />
+                <label className="text-base font-semibold text-gray-800">
+                  每日提醒时间
+                </label>
+              </div>
               <input
                 type="time"
                 value={settings.reminderTime}
                 onChange={handleTimeChange}
                 disabled={!settings.notificationEnabled}
-                className="w-full px-4 py-3 rounded-input border-2 border-gray-200 focus:border-primary focus:shadow-input transition-all duration-300 outline-none bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 rounded-input border-2 border-gray-200 focus:border-primary focus:shadow-input transition-all duration-300 outline-none bg-white text-lg font-semibold text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <p className="text-sm text-gray-500 mt-2">
-                到达设定时间时，将弹出通知提醒您记录今日使用进度
-              </p>
+              <div className="mt-3 space-y-1">
+                <p className="text-sm text-gray-600">
+                  当前设置：每天 <span className="font-semibold text-primary">{settings.reminderTime || '未设置'}</span> 发送提醒
+                </p>
+                <p className="text-xs text-gray-400">
+                  ⓘ 打开应用时将立即检查是否需要发送提醒。建议保持浏览器标签页打开以确保持续收到通知。
+                </p>
+              </div>
             </div>
           </div>
         </div>

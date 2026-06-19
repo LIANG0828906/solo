@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Droplets } from 'lucide-react';
 
 interface UsageSliderProps {
@@ -19,19 +19,26 @@ export const UsageSlider = ({
   const [isDragging, setIsDragging] = useState(false);
 
   const roundToStep = useCallback((val: number): number => {
-    const steps = Math.round(val / step) * step;
+    if (isNaN(val) || !isFinite(val)) return min;
+    const clamped = Math.max(min, Math.min(max, val));
+    const steps = Math.round(clamped / step) * step;
     return Math.round(steps * 10) / 10;
-  }, [step]);
+  }, [step, min, max]);
 
-  const percentage = ((value - min) / (max - min)) * 100;
+  const alignedValue = roundToStep(value);
+  const percentage = ((alignedValue - min) / (max - min)) * 100;
+
+  useEffect(() => {
+    if (value !== alignedValue) {
+      onChange(alignedValue);
+    }
+  }, [value, alignedValue, onChange]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = parseFloat(e.target.value);
     const roundedValue = roundToStep(rawValue);
     onChange(roundedValue);
   };
-
-  const displayValue = roundToStep(value);
 
   return (
     <div className="w-full">
@@ -41,7 +48,7 @@ export const UsageSlider = ({
           <span className="text-gray-600 font-medium">今日用量</span>
         </div>
         <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-bold text-primary">{displayValue}</span>
+          <span className="text-3xl font-bold text-primary">{alignedValue}</span>
           <span className="text-gray-500">ml/g</span>
         </div>
       </div>
@@ -58,7 +65,7 @@ export const UsageSlider = ({
         min={min}
         max={max}
         step={step}
-        value={displayValue}
+        value={alignedValue}
         onChange={handleChange}
         onMouseDown={() => setIsDragging(true)}
         onMouseUp={() => setIsDragging(false)}

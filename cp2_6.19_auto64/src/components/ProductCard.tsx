@@ -39,13 +39,13 @@ export const ProductCard = memo(({ product, usageLogs, index }: ProductCardProps
       className="relative bg-white rounded-card shadow-card hover:shadow-card-hover hover:-translate-y-2 transition-all duration-300 cursor-pointer overflow-hidden animate-scaleIn"
       style={{
         animationDelay: `${index * 0.05}s`,
-        boxShadow: '0 2px 10px rgba(139, 157, 175, 0.1)',
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.08)',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = '0 12px 40px rgba(139, 157, 175, 0.28)';
+        e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.2)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = '0 2px 10px rgba(139, 157, 175, 0.1)';
+        e.currentTarget.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.08)';
       }}
     >
       {lowStock && status === '进行中' && (
@@ -111,7 +111,7 @@ export const ProductCard = memo(({ product, usageLogs, index }: ProductCardProps
             <span>
               {daysLeft !== null
                 ? `预计 ${daysLeft} 天后用完`
-                : '暂无使用数据'}
+                : '暂无数据'}
             </span>
           </div>
         </div>

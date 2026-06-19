@@ -24,7 +24,6 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
   const [showBrandSuggestions, setShowBrandSuggestions] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
-  const brandInputRef = useRef<HTMLInputElement>(null);
   const typeDropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -32,34 +31,36 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
   
   const filteredBrands = useMemo(() => {
     if (!brandSearch.trim()) return brands;
+    const searchLower = brandSearch.toLowerCase();
     return brands.filter(b => 
-      b.toLowerCase().includes(brandSearch.toLowerCase())
+      b.toLowerCase().startsWith(searchLower)
     );
   }, [brands, brandSearch]);
 
-  const applyFilters = useCallback(() => {
-    let filtered = [...products];
+  const filteredProducts = useMemo((): Product[] => {
+    let result = [...products];
 
     if (selectedTypes.length > 0) {
-      filtered = filtered.filter(p => selectedTypes.includes(p.type));
+      result = result.filter(p => selectedTypes.includes(p.type));
     }
 
     if (brandSearch.trim()) {
-      filtered = filtered.filter(p => 
-        p.brand.toLowerCase().includes(brandSearch.toLowerCase())
+      const searchLower = brandSearch.toLowerCase();
+      result = result.filter(p => 
+        p.brand.toLowerCase().startsWith(searchLower)
       );
     }
 
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(p => getProductStatus(p) === statusFilter);
+      result = result.filter(p => getProductStatus(p) === statusFilter);
     }
 
-    onFilter(filtered);
-  }, [products, selectedTypes, brandSearch, statusFilter, onFilter]);
+    return result;
+  }, [products, selectedTypes, brandSearch, statusFilter]);
 
   useEffect(() => {
-    applyFilters();
-  }, [applyFilters]);
+    onFilter(filteredProducts);
+  }, [filteredProducts, onFilter]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -75,32 +76,31 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const toggleType = (type: ProductType) => {
+  const toggleType = useCallback((type: ProductType) => {
     setSelectedTypes(prev => 
       prev.includes(type) 
         ? prev.filter(t => t !== type)
         : [...prev, type]
     );
-  };
+  }, []);
 
-  const selectBrand = (brand: string) => {
+  const selectBrand = useCallback((brand: string) => {
     setBrandSearch(brand);
     setShowBrandSuggestions(false);
-  };
+  }, []);
 
-  const clearAll = () => {
+  const clearAll = useCallback(() => {
     setSelectedTypes([]);
     setBrandSearch('');
     setStatusFilter('all');
-  };
+  }, []);
 
-  const handleStatusSelect = (status: FilterStatus) => {
+  const handleStatusSelect = useCallback((status: FilterStatus) => {
     setStatusFilter(status);
     setShowStatusDropdown(false);
-  };
+  }, []);
 
   const hasActiveFilters = selectedTypes.length > 0 || brandSearch.trim() || statusFilter !== 'all';
-
   const statusLabel = statusOptions.find(s => s.value === statusFilter)?.label || '全部状态';
 
   return (
@@ -109,7 +109,6 @@ export const FilterBar = ({ products, onFilter }: FilterBarProps) => {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
-            ref={brandInputRef}
             type="text"
             placeholder="搜索品牌..."
             value={brandSearch}
