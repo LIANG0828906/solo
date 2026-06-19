@@ -21,7 +21,8 @@ const App: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           backgroundColor: '#1a1a2e',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
           overflow: 'hidden',
           position: 'relative',
         }}
@@ -36,7 +37,15 @@ const App: React.FC = () => {
             position: 'relative',
           }}
         >
-          <div style={{ width: 200, flexShrink: 0, position: 'relative', zIndex: 5 }}>
+          <div
+            style={{
+              width: 200,
+              flexShrink: 0,
+              position: 'relative',
+              zIndex: 5,
+              borderRight: '1px solid rgba(255,255,255,0.08)',
+            }}
+          >
             <MixerPanel />
           </div>
 
@@ -45,10 +54,21 @@ const App: React.FC = () => {
               flex: 1,
               minWidth: 0,
               position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
             }}
           >
             <SequencerPanel />
           </div>
+
+          <div
+            style={{
+              width: 200,
+              flexShrink: 0,
+              position: 'relative',
+              zIndex: 5,
+            }}
+          />
         </div>
 
         <CollaboratorsOverlay containerRef={containerRef} />
@@ -58,9 +78,11 @@ const App: React.FC = () => {
             box-sizing: border-box;
           }
           
-          body {
+          html, body, #root {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
             background-color: #1a1a2e;
           }
@@ -71,20 +93,33 @@ const App: React.FC = () => {
           }
           
           ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.04);
           }
           
           ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.18);
             border-radius: 5px;
           }
           
           ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.28);
+          }
+          
+          ::-webkit-scrollbar-corner {
+            background: rgba(255, 255, 255, 0.02);
           }
           
           button {
             font-family: inherit;
+            outline: none;
+          }
+          
+          button:focus {
+            outline: none;
+          }
+          
+          *:focus {
+            outline: none;
           }
         `}</style>
       </div>

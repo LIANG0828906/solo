@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { useSequencerStore } from '../store/useSequencerStore';
 import { sequencerEngine } from '../modules/sequencer/SequencerEngine';
 import { MIN_BPM, MAX_BPM } from '../types';
@@ -10,28 +10,70 @@ interface BPMKnobProps {
   onChange: (value: number) => void;
 }
 
-const BPMKnob: React.FC<BPMKnobProps> = ({ value, min, max, onChange }) => {
+const BPMKnob = memo<BPMKnobProps>(({ value, min, max, onChange }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [startY, setStartY] = useState(0);
-  const [startValue, setStartValue] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const startYRef = useRef(0);
+  const startValueRef = useRef(0);
+  const displayValueRef = useRef(value);
+  const animationFrameRef = useRef<number | null>(null);
+  const [, forceUpdate] = useState(0);
+
+  const circumference = 2 * Math.PI * 20;
+
+  useEffect(() => {
+    if (isDragging) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      displayValueRef.current = value;
+      forceUpdate((n) => n + 1);
+    } else {
+      const animate = () => {
+        const diff = value - displayValueRef.current;
+        if (Math.abs(diff) > 0.1) {
+          displayValueRef.current += diff * 0.2;
+          forceUpdate((n) => n + 1);
+          animationFrameRef.current = requestAnimationFrame(animate);
+        } else {
+          displayValueRef.current = value;
+          forceUpdate((n) => n + 1);
+          animationFrameRef.current = null;
+        }
+      };
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [value, isDragging, min, max]);
+
+  const displayPercentage = Math.max(0, Math.min(100, ((displayValueRef.current - min) / (max - min)) * 100));
+  const displayRotation = -135 + (displayPercentage / 100) * 270;
+  const displayDashOffset = circumference * (1 - displayPercentage / 100);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       setIsDragging(true);
-      setStartY(e.clientY);
-      setStartValue(value);
+      startYRef.current = e.clientY;
+      startValueRef.current = value;
     },
     [value]
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
-      const delta = startY - e.clientY;
+      const delta = startYRef.current - e.clientY;
       const range = max - min;
       const sensitivity = range / 200;
-      const newValue = Math.max(min, Math.min(max, startValue + delta * sensitivity));
+      const newValue = Math.max(min, Math.min(max, startValueRef.current + delta * sensitivity));
+      displayValueRef.current = Math.round(newValue);
       onChange(Math.round(newValue));
     };
 
@@ -42,17 +84,15 @@ const BPMKnob: React.FC<BPMKnobProps> = ({ value, min, max, onChange }) => {
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ns-resize';
     }
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
     };
-  }, [isDragging, startY, startValue, min, max, onChange]);
-
-  const percentage = ((value - min) / (max - min)) * 100;
-  const rotation = -135 + (percentage / 100) * 270;
-  const dashOffset = 2 * Math.PI * 20 * (1 - percentage / 100);
+  }, [isDragging, min, max, onChange]);
 
   return (
     <div
@@ -65,16 +105,27 @@ const BPMKnob: React.FC<BPMKnobProps> = ({ value, min, max, onChange }) => {
     >
       <div
         onMouseDown={handleMouseDown}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         style={{
           width: 52,
           height: 52,
           position: 'relative',
           cursor: isDragging ? 'ns-resize' : 'grab',
-          transition: 'transform 0.1s ease',
-          transform: isDragging ? 'scale(1.05)' : 'scale(1)',
+          transition: 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+          transform: isDragging ? 'scale(1.08)' : isHovered ? 'scale(1.04)' : 'scale(1)',
         }}
       >
         <svg width="52" height="52" viewBox="0 0 60 60">
+          <defs>
+            <filter id="bpm-glow">
+              <feGaussianBlur stdDeviation="1.5" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
           <circle
             cx="30"
             cy="30"
@@ -90,23 +141,16 @@ const BPMKnob: React.FC<BPMKnobProps> = ({ value, min, max, onChange }) => {
             fill="none"
             stroke="#4ecdc4"
             strokeWidth="5"
-            strokeDasharray={2 * Math.PI * 20}
-            strokeDashoffset={dashOffset}
+            strokeDasharray={circumference}
+            strokeDashoffset={displayDashOffset}
             strokeLinecap="round"
             transform="rotate(-135 30 30)"
             style={{
-              transition: isDragging ? 'none' : 'stroke-dashoffset 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              filter: isHovered || isDragging ? 'url(#bpm-glow)' : 'none',
             }}
           />
-          <circle
-            cx="30"
-            cy="30"
-            r="14"
-            fill="#1a1a2e"
-            style={{
-              boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.5)',
-            }}
-          />
+          <circle cx="30" cy="30" r="14" fill="#1a1a2e" />
+          <circle cx="30" cy="30" r="12" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
           <line
             x1="30"
             y1="30"
@@ -115,9 +159,9 @@ const BPMKnob: React.FC<BPMKnobProps> = ({ value, min, max, onChange }) => {
             stroke="#4ecdc4"
             strokeWidth="2.5"
             strokeLinecap="round"
-            transform={`rotate(${rotation} 30 30)`}
+            transform={`rotate(${displayRotation} 30 30)`}
             style={{
-              transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              filter: isHovered || isDragging ? 'url(#bpm-glow)' : 'none',
             }}
           />
         </svg>
@@ -127,25 +171,29 @@ const BPMKnob: React.FC<BPMKnobProps> = ({ value, min, max, onChange }) => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          marginTop: -2,
         }}
       >
         <span
           style={{
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: 700,
             color: '#fff',
             lineHeight: 1,
+            fontFamily: 'monospace',
+            letterSpacing: 1,
           }}
         >
-          {value}
+          {Math.round(displayValueRef.current)}
         </span>
         <span
           style={{
             fontSize: 9,
-            color: 'rgba(255,255,255,0.5)',
-            fontWeight: 500,
+            color: 'rgba(255,255,255,0.45)',
+            fontWeight: 600,
             textTransform: 'uppercase',
-            letterSpacing: 1,
+            letterSpacing: 1.5,
+            marginTop: 2,
           }}
         >
           BPM
@@ -153,105 +201,224 @@ const BPMKnob: React.FC<BPMKnobProps> = ({ value, min, max, onChange }) => {
       </div>
     </div>
   );
-};
+});
+
+BPMKnob.displayName = 'BPMKnob';
 
 interface ExportDialogProps {
   onClose: () => void;
-  onConfirm: () => void;
 }
 
-const ExportDialog: React.FC<ExportDialogProps> = ({ onClose, onConfirm }) => {
+const ExportDialog: React.FC<ExportDialogProps> = ({ onClose }) => {
   const [progress, setProgress] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const progressIntervalRef = useRef<number | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const handleExport = useCallback(() => {
     setIsExporting(true);
     setProgress(0);
 
-    const interval = setInterval(() => {
-      setProgress((prev) => {
-        const next = prev + Math.random() * 15 + 5;
-        if (next >= 100) {
-          clearInterval(interval);
+    let currentProgress = 0;
+    const stages = [
+      { target: 20, duration: 200, label: '收集轨道数据' },
+      { target: 50, duration: 300, label: '编码音符事件' },
+      { target: 80, duration: 250, label: '生成MIDI文件' },
+      { target: 100, duration: 150, label: '完成' },
+    ];
+
+    let stageIndex = 0;
+    let stageStart = 0;
+
+    const animateProgress = () => {
+      if (stageIndex >= stages.length) {
+        return;
+      }
+
+      const stage = stages[stageIndex];
+      const elapsed = Date.now() - stageStart;
+      const stageProgress = Math.min(1, elapsed / stage.duration);
+      const easedProgress = 1 - Math.pow(1 - stageProgress, 3);
+
+      const prevTarget = stageIndex > 0 ? stages[stageIndex - 1].target : 0;
+      currentProgress = prevTarget + (stage.target - prevTarget) * easedProgress;
+      setProgress(currentProgress);
+
+      if (stageProgress < 1) {
+        progressIntervalRef.current = window.setTimeout(animateProgress, 16);
+      } else {
+        stageIndex++;
+        stageStart = Date.now();
+
+        if (stageIndex < stages.length) {
+          progressIntervalRef.current = window.setTimeout(animateProgress, 16);
+        } else {
           setIsComplete(true);
           setTimeout(() => {
-            onConfirm();
+            const midiBlob = sequencerEngine.exportMIDI();
+            const url = URL.createObjectURL(midiBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `collaborative_arrangement_${Date.now()}.mid`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
             onClose();
-          }, 500);
-          return 100;
+          }, 600);
         }
-        return next;
-      });
-    }, 100);
+      }
+    };
 
-    return () => clearInterval(interval);
-  }, [onConfirm, onClose]);
+    stageStart = Date.now();
+    animateProgress();
+  }, [onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearTimeout(progressIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget && !isExporting) {
+        onClose();
+      }
+    },
+    [onClose, isExporting]
+  );
 
   return (
     <div
+      onClick={handleBackdropClick}
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.75)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        animation: 'fadeIn 0.2s ease',
+        backdropFilter: 'blur(4px)',
+        animation: 'fadeIn 0.25s ease',
       }}
-      onClick={onClose}
     >
       <div
+        ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
         style={{
           backgroundColor: '#16213e',
-          borderRadius: 12,
-          padding: 24,
-          width: 360,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          borderRadius: 16,
+          padding: '28px 24px 24px',
+          width: 380,
+          boxShadow: '0 25px 80px rgba(0,0,0,0.6)',
           border: '1px solid rgba(255,255,255,0.1)',
-          animation: 'slideUp 0.3s ease',
+          animation: 'slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
-        <h3
+        <div
           style={{
-            color: '#fff',
-            fontSize: 18,
-            fontWeight: 600,
-            margin: '0 0 8px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 8,
           }}
         >
-          导出 MIDI 文件
-        </h3>
-        <p
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, #4ecdc4 0%, #0f3460 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 22,
+            }}
+          >
+            🎵
+          </div>
+          <div>
+            <h3
+              style={{
+                color: '#fff',
+                fontSize: 18,
+                fontWeight: 700,
+                margin: 0,
+              }}
+            >
+              导出 MIDI 文件
+            </h3>
+            <p
+              style={{
+                color: 'rgba(255,255,255,0.5)',
+                fontSize: 12,
+                margin: '2px 0 0 0',
+              }}
+            >
+              Standard MIDI File (SMF) Format 1
+            </p>
+          </div>
+        </div>
+
+        <div
           style={{
-            color: 'rgba(255,255,255,0.6)',
-            fontSize: 13,
-            margin: '0 0 20px 0',
+            backgroundColor: '#1a1a2e',
+            borderRadius: 10,
+            padding: '14px 16px',
+            margin: '16px 0 20px 0',
+            border: '1px solid rgba(255,255,255,0.06)',
           }}
         >
-          正在准备导出您的编曲工程...
-        </p>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginBottom: 6,
+            }}
+          >
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>工程信息</span>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              gap: 20,
+              fontSize: 12,
+              color: 'rgba(255,255,255,0.7)',
+            }}
+          >
+            <span>🎹 8 轨道</span>
+            <span>🎼 {sequencerEngine.getNotes().length} 音符</span>
+            <span>⏱️ {sequencerEngine.getIsPlaying() ? '播放中' : '已停止'}</span>
+          </div>
+        </div>
 
         {isExporting && (
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 20 }}>
             <div
               style={{
                 width: '100%',
-                height: 8,
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                borderRadius: 4,
+                height: 10,
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                borderRadius: 5,
                 overflow: 'hidden',
+                position: 'relative',
               }}
             >
               <div
                 style={{
                   height: '100%',
                   width: `${progress}%`,
-                  background: 'linear-gradient(90deg, #4ecdc4 0%, #44a08d 100%)',
-                  borderRadius: 4,
-                  transition: 'width 0.2s ease',
+                  background: isComplete
+                    ? 'linear-gradient(90deg, #22c55e 0%, #16a34a 100%)'
+                    : 'linear-gradient(90deg, #4ecdc4 0%, #0f3460 100%)',
+                  borderRadius: 5,
+                  transition: isComplete ? 'none' : 'width 0.08s linear',
+                  boxShadow: isComplete ? '0 0 10px rgba(34,197,94,0.5)' : '0 0 8px rgba(78,205,196,0.4)',
                 }}
               />
             </div>
@@ -263,9 +430,16 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose, onConfirm }) => {
               }}
             >
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
-                {isComplete ? '完成!' : '打包工程文件...'}
+                {isComplete ? '✓ 导出完成' : '正在打包工程文件...'}
               </span>
-              <span style={{ fontSize: 11, color: '#4ecdc4', fontWeight: 600 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: isComplete ? '#22c55e' : '#4ecdc4',
+                  fontWeight: 600,
+                  fontFamily: 'monospace',
+                }}
+              >
                 {Math.round(progress)}%
               </span>
             </div>
@@ -275,7 +449,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose, onConfirm }) => {
         <div
           style={{
             display: 'flex',
-            gap: 12,
+            gap: 10,
             justifyContent: 'flex-end',
           }}
         >
@@ -284,9 +458,9 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose, onConfirm }) => {
               <button
                 onClick={onClose}
                 style={{
-                  padding: '10px 20px',
-                  borderRadius: 6,
-                  border: '1px solid rgba(255,255,255,0.2)',
+                  padding: '11px 22px',
+                  borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.15)',
                   backgroundColor: 'transparent',
                   color: '#fff',
                   fontSize: 13,
@@ -295,7 +469,7 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose, onConfirm }) => {
                   transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
@@ -306,20 +480,23 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose, onConfirm }) => {
               <button
                 onClick={handleExport}
                 style={{
-                  padding: '10px 24px',
-                  borderRadius: 6,
+                  padding: '11px 26px',
+                  borderRadius: 8,
                   border: 'none',
                   backgroundColor: '#4ecdc4',
                   color: '#1a1a2e',
                   fontSize: 13,
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#6ee7b7';
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(78,205,196,0.4)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(78,205,196,0.4)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#4ecdc4';
@@ -327,7 +504,8 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose, onConfirm }) => {
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                导出
+                <span>📥</span>
+                <span>开始导出</span>
               </button>
             </>
           )}
@@ -342,11 +520,11 @@ const ExportDialog: React.FC<ExportDialogProps> = ({ onClose, onConfirm }) => {
         @keyframes slideUp {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(24px) scale(0.96);
           }
           to {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
           }
         }
       `}</style>
@@ -367,22 +545,42 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = () => {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
+        gap: 4,
         padding: '12px 0',
       }}
     >
-      <span
+      <div
         style={{
-          fontSize: 10,
-          color: 'rgba(255,255,255,0.4)',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: 1,
-          padding: '0 12px',
+          padding: '0 16px 8px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
         }}
       >
-        协作成员
-      </span>
+        <span
+          style={{
+            fontSize: 10,
+            color: 'rgba(255,255,255,0.4)',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: 1.5,
+          }}
+        >
+          协作成员
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            color: '#22c55e',
+            fontWeight: 600,
+            backgroundColor: 'rgba(34,197,94,0.15)',
+            padding: '2px 8px',
+            borderRadius: 10,
+          }}
+        >
+          {collaborators.filter((c) => c.isOnline).length} 在线
+        </span>
+      </div>
       {collaborators.map((collaborator) => (
         <div
           key={collaborator.id}
@@ -390,22 +588,30 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = () => {
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            padding: '8px 12px',
-            transition: 'background-color 0.2s ease',
+            padding: '8px 16px',
+            transition: 'all 0.2s ease',
+            cursor: 'default',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
           }}
         >
           <div
             style={{
               position: 'relative',
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               borderRadius: '50%',
-              backgroundColor: collaborator.color + '30',
+              backgroundColor: collaborator.color + '25',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 18,
               border: `2px solid ${collaborator.color}`,
+              boxShadow: `0 0 8px ${collaborator.color}30`,
             }}
           >
             {collaborator.avatar}
@@ -413,13 +619,14 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = () => {
               <div
                 style={{
                   position: 'absolute',
-                  bottom: -2,
-                  right: -2,
-                  width: 10,
-                  height: 10,
+                  bottom: -1,
+                  right: -1,
+                  width: 11,
+                  height: 11,
                   borderRadius: '50%',
                   backgroundColor: '#22c55e',
                   border: '2px solid #16213e',
+                  animation: 'onlinePulse 2s ease-in-out infinite',
                 }}
               />
             )}
@@ -438,33 +645,46 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = () => {
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
               }}
             >
               {collaborator.name}
               {collaborator.id === 'user-1' && (
                 <span
                   style={{
-                    marginLeft: 6,
-                    fontSize: 10,
+                    fontSize: 9,
                     color: '#4ecdc4',
                     fontWeight: 600,
+                    backgroundColor: 'rgba(78,205,196,0.15)',
+                    padding: '1px 6px',
+                    borderRadius: 8,
                   }}
                 >
-                  (你)
+                  你
                 </span>
               )}
             </div>
             <div
               style={{
                 fontSize: 10,
-                color: collaborator.isOnline ? '#22c55e' : 'rgba(255,255,255,0.4)',
+                color: collaborator.isOnline ? '#22c55e' : 'rgba(255,255,255,0.35)',
+                fontWeight: 500,
               }}
             >
-              {collaborator.isOnline ? '在线' : '离线'}
+              {collaborator.isOnline ? '● 在线' : '○ 离线'}
             </div>
           </div>
         </div>
       ))}
+
+      <style>{`
+        @keyframes onlinePulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+      `}</style>
     </div>
   );
 };
@@ -483,19 +703,6 @@ export const TopToolbar: React.FC = () => {
 
   const handleStop = useCallback(() => {
     sequencerEngine.stop();
-    sequencerEngine.setCursorPosition(0);
-  }, []);
-
-  const handleExport = useCallback(() => {
-    const midiBlob = sequencerEngine.exportMIDI();
-    const url = URL.createObjectURL(midiBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `arrangement_${Date.now()}.mid`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }, []);
 
   const handleBpmChange = useCallback(
@@ -509,34 +716,36 @@ export const TopToolbar: React.FC = () => {
     <>
       <div
         style={{
-          height: 60,
+          height: 64,
           backgroundColor: '#16213e',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
           display: 'flex',
           alignItems: 'center',
-          padding: '0 16px',
+          padding: '0 20px',
           gap: 20,
           minWidth: 0,
+          flexShrink: 0,
         }}
       >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            marginRight: 12,
+            gap: 10,
+            marginRight: 8,
           }}
         >
           <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
+              width: 40,
+              height: 40,
+              borderRadius: 10,
               background: 'linear-gradient(135deg, #4ecdc4 0%, #0f3460 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 20,
+              boxShadow: '0 4px 12px rgba(78,205,196,0.3)',
             }}
           >
             🎵
@@ -545,7 +754,7 @@ export const TopToolbar: React.FC = () => {
             <div
               style={{
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 700,
                 lineHeight: 1.2,
               }}
@@ -559,7 +768,7 @@ export const TopToolbar: React.FC = () => {
                 fontWeight: 500,
               }}
             >
-              实时协作编曲
+              实时协作编曲工作站
             </div>
           </div>
         </div>
@@ -567,8 +776,8 @@ export const TopToolbar: React.FC = () => {
         <div
           style={{
             width: 1,
-            height: 32,
-            backgroundColor: 'rgba(255,255,255,0.1)',
+            height: 36,
+            backgroundColor: 'rgba(255,255,255,0.08)',
           }}
         />
 
@@ -581,41 +790,47 @@ export const TopToolbar: React.FC = () => {
         >
           <button
             onClick={handlePlay}
+            aria-label={isPlaying ? '暂停' : '播放'}
             style={{
-              width: 42,
-              height: 42,
+              width: 46,
+              height: 46,
               borderRadius: '50%',
               border: 'none',
               backgroundColor: isPlaying ? '#ffe66d' : '#4ecdc4',
               color: '#1a1a2e',
-              fontSize: 16,
+              fontSize: 18,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: isPlaying
+                ? '0 4px 14px rgba(255,230,109,0.45)'
+                : '0 4px 14px rgba(78,205,196,0.4)',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.transform = 'scale(1.06)';
               e.currentTarget.style.boxShadow = isPlaying
-                ? '0 4px 12px rgba(255,230,109,0.4)'
-                : '0 4px 12px rgba(78,205,196,0.4)';
+                ? '0 6px 20px rgba(255,230,109,0.55)'
+                : '0 6px 20px rgba(78,205,196,0.5)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+              e.currentTarget.style.boxShadow = isPlaying
+                ? '0 4px 14px rgba(255,230,109,0.45)'
+                : '0 4px 14px rgba(78,205,196,0.4)';
             }}
           >
             {isPlaying ? '⏸' : '▶'}
           </button>
           <button
             onClick={handleStop}
+            aria-label="停止"
             style={{
-              width: 36,
-              height: 36,
+              width: 38,
+              height: 38,
               borderRadius: '50%',
-              border: '1px solid rgba(255,255,255,0.2)',
+              border: '1px solid rgba(255,255,255,0.15)',
               backgroundColor: 'transparent',
               color: '#fff',
               fontSize: 14,
@@ -626,10 +841,12 @@ export const TopToolbar: React.FC = () => {
               transition: 'all 0.2s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
             }}
           >
             ⏹
@@ -639,8 +856,8 @@ export const TopToolbar: React.FC = () => {
         <div
           style={{
             width: 1,
-            height: 32,
-            backgroundColor: 'rgba(255,255,255,0.1)',
+            height: 36,
+            backgroundColor: 'rgba(255,255,255,0.08)',
           }}
         />
 
@@ -652,26 +869,36 @@ export const TopToolbar: React.FC = () => {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: -4,
           }}
+          title={`${collaborators.filter((c) => c.isOnline).length} 位协作者在线`}
         >
-          {collaborators.slice(0, 5).map((c) => (
+          {collaborators.slice(0, 5).map((c, i) => (
             <div
               key={c.id}
               style={{
-                width: 28,
-                height: 28,
+                width: 30,
+                height: 30,
                 borderRadius: '50%',
-                backgroundColor: c.color + '40',
+                backgroundColor: c.color + '30',
                 border: `2px solid ${c.color}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: 14,
-                marginLeft: c.id === collaborators[0].id ? 0 : -8,
-                zIndex: 5 - collaborators.findIndex((col) => col.id === c.id),
+                marginLeft: i === 0 ? 0 : -8,
+                zIndex: 5 - i,
+                transition: 'transform 0.2s ease',
+                cursor: 'default',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
               }}
-              title={c.name}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.zIndex = '10';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.zIndex = String(5 - i);
+              }}
             >
               {c.avatar}
             </div>
@@ -681,8 +908,8 @@ export const TopToolbar: React.FC = () => {
         <button
           onClick={() => setShowExportDialog(true)}
           style={{
-            padding: '10px 20px',
-            borderRadius: 6,
+            padding: '11px 22px',
+            borderRadius: 8,
             border: 'none',
             backgroundColor: '#0f3460',
             color: '#fff',
@@ -692,12 +919,12 @@ export const TopToolbar: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            transition: 'all 0.2s ease',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = '#1a4a7a';
             e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(15,52,96,0.4)';
+            e.currentTarget.style.boxShadow = '0 6px 18px rgba(15,52,96,0.5)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = '#0f3460';
@@ -714,27 +941,19 @@ export const TopToolbar: React.FC = () => {
         style={{
           position: 'fixed',
           right: 0,
-          top: 60,
+          top: 64,
           width: 200,
           backgroundColor: '#16213e',
-          borderLeft: '1px solid rgba(255,255,255,0.1)',
-          height: 'calc(100vh - 60px)',
+          borderLeft: '1px solid rgba(255,255,255,0.08)',
+          height: 'calc(100vh - 64px)',
           overflowY: 'auto',
           zIndex: 10,
         }}
       >
-        <CollaboratorsList
-          onMouseEnter={() => {}}
-          onMouseLeave={() => {}}
-        />
+        <CollaboratorsList onMouseEnter={() => {}} onMouseLeave={() => {}} />
       </div>
 
-      {showExportDialog && (
-        <ExportDialog
-          onClose={() => setShowExportDialog(false)}
-          onConfirm={handleExport}
-        />
-      )}
+      {showExportDialog && <ExportDialog onClose={() => setShowExportDialog(false)} />}
     </>
   );
 };

@@ -1,15 +1,34 @@
 import { useSequencerStore } from '../../store/useSequencerStore';
 import { Note, Track, TOTAL_BEATS, PITCH_MIN, PITCH_MAX } from '../../types';
 
+export type NoteEventHandler = (note: Note, track: Track) => void;
+
 export class SequencerEngine {
-  private playInterval: number | null = null;
-  private lastTime: number = 0;
-  private scheduledNotes: Map<string, number> = new Map();
+  private animationFrameId: number | null = null;
+  private lastTimestamp: number = 0;
+  private activeNotes: Map<string, number> = new Map();
+  private onNoteOn: NoteEventHandler | null = null;
+  private onNoteOff: NoteEventHandler | null = null;
+  private onTick: ((beat: number) => void) | null = null;
+  private isRunning: boolean = false;
 
   constructor() {
     this.play = this.play.bind(this);
     this.stop = this.stop.bind(this);
+    this.pause = this.pause.bind(this);
     this.animationLoop = this.animationLoop.bind(this);
+  }
+
+  setNoteOnHandler(handler: NoteEventHandler | null): void {
+    this.onNoteOn = handler;
+  }
+
+  setNoteOffHandler(handler: NoteEventHandler | null): void {
+    this.onNoteOff = handler;
+  }
+
+  setTickHandler(handler: ((beat: number) => void) | null): void {
+    this.onTick = handler;
   }
 
   addNote(note: Omit<Note, 'id'>): void {
@@ -17,6 +36,15 @@ export class SequencerEngine {
   }
 
   removeNote(noteId: string): void {
+    if (this.activeNotes.has(noteId)) {
+      const state = useSequencerStore.getState();
+      const note = state.notes.find((n) => n.id === noteId);
+      const track = state.tracks.find((t) => t.id === note?.trackId);
+      if (note && track && this.onNoteOff) {
+        this.onNoteOff(note, track);
+      }
+      this.activeNotes.delete(noteId);
+    }
     useSequencerStore.getState().removeNote(noteId);
   }
 
@@ -24,6 +52,17 @@ export class SequencerEngine {
     const clampedStart = Math.max(0, Math.min(TOTAL_BEATS - duration, start));
     const clampedPitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, pitch));
     const clampedDuration = Math.max(0.25, Math.min(TOTAL_BEATS - clampedStart, duration));
+
+    if (this.activeNotes.has(noteId)) {
+      const state = useSequencerStore.getState();
+      const note = state.notes.find((n) => n.id === noteId);
+      const track = state.tracks.find((t) => t.id === note?.trackId);
+      if (note && track && this.onNoteOff) {
+        this.onNoteOff(note, track);
+      }
+      this.activeNotes.delete(noteId);
+    }
+
     useSequencerStore.getState().moveNote(noteId, clampedStart, clampedPitch, clampedDuration);
   }
 
@@ -32,7 +71,22 @@ export class SequencerEngine {
   }
 
   setTrackMuted(trackId: string, muted: boolean): void {
+    const state = useSequencerStore.getState();
+    const wasMuted = state.tracks.find((t) => t.id === trackId)?.muted;
+
     useSequencerStore.getState().setTrackMuted(trackId, muted);
+
+    if (muted && !wasMuted && this.isRunning) {
+      state.notes
+        .filter((n) => n.trackId === trackId && this.activeNotes.has(n.id))
+        .forEach((note) => {
+          const track = state.tracks.find((t) => t.id === trackId);
+          if (track && this.onNoteOff) {
+            this.onNoteOff(note, track);
+          }
+          this.activeNotes.delete(note.id);
+        });
+    }
   }
 
   setTrackSolo(trackId: string, solo: boolean): void {
@@ -44,51 +98,87 @@ export class SequencerEngine {
     if (state.isPlaying) return;
 
     useSequencerStore.getState().setIsPlaying(true);
-    this.lastTime = performance.now();
+    this.isRunning = true;
+    this.lastTimestamp = performance.now();
     this.animationLoop();
   }
 
   stop(): void {
     useSequencerStore.getState().setIsPlaying(false);
-    if (this.playInterval) {
-      cancelAnimationFrame(this.playInterval);
-      this.playInterval = null;
+    useSequencerStore.getState().setCursorPosition(0);
+    this.isRunning = false;
+
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
-    this.scheduledNotes.clear();
+
+    const state = useSequencerStore.getState();
+    this.activeNotes.forEach((_, noteId) => {
+      const note = state.notes.find((n) => n.id === noteId);
+      const track = state.tracks.find((t) => t.id === note?.trackId);
+      if (note && track && this.onNoteOff) {
+        this.onNoteOff(note, track);
+      }
+    });
+    this.activeNotes.clear();
   }
 
   pause(): void {
     useSequencerStore.getState().setIsPlaying(false);
-    if (this.playInterval) {
-      cancelAnimationFrame(this.playInterval);
-      this.playInterval = null;
+    this.isRunning = false;
+
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
+
+    const state = useSequencerStore.getState();
+    this.activeNotes.forEach((_, noteId) => {
+      const note = state.notes.find((n) => n.id === noteId);
+      const track = state.tracks.find((t) => t.id === note?.trackId);
+      if (note && track && this.onNoteOff) {
+        this.onNoteOff(note, track);
+      }
+    });
+    this.activeNotes.clear();
   }
 
   private animationLoop(): void {
-    const state = useSequencerStore.getState();
-    if (!state.isPlaying) return;
+    if (!this.isRunning) return;
 
+    const state = useSequencerStore.getState();
     const now = performance.now();
-    const delta = (now - this.lastTime) / 1000;
-    this.lastTime = now;
+    const deltaSeconds = (now - this.lastTimestamp) / 1000;
+    this.lastTimestamp = now;
 
     const beatsPerSecond = state.bpm / 60;
-    const newPosition = state.cursorPosition + delta * beatsPerSecond;
+    const deltaBeats = deltaSeconds * beatsPerSecond;
+    const newPosition = state.cursorPosition + deltaBeats;
 
     if (newPosition >= TOTAL_BEATS) {
-      useSequencerStore.getState().setCursorPosition(0);
       this.stop();
       return;
     }
 
-    useSequencerStore.getState().setCursorPosition(newPosition);
-    this.scheduleNotes(state.cursorPosition, newPosition);
+    const currentBeat = state.cursorPosition;
+    const nextBeat = newPosition;
 
-    this.playInterval = requestAnimationFrame(this.animationLoop);
+    const beatFloor = Math.floor(currentBeat);
+    const beatCeil = Math.ceil(nextBeat);
+    for (let beat = beatFloor; beat <= beatCeil; beat++) {
+      if (beat >= currentBeat && beat < nextBeat && this.onTick) {
+        this.onTick(beat);
+      }
+    }
+
+    useSequencerStore.getState().setCursorPosition(newPosition);
+    this.processNotes(currentBeat, nextBeat);
+
+    this.animationFrameId = requestAnimationFrame(this.animationLoop);
   }
 
-  private scheduleNotes(from: number, to: number): void {
+  private processNotes(fromBeat: number, toBeat: number): void {
     const state = useSequencerStore.getState();
     const { notes, tracks } = state;
     const hasSolo = tracks.some((t) => t.solo);
@@ -99,29 +189,27 @@ export class SequencerEngine {
       if (track.muted) return;
       if (hasSolo && !track.solo) return;
 
-      if (note.start >= from && note.start < to) {
-        if (!this.scheduledNotes.has(note.id)) {
-          this.scheduledNotes.set(note.id, now());
-          this.triggerNoteOn(note, track);
+      const noteStart = note.start;
+      const noteEnd = note.start + note.duration;
+
+      if (noteStart >= fromBeat && noteStart < toBeat) {
+        if (!this.activeNotes.has(note.id)) {
+          this.activeNotes.set(note.id, performance.now());
+          if (this.onNoteOn) {
+            this.onNoteOn(note, track);
+          }
         }
       }
 
-      const noteEnd = note.start + note.duration;
-      if (noteEnd >= from && noteEnd < to) {
-        if (this.scheduledNotes.has(note.id)) {
-          this.scheduledNotes.delete(note.id);
-          this.triggerNoteOff(note, track);
+      if (noteEnd >= fromBeat && noteEnd < toBeat) {
+        if (this.activeNotes.has(note.id)) {
+          this.activeNotes.delete(note.id);
+          if (this.onNoteOff) {
+            this.onNoteOff(note, track);
+          }
         }
       }
     });
-  }
-
-  private triggerNoteOn(note: Note, track: Track): void {
-    console.log(`Note On: track=${track.name}, pitch=${note.pitch}, velocity=${note.velocity}`);
-  }
-
-  private triggerNoteOff(note: Note, track: Track): void {
-    console.log(`Note Off: track=${track.name}, pitch=${note.pitch}`);
   }
 
   setBpm(bpm: number): void {
@@ -129,7 +217,21 @@ export class SequencerEngine {
   }
 
   setCursorPosition(position: number): void {
-    useSequencerStore.getState().setCursorPosition(Math.max(0, Math.min(TOTAL_BEATS, position)));
+    const clampedPos = Math.max(0, Math.min(TOTAL_BEATS, position));
+
+    if (this.isRunning) {
+      const state = useSequencerStore.getState();
+      this.activeNotes.forEach((_, noteId) => {
+        const note = state.notes.find((n) => n.id === noteId);
+        const track = state.tracks.find((t) => t.id === note?.trackId);
+        if (note && track && this.onNoteOff) {
+          this.onNoteOff(note, track);
+        }
+      });
+      this.activeNotes.clear();
+    }
+
+    useSequencerStore.getState().setCursorPosition(clampedPos);
   }
 
   exportMIDI(): Blob {
@@ -137,7 +239,7 @@ export class SequencerEngine {
     const { notes, tracks, bpm } = state;
 
     const midiData = this.buildMIDI(notes, tracks, bpm);
-    return new Blob([midiData as unknown as ArrayBuffer], { type: 'audio/midi' });
+    return new Blob([midiData as unknown as Uint8Array], { type: 'audio/midi' });
   }
 
   private buildMIDI(notes: Note[], tracks: Track[], bpm: number): Uint8Array {
@@ -258,8 +360,12 @@ export class SequencerEngine {
     return Math.round(value / grid) * grid;
   }
 
-  snapToGrid(value: number): number {
-    return Math.round(value * 4) / 4;
+  snapToGrid(value: number, gridSize: number = 0.25): number {
+    return Math.round(value / gridSize) * gridSize;
+  }
+
+  snapPitch(pitch: number): number {
+    return Math.max(PITCH_MIN, Math.min(PITCH_MAX, Math.round(pitch)));
   }
 
   getNotesAtBeat(beat: number, trackId?: string): Note[] {
@@ -278,10 +384,14 @@ export class SequencerEngine {
   getNotes(): Note[] {
     return useSequencerStore.getState().notes;
   }
-}
 
-function now(): number {
-  return performance.now();
+  getIsPlaying(): boolean {
+    return this.isRunning;
+  }
+
+  getActiveNoteCount(): number {
+    return this.activeNotes.size;
+  }
 }
 
 export const sequencerEngine = new SequencerEngine();

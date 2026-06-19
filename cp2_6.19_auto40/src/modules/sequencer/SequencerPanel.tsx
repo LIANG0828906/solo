@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { useSequencerStore } from '../../store/useSequencerStore';
 import { sequencerEngine } from './SequencerEngine';
 import {
@@ -23,15 +23,100 @@ const getPitchName = (pitch: number): string => {
   return `${note}${octave}`;
 };
 
+const getPitchHue = (pitch: number): number => {
+  return ((pitch - PITCH_MIN) / TOTAL_PITCHES) * 300;
+};
+
 const getPitchColor = (pitch: number): string => {
-  const hue = ((pitch - PITCH_MIN) / TOTAL_PITCHES) * 300;
+  const hue = getPitchHue(pitch);
   return `hsl(${hue}, 70%, 55%)`;
 };
 
 const getPitchGradient = (pitch: number): string => {
-  const hue = ((pitch - PITCH_MIN) / TOTAL_PITCHES) * 300;
+  const hue = getPitchHue(pitch);
   return `linear-gradient(180deg, hsl(${hue}, 80%, 65%) 0%, hsl(${hue}, 70%, 45%) 100%)`;
 };
+
+interface NoteBlockProps {
+  note: Note;
+  track: Track;
+  pixelsPerBeat: number;
+  pitchHeight: number;
+  pianoWidth: number;
+  isSelected: boolean;
+  isDragging: boolean;
+  onMouseDown: (e: React.MouseEvent, note: Note) => void;
+}
+
+const NoteBlock = memo<NoteBlockProps>(
+  ({ note, track, pixelsPerBeat, pitchHeight, pianoWidth, isSelected, isDragging, onMouseDown }) => {
+    const x = pianoWidth + note.start * pixelsPerBeat;
+    const y = 28 + (PITCH_MAX - note.pitch) * pitchHeight;
+    const width = note.duration * pixelsPerBeat - 2;
+    const height = pitchHeight - 1;
+
+    return (
+      <div
+        onMouseDown={(e) => onMouseDown(e, note)}
+        style={{
+          position: 'absolute',
+          left: x,
+          top: y,
+          width: Math.max(8, width),
+          height,
+          background: getPitchGradient(note.pitch),
+          borderRadius: 3,
+          cursor: isDragging ? 'grabbing' : 'grab',
+          opacity: track.muted ? 0.3 : 1,
+          transition: isDragging ? 'none' : 'box-shadow 0.15s ease, transform 0.15s ease',
+          boxShadow: isSelected
+            ? `0 0 0 2px ${track.color}, 0 6px 16px rgba(0,0,0,0.5)`
+            : '0 3px 8px rgba(0,0,0,0.35)',
+          zIndex: isSelected ? 10 : isDragging ? 9 : 1,
+          transform: isDragging ? 'scale(1.03)' : 'scale(1)',
+          willChange: isDragging ? 'transform, left, top' : 'auto',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            left: 4,
+            top: 2,
+            fontSize: 9,
+            color: 'rgba(255,255,255,0.95)',
+            fontWeight: 500,
+            textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+            pointerEvents: 'none',
+          }}
+        >
+          {getPitchName(note.pitch)}
+        </div>
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 6,
+            cursor: 'ew-resize',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: 6,
+            cursor: 'ew-resize',
+          }}
+        />
+      </div>
+    );
+  }
+);
+
+NoteBlock.displayName = 'NoteBlock';
 
 interface DraggingNote {
   noteId: string;
@@ -57,8 +142,220 @@ interface DrawingNote {
   currentPitch: number;
 }
 
+interface TrackRowProps {
+  track: Track;
+  trackOffset: number;
+  pixelsPerBeat: number;
+  totalWidth: number;
+  pianoWidth: number;
+  notes: Note[];
+  selectedNoteId: string | null;
+  draggingNote: DraggingNote | null;
+  resizingTrack: ResizingTrack | null;
+  onGridMouseDown: (e: React.MouseEvent, track: Track) => void;
+  onGridMouseMove: (e: React.MouseEvent, track: Track) => void;
+  onGridMouseUp: () => void;
+  onNoteMouseDown: (e: React.MouseEvent, note: Note) => void;
+  onTrackResizeStart: (e: React.MouseEvent, track: Track) => void;
+}
+
+const TrackRow = memo<TrackRowProps>(
+  ({
+    track,
+    trackOffset,
+    pixelsPerBeat,
+    totalWidth,
+    pianoWidth,
+    notes,
+    selectedNoteId,
+    draggingNote,
+    resizingTrack,
+    onGridMouseDown,
+    onGridMouseMove,
+    onGridMouseUp,
+    onNoteMouseDown,
+    onTrackResizeStart,
+  }) => {
+    const pitchHeight = track.height / TOTAL_PITCHES;
+
+    const gridLines = useMemo(() => {
+      const lines: { key: string; style: React.CSSProperties }[] = [];
+
+      for (let i = 0; i < TOTAL_PITCHES; i++) {
+        const y = 28 + i * pitchHeight;
+        const pitch = PITCH_MAX - i - 1;
+        const isBlackKey = [1, 3, 6, 8, 10].includes(pitch % 12);
+        lines.push({
+          key: `h-${i}`,
+          style: {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: y,
+            height: pitchHeight,
+            backgroundColor: isBlackKey ? 'rgba(255,255,255,0.04)' : 'transparent',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            pointerEvents: 'none',
+          },
+        });
+      }
+
+      for (let i = 0; i <= TOTAL_BEATS; i++) {
+        const x = pianoWidth + i * pixelsPerBeat;
+        const isBar = i % BEATS_PER_BAR === 0;
+        const isBeat = i % 1 === 0;
+        const opacity = isBar ? 0.35 : isBeat ? 0.15 : 0.08;
+        const width = isBar ? 2 : 1;
+        lines.push({
+          key: `v-${i}`,
+          style: {
+            position: 'absolute',
+            left: x,
+            top: 28,
+            bottom: 0,
+            width,
+            backgroundColor: `rgba(255,255,255,${opacity})`,
+            pointerEvents: 'none',
+          },
+        });
+      }
+
+      return lines;
+    }, [pitchHeight, pixelsPerBeat, pianoWidth]);
+
+    const pianoKeys = useMemo(() => {
+      const keys: { key: string; style: React.CSSProperties; label: string }[] = [];
+
+      for (let i = 0; i < TOTAL_PITCHES; i++) {
+        const pitch = PITCH_MAX - i - 1;
+        const isBlackKey = [1, 3, 6, 8, 10].includes(pitch % 12);
+        const y = 28 + i * pitchHeight;
+        keys.push({
+          key: `key-${pitch}`,
+          style: {
+            position: 'absolute',
+            left: 0,
+            top: y,
+            width: pianoWidth,
+            height: pitchHeight,
+            backgroundColor: isBlackKey ? '#252545' : '#3a3a5a',
+            borderBottom: '1px solid rgba(0,0,0,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            paddingRight: 4,
+            fontSize: 9,
+            color: isBlackKey ? '#888' : '#bbb',
+            pointerEvents: 'none',
+          },
+          label: pitch % 12 === 0 ? getPitchName(pitch) : '',
+        });
+      }
+
+      return keys;
+    }, [pitchHeight, pianoWidth]);
+
+    const trackNotes = useMemo(
+      () => notes.filter((n) => n.trackId === track.id),
+      [notes, track.id]
+    );
+
+    return (
+      <div style={{ position: 'absolute', left: 0, right: 0, top: trackOffset }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 28,
+            backgroundColor: '#16213e',
+            borderBottom: '1px solid rgba(255,255,255,0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            paddingLeft: pianoWidth + 8,
+            gap: 8,
+            zIndex: 2,
+          }}
+        >
+          <div
+            style={{
+              width: 3,
+              height: 16,
+              backgroundColor: track.color,
+              borderRadius: 2,
+            }}
+          />
+          <span
+            style={{
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            {track.name}
+          </span>
+        </div>
+
+        <div
+          onMouseDown={(e) => onGridMouseDown(e, track)}
+          onMouseMove={(e) => onGridMouseMove(e, track)}
+          onMouseUp={onGridMouseUp}
+          style={{
+            position: 'absolute',
+            top: 28,
+            left: 0,
+            width: totalWidth + pianoWidth,
+            height: track.height,
+            cursor: 'crosshair',
+            userSelect: 'none',
+          }}
+        >
+          {pianoKeys.map((key) => (
+            <div key={key.key} style={key.style}>
+              {key.label}
+            </div>
+          ))}
+          {gridLines.map((line) => (
+            <div key={line.key} style={line.style} />
+          ))}
+          {trackNotes.map((note) => (
+            <NoteBlock
+              key={note.id}
+              note={note}
+              track={track}
+              pixelsPerBeat={pixelsPerBeat}
+              pitchHeight={pitchHeight}
+              pianoWidth={pianoWidth}
+              isSelected={selectedNoteId === note.id}
+              isDragging={draggingNote?.noteId === note.id}
+              onMouseDown={onNoteMouseDown}
+            />
+          ))}
+        </div>
+
+        <div
+          onMouseDown={(e) => onTrackResizeStart(e, track)}
+          style={{
+            position: 'absolute',
+            top: 28 + track.height - 3,
+            left: 0,
+            right: 0,
+            height: 6,
+            cursor: 'ns-resize',
+            zIndex: 20,
+            transition: 'background-color 0.2s ease',
+            backgroundColor: resizingTrack?.trackId === track.id ? 'rgba(79,205,196,0.5)' : 'transparent',
+          }}
+        />
+      </div>
+    );
+  }
+);
+
+TrackRow.displayName = 'TrackRow';
+
 export const SequencerPanel: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [draggingNote, setDraggingNote] = useState<DraggingNote | null>(null);
   const [resizingTrack, setResizingTrack] = useState<ResizingTrack | null>(null);
@@ -83,7 +380,7 @@ export const SequencerPanel: React.FC = () => {
   const getBeatFromX = useCallback(
     (x: number): number => {
       const relX = x - pianoWidth;
-      return sequencerEngine.snapToGrid(relX / pixelsPerBeat);
+      return sequencerEngine.snapToGrid(relX / pixelsPerBeat, 0.25);
     },
     [pixelsPerBeat]
   );
@@ -95,44 +392,35 @@ export const SequencerPanel: React.FC = () => {
     return PITCH_MAX - pitchIndex;
   }, []);
 
-  const getXFromBeat = useCallback(
-    (beat: number): number => {
-      return pianoWidth + beat * pixelsPerBeat;
-    },
-    [pixelsPerBeat]
-  );
-
-  const getYFromPitch = useCallback(
-    (pitch: number, track: Track): number => {
-      const pitchHeight = track.height / TOTAL_PITCHES;
-      const pitchIndex = PITCH_MAX - pitch;
-      return 28 + pitchIndex * pitchHeight;
-    },
-    []
-  );
-
   const snapPitch = useCallback((pitch: number): number => {
-    return Math.max(PITCH_MIN, Math.min(PITCH_MAX, Math.round(pitch)));
+    return sequencerEngine.snapPitch(pitch);
   }, []);
 
   const scrollToCursor = useCallback(() => {
     if (!scrollContainerRef.current || !isPlaying) return;
     const container = scrollContainerRef.current;
-    const cursorX = getXFromBeat(cursorPosition);
+    const cursorX = pianoWidth + cursorPosition * pixelsPerBeat;
     const viewportCenter = container.clientWidth / 2;
     const targetScroll = Math.max(0, cursorX - viewportCenter);
-    container.scrollTo({ left: targetScroll, behavior: 'smooth' });
-  }, [cursorPosition, isPlaying, getXFromBeat]);
+
+    const currentScroll = container.scrollLeft;
+    const distance = targetScroll - currentScroll;
+    if (Math.abs(distance) > 1) {
+      container.scrollLeft = currentScroll + distance * 0.15;
+    }
+  }, [cursorPosition, isPlaying, pixelsPerBeat]);
 
   useEffect(() => {
     if (isPlaying) {
-      scrollToCursor();
+      const frame = requestAnimationFrame(scrollToCursor);
+      return () => cancelAnimationFrame(frame);
     }
   }, [cursorPosition, isPlaying, scrollToCursor]);
 
   const handleGridMouseDown = useCallback(
     (e: React.MouseEvent, track: Track) => {
       if (e.button !== 0) return;
+      e.preventDefault();
 
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -165,9 +453,16 @@ export const SequencerPanel: React.FC = () => {
       const beat = getBeatFromX(x);
       const pitch = snapPitch(getPitchFromY(y, track));
 
-      if (drawingNote) {
+      if (drawingNote && drawingNote.trackId === track.id) {
+        const snappedBeat = getBeatFromX(x);
         setDrawingNote((prev) =>
-          prev ? { ...prev, currentBeat: Math.max(prev.startBeat, beat), currentPitch: pitch } : null
+          prev
+            ? {
+                ...prev,
+                currentBeat: Math.max(prev.startBeat, snappedBeat),
+                currentPitch: pitch,
+              }
+            : null
         );
       }
 
@@ -184,22 +479,26 @@ export const SequencerPanel: React.FC = () => {
       const duration = Math.max(0.25, Math.abs(drawingNote.currentBeat - drawingNote.startBeat) + 0.25);
       const pitch = drawingNote.currentPitch;
 
-      sequencerEngine.addNote({
-        trackId: drawingNote.trackId,
-        pitch,
-        start,
-        duration,
-        velocity: 0.8,
-      });
+      const trackNotes = notes.filter((n) => n.trackId === drawingNote.trackId);
+      if (trackNotes.length < 128) {
+        sequencerEngine.addNote({
+          trackId: drawingNote.trackId,
+          pitch,
+          start,
+          duration: sequencerEngine.snapToGrid(duration, 0.25),
+          velocity: 0.8,
+        });
+      }
 
       setDrawingNote(null);
     }
-  }, [drawingNote]);
+  }, [drawingNote, notes]);
 
   const handleNoteMouseDown = useCallback(
     (e: React.MouseEvent, note: Note) => {
       e.stopPropagation();
       if (e.button !== 0) return;
+      e.preventDefault();
 
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -227,6 +526,7 @@ export const SequencerPanel: React.FC = () => {
   const handleTrackResizeStart = useCallback(
     (e: React.MouseEvent, track: Track) => {
       e.stopPropagation();
+      e.preventDefault();
       setResizingTrack({
         trackId: track.id,
         startY: e.clientY,
@@ -242,23 +542,33 @@ export const SequencerPanel: React.FC = () => {
         const deltaX = e.clientX - draggingNote.startX;
         const deltaY = e.clientY - draggingNote.startY;
         const deltaBeats = deltaX / pixelsPerBeat;
-        const deltaPitches = -deltaY / 10;
+
+        const track = tracks.find((t) => {
+          const note = notes.find((n) => n.id === draggingNote.noteId);
+          return note ? t.id === note.trackId : false;
+        });
+
+        let deltaPitches = 0;
+        if (track) {
+          const pitchHeight = track.height / TOTAL_PITCHES;
+          deltaPitches = -deltaY / pitchHeight;
+        }
 
         let newStart = draggingNote.originalStart;
         let newPitch = draggingNote.originalPitch;
         let newDuration = draggingNote.originalDuration;
 
         if (draggingNote.mode === 'move') {
-          newStart = sequencerEngine.snapToGrid(draggingNote.originalStart + deltaBeats);
+          newStart = sequencerEngine.snapToGrid(draggingNote.originalStart + deltaBeats, 0.25);
           newPitch = snapPitch(draggingNote.originalPitch + deltaPitches);
         } else if (draggingNote.mode === 'resize-left') {
-          const resizedStart = sequencerEngine.snapToGrid(draggingNote.originalStart + deltaBeats);
+          const resizedStart = sequencerEngine.snapToGrid(draggingNote.originalStart + deltaBeats, 0.25);
           newDuration = Math.max(0.25, draggingNote.originalStart + draggingNote.originalDuration - resizedStart);
           newStart = resizedStart;
         } else if (draggingNote.mode === 'resize-right') {
           newDuration = Math.max(
             0.25,
-            sequencerEngine.snapToGrid(draggingNote.originalDuration + deltaBeats)
+            sequencerEngine.snapToGrid(draggingNote.originalDuration + deltaBeats, 0.25)
           );
         }
 
@@ -290,7 +600,7 @@ export const SequencerPanel: React.FC = () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [draggingNote, resizingTrack, drawingNote, pixelsPerBeat, snapPitch, setTrackHeight, handleGridMouseUp]);
+  }, [draggingNote, resizingTrack, drawingNote, pixelsPerBeat, snapPitch, setTrackHeight, handleGridMouseUp, tracks, notes]);
 
   const handleGridClick = useCallback(() => {
     if (!draggingNote && !drawingNote) {
@@ -298,198 +608,50 @@ export const SequencerPanel: React.FC = () => {
     }
   }, [draggingNote, drawingNote, setSelectedNoteId]);
 
-  const renderGrid = (track: Track) => {
+  const renderDrawingPreview = useMemo(() => {
+    if (!drawingNote) return null;
+
+    const track = tracks.find((t) => t.id === drawingNote.trackId);
+    if (!track) return null;
+
     const pitchHeight = track.height / TOTAL_PITCHES;
-    const lines = [];
-
-    for (let i = 0; i <= TOTAL_PITCHES; i++) {
-      const y = 28 + i * pitchHeight;
-      const pitch = PITCH_MAX - i;
-      const isBlackKey = [1, 3, 6, 8, 10].includes(pitch % 12);
-      lines.push(
-        <div
-          key={`h-${i}`}
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: y,
-            height: pitchHeight,
-            backgroundColor: isBlackKey ? 'rgba(255,255,255,0.03)' : 'transparent',
-            borderBottom: '1px solid rgba(255,255,255,0.05)',
-            pointerEvents: 'none',
-          }}
-        />
-      );
-    }
-
-    for (let i = 0; i <= TOTAL_BEATS; i++) {
-      const x = pianoWidth + i * pixelsPerBeat;
-      const isBar = i % BEATS_PER_BAR === 0;
-      const isBeat = i % 1 === 0;
-      const opacity = isBar ? 0.3 : isBeat ? 0.15 : 0.08;
-      lines.push(
-        <div
-          key={`v-${i}`}
-          style={{
-            position: 'absolute',
-            left: x,
-            top: 28,
-            bottom: 0,
-            width: isBar ? 2 : 1,
-            backgroundColor: `rgba(255,255,255,${opacity})`,
-            pointerEvents: 'none',
-          }}
-        />
-      );
-    }
-
-    return lines;
-  };
-
-  const renderPianoRoll = (track: Track) => {
-    const pitchHeight = track.height / TOTAL_PITCHES;
-    const keys = [];
-
-    for (let i = 0; i < TOTAL_PITCHES; i++) {
-      const pitch = PITCH_MAX - i;
-      const isBlackKey = [1, 3, 6, 8, 10].includes(pitch % 12);
-      const y = 28 + i * pitchHeight;
-
-      keys.push(
-        <div
-          key={pitch}
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: y,
-            width: pianoWidth,
-            height: pitchHeight,
-            backgroundColor: isBlackKey ? '#2a2a4a' : '#3a3a5a',
-            borderBottom: '1px solid rgba(0,0,0,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            paddingRight: 4,
-            fontSize: 9,
-            color: isBlackKey ? '#888' : '#aaa',
-            pointerEvents: 'none',
-          }}
-        >
-          {pitch % 12 === 0 && getPitchName(pitch)}
-        </div>
-      );
-    }
-
-    return keys;
-  };
-
-  const renderNotes = (track: Track) => {
-    const trackNotes = notes.filter((n) => n.trackId === track.id);
-    const pitchHeight = track.height / TOTAL_PITCHES;
-
-    return trackNotes.map((note) => {
-      const x = getXFromBeat(note.start);
-      const y = getYFromPitch(note.pitch, track);
-      const width = note.duration * pixelsPerBeat - 2;
-      const height = pitchHeight - 1;
-      const isSelected = selectedNoteId === note.id;
-      const isDragging = draggingNote?.noteId === note.id;
-
-      return (
-        <div
-          key={note.id}
-          onMouseDown={(e) => handleNoteMouseDown(e, note)}
-          style={{
-            position: 'absolute',
-            left: x,
-            top: y,
-            width: Math.max(8, width),
-            height,
-            background: getPitchGradient(note.pitch),
-            borderRadius: 3,
-            cursor: isDragging ? 'grabbing' : 'grab',
-            opacity: track.muted ? 0.3 : 1,
-            transition: isDragging ? 'none' : 'all 0.1s ease',
-            boxShadow: isSelected
-              ? `0 0 0 2px ${track.color}, 0 4px 12px rgba(0,0,0,0.4)`
-              : '0 2px 6px rgba(0,0,0,0.3)',
-            zIndex: isSelected ? 10 : isDragging ? 9 : 1,
-            transform: isDragging ? 'scale(1.02)' : 'scale(1)',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              left: 4,
-              top: 2,
-              fontSize: 9,
-              color: 'rgba(255,255,255,0.9)',
-              fontWeight: 500,
-              textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-            }}
-          >
-            {getPitchName(note.pitch)}
-          </div>
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: 6,
-              cursor: 'ew-resize',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: 6,
-              cursor: 'ew-resize',
-            }}
-          />
-        </div>
-      );
-    });
-  };
-
-  const renderDrawingPreview = (track: Track) => {
-    if (!drawingNote || drawingNote.trackId !== track.id) return null;
-
     const start = Math.min(drawingNote.startBeat, drawingNote.currentBeat);
     const duration = Math.max(0.25, Math.abs(drawingNote.currentBeat - drawingNote.startBeat) + 0.25);
     const pitch = drawingNote.currentPitch;
-    const pitchHeight = track.height / TOTAL_PITCHES;
 
-    const x = getXFromBeat(start);
-    const y = getYFromPitch(pitch, track);
+    const x = pianoWidth + start * pixelsPerBeat;
+    const y = 28 + (PITCH_MAX - pitch) * pitchHeight;
     const width = duration * pixelsPerBeat - 2;
     const height = pitchHeight - 1;
+
+    let trackOffset = 0;
+    const trackIndex = tracks.findIndex((t) => t.id === drawingNote.trackId);
+    for (let i = 0; i < trackIndex; i++) {
+      trackOffset += tracks[i].height + 28;
+    }
 
     return (
       <div
         style={{
           position: 'absolute',
           left: x,
-          top: y,
+          top: trackOffset + y,
           width: Math.max(8, width),
           height,
           background: getPitchGradient(pitch),
-          opacity: 0.5,
+          opacity: 0.45,
           borderRadius: 3,
           pointerEvents: 'none',
-          boxShadow: `0 0 12px ${getPitchColor(pitch)}`,
+          boxShadow: `0 0 20px ${getPitchColor(pitch)}`,
           zIndex: 100,
+          border: `2px solid ${getPitchColor(pitch)}`,
         }}
       />
     );
-  };
+  }, [drawingNote, tracks, pixelsPerBeat]);
 
-  const renderPlayhead = () => {
-    const x = getXFromBeat(cursorPosition);
+  const renderPlayhead = useMemo(() => {
+    const x = pianoWidth + cursorPosition * pixelsPerBeat;
     return (
       <div
         style={{
@@ -499,29 +661,30 @@ export const SequencerPanel: React.FC = () => {
           bottom: 0,
           width: 2,
           backgroundColor: '#ff4444',
-          boxShadow: '0 0 8px rgba(255,68,68,0.6)',
+          boxShadow: '0 0 10px rgba(255,68,68,0.7)',
           pointerEvents: 'none',
           zIndex: 50,
-          transition: isPlaying ? 'none' : 'left 0.1s ease',
+          willChange: 'left',
         }}
       >
         <div
           style={{
             position: 'absolute',
-            top: 0,
-            left: -6,
-            width: 14,
-            height: 14,
+            top: -1,
+            left: -7,
+            width: 16,
+            height: 16,
             backgroundColor: '#ff4444',
             borderRadius: '50% 50% 50% 0',
             transform: 'rotate(-45deg)',
+            boxShadow: '0 -2px 8px rgba(255,68,68,0.6)',
           }}
         />
       </div>
     );
-  };
+  }, [cursorPosition, pixelsPerBeat]);
 
-  const renderBarNumbers = () => {
+  const renderBarNumbers = useMemo(() => {
     const numbers = [];
     for (let i = 0; i < BARS; i++) {
       const x = pianoWidth + i * BEATS_PER_BAR * pixelsPerBeat;
@@ -530,11 +693,12 @@ export const SequencerPanel: React.FC = () => {
           key={i}
           style={{
             position: 'absolute',
-            left: x + 4,
-            top: 6,
+            left: x + 6,
+            top: 7,
             fontSize: 10,
-            color: 'rgba(255,255,255,0.4)',
+            color: 'rgba(255,255,255,0.45)',
             fontWeight: 600,
+            pointerEvents: 'none',
           }}
         >
           {i + 1}
@@ -542,52 +706,27 @@ export const SequencerPanel: React.FC = () => {
       );
     }
     return numbers;
-  };
+  }, [pixelsPerBeat]);
 
-  const renderPositionTooltip = () => {
-    if (!hoverInfo || draggingNote || drawingNote) return null;
+  const totalHeight = useMemo(() => tracks.reduce((acc, t) => acc + t.height + 28, 0), [tracks]);
 
+  const trackOffsets = useMemo(() => {
+    const offsets: number[] = [];
     let acc = 0;
-    const track = tracks.find((_t) => {
-      let found = false;
-      for (const tr of tracks) {
-        if (hoverInfo.y >= acc && hoverInfo.y < acc + tr.height + 28) {
-          found = true;
-          break;
-        }
-        acc += tr.height + 28;
-      }
-      return found;
-    });
+    for (const track of tracks) {
+      offsets.push(acc);
+      acc += track.height + 28;
+    }
+    return offsets;
+  }, [tracks]);
 
-    if (!track) return null;
-
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          left: hoverInfo.x + pianoWidth + 10,
-          top: hoverInfo.y - 20,
-          backgroundColor: 'rgba(0,0,0,0.9)',
-          color: '#fff',
-          padding: '4px 8px',
-          borderRadius: 4,
-          fontSize: 11,
-          pointerEvents: 'none',
-          zIndex: 200,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-        }}
-      >
-        {getPitchName(hoverInfo.pitch)} | {hoverInfo.beat.toFixed(2)}
-      </div>
-    );
-  };
-
-  const totalHeight = tracks.reduce((acc, t) => acc + t.height + 28, 0);
+  const renderPositionTooltip = useCallback(() => {
+    if (!hoverInfo || draggingNote || drawingNote) return null;
+    return null;
+  }, [hoverInfo, draggingNote, drawingNote]);
 
   return (
     <div
-      ref={containerRef}
       style={{
         flex: 1,
         display: 'flex',
@@ -599,17 +738,15 @@ export const SequencerPanel: React.FC = () => {
     >
       <div
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
+          position: 'relative',
           height: 28,
           backgroundColor: '#16213e',
           borderBottom: '1px solid rgba(255,255,255,0.1)',
           zIndex: 5,
+          flexShrink: 0,
         }}
       >
-        {renderBarNumbers()}
+        {renderBarNumbers}
       </div>
 
       <div
@@ -620,7 +757,6 @@ export const SequencerPanel: React.FC = () => {
           flex: 1,
           overflowX: 'auto',
           overflowY: 'auto',
-          marginTop: 28,
           position: 'relative',
         }}
       >
@@ -632,88 +768,29 @@ export const SequencerPanel: React.FC = () => {
             minWidth: '100%',
           }}
         >
-          {renderPlayhead()}
+          {renderPlayhead}
 
-          {tracks.map((track, trackIndex) => {
-            let trackOffset = 0;
-            for (let i = 0; i < trackIndex; i++) {
-              trackOffset += tracks[i].height + 28;
-            }
+          {tracks.map((track, index) => (
+            <TrackRow
+              key={track.id}
+              track={track}
+              trackOffset={trackOffsets[index]}
+              pixelsPerBeat={pixelsPerBeat}
+              totalWidth={totalWidth}
+              pianoWidth={pianoWidth}
+              notes={notes}
+              selectedNoteId={selectedNoteId}
+              draggingNote={draggingNote}
+              resizingTrack={resizingTrack}
+              onGridMouseDown={handleGridMouseDown}
+              onGridMouseMove={handleGridMouseMove}
+              onGridMouseUp={handleGridMouseUp}
+              onNoteMouseDown={handleNoteMouseDown}
+              onTrackResizeStart={handleTrackResizeStart}
+            />
+          ))}
 
-            return (
-              <div key={track.id}>
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: trackOffset,
-                    left: 0,
-                    right: 0,
-                    height: 28,
-                    backgroundColor: '#16213e',
-                    borderBottom: '1px solid rgba(255,255,255,0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    paddingLeft: pianoWidth + 8,
-                    gap: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 3,
-                      height: 16,
-                      backgroundColor: track.color,
-                      borderRadius: 2,
-                    }}
-                  />
-                  <span
-                    style={{
-                      color: '#fff',
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {track.name}
-                  </span>
-                </div>
-
-                <div
-                  onMouseDown={(e) => handleGridMouseDown(e, track)}
-                  onMouseMove={(e) => handleGridMouseMove(e, track)}
-                  onMouseUp={handleGridMouseUp}
-                  style={{
-                    position: 'absolute',
-                    top: trackOffset + 28,
-                    left: 0,
-                    width: totalWidth + pianoWidth,
-                    height: track.height,
-                    cursor: 'crosshair',
-                    userSelect: 'none',
-                  }}
-                >
-                  {renderPianoRoll(track)}
-                  {renderGrid(track)}
-                  {renderNotes(track)}
-                  {renderDrawingPreview(track)}
-                </div>
-
-                <div
-                  onMouseDown={(e) => handleTrackResizeStart(e, track)}
-                  style={{
-                    position: 'absolute',
-                    top: trackOffset + 28 + track.height - 3,
-                    left: 0,
-                    right: 0,
-                    height: 6,
-                    cursor: 'ns-resize',
-                    zIndex: 20,
-                    transition: 'background-color 0.2s',
-                    backgroundColor: resizingTrack?.trackId === track.id ? 'rgba(79,205,196,0.5)' : 'transparent',
-                  }}
-                />
-              </div>
-            );
-          })}
-
+          {renderDrawingPreview}
           {renderPositionTooltip()}
         </div>
       </div>
