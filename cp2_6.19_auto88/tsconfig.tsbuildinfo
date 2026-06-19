@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/empty.tsx","./src/hooks/usetheme.ts","./src/lib/utils.ts","./src/module1/recipeimport.ts","./src/module1/recipemanager.ts","./src/pages/home.tsx","./src/types/index.ts","./src/utils/colorgenerator.ts","./src/utils/db.ts","./src/utils/debounce.ts","./src/utils/hash.ts"],"version":"5.8.3"}
