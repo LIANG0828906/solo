@@ -7,10 +7,17 @@ export interface BuildingData {
   height: number;
   mesh: THREE.Mesh;
   windows: THREE.PointLight[];
+  windowMeshes: THREE.Mesh[];
+}
+
+export interface StreetLightData {
+  light: THREE.PointLight;
+  pole: THREE.Group;
 }
 
 export class CityBuilder {
   public buildings: BuildingData[] = [];
+  public streetLights: StreetLightData[] = [];
   public group: THREE.Group;
   public ground: THREE.Mesh;
   private gridSize = 120;
@@ -24,6 +31,8 @@ export class CityBuilder {
     this.group.add(this.ground);
     this.createRoads();
     this.generateBuildings();
+    this.createStreetLights();
+    this.createTrees();
   }
 
   private createGround(): THREE.Mesh {
@@ -163,18 +172,25 @@ export class CityBuilder {
     depth: number,
     height: number
   ): BuildingData | null {
-    const colors = [
-      0x5a7a8a, 0x6a8a9a, 0x7a9aaa, 0x8a6a6a, 0x9a7a8a,
-      0x5a6a7a, 0x8a9aaa, 0x6a5a5a, 0x7a8a6a, 0x9a9a8a,
-      0x4a5a6a, 0xa09080, 0x708090, 0x908070
+    const desaturatedColors = [
+      0xaac8dd,
+      0xf0ece2,
+      0xd8d8d8,
+      0xe8d5da,
+      0xc8e0cc,
+      0xbcd4e0,
+      0xe8e2d0,
+      0xd4d4dc,
+      0xe0cccc,
+      0xcce0d4
     ];
-    const color = colors[Math.floor(Math.random() * colors.length)];
+    const color = desaturatedColors[Math.floor(Math.random() * desaturatedColors.length)];
 
     const geometry = new THREE.BoxGeometry(width, height, depth);
     const material = new THREE.MeshStandardMaterial({
       color: color,
-      roughness: 0.7,
-      metalness: 0.2
+      roughness: 0.75,
+      metalness: 0.15
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(x, height / 2, z);
@@ -182,60 +198,36 @@ export class CityBuilder {
     mesh.receiveShadow = true;
 
     const windows: THREE.PointLight[] = [];
-    const windowRows = Math.floor(height / 1.2);
-    const windowCols = Math.floor(width / 1.5);
+    const windowMeshes: THREE.Mesh[] = [];
 
-    for (let r = 0; r < windowRows; r++) {
-      for (let c = 0; c < windowCols; c++) {
-        if (Math.random() < 0.45) {
-          const wx = x - width / 2 + 0.8 + c * (width - 1.2) / Math.max(1, windowCols - 1);
-          const wy = 1 + r * 1.2;
+    const windowCount = 2 + Math.floor(Math.random() * 3);
+    const windowWidth = 0.5;
+    const windowHeight = 0.6;
+    const spacing = (width - 1) / Math.max(1, windowCount - 1);
+    const windowY = height * 0.35 + Math.random() * (height * 0.25);
 
-          const emissiveGeo = new THREE.PlaneGeometry(0.6, 0.5);
-          const emissiveMat = new THREE.MeshBasicMaterial({
-            color: 0xffee88,
-            transparent: true,
-            opacity: 0
-          });
+    for (let i = 0; i < windowCount; i++) {
+      const wx = x - width / 2 + 0.5 + i * spacing;
 
-          const winFront = new THREE.Mesh(emissiveGeo, emissiveMat);
-          winFront.position.set(wx, wy, z + depth / 2 + 0.01);
-          winFront.userData.emissive = true;
-          this.group.add(winFront);
+      const dayOpacity = 0.5 + Math.random() * 0.2;
+      const nightEmissive = 0.8 + Math.random() * 0.2;
 
-          const winBack = new THREE.Mesh(emissiveGeo.clone(), emissiveMat.clone() as THREE.MeshBasicMaterial);
-          winBack.position.set(wx, wy, z - depth / 2 - 0.01);
-          winBack.rotation.y = Math.PI;
-          winBack.userData.emissive = true;
-          this.group.add(winBack);
+      const winGeo = new THREE.PlaneGeometry(windowWidth, windowHeight);
+      const winMat = new THREE.MeshStandardMaterial({
+        color: 0xffee88,
+        emissive: 0xffcc44,
+        emissiveIntensity: 0,
+        transparent: true,
+        opacity: dayOpacity
+      });
 
-          const winLeft = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.6, 0.5),
-            emissiveMat.clone() as THREE.MeshBasicMaterial
-          );
-          const wxLeft = x - width / 2 - 0.01;
-          const wzLeft = z - depth / 2 + 0.8 + r * 0.8;
-          if (Math.random() < 0.35) {
-            winLeft.position.set(wxLeft, wy, wzLeft);
-            winLeft.rotation.y = -Math.PI / 2;
-            winLeft.userData.emissive = true;
-            this.group.add(winLeft);
-          }
-
-          const winRight = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.6, 0.5),
-            emissiveMat.clone() as THREE.MeshBasicMaterial
-          );
-          const wxRight = x + width / 2 + 0.01;
-          const wzRight = z - depth / 2 + 0.8 + r * 0.8;
-          if (Math.random() < 0.35) {
-            winRight.position.set(wxRight, wy, wzRight);
-            winRight.rotation.y = Math.PI / 2;
-            winRight.userData.emissive = true;
-            this.group.add(winRight);
-          }
-        }
-      }
+      const winFront = new THREE.Mesh(winGeo, winMat);
+      winFront.position.set(wx, windowY, z + depth / 2 + 0.01);
+      winFront.userData.windowMesh = true;
+      winFront.userData.dayOpacity = dayOpacity;
+      winFront.userData.nightEmissive = nightEmissive;
+      windowMeshes.push(winFront);
+      this.group.add(winFront);
     }
 
     return {
@@ -244,7 +236,8 @@ export class CityBuilder {
       depth,
       height,
       mesh,
-      windows
+      windows,
+      windowMeshes
     };
   }
 
@@ -341,5 +334,118 @@ export class CityBuilder {
       minZ: -this.gridSize / 2 + 2,
       maxZ: this.gridSize / 2 - 2
     };
+  }
+
+  private createStreetLights(): void {
+    const halfGrid = this.gridSize / 2;
+    const spacing = 17;
+    const maxLights = 8;
+    let count = 0;
+
+    for (let z = -halfGrid + spacing / 2; z <= halfGrid && count < maxLights; z += spacing) {
+      if (count >= maxLights) break;
+      this.addStreetLight(-halfGrid + 8, z, count);
+      count++;
+      if (count >= maxLights) break;
+      this.addStreetLight(halfGrid - 8, z, count);
+      count++;
+    }
+
+    for (let x = -halfGrid + spacing / 2 + spacing; x <= halfGrid - spacing && count < maxLights; x += spacing) {
+      if (count >= maxLights) break;
+      this.addStreetLight(x, -halfGrid + 8, count);
+      count++;
+      if (count >= maxLights) break;
+      this.addStreetLight(x, halfGrid - 8, count);
+      count++;
+    }
+  }
+
+  private addStreetLight(x: number, z: number, index: number): void {
+    const poleGroup = new THREE.Group();
+
+    const poleGeo = new THREE.CylinderGeometry(0.12, 0.15, 4, 8);
+    const poleMat = new THREE.MeshStandardMaterial({
+      color: 0x3a3a3a,
+      roughness: 0.7,
+      metalness: 0.6
+    });
+    const pole = new THREE.Mesh(poleGeo, poleMat);
+    pole.position.set(0, 2, 0);
+    pole.castShadow = true;
+    poleGroup.add(pole);
+
+    const topGeo = new THREE.SphereGeometry(0.28, 12, 12);
+    const topMat = new THREE.MeshStandardMaterial({
+      color: 0xffcc66,
+      emissive: 0xffaa33,
+      emissiveIntensity: 0
+    });
+    const top = new THREE.Mesh(topGeo, topMat);
+    top.position.set(0, 4.1, 0);
+    top.userData.lampTop = true;
+    poleGroup.add(top);
+
+    const light = new THREE.PointLight(0xffcc66, 0, 15, 2);
+    light.position.set(0, 4, 0);
+    light.castShadow = true;
+    poleGroup.add(light);
+
+    poleGroup.position.set(x, 0, z);
+    this.group.add(poleGroup);
+
+    this.streetLights.push({ light, pole: poleGroup });
+  }
+
+  private createTrees(): void {
+    const halfGrid = this.gridSize / 2;
+    const margin = 3;
+    const treeSpacing = 6;
+
+    for (let x = -halfGrid + margin; x <= halfGrid - margin; x += treeSpacing) {
+      this.addTree(x + (Math.random() - 0.5) * 1.5, -halfGrid + margin + Math.random() * 2);
+      this.addTree(x + (Math.random() - 0.5) * 1.5, halfGrid - margin - Math.random() * 2);
+    }
+
+    for (let z = -halfGrid + margin + treeSpacing; z <= halfGrid - margin - treeSpacing; z += treeSpacing) {
+      this.addTree(-halfGrid + margin + Math.random() * 2, z + (Math.random() - 0.5) * 1.5);
+      this.addTree(halfGrid - margin - Math.random() * 2, z + (Math.random() - 0.5) * 1.5);
+    }
+  }
+
+  private addTree(x: number, z: number): void {
+    const treeGroup = new THREE.Group();
+    const totalHeight = 3 + Math.random() * 2;
+    const trunkHeight = totalHeight * 0.4;
+    const crownHeight = totalHeight * 0.6;
+
+    const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, trunkHeight, 6);
+    const trunkMat = new THREE.MeshStandardMaterial({
+      color: 0x5a3a2a,
+      roughness: 0.9,
+      metalness: 0
+    });
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.position.set(0, trunkHeight / 2, 0);
+    trunk.castShadow = true;
+    treeGroup.add(trunk);
+
+    const greenShades = [0x3a6a3a, 0x4a7a4a, 0x2a5a2a, 0x5a8a5a, 0x3a7a3a];
+    const crownColor = greenShades[Math.floor(Math.random() * greenShades.length)];
+
+    const crownGeo = new THREE.ConeGeometry(0.9 + Math.random() * 0.3, crownHeight, 7);
+    const crownMat = new THREE.MeshStandardMaterial({
+      color: crownColor,
+      roughness: 0.85,
+      metalness: 0
+    });
+    const crown = new THREE.Mesh(crownGeo, crownMat);
+    crown.position.set(0, trunkHeight + crownHeight / 2, 0);
+    crown.castShadow = true;
+    treeGroup.add(crown);
+
+    treeGroup.position.set(x, 0, z);
+    treeGroup.rotation.y = Math.random() * Math.PI;
+    this.group.add(treeGroup);
   }
 }

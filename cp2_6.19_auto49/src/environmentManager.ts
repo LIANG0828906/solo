@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as TWEEN from '@tweenjs/tween.js';
-import { BuildingData, CityBuilder } from './cityBuilder';
+import { BuildingData, CityBuilder, StreetLightData } from './cityBuilder';
 import { PlayerState } from './playerController';
 
 export type WeatherType = 'sunny' | 'rainy' | 'snowy';
@@ -26,7 +26,6 @@ export class EnvironmentManager {
   private particleData: ParticleData[] = [];
   private particleOpacity = { value: 0 };
 
-  private streetLights: { light: THREE.PointLight; pole: THREE.Group }[] = [];
   private snowAccumulation: THREE.Mesh | null = null;
 
   private ripples: { mesh: THREE.Mesh; startTime: number }[] = [];
@@ -57,7 +56,6 @@ export class EnvironmentManager {
 
     this.setupLighting();
     this.setupSkyAndFog();
-    this.setupStreetLights();
     this.setupSnowAccumulation();
   }
 
@@ -84,105 +82,6 @@ export class EnvironmentManager {
   private setupSkyAndFog(): void {
     this.scene.background = this.daySkyColor.clone();
     this.scene.fog = new THREE.Fog(this.dayFogColor.getHex(), 50, 120);
-  }
-
-  private setupStreetLights(): void {
-    const streetPositions = this.cityBuilder.getStreetPositions();
-    const filteredPositions: THREE.Vector3[] = [];
-    const minDistance = 12;
-
-    for (const pos of streetPositions) {
-      let tooClose = false;
-      for (const existing of filteredPositions) {
-        if (pos.distanceTo(existing) < minDistance) {
-          tooClose = true;
-          break;
-        }
-      }
-      if (!tooClose && (Math.abs(pos.x) > 5 || Math.abs(pos.z) > 8)) {
-        filteredPositions.push(pos);
-      }
-      if (filteredPositions.length >= 8) break;
-    }
-
-    for (const pos of filteredPositions) {
-      const lightGroup = this.createStreetLight(pos);
-      this.streetLights.push(lightGroup);
-      this.scene.add(lightGroup.pole);
-    }
-  }
-
-  private createStreetLight(position: THREE.Vector3): { light: THREE.PointLight; pole: THREE.Group } {
-    const poleGroup = new THREE.Group();
-
-    const poleGeo = new THREE.CylinderGeometry(0.1, 0.15, 5, 8);
-    const poleMat = new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a,
-      roughness: 0.7,
-      metalness: 0.5
-    });
-    const pole = new THREE.Mesh(poleGeo, poleMat);
-    pole.position.set(0, 2.5, 0);
-    pole.castShadow = true;
-    poleGroup.add(pole);
-
-    const armGeo = new THREE.BoxGeometry(1.5, 0.1, 0.1);
-    const armMat = new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a,
-      roughness: 0.7,
-      metalness: 0.5
-    });
-    const arm = new THREE.Mesh(armGeo, armMat);
-    arm.position.set(0.75, 4.8, 0);
-    poleGroup.add(arm);
-
-    const lampGeo = new THREE.SphereGeometry(0.25, 16, 16);
-    const lampMat = new THREE.MeshBasicMaterial({
-      color: 0xffaa44,
-      transparent: true,
-      opacity: 0
-    });
-    const lamp = new THREE.Mesh(lampGeo, lampMat);
-    lamp.position.set(1.5, 4.8, 0);
-    lamp.userData.lampMesh = true;
-    poleGroup.add(lamp);
-
-    const glowGeo = new THREE.SphereGeometry(3, 16, 16);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: 0xffaa44,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false
-    });
-    const glow = new THREE.Mesh(glowGeo, glowMat);
-    glow.position.set(1.5, 4.8, 0);
-    glow.userData.glowMesh = true;
-    poleGroup.add(glow);
-
-    const lightHaloGeo = new THREE.SpriteMaterial({
-      color: 0xffcc66,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending
-    });
-    const lightHalo = new THREE.Sprite(lightHaloGeo);
-    lightHalo.scale.set(6, 6, 1);
-    lightHalo.position.set(1.5, 4.8, 0);
-    lightHalo.userData.haloSprite = true;
-    poleGroup.add(lightHalo);
-
-    const fakeLight: any = {
-      intensity: 0,
-      position: new THREE.Vector3(1.5, 4.8, 0)
-    };
-
-    poleGroup.position.copy(position);
-    const angle = Math.random() * Math.PI * 2;
-    poleGroup.rotation.y = angle;
-    fakeLight.position.add(position);
-
-    return { light: fakeLight as THREE.PointLight, pole: poleGroup };
   }
 
   private setupSnowAccumulation(): void {
@@ -285,27 +184,31 @@ export class EnvironmentManager {
   }
 
   private animateBuildingWindows(): void {
-    this.cityBuilder.group.traverse((obj) => {
-      if (obj instanceof THREE.Mesh && obj.userData.emissive) {
-        const mat = obj.material as THREE.MeshBasicMaterial;
-        const shouldLight = this.isNight && Math.random() < 0.85;
-        const targetOpacity = shouldLight ? (0.7 + Math.random() * 0.3) : 0;
+    for (const building of this.cityBuilder.buildings) {
+      for (const winMesh of building.windowMeshes) {
+        const mat = winMesh.material as THREE.MeshStandardMaterial;
+        const dayOpacity = (winMesh.userData.dayOpacity as number) ?? 0.6;
+        const nightEmissive = (winMesh.userData.nightEmissive as number) ?? 0.9;
 
-        const opacityObj = { opacity: mat.opacity };
-        new TWEEN.Tween(opacityObj)
-          .to({ opacity: targetOpacity }, 1800 + Math.random() * 400)
+        const targetOpacity = this.isNight ? 1 : dayOpacity;
+        const targetEmissive = this.isNight ? nightEmissive : 0;
+
+        const current = { opacity: mat.opacity, emissive: mat.emissiveIntensity };
+        new TWEEN.Tween(current)
+          .to({ opacity: targetOpacity, emissive: targetEmissive }, 1800 + Math.random() * 400)
           .easing(TWEEN.Easing.Cubic.InOut)
           .delay(Math.random() * 500)
           .onUpdate(() => {
-            mat.opacity = opacityObj.opacity;
+            mat.opacity = current.opacity;
+            mat.emissiveIntensity = current.emissive;
           })
           .start();
       }
-    });
+    }
   }
 
   private animateStreetLights(): void {
-    for (const { light, pole } of this.streetLights) {
+    for (const { light, pole } of this.cityBuilder.streetLights) {
       const targetIntensity = this.isNight ? (1.5 + Math.random() * 1.0) : 0;
 
       const lightObj = { intensity: light.intensity };
@@ -319,38 +222,14 @@ export class EnvironmentManager {
         .start();
 
       pole.traverse((obj) => {
-        if (obj instanceof THREE.Mesh && obj.userData.lampMesh) {
-          const mat = obj.material as THREE.MeshBasicMaterial;
-          const opacityObj = { opacity: mat.opacity };
-          new TWEEN.Tween(opacityObj)
-            .to({ opacity: targetIntensity > 0 ? 1 : 0 }, 1500)
+        if (obj instanceof THREE.Mesh && obj.userData.lampTop) {
+          const mat = obj.material as THREE.MeshStandardMaterial;
+          const emissiveObj = { emissive: mat.emissiveIntensity };
+          new TWEEN.Tween(emissiveObj)
+            .to({ emissive: targetIntensity > 0 ? 1.2 : 0 }, 1500)
             .easing(TWEEN.Easing.Cubic.InOut)
             .onUpdate(() => {
-              mat.opacity = opacityObj.opacity;
-            })
-            .start();
-        }
-        if (obj instanceof THREE.Mesh && obj.userData.glowMesh) {
-          const mat = obj.material as THREE.MeshBasicMaterial;
-          const targetOpacity = targetIntensity > 0 ? 0.12 : 0;
-          const opacityObj = { opacity: mat.opacity };
-          new TWEEN.Tween(opacityObj)
-            .to({ opacity: targetOpacity }, 1500)
-            .easing(TWEEN.Easing.Cubic.InOut)
-            .onUpdate(() => {
-              mat.opacity = opacityObj.opacity;
-            })
-            .start();
-        }
-        if (obj instanceof THREE.Sprite && obj.userData.haloSprite) {
-          const mat = obj.material as THREE.SpriteMaterial;
-          const targetOpacity = targetIntensity > 0 ? 0.3 : 0;
-          const opacityObj = { opacity: mat.opacity };
-          new TWEEN.Tween(opacityObj)
-            .to({ opacity: targetOpacity }, 1500)
-            .easing(TWEEN.Easing.Cubic.InOut)
-            .onUpdate(() => {
-              mat.opacity = opacityObj.opacity;
+              mat.emissiveIntensity = emissiveObj.emissive;
             })
             .start();
         }
@@ -632,7 +511,7 @@ export class EnvironmentManager {
   public updatePlayerPosition(state: PlayerState): void {
     this.playerPosition.copy(state.position);
 
-    for (const { light, pole } of this.streetLights) {
+    for (const { light, pole } of this.cityBuilder.streetLights) {
       const distance = this.playerPosition.distanceTo(pole.position);
       if (distance < 20) {
         const boost = THREE.MathUtils.smoothstep(20 - distance, 0, 20) * 0.5;
