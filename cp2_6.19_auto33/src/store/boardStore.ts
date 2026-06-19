@@ -36,10 +36,11 @@ interface BoardState {
   tasks: Record<string, Task>
   expandedTaskId: string | null
   showAddModal: boolean
-  flyingTaskId: string | null
+  flyingTaskIds: string[]
   toggleExpand: (taskId: string | null) => void
   setShowAddModal: (show: boolean) => void
-  setFlyingTaskId: (id: string | null) => void
+  addFlyingTaskId: (id: string) => void
+  removeFlyingTaskId: (id: string) => void
   addTask: (task: Omit<Task, 'id' | 'column' | 'subTasks' | 'completedPomodoros' | 'totalTimeSpent' | 'createdAt'>) => void
   moveTask: (taskId: string, sourceColumn: ColumnId, destinationColumn: ColumnId, sourceIndex: number, destinationIndex: number) => void
   reorderTask: (column: ColumnId, sourceIndex: number, destinationIndex: number) => void
@@ -157,11 +158,20 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   tasks: initialData.tasks,
   expandedTaskId: null,
   showAddModal: false,
-  flyingTaskId: null,
+  flyingTaskIds: [],
 
   toggleExpand: (taskId) => set({ expandedTaskId: taskId }),
   setShowAddModal: (show) => set({ showAddModal: show }),
-  setFlyingTaskId: (id) => set({ flyingTaskId: id }),
+  addFlyingTaskId: (id) =>
+    set((state) => ({
+      flyingTaskIds: state.flyingTaskIds.includes(id)
+        ? state.flyingTaskIds
+        : [...state.flyingTaskIds, id],
+    })),
+  removeFlyingTaskId: (id) =>
+    set((state) => ({
+      flyingTaskIds: state.flyingTaskIds.filter((tid) => tid !== id),
+    })),
 
   addTask: (taskData) => {
     const newTaskId = uuidv4()
@@ -184,10 +194,14 @@ export const useBoardStore = create<BoardState>((set, get) => ({
           taskIds: [newTaskId, ...state.columns.todo.taskIds],
         },
       },
-      flyingTaskId: newTaskId,
+      flyingTaskIds: [...state.flyingTaskIds, newTaskId],
     }))
 
-    setTimeout(() => set({ flyingTaskId: null }), 600)
+    setTimeout(() => {
+      set((state) => ({
+        flyingTaskIds: state.flyingTaskIds.filter((tid) => tid !== newTaskId),
+      }))
+    }, 600)
   },
 
   moveTask: (taskId, sourceColumn, destinationColumn, sourceIndex, destinationIndex) => {

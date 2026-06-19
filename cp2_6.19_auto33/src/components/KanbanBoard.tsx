@@ -9,6 +9,9 @@ const columnConfig: Record<ColumnId, { title: string; color: string }> = {
   done: { title: '已完成', color: '#10b981' },
 }
 
+const EASING = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+const TRANSITION_DURATION = '300ms'
+
 const AddTaskModal = ({ onClose }: { onClose: () => void }) => {
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<Priority>('medium')
@@ -32,28 +35,33 @@ const AddTaskModal = ({ onClose }: { onClose: () => void }) => {
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        WebkitBackdropFilter: 'blur(8px)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
         animation: 'fadeIn 0.3s ease-in-out',
+        padding: '16px',
       }}
       onClick={onClose}
+      className="modal-overlay"
     >
       <div
         style={{
-          backgroundColor: 'rgba(45, 62, 80, 0.95)',
+          backgroundColor: '#2d3e50',
+          WebkitBackdropFilter: 'blur(12px)',
           backdropFilter: 'blur(12px)',
           borderRadius: '12px',
           padding: '24px',
           width: '400px',
-          maxWidth: '90vw',
+          maxWidth: '100%',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4)',
           animation: 'bounceIn 0.4s ease-in-out',
         }}
         onClick={(e) => e.stopPropagation()}
+        className="modal-content"
       >
         <h2 style={{ marginBottom: '20px', fontSize: '20px', fontWeight: 600 }}>新建任务</h2>
         <form onSubmit={handleSubmit}>
@@ -75,7 +83,8 @@ const AddTaskModal = ({ onClose }: { onClose: () => void }) => {
                 color: '#e4e6eb',
                 fontSize: '14px',
                 outline: 'none',
-                transition: 'border-color 0.2s ease-in-out',
+                transition: `border-color ${TRANSITION_DURATION} ease-in-out`,
+                minHeight: '44px',
               }}
               onFocus={(e) => (e.target.style.borderColor = '#3b82f6')}
               onBlur={(e) => (e.target.style.borderColor = '#3d5166')}
@@ -94,15 +103,16 @@ const AddTaskModal = ({ onClose }: { onClose: () => void }) => {
                   onClick={() => setPriority(p)}
                   style={{
                     flex: 1,
-                    padding: '8px 12px',
+                    padding: '10px 12px',
                     backgroundColor: priority === p ? '#3b82f6' : '#1a2332',
                     border: '1px solid #3d5166',
                     borderRadius: '6px',
                     color: '#e4e6eb',
                     fontSize: '13px',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease-in-out',
+                    transition: `all ${TRANSITION_DURATION} ease-in-out`,
                     transform: priority === p ? 'scale(1.02)' : 'scale(1)',
+                    minHeight: '44px',
                   }}
                 >
                   {p === 'high' ? '高' : p === 'medium' ? '中' : '低'}
@@ -128,7 +138,8 @@ const AddTaskModal = ({ onClose }: { onClose: () => void }) => {
                 color: '#e4e6eb',
                 fontSize: '14px',
                 outline: 'none',
-                transition: 'border-color 0.2s ease-in-out',
+                transition: `border-color ${TRANSITION_DURATION} ease-in-out`,
+                minHeight: '44px',
               }}
               onFocus={(e) => (e.target.style.borderColor = '#3b82f6')}
               onBlur={(e) => (e.target.style.borderColor = '#3d5166')}
@@ -140,14 +151,15 @@ const AddTaskModal = ({ onClose }: { onClose: () => void }) => {
               onClick={onClose}
               style={{
                 flex: 1,
-                padding: '10px 16px',
+                padding: '12px 16px',
                 backgroundColor: 'transparent',
                 border: '1px solid #3d5166',
                 borderRadius: '8px',
                 color: '#94a3b8',
                 fontSize: '14px',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease-in-out',
+                transition: `all ${TRANSITION_DURATION} ease-in-out`,
+                minHeight: '48px',
               }}
               onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.98)')}
               onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
@@ -159,7 +171,7 @@ const AddTaskModal = ({ onClose }: { onClose: () => void }) => {
               type="submit"
               style={{
                 flex: 1,
-                padding: '10px 16px',
+                padding: '12px 16px',
                 backgroundColor: '#3b82f6',
                 border: 'none',
                 borderRadius: '8px',
@@ -167,7 +179,8 @@ const AddTaskModal = ({ onClose }: { onClose: () => void }) => {
                 fontSize: '14px',
                 fontWeight: 500,
                 cursor: 'pointer',
-                transition: 'all 0.2s ease-in-out',
+                transition: `all ${TRANSITION_DURATION} ease-in-out`,
+                minHeight: '48px',
               }}
               onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.98)')}
               onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
@@ -222,8 +235,9 @@ export default function KanbanBoard() {
           alignItems: 'center',
           marginBottom: '20px',
         }}
+        className="kanban-header"
       >
-        <h1 style={{ fontSize: '24px', fontWeight: 700 }}>任务看板</h1>
+        <h1 style={{ fontSize: '24px', fontWeight: 700 }} className="kanban-title">任务看板</h1>
         <button
           onClick={() => setShowAddModal(true)}
           style={{
@@ -235,14 +249,16 @@ export default function KanbanBoard() {
             fontSize: '14px',
             fontWeight: 500,
             cursor: 'pointer',
-            transition: 'all 0.2s ease-in-out',
+            transition: `all ${TRANSITION_DURATION} ease-in-out`,
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            minHeight: '44px',
           }}
           onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.96)')}
           onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+          className="add-task-btn"
         >
           <span style={{ fontSize: '18px' }}>+</span>
           新建任务
@@ -275,40 +291,92 @@ export default function KanbanBoard() {
                         : 'transparent',
                       borderRadius: '12px',
                       padding: '16px',
-                      transition: 'background-color 0.3s ease, border-color 0.3s ease',
+                      transition: `background-color ${TRANSITION_DURATION} ${EASING}, border-color ${TRANSITION_DURATION} ${EASING}, transform ${TRANSITION_DURATION} ${EASING}`,
                       border: snapshot.isDraggingOver
-                        ? '2px dashed #3b82f6'
+                        ? `2px dashed ${config.color}`
                         : '2px solid transparent',
                       transform: snapshot.isDraggingOver ? 'scale(1.01)' : 'scale(1)',
+                      position: 'relative',
                     }}
+                    className={`kanban-column ${snapshot.isDraggingOver ? 'is-dragging-over' : ''}`}
                   >
+                    {snapshot.isDraggingOver && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '-2px',
+                          left: '16px',
+                          right: '16px',
+                          height: '4px',
+                          backgroundColor: config.color,
+                          borderRadius: '0 0 4px 4px',
+                          boxShadow: `0 0 12px ${config.color}80`,
+                          animation: 'pulseIndicator 1s ease-in-out infinite',
+                        }}
+                        className="drag-indicator-bar"
+                      />
+                    )}
                     <div
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         marginBottom: '16px',
                         gap: '8px',
+                        padding: snapshot.isDraggingOver ? '8px 12px' : '0',
+                        backgroundColor: snapshot.isDraggingOver
+                          ? `${config.color}20`
+                          : 'transparent',
+                        borderRadius: snapshot.isDraggingOver ? '8px' : '0',
+                        transition: `all ${TRANSITION_DURATION} ${EASING}`,
                       }}
+                      className="column-header"
                     >
+                      {snapshot.isDraggingOver && (
+                        <span
+                          style={{
+                            fontSize: '16px',
+                            animation: 'bounceArrow 0.6s ease-in-out infinite',
+                          }}
+                          className="drag-arrow-indicator"
+                        >
+                          ⬇️
+                        </span>
+                      )}
                       <div
                         style={{
                           width: '12px',
                           height: '12px',
                           borderRadius: '50%',
                           backgroundColor: config.color,
-                          boxShadow: `0 0 8px ${config.color}40`,
+                          boxShadow: snapshot.isDraggingOver
+                            ? `0 0 12px ${config.color}`
+                            : `0 0 8px ${config.color}40`,
+                          transition: `box-shadow ${TRANSITION_DURATION} ${EASING}`,
                         }}
+                        className="column-color-dot"
                       />
-                      <h3 style={{ fontSize: '16px', fontWeight: 600 }}>{config.title}</h3>
+                      <h3
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: 600,
+                          color: snapshot.isDraggingOver ? config.color : '#e4e6eb',
+                          transition: `color ${TRANSITION_DURATION} ${EASING}`,
+                        }}
+                        className="column-title"
+                      >
+                        {config.title}
+                      </h3>
                       <span
                         style={{
-                          backgroundColor: '#3d5166',
+                          backgroundColor: snapshot.isDraggingOver ? config.color : '#3d5166',
+                          color: snapshot.isDraggingOver ? '#fff' : '#94a3b8',
                           padding: '2px 8px',
                           borderRadius: '12px',
                           fontSize: '12px',
-                          color: '#94a3b8',
-                          transition: 'all 0.3s ease',
+                          transition: `all ${TRANSITION_DURATION} ${EASING}`,
+                          fontWeight: snapshot.isDraggingOver ? 600 : 400,
                         }}
+                        className="column-count"
                       >
                         {tasks.length}
                       </span>
@@ -320,6 +388,7 @@ export default function KanbanBoard() {
                         gap: '12px',
                         minHeight: '200px',
                       }}
+                      className="column-task-list"
                     >
                       {tasks.map((task, index) => (
                         <Draggable key={task.id} draggableId={task.id} index={index}>
@@ -333,7 +402,7 @@ export default function KanbanBoard() {
                                 opacity: snapshot.isDragging ? 0.5 : 1,
                                 transition: snapshot.isDragging
                                   ? 'none'
-                                  : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                  : `all ${TRANSITION_DURATION} ${EASING}`,
                                 zIndex: snapshot.isDragging ? 999 : 'auto',
                               }}
                             >
@@ -344,10 +413,10 @@ export default function KanbanBoard() {
                                     ? '0 12px 40px rgba(0, 0, 0, 0.4)'
                                     : 'none',
                                   borderRadius: '8px',
-                                  transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                  transition: `all ${TRANSITION_DURATION} ${EASING}`,
                                 }}
                               >
-                                <TaskCard task={task} />
+                                <TaskCard task={task} key={`card-${task.id}`} />
                               </div>
                             </div>
                           )}
@@ -366,9 +435,60 @@ export default function KanbanBoard() {
       {showAddModal && <AddTaskModal onClose={() => setShowAddModal(false)} />}
 
       <style>{`
+        @keyframes pulseIndicator {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+        @keyframes bounceArrow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(4px); }
+        }
         @media (max-width: 768px) {
           .kanban-columns {
             flex-direction: column !important;
+            gap: 16px !important;
+          }
+          .kanban-header {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+            margin-bottom: 16px !important;
+          }
+          .kanban-title {
+            font-size: 20px !important;
+          }
+          .add-task-btn {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .column-header {
+            margin-bottom: 12px !important;
+          }
+          .column-title {
+            font-size: 15px !important;
+          }
+          .column-color-dot {
+            width: 10px !important;
+            height: 10px !important;
+          }
+          .column-count {
+            font-size: 11px !important;
+          }
+          .column-task-list {
+            gap: 10px !important;
+            min-height: 120px !important;
+          }
+          .kanban-column {
+            padding: 12px !important;
+          }
+        }
+        @supports not ((backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px))) {
+          .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.85) !important;
+          }
+          .modal-content {
+            background-color: #2d3e50 !important;
+            border: 1px solid #3d5166;
           }
         }
       `}</style>
