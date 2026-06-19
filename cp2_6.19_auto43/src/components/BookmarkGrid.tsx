@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import type { Bookmark } from '../modules/parser/bookmarkParser'
 import type { Tag } from '../modules/storage/storageService'
-import { getFaviconUrl, getDomain, formatDate, saveBookmarks, saveTags } from '../modules/storage/storageService'
+import { getFaviconUrl, getDomain, formatDateFull, formatFolderPath, saveBookmarks, saveTags } from '../modules/storage/storageService'
 import { useStore } from '../store'
 
 interface BookmarkGridProps {
@@ -23,6 +23,7 @@ const BookmarkGrid: React.FC<BookmarkGridProps> = ({
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [editingTagId, setEditingTagId] = useState<string | null>(null)
   const [newTagName, setNewTagName] = useState('')
+  const [faviconErrors, setFaviconErrors] = useState<Set<string>>(new Set())
   const { addTagToBookmark, removeTagFromBookmark, setBookmarks } = useStore()
 
   const handleCardClick = useCallback((url: string, e: React.MouseEvent) => {
@@ -124,12 +125,22 @@ const BookmarkGrid: React.FC<BookmarkGridProps> = ({
     return tag?.color || '#4a90d9'
   }, [tags])
 
+  const handleFaviconError = useCallback((id: string) => {
+    setFaviconErrors(prev => {
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+  }, [])
+
   const renderBookmarkCard = useCallback((bookmark: Bookmark): React.ReactNode => {
     const isDragging = draggedId === bookmark.id
     const isDragOver = dragOverId === bookmark.id
     const faviconUrl = getFaviconUrl(bookmark.url)
     const domain = getDomain(bookmark.url)
-    const dateStr = formatDate(bookmark.addTime)
+    const dateStr = formatDateFull(bookmark.addTime)
+    const folderPathStr = formatFolderPath(bookmark.folderPath)
+    const hasFaviconError = faviconErrors.has(bookmark.id)
 
     return (
       <div
@@ -145,16 +156,15 @@ const BookmarkGrid: React.FC<BookmarkGridProps> = ({
       >
         <div className="card-header">
           <div className="favicon">
-            {faviconUrl ? (
+            {faviconUrl && !hasFaviconError ? (
               <img
                 src={faviconUrl}
                 alt=""
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none'
-                }}
+                onError={() => handleFaviconError(bookmark.id)}
               />
-            ) : null}
-            {!faviconUrl ? '🌐' : null}
+            ) : (
+              <span className="default-icon" style={{ color: 'var(--accent-blue)' }}>🔖</span>
+            )}
           </div>
           <div className="card-info">
             <div className="card-title" title={bookmark.title}>
@@ -163,26 +173,69 @@ const BookmarkGrid: React.FC<BookmarkGridProps> = ({
             <div className="card-url" title={bookmark.url}>
               {highlightText(domain, searchQuery)}
             </div>
-            <div className="card-date">{dateStr}</div>
           </div>
         </div>
 
-        <div className="card-tags">
-          {bookmark.tags.map(tag => (
-            <span
-              key={tag}
-              className="tag-chip"
-              style={{ backgroundColor: getTagColor(tag) }}
-              onClick={(e) => {
-                e.stopPropagation()
-                handleRemoveTag(bookmark.id, tag)
-              }}
-              title="点击移除标签"
-            >
-              {tag} ×
-            </span>
-          ))}
-          {bookmark.tags.length < 5 && editingTagId !== bookmark.id && (
+        {bookmark.tags.length > 0 || editingTagId === bookmark.id ? (
+          <div className="card-tags">
+            {bookmark.tags.map(tag => (
+              <span
+                key={tag}
+                className="tag-chip"
+                style={{ backgroundColor: getTagColor(tag) }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleRemoveTag(bookmark.id, tag)
+                }}
+                title="点击移除标签"
+              >
+                {tag} ×
+              </span>
+            ))}
+            {bookmark.tags.length < 5 && editingTagId !== bookmark.id && (
+              <span
+                className="tag-chip"
+                style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setEditingTagId(bookmark.id)
+                  setNewTagName('')
+                }}
+              >
+                + 添加标签
+              </span>
+            )}
+            {editingTagId === bookmark.id && (
+              <div className="add-tag-input" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="text"
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  placeholder="输入标签名称..."
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAddTag(bookmark.id)
+                    } else if (e.key === 'Escape') {
+                      setEditingTagId(null)
+                    }
+                  }}
+                />
+                <button className="add-tag-btn" onClick={() => handleAddTag(bookmark.id)}>
+                  添加
+                </button>
+                <button
+                  className="add-tag-btn"
+                  style={{ background: 'var(--card-bg)', color: 'var(--text-secondary)' }}
+                  onClick={() => setEditingTagId(null)}
+                >
+                  取消
+                </button>
+              </div>
+            )}
+          </div>
+        ) : bookmark.tags.length < 5 ? (
+          <div className="card-tags">
             <span
               className="tag-chip"
               style={{ backgroundColor: 'var(--card-bg)', color: 'var(--text-secondary)', cursor: 'pointer' }}
@@ -194,43 +247,51 @@ const BookmarkGrid: React.FC<BookmarkGridProps> = ({
             >
               + 添加标签
             </span>
-          )}
-          {editingTagId === bookmark.id && (
-            <div className="add-tag-input" onClick={(e) => e.stopPropagation()}>
-              <input
-                type="text"
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                placeholder="输入标签名称..."
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleAddTag(bookmark.id)
-                  } else if (e.key === 'Escape') {
-                    setEditingTagId(null)
-                  }
-                }}
-              />
-              <button className="add-tag-btn" onClick={() => handleAddTag(bookmark.id)}>
-                添加
-              </button>
-              <button
-                className="add-tag-btn"
-                style={{ background: 'var(--card-bg)', color: 'var(--text-secondary)' }}
-                onClick={() => setEditingTagId(null)}
-              >
-                取消
-              </button>
-            </div>
-          )}
+            {editingTagId === bookmark.id && (
+              <div className="add-tag-input" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="text"
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  placeholder="输入标签名称..."
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAddTag(bookmark.id)
+                    } else if (e.key === 'Escape') {
+                      setEditingTagId(null)
+                    }
+                  }}
+                />
+                <button className="add-tag-btn" onClick={() => handleAddTag(bookmark.id)}>
+                  添加
+                </button>
+                <button
+                  className="add-tag-btn"
+                  style={{ background: 'var(--card-bg)', color: 'var(--text-secondary)' }}
+                  onClick={() => setEditingTagId(null)}
+                >
+                  取消
+                </button>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        <div className="card-footer">
+          <div className="card-path" title={folderPathStr}>
+            <span className="card-path-icon">📁</span>
+            <span>{folderPathStr}</span>
+          </div>
+          <div className="card-date-full">{dateStr}</div>
         </div>
       </div>
     )
   }, [
-    draggedId, dragOverId, searchQuery, editingTagId, newTagName,
+    draggedId, dragOverId, searchQuery, editingTagId, newTagName, faviconErrors,
     handleDragStart, handleDragEnd, handleDragOver, handleDragLeave,
     handleDrop, handleCardClick, handleAddTag, handleRemoveTag,
-    highlightText, getTagColor
+    highlightText, getTagColor, handleFaviconError
   ])
 
   if (bookmarks.length === 0) {
