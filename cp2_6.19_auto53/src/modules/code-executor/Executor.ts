@@ -38,6 +38,13 @@ interface ExecutionContext {
 
 const MAX_STEPS = 100;
 
+function stripComments(code: string): string {
+  return code
+    .replace(/\/\/[^\n]*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .trim();
+}
+
 export function executeCode(code: string): ExecutionResult {
   const parseResult = splitStatements(code);
 
@@ -185,8 +192,8 @@ function executeStatement(stmt: ParsedStatement, context: ExecutionContext): voi
 }
 
 function executeDeclaration(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
-  const raw = stmt.raw.trim();
-  const match = raw.match(/^(let|const|var)\s+([^=]+?)(?:\s*=\s*(.+))?\s*;?$/);
+  const raw = stripComments(stmt.raw).replace(/;$/, '').trim();
+  const match = raw.match(/^(let|const|var)\s+([^=]+?)(?:\s*=\s*([^;]+))?\s*$/);
 
   if (!match) {
     if (!addStep(context, stmt.line, `声明变量`, prevVarNames)) return;
@@ -195,11 +202,11 @@ function executeDeclaration(stmt: ParsedStatement, context: ExecutionContext, pr
 
   const kind = match[1];
   const namePart = match[2].trim();
-  const valuePart = match[3]?.trim().replace(/;$/, '').trim();
+  const valuePart = match[3]?.trim();
 
   const names = namePart.split(',').map(n => {
-    const m = n.trim().match(/^([a-zA-Z_$][a-zA-Z0-9_$]*)(?:\s*=\s*(.+))?$/);
-    return m ? { name: m[1], initValue: m[2]?.replace(/;$/, '').trim() } : null;
+    const m = n.trim().match(/^([a-zA-Z_$][a-zA-Z0-9_$]*)(?:\s*=\s*([^;]+))?$/);
+    return m ? { name: m[1], initValue: m[2]?.trim() } : null;
   }).filter(Boolean) as { name: string; initValue?: string }[];
 
   for (const { name, initValue } of names) {
@@ -225,15 +232,13 @@ function executeDeclaration(stmt: ParsedStatement, context: ExecutionContext, pr
 }
 
 function executeExpressionStatement(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
-  let raw = stmt.raw.trim();
-  raw = raw.replace(/\/\/[^\n]*$/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
-  raw = raw.replace(/;$/, '').trim();
+  let raw = stripComments(stmt.raw).replace(/;$/, '').trim();
 
   if (raw === '') {
     return;
   }
 
-  const assignMatch = raw.match(/^([a-zA-Z_$][a-zA-Z0-9_$]*)\s*([+\-*/%]?=)\s*(.+?)\s*;?$/);
+  const assignMatch = raw.match(/^([a-zA-Z_$][a-zA-Z0-9_$]*)\s*([+\-*/%]?=)\s*([^;]+)$/);
   if (assignMatch) {
     const name = assignMatch[1];
     const op = assignMatch[2];
@@ -324,8 +329,8 @@ function executeExpressionStatement(stmt: ParsedStatement, context: ExecutionCon
 }
 
 function executeIf(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
-  const raw = stmt.raw.trim();
-  const conditionMatch = raw.match(/^if\s*\((.+)\)\s*\{?/s);
+  const raw = stripComments(stmt.raw);
+  const conditionMatch = raw.match(/^if\s*\(([^)]+)\)\s*\{?/);
 
   if (!conditionMatch) {
     if (!addStep(context, stmt.line, 'if 语句', prevVarNames)) return;
@@ -345,8 +350,8 @@ function executeIf(stmt: ParsedStatement, context: ExecutionContext, prevVarName
 }
 
 function executeWhile(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
-  const raw = stmt.raw.trim();
-  const conditionMatch = raw.match(/^while\s*\((.+)\)\s*\{?/s);
+  const raw = stripComments(stmt.raw);
+  const conditionMatch = raw.match(/^while\s*\(([^)]+)\)\s*\{?/);
 
   if (!conditionMatch) {
     if (!addStep(context, stmt.line, 'while 语句', prevVarNames)) return;
@@ -377,8 +382,8 @@ function executeWhile(stmt: ParsedStatement, context: ExecutionContext, prevVarN
 }
 
 function executeFor(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
-  const raw = stmt.raw.trim();
-  const forMatch = raw.match(/^for\s*\(([^;]*);([^;]*);([^)]*)\)\s*\{?/s);
+  const raw = stripComments(stmt.raw);
+  const forMatch = raw.match(/^for\s*\(([^;]*);([^;]*);([^)]*)\)\s*\{?/);
 
   if (!forMatch) {
     if (!addStep(context, stmt.line, 'for 语句', prevVarNames)) return;
@@ -390,7 +395,7 @@ function executeFor(stmt: ParsedStatement, context: ExecutionContext, prevVarNam
   const updateStr = forMatch[3].trim();
 
   if (initStr) {
-    const initMatch = initStr.match(/^(let|const|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(.+)$/);
+    const initMatch = initStr.match(/^(let|const|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*([^;]+)$/);
     if (initMatch) {
       const kind = initMatch[1];
       const name = initMatch[2];
@@ -460,8 +465,8 @@ function executeFor(stmt: ParsedStatement, context: ExecutionContext, prevVarNam
 }
 
 function executeFunctionDeclaration(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
-  const raw = stmt.raw.trim();
-  const funcMatch = raw.match(/^function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(([^)]*)\)\s*\{?/s);
+  const raw = stripComments(stmt.raw);
+  const funcMatch = raw.match(/^function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(([^)]*)\)\s*\{?/);
 
   if (!funcMatch) {
     if (!addStep(context, stmt.line, '函数声明', prevVarNames)) return;
@@ -487,8 +492,8 @@ function executeFunctionDeclaration(stmt: ParsedStatement, context: ExecutionCon
 }
 
 function executeReturn(stmt: ParsedStatement, context: ExecutionContext, prevVarNames: Set<string>): void {
-  const raw = stmt.raw.trim();
-  const returnMatch = raw.match(/^return\s*(.*?)\s*;?$/);
+  const raw = stripComments(stmt.raw).replace(/;$/, '').trim();
+  const returnMatch = raw.match(/^return\s*([^;]*)$/);
 
   let returnValue: unknown = undefined;
   if (returnMatch && returnMatch[1]) {

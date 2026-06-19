@@ -226,15 +226,19 @@
 .var-value {
   color: var(--text-primary);
   font-weight: 600;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
 .var-type {
-  margin-left: auto;
+  margin-left: 6px;
   font-size: 10px;
-  color: var(--text-secondary);
-  padding: 1px 6px;
-  background: var(--bg-secondary);
-  border-radius: 3px;
+  color: var(--primary);
+  padding: 2px 6px;
+  background: rgba(137, 180, 250, 0.15);
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-weight: 500;
+  text-transform: lowercase;
 }
 
 .no-change {
