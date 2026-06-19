@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Poem, Annotation, InspirationCard, Collection, User, WSMessage, PoemLine, TonalResult, Comment, Collaborator } from './types';
+import type { Poem, Annotation, AnnotationReply, InspirationCard, Collection, User, WSMessage, PoemLine, TonalResult, Comment, Collaborator } from './types';
 
 interface AppState {
   currentUser: User;

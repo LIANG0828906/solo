@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   DragDropContext,
   Droppable,
@@ -16,6 +16,7 @@ import {
   playStarSound,
   playClickSound,
 } from '../utils/audio';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 function sortCards(cards: InspirationCard[]): InspirationCard[] {
   const starred = cards
@@ -37,6 +38,25 @@ export default function InspirationBoard() {
 
   const [newContent, setNewContent] = useState('');
   const [animatingStarId, setAnimatingStarId] = useState<string | null>(null);
+
+  const { send } = useWebSocket(null);
+
+  useEffect(() => {
+    (window as any).__notifyCardInserted = (card: InspirationCard) => {
+      send({
+        type: 'card_drag',
+        poemId: 'any',
+        payload: {
+          cardId: card.id,
+          cardContent: card.content,
+          userId: currentUser.id,
+        },
+      });
+    };
+    return () => {
+      delete (window as any).__notifyCardInserted;
+    };
+  }, [send, currentUser.id]);
 
   const sorted = sortCards(cards);
 
@@ -160,6 +180,12 @@ export default function InspirationBoard() {
                         <div
                           ref={dragProvided.innerRef}
                           {...dragProvided.draggableProps}
+                          draggable={true}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('application/inspiration-card', JSON.stringify(card));
+                            e.dataTransfer.effectAllowed = 'copy';
+                            e.dataTransfer.setData('text/plain', card.content);
+                          }}
                           className={`group relative rounded-xl border border-jade-100 bg-jade-50 px-5 py-4 shadow-sm transition-all duration-200 hover:translate-y-[-4px] hover:shadow-lg ${
                             snapshot.isDragging ? 'shadow-xl ring-2 ring-jade-300' : ''
                           } ${card.starred ? 'bg-jade-100' : ''}`}

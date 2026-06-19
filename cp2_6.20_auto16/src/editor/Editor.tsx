@@ -5,16 +5,18 @@ import clsx from 'clsx';
 import type { PoemLine, Annotation, TonalResult, Collaborator } from '../types';
 import { useStore } from '../store';
 import { poemApi, annotationApi, collaboratorApi } from '../utils/api';
-import { playSaveSound, playInviteSound, playDropSound } from '../utils/audio';
+import { playSaveSound, playInviteSound, playDropSound, playClickSound, playErrorSound } from '../utils/audio';
 import { checkTonalPattern } from './RhymeChecker';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 interface AnnotationBubbleProps {
   annotation: Annotation;
   onReply: (annotationId: string, content: string) => void;
   isMobile: boolean;
+  onClick: () => void;
 }
 
-const AnnotationBubble: React.FC<AnnotationBubbleProps> = ({ annotation, onReply, isMobile }) => {
+const AnnotationBubble: React.FC<AnnotationBubbleProps> = ({ annotation, onReply, isMobile, onClick }) => {
   const [expanded, setExpanded] = useState(false);
   const [replyText, setReplyText] = useState('');
   const currentUser = useStore((s) => s.currentUser);
@@ -31,6 +33,11 @@ const AnnotationBubble: React.FC<AnnotationBubbleProps> = ({ annotation, onReply
       e.preventDefault();
       handleReplySubmit();
     }
+  };
+
+  const handleBubbleClick = () => {
+    onClick();
+    setExpanded((prev) => !prev);
   };
 
   if (isMobile && expanded) {
@@ -87,7 +94,7 @@ const AnnotationBubble: React.FC<AnnotationBubbleProps> = ({ annotation, onReply
   if (!expanded) {
     return (
       <button
-        onClick={() => setExpanded(true)}
+        onClick={handleBubbleClick}
         className="annotation-bubble flex items-center gap-1 rounded-full px-2 py-1 text-xs text-bark-500 transition-colors hover:bg-annot-200"
       >
         <MessageCircle size={12} />
@@ -160,6 +167,10 @@ const Editor: React.FC = () => {
   const setCurrentPoem = useStore((s) => s.setCurrentPoem);
   const addAnnotationReply = useStore((s) => s.addAnnotationReply);
   const setCollaborators = useStore((s) => s.setCollaborators);
+  const setAnnotations = useStore((s) => s.setAnnotations);
+  const addAnnotation = useStore((s) => s.addAnnotation);
+
+  const { send } = useWebSocket(currentPoem?.id ?? null);
 
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -168,8 +179,16 @@ const Editor: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
+  const [selectionStart, setSelectionStart] = useState(0);
+  const [selectionEnd, setSelectionEnd] = useState(0);
+  const [showAnnotationInput, setShowAnnotationInput] = useState(false);
+  const [newAnnotationText, setNewAnnotationText] = useState('');
+  const [annotationBtnPosition, setAnnotationBtnPosition] = useState<{ top: number; left: number } | null>(null);
+
   const editorRef = useRef<HTMLDivElement>(null);
   const tonalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevErrorStateRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -178,6 +197,37 @@ const Editor: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  useEffect(() => {
+    if (!currentPoem?.id) return;
+    const poemId = currentPoem.id;
+
+    const loadData = async () => {
+      try {
+        const [annotRes, collabRes] = await Promise.allSettled([
+          annotationApi.list(poemId),
+          collaboratorApi.list(poemId),
+        ]);
+
+        if (annotRes.status === 'fulfilled') {
+          const annData = annotRes.value.data;
+          if (Array.isArray(annData)) {
+            setAnnotations(annData);
+          }
+        }
+
+        if (collabRes.status === 'fulfilled') {
+          const collabData = collabRes.value.data;
+          if (Array.isArray(collabData)) {
+            setCollaborators(collabData);
+          }
+        }
+      } catch {
+      }
+    };
+
+    loadData();
+  }, [currentPoem?.id, setAnnotations, setCollaborators]);
+
   const runTonalCheck = useCallback(
     (lines: PoemLine[]) => {
       if (tonalTimerRef.current) clearTimeout(tonalTimerRef.current);
@@ -185,6 +235,23 @@ const Editor: React.FC = () => {
         try {
           const results = checkTonalPattern(lines);
           setTonalResults(results);
+
+          const hasNewErrors = results.some((r) => r.errors.length > 0);
+          if (hasNewErrors) {
+            const currentErrorIds = new Set(results.filter((r) => r.errors.length > 0).map((r) => r.lineId));
+            let newErrorFound = false;
+            currentErrorIds.forEach((id) => {
+              if (!prevErrorStateRef.current.has(id)) {
+                newErrorFound = true;
+              }
+            });
+            if (newErrorFound) {
+              playErrorSound();
+            }
+            prevErrorStateRef.current = currentErrorIds;
+          } else {
+            prevErrorStateRef.current.clear();
+          }
         } catch {
           setTonalResults([]);
         }
@@ -214,6 +281,63 @@ const Editor: React.FC = () => {
     [annotations],
   );
 
+  const handleTextSelection = useCallback(
+    (lineId: string, e: React.MouseEvent<HTMLInputElement>) => {
+      const target = e.target as HTMLInputElement;
+      const start = target.selectionStart ?? 0;
+      const end = target.selectionEnd ?? 0;
+
+      if (start !== end && target.value) {
+        const rect = target.getBoundingClientRect();
+        const editorRect = editorRef.current?.getBoundingClientRect();
+        setSelectedLineId(lineId);
+        setSelectionStart(start);
+        setSelectionEnd(end);
+        setAnnotationBtnPosition({
+          top: rect.top - (editorRect?.top ?? 0) - 32,
+          left: rect.left - (editorRect?.left ?? 0) + (rect.width / 2) - 30,
+        });
+      }
+    },
+    [],
+  );
+
+  const handleAddAnnotationClick = () => {
+    playClickSound();
+    setShowAnnotationInput(true);
+    setAnnotationBtnPosition(null);
+  };
+
+  const handleAnnotationSubmit = useCallback(async () => {
+    if (!currentPoem || !selectedLineId || !newAnnotationText.trim()) return;
+    const trimmedText = newAnnotationText.trim();
+    const line = currentPoem.lines.find((l) => l.id === selectedLineId);
+    if (!line) return;
+
+    const highlightedText = line.text.slice(selectionStart, selectionEnd);
+
+    try {
+      const res = await annotationApi.create(currentPoem.id, {
+        lineId: selectedLineId,
+        authorId: currentUser.id,
+        startOffset: selectionStart,
+        endOffset: selectionEnd,
+        highlightedText,
+        content: trimmedText,
+      });
+
+      const annotation = res.data as Annotation;
+      addAnnotation(annotation);
+      send({ type: 'annotation_add', poemId: currentPoem.id, payload: annotation });
+      playClickSound();
+    } catch {
+    } finally {
+      setShowAnnotationInput(false);
+      setNewAnnotationText('');
+      setSelectedLineId(null);
+    }
+  }, [currentPoem, selectedLineId, selectionStart, selectionEnd, newAnnotationText, currentUser.id, addAnnotation, send]);
+
   const handleTitleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (!currentPoem) return;
@@ -231,12 +355,14 @@ const Editor: React.FC = () => {
 
   const handleRhymeMarkChange = useCallback(
     (lineId: string, rhymeMark: string) => {
+      playClickSound();
       updatePoemLine(lineId, { rhymeMark });
     },
     [updatePoemLine],
   );
 
   const handleAddLine = useCallback(() => {
+    playClickSound();
     if (!currentPoem) return;
     const order = currentPoem.lines.length;
     addPoemLine({
@@ -262,12 +388,13 @@ const Editor: React.FC = () => {
           order,
         })),
       });
+      send({ type: 'line_update', poemId: currentPoem.id, payload: { lines: currentPoem.lines } });
       playSaveSound();
     } catch {
     } finally {
       setSaving(false);
     }
-  }, [currentPoem]);
+  }, [currentPoem, send]);
 
   const handleInvite = useCallback(async () => {
     if (!currentPoem || !inviteEmail.trim()) return;
@@ -303,6 +430,22 @@ const Editor: React.FC = () => {
     [currentPoem, currentUser.id, addAnnotationReply],
   );
 
+  const handleAnnotationBubbleClick = () => {
+    playClickSound();
+  };
+
+  const handleOpenInviteModal = () => {
+    playClickSound();
+    setInviteModalOpen(true);
+  };
+
+  const handleCloseInviteModal = () => {
+    playClickSound();
+    setInviteModalOpen(false);
+    setInviteError('');
+    setInviteEmail('');
+  };
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
@@ -324,12 +467,25 @@ const Editor: React.FC = () => {
           charCount: card.content.length,
           order,
         });
+        send({
+          type: 'card_drag',
+          poemId: currentPoem.id,
+          payload: {
+            cardId: card.id,
+            cardContent: card.content,
+            userId: currentUser.id,
+          },
+        });
         playDropSound();
       } catch {
       }
     },
-    [currentPoem, addPoemLine],
+    [currentPoem, addPoemLine, send, currentUser.id],
   );
+
+  const handleEditorClick = () => {
+    setAnnotationBtnPosition(null);
+  };
 
   if (!currentPoem) {
     return (
@@ -338,6 +494,36 @@ const Editor: React.FC = () => {
       </div>
     );
   }
+
+  const getSelectedLineText = () => {
+    if (!selectedLineId) return '';
+    const line = currentPoem.lines.find((l) => l.id === selectedLineId);
+    return line ? line.text.slice(selectionStart, selectionEnd) : '';
+  };
+
+  const buildHighlightedSegments = (line: PoemLine) => {
+    const lineAnns = getLineAnnotations(line.id).sort((a, b) => a.startOffset - b.startOffset);
+    const segments: Array<{ text: string; highlighted: boolean }> = [];
+    let cursor = 0;
+
+    for (const ann of lineAnns) {
+      if (ann.startOffset > cursor) {
+        segments.push({ text: line.text.slice(cursor, ann.startOffset), highlighted: false });
+      }
+      segments.push({ text: line.text.slice(ann.startOffset, ann.endOffset), highlighted: true });
+      cursor = ann.endOffset;
+    }
+
+    if (cursor < line.text.length) {
+      segments.push({ text: line.text.slice(cursor), highlighted: false });
+    }
+
+    if (segments.length === 0 && line.text) {
+      segments.push({ text: line.text, highlighted: false });
+    }
+
+    return segments;
+  };
 
   return (
     <div className={clsx('flex h-full flex-col', isMobile && 'w-full')}>
@@ -364,7 +550,7 @@ const Editor: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setInviteModalOpen(true)}
+            onClick={handleOpenInviteModal}
             className="flex items-center gap-1.5 rounded-lg border border-rice-300 bg-rice-50 px-3 py-1.5 text-sm text-bark-400 transition-colors hover:bg-rice-200"
           >
             <UserPlus size={14} />
@@ -384,12 +570,28 @@ const Editor: React.FC = () => {
       <div
         ref={editorRef}
         className={clsx(
-          'scroll-paper flex-1 overflow-y-auto px-4 py-6 md:px-12 md:py-8',
+          'scroll-paper relative flex-1 overflow-y-auto px-4 py-6 md:px-12 md:py-8',
           isMobile && 'px-3 py-4',
         )}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onClick={handleEditorClick}
       >
+        {annotationBtnPosition && (
+          <div
+            className="absolute z-30"
+            style={{ top: annotationBtnPosition.top, left: annotationBtnPosition.left }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={handleAddAnnotationClick}
+              className="rounded-md bg-bark-500 px-2.5 py-1 text-[11px] text-white shadow-lg transition-colors hover:bg-bark-600"
+            >
+              添加批注
+            </button>
+          </div>
+        )}
+
         <div className={clsx('mx-auto', isMobile ? 'max-w-full' : 'max-w-3xl')}>
           <input
             value={currentPoem.title}
@@ -403,13 +605,15 @@ const Editor: React.FC = () => {
               const tonalResult = getTonalResult(line.id);
               const hasTonalError = tonalResult != null && tonalResult.errors.length > 0;
               const lineAnnotations = getLineAnnotations(line.id);
+              const hasAnnotations = lineAnnotations.length > 0;
+              const segments = buildHighlightedSegments(line);
 
               return (
                 <div
                   key={line.id}
                   className={clsx(
                     'line-hover-float group relative flex items-center gap-2 rounded-lg px-3 py-2 md:px-4 md:py-2.5',
-                    hasTonalError ? 'bg-red-50/40' : 'bg-transparent',
+                    hasTonalError ? 'bg-red-50/40' : hasAnnotations ? 'bg-annot-50/30' : 'bg-transparent',
                   )}
                 >
                   <span className="w-6 shrink-0 text-right text-xs text-ink-100 select-none">
@@ -417,15 +621,32 @@ const Editor: React.FC = () => {
                   </span>
 
                   <div className="relative flex-1">
-                    <input
-                      value={line.text}
-                      onChange={(e) => handleLineTextChange(line.id, e.target.value)}
-                      placeholder="输入诗句..."
-                      className={clsx(
-                        'w-full border-none bg-transparent font-serif text-lg text-ink-500 outline-none placeholder:text-ink-100 md:text-xl',
-                        hasTonalError && 'rhyme-error',
+                    <div className="relative">
+                      {hasAnnotations && (
+                        <div className="pointer-events-none absolute inset-0 flex items-center font-serif text-lg text-transparent md:text-xl" aria-hidden>
+                          {segments.map((seg, i) => (
+                            <span
+                              key={i}
+                              className={clsx(
+                                seg.highlighted && 'bg-annot-100 rounded px-0.5',
+                              )}
+                            >
+                              {seg.text || '\u200b'}
+                            </span>
+                          ))}
+                        </div>
                       )}
-                    />
+                      <input
+                        value={line.text}
+                        onChange={(e) => handleLineTextChange(line.id, e.target.value)}
+                        onMouseUp={(e) => handleTextSelection(line.id, e)}
+                        placeholder="输入诗句..."
+                        className={clsx(
+                          'relative z-10 w-full border-none bg-transparent font-serif text-lg text-ink-500 outline-none placeholder:text-ink-100 md:text-xl',
+                          hasTonalError && 'rhyme-error',
+                        )}
+                      />
+                    </div>
                     {hasTonalError && tonalResult && (
                       <div className="mt-0.5 space-y-0.5">
                         {tonalResult.errors.map((err, ei) => (
@@ -464,6 +685,7 @@ const Editor: React.FC = () => {
                         annotation={lineAnnotations[0]}
                         onReply={handleAnnotationReply}
                         isMobile={isMobile}
+                        onClick={handleAnnotationBubbleClick}
                       />
                     </div>
                   )}
@@ -482,17 +704,64 @@ const Editor: React.FC = () => {
         </div>
       </div>
 
+      {showAnnotationInput && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => { setShowAnnotationInput(false); setSelectedLineId(null); }}>
+          <div
+            className="mx-4 w-full max-w-sm rounded-xl bg-annot-50 p-6 shadow-xl animate-bubble-expand"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-ink-500">添加批注</h3>
+              <button
+                onClick={() => { setShowAnnotationInput(false); setSelectedLineId(null); setNewAnnotationText(''); }}
+                className="rounded-full p-1 text-ink-200 hover:text-ink-500"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {getSelectedLineText() && (
+              <div className="mb-3 rounded-lg bg-rice-100 p-3">
+                <p className="mb-1 text-[10px] text-bark-400">选中文字：</p>
+                <p className="text-sm italic text-ink-400">「{getSelectedLineText()}」</p>
+              </div>
+            )}
+            <textarea
+              value={newAnnotationText}
+              onChange={(e) => setNewAnnotationText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAnnotationSubmit();
+              }}
+              placeholder="输入批注内容..."
+              rows={4}
+              className="mb-3 w-full resize-none rounded-lg border border-rice-300 bg-white/80 px-4 py-2.5 text-sm text-ink-500 outline-none placeholder:text-ink-100 focus:border-bark-300"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowAnnotationInput(false); setSelectedLineId(null); setNewAnnotationText(''); }}
+                className="flex-1 rounded-lg border border-rice-300 bg-rice-50 py-2.5 text-sm text-ink-300 transition-colors hover:bg-rice-100"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleAnnotationSubmit}
+                disabled={!newAnnotationText.trim()}
+                className="flex-1 rounded-lg bg-bark-500 py-2.5 text-sm text-white transition-colors hover:bg-bark-600 disabled:opacity-50"
+              >
+                确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {inviteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="mx-4 w-full max-w-sm rounded-xl bg-annot-50 p-6 shadow-xl animate-bubble-expand">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-ink-500">邀请协作</h3>
               <button
-                onClick={() => {
-                  setInviteModalOpen(false);
-                  setInviteError('');
-                  setInviteEmail('');
-                }}
+                onClick={handleCloseInviteModal}
                 className="rounded-full p-1 text-ink-200 hover:text-ink-500"
               >
                 <X size={16} />
