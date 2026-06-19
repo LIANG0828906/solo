@@ -224,8 +224,6 @@ export default function RecordPanel({
       const chart = chartRef.current;
       const record = records.find(r => r.id === recordId);
       if (record) {
-        const recordDate = parseISO(record.timestamp);
-        
         chart.data.datasets.forEach((dataset, datasetIndex) => {
           const pointBackgroundColor = dataset.pointBackgroundColor as string[];
           if (pointBackgroundColor) {

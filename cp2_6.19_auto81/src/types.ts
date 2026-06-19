@@ -6,9 +6,46 @@ export interface Pet {
   name: string;
   species: PetSpecies;
   age: number;
+  ageMonths?: number;
   avatarColor: string;
   cardGradient: string;
   createdAt: string;
+}
+
+export function formatAge(years: number, months?: number): string {
+  const m = months ?? 0;
+  if (m === 0) {
+    return `${years}岁`;
+  }
+  return `${years}岁${m}个月`;
+}
+
+export function getRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+
+  if (diffSeconds < 60) {
+    return '刚刚';
+  } else if (diffMinutes < 60) {
+    return `${diffMinutes}分钟前`;
+  } else if (diffHours < 24) {
+    return `${diffHours}小时前`;
+  } else if (diffDays < 7) {
+    return `${diffDays}天前`;
+  } else if (diffWeeks < 5) {
+    return `${diffWeeks}周前`;
+  } else if (diffMonths < 12) {
+    return `${diffMonths}个月前`;
+  } else {
+    const diffYears = Math.floor(diffMonths / 12);
+    return `${diffYears}年前`;
+  }
 }
 
 export interface PetRecord {

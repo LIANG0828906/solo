@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { isSameDay, parseISO } from 'date-fns';
 import type { Pet, PetSpecies, PetRecord } from '../types';
-import { SPECIES_LABELS, CARD_GRADIENTS, AVATAR_COLORS, RECORD_TYPE_ICONS } from '../types';
+import { SPECIES_LABELS, CARD_GRADIENTS, AVATAR_COLORS, RECORD_TYPE_ICONS, RECORD_TYPE_LABELS, formatAge, getRelativeTime } from '../types';
 
 interface PetListProps {
   pets: Pet[];
@@ -22,29 +23,50 @@ export default function PetList({
   const [newPetName, setNewPetName] = useState('');
   const [newPetSpecies, setNewPetSpecies] = useState<PetSpecies>('dog');
   const [newPetAge, setNewPetAge] = useState('');
+  const [newPetAgeMonths, setNewPetAgeMonths] = useState('');
   const [newestPetId, setNewestPetId] = useState<string | null>(null);
 
-  const getPetRecordCount = useCallback((petId: string) => {
-    return records.filter(r => r.petId === petId).length;
+  const getPetRecords = useCallback((petId: string) => {
+    return records
+      .filter(r => r.petId === petId)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [records]);
 
-  const getPetRecentType = useCallback((petId: string) => {
-    const petRecords = records.filter(r => r.petId === petId);
-    if (petRecords.length === 0) return null;
-    return petRecords[0].type;
-  }, [records]);
+  const getPetRecentRecords = useCallback((petId: string, limit: number = 3) => {
+    const petRecords = getPetRecords(petId);
+    return petRecords.slice(0, limit);
+  }, [getPetRecords]);
+
+  const getTodayStatus = useCallback((petId: string) => {
+    const today = new Date();
+    const petRecords = getPetRecords(petId);
+    const todayRecords = petRecords.filter(r => isSameDay(parseISO(r.timestamp), today));
+    
+    const hasFood = todayRecords.some(r => r.type === 'food');
+    const hasWalk = todayRecords.some(r => r.type === 'walk');
+    
+    if (hasFood) {
+      return { status: 'fed' as const, color: '#4CAF50' };
+    }
+    if (hasWalk) {
+      return { status: 'walked' as const, color: '#2196F3' };
+    }
+    return { status: 'none' as const, color: '#CCCCCC' };
+  }, [getPetRecords]);
 
   const handleAddPet = useCallback(() => {
     if (!newPetName.trim() || !newPetAge) return;
 
     const gradientIndex = Math.floor(Math.random() * CARD_GRADIENTS.length);
     const colorIndex = Math.floor(Math.random() * AVATAR_COLORS.length);
+    const months = newPetAgeMonths ? parseInt(newPetAgeMonths, 10) : 0;
 
     const newPet: Pet = {
       id: uuidv4(),
       name: newPetName.trim(),
       species: newPetSpecies,
       age: parseInt(newPetAge, 10),
+      ageMonths: months > 0 ? months : undefined,
       avatarColor: AVATAR_COLORS[colorIndex],
       cardGradient: CARD_GRADIENTS[gradientIndex],
       createdAt: new Date().toISOString(),
@@ -56,9 +78,10 @@ export default function PetList({
     setNewPetName('');
     setNewPetSpecies('dog');
     setNewPetAge('');
+    setNewPetAgeMonths('');
 
     setTimeout(() => setNewestPetId(null), 300);
-  }, [newPetName, newPetSpecies, newPetAge, onAddPet]);
+  }, [newPetName, newPetSpecies, newPetAge, newPetAgeMonths, onAddPet]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -92,8 +115,8 @@ export default function PetList({
       
       <div className="pet-grid">
         {sortedPets.map((pet) => {
-          const recordCount = getPetRecordCount(pet.id);
-          const recentType = getPetRecentType(pet.id);
+          const recentRecords = getPetRecentRecords(pet.id, 3);
+          const todayStatus = getTodayStatus(pet.id);
           
           return (
             <div
@@ -110,6 +133,18 @@ export default function PetList({
                 ×
               </button>
               
+              <div
+                className="pet-status-dot"
+                style={{ backgroundColor: todayStatus.color }}
+                title={
+                  todayStatus.status === 'fed'
+                    ? '今天已喂食'
+                    : todayStatus.status === 'walked'
+                    ? '今天已遛弯'
+                    : '今天暂无活动记录'
+                }
+              />
+              
               <div className="pet-card-header">
                 <div
                   className="pet-avatar"
@@ -120,19 +155,30 @@ export default function PetList({
                 <div className="pet-info">
                   <h3>{pet.name}</h3>
                   <p>
-                    {SPECIES_LABELS[pet.species]} · {pet.age}岁
+                    {SPECIES_LABELS[pet.species]} · {formatAge(pet.age, pet.ageMonths)}
                   </p>
                 </div>
               </div>
               
-              <div className="pet-stats">
-                <div className="pet-stat">
-                  📝 {recordCount} 条记录
-                </div>
-                {recentType && (
-                  <div className="pet-stat">
-                    最近: {RECORD_TYPE_ICONS[recentType]}
-                  </div>
+              <div className="pet-recent-activity">
+                {recentRecords.length === 0 ? (
+                  <p className="pet-recent-empty">暂无记录</p>
+                ) : (
+                  <ul className="pet-recent-list">
+                    {recentRecords.map((record) => (
+                      <li key={record.id} className="pet-recent-item">
+                        <span className="pet-recent-icon">
+                          {RECORD_TYPE_ICONS[record.type]}
+                        </span>
+                        <span className="pet-recent-type">
+                          {RECORD_TYPE_LABELS[record.type]}
+                        </span>
+                        <span className="pet-recent-time">
+                          {getRelativeTime(parseISO(record.timestamp))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
             </div>
@@ -179,17 +225,35 @@ export default function PetList({
             </div>
             
             <div className="form-group">
-              <label htmlFor="pet-age">年龄</label>
-              <input
-                id="pet-age"
-                type="number"
-                min="0"
-                max="50"
-                value={newPetAge}
-                onChange={(e) => setNewPetAge(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="请输入年龄"
-              />
+              <label>年龄</label>
+              <div className="age-inputs">
+                <div className="age-input-group">
+                  <input
+                    id="pet-age"
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={newPetAge}
+                    onChange={(e) => setNewPetAge(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="岁"
+                  />
+                  <span className="age-unit">岁</span>
+                </div>
+                <div className="age-input-group">
+                  <input
+                    id="pet-age-months"
+                    type="number"
+                    min="0"
+                    max="11"
+                    value={newPetAgeMonths}
+                    onChange={(e) => setNewPetAgeMonths(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="月"
+                  />
+                  <span className="age-unit">个月</span>
+                </div>
+              </div>
             </div>
             
             <div className="form-actions">
