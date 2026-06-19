@@ -16,10 +16,11 @@ interface ExchangeState {
   checkOverdue: () => void;
   getRecordsByUser: (userId: string) => ExchangeRecord[];
   updateDaysRemaining: () => void;
+  destroy: () => void;
 }
 
 const initialData = loadStorage();
-const OVERDUE_CHECK_INTERVAL = 3600000;
+const OVERDUE_CHECK_INTERVAL = 21600000;
 const DUE_SOON_DAYS = 2;
 const LOST_AFTER_DAYS = 3;
 
@@ -30,21 +31,25 @@ function getAdminUser() {
 }
 
 export const useExchangeStore = create<ExchangeState>((set, get) => {
-  const overdueTimer = setInterval(() => {
+  let overdueTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
     get().checkOverdue();
     get().updateDaysRemaining();
   }, OVERDUE_CHECK_INTERVAL);
 
-  if (typeof window !== 'undefined') {
-    window.addEventListener('beforeunload', () => {
-      clearInterval(overdueTimer);
-    });
-  }
-
-  setTimeout(() => {
+  const initialCheckTimer = setTimeout(() => {
     get().checkOverdue();
     get().updateDaysRemaining();
   }, 1000);
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => {
+      if (overdueTimer) {
+        clearInterval(overdueTimer);
+        overdueTimer = null;
+      }
+      clearTimeout(initialCheckTimer);
+    });
+  }
 
   return {
     records: initialData.records.map((r) => ({
@@ -303,6 +308,14 @@ export const useExchangeStore = create<ExchangeState>((set, get) => {
 
     getRecordsByUser: (userId) => {
       return get().records.filter((r) => r.requesterId === userId || r.acceptorId === userId);
+    },
+
+    destroy: () => {
+      if (overdueTimer) {
+        clearInterval(overdueTimer);
+        overdueTimer = null;
+      }
+      clearTimeout(initialCheckTimer);
     },
   };
 });

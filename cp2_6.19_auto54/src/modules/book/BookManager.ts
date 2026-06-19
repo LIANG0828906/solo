@@ -7,6 +7,7 @@ import { useAuthStore } from '../user/UserManager';
 interface BookState {
   books: Book[];
   newBookId: string | null;
+  isNewBookAnimating: boolean;
   addBook: (data: BookFormData) => Book | null;
   updateBook: (id: string, data: Partial<BookFormData>) => void;
   deleteBook: (id: string) => void;
@@ -27,6 +28,7 @@ function calculateBookStatus(available: number, total: number): BookStatus {
 export const useBookStore = create<BookState>((set, get) => ({
   books: initialData.books,
   newBookId: null,
+  isNewBookAnimating: false,
 
   addBook: (data) => {
     const authStore = useAuthStore.getState();
@@ -43,11 +45,17 @@ export const useBookStore = create<BookState>((set, get) => ({
     };
 
     const newBooks = [newBook, ...get().books];
-    set({ books: newBooks, newBookId: newBook.id });
+    set({ books: newBooks, newBookId: newBook.id, isNewBookAnimating: false });
     updateStorage('books', newBooks);
 
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        set({ isNewBookAnimating: true });
+      });
+    });
+
     setTimeout(() => {
-      set({ newBookId: null });
+      set({ newBookId: null, isNewBookAnimating: false });
     }, 600);
 
     return newBook;

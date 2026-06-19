@@ -18,6 +18,7 @@ interface NotificationState {
   addNotification: (n: Omit<Notification, 'id' | 'createdAt' | 'read'>) => void;
   markAsRead: (id: string) => void;
   clearOld: (days?: number) => void;
+  destroy: () => void;
 }
 
 const ADMIN_PASSWORD = 'admin123';
@@ -88,13 +89,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 }));
 
 export const useNotificationStore = create<NotificationState>((set, get) => {
-  const cleanupTimer = setInterval(() => {
+  let cleanupTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
     get().clearOld();
   }, NOTIFICATION_CLEANUP_INTERVAL);
 
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
-      clearInterval(cleanupTimer);
+      if (cleanupTimer) {
+        clearInterval(cleanupTimer);
+        cleanupTimer = null;
+      }
     });
   }
 
@@ -127,6 +131,13 @@ export const useNotificationStore = create<NotificationState>((set, get) => {
       if (newNotifications.length !== get().notifications.length) {
         set({ notifications: newNotifications });
         updateStorage('notifications', newNotifications);
+      }
+    },
+
+    destroy: () => {
+      if (cleanupTimer) {
+        clearInterval(cleanupTimer);
+        cleanupTimer = null;
       }
     },
   };

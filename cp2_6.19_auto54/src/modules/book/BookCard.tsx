@@ -8,11 +8,12 @@ import { useAuthStore } from '../user/UserManager';
 interface BookCardProps {
   book: Book;
   isNew?: boolean;
+  isAnimating?: boolean;
   animationDelay?: number;
   isOverdue?: boolean;
 }
 
-export function BookCard({ book, isNew, animationDelay = 0, isOverdue }: BookCardProps) {
+export function BookCard({ book, isNew, isAnimating, animationDelay = 0, isOverdue }: BookCardProps) {
   const [isRequesting, setIsRequesting] = useState(false);
   const createRequest = useExchangeStore((state) => state.createRequest);
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn());
@@ -36,6 +37,18 @@ export function BookCard({ book, isNew, animationDelay = 0, isOverdue }: BookCar
   const canBorrow = book.exchangeMode !== 'exchange_only' && book.availableQuantity > 0;
   const isDisabled = book.availableQuantity <= 0 || isRequesting;
 
+  const cardStyle: React.CSSProperties = {};
+  if (isNew && !isAnimating) {
+    cardStyle.transform = 'translateX(100%)';
+    cardStyle.opacity = 0;
+  } else if (isNew && isAnimating) {
+    cardStyle.transform = 'translateX(0)';
+    cardStyle.opacity = 1;
+  }
+  if (animationDelay > 0) {
+    cardStyle.animationDelay = `${animationDelay}ms`;
+  }
+
   const cardClasses = [
     'book-card',
     isNew ? 'new-book' : '',
@@ -45,7 +58,7 @@ export function BookCard({ book, isNew, animationDelay = 0, isOverdue }: BookCar
   return (
     <div
       className={cardClasses}
-      style={animationDelay > 0 ? { animationDelay: `${animationDelay}ms` } : undefined}
+      style={Object.keys(cardStyle).length > 0 ? cardStyle : undefined}
     >
       <div className="book-cover" style={{ backgroundColor: coverBg }}>
         <span className={`book-status-tag ${isOverdue ? 'overdue' : book.status}`}>

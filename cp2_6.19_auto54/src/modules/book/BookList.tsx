@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { BookCard } from './BookCard';
 import { useBookStore } from './BookManager';
-import { useDebounce } from '../../shared/hooks';
 import type { BookCategory, BookExchangeMode, Book } from '../../shared/types';
 
 const CATEGORIES: BookCategory[] = ['小说', '非小说', '技术', '艺术'];
@@ -16,13 +15,30 @@ const EXCHANGE_MODES: Array<{ value: BookExchangeMode | 'all'; label: string }> 
 export function BookList() {
   const books = useBookStore((state) => state.books);
   const newBookId = useBookStore((state) => state.newBookId);
+  const isNewBookAnimating = useBookStore((state) => state.isNewBookAnimating);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [category, setCategory] = useState<BookCategory | 'all'>('all');
   const [exchangeMode, setExchangeMode] = useState<BookExchangeMode | 'all'>('all');
-  const [filterKey, setFilterKey] = useState(0);
-  const animatingRef = useRef(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const debouncedSearch = useDebounce(searchQuery, 300);
+  useEffect(() => {
+    setIsSearching(true);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setIsSearching(false);
+    }, 300);
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [searchQuery]);
 
   const filteredBooks = useMemo(() => {
     return books.filter((book) => {
@@ -33,22 +49,6 @@ export function BookList() {
       return matchesSearch && matchesCategory && matchesMode;
     });
   }, [books, debouncedSearch, category, exchangeMode]);
-
-  const handleFilterChange = () => {
-    setFilterKey((prev) => prev + 1);
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      animatingRef.current = false;
-    }, 500);
-
-    animatingRef.current = true;
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [filterKey]);
 
   return (
     <div className="page-container">
@@ -74,7 +74,6 @@ export function BookList() {
             value={category}
             onChange={(e) => {
               setCategory(e.target.value as BookCategory | 'all');
-              handleFilterChange();
             }}
           >
             <option value="all">全部类别</option>
@@ -88,7 +87,6 @@ export function BookList() {
             value={exchangeMode}
             onChange={(e) => {
               setExchangeMode(e.target.value as BookExchangeMode | 'all');
-              handleFilterChange();
             }}
           >
             {EXCHANGE_MODES.map((mode) => (
@@ -104,13 +102,14 @@ export function BookList() {
           <p>没有找到符合条件的图书</p>
         </div>
       ) : (
-        <div className="book-grid" key={filterKey}>
+        <div className="book-grid">
           {filteredBooks.map((book: Book, index: number) => (
             <BookCard
               key={book.id}
               book={book}
               isNew={book.id === newBookId}
-              animationDelay={animatingRef.current ? index * 50 : 0}
+              isAnimating={isNewBookAnimating}
+              animationDelay={isSearching ? index * 50 : 0}
             />
           ))}
         </div>
