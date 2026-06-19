@@ -62,7 +62,9 @@ export class UIController {
   private onResetClick(): void {
     const app = document.getElementById('app');
     if (app) {
-      app.classList.remove('level-2');
+      for (let i = 1; i <= 10; i++) {
+        app.classList.remove(`level-${i}`);
+      }
     }
     eventBus.emit('game-reset');
   }

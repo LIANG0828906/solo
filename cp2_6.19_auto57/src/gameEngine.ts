@@ -105,11 +105,16 @@ export class GameEngine {
   private level: number = 1;
   private wallRatio: number = 0.1;
   private isAnimating: boolean = false;
+  private isLevelTransitioning: boolean = false;
   private gemColors: GemColor[] = [];
   private cellSize: number = 1;
-  private scoreThreshold: number = 100;
+  private scoreThresholds: number[] = [30, 60, 100];
+  private gridSizes: number[] = [6, 7, 8, 9];
   private gemIdCounter: number = 0;
   private chainCount: number = 0;
+  private readonly GEM_FLOAT_HEIGHT: number = 0.3;
+  private readonly CELL_MIN_HEIGHT: number = 0.2;
+  private readonly CELL_MAX_HEIGHT: number = 2.0;
 
   constructor() {
     this.loadHighScore();
@@ -155,16 +160,18 @@ export class GameEngine {
   }
 
   private getGridSizeForLevel(): number {
-    return this.level >= 2 ? 7 : 6;
+    const idx = Math.min(this.level - 1, this.gridSizes.length - 1);
+    return this.gridSizes[idx];
   }
 
   private generateMaze(): void {
     this.cells = [];
+    const heightRange = this.CELL_MAX_HEIGHT - this.CELL_MIN_HEIGHT;
     for (let row = 0; row < this.gridSize; row++) {
       this.cells[row] = [];
       for (let col = 0; col < this.gridSize; col++) {
         const isWall = Math.random() < this.wallRatio;
-        const height = isWall ? 0 : 0.3 + Math.random() * 1.2;
+        const height = isWall ? 0 : this.CELL_MIN_HEIGHT + Math.random() * heightRange;
         const cell: Cell = {
           row,
           col,
@@ -200,25 +207,53 @@ export class GameEngine {
   private ensureInitialMatch(): void {
     const maxAttempts = 100;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      if (this.hasInitialMatch()) {
+      if (this.hasEnoughInitialMatches()) {
         return;
       }
       this.reshuffleGems();
     }
-    this.forceCreateMatch();
+    this.forceCreateMultipleMatches();
   }
 
-  private hasInitialMatch(): boolean {
+  private hasEnoughInitialMatches(): boolean {
+    const matches: { positions: { row: number; col: number }[]; center: { row: number; col: number } }[] = [];
+    const visited = new Set<string>();
+
     for (let row = 0; row < this.gridSize; row++) {
       for (let col = 0; col < this.gridSize; col++) {
+        const key = `${row},${col}`;
+        if (visited.has(key)) continue;
         const cell = this.cells[row][col];
         if (cell.isWall || !cell.gem) continue;
-        const neighbors = this.getConnectedGems(row, col);
-        if (neighbors.length >= 3) {
+
+        const connected = this.getConnectedGems(row, col);
+        connected.forEach((p) => visited.add(`${p.row},${p.col}`));
+
+        if (connected.length >= 3) {
+          const centerRow = connected.reduce((s, p) => s + p.row, 0) / connected.length;
+          const centerCol = connected.reduce((s, p) => s + p.col, 0) / connected.length;
+          matches.push({
+            positions: connected,
+            center: { row: centerRow, col: centerCol }
+          });
+        }
+      }
+    }
+
+    if (matches.length < 2) return false;
+
+    for (let i = 0; i < matches.length; i++) {
+      for (let j = i + 1; j < matches.length; j++) {
+        const dist = Math.sqrt(
+          Math.pow(matches[i].center.row - matches[j].center.row, 2) +
+          Math.pow(matches[i].center.col - matches[j].center.col, 2)
+        );
+        if (dist >= this.gridSize / 3) {
           return true;
         }
       }
     }
+
     return false;
   }
 
@@ -233,7 +268,7 @@ export class GameEngine {
     }
   }
 
-  private forceCreateMatch(): void {
+  private forceCreateMultipleMatches(): void {
     const nonWallCells: { row: number; col: number }[] = [];
     for (let row = 0; row < this.gridSize; row++) {
       for (let col = 0; col < this.gridSize; col++) {
@@ -243,6 +278,7 @@ export class GameEngine {
       }
     }
 
+    const triplets: { row: number; col: number }[][] = [];
     for (let i = 0; i < nonWallCells.length - 2; i++) {
       const c1 = nonWallCells[i];
       const c2 = nonWallCells[i + 1];
@@ -253,12 +289,66 @@ export class GameEngine {
         (Math.abs(c2.row - c3.row) + Math.abs(c2.col - c3.col) === 1);
 
       if (areAdjacent) {
-        const color = this.getRandomGemColor();
-        this.cells[c1.row][c1.col].gem!.color = color;
-        this.cells[c2.row][c2.col].gem!.color = color;
-        this.cells[c3.row][c3.col].gem!.color = color;
-        return;
+        triplets.push([c1, c2, c3]);
       }
+    }
+
+    const shuffled = triplets.sort(() => Math.random() - 0.5);
+    const usedColors = new Set<GemColor>();
+    const placed: { center: { row: number; col: number }; positions: { row: number; col: number }[] }[] = [];
+
+    for (const triplet of shuffled) {
+      if (placed.length >= 2) break;
+
+      const centerRow = triplet.reduce((s, p) => s + p.row, 0) / triplet.length;
+      const centerCol = triplet.reduce((s, p) => s + p.col, 0) / triplet.length;
+
+      let farEnough = true;
+      for (const p of placed) {
+        const dist = Math.sqrt(
+          Math.pow(centerRow - p.center.row, 2) +
+          Math.pow(centerCol - p.center.col, 2)
+        );
+        if (dist < this.gridSize / 3) {
+          farEnough = false;
+          break;
+        }
+      }
+      if (!farEnough) continue;
+
+      let color: GemColor | null = null;
+      for (const c of this.gemColors) {
+        if (!usedColors.has(c)) {
+          color = c;
+          break;
+        }
+      }
+      if (!color) color = this.getRandomGemColor();
+      usedColors.add(color);
+
+      triplet.forEach((p) => {
+        this.cells[p.row][p.col].gem!.color = color!;
+      });
+
+      placed.push({
+        center: { row: centerRow, col: centerCol },
+        positions: triplet
+      });
+    }
+
+    if (placed.length < 2 && shuffled.length >= 2) {
+      const lastTriplet = shuffled[shuffled.length - 1];
+      let color: GemColor | null = null;
+      for (const c of this.gemColors) {
+        if (!usedColors.has(c)) {
+          color = c;
+          break;
+        }
+      }
+      if (!color) color = this.getRandomGemColor();
+      lastTriplet.forEach((p) => {
+        this.cells[p.row][p.col].gem!.color = color!;
+      });
     }
   }
 
@@ -337,7 +427,7 @@ export class GameEngine {
         color: cell.gem!.color,
         gemId: cell.gem!.id,
         worldX: world.x,
-        worldY: world.y + cell.height + 0.2,
+        worldY: world.y + cell.height + this.GEM_FLOAT_HEIGHT,
         worldZ: world.z
       };
     });
@@ -380,19 +470,48 @@ export class GameEngine {
     const progress = this.getLevelProgress();
     eventBus.emit('progress-updated', { progress, level: this.level });
 
-    if (this.score >= this.scoreThreshold && this.level === 1) {
-      this.levelUp();
+    const nextLevel = this.computeTargetLevel(this.score);
+    if (nextLevel > this.level && !this.isLevelTransitioning) {
+      this.levelUp(nextLevel);
     }
   }
 
-  private getLevelProgress(): number {
-    if (this.level >= 2) return 1;
-    return Math.min(1, this.score / this.scoreThreshold);
+  private computeTargetLevel(score: number): number {
+    let level = 1;
+    for (let i = 0; i < this.scoreThresholds.length; i++) {
+      if (score >= this.scoreThresholds[i]) {
+        level = i + 2;
+      } else {
+        break;
+      }
+    }
+    return Math.min(level, this.gridSizes.length);
   }
 
-  private levelUp(): void {
-    this.level = 2;
-    this.scoreThreshold = 999;
+  private getCurrentThreshold(): number {
+    if (this.level >= this.scoreThresholds.length + 1) {
+      return this.scoreThresholds[this.scoreThresholds.length - 1];
+    }
+    return this.scoreThresholds[this.level - 1];
+  }
+
+  private getPreviousThreshold(): number {
+    if (this.level <= 1) return 0;
+    return this.scoreThresholds[this.level - 2];
+  }
+
+  private getLevelProgress(): number {
+    if (this.level >= this.gridSizes.length) return 1;
+    const prev = this.getPreviousThreshold();
+    const curr = this.getCurrentThreshold();
+    const range = curr - prev;
+    if (range <= 0) return 1;
+    return Math.min(1, Math.max(0, (this.score - prev) / range));
+  }
+
+  private levelUp(targetLevel: number): void {
+    this.isLevelTransitioning = true;
+    this.level = targetLevel;
 
     const levelData: LevelUpData = {
       level: this.level,
@@ -410,6 +529,12 @@ export class GameEngine {
         cellSize: this.cellSize
       });
       this.isAnimating = false;
+      this.isLevelTransitioning = false;
+
+      eventBus.emit('progress-updated', {
+        progress: this.getLevelProgress(),
+        level: this.level
+      });
     }, 2000);
   }
 
@@ -435,8 +560,8 @@ export class GameEngine {
 
             const sourceWorld = this.gridToWorld(row, col);
             const targetWorld = this.gridToWorld(writeRow, col);
-            const startY = sourceWorld.y + 0.2;
-            const targetY = targetWorld.y + 0.2;
+            const startY = sourceWorld.y + this.GEM_FLOAT_HEIGHT;
+            const targetY = targetWorld.y + this.GEM_FLOAT_HEIGHT;
 
             fallingGems.push({
               targetRow: writeRow,
@@ -467,7 +592,7 @@ export class GameEngine {
 
           const targetWorld = this.gridToWorld(writeRow, col);
           const spawnOffset = (spawnIndex + 1) * 1.5;
-          const startY = targetWorld.y + 0.2 + spawnOffset;
+          const startY = targetWorld.y + this.GEM_FLOAT_HEIGHT + spawnOffset;
 
           newGem.isFalling = true;
           newGem.fallTargetRow = writeRow;
@@ -484,7 +609,7 @@ export class GameEngine {
             startY,
             startZ: targetWorld.z,
             targetX: targetWorld.x,
-            targetY: targetWorld.y + 0.2,
+            targetY: targetWorld.y + this.GEM_FLOAT_HEIGHT,
             targetZ: targetWorld.z
           });
 
@@ -588,9 +713,9 @@ export class GameEngine {
   public resetGame(): void {
     this.score = 0;
     this.level = 1;
-    this.scoreThreshold = 100;
     this.chainCount = 0;
     this.isAnimating = false;
+    this.isLevelTransitioning = false;
     this.gemIdCounter = 0;
     this.initLevel();
 

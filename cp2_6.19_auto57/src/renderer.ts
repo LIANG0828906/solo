@@ -231,7 +231,95 @@ export class Renderer {
   }): void {
     this.currentGridSize = data.gridSize;
     this.cellSize = data.cellSize;
-    this.rebuildGrid(data.cells);
+
+    const baseDistance = 6;
+    const extraDistance = (data.gridSize - 6) * 0.8;
+    const targetDistance = baseDistance + extraDistance;
+    this.animateCameraDistance(targetDistance);
+
+    this.rebuildGridWithTransition(data.cells);
+  }
+
+  private animateCameraDistance(targetDistance: number): void {
+    const startDistance = this.camera.position.length();
+    const startPos = this.camera.position.clone();
+    const direction = startPos.clone().normalize();
+    const startTime = performance.now();
+    const duration = 1500;
+
+    const animate = () => {
+      const elapsed = performance.now() - startTime;
+      const t = Math.min(1, elapsed / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+
+      const currentDistance = startDistance + (targetDistance - startDistance) * eased;
+      const newPos = direction.multiplyScalar(currentDistance);
+      this.camera.position.copy(newPos);
+      this.camera.lookAt(0, 0, 0);
+
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    animate();
+  }
+
+  private rebuildGridWithTransition(cells: Cell[][]): void {
+    const fadeOutDuration = 300;
+    const startTime = performance.now();
+
+    const fadeOut = () => {
+      const elapsed = performance.now() - startTime;
+      const t = Math.min(1, elapsed / fadeOutDuration);
+
+      this.gemsGroup.children.forEach((obj) => {
+        const mesh = obj as THREE.Mesh;
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        mat.opacity = 1 - t;
+        mesh.scale.setScalar(1 - t * 0.5);
+      });
+
+      this.gridGroup.children.forEach((obj) => {
+        const mesh = obj as THREE.Mesh;
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        mat.opacity = Math.max(0, mat.opacity - 0.02);
+      });
+
+      if (t < 1) {
+        requestAnimationFrame(fadeOut);
+      } else {
+        this.rebuildGrid(cells);
+
+        this.gemsGroup.children.forEach((obj, idx) => {
+          const mesh = obj as THREE.Mesh;
+          const mat = mesh.material as THREE.MeshStandardMaterial;
+          mat.opacity = 0;
+          mesh.scale.setScalar(0.5);
+
+          const delay = idx * 20;
+          const appearStart = performance.now() + delay;
+          const appearDuration = 400;
+
+          const appear = () => {
+            const e = performance.now() - appearStart;
+            if (e < 0) {
+              requestAnimationFrame(appear);
+              return;
+            }
+            const at = Math.min(1, e / appearDuration);
+            const ae = 1 - Math.pow(1 - at, 3);
+            mat.opacity = ae;
+            mesh.scale.setScalar(0.5 + ae * 0.5);
+            if (at < 1) requestAnimationFrame(appear);
+            else mat.opacity = 1;
+          };
+          appear();
+        });
+      }
+    };
+
+    fadeOut();
   }
 
   private onGemsEliminated(data: { gems: GemPosition[] }): void {
@@ -445,9 +533,9 @@ export class Renderer {
 
         if (!cell.isWall && cell.gem) {
           const gemData = this.createGemMesh(cell.gem.color, row, col, cell.gem.id);
-          gemData.mesh.position.set(x, cell.height + 0.2, z);
+          gemData.mesh.position.set(x, cell.height + 0.3, z);
           gemData.baseX = x;
-          gemData.baseY = cell.height + 0.2;
+          gemData.baseY = cell.height + 0.3;
           gemData.baseZ = z;
         }
       }
@@ -461,7 +549,7 @@ export class Renderer {
     if (cell.isWall) {
       color = 0x2a2a2a;
     } else {
-      const t = (cell.height - 0.3) / 1.2;
+      const t = Math.max(0, Math.min(1, (cell.height - 0.2) / 1.8));
       const r = Math.floor(50 + t * 30);
       const g = Math.floor(180 - t * 60);
       const b = Math.floor(80 + t * 40);
@@ -606,10 +694,11 @@ export class Renderer {
     if (this.backgroundLevel !== this.backgroundTargetLevel) {
       const app = document.getElementById('app');
       if (app) {
+        for (let i = 1; i <= 10; i++) {
+          app.classList.remove(`level-${i}`);
+        }
         if (this.backgroundTargetLevel >= 2) {
-          app.classList.add('level-2');
-        } else {
-          app.classList.remove('level-2');
+          app.classList.add(`level-${Math.min(this.backgroundTargetLevel, 2)}`);
         }
       }
       this.backgroundLevel = this.backgroundTargetLevel;
