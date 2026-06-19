@@ -8,6 +8,8 @@ interface NoteEditorProps {
   isOpen: boolean;
   onClose: () => void;
   editingNote?: Note | null;
+  onNoteCreated?: (noteId: string) => void;
+  onNoteUpdated?: (noteId: string) => void;
 }
 
 const TOOLBAR_ITEMS = [
@@ -17,7 +19,13 @@ const TOOLBAR_ITEMS = [
   { icon: List, label: '列表', prefix: '- ', suffix: '', block: true },
 ] as const;
 
-export default function NoteEditor({ isOpen, onClose, editingNote }: NoteEditorProps) {
+export default function NoteEditor({
+  isOpen,
+  onClose,
+  editingNote,
+  onNoteCreated,
+  onNoteUpdated,
+}: NoteEditorProps) {
   const { addNote, updateNote } = useNoteStore();
   const notes = useNoteStore((s) => s.notes);
 
@@ -33,14 +41,13 @@ export default function NoteEditor({ isOpen, onClose, editingNote }: NoteEditorP
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
     notes.forEach((n) => n.tags.forEach((t) => tagSet.add(t)));
-    return Array.from(tagSet);
+    return Array.from(tagSet).sort();
   }, [notes]);
 
   const suggestions = useMemo(() => {
-    if (!tagInput.trim()) return [];
     const input = tagInput.trim().toLowerCase();
-    return allTags.filter(
-      (t) => t.toLowerCase().includes(input) && !tags.includes(t)
+    return allTags.filter((t) => !tags.includes(t) &&
+      (input ? t.toLowerCase().includes(input) : true)
     );
   }, [tagInput, allTags, tags]);
 
@@ -106,9 +113,9 @@ export default function NoteEditor({ isOpen, onClose, editingNote }: NoteEditorP
     const tag = tagInput.trim();
     if (tag && tags.length < 5 && !tags.includes(tag)) {
       setTags([...tags, tag]);
-      setTagInput('');
-      setShowSuggestions(false);
     }
+    setTagInput('');
+    setShowSuggestions(false);
   };
 
   const removeTag = (tag: string) => {
@@ -132,14 +139,17 @@ export default function NoteEditor({ isOpen, onClose, editingNote }: NoteEditorP
         content,
         tags,
       });
+      onNoteUpdated?.(editingNote.id);
     } else {
+      const newId = uuidv4();
       addNote({
-        id: uuidv4(),
+        id: newId,
         title: title.trim(),
         content,
         tags,
         createdAt: Date.now(),
       });
+      onNoteCreated?.(newId);
     }
     onClose();
   };
@@ -170,9 +180,10 @@ export default function NoteEditor({ isOpen, onClose, editingNote }: NoteEditorP
               key={item.label}
               className="toolbar-btn"
               title={item.label}
+              type="button"
               onClick={() => handleToolbarClick(item.prefix, item.suffix, item.block)}
             >
-              <item.icon size={16} />
+              <item.icon size={16} className="toolbar-icon" />
               <span className="toolbar-tooltip">{item.label}</span>
             </button>
           ))}
@@ -192,6 +203,7 @@ export default function NoteEditor({ isOpen, onClose, editingNote }: NoteEditorP
               <span key={tag} className="editor-tag">
                 {tag}
                 <button
+                  type="button"
                   className="editor-tag-remove"
                   onClick={() => removeTag(tag)}
                 >
@@ -220,6 +232,7 @@ export default function NoteEditor({ isOpen, onClose, editingNote }: NoteEditorP
                     {suggestions.map((s) => (
                       <button
                         key={s}
+                        type="button"
                         className="editor-tag-suggestion"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => selectSuggestion(s)}
@@ -236,10 +249,11 @@ export default function NoteEditor({ isOpen, onClose, editingNote }: NoteEditorP
         </div>
 
         <div className="editor-actions">
-          <button className="editor-cancel-btn" onClick={onClose}>
+          <button type="button" className="editor-cancel-btn" onClick={onClose}>
             取消
           </button>
           <button
+            type="button"
             className="editor-submit-btn"
             onClick={handleSubmit}
             disabled={!title.trim()}

@@ -1,15 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Search, Plus } from 'lucide-react';
 import { useNoteStore } from '@/store';
 import { Note } from '@/types';
 import NoteCard from '@/components/NoteCard';
 import NoteEditor from '@/components/NoteEditor';
+import NoteDetailModal from '@/components/NoteDetailModal';
 import { getTagColor } from '@/components/NoteCard';
-import NoteDetail from '@/pages/NoteDetail';
 
-function HomePage() {
-  const navigate = useNavigate();
+export default function App() {
   const notes = useNoteStore((s) => s.notes);
   const searchQuery = useNoteStore((s) => s.searchQuery);
   const activeTag = useNoteStore((s) => s.activeTag);
@@ -19,6 +17,7 @@ function HomePage() {
   const [localQuery, setLocalQuery] = useState('');
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [newNoteId, setNewNoteId] = useState<string | null>(null);
+  const [detailNote, setDetailNote] = useState<Note | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -35,28 +34,36 @@ function HomePage() {
     return Array.from(tagSet).sort();
   }, [notes]);
 
-  const filteredNotes = useMemo(() => {
-    let result = notes;
-    if (activeTag) {
-      result = result.filter((n) => n.tags.includes(activeTag));
-    }
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (n) =>
-          n.title.toLowerCase().includes(q) ||
-          n.tags.some((t) => t.toLowerCase().includes(q))
-      );
-    }
-    return result;
+  const { visibleNotes, filterOutMap } = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const matchSearch = (n: Note) =>
+      !q ||
+      n.title.toLowerCase().includes(q) ||
+      n.tags.some((t) => t.toLowerCase().includes(q));
+    const matchTag = (n: Note) =>
+      !activeTag || n.tags.includes(activeTag);
+
+    const visible: Note[] = [];
+    const filterMap = new Map<string, boolean>();
+
+    notes.forEach((note) => {
+      const passesSearch = matchSearch(note);
+      const passesTag = matchTag(note);
+
+      if (passesSearch) {
+        visible.push(note);
+        if (!passesTag && activeTag) {
+          filterMap.set(note.id, true);
+        }
+      }
+    });
+
+    return { visibleNotes: visible, filterOutMap: filterMap };
   }, [notes, searchQuery, activeTag]);
 
-  const handleCardClick = useCallback(
-    (note: Note) => {
-      navigate(`/note/${note.id}`);
-    },
-    [navigate]
-  );
+  const handleCardClick = useCallback((note: Note) => {
+    setDetailNote(note);
+  }, []);
 
   const handleTagClick = useCallback(
     (tag: string) => {
@@ -65,13 +72,13 @@ function HomePage() {
     [activeTag, setActiveTag]
   );
 
-  const handleEditorClose = useCallback(() => {
-    setIsEditorOpen(false);
+  const handleNoteCreated = useCallback((noteId: string) => {
+    setNewNoteId(noteId);
   }, []);
 
   useEffect(() => {
     if (newNoteId) {
-      const timer = setTimeout(() => setNewNoteId(null), 600);
+      const timer = setTimeout(() => setNewNoteId(null), 700);
       return () => clearTimeout(timer);
     }
   }, [newNoteId]);
@@ -97,6 +104,7 @@ function HomePage() {
             {allTags.map((tag) => (
               <button
                 key={tag}
+                type="button"
                 className={`tag-filter-chip ${
                   activeTag === tag ? 'tag-filter-chip-active' : ''
                 }`}
@@ -113,16 +121,17 @@ function HomePage() {
       </header>
 
       <main className="card-grid">
-        {filteredNotes.map((note) => (
+        {visibleNotes.map((note, idx) => (
           <NoteCard
             key={note.id}
             note={note}
             onClick={handleCardClick}
             isNew={note.id === newNoteId}
-            isHidden={!!activeTag && !note.tags.includes(activeTag)}
+            isFilteredOut={filterOutMap.get(note.id) === true}
+            animationIndex={idx}
           />
         ))}
-        {filteredNotes.length === 0 && (
+        {visibleNotes.length === 0 && (
           <div className="empty-state">
             <p className="empty-title">
               {searchQuery || activeTag ? '没有匹配的笔记' : '还没有笔记'}
@@ -136,20 +145,25 @@ function HomePage() {
         )}
       </main>
 
-      <button className="fab-btn" onClick={() => setIsEditorOpen(true)}>
+      <button
+        type="button"
+        className="fab-btn"
+        onClick={() => setIsEditorOpen(true)}
+      >
         <Plus size={24} />
       </button>
 
-      <NoteEditor isOpen={isEditorOpen} onClose={handleEditorClose} />
-    </div>
-  );
-}
+      <NoteEditor
+        isOpen={isEditorOpen}
+        onClose={() => setIsEditorOpen(false)}
+        onNoteCreated={handleNoteCreated}
+      />
 
-export default function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/note/:id" element={<NoteDetail />} />
-    </Routes>
+      <NoteDetailModal
+        isOpen={detailNote !== null}
+        onClose={() => setDetailNote(null)}
+        note={detailNote}
+      />
+    </div>
   );
 }

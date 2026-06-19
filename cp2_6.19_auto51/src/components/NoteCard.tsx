@@ -50,19 +50,44 @@ interface NoteCardProps {
   onClick: (note: Note) => void;
   isNew?: boolean;
   isHidden?: boolean;
+  isFilteredOut?: boolean;
+  animationIndex?: number;
 }
 
 const NoteCard = React.forwardRef<HTMLDivElement, NoteCardProps>(
-  ({ note, onClick, isNew = false, isHidden = false }, ref) => {
+  (
+    {
+      note,
+      onClick,
+      isNew = false,
+      isHidden = false,
+      isFilteredOut = false,
+      animationIndex = 0,
+    },
+    ref
+  ) => {
     const summary = stripMarkdown(note.content).slice(0, 120);
+
+    const classNames = ['note-card'];
+    const styles: React.CSSProperties = {};
+
+    if (isNew) {
+      classNames.push('note-card-fly-in');
+    } else if (isFilteredOut) {
+      classNames.push('note-card-filter-out');
+    } else if (isHidden) {
+      classNames.push('note-card-hidden');
+    } else {
+      classNames.push('note-card-staggered');
+      styles.animationDelay = `${animationIndex * 0.05}s`;
+    }
 
     return (
       <div
         ref={ref}
-        className={`note-card ${isNew ? 'note-card-fly-in' : 'note-card-fade-in'} ${
-          isHidden ? 'note-card-hidden' : 'note-card-visible'
-        }`}
-        onClick={() => onClick(note)}
+        className={classNames.join(' ')}
+        style={styles}
+        onClick={() => !isFilteredOut && !isHidden && onClick(note)}
       >
         <div className="note-card-tags">
           {note.tags.map((tag) => (

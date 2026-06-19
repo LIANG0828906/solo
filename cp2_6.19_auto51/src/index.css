@@ -60,6 +60,39 @@ body {
   }
 }
 
+@keyframes staggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes filterOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.25;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes filterIn {
+  0% {
+    opacity: 0.25;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes modalIn {
   from {
     opacity: 0;
@@ -241,7 +274,11 @@ body {
 }
 
 .note-card-fly-in {
-  animation: flyIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: flyIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.note-card-staggered {
+  animation: staggerIn 0.35s ease both;
 }
 
 .note-card-fade-in {
@@ -265,6 +302,15 @@ body {
 .note-card-visible {
   opacity: 1;
   transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.note-card-filter-out {
+  opacity: 0.25;
+  transform: scale(0.96);
+  pointer-events: none;
+  filter: grayscale(0.5);
+  animation: filterOut 0.3s ease forwards;
+  transition: opacity 0.3s ease, transform 0.3s ease, filter 0.3s ease;
 }
 
 .note-card-tags {
@@ -453,33 +499,39 @@ body {
   border-color: rgba(139, 92, 246, 0.3);
 }
 
-.toolbar-btn:hover svg {
+.toolbar-btn:hover .toolbar-icon {
   transform: scale(1.5);
-  transition: transform 0.25s ease;
 }
 
-.toolbar-btn svg {
+.toolbar-icon {
+  display: block;
   transition: transform 0.25s ease;
+  transform-origin: center center;
 }
 
 .toolbar-tooltip {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 8px;
+  transform: translateX(-50%) translateY(2px);
+  padding: 5px 10px;
   border-radius: 6px;
   background: #1e293b;
   color: white;
   font-size: 12px;
   white-space: nowrap;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .toolbar-btn:hover .toolbar-tooltip {
   opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 
 .editor-content {
@@ -989,4 +1041,74 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
+}
+
+.detail-modal {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 880px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.detail-modal-topbar {
+  flex-shrink: 0;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  position: relative;
+  z-index: 2;
+}
+
+.detail-close-mobile {
+  display: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+}
+
+.detail-close-mobile:hover {
+  background: rgba(148, 163, 184, 0.15);
+  color: #1e293b;
+}
+
+@media (max-width: 640px) {
+  .detail-close-mobile {
+    display: flex;
+  }
+}
+
+.detail-body {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.detail-modal-content {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
 }
