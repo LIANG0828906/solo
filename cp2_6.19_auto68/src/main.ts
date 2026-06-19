@@ -12,6 +12,7 @@ import {
   isBallLost,
   spawnSplitBalls,
   updateBall,
+  updateCelebrationParticles,
   updatePaddle,
   updateParticles,
   updatePowerUps
@@ -157,35 +158,39 @@ class Game {
   }
 
   private spawnCelebrationParticles(): void {
-    const colors = ['#ef4444', '#f97316', '#facc15', '#4ade80', '#3b82f6', '#a855f7', '#ffffff'];
-    for (let i = 0; i < 120; i++) {
+    const colors = ['#ef4444', '#f97316', '#facc15', '#4ade80', '#3b82f6', '#a855f7', '#ffffff', '#fb7185', '#22d3ee'];
+    for (let i = 0; i < 150; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 80 + Math.random() * 180;
+      const speed = 120 + Math.random() * 220;
+      const maxLife = 1.5 + Math.random() * 1.2;
       this.celebrationParticles.push({
         x: CANVAS_WIDTH / 2,
         y: CANVAS_HEIGHT / 2,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 100,
+        vy: Math.sin(angle) * speed - 80,
         color: colors[Math.floor(Math.random() * colors.length)],
-        life: 1.5 + Math.random(),
-        maxLife: 2,
-        size: 3 + Math.random() * 5
+        life: maxLife,
+        maxLife,
+        size: 3 + Math.random() * 6,
+        celebration: true
       });
     }
     const activeBalls = this.state.balls.filter(b => b.active);
     for (const ball of activeBalls) {
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 50; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = 50 + Math.random() * 200;
+        const speed = 80 + Math.random() * 260;
+        const maxLife = 1.3 + Math.random() * 1.2;
         this.celebrationParticles.push({
           x: ball.x,
           y: ball.y,
           vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
+          vy: Math.sin(angle) * speed - 60,
           color: colors[Math.floor(Math.random() * colors.length)],
-          life: 1 + Math.random(),
-          maxLife: 1.5,
-          size: 3 + Math.random() * 4
+          life: maxLife,
+          maxLife,
+          size: 3 + Math.random() * 5,
+          celebration: true
         });
       }
     }
@@ -198,8 +203,9 @@ class Game {
       this.updatePlaying(dt);
     } else if (this.screen === 'levelcomplete') {
       this.levelTransitionTimer += dt;
-      this.celebrationParticles = updateParticles(this.celebrationParticles, dt);
-      if (this.levelTransitionTimer > 2.5) {
+      this.celebrationParticles = updateCelebrationParticles(this.celebrationParticles, dt);
+      const TOTAL_DURATION = 1.5 + 2.0 + 1.5;
+      if (this.levelTransitionTimer > TOTAL_DURATION) {
         this.nextLevel();
       }
     }
@@ -329,7 +335,31 @@ class Game {
         }
         break;
       case 'levelcomplete':
-        this.renderer.drawLevelComplete(this.state, this.time, this.celebrationParticles);
+        const PARTICLES_DURATION = 1.5;
+        const TEXT_DURATION = 2.0;
+        const PREVIEW_DURATION = 1.5;
+        let phase: 'particles' | 'text' | 'preview';
+        let phaseProgress: number;
+        let nextLevel = this.state.level + 1;
+
+        if (this.levelTransitionTimer < PARTICLES_DURATION) {
+          phase = 'particles';
+          phaseProgress = this.levelTransitionTimer / PARTICLES_DURATION;
+        } else if (this.levelTransitionTimer < PARTICLES_DURATION + TEXT_DURATION) {
+          phase = 'text';
+          phaseProgress = (this.levelTransitionTimer - PARTICLES_DURATION) / TEXT_DURATION;
+        } else {
+          phase = 'preview';
+          phaseProgress = (this.levelTransitionTimer - PARTICLES_DURATION - TEXT_DURATION) / PREVIEW_DURATION;
+        }
+        this.renderer.drawLevelComplete(
+          this.state,
+          this.time,
+          this.celebrationParticles,
+          phase,
+          phaseProgress,
+          nextLevel
+        );
         break;
     }
   }

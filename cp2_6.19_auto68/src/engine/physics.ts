@@ -54,6 +54,7 @@ export interface Particle {
   life: number;
   maxLife: number;
   size: number;
+  celebration?: boolean;
 }
 
 export interface GameState {
@@ -322,4 +323,30 @@ export function checkPowerUpCollision(powerUp: PowerUp, paddle: Paddle): boolean
     powerUp.y + powerUp.height > paddle.y &&
     powerUp.y < paddle.y + paddle.height
   );
+}
+
+export function updateCelebrationParticles(particles: Particle[], dt: number): Particle[] {
+  return particles.filter(p => {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 1 - 1.2 * dt;
+    p.vy *= 1 - 0.8 * dt;
+    p.vy -= 60 * dt;
+    p.life -= dt;
+    return p.life > 0;
+  });
+}
+
+export function easeOutQuad(t: number): number {
+  return 1 - (1 - t) * (1 - t);
+}
+
+export function easeInOutQuad(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+export function easeOutBack(t: number): number {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
 }

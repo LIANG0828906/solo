@@ -5,7 +5,10 @@ import {
   PowerUp,
   Particle,
   PHYSICS_CONSTANTS,
-  GameState
+  GameState,
+  easeOutBack,
+  easeInOutQuad,
+  easeOutQuad
 } from './physics';
 import { BRICK_HP_COLORS } from './levelGenerator';
 
@@ -237,19 +240,28 @@ export class Renderer {
 
   private drawParticle(particle: Particle): void {
     const ctx = this.ctx;
-    const alpha = particle.life / particle.maxLife;
+    let alpha: number;
+    let size: number;
+
+    if (particle.celebration) {
+      const t = 1 - particle.life / particle.maxLife;
+      alpha = Math.sin(Math.max(0, Math.min(Math.PI, particle.life / particle.maxLife * Math.PI)));
+      const sizeGrow = 1 + t * 0.6;
+      size = particle.size * (0.6 + alpha * 0.8) * sizeGrow;
+      ctx.shadowBlur = 12 * alpha;
+      ctx.shadowColor = particle.color;
+    } else {
+      alpha = particle.life / particle.maxLife;
+      size = particle.size * alpha;
+    }
+
     ctx.globalAlpha = alpha;
     ctx.fillStyle = particle.color;
     ctx.beginPath();
-    ctx.arc(
-      particle.x,
-      particle.y,
-      particle.size * alpha,
-      0,
-      Math.PI * 2
-    );
+    ctx.arc(particle.x, particle.y, size, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
   }
 
   private drawHeart(x: number, y: number, size: number, filled: boolean): void {
@@ -382,7 +394,14 @@ export class Renderer {
     this.drawButton(btnX, btnY, btnW, btnH, '重新开始', time, false);
   }
 
-  drawLevelComplete(state: GameState, time: number, celebrationParticles: Particle[]): void {
+  drawLevelComplete(
+    state: GameState,
+    time: number,
+    celebrationParticles: Particle[],
+    phase: 'particles' | 'text' | 'preview',
+    phaseProgress: number,
+    nextLevel: number
+  ): void {
     const ctx = this.ctx;
     const { CANVAS_WIDTH, CANVAS_HEIGHT } = PHYSICS_CONSTANTS;
 
@@ -393,21 +412,99 @@ export class Renderer {
       this.drawParticle(particle);
     }
 
-    ctx.shadowBlur = 30;
-    ctx.shadowColor = 'rgba(100, 255, 150, 0.8)';
+    const cx = CANVAS_WIDTH / 2;
+    const cy = CANVAS_HEIGHT / 2;
 
-    ctx.fillStyle = '#4ade80';
-    ctx.font = 'bold 52px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`第 ${state.level} 关完成!`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 30);
+    if (phase === 'text') {
+      const t = easeOutBack(Math.min(1, phaseProgress * 1.5));
+      const fadeT = phaseProgress < 0.2
+        ? phaseProgress / 0.2
+        : phaseProgress > 0.8
+          ? 1 - (phaseProgress - 0.8) / 0.2
+          : 1;
+      const alpha = easeInOutQuad(fadeT);
+      const scale = 0.3 + t * 1;
 
-    ctx.shadowBlur = 0;
+      ctx.save();
+      ctx.translate(cx, cy - 10);
+      ctx.scale(scale, scale);
+      ctx.globalAlpha = alpha;
+      ctx.shadowBlur = 40;
+      ctx.shadowColor = 'rgba(74, 222, 128, 0.9)';
 
-    const blink = Math.sin(time * 3) * 0.3 + 0.7;
-    ctx.fillStyle = `rgba(200, 255, 200, ${blink})`;
-    ctx.font = '20px sans-serif';
-    ctx.fillText('准备进入下一关...', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 30);
+      const gradient = ctx.createLinearGradient(0, -50, 0, 50);
+      gradient.addColorStop(0, '#86efac');
+      gradient.addColorStop(0.5, '#4ade80');
+      gradient.addColorStop(1, '#22c55e');
+      ctx.fillStyle = gradient;
+      ctx.font = 'bold 60px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('关卡完成', 0, 0);
+
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = 'rgba(250, 204, 21, 0.7)';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.fillStyle = '#fde68a';
+      ctx.fillText(`第 ${state.level} 关`, 0, 58);
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    if (phase === 'preview') {
+      let t = Math.min(1, phaseProgress);
+      let scale: number;
+      let alpha: number;
+
+      if (t < 0.35) {
+        const enterT = t / 0.35;
+        scale = 3.5 - easeOutBack(enterT) * 2.5;
+        alpha = easeOutQuad(enterT);
+      } else if (t < 0.7) {
+        scale = 1;
+        alpha = 1;
+      } else {
+        const exitT = (t - 0.7) / 0.3;
+        scale = 1 - exitT * 0.4;
+        alpha = 1 - easeInOutQuad(exitT);
+      }
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(scale, scale);
+      ctx.globalAlpha = alpha;
+
+      ctx.shadowBlur = 35;
+      ctx.shadowColor = 'rgba(99, 102, 241, 0.9)';
+
+      const bgGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, 200);
+      bgGrad.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
+      bgGrad.addColorStop(1, 'rgba(99, 102, 241, 0)');
+      ctx.fillStyle = bgGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 200, 0, Math.PI * 2);
+      ctx.fill();
+
+      const textGrad = ctx.createLinearGradient(0, -60, 0, 60);
+      textGrad.addColorStop(0, '#a5b4fc');
+      textGrad.addColorStop(0.5, '#818cf8');
+      textGrad.addColorStop(1, '#6366f1');
+      ctx.fillStyle = textGrad;
+      ctx.font = 'bold 48px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`第 ${nextLevel} 关`, 0, 0);
+
+      ctx.font = '22px sans-serif';
+      ctx.fillStyle = 'rgba(220, 220, 255, 0.9)';
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = 'rgba(150, 150, 255, 0.6)';
+      ctx.fillText('准备开始', 0, 50);
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
   }
 
   private drawButton(
