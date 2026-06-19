@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #2a2a3e;
+  --text-primary: #E0E0E0;
+  --text-secondary: #A0A0B0;
+  --accent-thrust: #FF5252;
+  --accent-shield: #448AFF;
+  --accent-weapon: #69F0AE;
+  --accent-success: #4CAF50;
+  --accent-error: #F44336;
+  --accent-outline: #4FC3F7;
+  --rarity-common: #B0BEC5;
+  --rarity-rare: #FFD54F;
+  --rarity-legendary: #FF8A65;
+  --font-display: 'Orbitron', sans-serif;
+  --font-body: 'Roboto', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+@keyframes hit-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(244, 67, 54, 0.8), inset 0 0 20px rgba(244, 67, 54, 0.3); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes slot-hover {
+  0%, 100% { border-color: var(--accent-success); }
+  50% { border-color: #81C784; }
+}
+
+@keyframes invalid-drop {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); border-color: var(--accent-error); }
+  40%, 80% { transform: translateX(5px); border-color: var(--accent-error); }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes modal-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.hit-animation {
+  animation: hit-flash 0.2s ease-in-out;
+}
+
+.slot-valid-hover {
+  animation: slot-hover 0.8s ease-in-out infinite;
+}
+
+.invalid-drop-animation {
+  animation: invalid-drop 0.3s ease-in-out;
+}
+
+.log-entry-enter {
+  animation: fade-in-up 0.3s ease-out;
+}
+
+.modal-enter {
+  animation: modal-in 0.3s ease-out;
+}
+
+.modal-overlay-enter {
+  animation: modal-overlay-in 0.2s ease-out;
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-secondary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a4e;
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}
