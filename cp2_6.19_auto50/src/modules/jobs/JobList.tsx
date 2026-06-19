@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useJobStore } from '../../store/useJobStore';
 import type { Job } from '../../types';
@@ -39,6 +39,8 @@ export default function JobList() {
   const [selectedDepartment, setSelectedDepartment] = useState('全部');
   const [selectedBonusRange, setSelectedBonusRange] = useState(bonusRanges[0]);
   const [leaderboardJob, setLeaderboardJob] = useState<Job | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 6;
 
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
@@ -51,6 +53,16 @@ export default function JobList() {
     });
   }, [jobs, selectedDepartment, selectedBonusRange]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDepartment, selectedBonusRange]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / PAGE_SIZE));
+  const pageJobs = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredJobs.slice(start, start + PAGE_SIZE);
+  }, [filteredJobs, currentPage]);
+
   const leaderboard = leaderboardJob
     ? getLeaderboard(leaderboardJob.id)
     : [];
@@ -62,6 +74,34 @@ export default function JobList() {
   const handleLeaderboardClick = (e: React.MouseEvent, job: Job) => {
     e.stopPropagation();
     setLeaderboardJob(job);
+  };
+
+  const renderPagination = () => {
+    const buttons: React.ReactNode[] = [];
+    for (let i = 1; i <= totalPages; i++) {
+      buttons.push(
+        <button
+          key={i}
+          style={{
+            ...styles.pageBtn,
+            ...(i === currentPage ? styles.pageBtnActive : {}),
+          }}
+          onClick={() => setCurrentPage(i)}
+          onMouseDown={(e) => {
+            e.currentTarget.style.transform = 'scale(0.95)';
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          {i}
+        </button>
+      );
+    }
+    return buttons;
   };
 
   return (
@@ -107,7 +147,7 @@ export default function JobList() {
       </div>
 
       <div style={styles.grid}>
-        {filteredJobs.map((job) => (
+        {pageJobs.map((job) => (
           <div
             key={job.id}
             style={styles.card}
@@ -123,6 +163,12 @@ export default function JobList() {
                 '0 2px 8px rgba(0, 0, 0, 0.08)';
             }}
           >
+            {job.urgent && (
+              <div style={styles.urgentTag}>
+                🔥 急招
+              </div>
+            )}
+
             <div style={styles.cardHeader}>
               <h3 style={styles.jobTitle}>{job.title}</h3>
               <span style={styles.departmentTag}>{job.department}</span>
@@ -192,6 +238,52 @@ export default function JobList() {
           </div>
         ))}
       </div>
+
+      {filteredJobs.length === 0 ? (
+        <div style={styles.emptyList}>暂无符合条件的职位</div>
+      ) : (
+        <div style={styles.pagination}>
+          <button
+            disabled={currentPage === 1}
+            style={{
+              ...styles.pageBtn,
+              ...(currentPage === 1 ? styles.pageBtnDisabled : {}),
+            }}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            onMouseDown={(e) => {
+              if (currentPage !== 1) e.currentTarget.style.transform = 'scale(0.95)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            上一页
+          </button>
+          {renderPagination()}
+          <button
+            disabled={currentPage === totalPages}
+            style={{
+              ...styles.pageBtn,
+              ...(currentPage === totalPages ? styles.pageBtnDisabled : {}),
+            }}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            onMouseDown={(e) => {
+              if (currentPage !== totalPages) e.currentTarget.style.transform = 'scale(0.95)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            下一页
+          </button>
+        </div>
+      )}
 
       {leaderboardJob && (
         <div style={styles.modalOverlay} onClick={() => setLeaderboardJob(null)}>
@@ -314,12 +406,27 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     transition: 'all 0.2s ease',
     position: 'relative',
+    overflow: 'hidden',
+  },
+  urgentTag: {
+    position: 'absolute',
+    top: '12px',
+    left: '-1px',
+    padding: '3px 12px 3px 16px',
+    background: 'linear-gradient(135deg, #EA4335 0%, #FF6B6B 100%)',
+    color: '#FFFFFF',
+    fontSize: '11px',
+    fontWeight: 700,
+    borderRadius: '0 10px 10px 0',
+    letterSpacing: '0.5px',
+    boxShadow: '0 2px 6px rgba(234, 67, 53, 0.35)',
   },
   cardHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: '12px',
+    marginTop: '16px',
   },
   jobTitle: {
     fontSize: '18px',
@@ -509,6 +616,43 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     cursor: 'pointer',
     transition: 'transform 0.1s ease',
+  },
+  pagination: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '8px',
+    marginTop: '32px',
+    flexWrap: 'wrap',
+  },
+  pageBtn: {
+    minWidth: '36px',
+    height: '36px',
+    padding: '0 12px',
+    border: '1px solid #E0E0E0',
+    borderRadius: '8px',
+    backgroundColor: '#FFFFFF',
+    color: '#5F6368',
+    fontSize: '14px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  pageBtnActive: {
+    backgroundColor: '#1A73E8',
+    color: '#FFFFFF',
+    borderColor: '#1A73E8',
+    boxShadow: '0 2px 6px rgba(26, 115, 232, 0.3)',
+  },
+  pageBtnDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  },
+  emptyList: {
+    textAlign: 'center',
+    padding: '60px 24px',
+    color: '#9AA0A6',
+    fontSize: '16px',
   },
 };
 

@@ -6,7 +6,7 @@ import type { Job, Referral, LeaderboardEntry } from '../types';
 interface JobState {
   jobs: Job[];
   referrals: Referral[];
-  addJob: (job: Omit<Job, 'id' | 'createdAt' | 'referrerCount'>) => void;
+  addJob: (job: Omit<Job, 'id' | 'createdAt' | 'referrerCount' | 'urgent'> & { urgent?: boolean }) => void;
   addReferral: (referral: Omit<Referral, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => void;
   updateReferralStatus: (id: string, status: Referral['status']) => void;
   getJobById: (id: string) => Job | undefined;
@@ -29,6 +29,7 @@ const mockJobs: Job[] = [
     bonus: 20000,
     createdAt: new Date().toISOString(),
     referrerCount: 5,
+    urgent: true,
   },
   {
     id: uuidv4(),
@@ -41,6 +42,7 @@ const mockJobs: Job[] = [
     bonus: 15000,
     createdAt: new Date().toISOString(),
     referrerCount: 3,
+    urgent: false,
   },
   {
     id: uuidv4(),
@@ -53,6 +55,7 @@ const mockJobs: Job[] = [
     bonus: 18000,
     createdAt: new Date().toISOString(),
     referrerCount: 4,
+    urgent: true,
   },
   {
     id: uuidv4(),
@@ -65,6 +68,7 @@ const mockJobs: Job[] = [
     bonus: 12000,
     createdAt: new Date().toISOString(),
     referrerCount: 2,
+    urgent: false,
   },
   {
     id: uuidv4(),
@@ -77,6 +81,7 @@ const mockJobs: Job[] = [
     bonus: 15000,
     createdAt: new Date().toISOString(),
     referrerCount: 1,
+    urgent: false,
   },
   {
     id: uuidv4(),
@@ -89,6 +94,7 @@ const mockJobs: Job[] = [
     bonus: 13000,
     createdAt: new Date().toISOString(),
     referrerCount: 0,
+    urgent: true,
   },
 ];
 
@@ -107,6 +113,7 @@ export const useJobStore = create<JobState>()(
               id: uuidv4(),
               createdAt: new Date().toISOString(),
               referrerCount: 0,
+              urgent: jobData.urgent ?? false,
             },
           ],
         })),

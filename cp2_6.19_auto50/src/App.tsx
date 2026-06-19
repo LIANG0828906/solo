@@ -1,10 +1,30 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import JobList from './modules/jobs/JobList';
 import JobDetail from './modules/jobs/JobDetail';
 import ReferralTracker from './modules/referrals/ReferralTracker';
 import RewardCalculator from './modules/rewards/RewardCalculator';
 import { NotificationProvider } from './context/NotificationContext';
+
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  return (
+    <div
+      key={location.pathname}
+      style={{
+        width: '100%',
+        animation: 'fadeIn 0.3s ease both',
+      }}
+    >
+      <Routes location={location}>
+        <Route path="/" element={<JobList />} />
+        <Route path="/job/:id" element={<JobDetail />} />
+        <Route path="/referrals" element={<ReferralTracker />} />
+        <Route path="/rewards" element={<RewardCalculator />} />
+      </Routes>
+    </div>
+  );
+};
 
 const App = () => {
   return (
@@ -24,14 +44,9 @@ const App = () => {
           width: '100%',
           maxWidth: '1200px',
           margin: '0 auto',
-          animation: 'fadeIn 0.3s ease'
+          boxSizing: 'border-box',
         }}>
-          <Routes>
-            <Route path="/" element={<JobList />} />
-            <Route path="/job/:id" element={<JobDetail />} />
-            <Route path="/referrals" element={<ReferralTracker />} />
-            <Route path="/rewards" element={<RewardCalculator />} />
-          </Routes>
+          <AnimatedRoutes />
         </main>
       </div>
     </NotificationProvider>

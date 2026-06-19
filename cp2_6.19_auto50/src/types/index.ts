@@ -9,6 +9,7 @@ export interface Job {
   bonus: number;
   createdAt: string;
   referrerCount: number;
+  urgent: boolean;
 }
 
 export interface Referral {

@@ -25,6 +25,7 @@ export default function JobDetail() {
 
   const [showForm, setShowForm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showCopyTip, setShowCopyTip] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     candidateName: '',
     candidatePhone: '',
@@ -32,6 +33,13 @@ export default function JobDetail() {
     candidateResume: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
+
+  useEffect(() => {
+    if (showCopyTip) {
+      const t = setTimeout(() => setShowCopyTip(false), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [showCopyTip]);
 
   useEffect(() => {
     if (!job && id) {
@@ -213,21 +221,52 @@ export default function JobDetail() {
           <div style={styles.referrerInfo}>
             👥 已有 <strong>{job.referrerCount}</strong> 人推荐
           </div>
-          <button
-            style={styles.referButton}
-            onClick={() => setShowForm(true)}
-            onMouseDown={(e) => {
-              e.currentTarget.style.transform = 'scale(0.95)';
-            }}
-            onMouseUp={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            📤 推荐候选人
-          </button>
+          <div style={styles.footerActions}>
+            <button
+              style={styles.copyLinkButton}
+              onClick={() => {
+                const url = `${window.location.origin}/job/${job.id}`;
+                navigator.clipboard
+                  ?.writeText(url)
+                  .then(() => setShowCopyTip(true))
+                  .catch(() => {
+                    const input = document.createElement('textarea');
+                    input.value = url;
+                    document.body.appendChild(input);
+                    input.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(input);
+                    setShowCopyTip(true);
+                  });
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              🔗 复制链接
+            </button>
+            <button
+              style={styles.referButton}
+              onClick={() => setShowForm(true)}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              📤 推荐候选人
+            </button>
+          </div>
         </div>
       </div>
 
@@ -375,6 +414,13 @@ export default function JobDetail() {
               候选人已成功推荐，初始状态为"已投递"
             </div>
           </div>
+        </div>
+      )}
+
+      {showCopyTip && (
+        <div style={styles.copyTip}>
+          <span style={styles.copyTipIcon}>✓</span>
+          <span>链接已复制到剪贴板</span>
         </div>
       )}
     </div>
@@ -551,10 +597,28 @@ const styles: Record<string, React.CSSProperties> = {
     paddingTop: '24px',
     borderTop: '1px solid #F0F0F0',
     marginTop: '32px',
+    flexWrap: 'wrap',
+    gap: '16px',
   },
   referrerInfo: {
     fontSize: '14px',
     color: '#666',
+  },
+  footerActions: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+  },
+  copyLinkButton: {
+    padding: '12px 24px',
+    backgroundColor: '#FFFFFF',
+    color: '#1A73E8',
+    border: '1px solid #1A73E8',
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    transition: 'transform 0.1s ease',
   },
   referButton: {
     padding: '12px 32px',
@@ -709,6 +773,35 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     color: '#666',
   },
+  copyTip: {
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '14px 24px',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    color: '#FFFFFF',
+    borderRadius: '10px',
+    fontSize: '14px',
+    fontWeight: 500,
+    zIndex: 2500,
+    animation: 'fadeInScale 0.2s ease',
+  },
+  copyTipIcon: {
+    width: '22px',
+    height: '22px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4CAF50',
+    color: '#FFFFFF',
+    borderRadius: '50%',
+    fontSize: '12px',
+    fontWeight: 700,
+  },
 };
 
 const keyframes = `
@@ -720,6 +813,16 @@ const keyframes = `
     to {
       transform: translateX(0);
       opacity: 1;
+    }
+  }
+  @keyframes fadeInScale {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
     }
   }
 `;
