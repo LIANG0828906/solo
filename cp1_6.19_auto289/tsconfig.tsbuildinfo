@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/battlegrid.tsx","./src/components/fleetpanel.tsx","./src/store/gamestore.ts","./src/utils/ailogic.ts"],"version":"5.8.3"}
