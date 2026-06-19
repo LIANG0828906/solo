@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -13,7 +13,7 @@ import {
 import type { TooltipItem } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { useAppStore } from '@/store/useAppStore';
-import type { BurndownPoint } from '@/types';
+import type { BurndownPoint, Task, TeamMember } from '@/types';
 import styles from './sprint.module.css';
 
 ChartJS.register(
@@ -29,17 +29,37 @@ ChartJS.register(
 
 interface BurndownChartProps {
   sprintId: string;
+  sprintTasks: Task[];
+  teamMembers: TeamMember[];
 }
 
-export function BurndownChart({ sprintId }: BurndownChartProps) {
+export function BurndownChart({ sprintId, sprintTasks, teamMembers }: BurndownChartProps) {
   const getBurndownData = useAppStore((state) => state.getBurndownData);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('all');
+
+  const assignedMembers = useMemo(() => {
+    const assigneeIds = new Set<string>();
+    sprintTasks.forEach((task) => {
+      if (task.assignee) {
+        assigneeIds.add(task.assignee);
+      }
+    });
+    return teamMembers.filter((m) => assigneeIds.has(m.id));
+  }, [sprintTasks, teamMembers]);
 
   const burndownData = useMemo(
-    () => getBurndownData(sprintId),
-    [sprintId, getBurndownData]
+    () =>
+      getBurndownData(
+        sprintId,
+        selectedMemberId === 'all' ? null : selectedMemberId
+      ),
+    [sprintId, selectedMemberId, getBurndownData]
   );
 
   const chartData = useMemo(() => {
+    const member = assignedMembers.find((m) => m.id === selectedMemberId);
+    const actualLabel = member ? `${member.name}的实际线` : '实际线';
+
     return {
       labels: burndownData.map((point: BurndownPoint) => point.date),
       datasets: [
@@ -55,7 +75,7 @@ export function BurndownChart({ sprintId }: BurndownChartProps) {
           tension: 0,
         },
         {
-          label: '实际线',
+          label: actualLabel,
           data: burndownData.map((point: BurndownPoint) => point.actual),
           borderColor: '#e94560',
           backgroundColor: 'rgba(233, 69, 96, 0.1)',
@@ -68,7 +88,7 @@ export function BurndownChart({ sprintId }: BurndownChartProps) {
         },
       ],
     };
-  }, [burndownData]);
+  }, [burndownData, selectedMemberId, assignedMembers]);
 
   const options = useMemo(
     () => ({
@@ -156,7 +176,21 @@ export function BurndownChart({ sprintId }: BurndownChartProps) {
 
   return (
     <div className={styles.chartContainer}>
-      <div className={styles.chartTitle}>燃尽图</div>
+      <div className={styles.chartHeader}>
+        <div className={styles.chartTitle}>燃尽图</div>
+        <select
+          className={styles.memberFilterSelect}
+          value={selectedMemberId}
+          onChange={(e) => setSelectedMemberId(e.target.value)}
+        >
+          <option value="all">全部成员</option>
+          {assignedMembers.map((member) => (
+            <option key={member.id} value={member.id}>
+              {member.name}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className={styles.chartWrapper}>
         <Line data={chartData} options={options} />
       </div>

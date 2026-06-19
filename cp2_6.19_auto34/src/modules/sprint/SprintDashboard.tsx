@@ -142,7 +142,13 @@ export function SprintDashboard() {
       </div>
 
       <div className={styles.chartSection}>
-        {currentSprintId && <BurndownChart sprintId={currentSprintId} />}
+        {currentSprintId && (
+          <BurndownChart
+            sprintId={currentSprintId}
+            sprintTasks={sprintTasks}
+            teamMembers={sprintTeamMembers}
+          />
+        )}
       </div>
 
       <div

@@ -29,7 +29,7 @@ interface AppState {
   getSprintTasks: (sprintId: string) => Task[];
   getTasksBySprintId: (sprintId: string) => Task[];
   getBacklogTasks: () => Task[];
-  getBurndownData: (sprintId: string) => BurndownPoint[];
+  getBurndownData: (sprintId: string, assigneeId?: string | null) => BurndownPoint[];
   openTaskModal: (taskId: string | null) => void;
   closeTaskModal: () => void;
 }
@@ -113,11 +113,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     return get().tasks.filter((t) => t.sprintId === null);
   },
 
-  getBurndownData: (sprintId) => {
+  getBurndownData: (sprintId, assigneeId = null) => {
     const sprint = get().sprints.find((s) => s.id === sprintId);
     if (!sprint) return [];
 
-    const tasks = get().getSprintTasks(sprintId);
+    let tasks = get().getSprintTasks(sprintId);
+    if (assigneeId) {
+      tasks = tasks.filter((t) => t.assignee === assigneeId);
+    }
+
     const totalEstimate = tasks.reduce((sum, t) => sum + t.estimate, 0);
 
     const start = new Date(sprint.startDate);
@@ -128,7 +132,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     for (let i = 0; i <= days; i++) {
       const date = new Date(start);
       date.setDate(date.getDate() + i);
-      const ideal = totalEstimate - (totalEstimate * i) / days;
+      const ideal = totalEstimate - (totalEstimate * i) / Math.max(days, 1);
 
       const doneEstimate = tasks
         .filter((t) => t.status === 'done')
