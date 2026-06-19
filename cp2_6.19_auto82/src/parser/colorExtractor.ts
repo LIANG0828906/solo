@@ -115,15 +115,113 @@ export function extractColors(cssText: string): ColorEntry[] {
   return results;
 }
 
+function rgbToHex(r: number, g: number, b: number): string {
+  return '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('').toLowerCase();
+}
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  let h = hex.replace('#', '').toLowerCase();
+  if (h.length === 3) {
+    h = h.split('').map((x) => x + x).join('');
+  }
+  if (h.length !== 6) return null;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return [r, g, b];
+}
+
+function parseToRgb(color: string): [number, number, number] | null {
+  const trimmed = color.trim().toLowerCase();
+
+  if (NAMED_COLORS[trimmed]) {
+    return hexToRgb(NAMED_COLORS[trimmed]);
+  }
+
+  if (/^#[0-9a-f]{3,8}$/.test(trimmed)) {
+    return hexToRgb(trimmed);
+  }
+
+  const rgbMatch = trimmed.match(/^rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (rgbMatch) {
+    return [parseInt(rgbMatch[1], 10), parseInt(rgbMatch[2], 10), parseInt(rgbMatch[3], 10)];
+  }
+
+  const hslMatch = trimmed.match(/^hsla?\s*\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%/i);
+  if (hslMatch) {
+    const h = parseInt(hslMatch[1], 10) / 360;
+    const s = parseInt(hslMatch[2], 10) / 100;
+    const l = parseInt(hslMatch[3], 10) / 100;
+    if (s === 0) {
+      const v = Math.round(l * 255);
+      return [v, v, v];
+    }
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    return [
+      Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+      Math.round(hue2rgb(p, q, h) * 255),
+      Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
+    ];
+  }
+
+  return null;
+}
+
 export function replaceColorsInCss(
   cssText: string,
   replacements: { oldColor: string; newColor: string }[]
 ): string {
   let result = cssText;
+
   for (const { oldColor, newColor } of replacements) {
-    const escaped = oldColor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(escaped, 'gi');
-    result = result.replace(regex, newColor);
+    const targetRgb = parseToRgb(oldColor);
+    if (!targetRgb) {
+      const escaped = oldColor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'gi');
+      result = result.replace(regex, newColor);
+      continue;
+    }
+
+    const targetHex = rgbToHex(targetRgb[0], targetRgb[1], targetRgb[2]);
+
+    const allColorMatches = result.matchAll(
+      /(?:#[0-9a-fA-F]{3,8})|(?:rgb(?:a)?\s*\([^)]+\))|(?:hsl(?:a)?\s*\([^)]+\))/gi
+    );
+
+    const matchesToReplace: Array<{ index: number; length: number }> = [];
+    for (const match of allColorMatches) {
+      const matchRgb = parseToRgb(match[0]);
+      if (matchRgb && rgbToHex(matchRgb[0], matchRgb[1], matchRgb[2]) === targetHex) {
+        matchesToReplace.push({ index: match.index!, length: match[0].length });
+      }
+    }
+
+    const namedColorPattern = new RegExp(
+      '\\b(' + Object.keys(NAMED_COLORS).join('|') + ')\\b',
+      'gi'
+    );
+    const namedMatches = result.matchAll(namedColorPattern);
+    for (const match of namedMatches) {
+      const matchRgb = parseToRgb(match[0]);
+      if (matchRgb && rgbToHex(matchRgb[0], matchRgb[1], matchRgb[2]) === targetHex) {
+        matchesToReplace.push({ index: match.index!, length: match[0].length });
+      }
+    }
+
+    matchesToReplace.sort((a, b) => b.index - a.index);
+    for (const { index, length } of matchesToReplace) {
+      result = result.slice(0, index) + newColor + result.slice(index + length);
+    }
   }
+
   return result;
 }
