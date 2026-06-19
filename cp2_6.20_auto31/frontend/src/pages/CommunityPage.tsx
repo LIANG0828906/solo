@@ -18,8 +18,39 @@ interface TrendingVinyl {
   title: string;
   artist: string;
   cover_url: string;
-  collection_count: number;
+  add_count: number;
 }
+
+const FALLBACK_TRENDING: TrendingVinyl[] = [
+  {
+    id: 'fb-1',
+    title: 'Thriller',
+    artist: 'Michael Jackson',
+    cover_url: 'https://picsum.photos/seed/thriller/160',
+    add_count: 128,
+  },
+  {
+    id: 'fb-2',
+    title: 'Back in Black',
+    artist: 'AC/DC',
+    cover_url: 'https://picsum.photos/seed/backinblack/160',
+    add_count: 96,
+  },
+  {
+    id: 'fb-3',
+    title: 'The Dark Side of the Moon',
+    artist: 'Pink Floyd',
+    cover_url: 'https://picsum.photos/seed/darksidemoon/160',
+    add_count: 87,
+  },
+  {
+    id: 'fb-4',
+    title: 'Rumours',
+    artist: 'Fleetwood Mac',
+    cover_url: 'https://picsum.photos/seed/rumours/160',
+    add_count: 72,
+  },
+];
 
 interface FeedState {
   posts: Post[];
@@ -568,9 +599,14 @@ const TrendingCard: React.FC = () => {
     try {
       const res = await getTrendingVinyls();
       const list: TrendingVinyl[] = Array.isArray(res) ? res : (res as any)?.items || [];
-      setVinyls(list.slice(0, 8));
+      if (list.length === 0) {
+        setVinyls(FALLBACK_TRENDING);
+      } else {
+        setVinyls(list.slice(0, 8));
+      }
     } catch (e: any) {
       setError(e?.message || '加载失败');
+      setVinyls(FALLBACK_TRENDING);
     } finally {
       setLoading(false);
     }
@@ -623,7 +659,7 @@ const TrendingCard: React.FC = () => {
           ))}
         </div>
       )}
-      {error && !loading && (
+      {error && !loading && vinyls.length === 0 && (
         <div style={{
           padding: '16px',
           textAlign: 'center',
@@ -645,17 +681,7 @@ const TrendingCard: React.FC = () => {
           </button>
         </div>
       )}
-      {!loading && !error && vinyls.length === 0 && (
-        <div style={{
-          padding: '20px',
-          textAlign: 'center',
-          fontSize: '13px',
-          color: 'rgba(255,255,255,0.5)',
-        }}>
-          暂无热门唱片
-        </div>
-      )}
-      {!loading && !error && vinyls.map((v, idx) => (
+      {!loading && vinyls.map((v, idx) => (
         <div
           key={v.id}
           className="animate-fadeIn"
@@ -719,7 +745,7 @@ const TrendingCard: React.FC = () => {
               color: PRIMARY_COLOR,
               fontWeight: 600,
             }}>
-              被收藏 {v.collection_count ?? 0} 次
+              被收藏 {v.add_count ?? 0} 次
             </div>
           </div>
         </div>
@@ -782,6 +808,8 @@ const CommunityPage: React.FC = () => {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadingRef = useRef(false);
+  const feedRef = useRef(feed);
+  feedRef.current = feed;
 
   useEffect(() => {
     ensureDemoUser();
@@ -820,8 +848,10 @@ const CommunityPage: React.FC = () => {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && feed.hasMore && !feed.loading && !loadingRef.current) {
-          loadFeed(feed.page + 1, true);
+        if (loadingRef.current) return;
+        if (!feedRef.current.hasMore) return;
+        if (entries[0].isIntersecting) {
+          loadFeed(feedRef.current.page + 1, true);
         }
       },
       {
@@ -837,7 +867,7 @@ const CommunityPage: React.FC = () => {
       observer.disconnect();
       observerRef.current = null;
     };
-  }, [feed.hasMore, feed.loading, feed.page, loadFeed]);
+  }, [loadFeed]);
 
   const handleLike = useCallback(async (postId: string) => {
     try {

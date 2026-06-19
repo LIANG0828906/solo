@@ -114,7 +114,8 @@ const StarRating = ({
               lineHeight: 1,
             }}
             onMouseEnter={() => interactive && setHoverRating(starValue)}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (interactive && onRate) {
                 onRate(starValue);
               }
@@ -196,7 +197,11 @@ interface VinylCardProps {
 
 const VinylCard = ({ vinyl, onClick, onRate, animationDelay }: VinylCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [isRating, setIsRating] = useState(false);
+
+  const fallbackCover = `https://picsum.photos/seed/vinyl-${vinyl.id || 'placeholder'}/400/400`;
+  const coverSrc = vinyl.cover_url && !imageError ? vinyl.cover_url : fallbackCover;
 
   return (
     <div
@@ -236,24 +241,28 @@ const VinylCard = ({ vinyl, onClick, onRate, animationDelay }: VinylCardProps) =
           backgroundColor: '#0f0f1e',
         }}
       >
-        {vinyl.cover_url ? (
-          <img
-            src={vinyl.cover_url}
-            alt={vinyl.title}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageLoaded(false)}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              aspectRatio: '1/1',
-              opacity: imageLoaded ? 1 : 0,
-              transition: 'opacity 0.6s ease',
-              display: imageLoaded ? 'block' : 'none',
-            }}
-          />
-        ) : null}
-        {(!vinyl.cover_url || !imageLoaded) && (
+        <img
+          src={coverSrc}
+          alt={vinyl.title}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => {
+            if (!imageError) {
+              setImageError(true);
+            } else {
+              setImageLoaded(false);
+            }
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            aspectRatio: '1/1',
+            opacity: imageLoaded ? 1 : 0,
+            transition: 'opacity 0.6s ease',
+            display: imageLoaded ? 'block' : 'none',
+          }}
+        />
+        {!imageLoaded && (
           <div
             style={{
               position: 'absolute',
@@ -389,7 +398,10 @@ const AddVinylModal = ({ onClose, onSuccess }: AddVinylModalProps) => {
       fd.append('title', formData.title.trim());
       fd.append('artist', formData.artist.trim());
       if (formData.release_year) {
-        fd.append('release_year', String(parseInt(formData.release_year) || new Date().getFullYear()));
+        const year = parseInt(formData.release_year);
+        if (!isNaN(year)) {
+          fd.append('release_year', String(year));
+        }
       }
       fd.append('genre', formData.genre);
       fd.append('rating', String(formData.rating));
@@ -397,7 +409,7 @@ const AddVinylModal = ({ onClose, onSuccess }: AddVinylModalProps) => {
         fd.append('notes', formData.notes.trim());
       }
       if (coverFile) {
-        fd.append('cover_image', coverFile);
+        fd.append('cover', coverFile);
       }
       await createVinyl(fd);
       onSuccess();
@@ -1173,17 +1185,29 @@ const CollectionPage = () => {
   const [listKey, setListKey] = useState(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const initialLoadDone = useRef(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     ensureDemoUser();
   }, [ensureDemoUser]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchInput);
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value);
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
     }, 300);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, []);
 
   const fetchVinyls = useCallback(
     async (page: number, reset = false) => {
@@ -1194,10 +1218,12 @@ const CollectionPage = () => {
       }
 
       try {
-        const genreParam = selectedGenre === '全部流派' ? undefined : selectedGenre;
-        const hasSearch = debouncedSearch.trim() !== '' || genreParam;
+        const searchTrimmed = debouncedSearch.trim();
+        const searchParam = searchTrimmed !== '' ? searchTrimmed : undefined;
+        const genreParam = selectedGenre !== '全部流派' ? selectedGenre : undefined;
+        const hasSearch = searchParam !== undefined || genreParam !== undefined;
         const params = {
-          search: debouncedSearch.trim() || undefined,
+          search: searchParam,
           genre: genreParam,
           page,
           limit: PAGE_LIMIT,
@@ -1424,7 +1450,7 @@ const CollectionPage = () => {
                 <input
                   type="text"
                   value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="搜索标题或艺术家..."
                   style={{
                     width: '100%',

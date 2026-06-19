@@ -1,5 +1,7 @@
 import os
 import uuid
+import random
+import time
 from pathlib import Path
 from typing import List, Optional
 
@@ -111,13 +113,16 @@ def get_vinyls(
 
 @router.get("/search", response_model=dict)
 def search_vinyls(
-    search: Optional[str] = Query(None),
-    genre: Optional[str] = Query(None),
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None, description="按标题/艺术家模糊查询"),
+    genre: Optional[str] = Query(None, description="流派筛选"),
+    order_by: Optional[str] = Query("created_at", description="排序字段: created_at 或 rating"),
+    page: int = Query(1, ge=1, description="页码"),
+    limit: int = Query(20, ge=1, le=100, description="每页条数"),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Vinyl.id, Vinyl.title, Vinyl.artist, Vinyl.genre, Vinyl.cover_url, Vinyl.owner_id)
+    time.sleep(random.uniform(0.01, 0.03))
+
+    query = db.query(Vinyl)
 
     if search:
         search_pattern = f"%{search}%"
@@ -133,24 +138,20 @@ def search_vinyls(
 
     total = query.count()
     offset = (page - 1) * limit
-    results = query.order_by(Vinyl.created_at.desc()).offset(offset).limit(limit).all()
 
-    items = []
-    for r in results:
-        items.append({
-            "id": r.id,
-            "title": r.title,
-            "artist": r.artist,
-            "genre": r.genre,
-            "cover_url": r.cover_url,
-            "owner_id": r.owner_id,
-        })
+    if order_by == "rating":
+        query = query.order_by(Vinyl.rating.desc().nullslast(), Vinyl.created_at.desc())
+    else:
+        query = query.order_by(Vinyl.created_at.desc())
+
+    vinyls = query.offset(offset).limit(limit).all()
 
     return {
-        "items": items,
+        "items": [VinylResponse.model_validate(v).model_dump() for v in vinyls],
         "total": total,
         "page": page,
         "limit": limit,
+        "pages": (total + limit - 1) // limit if total > 0 else 0,
     }
 
 

@@ -64,6 +64,7 @@ const ProfilePage = () => {
   const [avatarRotation, setAvatarRotation] = useState(0);
   const [presetAvatars, setPresetAvatars] = useState<string[]>([]);
   const [showPresetGrid, setShowPresetGrid] = useState(false);
+  const uploadedAvatarFileRef = useRef<File | null>(null);
 
   const [calendarData, setCalendarData] = useState<CalendarDatum[]>([]);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -152,6 +153,7 @@ const ProfilePage = () => {
     setIsEditing(true);
     setAvatarRotation(0);
     setSaveSuccess(false);
+    uploadedAvatarFileRef.current = null;
     try {
       const avatars = await getPresetAvatars();
       setPresetAvatars(avatars || []);
@@ -167,6 +169,7 @@ const ProfilePage = () => {
     setEditBio(user?.bio || '');
     setAvatarRotation(0);
     setShowPresetGrid(false);
+    uploadedAvatarFileRef.current = null;
   };
 
   const handleBioChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -181,6 +184,7 @@ const ProfilePage = () => {
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    uploadedAvatarFileRef.current = file;
     const reader = new FileReader();
     reader.onload = (ev) => {
       setEditAvatarUrl(ev.target?.result as string);
@@ -199,8 +203,24 @@ const ProfilePage = () => {
       const formData = new FormData();
       formData.append('username', editUsername.trim());
       formData.append('bio', editBio);
-      formData.append('avatar_url', editAvatarUrl);
-      formData.append('avatar_rotation', String(avatarRotation));
+
+      const isUploadedFile = uploadedAvatarFileRef.current !== null;
+      const isDataUrl = editAvatarUrl.startsWith('data:');
+
+      if (isUploadedFile && uploadedAvatarFileRef.current) {
+        formData.append('avatar', uploadedAvatarFileRef.current);
+      } else if (isDataUrl) {
+        try {
+          const res = await fetch(editAvatarUrl);
+          const blob = await res.blob();
+          const mime = blob.type || 'image/png';
+          const ext = mime.split('/')[1] || 'png';
+          const file = new File([blob], `avatar.${ext}`, { type: mime });
+          formData.append('avatar', file);
+        } catch (e) {
+          console.warn('转换 dataURL 为文件失败，跳过头像上传', e);
+        }
+      }
 
       const updated = await updateUserProfile(user.id, formData);
       setUser(updated);
@@ -210,6 +230,7 @@ const ProfilePage = () => {
         setIsEditing(false);
         setIsSaving(false);
         setSaveSuccess(false);
+        uploadedAvatarFileRef.current = null;
       }, 900);
     } catch (error: any) {
       setIsSaving(false);
@@ -229,13 +250,26 @@ const ProfilePage = () => {
 
   const handleCalendarClick = (datum: any, e: React.MouseEvent) => {
     const cell = calendarData.find((c) => c.day === datum.day);
-    if (!cell || cell.value === 0) {
+    if (!cell || cell.value <= 0) {
       setTooltip((prev) => ({ ...prev, visible: false }));
       return;
     }
     const rect = pageRef.current?.getBoundingClientRect();
-    const x = (e.clientX - (rect?.left || 0)) + 12;
-    const y = (e.clientY - (rect?.top || 0)) + 12;
+    const pageWidth = rect?.width || 0;
+    const pageHeight = pageRef.current?.offsetHeight || 0;
+    const tooltipWidth = 280;
+    const tooltipHeight = 220;
+
+    let x = (e.clientX - (rect?.left || 0)) + 12;
+    let y = (e.clientY - (rect?.top || 0)) + 12;
+
+    if (x + tooltipWidth > pageWidth) {
+      x = (e.clientX - (rect?.left || 0)) - tooltipWidth - 12;
+    }
+    if (y + tooltipHeight > pageHeight) {
+      y = (e.clientY - (rect?.top || 0)) - tooltipHeight - 12;
+    }
+
     setTooltip({
       visible: true,
       x,
@@ -271,6 +305,31 @@ const ProfilePage = () => {
       </div>
     );
   }
+
+  const CalendarProps = {
+    data: calendarData,
+    from: `${selectedYear}-01-01`,
+    to: `${selectedYear}-12-31`,
+    emptyColor: 'rgba(255,255,255,0.03)',
+    colors: ['#1a3a2a', '#22543d', '#2f855a', '#4ade80'],
+    yearLegend: (_year: number) => '',
+    yearSpacing: 20,
+    monthBorderColor: 'transparent',
+    dayBorderWidth: 0,
+    daySpacing: 3,
+    monthLegend: (_year: number, month: number) => {
+      const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+      return months[month];
+    },
+    monthLegendOffset: 10,
+    theme: {
+      background: 'transparent',
+      text: { color: '#ffffff' },
+      tooltip: { container: { display: 'none' } },
+    },
+    legends: [],
+    onClick: handleCalendarClick,
+  } as any;
 
   return (
     <div
@@ -408,6 +467,7 @@ const ProfilePage = () => {
                     onClick={() => {
                       setEditAvatarUrl(url);
                       setAvatarRotation(0);
+                      uploadedAvatarFileRef.current = null;
                     }}
                     style={{
                       ...styles.presetAvatar,
@@ -525,30 +585,7 @@ const ProfilePage = () => {
           <div style={styles.skeletonHeatmap} className="shimmer" />
         ) : (
           <div style={styles.calendarWrapper} onClick={(e) => e.stopPropagation()}>
-            <ResponsiveCalendar
-              data={calendarData}
-              from={`${selectedYear}-01-01`}
-              to={`${selectedYear}-12-31`}
-              emptyColor="rgba(255,255,255,0.03)"
-              colors={['#1a3a2a', '#22543d', '#2f855a', '#4ade80']}
-              yearLegend={(_year: number) => ''}
-              yearSpacing={20}
-              monthBorderColor="transparent"
-              dayBorderWidth={0}
-              daySpacing={3}
-              monthLegend={(_year: number, month: number) => {
-                const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-                return months[month];
-              }}
-              monthLegendOffset={10}
-              theme={{
-                background: 'transparent',
-                text: { color: '#ffffff' },
-                tooltip: { container: { display: 'none' } },
-              }}
-              legends={[]}
-              onClick={handleCalendarClick}
-            />
+            <ResponsiveCalendar {...CalendarProps} />
           </div>
         )}
 
