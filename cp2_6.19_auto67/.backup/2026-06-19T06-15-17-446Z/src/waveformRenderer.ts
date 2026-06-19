@@ -37,6 +37,8 @@ export class WaveformRenderer {
   private _lastFrameTime = 0;
   private _currentFps = 60;
 
+  private _dataLength = 0;
+
   constructor(canvas: HTMLCanvasElement, options?: Partial<WaveformRendererOptions>) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
@@ -74,6 +76,7 @@ export class WaveformRenderer {
   }
 
   public setWaveformData(data: WaveformData, animate = false, config?: TransitionConfig): void {
+    this._dataLength = data.length;
     if (!animate) {
       this._oldReduced = null;
       this._newReduced = null;
