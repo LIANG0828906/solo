@@ -57,6 +57,7 @@ export interface AppState {
   updateDeliveryLocation: (orderId: string, location: { x: number; y: number }) => void;
   calculateStatistics: () => void;
   initializeMockData: () => void;
+  createQuickOrder: (productId: string, quantity: number) => boolean;
 }
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

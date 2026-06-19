@@ -54,7 +54,7 @@ function generateDate(daysAgo: number): string {
   return date.toISOString();
 }
 
-function generateStatus(index: number): OrderStatus {
+function generateStatus(_index: number): OrderStatus {
   const statuses: OrderStatus[] = ['pending', 'confirmed', 'delivering', 'delivered', 'completed'];
   const weights = [0.15, 0.2, 0.25, 0.25, 0.15];
   let random = Math.random();
