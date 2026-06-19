@@ -72,6 +72,13 @@ export interface LevelUpResult {
   threshold: number;
 }
 
+export interface GiftResponse {
+  success: boolean;
+  senderExpGain: number;
+  receiverHappinessGain: number;
+  message: string;
+}
+
 export interface CreatePetData {
   ownerName: string;
   species: PetSpecies;
@@ -86,6 +93,9 @@ export interface FloatingText {
   color: string;
   x: number;
   y: number;
+  offsetX?: number;
+  offsetY?: number;
+  duration?: number;
 }
 
 export type FurnitureType = 'bowl' | 'toy' | 'water' | 'bed';

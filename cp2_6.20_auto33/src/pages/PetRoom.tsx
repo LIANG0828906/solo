@@ -10,7 +10,7 @@ import FoodPicker from '../components/FoodPicker';
 import FloatingTextLayer from '../components/FloatingText';
 import LevelUpEffect from '../components/LevelUpEffect';
 import { sfx } from '../utils/audio';
-import { expProgress, expForLevel } from '../utils/helpers';
+import { expProgress, expForLevel, randRange } from '../utils/helpers';
 
 const furniturePos: Record<FurnitureType, { x: number; y: number }> = {
   bowl:  { x: 18, y: 78 },
@@ -31,6 +31,28 @@ const furnitureLabel: Record<FurnitureType, string> = {
   toy: '玩具',
   water: '水盆',
   bed: '睡垫',
+};
+
+const FURNITURE_RADIUS = 10;
+const WALK_BOUNDS = { minX: 15, maxX: 85, minY: 50, maxY: 82 };
+
+const isInFurnitureArea = (x: number, y: number): boolean => {
+  return Object.values(furniturePos).some(pos => {
+    const dx = x - pos.x;
+    const dy = y - pos.y;
+    return Math.sqrt(dx * dx + dy * dy) < FURNITURE_RADIUS;
+  });
+};
+
+const getRandomWalkTarget = (): { x: number; y: number } => {
+  for (let i = 0; i < 30; i++) {
+    const x = randRange(WALK_BOUNDS.minX, WALK_BOUNDS.maxX);
+    const y = randRange(WALK_BOUNDS.minY, WALK_BOUNDS.maxY);
+    if (!isInFurnitureArea(x, y)) {
+      return { x, y };
+    }
+  }
+  return { x: 50, y: 72 };
 };
 
 const PetRoom: React.FC = () => {
@@ -55,7 +77,10 @@ const PetRoom: React.FC = () => {
   const [warned, setWarned] = useState<Set<string>>(new Set());
   const [catchMode, setCatchMode] = useState(false);
   const [ballPos, setBallPos] = useState<{ x: number; y: number } | null>(null);
+  const [isRandomWalking, setIsRandomWalking] = useState(false);
   const roomRef = useRef<HTMLDivElement>(null);
+  const randomWalkTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     if (!pet) {
@@ -119,14 +144,57 @@ const PetRoom: React.FC = () => {
         }
       };
       raf = requestAnimationFrame(tick);
+      rafRef.current = raf;
     });
   }, [petPos]);
+
+  const startRandomWalk = useCallback(() => {
+    if (busy || catchMode || isRandomWalking) return;
+    setIsRandomWalking(true);
+
+    const doRandomWalk = async () => {
+      if (busy || catchMode) {
+        setIsRandomWalking(false);
+        return;
+      }
+      const target = getRandomWalkTarget();
+      const dist = Math.sqrt(Math.pow(target.x - petPos.x, 2) + Math.pow(target.y - petPos.y, 2));
+      const duration = Math.max(400, dist * 12);
+      await walkTo(target.x, target.y, duration);
+      const stayTime = randRange(2000, 5000);
+      randomWalkTimerRef.current = setTimeout(doRandomWalk, stayTime);
+    };
+    doRandomWalk();
+  }, [busy, catchMode, isRandomWalking, petPos, walkTo]);
+
+  const stopRandomWalk = useCallback(() => {
+    if (randomWalkTimerRef.current) {
+      clearTimeout(randomWalkTimerRef.current);
+      randomWalkTimerRef.current = null;
+    }
+    setIsRandomWalking(false);
+  }, []);
+
+  useEffect(() => {
+    if (!pet || busy || catchMode) {
+      stopRandomWalk();
+      return;
+    }
+    const startDelay = setTimeout(() => {
+      startRandomWalk();
+    }, 3000);
+    return () => {
+      clearTimeout(startDelay);
+      stopRandomWalk();
+    };
+  }, [pet, busy, catchMode, startRandomWalk, stopRandomWalk]);
 
   const floatText = (txt: string, color: string) => addFloatingText(txt, color, petPos.x, petPos.y - 12);
 
   const handleFood = async (type: FoodType) => {
     if (!pet || busy) return;
     setBusy(true);
+    stopRandomWalk();
     setFoodOpen(false);
     await walkTo(furniturePos.bowl.x, furniturePos.bowl.y);
     setAnimState('eating');
@@ -149,12 +217,12 @@ const PetRoom: React.FC = () => {
   const startCatchGame = async () => {
     if (!pet || busy) return;
     setBusy(true);
+    stopRandomWalk();
     await walkTo(50, 70);
     setCatchMode(true);
     setBallPos({ x: 50, y: 55 });
     const doRound = async () => {
       if (!roomRef.current) return;
-      const rect = roomRef.current.getBoundingClientRect();
       for (let round = 0; round < 3; round++) {
         const targetX = 20 + Math.random() * 60;
         const targetY = 45 + Math.random() * 25;
@@ -184,6 +252,7 @@ const PetRoom: React.FC = () => {
   const handleDrink = async () => {
     if (!pet || busy) return;
     setBusy(true);
+    stopRandomWalk();
     await walkTo(furniturePos.water.x, furniturePos.water.y);
     setAnimState('drinking');
     sfx.drink();
@@ -200,6 +269,7 @@ const PetRoom: React.FC = () => {
   const handleRest = async () => {
     if (!pet || busy) return;
     setBusy(true);
+    stopRandomWalk();
     await walkTo(furniturePos.bed.x, furniturePos.bed.y);
     setAnimState('sleeping');
     sfx.sleep();
@@ -214,6 +284,7 @@ const PetRoom: React.FC = () => {
 
   const handleFurniture = (t: FurnitureType) => {
     if (busy) return;
+    stopRandomWalk();
     if (t === 'bowl') { setFoodOpen(true); return; }
     if (t === 'toy') { startCatchGame(); return; }
     if (t === 'water') { handleDrink(); return; }

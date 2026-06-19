@@ -9,21 +9,21 @@ interface Props {
   size?: number;
   showHeart?: boolean;
   onClick?: () => void;
+  style?: React.CSSProperties;
 }
 
-export const SquarePet: React.FC<Props> = ({ pet, x, y, size = 80, showHeart, onClick }) => {
+export const SquarePet: React.FC<Props> = ({ pet, x, y, size = 80, showHeart, onClick, style }) => {
   return (
     <div
       onClick={onClick}
       style={{
         position: 'absolute',
-        left: `${x}%`,
-        top: `${y}%`,
-        transform: 'translate(-50%, -100%)',
+        transform: `translate(${x}%, ${y}%) translate(-50%, -100%)`,
+        willChange: 'transform',
         cursor: 'pointer',
-        transition: 'left 0.9s linear, top 0.9s linear',
         width: size,
         zIndex: Math.floor(y),
+        ...style,
       }}
       onMouseEnter={(e) => { e.currentTarget.style.filter = 'drop-shadow(0 6px 12px rgba(0,0,0,0.3))'; }}
       onMouseLeave={(e) => { e.currentTarget.style.filter = ''; }}
@@ -55,17 +55,42 @@ export const SquarePet: React.FC<Props> = ({ pet, x, y, size = 80, showHeart, on
           top: 0,
           pointerEvents: 'none',
         }}>
-          {[0, 1, 2, 3].map(i => (
-            <span key={i} style={{
-              position: 'absolute',
-              fontSize: 22,
-              ['--hx' as any]: `${(i - 1.5) * 16}px`,
-              animation: `heart-burst 1.1s ease-out ${i * 0.08}s both`,
-              left: 0, top: 0,
-            } as React.CSSProperties}>❤️</span>
-          ))}
+          {[0, 1, 2, 3].map(i => {
+            const angles = [-45, 0, 45, 90];
+            const angle = angles[i] * (Math.PI / 180);
+            const distance = 50;
+            const hx = Math.cos(angle) * distance;
+            const hy = -Math.sin(angle) * distance - 30;
+            return (
+              <span key={i} style={{
+                position: 'absolute',
+                fontSize: 22,
+                left: 0,
+                top: 0,
+                animation: `heart-burst-${i} 1.1s ease-out ${i * 0.08}s both`,
+              } as React.CSSProperties}>❤️</span>
+            );
+          })}
         </div>
       )}
+      <style>{`
+        @keyframes heart-burst-0 {
+          0% { opacity: 1; transform: translate(0, 0) scale(0.5); }
+          100% { opacity: 0; transform: translate(-35px, -35px) scale(1.2); }
+        }
+        @keyframes heart-burst-1 {
+          0% { opacity: 1; transform: translate(0, 0) scale(0.5); }
+          100% { opacity: 0; transform: translate(0px, -60px) scale(1.2); }
+        }
+        @keyframes heart-burst-2 {
+          0% { opacity: 1; transform: translate(0, 0) scale(0.5); }
+          100% { opacity: 0; transform: translate(35px, -35px) scale(1.2); }
+        }
+        @keyframes heart-burst-3 {
+          0% { opacity: 1; transform: translate(0, 0) scale(0.5); }
+          100% { opacity: 0; transform: translate(50px, -10px) scale(1.2); }
+        }
+      `}</style>
     </div>
   );
 };

@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { Stage, Layer, Group, Shape, Text } from 'react-konva';
 import type { Pet, PetAnimationState, ColorScheme, PetSpecies } from '../types';
 import { levelBadgeColor } from '../utils/helpers';
 
@@ -7,6 +8,7 @@ interface Props {
   animState?: PetAnimationState;
   facing?: 'left' | 'right';
   size?: number;
+  onAnimationDone?: () => void;
 }
 
 interface Palette {
@@ -57,10 +59,12 @@ function getPalette(species: PetSpecies, breed: string, scheme: ColorScheme): Pa
   return arr[scheme] ?? arr[0];
 }
 
-export const PetSprite: React.FC<Props> = ({ pet, animState = 'idle', facing = 'right', size = 180 }) => {
+const VIEW_W = 200;
+const VIEW_H = 180;
+
+export const PetSprite: React.FC<Props> = ({ pet, animState = 'idle', facing = 'right', size = 180, onAnimationDone }) => {
   const palette = useMemo(() => getPalette(pet.species, pet.breed, pet.colorScheme), [pet]);
-  const levelScale = 1 + (pet.level - 1) * 0.035;
-  const scale = levelScale;
+  const levelScale = 1 + (pet.level - 1) * 0.04;
   const isCat = pet.species === 'cat';
   const isScottish = pet.breed === 'scottish';
   const isCorgi = pet.breed === 'corgi';
@@ -68,222 +72,475 @@ export const PetSprite: React.FC<Props> = ({ pet, animState = 'idle', facing = '
   const showBow = pet.level >= 4 && isCat;
   const showCollar = pet.level >= 4 && !isCat;
 
-  const animIdle = animState === 'idle';
-  const animWalk = animState === 'walking';
-  const animEat = animState === 'eating';
-  const animPlay = animState === 'playing';
-  const animSleep = animState === 'sleeping';
-  const animDrink = animState === 'drinking';
+  const [frame, setFrame] = useState(0);
+  const animRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
 
-  const rotateY = facing === 'left' ? 'scaleX(-1)' : 'none';
+  useEffect(() => {
+    const animate = (time: number) => {
+      if (!lastTimeRef.current) lastTimeRef.current = time;
+      const dt = time - lastTimeRef.current;
+      if (dt >= 16) {
+        setFrame(f => f + 1);
+        lastTimeRef.current = time;
+      }
+      animRef.current = requestAnimationFrame(animate);
+    };
+    animRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animRef.current);
+  }, []);
 
-  const tailStyle: React.CSSProperties = {
-    transformOrigin: isCat ? '10% 50%' : '90% 50%',
-    animation: animWalk || animPlay ? `${isCat ? 'tailWag' : 'tailWag'} 0.35s ease-in-out infinite` :
-      animIdle ? `${isCat ? 'tailWag' : 'tailWag'} 1.5s ease-in-out infinite` : 'none',
-    transformBox: 'fill-box' as any,
+  const t = frame * 0.06;
+
+  const blinkScale = animState === 'sleeping' ? 0 :
+    Math.max(0.15, Math.sin(t * 0.8) > 0.98 ? 0.1 : 1);
+
+  const tailRot = animState === 'walking' || animState === 'playing' ? Math.sin(t * 4) * 25 :
+    animState === 'idle' ? Math.sin(t * 1.2) * 8 :
+    animState === 'eating' ? Math.sin(t * 3) * 12 : 0;
+
+  const bodyBob = animState === 'walking' ? Math.sin(t * 6) * 3 :
+    animState === 'idle' ? Math.sin(t * 1.5) * 1.5 :
+    animState === 'playing' ? Math.abs(Math.sin(t * 5)) * -6 : 0;
+
+  const legSwing = animState === 'walking' ? Math.sin(t * 6) * 20 :
+    animState === 'playing' ? Math.sin(t * 8) * 15 : 0;
+
+  const headTilt = animState === 'eating' || animState === 'drinking' ? 12 :
+    animState === 'playing' ? Math.sin(t * 4) * 8 : 0;
+
+  const mouthOpen = animState === 'eating' || animState === 'drinking' ? 1 : 0;
+
+  const drawStar = (ctx: any, cx: number, cy: number, spikes: number, outer: number, inner: number) => {
+    let rot = Math.PI / 2 * 3;
+    let x = cx, y = cy;
+    const step = Math.PI / spikes;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outer);
+    for (let i = 0; i < spikes; i++) {
+      x = cx + Math.cos(rot) * outer;
+      y = cy + Math.sin(rot) * outer;
+      ctx.lineTo(x, y);
+      rot += step;
+      x = cx + Math.cos(rot) * inner;
+      y = cy + Math.sin(rot) * inner;
+      ctx.lineTo(x, y);
+      rot += step;
+    }
+    ctx.lineTo(cx, cy - outer);
+    ctx.closePath();
   };
 
-  const bodyStyle: React.CSSProperties = {
-    transformOrigin: '50% 90%',
-    animation: animWalk ? 'walk 0.4s linear infinite' : animIdle ? 'bob 2.2s ease-in-out infinite' : animPlay ? 'pet-bounce 0.6s ease-in-out infinite' : 'none',
-    transformBox: 'fill-box' as any,
+  const renderBody = (ctx: any) => {
+    ctx.fillStyle = palette.body;
+    ctx.strokeStyle = palette.ears;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(100, 115, 58, 42, 0, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = palette.belly;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.ellipse(100, 140, 55, 18, 0, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
   };
 
-  const eyeStyle: React.CSSProperties = {
-    transformOrigin: '50% 50%',
-    animation: animSleep ? 'none' : 'blink 4s infinite',
-    transformBox: 'fill-box' as any,
+  const renderLeg = (ctx: any, w: number, h: number) => {
+    ctx.fillStyle = palette.body;
+    ctx.strokeStyle = palette.ears;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(-w / 2, 0, w, h, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = palette.ears;
+    ctx.beginPath();
+    ctx.ellipse(0, h + 2, w / 2 + 2, 4, 0, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
   };
 
-  const mouthRotate = animEat || animDrink ? 'rotate(10deg)' : 'none';
-  const sleepingOpacity = animSleep ? 0.9 : 1;
+  const renderTail = (ctx: any) => {
+    ctx.fillStyle = palette.body;
+    ctx.strokeStyle = palette.ears;
+    ctx.lineWidth = 1.5;
+    if (isCat) {
+      ctx.beginPath();
+      ctx.moveTo(25, 95);
+      ctx.quadraticCurveTo(5, 70, 10, 45);
+      ctx.quadraticCurveTo(15, 30, 30, 35);
+      ctx.quadraticCurveTo(28, 50, 20, 65);
+      ctx.quadraticCurveTo(18, 80, 30, 95);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (isCorgi) {
+      ctx.beginPath();
+      ctx.moveTo(170, 85);
+      ctx.lineTo(188, 78);
+      ctx.lineTo(180, 95);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(170, 90);
+      ctx.quadraticCurveTo(192, 60, 188, 40);
+      ctx.quadraticCurveTo(185, 30, 178, 35);
+      ctx.quadraticCurveTo(180, 55, 172, 80);
+      ctx.quadraticCurveTo(171, 88, 170, 90);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  };
+
+  const renderHead = (ctx: any) => {
+    ctx.fillStyle = palette.body;
+    ctx.strokeStyle = palette.ears;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(100, 68, 46, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = palette.ears;
+    ctx.lineWidth = 1.5;
+    if (isCat) {
+      if (isScottish) {
+        ctx.beginPath();
+        ctx.moveTo(68, 40);
+        ctx.quadraticCurveTo(72, 18, 90, 30);
+        ctx.quadraticCurveTo(82, 34, 75, 44);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(132, 40);
+        ctx.quadraticCurveTo(128, 18, 110, 30);
+        ctx.quadraticCurveTo(118, 34, 125, 44);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(60, 45);
+        ctx.lineTo(68, 12);
+        ctx.lineTo(86, 38);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(140, 45);
+        ctx.lineTo(132, 12);
+        ctx.lineTo(114, 38);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(58, 52);
+      ctx.quadraticCurveTo(52, 18, 78, 32);
+      ctx.quadraticCurveTo(70, 42, 64, 55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(142, 52);
+      ctx.quadraticCurveTo(148, 18, 122, 32);
+      ctx.quadraticCurveTo(130, 42, 136, 55);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = palette.belly;
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.ellipse(100, 82, 26, 20, 0, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  };
+
+  const renderEyes = (ctx: any) => {
+    if (animState === 'sleeping') {
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(80, 62);
+      ctx.quadraticCurveTo(85, 66, 90, 62);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(110, 62);
+      ctx.quadraticCurveTo(115, 66, 120, 62);
+      ctx.stroke();
+      return;
+    }
+    ctx.fillStyle = 'white';
+    ctx.strokeStyle = palette.ears;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(85, 62, 6.5, 8 * blinkScale, 0, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(115, 62, 6.5, 8 * blinkScale, 0, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    if (blinkScale > 0.5) {
+      ctx.fillStyle = palette.eyes;
+      ctx.beginPath();
+      ctx.arc(85, 63, 4, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(115, 63, 4, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.arc(86.5, 61, 1.5, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(116.5, 61, 1.5, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+  };
+
+  const renderNoseMouth = (ctx: any) => {
+    ctx.save();
+    ctx.translate(100, 76);
+    if (isCat) {
+      ctx.fillStyle = palette.nose;
+      ctx.strokeStyle = palette.nose;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(-4, 2);
+      ctx.lineTo(0, 5);
+      ctx.lineTo(4, 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = palette.nose;
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(0, 2, 5, 3.5, 0, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(100, 82);
+    if (mouthOpen) {
+      ctx.fillStyle = '#8B2252';
+      ctx.strokeStyle = '#4A1430';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(0, 3, 7, 5, 0, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#5D4037';
+      ctx.lineWidth = 1.8;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (isCat) {
+        ctx.beginPath();
+        ctx.moveTo(0, 4);
+        ctx.quadraticCurveTo(-6, 11, -11, 8);
+        ctx.moveTo(0, 4);
+        ctx.quadraticCurveTo(6, 11, 11, 8);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(-5, 4);
+        ctx.quadraticCurveTo(0, 10, 5, 4);
+        ctx.quadraticCurveTo(2, 8, 0, 8);
+        ctx.quadraticCurveTo(-2, 8, -5, 4);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+
+    if (isCat) {
+      ctx.strokeStyle = palette.ears;
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(52, 76);
+      ctx.lineTo(32, 72);
+      ctx.moveTo(52, 82);
+      ctx.lineTo(32, 84);
+      ctx.moveTo(148, 76);
+      ctx.lineTo(168, 72);
+      ctx.moveTo(148, 82);
+      ctx.lineTo(168, 84);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#FFB6C1';
+      ctx.globalAlpha = 0.45;
+      ctx.beginPath();
+      ctx.ellipse(100, 88, 10, 4, 0, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  };
+
+  const renderBow = (ctx: any) => {
+    ctx.save();
+    ctx.translate(75, 16);
+    ctx.fillStyle = '#FF6B9D';
+    ctx.strokeStyle = '#E91E63';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, 8);
+    ctx.lineTo(-16, 0);
+    ctx.lineTo(-16, 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, 8);
+    ctx.lineTo(16, 0);
+    ctx.lineTo(16, 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#E91E63';
+    ctx.beginPath();
+    ctx.arc(0, 8, 4, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+
+  const renderCollar = (ctx: any) => {
+    ctx.strokeStyle = '#D32F2F';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(70, 95);
+    ctx.quadraticCurveTo(100, 105, 130, 95);
+    ctx.stroke();
+    ctx.fillStyle = '#FFD700';
+    ctx.strokeStyle = '#DAA520';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(100, 102, 5, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  };
+
+  const renderBadge = (ctx: any) => {
+    ctx.save();
+    ctx.translate(19, -5);
+    drawStar(ctx, 19, 18, 5, 16, 7);
+    const grad = ctx.createLinearGradient(0, 0, 0, 36);
+    grad.addColorStop(0, badgeColor.shine);
+    grad.addColorStop(0.55, badgeColor.fill);
+    grad.addColorStop(1, badgeColor.stroke);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = badgeColor.stroke;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  const legW = isCorgi ? 18 : 14;
+  const legH = isCorgi ? 22 : 28;
 
   return (
-    <div style={{ position: 'relative', width: size, height: size * 0.9, transform: rotateY, transition: 'transform 0.4s ease' }}>
-      <svg viewBox="0 0 200 180" width={size} height={size * 0.9} style={{ display: 'block', opacity: sleepingOpacity }}>
-        <defs>
-          <radialGradient id={`belly-${pet.id}`} cx="50%" cy="60%" r="50%">
-            <stop offset="0%" stopColor={palette.belly} stopOpacity="1" />
-            <stop offset="100%" stopColor={palette.body} stopOpacity="0.95" />
-          </radialGradient>
-          <filter id={`soft-${pet.id}`} x="-10%" y="-10%" width="120%" height="120%">
-            <feGaussianBlur stdDeviation="0.8" />
-          </filter>
-        </defs>
+    <div style={{
+      position: 'relative',
+      width: size,
+      height: size * 0.9,
+      transform: facing === 'left' ? 'scaleX(-1)' : 'none',
+      transition: 'transform 0.4s ease',
+      opacity: animState === 'sleeping' ? 0.9 : 1,
+    }}>
+      <Stage width={size} height={size * 0.9} scaleX={size / VIEW_W * levelScale} scaleY={size / VIEW_H * levelScale}>
+        <Layer offsetX={(VIEW_W * levelScale - VIEW_W) / 2} offsetY={(VIEW_H * levelScale - VIEW_H) / 2}>
+          <Group x={isCat ? 25 : 170} y={90}>
+            <Group rotation={tailRot} offsetX={isCat ? 0 : 0} offsetY={0}>
+              <Shape sceneFunc={(ctx, shape) => { ctx.save(); ctx.translate(isCat ? -25 : -170, -90); renderTail(ctx); ctx.restore(); ctx.fillStrokeShape(shape); }} />
+            </Group>
+          </Group>
 
-        {isCat ? (
-          <>
-            <g style={tailStyle}>
-              <path d="M 25 95 Q 5 70 10 45 Q 15 30 30 35 Q 28 50 20 65 Q 18 80 30 95 Z"
-                fill={palette.body} stroke={palette.ears} strokeWidth="1.5" strokeLinejoin="round" />
-              <path d="M 22 55 Q 12 52 10 42" stroke={palette.ears} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.4" />
-            </g>
-          </>
-        ) : (
-          <>
-            <g style={tailStyle}>
-              <path d={isCorgi
-                ? "M 170 85 L 188 78 L 180 95 Z"
-                : "M 170 90 Q 192 60 188 40 Q 185 30 178 35 Q 180 55 172 80 Q 171 88 170 90 Z"}
-                fill={palette.body} stroke={palette.ears} strokeWidth="1.5" strokeLinejoin="round" />
-            </g>
-          </>
-        )}
+          <Group y={bodyBob}>
+            <Shape sceneFunc={(ctx, shape) => { renderBody(ctx); ctx.fillStrokeShape(shape); }} />
 
-        <g style={bodyStyle}>
-          <ellipse cx="100" cy="115" rx="58" ry="42" fill={`url(#belly-${pet.id})`} stroke={palette.ears} strokeWidth="2.5" />
+            <Group x={60} y={140}>
+              <Group rotation={-legSwing}>
+                <Shape sceneFunc={(ctx, shape) => { renderLeg(ctx, legW, legH); ctx.fillStrokeShape(shape); }} />
+              </Group>
+            </Group>
 
-          <ellipse cx="100" cy="140" rx="55" ry="18" fill={palette.belly} opacity="0.7" />
+            <Group x={133} y={140}>
+              <Group rotation={legSwing}>
+                <Shape sceneFunc={(ctx, shape) => { renderLeg(ctx, legW, legH); ctx.fillStrokeShape(shape); }} />
+              </Group>
+            </Group>
 
-          {!isCorgi && (
-            <>
-              <rect x="60" y="140" width="14" height="28" rx="6" fill={palette.body} stroke={palette.ears} strokeWidth="2" />
-              <rect x="126" y="140" width="14" height="28" rx="6" fill={palette.body} stroke={palette.ears} strokeWidth="2" />
-              <ellipse cx="67" cy="170" rx="9" ry="4" fill={palette.ears} />
-              <ellipse cx="133" cy="170" rx="9" ry="4" fill={palette.ears} />
-            </>
-          )}
-          {isCorgi && (
-            <>
-              <rect x="58" y="142" width="18" height="22" rx="6" fill={palette.body} stroke={palette.ears} strokeWidth="2" />
-              <rect x="124" y="142" width="18" height="22" rx="6" fill={palette.body} stroke={palette.ears} strokeWidth="2" />
-              <ellipse cx="67" cy="166" rx="11" ry="4" fill={palette.ears} />
-              <ellipse cx="133" cy="166" rx="11" ry="4" fill={palette.ears} />
-            </>
-          )}
+            <Group x={72} y={138}>
+              <Group rotation={legSwing}>
+                <Shape sceneFunc={(ctx, shape) => { renderLeg(ctx, legW, legH); ctx.fillStrokeShape(shape); }} />
+              </Group>
+            </Group>
 
-          <g transform="translate(0, 0)">
-            <circle cx="100" cy="68" r="46" fill={palette.body} stroke={palette.ears} strokeWidth="2.5" />
+            <Group x={120} y={138}>
+              <Group rotation={-legSwing}>
+                <Shape sceneFunc={(ctx, shape) => { renderLeg(ctx, legW, legH); ctx.fillStrokeShape(shape); }} />
+              </Group>
+            </Group>
 
-            {isCat ? (
-              isScottish ? (
-                <>
-                  <path d="M 68 40 Q 72 18 90 30 Q 82 34 75 44 Z" fill={palette.ears} stroke={palette.ears} strokeWidth="1.5" strokeLinejoin="round" />
-                  <path d="M 132 40 Q 128 18 110 30 Q 118 34 125 44 Z" fill={palette.ears} stroke={palette.ears} strokeWidth="1.5" strokeLinejoin="round" />
-                  <path d="M 70 45 Q 72 28 85 36" stroke={palette.body} strokeWidth="2" fill="none" opacity="0.6" strokeLinecap="round" />
-                  <path d="M 130 45 Q 128 28 115 36" stroke={palette.body} strokeWidth="2" fill="none" opacity="0.6" strokeLinecap="round" />
-                </>
-              ) : (
-                <>
-                  <path d="M 60 45 L 68 12 L 86 38 Z" fill={palette.ears} stroke={palette.ears} strokeWidth="1.5" strokeLinejoin="round" />
-                  <path d="M 140 45 L 132 12 L 114 38 Z" fill={palette.ears} stroke={palette.ears} strokeWidth="1.5" strokeLinejoin="round" />
-                  <path d="M 64 40 L 70 20 L 80 36 Z" fill={palette.body} opacity="0.5" />
-                  <path d="M 136 40 L 130 20 L 120 36 Z" fill={palette.body} opacity="0.5" />
-                </>
-              )
-            ) : (
-              <>
-                <path d="M 58 52 Q 52 18 78 32 Q 70 42 64 55 Z" fill={palette.ears} stroke={palette.ears} strokeWidth="1.5" strokeLinejoin="round" />
-                <path d="M 142 52 Q 148 18 122 32 Q 130 42 136 55 Z" fill={palette.ears} stroke={palette.ears} strokeWidth="1.5" strokeLinejoin="round" />
-              </>
-            )}
+            <Group x={100} y={68}>
+              <Group rotation={headTilt}>
+                <Shape sceneFunc={(ctx, shape) => { ctx.save(); ctx.translate(-100, -68); renderHead(ctx); ctx.restore(); ctx.fillStrokeShape(shape); }} />
 
-            {showBow && (
-              <g transform="translate(75, 16)">
-                <path d="M 0 8 L -16 0 L -16 16 Z" fill="#FF6B9D" stroke="#E91E63" strokeWidth="1.5" />
-                <path d="M 0 8 L 16 0 L 16 16 Z" fill="#FF6B9D" stroke="#E91E63" strokeWidth="1.5" />
-                <circle cx="0" cy="8" r="4" fill="#E91E63" />
-              </g>
-            )}
-            {showCollar && (
-              <g>
-                <path d="M 70 95 Q 100 105 130 95" stroke="#D32F2F" strokeWidth="5" fill="none" strokeLinecap="round" />
-                <circle cx="100" cy="102" r="5" fill="#FFD700" stroke="#DAA520" strokeWidth="1.5" />
-              </g>
-            )}
+                {showBow && <Shape sceneFunc={(ctx, shape) => { ctx.save(); ctx.translate(-100, -68); renderBow(ctx); ctx.restore(); ctx.fillStrokeShape(shape); }} />}
+                {showCollar && <Shape sceneFunc={(ctx, shape) => { ctx.save(); ctx.translate(-100, -68); renderCollar(ctx); ctx.restore(); ctx.fillStrokeShape(shape); }} />}
 
-            <ellipse cx="100" cy="82" rx="26" ry="20" fill={palette.belly} opacity="0.6" />
+                <Shape sceneFunc={(ctx, shape) => { ctx.save(); ctx.translate(-100, -68); renderEyes(ctx); ctx.restore(); ctx.fillStrokeShape(shape); }} />
+                <Shape sceneFunc={(ctx, shape) => { ctx.save(); ctx.translate(-100, -68); renderNoseMouth(ctx); ctx.restore(); ctx.fillStrokeShape(shape); }} />
+              </Group>
+            </Group>
 
-            <g style={eyeStyle}>
-              {animSleep ? (
-                <>
-                  <path d="M 80 62 Q 85 66 90 62" stroke="#333" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                  <path d="M 110 62 Q 115 66 120 62" stroke="#333" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                </>
-              ) : (
-                <>
-                  <ellipse cx="85" cy="62" rx="6.5" ry="8" fill="white" stroke={palette.ears} strokeWidth="1.5" />
-                  <ellipse cx="115" cy="62" rx="6.5" ry="8" fill="white" stroke={palette.ears} strokeWidth="1.5" />
-                  <circle cx="85" cy="63" r="4" fill={palette.eyes} />
-                  <circle cx="115" cy="63" r="4" fill={palette.eyes} />
-                  <circle cx="86.5" cy="61" r="1.5" fill="white" />
-                  <circle cx="116.5" cy="61" r="1.5" fill="white" />
-                </>
-              )}
-            </g>
+            <Shape sceneFunc={(ctx, shape) => { renderBadge(ctx); ctx.fillStrokeShape(shape); }} />
+            <Text x={14} y={10} text={String(pet.level)} fontSize={11} fontFamily="Arial" fontWeight="bold" fill={pet.level <= 3 ? '#FFF' : '#5D4037'} align="center" width={18} />
+          </Group>
+        </Layer>
+      </Stage>
 
-            <g transform="translate(100, 76)">
-              {isCat ? (
-                <path d="M -4 2 L 0 5 L 4 2 Z" fill={palette.nose} stroke={palette.nose} strokeWidth="0.5" strokeLinejoin="round" />
-              ) : (
-                <ellipse cx="0" cy="2" rx="5" ry="3.5" fill={palette.nose} stroke="#222" strokeWidth="1" />
-              )}
-            </g>
-
-            <g transform="translate(100, 82)" style={{ transformOrigin: '50% 0%', transform: mouthRotate, transition: 'transform 0.2s' }}>
-              {animEat || animDrink ? (
-                <ellipse cx="0" cy="3" rx="7" ry="5" fill="#8B2252" stroke="#4A1430" strokeWidth="1" />
-              ) : (
-                <>
-                  {isCat ? (
-                    <path d="M 0 4 Q -6 11 -11 8 M 0 4 Q 6 11 11 8" stroke="#5D4037" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-                  ) : (
-                    <path d="M -5 4 Q 0 10 5 4 Q 2 8 0 8 Q -2 8 -5 4" stroke="#5D4037" strokeWidth="1.8" fill="none" strokeLinejoin="round" />
-                  )}
-                </>
-              )}
-            </g>
-
-            {isCat ? (
-              <>
-                <line x1="52" y1="76" x2="32" y2="72" stroke={palette.ears} strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="52" y1="82" x2="32" y2="84" stroke={palette.ears} strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="148" y1="76" x2="168" y2="72" stroke={palette.ears} strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="148" y1="82" x2="168" y2="84" stroke={palette.ears} strokeWidth="1.5" strokeLinecap="round" />
-              </>
-            ) : (
-              <ellipse cx="100" cy="88" rx="10" ry="4" fill="#FFB6C1" opacity="0.45" />
-            )}
-          </g>
-        </g>
-      </svg>
-
-      <div style={{
-        position: 'absolute',
-        top: -8,
-        left: '50%',
-        transform: `translateX(-50%) scale(${scale})`,
-        pointerEvents: 'none',
-        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-      }}>
-        <svg width="38" height="36" viewBox="0 0 38 36">
-          <defs>
-            <linearGradient id={`bdg-${pet.id}`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={badgeColor.shine} />
-              <stop offset="55%" stopColor={badgeColor.fill} />
-              <stop offset="100%" stopColor={badgeColor.stroke} />
-            </linearGradient>
-          </defs>
-          <path
-            d="M19 2 L23 13 L35 13 L25 21 L29 33 L19 26 L9 33 L13 21 L3 13 L15 13 Z"
-            fill={`url(#bdg-${pet.id})`}
-            stroke={badgeColor.stroke}
-            strokeWidth="1.5"
-            strokeLinejoin="round"
-          />
-          <text x="19" y="22" textAnchor="middle" fontFamily="var(--font-cartoon)" fontSize="11" fill={pet.level <= 3 ? '#FFF' : '#5D4037'} fontWeight="700">
-            {pet.level}
-          </text>
-        </svg>
-      </div>
-
-      {animSleep && (
+      {animState === 'sleeping' && (
         <div style={{
           position: 'absolute', top: 15, right: 10,
           fontSize: 22, fontWeight: 700,
           color: '#7E57C2', fontFamily: 'var(--font-cartoon)',
           animation: 'float-up 2.5s ease-out infinite',
+          transform: facing === 'left' ? 'scaleX(-1)' : 'none',
         }}>Z</div>
       )}
     </div>
