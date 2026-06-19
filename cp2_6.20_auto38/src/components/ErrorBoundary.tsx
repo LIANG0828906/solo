@@ -30,12 +30,12 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <div className="error-boundary-fallback">
+        <div className="error-boundary">
           <h2>出了点问题</h2>
-          <p className="error-boundary-message">
+          <p>
             {this.state.error?.message ?? '未知错误'}
           </p>
-          <button className="error-boundary-retry" onClick={this.handleRetry}>
+          <button onClick={this.handleRetry}>
             重试
           </button>
         </div>

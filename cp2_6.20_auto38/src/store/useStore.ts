@@ -64,7 +64,7 @@ export const useStore = create<StoreState>((set, get) => ({
     if (!currentAssignment) return;
     set({ isEvaluating: true, error: null });
     try {
-      const res = await fetch('/api/evaluate', {
+      const res = await fetch(`/api/assignments/${currentAssignment.id}/evaluate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

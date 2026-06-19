@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { useStore } from '../store/useStore';
-import AssignmentCard from '../components/AssignmentCard';
 import Loading from '../components/Loading';
+
+const AssignmentCard = lazy(() => import('../components/AssignmentCard'));
 
 export default function HomePage() {
   const { assignments, isLoading, fetchAssignments } = useStore();
@@ -25,9 +26,11 @@ export default function HomePage() {
         </div>
       ) : (
         <div className="assignment-grid">
-          {assignments.map((assignment) => (
-            <AssignmentCard key={assignment.id} assignment={assignment} />
-          ))}
+          <Suspense fallback={<Loading />}>
+            {assignments.map((assignment) => (
+              <AssignmentCard key={assignment.id} assignment={assignment} />
+            ))}
+          </Suspense>
         </div>
       )}
     </div>
