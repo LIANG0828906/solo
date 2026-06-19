@@ -1,4 +1,4 @@
-import React, { useState, useMemo, memo } from 'react'
+import React, { useState, useMemo, memo, useCallback } from 'react'
 import type { ColorScheme, SortType } from '../types'
 
 interface SchemeLibraryProps {
@@ -19,6 +19,7 @@ const SchemeLibrary: React.FC<SchemeLibraryProps> = ({
   const [searchTerm, setSearchTerm] = useState('')
   const [tagFilter, setTagFilter] = useState('')
   const [sortBy, setSortBy] = useState<SortType>('date')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const allTags = useMemo(() => {
     const tags = new Set<string>()
@@ -52,6 +53,35 @@ const SchemeLibrary: React.FC<SchemeLibraryProps> = ({
     return sorted
   }, [schemes, searchTerm, tagFilter, sortBy])
 
+  const handleDelete = useCallback(
+    (id: string) => {
+      setDeletingId(id)
+      setTimeout(() => {
+        onDelete(id)
+        setDeletingId(null)
+      }, 250)
+    },
+    [onDelete]
+  )
+
+  const highlightText = useCallback(
+    (text: string, term: string) => {
+      if (!term) return text
+      const regex = new RegExp(`(${term})`, 'gi')
+      const parts = text.split(regex)
+      return parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="highlight">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )
+    },
+    []
+  )
+
   if (schemes.length === 0) {
     return (
       <div className="empty-state glass">
@@ -63,7 +93,7 @@ const SchemeLibrary: React.FC<SchemeLibraryProps> = ({
 
   return (
     <div>
-      <div className="library-toolbar">
+      <div className="library-toolbar glass">
         <input
           type="text"
           placeholder="搜索方案名称或标签..."
@@ -97,24 +127,32 @@ const SchemeLibrary: React.FC<SchemeLibraryProps> = ({
           {filteredAndSortedSchemes.map((scheme) => (
             <div
               key={scheme.id}
-              className="glass scheme-card"
+              className={`glass scheme-card ${
+                deletingId === scheme.id ? 'card-removing' : ''
+              }`}
               onClick={() => onApply(scheme)}
             >
               <div
                 className="scheme-main-color"
                 style={{ backgroundColor: scheme.colors[0]?.hex || '#333' }}
-              />
+              >
+                <span className="scheme-color-hex">{scheme.colors[0]?.hex}</span>
+              </div>
               <div className="scheme-mini-colors">
                 {scheme.colors.slice(1, 5).map((c) => (
-                  <div key={c.id} style={{ backgroundColor: c.hex }} />
+                  <div
+                    key={c.id}
+                    style={{ backgroundColor: c.hex }}
+                    title={c.hex}
+                  />
                 ))}
               </div>
               <div className="scheme-info">
-                <h4>{scheme.name}</h4>
+                <h4>{highlightText(scheme.name, searchTerm)}</h4>
                 <div className="scheme-tags">
                   {scheme.tags.map((tag) => (
                     <span key={tag} className="tag">
-                      {tag}
+                      {highlightText(tag, searchTerm)}
                     </span>
                   ))}
                 </div>
@@ -145,9 +183,10 @@ const SchemeLibrary: React.FC<SchemeLibraryProps> = ({
                   分享
                 </button>
                 <button
+                  className="delete-btn"
                   onClick={(e) => {
                     e.stopPropagation()
-                    onDelete(scheme.id)
+                    handleDelete(scheme.id)
                   }}
                 >
                   删除

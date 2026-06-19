@@ -10,17 +10,22 @@ interface SwatchListProps {
 const SwatchList: React.FC<SwatchListProps> = ({ colors, onReorder, onDelete }) => {
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
   const dragIndex = useRef<number>(-1)
 
   const handleDragStart = (e: React.DragEvent, color: ColorData, index: number) => {
     setDraggedId(color.id)
     dragIndex.current = index
     e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', color.id)
   }
 
   const handleDragOver = (e: React.DragEvent, colorId: string) => {
     e.preventDefault()
-    setDragOverId(colorId)
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverId !== colorId) {
+      setDragOverId(colorId)
+    }
   }
 
   const handleDragLeave = () => {
@@ -29,7 +34,7 @@ const SwatchList: React.FC<SwatchListProps> = ({ colors, onReorder, onDelete }) 
 
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault()
-    if (dragIndex.current === dropIndex) {
+    if (dragIndex.current === dropIndex || dragIndex.current === -1) {
       setDraggedId(null)
       setDragOverId(null)
       return
@@ -51,6 +56,14 @@ const SwatchList: React.FC<SwatchListProps> = ({ colors, onReorder, onDelete }) 
     dragIndex.current = -1
   }
 
+  const handleDelete = (id: string) => {
+    setRemovingId(id)
+    setTimeout(() => {
+      onDelete(id)
+      setRemovingId(null)
+    }, 250)
+  }
+
   return (
     <div className="glass swatch-section">
       <h3>当前调色板 ({colors.length}/5)</h3>
@@ -58,7 +71,7 @@ const SwatchList: React.FC<SwatchListProps> = ({ colors, onReorder, onDelete }) 
         {colors.map((color, index) => (
           <div
             key={color.id}
-            draggable
+            draggable={removingId !== color.id}
             onDragStart={(e) => handleDragStart(e, color, index)}
             onDragOver={(e) => handleDragOver(e, color.id)}
             onDragLeave={handleDragLeave}
@@ -66,15 +79,18 @@ const SwatchList: React.FC<SwatchListProps> = ({ colors, onReorder, onDelete }) 
             onDragEnd={handleDragEnd}
             className={`swatch-item ${draggedId === color.id ? 'dragging' : ''} ${
               dragOverId === color.id ? 'drag-over' : ''
-            }`}
+            } ${removingId === color.id ? 'removing' : ''}`}
             style={{ backgroundColor: color.hex }}
             title={`${color.hex} - ${color.hsl.h}°, ${color.hsl.s}%, ${color.hsl.l}%`}
           >
+            <div className="swatch-info">
+              <span className="swatch-hex">{color.hex}</span>
+            </div>
             <button
               className="swatch-delete"
               onClick={(e) => {
                 e.stopPropagation()
-                onDelete(color.id)
+                handleDelete(color.id)
               }}
             >
               ×

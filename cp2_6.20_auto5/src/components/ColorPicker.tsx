@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useMemo, useEffect } from 'react'
+import React, { useRef, useCallback, useMemo, useEffect, useState } from 'react'
 import { hsl } from 'd3-color'
 import type { ColorData } from '../types'
 import { isValidHex, hexToColorData, rgbToHex } from '../utils/colorHarmony'
@@ -21,6 +21,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, onAddColor }
   const svRef = useRef<HTMLDivElement>(null)
   const isDraggingHue = useRef(false)
   const isDraggingSV = useRef(false)
+  const [copyFeedback, setCopyFeedback] = useState('')
 
   const huePosition = useMemo(() => {
     const angle = color.hsl.h
@@ -149,46 +150,86 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, onAddColor }
     onChange(hexToColorData(rgbToHex(newRgb.r, newRgb.g, newRgb.b)))
   }
 
+  const handleHslChange = (channel: 'h' | 's' | 'l', value: string) => {
+    const numValue = parseInt(value, 10)
+    if (isNaN(numValue)) return
+
+    const { h, s, l } = color.hsl
+    let newH = h
+    let newS = s
+    let newL = l
+
+    if (channel === 'h') {
+      newH = Math.max(0, Math.min(360, numValue))
+    } else if (channel === 's') {
+      newS = Math.max(0, Math.min(100, numValue))
+    } else if (channel === 'l') {
+      newL = Math.max(0, Math.min(100, numValue))
+    }
+
+    const newColor = hexToColorData(hsl(newH, newS / 100, newL / 100).hex())
+    onChange(newColor)
+  }
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopyFeedback(label)
+      setTimeout(() => setCopyFeedback(''), 1500)
+    } catch {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      setCopyFeedback(label)
+      setTimeout(() => setCopyFeedback(''), 1500)
+    }
+  }
+
   return (
     <div className="picker-section">
-      <div className="color-picker-container">
-        <div
-          ref={hueRef}
-          className="hue-ring"
-          onPointerDown={handleHuePointerDown}
-          onPointerMove={handleHuePointerMove}
-          onPointerUp={handleHuePointerUp}
-          onPointerCancel={handleHuePointerUp}
-        >
+      <div className="color-picker-container glass">
+        <div className="picker-panels">
           <div
-            className="hue-handle"
-            style={{
-              left: huePosition.x,
-              top: huePosition.y,
-              backgroundColor: hueColor
-            }}
-          />
-        </div>
+            ref={hueRef}
+            className="hue-ring"
+            onPointerDown={handleHuePointerDown}
+            onPointerMove={handleHuePointerMove}
+            onPointerUp={handleHuePointerUp}
+            onPointerCancel={handleHuePointerUp}
+          >
+            <div
+              className="hue-handle"
+              style={{
+                left: huePosition.x,
+                top: huePosition.y,
+                backgroundColor: hueColor
+              }}
+            />
+          </div>
 
-        <div
-          ref={svRef}
-          className="sv-panel"
-          style={{ backgroundColor: hueColor }}
-          onPointerDown={handleSVPointerDown}
-          onPointerMove={handleSVPointerMove}
-          onPointerUp={handleSVPointerUp}
-          onPointerCancel={handleSVPointerUp}
-        >
-          <div className="sv-panel-white" />
-          <div className="sv-panel-black" />
           <div
-            className="sv-handle"
-            style={{
-              left: svPosition.x,
-              top: svPosition.y,
-              backgroundColor: color.hex
-            }}
-          />
+            ref={svRef}
+            className="sv-panel"
+            style={{ backgroundColor: hueColor }}
+            onPointerDown={handleSVPointerDown}
+            onPointerMove={handleSVPointerMove}
+            onPointerUp={handleSVPointerUp}
+            onPointerCancel={handleSVPointerUp}
+          >
+            <div className="sv-panel-white" />
+            <div className="sv-panel-black" />
+            <div
+              className="sv-handle"
+              style={{
+                left: svPosition.x,
+                top: svPosition.y,
+                backgroundColor: color.hex
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -196,16 +237,33 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, onAddColor }
         <div
           className="color-preview"
           style={{ backgroundColor: color.hex }}
-        />
-        <div className="input-group">
-          <label>HEX</label>
-          <input
-            type="text"
-            value={color.hex}
-            onChange={handleHexChange}
-            maxLength={7}
-          />
+          onClick={() => copyToClipboard(color.hex, 'HEX')}
+          title="点击复制HEX值"
+        >
+          {copyFeedback && <span className="copy-badge">已复制 {copyFeedback}</span>}
         </div>
+
+        <div className="color-value-row">
+          <div className="input-group">
+            <label>HEX</label>
+            <div className="input-with-btn">
+              <input
+                type="text"
+                value={color.hex}
+                onChange={handleHexChange}
+                maxLength={7}
+              />
+              <button
+                className="copy-btn"
+                onClick={() => copyToClipboard(color.hex, 'HEX')}
+                title="复制"
+              >
+                📋
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="input-group">
           <label>RGB</label>
           <div className="rgb-inputs">
@@ -238,12 +296,40 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange, onAddColor }
             </div>
           </div>
         </div>
+
         <div className="input-group">
           <label>HSL</label>
-          <div style={{ fontFamily: 'Consolas, monospace', fontSize: '14px' }}>
-            {color.hsl.h}°, {color.hsl.s}%, {color.hsl.l}%
+          <div className="rgb-inputs">
+            <div className="input-group">
+              <input
+                type="number"
+                value={color.hsl.h}
+                onChange={(e) => handleHslChange('h', e.target.value)}
+                min={0}
+                max={360}
+              />
+            </div>
+            <div className="input-group">
+              <input
+                type="number"
+                value={color.hsl.s}
+                onChange={(e) => handleHslChange('s', e.target.value)}
+                min={0}
+                max={100}
+              />
+            </div>
+            <div className="input-group">
+              <input
+                type="number"
+                value={color.hsl.l}
+                onChange={(e) => handleHslChange('l', e.target.value)}
+                min={0}
+                max={100}
+              />
+            </div>
           </div>
         </div>
+
         <button
           className="btn btn-primary"
           onClick={() => onAddColor(color)}
