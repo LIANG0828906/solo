@@ -14,7 +14,7 @@ export const useToast = () => {
     setToasts((prev) => [...prev, { id, message }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 2000);
+    }, 3000);
   }, []);
 
   return { toasts, showToast };

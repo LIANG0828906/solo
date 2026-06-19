@@ -34,15 +34,15 @@ export const ComponentSandbox: React.FC<ComponentSandboxProps> = ({
   const renderPreview = () => {
     switch (component.id) {
       case 'button':
-        return <PreviewButton {...props} />;
+        return <PreviewButton {...(props as any)} />;
       case 'input':
-        return <PreviewInput {...props} />;
+        return <PreviewInput {...(props as any)} />;
       case 'card':
-        return <PreviewCard {...props} />;
+        return <PreviewCard {...(props as any)} />;
       case 'switch':
-        return <PreviewSwitch {...props} />;
+        return <PreviewSwitch {...(props as any)} />;
       case 'tag':
-        return <PreviewTag {...props} />;
+        return <PreviewTag {...(props as any)} />;
       default:
         return null;
     }

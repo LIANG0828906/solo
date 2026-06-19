@@ -72,17 +72,32 @@ export const ComponentList: React.FC<ComponentListProps> = ({ components, select
                 }
               }}
             >
-              <Icon
-                icon={comp.icon}
-                width={20}
-                height={20}
-                color={isActive ? '#89b4fa' : '#a6adc8'}
-              />
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: isActive ? 'rgba(137, 180, 250, 0.15)' : 'rgba(79, 84, 92, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0,
+                }}
+              >
+                <Icon
+                  icon={comp.icon}
+                  width={18}
+                  height={18}
+                  color={isActive ? '#89b4fa' : '#a6adc8'}
+                />
+              </div>
               <span
                 style={{
                   fontSize: '14px',
                   color: isActive ? '#cdd6f4' : '#a6adc8',
                   fontWeight: isActive ? 500 : 400,
+                  flex: 1,
                 }}
               >
                 {comp.name}

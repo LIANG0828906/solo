@@ -80,6 +80,23 @@ const App: React.FC = () => {
     [selectedId, triggerAnim]
   );
 
+  const handleReset = useCallback(() => {
+    const comp = getComponentById(selectedId);
+    if (!comp) return;
+    setPropsMap((prev) => ({
+      ...prev,
+      [selectedId]: {
+        ...comp.defaultProps,
+      },
+    }));
+    setPresetIndexMap((prev) => ({
+      ...prev,
+      [selectedId]: 0,
+    }));
+    triggerAnim(true);
+    showToast('已重置为默认值');
+  }, [selectedId, triggerAnim, showToast]);
+
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth < 1024;
@@ -188,6 +205,7 @@ const App: React.FC = () => {
             props={currentProps}
             onPropChange={handlePropChange}
             onPresetSelect={handlePresetSelect}
+            onReset={handleReset}
             currentPresetIndex={currentPresetIndex}
           />
         )}
@@ -242,6 +260,7 @@ const App: React.FC = () => {
                   props={currentProps}
                   onPropChange={handlePropChange}
                   onPresetSelect={handlePresetSelect}
+                  onReset={handleReset}
                   currentPresetIndex={currentPresetIndex}
                 />
               </div>

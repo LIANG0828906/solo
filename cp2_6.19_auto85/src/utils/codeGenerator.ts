@@ -1,4 +1,4 @@
-const formatValue = (key: string, value: any): string => {
+const formatValue = (_key: string, value: any): string => {
   if (typeof value === 'string') {
     return `"${value.replace(/"/g, '\\"')}"`;
   }

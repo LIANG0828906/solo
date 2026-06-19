@@ -20,7 +20,7 @@ export const CodeExport: React.FC<CodeExportProps> = ({ componentId, props, onTo
   const handleCopy = async () => {
     const ok = await copy(code);
     if (ok) {
-      onToast('已复制');
+      onToast('已复制到剪贴板');
     }
   };
 

@@ -8,16 +8,15 @@ interface ControlPanelProps {
   props: Record<string, any>;
   onPropChange: (key: string, value: any) => void;
   onPresetSelect: (presetIndex: number) => void;
+  onReset: () => void;
   currentPresetIndex: number;
 }
 
-interface ColorPickerWrapProps {
+const ColorPickerWrap: React.FC<{
   label: string;
   value: string;
   onChange: (val: string) => void;
-}
-
-const ColorPickerWrap: React.FC<ColorPickerWrapProps> = ({ label, value, onChange }) => {
+}> = ({ label, value, onChange }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -55,13 +54,24 @@ const ColorPickerWrap: React.FC<ColorPickerWrapProps> = ({ label, value, onChang
             gap: '8px',
           }}
         >
-          <span style={{ fontSize: '12px', color: '#a6adc8', fontFamily: 'monospace' }}>{value}</span>
+          <span
+            style={{
+              fontSize: '12px',
+              color: '#a6adc8',
+              fontFamily: 'monospace',
+            }}
+          >
+            {value}
+          </span>
           <div
             style={{
               width: '22px',
               height: '22px',
               borderRadius: '50%',
-              backgroundColor: value.startsWith('rgba') || value.startsWith('#') ? value : '#89b4fa',
+              backgroundColor:
+                value.startsWith('rgba') || value.startsWith('#')
+                  ? value
+                  : '#89b4fa',
               border: '2px solid #45475a',
               boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)',
             }}
@@ -83,20 +93,21 @@ const ColorPickerWrap: React.FC<ColorPickerWrapProps> = ({ label, value, onChang
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
           }}
         >
-          <HexColorPicker color={value.startsWith('#') ? value : '#89b4fa'} onChange={onChange} />
+          <HexColorPicker
+            color={value.startsWith('#') ? value : '#89b4fa'}
+            onChange={onChange}
+          />
         </div>
       )}
     </div>
   );
 };
 
-interface SliderControlProps {
+const SliderControl: React.FC<{
   def: PropDefinition;
   value: number;
   onChange: (val: number) => void;
-}
-
-const SliderControl: React.FC<SliderControlProps> = ({ def, value, onChange }) => {
+}> = ({ def, value, onChange }) => {
   const min = def.min ?? 0;
   const max = def.max ?? 100;
   const step = def.step ?? 1;
@@ -123,10 +134,18 @@ const SliderControl: React.FC<SliderControlProps> = ({ def, value, onChange }) =
             borderRadius: '4px',
           }}
         >
-          {value}{def.unit ?? ''}
+          {value}
+          {def.unit ?? ''}
         </span>
       </div>
-      <div style={{ position: 'relative', height: '20px', display: 'flex', alignItems: 'center' }}>
+      <div
+        style={{
+          position: 'relative',
+          height: '20px',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
         <div
           style={{
             position: 'absolute',
@@ -165,8 +184,8 @@ const SliderControl: React.FC<SliderControlProps> = ({ def, value, onChange }) =
         <div
           style={{
             position: 'absolute',
-            left: `calc(${pct}% - 8px`,
-            transform: `translateX(${pct}%) translateX(-8px)`,
+            left: `${pct}%`,
+            transform: 'translateX(-50%)',
             width: '16px',
             height: '16px',
             borderRadius: '50%',
@@ -181,13 +200,11 @@ const SliderControl: React.FC<SliderControlProps> = ({ def, value, onChange }) =
   );
 };
 
-interface SelectControlProps {
+const SelectControl: React.FC<{
   def: PropDefinition;
   value: string;
   onChange: (val: string) => void;
-}
-
-const SelectControl: React.FC<SelectControlProps> = ({ def, value, onChange }) => {
+}> = ({ def, value, onChange }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -237,7 +254,10 @@ const SelectControl: React.FC<SelectControlProps> = ({ def, value, onChange }) =
             width={14}
             height={14}
             color="#a6adc8"
-            style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}
+            style={{
+              transform: open ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s ease',
+            }}
           />
         </div>
       </div>
@@ -274,9 +294,7 @@ const SelectControl: React.FC<SelectControlProps> = ({ def, value, onChange }) =
               }}
             />
           </div>
-          <div
-            style={{ maxHeight: '180px', overflowY: 'auto' }}
-          >
+          <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
             {filtered.length === 0 ? (
               <div
                 style={{
@@ -290,29 +308,33 @@ const SelectControl: React.FC<SelectControlProps> = ({ def, value, onChange }) =
               </div>
             ) : (
               filtered.map((opt) => (
-              <div
-                key={opt.value}
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                  setSearch('');
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 12px',
-                  fontSize: '13px',
-                  color: opt.value === value ? '#89b4fa' : '#cdd6f4',
-                  backgroundColor: opt.value === value ? '#313244' : 'transparent',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.15s ease',
-                }}
-              >
-                {opt.value && <Icon icon={opt.value} width={14} height={14} />}
-                <span>{opt.label}</span>
-              </div>
-            )))}
+                <div
+                  key={opt.value}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    fontSize: '13px',
+                    color: opt.value === value ? '#89b4fa' : '#cdd6f4',
+                    backgroundColor:
+                      opt.value === value ? '#313244' : 'transparent',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  {opt.value && (
+                    <Icon icon={opt.value} width={14} height={14} />
+                  )}
+                  <span>{opt.label}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -320,13 +342,11 @@ const SelectControl: React.FC<SelectControlProps> = ({ def, value, onChange }) =
   );
 };
 
-interface TextControlProps {
+const TextControl: React.FC<{
   def: PropDefinition;
   value: string;
   onChange: (val: string) => void;
-}
-
-const TextControl: React.FC<TextControlProps> = ({ def, value, onChange }) => {
+}> = ({ def, value, onChange }) => {
   return (
     <div>
       <div
@@ -359,13 +379,11 @@ const TextControl: React.FC<TextControlProps> = ({ def, value, onChange }) => {
   );
 };
 
-interface BooleanControlProps {
+const BooleanControl: React.FC<{
   def: PropDefinition;
   value: boolean;
   onChange: (val: boolean) => void;
-}
-
-const BooleanControl: React.FC<BooleanControlProps> = ({ def, value, onChange }) => {
+}> = ({ def, value, onChange }) => {
   return (
     <div
       style={{
@@ -400,7 +418,7 @@ const BooleanControl: React.FC<BooleanControlProps> = ({ def, value, onChange })
           }}
         />
       </div>
-      </div>
+    </div>
   );
 };
 
@@ -409,6 +427,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   props,
   onPropChange,
   onPresetSelect,
+  onReset,
   currentPresetIndex,
 }) => {
   const grouped = useMemo(() => {
@@ -483,19 +502,49 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     >
       <div
         style={{
-          padding: '20px 16px',
+          padding: '16px',
           borderBottom: '1px solid #313244',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
         }}
       >
         <h2 style={{ fontSize: '16px', fontWeight: 600, color: '#cdd6f4' }}>
           属性面板
         </h2>
+        <button
+          onClick={onReset}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            fontSize: '12px',
+            borderRadius: '6px',
+            border: '1px solid #45475a',
+            cursor: 'pointer',
+            backgroundColor: '#313244',
+            color: '#a6adc8',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#45475a';
+            e.currentTarget.style.color = '#f38ba8';
+            e.currentTarget.style.borderColor = '#f38ba8';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#313244';
+            e.currentTarget.style.color = '#a6adc8';
+            e.currentTarget.style.borderColor = '#45475a';
+          }}
+        >
+          <Icon icon="mdi:refresh" width={14} height={14} />
+          <span>重置</span>
+        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-        <div
-          style={{ marginBottom: '20px' }}
-        >
+        <div style={{ marginBottom: '20px' }}>
           <div
             style={{
               fontSize: '12px',
@@ -510,10 +559,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
           <div
             style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '6px',
-          }}
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '6px',
+            }}
           >
             {component.presets.map((preset, idx) => (
               <button
@@ -525,8 +574,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                   borderRadius: '6px',
                   border: 'none',
                   cursor: 'pointer',
-                  backgroundColor: currentPresetIndex === idx ? '#89b4fa' : '#313244',
-                  color: currentPresetIndex === idx ? '#1e1e2e' : '#cdd6f4',
+                  backgroundColor:
+                    currentPresetIndex === idx ? '#89b4fa' : '#313244',
+                  color:
+                    currentPresetIndex === idx ? '#1e1e2e' : '#cdd6f4',
                   fontWeight: currentPresetIndex === idx ? 600 : 400,
                   transition: 'all 0.2s ease',
                 }}
@@ -559,14 +610,20 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             >
               {category}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
               {propDefs.map((def) => (
                 <div key={def.key}>{renderControl(def)}</div>
               ))}
             </div>
           </div>
-        </div>
+        ))}
       </div>
-      </div>
+    </div>
   );
 };
