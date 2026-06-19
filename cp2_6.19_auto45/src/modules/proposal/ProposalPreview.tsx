@@ -12,143 +12,417 @@ export function ProposalPreview({ title, clientName, template, services }: Propo
   const theme = TEMPLATE_THEMES[template];
   const total = calculateTotal(services);
 
-  const isDark = template === 'dark';
-  const isBusiness = template === 'business';
   const isMinimal = template === 'minimal';
+  const isBusiness = template === 'business';
+  const isCreative = template === 'creative';
 
-  const rootBg = isDark ? theme.bg : theme.bg;
-  const rootColor = theme.text;
+  const previewStyle: React.CSSProperties = {
+    background: theme.bg,
+    color: theme.text,
+    fontFamily: theme.bodyFont,
+    borderRadius: theme.previewRadius,
+    overflow: 'hidden',
+    position: 'relative',
+  };
+  if (isCreative) {
+    previewStyle.boxShadow = theme.cardShadow;
+    previewStyle.border = `1px solid ${theme.border}`;
+  }
 
-  const headerBgStyle: React.CSSProperties = isBusiness || isDark
-    ? { background: theme.headerBg, color: '#fff' }
-    : { background: theme.headerBg, color: theme.text };
+  const headerStyle: React.CSSProperties = {};
+  const headerTextColor = isMinimal ? theme.primary : isBusiness ? '#ffffff' : '#ffffff';
+  const headerClientColor = isMinimal
+    ? theme.textMuted
+    : isBusiness
+      ? 'rgba(255,255,255,0.78)'
+      : 'rgba(255,255,255,0.92)';
+  const headerPadding = isCreative
+    ? { paddingLeft: 32, paddingRight: 32, paddingTop: 36, paddingBottom: 34 }
+    : { paddingLeft: 36, paddingRight: 36, paddingTop: 32, paddingBottom: 28 };
 
-  const tagStyle: React.CSSProperties = isBusiness
-    ? { background: theme.accent, color: '#0c2d57' }
-    : isDark
-      ? { background: theme.accent, color: '#0f172a' }
-      : { background: theme.primary, color: '#fff' };
+  if (isMinimal) {
+    headerStyle.background = theme.headerBg;
+    headerStyle.borderBottom = `1px solid ${theme.border}`;
+  }
+  if (isBusiness) {
+    headerStyle.background = theme.headerBg;
+    headerStyle.position = 'relative';
+  }
+  if (isCreative) {
+    headerStyle.background = theme.headerBg;
+    headerStyle.position = 'relative';
+    headerStyle.overflow = 'hidden';
+  }
 
-  const titleColor = isBusiness ? '#ffffff' : isDark ? '#ffffff' : theme.primary;
-  const clientColor = isBusiness ? 'rgba(255,255,255,0.85)' : isDark ? 'rgba(226,232,240,0.8)' : theme.textMuted;
-
-  const accentLine = isBusiness
-    ? { width: 60, height: 3, borderRadius: 2, background: theme.accent }
-    : isDark
-      ? { width: 60, height: 3, borderRadius: 2, background: theme.accent }
-      : { width: 0, height: 0 };
-
-  const sectionTitleStyle: React.CSSProperties = {
-    color: isDark ? theme.primary : theme.primary,
-    borderBottomColor: theme.border,
-    borderBottomStyle: theme.dividerStyle as React.CSSProperties['borderBottomStyle'],
+  const badgeStyle: React.CSSProperties = {
+    display: 'inline-block',
+    padding: isCreative ? '7px 16px' : isBusiness ? '6px 14px' : '5px 12px',
+    borderRadius: theme.badgeRadius,
+    fontSize: isCreative ? '11px' : '12px',
+    fontWeight: isBusiness ? 800 : 700,
+    letterSpacing: isBusiness ? '1.2px' : isCreative ? '0.8px' : '0.5px',
+    marginBottom: 14,
+    color: isMinimal ? '#ffffff' : isBusiness ? theme.accent : '#ffffff',
+    background: isMinimal
+      ? theme.primary
+      : isBusiness
+        ? 'rgba(255,255,255,0.08)'
+        : 'rgba(255,255,255,0.22)',
+    backdropFilter: isCreative ? 'blur(6px)' : undefined,
+    textTransform: isBusiness ? 'uppercase' : undefined,
+    border: isBusiness ? `1px solid ${theme.accent}` : undefined,
+    position: 'relative',
+    zIndex: 1,
   };
 
-  const theadBgStyle: React.CSSProperties = isBusiness
+  const accentDecor = (
+    <div
+      key="accent"
+      style={{
+        width: isBusiness ? 64 : isCreative ? 80 : 0,
+        height: isBusiness ? 3 : isCreative ? 4 : 0,
+        borderRadius: isCreative ? 4 : 2,
+        background: theme.accent,
+        marginTop: 16,
+        position: 'relative',
+        zIndex: 1,
+      }}
+    />
+  );
+
+  const creativeDecor = isCreative ? (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute',
+        top: -40,
+        right: -40,
+        width: 220,
+        height: 220,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 70%)',
+        pointerEvents: 'none',
+      }}
+    />
+  ) : null;
+
+  const businessDecor = isBusiness ? (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: 5,
+        background: `linear-gradient(180deg, ${theme.accent} 0%, ${theme.accentAlt} 100%)`,
+        pointerEvents: 'none',
+      }}
+    />
+  ) : null;
+
+  const sectionTitleStyle: React.CSSProperties = {
+    color: isBusiness ? theme.primary : theme.primary,
+    borderBottom: `2px ${theme.dividerStyle} ${theme.border}`,
+    fontFamily: theme.headerFont,
+    fontWeight: isBusiness ? 800 : 700,
+    letterSpacing: isBusiness ? '0.3px' : 'normal',
+    paddingBottom: isCreative ? 14 : 10,
+    marginBottom: isCreative ? 20 : 14,
+    fontSize: isCreative ? 17 : 16,
+  };
+
+  const theadStyle: React.CSSProperties = isBusiness
     ? { background: theme.tableHeadBg, color: '#ffffff' }
-    : isDark
-      ? { background: theme.tableHeadBg, color: theme.primary }
+    : isCreative
+      ? { background: theme.tableHeadBg, color: theme.accent }
       : { background: theme.tableHeadBg, color: theme.secondary };
 
-  const footerBgStyle: React.CSSProperties = isBusiness || isDark
-    ? { background: theme.footerBg, color: isDark ? theme.text : '#ffffff' }
-    : { background: theme.footerBg, color: theme.text };
+  const cellPad = theme.cellVerticalPad;
 
-  const footerTotalColor = isBusiness ? theme.accent : isDark ? theme.primary : theme.primary;
+  const footerStyle: React.CSSProperties = {};
+  const footerTextColor = isBusiness ? '#ffffff' : theme.text;
+  const footerTotalColor = isMinimal
+    ? theme.primary
+    : isBusiness
+      ? theme.accent
+      : theme.primary;
+
+  if (isMinimal) {
+    footerStyle.background = theme.footerBg;
+    footerStyle.borderTop = `1px ${theme.dividerStyle} ${theme.border}`;
+  }
+  if (isBusiness) {
+    footerStyle.background = theme.footerBg;
+    footerStyle.borderTop = `3px solid ${theme.accent}`;
+    footerStyle.position = 'relative';
+  }
+  if (isCreative) {
+    footerStyle.background = theme.footerBg;
+    footerStyle.borderTop = `2px ${theme.dividerStyle} ${theme.border}`;
+    footerStyle.margin = '0 20px 22px';
+    footerStyle.borderRadius = '16px';
+    footerStyle.background = `linear-gradient(135deg, #fff 0%, ${theme.bgAlt} 100%)`;
+    footerStyle.boxShadow = '0 4px 14px rgba(249,115,22,0.10)';
+  }
+
+  const priceStyle: React.CSSProperties = {
+    color: footerTotalColor,
+    fontFamily: theme.headerFont,
+    fontWeight: theme.priceWeight,
+  };
+  if (isCreative && theme.priceDecor === 'underline') {
+    priceStyle.textDecoration = `3px underline ${theme.accent}`;
+    priceStyle.textUnderlineOffset = '6px';
+    priceStyle.textDecorationThickness = '3px';
+  }
+  if (isBusiness && theme.priceDecor === 'shadow') {
+    priceStyle.textShadow = `0 1px 0 ${theme.accent}, 0 2px 8px rgba(212,162,76,0.25)`;
+  }
 
   return (
-    <div style={{ background: rootBg, color: rootColor, fontFamily: theme.bodyFont, borderRadius: 'inherit' }}>
-      <div className="ff-preview__header" style={headerBgStyle}>
-        {(isBusiness || isDark) && (
-          <div style={{
-            position: 'absolute', top: '-40%', right: '-20%',
-            width: '300px', height: '300px', borderRadius: '50%',
-            filter: 'blur(50px)', opacity: 0.15,
-            background: isBusiness ? theme.accent : theme.accent,
-          }} />
-        )}
-        {isMinimal && (
-          <div style={{
-            position: 'absolute', top: '-40%', right: '-20%',
-            width: '300px', height: '300px', borderRadius: '50%',
-            filter: 'blur(40px)', opacity: 0.08,
-            background: theme.accent,
-          }} />
-        )}
-        <span className="ff-preview__tag" style={tagStyle}>PROJECT PROPOSAL</span>
+    <div style={previewStyle}>
+      {/* ========== Header ========== */}
+      <div className="ff-preview__header" style={{ ...headerStyle, ...headerPadding }}>
+        {creativeDecor}
+        {businessDecor}
+        <span style={badgeStyle}>PROJECT PROPOSAL</span>
         <h1
           className="ff-preview__title"
           style={{
             fontFamily: theme.headerFont,
-            color: titleColor,
-            fontWeight: isBusiness || isDark ? 800 : 700,
-            letterSpacing: isBusiness ? '0.5px' : 'normal',
+            color: headerTextColor,
+            fontWeight: theme.titleWeight,
+            fontSize: isCreative ? 32 : 30,
+            lineHeight: 1.18,
+            position: 'relative',
+            zIndex: 1,
+            marginTop: 0,
           }}
         >
           {title || '（未命名提案）'}
         </h1>
-        <div className="ff-preview__client" style={{ color: clientColor }}>
+        <div
+          className="ff-preview__client"
+          style={{ color: headerClientColor, fontSize: isCreative ? 15 : 14.5, position: 'relative', zIndex: 1, marginTop: 6 }}
+        >
           致：{clientName || '（客户名称）'}
         </div>
-        {(isBusiness || isDark) && (
-          <div style={{ ...accentLine, marginTop: 16, position: 'relative', zIndex: 1 }} />
-        )}
+        {(isBusiness || isCreative) && accentDecor}
       </div>
 
-      <div className="ff-preview__body" style={{ background: theme.bg }}>
-        <h2 className="ff-preview__section-title" style={sectionTitleStyle}>服务明细</h2>
-        <table className="ff-table" style={{ color: theme.text }}>
-          <thead>
-            <tr style={theadBgStyle}>
-              <th style={{ textAlign: 'left', color: 'inherit', borderBottomColor: theme.border, borderBottomStyle: theme.dividerStyle as React.CSSProperties['borderBottomStyle'] }}>服务项</th>
-              <th className="num" style={{ color: 'inherit', borderBottomColor: theme.border, borderBottomStyle: theme.dividerStyle as React.CSSProperties['borderBottomStyle'] }}>单价</th>
-              <th className="num" style={{ color: 'inherit', borderBottomColor: theme.border, borderBottomStyle: theme.dividerStyle as React.CSSProperties['borderBottomStyle'] }}>数量</th>
-              <th className="num" style={{ color: 'inherit', borderBottomColor: theme.border, borderBottomStyle: theme.dividerStyle as React.CSSProperties['borderBottomStyle'] }}>小计</th>
-            </tr>
-          </thead>
-          <tbody>
-            {services.length === 0 ? (
-              <tr style={{ borderBottomColor: theme.border }}>
-                <td colSpan={4} style={{ padding: '24px 10px', textAlign: 'center', opacity: 0.5, color: theme.textMuted }}>
-                  暂无服务项
-                </td>
+      {/* ========== Body ========== */}
+      <div
+        className="ff-preview__body"
+        style={{
+          background: theme.bg,
+          padding: isCreative ? '28px 28px 18px' : '28px 36px',
+        }}
+      >
+        <h2 className="ff-preview__section-title" style={sectionTitleStyle}>
+          {isCreative ? '✨ 服务明细' : '服务明细'}
+        </h2>
+
+        <div
+          style={{
+            borderRadius: theme.tableBorderRadius,
+            overflow: isCreative ? 'hidden' : 'visible',
+            border: isCreative ? `1px solid ${theme.border}` : undefined,
+            background: isCreative ? '#fff' : undefined,
+          }}
+        >
+          <table
+            className="ff-table"
+            style={{
+              color: theme.text,
+              borderCollapse: isCreative ? 'separate' : 'collapse',
+              borderSpacing: 0,
+              width: '100%',
+            }}
+          >
+            <thead>
+              <tr>
+                {(['服务项', '单价', '数量', '小计'] as const).map((h, i) => (
+                  <th
+                    key={h}
+                    style={{
+                      textAlign: i === 0 ? 'left' : 'right',
+                      color: theadStyle.color,
+                      background: theadStyle.background,
+                      fontSize: isBusiness ? '11px' : '12px',
+                      textTransform: isBusiness ? 'uppercase' : undefined,
+                      letterSpacing: isBusiness ? '0.8px' : '0.6px',
+                      fontWeight: isBusiness ? 800 : 700,
+                      padding: `${cellPad} ${isCreative ? 14 : 10}px`,
+                      borderBottom: isMinimal
+                        ? `1.5px solid ${theme.border}`
+                        : undefined,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ) : (
-              services.map((s, idx) => {
-                const subtotal = (Number(s.unitPrice) || 0) * (Number(s.quantity) || 0);
-                const rowBg = idx % 2 === 1 ? theme.tableStripe : 'transparent';
-                return (
-                  <tr key={s.id} style={{ borderBottomColor: theme.border, background: rowBg }}>
-                    <td>
-                      <div className="svc-name" style={{ color: theme.text }}>{s.name || '（未命名）'}</div>
-                      <div className="svc-desc" style={{ color: theme.textMuted }}>{s.description}</div>
-                    </td>
-                    <td className="num" style={{ color: theme.text }}>{formatCurrency(Number(s.unitPrice) || 0)}</td>
-                    <td className="num" style={{ color: theme.text }}>{s.quantity}</td>
-                    <td className="num" style={{ fontWeight: 600, color: isBusiness ? theme.accent : isDark ? theme.primary : theme.primary }}>
-                      {formatCurrency(subtotal)}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {services.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={4}
+                    style={{
+                      padding: '28px 10px',
+                      textAlign: 'center',
+                      opacity: 0.55,
+                      color: theme.textMuted,
+                    }}
+                  >
+                    暂无服务项
+                  </td>
+                </tr>
+              ) : (
+                services.map((s, idx) => {
+                  const subtotal = (Number(s.unitPrice) || 0) * (Number(s.quantity) || 0);
+                  const stripe = idx % 2 === 1 ? theme.tableStripe : 'transparent';
+                  const rowBg = isCreative ? (idx % 2 === 1 ? theme.bgAlt : '#fff') : stripe;
+                  const isLast = idx === services.length - 1;
+                  return (
+                    <tr key={s.id}>
+                      <td
+                        style={{
+                          padding: `${cellPad} ${isCreative ? 14 : 10}px`,
+                          background: rowBg,
+                          borderBottom: !isLast && !isCreative
+                            ? `1px solid ${theme.border}`
+                            : undefined,
+                          verticalAlign: 'top',
+                        }}
+                      >
+                        <div
+                          className="svc-name"
+                          style={{
+                            color: theme.text,
+                            fontWeight: 600,
+                            fontSize: 14.5,
+                          }}
+                        >
+                          {s.name || '（未命名）'}
+                        </div>
+                        <div
+                          className="svc-desc"
+                          style={{
+                            color: theme.textMuted,
+                            fontSize: 12.5,
+                            marginTop: 4,
+                            lineHeight: 1.55,
+                          }}
+                        >
+                          {s.description}
+                        </div>
+                      </td>
+                      <td
+                        className="num"
+                        style={{
+                          padding: `${cellPad} ${isCreative ? 14 : 10}px`,
+                          background: rowBg,
+                          borderBottom: !isLast && !isCreative
+                            ? `1px solid ${theme.border}`
+                            : undefined,
+                          color: theme.text,
+                          textAlign: 'right',
+                          fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {formatCurrency(Number(s.unitPrice) || 0)}
+                      </td>
+                      <td
+                        className="num"
+                        style={{
+                          padding: `${cellPad} ${isCreative ? 14 : 10}px`,
+                          background: rowBg,
+                          borderBottom: !isLast && !isCreative
+                            ? `1px solid ${theme.border}`
+                            : undefined,
+                          color: theme.text,
+                          textAlign: 'right',
+                          fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {s.quantity}
+                      </td>
+                      <td
+                        className="num"
+                        style={{
+                          padding: `${cellPad} ${isCreative ? 14 : 10}px`,
+                          background: rowBg,
+                          borderBottom: !isLast && !isCreative
+                            ? `1px solid ${theme.border}`
+                            : undefined,
+                          textAlign: 'right',
+                          fontWeight: isBusiness ? 800 : 700,
+                          color: isBusiness ? theme.accent : isCreative ? theme.primary : theme.primary,
+                          fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap',
+                          fontSize: isCreative ? 14.5 : 14,
+                        }}
+                      >
+                        {formatCurrency(subtotal)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="ff-preview__footer" style={{
-        ...footerBgStyle,
-        borderTopColor: isBusiness ? theme.accent : theme.border,
-        borderTopWidth: isBusiness ? 3 : 2,
-      }}>
-        <span className="ff-preview__footer-label" style={{ color: isBusiness ? '#ffffff' : isDark ? theme.text : theme.text }}>
+      {/* ========== Footer ========== */}
+      <div
+        className="ff-preview__footer"
+        style={{
+          ...footerStyle,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: isCreative ? '18px 22px' : '22px 36px 30px',
+        }}
+      >
+        {isBusiness && (
+          <div
+            aria-hidden
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 5,
+              background: `linear-gradient(180deg, ${theme.accent} 0%, ${theme.accentAlt} 100%)`,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        <span
+          className="ff-preview__footer-label"
+          style={{
+            color: footerTextColor,
+            fontWeight: isBusiness ? 700 : 700,
+            fontSize: isCreative ? 16 : 15,
+            letterSpacing: isBusiness ? '0.5px' : undefined,
+          }}
+        >
           合计金额
         </span>
-        <span className="ff-preview__footer-total" style={{
-          color: footerTotalColor,
-          fontFamily: theme.headerFont,
-          fontWeight: isBusiness || isDark ? 800 : 700,
-        }}>
+        <span
+          className="ff-preview__footer-total"
+          style={{
+            ...priceStyle,
+            fontSize: isCreative ? 32 : isBusiness ? 28 : 28,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
           {formatCurrency(total)}
         </span>
       </div>

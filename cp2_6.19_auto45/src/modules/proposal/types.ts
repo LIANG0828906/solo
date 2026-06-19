@@ -1,4 +1,4 @@
-export type TemplateType = 'minimal' | 'business' | 'dark';
+export type TemplateType = 'minimal' | 'business' | 'creative';
 export type ProposalStatus = 'sent' | 'viewed' | 'feedback' | 'decided';
 export type DecisionResult = 'accepted' | 'rejected' | 'pending';
 
@@ -33,8 +33,8 @@ export interface Proposal {
 
 export const TEMPLATE_LABELS: Record<TemplateType, string> = {
   minimal: '简约白',
-  business: '商务蓝',
-  dark: '深色专业',
+  business: '商务灰金',
+  creative: '创意橙',
 };
 
 export const STATUS_LABELS: Record<ProposalStatus, string> = {
@@ -68,6 +68,15 @@ export const TEMPLATE_THEMES: Record<TemplateType, {
   tableHeadBg: string;
   tableStripe: string;
   dividerStyle: string;
+  previewRadius: string;
+  sectionRadius: string;
+  cardShadow: string;
+  titleWeight: number;
+  priceWeight: number;
+  priceDecor: 'underline' | 'shadow' | 'none';
+  badgeRadius: string;
+  tableBorderRadius: string;
+  cellVerticalPad: string;
 }> = {
   minimal: {
     primary: '#0f172a',
@@ -86,41 +95,68 @@ export const TEMPLATE_THEMES: Record<TemplateType, {
     tableHeadBg: '#f1f5f9',
     tableStripe: 'rgba(241,245,249,0.5)',
     dividerStyle: 'solid',
+    previewRadius: '0px 0px 0px 0px',
+    sectionRadius: '0px',
+    cardShadow: 'none',
+    titleWeight: 700,
+    priceWeight: 700,
+    priceDecor: 'none',
+    badgeRadius: '4px',
+    tableBorderRadius: '0px',
+    cellVerticalPad: '12px',
   },
   business: {
-    primary: '#0c2d57',
-    secondary: '#1a4a8a',
-    accent: '#c9a84c',
-    accentAlt: '#e0c878',
-    bg: '#f0f4f8',
-    bgAlt: '#e8eef5',
-    text: '#0c2d57',
-    textMuted: '#4a6d9b',
-    border: '#bfdbfe',
+    primary: '#1e293b',
+    secondary: '#334155',
+    accent: '#d4a24c',
+    accentAlt: '#b88634',
+    bg: '#fafbfc',
+    bgAlt: '#eef1f5',
+    text: '#1e293b',
+    textMuted: '#64748b',
+    border: '#cfd6e2',
     headerFont: "'Source Sans 3', sans-serif",
     bodyFont: "'Source Sans 3', sans-serif",
-    headerBg: 'linear-gradient(135deg, #0c2d57 0%, #1a4a8a 100%)',
-    footerBg: 'linear-gradient(135deg, #0c2d57 0%, #1a4a8a 100%)',
-    tableHeadBg: '#0c2d57',
-    tableStripe: 'rgba(12,45,87,0.04)',
-    dividerStyle: 'solid',
+    headerBg: '#1e293b',
+    footerBg: '#1e293b',
+    tableHeadBg: '#1e293b',
+    tableStripe: 'rgba(212, 162, 76, 0.045)',
+    dividerStyle: 'double',
+    previewRadius: '0px 0px 0px 0px',
+    sectionRadius: '0px',
+    cardShadow: 'none',
+    titleWeight: 800,
+    priceWeight: 800,
+    priceDecor: 'shadow',
+    badgeRadius: '0px',
+    tableBorderRadius: '0px',
+    cellVerticalPad: '13px',
   },
-  dark: {
-    primary: '#2dd4bf',
-    secondary: '#5eead4',
-    accent: '#14b8a6',
-    accentAlt: '#0d9488',
-    bg: '#1e1e2e',
-    bgAlt: '#262637',
-    text: '#e2e8f0',
-    textMuted: '#94a3b8',
-    border: '#334155',
-    headerFont: "'Source Sans 3', sans-serif",
+  creative: {
+    primary: '#f97316',
+    secondary: '#fb923c',
+    accent: '#ea580c',
+    accentAlt: '#c2410c',
+    bg: '#fff7ed',
+    bgAlt: '#ffedd5',
+    text: '#431407',
+    textMuted: '#9a3412',
+    border: '#fed7aa',
+    headerFont: "'Playfair Display', serif",
     bodyFont: "'Source Sans 3', sans-serif",
-    headerBg: 'linear-gradient(135deg, #1a1a2e 0%, #262637 100%)',
-    footerBg: 'linear-gradient(135deg, #1a1a2e 0%, #262637 100%)',
-    tableHeadBg: '#262637',
-    tableStripe: 'rgba(45,212,191,0.04)',
-    dividerStyle: 'dashed',
+    headerBg: 'linear-gradient(135deg, #f97316 0%, #fb923c 45%, #fbbf24 100%)',
+    footerBg: '#fff7ed',
+    tableHeadBg: '#ffedd5',
+    tableStripe: 'rgba(249, 115, 22, 0.06)',
+    dividerStyle: 'dotted',
+    previewRadius: '28px',
+    sectionRadius: '20px',
+    cardShadow: '0 10px 32px rgba(249, 115, 22, 0.18)',
+    titleWeight: 700,
+    priceWeight: 900,
+    priceDecor: 'underline',
+    badgeRadius: '999px',
+    tableBorderRadius: '16px',
+    cellVerticalPad: '14px',
   },
 };

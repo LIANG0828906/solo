@@ -74,7 +74,7 @@ export default function ProposalManager() {
 
   useEffect(() => {
     setPreviewFade(true);
-    const t1 = setTimeout(() => setPreviewFade(false), 420);
+    const t1 = setTimeout(() => setPreviewFade(false), 250);
     return () => clearTimeout(t1);
   }, [template]);
 
@@ -167,7 +167,7 @@ export default function ProposalManager() {
     }
   };
 
-  const templates: TemplateType[] = ['minimal', 'business', 'dark'];
+  const templates: TemplateType[] = ['minimal', 'business', 'creative'];
 
   if (loading) {
     return (
