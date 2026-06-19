@@ -7,6 +7,7 @@ interface NotePanelProps {
   onUpdateNote: (note: NoteData) => void;
   onDeleteNote: (id: string) => void;
   onNoteDragStart?: (id: string) => void;
+  onNoteDragMove?: (note: NoteData) => void;
   onNoteDragEnd?: (id: string) => void;
   onNoteEditStart?: (id: string) => void;
   onNoteEditEnd?: (id: string) => void;
@@ -18,6 +19,7 @@ const NotePanel: React.FC<NotePanelProps> = ({
   onUpdateNote,
   onDeleteNote,
   onNoteDragStart,
+  onNoteDragMove,
   onNoteDragEnd,
   onNoteEditStart,
   onNoteEditEnd,
@@ -42,6 +44,7 @@ const NotePanel: React.FC<NotePanelProps> = ({
             onDelete={onDeleteNote}
             zIndex={activeNoteId === note.id ? zIndexCounter : 1}
             onDragStart={() => handleNoteDragStart(note.id)}
+            onDragMove={(updatedNote) => onNoteDragMove?.(updatedNote)}
             onDragEnd={() => onNoteDragEnd?.(note.id)}
             onEditStart={() => onNoteEditStart?.(note.id)}
             onEditEnd={() => onNoteEditEnd?.(note.id)}

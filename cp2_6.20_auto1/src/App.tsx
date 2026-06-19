@@ -265,6 +265,27 @@ const App: React.FC = () => {
     saveCurrentStateToHistory();
   }, [saveCurrentStateToHistory]);
 
+  const handleNoteDragMove = useCallback(
+    (note: NoteData) => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        if (noteUpdateTimeoutRef.current[note.id]) {
+          window.clearTimeout(noteUpdateTimeoutRef.current[note.id]);
+          delete noteUpdateTimeoutRef.current[note.id];
+        }
+
+        pendingNoteUpdateRef.current[note.id] = note;
+
+        wsRef.current.send(JSON.stringify({
+          type: 'update_note',
+          data: note,
+        }));
+
+        delete pendingNoteUpdateRef.current[note.id];
+      }
+    },
+    []
+  );
+
   const handleNoteDragEnd = useCallback(() => {
     isDraggingNoteRef.current = false;
   }, []);
@@ -286,6 +307,10 @@ const App: React.FC = () => {
   const handleUpdateNote = useCallback(
     (note: NoteData) => {
       setNotes((prev) => prev.map((n) => (n.id === note.id ? note : n)));
+
+      if (isDraggingNoteRef.current) {
+        return;
+      }
 
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         if (noteUpdateTimeoutRef.current[note.id]) {
@@ -500,6 +525,7 @@ const App: React.FC = () => {
           onUpdateNote={handleUpdateNote}
           onDeleteNote={handleDeleteNote}
           onNoteDragStart={handleNoteDragStart}
+          onNoteDragMove={handleNoteDragMove}
           onNoteDragEnd={handleNoteDragEnd}
           onNoteEditStart={handleNoteEditStart}
           onNoteEditEnd={handleNoteEditEnd}

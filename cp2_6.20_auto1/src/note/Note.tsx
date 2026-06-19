@@ -7,19 +7,37 @@ interface NoteProps {
   onDelete: (id: string) => void;
   zIndex: number;
   onDragStart?: () => void;
+  onDragMove?: (note: NoteData) => void;
   onDragEnd?: () => void;
   onEditStart?: () => void;
   onEditEnd?: () => void;
   onColorChange?: () => void;
 }
 
-const Note: React.FC<NoteProps> = ({ note, onUpdate, onDelete, zIndex, onDragStart, onDragEnd, onEditStart, onEditEnd, onColorChange }) => {
+const Note: React.FC<NoteProps> = ({
+  note,
+  onUpdate,
+  onDelete,
+  zIndex,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  onEditStart,
+  onEditEnd,
+  onColorChange,
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const dragRef = useRef({ startX: 0, startY: 0, noteX: 0, noteY: 0 });
+  const dragRef = useRef({
+    startX: 0,
+    startY: 0,
+    noteX: 0,
+    noteY: 0,
+    lastSendTime: 0,
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 10);
@@ -33,31 +51,63 @@ const Note: React.FC<NoteProps> = ({ note, onUpdate, onDelete, zIndex, onDragSta
     }
   }, [isEditing]);
 
+  const lastPositionRef = useRef<{ x: number; y: number } | null>(null);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isEditing) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
     onDragStart?.();
+
+    const initialX = note.x;
+    const initialY = note.y;
+
     dragRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      noteX: note.x,
-      noteY: note.y,
+      noteX: initialX,
+      noteY: initialY,
+      lastSendTime: 0,
     };
+
+    lastPositionRef.current = { x: initialX, y: initialY };
 
     const handleMouseMove = (e: MouseEvent) => {
       const dx = e.clientX - dragRef.current.startX;
       const dy = e.clientY - dragRef.current.startY;
-      onUpdate({
+      const newX = dragRef.current.noteX + dx;
+      const newY = dragRef.current.noteY + dy;
+
+      lastPositionRef.current = { x: newX, y: newY };
+
+      const updatedNote = {
         ...note,
-        x: dragRef.current.noteX + dx,
-        y: dragRef.current.noteY + dy,
-      });
+        x: newX,
+        y: newY,
+      };
+      onUpdate(updatedNote);
+
+      const now = performance.now();
+      if (now - dragRef.current.lastSendTime > 16) {
+        dragRef.current.lastSendTime = now;
+        onDragMove?.(updatedNote);
+      }
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+
+      if (lastPositionRef.current) {
+        const finalNote = {
+          ...note,
+          x: lastPositionRef.current.x,
+          y: lastPositionRef.current.y,
+        };
+        onDragMove?.(finalNote);
+      }
+
+      lastPositionRef.current = null;
       onDragEnd?.();
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -113,6 +163,26 @@ const Note: React.FC<NoteProps> = ({ note, onUpdate, onDelete, zIndex, onDragSta
     return isVisible ? 'scale(1)' : 'scale(0.8)';
   };
 
+  const getOpacity = () => {
+    if (!isVisible) return 0;
+    if (isDragging) return 0.7;
+    return 1;
+  };
+
+  const getTransition = () => {
+    if (isDragging) {
+      return 'box-shadow 0.15s ease-out, opacity 0.15s ease-out';
+    }
+    return 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out, box-shadow 0.2s ease-in, left 0.2s ease-out, top 0.2s ease-out';
+  };
+
+  const getBoxShadow = () => {
+    if (isDragging) {
+      return '0 16px 32px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.1)';
+    }
+    return '0 2px 4px rgba(0,0,0,0.1)';
+  };
+
   return (
     <div
       style={{
@@ -125,20 +195,17 @@ const Note: React.FC<NoteProps> = ({ note, onUpdate, onDelete, zIndex, onDragSta
         borderRadius: 12,
         padding: 12,
         cursor: isEditing ? 'text' : 'move',
-        boxShadow: isDragging
-          ? '0 12px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,0,0,0.1)'
-          : '0 2px 4px rgba(0,0,0,0.1)',
+        boxShadow: getBoxShadow(),
         zIndex,
         transform: getTransform(),
         transformOrigin: 'center center',
-        opacity: isVisible ? 1 : 0,
-        transition: isDragging
-          ? 'box-shadow 0.15s ease-out, opacity 0.3s ease-in-out'
-          : 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out, box-shadow 0.15s ease-in',
+        opacity: getOpacity(),
+        transition: getTransition(),
         userSelect: 'none',
         color: '#333',
-        willChange: 'transform, box-shadow',
+        willChange: isDragging ? 'transform, box-shadow, opacity' : 'auto',
       }}
+      className={isDragging ? 'note-dragging' : ''}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
     >
