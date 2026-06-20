@@ -7,7 +7,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from 'recharts';
 import { useSimulationStore } from '../../store/useSimulationStore';
 import type { DashboardTab, BerthEfficiency } from '../../types';
@@ -27,35 +26,48 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, unit, trend, trendVal
   const [prevValue, setPrevValue] = useState(value);
   const [isAnimating, setIsAnimating] = useState(false);
   const [trendBounceKey, setTrendBounceKey] = useState(0);
+  const [flipKey, setFlipKey] = useState(0);
 
   useEffect(() => {
-    if (value !== displayValue && typeof value === 'number' && typeof displayValue === 'number') {
+    const valueChanged = value !== displayValue;
+    const isNumericChange = typeof value === 'number' && typeof displayValue === 'number';
+    
+    if (valueChanged) {
       setPrevValue(displayValue);
       setIsAnimating(true);
-      const startValue = displayValue;
-      const diff = value - startValue;
-      const duration = 600;
-      const startTime = Date.now();
+      setFlipKey(prev => prev + 1);
 
-      const animate = () => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        const current = Math.round(startValue + diff * eased);
-        setDisplayValue(current as any);
+      if (isNumericChange) {
+        const startValue = displayValue as number;
+        const diff = (value as number) - startValue;
+        const duration = 600;
+        const startTime = Date.now();
 
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          setIsAnimating(false);
-        }
-      };
+        const animate = () => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const current = Math.round(startValue + diff * eased);
+          setDisplayValue(current as any);
 
-      requestAnimationFrame(animate);
+          if (progress < 1) {
+            requestAnimationFrame(animate);
+          } else {
+            setIsAnimating(false);
+          }
+        };
+
+        requestAnimationFrame(animate);
+      } else {
+        setDisplayValue(value);
+        setTimeout(() => setIsAnimating(false), 600);
+      }
       
       if (trend && trend !== 'stable') {
         setTrendBounceKey(prev => prev + 1);
       }
+    } else if (trend && trend !== 'stable') {
+      setTrendBounceKey(prev => prev + 1);
     }
   }, [value, trend]);
 
@@ -70,10 +82,17 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, unit, trend, trendVal
       <div className="stat-label">{label}</div>
       <div className="stat-value-row">
         <span className="stat-value-container">
-          <span className="stat-value" key={`${displayValue}-${isAnimating}`}>
-            {unit && <span className="stat-unit">{unit}</span>}
-            {displayValue}
-            {suffix && <span className="stat-suffix">{suffix}</span>}
+          <span className={`stat-value-flip-wrapper ${isAnimating ? 'flip-animation' : ''}`} key={flipKey}>
+            <span className="stat-value-old">
+              {unit && <span className="stat-unit">{unit}</span>}
+              {prevValue}
+              {suffix && <span className="stat-suffix">{suffix}</span>}
+            </span>
+            <span className="stat-value-new">
+              {unit && <span className="stat-unit">{unit}</span>}
+              {displayValue}
+              {suffix && <span className="stat-suffix">{suffix}</span>}
+            </span>
           </span>
         </span>
         {trend && trend !== 'stable' && (
@@ -216,12 +235,12 @@ const EfficiencyTab: React.FC<EfficiencyTabProps> = ({ efficiencies }) => {
           <BarChart data={chartData} barGap={8}>
             <defs>
               <linearGradient id="colorDuration" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#1a73e8" />
-                <stop offset="100%" stopColor="#0d47a1" />
+                <stop offset="0%" stopColor="#1a73e8" stopOpacity={1} />
+                <stop offset="100%" stopColor="#0d47a1" stopOpacity={1} />
               </linearGradient>
               <linearGradient id="colorLift" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#2ecc71" />
-                <stop offset="100%" stopColor="#27ae60" />
+                <stop offset="0%" stopColor="#2ecc71" stopOpacity={1} />
+                <stop offset="100%" stopColor="#27ae60" stopOpacity={1} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -235,16 +254,16 @@ const EfficiencyTab: React.FC<EfficiencyTabProps> = ({ efficiencies }) => {
               axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-            <Bar dataKey="作业时长" radius={[4, 4, 0, 0]}>
-              {chartData.map((_, index) => (
-                <Cell key={`cell-duration-${index}`} fill="url(#colorDuration)" />
-              ))}
-            </Bar>
-            <Bar dataKey="吊装次数" radius={[4, 4, 0, 0]}>
-              {chartData.map((_, index) => (
-                <Cell key={`cell-lift-${index}`} fill="url(#colorLift)" />
-              ))}
-            </Bar>
+            <Bar 
+              dataKey="作业时长" 
+              radius={[4, 4, 0, 0]} 
+              fill="url(#colorDuration)"
+            />
+            <Bar 
+              dataKey="吊装次数" 
+              radius={[4, 4, 0, 0]} 
+              fill="url(#colorLift)"
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
