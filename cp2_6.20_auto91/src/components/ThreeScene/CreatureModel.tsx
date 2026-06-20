@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { EvolutionStage, CreatureType } from '../../types';
@@ -13,243 +13,371 @@ interface CreatureModelProps {
   };
 }
 
+interface StageColors {
+  primary: string;
+  secondary: string;
+  emissive: number;
+  metalness: number;
+  roughness: number;
+}
+
+const STAGE_COLORS: Record<string, Record<string, StageColors>> = {
+  phoenix: {
+    baby: { primary: '#ffaa80', secondary: '#ffcc66', emissive: 0.1, metalness: 0.1, roughness: 0.7 },
+    adult: { primary: '#ff4500', secondary: '#ff6347', emissive: 0.3, metalness: 0.3, roughness: 0.4 },
+    evolved: { primary: '#ff2200', secondary: '#ff0000', emissive: 0.6, metalness: 0.6, roughness: 0.2 },
+  },
+  dragon: {
+    baby: { primary: '#87ceeb', secondary: '#b0e0e6', emissive: 0.1, metalness: 0.15, roughness: 0.6 },
+    adult: { primary: '#1e90ff', secondary: '#00bfff', emissive: 0.3, metalness: 0.35, roughness: 0.35 },
+    evolved: { primary: '#0055dd', secondary: '#00ffff', emissive: 0.6, metalness: 0.7, roughness: 0.15 },
+  },
+  wolf: {
+    baby: { primary: '#c9a0dc', secondary: '#dda0dd', emissive: 0.1, metalness: 0.1, roughness: 0.65 },
+    adult: { primary: '#9932cc', secondary: '#ba55d3', emissive: 0.3, metalness: 0.25, roughness: 0.45 },
+    evolved: { primary: '#7b2fbe', secondary: '#9400d3', emissive: 0.6, metalness: 0.55, roughness: 0.2 },
+  },
+  tortoise: {
+    baby: { primary: '#7ec87e', secondary: '#90ee90', emissive: 0.1, metalness: 0.05, roughness: 0.8 },
+    adult: { primary: '#228b22', secondary: '#32cd32', emissive: 0.3, metalness: 0.2, roughness: 0.55 },
+    evolved: { primary: '#006400', secondary: '#00ff00', emissive: 0.6, metalness: 0.5, roughness: 0.25 },
+  },
+};
+
+const getSC = (ct: CreatureType, s: EvolutionStage): StageColors =>
+  (STAGE_COLORS[ct] || STAGE_COLORS.phoenix)[s] || STAGE_COLORS.phoenix.baby;
+
+const M = ({ c, e, ei, m = 0.3, r = 0.4, sd, t, o }: {
+  c: THREE.Color | string; e?: THREE.Color | string; ei: number;
+  m?: number; r?: number; sd?: THREE.Side; t?: boolean; o?: number;
+}) => <meshStandardMaterial color={c} emissive={e} emissiveIntensity={ei} metalness={m} roughness={r} side={sd} transparent={t} opacity={o} />;
+
+const Eyes = ({ y, z, sp, sz, gc }: { y: number; z: number; sp: number; sz: number; gc: string }) => (
+  <group position={[0, y, z]}>
+    <mesh position={[-sp, 0, 0.01]}><sphereGeometry args={[sz, 16, 16]} /><M c="#ffffff" e={gc} ei={0.7} m={0.1} r={0.3} /></mesh>
+    <mesh position={[sp, 0, 0.01]}><sphereGeometry args={[sz, 16, 16]} /><M c="#ffffff" e={gc} ei={0.7} m={0.1} r={0.3} /></mesh>
+    <mesh position={[-sp, 0, sz * 0.8]}><sphereGeometry args={[sz * 0.4, 8, 8]} /><M c="#111111" ei={0} m={0.5} r={0.5} /></mesh>
+    <mesh position={[sp, 0, sz * 0.8]}><sphereGeometry args={[sz * 0.4, 8, 8]} /><M c="#111111" ei={0} m={0.5} r={0.5} /></mesh>
+  </group>
+);
+
+const useC = (hex: string) => useMemo(() => new THREE.Color(hex), [hex]);
+const useMix = (a: string, b: string, t: number) => useMemo(() => new THREE.Color(a).lerp(new THREE.Color(b), t), [a, b, t]);
+
+const PhoenixModel = ({ stage, cl }: { stage: EvolutionStage; cl: StageColors }) => {
+  const pc = useC(cl.primary), sc = useC(cl.secondary);
+  const mx = (t: number) => useMix(cl.primary, cl.secondary, t);
+
+  if (stage === 'baby') return (
+    <group>
+      <mesh position={[0, 0.25, 0]}><sphereGeometry args={[0.28, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.55, 0.05]}><sphereGeometry args={[0.18, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.58} z={0.16} sp={0.07} sz={0.045} gc="#ffcc00" />
+      <mesh position={[0, 0.52, 0.2]}><coneGeometry args={[0.015, 0.06, 6]} /><M c={mx(0.3)} e={sc} ei={0.2} m={0.1} r={0.6} /></mesh>
+      <mesh position={[-0.02, 0.62, 0.1]} rotation={[0, 0, 0.25]}><coneGeometry args={[0.025, 0.06, 5]} /><M c={cl.secondary} e={sc} ei={0.15} m={0.1} r={0.6} /></mesh>
+      <mesh position={[0.02, 0.62, 0.1]} rotation={[0, 0, -0.25]}><coneGeometry args={[0.025, 0.06, 5]} /><M c={cl.secondary} e={sc} ei={0.15} m={0.1} r={0.6} /></mesh>
+      <mesh rotation={[0.15, 0, 0.4]} position={[-0.35, 0.3, 0]}><boxGeometry args={[0.28, 0.04, 0.14]} /><M c={pc} e={sc} ei={cl.emissive * 0.5} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+      <mesh rotation={[0.15, 0, -0.4]} position={[0.35, 0.3, 0]}><boxGeometry args={[0.28, 0.04, 0.14]} /><M c={pc} e={sc} ei={cl.emissive * 0.5} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+      <mesh position={[0, 0.12, -0.25]} rotation={[0.4, 0, 0]}><coneGeometry args={[0.06, 0.18, 8]} /><M c={cl.secondary} e={sc} ei={0.15} m={0.1} r={0.5} /></mesh>
+      <mesh position={[0, 0.02, 0]}><sphereGeometry args={[0.055, 10, 10]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+    </group>
+  );
+
+  if (stage === 'adult') return (
+    <group>
+      <mesh position={[0, 0.35, 0]}><capsuleGeometry args={[0.22, 0.35, 8, 16]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.75, 0.05]}><sphereGeometry args={[0.2, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.77} z={0.2} sp={0.065} sz={0.04} gc="#ffcc00" />
+      <mesh position={[0, 0.73, 0.23]}><coneGeometry args={[0.012, 0.07, 6]} /><M c={mx(0.3)} e={sc} ei={0.3} m={0.1} r={0.6} /></mesh>
+      <mesh position={[-0.04, 0.9, 0]} rotation={[0.1, 0, 0.25]}><coneGeometry args={[0.04, 0.15, 6]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.2} r={0.5} /></mesh>
+      <mesh position={[0.04, 0.9, 0]} rotation={[0.1, 0, -0.25]}><coneGeometry args={[0.04, 0.15, 6]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.2} r={0.5} /></mesh>
+      <mesh position={[0, 0.92, -0.02]} rotation={[0.15, 0, 0]}><coneGeometry args={[0.03, 0.12, 5]} /><M c={cl.secondary} e={sc} ei={0.35} m={0.2} r={0.5} /></mesh>
+      <group position={[0, 0.4, 0]}>
+        <mesh rotation={[0.2, 0.1, 0.5]} position={[-0.55, 0.05, -0.05]}><boxGeometry args={[0.6, 0.035, 0.22]} /><M c={pc} e={sc} ei={cl.emissive * 0.6} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.15, 0.1, 0.65]} position={[-0.65, 0, -0.12]}><boxGeometry args={[0.4, 0.03, 0.18]} /><M c={mx(0.3)} e={sc} ei={cl.emissive * 0.4} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.2, -0.1, -0.5]} position={[0.55, 0.05, -0.05]}><boxGeometry args={[0.6, 0.035, 0.22]} /><M c={pc} e={sc} ei={cl.emissive * 0.6} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.15, -0.1, -0.65]} position={[0.65, 0, -0.12]}><boxGeometry args={[0.4, 0.03, 0.18]} /><M c={mx(0.3)} e={sc} ei={cl.emissive * 0.4} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+      </group>
+      <mesh position={[0, 0.15, -0.45]} rotation={[0.35, 0, 0]}><coneGeometry args={[0.07, 0.45, 8]} /><M c={cl.secondary} e={sc} ei={0.35} m={0.2} r={0.5} /></mesh>
+      <mesh position={[0, 0.22, -0.7]} rotation={[0.25, 0, 0]}><coneGeometry args={[0.05, 0.25, 8]} /><M c={mx(0.6)} e={sc} ei={0.4} m={0.2} r={0.5} /></mesh>
+      <mesh position={[0, 0.08, 0]}><sphereGeometry args={[0.07, 12, 12]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+    </group>
+  );
+
+  return (
+    <group>
+      <mesh position={[0, 0.4, 0]}><capsuleGeometry args={[0.25, 0.4, 8, 16]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.4, -0.1]}><sphereGeometry args={[0.18, 16, 16]} /><M c={mx(0.4)} e={sc} ei={cl.emissive * 0.8} m={0.5} r={0.25} /></mesh>
+      <mesh position={[0, 0.85, 0.05]}><sphereGeometry args={[0.22, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.87} z={0.22} sp={0.07} sz={0.045} gc="#ff8800" />
+      <mesh position={[0, 0.83, 0.25]}><coneGeometry args={[0.015, 0.08, 6]} /><M c={mx(0.3)} e={sc} ei={0.5} m={0.1} r={0.5} /></mesh>
+      <mesh position={[-0.06, 1.05, 0]} rotation={[0.05, 0, 0.2]}><coneGeometry args={[0.04, 0.2, 6]} /><M c="#ffd700" e={sc} ei={0.7} m={0.8} r={0.2} /></mesh>
+      <mesh position={[0.06, 1.05, 0]} rotation={[0.05, 0, -0.2]}><coneGeometry args={[0.04, 0.2, 6]} /><M c="#ffd700" e={sc} ei={0.7} m={0.8} r={0.2} /></mesh>
+      <mesh position={[0, 1.1, -0.02]} rotation={[0.1, 0, 0]}><coneGeometry args={[0.035, 0.18, 5]} /><M c="#ffd700" e={sc} ei={0.7} m={0.8} r={0.2} /></mesh>
+      <mesh position={[-0.1, 1.08, -0.03]} rotation={[0.15, 0.2, 0.35]}><coneGeometry args={[0.03, 0.14, 5]} /><M c="#ffd700" e={sc} ei={0.6} m={0.7} r={0.25} /></mesh>
+      <mesh position={[0.1, 1.08, -0.03]} rotation={[0.15, -0.2, -0.35]}><coneGeometry args={[0.03, 0.14, 5]} /><M c="#ffd700" e={sc} ei={0.6} m={0.7} r={0.25} /></mesh>
+      <group position={[0, 0.45, 0]}>
+        <mesh rotation={[0.2, 0.1, 0.5]} position={[-0.65, 0.08, -0.06]}><boxGeometry args={[0.75, 0.035, 0.28]} /><M c={pc} e={sc} ei={cl.emissive * 0.7} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.15, 0.15, 0.7]} position={[-0.8, 0.02, -0.15]}><boxGeometry args={[0.5, 0.03, 0.22]} /><M c={mx(0.4)} e={sc} ei={cl.emissive * 0.5} m={0.5} r={0.25} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.1, 0.2, 0.85]} position={[-0.9, -0.03, -0.22]}><boxGeometry args={[0.35, 0.025, 0.16]} /><M c={mx(0.6)} e={sc} ei={cl.emissive * 0.35} m={0.5} r={0.25} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.2, -0.1, -0.5]} position={[0.65, 0.08, -0.06]}><boxGeometry args={[0.75, 0.035, 0.28]} /><M c={pc} e={sc} ei={cl.emissive * 0.7} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.15, -0.15, -0.7]} position={[0.8, 0.02, -0.15]}><boxGeometry args={[0.5, 0.03, 0.22]} /><M c={mx(0.4)} e={sc} ei={cl.emissive * 0.5} m={0.5} r={0.25} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.1, -0.2, -0.85]} position={[0.9, -0.03, -0.22]}><boxGeometry args={[0.35, 0.025, 0.16]} /><M c={mx(0.6)} e={sc} ei={cl.emissive * 0.35} m={0.5} r={0.25} sd={THREE.DoubleSide} /></mesh>
+      </group>
+      <mesh position={[0, 0.18, -0.5]} rotation={[0.3, 0, 0]}><coneGeometry args={[0.08, 0.6, 8]} /><M c={cl.secondary} e={sc} ei={0.5} m={0.3} r={0.4} /></mesh>
+      <mesh position={[0, 0.28, -0.85]} rotation={[0.2, 0, 0]}><coneGeometry args={[0.06, 0.4, 8]} /><M c={mx(0.5)} e={sc} ei={0.55} m={0.3} r={0.4} /></mesh>
+      <mesh position={[0, 0.35, -1.1]} rotation={[0.15, 0, 0]}><coneGeometry args={[0.04, 0.3, 8]} /><M c={mx(0.7)} e={sc} ei={0.6} m={0.3} r={0.4} /></mesh>
+      {[[-0.03, 0.12, -1.2], [0.03, 0.15, -1.18], [0, 0.1, -1.25]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x!, y!, z!]} rotation={[0.3 + i * 0.1, i * 0.5, i * 0.3]}><sphereGeometry args={[0.035, 8, 8]} /><M c="#ff6600" e="#ff3300" ei={1.2} m={0.4} r={0.3} t o={0.8} /></mesh>
+      ))}
+      <mesh position={[0, 0.1, 0]}><sphereGeometry args={[0.08, 12, 12]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+    </group>
+  );
+};
+
+const DragonModel = ({ stage, cl }: { stage: EvolutionStage; cl: StageColors }) => {
+  const pc = useC(cl.primary), sc = useC(cl.secondary), cr = useC('#e0f0ff');
+  const mx = (t: number) => useMix(cl.primary, cl.secondary, t);
+
+  if (stage === 'baby') return (
+    <group>
+      <mesh position={[0, 0.25, 0]}><sphereGeometry args={[0.3, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.55, 0.1]}><sphereGeometry args={[0.2, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.57} z={0.26} sp={0.06} sz={0.04} gc="#87ceeb" />
+      <mesh position={[-0.06, 0.7, 0.12]} rotation={[0.1, 0, 0.2]}><coneGeometry args={[0.03, 0.12, 6]} /><M c={cl.secondary} e={sc} ei={0.2} m={0.15} r={0.5} /></mesh>
+      <mesh position={[0.06, 0.7, 0.12]} rotation={[0.1, 0, -0.2]}><coneGeometry args={[0.03, 0.12, 6]} /><M c={cl.secondary} e={sc} ei={0.2} m={0.15} r={0.5} /></mesh>
+      <mesh rotation={[0.1, 0, 0.35]} position={[-0.38, 0.32, -0.05]}><boxGeometry args={[0.35, 0.03, 0.2]} /><M c={pc} e={sc} ei={cl.emissive * 0.5} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+      <mesh rotation={[0.1, 0, -0.35]} position={[0.38, 0.32, -0.05]}><boxGeometry args={[0.35, 0.03, 0.2]} /><M c={pc} e={sc} ei={cl.emissive * 0.5} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+      <mesh position={[0, 0.15, -0.3]} rotation={[0.35, 0, 0]}><coneGeometry args={[0.06, 0.2, 8]} /><M c={cl.secondary} e={sc} ei={0.15} m={0.1} r={0.5} /></mesh>
+      <mesh position={[0, 0.02, 0]}><sphereGeometry args={[0.055, 10, 10]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+    </group>
+  );
+
+  if (stage === 'adult') return (
+    <group>
+      <mesh position={[0, 0.35, 0]}><capsuleGeometry args={[0.2, 0.4, 8, 16]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.3, -0.25]}><sphereGeometry args={[0.16, 16, 16]} /><M c={pc} e={sc} ei={cl.emissive * 0.8} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.28, -0.45]}><sphereGeometry args={[0.12, 16, 16]} /><M c={pc} e={sc} ei={cl.emissive * 0.6} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.82, 0.12]}><sphereGeometry args={[0.18, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.84} z={0.28} sp={0.065} sz={0.04} gc="#00bfff" />
+      <mesh position={[-0.07, 0.98, 0.05]} rotation={[0.15, 0, 0.2]}><coneGeometry args={[0.04, 0.2, 6]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.3} r={0.4} /></mesh>
+      <mesh position={[0.07, 0.98, 0.05]} rotation={[0.15, 0, -0.2]}><coneGeometry args={[0.04, 0.2, 6]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.3} r={0.4} /></mesh>
+      <mesh position={[0, 1.0, -0.02]} rotation={[0.1, 0, 0]}><coneGeometry args={[0.03, 0.12, 5]} /><M c={cl.secondary} e={sc} ei={0.35} m={0.3} r={0.4} /></mesh>
+      <group position={[0, 0.42, 0]}>
+        <mesh rotation={[0.15, 0.1, 0.55]} position={[-0.55, 0.1, -0.1]}><boxGeometry args={[0.65, 0.025, 0.45]} /><M c={pc} ei={0} m={cl.metalness * 0.8} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.15, -0.1, -0.55]} position={[0.55, 0.1, -0.1]}><boxGeometry args={[0.65, 0.025, 0.45]} /><M c={pc} ei={0} m={cl.metalness * 0.8} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.2, 0.1, 0.55]} position={[-0.5, 0.08, -0.08]}><boxGeometry args={[0.55, 0.02, 0.02]} /><M c={cl.secondary} e={sc} ei={0.2} m={0.3} r={0.4} /></mesh>
+        <mesh rotation={[0.2, -0.1, -0.55]} position={[0.5, 0.08, -0.08]}><boxGeometry args={[0.55, 0.02, 0.02]} /><M c={cl.secondary} e={sc} ei={0.2} m={0.3} r={0.4} /></mesh>
+      </group>
+      <mesh position={[0, 0.22, -0.55]} rotation={[0.3, 0, 0]}><coneGeometry args={[0.06, 0.5, 8]} /><M c={cl.secondary} e={sc} ei={0.3} m={0.3} r={0.4} /></mesh>
+      {[[-0.04, 0.2, -0.8], [0.04, 0.22, -0.82], [0, 0.18, -0.85]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x!, y!, z!]} rotation={[0.3, i * 0.8, i * 0.4]}><coneGeometry args={[0.02, 0.08, 5]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.3} r={0.4} /></mesh>
+      ))}
+      <mesh position={[0, 0.08, 0]}><sphereGeometry args={[0.07, 12, 12]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+    </group>
+  );
+
+  return (
+    <group>
+      <mesh position={[0, 0.38, 0]}><capsuleGeometry args={[0.22, 0.45, 8, 16]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.33, -0.3]}><sphereGeometry args={[0.18, 16, 16]} /><M c={pc} e={sc} ei={cl.emissive * 0.8} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.3, -0.55]}><sphereGeometry args={[0.14, 16, 16]} /><M c={pc} e={sc} ei={cl.emissive * 0.6} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.28, -0.75]}><sphereGeometry args={[0.1, 16, 16]} /><M c={pc} e={sc} ei={cl.emissive * 0.4} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.88, 0.12]}><sphereGeometry args={[0.2, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.9} z={0.3} sp={0.07} sz={0.045} gc="#00ffff" />
+      <mesh position={[-0.09, 1.12, 0.02]} rotation={[0.15, 0, 0.2]}><coneGeometry args={[0.05, 0.28, 6]} /><M c={cr} e={sc} ei={0.7} m={0.8} r={0.15} /></mesh>
+      <mesh position={[0.09, 1.12, 0.02]} rotation={[0.15, 0, -0.2]}><coneGeometry args={[0.05, 0.28, 6]} /><M c={cr} e={sc} ei={0.7} m={0.8} r={0.15} /></mesh>
+      <mesh position={[-0.15, 1.18, -0.03]} rotation={[0.2, 0.3, 0.4]}><coneGeometry args={[0.03, 0.18, 5]} /><M c={cr} e={sc} ei={0.6} m={0.8} r={0.15} /></mesh>
+      <mesh position={[0.15, 1.18, -0.03]} rotation={[0.2, -0.3, -0.4]}><coneGeometry args={[0.03, 0.18, 5]} /><M c={cr} e={sc} ei={0.6} m={0.8} r={0.15} /></mesh>
+      <mesh position={[0, 1.15, -0.03]} rotation={[0.1, 0, 0]}><coneGeometry args={[0.04, 0.2, 5]} /><M c={cr} e={sc} ei={0.65} m={0.8} r={0.15} /></mesh>
+      <group position={[0, 0.48, 0]}>
+        <mesh rotation={[0.2, 0.1, 0.55]} position={[-0.7, 0.12, -0.12]}><boxGeometry args={[0.8, 0.025, 0.55]} /><M c={pc} ei={0} m={cl.metalness * 0.8} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.2, -0.1, -0.55]} position={[0.7, 0.12, -0.12]}><boxGeometry args={[0.8, 0.025, 0.55]} /><M c={pc} ei={0} m={cl.metalness * 0.8} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.25, 0.1, 0.55]} position={[-0.62, 0.1, -0.1]}><boxGeometry args={[0.65, 0.02, 0.02]} /><M c={cr} e={sc} ei={0.3} m={0.7} r={0.2} /></mesh>
+        <mesh rotation={[0.25, -0.1, -0.55]} position={[0.62, 0.1, -0.1]}><boxGeometry args={[0.65, 0.02, 0.02]} /><M c={cr} e={sc} ei={0.3} m={0.7} r={0.2} /></mesh>
+        <mesh rotation={[0.25, 0.15, 0.7]} position={[-0.82, 0.06, -0.18]}><boxGeometry args={[0.5, 0.02, 0.35]} /><M c={mx(0.3)} e={sc} ei={cl.emissive * 0.4} m={0.6} r={0.2} sd={THREE.DoubleSide} /></mesh>
+        <mesh rotation={[0.25, -0.15, -0.7]} position={[0.82, 0.06, -0.18]}><boxGeometry args={[0.5, 0.02, 0.35]} /><M c={mx(0.3)} e={sc} ei={cl.emissive * 0.4} m={0.6} r={0.2} sd={THREE.DoubleSide} /></mesh>
+      </group>
+      <mesh position={[0, 0.25, -0.6]} rotation={[0.3, 0, 0]}><coneGeometry args={[0.07, 0.65, 8]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.3} r={0.4} /></mesh>
+      {[[-0.05, 0.22, -0.95], [0.05, 0.25, -1.0], [-0.03, 0.18, -1.05], [0.03, 0.2, -0.98], [0, 0.22, -1.08]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x!, y!, z!]} rotation={[0.3, i * 0.6, i * 0.5]}><octahedronGeometry args={[0.035, 0]} /><M c={cr} e={sc} ei={0.8} m={0.9} r={0.1} t o={0.85} /></mesh>
+      ))}
+      <mesh position={[0, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.32, 0.015, 8, 32]} /><M c={cl.secondary} e={sc} ei={0.5} m={0.4} r={0.3} t o={0.5} /></mesh>
+      <mesh position={[0, 0.08, 0]}><sphereGeometry args={[0.08, 12, 12]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+    </group>
+  );
+};
+
+const WolfModel = ({ stage, cl }: { stage: EvolutionStage; cl: StageColors }) => {
+  const pc = useC(cl.primary), sc = useC(cl.secondary);
+  const mx = (t: number) => useMix(cl.primary, cl.secondary, t);
+
+  if (stage === 'baby') return (
+    <group>
+      <mesh position={[0, 0.2, 0]}><capsuleGeometry args={[0.15, 0.3, 8, 16]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.4, 0.22]}><sphereGeometry args={[0.16, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.42} z={0.35} sp={0.055} sz={0.03} gc="#ffff00" />
+      <mesh position={[-0.08, 0.5, 0.22]} rotation={[0, 0, 0.25]}><coneGeometry args={[0.04, 0.1, 6]} /><M c={cl.secondary} e={sc} ei={0.2} m={0.1} r={0.6} /></mesh>
+      <mesh position={[0.08, 0.5, 0.22]} rotation={[0, 0, -0.25]}><coneGeometry args={[0.04, 0.1, 6]} /><M c={cl.secondary} e={sc} ei={0.2} m={0.1} r={0.6} /></mesh>
+      <mesh position={[0, 0.39, 0.37]}><sphereGeometry args={[0.015, 8, 8]} /><M c={mx(0.3)} ei={0} m={0.1} r={0.6} /></mesh>
+      {[[-0.12, 0, 0.12], [0.12, 0, 0.12], [-0.12, 0, -0.12], [0.12, 0, -0.12]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x!, y!, z!]}><cylinderGeometry args={[0.04, 0.06, 0.2, 8]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+      ))}
+      <mesh position={[0, 0.2, -0.3]} rotation={[0.2, 0, 0.15]}><cylinderGeometry args={[0.02, 0.04, 0.15, 8]} /><M c={cl.secondary} e={sc} ei={0.15} m={0.1} r={0.6} /></mesh>
+    </group>
+  );
+
+  if (stage === 'adult') return (
+    <group>
+      <mesh position={[0, 0.3, 0]}><capsuleGeometry args={[0.17, 0.4, 8, 16]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.55, 0.28]}><sphereGeometry args={[0.18, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.55, 0.28]}><coneGeometry args={[0.16, 0.22, 24, 1, true]} /><M c={pc} e={sc} ei={cl.emissive * 0.8} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.58} z={0.42} sp={0.06} sz={0.035} gc="#ffff00" />
+      <mesh position={[-0.1, 0.72, 0.28]} rotation={[0.1, 0, 0.25]}><coneGeometry args={[0.05, 0.18, 6]} /><M c={cl.secondary} e={sc} ei={0.35} m={0.2} r={0.5} /></mesh>
+      <mesh position={[0.1, 0.72, 0.28]} rotation={[0.1, 0, -0.25]}><coneGeometry args={[0.05, 0.18, 6]} /><M c={cl.secondary} e={sc} ei={0.35} m={0.2} r={0.5} /></mesh>
+      <mesh position={[0, 0.54, 0.44]}><sphereGeometry args={[0.018, 8, 8]} /><M c={mx(0.3)} ei={0} m={0.2} r={0.5} /></mesh>
+      {[[-0.14, 0.05, 0.15], [0.14, 0.05, 0.15], [-0.14, 0.05, -0.15], [0.14, 0.05, -0.15]].map(([x, y, z], i) => (
+        <group key={i} position={[x!, y!, z!]}>
+          <mesh><cylinderGeometry args={[0.04, 0.05, 0.3, 8]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+          <mesh position={[0, -0.18, 0.03]}><sphereGeometry args={[0.04, 10, 10]} /><M c={mx(0.15)} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.3, -0.4]} rotation={[0.15, 0, 0.1]}><cylinderGeometry args={[0.025, 0.05, 0.35, 8]} /><M c={cl.secondary} e={sc} ei={0.3} m={0.2} r={0.5} /></mesh>
+      {[[-0.03, 0.35, -0.58], [0.03, 0.37, -0.56]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x!, y!, z!]}><sphereGeometry args={[0.025, 8, 8]} /><M c={cl.secondary} e="#ffff00" ei={0.5} m={0.2} r={0.5} t o={0.7} /></mesh>
+      ))}
+    </group>
+  );
+
+  return (
+    <group>
+      <mesh position={[0, 0.35, 0]}><capsuleGeometry args={[0.2, 0.45, 8, 16]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.35, -0.1]}><sphereGeometry args={[0.15, 16, 16]} /><M c={mx(0.3)} e={sc} ei={cl.emissive * 0.7} m={0.4} r={0.3} /></mesh>
+      <mesh position={[0, 0.65, 0.3]}><sphereGeometry args={[0.2, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.65, 0.3]}><coneGeometry args={[0.18, 0.25, 24, 1, true]} /><M c={pc} e={sc} ei={cl.emissive * 0.8} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.68} z={0.47} sp={0.07} sz={0.04} gc="#9400d3" />
+      <mesh position={[-0.06, 0.64, 0.46]}><coneGeometry args={[0.015, 0.06, 6]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0.06, 0.64, 0.46]}><coneGeometry args={[0.015, 0.06, 6]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[-0.12, 0.88, 0.3]} rotation={[0.1, 0, 0.25]}><coneGeometry args={[0.06, 0.22, 6]} /><M c={cl.secondary} e={sc} ei={0.6} m={0.4} r={0.3} /></mesh>
+      <mesh position={[0.12, 0.88, 0.3]} rotation={[0.1, 0, -0.25]}><coneGeometry args={[0.06, 0.22, 6]} /><M c={cl.secondary} e={sc} ei={0.6} m={0.4} r={0.3} /></mesh>
+      <mesh position={[-0.12, 0.82, 0.32]} rotation={[0, 0, 0.8]}><torusGeometry args={[0.04, 0.008, 6, 16, Math.PI]} /><M c="#ffff00" e="#ffff00" ei={1.0} m={0.3} r={0.4} /></mesh>
+      <mesh position={[0.12, 0.82, 0.32]} rotation={[0, 0, -0.8]}><torusGeometry args={[0.04, 0.008, 6, 16, Math.PI]} /><M c="#ffff00" e="#ffff00" ei={1.0} m={0.3} r={0.4} /></mesh>
+      {[[-0.16, 0.08, 0.18], [0.16, 0.08, 0.18], [-0.16, 0.08, -0.18], [0.16, 0.08, -0.18]].map(([x, y, z], i) => (
+        <group key={i} position={[x!, y!, z!]}>
+          <mesh><cylinderGeometry args={[0.05, 0.06, 0.4, 8]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+          <mesh position={[0, -0.22, 0.04]}><sphereGeometry args={[0.05, 10, 10]} /><M c={mx(0.15)} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.35, -0.5]} rotation={[0.12, 0, 0.1]}><cylinderGeometry args={[0.03, 0.06, 0.45, 8]} /><M c={cl.secondary} e={sc} ei={0.5} m={0.3} r={0.4} /></mesh>
+      <mesh position={[0, 0.42, -0.72]} rotation={[0.1, 0, 0.15]}><coneGeometry args={[0.05, 0.15, 8]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.3} r={0.4} /></mesh>
+      {[[-0.08, 0.48, 0.05], [0.08, 0.48, 0.05], [0, 0.5, -0.05], [-0.05, 0.46, 0.1], [0.05, 0.46, 0.1]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x!, y!, z!]}><sphereGeometry args={[0.03, 8, 8]} /><M c="#9400d3" e="#ffff00" ei={0.8} m={0.3} r={0.4} t o={0.6} /></mesh>
+      ))}
+      <mesh position={[0, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.28, 0.012, 6, 32]} /><M c={cl.secondary} e={sc} ei={0.6} m={0.4} r={0.3} t o={0.4} /></mesh>
+    </group>
+  );
+};
+
+const TortoiseModel = ({ stage, cl }: { stage: EvolutionStage; cl: StageColors }) => {
+  const pc = useC(cl.primary), sc = useC(cl.secondary);
+  const mx = (t: number) => useMix(cl.primary, cl.secondary, t);
+
+  if (stage === 'baby') return (
+    <group>
+      <mesh position={[0, 0.12, 0]}><sphereGeometry args={[0.3, 24, 24, 0, Math.PI * 2, 0, Math.PI / 2]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.08, 0]}><torusGeometry args={[0.28, 0.05, 8, 24]} /><M c={mx(0.2)} ei={0} m={cl.metalness} r={cl.roughness + 0.1} /></mesh>
+      <mesh position={[0, 0.02, 0]}><cylinderGeometry args={[0.28, 0.28, 0.04, 24]} /><M c={mx(0.3)} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.1, 0.3]}><sphereGeometry args={[0.12, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.12} z={0.39} sp={0.04} sz={0.025} gc="#32cd32" />
+      {[[-0.18, -0.02, -0.15], [0.18, -0.02, -0.15], [-0.18, -0.02, 0.15], [0.18, -0.02, 0.15]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x!, y!, z!]}><cylinderGeometry args={[0.05, 0.06, 0.12, 8]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+      ))}
+      <mesh position={[0, 0.05, -0.28]}><sphereGeometry args={[0.06, 12, 12]} /><M c={cl.secondary} e={sc} ei={0.15} m={0.1} r={0.5} /></mesh>
+    </group>
+  );
+
+  if (stage === 'adult') return (
+    <group>
+      <mesh position={[0, 0.18, 0]}><sphereGeometry args={[0.38, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.14, 0]}><torusGeometry args={[0.36, 0.06, 8, 32]} /><M c={mx(0.2)} ei={0} m={cl.metalness} r={cl.roughness + 0.1} /></mesh>
+      <mesh position={[0, 0.02, 0]}><cylinderGeometry args={[0.36, 0.36, 0.04, 32]} /><M c={mx(0.3)} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+      {[[-0.15, 0.12, 0], [0.15, 0.12, 0], [0, 0.12, -0.15], [0, 0.12, 0.15]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x!, y!, z!]} rotation={[0, i * 0.5, 0]}><cylinderGeometry args={[0.08, 0.08, 0.02, 6]} /><M c={mx(0.4)} ei={0} m={cl.metalness + 0.1} r={cl.roughness - 0.1} /></mesh>
+      ))}
+      <mesh position={[0, 0.15, 0.38]}><sphereGeometry args={[0.14, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.17} z={0.49} sp={0.05} sz={0.03} gc="#32cd32" />
+      <mesh position={[0, 0.12, 0.5]}><sphereGeometry args={[0.02, 8, 8]} /><M c={mx(0.4)} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+      {[[-0.22, 0, -0.2], [0.22, 0, -0.2], [-0.22, 0, 0.2], [0.22, 0, 0.2]].map(([x, y, z], i) => (
+        <group key={i} position={[x!, y!, z!]}>
+          <mesh><cylinderGeometry args={[0.06, 0.07, 0.2, 8]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+          <mesh position={[0, -0.12, 0]}><sphereGeometry args={[0.05, 10, 10]} /><M c={mx(0.2)} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.08, -0.36]}><sphereGeometry args={[0.08, 12, 12]} /><M c={cl.secondary} e={sc} ei={0.2} m={0.1} r={0.5} /></mesh>
+    </group>
+  );
+
+  return (
+    <group>
+      <mesh position={[0, 0.22, 0]}><sphereGeometry args={[0.45, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <mesh position={[0, 0.18, 0]}><torusGeometry args={[0.43, 0.07, 8, 32]} /><M c={mx(0.2)} ei={0} m={cl.metalness} r={cl.roughness + 0.1} /></mesh>
+      <mesh position={[0, 0.02, 0]}><cylinderGeometry args={[0.43, 0.43, 0.04, 32]} /><M c={mx(0.3)} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+      {[[-0.2, 0.18, 0], [0.2, 0.18, 0], [0, 0.18, -0.2], [0, 0.18, 0.2], [-0.14, 0.18, -0.14], [0.14, 0.18, 0.14], [-0.14, 0.18, 0.14], [0.14, 0.18, -0.14]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x!, y!, z!]} rotation={[0, i * 0.4, 0]}><cylinderGeometry args={[0.06, 0.06, 0.04, 6]} /><M c={mx(0.5)} ei={0} m={cl.metalness + 0.2} r={cl.roughness - 0.15} /></mesh>
+      ))}
+      {[[-0.12, 0.3, 0], [0.12, 0.3, 0], [0, 0.3, -0.12], [0, 0.3, 0.12]].map(([x, y, z], i) => (
+        <mesh key={i} position={[x!, y!, z!]} rotation={[0, i * 0.8, 0]}><octahedronGeometry args={[0.06, 0]} /><M c="#e0ffe0" e={sc} ei={0.8} m={0.8} r={0.15} t o={0.8} /></mesh>
+      ))}
+      <mesh position={[0, 0.2, 0.45]}><sphereGeometry args={[0.16, 24, 24]} /><M c={pc} e={sc} ei={cl.emissive} m={cl.metalness} r={cl.roughness} /></mesh>
+      <Eyes y={0.22} z={0.58} sp={0.055} sz={0.035} gc="#00ff00" />
+      <mesh position={[0, 0.18, 0.6]}><sphereGeometry args={[0.025, 8, 8]} /><M c={mx(0.4)} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+      {[[-0.26, 0, -0.24], [0.26, 0, -0.24], [-0.26, 0, 0.24], [0.26, 0, 0.24]].map(([x, y, z], i) => (
+        <group key={i} position={[x!, y!, z!]}>
+          <mesh><cylinderGeometry args={[0.08, 0.1, 0.35, 8]} /><M c={pc} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+          <mesh position={[0, -0.2, 0]}><sphereGeometry args={[0.06, 10, 10]} /><M c={mx(0.2)} ei={0} m={cl.metalness} r={cl.roughness} /></mesh>
+        </group>
+      ))}
+      <mesh position={[0, 0.12, -0.42]}><sphereGeometry args={[0.1, 12, 12]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.3} r={0.4} /></mesh>
+      <mesh position={[0, 0.35, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.38, 0.015, 8, 32]} /><M c={cl.secondary} e={sc} ei={0.5} m={0.4} r={0.3} t o={0.4} /></mesh>
+    </group>
+  );
+};
+
 const CreatureModel = ({ creatureType, stage, evolutionAnimation }: CreatureModelProps) => {
   const creatureRef = useRef<THREE.Group>(null);
   const config = EGG_CONFIGS[creatureType] || EGG_CONFIGS.phoenix;
+  const cl = getSC(creatureType, stage);
 
   const getScale = () => {
     switch (stage) {
-      case 'baby':
-        return 0.5;
-      case 'adult':
-        return 0.8;
-      case 'evolved':
-        return 1.0;
-      default:
-        return 0.5;
+      case 'baby': return 0.5;
+      case 'adult': return 0.8;
+      case 'evolved': return 1.0;
+      default: return 0.5;
     }
   };
 
-  const primaryColor = new THREE.Color(config.color);
   const secondaryColor = new THREE.Color(config.glowColor);
 
   useFrame(({ clock }) => {
     const time = clock.getElapsedTime();
-
     if (creatureRef.current) {
       const breathe = Math.sin(time * 2) * 0.03;
       creatureRef.current.position.y = breathe;
       creatureRef.current.rotation.y = evolutionAnimation.rotation + Math.sin(time * 0.3) * 0.1;
-
       const baseScale = getScale() * evolutionAnimation.scale;
       creatureRef.current.scale.setScalar(baseScale + breathe * 0.3);
     }
   });
 
-  const renderPhoenix = () => (
-    <group>
-      <mesh position={[0, 0.3, 0]}>
-        <sphereGeometry args={[0.35, 32, 32]} />
-        <meshStandardMaterial color={primaryColor} metalness={0.3} roughness={0.4} emissive={secondaryColor} emissiveIntensity={0.2} />
-      </mesh>
-
-      <mesh position={[0, 0.65, 0]}>
-        <sphereGeometry args={[0.25, 32, 32]} />
-        <meshStandardMaterial color={primaryColor} metalness={0.3} roughness={0.4} emissive={secondaryColor} emissiveIntensity={0.3} />
-      </mesh>
-
-      <mesh position={[0, 0.75, 0.22]}>
-        <coneGeometry args={[0.08, 0.15, 8]} />
-        <meshStandardMaterial color={secondaryColor} emissive={secondaryColor} emissiveIntensity={0.5} />
-      </mesh>
-
-      <group position={[0, 0.7, 0]}>
-        <mesh position={[-0.1, 0.05, 0.2]}>
-          <sphereGeometry args={[0.04, 16, 16]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.3} />
-        </mesh>
-        <mesh position={[0.1, 0.05, 0.2]}>
-          <sphereGeometry args={[0.04, 16, 16]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.3} />
-        </mesh>
-      </group>
-
-      <group position={[0, 0.3, 0]}>
-        <mesh rotation={[0, 0, 0.3]} position={[-0.5, 0, 0]}>
-          <boxGeometry args={[0.6, 0.05, 0.3]} />
-          <meshStandardMaterial color={primaryColor} metalness={0.2} roughness={0.5} emissive={secondaryColor} emissiveIntensity={0.2} side={THREE.DoubleSide} />
-        </mesh>
-        <mesh rotation={[0, 0, -0.3]} position={[0.5, 0, 0]}>
-          <boxGeometry args={[0.6, 0.05, 0.3]} />
-          <meshStandardMaterial color={primaryColor} metalness={0.2} roughness={0.5} emissive={secondaryColor} emissiveIntensity={0.2} side={THREE.DoubleSide} />
-        </mesh>
-      </group>
-
-      <mesh position={[0, 0, -0.4]} rotation={[0.2, 0, 0]}>
-        <coneGeometry args={[0.1, 0.5, 8]} />
-        <meshStandardMaterial color={secondaryColor} emissive={secondaryColor} emissiveIntensity={0.4} />
-      </mesh>
-    </group>
-  );
-
-  const renderDragon = () => (
-    <group>
-      <mesh position={[0, 0.4, 0]}>
-        <capsuleGeometry args={[0.25, 0.5, 8, 16]} />
-        <meshStandardMaterial color={primaryColor} metalness={0.4} roughness={0.3} emissive={secondaryColor} emissiveIntensity={0.15} />
-      </mesh>
-
-      <mesh position={[0, 0.85, 0.15]}>
-        <sphereGeometry args={[0.22, 32, 32]} />
-        <meshStandardMaterial color={primaryColor} metalness={0.4} roughness={0.3} emissive={secondaryColor} emissiveIntensity={0.2} />
-      </mesh>
-
-      <group position={[0, 0.95, 0.3]}>
-        <mesh position={[-0.08, 0.15, 0]} rotation={[0, 0, 0.2]}>
-          <coneGeometry args={[0.05, 0.2, 8]} />
-          <meshStandardMaterial color={secondaryColor} emissive={secondaryColor} emissiveIntensity={0.3} />
-        </mesh>
-        <mesh position={[0.08, 0.15, 0]} rotation={[0, 0, -0.2]}>
-          <coneGeometry args={[0.05, 0.2, 8]} />
-          <meshStandardMaterial color={secondaryColor} emissive={secondaryColor} emissiveIntensity={0.3} />
-        </mesh>
-      </group>
-
-      <group position={[0, 0.85, 0.15]}>
-        <mesh position={[-0.08, 0, 0.18]}>
-          <sphereGeometry args={[0.035, 16, 16]} />
-          <meshStandardMaterial color="#ffffff" emissive="#87ceeb" emissiveIntensity={0.5} />
-        </mesh>
-        <mesh position={[0.08, 0, 0.18]}>
-          <sphereGeometry args={[0.035, 16, 16]} />
-          <meshStandardMaterial color="#ffffff" emissive="#87ceeb" emissiveIntensity={0.5} />
-        </mesh>
-      </group>
-
-      <group position={[0, 0.5, 0]}>
-        <mesh rotation={[0, 0, 0.5]} position={[-0.5, 0.1, -0.1]}>
-          <boxGeometry args={[0.7, 0.03, 0.5]} />
-          <meshStandardMaterial color={primaryColor} metalness={0.3} roughness={0.4} side={THREE.DoubleSide} />
-        </mesh>
-        <mesh rotation={[0, 0, -0.5]} position={[0.5, 0.1, -0.1]}>
-          <boxGeometry args={[0.7, 0.03, 0.5]} />
-          <meshStandardMaterial color={primaryColor} metalness={0.3} roughness={0.4} side={THREE.DoubleSide} />
-        </mesh>
-      </group>
-
-      <mesh position={[0, 0.15, -0.5]} rotation={[0.3, 0, 0]}>
-        <coneGeometry args={[0.08, 0.6, 8]} />
-        <meshStandardMaterial color={secondaryColor} emissive={secondaryColor} emissiveIntensity={0.3} />
-      </mesh>
-    </group>
-  );
-
-  const renderWolf = () => (
-    <group>
-      <mesh position={[0, 0.25, 0]}>
-        <capsuleGeometry args={[0.18, 0.4, 8, 16]} />
-        <meshStandardMaterial color={primaryColor} metalness={0.2} roughness={0.6} emissive={secondaryColor} emissiveIntensity={0.15} />
-      </mesh>
-
-      <mesh position={[0, 0.5, 0.3]}>
-        <sphereGeometry args={[0.2, 32, 32]} />
-        <meshStandardMaterial color={primaryColor} metalness={0.2} roughness={0.6} emissive={secondaryColor} emissiveIntensity={0.2} />
-      </mesh>
-
-      <group position={[0, 0.6, 0.3]}>
-        <mesh position={[-0.12, 0.15, 0.05]} rotation={[0, 0, 0.3]}>
-          <coneGeometry args={[0.06, 0.18, 8]} />
-          <meshStandardMaterial color={secondaryColor} emissive={secondaryColor} emissiveIntensity={0.3} />
-        </mesh>
-        <mesh position={[0.12, 0.15, 0.05]} rotation={[0, 0, -0.3]}>
-          <coneGeometry args={[0.06, 0.18, 8]} />
-          <meshStandardMaterial color={secondaryColor} emissive={secondaryColor} emissiveIntensity={0.3} />
-        </mesh>
-      </group>
-
-      <group position={[0, 0.5, 0.3]}>
-        <mesh position={[-0.07, 0, 0.18]}>
-          <sphereGeometry args={[0.035, 16, 16]} />
-          <meshStandardMaterial color="#ffff00" emissive="#ffff00" emissiveIntensity={0.8} />
-        </mesh>
-        <mesh position={[0.07, 0, 0.18]}>
-          <sphereGeometry args={[0.035, 16, 16]} />
-          <meshStandardMaterial color="#ffff00" emissive="#ffff00" emissiveIntensity={0.8} />
-        </mesh>
-      </group>
-
-      <group position={[0, 0.05, 0]}>
-        {[[-0.15, -0.2], [0.15, -0.2], [-0.15, 0.2], [0.15, 0.2]].map(([x, z], i) => (
-          <mesh key={i} position={[x, -0.15, z]}>
-            <cylinderGeometry args={[0.04, 0.05, 0.3, 8]} />
-            <meshStandardMaterial color={primaryColor} />
-          </mesh>
-        ))}
-      </group>
-
-      <mesh position={[0, 0.25, -0.45]} rotation={[0, 0, 0.2]}>
-        <cylinderGeometry args={[0.03, 0.06, 0.4, 8]} />
-        <meshStandardMaterial color={secondaryColor} emissive={secondaryColor} emissiveIntensity={0.3} />
-      </mesh>
-    </group>
-  );
-
-  const renderTortoise = () => (
-    <group>
-      <mesh position={[0, 0.15, 0]}>
-        <sphereGeometry args={[0.4, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color={primaryColor} metalness={0.1} roughness={0.8} />
-      </mesh>
-
-      <mesh position={[0, 0.1, 0]}>
-        <torusGeometry args={[0.38, 0.08, 8, 32]} />
-        <meshStandardMaterial color={secondaryColor} metalness={0.1} roughness={0.7} />
-      </mesh>
-
-      <mesh position={[0, 0.05, 0.4]}>
-        <sphereGeometry args={[0.15, 32, 32]} />
-        <meshStandardMaterial color={primaryColor} metalness={0.1} roughness={0.8} />
-      </mesh>
-
-      <group position={[0, 0.05, 0.4]}>
-        <mesh position={[-0.05, 0.03, 0.12]}>
-          <sphereGeometry args={[0.025, 16, 16]} />
-          <meshStandardMaterial color="#ffffff" emissive="#32cd32" emissiveIntensity={0.5} />
-        </mesh>
-        <mesh position={[0.05, 0.03, 0.12]}>
-          <sphereGeometry args={[0.025, 16, 16]} />
-          <meshStandardMaterial color="#ffffff" emissive="#32cd32" emissiveIntensity={0.5} />
-        </mesh>
-      </group>
-
-      <group position={[0, 0, 0]}>
-        {[[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]].map(([x, z], i) => (
-          <mesh key={i} position={[x, -0.08, z]}>
-            <cylinderGeometry args={[0.06, 0.08, 0.16, 8]} />
-            <meshStandardMaterial color={primaryColor} />
-          </mesh>
-        ))}
-      </group>
-
-      <mesh position={[0, 0.05, -0.38]}>
-        <sphereGeometry args={[0.08, 16, 16]} />
-        <meshStandardMaterial color={secondaryColor} />
-      </mesh>
-    </group>
-  );
-
   const renderCreature = () => {
+    const props = { stage, cl };
     switch (creatureType) {
-      case 'phoenix':
-        return renderPhoenix();
-      case 'dragon':
-        return renderDragon();
-      case 'wolf':
-        return renderWolf();
-      case 'tortoise':
-        return renderTortoise();
-      default:
-        return renderPhoenix();
+      case 'phoenix': return <PhoenixModel {...props} />;
+      case 'dragon': return <DragonModel {...props} />;
+      case 'wolf': return <WolfModel {...props} />;
+      case 'tortoise': return <TortoiseModel {...props} />;
+      default: return <PhoenixModel {...props} />;
     }
   };
 
@@ -259,8 +387,8 @@ const CreatureModel = ({ creatureType, stage, evolutionAnimation }: CreatureMode
       <pointLight
         position={[0, 0.5, 0]}
         color={secondaryColor}
-        intensity={0.5}
-        distance={3}
+        intensity={stage === 'evolved' ? 1.0 : stage === 'adult' ? 0.7 : 0.5}
+        distance={stage === 'evolved' ? 5 : 3}
       />
     </group>
   );

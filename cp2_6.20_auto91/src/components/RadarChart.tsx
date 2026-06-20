@@ -71,7 +71,30 @@ const RadarChart: React.FC<RadarChartProps> = ({ stats }) => {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <filter id="polygonGlow">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
         </defs>
+
+        <style>{`
+          @keyframes breathe {
+            0%, 100% {
+              transform: scale(1);
+              opacity: 0.6;
+            }
+            50% {
+              transform: scale(1.5);
+              opacity: 0.15;
+            }
+          }
+          .glow-point {
+            animation: breathe 2s ease-in-out infinite;
+          }
+        `}</style>
 
         <circle cx="150" cy="150" r="120" fill="url(#radarBg)" />
 
@@ -79,9 +102,10 @@ const RadarChart: React.FC<RadarChartProps> = ({ stats }) => {
           <polygon
             key={level}
             points={grid.map((p) => `${p.x},${p.y}`).join(' ')}
-            fill="none"
+            fill="#1e3a5f"
+            fillOpacity="0.15"
             stroke="#3b82f6"
-            strokeOpacity={0.2}
+            strokeOpacity="0.3"
             strokeWidth="1"
           />
         ))}
@@ -105,6 +129,7 @@ const RadarChart: React.FC<RadarChartProps> = ({ stats }) => {
           fillOpacity="0.3"
           stroke="#6c63ff"
           strokeWidth="2"
+          filter="url(#polygonGlow)"
         />
 
         {points.map((point, index) => (
@@ -112,17 +137,26 @@ const RadarChart: React.FC<RadarChartProps> = ({ stats }) => {
             <circle
               cx={point.x}
               cy={point.y}
-              r="6"
+              r="8"
               fill="#ffd700"
-              filter="url(#statGlow)"
+              fillOpacity="0.4"
+              className="glow-point"
               style={{
-                animation: `breathe 2s ease-in-out ${index * 0.15}s infinite`,
+                transformOrigin: `${point.x}px ${point.y}px`,
+                animationDelay: `${index * 0.15}s`,
               }}
             />
             <circle
               cx={point.x}
               cy={point.y}
-              r="3"
+              r="5"
+              fill="#ffd700"
+              filter="url(#statGlow)"
+            />
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r="2.5"
               fill="#fff"
             />
           </g>

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
@@ -12,14 +12,21 @@ import ParticleSystem from './ThreeScene/ParticleSystem';
 import LightBeam from './ThreeScene/LightBeam';
 import { EGG_CONFIGS } from '../utils/constants';
 
-const CreatureEvolution: React.FC = () => {
+const CreatureEvolution = () => {
   const selectedEgg = useIncubationStore((state) => state.selectedEgg);
   const evolutionStage = useIncubationStore((state) => state.evolutionStage);
   const incubationProgress = useIncubationStore((state) => state.incubationProgress);
   const isIncubating = useIncubationStore((state) => state.isIncubating);
   const isEvolving = useIncubationStore((state) => state.isEvolving);
+  const finishEvolving = useIncubationStore((state) => state.finishEvolving);
 
   const evolutionAnimation = useEvolution();
+
+  useEffect(() => {
+    if (evolutionAnimation.shouldTransition) {
+      finishEvolving();
+    }
+  }, [evolutionAnimation.shouldTransition, finishEvolving]);
 
   const element = useMemo(() => {
     if (!selectedEgg) return 'fire';
@@ -59,21 +66,11 @@ const CreatureEvolution: React.FC = () => {
         />
 
         {showEgg && (
-          <>
-            <EggModel
-              eggType={selectedEgg}
-              progress={incubationProgress}
-              isIncubating={isIncubating}
-            />
-            {showBurstParticles && (
-              <ParticleSystem
-                active={true}
-                intensity={1.5}
-                element={element}
-                type="burst"
-              />
-            )}
-          </>
+          <EggModel
+            eggType={selectedEgg}
+            progress={incubationProgress}
+            isIncubating={isIncubating}
+          />
         )}
 
         {showCreature && (
@@ -84,7 +81,7 @@ const CreatureEvolution: React.FC = () => {
               evolutionAnimation={evolutionAnimation}
             />
 
-            {isEvolving && (
+            {evolutionAnimation.particleIntensity > 0 && (
               <>
                 <ParticleSystem
                   active={evolutionAnimation.particleIntensity > 0}
@@ -99,6 +96,15 @@ const CreatureEvolution: React.FC = () => {
                   type="burst"
                 />
               </>
+            )}
+
+            {showBurstParticles && evolutionAnimation.phase === 'idle' && (
+              <ParticleSystem
+                active={true}
+                intensity={1.5}
+                element={element}
+                type="burst"
+              />
             )}
 
             <LightBeam active={evolutionAnimation.showLightBeam} />
