@@ -92,20 +92,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowGalleryModal: (v) => set({ showGalleryModal: v }),
 
   addToGallery: (item) => {
+    const state = get();
+    const lastAnnotation = state.annotations[state.annotations.length - 1];
+    const annotationText = lastAnnotation ? lastAnnotation.text : item.annotation || '';
     const newItem: GalleryItem = {
       ...item,
+      annotation: annotationText,
       id: uuidv4(),
       createdAt: Date.now(),
     };
-    set((state) => {
-      const updated = [newItem, ...state.gallery];
-      if (estimateSize(updated) > STORAGE_LIMIT) {
-        const trimmed = updated.slice(0, 10);
-        return { gallery: trimmed };
+    set((s) => {
+      let updated = [newItem, ...s.gallery];
+      while (updated.length > 0 && estimateSize(updated) > STORAGE_LIMIT) {
+        updated.pop();
       }
       return { gallery: updated };
     });
-    get().saveGalleryToStorage();
+    try {
+      get().saveGalleryToStorage();
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        console.warn('Storage quota exceeded, gallery item may not persist');
+      } else {
+        throw e;
+      }
+    }
   },
 
   removeFromGallery: (id) => {
@@ -170,10 +181,37 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   saveGalleryToStorage: () => {
     try {
-      const { gallery } = get();
-      localStorage.setItem(GALLERY_KEY, JSON.stringify(gallery));
-    } catch {
-      console.warn('localStorage save failed');
+      let { gallery } = get();
+      const trimmed = [...gallery];
+      while (trimmed.length > 0 && estimateSize(trimmed) > STORAGE_LIMIT) {
+        trimmed.pop();
+      }
+      if (trimmed.length !== gallery.length) {
+        set({ gallery: trimmed });
+      }
+      localStorage.setItem(GALLERY_KEY, JSON.stringify(trimmed));
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        console.warn('Storage quota exceeded, trimming further');
+        try {
+          let { gallery } = get();
+          const trimmed = [...gallery];
+          while (trimmed.length > 1) {
+            trimmed.pop();
+            try {
+              localStorage.setItem(GALLERY_KEY, JSON.stringify(trimmed));
+              set({ gallery: trimmed });
+              break;
+            } catch {
+              continue;
+            }
+          }
+        } catch {
+          console.warn('localStorage save failed completely');
+        }
+      } else {
+        console.warn('localStorage save failed');
+      }
     }
   },
 }));

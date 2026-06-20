@@ -8,6 +8,16 @@ const CanvasArea: React.FC = () => {
   const [showInspiration, setShowInspiration] = useState(false);
   const [inspirationText, setInspirationText] = useState('');
 
+  const targetDensityRef = useRef<number>(0.6);
+  const targetAnimSpeedRef = useRef<number>(1);
+  const currentDensityRef = useRef<number>(0.6);
+  const currentSpeedRef = useRef<number>(1);
+  const rafIdRef = useRef<number | null>(null);
+  const lastTimeRef = useRef<number>(0);
+
+  const [hoveredAnnId, setHoveredAnnId] = useState<string | null>(null);
+  const [fadeOpacity, setFadeOpacity] = useState(1);
+
   const {
     currentPoem,
     currentImagery,
@@ -21,10 +31,40 @@ const CanvasArea: React.FC = () => {
     showAnnotationInput,
     setIsPaused,
     addAnnotation,
+    removeAnnotation,
     setShowAnnotationInput,
   } = useAppStore();
 
   const [annotationText, setAnnotationText] = useState('');
+
+  const transitionLoop = useCallback((time: number) => {
+    if (!lastTimeRef.current) lastTimeRef.current = time;
+    const dt = (time - lastTimeRef.current) / 1000;
+    lastTimeRef.current = time;
+
+    const factor = Math.min(1, dt / 0.3);
+    currentDensityRef.current += (targetDensityRef.current - currentDensityRef.current) * factor;
+    currentSpeedRef.current += (targetAnimSpeedRef.current - currentSpeedRef.current) * factor;
+
+    rafIdRef.current = requestAnimationFrame(transitionLoop);
+  }, []);
+
+  useEffect(() => {
+    rafIdRef.current = requestAnimationFrame(transitionLoop);
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, [transitionLoop]);
+
+  useEffect(() => {
+    targetDensityRef.current = brushDensity;
+  }, [brushDensity]);
+
+  useEffect(() => {
+    targetAnimSpeedRef.current = animSpeed;
+  }, [animSpeed]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -42,21 +82,37 @@ const CanvasArea: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    targetDensityRef.current = brushDensity;
+    targetAnimSpeedRef.current = animSpeed;
+
+    setFadeOpacity(0);
+    const timer = setTimeout(() => setFadeOpacity(1), 50);
+
     const renderer = rendererRef.current;
     if (!renderer) return;
 
     if (isAnimating && currentImagery.length > 0) {
       const displayImagery = selectedImagery ? [selectedImagery] : currentImagery;
-      renderer.start(displayImagery, { brushDensity, theme, animSpeed }, currentPoem);
+      renderer.stop();
+      renderer.start(displayImagery, {
+        brushDensity: currentDensityRef.current,
+        theme,
+        animSpeed: currentSpeedRef.current,
+      }, currentPoem);
     } else {
       renderer.stop();
       if (currentPoem) {
         const displayImagery = selectedImagery ? [selectedImagery] : currentImagery;
-        renderer.render(displayImagery, { brushDensity, theme, animSpeed }, currentPoem);
+        renderer.render(displayImagery, {
+          brushDensity: currentDensityRef.current,
+          theme,
+          animSpeed: currentSpeedRef.current,
+        }, currentPoem);
       }
     }
 
     return () => {
+      clearTimeout(timer);
       renderer.stop();
     };
   }, [isAnimating, currentImagery, currentPoem, brushDensity, theme, animSpeed, selectedImagery]);
@@ -118,7 +174,7 @@ const CanvasArea: React.FC = () => {
     }
   }, [annotationText, addAnnotation]);
 
-  const currentAnnotations = annotations.slice(-3);
+  const currentAnnotations = annotations.slice(-1);
 
   return (
     <div style={styles.wrapper}>
@@ -127,7 +183,11 @@ const CanvasArea: React.FC = () => {
           ref={canvasRef}
           width={768}
           height={512}
-          style={styles.canvas}
+          style={{
+            ...styles.canvas,
+            opacity: fadeOpacity,
+            transition: 'opacity 0.4s ease',
+          }}
           onClick={handleCanvasClick}
         />
 
@@ -143,8 +203,24 @@ const CanvasArea: React.FC = () => {
         )}
 
         {currentAnnotations.map((ann) => (
-          <div key={ann.id} style={styles.annotationBubble} title={ann.text}>
-            {ann.text.length > 8 ? ann.text.slice(0, 8) + '…' : ann.text}
+          <div
+            key={ann.id}
+            style={{
+              ...styles.annotationBubble,
+              ...(hoveredAnnId === ann.id ? styles.annotationBubbleExpanded : {}),
+            }}
+            onMouseEnter={() => setHoveredAnnId(ann.id)}
+            onMouseLeave={() => setHoveredAnnId(null)}
+          >
+            {hoveredAnnId === ann.id ? ann.text : (ann.text.length > 8 ? ann.text.slice(0, 8) + '…' : ann.text)}
+            {hoveredAnnId === ann.id && (
+              <button
+                style={styles.annDeleteBtn}
+                onClick={() => removeAnnotation(ann.id)}
+              >
+                ×
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -236,19 +312,38 @@ const styles: Record<string, React.CSSProperties> = {
   },
   annotationBubble: {
     position: 'absolute',
-    bottom: 8,
-    right: 8,
-    background: 'rgba(255,255,255,0.9)',
+    bottom: 12,
+    right: 12,
+    background: 'rgba(255,255,255,0.95)',
     borderRadius: 8,
     border: '1px solid #e0e0e0',
-    padding: '4px 8px',
-    fontSize: 11,
-    color: '#666',
-    maxWidth: 100,
+    padding: '6px 10px',
+    fontSize: 12,
+    color: '#555',
+    maxWidth: 140,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap' as const,
     cursor: 'default',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    transition: 'all 0.25s ease',
+  },
+  annotationBubbleExpanded: {
+    maxWidth: 320,
+    whiteSpace: 'normal' as const,
+    wordBreak: 'break-word' as const,
+  },
+  annDeleteBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#999',
+    fontSize: 16,
+    cursor: 'pointer',
+    padding: '0 4px',
+    lineHeight: 1,
+    flexShrink: 0,
   },
   canvasActions: {
     display: 'flex',
@@ -274,11 +369,13 @@ const styles: Record<string, React.CSSProperties> = {
   annotationInputWrap: {
     display: 'flex',
     gap: 8,
-    marginTop: 8,
     width: 600,
+    maxWidth: '90vw',
+    margin: '8px auto 0',
   },
   annotationInput: {
     flex: 1,
+    width: 600,
     background: '#fff',
     border: '1px solid #ddd',
     borderRadius: 8,

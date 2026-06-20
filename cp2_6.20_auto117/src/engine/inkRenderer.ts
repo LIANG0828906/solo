@@ -68,11 +68,41 @@ export function getThemeColors(theme: string): ThemeColors {
   return THEMES[theme] || THEMES.autumn;
 }
 
+interface InkParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  radius: number;
+  color: string;
+}
+
+interface WaterRipple {
+  x: number;
+  y: number;
+  rx: number;
+  ry: number;
+  maxRx: number;
+  life: number;
+  maxLife: number;
+}
+
+interface MountainLayer {
+  controlPoints: { x: number; y: number }[];
+  baseY: number;
+  amp: number;
+  color: string;
+  driftSpeed: number;
+  driftOffset: number;
+}
+
 interface SceneState {
   time: number;
   mountainOffset: number;
   waterPhase: number;
-  birdPositions: { x: number; y: number; speed: number; amplitude: number; phase: number }[];
+  birdPositions: { x: number; y: number; speed: number; amplitude: number; phase: number; freq: number; baseY: number; trail: { x: number; y: number }[] }[];
   moonGlow: number;
   moonGlowDir: number;
   bambooSway: number;
@@ -80,32 +110,126 @@ interface SceneState {
   rainDrops: { x: number; y: number; speed: number }[];
   snowFlakes: { x: number; y: number; speed: number; drift: number }[];
   leafPositions: { x: number; y: number; rot: number; speed: number; drift: number }[];
+  inkParticles: InkParticle[];
+  waterRipples: WaterRipple[];
+  mountainLayers: MountainLayer[];
+  mountainInited: boolean;
+  breathPhase: number;
 }
 
-function createSceneState(): SceneState {
-  const birds = Array.from({ length: 5 }, () => ({
-    x: Math.random() * 768,
-    y: 80 + Math.random() * 120,
-    speed: 0.3 + Math.random() * 0.5,
-    amplitude: 10 + Math.random() * 20,
-    phase: Math.random() * Math.PI * 2,
-  }));
+function smoothNoise(x: number, seed: number = 0): number {
+  const n = Math.sin(x * 12.9898 + seed * 78.233) * 43758.5453;
+  const frac = n - Math.floor(n);
+  return frac * 2 - 1;
+}
+
+function interpolatedNoise(x: number, seed: number = 0): number {
+  const intX = Math.floor(x);
+  const fracX = x - intX;
+  const v1 = smoothNoise(intX, seed);
+  const v2 = smoothNoise(intX + 1, seed);
+  const t = fracX * fracX * (3 - 2 * fracX);
+  return v1 * (1 - t) + v2 * t;
+}
+
+function layeredNoise(x: number, octaves: number, seed: number = 0): number {
+  let value = 0;
+  let amplitude = 1;
+  let frequency = 1;
+  let maxValue = 0;
+  for (let i = 0; i < octaves; i++) {
+    value += interpolatedNoise(x * frequency, seed + i * 13) * amplitude;
+    maxValue += amplitude;
+    amplitude *= 0.5;
+    frequency *= 2;
+  }
+  return value / maxValue;
+}
+
+function drawInkWash(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  color: string,
+  alpha: number
+) {
+  const steps = 5;
+  for (let i = steps; i > 0; i--) {
+    const r = radius * (i / steps);
+    const a = alpha * (1 - (i - 1) / steps) * 0.6;
+    const grd = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grd.addColorStop(0, color.replace(/[\d.]+\)$/, `${a})`));
+    grd.addColorStop(0.5, color.replace(/[\d.]+\)$/, `${a * 0.5})`));
+    grd.addColorStop(1, color.replace(/[\d.]+\)$/, `0)`));
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function initMountainLayers(w: number, h: number, colors: ThemeColors): MountainLayer[] {
+  const layers: MountainLayer[] = [];
+  const configs = [
+    { baseYRatio: 0.55, ampRatio: 0.12, color: colors.mountain1, seed: 1, drift: 0.08, ptCount: 8 },
+    { baseYRatio: 0.60, ampRatio: 0.09, color: colors.mountain2, seed: 2, drift: 0.12, ptCount: 10 },
+    { baseYRatio: 0.64, ampRatio: 0.06, color: colors.mountain3, seed: 3, drift: 0.18, ptCount: 12 },
+  ];
+
+  for (const cfg of configs) {
+    const pts: { x: number; y: number }[] = [];
+    const baseY = h * cfg.baseYRatio;
+    const amp = h * cfg.ampRatio;
+    const count = cfg.ptCount;
+    for (let i = 0; i <= count; i++) {
+      const px = (i / count) * (w + 100) - 50;
+      const noiseVal = layeredNoise(i * 0.8, 3, cfg.seed);
+      const py = baseY - amp * (0.4 + noiseVal * 0.6);
+      pts.push({ x: px, y: py });
+    }
+    layers.push({
+      controlPoints: pts,
+      baseY,
+      amp,
+      color: cfg.color,
+      driftSpeed: cfg.drift,
+      driftOffset: 0,
+    });
+  }
+  return layers;
+}
+
+function createSceneState(w: number = 768, h: number = 512): SceneState {
+  const birds = Array.from({ length: 5 }, () => {
+    const baseY = 80 + Math.random() * 120;
+    return {
+      x: Math.random() * w,
+      y: baseY,
+      baseY,
+      speed: 0.3 + Math.random() * 0.5,
+      amplitude: 10 + Math.random() * 20,
+      phase: Math.random() * Math.PI * 2,
+      freq: 0.008 + Math.random() * 0.006,
+      trail: [] as { x: number; y: number }[],
+    };
+  });
 
   const rainDrops = Array.from({ length: 80 }, () => ({
-    x: Math.random() * 768,
-    y: Math.random() * 512,
+    x: Math.random() * w,
+    y: Math.random() * h,
     speed: 2 + Math.random() * 3,
   }));
 
   const snowFlakes = Array.from({ length: 60 }, () => ({
-    x: Math.random() * 768,
-    y: Math.random() * 512,
+    x: Math.random() * w,
+    y: Math.random() * h,
     speed: 0.3 + Math.random() * 0.8,
     drift: (Math.random() - 0.5) * 0.5,
   }));
 
   const leafPositions = Array.from({ length: 12 }, () => ({
-    x: Math.random() * 768,
+    x: Math.random() * w,
     y: -20 + Math.random() * 100,
     rot: Math.random() * Math.PI * 2,
     speed: 0.3 + Math.random() * 0.4,
@@ -124,6 +248,11 @@ function createSceneState(): SceneState {
     rainDrops,
     snowFlakes,
     leafPositions,
+    inkParticles: [],
+    waterRipples: [],
+    mountainLayers: [],
+    mountainInited: false,
+    breathPhase: 0,
   };
 }
 
@@ -147,58 +276,112 @@ function drawXuanPaperTexture(ctx: CanvasRenderingContext2D, w: number, h: numbe
   ctx.fillRect(0, 0, w, h);
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 0, g: 0, b: 0 };
+}
+
+function parseColor(color: string): { r: number; g: number; b: number; a: number } {
+  if (color.startsWith('#')) {
+    const rgb = hexToRgb(color);
+    return { ...rgb, a: 1 };
+  }
+  const rgbaMatch = color.match(/rgba?\(([^)]+)\)/);
+  if (rgbaMatch) {
+    const parts = rgbaMatch[1].split(',').map((s) => parseFloat(s.trim()));
+    return { r: parts[0] || 0, g: parts[1] || 0, b: parts[2] || 0, a: parts[3] !== undefined ? parts[3] : 1 };
+  }
+  return { r: 0, g: 0, b: 0, a: 1 };
+}
+
 function drawMountains(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
   colors: ThemeColors,
   density: number,
-  offset: number,
+  state: SceneState,
   hasMountain: boolean
 ) {
   if (!hasMountain) return;
-  const baseY = h * 0.55;
   const inkMul = density / 5;
 
   ctx.save();
 
-  const layers = [
-    { color: colors.mountain1, amp: 80, freq: 0.005, yOff: 0, alpha: 0.7 * inkMul },
-    { color: colors.mountain2, amp: 60, freq: 0.008, yOff: 30, alpha: 0.5 * inkMul },
-    { color: colors.mountain3, amp: 45, freq: 0.012, yOff: 55, alpha: 0.3 * inkMul },
-  ];
+  for (let li = 0; li < state.mountainLayers.length; li++) {
+    const layer = state.mountainLayers[li];
+    const drift = layer.driftOffset;
 
-  for (const layer of layers) {
     ctx.beginPath();
-    ctx.moveTo(0, h);
-    for (let x = 0; x <= w; x += 2) {
-      const y =
-        baseY + layer.yOff -
-        layer.amp * Math.sin((x + offset * 0.2) * layer.freq) -
-        layer.amp * 0.5 * Math.sin((x + offset * 0.3) * layer.freq * 2.3 + 1.5) -
-        layer.amp * 0.3 * Math.sin((x + offset * 0.1) * layer.freq * 4.1 + 0.8);
-      ctx.lineTo(x, y);
+    ctx.moveTo(-50, h);
+
+    const pts = layer.controlPoints;
+    const firstPt = pts[0];
+    ctx.lineTo(firstPt.x + drift, firstPt.y);
+
+    for (let i = 1; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const cpx1 = p0.x + drift + (p1.x - p0.x) / 2;
+      const cpy1 = p0.y + (p1.y - p0.y) / 2;
+      const cpx2 = p1.x + drift - (p2.x - p1.x) / 2;
+      const cpy2 = p1.y - (p2.y - p1.y) / 2;
+      ctx.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, p1.x + drift, p1.y);
     }
-    ctx.lineTo(w, h);
+
+    const lastPt = pts[pts.length - 1];
+    const prevPt = pts[pts.length - 2];
+    ctx.bezierCurveTo(
+      prevPt.x + drift + (lastPt.x - prevPt.x) * 0.75,
+      prevPt.y + (lastPt.y - prevPt.y) * 0.75,
+      lastPt.x + drift - 10,
+      lastPt.y,
+      lastPt.x + drift,
+      lastPt.y
+    );
+
+    ctx.lineTo(w + 50, h);
     ctx.closePath();
 
-    const g = ctx.createLinearGradient(0, baseY - layer.amp, 0, h);
-    g.addColorStop(0, layer.color);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.globalAlpha = Math.min(1, layer.alpha);
+    const col = parseColor(layer.color);
+    const layerAlpha = Math.min(1, col.a * inkMul);
+
+    const grd = ctx.createLinearGradient(0, layer.baseY - layer.amp, 0, h);
+    grd.addColorStop(0, `rgba(${col.r},${col.g},${col.b},${layerAlpha})`);
+    grd.addColorStop(0.5, `rgba(${col.r},${col.g},${col.b},${layerAlpha * 0.7})`);
+    grd.addColorStop(1, `rgba(${col.r},${col.g},${col.b},0)`);
+    ctx.fillStyle = grd;
     ctx.fill();
+
+    for (let wi = 0; wi < 8 * inkMul; wi++) {
+      const t = (wi / 8 + state.time * 0.02 * layer.driftSpeed) % 1;
+      const wx = t * (w + 200) - 100 + drift * 0.5;
+      const ptIdx = Math.floor(t * (pts.length - 1));
+      const localT = t * (pts.length - 1) - ptIdx;
+      const pA = pts[ptIdx];
+      const pB = pts[Math.min(ptIdx + 1, pts.length - 1)];
+      const wy = pA.y + (pB.y - pA.y) * localT + 10 + wi * 3;
+      drawInkWash(ctx, wx, wy, 25 + wi * 5, `rgba(${col.r},${col.g},${col.b},${layerAlpha * 0.4})`, 1);
+    }
   }
 
+  const inkCol = parseColor(colors.ink);
   for (let i = 0; i < 6 * inkMul; i++) {
-    const x = (i * 137 + offset * 0.05) % w;
+    const x = (i * 137 + state.mountainOffset * 0.05) % w;
+    const baseY = h * 0.55;
     const peakY = baseY - 30 - Math.random() * 40;
     ctx.beginPath();
     ctx.moveTo(x, peakY);
     ctx.quadraticCurveTo(x - 15, peakY + 30, x - 8, peakY + 60);
     ctx.quadraticCurveTo(x + 5, peakY + 30, x, peakY);
-    ctx.fillStyle = colors.ink;
-    ctx.globalAlpha = 0.05 * inkMul;
+    ctx.fillStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.05 * inkMul})`;
     ctx.fill();
   }
 
@@ -211,26 +394,34 @@ function drawWater(
   h: number,
   colors: ThemeColors,
   density: number,
-  phase: number,
+  state: SceneState,
   hasWater: boolean
 ) {
   if (!hasWater) return;
   const waterY = h * 0.72;
   const inkMul = density / 5;
+  const phase = state.waterPhase;
 
   ctx.save();
-  ctx.globalAlpha = 0.4 * inkMul;
+
+  const waterCol = parseColor(colors.waterColor);
+  const fillAlpha = Math.min(1, 0.4 * inkMul);
 
   const g = ctx.createLinearGradient(0, waterY, 0, h);
-  g.addColorStop(0, colors.waterColor);
-  g.addColorStop(0.5, 'rgba(0,0,0,0.05)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
+  g.addColorStop(0, `rgba(${waterCol.r},${waterCol.g},${waterCol.b},${fillAlpha})`);
+  g.addColorStop(0.5, `rgba(${waterCol.r},${waterCol.g},${waterCol.b},${fillAlpha * 0.4})`);
+  g.addColorStop(1, `rgba(${waterCol.r},${waterCol.g},${waterCol.b},0)`);
   ctx.fillStyle = g;
 
   ctx.beginPath();
   ctx.moveTo(0, waterY);
   for (let x = 0; x <= w; x += 2) {
-    const y = waterY + Math.sin((x * 0.02) + phase) * 3 + Math.sin((x * 0.05) + phase * 1.3) * 1.5;
+    const noiseVal = layeredNoise(x * 0.01 + phase * 0.5, 2, 5);
+    const y =
+      waterY +
+      Math.sin(x * 0.02 + phase) * 3 +
+      Math.sin(x * 0.05 + phase * 1.3) * 1.5 +
+      noiseVal * 2;
     ctx.lineTo(x, y);
   }
   ctx.lineTo(w, h);
@@ -238,17 +429,28 @@ function drawWater(
   ctx.closePath();
   ctx.fill();
 
-  ctx.strokeStyle = colors.inkLight;
+  const inkLightCol = parseColor(colors.inkLight);
+  ctx.strokeStyle = `rgba(${inkLightCol.r},${inkLightCol.g},${inkLightCol.b},${0.2 * inkMul})`;
   ctx.lineWidth = 0.5;
-  ctx.globalAlpha = 0.2 * inkMul;
   for (let i = 0; i < 6; i++) {
     const ly = waterY + 15 + i * 12;
     ctx.beginPath();
     for (let x = 0; x <= w; x += 3) {
-      const y = ly + Math.sin((x * 0.03) + phase + i * 0.8) * 2;
+      const noiseVal = layeredNoise(x * 0.015 + phase + i * 0.3, 2, i + 7);
+      const y = ly + Math.sin(x * 0.03 + phase + i * 0.8) * 2 + noiseVal * 1.5;
       if (x === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
+    ctx.stroke();
+  }
+
+  for (const ripple of state.waterRipples) {
+    const lifeRatio = ripple.life / ripple.maxLife;
+    const rippleAlpha = lifeRatio * 0.35 * inkMul;
+    ctx.strokeStyle = `rgba(${inkLightCol.r},${inkLightCol.g},${inkLightCol.b},${rippleAlpha})`;
+    ctx.lineWidth = 0.8 * lifeRatio + 0.2;
+    ctx.beginPath();
+    ctx.ellipse(ripple.x, ripple.y, ripple.rx, ripple.ry, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
 
@@ -257,25 +459,35 @@ function drawWater(
 
 function drawBirds(
   ctx: CanvasRenderingContext2D,
+  w: number,
   colors: ThemeColors,
   density: number,
-  birds: SceneState['birdPositions'],
+  state: SceneState,
   hasBird: boolean
 ) {
   if (!hasBird) return;
   const inkMul = density / 5;
+  const inkCol = parseColor(colors.ink);
 
   ctx.save();
-  ctx.strokeStyle = colors.ink;
-  ctx.lineWidth = 1.5;
-  ctx.globalAlpha = 0.7 * inkMul;
 
-  for (const bird of birds) {
-    const wingFlap = Math.sin(bird.phase) * 4;
+  for (const b of state.birdPositions) {
+    const y = b.baseY + Math.sin((b.x * b.freq) + b.phase) * b.amplitude;
+
+    for (let ti = 0; ti < b.trail.length; ti++) {
+      const tp = b.trail[ti];
+      const trailAlpha = ((ti + 1) / b.trail.length) * 0.15 * inkMul;
+      const trailRadius = 1.5 + (b.trail.length - ti) * 0.3;
+      drawInkWash(ctx, tp.x, tp.y, trailRadius, `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${trailAlpha})`, 1);
+    }
+
+    const wingFlap = Math.sin(b.phase) * 4;
+    ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.7 * inkMul})`;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(bird.x - 8, bird.y + wingFlap);
-    ctx.quadraticCurveTo(bird.x - 3, bird.y - 2, bird.x, bird.y);
-    ctx.quadraticCurveTo(bird.x + 3, bird.y - 2, bird.x + 8, bird.y + wingFlap);
+    ctx.moveTo(b.x - 8, y + wingFlap);
+    ctx.quadraticCurveTo(b.x - 3, y - 2, b.x, y);
+    ctx.quadraticCurveTo(b.x + 3, y - 2, b.x + 8, y + wingFlap);
     ctx.stroke();
   }
 
@@ -287,7 +499,7 @@ function drawMoon(
   w: number,
   colors: ThemeColors,
   density: number,
-  glowRadius: number,
+  state: SceneState,
   hasMoon: boolean
 ) {
   if (!hasMoon) return;
@@ -296,26 +508,42 @@ function drawMoon(
   const r = 25;
   const inkMul = density / 5;
 
+  const breathRadius = 2 + (Math.sin(state.breathPhase) + 1) * 2;
+  const moonCol = parseColor(colors.moonColor);
+  const pulsePhase = (state.breathPhase % (Math.PI * 2)) / (Math.PI * 2);
+
   ctx.save();
 
-  for (let i = 3; i > 0; i--) {
-    const gr = ctx.createRadialGradient(cx, cy, r, cx, cy, r + glowRadius * i * 2);
-    gr.addColorStop(0, `rgba(240,208,128,${0.15 * inkMul / i})`);
-    gr.addColorStop(1, 'rgba(240,208,128,0)');
+  for (let i = 5; i > 0; i--) {
+    const glowR = r + breathRadius * i * 1.8;
+    const glowAlpha = (0.12 * inkMul) / i;
+    const gr = ctx.createRadialGradient(cx, cy, r, cx, cy, glowR);
+    gr.addColorStop(0, `rgba(${moonCol.r},${moonCol.g},${moonCol.b},${glowAlpha})`);
+    gr.addColorStop(1, `rgba(${moonCol.r},${moonCol.g},${moonCol.b},0)`);
     ctx.fillStyle = gr;
     ctx.beginPath();
-    ctx.arc(cx, cy, r + glowRadius * i * 2, 0, Math.PI * 2);
+    ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  ctx.fillStyle = colors.moonColor;
-  ctx.globalAlpha = 0.85 * inkMul;
+  const pulseR = r + breathRadius * 6 + pulsePhase * 20;
+  const pulseAlpha = (1 - pulsePhase) * 0.08 * inkMul;
+  const pulseGrd = ctx.createRadialGradient(cx, cy, pulseR - 10, cx, cy, pulseR);
+  pulseGrd.addColorStop(0, `rgba(${moonCol.r},${moonCol.g},${moonCol.b},0)`);
+  pulseGrd.addColorStop(0.5, `rgba(${moonCol.r},${moonCol.g},${moonCol.b},${pulseAlpha})`);
+  pulseGrd.addColorStop(1, `rgba(${moonCol.r},${moonCol.g},${moonCol.b},0)`);
+  ctx.fillStyle = pulseGrd;
+  ctx.beginPath();
+  ctx.arc(cx, cy, pulseR, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = `rgba(${moonCol.r},${moonCol.g},${moonCol.b},${0.85 * inkMul})`;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = colors.bg;
-  ctx.globalAlpha = 0.3;
+  const bgCol = parseColor(colors.bg);
+  ctx.fillStyle = `rgba(${bgCol.r},${bgCol.g},${bgCol.b},0.3)`;
   ctx.beginPath();
   ctx.arc(cx + 8, cy - 5, r * 0.85, 0, Math.PI * 2);
   ctx.fill();
@@ -334,6 +562,8 @@ function drawBamboo(
 ) {
   if (!hasBamboo) return;
   const inkMul = density / 5;
+  const inkCol = parseColor(colors.ink);
+  const foliageCol = parseColor(colors.foliage);
 
   ctx.save();
 
@@ -346,9 +576,8 @@ function drawBamboo(
   for (const bp of bambooPositions) {
     const swayOff = Math.sin(sway + bp.x * 0.01) * 3;
 
-    ctx.strokeStyle = colors.ink;
+    ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.6 * inkMul})`;
     ctx.lineWidth = 3;
-    ctx.globalAlpha = 0.6 * inkMul;
 
     for (let s = 0; s < bp.segments; s++) {
       const y1 = h - 80 - (s * bp.height) / bp.segments;
@@ -375,7 +604,7 @@ function drawBamboo(
       const dir = l % 2 === 0 ? 1 : -1;
 
       ctx.globalAlpha = 0.4 * inkMul;
-      ctx.fillStyle = colors.foliage;
+      ctx.fillStyle = `rgba(${foliageCol.r},${foliageCol.g},${foliageCol.b},${0.4 * inkMul})`;
       ctx.beginPath();
       ctx.moveTo(lx, ly);
       ctx.quadraticCurveTo(
@@ -391,6 +620,7 @@ function drawBamboo(
         ly
       );
       ctx.fill();
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -408,12 +638,13 @@ function drawBoat(
 ) {
   if (!hasBoat) return;
   const inkMul = density / 5;
+  const inkCol = parseColor(colors.ink);
+  const inkLightCol = parseColor(colors.inkLight);
   const bx = w * 0.45;
   const by = h * 0.7 + Math.sin(phase * 0.5) * 3;
 
   ctx.save();
-  ctx.globalAlpha = 0.7 * inkMul;
-  ctx.strokeStyle = colors.ink;
+  ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.7 * inkMul})`;
   ctx.lineWidth = 2;
 
   ctx.beginPath();
@@ -431,8 +662,7 @@ function drawBoat(
   ctx.beginPath();
   ctx.moveTo(bx + 3, by - 18);
   ctx.quadraticCurveTo(bx + 18, by - 10, bx + 15, by - 2);
-  ctx.fillStyle = colors.inkLight;
-  ctx.globalAlpha = 0.3 * inkMul;
+  ctx.fillStyle = `rgba(${inkLightCol.r},${inkLightCol.g},${inkLightCol.b},${0.3 * inkMul})`;
   ctx.fill();
 
   ctx.restore();
@@ -449,6 +679,7 @@ function drawClouds(
 ) {
   if (!hasCloud) return;
   const inkMul = density / 5;
+  const inkLightCol = parseColor(colors.inkLight);
 
   ctx.save();
   ctx.globalAlpha = 0.15 * inkMul;
@@ -460,7 +691,7 @@ function drawClouds(
   ];
 
   for (const cp of cloudPositions) {
-    ctx.fillStyle = colors.inkLight;
+    ctx.fillStyle = `rgba(${inkLightCol.r},${inkLightCol.g},${inkLightCol.b},${0.15 * inkMul})`;
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
       ctx.ellipse(
@@ -486,11 +717,11 @@ function drawRain(
   hasRain: boolean
 ) {
   if (!hasRain) return;
+  const inkLightCol = parseColor(colors.inkLight);
 
   ctx.save();
-  ctx.strokeStyle = colors.inkLight;
+  ctx.strokeStyle = `rgba(${inkLightCol.r},${inkLightCol.g},${inkLightCol.b},0.25)`;
   ctx.lineWidth = 0.8;
-  ctx.globalAlpha = 0.25;
 
   for (const d of drops) {
     ctx.beginPath();
@@ -506,13 +737,15 @@ function drawSnow(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
+  colors: ThemeColors,
   flakes: SceneState['snowFlakes'],
   hasSnow: boolean
 ) {
   if (!hasSnow) return;
+  const inkLightCol = parseColor(colors.inkLight);
 
   ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillStyle = `rgba(${inkLightCol.r},${inkLightCol.g},${inkLightCol.b},0.7)`;
 
   for (const f of flakes) {
     ctx.beginPath();
@@ -533,6 +766,8 @@ function drawFlowers(
 ) {
   if (!hasFlower) return;
   const inkMul = density / 5;
+  const inkCol = parseColor(colors.ink);
+  const accentCol = parseColor(colors.accent);
 
   ctx.save();
 
@@ -543,16 +778,14 @@ function drawFlowers(
   ];
 
   for (const fp of flowerPos) {
-    ctx.strokeStyle = colors.ink;
+    ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.4 * inkMul})`;
     ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.4 * inkMul;
     ctx.beginPath();
     ctx.moveTo(fp.x, fp.y);
     ctx.quadraticCurveTo(fp.x - 10, fp.y - 20, fp.x - 5, fp.y - 40);
     ctx.stroke();
 
-    ctx.fillStyle = colors.accent;
-    ctx.globalAlpha = 0.35 * inkMul;
+    ctx.fillStyle = `rgba(${accentCol.r},${accentCol.g},${accentCol.b},${0.35 * inkMul})`;
     for (let p = 0; p < 5; p++) {
       const angle = (p / 5) * Math.PI * 2;
       const px = fp.x - 5 + Math.cos(angle) * 6;
@@ -562,8 +795,7 @@ function drawFlowers(
       ctx.fill();
     }
 
-    ctx.fillStyle = '#e8c040';
-    ctx.globalAlpha = 0.5 * inkMul;
+    ctx.fillStyle = `rgba(232,192,64,${0.5 * inkMul})`;
     ctx.beginPath();
     ctx.arc(fp.x - 5, fp.y - 40, 2, 0, Math.PI * 2);
     ctx.fill();
@@ -574,15 +806,18 @@ function drawFlowers(
 
 function drawFallingLeaves(
   ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
   colors: ThemeColors,
   leaves: SceneState['leafPositions'],
+  state: SceneState,
   hasFlower: boolean
 ) {
   if (!hasFlower) return;
+  const foliageCol = parseColor(colors.foliage);
 
   ctx.save();
-  ctx.fillStyle = colors.foliage;
-  ctx.globalAlpha = 0.4;
+  ctx.fillStyle = `rgba(${foliageCol.r},${foliageCol.g},${foliageCol.b},0.4)`;
 
   for (const leaf of leaves) {
     ctx.save();
@@ -619,8 +854,7 @@ function drawSun(
   ctx.arc(cx, cy, 60, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = '#f0b050';
-  ctx.globalAlpha = 0.6 * inkMul;
+  ctx.fillStyle = `rgba(240,176,80,${0.6 * inkMul})`;
   ctx.beginPath();
   ctx.arc(cx, cy, 15, 0, Math.PI * 2);
   ctx.fill();
@@ -666,11 +900,11 @@ function drawBridge(
 ) {
   if (!hasBridge) return;
   const inkMul = density / 5;
+  const inkCol = parseColor(colors.ink);
 
   ctx.save();
-  ctx.strokeStyle = colors.ink;
+  ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.5 * inkMul})`;
   ctx.lineWidth = 2;
-  ctx.globalAlpha = 0.5 * inkMul;
 
   const bx = w * 0.35;
   const by = h * 0.68;
@@ -702,13 +936,13 @@ function drawPavilion(
 ) {
   if (!hasPavilion) return;
   const inkMul = density / 5;
+  const inkCol = parseColor(colors.ink);
   const px = w * 0.55;
   const py = h * 0.48;
 
   ctx.save();
-  ctx.strokeStyle = colors.ink;
+  ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.5 * inkMul})`;
   ctx.lineWidth = 1.5;
-  ctx.globalAlpha = 0.5 * inkMul;
 
   ctx.beginPath();
   ctx.moveTo(px - 15, py);
@@ -740,13 +974,13 @@ function drawWine(
 ) {
   if (!hasWine) return;
   const inkMul = density / 5;
+  const inkCol = parseColor(colors.ink);
   const wx = w * 0.2;
   const wy = h * 0.65;
 
   ctx.save();
-  ctx.strokeStyle = colors.ink;
+  ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.5 * inkMul})`;
   ctx.lineWidth = 1.2;
-  ctx.globalAlpha = 0.5 * inkMul;
 
   ctx.beginPath();
   ctx.moveTo(wx, wy);
@@ -773,13 +1007,13 @@ function drawTemple(
 ) {
   if (!hasTemple) return;
   const inkMul = density / 5;
+  const inkCol = parseColor(colors.ink);
   const tx = w * 0.7;
   const ty = h * 0.4;
 
   ctx.save();
-  ctx.strokeStyle = colors.ink;
+  ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.45 * inkMul})`;
   ctx.lineWidth = 1.5;
-  ctx.globalAlpha = 0.45 * inkMul;
 
   ctx.beginPath();
   ctx.moveTo(tx - 12, ty);
@@ -789,8 +1023,7 @@ function drawTemple(
   ctx.lineTo(tx + 12, ty);
   ctx.stroke();
 
-  ctx.fillStyle = colors.ink;
-  ctx.globalAlpha = 0.3 * inkMul;
+  ctx.fillStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.3 * inkMul})`;
   ctx.fillRect(tx - 8, ty - 5, 16, 15);
 
   ctx.restore();
@@ -803,11 +1036,11 @@ function drawPoemText(
   colors: ThemeColors
 ) {
   if (!poem.trim()) return;
+  const inkCol = parseColor(colors.ink);
 
   ctx.save();
   ctx.font = '18px "Ma Shan Zheng", "KaiTi", "STKaiti", serif';
-  ctx.fillStyle = colors.ink;
-  ctx.globalAlpha = 0.75;
+  ctx.fillStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},0.75)`;
 
   const lines = poem.split(/[，。！？；\n]/).filter((l) => l.trim());
   const startX = 24;
@@ -828,20 +1061,18 @@ function drawSeal(
   poem: string
 ) {
   if (!poem.trim()) return;
+  const sealCol = parseColor(colors.sealColor);
 
   ctx.save();
   const sx = w - 60;
   const sy = 20;
   const size = 40;
 
-  ctx.fillStyle = colors.sealColor;
-  ctx.globalAlpha = 0.7;
-
+  ctx.fillStyle = `rgba(${sealCol.r},${sealCol.g},${sealCol.b},0.7)`;
   ctx.fillRect(sx, sy, size, size);
 
-  ctx.strokeStyle = colors.sealColor;
+  ctx.strokeStyle = `rgba(${sealCol.r},${sealCol.g},${sealCol.b},0.9)`;
   ctx.lineWidth = 1;
-  ctx.globalAlpha = 0.9;
   ctx.strokeRect(sx + 2, sy + 2, size - 4, size - 4);
 
   const title = poem.split(/[，。！？；\n]/)[0]?.trim() || '';
@@ -873,14 +1104,15 @@ function drawImageryHash(
   colors: ThemeColors
 ) {
   if (imagery.length === 0) return;
+  const inkLightCol = parseColor(colors.inkLight);
 
   ctx.save();
   const hash = imagery.map((i) => `#${i}`).join('');
   ctx.font = '10px "ZCOOL XiaoWei", monospace';
-  ctx.fillStyle = colors.inkLight;
+  ctx.fillStyle = `rgba(${inkLightCol.r},${inkLightCol.g},${inkLightCol.b},0.5)`;
   ctx.globalAlpha = 0.5;
   ctx.textAlign = 'right';
-  ctx.fillText(hash, w - 12, w > 512 ? 72 : 60);
+  ctx.fillText(hash, w - 12, 75);
   ctx.restore();
 }
 
@@ -895,13 +1127,13 @@ function drawWillow(
 ) {
   if (!hasWillow) return;
   const inkMul = density / 5;
+  const inkCol = parseColor(colors.ink);
   const wx = w * 0.82;
   const wy = h * 0.42;
 
   ctx.save();
-  ctx.strokeStyle = colors.ink;
+  ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.5 * inkMul})`;
   ctx.lineWidth = 3;
-  ctx.globalAlpha = 0.5 * inkMul;
 
   ctx.beginPath();
   ctx.moveTo(wx, wy + 40);
@@ -910,6 +1142,7 @@ function drawWillow(
 
   ctx.lineWidth = 0.8;
   ctx.globalAlpha = 0.3 * inkMul;
+  ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.3 * inkMul})`;
   for (let b = 0; b < 8; b++) {
     const angle = -0.6 + (b / 8) * 1.2;
     const bx = wx + sway * 0.5;
@@ -936,21 +1169,21 @@ function drawPine(
 ) {
   if (!hasPine) return;
   const inkMul = density / 5;
+  const inkCol = parseColor(colors.ink);
+  const foliageCol = parseColor(colors.foliage);
   const px = w * 0.15;
   const py = h * 0.38;
 
   ctx.save();
-  ctx.strokeStyle = colors.ink;
+  ctx.strokeStyle = `rgba(${inkCol.r},${inkCol.g},${inkCol.b},${0.6 * inkMul})`;
   ctx.lineWidth = 3;
-  ctx.globalAlpha = 0.6 * inkMul;
 
   ctx.beginPath();
   ctx.moveTo(px, py + 60);
   ctx.lineTo(px - 2, py);
   ctx.stroke();
 
-  ctx.fillStyle = colors.foliage;
-  ctx.globalAlpha = 0.4 * inkMul;
+  ctx.fillStyle = `rgba(${foliageCol.r},${foliageCol.g},${foliageCol.b},${0.4 * inkMul})`;
   for (let i = 0; i < 3; i++) {
     const ly = py + i * 18;
     const lw = 25 - i * 3;
@@ -974,11 +1207,11 @@ function drawWind(
   hasWind: boolean
 ) {
   if (!hasWind) return;
+  const inkLightCol = parseColor(colors.inkLight);
 
   ctx.save();
-  ctx.strokeStyle = colors.inkLight;
+  ctx.strokeStyle = `rgba(${inkLightCol.r},${inkLightCol.g},${inkLightCol.b},0.2)`;
   ctx.lineWidth = 0.6;
-  ctx.globalAlpha = 0.2;
 
   for (let i = 0; i < 4; i++) {
     const y = 120 + i * 60;
@@ -992,20 +1225,81 @@ function drawWind(
   ctx.restore();
 }
 
-function updateScene(state: SceneState, dt: number, speed: number): SceneState {
+function updateInkParticles(particles: InkParticle[], dt: number, speed: number): InkParticle[] {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt * speed * 60;
+    p.y += p.vy * dt * speed * 60;
+    p.vy += 0.02 * dt * speed * 60;
+    p.life -= dt * speed;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+  return particles;
+}
+
+function updateWaterRipples(ripples: WaterRipple[], w: number, h: number, dt: number, speed: number, waterY: number): WaterRipple[] {
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const r = ripples[i];
+    r.rx += (r.maxRx - r.rx) * 0.03 * dt * speed * 60;
+    r.ry = r.rx * 0.3;
+    r.life -= dt * speed;
+    if (r.life <= 0 || r.rx >= r.maxRx) {
+      ripples.splice(i, 1);
+    }
+  }
+
+  if (Math.random() < 0.02 * speed * dt * 60) {
+    ripples.push({
+      x: Math.random() * w,
+      y: waterY + 10 + Math.random() * 40,
+      rx: 2,
+      ry: 0.6,
+      maxRx: 15 + Math.random() * 25,
+      life: 1.5 + Math.random(),
+      maxLife: 2.5,
+    });
+  }
+
+  return ripples;
+}
+
+function updateScene(state: SceneState, dt: number, speed: number, w: number, h: number, colors: ThemeColors): SceneState {
   const s = speed;
   state.time += dt * s;
   state.waterPhase += dt * 2 * s;
   state.mountainOffset += dt * 0.5 * s;
   state.cloudOffset += dt * 15 * s;
   state.bambooSway += dt * 0.8 * s;
+  state.breathPhase += dt * s * (Math.PI * 2 / 4);
+
+  if (!state.mountainInited) {
+    state.mountainLayers = initMountainLayers(w, h, colors);
+    state.mountainInited = true;
+  }
+
+  for (const layer of state.mountainLayers) {
+    layer.driftOffset += dt * s * layer.driftSpeed * 10;
+    if (layer.driftOffset > 80) {
+      layer.driftOffset = -80;
+    }
+  }
 
   for (const bird of state.birdPositions) {
     bird.x -= bird.speed * s;
-    bird.phase += dt * 4 * s;
+    bird.phase += dt * 3 * s;
+    const y = bird.baseY + Math.sin((bird.x * bird.freq) + bird.phase) * bird.amplitude;
+
+    bird.trail.unshift({ x: bird.x, y: y });
+    if (bird.trail.length > 8) {
+      bird.trail.pop();
+    }
+
     if (bird.x < -20) {
-      bird.x = 800;
-      bird.y = 80 + Math.random() * 120;
+      bird.x = w + 20;
+      bird.baseY = 80 + Math.random() * 120;
+      bird.trail = [];
     }
   }
 
@@ -1015,18 +1309,18 @@ function updateScene(state: SceneState, dt: number, speed: number): SceneState {
 
   for (const d of state.rainDrops) {
     d.y += d.speed * s;
-    if (d.y > 512) {
+    if (d.y > h) {
       d.y = -5;
-      d.x = Math.random() * 768;
+      d.x = Math.random() * w;
     }
   }
 
   for (const f of state.snowFlakes) {
     f.y += f.speed * s;
     f.x += f.drift * s;
-    if (f.y > 512) {
+    if (f.y > h) {
       f.y = -5;
-      f.x = Math.random() * 768;
+      f.x = Math.random() * w;
     }
   }
 
@@ -1034,10 +1328,27 @@ function updateScene(state: SceneState, dt: number, speed: number): SceneState {
     leaf.y += leaf.speed * s;
     leaf.x += leaf.drift * s;
     leaf.rot += 0.02 * s;
-    if (leaf.y > 520) {
+    if (leaf.y > h + 8) {
       leaf.y = -10;
-      leaf.x = Math.random() * 768;
+      leaf.x = Math.random() * w;
     }
+  }
+
+  updateInkParticles(state.inkParticles, dt, s);
+  updateWaterRipples(state.waterRipples, w, h, dt, s, h * 0.72);
+
+  if (Math.random() < 0.05 * s * dt * 60) {
+    const inkCol = parseColor(colors.ink);
+    state.inkParticles.push({
+      x: Math.random() * w,
+      y: h * 0.3 + Math.random() * h * 0.4,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.2,
+      life: 1.5 + Math.random() * 1.5,
+      maxLife: 3,
+      radius: 2 + Math.random() * 4,
+      color: `rgba(${inkCol.r},${inkCol.g},${inkCol.b},`,
+    });
   }
 
   return state;
@@ -1057,7 +1368,7 @@ export class InkRenderer {
     this.ctx = ctx;
     this.width = width;
     this.height = height;
-    this.sceneState = createSceneState();
+    this.sceneState = createSceneState(width, height);
   }
 
   setFrameCallback(cb: () => void) {
@@ -1072,11 +1383,12 @@ export class InkRenderer {
     this.stop();
     this.isPaused = false;
     this.lastTime = performance.now();
+    const colors = getThemeColors(params.theme);
     const loop = (now: number) => {
       const dt = Math.min((now - this.lastTime) / 1000, 0.1);
       this.lastTime = now;
       if (!this.isPaused) {
-        this.sceneState = updateScene(this.sceneState, dt, params.animSpeed);
+        this.sceneState = updateScene(this.sceneState, dt, params.animSpeed, this.width, this.height, colors);
       }
       this.render(imagery, params, poem);
       this.onFrame?.();
@@ -1108,32 +1420,40 @@ export class InkRenderer {
   render(imagery: string[], params: RenderParams, poem: string) {
     const { ctx, width: w, height: h, sceneState: s } = this;
     const colors = getThemeColors(params.theme);
+    const density = params.brushDensity;
 
     ctx.clearRect(0, 0, w, h);
     drawXuanPaperTexture(ctx, w, h, colors);
 
     const has = (keyword: string) => imagery.includes(keyword);
 
-    drawClouds(ctx, w, h, colors, params.brushDensity, s.cloudOffset, has('云') || has('雾'));
-    drawSun(ctx, w, colors, params.brushDensity, has('日'));
+    drawClouds(ctx, w, h, colors, density, s.cloudOffset, has('云') || has('雾'));
+    drawSun(ctx, w, colors, density, has('日'));
     drawStars(ctx, w, colors, s.time, has('星'));
-    drawMoon(ctx, w, colors, params.brushDensity, s.moonGlow, has('月'));
-    drawMountains(ctx, w, h, colors, params.brushDensity, s.mountainOffset, has('山') || has('石'));
-    drawPine(ctx, w, h, colors, params.brushDensity, has('松'));
-    drawWillow(ctx, w, h, colors, params.brushDensity, s.bambooSway, has('柳'));
-    drawTemple(ctx, w, h, colors, params.brushDensity, has('寺'));
-    drawPavilion(ctx, w, h, colors, params.brushDensity, has('亭'));
-    drawBridge(ctx, w, h, colors, params.brushDensity, has('桥'));
-    drawWater(ctx, w, h, colors, params.brushDensity, s.waterPhase, has('水'));
-    drawBoat(ctx, w, h, colors, params.brushDensity, s.waterPhase, has('舟'));
-    drawBamboo(ctx, w, h, colors, params.brushDensity, s.bambooSway, has('竹'));
-    drawFlowers(ctx, w, h, colors, params.brushDensity, has('花'));
-    drawFallingLeaves(ctx, colors, s.leafPositions, has('花'));
-    drawBirds(ctx, colors, params.brushDensity, s.birdPositions, has('鸟'));
+    drawMoon(ctx, w, colors, density, s, has('月'));
+    drawMountains(ctx, w, h, colors, density, s, has('山') || has('石'));
+    drawPine(ctx, w, h, colors, density, has('松'));
+    drawWillow(ctx, w, h, colors, density, s.bambooSway, has('柳'));
+    drawTemple(ctx, w, h, colors, density, has('寺'));
+    drawPavilion(ctx, w, h, colors, density, has('亭'));
+    drawBridge(ctx, w, h, colors, density, has('桥'));
+    drawWater(ctx, w, h, colors, density, s, has('水'));
+    drawBoat(ctx, w, h, colors, density, s.waterPhase, has('舟'));
+    drawBamboo(ctx, w, h, colors, density, s.bambooSway, has('竹'));
+    drawFlowers(ctx, w, h, colors, density, has('花'));
+    drawFallingLeaves(ctx, w, h, colors, s.leafPositions, s, has('花'));
+    drawBirds(ctx, w, colors, density, s, has('鸟'));
     drawRain(ctx, w, h, colors, s.rainDrops, has('雨'));
     drawSnow(ctx, w, h, colors, s.snowFlakes, has('雪'));
     drawWind(ctx, w, h, colors, s.time, has('风'));
-    drawWine(ctx, w, h, colors, params.brushDensity, has('酒'));
+    drawWine(ctx, w, h, colors, density, has('酒'));
+
+    const inkCol = parseColor(colors.ink);
+    for (const p of s.inkParticles) {
+      const lifeRatio = p.life / p.maxLife;
+      drawInkWash(ctx, p.x, p.y, p.radius * (0.5 + lifeRatio * 0.5), `${p.color}${lifeRatio * 0.25})`, 1);
+    }
+
     drawPoemText(ctx, w, poem, colors);
     drawSeal(ctx, w, colors, poem);
     drawImageryHash(ctx, w, imagery, colors);

@@ -6,8 +6,9 @@ const GalleryBar: React.FC = () => {
     useAppStore();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [hoveredMasonryId, setHoveredMasonryId] = useState<string | null>(null);
 
-  const displayItems = gallery.slice(0, 10);
+  const displayItems = [...gallery].sort((a, b) => b.createdAt - a.createdAt).slice(0, 10);
 
   const handleItemClick = useCallback(
     (id: string) => {
@@ -73,14 +74,22 @@ const GalleryBar: React.FC = () => {
             </div>
             <div style={styles.masonryGrid}>
               {gallery.map((item) => (
-                <div key={item.id} style={styles.masonryCard}>
+                <div
+                  key={item.id}
+                  style={styles.masonryCard}
+                  onMouseEnter={() => setHoveredMasonryId(item.id)}
+                  onMouseLeave={() => setHoveredMasonryId(null)}
+                  onClick={() => handleItemClick(item.id)}
+                >
                   <img src={item.thumbnail} alt={item.title} style={styles.masonryImg} />
                   <div style={styles.masonryInfo}>
                     <div style={styles.masonryTitle}>{item.title}</div>
-                    {item.annotation && (
-                      <div style={styles.masonryAnnotation}>{item.annotation}</div>
-                    )}
                   </div>
+                  {hoveredMasonryId === item.id && item.annotation && (
+                    <div style={styles.masonryAnnotationBubble}>
+                      {item.annotation}
+                    </div>
+                  )}
                   <div style={styles.masonryActions}>
                     <button
                       style={styles.masonryBtn}
@@ -270,6 +279,8 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #eee',
     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
     background: '#fff',
+    position: 'relative' as const,
+    cursor: 'pointer',
   },
   masonryImg: {
     width: '100%',
@@ -283,11 +294,22 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#333',
     fontFamily: '"KaiTi", serif',
   },
-  masonryAnnotation: {
-    fontSize: 12,
+  masonryAnnotationBubble: {
+    position: 'absolute' as const,
+    top: 8,
+    left: 8,
+    right: 8,
+    background: 'rgba(255,255,255,0.95)',
     color: '#888',
-    marginTop: 4,
+    fontSize: 12,
     fontStyle: 'italic',
+    padding: '8px 12px',
+    borderRadius: 6,
+    lineHeight: 1.5,
+    animation: 'fadeIn 0.2s ease',
+    zIndex: 2,
+    border: '1px solid #eee',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
   },
   masonryActions: {
     display: 'flex',
@@ -323,12 +345,12 @@ const styles: Record<string, React.CSSProperties> = {
   confirmOverlay: {
     position: 'fixed' as const,
     inset: 0,
-    background: 'rgba(0,0,0,0.4)',
+    background: 'rgba(0,0,0,0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2000,
-    animation: 'fadeIn 0.2s ease',
+    animation: 'fadeIn 0.3s ease',
   },
   confirmBox: {
     background: '#fff',
