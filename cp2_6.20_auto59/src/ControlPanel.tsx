@@ -117,38 +117,92 @@ function WaveformCardSelector({ current, onChange }: { current: WaveformType; on
 }
 
 function WaveformIcon({ type }: { type: WaveformType }) {
-  const paths: Record<WaveformType, string> = {
-    sine: 'M 1 16 Q 7 4, 13 16 T 25 16 T 37 16',
-    square: 'M 1 16 L 1 6 L 7 6 L 7 26 L 13 26 L 13 6 L 19 6 L 19 26 L 25 26 L 25 6 L 31 6 L 31 26 L 37 26',
-    sawtooth: 'M 1 26 L 7 6 L 13 26 L 19 6 L 25 26 L 31 6 L 37 26',
-    triangle: 'M 1 16 L 7 6 L 13 26 L 19 6 L 25 26 L 31 6 L 37 16'
+  let pathElement: JSX.Element
+  switch (type) {
+    case 'sine': {
+      const points: string[] = []
+      for (let i = 0; i <= 36; i++) {
+        const x = 1 + i
+        const t = i / 36
+        const phase = t * Math.PI * 4
+        const y = 16 - Math.sin(phase) * 10
+        points.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`)
+      }
+      pathElement = (
+        <path
+          d={points.join(' ')}
+          stroke="currentColor"
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )
+      break
+    }
+    case 'square': {
+      pathElement = (
+        <path
+          d="M 1 16 L 1 6 L 9 6 L 9 26 L 18 26 L 18 6 L 27 6 L 27 26 L 37 26"
+          stroke="currentColor"
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
+        />
+      )
+      break
+    }
+    case 'sawtooth': {
+      pathElement = (
+        <path
+          d="M 1 26 L 10 6 L 10 26 L 19 6 L 19 26 L 28 6 L 28 26 L 37 6"
+          stroke="currentColor"
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
+        />
+      )
+      break
+    }
+    case 'triangle': {
+      pathElement = (
+        <path
+          d="M 1 16 L 5.5 6 L 10 26 L 14.5 6 L 19 26 L 23.5 6 L 28 26 L 32.5 6 L 37 16"
+          stroke="currentColor"
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )
+      break
+    }
   }
   return (
-    <svg width="38" height="32" viewBox="0 0 38 32" fill="none">
-      <path
-        d={paths[type]}
-        stroke="currentColor"
-        strokeWidth="2"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg width="38" height="32" viewBox="0 0 38 32" fill="none" shapeRendering="geometricPrecision">
+      {pathElement}
     </svg>
   )
 }
 
 function WaveformPreview({ type }: { type: WaveformType }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
   const rippleRef = useRef(0)
   const fadeInRef = useRef(0)
   const animationIdRef = useRef<number | null>(null)
   const lastTypeRef = useRef<WaveformType>(type)
+  const [animating, setAnimating] = useState(false)
 
   useEffect(() => {
     if (lastTypeRef.current !== type) {
       rippleRef.current = 0
       fadeInRef.current = 0
       lastTypeRef.current = type
+      setAnimating(true)
+      setTimeout(() => setAnimating(false), 500)
     }
     const startTime = performance.now()
     const duration = 500
@@ -185,12 +239,15 @@ function WaveformPreview({ type }: { type: WaveformType }) {
   }, [])
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={280}
-      height={72}
-      className="waveform-preview"
-    />
+    <div ref={wrapperRef} className={`waveform-preview-wrapper ${animating ? 'rippling' : ''}`}>
+      <div className="waveform-preview-ripple" />
+      <canvas
+        ref={canvasRef}
+        width={280}
+        height={72}
+        className={`waveform-preview ${animating ? 'rippling' : ''}`}
+      />
+    </div>
   )
 }
 
