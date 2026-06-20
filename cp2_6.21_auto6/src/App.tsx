@@ -56,8 +56,9 @@ function App() {
     e.preventDefault();
     setIsDragOver(false);
     const elementType = e.dataTransfer.getData('elementType') as ElementType;
+    const elementId = e.dataTransfer.getData('elementId');
     if (elementType) {
-      addElement(elementType);
+      addElement(elementType, elementId || undefined);
     }
   };
 

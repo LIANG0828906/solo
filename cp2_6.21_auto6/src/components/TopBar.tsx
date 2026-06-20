@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { themes } from '../types';
 import type { ThemeType } from '../types';
@@ -21,6 +21,23 @@ export function TopBar() {
   const progressRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch (err) {
+          console.warn('Error stopping mediaRecorder on unmount:', err);
+        }
+      }
+      recordedChunksRef.current = [];
+      mediaRecorderRef.current = null;
+    };
+  }, []);
 
   const themeList: { key: ThemeType; name: string; colors: string[] }[] = [
     { key: 'cyberpunk', name: '赛博朋克', colors: ['#ff00ff', '#00ffff', '#ffff00'] },
@@ -87,61 +104,134 @@ export function TopBar() {
   };
 
   const startRecording = () => {
+    if (!isMountedRef.current) return;
+
     const canvas = document.querySelector('canvas');
     if (!canvas) {
-      console.warn('No canvas found for recording');
+      console.warn('Canvas element not found for recording');
+      alert('找不到录制画布，请稍后再试');
+      return;
+    }
+
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      console.warn('Element found is not an HTMLCanvasElement');
+      return;
+    }
+
+    if (!canvas.isConnected) {
+      console.warn('Canvas is not attached to DOM');
+      return;
+    }
+
+    if (typeof canvas.captureStream !== 'function') {
+      console.warn('captureStream is not supported on this canvas');
+      alert('当前浏览器不支持画布录制功能');
+      return;
+    }
+
+    if (typeof MediaRecorder === 'undefined') {
+      alert('当前浏览器不支持 MediaRecorder API');
       return;
     }
 
     try {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore errors from force-stopping
+        }
+        mediaRecorderRef.current = null;
+        recordedChunksRef.current = [];
+      }
+
       const stream = canvas.captureStream(60);
+      if (!stream) {
+        console.warn('Failed to get capture stream from canvas');
+        return;
+      }
 
       let mimeType = 'video/webm;codecs=vp9';
       if (!MediaRecorder.isTypeSupported(mimeType)) {
         mimeType = 'video/webm;codecs=vp8';
         if (!MediaRecorder.isTypeSupported(mimeType)) {
           mimeType = 'video/webm';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = '';
+          }
         }
       }
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const recorderOptions: MediaRecorderOptions = {};
+      if (mimeType) {
+        recorderOptions.mimeType = mimeType;
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
       mediaRecorderRef.current = mediaRecorder;
       recordedChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           recordedChunksRef.current.push(event.data);
         }
       };
 
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+      };
+
       mediaRecorder.onstop = () => {
-        if (recordedChunksRef.current.length === 0) return;
-        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const chunks = recordedChunksRef.current;
+        recordedChunksRef.current = [];
+
+        if (chunks.length === 0) {
+          console.warn('No recorded data available');
+          return;
+        }
+
+        const blob = new Blob(chunks, { type: mimeType || 'video/webm' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `music-visualizer-${Date.now()}.webm`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        recordedChunksRef.current = [];
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 100);
+
+        if (isMountedRef.current) {
+          setRecording(false);
+        }
       };
 
       mediaRecorder.start(100);
       setRecording(true);
     } catch (err) {
       console.error('Failed to start recording:', err);
-      setRecording(false);
+      if (isMountedRef.current) {
+        setRecording(false);
+      }
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+    const recorder = mediaRecorderRef.current;
+
+    if (recorder && recorder.state !== 'inactive') {
+      try {
+        recorder.ondataavailable = null as any;
+        recorder.onerror = null as any;
+        recorder.stop();
+      } catch (err) {
+        console.warn('Error stopping MediaRecorder:', err);
+      }
     }
+
     mediaRecorderRef.current = null;
-    setRecording(false);
+    recordedChunksRef.current = [];
   };
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;

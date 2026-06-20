@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/useStore';
+import { useStore, getFrequencyData, getCurrentTheme, getElementById } from '../store/useStore';
 import { themes } from '../types';
 import type { SceneElement } from '../types';
 
@@ -17,7 +17,11 @@ export function LightWall({ element }: LightWallProps) {
 
   const wallSize = element.wallSize || [4, 3];
   const flickerFrequency = element.flickerFrequency || 2;
-  const sensitivity = element.sensitivity || 1;
+
+  const smoothColorRef = useRef(new THREE.Color('#ffffff'));
+  const smoothEmissiveRef = useRef(new THREE.Color('#ffffff'));
+  const smoothOpacityRef = useRef(0.6);
+  const smoothEmissiveIntensityRef = useRef(0.3);
 
   const beatIntensityRef = useRef(0);
   const lastBeatRef = useRef(0);
@@ -29,16 +33,16 @@ export function LightWall({ element }: LightWallProps) {
   useFrame((state, delta) => {
     if (!meshRef.current) return;
 
-    const storeState = useStore.getState();
-    const frequencyData = storeState.frequencyData;
-    const currentTheme = storeState.theme;
-    const themeColors = themes[currentTheme];
+    const frequencyData = getFrequencyData();
+    const currentTheme = getCurrentTheme();
+    const currentElement = getElementById(element.id);
 
-    const currentElement = storeState.elements.find((el) => el.id === element.id);
-    const currentSensitivity = currentElement?.sensitivity ?? sensitivity;
+    const currentSensitivity = currentElement?.sensitivity ?? element.sensitivity ?? 1;
     const currentScale = currentElement?.scale ?? element.scale;
     const currentFlickerFrequency = currentElement?.flickerFrequency ?? flickerFrequency;
     const currentWallSize = currentElement?.wallSize ?? wallSize;
+
+    const themeColors = themes[currentTheme];
 
     const geometry = meshRef.current.geometry;
     const positionAttribute = geometry.attributes.position as THREE.BufferAttribute;
@@ -67,18 +71,26 @@ export function LightWall({ element }: LightWallProps) {
     const color3 = new THREE.Color(themeColors.accent);
 
     const hueMix = (Math.sin(hueOffsetRef.current * Math.PI * 2) + 1) / 2;
-    let currentColor: THREE.Color;
+    let targetColor: THREE.Color;
     if (hueMix < 0.5) {
-      currentColor = color1.clone().lerp(color2, hueMix * 2);
+      targetColor = color1.clone().lerp(color2, hueMix * 2);
     } else {
-      currentColor = color2.clone().lerp(color3, (hueMix - 0.5) * 2);
+      targetColor = color2.clone().lerp(color3, (hueMix - 0.5) * 2);
     }
 
+    const targetOpacity = 0.4 + normalizedLow * 0.4 + beatIntensityRef.current * 0.2;
+    const targetEmissiveIntensity = 0.3 + beatIntensityRef.current * 0.5;
+
+    smoothColorRef.current.lerp(targetColor, 0.12);
+    smoothEmissiveRef.current.lerp(targetColor, 0.12);
+    smoothOpacityRef.current += (targetOpacity - smoothOpacityRef.current) * 0.1;
+    smoothEmissiveIntensityRef.current += (targetEmissiveIntensity - smoothEmissiveIntensityRef.current) * 0.1;
+
     const material = meshRef.current.material as THREE.MeshStandardMaterial;
-    material.color.copy(currentColor);
-    material.emissive.copy(currentColor);
-    material.emissiveIntensity = 0.3 + beatIntensityRef.current * 0.5;
-    material.opacity = 0.4 + normalizedLow * 0.4 + beatIntensityRef.current * 0.2;
+    material.color.copy(smoothColorRef.current);
+    material.emissive.copy(smoothEmissiveRef.current);
+    material.emissiveIntensity = smoothEmissiveIntensityRef.current;
+    material.opacity = smoothOpacityRef.current;
 
     let totalVolume = 0;
     for (let i = 0; i < frequencyData.length; i++) {

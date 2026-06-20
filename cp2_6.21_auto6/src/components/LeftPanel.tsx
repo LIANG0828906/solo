@@ -10,6 +10,8 @@ const elementTypes: { type: ElementType; name: string; icon: string; description
   { type: 'lightWall', name: '闪烁光墙', icon: '▦', description: '节拍闪烁' },
 ];
 
+const generateDragId = () => `drag-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
 export function LeftPanel() {
   const theme = useStore((state) => state.theme);
   const addElement = useStore((state) => state.addElement);
@@ -17,7 +19,9 @@ export function LeftPanel() {
   const [draggingType, setDraggingType] = useState<ElementType | null>(null);
 
   const handleDragStart = (e: React.DragEvent, type: ElementType) => {
+    const dragId = generateDragId();
     e.dataTransfer.setData('elementType', type);
+    e.dataTransfer.setData('elementId', dragId);
     e.dataTransfer.effectAllowed = 'copy';
     setDraggingType(type);
   };

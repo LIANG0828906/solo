@@ -1,7 +1,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/useStore';
+import { useStore, getFrequencyData, getCurrentTheme, getElementById } from '../store/useStore';
 import { themes } from '../types';
 import type { SceneElement } from '../types';
 
@@ -15,8 +15,10 @@ export function WaveSphere({ element }: WaveSphereProps) {
   const selectElement = useStore((state) => state.selectElement);
   const theme = useStore((state) => state.theme);
 
+  const smoothColorRef = useRef(new THREE.Color('#ffffff'));
+  const smoothEmissiveRef = useRef(new THREE.Color('#000000'));
+
   const detail = Math.min(element.waveDetail || 32, 64);
-  const sensitivity = element.sensitivity || 1;
 
   const originalPositions = useMemo(() => {
     const geometry = new THREE.SphereGeometry(1, detail, detail);
@@ -28,15 +30,19 @@ export function WaveSphere({ element }: WaveSphereProps) {
   useFrame((state) => {
     if (!meshRef.current) return;
 
-    const storeState = useStore.getState();
-    const frequencyData = storeState.frequencyData;
-    const currentTheme = storeState.theme;
-    const themeColors = themes[currentTheme];
+    const frequencyData = getFrequencyData();
+    const currentTheme = getCurrentTheme();
+    const currentElement = getElementById(element.id);
 
-    const currentElement = storeState.elements.find((el) => el.id === element.id);
-    const currentSensitivity = currentElement?.sensitivity ?? sensitivity;
+    const currentSensitivity = currentElement?.sensitivity ?? element.sensitivity ?? 1;
     const currentScale = currentElement?.scale ?? element.scale;
-    const currentRotationSpeed = currentElement?.rotationSpeed ?? element.rotationSpeed;
+    const currentRotationSpeed = currentElement?.rotationSpeed ?? element.rotationSpeed ?? 0.5;
+
+    const themeColors = themes[currentTheme];
+    const targetColor = new THREE.Color(themeColors.primary);
+    const targetEmissive = new THREE.Color(themeColors.secondary);
+    smoothColorRef.current.lerp(targetColor, 0.08);
+    smoothEmissiveRef.current.lerp(targetEmissive, 0.08);
 
     const geometry = meshRef.current.geometry;
     const positionAttribute = geometry.attributes.position as THREE.BufferAttribute;
@@ -88,8 +94,8 @@ export function WaveSphere({ element }: WaveSphereProps) {
     meshRef.current.scale.setScalar(currentScale);
 
     const material = meshRef.current.material as THREE.MeshStandardMaterial;
-    material.color.set(themeColors.primary);
-    material.emissive.set(themeColors.secondary);
+    material.color.copy(smoothColorRef.current);
+    material.emissive.copy(smoothEmissiveRef.current);
     material.emissiveIntensity = 0.3 + normalizedVolume * 0.3;
   });
 

@@ -121,8 +121,6 @@ export function RightPanel() {
     return names[type] || type;
   };
 
-  const isVisible = !!selectedElement;
-
   return (
     <div
       style={{
@@ -132,19 +130,15 @@ export function RightPanel() {
         width: '300px',
         background: 'white',
         borderRadius: '12px',
-        padding: isVisible ? '20px' : '0',
+        padding: '20px',
         zIndex: 100,
-        border: isVisible ? '1px solid #e0e0e0' : '1px solid transparent',
-        boxShadow: isVisible ? '0 8px 32px rgba(0, 0, 0, 0.15)' : 'none',
+        border: '1px solid #e0e0e0',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        transform: isVisible ? 'translateX(0)' : 'translateX(340px)',
-        opacity: isVisible ? 1 : 0,
-        pointerEvents: isVisible ? 'auto' : 'none',
         maxHeight: 'calc(100vh - 100px)',
         overflowY: 'auto',
       }}
     >
-      {selectedElement && (
       <div
         style={{
           display: 'flex',
@@ -161,236 +155,290 @@ export function RightPanel() {
             margin: 0,
           }}
         >
-          {getElementName(selectedElement.type)}
+          {selectedElement ? getElementName(selectedElement.type) : '属性面板'}
         </h3>
-        <button
-          onClick={() => selectElement(null)}
+        {selectedElement && (
+          <button
+            onClick={() => selectElement(null)}
+            style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              border: 'none',
+              background: '#f0f0f0',
+              color: '#999',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#e0e0e0';
+              e.currentTarget.style.color = '#666';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#f0f0f0';
+              e.currentTarget.style.color = '#999';
+            }}
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {!selectedElement ? (
+        <div
           style={{
-            width: '28px',
-            height: '28px',
-            borderRadius: '50%',
-            border: 'none',
-            background: '#f0f0f0',
-            color: '#999',
-            cursor: 'pointer',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '16px',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#e0e0e0';
-            e.currentTarget.style.color = '#666';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#f0f0f0';
-            e.currentTarget.style.color = '#999';
+            padding: '40px 20px',
+            textAlign: 'center',
           }}
         >
-          ×
-        </button>
-      </div>
-
-      <div style={{ marginBottom: '20px' }}>
-        <h4
-          style={{
-            fontSize: '12px',
-            color: '#999',
-            fontWeight: 600,
-            margin: '0 0 12px 0',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-          }}
-        >
-          通用参数
-        </h4>
-        <Slider
-          label="大小"
-          value={selectedElement.scale}
-          min={0.3}
-          max={3}
-          step={0.1}
-          onChange={(v) => handleUpdate({ scale: v })}
-          primaryColor={themeColors.primary}
-        />
-        <Slider
-          label="响应灵敏度"
-          value={selectedElement.sensitivity}
-          min={0.1}
-          max={3}
-          step={0.1}
-          onChange={(v) => handleUpdate({ sensitivity: v })}
-          primaryColor={themeColors.primary}
-        />
-        <Slider
-          label="旋转速度"
-          value={selectedElement.rotationSpeed}
-          min={0}
-          max={2}
-          step={0.1}
-          onChange={(v) => handleUpdate({ rotationSpeed: v })}
-          primaryColor={themeColors.primary}
-        />
-      </div>
-
-      <div
-        style={{
-          marginBottom: '20px',
-          paddingTop: '16px',
-          borderTop: '1px solid #eee',
-        }}
-      >
-        <h4
-          style={{
-            fontSize: '12px',
-            color: '#999',
-            fontWeight: 600,
-            margin: '0 0 12px 0',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-          }}
-        >
-          专属参数
-        </h4>
-        {selectedElement.type === 'beatBars' && (
-          <Slider
-            label="柱体数量"
-            value={selectedElement.barCount || 32}
-            min={8}
-            max={64}
-            step={4}
-            onChange={(v) => handleUpdate({ barCount: v })}
-            primaryColor={themeColors.primary}
-          />
-        )}
-        {selectedElement.type === 'particleGalaxy' && (
-          <Slider
-            label="粒子数量"
-            value={selectedElement.particleCount || 1000}
-            min={200}
-            max={3000}
-            step={100}
-            onChange={(v) => handleUpdate({ particleCount: v })}
-            primaryColor={themeColors.primary}
-          />
-        )}
-        {selectedElement.type === 'waveSphere' && (
-          <Slider
-            label="波形细分"
-            value={selectedElement.waveDetail || 32}
-            min={16}
-            max={64}
-            step={4}
-            onChange={(v) => handleUpdate({ waveDetail: v })}
-            primaryColor={themeColors.primary}
-          />
-        )}
-        {selectedElement.type === 'lightWall' && (
-          <>
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: `linear-gradient(135deg, ${themeColors.primary}15, ${themeColors.secondary}15)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px',
+              marginBottom: '16px',
+            }}
+          >
+            👆
+          </div>
+          <div
+            style={{
+              color: '#999',
+              fontSize: '13px',
+              lineHeight: 1.6,
+              marginBottom: '8px',
+              fontWeight: 500,
+            }}
+          >
+            未选中元素
+          </div>
+          <div
+            style={{
+              color: '#bbb',
+              fontSize: '12px',
+              lineHeight: 1.6,
+            }}
+          >
+            从左侧面板拖拽或点击添加元素，
+            <br />
+            然后点击场景中的元素来编辑属性
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{ marginBottom: '20px' }}>
+            <h4
+              style={{
+                fontSize: '12px',
+                color: '#999',
+                fontWeight: 600,
+                margin: '0 0 12px 0',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}
+            >
+              通用参数
+            </h4>
             <Slider
-              label="闪烁频率"
-              value={selectedElement.flickerFrequency || 2}
-              min={0.5}
-              max={5}
-              step={0.5}
-              onChange={(v) => handleUpdate({ flickerFrequency: v })}
+              label="大小"
+              value={selectedElement.scale}
+              min={0.3}
+              max={3}
+              step={0.1}
+              onChange={(v) => handleUpdate({ scale: v })}
               primaryColor={themeColors.primary}
             />
             <Slider
-              label="宽度"
-              value={selectedElement.wallSize?.[0] || 4}
-              min={2}
-              max={10}
-              step={0.5}
-              onChange={(v) =>
-                handleUpdate({
-                  wallSize: [v, selectedElement.wallSize?.[1] || 3],
-                })
-              }
+              label="响应灵敏度"
+              value={selectedElement.sensitivity}
+              min={0.1}
+              max={3}
+              step={0.1}
+              onChange={(v) => handleUpdate({ sensitivity: v })}
               primaryColor={themeColors.primary}
             />
             <Slider
-              label="高度"
-              value={selectedElement.wallSize?.[1] || 3}
-              min={1}
-              max={8}
-              step={0.5}
-              onChange={(v) =>
-                handleUpdate({
-                  wallSize: [selectedElement.wallSize?.[0] || 4, v],
-                })
-              }
+              label="旋转速度"
+              value={selectedElement.rotationSpeed}
+              min={0}
+              max={2}
+              step={0.1}
+              onChange={(v) => handleUpdate({ rotationSpeed: v })}
               primaryColor={themeColors.primary}
             />
-          </>
-        )}
-      </div>
+          </div>
 
-      <div
-        style={{
-          display: 'flex',
-          gap: '12px',
-          paddingTop: '16px',
-          borderTop: '1px solid #eee',
-        }}
-      >
-        <button
-          onClick={handleRemove}
-          style={{
-            flex: 1,
-            height: '40px',
-            borderRadius: '8px',
-            border: 'none',
-            background: '#ff4444',
-            color: 'white',
-            fontWeight: 600,
-            fontSize: '13px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#ff2222';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 68, 68, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#ff4444';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        >
-          <span style={{ fontSize: '16px' }}>✕</span>
-          删除
-        </button>
-        <button
-          onClick={syncAllElements}
-          style={{
-            flex: 1,
-            height: '40px',
-            borderRadius: '8px',
-            border: `2px solid ${themeColors.primary}`,
-            background: 'transparent',
-            color: themeColors.primary,
-            fontWeight: 600,
-            fontSize: '13px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = themeColors.primary;
-            e.currentTarget.style.color = 'white';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = themeColors.primary;
-          }}
-        >
-          ⟳ 同步节拍
-        </button>
-      </div>
+          <div
+            style={{
+              marginBottom: '20px',
+              paddingTop: '16px',
+              borderTop: '1px solid #eee',
+            }}
+          >
+            <h4
+              style={{
+                fontSize: '12px',
+                color: '#999',
+                fontWeight: 600,
+                margin: '0 0 12px 0',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}
+            >
+              专属参数
+            </h4>
+            {selectedElement.type === 'beatBars' && (
+              <Slider
+                label="柱体数量"
+                value={selectedElement.barCount || 32}
+                min={8}
+                max={64}
+                step={4}
+                onChange={(v) => handleUpdate({ barCount: v })}
+                primaryColor={themeColors.primary}
+              />
+            )}
+            {selectedElement.type === 'particleGalaxy' && (
+              <Slider
+                label="粒子数量"
+                value={selectedElement.particleCount || 1000}
+                min={200}
+                max={3000}
+                step={100}
+                onChange={(v) => handleUpdate({ particleCount: v })}
+                primaryColor={themeColors.primary}
+              />
+            )}
+            {selectedElement.type === 'waveSphere' && (
+              <Slider
+                label="波形细分"
+                value={selectedElement.waveDetail || 32}
+                min={16}
+                max={64}
+                step={4}
+                onChange={(v) => handleUpdate({ waveDetail: v })}
+                primaryColor={themeColors.primary}
+              />
+            )}
+            {selectedElement.type === 'lightWall' && (
+              <>
+                <Slider
+                  label="闪烁频率"
+                  value={selectedElement.flickerFrequency || 2}
+                  min={0.5}
+                  max={5}
+                  step={0.5}
+                  onChange={(v) => handleUpdate({ flickerFrequency: v })}
+                  primaryColor={themeColors.primary}
+                />
+                <Slider
+                  label="宽度"
+                  value={selectedElement.wallSize?.[0] || 4}
+                  min={2}
+                  max={10}
+                  step={0.5}
+                  onChange={(v) =>
+                    handleUpdate({
+                      wallSize: [v, selectedElement.wallSize?.[1] || 3],
+                    })
+                  }
+                  primaryColor={themeColors.primary}
+                />
+                <Slider
+                  label="高度"
+                  value={selectedElement.wallSize?.[1] || 3}
+                  min={1}
+                  max={8}
+                  step={0.5}
+                  onChange={(v) =>
+                    handleUpdate({
+                      wallSize: [selectedElement.wallSize?.[0] || 4, v],
+                    })
+                  }
+                  primaryColor={themeColors.primary}
+                />
+              </>
+            )}
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              gap: '12px',
+              paddingTop: '16px',
+              borderTop: '1px solid #eee',
+            }}
+          >
+            <button
+              onClick={handleRemove}
+              style={{
+                flex: 1,
+                height: '40px',
+                borderRadius: '8px',
+                border: 'none',
+                background: '#ff4444',
+                color: 'white',
+                fontWeight: 600,
+                fontSize: '13px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#ff2222';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 68, 68, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#ff4444';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>✕</span>
+              删除
+            </button>
+            <button
+              onClick={syncAllElements}
+              style={{
+                flex: 1,
+                height: '40px',
+                borderRadius: '8px',
+                border: `2px solid ${themeColors.primary}`,
+                background: 'transparent',
+                color: themeColors.primary,
+                fontWeight: 600,
+                fontSize: '13px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = themeColors.primary;
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = themeColors.primary;
+              }}
+            >
+              ⟳ 同步节拍
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

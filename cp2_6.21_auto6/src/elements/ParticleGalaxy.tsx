@@ -1,7 +1,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/useStore';
+import { useStore, getFrequencyData, getCurrentTheme, getElementById } from '../store/useStore';
 import { themes } from '../types';
 import type { SceneElement } from '../types';
 
@@ -15,8 +15,10 @@ export function ParticleGalaxy({ element }: ParticleGalaxyProps) {
   const selectElement = useStore((state) => state.selectElement);
   const theme = useStore((state) => state.theme);
 
+  const smoothColorRef = useRef(new THREE.Color('#ffffff'));
+  const currentThemeRef = useRef(theme);
+
   const particleCount = Math.min(element.particleCount || 1000, 3000);
-  const sensitivity = element.sensitivity || 1;
 
   const { positions, colors, sizes } = useMemo(() => {
     const pos = new Float32Array(particleCount * 3);
@@ -49,18 +51,25 @@ export function ParticleGalaxy({ element }: ParticleGalaxyProps) {
   useFrame(() => {
     if (!pointsRef.current) return;
 
-    const storeState = useStore.getState();
-    const frequencyData = storeState.frequencyData;
-    const currentTheme = storeState.theme;
+    const frequencyData = getFrequencyData();
+    const currentTheme = getCurrentTheme();
+    const currentElement = getElementById(element.id);
+
+    const currentSensitivity = currentElement?.sensitivity ?? element.sensitivity ?? 1;
+    const currentScale = currentElement?.scale ?? element.scale;
+    const currentRotationSpeed = currentElement?.rotationSpeed ?? element.rotationSpeed ?? 0.5;
+
     const themeColors = themes[currentTheme];
+    const targetColor = new THREE.Color(themeColors.primary);
+
+    if (currentThemeRef.current !== currentTheme) {
+      currentThemeRef.current = currentTheme;
+    }
+    smoothColorRef.current.lerp(targetColor, 0.05);
+
     const primaryColor = new THREE.Color(themeColors.primary);
     const secondaryColor = new THREE.Color(themeColors.secondary);
     const accentColor = new THREE.Color(themeColors.accent);
-
-    const currentElement = storeState.elements.find((el) => el.id === element.id);
-    const currentSensitivity = currentElement?.sensitivity ?? sensitivity;
-    const currentScale = currentElement?.scale ?? element.scale;
-    const currentRotationSpeed = currentElement?.rotationSpeed ?? element.rotationSpeed;
 
     const geometry = pointsRef.current.geometry;
     const colorAttribute = geometry.attributes.color as THREE.BufferAttribute;

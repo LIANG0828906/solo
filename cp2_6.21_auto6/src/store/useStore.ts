@@ -19,10 +19,11 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
   isRecording: false,
   audioLoaded: false,
 
-  addElement: (type: ElementType) => {
+  addElement: (type: ElementType, id?: string) => {
     const defaults = elementDefaults[type];
+    const elementId = id || generateId();
     const newElement: SceneElement = {
-      id: generateId(),
+      id: elementId,
       type,
       position: [0, 0, 0],
       rotation: [0, 0, 0],
@@ -33,7 +34,7 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
     };
     set((state) => ({
       elements: [...state.elements, newElement],
-      selectedElementId: newElement.id,
+      selectedElementId: elementId,
     }));
   },
 
@@ -98,3 +99,15 @@ export const useStore = create<AppState & AppActions>((set, get) => ({
     set({ elements: [...elements] });
   },
 }));
+
+export function getFrequencyData(): Uint8Array {
+  return useStore.getState().frequencyData;
+}
+
+export function getCurrentTheme(): ThemeType {
+  return useStore.getState().theme;
+}
+
+export function getElementById(id: string): SceneElement | undefined {
+  return useStore.getState().elements.find((el) => el.id === id);
+}

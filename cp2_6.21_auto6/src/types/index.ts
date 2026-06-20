@@ -39,7 +39,7 @@ export interface AppState {
 }
 
 export interface AppActions {
-  addElement: (type: ElementType) => void;
+  addElement: (type: ElementType, id?: string) => void;
   removeElement: (id: string) => void;
   updateElement: (id: string, props: Partial<SceneElement>) => void;
   selectElement: (id: string | null) => void;

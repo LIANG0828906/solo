@@ -1,7 +1,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useStore } from '../store/useStore';
+import { useStore, getFrequencyData, getCurrentTheme, getElementById } from '../store/useStore';
 import { themes } from '../types';
 import type { SceneElement } from '../types';
 
@@ -12,12 +12,14 @@ interface BeatBarsProps {
 export function BeatBars({ element }: BeatBarsProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const themeColorRef = useRef(new THREE.Color());
+  const primaryColorRef = useRef(new THREE.Color());
+  const secondaryColorRef = useRef(new THREE.Color());
   const isSelected = useStore((state) => state.selectedElementId === element.id);
   const selectElement = useStore((state) => state.selectElement);
   const theme = useStore((state) => state.theme);
 
   const barCount = element.barCount || 32;
-  const sensitivity = element.sensitivity || 1;
 
   const positions = useMemo(() => {
     const pos: [number, number, number][] = [];
@@ -32,17 +34,18 @@ export function BeatBars({ element }: BeatBarsProps) {
   useFrame(() => {
     if (!meshRef.current) return;
 
-    const storeState = useStore.getState();
-    const frequencyData = storeState.frequencyData;
-    const currentTheme = storeState.theme;
-    const themeColors = themes[currentTheme];
-    const primaryColor = new THREE.Color(themeColors.primary);
-    const secondaryColor = new THREE.Color(themeColors.secondary);
+    const frequencyData = getFrequencyData();
+    const currentTheme = getCurrentTheme();
+    const currentElement = getElementById(element.id);
 
-    const currentElement = storeState.elements.find((el) => el.id === element.id);
-    const currentSensitivity = currentElement?.sensitivity ?? sensitivity;
+    const currentSensitivity = currentElement?.sensitivity ?? element.sensitivity ?? 1;
     const currentScale = currentElement?.scale ?? element.scale;
-    const currentRotationSpeed = currentElement?.rotationSpeed ?? element.rotationSpeed;
+    const currentRotationSpeed = currentElement?.rotationSpeed ?? element.rotationSpeed ?? 0.5;
+
+    const themeColors = themes[currentTheme];
+    primaryColorRef.current.set(themeColors.primary);
+    secondaryColorRef.current.set(themeColors.secondary);
+    themeColorRef.current.set(themeColors.primary);
 
     for (let i = 0; i < barCount; i++) {
       const freqIndex = Math.floor((i / barCount) * frequencyData.length * 0.3);
@@ -62,7 +65,7 @@ export function BeatBars({ element }: BeatBarsProps) {
       );
 
       const colorMix = Math.min(normalizedValue * 1.5, 1);
-      const mixedColor = primaryColor.clone().lerp(secondaryColor, colorMix);
+      const mixedColor = primaryColorRef.current.clone().lerp(secondaryColorRef.current, colorMix);
       meshRef.current.setColorAt(i, mixedColor);
 
       dummy.updateMatrix();
@@ -79,7 +82,7 @@ export function BeatBars({ element }: BeatBarsProps) {
     }
 
     const material = meshRef.current.material as THREE.MeshStandardMaterial;
-    material.emissive.set(themeColors.primary);
+    material.emissive.copy(themeColorRef.current);
     material.emissiveIntensity = isSelected ? 0.5 : 0.3;
   });
 
