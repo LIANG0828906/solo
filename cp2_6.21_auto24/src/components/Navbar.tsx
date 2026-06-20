@@ -97,7 +97,6 @@ const Navbar = () => {
               placeholder="搜索食材、菜系或食谱..."
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              onFocus={() => setShowFilters(true)}
               style={{
                 width: '100%',
                 height: '38px',
@@ -340,7 +339,7 @@ const Navbar = () => {
 
       {showMobileMenu && (
         <div
-          className="mobile-menu"
+          className={`mobile-menu ${showMobileMenu ? 'active' : ''}`}
           style={{
             display: 'none',
             position: 'fixed',
@@ -408,11 +407,14 @@ const Navbar = () => {
           .mobile-menu-btn {
             display: block !important;
           }
-          .mobile-menu {
+          .mobile-menu.active {
             display: flex !important;
           }
           nav > div:nth-child(2) {
             display: none !important;
+          }
+          nav {
+            padding: 0 16px !important;
           }
         }
       `}</style>

@@ -1,24 +1,74 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRecipeStore } from '../store/useRecipeStore'
 import RecipeCard from '../components/RecipeCard'
 import { Recipe } from '../types'
+import axios from 'axios'
 
 const HomePage = () => {
-  const { recipes, favorites, user, fetchRecipes, fetchFavorites } = useRecipeStore()
+  const { recipes, favorites, user, setRecipes, fetchFavorites } = useRecipeStore()
+  const { searchKeyword, filters } = useRecipeStore()
   const [loading, setLoading] = useState(true)
   const [showFavorites, setShowFavorites] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
+
+  const searchRecipes = useCallback(async (keyword: string) => {
+    try {
+      setLoading(true)
+      const params: Record<string, string | number> = {}
+      if (keyword) params.q = keyword
+      if (filters.tag) params.tag = filters.tag
+      if (filters.cook_time) params.cook_time = filters.cook_time
+      if (filters.author) params.author = filters.author
+      if (user?.id) params.user_id = user.id
+
+      const response = await axios.get<Recipe[]>('/api/recipes/search', { params })
+      setRecipes(response.data)
+    } catch (error) {
+      console.error('Failed to search recipes:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [filters, user, setRecipes])
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
-      await fetchRecipes()
+      if (searchKeyword || filters.tag || filters.cook_time || filters.author) {
+        await searchRecipes(searchKeyword)
+      } else {
+        try {
+          const params: Record<string, number> = {}
+          if (user?.id) params.user_id = user.id
+          const response = await axios.get<Recipe[]>('/api/recipes', { params })
+          setRecipes(response.data)
+        } catch (error) {
+          console.error('Failed to fetch recipes:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
       if (user) {
         await fetchFavorites()
       }
       setLoading(false)
     }
     loadData()
-  }, [user])
+  }, [user, searchKeyword, filters.tag, filters.cook_time, filters.author, searchRecipes, setRecipes, fetchFavorites])
+
+  useEffect(() => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
+    }
+    const timer = setTimeout(() => {
+      if (searchKeyword || filters.tag || filters.cook_time) {
+        searchRecipes(searchKeyword)
+      }
+    }, 300)
+    setSearchTimeout(timer)
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [searchKeyword, filters.tag, filters.cook_time, filters.author])
 
   const skeletonCards = Array.from({ length: 8 }, (_, i) => i)
 
@@ -80,7 +130,7 @@ const HomePage = () => {
             </button>
           </div>
 
-          <div
+          <div className="favorites-scroll"
             style={{
               display: 'flex',
               gap: '16px',
@@ -117,61 +167,55 @@ const HomePage = () => {
         </h2>
 
         {loading ? (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-              gap: '20px',
-            }}
-          >
+          <div className="masonry-grid">
             {skeletonCards.map((i) => (
               <div
                 key={i}
-                style={{
-                  backgroundColor: '#fff',
-                  borderRadius: '12px',
-                  overflow: 'hidden',
-                  animation: 'pulse 1.5s ease-in-out infinite',
-                }}
+                className="masonry-item"
               >
                 <div
                   style={{
-                    height: '180px',
-                    backgroundColor: '#f5f0e1',
+                    backgroundColor: '#fff',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    animation: 'pulse 1.5s ease-in-out infinite',
                   }}
-                />
-                <div style={{ padding: '16px' }}>
+                >
                   <div
                     style={{
-                      height: '16px',
+                      height: '180px',
                       backgroundColor: '#f5f0e1',
-                      borderRadius: '4px',
-                      marginBottom: '8px',
-                      width: '70%',
                     }}
                   />
-                  <div
-                    style={{
-                      height: '12px',
-                      backgroundColor: '#f5f0e1',
-                      borderRadius: '4px',
-                      width: '40%',
-                    }}
-                  />
+                  <div style={{ padding: '16px' }}>
+                    <div
+                      style={{
+                        height: '16px',
+                        backgroundColor: '#f5f0e1',
+                        borderRadius: '4px',
+                        marginBottom: '8px',
+                        width: '70%',
+                      }}
+                    />
+                    <div
+                      style={{
+                        height: '12px',
+                        backgroundColor: '#f5f0e1',
+                        borderRadius: '4px',
+                        width: '40%',
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         ) : recipes.length > 0 ? (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-              gap: '20px',
-            }}
-          >
+          <div className="masonry-grid">
             {recipes.map((recipe: Recipe) => (
-              <RecipeCard key={recipe.id} recipe={recipe} />
+              <div key={recipe.id} className="masonry-item">
+                <RecipeCard recipe={recipe} />
+              </div>
             ))}
           </div>
         ) : (
@@ -195,6 +239,61 @@ const HomePage = () => {
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
+        }
+
+        .masonry-grid {
+          column-count: 4;
+          column-gap: 20px;
+        }
+
+        @media (max-width: 1100px) {
+          .masonry-grid {
+            column-count: 3;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .masonry-grid {
+            column-count: 2;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .masonry-grid {
+            column-count: 1;
+          }
+        }
+
+        .masonry-item {
+          break-inside: avoid;
+          margin-bottom: 20px;
+        }
+
+        .favorites-scroll {
+          display: flex;
+          gap: 16px;
+          overflow-x: auto;
+          padding-bottom: 8px;
+          scroll-behavior: smooth;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .favorites-scroll::-webkit-scrollbar {
+          height: 6px;
+        }
+
+        .favorites-scroll::-webkit-scrollbar-track {
+          background: #f5f0e1;
+          border-radius: 3px;
+        }
+
+        .favorites-scroll::-webkit-scrollbar-thumb {
+          background: #d7ccc8;
+          border-radius: 3px;
+        }
+
+        .favorites-scroll::-webkit-scrollbar-thumb:hover {
+          background: #8d6e63;
         }
       `}</style>
     </div>

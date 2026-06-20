@@ -8,18 +8,18 @@ interface RecipeCardProps {
 
 const RecipeCard = ({ recipe }: RecipeCardProps) => {
   const [imageLoaded, setImageLoaded] = useState(false)
-  const [isVisible, setIsVisible] = useState(false)
+  const [shouldLoadImage, setShouldLoadImage] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setIsVisible(true)
+          setShouldLoadImage(true)
           observer.disconnect()
         }
       },
-      { threshold: 0.1, rootMargin: '100px' }
+      { threshold: 0.05, rootMargin: '200px' }
     )
 
     if (cardRef.current) {
@@ -54,7 +54,8 @@ const RecipeCard = ({ recipe }: RecipeCardProps) => {
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
           transition: 'transform 0.3s ease, box-shadow 0.3s ease',
           cursor: 'pointer',
-          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = 'translateY(-4px)'
@@ -68,13 +69,13 @@ const RecipeCard = ({ recipe }: RecipeCardProps) => {
         <div
           style={{
             position: 'relative',
-            height: '60%',
-            minHeight: '180px',
+            width: '100%',
+            aspectRatio: '4 / 3',
             background: gradient,
             overflow: 'hidden',
           }}
         >
-          {isVisible && recipe.cover_image && (
+          {shouldLoadImage && recipe.cover_image && (
             <img
               src={recipe.cover_image}
               alt={recipe.title}
