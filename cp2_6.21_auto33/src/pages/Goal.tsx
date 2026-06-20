@@ -14,6 +14,7 @@ interface RingConfig {
   currentKey: string
   inputLabel: string
   minValue: number
+  invert?: boolean
 }
 
 const RING_CONFIGS: RingConfig[] = [
@@ -35,7 +36,8 @@ const RING_CONFIGS: RingConfig[] = [
     dataKey: 'target_weight',
     currentKey: 'weight',
     inputLabel: '目标体重 (kg)',
-    minValue: 20
+    minValue: 20,
+    invert: true
   },
   {
     key: 'target_sleep',
@@ -95,10 +97,40 @@ const ProgressRing: React.FC<{
   )
 }
 
+const isReachedGoal = (value: number, target: number, invert?: boolean): boolean => {
+  if (target <= 0) return false
+  if (invert) return value > 0 && value <= target
+  return value >= target
+}
+
+const getGoalStatusText = (
+  current: number, target: number, config: RingConfig
+): { text: string; warn: boolean } => {
+  if (target <= 0) return { text: '暂无目标设置', warn: false }
+  if (current <= 0) return { text: '今日还未记录', warn: true }
+
+  const diff = current - target
+
+  if (config.invert) {
+    if (current <= target) {
+      return { text: '今日体重控制良好 👍', warn: false }
+    }
+    const over = Math.abs(diff).toFixed(1)
+    return { text: `比目标重 ${over}kg，需注意饮食`, warn: false }
+  }
+
+  if (diff >= 0) {
+    return { text: '今日已达标，继续保持！🎉', warn: false }
+  }
+  const remaining = Math.abs(diff)
+  const formatted = remaining % 1 === 0 ? remaining : remaining.toFixed(1)
+  return { text: `还需完成 ${formatted}${config.unit}`, warn: false }
+}
+
 const Goal: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useUserStore()
-  const { goal, todayRecord, fetchGoal, fetchToday, updateGoal } = useHealthStore()
+  const { goal, todayRecord, weekTrend, fetchGoal, fetchToday, fetchWeek, updateGoal } = useHealthStore()
   const [editConfig, setEditConfig] = useState<RingConfig | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [error, setError] = useState<string>('')
@@ -107,8 +139,9 @@ const Goal: React.FC = () => {
     if (user) {
       fetchGoal(user.id)
       fetchToday(user.id)
+      fetchWeek(user.id)
     }
-  }, [user, fetchGoal, fetchToday])
+  }, [user, fetchGoal, fetchToday, fetchWeek])
 
   const handleEdit = (config: RingConfig) => {
     if (!goal) return
@@ -141,8 +174,11 @@ const Goal: React.FC = () => {
     return (todayRecord as any)[currentKey] || 0
   }
 
-  const getProgress = (current: number, target: number): number => {
+  const getProgress = (current: number, target: number, invert?: boolean): number => {
     if (!target) return 0
+    if (invert) {
+      return current > 0 && current <= target ? 100 : Math.max(0, 100 - ((current - target) / target) * 100)
+    }
     return Math.min((current / target) * 100, 100)
   }
 
@@ -152,6 +188,16 @@ const Goal: React.FC = () => {
     if (Math.abs(diff) < 0.01) return '已达成目标 🎉'
     if (diff > 0) return `还差 ${diff.toFixed(1)} ${config.unit}`
     return `超出 ${Math.abs(diff).toFixed(1)} ${config.unit}`
+  }
+
+  const checkGoalConsecutiveWarn = (
+    currentKey: string, target: number, invert?: boolean
+  ): boolean => {
+    if (target <= 0 || weekTrend.length < 3) return false
+    const last3 = weekTrend.slice(-3)
+    return last3.every((day) =>
+      !isReachedGoal((day as any)[currentKey] || 0, target, invert)
+    )
   }
 
   return (
@@ -167,7 +213,13 @@ const Goal: React.FC = () => {
         {RING_CONFIGS.map((config) => {
           const targetValue = goal ? (goal as any)[config.key] : 0
           const currentValue = getCurrentValue(config.currentKey)
-          const progress = getProgress(currentValue, targetValue)
+          const progress = getProgress(currentValue, targetValue, config.invert)
+          const status = getGoalStatusText(currentValue, targetValue, config)
+          const consecWarn = !status.warn
+            ? !isReachedGoal(currentValue, targetValue, config.invert) &&
+              checkGoalConsecutiveWarn(config.currentKey, targetValue, config.invert)
+            : false
+          const statusColor = (status.warn || consecWarn) ? '#ff9500' : config.color
 
           return (
             <div key={config.key} className="ring-card glass-card">
@@ -186,6 +238,13 @@ const Goal: React.FC = () => {
                 <div className="ring-info">
                   <h3 style={{ color: config.color }}>{config.label}</h3>
                   <p className="ring-diff">{getDiffText(currentValue, targetValue, config)}</p>
+                  <p
+                    className={`ring-status ${consecWarn ? 'ring-status-warn' : ''}`}
+                    style={{ color: statusColor }}
+                  >
+                    {(status.warn || consecWarn) && <i className="fas fa-exclamation-triangle"></i>}
+                    <span>{status.text}</span>
+                  </p>
                   <button className="btn-edit" onClick={() => handleEdit(config)}>
                     <i className="fas fa-edit"></i> 编辑
                   </button>

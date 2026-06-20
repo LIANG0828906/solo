@@ -48,10 +48,45 @@ const CARD_CONFIGS = [
   }
 ]
 
+interface StatusResult {
+  text: string
+  warn: boolean
+}
+
+const isReached = (_key: string, value: number, target: number, invert?: boolean): boolean => {
+  if (target <= 0) return false
+  if (invert) return value > 0 && value <= target
+  return value >= target
+}
+
+const getStatusText = (
+  key: string, current: number, target: number, unit: string, invert?: boolean
+): StatusResult => {
+  if (target <= 0) return { text: '暂无目标设置', warn: false }
+  if (current <= 0) return { text: `今日还未记录${key === 'weight' ? '体重' : ''}`, warn: true }
+
+  const diff = current - target
+
+  if (invert) {
+    if (current <= target) {
+      return { text: '体重控制良好 👍', warn: false }
+    }
+    const over = Math.abs(diff).toFixed(1)
+    return { text: `比目标重 ${over}kg，继续加油`, warn: false }
+  }
+
+  if (diff >= 0) {
+    return { text: '太棒了，已达标！🎉', warn: false }
+  }
+  const remaining = Math.abs(diff)
+  const formatted = remaining % 1 === 0 ? remaining : remaining.toFixed(1)
+  return { text: `还差 ${formatted}${unit}达成目标`, warn: false }
+}
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useUserStore()
-  const { todayRecord, goal, fetchToday, fetchWeek, fetchGoal } = useHealthStore()
+  const { todayRecord, goal, weekTrend, fetchToday, fetchWeek, fetchGoal } = useHealthStore()
 
   useEffect(() => {
     if (user) {
@@ -62,7 +97,6 @@ const Dashboard: React.FC = () => {
   }, [user, fetchToday, fetchWeek, fetchGoal])
 
   const calculateBMI = () => {
-    const goal = useHealthStore.getState().goal
     if (!goal || !todayRecord?.weight) return null
     const height = 1.7
     const bmi = todayRecord.weight / (height * height)
@@ -70,10 +104,19 @@ const Dashboard: React.FC = () => {
   }
 
   const avgValue = (key: string) => {
-    const trend = useHealthStore.getState().weekTrend
-    if (!trend.length) return 0
-    const sum = trend.reduce((acc, item) => acc + (item as any)[key], 0)
-    return (sum / trend.length).toFixed(1)
+    if (!weekTrend.length) return 0
+    const sum = weekTrend.reduce((acc, item) => acc + (item as any)[key], 0)
+    return (sum / weekTrend.length).toFixed(1)
+  }
+
+  const checkConsecutiveUnreached = (
+    key: string, target: number, invert?: boolean
+  ): boolean => {
+    if (target <= 0 || weekTrend.length < 3) return false
+    const last3 = weekTrend.slice(-3)
+    return last3.every((day) =>
+      !isReached(key, (day as any)[key] || 0, target, invert)
+    )
   }
 
   return (
@@ -116,6 +159,13 @@ const Dashboard: React.FC = () => {
               progress = (currentValue / targetValue) * 100
             }
           }
+
+          const status = getStatusText(config.key, currentValue, targetValue, config.unit, config.invertProgress)
+          const consecutiveWarn = !status.warn
+            ? !isReached(config.key, currentValue, targetValue, config.invertProgress) &&
+              checkConsecutiveUnreached(config.key, targetValue, config.invertProgress)
+            : false
+
           return (
             <Card
               key={config.key}
@@ -125,6 +175,8 @@ const Dashboard: React.FC = () => {
               unit={config.unit}
               color={config.color}
               progress={progress}
+              status={status.text}
+              statusWarn={status.warn || consecutiveWarn}
               onClick={() => navigate(config.path)}
             />
           )
