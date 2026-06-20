@@ -24,6 +24,7 @@ function QuizPlayer() {
   const [studentName, setStudentName] = useState('学生');
   const [showNameInput, setShowNameInput] = useState(true);
   const [scoreChange, setScoreChange] = useState<number | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const questionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,30 +87,35 @@ function QuizPlayer() {
     const endTime = Date.now();
     const startTime = questionStartTime;
     const timeSpent = Math.round((endTime - startTime) / 1000);
-    const isCorrect =
+    const correct =
       currentQuestion.answer.toLowerCase().trim() === answer.toLowerCase().trim();
 
-    setFeedback(isCorrect ? 'correct' : 'wrong');
+    setFeedback(correct ? 'correct' : 'wrong');
 
     const answerRecord: AnswerType = {
       questionId: currentQuestion.id,
       answer,
-      isCorrect,
+      isCorrect: correct,
       timeSpent,
       startTime,
       endTime,
     };
 
-    const scoreDelta = isCorrect ? currentQuestion.score : 0;
+    const scoreDelta = correct ? currentQuestion.score : 0;
     setScoreChange(scoreDelta);
 
     addAnswer(answerRecord);
+
+    setTimeout(() => {
+      setIsTransitioning(true);
+    }, 600);
 
     setTimeout(() => {
       setScoreChange(null);
       setFeedback(null);
       setSelectedAnswer('');
       setFillAnswer('');
+      setIsTransitioning(false);
 
       if (currentQuestionIndex < totalQuestions - 1) {
         setCurrentQuestionIndex(currentQuestionIndex + 1);
@@ -117,7 +123,7 @@ function QuizPlayer() {
       } else {
         handleSubmit();
       }
-    }, 800);
+    }, 900);
   };
 
   const handleSubmit = async () => {
@@ -298,7 +304,7 @@ function QuizPlayer() {
               第 {currentQuestionIndex + 1} / {totalQuestions} 题
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative' }}>
             <span style={{ color: '#1a365d', fontWeight: 600, fontSize: '18px' }}>
               {currentScore}
               <span style={{ color: '#718096', fontSize: '14px', fontWeight: 400 }}>
@@ -307,10 +313,14 @@ function QuizPlayer() {
             </span>
             {scoreChange !== null && (
               <span
-                className="animate-fade-in"
+                className={scoreChange > 0 ? 'animate-score-bounce' : 'animate-score-shake'}
                 style={{
                   color: scoreChange > 0 ? '#38a169' : '#e53e3e',
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  fontSize: '16px',
+                  position: 'absolute',
+                  left: '100%',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {scoreChange > 0 ? `+${scoreChange}` : '0'}
@@ -341,7 +351,7 @@ function QuizPlayer() {
 
         <div
           ref={questionRef}
-          className="animate-fade-in-content"
+          className={isTransitioning ? 'animate-fade-out-content' : 'animate-fade-in-content'}
           key={currentQuestionIndex}
           style={{
             backgroundColor: '#ffffff',
@@ -465,29 +475,26 @@ function QuizPlayer() {
                 type="text"
                 value={fillAnswer}
                 onChange={(e) => setFillAnswer(e.target.value)}
-                placeholder="请输入答案"
+                placeholder="请在此处填写答案"
                 disabled={!!feedback}
+                className={`underline-input ${fillAnswer.trim() ? 'filled' : ''}`}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && fillAnswer.trim()) {
                     handleAnswer(fillAnswer.trim());
                   }
                 }}
                 style={{
-                  width: '100%',
-                  padding: '14px 16px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  outline: 'none',
+                  padding: '12px 4px',
+                  fontSize: '18px',
+                  marginTop: '8px',
+                  backgroundColor: 'transparent',
                 }}
-                onFocus={(e) => (e.target.style.borderColor = '#3182ce')}
-                onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
               />
               <button
                 onClick={() => fillAnswer.trim() && handleAnswer(fillAnswer.trim())}
                 disabled={!fillAnswer.trim() || !!feedback}
                 style={{
-                  marginTop: '12px',
+                  marginTop: '20px',
                   padding: '12px 24px',
                   backgroundColor: '#3182ce',
                   color: '#ffffff',
