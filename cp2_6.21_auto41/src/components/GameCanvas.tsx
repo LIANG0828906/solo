@@ -234,7 +234,12 @@ const GameCanvas: React.FC = () => {
 
           if (selectedBuilding && building === 'empty' && isHovered) {
             const canBuild = canBuildAt(grid, x, y, selectedBuilding, resources.money);
-            const baseColor = BUILDING_CONFIGS[selectedBuilding].color;
+            const previewColors: Record<string, string> = {
+              residential: '#6a994e',
+              commercial: '#457b9d',
+              industrial: '#f4a261'
+            };
+            const baseColor = previewColors[selectedBuilding];
             
             if (canBuild) {
               ctx.fillStyle = `${baseColor}55`;
@@ -254,12 +259,6 @@ const GameCanvas: React.FC = () => {
               ctx.setLineDash([4, 4]);
               ctx.strokeRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
               ctx.setLineDash([]);
-              
-              ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-              ctx.font = `${Math.floor(cellSize * 0.5)}px monospace`;
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText('✕', px + cellSize / 2, py + cellSize / 2);
             }
           }
         }
