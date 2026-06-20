@@ -90,6 +90,24 @@ body {
     width: 100%;
   }
 
+  @media (min-width: 1200px) {
+    .community-card {
+      max-width: 320px;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1199px) {
+    .community-card {
+      max-width: 320px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .community-card {
+      max-width: 100%;
+    }
+  }
+
   .community-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
@@ -176,7 +194,8 @@ body {
   @keyframes heartBounce {
     0% { transform: scale(1.0); }
     30% { transform: scale(0.8); }
-    60% { transform: scale(1.1); }
+    50% { transform: scale(1.1); }
+    75% { transform: scale(0.97); }
     100% { transform: scale(1.0); }
   }
 
@@ -253,31 +272,38 @@ body {
 
   .waterfall-container {
     width: 100%;
-    column-gap: 16px;
+    display: grid;
+    gap: 16px;
   }
 
   @media (min-width: 1200px) {
     .waterfall-container {
-      column-count: 4;
+      grid-template-columns: repeat(4, 1fr);
+      max-width: 1376px;
+      margin: 0 auto;
     }
   }
 
   @media (min-width: 768px) and (max-width: 1199px) {
     .waterfall-container {
-      column-count: 3;
+      grid-template-columns: repeat(3, 1fr);
+      max-width: 1056px;
+      margin: 0 auto;
     }
   }
 
   @media (max-width: 767px) {
     .waterfall-container {
-      column-count: 2;
+      grid-template-columns: repeat(2, 1fr);
+      max-width: 720px;
+      margin: 0 auto;
     }
   }
 
   .waterfall-item {
-    break-inside: avoid;
-    margin-bottom: 16px;
     width: 100%;
+    display: flex;
+    justify-content: center;
   }
 
   .char-counter {

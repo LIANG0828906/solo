@@ -259,7 +259,7 @@ export default function Community() {
                       </button>
                     </div>
                     <div className={`char-counter absolute right-14 bottom-1.5 ${
-                      (commentInputs[post.id]?.length || 0) >= 40 ? 'warning' : ''
+                      (commentInputs[post.id]?.length || 0) >= 50 * 0.8 ? 'warning' : ''
                     }`}>
                       {commentInputs[post.id]?.length || 0}/50
                     </div>
