@@ -1,14 +1,11 @@
-import { useRef, useMemo, useState, useEffect, Suspense } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { useRef, useMemo, useState, useEffect } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import {
   OrbitControls,
   Float,
   Stars,
   Html,
   Sparkles,
-  Line,
-  Text,
-  useGLTF,
 } from '@react-three/drei'
 import * as THREE from 'three'
 import { useForgeStore, RuneType, WeaponType } from './store'
@@ -27,12 +24,6 @@ const WEAPON_BASE_COLOR: Record<WeaponType, string> = {
   staff: '#4a4a4a',
 }
 
-const MODEL_PATHS: Record<WeaponType, string> = {
-  sword: '/models/sword.glb',
-  bow: '/models/bow.glb',
-  staff: '/models/staff.glb',
-}
-
 function hexToThreeColor(hex: string): THREE.Color {
   return new THREE.Color(hex)
 }
@@ -41,100 +32,13 @@ function lerpColor(color1: THREE.Color, color2: THREE.Color, t: number): THREE.C
   return color1.clone().lerp(color2, t)
 }
 
-interface GLTFModelProps {
-  url: string
+interface WeaponModelProps {
   color: THREE.Color
   emissive: THREE.Color
   emissiveIntensity: number
-  scale?: number
 }
 
-function GLTFModel({ url, color, emissive, emissiveIntensity, scale = 1 }: GLTFModelProps) {
-  const groupRef = useRef<THREE.Group>(null)
-  const { scene } = useGLTF(url)
-
-  useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.5
-    }
-  })
-
-  useEffect(() => {
-    scene.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.castShadow = true
-        child.receiveShadow = true
-        if (child.material) {
-          const materials = Array.isArray(child.material) ? child.material : [child.material]
-          materials.forEach((mat) => {
-            if (mat instanceof THREE.MeshStandardMaterial) {
-              mat.color.copy(color)
-              mat.emissive.copy(emissive)
-              mat.emissiveIntensity = emissiveIntensity
-              mat.needsUpdate = true
-            }
-          })
-        }
-      }
-    })
-  }, [scene, color, emissive, emissiveIntensity])
-
-  return (
-    <group ref={groupRef} scale={scale}>
-      <primitive object={scene} />
-    </group>
-  )
-}
-
-function ModelLoader({
-  weaponType,
-  color,
-  emissive,
-  emissiveIntensity,
-}: {
-  weaponType: WeaponType
-  color: THREE.Color
-  emissive: THREE.Color
-  emissiveIntensity: number
-}) {
-  const [modelScale, setModelScale] = useState(1)
-
-  useEffect(() => {
-    switch (weaponType) {
-      case 'sword':
-        setModelScale(1.2)
-        break
-      case 'bow':
-        setModelScale(1.3)
-        break
-      case 'staff':
-        setModelScale(1.0)
-        break
-    }
-  }, [weaponType])
-
-  return (
-    <GLTFModel
-      url={MODEL_PATHS[weaponType]}
-      color={color}
-      emissive={emissive}
-      emissiveIntensity={emissiveIntensity}
-      scale={modelScale}
-    />
-  )
-}
-
-function FallbackWeapon({
-  weaponType,
-  color,
-  emissive,
-  emissiveIntensity,
-}: {
-  weaponType: WeaponType
-  color: THREE.Color
-  emissive: THREE.Color
-  emissiveIntensity: number
-}) {
+function SwordModel({ color, emissive, emissiveIntensity }: WeaponModelProps) {
   const groupRef = useRef<THREE.Group>(null)
 
   useFrame((_, delta) => {
@@ -143,130 +47,380 @@ function FallbackWeapon({
     }
   })
 
-  const material = useMemo(
+  const bladeMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color,
-        metalness: 0.7,
-        roughness: 0.3,
+        metalness: 0.9,
+        roughness: 0.15,
         emissive,
         emissiveIntensity,
       }),
     [color, emissive, emissiveIntensity],
   )
 
-  if (weaponType === 'sword') {
-    return (
-      <group ref={groupRef}>
-        <mesh material={material} rotation={[0, 0, Math.PI / 2]} position={[0, 0.8, 0]}>
-          <boxGeometry args={[1.6, 0.08, 0.18]} />
-        </mesh>
-        <mesh material={material} position={[0, -0.15, 0]}>
-          <boxGeometry args={[0.55, 0.08, 0.1]} />
-        </mesh>
-        <mesh material={material} position={[0, -0.6, 0]}>
-          <cylinderGeometry args={[0.06, 0.08, 0.8, 16]} />
-        </mesh>
-      </group>
-    )
-  }
+  const guardMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color('#e6b800'),
+        metalness: 0.85,
+        roughness: 0.25,
+        emissive: new THREE.Color('#e6b800'),
+        emissiveIntensity: emissiveIntensity * 0.3,
+      }),
+    [emissiveIntensity],
+  )
 
-  if (weaponType === 'bow') {
-    return (
-      <group ref={groupRef}>
-        <mesh material={material}>
-          <torusGeometry args={[1.3, 0.07, 16, 32, Math.PI]} />
-        </mesh>
-        <mesh material={material} position={[0, 0, 0]}>
-          <boxGeometry args={[0.12, 0.25, 0.1]} />
-        </mesh>
-      </group>
-    )
-  }
+  const gripMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color('#3d1f1a'),
+        metalness: 0.2,
+        roughness: 0.85,
+      }),
+    [],
+  )
+
+  const gemMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: emissive,
+        emissive,
+        emissiveIntensity: Math.max(emissiveIntensity, 0.6),
+        metalness: 0.3,
+        roughness: 0.1,
+        transparent: true,
+        opacity: 0.9,
+      }),
+    [emissive, emissiveIntensity],
+  )
+
+  const glowMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: emissive,
+        emissive,
+        emissiveIntensity: Math.max(emissiveIntensity, 0.4),
+        transparent: true,
+        opacity: 0.25,
+        depthWrite: false,
+      }),
+    [emissive, emissiveIntensity],
+  )
 
   return (
     <group ref={groupRef}>
-      <mesh material={material} position={[0, -0.3, 0]}>
-        <cylinderGeometry args={[0.07, 0.09, 2, 16]} />
+      <mesh material={bladeMat} position={[0, 0.9, 0]}>
+        <boxGeometry args={[0.12, 1.8, 0.03]} />
       </mesh>
-      <mesh material={material} position={[0, 0.72, 0]}>
-        <torusGeometry args={[0.13, 0.04, 8, 16]} />
+      <mesh material={bladeMat} position={[0, 0.9, 0]}>
+        <boxGeometry args={[0.03, 1.8, 0.08]} />
       </mesh>
-      <mesh material={material} position={[0, 1, 0]}>
-        <icosahedronGeometry args={[0.22, 0]} />
+      <mesh material={bladeMat} position={[0, 1.75, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[0.02, 0.15, 4]} />
+      </mesh>
+      <mesh material={guardMat} position={[0, 0, 0]} rotation={[0, 0, 0]}>
+        <boxGeometry args={[0.6, 0.07, 0.12]} />
+      </mesh>
+      <mesh material={guardMat} position={[-0.32, 0, 0]}>
+        <sphereGeometry args={[0.05, 12, 12]} />
+      </mesh>
+      <mesh material={guardMat} position={[0.32, 0, 0]}>
+        <sphereGeometry args={[0.05, 12, 12]} />
+      </mesh>
+      <mesh material={gemMat} position={[0, 0.0, 0.07]}>
+        <octahedronGeometry args={[0.04, 0]} />
+      </mesh>
+      <mesh material={gripMat} position={[0, -0.35, 0]}>
+        <cylinderGeometry args={[0.05, 0.055, 0.55, 12]} />
+      </mesh>
+      <mesh material={guardMat} position={[0, -0.35, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.055, 0.012, 8, 16]} />
+      </mesh>
+      <mesh material={guardMat} position={[0, -0.6, 0]}>
+        <sphereGeometry args={[0.06, 12, 12]} />
+      </mesh>
+      <mesh material={gemMat} position={[0, -0.6, 0.04]}>
+        <sphereGeometry args={[0.025, 8, 8]} />
+      </mesh>
+      {emissiveIntensity > 0.1 && (
+        <mesh material={glowMat} position={[0, 0.9, 0]}>
+          <boxGeometry args={[0.2, 2.0, 0.1]} />
+        </mesh>
+      )}
+    </group>
+  )
+}
+
+function BowModel({ color, emissive, emissiveIntensity }: WeaponModelProps) {
+  const groupRef = useRef<THREE.Group>(null)
+  const glowRef = useRef<THREE.Mesh>(null)
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.5
+    }
+    if (glowRef.current) {
+      const mat = glowRef.current.material as THREE.MeshStandardMaterial
+      mat.emissiveIntensity = emissiveIntensity + Math.sin(Date.now() * 0.003) * 0.2
+    }
+  })
+
+  const woodMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.3,
+        roughness: 0.65,
+        emissive,
+        emissiveIntensity: emissiveIntensity * 0.4,
+      }),
+    [color, emissive, emissiveIntensity],
+  )
+
+  const tipMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color('#c0c0c0'),
+        metalness: 0.8,
+        roughness: 0.2,
+      }),
+    [],
+  )
+
+  const stringMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color('#d4d4d4'),
+        metalness: 0.1,
+        roughness: 0.5,
+      }),
+    [],
+  )
+
+  const gemMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: emissive,
+        emissive,
+        emissiveIntensity: Math.max(emissiveIntensity, 0.6),
+        metalness: 0.3,
+        roughness: 0.1,
+        transparent: true,
+        opacity: 0.9,
+      }),
+    [emissive, emissiveIntensity],
+  )
+
+  const upperCurve = useMemo(() => {
+    const points: THREE.Vector3[] = []
+    for (let i = 0; i <= 30; i++) {
+      const t = i / 30
+      const y = t * 1.6
+      const x = Math.sin(t * Math.PI) * 0.55
+      points.push(new THREE.Vector3(x, y, 0))
+    }
+    return new THREE.CatmullRomCurve3(points)
+  }, [])
+
+  const lowerCurve = useMemo(() => {
+    const points: THREE.Vector3[] = []
+    for (let i = 0; i <= 30; i++) {
+      const t = i / 30
+      const y = -t * 1.6
+      const x = Math.sin(t * Math.PI) * 0.55
+      points.push(new THREE.Vector3(x, y, 0))
+    }
+    return new THREE.CatmullRomCurve3(points)
+  }, [])
+
+  const glowMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: emissive,
+        emissive,
+        emissiveIntensity: Math.max(emissiveIntensity, 0.3),
+        transparent: true,
+        opacity: 0.2,
+        depthWrite: false,
+      }),
+    [emissive, emissiveIntensity],
+  )
+
+  return (
+    <group ref={groupRef}>
+      <mesh material={woodMat}>
+        <tubeGeometry args={[upperCurve, 40, 0.04, 8, false]} />
+      </mesh>
+      <mesh material={woodMat}>
+        <tubeGeometry args={[lowerCurve, 40, 0.04, 8, false]} />
+      </mesh>
+      <mesh material={woodMat}>
+        <cylinderGeometry args={[0.055, 0.055, 0.2, 10]} />
+      </mesh>
+      <mesh material={tipMat} position={[0.22, 1.5, 0]}>
+        <coneGeometry args={[0.03, 0.1, 6]} />
+      </mesh>
+      <mesh material={tipMat} position={[0.22, -1.5, 0]}>
+        <coneGeometry args={[0.03, 0.1, 6]} />
+      </mesh>
+      <mesh
+        material={stringMat}
+        position={[0.02, 0, 0]}
+        rotation={[0, 0, 0]}
+      >
+        <cylinderGeometry args={[0.008, 0.008, 3.0, 4]} />
+      </mesh>
+      <mesh material={gemMat} position={[0.08, 0, 0.06]}>
+        <octahedronGeometry args={[0.05, 0]} />
+      </mesh>
+      {emissiveIntensity > 0.1 && (
+        <mesh ref={glowRef} material={glowMat} position={[0.15, 0, 0]}>
+          <sphereGeometry args={[0.3, 16, 16]} />
+        </mesh>
+      )}
+      <mesh material={woodMat} position={[0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <torusGeometry args={[0.055, 0.012, 8, 16, Math.PI]} />
       </mesh>
     </group>
   )
 }
 
-function LoadingPlaceholder() {
+function StaffModel({ color, emissive, emissiveIntensity }: WeaponModelProps) {
   const groupRef = useRef<THREE.Group>(null)
-  const [progress, setProgress] = useState(0)
+  const orbRef = useRef<THREE.Mesh>(null)
+  const ringRef = useRef<THREE.Mesh>(null)
 
   useFrame((_, delta) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.8
-      groupRef.current.rotation.x = Math.sin(Date.now() * 0.002) * 0.2
+      groupRef.current.rotation.y += delta * 0.5
     }
-    setProgress((prev) => (prev + delta * 30) % 100)
+    if (orbRef.current) {
+      orbRef.current.rotation.y += delta * 2
+      orbRef.current.rotation.x += delta * 1.3
+    }
+    if (ringRef.current) {
+      ringRef.current.rotation.x += delta * 0.8
+      ringRef.current.rotation.z += delta * 0.5
+    }
   })
+
+  const shaftMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.3,
+        roughness: 0.7,
+        emissive,
+        emissiveIntensity: emissiveIntensity * 0.2,
+      }),
+    [color, emissive, emissiveIntensity],
+  )
+
+  const goldMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color('#e6b800'),
+        metalness: 0.85,
+        roughness: 0.25,
+        emissive: new THREE.Color('#e6b800'),
+        emissiveIntensity: emissiveIntensity * 0.2,
+      }),
+    [emissiveIntensity],
+  )
+
+  const crystalMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: emissive,
+        emissive,
+        emissiveIntensity: Math.max(emissiveIntensity, 0.7),
+        metalness: 0.4,
+        roughness: 0.1,
+        wireframe: true,
+      }),
+    [emissive, emissiveIntensity],
+  )
+
+  const orbCoreMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: emissive,
+        emissive,
+        emissiveIntensity: Math.max(emissiveIntensity, 0.5),
+        metalness: 0.2,
+        roughness: 0.05,
+        transparent: true,
+        opacity: 0.85,
+      }),
+    [emissive, emissiveIntensity],
+  )
+
+  const glowMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: emissive,
+        emissive,
+        emissiveIntensity: Math.max(emissiveIntensity, 0.4),
+        transparent: true,
+        opacity: 0.2,
+        depthWrite: false,
+      }),
+    [emissive, emissiveIntensity],
+  )
 
   return (
     <group ref={groupRef}>
-      <mesh>
-        <torusGeometry args={[0.8, 0.04, 16, 48]} />
-        <meshBasicMaterial color="#e6b800" transparent opacity={0.6} />
+      <mesh material={shaftMat} position={[0, -0.4, 0]}>
+        <cylinderGeometry args={[0.06, 0.08, 2.4, 14]} />
       </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.8, 0.04, 16, 48]} />
-        <meshBasicMaterial color="#4a90d9" transparent opacity={0.6} />
+      <mesh material={goldMat} position={[0, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.12, 0.025, 8, 24]} />
       </mesh>
-      <mesh rotation={[0, 0, Math.PI / 2]}>
-        <torusGeometry args={[0.8, 0.04, 16, 48]} />
-        <meshBasicMaterial color="#27ae60" transparent opacity={0.6} />
+      <mesh material={goldMat} position={[0, -0.2, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.07, 0.015, 8, 16]} />
       </mesh>
-      <mesh position={[0, 0, 0]}>
-        <octahedronGeometry args={[0.3, 0]} />
-        <meshBasicMaterial color="#e6b800" wireframe />
+      <mesh material={goldMat} position={[0, -1.5, 0]}>
+        <cylinderGeometry args={[0.09, 0.1, 0.08, 14]} />
       </mesh>
-      <Html center position={[0, -1.5, 0]} distanceFactor={8}>
-        <div
-          style={{
-            color: '#e6b800',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            textAlign: 'center',
-            background: 'rgba(0,0,0,0.7)',
-            padding: '10px 20px',
-            borderRadius: '8px',
-            border: '1px solid rgba(230, 184, 0, 0.5)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <div style={{ marginBottom: '6px' }}>⏳ 正在加载武器模型...</div>
-          <div
-            style={{
-              width: '120px',
-              height: '6px',
-              background: 'rgba(255,255,255,0.1)',
-              borderRadius: '3px',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                width: `${progress}%`,
-                height: '100%',
-                background: 'linear-gradient(90deg, #e6b800, #ffd700)',
-                borderRadius: '3px',
-                transition: 'width 0.1s ease',
-              }}
-            />
-          </div>
-        </div>
-      </Html>
+      <mesh material={goldMat} position={[0, 0.5, 0]} rotation={[0, 0, 0]}>
+        <coneGeometry args={[0.15, 0.3, 6, 1, true]} />
+      </mesh>
+      <mesh ref={orbRef} material={crystalMat} position={[0, 0.85, 0]}>
+        <icosahedronGeometry args={[0.18, 1]} />
+      </mesh>
+      <mesh material={orbCoreMat} position={[0, 0.85, 0]}>
+        <sphereGeometry args={[0.12, 16, 16]} />
+      </mesh>
+      <mesh ref={ringRef} material={goldMat} position={[0, 0.85, 0]} rotation={[Math.PI / 3, 0, 0]}>
+        <torusGeometry args={[0.22, 0.015, 8, 32]} />
+      </mesh>
+      {emissiveIntensity > 0.1 && (
+        <mesh material={glowMat} position={[0, 0.85, 0]}>
+          <sphereGeometry args={[0.35, 16, 16]} />
+        </mesh>
+      )}
+      <mesh material={goldMat} position={[0, 0.35, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.1, 0.02, 8, 16]} />
+      </mesh>
     </group>
   )
+}
+
+function WeaponModel({
+  weaponType,
+  color,
+  emissive,
+  emissiveIntensity,
+}: WeaponModelProps & { weaponType: WeaponType }) {
+  switch (weaponType) {
+    case 'sword':
+      return <SwordModel color={color} emissive={emissive} emissiveIntensity={emissiveIntensity} />
+    case 'bow':
+      return <BowModel color={color} emissive={emissive} emissiveIntensity={emissiveIntensity} />
+    case 'staff':
+      return <StaffModel color={color} emissive={emissive} emissiveIntensity={emissiveIntensity} />
+  }
 }
 
 interface WeaponSwitchProps {
@@ -292,7 +446,6 @@ function WeaponSwitch({ enhanceLevel, dominantRune }: WeaponSwitchProps) {
   const [displayColor, setDisplayColor] = useState(baseColor)
   const [transitionProgress, setTransitionProgress] = useState(0)
   const prevDominantRef = useRef(dominantRune)
-  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     if (prevDominantRef.current !== dominantRune) {
@@ -300,10 +453,6 @@ function WeaponSwitch({ enhanceLevel, dominantRune }: WeaponSwitchProps) {
       prevDominantRef.current = dominantRune
     }
   }, [dominantRune])
-
-  useEffect(() => {
-    setLoadError(false)
-  }, [weaponType])
 
   useFrame((_, delta) => {
     if (transitionProgress < 1) {
@@ -345,26 +494,13 @@ function WeaponSwitch({ enhanceLevel, dominantRune }: WeaponSwitchProps) {
     }
   })
 
-  if (loadError) {
-    return (
-      <FallbackWeapon
-        weaponType={weaponType}
-        color={displayColor}
-        emissive={enhanceLevel >= 5 ? rainbowEmissive : emissiveColor}
-        emissiveIntensity={emissiveIntensity}
-      />
-    )
-  }
-
   return (
-    <Suspense fallback={<LoadingPlaceholder />}>
-      <ModelLoader
-        weaponType={weaponType}
-        color={displayColor}
-        emissive={enhanceLevel >= 5 ? rainbowEmissive : emissiveColor}
-        emissiveIntensity={emissiveIntensity}
-      />
-    </Suspense>
+    <WeaponModel
+      weaponType={weaponType}
+      color={displayColor}
+      emissive={enhanceLevel >= 5 ? rainbowEmissive : emissiveColor}
+      emissiveIntensity={emissiveIntensity}
+    />
   )
 }
 
@@ -1081,9 +1217,3 @@ export default function Forge() {
     </Canvas>
   )
 }
-
-useGLTF.preload('/models/sword.glb')
-useGLTF.preload('/models/bow.glb')
-useGLTF.preload('/models/staff.glb')
-
-export { useForgeStore }

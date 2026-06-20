@@ -1,6 +1,6 @@
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useForgeStore, RuneType, runeMultipliers } from '../store'
+import { useForgeStore, RuneType, WeaponType } from '../store'
 import * as THREE from 'three'
 
 const runeColors: Record<RuneType, string> = {
@@ -14,38 +14,91 @@ const runeColors: Record<RuneType, string> = {
 function Sword({ level, runes }: { level: number; runes: (RuneType | null)[] }) {
   const groupRef = useRef<THREE.Group>(null)
   const glowRef = useRef<THREE.Mesh>(null)
+  const gemRef = useRef<THREE.Mesh>(null)
 
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.3
+      groupRef.current.rotation.y += 0.5 * (1 / 60)
       groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.5) * 0.05
     }
     if (glowRef.current) {
       const mat = glowRef.current.material as THREE.MeshStandardMaterial
-      mat.emissiveIntensity = 0.5 + Math.sin(state.clock.elapsedTime * 3) * 0.3
+      mat.emissiveIntensity = 0.3 + Math.sin(state.clock.elapsedTime * 3) * 0.15
+    }
+    if (gemRef.current) {
+      gemRef.current.rotation.y = state.clock.elapsedTime * 2
     }
   })
 
+  const scale = 1 + level * 0.05
+
   return (
-    <group ref={groupRef} scale={1 + level * 0.05}>
-      <mesh position={[0, 1, 0]}>
-        <boxGeometry args={[0.08, 2, 0.08]} />
-        <meshStandardMaterial color="#c0c0c0" metalness={0.9} roughness={0.2} />
+    <group ref={groupRef} scale={scale}>
+      <mesh position={[0, 0.9, 0]}>
+        <boxGeometry args={[0.12, 1.8, 0.03]} />
+        <meshStandardMaterial color="#c0c0c0" metalness={0.9} roughness={0.15} />
       </mesh>
-      <mesh position={[0, 0.05, 0]}>
-        <boxGeometry args={[0.5, 0.08, 0.12]} />
+      <mesh position={[0, 0.9, 0]}>
+        <boxGeometry args={[0.03, 1.8, 0.08]} />
+        <meshStandardMaterial color="#d0d0d0" metalness={0.9} roughness={0.15} />
+      </mesh>
+      <mesh position={[0, 1.75, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[0.02, 0.15, 4]} />
+        <meshStandardMaterial color="#e0e0e0" metalness={0.9} roughness={0.1} />
+      </mesh>
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[0.6, 0.07, 0.12]} />
+        <meshStandardMaterial color="#e6b800" metalness={0.85} roughness={0.25} />
+      </mesh>
+      <mesh position={[-0.32, 0, 0]}>
+        <sphereGeometry args={[0.05, 12, 12]} />
+        <meshStandardMaterial color="#e6b800" metalness={0.85} roughness={0.25} />
+      </mesh>
+      <mesh position={[0.32, 0, 0]}>
+        <sphereGeometry args={[0.05, 12, 12]} />
+        <meshStandardMaterial color="#e6b800" metalness={0.85} roughness={0.25} />
+      </mesh>
+      <mesh ref={gemRef} position={[0, 0.0, 0.07]}>
+        <octahedronGeometry args={[0.04, 0]} />
+        <meshStandardMaterial
+          color={runes[0] ? runeColors[runes[0]] : '#4a90d9'}
+          emissive={runes[0] ? runeColors[runes[0]] : '#4a90d9'}
+          emissiveIntensity={0.8}
+          metalness={0.3}
+          roughness={0.1}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+      <mesh position={[0, -0.35, 0]}>
+        <cylinderGeometry args={[0.05, 0.055, 0.55, 12]} />
+        <meshStandardMaterial color="#3d1f1a" metalness={0.2} roughness={0.85} />
+      </mesh>
+      <mesh position={[0, -0.35, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.055, 0.012, 8, 16]} />
         <meshStandardMaterial color="#e6b800" metalness={0.8} roughness={0.3} />
       </mesh>
-      <mesh position={[0, -0.4, 0]}>
-        <cylinderGeometry args={[0.06, 0.06, 0.7, 16]} />
-        <meshStandardMaterial color="#4a2c2a" metalness={0.3} roughness={0.7} />
+      <mesh position={[0, -0.6, 0]}>
+        <sphereGeometry args={[0.06, 12, 12]} />
+        <meshStandardMaterial color="#e6b800" metalness={0.8} roughness={0.3} />
       </mesh>
-      <mesh ref={glowRef} position={[0, 1.8, 0]}>
-        <sphereGeometry args={[0.1, 16, 16]} />
+      <mesh position={[0, -0.6, 0.04]}>
+        <sphereGeometry args={[0.025, 8, 8]} />
         <meshStandardMaterial
-          color={runes[0] ? runeColors[runes[0]] : '#e6b800'}
-          emissive={runes[0] ? runeColors[runes[0]] : '#e6b800'}
-          emissiveIntensity={0.8}
+          color={runes[0] ? runeColors[runes[0]] : '#4a90d9'}
+          emissive={runes[0] ? runeColors[runes[0]] : '#4a90d9'}
+          emissiveIntensity={0.6}
+        />
+      </mesh>
+      <mesh ref={glowRef} position={[0, 0.9, 0]}>
+        <boxGeometry args={[0.2, 2.0, 0.1]} />
+        <meshStandardMaterial
+          color={runes[0] ? runeColors[runes[0]] : '#aaddff'}
+          emissive={runes[0] ? runeColors[runes[0]] : '#aaddff'}
+          emissiveIntensity={0.3}
+          transparent
+          opacity={0.15}
+          depthWrite={false}
         />
       </mesh>
     </group>
@@ -58,42 +111,90 @@ function Bow({ level, runes }: { level: number; runes: (RuneType | null)[] }) {
 
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.3
+      groupRef.current.rotation.y += 0.5 * (1 / 60)
       groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.5) * 0.05
     }
     if (glowRef.current) {
       const mat = glowRef.current.material as THREE.MeshStandardMaterial
-      mat.emissiveIntensity = 0.5 + Math.sin(state.clock.elapsedTime * 3) * 0.3
+      mat.emissiveIntensity = 0.3 + Math.sin(state.clock.elapsedTime * 3) * 0.15
     }
   })
 
-  const curve = useMemo(() => {
+  const scale = 1 + level * 0.05
+
+  const upperCurve = useMemo(() => {
     const points: THREE.Vector3[] = []
-    for (let i = 0; i <= 20; i++) {
-      const t = i / 20
-      const y = (t - 0.5) * 3
-      const x = Math.sin(t * Math.PI) * 0.5
+    for (let i = 0; i <= 30; i++) {
+      const t = i / 30
+      const y = t * 1.6
+      const x = Math.sin(t * Math.PI) * 0.55
+      points.push(new THREE.Vector3(x, y, 0))
+    }
+    return new THREE.CatmullRomCurve3(points)
+  }, [])
+
+  const lowerCurve = useMemo(() => {
+    const points: THREE.Vector3[] = []
+    for (let i = 0; i <= 30; i++) {
+      const t = i / 30
+      const y = -t * 1.6
+      const x = Math.sin(t * Math.PI) * 0.55
       points.push(new THREE.Vector3(x, y, 0))
     }
     return new THREE.CatmullRomCurve3(points)
   }, [])
 
   return (
-    <group ref={groupRef} scale={1 + level * 0.05}>
+    <group ref={groupRef} scale={scale}>
       <mesh>
-        <tubeGeometry args={[curve, 64, 0.04, 8, false]} />
+        <tubeGeometry args={[upperCurve, 40, 0.04, 8, false]} />
         <meshStandardMaterial color="#8b4513" metalness={0.4} roughness={0.6} />
       </mesh>
-      <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.01, 0.01, 3, 8]} />
-        <meshStandardMaterial color="#e0e0e0" />
+      <mesh>
+        <tubeGeometry args={[lowerCurve, 40, 0.04, 8, false]} />
+        <meshStandardMaterial color="#8b4513" metalness={0.4} roughness={0.6} />
       </mesh>
-      <mesh ref={glowRef} position={[0.5, 0, 0]}>
-        <sphereGeometry args={[0.08, 16, 16]} />
+      <mesh>
+        <cylinderGeometry args={[0.055, 0.055, 0.2, 10]} />
+        <meshStandardMaterial color="#6b3410" metalness={0.3} roughness={0.7} />
+      </mesh>
+      <mesh position={[0.22, 1.5, 0]}>
+        <coneGeometry args={[0.03, 0.1, 6]} />
+        <meshStandardMaterial color="#c0c0c0" metalness={0.8} roughness={0.2} />
+      </mesh>
+      <mesh position={[0.22, -1.5, 0]}>
+        <coneGeometry args={[0.03, 0.1, 6]} />
+        <meshStandardMaterial color="#c0c0c0" metalness={0.8} roughness={0.2} />
+      </mesh>
+      <mesh position={[0.02, 0, 0]}>
+        <cylinderGeometry args={[0.008, 0.008, 3.0, 4]} />
+        <meshStandardMaterial color="#d4d4d4" metalness={0.1} roughness={0.5} />
+      </mesh>
+      <mesh position={[0.08, 0, 0.06]}>
+        <octahedronGeometry args={[0.05, 0]} />
         <meshStandardMaterial
           color={runes[0] ? runeColors[runes[0]] : '#27ae60'}
           emissive={runes[0] ? runeColors[runes[0]] : '#27ae60'}
           emissiveIntensity={0.8}
+          metalness={0.3}
+          roughness={0.1}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+      <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <torusGeometry args={[0.055, 0.012, 8, 16, Math.PI]} />
+        <meshStandardMaterial color="#8b4513" metalness={0.3} roughness={0.6} />
+      </mesh>
+      <mesh ref={glowRef} position={[0.15, 0, 0]}>
+        <sphereGeometry args={[0.3, 16, 16]} />
+        <meshStandardMaterial
+          color={runes[0] ? runeColors[runes[0]] : '#aaddff'}
+          emissive={runes[0] ? runeColors[runes[0]] : '#aaddff'}
+          emissiveIntensity={0.3}
+          transparent
+          opacity={0.15}
+          depthWrite={false}
         />
       </mesh>
     </group>
@@ -102,36 +203,55 @@ function Bow({ level, runes }: { level: number; runes: (RuneType | null)[] }) {
 
 function Staff({ level, runes }: { level: number; runes: (RuneType | null)[] }) {
   const groupRef = useRef<THREE.Group>(null)
-  const glowRef = useRef<THREE.Mesh>(null)
   const orbRef = useRef<THREE.Mesh>(null)
+  const ringRef = useRef<THREE.Mesh>(null)
+  const glowRef = useRef<THREE.Mesh>(null)
 
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.3
+      groupRef.current.rotation.y += 0.5 * (1 / 60)
       groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.5) * 0.05
     }
     if (orbRef.current) {
       orbRef.current.rotation.y = state.clock.elapsedTime * 2
       orbRef.current.rotation.x = state.clock.elapsedTime * 1.5
     }
+    if (ringRef.current) {
+      ringRef.current.rotation.x += 0.8 * (1 / 60)
+      ringRef.current.rotation.z += 0.5 * (1 / 60)
+    }
     if (glowRef.current) {
       const mat = glowRef.current.material as THREE.MeshStandardMaterial
-      mat.emissiveIntensity = 0.6 + Math.sin(state.clock.elapsedTime * 3) * 0.4
+      mat.emissiveIntensity = 0.4 + Math.sin(state.clock.elapsedTime * 3) * 0.2
     }
   })
 
+  const scale = 1 + level * 0.05
+
   return (
-    <group ref={groupRef} scale={1 + level * 0.05}>
+    <group ref={groupRef} scale={scale}>
       <mesh position={[0, -0.5, 0]}>
-        <cylinderGeometry args={[0.05, 0.08, 2.5, 12]} />
+        <cylinderGeometry args={[0.05, 0.08, 2.4, 14]} />
         <meshStandardMaterial color="#4a2c2a" metalness={0.2} roughness={0.8} />
       </mesh>
-      <mesh position={[0, 1.1, 0]}>
-        <torusGeometry args={[0.2, 0.04, 12, 32]} />
-        <meshStandardMaterial color="#e6b800" metalness={0.8} roughness={0.3} />
+      <mesh position={[0, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.12, 0.025, 8, 24]} />
+        <meshStandardMaterial color="#e6b800" metalness={0.85} roughness={0.25} />
       </mesh>
-      <mesh ref={orbRef} position={[0, 1.1, 0]}>
-        <icosahedronGeometry args={[0.15, 1]} />
+      <mesh position={[0, -0.2, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.07, 0.015, 8, 16]} />
+        <meshStandardMaterial color="#e6b800" metalness={0.85} roughness={0.25} />
+      </mesh>
+      <mesh position={[0, -1.5, 0]}>
+        <cylinderGeometry args={[0.09, 0.1, 0.08, 14]} />
+        <meshStandardMaterial color="#e6b800" metalness={0.85} roughness={0.25} />
+      </mesh>
+      <mesh position={[0, 0.5, 0]} rotation={[0, 0, 0]}>
+        <coneGeometry args={[0.15, 0.3, 6, 1, true]} />
+        <meshStandardMaterial color="#e6b800" metalness={0.85} roughness={0.25} />
+      </mesh>
+      <mesh ref={orbRef} position={[0, 0.85, 0]}>
+        <icosahedronGeometry args={[0.18, 1]} />
         <meshStandardMaterial
           color={runes[0] ? runeColors[runes[0]] : '#4a90d9'}
           emissive={runes[0] ? runeColors[runes[0]] : '#4a90d9'}
@@ -139,14 +259,35 @@ function Staff({ level, runes }: { level: number; runes: (RuneType | null)[] }) 
           wireframe
         />
       </mesh>
-      <mesh ref={glowRef} position={[0, 1.1, 0]}>
-        <sphereGeometry args={[0.25, 32, 32]} />
+      <mesh position={[0, 0.85, 0]}>
+        <sphereGeometry args={[0.12, 16, 16]} />
         <meshStandardMaterial
           color={runes[0] ? runeColors[runes[0]] : '#4a90d9'}
           emissive={runes[0] ? runeColors[runes[0]] : '#4a90d9'}
           emissiveIntensity={0.5}
           transparent
-          opacity={0.3}
+          opacity={0.85}
+          metalness={0.2}
+          roughness={0.05}
+        />
+      </mesh>
+      <mesh ref={ringRef} position={[0, 0.85, 0]} rotation={[Math.PI / 3, 0, 0]}>
+        <torusGeometry args={[0.22, 0.015, 8, 32]} />
+        <meshStandardMaterial color="#e6b800" metalness={0.85} roughness={0.25} />
+      </mesh>
+      <mesh position={[0, 0.35, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.1, 0.02, 8, 16]} />
+        <meshStandardMaterial color="#e6b800" metalness={0.85} roughness={0.25} />
+      </mesh>
+      <mesh ref={glowRef} position={[0, 0.85, 0]}>
+        <sphereGeometry args={[0.35, 16, 16]} />
+        <meshStandardMaterial
+          color={runes[0] ? runeColors[runes[0]] : '#4a90d9'}
+          emissive={runes[0] ? runeColors[runes[0]] : '#4a90d9'}
+          emissiveIntensity={0.4}
+          transparent
+          opacity={0.2}
+          depthWrite={false}
         />
       </mesh>
     </group>
@@ -165,12 +306,14 @@ export default function Forge() {
     <>
       {slots.map((slot, i) =>
         slot.rune ? (
-          <mesh key={i} position={[(i - 1) * 0.4, -1.5, 0]}>
-            <sphereGeometry args={[0.12, 16, 16]} />
+          <mesh key={i} position={[(i - 2) * 0.4, -1.8, 0]}>
+            <sphereGeometry args={[0.08, 12, 12]} />
             <meshStandardMaterial
               color={runeColors[slot.rune.type]}
               emissive={runeColors[slot.rune.type]}
-              emissiveIntensity={0.5 + slot.rune.level * 0.15}
+              emissiveIntensity={0.4 + slot.rune.level * 0.15}
+              transparent
+              opacity={0.8}
             />
           </mesh>
         ) : null
