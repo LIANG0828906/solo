@@ -145,6 +145,13 @@ function SceneContent() {
   const selectProp = useStore((s) => s.selectProp);
   const placingType = useStore((s) => s.placingType);
   const startConnecting = useStore((s) => s.startConnecting);
+  const orbitControlsRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (orbitControlsRef.current && mode === 'editor') {
+      orbitControlsRef.current.enabled = !connectingFromId;
+    }
+  }, [connectingFromId, mode]);
 
   const handleMechanismClick = useCallback(
     (propId: string, e?: ThreeEvent<MouseEvent>) => {
@@ -189,6 +196,7 @@ function SceneContent() {
 
       {mode === 'editor' && (
         <OrbitControls
+          ref={orbitControlsRef}
           makeDefault
           maxPolarAngle={Math.PI / 2.1}
           minDistance={3}
@@ -197,9 +205,9 @@ function SceneContent() {
           enableDamping={true}
           dampingFactor={0.08}
           mouseButtons={{
-            LEFT: undefined,
-            MIDDLE: undefined as any,
-            RIGHT: undefined,
+            LEFT: undefined as any,
+            MIDDLE: 1 as any,
+            RIGHT: 2 as any,
           }}
         />
       )}

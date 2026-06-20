@@ -21,7 +21,7 @@ export function LogicGraphPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const dragStartPosRef = useRef<{ x: number; y: number; origX: number; origY: number } | null>(null);
+  const dragStartPosRef = useRef<{ x: number; y: number; origX: number; origY: number; lastDx?: number; lastDy?: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; linkId: string } | null>(null);
   const [panelHeight, setPanelHeight] = useState(400);
 
@@ -44,6 +44,8 @@ export function LogicGraphPanel() {
       const rect = svgRef.current.getBoundingClientRect();
       const dx = e.clientX - dragStartPosRef.current.x;
       const dy = e.clientY - dragStartPosRef.current.y;
+      dragStartPosRef.current.lastDx = dx;
+      dragStartPosRef.current.lastDy = dy;
       const nx = Math.max(4, Math.min(rect.width - NODE_W - 4, dragStartPosRef.current.origX + dx));
       const ny = Math.max(4, Math.min(rect.height - NODE_H - 4, dragStartPosRef.current.origY + dy));
       setLogicNodePosition(draggingId, nx, ny);
@@ -51,31 +53,21 @@ export function LogicGraphPanel() {
 
     const onUp = () => {
       if (draggingId && dragStartPosRef.current) {
-        const rect = svgRef.current?.getBoundingClientRect();
-        if (rect) {
-          const dx = (window as any).__lastMouseX ? (window as any).__lastMouseX - dragStartPosRef.current.x : 0;
-          const dy = (window as any).__lastMouseY ? (window as any).__lastMouseY - dragStartPosRef.current.y : 0;
-          if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-            pushSnapshot();
-          }
+        const dx = dragStartPosRef.current.lastDx || 0;
+        const dy = dragStartPosRef.current.lastDy || 0;
+        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+          pushSnapshot();
         }
       }
       setDraggingId(null);
       dragStartPosRef.current = null;
     };
 
-    const onTrack = (e: MouseEvent) => {
-      (window as any).__lastMouseX = e.clientX;
-      (window as any).__lastMouseY = e.clientY;
-    };
-
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-    window.addEventListener('mousemove', onTrack, true);
     return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
-      window.removeEventListener('mousemove', onTrack, true);
     };
   }, [draggingId, setLogicNodePosition, pushSnapshot]);
 

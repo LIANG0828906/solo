@@ -10,6 +10,7 @@ export function RunSimulator() {
   const prevActivatedRef = useRef<Set<string>>(new Set());
   const pulseCooldownRef = useRef<Map<string, number>>(new Map());
   const laserHitCooldownRef = useRef<Map<string, number>>(new Map());
+  const pulseLatchRef = useRef<Map<string, number>>(new Map());
 
   useFrame((_, delta) => {
     if (mode !== 'run') return;
@@ -35,7 +36,6 @@ export function RunSimulator() {
 
     for (const prop of props) {
       if (prop.type === MechanismType.LaserEmitter && continuousActivated.has(prop.id)) {
-        const laserDirection = new THREE.Vector3(0, 1, 0);
         for (const targetProp of props) {
           if (targetProp.type === MechanismType.PressurePlate || targetProp.id === prop.id) continue;
           const tdx = targetProp.position[0] - prop.position[0];
@@ -43,7 +43,7 @@ export function RunSimulator() {
           const tdy = targetProp.position[1] - prop.position[1];
           const hDist = Math.sqrt(tdx * tdx + tdz * tdz);
           if (hDist < 15 && Math.abs(tdy) < 5) {
-            const cooldownKey = `${prop.id}->${targetProp.id}`;
+            const cooldownKey = `laser-${prop.id}-hit-${targetProp.id}`;
             const cd = laserHitCooldownRef.current.get(cooldownKey) || 0;
             if (cd <= 0) {
               laserHitCooldownRef.current.set(cooldownKey, 0.3);
@@ -63,7 +63,7 @@ export function RunSimulator() {
 
     for (const [key, cd] of laserHitCooldownRef.current) {
       if (cd > 0) {
-        laserHitCooldownRef.current.set(key, cd - delta);
+        laserHitCooldownRef.current.set(key, Math.max(0, cd - delta));
       }
     }
 
@@ -87,12 +87,22 @@ export function RunSimulator() {
 
     const allActivatedThisFrame = new Set([...continuousActivated, ...pulseEventsThisFrame]);
 
-    const pulseLatchingRef = new Map<string, number>();
     for (const pulseId of pulseEventsThisFrame) {
       const pulseLinkChain = links.filter((l) => l.sourceId === pulseId && l.triggerType === TriggerType.Pulse);
       for (const link of pulseLinkChain) {
         allActivatedThisFrame.add(link.targetId);
-        pulseLatchingRef.set(link.targetId, 0.5);
+        const existing = pulseLatchRef.current.get(link.targetId) || 0;
+        pulseLatchRef.current.set(link.targetId, Math.max(existing, 0.5));
+      }
+    }
+
+    for (const [k, v] of pulseLatchRef.current) {
+      const next = Math.max(0, v - delta);
+      if (next > 0) {
+        pulseLatchRef.current.set(k, next);
+        allActivatedThisFrame.add(k);
+      } else {
+        pulseLatchRef.current.delete(k);
       }
     }
 
@@ -110,12 +120,10 @@ export function RunSimulator() {
     }
 
     for (const id of prevActivated) {
-      if (!continuousActivated.has(id) && !pulseLatchingRef.has(id)) {
-        const wasDeactivated = state.deactivateProp(id);
-        if (propagated.has(id)) {
-        }
+      if (!continuousActivated.has(id) && !pulseLatchRef.current.has(id)) {
+        state.deactivateProp(id);
         const prop = props.find((p) => p.id === id);
-        if (prop && wasDeactivated !== false) {
+        if (prop) {
         }
       }
     }
@@ -146,12 +154,12 @@ export function RunSimulator() {
     }
 
     for (const [key, cd] of pulseCooldownRef.current) {
-      if (cd > 0) pulseCooldownRef.current.set(key, cd - delta);
+      if (cd > 0) pulseCooldownRef.current.set(key, Math.max(0, cd - delta));
     }
 
     prevActivatedRef.current = new Set(continuousActivated);
-    for (const [k, v] of pulseLatchingRef.entries()) {
-      if (v > 0) prevActivatedRef.current.add(k);
+    for (const [k] of pulseLatchRef.current.entries()) {
+      prevActivatedRef.current.add(k);
     }
   });
 

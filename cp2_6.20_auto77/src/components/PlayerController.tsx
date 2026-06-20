@@ -52,8 +52,12 @@ export function PlayerController() {
 
     const playerPos = meshRef.current.position;
 
-    const dirToPlayer = new THREE.Vector3().subVectors(playerPos, camera.position);
-    dirToPlayer.y = 0;
+    const cameraXZ = new THREE.Vector3(camera.position.x, 0, camera.position.z);
+    const playerXZ = new THREE.Vector3(playerPos.x, 0, playerPos.z);
+    const dirToPlayer = new THREE.Vector3().subVectors(playerXZ, cameraXZ);
+    if (dirToPlayer.lengthSq() < 0.0001) {
+      dirToPlayer.set(0, 0, -1);
+    }
     dirToPlayer.normalize();
     const rightDir = new THREE.Vector3().crossVectors(dirToPlayer, new THREE.Vector3(0, 1, 0)).normalize();
 
@@ -99,9 +103,17 @@ export function PlayerController() {
 
     for (const prop of props) {
       if (prop.type === MechanismType.MovingPlatform) {
-        const pxCur = prop.position[0] + (prop.moveAxis === 'x' ? prop.currentOffset : 0);
-        const pyCur = prop.position[1] + (prop.moveAxis === 'y' ? prop.currentOffset : 0);
-        const pzCur = prop.position[2] + (prop.moveAxis === 'z' ? prop.currentOffset : 0);
+        if (!prop.position || !isFinite(prop.position[0]) || !isFinite(prop.position[1]) || !isFinite(prop.position[2])) {
+          continue;
+        }
+        const offset = isFinite(prop.currentOffset) ? prop.currentOffset : 0;
+        const axis = prop.moveAxis || 'y';
+        const range = isFinite(prop.moveRange) ? prop.moveRange : 3;
+        const mspeed = isFinite(prop.moveSpeed) ? prop.moveSpeed : 1;
+
+        const pxCur = prop.position[0] + (axis === 'x' ? offset : 0);
+        const pyCur = prop.position[1] + (axis === 'y' ? offset : 0);
+        const pzCur = prop.position[2] + (axis === 'z' ? offset : 0);
 
         if (
           Math.abs(playerPos.x - pxCur) < 1.3 &&
@@ -111,12 +123,14 @@ export function PlayerController() {
         ) {
           onPlatformId = prop.id;
           const nextOffset = prop.activated
-            ? Math.min(prop.currentOffset + prop.moveSpeed * dt, prop.moveRange)
-            : Math.max(prop.currentOffset - prop.moveSpeed * dt, 0);
-          const deltaOff = nextOffset - prop.currentOffset;
-          if (prop.moveAxis === 'x') platformDeltaX = deltaOff;
-          if (prop.moveAxis === 'y') platformDeltaY = deltaOff;
-          if (prop.moveAxis === 'z') platformDeltaZ = deltaOff;
+            ? Math.min(offset + mspeed * dt, range)
+            : Math.max(offset - mspeed * dt, 0);
+          const deltaOff = nextOffset - offset;
+          if (isFinite(deltaOff)) {
+            if (axis === 'x') platformDeltaX = deltaOff;
+            if (axis === 'y') platformDeltaY = deltaOff;
+            if (axis === 'z') platformDeltaZ = deltaOff;
+          }
         }
       }
     }
@@ -129,9 +143,14 @@ export function PlayerController() {
     let groundY = 0.5;
     for (const prop of props) {
       if (prop.type === MechanismType.MovingPlatform) {
-        const px = prop.position[0] + (prop.moveAxis === 'x' ? prop.currentOffset : 0);
-        const py = prop.position[1] + (prop.moveAxis === 'y' ? prop.currentOffset : 0);
-        const pz = prop.position[2] + (prop.moveAxis === 'z' ? prop.currentOffset : 0);
+        if (!prop.position || !isFinite(prop.position[0]) || !isFinite(prop.position[1]) || !isFinite(prop.position[2])) {
+          continue;
+        }
+        const offset = isFinite(prop.currentOffset) ? prop.currentOffset : 0;
+        const axis = prop.moveAxis || 'y';
+        const px = prop.position[0] + (axis === 'x' ? offset : 0);
+        const py = prop.position[1] + (axis === 'y' ? offset : 0);
+        const pz = prop.position[2] + (axis === 'z' ? offset : 0);
         if (
           Math.abs(playerPos.x - px) < 1.3 &&
           Math.abs(playerPos.z - pz) < 1.3

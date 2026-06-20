@@ -209,7 +209,6 @@ export const useStore = create<GameStore>((set, get) => ({
   updateProp: (id, updates) => {
     const state = get();
     set({
-      ...pushSnapshot(state),
       props: state.props.map((p) => (p.id === id ? { ...p, ...updates } : p)),
     });
   },

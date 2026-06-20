@@ -105,6 +105,25 @@ export function PropertyPanel() {
     safeUpdate(prop.id, { position: pos });
   };
 
+  const handleInputBlur = <K extends keyof typeof prop>(
+    field: K,
+    rawValue: string | number,
+    parser?: (v: any) => any,
+    formatter?: (v: any) => any
+  ) => {
+    const original = (prop as any)[field];
+    const parsed = parser ? parser(rawValue) : rawValue;
+    const finalValue = formatter ? formatter(parsed) : parsed;
+    if (JSON.stringify(original) !== JSON.stringify(finalValue)) {
+      safeUpdate(prop.id, { [field]: finalValue } as any);
+    }
+  };
+
+  const handleNumberInput = (raw: string, min: number, fallback: number) => {
+    const n = parseFloat(raw);
+    return isNaN(n) ? fallback : Math.max(min, n);
+  };
+
   return (
     <div
       style={{
@@ -221,9 +240,14 @@ export function PropertyPanel() {
             max={100}
             step={0.1}
             value={prop.pressureThreshold}
-            onChange={(e) =>
-              safeUpdate(prop.id, { pressureThreshold: Math.max(0.1, parseFloat(e.target.value) || 1) })
+            onFocus={(e) => (e.target as any)._original = prop.pressureThreshold}
+            onBlur={(e) =>
+              handleInputBlur('pressureThreshold', e.target.value, (v: string) => handleNumberInput(v, 0.1, 1))
             }
+            onChange={(e) => {
+              const v = handleNumberInput(e.target.value, 0.1, 1);
+              updateProp(prop.id, { pressureThreshold: v });
+            }}
           />
         </>
       )}
@@ -245,12 +269,15 @@ export function PropertyPanel() {
               }}
               type="color"
               value={prop.laserColor}
-              onChange={(e) => safeUpdate(prop.id, { laserColor: e.target.value })}
+              onChange={(e) => updateProp(prop.id, { laserColor: e.target.value })}
+              onBlur={(e) => handleInputBlur('laserColor', e.target.value)}
             />
             <input
               style={inputStyle}
               value={prop.laserColor}
-              onChange={(e) => safeUpdate(prop.id, { laserColor: e.target.value })}
+              onFocus={(e) => (e.target as any)._original = prop.laserColor}
+              onBlur={(e) => handleInputBlur('laserColor', e.target.value)}
+              onChange={(e) => updateProp(prop.id, { laserColor: e.target.value })}
             />
           </div>
           <div style={labelStyle}>光束半径 (m)</div>
@@ -261,9 +288,14 @@ export function PropertyPanel() {
             max={5}
             step={0.05}
             value={prop.laserRadius}
-            onChange={(e) =>
-              safeUpdate(prop.id, { laserRadius: Math.max(0.05, parseFloat(e.target.value) || 0.5) })
+            onFocus={(e) => (e.target as any)._original = prop.laserRadius}
+            onBlur={(e) =>
+              handleInputBlur('laserRadius', e.target.value, (v: string) => handleNumberInput(v, 0.05, 0.5))
             }
+            onChange={(e) => {
+              const v = handleNumberInput(e.target.value, 0.05, 0.5);
+              updateProp(prop.id, { laserRadius: v });
+            }}
           />
         </>
       )}
@@ -276,7 +308,9 @@ export function PropertyPanel() {
             {(['x', 'y', 'z'] as const).map((a) => (
               <button
                 key={a}
-                onClick={() => safeUpdate(prop.id, { moveAxis: a })}
+                onClick={() => {
+                  if (prop.moveAxis !== a) safeUpdate(prop.id, { moveAxis: a });
+                }}
                 style={{
                   padding: '6px',
                   borderRadius: '5px',
@@ -300,9 +334,14 @@ export function PropertyPanel() {
             max={20}
             step={0.5}
             value={prop.moveRange}
-            onChange={(e) =>
-              safeUpdate(prop.id, { moveRange: Math.max(0.5, parseFloat(e.target.value) || 3) })
+            onFocus={(e) => (e.target as any)._original = prop.moveRange}
+            onBlur={(e) =>
+              handleInputBlur('moveRange', e.target.value, (v: string) => handleNumberInput(v, 0.5, 3))
             }
+            onChange={(e) => {
+              const v = handleNumberInput(e.target.value, 0.5, 3);
+              updateProp(prop.id, { moveRange: v });
+            }}
           />
           <div style={labelStyle}>移动速度 (m/s)</div>
           <input
@@ -312,9 +351,14 @@ export function PropertyPanel() {
             max={10}
             step={0.1}
             value={prop.moveSpeed}
-            onChange={(e) =>
-              safeUpdate(prop.id, { moveSpeed: Math.max(0.05, parseFloat(e.target.value) || 1) })
+            onFocus={(e) => (e.target as any)._original = prop.moveSpeed}
+            onBlur={(e) =>
+              handleInputBlur('moveSpeed', e.target.value, (v: string) => handleNumberInput(v, 0.05, 1))
             }
+            onChange={(e) => {
+              const v = handleNumberInput(e.target.value, 0.05, 1);
+              updateProp(prop.id, { moveSpeed: v });
+            }}
           />
           <div
             style={{
@@ -380,11 +424,21 @@ export function PropertyPanel() {
                   style={{ ...inputStyle, paddingLeft: '22px' }}
                   type="number"
                   value={prop.portalTarget[i]}
+                  onFocus={(e) => (e.target as any)._original = prop.portalTarget[i]}
+                  onBlur={(e) => {
+                    const original = (e.target as any)._original;
+                    const val = parseFloat(e.target.value) || 0;
+                    if (original !== val) {
+                      const target: [number, number, number] = [...prop.portalTarget];
+                      target[i] = val;
+                      safeUpdate(prop.id, { portalTarget: target });
+                    }
+                  }}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value) || 0;
                     const target: [number, number, number] = [...prop.portalTarget];
                     target[i] = val;
-                    safeUpdate(prop.id, { portalTarget: target });
+                    updateProp(prop.id, { portalTarget: target });
                   }}
                 />
               </div>
