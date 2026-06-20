@@ -44,7 +44,9 @@ export const useGradingStore = create<GradingState>((set, get) => ({
   setEssay: (essay) => {
     set({ essay });
     if (essay) {
-      set({ score: (prev) => ({ ...prev, essayId: essay.id }) });
+      set((state) => ({
+        score: { ...state.score, essayId: essay.id },
+      }));
     }
   },
   setComments: (comments) => set({ comments }),

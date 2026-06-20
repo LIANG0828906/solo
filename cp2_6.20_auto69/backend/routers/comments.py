@@ -46,6 +46,12 @@ async def create_preset_comment(data: PresetCommentCreate):
     return {"code": 200, "data": result, "message": "预设评语添加成功"}
 
 
+@router.post("/comments/presets/add")
+async def add_preset_comment_alias(data: PresetCommentCreate):
+    result = comment_service.create_preset_comment(data)
+    return {"code": 200, "data": result, "message": "预设评语添加成功"}
+
+
 @router.delete("/preset-comments/{preset_id}")
 async def delete_preset_comment(preset_id: str):
     success = comment_service.delete_preset_comment(preset_id)

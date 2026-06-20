@@ -127,11 +127,10 @@ export const CommentPopup: React.FC<CommentPopupProps> = ({
   return (
     <div
       ref={popupRef}
-      className="comment-popup"
+      className={`comment-popup placement-${placement}`}
       style={{
         top: position.top,
         left: position.left,
-        animationDirection: placement === 'top' ? 'reverse' : 'normal',
       }}
     >
       <div className="flex justify-between items-center mb-3">

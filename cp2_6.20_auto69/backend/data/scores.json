@@ -1,0 +1,137 @@
+[
+  {
+    "id": "score-1-1",
+    "essayId": "essay-1-1",
+    "content": 10,
+    "language": 7,
+    "structure": 7,
+    "creativity": 9,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-1-2",
+    "essayId": "essay-1-2",
+    "content": 10,
+    "language": 6,
+    "structure": 10,
+    "creativity": 7,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-1-3",
+    "essayId": "essay-1-3",
+    "content": 8,
+    "language": 8,
+    "structure": 9,
+    "creativity": 8,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-2-1",
+    "essayId": "essay-2-1",
+    "content": 8,
+    "language": 10,
+    "structure": 9,
+    "creativity": 6,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-2-2",
+    "essayId": "essay-2-2",
+    "content": 6,
+    "language": 10,
+    "structure": 7,
+    "creativity": 5,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-2-3",
+    "essayId": "essay-2-3",
+    "content": 10,
+    "language": 10,
+    "structure": 10,
+    "creativity": 5,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-3-1",
+    "essayId": "essay-3-1",
+    "content": 10,
+    "language": 9,
+    "structure": 6,
+    "creativity": 8,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-3-2",
+    "essayId": "essay-3-2",
+    "content": 6,
+    "language": 6,
+    "structure": 7,
+    "creativity": 5,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-3-3",
+    "essayId": "essay-3-3",
+    "content": 7,
+    "language": 6,
+    "structure": 9,
+    "creativity": 7,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-4-1",
+    "essayId": "essay-4-1",
+    "content": 9,
+    "language": 8,
+    "structure": 6,
+    "creativity": 7,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-4-2",
+    "essayId": "essay-4-2",
+    "content": 8,
+    "language": 10,
+    "structure": 6,
+    "creativity": 7,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-4-3",
+    "essayId": "essay-4-3",
+    "content": 9,
+    "language": 9,
+    "structure": 10,
+    "creativity": 8,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-5-1",
+    "essayId": "essay-5-1",
+    "content": 9,
+    "language": 6,
+    "structure": 8,
+    "creativity": 8,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-5-2",
+    "essayId": "essay-5-2",
+    "content": 6,
+    "language": 9,
+    "structure": 6,
+    "creativity": 5,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "score-5-3",
+    "essayId": "essay-5-3",
+    "content": 10,
+    "language": 9,
+    "structure": 8,
+    "creativity": 8,
+    "gradedAt": "2026-06-20T02:13:32.424228"
+  }
+]

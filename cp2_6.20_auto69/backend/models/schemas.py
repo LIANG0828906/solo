@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Optional, Generic, TypeVar
+
+T = TypeVar('T')
 
 
 class ClassBase(BaseModel):
@@ -115,7 +117,7 @@ class RadarData(BaseModel):
     classAverage: float
 
 
-class ApiResponse[T]:
+class ApiResponse(BaseModel, Generic[T]):
     code: int
     data: T
     message: str

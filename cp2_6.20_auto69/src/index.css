@@ -93,7 +93,14 @@ body {
   padding: 16px;
   width: 360px;
   opacity: 0;
+}
+
+.comment-popup.placement-bottom {
   animation: popupFadeInUp 0.25s ease-out forwards;
+}
+
+.comment-popup.placement-top {
+  animation: popupFadeInDown 0.25s ease-out forwards;
 }
 
 .dark .comment-popup {
@@ -104,6 +111,17 @@ body {
   0% {
     opacity: 0;
     transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popupFadeInDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
   }
   100% {
     opacity: 1;
