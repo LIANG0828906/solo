@@ -1,0 +1,88 @@
+.dice-roller {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+
+.dice-roller.dice-small .dice-container {
+  width: 60px;
+  height: 60px;
+}
+
+.dice-roller.dice-small .dice-face {
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+}
+
+.dice-roller.dice-small .dice-face.front  { transform: translateZ(24px); }
+.dice-roller.dice-small .dice-face.back   { transform: rotateY(180deg) translateZ(24px); }
+.dice-roller.dice-small .dice-face.right  { transform: rotateY(90deg) translateZ(24px); }
+.dice-roller.dice-small .dice-face.left   { transform: rotateY(-90deg) translateZ(24px); }
+.dice-roller.dice-small .dice-face.top    { transform: rotateX(90deg) translateZ(24px); }
+.dice-roller.dice-small .dice-face.bottom { transform: rotateX(-90deg) translateZ(24px); }
+
+.dice-roller.dice-large .dice-container {
+  width: 140px;
+  height: 140px;
+}
+
+.dice-roller.dice-large .dice-face {
+  width: 112px;
+  height: 112px;
+  font-size: 48px;
+}
+
+.dice-roller.dice-large .dice-face.front  { transform: translateZ(56px); }
+.dice-roller.dice-large .dice-face.back   { transform: rotateY(180deg) translateZ(56px); }
+.dice-roller.dice-large .dice-face.right  { transform: rotateY(90deg) translateZ(56px); }
+.dice-roller.dice-large .dice-face.left   { transform: rotateY(-90deg) translateZ(56px); }
+.dice-roller.dice-large .dice-face.top    { transform: rotateX(90deg) translateZ(56px); }
+.dice-roller.dice-large .dice-face.bottom { transform: rotateX(-90deg) translateZ(56px); }
+
+.dice-result {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dice-result-value {
+  font-size: 48px;
+  font-weight: bold;
+  font-family: 'Cinzel', serif;
+}
+
+.dice-modifier {
+  font-size: 18px;
+  color: #f5e6c8;
+}
+
+.dice-dc {
+  font-size: 14px;
+  color: #a08060;
+}
+
+.dice-result.success .dice-result-value {
+  color: #22c55e;
+  animation: pulse-success 0.6s ease;
+}
+
+.dice-result.failure .dice-result-value {
+  color: #ef4444;
+  animation: pulse-failure 0.6s ease;
+}
+
+.roll-btn {
+  min-width: 120px;
+}
+
+.dice.success {
+  animation: pulse-success 0.6s ease;
+}
+
+.dice.failure {
+  animation: pulse-failure 0.6s ease;
+}
