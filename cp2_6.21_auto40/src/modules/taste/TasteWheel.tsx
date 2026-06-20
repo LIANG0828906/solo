@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useBatchStore } from '@/stores/batchStore';
+import { useToastStore } from '@/stores/toastStore';
 import { postTasteNote, listPublicBatches } from '@/api/communityApi';
 import type { PublicBatch } from '@/types';
 
@@ -43,8 +44,9 @@ const FLAVOR_CATEGORIES: FlavorCategory[] = [
 const WHEEL_RADIUS = 200;
 const SEGMENT_INNER_RADIUS = 70;
 const HOVER_SCALE = 1.2;
-const PETAL_RADIUS = 280;
-const PETAL_DOT_RADIUS = 18;
+const PETAL_DOT_RADIUS = 16;
+const PETAL_GAP = 10;
+const PETAL_START_OFFSET = 14;
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -74,23 +76,39 @@ function describeSector(
   ].join(' ');
 }
 
+function computePetalPositions(
+  cx: number,
+  cy: number,
+  midAngle: number,
+  count: number,
+) {
+  const positions: { x: number; y: number; r: number }[] = [];
+  const startR = WHEEL_RADIUS * HOVER_SCALE + PETAL_START_OFFSET;
+
+  for (let i = 0; i < count; i++) {
+    const r = startR + i * (PETAL_DOT_RADIUS * 2 + PETAL_GAP);
+    const pos = polarToCartesian(cx, cy, r, midAngle);
+    positions.push({ x: pos.x, y: pos.y, r: PETAL_DOT_RADIUS });
+  }
+
+  return positions;
+}
+
 export default function TasteWheel() {
   const { selectedFlavors, addFlavor, removeFlavor } = useBatchStore();
+  const { showToast } = useToastStore();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [panelKey, setPanelKey] = useState(0);
   const [batches, setBatches] = useState<PublicBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<number | ''>('');
-  const [toast, setToast] = useState<{ message: string; visible: boolean }>({
-    message: '',
-    visible: false,
-  });
-  const [panelAnimating, setPanelAnimating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const tagContainerRef = useRef<HTMLDivElement>(null);
+  const tagRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
-  const cx = WHEEL_RADIUS + 40;
-  const cy = WHEEL_RADIUS + 40;
-  const svgSize = (WHEEL_RADIUS + 40) * 2;
+  const cx = WHEEL_RADIUS + 80;
+  const cy = WHEEL_RADIUS + 80;
+  const svgSize = (WHEEL_RADIUS + 120) * 2;
   const anglePerSegment = 360 / CATEGORY_COUNT;
 
   useEffect(() => {
@@ -101,9 +119,7 @@ export default function TasteWheel() {
 
   useEffect(() => {
     if (selectedCategory !== null) {
-      setPanelAnimating(true);
-      const t = setTimeout(() => setPanelAnimating(false), 500);
-      return () => clearTimeout(t);
+      setPanelKey((k) => k + 1);
     }
   }, [selectedCategory]);
 
@@ -122,8 +138,7 @@ export default function TasteWheel() {
   const handleSubmit = async () => {
     if (selectedFlavors.length === 0) return;
     if (selectedBatchId === '') {
-      setToast({ message: '请先选择要关联的烘焙批次', visible: true });
-      setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2500);
+      showToast('请先选择要关联的烘焙批次', { type: 'info', duration: 2500 });
       return;
     }
     try {
@@ -140,26 +155,72 @@ export default function TasteWheel() {
           sub_flavors: subs,
         });
       }
-      setToast({
-        message: `🎉 已为【${selectedBatchName}】添加${selectedFlavors.length}个风味标签`,
-        visible: true,
+      showToast(`🎉 已为【${selectedBatchName}】添加${selectedFlavors.length}个风味标签`, {
+        type: 'success',
+        duration: 3500,
       });
-      setTimeout(() => setToast((t) => ({ ...t, visible: false })), 3500);
       useBatchStore.getState().resetBatch();
     } catch {
-      setToast({ message: '提交失败，请稍后重试', visible: true });
-      setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2500);
+      showToast('提交失败，请稍后重试', { type: 'error', duration: 2500 });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const scrollTags = (direction: 'left' | 'right') => {
-    const el = tagContainerRef.current;
-    if (!el) return;
-    const offset = direction === 'left' ? -160 : 160;
-    el.scrollBy({ left: offset, behavior: 'smooth' });
-  };
+  const scrollTags = useCallback((direction: 'left' | 'right') => {
+    const container = tagContainerRef.current;
+    if (!container) return;
+
+    const { scrollLeft, clientWidth, scrollWidth } = container;
+
+    if (direction === 'right') {
+      if (scrollLeft + clientWidth >= scrollWidth - 1) return;
+
+      const visibleRight = scrollLeft + clientWidth;
+      let targetTag: HTMLSpanElement | null = null;
+
+      for (let i = 0; i < tagRefs.current.length; i++) {
+        const el = tagRefs.current[i];
+        if (!el) continue;
+        const elRight = el.offsetLeft + el.offsetWidth;
+        if (elRight > visibleRight + 1) {
+          targetTag = el;
+          break;
+        }
+      }
+
+      if (targetTag) {
+        const targetLeft = Math.max(0, targetTag.offsetLeft - 8);
+        const maxLeft = scrollWidth - clientWidth;
+        container.scrollTo({ left: Math.min(targetLeft, maxLeft), behavior: 'smooth' });
+      } else {
+        container.scrollTo({ left: scrollWidth, behavior: 'smooth' });
+      }
+    } else {
+      if (scrollLeft <= 1) return;
+
+      let targetTag: HTMLSpanElement | null = null;
+
+      for (let i = tagRefs.current.length - 1; i >= 0; i--) {
+        const el = tagRefs.current[i];
+        if (!el) continue;
+        if (el.offsetLeft < scrollLeft - 1) {
+          targetTag = el;
+          break;
+        }
+      }
+
+      if (targetTag) {
+        const targetLeft = Math.max(
+          0,
+          targetTag.offsetLeft + targetTag.offsetWidth - clientWidth + 8,
+        );
+        container.scrollTo({ left: targetLeft, behavior: 'smooth' });
+      } else {
+        container.scrollTo({ left: 0, behavior: 'smooth' });
+      }
+    }
+  }, []);
 
   const isFlavorSelected = (cat: string, sub: string) =>
     selectedFlavors.some((f) => f.category === cat && f.subFlavor === sub);
@@ -256,16 +317,13 @@ export default function TasteWheel() {
                       style={{
                         pointerEvents: 'none',
                         textShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                        transform: isHovered ? `rotate(${midAngle}deg)` : `rotate(${midAngle}deg)`,
-                        transformOrigin: `${labelPos.x}px ${labelPos.y}px`,
-                        writingMode: 'horizontal-tb',
                       }}
                     >
                       {cat.name}
                     </text>
 
                     {categorySelectedCount(i) > 0 && (() => {
-                      const badgePos = polarToCartesian(cx, cy, outerR - 18, midAngle);
+                      const badgePos = polarToCartesian(cx, cy, outerR - 20, midAngle);
                       return (
                         <g style={{ pointerEvents: 'none' }}>
                           <circle cx={badgePos.x} cy={badgePos.y} r="12" fill="#4A2C2A" stroke="#FFF" strokeWidth="2" />
@@ -290,28 +348,28 @@ export default function TasteWheel() {
 
               {hoveredIndex !== null && (() => {
                 const cat = FLAVOR_CATEGORIES[hoveredIndex];
-                const startAngle = hoveredIndex * anglePerSegment;
-                const endAngle = (hoveredIndex + 1) * anglePerSegment;
+                const midAngle = hoveredIndex * anglePerSegment + anglePerSegment / 2;
                 const subs = cat.subFlavors;
-                const petalStep = (endAngle - startAngle) / (subs.length + 1);
+                const positions = computePetalPositions(cx, cy, midAngle, subs.length);
+
                 return (
                   <g className="petal-group" style={{ pointerEvents: 'none' }}>
-                    {subs.map((sub, si) => {
-                      const ang = startAngle + petalStep * (si + 1);
-                      const pos = polarToCartesian(cx, cy, PETAL_RADIUS, ang);
+                    {positions.map((pos, si) => {
+                      const sub = subs[si];
                       const selected = isFlavorSelected(cat.name, sub);
                       return (
-                        <g key={sub}>
+                        <g key={sub} style={{ transformOrigin: `${pos.x}px ${pos.y}px` }}>
                           <circle
                             cx={pos.x}
                             cy={pos.y}
-                            r={PETAL_DOT_RADIUS}
+                            r={pos.r}
                             fill={cat.color}
-                            opacity={selected ? 1 : 0.65}
+                            opacity={selected ? 1 : 0.72}
                             stroke={selected ? '#4A2C2A' : '#FFF'}
                             strokeWidth={selected ? '2.5' : '2'}
                             style={{
-                              animation: `petal-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) ${si * 0.03}s both`,
+                              animation: `petal-pop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) ${si * 0.035}s both`,
+                              transformOrigin: `${pos.x}px ${pos.y}px`,
                             }}
                           />
                           <text
@@ -320,7 +378,7 @@ export default function TasteWheel() {
                             textAnchor="middle"
                             dominantBaseline="middle"
                             fill={selected ? '#FFF' : '#4A2C2A'}
-                            fontSize="9"
+                            fontSize="9.5"
                             fontWeight="600"
                             style={{ pointerEvents: 'none' }}
                           >
@@ -338,19 +396,15 @@ export default function TasteWheel() {
           <div className="wheel-legend">
             <p className="legend-hint">
               {hoveredIndex !== null
-                ? `${FLAVOR_CATEGORIES[hoveredIndex].name}：将鼠标移到外圈花瓣可快速预览二级风味`
-                : '提示：悬停扇形区域查看二级风味，点击展开面板选择'}
+                ? `${FLAVOR_CATEGORIES[hoveredIndex].name}：外圆点为二级风味预览，点击扇形展开详情`
+                : '提示：悬停扇形区域预览二级风味，点击展开面板选择'}
             </p>
           </div>
         </div>
 
-        <div
-          className={`sub-flavor-panel ${selectedCategory !== null ? 'is-open' : ''} ${
-            panelAnimating ? 'is-animating' : ''
-          }`}
-        >
+        <div className={`sub-flavor-panel ${selectedCategory !== null ? 'is-open' : ''}`}>
           {selectedCategory !== null && (
-            <div className="panel-inner">
+            <div key={panelKey} className="panel-inner panel-animate-in">
               <div className="panel-header">
                 <span
                   className="panel-color-swatch"
@@ -365,7 +419,7 @@ export default function TasteWheel() {
                   ×
                 </button>
               </div>
-              <p className="panel-subtitle">已选 {categorySelectedCount(selectedCategory)} 项</p>
+              <p className="panel-subtitle">已选 {categorySelectedCount(selectedCategory)} 项 · 按拼音排序</p>
               <div className="sub-flavor-list">
                 {sortedSubFlavors.map((sub) => {
                   const cat = FLAVOR_CATEGORIES[selectedCategory].name;
@@ -411,6 +465,9 @@ export default function TasteWheel() {
                 return (
                   <span
                     key={`${f.category}-${f.subFlavor}-${i}`}
+                    ref={(el) => {
+                      tagRefs.current[i] = el;
+                    }}
                     className="flavor-tag"
                     style={{
                       borderColor: catData?.color || '#C4A882',
@@ -449,10 +506,6 @@ export default function TasteWheel() {
             {submitting ? '提交中...' : '提交品鉴笔记'}
           </button>
         </div>
-      </div>
-
-      <div className={`toast ${toast.visible ? 'toast-visible' : ''}`}>
-        {toast.message}
       </div>
     </div>
   );

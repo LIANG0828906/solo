@@ -4,6 +4,7 @@ import BatchDetail from '@/modules/batch/BatchDetail';
 import TasteWheel from '@/modules/taste/TasteWheel';
 import CommunityList from '@/modules/community/CommunityList';
 import CommunityDetail from '@/modules/community/CommunityDetail';
+import ToastContainer from '@/components/Toast';
 
 function NavBar() {
   const location = useLocation();
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="/community/:id" element={<CommunityDetail />} />
         </Routes>
       </main>
+      <ToastContainer />
     </BrowserRouter>
   );
 }
