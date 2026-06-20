@@ -86,6 +86,9 @@ export const EditorCanvas: React.FC = () => {
   const [animTime, setAnimTime] = useState(0);
   const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(null);
   const [isDraggingMonster, setIsDraggingMonster] = useState(false);
+  const [placeFlashCell, setPlaceFlashCell] = useState<{ x: number; y: number; time: number } | null>(null);
+  const [fadeStartTime, setFadeStartTime] = useState(0);
+  const [fadeTick, setFadeTick] = useState(0);
 
   const colors = useMemo(() => themeColors[theme] || themeColors.catacomb, [theme]);
 
@@ -112,11 +115,29 @@ export const EditorCanvas: React.FC = () => {
       if (previewAnim.isPlaying) {
         setAnimTime((prev) => prev + delta * animationSpeed);
       }
+      // Drive room fade-in animation
+      if (fadeAnimation) {
+        setFadeTick((t) => t + delta);
+      }
+      // Drive place flash
+      if (placeFlashCell) {
+        const elapsed = (time - placeFlashCell.time) / 1000;
+        if (elapsed >= 0.2) {
+          setPlaceFlashCell(null);
+        }
+      }
       animFrameRef.current = requestAnimationFrame(loop);
     };
     animFrameRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [animationSpeed, previewAnim.isPlaying]);
+  }, [animationSpeed, previewAnim.isPlaying, fadeAnimation, placeFlashCell]);
+
+  // Reset fade tick when fade animation starts
+  useEffect(() => {
+    if (fadeAnimation) {
+      setFadeTick(0);
+    }
+  }, [fadeAnimation]);
 
   // Reset anim time when preview starts with new monster
   useEffect(() => {
@@ -229,8 +250,12 @@ export const EditorCanvas: React.FC = () => {
 
       const { gx, gy } = screenToGrid(e.clientX, e.clientY);
       if (gx >= 0 && gy >= 0) {
-        addMonsterToGrid(template, gx, gy);
-        playClickSound();
+        const canPlace = grid.length > 0 && gy < grid.length && gx < grid[0]?.length && grid[gy][gx] === 0;
+        if (canPlace) {
+          addMonsterToGrid(template, gx, gy);
+          playClickSound();
+          setPlaceFlashCell({ x: gx, y: gy, time: performance.now() });
+        }
       }
     };
 
@@ -281,50 +306,114 @@ export const EditorCanvas: React.FC = () => {
     ctx.translate(canvasOffset.x, canvasOffset.y);
     ctx.scale(canvasZoom, canvasZoom);
 
-    // Opacity for fade in
     if (fadeAnimation) {
-      ctx.globalAlpha = 0.3;
-    }
-
-    // Draw cells
-    for (let y = 0; y < grid.length; y++) {
-      for (let x = 0; x < grid[y].length; x++) {
-        const px = x * cellSize;
-        const py = y * cellSize;
-        const cell = grid[y][x];
-
-        if (cell === 0) {
+      // FADE MODE: base layer (walls + corridors) with low alpha, then rooms fade in one by one
+      for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[y].length; x++) {
+          const px = x * cellSize;
+          const py = y * cellSize;
+          const cell = grid[y][x];
           const inRoom = rooms.some(
             (r) => x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height
           );
-          ctx.fillStyle = inRoom ? colors.floor : colors.corridor;
-        } else if (cell === 1) {
-          ctx.fillStyle = colors.wall;
-        } else if (cell === 2) {
-          ctx.fillStyle = colors.floor;
-        } else if (cell === 3) {
-          ctx.fillStyle = colors.floor;
-        }
-        ctx.fillRect(px, py, cellSize, cellSize);
 
-        // Draw decorations
-        if (cell === 3) {
-          const cx = px + cellSize / 2;
-          const cy = py + cellSize / 2;
-          const emoji = decorationEmojis[theme] || '✨';
-          ctx.font = `${cellSize * 0.7}px serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#fff';
-          ctx.fillText(emoji, cx, cy);
+          const baseAlpha = Math.min(1, fadeTick / 0.25);
+
+          if (cell === 1) {
+            ctx.globalAlpha = baseAlpha * 0.8;
+            ctx.fillStyle = colors.wall;
+          } else if (!inRoom) {
+            ctx.globalAlpha = baseAlpha * 0.7;
+            ctx.fillStyle = colors.corridor;
+          } else {
+            ctx.globalAlpha = baseAlpha * 0.5;
+            ctx.fillStyle = colors.corridor;
+          }
+          ctx.fillRect(px, py, cellSize, cellSize);
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // Room-by-room fade-in
+      const FADE_ROOM_DELAY = 0.1;
+      const FADE_ROOM_DURATION = 0.3;
+      const sortedRooms = [...rooms].sort((a, b) => a.x + a.y - (b.x + b.y));
+
+      for (let i = 0; i < sortedRooms.length; i++) {
+        const room = sortedRooms[i];
+        const startTime = i * FADE_ROOM_DELAY;
+        const elapsed = fadeTick - startTime;
+        if (elapsed <= 0) continue;
+        const alpha = Math.min(1, elapsed / FADE_ROOM_DURATION);
+        if (alpha <= 0) continue;
+
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = colors.floor;
+        ctx.fillRect(
+          room.x * cellSize,
+          room.y * cellSize,
+          room.width * cellSize,
+          room.height * cellSize
+        );
+
+        // Draw decorations inside this room
+        for (let y = room.y; y < room.y + room.height; y++) {
+          for (let x = room.x; x < room.x + room.width; x++) {
+            if (grid[y] && grid[y][x] === 3) {
+              const cx = x * cellSize + cellSize / 2;
+              const cy = y * cellSize + cellSize / 2;
+              const emoji = decorationEmojis[theme] || '✨';
+              ctx.font = `${cellSize * 0.7}px serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillStyle = '#fff';
+              ctx.fillText(emoji, cx, cy);
+            }
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    } else {
+      // NORMAL MODE: draw everything at full opacity
+      for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[y].length; x++) {
+          const px = x * cellSize;
+          const py = y * cellSize;
+          const cell = grid[y][x];
+          const inRoom = rooms.some(
+            (r) => x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height
+          );
+
+          if (cell === 1) {
+            ctx.fillStyle = colors.wall;
+          } else if (cell === 0 || cell === 2 || cell === 3) {
+            ctx.fillStyle = inRoom ? colors.floor : colors.corridor;
+          } else {
+            ctx.fillStyle = colors.floor;
+          }
+          ctx.fillRect(px, py, cellSize, cellSize);
+
+          if (cell === 3) {
+            const cx = px + cellSize / 2;
+            const cy = py + cellSize / 2;
+            const emoji = decorationEmojis[theme] || '✨';
+            ctx.font = `${cellSize * 0.7}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#fff';
+            ctx.fillText(emoji, cx, cy);
+          }
         }
       }
     }
 
     // Grid lines - dynamic width based on zoom
     const gridLineWidth = Math.max(0.3, 0.5 / canvasZoom);
-    ctx.strokeStyle = '#3a3a5c';
+    ctx.strokeStyle = '#4a4a7c';
     ctx.lineWidth = gridLineWidth;
+    if (fadeAnimation) {
+      ctx.globalAlpha = Math.min(1, fadeTick / 0.35);
+    }
 
     for (let y = 0; y <= grid.length; y++) {
       ctx.beginPath();
@@ -338,6 +427,7 @@ export const EditorCanvas: React.FC = () => {
       ctx.lineTo(x * cellSize, grid.length * cellSize);
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
 
     // Hover highlight
     if (hoverCell && isDraggingMonster) {
@@ -350,6 +440,21 @@ export const EditorCanvas: React.FC = () => {
         ctx.strokeStyle = canPlace ? '#27ae60' : '#e94560';
         ctx.lineWidth = Math.max(1, 2 / canvasZoom);
         ctx.strokeRect(x * cellSize + 0.5, y * cellSize + 0.5, cellSize - 1, cellSize - 1);
+      }
+    }
+
+    // Place flash highlight (brief blue flash when monster is placed)
+    if (placeFlashCell) {
+      const { x, y, time } = placeFlashCell;
+      const elapsed = (performance.now() - time) / 1000;
+      if (elapsed < 0.2) {
+        const alpha = (1 - elapsed / 0.2) * 0.6;
+        ctx.fillStyle = `rgba(74, 144, 217, ${alpha})`;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        // Glow effect
+        ctx.strokeStyle = `rgba(74, 144, 217, ${alpha * 0.8})`;
+        ctx.lineWidth = Math.max(2, 3 / canvasZoom);
+        ctx.strokeRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
       }
     }
 
@@ -667,8 +772,6 @@ export const EditorCanvas: React.FC = () => {
             : toolMode === 'select'
             ? 'default'
             : 'cell',
-          opacity: fadeAnimation ? 0 : 1,
-          transition: fadeAnimation ? 'opacity 0.3s ease-in-out' : 'none',
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}

@@ -102,6 +102,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   generateNewMap: () => {
     const { theme, rows, cols } = get();
     const mapData = generateMap(theme, rows, cols);
+    const numRooms = mapData.rooms.length;
+    const fadeDuration = Math.max(800, numRooms * 100 + 400);
     set({
       mapData,
       grid: mapData.grid as CellValue[][],
@@ -112,7 +114,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       previewAnim: { monsterId: null, isPlaying: false },
       fadeAnimation: true,
     });
-    setTimeout(() => set({ fadeAnimation: false }), 300);
+    setTimeout(() => set({ fadeAnimation: false }), fadeDuration);
   },
 
   addMonsterToGrid: (template, gridX, gridY) => {

@@ -141,7 +141,7 @@ export const Toolbar: React.FC = () => {
         </div>
 
         {/* Generate Button */}
-        <button onClick={generateNewMap} style={primaryButtonStyle}>
+        <button onClick={generateNewMap} className="toolbar-btn toolbar-btn-primary">
           ⚡ 生成地图
         </button>
 
@@ -153,12 +153,10 @@ export const Toolbar: React.FC = () => {
           <button
             key={t.value}
             onClick={() => (isPatrolMode ? cancelPatrolPath() : setToolMode(t.value))}
-            style={{
-              ...toolButtonStyle,
-              background: !isPatrolMode && toolMode === t.value ? '#e94560' : 'transparent',
-              color: !isPatrolMode && toolMode === t.value ? '#fff' : '#8899aa',
-              border: !isPatrolMode && toolMode === t.value ? '1px solid #e94560' : '1px solid transparent',
-            }}
+            className={
+              'toolbar-btn toolbar-btn-tool ' +
+              (!isPatrolMode && toolMode === t.value ? 'active' : '')
+            }
           >
             {t.icon} {t.label}
           </button>
@@ -181,11 +179,13 @@ export const Toolbar: React.FC = () => {
               🎯 路径编辑中（{patrolPath.points.length} 点）
             </div>
             {patrolPath.points.length >= 2 && (
-              <button onClick={completePatrolPath} style={successButtonStyle}>
+              <button onClick={completePatrolPath} className="toolbar-btn"
+                style={successButtonStyle}>
                 ✓ 完成
               </button>
             )}
-            <button onClick={cancelPatrolPath} style={cancelButtonStyle}>
+            <button onClick={cancelPatrolPath} className="toolbar-btn"
+              style={cancelButtonStyle}>
               ✕ 取消
             </button>
           </>
@@ -195,7 +195,7 @@ export const Toolbar: React.FC = () => {
         <div style={{ flex: 1 }} />
 
         {/* Export Button */}
-        <button onClick={handleExport} style={primaryButtonStyle}>
+        <button onClick={handleExport} className="toolbar-btn toolbar-btn-primary">
           📤 导出 JSON
         </button>
       </div>
@@ -234,6 +234,50 @@ export const Toolbar: React.FC = () => {
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button {
           opacity: 0.5;
+        }
+        .toolbar-btn {
+          transition: transform 0.1s ease-out, background 0.2s, box-shadow 0.2s;
+        }
+        .toolbar-btn:active {
+          transform: scale(0.95);
+        }
+        .toolbar-btn-primary {
+          background: linear-gradient(135deg, #e94560, #c73650);
+          color: #fff;
+          border: none;
+          border-radius: 5px;
+          padding: 6px 14px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          height: 30px;
+          letter-spacing: 0.3px;
+          box-shadow: 0 2px 8px rgba(233, 69, 96, 0.25);
+        }
+        .toolbar-btn-primary:hover {
+          background: linear-gradient(135deg, #ff5a75, #e04560);
+          box-shadow: 0 3px 12px rgba(233, 69, 96, 0.4);
+        }
+        .toolbar-btn-tool {
+          background: transparent;
+          color: #8899aa;
+          border: 1px solid transparent;
+          border-radius: 5px;
+          padding: 4px 10px;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          height: 28px;
+        }
+        .toolbar-btn-tool:hover {
+          color: #b0b8c0;
+          background: rgba(255,255,255,0.05);
+        }
+        .toolbar-btn-tool.active {
+          background: #e94560;
+          color: #fff;
+          border-color: #e94560;
         }
       `}</style>
     </>
