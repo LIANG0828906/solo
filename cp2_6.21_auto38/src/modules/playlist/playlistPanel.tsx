@@ -149,126 +149,184 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ onlineCount, pulseKey, is
             暂无曲目<br />搜索并添加歌曲到播放列表
           </div>
         )}
-        {tracks.map((track, index) => (
-          <div
-            key={track.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, index)}
-            onDragEnd={handleDragEnd}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, index)}
-            onClick={() => setSelectedTrack(track.id === selectedTrackId ? null : track.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '10px 14px',
-              margin: '2px 8px',
-              borderRadius: '8px',
-              background:
-                track.id === selectedTrackId
-                  ? '#4a4a60'
-                  : dragOverIndex === index && dragIndex !== null && dragIndex !== index
-                  ? 'rgba(108, 99, 255, 0.15)'
-                  : 'transparent',
-              cursor: 'pointer',
-              transition: 'background 0.15s ease, transform 0.2s ease',
-              border: dragOverIndex === index && dragIndex !== null && dragIndex !== index ? '1px dashed rgba(108,99,255,0.5)' : '1px solid transparent',
-              animation: `slideInRight 0.25s ease ${index * 0.03}s both`,
-            }}
-            onMouseEnter={(e) => {
-              if (track.id !== selectedTrackId) {
-                e.currentTarget.style.background = '#3a3a50';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (track.id !== selectedTrackId) {
-                e.currentTarget.style.background = 'transparent';
-              }
-            }}
-          >
-            <span
+        {tracks.map((track, index) => {
+          const isCurrent = track.id === selectedTrackId;
+          return (
+            <div
+              key={track.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              onClick={() => setSelectedTrack(isCurrent ? null : track.id)}
               style={{
-                width: '28px',
-                fontSize: '12px',
-                color: '#6c63ff',
-                fontWeight: 600,
-                flexShrink: 0,
-                textAlign: 'center',
-              }}
-            >
-              {index + 1}
-            </span>
-            <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: '#e0e0e0',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {track.title}
-              </div>
-              <div
-                style={{
-                  fontSize: '11px',
-                  color: '#888',
-                  marginTop: '2px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {track.artist}
-              </div>
-            </div>
-            <span
-              style={{
-                fontSize: '11px',
-                color: '#6c63ff',
-                margin: '0 8px',
-                flexShrink: 0,
-              }}
-            >
-              {formatDuration(track.duration)}
-            </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeleteTarget(track.id);
-              }}
-              style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                background: '#e74c3c',
-                border: 'none',
-                color: '#fff',
-                fontSize: '13px',
-                lineHeight: '24px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                flexShrink: 0,
+                position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'background 0.2s ease',
-                padding: 0,
+                padding: '10px 14px',
+                margin: '2px 8px',
+                borderRadius: '8px',
+                background:
+                  isCurrent
+                    ? '#252538'
+                    : dragOverIndex === index && dragIndex !== null && dragIndex !== index
+                    ? 'rgba(108, 99, 255, 0.15)'
+                    : 'rgba(30, 30, 46, 0.5)',
+                cursor: 'pointer',
+                transition: 'background 0.15s ease, transform 0.2s ease',
+                border: dragOverIndex === index && dragIndex !== null && dragIndex !== index ? '1px dashed rgba(108,99,255,0.5)' : '1px solid transparent',
+                animation: `slideInRight 0.25s ease ${index * 0.03}s both`,
+                overflow: 'hidden',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#c0392b';
+                if (!isCurrent) {
+                  e.currentTarget.style.background = '#3a3a50';
+                }
+                const indicator = e.currentTarget.querySelector<HTMLElement>('.hover-indicator');
+                if (indicator) {
+                  indicator.style.opacity = '1';
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#e74c3c';
+                if (!isCurrent) {
+                  e.currentTarget.style.background = 'rgba(30, 30, 46, 0.5)';
+                }
+                const indicator = e.currentTarget.querySelector<HTMLElement>('.hover-indicator');
+                if (indicator) {
+                  indicator.style.opacity = '0';
+                }
               }}
             >
-              ×
-            </button>
-          </div>
-        ))}
+              <div
+                className="hover-indicator"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: '10%',
+                  bottom: '10%',
+                  width: '3px',
+                  borderRadius: '0 2px 2px 0',
+                  background: isCurrent ? '#6c63ff' : '#a8a5ff',
+                  opacity: isCurrent ? 1 : 0,
+                  transition: 'opacity 0.2s ease',
+                }}
+              />
+              <span
+                style={{
+                  width: '28px',
+                  fontSize: '12px',
+                  color: isCurrent ? '#6c63ff' : '#555',
+                  fontWeight: isCurrent ? 700 : 600,
+                  flexShrink: 0,
+                  textAlign: 'center',
+                }}
+              >
+                {index + 1}
+              </span>
+              <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: isCurrent ? 600 : 500,
+                    color: isCurrent ? '#ffffff' : '#e0e0e0',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {track.title}
+                </div>
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: isCurrent ? '#a0a0b0' : '#888',
+                    marginTop: '2px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {track.artist}
+                </div>
+              </div>
+              {isCurrent && (
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  style={{ marginRight: '8px', flexShrink: 0, filter: 'drop-shadow(0 0 4px rgba(108, 99, 255, 0.6))' }}
+                >
+                  <polygon
+                    points="3,2 14,8 3,14"
+                    fill="#6c63ff"
+                    style={{
+                      animation: 'blink 1.2s ease-in-out infinite',
+                    }}
+                  />
+                </svg>
+              )}
+              {!isCurrent && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#6c63ff',
+                    margin: '0 8px',
+                    flexShrink: 0,
+                  }}
+                >
+                  {formatDuration(track.duration)}
+                </span>
+              )}
+              {isCurrent && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#6c63ff',
+                    margin: '0 8px',
+                    flexShrink: 0,
+                    fontWeight: 600,
+                  }}
+                >
+                  {formatDuration(track.duration)}
+                </span>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteTarget(track.id);
+                }}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  background: '#e74c3c',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '13px',
+                  lineHeight: '24px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.2s ease',
+                  padding: 0,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#c0392b';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#e74c3c';
+                }}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {deleteTarget && (
