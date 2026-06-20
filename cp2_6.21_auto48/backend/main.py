@@ -1,8 +1,9 @@
 from datetime import datetime, timezone, timedelta
 from typing import List
 
-from fastapi import FastAPI, Depends, HTTPException, WebSocket
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 import socketio
@@ -21,6 +22,10 @@ from schemas import (
 
 def utcnow():
     return datetime.now(timezone.utc)
+
+
+def to_json(model):
+    return model.model_dump(mode="json", by_alias=True)
 
 
 sio = socketio.AsyncServer(cors_allowed_origins="*", async_mode="asgi")
@@ -70,26 +75,26 @@ async def leave_room(sid, room_id):
 
 @sio.event
 async def co_create(sid, data):
-    room_id = data.get("board_room_id")
+    room_id = data.get("boardRoomId") or data.get("board_room_id")
     if room_id:
         await sio.emit("co_create", data, room=room_id, skip_sid=sid)
 
 
 @sio.event
 async def co_vote(sid, data):
-    room_id = data.get("board_room_id")
+    room_id = data.get("boardRoomId") or data.get("board_room_id")
     if room_id:
         await sio.emit("co_vote", data, room=room_id, skip_sid=sid)
 
 
 @sio.event
 async def co_delete(sid, data):
-    room_id = data.get("board_room_id")
+    room_id = data.get("boardRoomId") or data.get("board_room_id")
     if room_id:
         await sio.emit("co_delete", data, room=room_id, skip_sid=sid)
 
 
-@app.get("/api/board-rooms", response_model=List[BoardRoomResponse])
+@app.get("/api/board-rooms")
 async def get_board_rooms(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(BoardRoom, func.count(Creative.id).label("creative_count"))
@@ -102,11 +107,11 @@ async def get_board_rooms(db: AsyncSession = Depends(get_db)):
     for room, count in rows:
         room_data = BoardRoomResponse.model_validate(room)
         room_data.creative_count = count
-        response.append(room_data)
-    return response
+        response.append(to_json(room_data))
+    return JSONResponse(response)
 
 
-@app.post("/api/board-rooms", response_model=BoardRoomResponse)
+@app.post("/api/board-rooms")
 async def create_board_room(
     data: BoardRoomCreate, db: AsyncSession = Depends(get_db)
 ):
@@ -123,10 +128,11 @@ async def create_board_room(
     db.add(room)
     await db.commit()
     await db.refresh(room)
-    return BoardRoomResponse.model_validate(room)
+    resp = BoardRoomResponse.model_validate(room)
+    return JSONResponse(to_json(resp))
 
 
-@app.get("/api/board-rooms/{room_id}", response_model=BoardRoomDetailResponse)
+@app.get("/api/board-rooms/{room_id}")
 async def get_board_room(room_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(BoardRoom).where(BoardRoom.id == room_id)
@@ -142,18 +148,17 @@ async def get_board_room(room_id: str, db: AsyncSession = Depends(get_db)):
     )
     creatives = result_creatives.scalars().all()
 
-    return BoardRoomDetailResponse(
+    detail = BoardRoomDetailResponse(
         id=room.id,
         name=room.name,
         description=room.description,
         created_at=room.created_at,
         creatives=[CreativeResponse.model_validate(c) for c in creatives],
     )
+    return JSONResponse(to_json(detail))
 
 
-@app.post(
-    "/api/board-rooms/{room_id}/creatives", response_model=CreativeResponse
-)
+@app.post("/api/board-rooms/{room_id}/creatives")
 async def create_creative(
     room_id: str, data: CreativeCreate, db: AsyncSession = Depends(get_db)
 ):
@@ -178,24 +183,20 @@ async def create_creative(
     await db.refresh(creative)
 
     resp = CreativeResponse.model_validate(creative)
-    emit_data = resp.model_dump(mode="json")
-    emit_data["board_room_id"] = room_id
+    emit_data = to_json(resp)
     await sio.emit("co_create", emit_data, room=room_id)
 
-    return resp
+    return JSONResponse(emit_data)
 
 
-@app.post(
-    "/api/board-rooms/{room_id}/creatives/{creative_id}/vote",
-    response_model=CreativeResponse,
-)
+@app.post("/api/board-rooms/{room_id}/creatives/{creative_id}/vote")
 async def vote_creative(
     room_id: str,
     creative_id: str,
     payload: dict,
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = payload.get("userId")
+    user_id = payload.get("userId") or payload.get("user_id")
     if not user_id:
         raise HTTPException(status_code=400, detail="缺少userId")
 
@@ -209,19 +210,19 @@ async def vote_creative(
         raise HTTPException(status_code=404, detail="创意不存在")
 
     if user_id in creative.voters:
-        raise HTTPException(status_code=400, detail="您已经投过票了")
-
-    creative.voters = creative.voters + [user_id]
-    creative.votes = creative.votes + 1
+        creative.voters = [v for v in creative.voters if v != user_id]
+        creative.votes = creative.votes - 1
+    else:
+        creative.voters = creative.voters + [user_id]
+        creative.votes = creative.votes + 1
     await db.commit()
     await db.refresh(creative)
 
     resp = CreativeResponse.model_validate(creative)
-    emit_data = resp.model_dump(mode="json")
-    emit_data["board_room_id"] = room_id
+    emit_data = to_json(resp)
     await sio.emit("co_vote", emit_data, room=room_id)
 
-    return resp
+    return JSONResponse(emit_data)
 
 
 @app.delete("/api/board-rooms/{room_id}/creatives/{creative_id}")
@@ -231,7 +232,7 @@ async def delete_creative(
     payload: dict,
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = payload.get("userId")
+    user_id = payload.get("userId") or payload.get("user_id")
     if not user_id:
         raise HTTPException(status_code=400, detail="缺少userId")
 
@@ -254,7 +255,7 @@ async def delete_creative(
     await db.delete(creative)
     await db.commit()
 
-    emit_data = {"id": creative_id, "board_room_id": room_id}
+    emit_data = {"creativeId": creative_id, "boardRoomId": room_id}
     await sio.emit("co_delete", emit_data, room=room_id)
 
     return {"success": True, "id": creative_id}

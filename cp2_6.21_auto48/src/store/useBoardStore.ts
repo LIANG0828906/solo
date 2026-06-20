@@ -58,12 +58,14 @@ const useBoardStore = create<BoardStore>((set, get) => ({
     const creative = state.boardRoom.creatives.find((c) => c.id === creativeId);
     if (!creative) return null;
 
-    if (creative.voters.includes(userId)) return null;
-
     const prevVotes = creative.votes;
     const prevVoters = [...creative.voters];
-    const newVoters = [...creative.voters, userId];
-    const newVotes = creative.votes + 1;
+
+    const hasVoted = creative.voters.includes(userId);
+    const newVoters = hasVoted
+      ? creative.voters.filter((v) => v !== userId)
+      : [...creative.voters, userId];
+    const newVotes = hasVoted ? creative.votes - 1 : creative.votes + 1;
 
     set({
       boardRoom: {

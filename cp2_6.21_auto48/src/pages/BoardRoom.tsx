@@ -157,8 +157,6 @@ const BoardRoom = () => {
   const handleVote = async (creative: ICreative) => {
     if (!id) return;
 
-    if (creative.voters.includes(CURRENT_USER_ID)) return;
-
     const prevState = optimisticVote(creative.id, CURRENT_USER_ID);
     if (!prevState) return;
 
@@ -187,7 +185,7 @@ const BoardRoom = () => {
     if (diffMin >= 10) return;
 
     try {
-      await deleteCreative(id, creative.id);
+      await deleteCreative(id, creative.id, CURRENT_USER_ID);
       emitCreativeDeleted({
         boardRoomId: id,
         creativeId: creative.id,
@@ -412,25 +410,25 @@ const BoardRoom = () => {
           100% { transform: scale(1); }
         }
         .masonry-board {
-          column-count: 3;
+          column-count: 1;
           column-gap: 16px;
           width: 100%;
         }
-        @media (max-width: 1024px) {
+        @media (min-width: 768px) {
           .masonry-board {
             column-count: 2;
           }
         }
-        @media (max-width: 640px) {
+        @media (min-width: 1024px) {
           .masonry-board {
-            column-count: 1;
+            column-count: 3;
           }
         }
         .masonry-board .creative-card-wrapper {
           break-inside: avoid;
           margin-bottom: 16px;
           display: inline-block;
-          width: 280px;
+          width: 100%;
         }
       `}</style>
 

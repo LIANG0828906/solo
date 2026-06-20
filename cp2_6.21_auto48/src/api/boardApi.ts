@@ -6,20 +6,20 @@ const api = axios.create({
 });
 
 export const getBoardRooms = async (): Promise<IBoardRoom[]> => {
-  const response = await api.get<IBoardRoom[]>('/boardrooms');
+  const response = await api.get<IBoardRoom[]>('/board-rooms');
   return response.data;
 };
 
 export const createBoardRoom = async (data: {
   name: string;
-  description: string;
+  description?: string;
 }): Promise<IBoardRoom> => {
-  const response = await api.post<IBoardRoom>('/boardrooms', data);
+  const response = await api.post<IBoardRoom>('/board-rooms', data);
   return response.data;
 };
 
 export const getBoardRoom = async (id: string): Promise<IBoardRoom> => {
-  const response = await api.get<IBoardRoom>(`/boardrooms/${id}`);
+  const response = await api.get<IBoardRoom>(`/board-rooms/${id}`);
   return response.data;
 };
 
@@ -33,7 +33,7 @@ export const addCreative = async (
   }
 ): Promise<ICreative> => {
   const response = await api.post<ICreative>(
-    `/boardrooms/${boardRoomId}/creatives`,
+    `/board-rooms/${boardRoomId}/creatives`,
     data
   );
   return response.data;
@@ -45,7 +45,7 @@ export const voteCreative = async (
   userId: string
 ): Promise<ICreative> => {
   const response = await api.post<ICreative>(
-    `/boardrooms/${boardRoomId}/creatives/${creativeId}/vote`,
+    `/board-rooms/${boardRoomId}/creatives/${creativeId}/vote`,
     { userId }
   );
   return response.data;
@@ -53,7 +53,10 @@ export const voteCreative = async (
 
 export const deleteCreative = async (
   boardRoomId: string,
-  creativeId: string
+  creativeId: string,
+  userId: string
 ): Promise<void> => {
-  await api.delete(`/boardrooms/${boardRoomId}/creatives/${creativeId}`);
+  await api.delete(`/board-rooms/${boardRoomId}/creatives/${creativeId}`, {
+    data: { userId },
+  });
 };

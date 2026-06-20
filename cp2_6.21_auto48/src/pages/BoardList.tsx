@@ -330,7 +330,7 @@ const BoardList = () => {
                 <div style={cardMetaStyle}>
                   <span>{formatDate(room.createdAt)}</span>
                   <span style={badgeStyle}>
-                    💡 {room.creatives?.length || 0} 个创意
+                    💡 {room.creativeCount ?? room.creatives?.length ?? 0} 个创意
                   </span>
                 </div>
               </div>

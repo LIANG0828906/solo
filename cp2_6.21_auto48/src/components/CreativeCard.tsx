@@ -32,13 +32,20 @@ const formatRelativeTime = (date: Date | string): string => {
   return `${year}-${month}-${day} ${hours}:${minutes}`;
 };
 
-const canDelete = (creative: ICreative, currentUserId: string): boolean => {
-  if (creative.createdBy !== currentUserId) return false;
+const isCreator = (creative: ICreative, currentUserId: string): boolean => {
+  return creative.createdBy === currentUserId;
+};
+
+const isWithinTimeLimit = (creative: ICreative): boolean => {
   const now = new Date();
   const createdAt = new Date(creative.createdAt);
   const diffMs = now.getTime() - createdAt.getTime();
   const diffMin = diffMs / (1000 * 60);
   return diffMin < 10;
+};
+
+const canDelete = (creative: ICreative, currentUserId: string): boolean => {
+  return isCreator(creative, currentUserId) && isWithinTimeLimit(creative);
 };
 
 const CreativeCard = ({
@@ -49,11 +56,11 @@ const CreativeCard = ({
   hasVoted,
 }: CreativeCardProps) => {
   const [hovered, setHovered] = useState(false);
-  const showDelete = canDelete(creative, currentUserId);
+  const deletable = canDelete(creative, currentUserId);
   const typeColor = TYPE_COLORS[creative.type as keyof typeof TYPE_COLORS] || '#999';
 
   const handleDeleteClick = () => {
-    if (!canDelete(creative, currentUserId)) return;
+    if (!deletable) return;
     if (window.confirm('确定要删除这条创意吗？此操作不可撤销。')) {
       onDelete();
     }
@@ -133,26 +140,26 @@ const CreativeCard = ({
     fontSize: '11px',
   };
 
-  const deleteButtonStyle: React.CSSProperties = {
+  const getDeleteButtonStyle = (disabled: boolean): React.CSSProperties => ({
     position: 'absolute',
     top: '6px',
     right: '8px',
     width: '24px',
     height: '24px',
     border: 'none',
-    background: 'rgba(0,0,0,0.05)',
+    background: disabled ? 'rgba(0,0,0,0.03)' : 'rgba(0,0,0,0.05)',
     borderRadius: '50%',
-    cursor: 'pointer',
+    cursor: disabled ? 'not-allowed' : 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#999',
+    color: disabled ? '#ccc' : '#999',
     fontSize: '14px',
     lineHeight: 1,
-    opacity: hovered ? 1 : 0,
+    opacity: disabled ? (hovered ? 0.5 : 0) : (hovered ? 1 : 0),
     transition: 'all 0.2s',
     zIndex: 3,
-  };
+  });
 
   return (
     <div
@@ -162,23 +169,26 @@ const CreativeCard = ({
     >
       <span style={typeTagStyle}>{creative.type}</span>
 
-      {showDelete && (
-        <button
-          onClick={handleDeleteClick}
-          style={deleteButtonStyle}
-          onMouseEnter={(e) => {
+      <button
+        onClick={handleDeleteClick}
+        disabled={!deletable}
+        style={getDeleteButtonStyle(!deletable)}
+        onMouseEnter={(e) => {
+          if (!e.currentTarget.disabled) {
             e.currentTarget.style.background = 'rgba(233, 30, 99, 0.1)';
             e.currentTarget.style.color = '#e91e63';
-          }}
-          onMouseLeave={(e) => {
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!e.currentTarget.disabled) {
             e.currentTarget.style.background = 'rgba(0,0,0,0.05)';
             e.currentTarget.style.color = '#999';
-          }}
-          title="删除创意"
-        >
-          ×
-        </button>
-      )}
+          }
+        }}
+        title={deletable ? '删除创意' : '仅创建者可在10分钟内删除'}
+      >
+        ×
+      </button>
 
       <div style={contentAreaStyle}>
         <div style={contentStyle}>{creative.content}</div>
