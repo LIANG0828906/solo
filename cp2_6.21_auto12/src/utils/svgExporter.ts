@@ -41,10 +41,28 @@ export function autoViewBox(layers: Layer[]): string {
 
   for (const layer of layers) {
     const b = getLayerBounds(layer);
+    if (!isFinite(b.x) || !isFinite(b.y) || !isFinite(b.w) || !isFinite(b.h)) {
+      continue;
+    }
+    if (b.w <= 0 || b.h <= 0) {
+      const s = (layer.scale / 100) * 100;
+      const cx = layer.x;
+      const cy = layer.y;
+      minX = Math.min(minX, cx - s / 2);
+      minY = Math.min(minY, cy - s / 2);
+      maxX = Math.max(maxX, cx + s / 2);
+      maxY = Math.max(maxY, cy + s / 2);
+      continue;
+    }
     if (b.x < minX) minX = b.x;
     if (b.y < minY) minY = b.y;
     if (b.x + b.w > maxX) maxX = b.x + b.w;
     if (b.y + b.h > maxY) maxY = b.y + b.h;
+  }
+
+  if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY) || maxX <= minX || maxY <= minY) {
+    console.warn('[svgExporter] autoViewBox: invalid bounds, fallback to default');
+    return '0 0 800 600';
   }
 
   const pad = 10;
@@ -54,6 +72,10 @@ export function autoViewBox(layers: Layer[]): string {
   maxY = Math.ceil(maxY + pad);
   const w = maxX - minX;
   const h = maxY - minY;
+
+  if (w <= 0 || h <= 0) {
+    return '0 0 800 600';
+  }
 
   return `${minX} ${minY} ${w} ${h}`;
 }

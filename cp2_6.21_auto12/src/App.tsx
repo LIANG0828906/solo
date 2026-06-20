@@ -40,6 +40,38 @@ export default function App() {
   const draggingRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const prevLayersRef = useRef<Map<string, Layer>>(new Map());
   const lastMovePosRef = useRef<{ x: number; y: number } | null>(null);
+  const benchmarkRunningRef = useRef(false);
+
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'p' && !benchmarkRunningRef.current && canvasRef.current) {
+        benchmarkRunningRef.current = true;
+        console.log('%c=== 性能基准测试开始 ===', 'color:#6496ff;font-weight:bold;font-size:14px');
+        const result = await CanvasRenderer.runPerformanceBenchmark(canvasRef.current, layers, palette);
+        console.log('%c=== 性能基准测试结果 ===', 'color:#6496ff;font-weight:bold;font-size:14px');
+        console.log(`图层数量: ${layers.length}`);
+        console.log(`平均FPS: ${result.fps.toFixed(1)} (要求≥30: ${result.meets30fps ? '✅' : '❌'})`);
+        console.log(`平均渲染时间: ${result.avgRenderMs.toFixed(2)}ms`);
+        console.log(`最大渲染时间: ${result.maxRenderMs.toFixed(2)}ms (要求≤60: ${result.meets60ms ? '✅' : '❌'})`);
+        console.log(`30fps帧预算: 33.33ms/帧`);
+        console.log(`60ms响应预算: ${result.maxRenderMs <= 60 ? '满足' : '不满足'}`);
+        benchmarkRunningRef.current = false;
+        alert(
+          `性能测试结果:\\n` +
+          `图层数: ${layers.length}\\n` +
+          `平均FPS: ${result.fps.toFixed(1)} (${result.meets30fps ? '✅≥30' : '❌<30'})\\n` +
+          `平均渲染: ${result.avgRenderMs.toFixed(2)}ms\\n` +
+          `最大渲染: ${result.maxRenderMs.toFixed(2)}ms (${result.meets60ms ? '✅≤60' : '❌>60'})`
+        );
+      }
+      if (e.key.toLowerCase() === 'o' && canvasRef.current) {
+        console.log('%c=== 当前渲染统计 ===', 'color:#6496ff;font-weight:bold');
+        console.log(CanvasRenderer.getPerfStats());
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [layers, palette]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -213,12 +245,21 @@ export default function App() {
           flex: 1,
           background: '#2a2a2a',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           padding: '24px',
           minHeight: 'calc(100vh - 56px)',
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
+          gap: '16px'
         }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>
+            <span>💡 按 <kbd style={{background:'rgba(255,255,255,0.15)', padding:'2px 6px', borderRadius:'3px'}}>P</kbd> 运行性能测试</span>
+            <span>|</span>
+            <span>按 <kbd style={{background:'rgba(255,255,255,0.15)', padding:'2px 6px', borderRadius:'3px'}}>O</kbd> 查看实时统计</span>
+            <span>|</span>
+            <span>点击色块可编辑颜色</span>
+          </div>
           <canvas
             ref={canvasRef}
             width={800}

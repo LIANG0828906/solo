@@ -36,6 +36,81 @@ let pendingRender: {
 } | null = null;
 let rafId: number | null = null;
 
+const perfStats = {
+  frameTimes: [] as number[],
+  lastFrameTime: 0,
+  fps: 0,
+  avgRenderTime: 0,
+  maxRenderTime: 0,
+  minRenderTime: Infinity,
+  totalFrames: 0,
+  dirtyFrames: 0,
+  fullFrames: 0
+};
+
+export function getPerfStats() {
+  return { ...perfStats };
+}
+
+export function resetPerfStats() {
+  perfStats.frameTimes = [];
+  perfStats.fps = 0;
+  perfStats.avgRenderTime = 0;
+  perfStats.maxRenderTime = 0;
+  perfStats.minRenderTime = Infinity;
+  perfStats.totalFrames = 0;
+  perfStats.dirtyFrames = 0;
+  perfStats.fullFrames = 0;
+}
+
+export async function runPerformanceBenchmark(
+  canvas: HTMLCanvasElement,
+  layers: Layer[],
+  palette: string[]
+): Promise<{ fps: number; avgRenderMs: number; maxRenderMs: number; meets30fps: boolean; meets60ms: boolean }> {
+  resetPerfStats();
+  const ITERATIONS = 60;
+  const frameDurations: number[] = [];
+  const renderTimes: number[] = [];
+
+  for (let i = 0; i < ITERATIONS; i++) {
+    const testLayers = layers.map((l, idx) => ({
+      ...l,
+      x: l.x + Math.sin(i * 0.1 + idx) * 10,
+      y: l.y + Math.cos(i * 0.1 + idx) * 10
+    }));
+
+    const start = performance.now();
+    renderImmediate(canvas, testLayers, palette, null);
+    const renderTime = performance.now() - start;
+    renderTimes.push(renderTime);
+
+    if (i > 0) {
+      frameDurations.push(start - perfStats.lastFrameTime);
+    }
+    perfStats.lastFrameTime = start;
+
+    await new Promise(r => requestAnimationFrame(() => r(0)));
+  }
+
+  const avgRender = renderTimes.reduce((a, b) => a + b, 0) / renderTimes.length;
+  const maxRender = Math.max(...renderTimes);
+  const avgFrameDur = frameDurations.reduce((a, b) => a + b, 0) / frameDurations.length;
+  const fps = 1000 / avgFrameDur;
+
+  perfStats.avgRenderTime = avgRender;
+  perfStats.maxRenderTime = maxRender;
+  perfStats.fps = fps;
+
+  return {
+    fps,
+    avgRenderMs: avgRender,
+    maxRenderMs: maxRender,
+    meets30fps: fps >= 30,
+    meets60ms: maxRender <= 60
+  };
+}
+
 export function markDirty(region: { x: number; y: number; w: number; h: number }): void {
   if (!dirtyRegion) {
     dirtyRegion = { ...region };
@@ -85,6 +160,13 @@ function renderDirty(ctx: CanvasRenderingContext2D, region: { x: number; y: numb
   }
 }
 
+function hasComplexBlendMode(layers: Layer[]): boolean {
+  for (let i = 0; i < layers.length; i++) {
+    if (layers[i].blendMode !== 'normal') return true;
+  }
+  return false;
+}
+
 function performRender(): void {
   if (!pendingRender) return;
   const { canvas, layers, palette, selectedId } = pendingRender;
@@ -92,16 +174,45 @@ function performRender(): void {
   const { width, height } = canvas;
   const perfStart = performance.now();
 
-  if (dirtyRegion) {
-    renderDirty(ctx, dirtyRegion);
+  const useDirty = dirtyRegion && !hasComplexBlendMode(layers);
+
+  if (useDirty) {
+    const dr = dirtyRegion!;
+    const x = Math.max(0, Math.floor(dr.x - 2));
+    const y = Math.max(0, Math.floor(dr.y - 2));
+    const w = Math.min(width - x, Math.ceil(dr.w + 4));
+    const h = Math.min(height - y, Math.ceil(dr.h + 4));
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+
+    ctx.clearRect(x, y, w, h);
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#333333';
+    const startGX = Math.floor(x / GRID_SIZE) * GRID_SIZE;
+    const startGY = Math.floor(y / GRID_SIZE) * GRID_SIZE;
+    const endX = x + w;
+    const endY = y + h;
+    for (let gy = startGY; gy < endY; gy += GRID_SIZE) {
+      for (let gx = startGX; gx < endX; gx += GRID_SIZE) {
+        if (((gx / GRID_SIZE) + (gy / GRID_SIZE)) % 2 === 0) {
+          ctx.fillRect(gx, gy, GRID_SIZE, GRID_SIZE);
+        }
+      }
+    }
+
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i];
       const b = getLayerBounds(layer);
-      const dr = dirtyRegion;
       if (b.x + b.w >= dr.x && b.x <= dr.x + dr.w && b.y + b.h >= dr.y && b.y <= dr.y + dr.h) {
         drawShape(ctx, layer, palette, layer.id === selectedId);
       }
     }
+
+    ctx.restore();
   } else {
     renderFull(ctx, width, height);
     for (let i = 0; i < layers.length; i++) {
@@ -114,8 +225,24 @@ function performRender(): void {
   rafId = null;
 
   const elapsed = performance.now() - perfStart;
+  perfStats.totalFrames++;
+  if (useDirty) perfStats.dirtyFrames++; else perfStats.fullFrames++;
+  perfStats.avgRenderTime = (perfStats.avgRenderTime * (perfStats.totalFrames - 1) + elapsed) / perfStats.totalFrames;
+  perfStats.maxRenderTime = Math.max(perfStats.maxRenderTime, elapsed);
+  perfStats.minRenderTime = Math.min(perfStats.minRenderTime, elapsed);
+
+  const now = performance.now();
+  if (perfStats.lastFrameTime > 0) {
+    const frameTime = now - perfStats.lastFrameTime;
+    perfStats.frameTimes.push(frameTime);
+    if (perfStats.frameTimes.length > 60) perfStats.frameTimes.shift();
+    const avgFt = perfStats.frameTimes.reduce((a, b) => a + b, 0) / perfStats.frameTimes.length;
+    perfStats.fps = 1000 / avgFt;
+  }
+  perfStats.lastFrameTime = now;
+
   if (elapsed > 60) {
-    console.warn(`Canvas render exceeded 60ms: ${elapsed.toFixed(2)}ms`);
+    console.warn(`[CanvasRenderer] Render exceeded 60ms: ${elapsed.toFixed(2)}ms, dirty: ${useDirty}, fps: ${perfStats.fps.toFixed(1)}`);
   }
 }
 

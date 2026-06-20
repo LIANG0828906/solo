@@ -2,9 +2,9 @@
 // SwatchPalette.tsx - 全局调色板组件
 // 调用关系:
 //   数据流向: useStore(palette, activeColor) → 渲染色块网格
-//   用户交互: 点击色块 → setActiveColor(color)
-//   用户交互: +/-按钮 → addSwatch(color) / removeSwatch(index)
-//   用户交互: Shift+点击/右键 → updateSwatchColor(index, newColor)
+//   用户交互: 点击色块 → setActiveColor(color) + openColorPicker(index) 修改颜色
+//   用户交互: +/-按钮 → addSwatch(#FFFFFF) / removeSwatch(lastIndex)
+//   用户交互: 右键 → updateSwatchColor(index, newColor)
 //   副作用: 调色板颜色变化 → 所有colorIndex指向该色的图层自动更新
 // ============================================================
 import { useRef } from 'react';
@@ -36,12 +36,9 @@ export default function SwatchPalette() {
   };
 
   const handleSwatchClick = (index: number, e: React.MouseEvent) => {
-    if (e.shiftKey || e.type === 'contextmenu') {
-      e.preventDefault();
-      openColorPicker(index);
-    } else {
-      setActiveColor(palette[index]);
-    }
+    e.preventDefault();
+    openColorPicker(index);
+    setActiveColor(palette[index]);
   };
 
   const handleSwatchContextMenu = (index: number, e: React.MouseEvent) => {

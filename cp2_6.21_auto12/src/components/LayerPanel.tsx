@@ -187,23 +187,31 @@ const LayerPanel: React.FC = () => {
     setDraggedId(id);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(index));
+
+    const transparent = document.createElement('canvas');
+    transparent.width = 1;
+    transparent.height = 1;
+    e.dataTransfer.setDragImage(transparent, 0, 0);
+
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const clone = document.createElement('div');
     clone.innerHTML = (e.currentTarget as HTMLElement).innerHTML;
     clone.style.position = 'fixed';
-    clone.style.top = `${rect.top}px`;
-    clone.style.left = `${rect.left}px`;
+    clone.style.top = `${e.clientY - rect.height / 2}px`;
+    clone.style.left = `${e.clientX - rect.width / 2}px`;
     clone.style.width = `${rect.width}px`;
     clone.style.height = `${rect.height}px`;
-    clone.style.backgroundColor = 'rgba(30,30,46,0.85)';
-    clone.style.border = '1px solid rgba(100,150,255,0.5)';
-    clone.style.borderRadius = '4px';
+    clone.style.backgroundColor = 'rgba(30,30,46,0.75)';
+    clone.style.border = '2px solid rgba(100,150,255,0.8)';
+    clone.style.borderRadius = '6px';
     clone.style.pointerEvents = 'none';
-    clone.style.zIndex = '9999';
-    clone.style.opacity = '0.9';
-    clone.style.transform = 'translate(8px, 8px)';
+    clone.style.zIndex = '99999';
+    clone.style.opacity = '0.85';
+    clone.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
+    clone.style.backdropFilter = 'blur(4px)';
     document.body.appendChild(clone);
     dragCloneRef.current = clone;
+
     const moveHandler = (ev: MouseEvent) => {
       if (dragCloneRef.current) {
         dragCloneRef.current.style.top = `${ev.clientY - rect.height / 2}px`;
@@ -227,13 +235,13 @@ const LayerPanel: React.FC = () => {
       if (dragCloneRef.current) {
         const el = dragCloneRef.current;
         const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        el.style.transition = 'all 0.2s ease-out';
+        el.style.transition = 'all 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
         el.style.top = `${targetRect.top}px`;
         el.style.left = `${targetRect.left}px`;
-        el.style.transform = 'translate(0, 0)';
+        el.style.opacity = '0.3';
         setTimeout(() => {
           reorderLayer(fromIndex, targetIndex);
-        }, 180);
+        }, 200);
       } else {
         reorderLayer(fromIndex, targetIndex);
       }
