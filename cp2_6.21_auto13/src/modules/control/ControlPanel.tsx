@@ -108,15 +108,18 @@ export default function ControlPanel() {
       display: 'flex',
       alignItems: 'stretch',
     }}>
-      <div style={{
-        width: panelOpen ? 280 : 0,
-        overflow: 'hidden',
-        transition: 'width 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-        background: 'rgba(10,10,30,0.7)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        borderRight: '1px solid rgba(100,140,255,0.2)',
-      }}>
+      <div
+        className="panel-wrapper"
+        style={{
+          width: panelOpen ? 280 : 0,
+          overflow: 'hidden',
+          background: 'rgba(10,10,30,0.7)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderRight: panelOpen ? '1px solid rgba(100,140,255,0.2)' : '0px solid rgba(100,140,255,0)',
+          transition: 'width 0.3s ease-out, border-right-width 0.3s ease-out',
+        }}
+      >
         <div style={{ width: 280, height: '100%', overflowY: 'auto', padding: '20px 16px', boxSizing: 'border-box' }}>
           <h2 style={{
             fontFamily: "'Noto Sans SC', sans-serif",
@@ -130,19 +133,19 @@ export default function ControlPanel() {
           </h2>
 
           <div
+            className={`upload-zone${dragOver ? ' dragging' : ''}`}
             onDrop={onDrop}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}
             onClick={() => fileInputRef.current?.click()}
             style={{
-              border: dragOver ? '2px dashed rgba(100,180,255,0.8)' : '2px dashed rgba(100,140,255,0.3)',
+              border: dragOver ? '2px dashed rgba(100,200,255,0.7)' : '2px dashed rgba(100,140,255,0.3)',
               borderRadius: 8,
               padding: '20px 12px',
               textAlign: 'center',
               cursor: 'pointer',
               marginBottom: 20,
-              transition: 'all 0.2s ease',
-              background: dragOver ? 'rgba(100,140,255,0.08)' : 'rgba(255,255,255,0.02)',
+              background: dragOver ? 'rgba(100,180,255,0.12)' : 'rgba(255,255,255,0.02)',
             }}
           >
             <Upload size={20} color="rgba(100,160,255,0.7)" style={{ marginBottom: 8 }} />
@@ -191,6 +194,7 @@ export default function ControlPanel() {
               {COLOR_MAPS.map((cm) => (
                 <button
                   key={cm.value}
+                  className="colormap-btn"
                   onClick={() => setParam('colorMap', cm.value)}
                   style={{
                     padding: '4px 10px',
@@ -198,10 +202,9 @@ export default function ControlPanel() {
                     fontFamily: "'Noto Sans SC', sans-serif",
                     border: colorMap === cm.value ? '1px solid rgba(100,180,255,0.8)' : '1px solid rgba(100,140,255,0.2)',
                     borderRadius: 4,
-                    background: colorMap === cm.value ? 'rgba(100,140,255,0.15)' : 'rgba(255,255,255,0.03)',
+                    background: colorMap === cm.value ? 'rgba(100,140,255,0.18)' : 'rgba(255,255,255,0.03)',
                     color: colorMap === cm.value ? '#a0c4ff' : 'rgba(160,180,255,0.6)',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
                   }}
                 >
                   {cm.label}
@@ -287,6 +290,7 @@ export default function ControlPanel() {
 
           <div style={{ display: 'flex', gap: 8 }}>
             <button
+              className="action-btn"
               onClick={isRunning ? pause : start}
               style={{
                 flex: 1,
@@ -301,7 +305,6 @@ export default function ControlPanel() {
                   : 'rgba(60,120,220,0.2)',
                 color: isRunning ? '#80b0ff' : '#a0c8ff',
                 cursor: 'pointer',
-                transition: 'all 0.25s ease',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -312,6 +315,7 @@ export default function ControlPanel() {
               {isRunning ? '暂停' : '开始'}
             </button>
             <button
+              className="action-btn"
               onClick={reset}
               style={{
                 flex: 1,
@@ -324,7 +328,6 @@ export default function ControlPanel() {
                 background: 'rgba(255,255,255,0.03)',
                 color: 'rgba(160,180,255,0.7)',
                 cursor: 'pointer',
-                transition: 'all 0.25s ease',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -339,6 +342,7 @@ export default function ControlPanel() {
       </div>
 
       <button
+        className="collapse-btn"
         onClick={togglePanel}
         style={{
           alignSelf: 'center',
@@ -354,7 +358,6 @@ export default function ControlPanel() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'all 0.2s ease',
         }}
       >
         {panelOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}

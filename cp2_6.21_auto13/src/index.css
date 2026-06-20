@@ -22,54 +22,304 @@ canvas {
   display: block;
 }
 
+/* ============ 滑块样式 ============ */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(100, 140, 255, 0.15);
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(100, 140, 255, 0.12);
   outline: none;
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+  border: 1px solid transparent;
+}
+
+input[type="range"]:hover {
+  background: rgba(100, 160, 255, 0.2);
+  border-color: rgba(100, 160, 255, 0.3);
+  box-shadow:
+    0 0 0 2px rgba(80, 140, 255, 0.08),
+    0 0 12px rgba(80, 140, 255, 0.15);
+  transform: scale(1.02);
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: rgba(100, 160, 255, 0.7);
+  background: linear-gradient(135deg, rgba(120, 180, 255, 0.9) 0%, rgba(80, 140, 255, 0.8) 100%);
   cursor: pointer;
-  border: 1px solid rgba(100, 180, 255, 0.4);
-  transition: all 0.2s ease;
+  border: 2px solid rgba(160, 200, 255, 0.5);
+  transition: all 0.25s ease-out;
+  box-shadow: 0 0 4px rgba(80, 140, 255, 0.4);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: rgba(120, 180, 255, 0.9);
-  transform: scale(1.15);
-  box-shadow: 0 0 8px rgba(100, 160, 255, 0.5);
+  background: linear-gradient(135deg, rgba(140, 200, 255, 1) 0%, rgba(100, 160, 255, 0.95) 100%);
+  transform: scale(1.25);
+  box-shadow:
+    0 0 10px rgba(100, 160, 255, 0.7),
+    0 0 20px rgba(80, 140, 255, 0.4);
+  border-color: rgba(180, 220, 255, 0.8);
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: rgba(100, 160, 255, 0.7);
+  background: linear-gradient(135deg, rgba(120, 180, 255, 0.9) 0%, rgba(80, 140, 255, 0.8) 100%);
   cursor: pointer;
-  border: 1px solid rgba(100, 180, 255, 0.4);
+  border: 2px solid rgba(160, 200, 255, 0.5);
+  transition: all 0.25s ease-out;
+  box-shadow: 0 0 4px rgba(80, 140, 255, 0.4);
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  background: linear-gradient(135deg, rgba(140, 200, 255, 1) 0%, rgba(100, 160, 255, 0.95) 100%);
+  transform: scale(1.25);
+  box-shadow:
+    0 0 10px rgba(100, 160, 255, 0.7),
+    0 0 20px rgba(80, 140, 255, 0.4);
+}
+
+/* ============ 通用按钮悬停 ============ */
+button {
+  position: relative;
+  overflow: hidden;
+}
+
+button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(120, 180, 255, 0.25),
+    transparent
+  );
+  transition: left 0.4s ease-out;
+  pointer-events: none;
 }
 
 button:hover {
-  filter: brightness(1.2);
+  filter: brightness(1.25);
   transform: scale(1.02);
+  box-shadow:
+    0 0 0 1px rgba(100, 160, 255, 0.35),
+    0 0 12px rgba(80, 140, 255, 0.25),
+    0 0 24px rgba(60, 120, 220, 0.12);
 }
 
+button:hover::before {
+  left: 100%;
+}
+
+button:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* ============ 文件上传区悬停 ============ */
+.upload-zone {
+  position: relative;
+  transition: all 0.3s ease-out;
+}
+
+.upload-zone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(135deg, rgba(100, 160, 255, 0) 0%, rgba(100, 160, 255, 0) 100%);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  transition: all 0.3s ease-out;
+}
+
+.upload-zone:hover {
+  transform: scale(1.02);
+  background: rgba(80, 140, 255, 0.08) !important;
+  border-color: rgba(100, 180, 255, 0.5) !important;
+  box-shadow:
+    0 0 16px rgba(80, 140, 255, 0.2),
+    0 0 32px rgba(60, 120, 220, 0.08);
+}
+
+.upload-zone:hover::after {
+  background: linear-gradient(135deg, rgba(100, 160, 255, 0.4) 0%, rgba(180, 120, 255, 0.3) 100%);
+}
+
+.upload-zone.dragging {
+  transform: scale(1.03);
+  background: rgba(100, 180, 255, 0.12) !important;
+  border-color: rgba(100, 200, 255, 0.7) !important;
+  box-shadow:
+    0 0 20px rgba(100, 180, 255, 0.3),
+    0 0 40px rgba(80, 160, 255, 0.15);
+}
+
+/* ============ 颜色映射按钮 ============ */
+.colormap-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease-out;
+}
+
+.colormap-btn::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+  box-shadow: 0 0 8px rgba(100, 160, 255, 0.4);
+}
+
+.colormap-btn:hover {
+  transform: scale(1.06);
+  border-color: rgba(120, 180, 255, 0.55) !important;
+  background: rgba(80, 140, 255, 0.12) !important;
+  box-shadow:
+    0 0 0 1px rgba(100, 160, 255, 0.3),
+    0 0 10px rgba(80, 140, 255, 0.25);
+}
+
+.colormap-btn:hover::after {
+  opacity: 1;
+}
+
+/* ============ 开始/暂停/重启按钮 ============ */
+.action-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-out;
+}
+
+.action-btn::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  background: linear-gradient(135deg, rgba(100, 160, 255, 0.15), rgba(160, 120, 255, 0.1));
+  filter: blur(8px);
+  z-index: -1;
+}
+
+.action-btn:hover {
+  transform: scale(1.02);
+  border-color: rgba(120, 180, 255, 0.6) !important;
+  box-shadow:
+    0 0 0 1px rgba(100, 160, 255, 0.4),
+    0 0 14px rgba(80, 140, 255, 0.3),
+    0 0 28px rgba(100, 120, 255, 0.15);
+}
+
+.action-btn:hover::after {
+  opacity: 1;
+}
+
+/* ============ 折叠按钮 ============ */
+.collapse-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease-out;
+}
+
+.collapse-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(100, 160, 255, 0.2),
+    transparent
+  );
+  transform: translateX(-100%);
+  transition: transform 0.4s ease-out;
+}
+
+.collapse-btn:hover {
+  transform: scale(1.08);
+  border-color: rgba(120, 180, 255, 0.5) !important;
+  background: rgba(30, 30, 60, 0.8) !important;
+  color: rgba(180, 210, 255, 0.95) !important;
+  box-shadow:
+    0 0 0 1px rgba(100, 160, 255, 0.3),
+    0 0 10px rgba(80, 140, 255, 0.25);
+}
+
+.collapse-btn:hover::before {
+  transform: translateX(100%);
+}
+
+/* ============ 导出工具栏按钮 ============ */
+.export-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease-out;
+}
+
+.export-btn::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+  background: radial-gradient(
+    circle at center,
+    rgba(100, 160, 255, 0.25) 0%,
+    transparent 70%
+  );
+}
+
+.export-btn:hover {
+  transform: scale(1.08);
+  border-color: rgba(120, 180, 255, 0.55) !important;
+  background: rgba(40, 40, 80, 0.6) !important;
+  color: rgba(200, 220, 255, 0.95) !important;
+  box-shadow:
+    0 0 0 1px rgba(100, 160, 255, 0.35),
+    0 0 12px rgba(80, 140, 255, 0.3),
+    0 0 24px rgba(60, 120, 220, 0.15);
+}
+
+.export-btn:hover::after {
+  opacity: 1;
+}
+
+/* ============ 控制面板折叠过渡 ============ */
+.panel-wrapper {
+  transition: width 0.3s ease-out !important;
+}
+
+/* ============ 闪光动画（截图） ============ */
 @keyframes flashEffect {
   0% {
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(1);
     opacity: 0.9;
   }
   100% {
-    transform: scale(60);
+    transform: translate(-50%, -50%) scale(60);
     opacity: 0;
   }
 }
@@ -83,6 +333,7 @@ button:hover {
   }
 }
 
+/* ============ 滚动条 ============ */
 ::-webkit-scrollbar {
   width: 4px;
 }

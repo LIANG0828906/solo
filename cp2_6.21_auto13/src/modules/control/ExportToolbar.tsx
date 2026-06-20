@@ -22,10 +22,12 @@ export default function ExportToolbar() {
   const recorderRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const handleScreenshot = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    setFlashPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
-    setFlash(true)
-    setTimeout(() => setFlash(false), 400)
+    setFlashPos({ x: e.clientX, y: e.clientY })
+    setFlash(false)
+    requestAnimationFrame(() => {
+      setFlash(true)
+      setTimeout(() => setFlash(false), 400)
+    })
     triggerScreenshot()
   }, [triggerScreenshot])
 
@@ -104,13 +106,14 @@ export default function ExportToolbar() {
           top: flashPos.y,
           width: 10,
           height: 10,
+          marginLeft: -5,
+          marginTop: -5,
           borderRadius: '50%',
-          background: 'rgba(255,255,255,0.8)',
-          transform: 'scale(40)',
-          opacity: 0,
+          background: 'rgba(255,255,255,0.85)',
           pointerEvents: 'none',
           zIndex: 9999,
           animation: 'flashEffect 0.4s ease-out forwards',
+          boxShadow: '0 0 10px rgba(255,255,255,0.6), 0 0 20px rgba(180,200,255,0.4)',
         }} />
       )}
       <div style={{
@@ -130,6 +133,7 @@ export default function ExportToolbar() {
         border: '1px solid rgba(100,140,255,0.15)',
       }}>
         <button
+          className="export-btn"
           onClick={handleScreenshot}
           title="截图导出"
           style={{
@@ -143,12 +147,12 @@ export default function ExportToolbar() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'all 0.25s ease',
           }}
         >
           <Camera size={18} />
         </button>
         <button
+          className="export-btn"
           onClick={toggleRecording}
           title={isRecording ? '停止录制' : '录制GIF'}
           style={{
@@ -162,7 +166,6 @@ export default function ExportToolbar() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'all 0.25s ease',
             position: 'relative',
           }}
         >
