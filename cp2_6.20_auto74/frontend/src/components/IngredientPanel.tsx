@@ -222,29 +222,27 @@ const IngredientPanel: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '12px',
+          gap: '16px',
           overflowY: 'auto',
           flex: 1,
-          paddingRight: '4px',
+          paddingRight: '6px',
+          alignContent: 'start',
         }}
       >
         {ingredients.map((ingredient, index) => {
           const isExpiring = expiringIds.has(ingredient.id);
           const daysLeft = getDaysRemaining(ingredient.expireDate);
+          const animationDelay = `${index * 0.06}s`;
 
           return (
             <div
               key={ingredient.id}
-              className={`ingredient-card card ${isExpiring ? 'expiring-soon' : ''}`}
+              className={`ingredient-card card ${isExpiring ? 'expiring-soon' : 'ingredient-fade-in'}`}
               style={{
                 backgroundColor: '#e8f5e9',
-                padding: '14px',
-                borderRadius: '12px',
-                border: isExpiring ? '2px solid #ef4444' : '2px solid transparent',
-                animation: isExpiring
-                  ? 'pulse-border 1.5s ease-in-out infinite'
-                  : `fadeIn 0.4s ease-out ${index * 0.05}s both`,
-                willChange: 'transform, opacity, border-color, box-shadow',
+                padding: '16px',
+                borderRadius: '14px',
+                animationDelay,
                 position: 'relative',
               }}
             >
@@ -284,8 +282,9 @@ const IngredientPanel: React.FC = () => {
                   fontSize: '15px',
                   fontWeight: 600,
                   color: '#2e7d32',
-                  marginBottom: '8px',
+                  marginBottom: '10px',
                   paddingRight: '16px',
+                  lineHeight: 1.3,
                 }}
               >
                 {ingredient.name}
@@ -294,21 +293,34 @@ const IngredientPanel: React.FC = () => {
                 style={{
                   fontSize: '13px',
                   color: '#558b2f',
-                  marginBottom: '6px',
+                  marginBottom: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
-                剩余: {ingredient.quantity}{ingredient.unit}
+                <span style={{ fontWeight: 500 }}>剩余:</span>
+                <span style={{ fontWeight: 600 }}>{ingredient.quantity}{ingredient.unit}</span>
               </div>
               <div
                 style={{
                   fontSize: '12px',
-                  color: isExpiring ? '#ef4444' : '#666',
+                  color: isExpiring ? '#b91c1c' : '#6b7280',
                   fontWeight: isExpiring ? 600 : 400,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px',
+                  lineHeight: 1.5,
                 }}
               >
-                {isExpiring
-                  ? `还剩 ${daysLeft} 天过期`
-                  : `过期: ${ingredient.expireDate.slice(5)}`}
+                <div>
+                  📅 过期: {ingredient.expireDate.slice(5)}
+                </div>
+                {isExpiring && (
+                  <div style={{ color: '#dc2626' }}>
+                    ⚠ 还剩 {daysLeft <= 0 ? '今日' : `${daysLeft} 天`}
+                  </div>
+                )}
               </div>
             </div>
           );
