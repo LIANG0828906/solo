@@ -1,0 +1,78 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background-color: #fdf6e3;
+  color: #3e2723;
+  line-height: 1.6;
+  background-image: 
+    linear-gradient(1px 1px 0 #e0d6c8, transparent 0),
+    linear-gradient(-1px -1px 0 #e0d6c8, transparent 0);
+  background-size: 50px 50px;
+  background-position: 0 0;
+  background-blend-mode: overlay;
+  opacity: 1;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(224, 214, 200, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(224, 214, 200, 0.3) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  outline: none;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f5f0e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8d6e63;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6d4c41;
+}
