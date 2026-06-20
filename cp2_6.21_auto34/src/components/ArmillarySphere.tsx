@@ -1,6 +1,6 @@
 import { useRef, useMemo, useState } from 'react';
-import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, Stars } from '@react-three/drei';
+import { Canvas, useFrame, ThreeEvent, useThree } from '@react-three/fiber';
+import { OrbitControls, Stars, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore } from '../store/appStore';
 import { constellations } from '../data/constellations';
@@ -21,13 +21,60 @@ const ringDescs = [
   '内规：最内环，象征北极圈附近恒显圈。',
 ];
 
-function Ring({ radius, isEclipsing, onClick, ringIndex, rotationX, rotationZ }: {
+function RingTickMarks({ radius, tickCount = 36 }: { radius: number; tickCount?: number }) {
+  const tickGeometry = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.005, 0);
+    shape.lineTo(0.005, 0);
+    shape.lineTo(0.005, 0.08);
+    shape.lineTo(-0.005, 0.08);
+    shape.closePath();
+    return new THREE.ExtrudeGeometry(shape, { depth: 0.01, bevelEnabled: false });
+  }, []);
+
+  const ticks = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < tickCount; i++) {
+      const angle = (i / tickCount) * Math.PI * 2;
+      const isMajor = i % 6 === 0;
+      result.push({
+        angle,
+        isMajor,
+        scale: isMajor ? 1.5 : 1,
+      });
+    }
+    return result;
+  }, [tickCount]);
+
+  return (
+    <group>
+      {ticks.map((tick, i) => (
+        <mesh
+          key={i}
+          geometry={tickGeometry}
+          position={[
+            Math.cos(tick.angle) * radius,
+            Math.sin(tick.angle) * radius,
+            0,
+          ]}
+          rotation={[0, 0, tick.angle + Math.PI / 2]}
+          scale={[1, tick.scale, 1]}
+        >
+          <meshBasicMaterial color="#d4af37" transparent opacity={0.6} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function Ring({ radius, isEclipsing, onClick, ringIndex, rotationX, rotationZ, showTicks }: {
   radius: number;
   isEclipsing: boolean;
   onClick: () => void;
   ringIndex: number;
   rotationX: number;
   rotationZ: number;
+  showTicks?: boolean;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.MeshStandardMaterial>(null);
@@ -64,33 +111,35 @@ function Ring({ radius, isEclipsing, onClick, ringIndex, rotationX, rotationZ }:
   };
 
   return (
-    <mesh
-      ref={meshRef}
-      onClick={handleClick}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        setHovered(true);
-        document.body.style.cursor = 'pointer';
-      }}
-      onPointerOut={() => {
-        setHovered(false);
-        document.body.style.cursor = 'default';
-      }}
-      geometry={ringGeometry}
-      rotation={[rotationX, 0, rotationZ]}
-      castShadow={true}
-      receiveShadow={true}
-    >
-      <meshStandardMaterial
-        ref={materialRef}
-        color={BRASS_COLOR}
-        metalness={0.85}
-        roughness={0.22}
-        emissive={BRASS_COLOR}
-        emissiveIntensity={0.6}
-        envMapIntensity={1.2}
-      />
-    </mesh>
+    <group rotation={[rotationX, 0, rotationZ]}>
+      <mesh
+        ref={meshRef}
+        onClick={handleClick}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setHovered(true);
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={() => {
+          setHovered(false);
+          document.body.style.cursor = 'default';
+        }}
+        geometry={ringGeometry}
+        castShadow={true}
+        receiveShadow={true}
+      >
+        <meshStandardMaterial
+          ref={materialRef}
+          color={BRASS_COLOR}
+          metalness={0.85}
+          roughness={0.22}
+          emissive={BRASS_COLOR}
+          emissiveIntensity={0.6}
+          envMapIntensity={1.2}
+        />
+      </mesh>
+      {showTicks && <RingTickMarks radius={radius} tickCount={36} />}
+    </group>
   );
 }
 
@@ -209,6 +258,44 @@ function ConstellationPoints({ isEclipsing, opacity, onPointClick }: {
   );
 }
 
+function AngleDisplay() {
+  const { camera } = useThree();
+  const [azimuth, setAzimuth] = useState(0);
+  const [elevation, setElevation] = useState(0);
+
+  useFrame(() => {
+    const spherical = new THREE.Spherical();
+    spherical.setFromVector3(camera.position);
+    const azi = THREE.MathUtils.radToDeg(spherical.theta);
+    const ele = THREE.MathUtils.radToDeg(spherical.phi);
+    setAzimuth(((azi % 360) + 360) % 360);
+    setElevation(90 - ele);
+  });
+
+  return (
+    <Html position={[-2.3, -1.8, 0]} style={{ pointerEvents: 'none' }}>
+      <div
+        style={{
+          fontFamily: "'KaiTi', 'STKaiti', serif",
+          color: '#d4af37',
+          fontSize: '12px',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          padding: '6px 12px',
+          borderRadius: '6px',
+          border: '1px solid rgba(212, 175, 55, 0.3)',
+          backdropFilter: 'blur(4px)',
+          whiteSpace: 'nowrap',
+          letterSpacing: '1px',
+          textShadow: '0 0 4px rgba(212, 175, 55, 0.5)',
+        }}
+      >
+        <div>方位角: {azimuth.toFixed(1)}°</div>
+        <div style={{ marginTop: '2px' }}>仰角: {elevation.toFixed(1)}°</div>
+      </div>
+    </Html>
+  );
+}
+
 function ArmillaryContent() {
   const { isEclipsing, openPanel } = useAppStore();
 
@@ -231,6 +318,7 @@ function ArmillaryContent() {
         index: i,
         rotationX: rotations[i]?.x || 0,
         rotationZ: rotations[i]?.z || 0,
+        showTicks: i === 0,
       });
     }
     return result;
@@ -256,6 +344,7 @@ function ArmillaryContent() {
           ringIndex={ring.index}
           rotationX={ring.rotationX}
           rotationZ={ring.rotationZ}
+          showTicks={ring.showTicks}
           onClick={() => handleRingClick(ring.index)}
         />
       ))}
@@ -264,6 +353,7 @@ function ArmillaryContent() {
         opacity={1}
         onPointClick={openPanel}
       />
+      <AngleDisplay />
     </group>
   );
 }

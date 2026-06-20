@@ -14,11 +14,6 @@ function AppContent() {
   useEffect(() => {
     const pathMode = location.pathname === '/astrodisk' ? 'astrodisk' : 'armillary';
     setMode(pathMode);
-    if (pathMode === 'armillary' && mix < 0.9) {
-      setMix(1);
-    } else if (pathMode === 'astrodisk' && mix > 0.1) {
-      setMix(0);
-    }
   }, [location.pathname]);
 
   const isMixed = mix > 0 && mix < 1;
@@ -30,7 +25,6 @@ function AppContent() {
 
   const handleNavClick = (targetMode: 'armillary' | 'astrodisk') => {
     setMode(targetMode);
-    setMix(targetMode === 'armillary' ? 1 : 0);
   };
 
   return (

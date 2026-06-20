@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import { zodiacSigns } from '../data/zodiacSigns';
 import { PanelData } from '../types';
@@ -10,9 +10,16 @@ export function AstroDisk() {
   const pulsePhaseRef = useRef(0);
   const fadeRef = useRef(1);
   const fadeDirectionRef = useRef(1);
+  const fadeInRef = useRef(0);
+  const [mounted, setMounted] = useState(false);
   const { mix, isEclipsing, openPanel } = useAppStore();
 
   const opacity = 1 - mix;
+
+  useEffect(() => {
+    setMounted(true);
+    fadeInRef.current = 0;
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -41,6 +48,11 @@ export function AstroDisk() {
       const centerY = height / 2;
       const radius = Math.min(width, height) * 0.4;
 
+      if (fadeInRef.current < 1) {
+        fadeInRef.current += 0.015;
+        if (fadeInRef.current > 1) fadeInRef.current = 1;
+      }
+
       ctx.clearRect(0, 0, width, height);
 
       const gradient = ctx.createRadialGradient(
@@ -59,20 +71,44 @@ export function AstroDisk() {
       ctx.translate(centerX, centerY);
       ctx.rotate(rotationRef.current);
 
-      ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 * fadeRef.current})`;
-      ctx.lineWidth = 1;
+      const ringRadii = [radius * 0.9, radius * 0.6, radius * 0.3];
+      const ringLabels = ['地平圈', '赤道圈', '内圈'];
 
-      ctx.beginPath();
-      ctx.arc(0, 0, radius * 0.9, 0, Math.PI * 2);
-      ctx.stroke();
+      ringRadii.forEach((r, idx) => {
+        const glowIntensity = 0.3 * fadeRef.current * fadeInRef.current;
 
-      ctx.beginPath();
-      ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2);
-      ctx.stroke();
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+        ctx.shadowBlur = 8;
 
-      ctx.beginPath();
-      ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2);
-      ctx.stroke();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${glowIntensity})`;
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.15 * fadeRef.current * fadeInRef.current})`;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+
+      for (let i = 0; i < 12; i++) {
+        const angle = (i * 30 * Math.PI) / 180;
+        const innerR = radius * 0.92;
+        const outerR = radius * 0.88;
+
+        ctx.strokeStyle = `rgba(212, 175, 55, ${0.4 * fadeRef.current * fadeInRef.current})`;
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * innerR, Math.sin(angle) * innerR);
+        ctx.lineTo(Math.cos(angle) * outerR, Math.sin(angle) * outerR);
+        ctx.stroke();
+      }
 
       zodiacSigns.forEach((sign) => {
         const angle = (sign.angle * Math.PI) / 180;
@@ -83,7 +119,11 @@ export function AstroDisk() {
         ctx.translate(x, y);
         ctx.rotate(angle + Math.PI / 2);
 
-        const letterOpacity = opacity * fadeRef.current;
+        const letterOpacity = opacity * fadeRef.current * fadeInRef.current;
+
+        ctx.shadowColor = sign.color;
+        ctx.shadowBlur = 6;
+
         ctx.fillStyle = sign.color;
         ctx.globalAlpha = letterOpacity;
         ctx.font = 'bold 24px serif';
@@ -91,6 +131,7 @@ export function AstroDisk() {
         ctx.textBaseline = 'middle';
         ctx.fillText(sign.letter, 0, 0);
 
+        ctx.shadowBlur = 0;
         ctx.restore();
       });
 
@@ -101,20 +142,20 @@ export function AstroDisk() {
 
       const northStarGradient = ctx.createRadialGradient(
         centerX, centerY, 0,
-        centerX, centerY, northStarSize * 2
+        centerX, centerY, northStarSize * 3
       );
-      northStarGradient.addColorStop(0, '#d4af37');
-      northStarGradient.addColorStop(0.5, '#b8860b');
+      northStarGradient.addColorStop(0, `rgba(212, 175, 55, ${0.9 * fadeInRef.current})`);
+      northStarGradient.addColorStop(0.3, `rgba(184, 134, 11, ${0.5 * fadeInRef.current})`);
       northStarGradient.addColorStop(1, 'transparent');
 
       ctx.beginPath();
-      ctx.arc(centerX, centerY, northStarSize * 2, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, northStarSize * 3, 0, Math.PI * 2);
       ctx.fillStyle = northStarGradient;
       ctx.fill();
 
       ctx.beginPath();
-      ctx.arc(centerX, centerY, northStarSize * 0.6, 0, Math.PI * 2);
-      ctx.fillStyle = '#fffacd';
+      ctx.arc(centerX, centerY, northStarSize * 0.8, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 250, 205, ${fadeInRef.current})`;
       ctx.fill();
 
       if (isEclipsing) {
@@ -143,7 +184,7 @@ export function AstroDisk() {
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(animationRef.current);
     };
-  }, [isEclipsing, opacity]);
+  }, [isEclipsing, opacity, mounted]);
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
