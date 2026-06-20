@@ -80,13 +80,13 @@
 .fragment-card {
   position: relative;
   cursor: pointer;
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 12px;
 }
 
 .fragment-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 0 20px var(--element-color);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px var(--element-color);
 }
 
 .fragment-card-inner {
@@ -296,6 +296,93 @@
   border-radius: 12px;
   font-size: 12px;
   color: #c9a34a;
+}
+
+.rune-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rune-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--rune-color, rgba(201, 163, 74, 0.3));
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.rune-preview-card:hover {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: var(--rune-color);
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.3), 0 0 10px var(--rune-color);
+  transform: translateX(4px);
+}
+
+.rune-preview-card:active {
+  transform: translateX(2px) scale(0.98);
+}
+
+.rune-preview-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rune-preview-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rune-preview-name {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rune-preview-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rune-element-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.rune-preview-rarity {
+  font-size: 10px;
+  letter-spacing: -2px;
+}
+
+.rune-preview-arrow {
+  color: var(--rune-color, #c9a34a);
+  font-size: 18px;
+  font-weight: bold;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.25s ease;
+}
+
+.rune-preview-card:hover .rune-preview-arrow {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .detail-footer {

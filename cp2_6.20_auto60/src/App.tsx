@@ -38,7 +38,7 @@ const App: React.FC = () => {
       </header>
 
       <main className="app-main">
-        {activeTab === 'collection' && <GemCollection />}
+        {activeTab === 'collection' && <GemCollection onNavigateToForge={() => setActiveTab('forge')} />}
         {activeTab === 'forge' && <ForgeWorkshop />}
         {activeTab === 'battle' && <BattleArena />}
       </main>

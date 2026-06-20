@@ -28,6 +28,8 @@ export const slotNames: Record<SlotType, string> = {
 
 export const rarityStars = (rarity: Rarity): string => '★'.repeat(rarity)
 
+export const raritySolidStars = (rarity: Rarity): string => '⭐'.repeat(rarity)
+
 export const getElementParticleColors = (element: ElementType): { primary: string; secondary: string; glow: string } => {
   const colorMap: Record<ElementType, { primary: string; secondary: string; glow: string }> = {
     fire: { primary: '#ff6347', secondary: '#ff8c00', glow: '#ff4500' },
@@ -72,12 +74,22 @@ export const determineRuneRarity = (fragments: Array<Fragment | null>): Rarity =
   return result as Rarity
 }
 
-const runeNamesByElement: Record<ElementType, string[]> = {
+export const runeNamesByElement: Record<ElementType, string[]> = {
   fire: ['烈焰符文', '炎爆符文', '炽焰符文', '焚天符文', '凤凰符文'],
   water: ['寒冰符文', '潮汐符文', '冰霜符文', '深渊符文', '海潮符文'],
   thunder: ['雷电符文', '闪电符文', '雷霆符文', '神雷符文', '天罚符文'],
   wind: ['疾风符文', '旋风符文', '风暴符文', '苍穹符文', '御风符文'],
   dark: ['暗影符文', '虚空符文', '深渊符文', '噬魂符文', '湮灭符文'],
+}
+
+export const getRuneInfoByName = (name: string): { element: ElementType; rarity: Rarity } | null => {
+  for (const [element, names] of Object.entries(runeNamesByElement)) {
+    const idx = names.indexOf(name)
+    if (idx !== -1) {
+      return { element: element as ElementType, rarity: (idx + 1) as Rarity }
+    }
+  }
+  return null
 }
 
 const slotTypes: SlotType[] = ['weapon', 'offhand', 'helmet', 'chest', 'bracers', 'ring']

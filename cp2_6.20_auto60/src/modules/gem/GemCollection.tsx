@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { FragmentCard } from '../../components/FragmentCard'
 import { FragmentService } from '../../services/FragmentService'
 import { useGameStore } from '../../stores/gameStore'
+import { elementColors, getRuneInfoByName } from '../../utils/gemUtils'
+import { ElementIcon } from '../../components/ElementIcon'
 import type { Fragment, ElementType, Rarity } from '../../types'
 import './GemCollection.css'
 
@@ -23,18 +25,35 @@ const rarities: Array<{ value: Rarity | 0; label: string }> = [
   { value: 5, label: '5星' },
 ]
 
-export const GemCollection: React.FC = () => {
-  const [fragments, setFragments] = useState<Fragment[]>([])
+interface GemCollectionProps {
+  onNavigateToForge?: () => void
+}
+
+const DetailRarityStars: React.FC<{ rarity: Rarity; color: string }> = ({ rarity, color }) => (
+  <span style={{ display: 'inline-flex', gap: '2px', alignItems: 'center' }}>
+    {Array.from({ length: 5 }, (_, i) => (
+      <svg key={i} width="18" height="18" viewBox="0 0 24 24" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+        <path
+          d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.27 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"
+          fill={i < rarity ? color : 'rgba(255,255,255,0.12)'}
+          stroke={i < rarity ? color : 'rgba(255,255,255,0.15)'}
+          strokeWidth="0.5"
+        />
+      </svg>
+    ))}
+  </span>
+)
+
+export const GemCollection: React.FC<GemCollectionProps> = ({ onNavigateToForge }) => {
   const [selectedElement, setSelectedElement] = useState<ElementType | 'all'>('all')
   const [selectedRarity, setSelectedRarity] = useState<Rarity | 0>(0)
   const [showDetail, setShowDetail] = useState(false)
   const [detailFragment, setDetailFragment] = useState<Fragment | null>(null)
-  const { addFragment } = useGameStore()
+  const { addFragment, setForgeSlot } = useGameStore()
 
   useEffect(() => {
     const loadFragments = async () => {
       const data = await FragmentService.getAllFragments()
-      setFragments(data)
       data.forEach((f) => addFragment(f, f.count))
     }
     loadFragments()
@@ -62,6 +81,23 @@ export const GemCollection: React.FC = () => {
     e.dataTransfer.setData('fragment', JSON.stringify(fragment))
     e.dataTransfer.effectAllowed = 'move'
   }
+
+  const handleRunePreviewClick = (fragment: Fragment) => {
+    const storeState = useGameStore.getState()
+    storeState.clearForgeSlots()
+
+    const slotsToFill = Math.min(fragment.count, 3)
+    for (let i = 0; i < slotsToFill; i++) {
+      setForgeSlot(i, { ...fragment, count: 1 })
+    }
+
+    handleCloseDetail()
+    setTimeout(() => {
+      onNavigateToForge?.()
+    }, 100)
+  }
+
+  const elementColor = (element: ElementType): string => elementColors[element]
 
   return (
     <div className="gem-collection">
@@ -120,7 +156,7 @@ export const GemCollection: React.FC = () => {
               ✕
             </button>
             <div className="detail-header">
-              <div className="detail-icon" style={{ background: `radial-gradient(circle, ${detailFragment.element === 'fire' ? '#ff450040' : detailFragment.element === 'water' ? '#00bfff40' : detailFragment.element === 'thunder' ? '#ffd70040' : detailFragment.element === 'wind' ? '#32cd3240' : '#9932cc40'}, transparent)` }}>
+              <div className="detail-icon" style={{ background: `radial-gradient(circle, ${elementColor(detailFragment.element)}40, transparent)` }}>
                 <span style={{ fontSize: '48px' }}>
                   {detailFragment.element === 'fire' ? '🔥' :
                    detailFragment.element === 'water' ? '💧' :
@@ -130,8 +166,8 @@ export const GemCollection: React.FC = () => {
               </div>
               <div>
                 <h3 className="detail-name">{detailFragment.name}</h3>
-                <div className="detail-rarity" style={{ color: detailFragment.element === 'fire' ? '#ff4500' : detailFragment.element === 'water' ? '#00bfff' : detailFragment.element === 'thunder' ? '#ffd700' : detailFragment.element === 'wind' ? '#32cd32' : '#9932cc' }}>
-                  {'★'.repeat(detailFragment.rarity)}
+                <div className="detail-rarity">
+                  <DetailRarityStars rarity={detailFragment.rarity} color={elementColor(detailFragment.element)} />
                 </div>
               </div>
             </div>
@@ -152,11 +188,38 @@ export const GemCollection: React.FC = () => {
             </div>
 
             <div className="detail-section">
-              <h4>可合成符文</h4>
-              <div className="rune-list">
-                {detailFragment.craftableRunes.map((rune, idx) => (
-                  <span key={idx} className="rune-tag">{rune}</span>
-                ))}
+              <h4>关联符文预览</h4>
+              <div className="rune-preview-list">
+                {detailFragment.craftableRunes.map((runeName, idx) => {
+                  const runeInfo = getRuneInfoByName(runeName)
+                  const runeElement = runeInfo?.element || detailFragment.element
+                  const runeRarity = runeInfo?.rarity || 1
+                  const runeColor = elementColor(runeElement)
+                  return (
+                    <div
+                      key={idx}
+                      className="rune-preview-card"
+                      onClick={() => handleRunePreviewClick(detailFragment)}
+                      style={{ '--rune-color': runeColor } as React.CSSProperties}
+                    >
+                      <div className="rune-preview-icon">
+                        <ElementIcon element={runeElement} size={28} />
+                      </div>
+                      <div className="rune-preview-info">
+                        <div className="rune-preview-name">{runeName}</div>
+                        <div className="rune-preview-meta">
+                          <span className="rune-element-tag" style={{ background: `${runeColor}30`, color: runeColor, borderColor: `${runeColor}60` }}>
+                            {runeElement === 'fire' ? '火' : runeElement === 'water' ? '水' : runeElement === 'thunder' ? '雷' : runeElement === 'wind' ? '风' : '暗'}
+                          </span>
+                          <span className="rune-preview-rarity" style={{ color: runeColor }}>
+                            {'⭐'.repeat(runeRarity)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="rune-preview-arrow">→</div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 

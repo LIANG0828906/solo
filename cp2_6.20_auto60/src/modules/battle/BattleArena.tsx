@@ -79,8 +79,7 @@ const DamageNumber: React.FC<{ position: [number, number, number]; value: number
         anchorY="middle"
         outlineWidth={0.04}
         outlineColor="#000"
-        transparent
-        opacity={opacity}
+        fillOpacity={opacity}
       >
         {value > 0 ? `-${value}` : '闪避!'}
       </Text>
