@@ -24,8 +24,11 @@ function Card({ task, isDragging = false, onEdit }: CardProps) {
     transition,
   };
 
-  const blocked = isBlocked(task.id);
+  const assigneeName = task.assignee || '未分配';
   const initialChar = task.assignee ? task.assignee.charAt(0) : '?';
+  const priority = task.priority || 'medium';
+  const estimatedHours = task.estimated_hours != null ? task.estimated_hours : 0;
+  const blocked = isBlocked(task.id);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -38,7 +41,7 @@ function Card({ task, isDragging = false, onEdit }: CardProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`card card-priority-${task.priority} ${isDragging ? 'dragging' : ''}`}
+      className={`card card-priority-${priority} ${isDragging ? 'dragging' : ''}`}
       {...(!isDragging ? { ...attributes, ...listeners } : {})}
       onClick={onEdit}
     >
@@ -64,17 +67,25 @@ function Card({ task, isDragging = false, onEdit }: CardProps) {
       )}
 
       <div className="card-title">{task.title}</div>
-      <div className="card-meta">
-        <div className="card-meta-left">
-          {task.assignee && <div className="avatar">{initialChar}</div>}
-          <span
-            className={`priority-tag priority-${task.priority}`}
-            style={{ background: PRIORITY_COLORS[task.priority] }}
-          >
-            {PRIORITY_LABELS[task.priority]}
-          </span>
+
+      <div className="card-info-row">
+        <div className="card-assignee">
+          <div className="avatar">{initialChar}</div>
+          <span className="card-field-label">负责人:</span>
+          <span className="card-field-value">{assigneeName}</span>
         </div>
-        <span className="card-hours">{task.estimated_hours}h</span>
+      </div>
+
+      <div className="card-info-row card-info-row-bottom">
+        <span
+          className="priority-tag"
+          style={{ background: PRIORITY_COLORS[priority] }}
+        >
+          优先级: {PRIORITY_LABELS[priority]}
+        </span>
+        <span className="card-hours">
+          预估: {estimatedHours}h
+        </span>
       </div>
     </div>
   );

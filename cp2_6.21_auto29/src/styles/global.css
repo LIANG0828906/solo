@@ -213,33 +213,56 @@ textarea {
 
 .card-title {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: #2d3436;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   word-break: break-word;
+  line-height: 1.4;
 }
 
-.card-meta {
+.card-info-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  margin-bottom: 8px;
   font-size: 12px;
   color: #636e72;
 }
 
-.card-meta-left {
+.card-info-row-bottom {
+  margin-bottom: 0;
+  margin-top: 8px;
+  justify-content: space-between;
+}
+
+.card-assignee {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.card-field-label {
+  color: #95a0a6;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.card-field-value {
+  color: #2d3436;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .avatar {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -248,30 +271,21 @@ textarea {
 }
 
 .priority-tag {
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 4px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   color: white;
-}
-
-.priority-high {
-  background: #ff4757;
-}
-
-.priority-medium {
-  background: #ffa502;
-}
-
-.priority-low {
-  background: #2ed573;
+  letter-spacing: 0.2px;
 }
 
 .card-hours {
-  background: #f0f2f5;
-  padding: 2px 8px;
+  background: linear-gradient(135deg, #f0f4ff, #e8edff);
+  color: #5a6fd6;
+  padding: 3px 10px;
   border-radius: 4px;
   font-size: 11px;
+  font-weight: 600;
 }
 
 .card-blocked {

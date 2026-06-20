@@ -15,12 +15,14 @@ function Column({ column, tasks, onAddCard, onEditCard }: ColumnProps) {
     id: column.id,
   });
 
+  const count = Array.isArray(tasks) ? tasks.length : 0;
+
   return (
     <div className="column">
       <div className="column-header">
         <div className="column-title">
           <span>{column.title}</span>
-          <span className="column-count">{tasks.length}</span>
+          <span className="column-count">({count})</span>
         </div>
         <button className="add-card-btn" onClick={onAddCard} title="添加任务">
           +
@@ -40,7 +42,7 @@ function Column({ column, tasks, onAddCard, onEditCard }: ColumnProps) {
             />
           ))}
         </SortableContext>
-        {tasks.length === 0 && (
+        {count === 0 && (
           <div className="empty-state" style={{ padding: '20px 0' }}>
             暂无任务
           </div>
