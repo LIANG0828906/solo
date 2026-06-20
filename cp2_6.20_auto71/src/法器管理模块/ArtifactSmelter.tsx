@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { type ElementType, isSheng, isKe, calculateArtifactFinalStats } from '@/utils/elementEngine'
-import { type BaseArtifact, type SmeltedArtifact, calculateArtifactStats, saveSmeltedArtifact } from '@/utils/api'
+import { type BaseArtifact, type SmeltedArtifact, saveSmeltedArtifact } from '@/utils/api'
 
 const ELEMENT_COLORS: Record<ElementType, string> = {
   metal: '#c0c0c0',
@@ -55,6 +55,7 @@ const DURATION_PARTICLE = 800
 const PARTICLE_COUNT = 20
 const BURST_DURATION = 5000
 const ENERGY_RATE = 50
+const RIPPLE_LINE_COUNT = 5
 
 interface ArtifactSmelterProps {
   artifact: BaseArtifact
@@ -73,13 +74,11 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
 }: ArtifactSmelterProps) {
   const [soulHoles, setSoulHoles] = useState<(ElementType | null)[]>([null, null, null, null, null, null])
   const [draggingElement, setDraggingElement] = useState<ElementType | null>(null)
-  const [particles, setParticles] = useState<ParticleData[]>([])
   const [isRotating, setIsRotating] = useState(false)
   const [finalStats, setFinalStats] = useState<{ attack: number; defense: number; speed: number } | null>(null)
   const [energyDisplay, setEnergyDisplay] = useState(0)
   const [showBurst, setShowBurst] = useState(false)
   const [burstBoost, setBurstBoost] = useState(0)
-  const [particleTick, setParticleTick] = useState(0)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particleAnimRef = useRef<number>(0)
@@ -89,6 +88,8 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
   const containerRef = useRef<HTMLDivElement>(null)
   const holeRefs = useRef<(HTMLDivElement | null)[]>([])
   const elementRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const particleDataRef = useRef<ParticleData[]>([])
+  const particleElementsRef = useRef<Map<number, HTMLDivElement>>(new Map())
 
   const filledCount = soulHoles.filter((h): h is ElementType => h !== null).length
 
@@ -143,18 +144,24 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
         gradient.addColorStop(1, colors[0])
       }
 
-      const opacity = 0.3 + 0.15 * Math.sin(time * 0.002)
-      ctx.globalAlpha = opacity
+      const opacity = 0.45 + 0.15 * Math.sin(time * 0.002)
       ctx.strokeStyle = gradient
       ctx.lineWidth = 2
-      ctx.beginPath()
 
-      for (let x = 0; x < w; x++) {
-        const y = h / 2 + Math.sin(x * 0.05 + time * 0.003) * 10
-        if (x === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
+      for (let line = 0; line < RIPPLE_LINE_COUNT; line++) {
+        const lineOffset = (line / RIPPLE_LINE_COUNT) * Math.PI * 2
+        const yOffset = (line - RIPPLE_LINE_COUNT / 2) * 4
+        const lineOpacity = opacity * (1 - line * 0.12)
+        ctx.globalAlpha = Math.max(0, lineOpacity)
+        ctx.beginPath()
+
+        for (let x = 0; x < w; x++) {
+          const y = h / 2 + yOffset + Math.sin(x * 0.05 + time * 0.003 + lineOffset) * 10
+          if (x === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        }
+        ctx.stroke()
       }
-      ctx.stroke()
       ctx.globalAlpha = 1
 
       rippleAnimRef.current = requestAnimationFrame(draw)
@@ -167,23 +174,105 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
     }
   }, [soulHoles])
 
-  useEffect(() => {
-    if (particles.length === 0) return
+  const updateParticleElements = useCallback(() => {
+    const now = performance.now()
+    const particles = particleDataRef.current
+    const elements = particleElementsRef.current
+    const container = containerRef.current
 
-    const animate = () => {
-      const now = performance.now()
-      const allDone = particles.every((p) => now - p.startTime > p.duration)
-      if (allDone) {
-        setParticles([])
-        return
+    if (!container || particles.length === 0) return
+
+    let allDone = true
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i]
+      const el = elements.get(p.id)
+
+      if (!el) continue
+
+      const elapsed = now - p.startTime
+
+      if (elapsed < 0) {
+        el.style.opacity = '0'
+        allDone = false
+        continue
       }
-      setParticleTick((t) => t + 1)
-      particleAnimRef.current = requestAnimationFrame(animate)
+
+      const t = Math.min(Math.max(elapsed / p.duration, 0), 1)
+      const x = bezierPoint(t, p.startX, p.controlX, p.targetX)
+      const y = bezierPoint(t, p.startY, p.controlY, p.targetY)
+      const opacity = 1 - t
+
+      if (opacity <= 0) {
+        if (el.parentNode) el.parentNode.removeChild(el)
+        elements.delete(p.id)
+        particles.splice(i, 1)
+        continue
+      }
+
+      el.style.left = `${x - 3}px`
+      el.style.top = `${y - 3}px`
+      el.style.opacity = String(opacity)
+      allDone = false
     }
 
-    particleAnimRef.current = requestAnimationFrame(animate)
-    return () => cancelAnimationFrame(particleAnimRef.current)
-  }, [particles.length > 0])
+    if (!allDone) {
+      particleAnimRef.current = requestAnimationFrame(updateParticleElements)
+    } else {
+      particleDataRef.current = []
+    }
+  }, [])
+
+  const createParticles = useCallback((startX: number, startY: number, targetX: number, targetY: number, color: string) => {
+    const container = containerRef.current
+    if (!container) return
+
+    const midX = (startX + targetX) / 2
+    const midY = (startY + targetY) / 2
+    const now = performance.now()
+
+    const newParticles: ParticleData[] = []
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const offsetY = (Math.random() - 0.5) * 100
+      const p: ParticleData = {
+        id: particleIdRef.current++,
+        startX,
+        startY,
+        targetX,
+        targetY,
+        controlX: midX + (Math.random() - 0.5) * 20,
+        controlY: midY + offsetY,
+        color,
+        startTime: now + Math.random() * 100,
+        duration: DURATION_PARTICLE,
+      }
+
+      newParticles.push(p)
+
+      const el = document.createElement('div')
+      el.style.position = 'absolute'
+      el.style.width = '6px'
+      el.style.height = '6px'
+      el.style.borderRadius = '50%'
+      el.style.background = color
+      el.style.opacity = '0'
+      el.style.pointerEvents = 'none'
+      el.style.willChange = 'transform, opacity'
+      el.style.left = `${startX - 3}px`
+      el.style.top = `${startY - 3}px`
+      container.appendChild(el)
+
+      particleElementsRef.current.set(p.id, el)
+    }
+
+    particleDataRef.current.push(...newParticles)
+
+    if (particleAnimRef.current) {
+      cancelAnimationFrame(particleAnimRef.current)
+    }
+    particleAnimRef.current = requestAnimationFrame(updateParticleElements)
+  }, [updateParticleElements])
 
   useEffect(() => {
     if (!showBurst) return
@@ -208,7 +297,7 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
 
     burstAnimRef.current = requestAnimationFrame(animate)
     return () => cancelAnimationFrame(burstAnimRef.current)
-  }, [showBurst])
+  }, [showBurst, soulHoles])
 
   useEffect(() => {
     if (!isRotating) return
@@ -249,31 +338,11 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
       const startX = elementRect.left + elementRect.width / 2 - containerRect.left
       const startY = elementRect.top + elementRect.height / 2 - containerRect.top
 
-      const midX = (startX + targetX) / 2
-      const midY = (startY + targetY) / 2
-
-      const now = performance.now()
-      const newParticles: ParticleData[] = Array.from({ length: PARTICLE_COUNT }, () => {
-        const offsetY = (Math.random() - 0.5) * 100
-        return {
-          id: particleIdRef.current++,
-          startX,
-          startY,
-          targetX,
-          targetY,
-          controlX: midX + (Math.random() - 0.5) * 20,
-          controlY: midY + offsetY,
-          color: ELEMENT_COLORS[element],
-          startTime: now + Math.random() * 100,
-          duration: DURATION_PARTICLE,
-        }
-      })
-
-      setParticles(newParticles)
+      createParticles(startX, startY, targetX, targetY, ELEMENT_COLORS[element])
     }
 
     setDraggingElement(null)
-  }, [])
+  }, [createParticles])
 
   const handleComplete = useCallback(async () => {
     const result = calculateArtifactFinalStats(
@@ -310,9 +379,22 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
         ? `linear-gradient(45deg, ${holographicColors[0]}, ${holographicColors[0]}88)`
         : 'none'
 
-  void particleTick
+  useEffect(() => {
+    const particleAnim = particleAnimRef
+    const particleElements = particleElementsRef
+    const particleData = particleDataRef
 
-  const now = performance.now()
+    return () => {
+      if (particleAnim.current) {
+        cancelAnimationFrame(particleAnim.current)
+      }
+      particleElements.current.forEach((el) => {
+        if (el.parentNode) el.parentNode.removeChild(el)
+      })
+      particleElements.current.clear()
+      particleData.current = []
+    }
+  }, [])
 
   return (
     <div
@@ -329,6 +411,7 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
             zIndex: 50,
             textAlign: 'center',
             animation: 'burstScaleIn 0.5s ease-out forwards',
+            willChange: 'transform, opacity',
           }}
         >
           <div
@@ -340,6 +423,7 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               borderRadius: 8,
+              willChange: 'transform, opacity',
             }}
           >
             共振爆发！
@@ -350,9 +434,13 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
               color: '#ffdf00',
               marginTop: 8,
               fontFamily: 'sans-serif',
+              fontWeight: 700,
+              willChange: 'transform, opacity',
+              animation: 'energyRise 0.8s ease-out forwards',
+              textShadow: '0 0 20px rgba(255, 223, 0, 0.8)',
             }}
           >
-            {energyDisplay}
+            +{energyDisplay}
           </div>
         </div>
       )}
@@ -445,6 +533,7 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
                   inset: 0,
                   borderRadius: 16,
                   pointerEvents: 'none',
+                  willChange: 'opacity',
                 }}
               />
             </div>
@@ -603,34 +692,6 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
         </button>
       </div>
 
-      {particles.map((p) => {
-        const elapsed = now - p.startTime
-        const t = Math.min(Math.max(elapsed / p.duration, 0), 1)
-        const x = bezierPoint(t, p.startX, p.controlX, p.targetX)
-        const y = bezierPoint(t, p.startY, p.controlY, p.targetY)
-        const opacity = 1 - t
-
-        if (opacity <= 0) return null
-
-        return (
-          <div
-            key={p.id}
-            style={{
-              position: 'absolute',
-              left: x - 3,
-              top: y - 3,
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: p.color,
-              opacity,
-              pointerEvents: 'none',
-              willChange: 'transform, opacity',
-            }}
-          />
-        )
-      })}
-
       <style>{`
         @keyframes burstScaleIn {
           0% { transform: translateX(-50%) scale(0); opacity: 0; }
@@ -640,6 +701,11 @@ const ArtifactSmelter = React.memo(function ArtifactSmelter({
         @keyframes holographicPulse {
           0%, 100% { opacity: 0.3; }
           50% { opacity: 0.7; }
+        }
+        @keyframes energyRise {
+          0% { transform: translateY(20px); opacity: 0; }
+          40% { transform: translateY(-5px); opacity: 1; }
+          100% { transform: translateY(0); opacity: 1; }
         }
       `}</style>
     </div>

@@ -14,7 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SHENG_CYCLE = {
+SHENG_MAP = {
     "metal": "water",
     "water": "wood",
     "wood": "fire",
@@ -22,13 +22,34 @@ SHENG_CYCLE = {
     "earth": "metal",
 }
 
-KE_CYCLE = {
+KE_MAP = {
     "metal": "wood",
     "wood": "earth",
     "earth": "water",
     "water": "fire",
     "fire": "metal",
 }
+
+SHENG_CYCLE = SHENG_MAP
+KE_CYCLE = KE_MAP
+
+ELEMENTS = ["metal", "wood", "water", "fire", "earth"]
+
+SHENG_PAIR_SET = set()
+KE_PAIR_SET = set()
+
+for _src in ELEMENTS:
+    SHENG_PAIR_SET.add(f"{_src}->{SHENG_MAP[_src]}")
+    KE_PAIR_SET.add(f"{_src}->{KE_MAP[_src]}")
+
+ELEMENT_RELATION_CACHE = {}
+
+for _from in ELEMENTS:
+    for _to in ELEMENTS:
+        ELEMENT_RELATION_CACHE[(_from, _to)] = {
+            "is_sheng": f"{_from}->{_to}" in SHENG_PAIR_SET,
+            "is_ke": f"{_from}->{_to}" in KE_PAIR_SET,
+        }
 
 ELEMENT_STAT = {
     "metal": "attack",
@@ -38,8 +59,6 @@ ELEMENT_STAT = {
     "earth": "defense",
 }
 
-ELEMENTS = ["metal", "wood", "water", "fire", "earth"]
-
 ELEMENT_NAMES = {
     "metal": "金",
     "wood": "木",
@@ -47,6 +66,31 @@ ELEMENT_NAMES = {
     "fire": "火",
     "earth": "土",
 }
+
+ELEMENT_SYMBOLS = {
+    "metal": "⚙",
+    "wood": "🌱",
+    "water": "🌊",
+    "fire": "🔥",
+    "earth": "⛰",
+}
+
+ELEMENT_COLORS = {
+    "metal": "#c0c0c0",
+    "wood": "#4caf50",
+    "water": "#2196f3",
+    "fire": "#f44336",
+    "earth": "#ff9800",
+}
+
+VEIN_NODE_META = {}
+for _el in ELEMENTS:
+    VEIN_NODE_META[_el] = {
+        "id": _el,
+        "name": f"{ELEMENT_NAMES[_el]}灵脉",
+        "symbol": ELEMENT_SYMBOLS[_el],
+        "color": ELEMENT_COLORS[_el],
+    }
 
 SHENG_BONUS = 0.2
 KE_PENALTY = 0.15
@@ -140,11 +184,17 @@ ACHIEVEMENTS = [
 
 
 def is_sheng(from_el: str, to_el: str) -> bool:
-    return SHENG_CYCLE.get(from_el) == to_el
+    cached = ELEMENT_RELATION_CACHE.get((from_el, to_el))
+    if cached:
+        return cached["is_sheng"]
+    return SHENG_MAP.get(from_el) == to_el
 
 
 def is_ke(from_el: str, to_el: str) -> bool:
-    return KE_CYCLE.get(from_el) == to_el
+    cached = ELEMENT_RELATION_CACHE.get((from_el, to_el))
+    if cached:
+        return cached["is_ke"]
+    return KE_MAP.get(from_el) == to_el
 
 
 class ActivateRequest(BaseModel):
@@ -159,7 +209,19 @@ class ArtifactCalculateRequest(BaseModel):
 
 
 class SmeltSaveRequest(BaseModel):
-    artifact: dict
+    id: str
+    name: str
+    type: str
+    icon: str
+    baseElement: str
+    baseStats: dict
+    smeltedId: str
+    soulHoles: list
+    finalStats: dict
+    mainElement: str
+    bonuses: dict
+    smeltedAt: str
+    resonationBoost: float
 
 
 class AchievementsCheckRequest(BaseModel):
@@ -172,38 +234,48 @@ def vein_activate(req: ActivateRequest):
     global resonation_count
 
     node_id = req.nodeId
-    nodes = {}
+    nodes: dict[str, dict] = {}
+
     for n in req.currentStates:
         if isinstance(n, dict):
             nid = n.get("id", n.get("nodeId", ""))
+            meta = VEIN_NODE_META.get(nid, {})
             nodes[nid] = {
                 "id": nid,
-                "energy": n.get("energy", 50),
-                "highlighted": False,
-                "suppressed": False,
+                "name": n.get("name", meta.get("name", f"{nid}灵脉")),
+                "symbol": n.get("symbol", meta.get("symbol", nid)),
+                "color": n.get("color", meta.get("color", "#888888")),
+                "isActive": n.get("isActive", False),
+                "energy": n.get("energy", 0),
+                "energyBalance": n.get("energyBalance", {
+                    "metal": 0, "wood": 0, "water": 0, "fire": 0, "earth": 0
+                }),
             }
         elif isinstance(n, str):
-            nodes[n] = {"id": n, "energy": 50, "highlighted": False, "suppressed": False}
+            meta = VEIN_NODE_META.get(n, {})
+            nodes[n] = {
+                "id": n,
+                "name": meta.get("name", f"{n}灵脉"),
+                "symbol": meta.get("symbol", n),
+                "color": meta.get("color", "#888888"),
+                "isActive": False,
+                "energy": 0,
+                "energyBalance": {"metal": 0, "wood": 0, "water": 0, "fire": 0, "earth": 0},
+            }
 
     if node_id in nodes:
         nodes[node_id]["energy"] = min(nodes[node_id]["energy"] + 10, 100)
-        nodes[node_id]["highlighted"] = False
-        nodes[node_id]["suppressed"] = False
+        nodes[node_id]["isActive"] = True
 
-    sheng_target = SHENG_CYCLE.get(node_id)
+    sheng_target = SHENG_MAP.get(node_id)
     if sheng_target and sheng_target in nodes:
         nodes[sheng_target]["energy"] = min(nodes[sheng_target]["energy"] + 5, 100)
-        nodes[sheng_target]["highlighted"] = True
-        nodes[sheng_target]["suppressed"] = False
 
-    ke_target = KE_CYCLE.get(node_id)
+    ke_target = KE_MAP.get(node_id)
     if ke_target and ke_target in nodes:
         nodes[ke_target]["energy"] = max(nodes[ke_target]["energy"] - 5, 0)
-        nodes[ke_target]["highlighted"] = False
-        nodes[ke_target]["suppressed"] = True
 
     activation_history.append(node_id)
-    resonation = None
     if len(activation_history) >= 3:
         chain_length = 1
         for i in range(len(activation_history) - 2, -1, -1):
@@ -215,14 +287,10 @@ def vein_activate(req: ActivateRequest):
                 break
         if chain_length >= 3:
             resonation_count += 1
-            resonation = {
-                "chainLength": chain_length,
-                "isBurst": chain_length >= 5,
-                "burstNodes": activation_history[-chain_length:],
-                "boostPercent": chain_length * 10,
-            }
 
-    return {"nodes": list(nodes.values()), "resonation": resonation}
+    result = list(nodes.values())
+    result.sort(key=lambda x: ELEMENTS.index(x["id"]) if x["id"] in ELEMENTS else 99)
+    return result
 
 
 @app.post("/api/artifact/calculate")
@@ -290,9 +358,10 @@ def get_artifact(artifact_id: str):
 @app.post("/api/smelt/save")
 def smelt_save(req: SmeltSaveRequest):
     global smelt_count
-    smelted_collection.append(req.artifact)
+    artifact_dict = req.model_dump()
+    smelted_collection.append(artifact_dict)
     smelt_count += 1
-    return {"success": True, "totalSmelted": smelt_count}
+    return artifact_dict
 
 
 @app.get("/api/collection")

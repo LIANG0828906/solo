@@ -77,7 +77,7 @@ export async function calculateArtifactStats(
   soulHoles: (ElementType | null)[],
   resonationBoost: number,
 ): Promise<{ mainElement: ElementType; finalStats: { attack: number; defense: number; speed: number }; bonuses: Record<string, number> }> {
-  return api.post('/artifact/calculate-stats', { artifactId, soulHoles, resonationBoost })
+  return api.post('/artifact/calculate', { artifactId, soulHoles, resonationBoost })
 }
 
 export async function getArtifacts(): Promise<BaseArtifact[]> {
@@ -89,7 +89,7 @@ export async function getArtifact(id: string): Promise<BaseArtifact> {
 }
 
 export async function saveSmeltedArtifact(artifact: SmeltedArtifact): Promise<SmeltedArtifact> {
-  return api.post('/collection/save', artifact)
+  return api.post('/smelt/save', artifact)
 }
 
 export async function getCollection(): Promise<SmeltedArtifact[]> {
