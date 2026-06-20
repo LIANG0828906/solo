@@ -1,0 +1,69 @@
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(200, 200, 200, 0.3);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.sidebar-user {
+  padding: 32px 24px 24px;
+  text-align: center;
+}
+
+.sidebar-avatar {
+  margin-bottom: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-nickname {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.sidebar-menu {
+  flex: 1;
+  border-right: none !important;
+  background: transparent !important;
+  padding: 0 12px;
+}
+
+.sidebar-menu .ant-menu-item {
+  margin: 4px 0;
+  border-radius: 8px;
+  height: 48px;
+  line-height: 48px;
+  transition: all 0.2s ease;
+}
+
+.sidebar-menu .ant-menu-item:hover {
+  background: rgba(52, 152, 219, 0.1);
+}
+
+.sidebar-menu .ant-menu-item-selected {
+  background: linear-gradient(135deg, #3498db, #2ecc71) !important;
+  color: white !important;
+}
+
+.sidebar-menu .ant-menu-item-selected .anticon {
+  color: white !important;
+}
+
+.sidebar-footer {
+  padding: 20px 24px;
+  text-align: center;
+}
+
+.sidebar-version {
+  font-size: 12px;
+  color: #999;
+}
