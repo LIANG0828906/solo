@@ -13,6 +13,11 @@ export interface PatrolPathState {
   isDrawing: boolean;
 }
 
+export interface PreviewAnimationState {
+  monsterId: string | null;
+  isPlaying: boolean;
+}
+
 export interface EditorState {
   mapData: MapData | null;
   grid: CellValue[][];
@@ -25,6 +30,7 @@ export interface EditorState {
   selectedMonsterId: string | null;
   toolMode: ToolMode;
   patrolPath: PatrolPathState;
+  previewAnim: PreviewAnimationState;
   animationSpeed: number;
   showSuccessToast: boolean;
   canvasOffset: { x: number; y: number };
@@ -52,6 +58,9 @@ export interface EditorState {
   completePatrolPath: () => void;
   cancelPatrolPath: () => void;
 
+  startPreviewAnimation: (monsterId: string) => void;
+  stopPreviewAnimation: (monsterId: string) => void;
+
   exportJSON: () => string;
   setShowSuccessToast: (show: boolean) => void;
   setFadeAnimation: (fade: boolean) => void;
@@ -73,6 +82,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedMonsterId: null,
   toolMode: 'select',
   patrolPath: { monsterId: null, points: [], isDrawing: false },
+  previewAnim: { monsterId: null, isPlaying: false },
   animationSpeed: 1,
   showSuccessToast: false,
   canvasOffset: { x: 0, y: 0 },
@@ -99,6 +109,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       monsters: [],
       selectedMonsterId: null,
       patrolPath: { monsterId: null, points: [], isDrawing: false },
+      previewAnim: { monsterId: null, isPlaying: false },
       fadeAnimation: true,
     });
     setTimeout(() => set({ fadeAnimation: false }), 300);
@@ -106,6 +117,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   addMonsterToGrid: (template, gridX, gridY) => {
     const { grid, monsters } = get();
+    if (grid.length === 0) return;
     if (gridY < 0 || gridY >= grid.length || gridX < 0 || gridX >= grid[0].length) return;
     if (grid[gridY][gridX] !== 0) return;
 
@@ -138,12 +150,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (!monster) return;
 
     const newGrid = grid.map((row) => [...row]);
-    newGrid[monster.gridY][monster.gridX] = 0;
+    if (newGrid[monster.gridY] && newGrid[monster.gridY][monster.gridX] === 2) {
+      newGrid[monster.gridY][monster.gridX] = 0;
+    }
 
     set({
       monsters: monsters.filter((m) => m.id !== id),
       grid: newGrid,
       selectedMonsterId: null,
+      previewAnim: { monsterId: null, isPlaying: false },
     });
   },
 
@@ -165,23 +180,34 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   setCellValue: (x, y, value) => {
-    const { grid } = get();
+    const { grid, monsters } = get();
     if (y < 0 || y >= grid.length || x < 0 || x >= grid[0].length) return;
+
+    const monsterOnCell = monsters.find((m) => m.gridX === x && m.gridY === y);
+    if (monsterOnCell && value !== 2) return;
+
     const newGrid = grid.map((row) => [...row]);
     newGrid[y][x] = value;
     set({ grid: newGrid });
   },
 
   startPatrolPath: (monsterId) => {
+    const monster = get().monsters.find((m) => m.id === monsterId);
+    const initialPoints = monster && monster.patrolPath.length > 0
+      ? [...monster.patrolPath]
+      : [];
     set({
-      patrolPath: { monsterId, points: [], isDrawing: true },
+      patrolPath: { monsterId, points: initialPoints, isDrawing: true },
       toolMode: 'patrol',
+      previewAnim: { monsterId: null, isPlaying: false },
     });
   },
 
   addPatrolPoint: (point) => {
     const { patrolPath } = get();
     if (!patrolPath.isDrawing) return;
+    const exists = patrolPath.points.some((p) => p.x === point.x && p.y === point.y);
+    if (exists) return;
     set({
       patrolPath: {
         ...patrolPath,
@@ -192,7 +218,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   completePatrolPath: () => {
     const { patrolPath, monsters } = get();
-    if (!patrolPath.monsterId || patrolPath.points.length < 3) {
+    if (!patrolPath.monsterId || patrolPath.points.length < 2) {
       set({
         patrolPath: { monsterId: null, points: [], isDrawing: false },
         toolMode: 'select',
@@ -200,9 +226,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       return;
     }
 
+    const finalPath = patrolPath.points;
+
     set({
       monsters: monsters.map((m) =>
-        m.id === patrolPath.monsterId ? { ...m, patrolPath: [...patrolPath.points] } : m
+        m.id === patrolPath.monsterId ? { ...m, patrolPath: [...finalPath] } : m
       ),
       patrolPath: { monsterId: null, points: [], isDrawing: false },
       toolMode: 'select',
@@ -216,10 +244,27 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
+  startPreviewAnimation: (monsterId) => {
+    set({
+      previewAnim: { monsterId, isPlaying: true },
+    });
+  },
+
+  stopPreviewAnimation: () => {
+    set({
+      previewAnim: { monsterId: null, isPlaying: false },
+    });
+  },
+
   exportJSON: () => {
-    const { grid, monsters, theme, rows, cols } = get();
+    const { grid, monsters, theme, rows, cols, cellSize } = get();
     const exportData = {
-      metadata: { theme, rows, cols, cellSize: get().cellSize },
+      metadata: {
+        theme,
+        rows,
+        cols,
+        cellSize,
+      },
       grid: grid.map((row) => row.map((cell) => cell as number)),
       monsters: monsters.map((m) => ({
         id: m.id,
