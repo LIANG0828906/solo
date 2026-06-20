@@ -1,0 +1,138 @@
+{
+  "id": "3092e0e3-05ca-49af-8e85-2962343f3edc",
+  "name": "产品架构示例",
+  "roomCode": "4RE42H",
+  "nodes": [
+    {
+      "id": "n1",
+      "title": "用户界面层",
+      "description": "前端用户交互层，包含Web和移动端",
+      "tags": [
+        "前端",
+        "UI"
+      ],
+      "color": "#4fc3f7",
+      "x": -300,
+      "y": -80,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    },
+    {
+      "id": "n2",
+      "title": "API 网关",
+      "description": "统一入口，负责路由、鉴权、限流",
+      "tags": [
+        "后端",
+        "网关"
+      ],
+      "color": "#ffb74d",
+      "x": 0,
+      "y": -80,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    },
+    {
+      "id": "n3",
+      "title": "业务服务层",
+      "description": "微服务集群，处理核心业务逻辑",
+      "tags": [
+        "后端",
+        "服务"
+      ],
+      "color": "#81c784",
+      "x": 300,
+      "y": -80,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    },
+    {
+      "id": "n4",
+      "title": "数据访问层",
+      "description": "数据库访问、缓存、消息队列",
+      "tags": [
+        "数据",
+        "存储"
+      ],
+      "color": "#ce93d8",
+      "x": 150,
+      "y": 100,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    },
+    {
+      "id": "n5",
+      "title": "前端组件库",
+      "description": "可复用的React/Vue组件集合",
+      "tags": [
+        "前端",
+        "组件"
+      ],
+      "color": "#4fc3f7",
+      "x": -450,
+      "y": 100,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    },
+    {
+      "id": "n6",
+      "title": "状态管理",
+      "description": "Redux/Zustand全局状态管理方案",
+      "tags": [
+        "前端",
+        "状态"
+      ],
+      "color": "#4fc3f7",
+      "x": -150,
+      "y": 100,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "n1",
+      "target": "n2",
+      "type": "dependency",
+      "createdAt": 1781933928969
+    },
+    {
+      "id": "e2",
+      "source": "n2",
+      "target": "n3",
+      "type": "dependency",
+      "createdAt": 1781933928969
+    },
+    {
+      "id": "e3",
+      "source": "n3",
+      "target": "n4",
+      "type": "dependency",
+      "createdAt": 1781933928969
+    },
+    {
+      "id": "e4",
+      "source": "n5",
+      "target": "n1",
+      "type": "derived",
+      "createdAt": 1781933928969
+    },
+    {
+      "id": "e5",
+      "source": "n6",
+      "target": "n1",
+      "type": "related",
+      "createdAt": 1781933928969
+    },
+    {
+      "id": "e6",
+      "source": "n4",
+      "target": "n2",
+      "type": "related",
+      "createdAt": 1781933928969
+    }
+  ],
+  "createdAt": 1781933928969,
+  "updatedAt": 1781934124740,
+  "version": 165
+}

@@ -1,0 +1,132 @@
+{
+  "id": "ae0fefbe-1f42-4c3b-94c8-5abd60408e4a",
+  "name": "前端学习路线",
+  "roomCode": "VPGRD6",
+  "nodes": [
+    {
+      "id": "a1",
+      "title": "HTML/CSS",
+      "description": "网页结构与样式基础",
+      "tags": [
+        "基础"
+      ],
+      "color": "#4fc3f7",
+      "x": -400,
+      "y": -60,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    },
+    {
+      "id": "a2",
+      "title": "JavaScript",
+      "description": "ES6+语法与异步编程",
+      "tags": [
+        "语言"
+      ],
+      "color": "#ffb74d",
+      "x": -100,
+      "y": -60,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    },
+    {
+      "id": "a3",
+      "title": "React 框架",
+      "description": "组件化开发与Hooks",
+      "tags": [
+        "框架"
+      ],
+      "color": "#81c784",
+      "x": 200,
+      "y": -60,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    },
+    {
+      "id": "a4",
+      "title": "TypeScript",
+      "description": "类型安全的JavaScript超集",
+      "tags": [
+        "语言"
+      ],
+      "color": "#ce93d8",
+      "x": -250,
+      "y": 100,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    },
+    {
+      "id": "a5",
+      "title": "工程化",
+      "description": "Vite/Webpack构建与CI/CD",
+      "tags": [
+        "工具"
+      ],
+      "color": "#80cbc4",
+      "x": 50,
+      "y": 100,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    },
+    {
+      "id": "a6",
+      "title": "状态管理",
+      "description": "Zustand/Redux全局状态",
+      "tags": [
+        "框架"
+      ],
+      "color": "#fff176",
+      "x": 350,
+      "y": 100,
+      "createdAt": 1781933928969,
+      "updatedAt": 1781933928969
+    }
+  ],
+  "edges": [
+    {
+      "id": "ea1",
+      "source": "a1",
+      "target": "a2",
+      "type": "derived",
+      "createdAt": 1781933928969
+    },
+    {
+      "id": "ea2",
+      "source": "a2",
+      "target": "a3",
+      "type": "dependency",
+      "createdAt": 1781933928969
+    },
+    {
+      "id": "ea3",
+      "source": "a2",
+      "target": "a4",
+      "type": "derived",
+      "createdAt": 1781933928969
+    },
+    {
+      "id": "ea4",
+      "source": "a4",
+      "target": "a3",
+      "type": "related",
+      "createdAt": 1781933928969
+    },
+    {
+      "id": "ea5",
+      "source": "a3",
+      "target": "a5",
+      "type": "related",
+      "createdAt": 1781933928969
+    },
+    {
+      "id": "ea6",
+      "source": "a3",
+      "target": "a6",
+      "type": "related",
+      "createdAt": 1781933928969
+    }
+  ],
+  "createdAt": 1781933928969,
+  "updatedAt": 1781933928969,
+  "version": 1
+}
