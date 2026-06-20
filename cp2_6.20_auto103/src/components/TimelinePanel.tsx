@@ -318,23 +318,31 @@ const TimelinePanel = () => {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [dragOverPosition, setDragOverPosition] = useState<'before' | 'after' | null>(null);
-  const [listHeight, setListHeight] = useState(400);
+  const [listHeight, setListHeight] = useState<number>(500);
 
   const listRef = useRef<List>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const roRef = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      roRef.current = new ResizeObserver((entries) => {
-        for (const e of entries) {
-          setListHeight(e.contentRect.height);
-        }
-      });
-      roRef.current.observe(scrollRef.current);
-    }
+    const updateHeight = () => {
+      if (scrollRef.current) {
+        const h = scrollRef.current.getBoundingClientRect().height;
+        if (h > 0) setListHeight(Math.max(400, Math.floor(h)));
+      }
+    };
+    updateHeight();
+    roRef.current = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        const h = Math.max(400, Math.floor(e.contentRect.height));
+        setListHeight(h);
+      }
+    });
+    if (scrollRef.current) roRef.current.observe(scrollRef.current);
+    window.addEventListener('resize', updateHeight);
     return () => {
       roRef.current?.disconnect();
+      window.removeEventListener('resize', updateHeight);
     };
   }, []);
 
@@ -466,13 +474,14 @@ const TimelinePanel = () => {
         ) : (
           <List
             ref={listRef}
-            height={listHeight}
+            height={typeof listHeight === 'number' ? listHeight : 500}
             itemCount={memories.length}
             itemSize={96}
             width="100%"
             itemData={itemData}
             style={{ width: '100%', overflowX: 'hidden' }}
             outerElementType="div"
+            layout="vertical"
           >
             {MemoRow}
           </List>

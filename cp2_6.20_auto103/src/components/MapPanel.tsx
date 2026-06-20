@@ -18,6 +18,7 @@ const MapPanel = () => {
   const playIntervalRef = useRef<number | null>(null);
   const glowProgressRef = useRef(0);
   const initializedRef = useRef(false);
+  const unmountedRef = useRef(false);
 
   const memories = useMemoryStore((s) => s.memories);
   const isPlaying = useMemoryStore((s) => s.isPlaying);
@@ -156,6 +157,18 @@ const MapPanel = () => {
     initializedRef.current = true;
 
     setTimeout(() => map.invalidateSize(), 100);
+
+    return () => {
+      unmountedRef.current = true;
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (playIntervalRef.current !== null) {
+        clearInterval(playIntervalRef.current);
+        playIntervalRef.current = null;
+      }
+    };
   }, [togglePlaying]);
 
   useEffect(() => {
@@ -281,7 +294,9 @@ const MapPanel = () => {
       routeRef.current.glows.push(glow);
     }
 
+    let localRaf: number | null = null;
     const animate = () => {
+      if (unmountedRef.current) return;
       glowProgressRef.current = (glowProgressRef.current + 0.004) % 1;
       routeRef.current.glows.forEach((g, i) => {
         const offset = i * 0.2;
@@ -289,11 +304,17 @@ const MapPanel = () => {
         const [lat, lng] = positionOnCurve(curve, p);
         g.setLatLng([lat, lng]);
       });
-      rafRef.current = requestAnimationFrame(animate);
+      localRaf = requestAnimationFrame(animate);
+      rafRef.current = localRaf;
     };
-    rafRef.current = requestAnimationFrame(animate);
+    localRaf = requestAnimationFrame(animate);
+    rafRef.current = localRaf;
 
     return () => {
+      if (localRaf !== null) {
+        cancelAnimationFrame(localRaf);
+        localRaf = null;
+      }
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
