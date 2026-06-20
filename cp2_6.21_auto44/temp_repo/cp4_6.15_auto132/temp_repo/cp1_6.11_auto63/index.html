@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星际逃逸 - Star Escape</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(180deg, #0B0A2E 0%, #000000 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+    }
+
+    #game-wrapper {
+      position: relative;
+      width: 800px;
+      height: 600px;
+    }
+
+    #game-canvas {
+      display: block;
+      background: linear-gradient(180deg, #0B0A2E 0%, #000000 100%);
+      border-radius: 8px;
+      box-shadow: 0 0 40px rgba(100, 100, 255, 0.3);
+    }
+
+    #loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #0B0A2E 0%, #000000 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      transition: opacity 0.5s ease-out;
+    }
+
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-title {
+      color: #ffffff;
+      font-size: 32px;
+      margin-bottom: 40px;
+      text-shadow: 0 0 10px rgba(100, 150, 255, 0.8);
+    }
+
+    .progress-container {
+      width: 300px;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(100, 150, 255, 0.5);
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #4a9eff 0%, #7c3aed 100%);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .loading-text {
+      color: #a0a0a0;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <canvas id="game-canvas" width="800" height="600"></canvas>
+    <div id="loading-overlay">
+      <div class="loading-title">星际逃逸</div>
+      <div class="progress-container">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+      <div class="loading-text" id="loading-text">正在加载资源... 0%</div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

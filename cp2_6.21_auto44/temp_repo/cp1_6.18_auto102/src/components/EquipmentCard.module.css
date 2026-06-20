@@ -1,0 +1,82 @@
+.card {
+  width: 100%;
+  height: 64px;
+  background: #2D4059;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: grab;
+  transition: box-shadow 0.2s ease;
+  margin-bottom: 8px;
+  user-select: none;
+}
+
+.card:hover {
+  box-shadow: 0 0 8px rgba(118, 181, 194, 0.4);
+}
+
+.card:active {
+  cursor: grabbing;
+}
+
+.colorBar {
+  width: 4px;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 12px;
+  min-width: 0;
+}
+
+.name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #E0E1DD;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.weight {
+  font-family: 'Orbitron', monospace;
+  font-size: 13px;
+  color: #76B5C2;
+  font-weight: 700;
+}
+
+.status {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+
+.owned {
+  background: rgba(42, 157, 143, 0.2);
+  color: #2A9D8F;
+}
+
+.pending {
+  background: rgba(244, 162, 97, 0.2);
+  color: #F4A261;
+}

@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>三维空间光照预览器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, #1a1d24 0%, #0f172a 100%);
+      color: #e2e8f0;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+    #app { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+    #scene-canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: block;
+      z-index: 1;
+    }
+
+    /* Compass Ring */
+    #compass-ring {
+      position: absolute;
+      inset: 60px;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0.85;
+      transition: opacity .4s ease;
+    }
+    #compass-ring.faded { opacity: 0.35; }
+    .compass-ring-svg {
+      position: absolute;
+      width: 100%; height: 100%;
+    }
+    .compass-label {
+      position: absolute;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(147, 197, 253, 0.8);
+      letter-spacing: 1.5px;
+      text-shadow: 0 0 8px rgba(96, 165, 250, 0.4);
+    }
+    .compass-n { top: -2px; left: 50%; transform: translateX(-50%); }
+    .compass-s { bottom: -2px; left: 50%; transform: translateX(-50%); }
+    .compass-e { right: -2px; top: 50%; transform: translateY(-50%); }
+    .compass-w { left: -2px; top: 50%; transform: translateY(-50%); }
+
+    /* Glass Bars & Panels */
+    .glass-bar {
+      background: rgba(15, 20, 35, 0.6);
+      backdrop-filter: blur(24px) saturate(150%);
+      -webkit-backdrop-filter: blur(24px) saturate(150%);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                  0 1px 0 rgba(255, 255, 255, 0.04) inset,
+                  0 -1px 0 rgba(0, 0, 0, 0.2) inset;
+    }
+    .glass-panel {
+      background: rgba(15, 20, 35, 0.55);
+      backdrop-filter: blur(28px) saturate(160%);
+      -webkit-backdrop-filter: blur(28px) saturate(160%);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45),
+                  0 1px 0 rgba(255, 255, 255, 0.05) inset,
+                  0 -1px 0 rgba(0, 0, 0, 0.15) inset,
+                  -4px 0 24px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Toolbar */
+    #toolbar {
+      position: absolute;
+      top: 16px; left: 16px; right: 16px;
+      height: 56px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 10;
+    }
+    .toolbar-left, .toolbar-center, .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      display: flex; align-items: center; gap: 10px;
+      color: #93c5fd;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.4px;
+    }
+    .brand-logo svg { color: #60a5fa; filter: drop-shadow(0 0 6px rgba(96,165,250,0.5)); }
+
+    .btn-group { display: flex; gap: 8px; }
+    .tool-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px;
+      border-radius: 12px;
+      background: rgba(51, 65, 85, 0.45);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      color: #cbd5e1;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s cubic-bezier(.4,0,.2,1);
+    }
+    .tool-btn:hover {
+      background: rgba(71, 85, 105, 0.6);
+      border-color: rgba(96, 165, 250, 0.35);
+      color: #fff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(96, 165, 250, 0.18),
+                  inset 0 0 0 1px rgba(96, 165, 250, 0.2);
+    }
+    .tool-btn:active { transform: translateY(0); }
+    .tool-btn.active {
+      background: linear-gradient(135deg, rgba(59,130,246,0.3), rgba(99,102,241,0.3));
+      border-color: rgba(96, 165, 250, 0.55);
+      color: #e0f2fe;
+      box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35),
+                  0 4px 20px rgba(59, 130, 246, 0.25);
+    }
+
+    /* Mode Switcher */
+    .mode-switcher {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+    .mode-label {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; font-weight: 500;
+      color: #94a3b8;
+      transition: color .3s ease;
+    }
+    .mode-label.day-label.active { color: #fbbf24; text-shadow: 0 0 8px rgba(251,191,36,0.4); }
+    .mode-label.night-label.active { color: #a5b4fc; text-shadow: 0 0 8px rgba(165,180,252,0.4); }
+
+    .toggle-track {
+      position: relative;
+      width: 40px; height: 20px;
+      border-radius: 999px;
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      cursor: pointer;
+      transition: background .3s ease, border-color .3s ease;
+    }
+    .toggle-track:hover { border-color: rgba(96, 165, 250, 0.3); }
+    .toggle-thumb {
+      position: absolute;
+      top: 1px; left: 1px;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.55),
+                  inset 0 1px 0 rgba(255,255,255,0.3);
+      transition: transform .45s cubic-bezier(.4,0,.2,1), background .45s ease, box-shadow .45s ease;
+    }
+    .mode-switcher.is-night .toggle-thumb {
+      transform: translateX(20px);
+      background: linear-gradient(135deg, #a5b4fc, #818cf8);
+      box-shadow: 0 0 12px rgba(129, 140, 248, 0.55),
+                  inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+
+    .menu-toggle {
+      display: none;
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      align-items: center; justify-content: center;
+      background: rgba(51, 65, 85, 0.45);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .menu-toggle:hover {
+      background: rgba(71, 85, 105, 0.6);
+      border-color: rgba(96, 165, 250, 0.35);
+      color: #fff;
+    }
+
+    /* Right Panel */
+    #right-panel {
+      position: absolute;
+      top: 88px; right: 16px; bottom: 16px;
+      width: 360px;
+      border-radius: 16px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: transform .4s cubic-bezier(.4,0,.2,1);
+    }
+    #right-panel.collapsed { transform: translateX(calc(100% + 24px)); }
+
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+      background: linear-gradient(180deg, rgba(30,41,59,0.4) 0%, transparent 100%);
+    }
+    .panel-header h3 {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 600;
+      color: #e2e8f0;
+      letter-spacing: 0.3px;
+    }
+    .panel-header h3 svg { color: #60a5fa; filter: drop-shadow(0 0 4px rgba(96,165,250,0.4)); }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px 20px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(96,165,250,0.3) transparent;
+    }
+    .panel-body::-webkit-scrollbar { width: 5px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.3); border-radius: 10px; }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 40px 12px;
+      text-align: center;
+      color: #64748b;
+    }
+    .empty-icon { opacity: 0.5; margin-bottom: 16px; }
+    .empty-state p { font-size: 13px; line-height: 1.7; }
+
+    .config-content { display: flex; flex-direction: column; gap: 18px; }
+
+    .config-id-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+    }
+    .config-id-label { font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 0.6px; text-transform: uppercase; }
+    .config-id-value {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      color: #93c5fd;
+    }
+    .btn-delete {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(220, 38, 38, 0.1);
+      border: 1px solid rgba(220, 38, 38, 0.15);
+      color: #fca5a5;
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .btn-delete:hover {
+      background: rgba(220, 38, 38, 0.22);
+      border-color: rgba(248, 113, 113, 0.4);
+      color: #fecaca;
+      box-shadow: 0 0 12px rgba(248, 113, 113, 0.2);
+    }
+
+    .config-row { display: flex; flex-direction: column; gap: 8px; }
+    .config-label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; font-weight: 500; color: #94a3b8;
+    }
+    .config-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 600;
+      color: #e0f2fe;
+      min-width: 48px;
+      text-align: right;
+      text-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
+      transition: text-shadow .2s ease, color .2s ease;
+    }
+    .config-value.glowing {
+      color: #60a5fa;
+      text-shadow: 0 0 12px rgba(96, 165, 250, 0.7);
+    }
+    .color-chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      text-transform: uppercase;
+    }
+
+    /* Gradient Sliders */
+    .slider-track-wrap {
+      position: relative;
+      height: 22px;
+      border-radius: 11px;
+      padding: 0 2px;
+      display: flex; align-items: center;
+    }
+    .slider-track-wrap::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 11px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      pointer-events: none;
+    }
+    .intensity-track::after {
+      content: ''; position: absolute; left: 8px; right: 8px; top: 50%; height: 3px; transform: translateY(-50%);
+      border-radius: 2px;
+      background: linear-gradient(90deg, #1e293b 0%, #3b82f6 50%, #e0f2fe 100%);
+      pointer-events: none;
+    }
+    .distance-track::after {
+      content: ''; position: absolute; left: 8px; right: 8px; top: 50%; height: 3px; transform: translateY(-50%);
+      border-radius: 2px;
+      background: linear-gradient(90deg, #0f172a 0%, #6366f1 70%, #c4b5fd 100%);
+      pointer-events: none;
+    }
+    .decay-track::after {
+      content: ''; position: absolute; left: 8px; right: 8px; top: 50%; height: 3px; transform: translateY(-50%);
+      border-radius: 2px;
+      background: linear-gradient(90deg, #0f172a 0%, #10b981 100%);
+      pointer-events: none;
+    }
+    .angle-track::after {
+      content: ''; position: absolute; left: 8px; right: 8px; top: 50%; height: 3px; transform: translateY(-50%);
+      border-radius: 2px;
+      background: linear-gradient(90deg, #0f172a 0%, #f59e0b 100%);
+      pointer-events: none;
+    }
+    .penumbra-track::after {
+      content: ''; position: absolute; left: 8px; right: 8px; top: 50%; height: 3px; transform: translateY(-50%);
+      border-radius: 2px;
+      background: linear-gradient(90deg, #0f172a 0%, #ec4899 100%);
+      pointer-events: none;
+    }
+
+    .gradient-slider {
+      position: relative;
+      z-index: 2;
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 22px;
+      background: transparent;
+      cursor: pointer;
+    }
+    .gradient-slider:focus { outline: none; }
+    .gradient-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15),
+                  0 2px 8px rgba(0,0,0,0.4),
+                  0 0 12px rgba(96, 165, 250, 0.45);
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .gradient-slider:hover::-webkit-slider-thumb {
+      transform: scale(1.1);
+      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.2),
+                  0 2px 12px rgba(0,0,0,0.5),
+                  0 0 18px rgba(96, 165, 250, 0.7);
+    }
+    .gradient-slider::-moz-range-thumb {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      border: 2px solid #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15),
+                  0 2px 8px rgba(0,0,0,0.4),
+                  0 0 12px rgba(96, 165, 250, 0.45);
+      cursor: pointer;
+    }
+
+    /* Color Picker */
+    .color-picker-row { display: flex; align-items: center; gap: 12px; }
+    .color-input {
+      width: 44px; height: 32px;
+      padding: 0;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      cursor: pointer;
+    }
+    .color-input::-webkit-color-swatch-wrapper { padding: 2px; }
+    .color-input::-webkit-color-swatch {
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .color-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+    .color-dot {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,0.1);
+      cursor: pointer;
+      transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    .color-dot:hover {
+      transform: scale(1.2);
+      border-color: rgba(255,255,255,0.6);
+      box-shadow: 0 0 8px currentColor;
+    }
+    .color-dot.active {
+      border-color: #60a5fa;
+      box-shadow: 0 0 10px rgba(96,165,250,0.6);
+    }
+
+    .config-spot-group {
+      padding-top: 10px;
+      border-top: 1px dashed rgba(148, 163, 184, 0.12);
+      display: flex; flex-direction: column; gap: 18px;
+    }
+
+    /* Position inputs */
+    .pos-inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .pos-input-group {
+      display: flex; align-items: stretch;
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      transition: border-color .2s ease;
+    }
+    .pos-input-group:focus-within { border-color: rgba(96, 165, 250, 0.4); }
+    .pos-letter {
+      width: 26px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 700;
+      background: rgba(30, 41, 59, 0.8);
+    }
+    .pos-letter.x-letter { color: #f87171; }
+    .pos-letter.y-letter { color: #4ade80; }
+    .pos-letter.z-letter { color: #60a5fa; }
+    .pos-input {
+      flex: 1;
+      width: 0;
+      padding: 7px 8px;
+      background: transparent;
+      border: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #e2e8f0;
+      outline: none;
+      -moz-appearance: textfield;
+    }
+    .pos-input::-webkit-outer-spin-button,
+    .pos-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* Lights list */
+    .lights-list-section { margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(148, 163, 184, 0.08); }
+    .list-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .list-header h4 { font-size: 12px; font-weight: 600; color: #94a3b8; letter-spacing: 0.5px; }
+    .list-count {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 22px; height: 22px;
+      padding: 0 7px;
+      border-radius: 999px;
+      background: rgba(96, 165, 250, 0.15);
+      color: #93c5fd;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 600;
+    }
+    .lights-list { display: flex; flex-direction: column; gap: 8px; }
+    .light-card {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .light-card:hover {
+      background: rgba(30, 41, 59, 0.7);
+      border-color: rgba(96, 165, 250, 0.25);
+    }
+    .light-card.selected {
+      background: linear-gradient(135deg, rgba(59,130,246,0.18), rgba(99,102,241,0.15));
+      border-color: rgba(96, 165, 250, 0.5);
+      box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.25),
+                  0 4px 18px rgba(59, 130, 246, 0.15);
+    }
+    .light-type-icon {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .light-type-icon.point { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
+    .light-type-icon.spot { background: rgba(236, 72, 153, 0.12); color: #f472b6; }
+    .light-type-icon svg { width: 16px; height: 16px; }
+    .light-card-info { flex: 1; min-width: 0; }
+    .light-card-name {
+      font-size: 12px; font-weight: 600; color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .light-card-meta {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 3px;
+      font-size: 10.5px; color: #64748b;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .light-color-sw {
+      width: 10px; height: 10px; border-radius: 50%;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: absolute; inset: 0;
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(180deg, #1a1d24 0%, #0f172a 100%);
+      transition: opacity .6s ease, visibility .6s ease;
+    }
+    .loading-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loading-content {
+      display: flex; flex-direction: column; align-items: center; gap: 16px;
+    }
+    .loading-title {
+      font-size: 22px; font-weight: 700;
+      background: linear-gradient(135deg, #93c5fd 0%, #a5b4fc 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      letter-spacing: 1.5px;
+    }
+    .loading-subtitle {
+      font-size: 12px; color: #64748b;
+      letter-spacing: 0.5px;
+    }
+    .loading-progress-bar {
+      width: 220px; height: 3px;
+      border-radius: 2px;
+      background: rgba(30, 41, 59, 0.8);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .loading-progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #3b82f6, #818cf8, #3b82f6);
+      background-size: 200% 100%;
+      animation: loading-shimmer 1.6s linear infinite;
+      transition: width .3s ease;
+    }
+    @keyframes loading-shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* FPS badge */
+    .fps-badge {
+      position: absolute;
+      bottom: 16px; left: 16px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 600;
+      color: #4ade80;
+      z-index: 5;
+      transition: color .2s ease;
+    }
+    .fps-badge.low { color: #fbbf24; }
+    .fps-badge.critical { color: #f87171; }
+
+    /* Responsive */
+    @media (max-width: 1100px) {
+      #right-panel {
+        width: 320px;
+      }
+    }
+    @media (max-width: 900px) {
+      #compass-ring { inset: 96px 40px 40px; }
+      .menu-toggle { display: flex; }
+      #right-panel {
+        top: 0; right: 0; bottom: 0;
+        width: min(340px, 86vw);
+        border-radius: 0;
+        transform: translateX(100%);
+      }
+      #right-panel.open { transform: translateX(0); }
+      .toolbar-center .tool-btn span { display: none; }
+      .tool-btn { padding: 8px 12px; }
+      .mode-label.day-label span, .mode-label.night-label span { display: none; }
+    }
+    @media (max-width: 640px) {
+      #toolbar { height: 52px; top: 10px; left: 10px; right: 10px; border-radius: 14px; padding: 0 12px; }
+      .brand-logo span { display: none; }
+      .mode-switcher { padding: 5px 8px; }
+      #compass-ring { inset: 80px 24px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene-canvas"></canvas>
+
+    <div id="compass-ring">
+      <div class="compass-label compass-n">N</div>
+      <div class="compass-label compass-s">S</div>
+      <div class="compass-label compass-e">E</div>
+      <div class="compass-label compass-w">W</div>
+      <svg class="compass-ring-svg" viewBox="0 0 400 400">
+        <defs>
+          <linearGradient id="compassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:0.3" />
+            <stop offset="50%" style="stop-color:#818cf8;stop-opacity:0.15" />
+            <stop offset="100%" style="stop-color:#60a5fa;stop-opacity:0.3" />
+          </linearGradient>
+        </defs>
+        <circle cx="200" cy="200" r="195" fill="none" stroke="url(#compassGrad)" stroke-width="1.5" stroke-dasharray="4 6" />
+        <circle cx="200" cy="200" r="180" fill="none" stroke="rgba(147,197,253,0.08)" stroke-width="1" />
+      </svg>
+    </div>
+
+    <header id="toolbar" class="glass-bar">
+      <div class="toolbar-left">
+        <div class="brand-logo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 L4 6 V18 L12 22 L20 18 V6 Z"/>
+            <path d="M12 22 V12"/>
+            <path d="M4 6 L12 12 L20 6"/>
+          </svg>
+          <span>Lumen Studio</span>
+        </div>
+      </div>
+
+      <div class="toolbar-center">
+        <div class="btn-group">
+          <button id="btn-add-point" class="tool-btn" title="添加点光源">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <span>点光源</span>
+          </button>
+          <button id="btn-add-spot" class="tool-btn" title="添加聚光灯">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 2h8l-1 10H9z"/>
+              <path d="M9 12l-3 9h12l-3-9"/>
+              <path d="M10 19l2-7 2 7"/>
+            </svg>
+            <span>聚光灯</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar-right">
+        <div class="mode-switcher" id="mode-switcher">
+          <span class="mode-label day-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            日间
+          </span>
+          <div class="toggle-track">
+            <div class="toggle-thumb"></div>
+          </div>
+          <span class="mode-label night-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            夜间
+          </span>
+        </div>
+        <button id="btn-menu-toggle" class="menu-toggle" title="菜单">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <aside id="right-panel" class="glass-panel">
+      <div class="panel-header">
+        <h3>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          光源参数
+        </h3>
+      </div>
+
+      <div class="panel-body">
+        <div id="no-selection" class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" class="empty-icon">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+          </svg>
+          <p>请选择场景中的光源<br/>或点击上方按钮添加</p>
+        </div>
+
+        <div id="light-config" class="config-content" style="display:none;">
+          <div class="config-row">
+            <div class="config-id-row">
+              <span class="config-id-label">ID</span>
+              <span id="light-id" class="config-id-value">-</span>
+              <button id="btn-delete-light" class="btn-delete" title="删除光源">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                  <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="config-row">
+            <label class="config-label">
+              <span>强度</span>
+              <span id="val-intensity" class="config-value">50</span>
+            </label>
+            <div class="slider-track-wrap intensity-track">
+              <input id="slider-intensity" type="range" min="0" max="100" step="0.1" value="50" class="gradient-slider"/>
+            </div>
+          </div>
+
+          <div class="config-row">
+            <label class="config-label">
+              <span>颜色</span>
+              <span id="val-color" class="config-value color-chip">#ffffff</span>
+            </label>
+            <div class="color-picker-row">
+              <input id="picker-color" type="color" value="#ffffff" class="color-input"/>
+              <div class="color-presets">
+                <button data-color="#ffffff" class="color-dot" style="background:#ffffff"></button>
+                <button data-color="#fff4e0" class="color-dot" style="background:#fff4e0"></button>
+                <button data-color="#ffe0b3" class="color-dot" style="background:#ffe0b3"></button>
+                <button data-color="#ffb37f" class="color-dot" style="background:#ffb37f"></button>
+                <button data-color="#b3d9ff" class="color-dot" style="background:#b3d9ff"></button>
+                <button data-color="#d4b3ff" class="color-dot" style="background:#d4b3ff"></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-row">
+            <label class="config-label">
+              <span>衰减半径</span>
+              <span id="val-distance" class="config-value">8.0</span>
+            </label>
+            <div class="slider-track-wrap distance-track">
+              <input id="slider-distance" type="range" min="0.5" max="20" step="0.1" value="8" class="gradient-slider"/>
+            </div>
+          </div>
+
+          <div class="config-row">
+            <label class="config-label">
+              <span>衰减系数</span>
+              <span id="val-decay" class="config-value">2.00</span>
+            </label>
+            <div class="slider-track-wrap decay-track">
+              <input id="slider-decay" type="range" min="0.5" max="4" step="0.01" value="2" class="gradient-slider"/>
+            </div>
+          </div>
+
+          <div id="spot-only" class="config-spot-group" style="display:none;">
+            <div class="config-row">
+              <label class="config-label">
+                <span>光束角度</span>
+                <span id="val-angle" class="config-value">30°</span>
+              </label>
+              <div class="slider-track-wrap angle-track">
+                <input id="slider-angle" type="range" min="5" max="90" step="1" value="30" class="gradient-slider"/>
+              </div>
+            </div>
+            <div class="config-row">
+              <label class="config-label">
+                <span>边缘柔化</span>
+                <span id="val-penumbra" class="config-value">0.30</span>
+              </label>
+              <div class="slider-track-wrap penumbra-track">
+                <input id="slider-penumbra" type="range" min="0" max="1" step="0.01" value="0.3" class="gradient-slider"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-row pos-row">
+            <label class="config-label">
+              <span>位置坐标</span>
+            </label>
+            <div class="pos-inputs">
+              <div class="pos-input-group">
+                <span class="pos-letter x-letter">X</span>
+                <input id="pos-x" type="number" step="0.01" value="0" class="pos-input"/>
+              </div>
+              <div class="pos-input-group">
+                <span class="pos-letter y-letter">Y</span>
+                <input id="pos-y" type="number" step="0.01" value="0" class="pos-input"/>
+              </div>
+              <div class="pos-input-group">
+                <span class="pos-letter z-letter">Z</span>
+                <input id="pos-z" type="number" step="0.01" value="0" class="pos-input"/>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lights-list-section">
+          <div class="list-header">
+            <h4>光源列表</h4>
+            <span id="lights-count" class="list-count">0</span>
+          </div>
+          <div id="lights-list" class="lights-list"></div>
+        </div>
+      </div>
+    </aside>
+
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="loading-content">
+        <div class="loading-orbit">
+          <svg width="64" height="64" viewBox="0 0 64 64">
+            <defs>
+              <linearGradient id="loadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#60a5fa"/>
+                <stop offset="100%" style="stop-color:#818cf8"/>
+              </linearGradient>
+            </defs>
+            <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(96,165,250,0.15)" stroke-width="2"/>
+            <circle cx="32" cy="32" r="28" fill="none" stroke="url(#loadGrad)" stroke-width="2" stroke-linecap="round" stroke-dasharray="60 120">
+              <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="1.4s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="32" cy="32" r="16" fill="none" stroke="rgba(129,140,248,0.2)" stroke-width="1" stroke-dasharray="4 6">
+              <animateTransform attributeName="transform" type="rotate" from="360 32 32" to="0 32 32" dur="2.2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="32" cy="32" r="4" fill="url(#loadGrad)">
+              <animate attributeName="r" values="3;5;3" dur="1.4s" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </div>
+        <h2 class="loading-title">Lumen Studio</h2>
+        <p class="loading-subtitle">正在加载场景...</p>
+        <div class="loading-progress-bar">
+          <div id="loading-progress" class="loading-progress-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="fps-badge" class="fps-badge">60 FPS</div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+  <script type="module" src="/src/uiController.ts"></script>
+</body>
+</html>

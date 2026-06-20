@@ -1,0 +1,97 @@
+.comparison-view {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: #f1f5f9;
+}
+
+.preview-container {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.split-divider {
+  width: 4px;
+  height: 100%;
+  background: #94a3b8;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease-out;
+  position: relative;
+  z-index: 2;
+}
+
+.split-divider:hover {
+  background: #3b82f6;
+}
+
+.split-divider.dragging {
+  background: #3b82f6;
+}
+
+.sync-toggle-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.sync-toggle {
+  pointer-events: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-out;
+  font-weight: bold;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sync-toggle:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.sync-toggle.active {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #ffffff;
+}
+
+.generate-report-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 120px;
+  height: 36px;
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 20;
+  transition: background-color 0.2s ease-out;
+  font-weight: 500;
+}
+
+.generate-report-btn:hover {
+  background: #2563eb;
+}
+
+.generate-report-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}

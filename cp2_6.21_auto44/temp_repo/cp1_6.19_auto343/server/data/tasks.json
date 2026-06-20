@@ -1,0 +1,488 @@
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "type": "text",
+    "content": "人工智能正在深刻改变我们的生活方式，从智能语音助手到自动驾驶汽车，AI技术已经渗透到各个领域。The rapid development of machine learning algorithms has made it possible for computers to perform complex tasks.",
+    "status": "pending",
+    "assignee": null,
+    "label": null,
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-12T08:30:00.000Z",
+    "annotatedAt": null,
+    "reviewedAt": null
+  },
+  {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "type": "text",
+    "content": "数据标注是机器学习流程中至关重要的一环，高质量的标注数据直接影响模型的性能。Data annotation requires both accuracy and efficiency for building reliable AI systems.",
+    "status": "pending",
+    "assignee": null,
+    "label": null,
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-12T09:15:00.000Z",
+    "annotatedAt": null,
+    "reviewedAt": null
+  },
+  {
+    "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+    "type": "text",
+    "content": "自然语言处理技术近年来取得了突破性进展，特别是Transformer架构的出现，使得机器翻译等任务的效果大幅提升。NLP models like BERT and GPT revolutionized language processing.",
+    "status": "pending",
+    "assignee": null,
+    "label": null,
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-13T10:00:00.000Z",
+    "annotatedAt": null,
+    "reviewedAt": null
+  },
+  {
+    "id": "d4e5f6a7-b8c9-0123-def0-234567890123",
+    "type": "text",
+    "content": "计算机视觉在医疗影像诊断中展现出巨大潜力，帮助医生更准确地识别病灶。Computer vision algorithms assist radiologists in faster and more accurate diagnoses.",
+    "status": "pending",
+    "assignee": null,
+    "label": null,
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-13T14:20:00.000Z",
+    "annotatedAt": null,
+    "reviewedAt": null
+  },
+  {
+    "id": "e5f6a7b8-c9d0-1234-ef01-345678901234",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img00/800/600",
+    "status": "pending",
+    "assignee": null,
+    "label": null,
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-14T07:45:00.000Z",
+    "annotatedAt": null,
+    "reviewedAt": null
+  },
+  {
+    "id": "f6a7b8c9-d0e1-2345-f012-456789012345",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img01/800/600",
+    "status": "pending",
+    "assignee": null,
+    "label": null,
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-12T10:30:00.000Z",
+    "annotatedAt": null,
+    "reviewedAt": null
+  },
+  {
+    "id": "a7b8c9d0-e1f2-3456-0123-567890123456",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img02/800/600",
+    "status": "pending",
+    "assignee": null,
+    "label": null,
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-13T08:15:00.000Z",
+    "annotatedAt": null,
+    "reviewedAt": null
+  },
+  {
+    "id": "b8c9d0e1-f2a3-4567-1234-678901234567",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img03/800/600",
+    "status": "pending",
+    "assignee": null,
+    "label": null,
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-14T15:00:00.000Z",
+    "annotatedAt": null,
+    "reviewedAt": null
+  },
+  {
+    "id": "c9d0e1f2-a3b4-5678-2345-789012345678",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img04/800/600",
+    "status": "pending",
+    "assignee": null,
+    "label": null,
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-15T12:30:00.000Z",
+    "annotatedAt": null,
+    "reviewedAt": null
+  },
+  {
+    "id": "d0e1f2a3-b4c5-6789-3456-890123456789",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img05/800/600",
+    "status": "pending",
+    "assignee": null,
+    "label": null,
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-16T10:20:00.000Z",
+    "annotatedAt": null,
+    "reviewedAt": null
+  },
+  {
+    "id": "e1f2a3b4-c5d6-7890-4567-901234567890",
+    "type": "text",
+    "content": "迁移学习利用预训练模型在新任务上快速适应，大大减少了训练所需的数据量和计算资源。Transfer learning is a cornerstone of modern deep learning applications.",
+    "status": "annotated",
+    "assignee": "annotator_01",
+    "label": {
+      "category": "technology",
+      "sentiment": "positive",
+      "keywords": ["迁移学习", "预训练模型", "深度学习"]
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-10T09:00:00.000Z",
+    "annotatedAt": "2026-06-11T10:30:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "f2a3b4c5-d6e7-8901-5678-01234567890a",
+    "type": "text",
+    "content": "自监督学习通过从数据本身构造监督信号来训练模型，减少了对人工标注数据的依赖。Self-supervised learning shows great promise for learning from unlabeled data.",
+    "status": "annotated",
+    "assignee": "annotator_01",
+    "label": {
+      "category": "technology",
+      "sentiment": "positive",
+      "keywords": ["自监督学习", "无标注数据", "训练方法"]
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-10T10:15:00.000Z",
+    "annotatedAt": "2026-06-11T11:45:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "a3b4c5d6-e7f8-9012-6789-1234567890ab",
+    "type": "text",
+    "content": "图神经网络能够处理非结构化的图数据，在社交网络分析、分子预测等领域应用广泛。Graph neural networks capture relationships between nodes in complex networks.",
+    "status": "annotated",
+    "assignee": "annotator_02",
+    "label": {
+      "category": "technology",
+      "sentiment": "neutral",
+      "keywords": ["图神经网络", "社交网络", "分子预测"]
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-10T14:00:00.000Z",
+    "annotatedAt": "2026-06-12T08:20:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "b4c5d6e7-f8a9-0123-7890-234567890abc",
+    "type": "text",
+    "content": "注意力机制使模型能够动态关注输入中的重要部分，显著提升了序列建模任务的性能。The attention mechanism allows models to focus on relevant parts of input dynamically.",
+    "status": "annotated",
+    "assignee": "annotator_02",
+    "label": {
+      "category": "technology",
+      "sentiment": "positive",
+      "keywords": ["注意力机制", "序列建模", "Transformer"]
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-11T08:30:00.000Z",
+    "annotatedAt": "2026-06-12T09:40:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "c5d6e7f8-a9b0-1234-8901-34567890abcd",
+    "type": "text",
+    "content": "元学习致力于让模型学会如何学习，使其能够快速适应新任务。Meta-learning builds models that generalize across tasks with minimal training data.",
+    "status": "annotated",
+    "assignee": "annotator_03",
+    "label": {
+      "category": "technology",
+      "sentiment": "positive",
+      "keywords": ["元学习", "快速适应", "小样本学习"]
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-11T09:45:00.000Z",
+    "annotatedAt": "2026-06-12T15:10:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "d6e7f8a9-b0c1-2345-9012-45678901abcde",
+    "type": "text",
+    "content": "多模态学习融合文本、图像、语音等多种模态信息，使AI系统更接近人类的感知方式。Multimodal learning combines information from different sources for richer understanding.",
+    "status": "annotated",
+    "assignee": "annotator_03",
+    "label": {
+      "category": "technology",
+      "sentiment": "positive",
+      "keywords": ["多模态学习", "融合", "感知"]
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-11T15:20:00.000Z",
+    "annotatedAt": "2026-06-13T10:00:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "e7f8a9b0-c1d2-3456-0123-56789012bcdef",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img06/800/600",
+    "status": "annotated",
+    "assignee": "annotator_01",
+    "label": {
+      "objects": [
+        { "class": "car", "bbox": [100, 150, 300, 250], "confidence": 0.95 },
+        { "class": "person", "bbox": [400, 100, 500, 400], "confidence": 0.88 }
+      ],
+      "scene": "street"
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-10T11:00:00.000Z",
+    "annotatedAt": "2026-06-11T14:20:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "f8a9b0c1-d2e3-4567-1234-67890123cdef0",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img07/800/600",
+    "status": "annotated",
+    "assignee": "annotator_01",
+    "label": {
+      "objects": [
+        { "class": "dog", "bbox": [200, 300, 400, 500], "confidence": 0.92 },
+        { "class": "tree", "bbox": [500, 50, 700, 450], "confidence": 0.97 }
+      ],
+      "scene": "park"
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-10T13:30:00.000Z",
+    "annotatedAt": "2026-06-12T08:00:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "a9b0c1d2-e3f4-5678-2345-78901234def01",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img08/800/600",
+    "status": "annotated",
+    "assignee": "annotator_02",
+    "label": {
+      "objects": [
+        { "class": "building", "bbox": [50, 50, 350, 450], "confidence": 0.96 }
+      ],
+      "scene": "city"
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-11T07:45:00.000Z",
+    "annotatedAt": "2026-06-12T11:30:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "b0c1d2e3-f4a5-6789-3456-89012345ef012",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img09/800/600",
+    "status": "annotated",
+    "assignee": "annotator_02",
+    "label": {
+      "objects": [
+        { "class": "table", "bbox": [150, 350, 500, 550], "confidence": 0.90 },
+        { "class": "chair", "bbox": [550, 300, 700, 550], "confidence": 0.85 }
+      ],
+      "scene": "indoor"
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-11T12:10:00.000Z",
+    "annotatedAt": "2026-06-13T09:15:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "c1d2e3f4-a5b6-7890-4567-90123456f0123",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img10/800/600",
+    "status": "annotated",
+    "assignee": "annotator_03",
+    "label": {
+      "objects": [
+        { "class": "flower", "bbox": [200, 200, 350, 400], "confidence": 0.93 }
+      ],
+      "scene": "garden"
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-12T11:50:00.000Z",
+    "annotatedAt": "2026-06-13T14:40:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "d2e3f4a5-b6c7-8901-5678-0123456701234",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img11/800/600",
+    "status": "annotated",
+    "assignee": "annotator_03",
+    "label": {
+      "objects": [
+        { "class": "bird", "bbox": [100, 100, 250, 250], "confidence": 0.91 },
+        { "class": "sky", "bbox": [0, 0, 800, 300], "confidence": 0.99 }
+      ],
+      "scene": "outdoor"
+    },
+    "reviewer": null,
+    "score": null,
+    "createdAt": "2026-06-13T10:45:00.000Z",
+    "annotatedAt": "2026-06-14T08:25:00.000Z",
+    "reviewedAt": null
+  },
+  {
+    "id": "e3f4a5b6-c7d8-9012-6789-1234567812345",
+    "type": "text",
+    "content": "神经网络的正则化方法如Dropout、权重衰减等有效防止了过拟合问题，提升了模型的泛化能力。Regularization techniques are essential for training robust deep learning models.",
+    "status": "reviewed",
+    "assignee": "annotator_01",
+    "label": {
+      "category": "technology",
+      "sentiment": "positive",
+      "keywords": ["正则化", "Dropout", "过拟合", "泛化"]
+    },
+    "reviewer": "reviewer_01",
+    "score": 0.92,
+    "createdAt": "2026-06-06T09:00:00.000Z",
+    "annotatedAt": "2026-06-07T10:30:00.000Z",
+    "reviewedAt": "2026-06-08T14:20:00.000Z"
+  },
+  {
+    "id": "f4a5b6c7-d8e9-0123-7890-2345678923456",
+    "type": "text",
+    "content": "卷积神经网络在图像识别任务中取得了革命性突破，其权值共享和局部感受野的设计大大减少了参数数量。CNNs revolutionized computer vision with hierarchical feature extraction.",
+    "status": "reviewed",
+    "assignee": "annotator_02",
+    "label": {
+      "category": "technology",
+      "sentiment": "positive",
+      "keywords": ["CNN", "卷积神经网络", "图像识别"]
+    },
+    "reviewer": "reviewer_01",
+    "score": 0.95,
+    "createdAt": "2026-06-06T10:15:00.000Z",
+    "annotatedAt": "2026-06-07T11:45:00.000Z",
+    "reviewedAt": "2026-06-08T15:10:00.000Z"
+  },
+  {
+    "id": "a5b6c7d8-e9f0-1234-8901-3456789034567",
+    "type": "text",
+    "content": "循环神经网络适用于处理序列数据，在语言建模和时间序列预测中发挥重要作用，尽管Transformer已在许多任务中取代了它。RNNs were once the go-to architecture for sequential data.",
+    "status": "reviewed",
+    "assignee": "annotator_03",
+    "label": {
+      "category": "technology",
+      "sentiment": "neutral",
+      "keywords": ["RNN", "循环神经网络", "序列数据"]
+    },
+    "reviewer": "reviewer_02",
+    "score": 0.88,
+    "createdAt": "2026-06-07T08:30:00.000Z",
+    "annotatedAt": "2026-06-08T09:20:00.000Z",
+    "reviewedAt": "2026-06-09T10:40:00.000Z"
+  },
+  {
+    "id": "b6c7d8e9-f0a1-2345-9012-4567890145678",
+    "type": "text",
+    "content": "深度强化学习结合了深度学习的感知能力和强化学习的决策能力，在复杂控制任务中表现出色。Deep RL achieved remarkable results in robotics and game playing.",
+    "status": "reviewed",
+    "assignee": "annotator_01",
+    "label": {
+      "category": "technology",
+      "sentiment": "positive",
+      "keywords": ["深度强化学习", "DRL", "控制任务"]
+    },
+    "reviewer": "reviewer_02",
+    "score": 0.90,
+    "createdAt": "2026-06-07T13:45:00.000Z",
+    "annotatedAt": "2026-06-08T14:30:00.000Z",
+    "reviewedAt": "2026-06-09T16:20:00.000Z"
+  },
+  {
+    "id": "c7d8e9f0-a1b2-3456-0123-5678901256789",
+    "type": "text",
+    "content": "目标检测算法如YOLO系列实现了实时高精度的物体识别，广泛应用于自动驾驶和监控系统。Object detection algorithms balance speed and accuracy for real-time applications.",
+    "status": "reviewed",
+    "assignee": "annotator_03",
+    "label": {
+      "category": "technology",
+      "sentiment": "positive",
+      "keywords": ["目标检测", "YOLO", "自动驾驶"]
+    },
+    "reviewer": "reviewer_01",
+    "score": 0.93,
+    "createdAt": "2026-06-08T14:20:00.000Z",
+    "annotatedAt": "2026-06-09T15:40:00.000Z",
+    "reviewedAt": "2026-06-10T17:30:00.000Z"
+  },
+  {
+    "id": "d8e9f0a1-b2c3-4567-1234-6789012367890",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img12/800/600",
+    "status": "reviewed",
+    "assignee": "annotator_01",
+    "label": {
+      "objects": [
+        { "class": "cat", "bbox": [250, 200, 450, 480], "confidence": 0.94 },
+        { "class": "sofa", "bbox": [100, 300, 700, 590], "confidence": 0.98 }
+      ],
+      "scene": "living_room"
+    },
+    "reviewer": "reviewer_01",
+    "score": 0.89,
+    "createdAt": "2026-06-06T11:00:00.000Z",
+    "annotatedAt": "2026-06-07T13:20:00.000Z",
+    "reviewedAt": "2026-06-08T16:00:00.000Z"
+  },
+  {
+    "id": "e9f0a1b2-c3d4-5678-2345-7890123478901",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img13/800/600",
+    "status": "reviewed",
+    "assignee": "annotator_02",
+    "label": {
+      "objects": [
+        { "class": "mountain", "bbox": [0, 100, 800, 400], "confidence": 0.97 },
+        { "class": "lake", "bbox": [200, 400, 700, 600], "confidence": 0.95 }
+      ],
+      "scene": "landscape"
+    },
+    "reviewer": "reviewer_02",
+    "score": 0.91,
+    "createdAt": "2026-06-07T10:30:00.000Z",
+    "annotatedAt": "2026-06-08T11:50:00.000Z",
+    "reviewedAt": "2026-06-09T13:15:00.000Z"
+  },
+  {
+    "id": "f0a1b2c3-d4e5-6789-3456-8901234589012",
+    "type": "image",
+    "content": "https://picsum.photos/seed/img14/800/600",
+    "status": "reviewed",
+    "assignee": "annotator_03",
+    "label": {
+      "objects": [
+        { "class": "bicycle", "bbox": [300, 250, 550, 550], "confidence": 0.96 },
+        { "class": "road", "bbox": [0, 450, 800, 600], "confidence": 0.99 }
+      ],
+      "scene": "road"
+    },
+    "reviewer": "reviewer_02",
+    "score": 0.86,
+    "createdAt": "2026-06-08T09:30:00.000Z",
+    "annotatedAt": "2026-06-09T12:10:00.000Z",
+    "reviewedAt": "2026-06-10T15:45:00.000Z"
+  }
+]

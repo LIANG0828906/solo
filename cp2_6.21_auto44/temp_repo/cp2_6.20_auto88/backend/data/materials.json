@@ -1,0 +1,23 @@
+{
+  "materials": [
+    { "id": "m1",  "name": "铁锭",     "rarity": "common",    "attributes": { "attack": 5,  "durability": 10 }, "color": "#ffffff", "icon": "🔩", "description": "基础锻造材料，增加少量攻击力和耐久度。" },
+    { "id": "m2",  "name": "皮革",     "rarity": "common",    "attributes": { "defense": 4, "durability": 8 },  "color": "#ffffff", "icon": "🧵", "description": "柔韧的兽皮，适合制作轻甲部件。" },
+    { "id": "m3",  "name": "翡翠",     "rarity": "uncommon",  "attributes": { "magic": 8,   "defense": 2 },     "color": "#22c55e", "icon": "💚", "description": "蕴含自然魔力的宝石，提升魔法属性。" },
+    { "id": "m4",  "name": "银矿",     "rarity": "uncommon",  "attributes": { "attack": 8,  "magic": 3 },       "color": "#22c55e", "icon": "💎", "description": "纯净的银质矿石，对黑暗生物有额外效果。" },
+    { "id": "m5",  "name": "秘银",     "rarity": "rare",      "attributes": { "attack": 12, "defense": 8, "durability": 15 }, "color": "#3b82f6", "icon": "🔷", "description": "轻盈而坚韧的奇幻金属，综合属性提升。" },
+    { "id": "m6",  "name": "魔晶核",   "rarity": "rare",      "attributes": { "magic": 18,  "attack": 5 },      "color": "#3b82f6", "icon": "🔮", "description": "从高阶魔兽体内提取的能量结晶。" },
+    { "id": "m7",  "name": "陨铁",     "rarity": "epic",      "attributes": { "attack": 25, "durability": 30, "defense": 10 }, "color": "#a855f7", "icon": "☄️", "description": "来自天外的神秘金属，蕴含星辰之力。" },
+    { "id": "m8",  "name": "龙魂石",   "rarity": "epic",      "attributes": { "magic": 30,  "attack": 15, "defense": 5 }, "color": "#a855f7", "icon": "🐉", "description": "远古巨龙遗骨中凝结的精华宝石。" },
+    { "id": "m9",  "name": "混沌源质", "rarity": "legendary", "attributes": { "attack": 40, "defense": 30, "magic": 35, "durability": 50 }, "color": "#f59e0b", "icon": "🌟", "description": "传说中开天辟地时遗留的原初物质。" },
+    { "id": "m10", "name": "时之沙",   "rarity": "legendary", "attributes": { "durability": 80, "magic": 20 },   "color": "#f59e0b", "icon": "⏳", "description": "流淌于时间长河中的沙粒，可使装备不朽。" },
+    { "id": "m11", "name": "兽骨",     "rarity": "common",    "attributes": { "attack": 3,  "durability": 5 },  "color": "#ffffff", "icon": "🦴", "description": "从野兽身上获取的骨骼，可增强基础耐久。" },
+    { "id": "m12", "name": "毒囊",     "rarity": "uncommon",  "attributes": { "attack": 10, "magic": 5 },       "color": "#22c55e", "icon": "🧪", "description": "剧毒生物分泌的毒液结晶，可附加毒属性攻击。" }
+  ],
+  "equipment": [
+    { "id": "sword-basic",  "name": "新手铁剑",   "type": "weapon",    "baseAttributes": { "attack": 20, "defense": 0,  "magic": 0,  "durability": 50 }, "modelType": "sword"  },
+    { "id": "shield-basic", "name": "木盾",       "type": "armor",     "baseAttributes": { "attack": 0,  "defense": 25, "magic": 0,  "durability": 60 }, "modelType": "shield" },
+    { "id": "staff-basic",  "name": "学徒法杖",   "type": "weapon",    "baseAttributes": { "attack": 5,  "defense": 0,  "magic": 25, "durability": 40 }, "modelType": "staff"  },
+    { "id": "sword-flame",  "name": "炎之剑",     "type": "weapon",    "baseAttributes": { "attack": 45, "defense": 5,  "magic": 15, "durability": 70 }, "modelType": "sword"  },
+    { "id": "shield-ice",   "name": "寒冰盾",     "type": "armor",     "baseAttributes": { "attack": 10, "defense": 50, "magic": 10, "durability": 80 }, "modelType": "shield" }
+  ]
+}

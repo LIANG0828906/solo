@@ -1,0 +1,237 @@
+.project-list-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar {
+  background-color: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navbar__logo {
+  font-size: 28px;
+}
+
+.navbar__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  font-family: var(--font-serif);
+}
+
+.navbar__menu {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.navbar__create-btn {
+  padding: 8px 20px;
+  font-size: 14px;
+}
+
+.navbar__hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.navbar__hamburger span {
+  width: 24px;
+  height: 2px;
+  background-color: var(--color-text-primary);
+  transition: all 0.3s ease;
+}
+
+.navbar__hamburger--open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.navbar__hamburger--open span:nth-child(2) {
+  opacity: 0;
+}
+
+.navbar__hamburger--open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.project-list-page__content {
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  width: 100%;
+}
+
+.project-list-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.project-list-page__subtitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: var(--font-serif);
+}
+
+.project-list-page__count {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.project-list-page__loading {
+  text-align: center;
+  padding: 60px 0;
+  color: var(--color-text-secondary);
+  font-size: 16px;
+}
+
+.project-list-page__empty {
+  text-align: center;
+  padding: 80px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.project-list-page__empty-icon {
+  font-size: 64px;
+  opacity: 0.5;
+}
+
+.project-list-page__empty h3 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--color-text-primary);
+  font-family: var(--font-serif);
+}
+
+.project-list-page__empty p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  max-width: 300px;
+}
+
+.project-list-page__empty .btn {
+  margin-top: 8px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  border: none;
+  font-family: inherit;
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
+
+.btn-primary {
+  background-color: var(--color-accent);
+  color: white;
+}
+
+.btn-secondary {
+  background-color: var(--color-secondary-light);
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 768px) {
+  .navbar__inner {
+    padding: 0 16px;
+  }
+
+  .navbar__title {
+    font-size: 18px;
+  }
+
+  .navbar__logo {
+    font-size: 24px;
+  }
+
+  .project-list-page__content {
+    padding: 24px 16px;
+  }
+
+  .project-list-page__subtitle {
+    font-size: 20px;
+  }
+
+  .project-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar__menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--color-bg-card);
+    border-bottom: 1px solid var(--color-border);
+    padding: 16px;
+    flex-direction: column;
+    align-items: stretch;
+    display: none;
+  }
+
+  .navbar__menu--open {
+    display: flex;
+  }
+
+  .navbar__hamburger {
+    display: flex;
+  }
+
+  .navbar__create-btn {
+    width: 100%;
+  }
+
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+}

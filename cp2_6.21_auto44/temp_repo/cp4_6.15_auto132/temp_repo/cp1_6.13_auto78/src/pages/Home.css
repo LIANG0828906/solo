@@ -1,0 +1,19 @@
+.hover\:scale-102:hover {
+  transform: scale(1.02);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.skill-card-wrapper {
+  animation: fadeInUp 0.5s ease forwards;
+  opacity: 0;
+}

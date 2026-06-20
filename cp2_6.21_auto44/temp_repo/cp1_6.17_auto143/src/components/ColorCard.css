@@ -1,0 +1,77 @@
+.color-card {
+  width: 200px;
+  height: 280px;
+  background: #fffdf7;
+  border: 1px solid #e8d5b7;
+  border-radius: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: cardFadeIn 0.5s ease forwards;
+  will-change: transform, box-shadow;
+  contain: layout style paint;
+}
+
+@keyframes cardFadeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.color-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.color-card__swatch {
+  height: 120px;
+  flex-shrink: 0;
+}
+
+.color-card__content {
+  padding: 12px 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.color-card__name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #2c3e50;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.color-card__date {
+  font-size: 12px;
+  color: #7f8c8d;
+  margin: 0;
+}
+
+.color-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.color-card__tag {
+  font-size: 11px;
+  padding: 4px 10px;
+  background: #ecf0f1;
+  color: #2c3e50;
+  border-radius: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

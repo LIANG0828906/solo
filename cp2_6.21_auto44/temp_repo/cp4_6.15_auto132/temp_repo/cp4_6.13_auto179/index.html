@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="语音控制2D横板跑酷游戏 - 通过声音指令控制角色跳跃、蹲伏和冲刺">
+  <title>语音跑酷 - Voice Runner</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    .game-container {
+      position: relative;
+      border-radius: 16px;
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        0 0 40px rgba(230, 126, 34, 0.2);
+      overflow: hidden;
+    }
+
+    #gameCanvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .mic-button {
+      padding: 14px 32px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mic-button.authorized {
+      background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+      box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+    }
+
+    .mic-button:hover {
+      transform: scale(1.05);
+    }
+
+    .mic-button:active {
+      transform: scale(0.98);
+    }
+
+    .mic-button::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: pulse 2s ease-out infinite;
+    }
+
+    .mic-button.authorized::after {
+      display: none;
+    }
+
+    @keyframes pulse {
+      0% {
+        width: 0;
+        height: 0;
+        opacity: 1;
+      }
+      100% {
+        width: 200px;
+        height: 200px;
+        opacity: 0;
+      }
+    }
+
+    .instructions {
+      color: #888;
+      font-size: 14px;
+      text-align: center;
+      max-width: 500px;
+      line-height: 1.6;
+    }
+
+    .instructions strong {
+      color: #e67e22;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <canvas id="gameCanvas" width="640" height="480"></canvas>
+  </div>
+  <button id="micButton" class="mic-button">🎤 请求麦克风权限</button>
+  <div class="instructions">
+    <strong>操作说明：</strong><br>
+    用声音控制角色 — 大声喊<strong>"跳"</strong>或<strong>"jump"</strong>跳跃，音量越大跳得越高<br>
+    说<strong>"蹲"</strong>或<strong>"crouch"</strong>蹲伏，说<strong>"冲"</strong>或<strong>"dash"</strong>冲刺
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

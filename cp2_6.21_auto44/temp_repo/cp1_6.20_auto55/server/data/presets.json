@@ -1,0 +1,52 @@
+{
+  "presets": [
+    {
+      "id": "default-001",
+      "name": "经典蓝紫星系",
+      "params": {
+        "count": 5000,
+        "size": 0.1,
+        "color": "#6366f1",
+        "rotationSpeed": 0.3,
+        "spreadRadius": 2.5
+      },
+      "createdAt": "2026-06-20T00:00:00.000Z"
+    },
+    {
+      "id": "default-002",
+      "name": "金色星云",
+      "params": {
+        "count": 8000,
+        "size": 0.08,
+        "color": "#f59e0b",
+        "rotationSpeed": 0.5,
+        "spreadRadius": 3.0
+      },
+      "createdAt": "2026-06-20T00:00:00.000Z"
+    },
+    {
+      "id": "default-003",
+      "name": "玫瑰星云",
+      "params": {
+        "count": 6000,
+        "size": 0.12,
+        "color": "#ec4899",
+        "rotationSpeed": 0.2,
+        "spreadRadius": 2.0
+      },
+      "createdAt": "2026-06-20T00:00:00.000Z"
+    },
+    {
+      "id": "default-004",
+      "name": "翡翠漩涡",
+      "params": {
+        "count": 10000,
+        "size": 0.06,
+        "color": "#10b981",
+        "rotationSpeed": 0.8,
+        "spreadRadius": 3.5
+      },
+      "createdAt": "2026-06-20T00:00:00.000Z"
+    }
+  ]
+}

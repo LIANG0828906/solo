@@ -1,0 +1,380 @@
+.piano-roll-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: #1a1a2e;
+  position: relative;
+  overflow: hidden;
+}
+
+.piano-roll-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #16213e;
+  border-bottom: 1px solid #2a2a4e;
+  flex-shrink: 0;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #2a2a4e;
+  color: #e0e0e0;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 16px;
+}
+
+.toolbar-btn:hover {
+  background: #3a3a6e;
+  transform: translateY(-1px);
+}
+
+.toolbar-btn.active {
+  background: #6c5ce7;
+  color: white;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bpm-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e0e0e0;
+  font-size: 13px;
+}
+
+.bpm-control input {
+  width: 60px;
+  padding: 6px 8px;
+  background: #2a2a4e;
+  border: 1px solid #3a3a6e;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 13px;
+  text-align: center;
+}
+
+.bpm-control input:focus {
+  outline: none;
+  border-color: #6c5ce7;
+}
+
+.track-selector {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.track-tab {
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: #2a2a4e;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.track-tab.active {
+  background: #6c5ce7;
+  color: white;
+}
+
+.track-tab-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.track-tab.muted {
+  opacity: 0.5;
+}
+
+.piano-roll-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.piano-keys {
+  width: 70px;
+  flex-shrink: 0;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #16213e;
+  border-right: 1px solid #2a2a4e;
+  scrollbar-width: none;
+}
+
+.piano-keys::-webkit-scrollbar {
+  display: none;
+}
+
+.piano-key {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  font-size: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.05s;
+  box-sizing: border-box;
+}
+
+.piano-key.white {
+  background: #f5f5f5;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+  z-index: 1;
+}
+
+.piano-key.black {
+  background: #333;
+  color: #fff;
+  width: 60%;
+  right: auto;
+  left: 0;
+  z-index: 2;
+  border-radius: 0 3px 3px 0;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.piano-key.white:hover {
+  background: #e8e8e8;
+}
+
+.piano-key.black:hover {
+  background: #444;
+}
+
+.piano-key.white.active {
+  background: #d0d0ff;
+  transform: translateX(2px);
+}
+
+.piano-key.black.active {
+  background: #555;
+  transform: translateX(2px);
+}
+
+.piano-key-label {
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.grid-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.grid-canvas {
+  position: relative;
+  cursor: crosshair;
+}
+
+.grid-line-horizontal {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #2a2a4e;
+  pointer-events: none;
+}
+
+.grid-line-horizontal.black-key-row {
+  background: #22223a;
+}
+
+.grid-line-horizontal.octave {
+  background: #3a3a6e;
+  height: 2px;
+}
+
+.grid-line-vertical {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #2a2a4e;
+  pointer-events: none;
+}
+
+.grid-line-vertical.beat {
+  background: #3a3a6e;
+}
+
+.grid-line-vertical.bar {
+  background: #4a4a8e;
+  width: 2px;
+}
+
+.grid-cell-black {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgba(22, 33, 62, 0.5);
+  pointer-events: none;
+}
+
+.note-block {
+  position: absolute;
+  border-radius: 3px;
+  cursor: move;
+  transition: transform 0.1s, box-shadow 0.1s;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.note-block:hover {
+  box-shadow: 0 0 10px rgba(108, 92, 231, 0.6);
+  z-index: 10;
+}
+
+.note-block.selected {
+  border: 2px solid #fff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+  z-index: 20;
+}
+
+.note-block.playing {
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.8);
+  filter: brightness(1.3);
+}
+
+.note-block-enter {
+  animation: noteAppear 0.2s ease-out;
+}
+
+@keyframes noteAppear {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.note-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  cursor: ew-resize;
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.note-block:hover .note-resize-handle {
+  opacity: 1;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #fff;
+  box-shadow: 0 0 10px #fff, 0 0 20px rgba(255, 255, 255, 0.5), 0 0 30px rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  z-index: 100;
+  transition: left 0.05s linear;
+}
+
+.playhead::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #fff;
+}
+
+.ruler {
+  height: 30px;
+  background: #16213e;
+  border-bottom: 1px solid #2a2a4e;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+.ruler-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  color: #888;
+  padding-left: 4px;
+  border-left: 1px solid #2a2a4e;
+}
+
+.ruler-marker.beat {
+  color: #aaa;
+  border-left-color: #3a3a6e;
+}
+
+.ruler-marker.bar {
+  color: #fff;
+  font-weight: 600;
+  border-left: 2px solid #4a4a8e;
+}
+
+.scroll-sync {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.grid-scroll-area {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.ruler-container {
+  height: 30px;
+  overflow: hidden;
+  background: #16213e;
+  border-bottom: 1px solid #2a2a4e;
+  flex-shrink: 0;
+}
+
+.ruler-content {
+  height: 100%;
+  position: relative;
+}

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>海洋生态系统三维可视化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(180deg, #0B132B 0%, #1C2541 100%);
+      color: #D3ECFF;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #scene-container {
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+    }
+
+    #scene-container.ready {
+      opacity: 1;
+    }
+
+    #control-panel {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 180px;
+      height: 240px;
+      background: rgba(27, 40, 56, 0.8);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #D3ECFF;
+    }
+
+    .panel-btn {
+      width: 100%;
+      height: 40px;
+      background: #48DBFB;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background-color 0.3s ease;
+    }
+
+    .panel-btn:hover {
+      background: #0ABDE3;
+    }
+
+    .panel-btn.active {
+      background: #0ABDE3;
+    }
+
+    .info-text {
+      font-size: 12px;
+      color: #D3ECFF;
+      opacity: 0.8;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 768px) {
+      #control-panel {
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 60px;
+        flex-direction: row;
+        align-items: center;
+        border-radius: 12px 12px 0 0;
+        padding: 10px 16px;
+      }
+
+      .panel-title {
+        display: none;
+      }
+
+      .panel-btn {
+        flex: 1;
+        height: 40px;
+      }
+
+      .info-text {
+        display: none;
+      }
+    }
+
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0B132B;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.5s ease;
+    }
+
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-text {
+      font-size: 18px;
+      color: #D3ECFF;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="loading">
+      <div class="loading-text">正在加载海洋生态场景...</div>
+    </div>
+    <div id="scene-container"></div>
+    <div id="control-panel">
+      <div class="panel-title">控制面板</div>
+      <button id="heatmap-btn" class="panel-btn">切换热力图 (H)</button>
+      <button id="reset-btn" class="panel-btn">重置视角</button>
+      <div class="info-text">
+        鼠标拖拽：旋转视角<br>
+        滚轮：缩放<br>
+        点击鱼：查看迁徙路径
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

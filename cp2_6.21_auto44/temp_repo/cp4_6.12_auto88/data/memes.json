@@ -1,0 +1,90 @@
+[
+  {
+    "id": "demo-1",
+    "name": "快乐猫咪",
+    "tags": ["搞笑", "猫咪", "可爱"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20funny%20cat%20meme%20cartoon%20style%20white%20background&image_size=square",
+    "author": "匿名",
+    "likes": 42,
+    "liked": false,
+    "downloads": 128,
+    "createdAt": "2026-06-12T08:00:00.000Z"
+  },
+  {
+    "id": "demo-2",
+    "name": "笑哭日常",
+    "tags": ["搞笑", "日常"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=laughing%20crying%20emoji%20meme%20cartoon%20style&image_size=portrait_4_3",
+    "author": "匿名",
+    "likes": 35,
+    "liked": false,
+    "downloads": 89,
+    "createdAt": "2026-06-12T07:00:00.000Z"
+  },
+  {
+    "id": "demo-3",
+    "name": "加油鸭",
+    "tags": ["鼓励", "可爱", "鸭子"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cute%20rubber%20duck%20cheering%20cartoon%20meme&image_size=landscape_4_3",
+    "author": "匿名",
+    "likes": 27,
+    "liked": false,
+    "downloads": 56,
+    "createdAt": "2026-06-12T06:00:00.000Z"
+  },
+  {
+    "id": "demo-4",
+    "name": "心碎小狗",
+    "tags": ["伤感", "小狗"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=sad%20puppy%20dog%20with%20broken%20heart%20cartoon%20meme&image_size=square",
+    "author": "匿名",
+    "likes": 19,
+    "liked": false,
+    "downloads": 34,
+    "createdAt": "2026-06-12T05:00:00.000Z"
+  },
+  {
+    "id": "demo-5",
+    "name": "闪电侠来了",
+    "tags": ["超级英雄", "搞笑"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=lightning%20superhero%20cartoon%20meme%20style%20colorful&image_size=portrait_16_9",
+    "author": "匿名",
+    "likes": 51,
+    "liked": false,
+    "downloads": 167,
+    "createdAt": "2026-06-12T04:00:00.000Z"
+  },
+  {
+    "id": "demo-6",
+    "name": "星星眼",
+    "tags": ["惊喜", "可爱"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=star%20eyes%20excited%20face%20cartoon%20meme&image_size=square_hd",
+    "author": "匿名",
+    "likes": 38,
+    "liked": false,
+    "downloads": 92,
+    "createdAt": "2026-06-12T03:00:00.000Z"
+  },
+  {
+    "id": "demo-7",
+    "name": "火了火了",
+    "tags": ["热门", "搞笑", "火焰"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fire%20flame%20trending%20cartoon%20meme%20character&image_size=landscape_4_3",
+    "author": "匿名",
+    "likes": 63,
+    "liked": false,
+    "downloads": 201,
+    "createdAt": "2026-06-12T02:00:00.000Z"
+  },
+  {
+    "id": "demo-8",
+    "name": "庆祝时刻",
+    "tags": ["庆祝", "开心"],
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=celebration%20party%20confetti%20cartoon%20meme&image_size=square",
+    "author": "匿名",
+    "likes": 29,
+    "liked": false,
+    "downloads": 73,
+    "createdAt": "2026-06-12T01:00:00.000Z"
+  }
+]

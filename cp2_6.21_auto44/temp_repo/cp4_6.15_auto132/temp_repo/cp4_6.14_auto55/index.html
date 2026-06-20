@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>节奏音乐对战</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #0a0a1a;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    #game-canvas {
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+      border: 2px solid #00e5ff;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(0, 229, 255, 0.3),
+                  inset 0 0 30px rgba(213, 0, 249, 0.1);
+    }
+
+    #ui-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .game-title {
+      position: absolute;
+      top: 3vh;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 4vh;
+      font-weight: bold;
+      background: linear-gradient(90deg, #00e5ff, #d500f9);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+      letter-spacing: 0.5vw;
+    }
+
+    .controls-hint {
+      position: absolute;
+      bottom: 2vh;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2vh;
+      color: #00e5ff;
+      text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
+      opacity: 0.8;
+    }
+
+    .key-hints {
+      display: flex;
+      gap: 2vw;
+      justify-content: center;
+      margin-top: 1vh;
+    }
+
+    .key-hint {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 4vw;
+      height: 4vw;
+      min-width: 40px;
+      min-height: 40px;
+      border: 2px solid #00e5ff;
+      border-radius: 6px;
+      font-size: 2vh;
+      color: #00e5ff;
+      text-shadow: 0 0 5px rgba(0, 229, 255, 0.8);
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+    }
+
+    .start-screen, .game-over-screen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: white;
+      pointer-events: auto;
+    }
+
+    .start-screen h1, .game-over-screen h1 {
+      font-size: 6vh;
+      background: linear-gradient(90deg, #00e5ff, #d500f9);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 30px rgba(0, 229, 255, 0.5);
+      margin-bottom: 3vh;
+    }
+
+    .start-screen p, .game-over-screen p {
+      font-size: 2.5vh;
+      color: #00e5ff;
+      text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
+      margin: 1vh 0;
+    }
+
+    .start-btn {
+      margin-top: 4vh;
+      padding: 2vh 4vw;
+      font-size: 3vh;
+      font-weight: bold;
+      background: linear-gradient(90deg, #00e5ff, #d500f9);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+      transition: all 0.3s ease;
+    }
+
+    .start-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 40px rgba(0, 229, 255, 0.8);
+    }
+
+    .final-score {
+      font-size: 4vh !important;
+      color: #ffd700 !important;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.8) !important;
+      margin: 2vh 0 !important;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="ui-container">
+      <div class="game-title">节奏对战</div>
+      
+      <div id="start-screen" class="start-screen">
+        <h1>🎵 节奏音乐对战 🎵</h1>
+        <p>根据音乐节拍按下方向键击败敌人！</p>
+        <p>↑ ↓ ← → 对应四个方向</p>
+        <button class="start-btn" id="start-btn">开始游戏</button>
+      </div>
+
+      <div id="game-over-screen" class="game-over-screen hidden">
+        <h1>游戏结束</h1>
+        <p class="final-score">最终得分: <span id="final-score">0</span></p>
+        <p>最高连击: <span id="final-combo">0</span></p>
+        <p>按空格键重新开始</p>
+      </div>
+
+      <div class="controls-hint">
+        <div class="key-hints">
+          <span class="key-hint">↑</span>
+          <span class="key-hint">↓</span>
+          <span class="key-hint">←</span>
+          <span class="key-hint">→</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

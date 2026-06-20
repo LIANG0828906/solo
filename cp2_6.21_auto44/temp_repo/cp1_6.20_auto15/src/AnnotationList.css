@@ -1,0 +1,264 @@
+.annotation-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #f8f9fa;
+  overflow: hidden;
+}
+
+.annotation-list-empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.annotation-list-placeholder {
+  text-align: center;
+  padding: 40px 20px;
+  color: #7f8c8d;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #2C3E50;
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: #95a5a6;
+}
+
+.annotation-list-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e9ecef;
+  background-color: #ffffff;
+  flex-shrink: 0;
+}
+
+.annotation-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2C3E50;
+}
+
+.annotation-list-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.annotation-list-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.annotation-list-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.annotation-list-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.annotation-list-content::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+.annotation-card {
+  background: #ffffff;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.annotation-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.annotation-card-header {
+  padding: 14px 16px;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.annotation-card-header:hover {
+  background-color: #f8f9fa;
+}
+
+.line-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background-color: #3498db;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.annotation-summary {
+  font-size: 13px;
+  color: #2C3E50;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.annotation-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: #95a5a6;
+}
+
+.annotation-author {
+  font-weight: 500;
+  color: #7f8c8d;
+}
+
+.reply-count {
+  color: #3498db;
+  font-weight: 500;
+}
+
+.expand-icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%) rotate(0deg);
+  font-size: 10px;
+  color: #bdc3c7;
+  transition: transform 0.3s ease;
+}
+
+.expand-icon.open {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.annotation-card-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.annotation-card.expanded .annotation-card-body {
+  max-height: 1000px;
+}
+
+.annotation-content {
+  padding: 12px 16px;
+  background-color: #f8f9fa;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #2C3E50;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.replies-section {
+  padding: 12px 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.replies-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7f8c8d;
+  margin-bottom: 10px;
+}
+
+.replies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reply-item {
+  background-color: #f1f3f5;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border-left: 3px solid #3498db;
+}
+
+.reply-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.reply-author {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2C3E50;
+}
+
+.reply-time {
+  font-size: 11px;
+  color: #95a5a6;
+}
+
+.reply-content {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #34495e;
+  word-break: break-word;
+}
+
+.reply-input-section {
+  padding: 12px 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.reply-input {
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.reply-input:focus {
+  border-color: #3498db;
+}
+
+.reply-input::placeholder {
+  color: #adb5bd;
+}
+
+.reply-input-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-reply {
+  background-color: #3498db;
+  color: #ffffff;
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+.btn-reply:hover:not(:disabled) {
+  background-color: #2980b9;
+}
+
+.btn-reply:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}

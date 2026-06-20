@@ -1,0 +1,77 @@
+import { v4 as uuidv4 } from 'uuid';
+import type { SceneData } from './types';
+
+export const scenes: SceneData[] = [
+  {
+    id: uuidv4(),
+    name: 'Orange Energy',
+    primaryColor: '#ff6b35',
+    accentColor: '#ffa726',
+    description: 'Dynamic orange particle system',
+    geometryTypes: ['box', 'sphere', 'cone'],
+  },
+  {
+    id: uuidv4(),
+    name: 'Deep Ocean',
+    primaryColor: '#1e88e5',
+    accentColor: '#00acc1',
+    description: 'Underwater exploration scene',
+    geometryTypes: ['sphere', 'torusKnot', 'cylinder'],
+  },
+  {
+    id: uuidv4(),
+    name: 'Forest Mystery',
+    primaryColor: '#43a047',
+    accentColor: '#66bb6a',
+    description: 'Enchanted forest visualization',
+    geometryTypes: ['cone', 'box', 'dodecahedron'],
+  },
+  {
+    id: uuidv4(),
+    name: 'Purple Nebula',
+    primaryColor: '#8e24aa',
+    accentColor: '#ba68c8',
+    description: 'Cosmic purple nebula clouds',
+    geometryTypes: ['sphere', 'icosahedron', 'torus'],
+  },
+  {
+    id: uuidv4(),
+    name: 'Pink Dream',
+    primaryColor: '#ec407a',
+    accentColor: '#f48fb1',
+    description: 'Dreamy pink fantasy world',
+    geometryTypes: ['torus', 'sphere', 'octahedron'],
+  },
+  {
+    id: uuidv4(),
+    name: 'Cyan Aurora',
+    primaryColor: '#00bcd4',
+    accentColor: '#4dd0e1',
+    description: 'Northern lights aurora borealis',
+    geometryTypes: ['torusKnot', 'cylinder', 'sphere'],
+  },
+  {
+    id: uuidv4(),
+    name: 'Lava Core',
+    primaryColor: '#e53935',
+    accentColor: '#ff7043',
+    description: 'Volcanic lava flow simulation',
+    geometryTypes: ['icosahedron', 'dodecahedron', 'cone'],
+  },
+  {
+    id: uuidv4(),
+    name: 'Golden Dunes',
+    primaryColor: '#ffa000',
+    accentColor: '#ffca28',
+    description: 'Golden desert sand dunes',
+    geometryTypes: ['box', 'cylinder', 'octahedron'],
+  },
+  {
+    id: uuidv4(),
+    name: 'Quantum Space',
+    primaryColor: '#1976d2',
+    accentColor: '#42a5f5',
+    description: 'Quantum physics visualization',
+    geometryTypes: ['torusKnot', 'icosahedron', 'sphere'],
+  },
+];

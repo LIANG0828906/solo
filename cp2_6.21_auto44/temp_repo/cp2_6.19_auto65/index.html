@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>太空矿工 - Space Miner</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0a0a2e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      box-shadow: 0 0 40px rgba(0, 204, 255, 0.3), 0 0 80px rgba(255, 170, 51, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #game-canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    #start-screen, #game-over-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 10, 46, 0.95);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      pointer-events: auto;
+      z-index: 100;
+    }
+    .game-title {
+      font-size: 48px;
+      color: #ffaa33;
+      text-shadow: 0 0 20px rgba(255, 170, 51, 0.8), 0 0 40px rgba(255, 170, 51, 0.4);
+      margin-bottom: 20px;
+      letter-spacing: 4px;
+    }
+    .game-subtitle {
+      font-size: 16px;
+      color: #00ccff;
+      margin-bottom: 40px;
+      text-shadow: 0 0 10px rgba(0, 204, 255, 0.6);
+    }
+    .game-btn {
+      padding: 14px 40px;
+      font-size: 18px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      color: #0a0a2e;
+      background: linear-gradient(180deg, #ffcc66 0%, #ffaa33 100%);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #cc7700, 0 6px 20px rgba(255, 170, 51, 0.4);
+      transition: all 0.1s ease;
+      pointer-events: auto;
+      margin: 8px;
+    }
+    .game-btn:hover {
+      transform: translateY(0.5px);
+      box-shadow: 0 3.5px 0 #cc7700, 0 5px 25px rgba(255, 170, 51, 0.6);
+      filter: brightness(1.1);
+    }
+    .game-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #cc7700, 0 2px 10px rgba(255, 170, 51, 0.4);
+    }
+    .controls-info {
+      margin-top: 30px;
+      padding: 20px;
+      background: rgba(0, 204, 255, 0.1);
+      border: 1px solid rgba(0, 204, 255, 0.3);
+      border-radius: 8px;
+      color: #88aaff;
+      font-size: 13px;
+      line-height: 1.8;
+      text-align: left;
+    }
+    .controls-info span {
+      color: #ffaa33;
+      font-weight: bold;
+    }
+    .hidden {
+      display: none !important;
+    }
+    #upgrade-popup {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 42px;
+      font-weight: bold;
+      color: #ffaa33;
+      text-shadow: 0 0 20px rgba(255, 170, 51, 0.9), 0 0 40px rgba(255, 215, 0, 0.6);
+      pointer-events: none;
+      opacity: 0;
+      z-index: 50;
+      letter-spacing: 3px;
+    }
+    #black-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 60;
+    }
+    #damage-flash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 40;
+      box-shadow: inset 0 0 0 0 rgba(255, 50, 50, 0);
+    }
+    #vortex-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 45;
+      opacity: 0;
+    }
+    #final-score {
+      font-size: 24px;
+      color: #00ccff;
+      margin-bottom: 30px;
+      text-shadow: 0 0 15px rgba(0, 204, 255, 0.6);
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas" width="800" height="600"></canvas>
+    <div id="ui-layer">
+      <div id="upgrade-popup"></div>
+      <div id="black-screen"></div>
+      <div id="damage-flash"></div>
+      <canvas id="vortex-overlay" width="800" height="600"></canvas>
+      <div id="start-screen">
+        <h1 class="game-title">太 空 矿 工</h1>
+        <p class="game-subtitle">SPACE MINER ADVENTURE</p>
+        <button class="game-btn" id="start-btn">开 始 游 戏</button>
+        <div class="controls-info">
+          <div><span>WASD / 方向键</span> - 移动飞船</div>
+          <div><span>鼠标点击</span> - 发射激光</div>
+          <div><span>E 键</span> - 收集矿石（靠近时）</div>
+          <div><span>目标</span> - 击碎小行星收集矿石升级飞船！</div>
+        </div>
+      </div>
+      <div id="game-over-screen" class="hidden">
+        <h1 class="game-title">游 戏 结 束</h1>
+        <div id="final-score">最终分数: 0</div>
+        <button class="game-btn" id="restart-btn">重 新 开 始</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

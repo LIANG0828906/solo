@@ -1,0 +1,299 @@
+.tab-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.panel-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  color: #adb5bd;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 200ms ease-in-out;
+  padding: 0;
+}
+
+.panel-close-btn:hover {
+  background-color: #e9ecef;
+  color: #dc3545;
+}
+
+.panel-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.iframe-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transition: opacity 200ms ease-in-out, background-color 500ms ease-in-out;
+}
+
+.iframe-wrapper.visible {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.iframe-wrapper.hidden {
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.iframe-wrapper.sleeping {
+  background-color: #f1f3f5;
+}
+
+.iframe-wrapper.sleeping .tab-iframe {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.iframe-wrapper.waking {
+  background-color: #e0e0e0;
+  animation: wakeGradient 500ms ease-in-out forwards;
+}
+
+@keyframes wakeGradient {
+  0% {
+    background-color: #e0e0e0;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.waking-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #e0e0e0;
+  z-index: 4;
+  animation: wakingFade 500ms ease-in-out forwards;
+  pointer-events: none;
+}
+
+@keyframes wakingFade {
+  0% {
+    opacity: 1;
+    background-color: #e0e0e0;
+  }
+  100% {
+    opacity: 0;
+    background-color: transparent;
+  }
+}
+
+.progress-bar-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: #e9ecef;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  animation: progressAnimation 1.5s ease-in-out infinite;
+}
+
+@keyframes progressAnimation {
+  0% {
+    width: 0%;
+    transform: translateX(-100%);
+  }
+  50% {
+    width: 60%;
+    transform: translateX(0%);
+  }
+  100% {
+    width: 100%;
+    transform: translateX(100%);
+  }
+}
+
+.sleeping-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #f1f3f5, #e9ecef);
+  z-index: 5;
+  gap: 12px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.sleeping-icon {
+  font-size: 48px;
+  animation: float 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.sleeping-overlay p {
+  margin: 0;
+  font-size: 16px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.wake-btn {
+  padding: 10px 24px;
+  border: none;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 200ms ease-in-out;
+  font-family: inherit;
+}
+
+.wake-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.tab-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  transition: opacity 200ms ease-in-out;
+  will-change: opacity;
+}
+
+.tab-iframe.loading {
+  opacity: 0;
+}
+
+.tab-iframe.loaded {
+  opacity: 1;
+  animation: fadeIn 200ms ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.empty-state {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ffffff, #f8f9fa);
+}
+
+.empty-content {
+  text-align: center;
+  animation: bounceInUp 500ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bounceInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-10px);
+  }
+  80% {
+    transform: translateY(5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  animation: gentleBounce 2s ease-in-out infinite;
+}
+
+@keyframes gentleBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.empty-text {
+  margin: 0;
+  font-size: 16px;
+  color: #adb5bd;
+  font-weight: 500;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@media (max-width: 768px) {
+  .empty-icon {
+    font-size: 48px;
+  }
+
+  .empty-text {
+    font-size: 14px;
+  }
+
+  .sleeping-overlay p {
+    font-size: 14px;
+  }
+
+  .wake-btn {
+    padding: 8px 20px;
+    font-size: 13px;
+  }
+}

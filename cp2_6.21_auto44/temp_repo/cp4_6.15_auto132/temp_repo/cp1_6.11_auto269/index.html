@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>古弈残局 — 象棋残局对弈</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: #F5F0E1;
+      font-family: 'ZCOOL XiaoWei', 'KaiTi', 'STKaiti', serif;
+      color: #4A2C1A;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    .app-title {
+      text-align: center;
+      font-family: 'Ma Shan Zheng', 'LiSu', 'STLiti', 'ChenYan', serif;
+      font-size: 36px;
+      color: #5C4033;
+      padding: 16px 0 8px;
+      letter-spacing: 8px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.15);
+    }
+
+    .app-container {
+      display: flex;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 20px;
+      gap: 0;
+    }
+
+    .sidebar-left {
+      width: 220px;
+      min-width: 180px;
+      background-color: #E8D5B7;
+      border: 4px solid #5C4033;
+      border-radius: 4px;
+      padding: 12px 8px;
+      overflow-y: auto;
+      max-height: calc(100vh - 100px);
+      flex-shrink: 0;
+    }
+
+    .sidebar-left h3 {
+      font-family: 'Ma Shan Zheng', 'LiSu', serif;
+      font-size: 16px;
+      color: #5C4033;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid #8B6914;
+    }
+
+    .puzzle-group { margin-bottom: 16px; }
+
+    .puzzle-group-title {
+      font-size: 14px;
+      color: #8B6914;
+      font-weight: bold;
+      margin-bottom: 6px;
+      padding-left: 4px;
+    }
+
+    .puzzle-item {
+      font-size: 14px;
+      color: #4A2C1A;
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background-color 0.25s, color 0.25s;
+      font-family: 'ZCOOL XiaoWei', 'STXingkai', 'XingKai', serif;
+    }
+
+    .puzzle-item:hover { background-color: #F0D080; }
+    .puzzle-item.active {
+      background-color: #C1440E;
+      color: #FFFFFF;
+    }
+
+    .board-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 20px;
+    }
+
+    .move-info {
+      font-size: 14px;
+      color: #5C4033;
+      margin-bottom: 8px;
+      height: 22px;
+      font-family: 'ZCOOL XiaoWei', 'KaiTi', serif;
+    }
+
+    #chessBoard {
+      border: 4px solid #5C4033;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    .sidebar-right {
+      width: 320px;
+      min-width: 260px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .analysis-panel {
+      background: linear-gradient(135deg, #F5E6C8, #E8D5B7);
+      border: 4px solid #5C4033;
+      border-radius: 4px;
+      padding: 16px;
+      max-height: calc(100vh - 100px);
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .analysis-panel.unfurl {
+      animation: unfurlScroll 0.4s ease-out forwards;
+    }
+
+    @keyframes unfurlScroll {
+      0% { clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%); opacity: 0.3; }
+      100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; }
+    }
+
+    .analysis-title {
+      font-family: 'Ma Shan Zheng', 'LiSu', serif;
+      font-size: 18px;
+      color: #5C4033;
+      margin-bottom: 12px;
+      text-align: center;
+      border-bottom: 2px solid #8B6914;
+      padding-bottom: 6px;
+    }
+
+    .winrate-bar {
+      display: flex;
+      height: 20px;
+      border: 2px solid #5C4033;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .winrate-red {
+      background-color: #CC3333;
+      transition: width 0.5s ease;
+      height: 100%;
+    }
+
+    .winrate-black {
+      background-color: #2F4F2F;
+      transition: width 0.5s ease;
+      height: 100%;
+    }
+
+    .winrate-label {
+      font-size: 12px;
+      color: #5C4033;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .move-list {
+      font-size: 13px;
+      line-height: 1.8;
+      color: #4A2C1A;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+      padding: 6px;
+      background-color: rgba(255,255,255,0.3);
+      border-radius: 3px;
+    }
+
+    .move-entry { padding: 1px 4px; }
+    .move-entry.turning-point { color: #CC3333; font-weight: bold; }
+    .move-entry .star { color: #CC3333; }
+
+    .report-section {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #8B6914;
+    }
+
+    .report-section h4 {
+      font-size: 14px;
+      color: #5C4033;
+      margin-bottom: 6px;
+    }
+
+    .report-text {
+      font-size: 13px;
+      line-height: 1.7;
+      color: #4A2C1A;
+    }
+
+    .report-stats {
+      font-size: 13px;
+      color: #4A2C1A;
+      line-height: 1.8;
+    }
+
+    .export-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .export-btn {
+      padding: 6px 14px;
+      font-size: 13px;
+      border: 2px solid #5C4033;
+      background-color: #D2B48C;
+      color: #4A2C1A;
+      cursor: pointer;
+      border-radius: 3px;
+      font-family: 'ZCOOL XiaoWei', 'KaiTi', serif;
+      transition: background-color 0.2s;
+    }
+
+    .export-btn:hover { background-color: #8B6914; color: #FFFFFF; }
+
+    @media (max-width: 900px) {
+      .app-container {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .sidebar-left {
+        width: 100%;
+        max-height: 160px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 8px;
+      }
+
+      .sidebar-left h3 { width: 100%; margin-bottom: 4px; }
+      .puzzle-group { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+      .puzzle-group-title { margin-bottom: 2px; }
+      .puzzle-item { padding: 4px 8px; font-size: 13px; }
+
+      .board-area { padding: 8px 0; }
+
+      .sidebar-right {
+        width: 100%;
+        max-width: 520px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1 class="app-title">古 弈 残 局</h1>
+  <div class="app-container">
+    <aside class="sidebar-left" id="puzzleList">
+      <h3>残局谱</h3>
+    </aside>
+    <main class="board-area">
+      <div class="move-info" id="moveInfo">请选择残局开始对弈</div>
+      <canvas id="chessBoard"></canvas>
+    </main>
+    <aside class="sidebar-right">
+      <div class="analysis-panel" id="analysisPanel">
+        <div class="analysis-title">复盘分析</div>
+        <div class="winrate-label" id="winrateLabel">红方胜率 — — 黑方胜率</div>
+        <div class="winrate-bar">
+          <div class="winrate-red" id="winrateRed" style="width:50%"></div>
+          <div class="winrate-black" id="winrateBlack" style="width:50%"></div>
+        </div>
+        <div class="move-list" id="moveList"></div>
+        <div class="report-section" id="reportSection" style="display:none">
+          <h4>本局总结</h4>
+          <div class="report-stats" id="reportStats"></div>
+          <div class="report-text" id="reportText"></div>
+          <div class="export-buttons">
+            <button class="export-btn" id="exportJSON">导出 JSON</button>
+            <button class="export-btn" id="exportTXT">导出 TXT</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

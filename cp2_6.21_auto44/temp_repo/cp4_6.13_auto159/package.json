@@ -1,0 +1,15 @@
+{
+  "name": "fictional-portrait",
+  "version": "1.0.0",
+  "description": "故事角色形象生成与图鉴管理应用",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10"
+  }
+}

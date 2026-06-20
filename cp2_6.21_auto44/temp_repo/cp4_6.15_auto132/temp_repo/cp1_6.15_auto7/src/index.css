@@ -1,0 +1,71 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: #E3F2FD; color: #1a1a2e; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #90CAF9; border-radius: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@keyframes pulse-conflict {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+.conflict-pulse { animation: pulse-conflict 1s ease-in-out infinite; }
+.shake { animation: shake 0.4s ease-in-out; }
+
+.schedule-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: grab;
+}
+.schedule-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(21, 101, 192, 0.2);
+}
+.schedule-card.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.drop-valid {
+  border: 2px dashed #4CAF50 !important;
+  background: rgba(76, 175, 80, 0.08) !important;
+}
+.drop-invalid {
+  border: 2px solid #f44336 !important;
+  background: rgba(244, 67, 54, 0.08) !important;
+  animation: shake 0.4s ease-in-out;
+}
+
+.btn-primary {
+  background: #1565C0; color: white; border: none; padding: 8px 16px; border-radius: 6px;
+  cursor: pointer; font-size: 14px; transition: all 0.2s ease;
+}
+.btn-primary:hover { background: #0D47A1; transform: translateY(-1px); }
+.btn-danger {
+  background: #e53935; color: white; border: none; padding: 6px 12px; border-radius: 6px;
+  cursor: pointer; font-size: 13px; transition: all 0.2s ease;
+}
+.btn-danger:hover { background: #c62828; }
+.btn-secondary {
+  background: #E3F2FD; color: #1565C0; border: 1px solid #90CAF9; padding: 6px 12px; border-radius: 6px;
+  cursor: pointer; font-size: 13px; transition: all 0.2s ease;
+}
+.btn-secondary:hover { background: #BBDEFB; }
+
+input, select {
+  padding: 8px 12px; border: 1px solid #BBDEFB; border-radius: 6px; font-size: 14px;
+  transition: border-color 0.2s ease; outline: none; background: white;
+}
+input:focus, select:focus { border-color: #1565C0; box-shadow: 0 0 0 3px rgba(21,101,192,0.1); }
+
+.panel-card {
+  background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: box-shadow 0.2s ease;
+}

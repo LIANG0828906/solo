@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D 粒子沙画</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(ellipse at center, #1a1a3e 0%, #0a0a2e 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      cursor: crosshair;
+    }
+
+    #canvas-container canvas {
+      display: block;
+    }
+
+    .control-panel {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: rgba(10, 10, 46, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      z-index: 100;
+      user-select: none;
+    }
+
+    .color-buttons {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .color-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      outline: none;
+      position: relative;
+    }
+
+    .color-btn:hover {
+      transform: scale(1.1);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .color-btn:active {
+      transform: scale(0.95);
+    }
+
+    .color-btn.active {
+      border-color: rgba(255, 255, 255, 0.7);
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+    }
+
+    .divider {
+      width: 1px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.12);
+      margin: 0 2px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .action-btn {
+      padding: 8px 16px;
+      border-radius: 12px;
+      border: none;
+      background: rgba(255, 255, 255, 0.7);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+      outline: none;
+      white-space: nowrap;
+      letter-spacing: 0.3px;
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .action-btn:active {
+      transform: scale(0.95);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .hint-text {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255, 255, 255, 0.18);
+      font-size: 18px;
+      pointer-events: none;
+      transition: opacity 0.8s ease;
+      letter-spacing: 1px;
+    }
+
+    .hint-text.hidden {
+      opacity: 0;
+    }
+
+    @media (max-width: 767px) {
+      .control-panel {
+        right: auto;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 16px;
+      }
+
+      .color-buttons {
+        gap: 6px;
+      }
+
+      .color-btn {
+        width: 32px;
+        height: 32px;
+      }
+
+      .divider {
+        width: 100%;
+        height: 1px;
+        margin: 0;
+      }
+
+      .action-buttons {
+        gap: 6px;
+      }
+
+      .action-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="hint-text" id="hint">按住鼠标左键拖拽绘制沙画</div>
+
+  <div class="control-panel" id="control-panel">
+    <div class="color-buttons">
+      <button class="color-btn active" data-color="#FFD700" style="background: #FFD700;" title="暖金"></button>
+      <button class="color-btn" data-color="#4169E1" style="background: #4169E1;" title="星空蓝"></button>
+      <button class="color-btn" data-color="#FF4500" style="background: #FF4500;" title="火焰红"></button>
+      <button class="color-btn" data-color="#00FF7F" style="background: #00FF7F;" title="极光绿"></button>
+      <button class="color-btn" data-color="#8A2BE2" style="background: #8A2BE2;" title="幻彩紫"></button>
+    </div>
+    <div class="divider"></div>
+    <div class="action-buttons">
+      <button class="action-btn" id="btn-undo">撤销</button>
+      <button class="action-btn" id="btn-replay">回放</button>
+      <button class="action-btn" id="btn-export">导出GIF</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

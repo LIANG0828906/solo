@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>音画互动工具 - Audio Visualizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+
+      #root {
+        height: 100%;
+        width: 100%;
+      }
+
+      :root {
+        --bg-dark: #0f172a;
+        --bg-light: #f8fafc;
+        --panel-dark: rgba(30, 41, 59, 0.85);
+        --panel-light: rgba(255, 255, 255, 0.85);
+        --divider: #334155;
+        --divider-light: #e2e8f0;
+        --primary: #6366f1;
+        --text-dark: #f1f5f9;
+        --text-light: #0f172a;
+        --text-secondary-dark: #94a3b8;
+        --text-secondary-light: #64748b;
+      }
+
+      body {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+        color: var(--text-dark);
+        transition: background 0.5s ease, color 0.5s ease;
+      }
+
+      body.light-theme {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #f8fafc 100%);
+        color: var(--text-light);
+      }
+
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--divider);
+        border-radius: 3px;
+      }
+
+      body.light-theme ::-webkit-scrollbar-thumb {
+        background: var(--divider-light);
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--divider);
+        outline: none;
+        transition: background 0.3s ease;
+      }
+
+      body.light-theme input[type="range"] {
+        background: var(--divider-light);
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--primary);
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.8);
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--primary);
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+      }
+
+      input[type="range"]:hover {
+        filter: brightness(1.2);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

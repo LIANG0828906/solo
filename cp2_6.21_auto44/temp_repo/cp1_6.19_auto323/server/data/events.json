@@ -1,0 +1,65 @@
+[
+  {
+    "id": "event-001",
+    "title": "夏日阅读沙龙",
+    "date": "2026-06-20",
+    "time": "14:00",
+    "location": "社区图书馆二楼活动室",
+    "description": "在这个夏日午后，让我们一起分享最近读过的好书，交流阅读心得。欢迎带上你最喜欢的书来推荐！",
+    "maxParticipants": 20,
+    "currentParticipants": 12,
+    "likes": 8,
+    "likedBy": [],
+    "signedUpUsers": [],
+    "comments": [
+      {
+        "id": "comment-001",
+        "userId": "user-001",
+        "username": "匿名🐱",
+        "avatar": "🐱",
+        "content": "期待这次沙龙！",
+        "createdAt": "2026-06-18T10:30:00.000Z"
+      }
+    ],
+    "createdAt": "2026-06-15T08:00:00.000Z"
+  },
+  {
+    "id": "event-002",
+    "title": "经典文学之夜",
+    "date": "2026-06-22",
+    "time": "19:00",
+    "location": "图书馆一楼报告厅",
+    "description": "深入探讨中外经典文学作品，从《红楼梦》到《百年孤独》，分享那些跨越时空的文学之美。",
+    "maxParticipants": 30,
+    "currentParticipants": 25,
+    "likes": 15,
+    "likedBy": [],
+    "signedUpUsers": [],
+    "comments": [],
+    "createdAt": "2026-06-14T09:00:00.000Z"
+  },
+  {
+    "id": "event-003",
+    "title": "亲子绘本分享",
+    "date": "2026-06-25",
+    "time": "10:00",
+    "location": "儿童阅览区",
+    "description": "带上小朋友一起阅读精美绘本，培养孩子的阅读兴趣，享受温馨的亲子共读时光。适合3-8岁儿童家庭参加。",
+    "maxParticipants": 15,
+    "currentParticipants": 5,
+    "likes": 6,
+    "likedBy": [],
+    "signedUpUsers": [],
+    "comments": [
+      {
+        "id": "comment-002",
+        "userId": "user-002",
+        "username": "匿名🐰",
+        "avatar": "🐰",
+        "content": "和孩子一起参加，太棒了！",
+        "createdAt": "2026-06-17T14:20:00.000Z"
+      }
+    ],
+    "createdAt": "2026-06-16T11:00:00.000Z"
+  }
+]

@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/keyboard3dpreview.tsx","./src/components/keyboardmap.tsx","./src/data/keyboardlayout.ts","./src/hooks/usethemecolors.ts"],"version":"5.8.3"}

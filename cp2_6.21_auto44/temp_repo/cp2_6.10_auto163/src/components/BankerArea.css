@@ -1,0 +1,281 @@
+.banker-area {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(139, 58, 58, 0.9) 0%,
+    rgba(107, 42, 42, 0.95) 100%
+  );
+  border-right: 4px solid var(--color-bronze);
+  overflow-y: auto;
+}
+
+.area-header {
+  text-align: center;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--color-bronze);
+}
+
+.area-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  color: var(--color-gold);
+  text-shadow:
+    2px 2px 4px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 215, 0, 0.3);
+  margin: 0;
+  letter-spacing: 4px;
+}
+
+.banker-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.banker-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  background: linear-gradient(
+    180deg,
+    rgba(74, 24, 24, 0.8) 0%,
+    rgba(42, 16, 16, 0.9) 100%
+  );
+  border: 3px solid var(--color-bronze);
+  border-radius: 16px;
+  width: 100%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.banker-avatar {
+  width: 80px;
+  height: 80px;
+  font-size: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, var(--color-bronze-light) 0%, var(--color-bronze-dark) 100%);
+  border-radius: 50%;
+  border: 3px solid var(--color-gold);
+  box-shadow:
+    inset 0 2px 8px rgba(255, 255, 255, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+  position: relative;
+}
+
+.banker-badge {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  width: 28px;
+  height: 28px;
+  background: var(--color-gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--color-dark-red);
+  border: 2px solid var(--color-bronze-dark);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.banker-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.banker-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--color-ivory);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.banker-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chips-label {
+  font-size: 14px;
+  color: var(--color-ivory);
+  opacity: 0.7;
+}
+
+.chips-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--color-gold);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.banker-button {
+  width: 100%;
+  max-width: 150px;
+  padding: 12px 24px;
+  font-size: 18px;
+  border-radius: 10px;
+}
+
+.leave-button {
+  background: linear-gradient(180deg, #8b2a2a 0%, #6b1a1a 50%, #4a0a0a 100%) !important;
+  border-color: #3a0505 !important;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--color-bronze-light);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  margin: 0 0 10px 0;
+}
+
+.ai-players,
+.player-info,
+.history-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 15px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  border: 1px solid var(--color-bronze-dark);
+}
+
+.ai-avatar {
+  font-size: 28px;
+}
+
+.ai-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-name {
+  font-size: 14px;
+  color: var(--color-ivory);
+}
+
+.ai-chips {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--color-gold);
+}
+
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  border: 2px solid var(--color-bronze);
+  position: relative;
+}
+
+.player-avatar {
+  font-size: 36px;
+}
+
+.player-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.player-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--color-ivory);
+}
+
+.player-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-banker-badge {
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  padding: 4px 12px;
+  background: var(--color-gold);
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--color-dark-red);
+  border: 2px solid var(--color-bronze-dark);
+}
+
+@media (max-width: 1024px) {
+  .banker-area {
+    border-right: none;
+    border-bottom: 4px solid var(--color-bronze);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .area-header {
+    width: 100%;
+  }
+
+  .banker-info,
+  .ai-players,
+  .player-info,
+  .history-section {
+    flex: 1;
+    min-width: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .banker-area {
+    padding: 15px;
+    gap: 15px;
+    flex-direction: column;
+  }
+
+  .area-title {
+    font-size: 24px;
+  }
+
+  .banker-avatar {
+    width: 60px;
+    height: 60px;
+    font-size: 36px;
+  }
+
+  .banker-name {
+    font-size: 18px;
+  }
+}

@@ -1,0 +1,110 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #334155;
+  border-radius: 3px;
+  outline: none;
+  transition: filter 0.2s;
+}
+
+input[type="range"]:hover {
+  filter: brightness(1.15);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  filter: brightness(1.15);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+input[type="number"] {
+  background: #334155;
+  border: 1px solid #475569;
+  color: #e2e8f0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  outline: none;
+  transition: all 0.2s;
+  width: 80px;
+  font-size: 13px;
+}
+
+input[type="number"]:focus {
+  border: 2px solid #3b82f6;
+  padding: 5px 9px;
+}
+
+button {
+  background: #334155;
+  border: 1px solid #475569;
+  color: #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+button:hover {
+  filter: brightness(1.15);
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

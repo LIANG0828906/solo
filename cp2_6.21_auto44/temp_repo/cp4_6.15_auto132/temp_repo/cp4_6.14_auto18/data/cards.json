@@ -1,0 +1,156 @@
+[
+  {
+    "id": "53008eec-24b4-483e-96ce-296ebef75c90",
+    "front": "什么是间隔重复算法？",
+    "back": "间隔重复算法（Spaced Repetition）是一种利用间隔效应的学习方法，通过在适当的时间间隔重复学习内容，让记忆更牢固。基于艾宾浩斯遗忘曲线，根据每次复习的记忆程度动态调整下次复习时间。",
+    "tags": [
+      "学习方法"
+    ],
+    "initialDifficulty": "medium",
+    "currentInterval": 1.5,
+    "nextReviewDate": "2026-06-15",
+    "reviewHistory": [
+      {
+        "date": "2026-06-10",
+        "difficulty": "easy",
+        "score": 5
+      },
+      {
+        "date": "2026-06-11",
+        "difficulty": "medium",
+        "score": 3
+      }
+    ],
+    "createdAt": "2026-06-10"
+  },
+  {
+    "id": "a1b2c3d4-0001-4000-8000-000000000001",
+    "front": "React中useState和useEffect的区别是什么？",
+    "back": "useState用于在函数组件中声明状态变量，返回状态值和更新函数。useEffect用于处理副作用，如数据获取、订阅、DOM操作等，它在组件渲染后执行，可以通过依赖数组控制执行时机。",
+    "tags": [
+      "React",
+      "前端"
+    ],
+    "initialDifficulty": "medium",
+    "currentInterval": 3,
+    "nextReviewDate": "2026-06-12",
+    "reviewHistory": [
+      {
+        "date": "2026-06-08",
+        "difficulty": "medium",
+        "score": 3
+      },
+      {
+        "date": "2026-06-10",
+        "difficulty": "easy",
+        "score": 5
+      },
+      {
+        "date": "2026-06-12",
+        "difficulty": "hard",
+        "score": 1
+      }
+    ],
+    "createdAt": "2026-06-05"
+  },
+  {
+    "id": "a1b2c3d4-0002-4000-8000-000000000002",
+    "front": "HTTP状态码301和302有什么区别？",
+    "back": "301是永久重定向（Moved Permanently），表示资源已永久移动到新位置，搜索引擎会更新索引。302是临时重定向（Found），表示资源临时移动到其他位置，搜索引擎会保留原索引。",
+    "tags": [
+      "网络",
+      "前端"
+    ],
+    "initialDifficulty": "easy",
+    "currentInterval": 8,
+    "nextReviewDate": "2026-06-10",
+    "reviewHistory": [
+      {
+        "date": "2026-06-07",
+        "difficulty": "easy",
+        "score": 5
+      },
+      {
+        "date": "2026-06-09",
+        "difficulty": "easy",
+        "score": 5
+      }
+    ],
+    "createdAt": "2026-06-01"
+  },
+  {
+    "id": "a1b2c3d4-0003-4000-8000-000000000003",
+    "front": "TypeScript中interface和type的区别？",
+    "back": "interface只能定义对象类型，支持声明合并和继承，可以被类实现（implements）。type更灵活，可以定义任意类型（联合类型、交叉类型、元组等），但不支持声明合并。通常对象结构用interface，其他类型用type。",
+    "tags": [
+      "TypeScript",
+      "前端"
+    ],
+    "initialDifficulty": "hard",
+    "currentInterval": 2,
+    "nextReviewDate": "2026-06-13",
+    "reviewHistory": [
+      {
+        "date": "2026-06-08",
+        "difficulty": "hard",
+        "score": 1
+      },
+      {
+        "date": "2026-06-11",
+        "difficulty": "medium",
+        "score": 3
+      }
+    ],
+    "createdAt": "2026-06-06"
+  },
+  {
+    "id": "a1b2c3d4-0004-4000-8000-000000000004",
+    "front": "Git中merge和rebase的区别？",
+    "back": "merge创建一个新的合并提交，保留完整的提交历史，非破坏性操作。rebase将提交重新应用到目标分支上，产生线性历史，会改写提交历史。共享分支用merge，个人分支清理历史用rebase。",
+    "tags": [
+      "Git",
+      "工具"
+    ],
+    "initialDifficulty": "hard",
+    "currentInterval": 4.5,
+    "nextReviewDate": "2026-06-13",
+    "reviewHistory": [
+      {
+        "date": "2026-06-07",
+        "difficulty": "medium",
+        "score": 3
+      },
+      {
+        "date": "2026-06-09",
+        "difficulty": "medium",
+        "score": 3
+      }
+    ],
+    "createdAt": "2026-06-03"
+  },
+  {
+    "id": "a1b2c3d4-0005-4000-8000-000000000005",
+    "front": "JavaScript中的闭包是什么？",
+    "back": "闭包是指一个函数能够访问其词法作用域中的变量，即使该函数在其词法作用域之外执行。闭包常用于数据封装、模块化和回调函数中。",
+    "tags": [
+      "JavaScript",
+      "前端"
+    ],
+    "initialDifficulty": "medium",
+    "currentInterval": 1.5,
+    "nextReviewDate": "2026-06-14",
+    "reviewHistory": [
+      {
+        "date": "2026-06-12",
+        "difficulty": "hard",
+        "score": 1
+      },
+      {
+        "date": "2026-06-13",
+        "difficulty": "medium",
+        "score": 3
+      }
+    ],
+    "createdAt": "2026-06-08"
+  }
+]

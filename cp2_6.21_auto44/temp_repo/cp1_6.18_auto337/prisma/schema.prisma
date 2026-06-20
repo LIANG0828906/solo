@@ -1,0 +1,23 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Recording {
+  id              String   @id @default(uuid())
+  timestamp       DateTime @default(now())
+  duration        Float
+  pitch           Float
+  energy          Float
+  zeroCrossingRate Float
+  valence         Float
+  arousal         Float
+  emotionCategory String
+}

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>重力迷宫弹球</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 20px;
+    }
+
+    .game-title {
+      color: white;
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-shadow: 0 0 20px rgba(108, 99, 255, 0.5);
+      letter-spacing: 2px;
+    }
+
+    .level-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .game-wrapper {
+      position: relative;
+    }
+
+    #game-container {
+      position: relative;
+      border: 2px solid #3D3D5C;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(108, 99, 255, 0.2);
+    }
+
+    #game-canvas {
+      display: block;
+      cursor: default;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .control-btn {
+      padding: 10px 24px;
+      background: #2D2D44;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: sans-serif;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .control-btn:hover {
+      background: #3D3D5C;
+      transform: translateY(-1px);
+    }
+
+    .control-btn:active {
+      transform: translateY(0);
+    }
+
+    #save-btn {
+      background: #4CAF50;
+    }
+
+    #save-btn:hover {
+      filter: brightness(1.1);
+      background: #4CAF50;
+    }
+
+    #play-btn {
+      background: #6C63FF;
+    }
+
+    #play-btn:hover {
+      filter: brightness(1.1);
+      background: #6C63FF;
+    }
+
+    #reset-btn {
+      background: #FF6B6B;
+    }
+
+    #reset-btn:hover {
+      filter: brightness(1.1);
+      background: #FF6B6B;
+    }
+
+    .instructions {
+      margin-top: 20px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.8;
+    }
+
+    .instructions kbd {
+      background: #2D2D44;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #FFD700;
+    }
+
+    @media (max-width: 1024px) {
+      .game-title {
+        font-size: 22px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      
+      .game-title {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+
+      .level-bar {
+        gap: 5px;
+      }
+
+      .controls {
+        gap: 8px;
+      }
+
+      .control-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1 class="game-title">🎱 重力迷宫弹球</h1>
+  
+  <div class="level-bar" id="level-bar"></div>
+
+  <div class="game-wrapper">
+    <div id="game-container">
+      <canvas id="game-canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="control-btn" id="play-btn">▶ 开始</button>
+    <button class="control-btn" id="reset-btn">🔄 重置</button>
+    <button class="control-btn" id="save-btn">💾 保存关卡</button>
+  </div>
+
+  <div class="instructions">
+    <p>
+      <kbd>点击</kbd> 添加挡板 &nbsp;|&nbsp;
+      <kbd>拖拽</kbd> 移动挡板 &nbsp;|&nbsp;
+      <kbd>双击</kbd> 切换方向 &nbsp;|&nbsp;
+      <kbd>右键</kbd> 删除挡板
+    </p>
+    <p>
+      <kbd>空格</kbd> 开始/暂停 &nbsp;|&nbsp;
+      <kbd>R</kbd> 重置弹球
+    </p>
+  </div>
+
+  <script type="module" src="/src/game.ts"></script>
+</body>
+</html>

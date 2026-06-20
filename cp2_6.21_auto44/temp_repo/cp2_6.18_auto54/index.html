@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>AuraBloom - 3D粒子云可视化</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0D0B1E;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+      
+      #app {
+        width: 100%;
+        height: 100%;
+      }
+      
+      #canvas-container {
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        top: 0;
+        left: 0;
+        background: linear-gradient(135deg, #0D0B1E 0%, #1A143A 100%);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="canvas-container"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

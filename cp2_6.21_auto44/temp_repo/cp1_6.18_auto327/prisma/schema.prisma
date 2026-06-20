@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum RoastLevel {
+  LIGHT
+  MEDIUM
+  DARK
+  EXTRA_DARK
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String   @default("咖啡品鉴师")
+  avatarUrl String   @default("https://api.dicebear.com/7.x/avataaars/svg?seed=coffee")
+  createdAt DateTime @default(now())
+  records   Record[]
+}
+
+model Record {
+  id         String      @id @default(cuid())
+  userId     String
+  coffeeName String
+  roastLevel RoastLevel  @default(MEDIUM)
+  rating     Int         @db.SmallInt
+  notes      String?
+  createdAt  DateTime    @default(now())
+  user       User        @relation(fields: [userId], references: [id])
+  flavorTags FlavorTag[]
+}
+
+model FlavorTag {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  color   String
+  records Record[]
+}

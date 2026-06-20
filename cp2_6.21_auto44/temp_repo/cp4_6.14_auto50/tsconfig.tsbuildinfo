@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/components/app.tsx","./src/components/moleculecanvas.tsx","./src/components/moleculeviewer.tsx","./src/types/index.ts","./src/utils/comparer.ts","./src/utils/molecules.ts","./src/utils/parser.ts","./src/workers/comparer.worker.ts"],"version":"5.8.3"}

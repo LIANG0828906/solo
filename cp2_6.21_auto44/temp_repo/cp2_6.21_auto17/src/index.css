@@ -1,0 +1,24 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Georgia', serif;
+  background: linear-gradient(180deg, #fdf6ed 0%, #f5e6d3 100%);
+  min-height: 100vh;
+  color: #7a6653;
+}
+
+button {
+  font-family: 'Georgia', serif;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+input, textarea {
+  font-family: 'Georgia', serif;
+  outline: none;
+}

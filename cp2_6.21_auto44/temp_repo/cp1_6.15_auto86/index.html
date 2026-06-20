@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>蒸汽朋克飞艇竞速</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #1a0f0a;
+      font-family: 'Courier New', monospace;
+    }
+    
+    #game-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    
+    #canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .hud-panel {
+      background: linear-gradient(135deg, rgba(62, 39, 35, 0.8) 0%, rgba(40, 25, 22, 0.9) 100%);
+      border: 2px solid #8B4513;
+      border-radius: 8px;
+      padding: 12px 16px;
+      box-shadow: 
+        0 0 15px rgba(218, 165, 32, 0.3),
+        inset 0 0 20px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      position: relative;
+    }
+    
+    .hud-panel::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: 10%;
+      right: 10%;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #DAA520, transparent);
+      border-radius: 2px;
+    }
+    
+    .hud-panel::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 10%;
+      right: 10%;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #DAA520, transparent);
+      border-radius: 2px;
+    }
+    
+    #lap-counter {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #DAA520;
+      font-size: 20px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    }
+    
+    #timer {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #DAA520;
+      font-size: 32px;
+      font-weight: bold;
+      text-shadow: 
+        2px 2px 4px rgba(0, 0, 0, 0.8),
+        0 0 10px rgba(218, 165, 32, 0.5);
+      letter-spacing: 2px;
+    }
+    
+    #ranking {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: #fff;
+      min-width: 180px;
+    }
+    
+    #ranking h3 {
+      color: #DAA520;
+      margin-bottom: 8px;
+      font-size: 16px;
+      text-align: center;
+      border-bottom: 1px solid #8B4513;
+      padding-bottom: 4px;
+    }
+    
+    .rank-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 8px;
+      margin: 4px 0;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+    
+    .rank-item:hover {
+      transform: scale(1.05);
+      background: rgba(218, 165, 32, 0.1);
+    }
+    
+    .rank-1 { color: #FFD700; text-shadow: 0 0 8px rgba(255, 215, 0, 0.6); }
+    .rank-2 { color: #C0C0C0; text-shadow: 0 0 8px rgba(192, 192, 192, 0.6); }
+    .rank-3 { color: #CD7F32; text-shadow: 0 0 8px rgba(205, 127, 50, 0.6); }
+    
+    #energy-bar-container {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 300px;
+    }
+    
+    #energy-label {
+      color: #DAA520;
+      font-size: 12px;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+    
+    #energy-bar {
+      width: 100%;
+      height: 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid #8B4513;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    #energy-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ff0000 0%, #ffff00 50%, #00ff00 100%);
+      transition: width 0.2s ease;
+      box-shadow: 0 0 10px currentColor;
+    }
+    
+    #speedometer {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 120px;
+    }
+    
+    #speedometer svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 0 10px rgba(218, 165, 32, 0.5));
+    }
+    
+    #speed-needle {
+      transform-origin: 100px 100px;
+      transition: transform 0.1s ease;
+    }
+    
+    #speed-value {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #DAA520;
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    }
+    
+    #countdown {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 120px;
+      font-weight: bold;
+      color: #DAA520;
+      text-shadow: 
+        0 0 30px rgba(218, 165, 32, 0.8),
+        4px 4px 8px rgba(0, 0, 0, 0.9);
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    #countdown.show {
+      animation: countdownPulse 1s ease-out;
+    }
+    
+    @keyframes countdownPulse {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+      50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+    }
+    
+    #ripple-effect {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 0;
+      height: 0;
+      border: 4px solid rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    #ripple-effect.active {
+      animation: rippleExpand 0.5s ease-out forwards;
+    }
+    
+    @keyframes rippleExpand {
+      0% { width: 0; height: 0; opacity: 0.8; }
+      100% { width: 200vw; height: 200vw; opacity: 0; }
+    }
+    
+    #result-panel {
+      position: absolute;
+      bottom: -100%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 400px;
+      padding: 30px;
+      background: linear-gradient(135deg, rgba(62, 39, 35, 0.95) 0%, rgba(40, 25, 22, 0.98) 100%);
+      border: 3px solid #FFD700;
+      border-radius: 16px;
+      box-shadow: 
+        0 0 30px rgba(255, 215, 0, 0.4),
+        inset 0 0 30px rgba(0, 0, 0, 0.6);
+      text-align: center;
+      transition: bottom 0.5s ease-out;
+      pointer-events: auto;
+    }
+    
+    #result-panel.show {
+      bottom: 50%;
+      transform: translate(-50%, 50%);
+    }
+    
+    #result-title {
+      font-size: 36px;
+      font-weight: bold;
+      color: #FFD700;
+      margin-bottom: 20px;
+      text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+    }
+    
+    #result-ranking {
+      margin: 20px 0;
+    }
+    
+    .result-rank-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 16px;
+      margin: 6px 0;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    
+    #restart-btn {
+      margin-top: 20px;
+      padding: 12px 32px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #1a0f0a;
+      background: linear-gradient(135deg, #DAA520 0%, #FFD700 50%, #DAA520 100%);
+      border: 2px solid #8B4513;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    #restart-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+    }
+    
+    #restart-btn:active {
+      transform: scale(0.98);
+    }
+    
+    .particle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00ff00;
+      box-shadow: 0 0 10px #00ff00;
+      pointer-events: none;
+      opacity: 0;
+    }
+    
+    .particle.active {
+      animation: particleBurst 0.3s ease-out forwards;
+    }
+    
+    @keyframes particleBurst {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0) translateY(-20px); }
+    }
+    
+    #controls-hint {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      color: rgba(218, 165, 32, 0.7);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="canvas"></canvas>
+    
+    <div id="ui-overlay">
+      <div id="lap-counter" class="hud-panel">
+        圈数: <span id="lap-current">0</span> / <span id="lap-total">3</span>
+      </div>
+      
+      <div id="timer" class="hud-panel">
+        <span id="timer-display">00:00.000</span>
+      </div>
+      
+      <div id="ranking" class="hud-panel">
+        <h3>🏆 排名</h3>
+        <div id="ranking-list"></div>
+      </div>
+      
+      <div id="energy-bar-container">
+        <div id="energy-label">⚡ 能量</div>
+        <div id="energy-bar">
+          <div id="energy-fill" style="width: 100%;"></div>
+        </div>
+      </div>
+      
+      <div id="speedometer">
+        <svg viewBox="0 0 200 120">
+          <defs>
+            <linearGradient id="speedGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:#00ff00;stop-opacity:1" />
+              <stop offset="50%" style="stop-color:#ffff00;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#ff0000;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#speedGradient)" stroke-width="8" stroke-linecap="round"/>
+          <g stroke="#DAA520" stroke-width="2">
+            <line x1="28" y1="82" x2="35" y2="75"/>
+            <line x1="45" y1="58" x2="53" y2="53"/>
+            <line x1="70" y1="40" x2="78" y2="38"/>
+            <line x1="100" y1="32" x2="100" y2="28"/>
+            <line x1="130" y1="40" x2="122" y2="38"/>
+            <line x1="155" y1="58" x2="147" y2="53"/>
+            <line x1="172" y1="82" x2="165" y2="75"/>
+          </g>
+          <line id="speed-needle" x1="100" y1="100" x2="100" y2="35" stroke="#ff4444" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="100" cy="100" r="8" fill="#8B4513" stroke="#DAA520" stroke-width="2"/>
+        </svg>
+        <div id="speed-value">0</div>
+      </div>
+      
+      <div id="countdown"></div>
+      <div id="ripple-effect"></div>
+      
+      <div id="result-panel">
+        <div id="result-title">比赛结束</div>
+        <div id="result-ranking"></div>
+        <button id="restart-btn">重新开始</button>
+      </div>
+      
+      <div id="controls-hint">
+        W - 加速 | S - 减速<br/>
+        A/D - 转向 | Q/E - 翻滚
+      </div>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,236 @@
+.playback-bar {
+  display: flex;
+  align-items: center;
+  padding: 12px 24px;
+  background: linear-gradient(180deg, #2D2D44 0%, #252538 100%);
+  border-top: 1px solid #3A3A5C;
+  gap: 24px;
+  position: relative;
+}
+
+.playback-left {
+  flex-shrink: 0;
+}
+
+.transport-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transport-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #3A3A5C;
+  color: #EAEAEA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-size: 16px;
+}
+
+.transport-btn:hover {
+  background: #4A4A6C;
+  transform: scale(0.95);
+}
+
+.transport-btn:active {
+  transform: scale(0.9);
+}
+
+.play-btn {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  color: white;
+  font-size: 20px;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.play-btn:hover {
+  background: linear-gradient(135deg, #9F6FFF 0%, #8B5CF6 100%);
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.6);
+}
+
+.play-btn.playing {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.8);
+  }
+}
+
+.loop-btn.active {
+  background: #8B5CF6;
+  color: white;
+}
+
+.stop-btn {
+  font-size: 12px;
+}
+
+.playback-center {
+  flex: 1;
+  min-width: 0;
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.time-display {
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #9CA3AF;
+  min-width: 50px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #3A3A5C;
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+  transition: height 0.15s ease;
+}
+
+.progress-bar:hover {
+  height: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8B5CF6 0%, #A78BFA 100%);
+  border-radius: 3px;
+  transition: width 0.05s linear;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%);
+  border-radius: 3px;
+}
+
+.progress-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.progress-bar:hover .progress-thumb {
+  opacity: 1;
+}
+
+.playback-right {
+  flex-shrink: 0;
+}
+
+.bpm-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #9CA3AF;
+}
+
+.bpm-label {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bpm-slider {
+  width: 100px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: #3A3A5C;
+  outline: none;
+  cursor: pointer;
+}
+
+.bpm-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #8B5CF6;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+  transition: transform 0.15s ease;
+}
+
+.bpm-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.bpm-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #8B5CF6;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+}
+
+.bpm-value {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  color: #8B5CF6;
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 768px) {
+  .playback-bar {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .playback-left,
+  .playback-right {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .playback-center {
+    width: 100%;
+  }
+
+  .bpm-slider {
+    width: 80px;
+  }
+}

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoCard - AI-Powered Flashcards</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #F9FAFB;
+      }
+      #root {
+        min-height: 100vh;
+      }
+      .loading-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      }
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      .loading-text {
+        color: white;
+        margin-top: 20px;
+        font-size: 18px;
+        font-weight: 500;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading EchoCard...</div>
+      </div>
+    </div>
+    <script type="module" src="/src/frontend/main.tsx"></script>
+  </body>
+</html>

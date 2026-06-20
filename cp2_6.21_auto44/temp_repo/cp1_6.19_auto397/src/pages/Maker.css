@@ -1,0 +1,144 @@
+.maker-page {
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.maker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: white;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.maker-back {
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: var(--color-gray-light);
+  color: var(--color-gray-dark);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition);
+}
+
+.maker-back:hover {
+  background: var(--color-gray);
+}
+
+.maker-title {
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.maker-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.maker-clear {
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: var(--color-gray-light);
+  color: var(--color-gray-dark);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition);
+}
+
+.maker-clear:hover {
+  background: #FFEBEE;
+  color: var(--color-like);
+}
+
+.maker-publish {
+  padding: 8px 20px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #EC407A 100%);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all var(--transition);
+  box-shadow: 0 2px 8px rgba(255, 128, 171, 0.3);
+}
+
+.maker-publish:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 128, 171, 0.4);
+}
+
+.maker-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.maker-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.maker-text-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.maker-text-input {
+  width: 300px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--color-gray);
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  transition: all var(--transition);
+}
+
+.maker-text-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(255, 128, 171, 0.1);
+}
+
+.maker-text-count {
+  font-size: 12px;
+  color: var(--color-gray-dark);
+}
+
+@media (max-width: 768px) {
+  .maker-page {
+    height: auto;
+    min-height: calc(100vh - 80px);
+  }
+
+  .maker-header {
+    padding: 10px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .maker-title {
+    order: -1;
+    width: 100%;
+    text-align: center;
+  }
+
+  .maker-content {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .maker-text-input {
+    width: 240px;
+  }
+}

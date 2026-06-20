@@ -1,0 +1,83 @@
+.selection-line {
+  animation: dash-flow 1s linear infinite;
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+.annotation-text-wrapper {
+  position: relative;
+  display: inline-block;
+  min-width: 80px;
+  min-height: 28px;
+}
+
+.annotation-text {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(96, 125, 139, 0.3);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #333;
+  cursor: text;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 200ms ease-out, border-color 200ms ease-out;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 200px;
+}
+
+.annotation-text.preview {
+  cursor: default;
+  pointer-events: none;
+}
+
+.annotation-text:hover {
+  border-color: #607D8B;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+}
+
+.annotation-textarea {
+  width: 100%;
+  min-height: 60px;
+  border: 1px solid #607D8B;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #333;
+  resize: both;
+  background: rgba(255, 255, 255, 0.95);
+  outline: none;
+  font-family: inherit;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+}
+
+.annotation-delete {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: #607D8B;
+  color: white;
+  font-size: 14px;
+  line-height: 16px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 150ms ease, transform 150ms ease;
+  padding: 0;
+}
+
+.annotation-delete:hover {
+  background: #455A64;
+  transform: scale(1.1);
+}

@@ -1,0 +1,35 @@
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-panel: #16213e;
+  --bg-track: #0f3460;
+  --accent: #e94560;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0b0;
+  --text-accent: #e94560;
+  --font-display: 'Cinzel', serif;
+  --font-ui: 'Rajdhani', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+}
+
+body {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

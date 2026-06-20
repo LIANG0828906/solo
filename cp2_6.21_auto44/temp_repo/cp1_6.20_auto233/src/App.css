@@ -1,0 +1,83 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: #2d2d2d;
+  color: #faf8f0;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-title {
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-title i {
+  color: #ffa726;
+}
+
+.app-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-btn {
+  background: transparent;
+  color: #faf8f0;
+  border: 2px solid transparent;
+  padding: 8px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 167, 38, 0.15);
+  border-color: #ffa726;
+}
+
+.nav-btn.active {
+  background: #ffa726;
+  color: #2d2d2d;
+  border-color: #ffa726;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 16px;
+  }
+  .app-title {
+    font-size: 18px;
+  }
+  .nav-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}

@@ -1,0 +1,92 @@
+.preview-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.preview-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  gap: 16px;
+}
+
+.preview-canvas-wrapper {
+  padding: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.preview-canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.preview-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.frame-counter {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.frame-size {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.control-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-button);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+}
+
+.control-btn:hover:not(:disabled) {
+  background: var(--bg-button-hover);
+  transform: scale(1.05);
+}
+
+.control-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.play-btn {
+  width: 52px;
+  height: 52px;
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+  color: white;
+}
+
+.play-btn:hover:not(:disabled) {
+  background: #16A34A;
+  border-color: #16A34A;
+}

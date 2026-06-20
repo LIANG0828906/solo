@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #16213e;
+  --color-secondary: #0f3460;
+  --color-accent: #1a1a2e;
+  --color-gold: #FFD700;
+  --color-red: #e74c3c;
+  --color-green: #2ecc71;
+  --color-purple: #9b59b6;
+  --color-button-bg: #2c3e50;
+  --color-button-hover: #34495e;
+  --color-text: #ffffff;
+  --color-text-muted: #7f8c8d;
+  --font-pixel: 'Press Start 2P', cursive;
+  --panel-height: 60px;
+  --border-width: 2px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-pixel);
+  background-color: var(--color-accent);
+  color: var(--color-text);
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+*,
+*::before,
+*::after {
+  will-change: transform, opacity;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --panel-height: 50px;
+  }
+
+  body {
+    font-size: 12px;
+  }
+}

@@ -1,0 +1,178 @@
+.dashboard {
+  width: 280px;
+  background: #253746;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.warningBanner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: #E63946;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 0.5s ease-in-out infinite alternate;
+  z-index: 10;
+  border-radius: 12px 12px 0 0;
+}
+
+.warningText {
+  color: #E0E1DD;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.title {
+  font-family: 'Orbitron', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #E0E1DD;
+  margin: 0;
+}
+
+.thresholdRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.thresholdLabel {
+  font-size: 12px;
+  color: #76B5C2;
+}
+
+.thresholdInput {
+  width: 60px;
+  background: #1B263B;
+  border: 1px solid #4A6FA5;
+  border-radius: 6px;
+  color: #E0E1DD;
+  font-family: 'Orbitron', monospace;
+  font-size: 13px;
+  padding: 4px 8px;
+  outline: none;
+  text-align: center;
+}
+
+.thresholdInput:focus {
+  border-color: #76B5C2;
+}
+
+.thresholdUnit {
+  font-size: 12px;
+  color: #76B5C2;
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.barRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.barLabel {
+  font-size: 12px;
+  width: 32px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.barTrack {
+  flex: 1;
+  height: 24px;
+  background: rgba(13, 19, 33, 0.5);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.barValue {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  color: #E0E1DD;
+  width: 48px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #2D4059;
+  padding-top: 12px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summaryLabel {
+  font-size: 13px;
+  color: #76B5C2;
+}
+
+.summaryValue {
+  font-family: 'Orbitron', monospace;
+  font-size: 15px;
+  color: #E0E1DD;
+  font-weight: 700;
+}
+
+.overWeight {
+  color: #E63946;
+}
+
+.progressTrack {
+  height: 6px;
+  background: #1B263B;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease, background-color 0.3s ease;
+}
+
+@media (max-width: 900px) {
+  .dashboard {
+    width: 100%;
+  }
+}

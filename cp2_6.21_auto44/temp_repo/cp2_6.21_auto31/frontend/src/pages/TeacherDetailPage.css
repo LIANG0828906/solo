@@ -1,0 +1,311 @@
+.teacher-detail-page {
+  padding-bottom: 40px;
+}
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 24px;
+}
+
+.teacher-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.teacher-header {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.teacher-avatar-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4a90d9, #357abd);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 32px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.teacher-basic-info {
+  flex: 1;
+}
+
+.teacher-name {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+}
+
+.teacher-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-score {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f39c12;
+}
+
+.review-count {
+  font-size: 13px;
+  color: #95a5a6;
+}
+
+.teacher-info-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.info-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 16px 0;
+}
+
+.info-item {
+  margin-bottom: 16px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  display: block;
+  font-size: 13px;
+  color: #95a5a6;
+  margin-bottom: 4px;
+}
+
+.info-value {
+  font-size: 14px;
+  color: #34495e;
+  font-weight: 500;
+}
+
+.info-bio {
+  font-size: 14px;
+  color: #556677;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.reviews-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.review-item {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.review-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.review-user {
+  font-weight: 500;
+  color: #34495e;
+  font-size: 14px;
+}
+
+.review-rating {
+  font-size: 14px;
+}
+
+.review-comment {
+  font-size: 14px;
+  color: #556677;
+  line-height: 1.5;
+  margin: 0 0 8px 0;
+}
+
+.review-date {
+  font-size: 12px;
+  color: #bdc3c7;
+}
+
+.no-reviews {
+  text-align: center;
+  color: #95a5a6;
+  padding: 20px 0;
+  margin: 0;
+}
+
+.time-slots-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.slots-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 20px 0;
+}
+
+.time-slot-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.time-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #95a5a6;
+  font-weight: 500;
+}
+
+.day-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  font-size: 12px;
+}
+
+.day-name {
+  font-weight: 500;
+  color: #34495e;
+  margin-bottom: 2px;
+}
+
+.day-date {
+  color: #95a5a6;
+  font-size: 11px;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.time-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #95a5a6;
+  height: 36px;
+}
+
+.slot-btn {
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.slot-btn:active {
+  transform: scale(0.97);
+  transition: transform 0.1s;
+}
+
+.slot-btn.available {
+  background: #4a90d9;
+  color: white;
+}
+
+.slot-btn.available:hover {
+  background: #357abd;
+}
+
+.slot-btn.unavailable {
+  background: #d8dde3;
+  color: #95a5a6;
+  cursor: not-allowed;
+}
+
+.booking-info {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.booking-info p {
+  margin: 8px 0;
+  color: #34495e;
+  font-size: 14px;
+}
+
+.booking-info p:first-child {
+  margin-top: 0;
+}
+
+.booking-info p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 1200px) {
+  .detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .teacher-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .teacher-rating {
+    justify-content: center;
+  }
+
+  .table-header,
+  .table-row {
+    grid-template-columns: 50px repeat(7, 1fr);
+  }
+
+  .slot-btn {
+    font-size: 10px;
+    height: 32px;
+  }
+}

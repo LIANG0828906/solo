@@ -1,0 +1,77 @@
+.photo-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.photo-wrap {
+  position: relative;
+  width: 160px;
+  height: 120px;
+  border: 2px solid #E0E0E0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #F0F0F0;
+}
+
+.photo-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #F0F0F0 0%, #E0E0E0 50%, #F0F0F0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 0.8s ease-in-out infinite;
+}
+
+.photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.photo-img.loaded {
+  opacity: 1;
+}
+
+.photo-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(255, 107, 107, 0.9);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all var(--transition-ease);
+}
+
+.photo-wrap:hover .photo-delete {
+  opacity: 1;
+}
+
+.photo-delete:hover {
+  transform: scale(1.05);
+}
+
+.photo-delete:active {
+  transform: scale(0.95);
+}
+
+.photo-note {
+  margin: 0;
+  font-size: 14px;
+  color: #333333;
+  line-height: 1.6;
+  max-width: 160px;
+  word-break: break-word;
+}
+
+.photo-date {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}

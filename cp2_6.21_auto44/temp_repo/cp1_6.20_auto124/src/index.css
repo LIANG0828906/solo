@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-warm-white: #F5F0E1;
+  --color-dark-brown: #3E2C1C;
+  --color-antique-gold: #C9A96E;
+  --color-parchment: #FDF8EF;
+  --color-leather: #5C3D2E;
+  --color-ink: #1A1208;
+  --color-gold-light: #E0C992;
+  --color-gold-dark: #A07D3A;
+  --color-cream: #FFF8E7;
+  --color-sepia: #704214;
+
+  font-family: 'Crimson Pro', serif;
+  line-height: 1.6;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background-color: #F5F0E1;
+  color: #3E2C1C;
+  position: relative;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F5F0E1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C9A96E;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A07D3A;
+}
+
+@layer utilities {
+  .book-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .book-shadow {
+    box-shadow: 0 2px 8px rgba(62, 44, 28, 0.1), 0 1px 3px rgba(62, 44, 28, 0.06);
+  }
+
+  .book-shadow-hover {
+    box-shadow: 0 8px 24px rgba(62, 44, 28, 0.15), 0 2px 6px rgba(62, 44, 28, 0.08);
+  }
+
+  .book-border {
+    border: 1px solid rgba(201, 169, 110, 0.3);
+  }
+
+  .book-gold-line {
+    border-bottom: 2px solid #C9A96E;
+  }
+}
+
+button:active {
+  transform: scale(0.97);
+  transition: transform 0.2s ease;
+}

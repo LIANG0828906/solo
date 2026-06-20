@@ -1,0 +1,32 @@
+.social-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.social-page__header {
+  padding: 24px 24px 16px;
+}
+
+.social-page__header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.social-page__header p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.social-page__content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .social-page__header {
+    padding: 16px;
+  }
+}

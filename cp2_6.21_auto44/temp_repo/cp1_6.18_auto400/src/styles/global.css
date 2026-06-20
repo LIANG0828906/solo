@@ -1,0 +1,781 @@
+:root {
+  --color-primary: #F5E6C8;
+  --color-secondary: #2C2C2C;
+  --color-accent: #C0392B;
+  --color-border: #D4C5A9;
+  --color-hover: #5A3E1B;
+  --color-highlight: #8B5A2B;
+  --color-nav-bg: #FFFFFF15;
+
+  --poem-font-family: "Ma Shan Zheng", "KaiTi", "楷体", "STKaiti", serif;
+  --bg-color: #F5E6C8;
+  --bg-texture: none;
+  --decoration-type: none;
+
+  --radius-card: 16px;
+  --radius-button: 8px;
+  --radius-nav: 0 0 16px 16px;
+
+  --padding-card: 48px;
+  --width-card: 750px;
+
+  --transition-fast: 0.2s ease-in-out;
+  --transition-normal: 0.3s ease-in-out;
+  --transition-decoration: 4s ease-in-out;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  background: linear-gradient(135deg, #F9F0E0 0%, #E8D8BD 50%, #D4C09B 100%);
+  min-height: 100vh;
+  color: var(--color-secondary);
+  line-height: 1.6;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-button);
+  padding: 10px 20px;
+  font-size: 14px;
+  color: var(--color-secondary);
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--color-border);
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-hover);
+  color: white;
+  border-color: var(--color-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input {
+  font-family: inherit;
+  padding: 10px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  color: var(--color-secondary);
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--color-highlight);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 0 3px rgba(139, 90, 43, 0.1);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.nav-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--color-nav-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-nav);
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(212, 197, 169, 0.3);
+}
+
+.nav-logo {
+  font-family: var(--poem-font-family);
+  font-size: 28px;
+  color: var(--color-accent);
+  letter-spacing: 4px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.nav-link {
+  font-size: 16px;
+  padding: 8px 16px;
+  border-radius: var(--radius-button);
+  color: var(--color-secondary);
+  opacity: 0.7;
+  transition: all var(--transition-fast);
+}
+
+.nav-link:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.nav-link.active {
+  color: var(--color-highlight);
+  opacity: 1;
+  font-weight: 600;
+  background: rgba(139, 90, 43, 0.1);
+}
+
+.page-container {
+  flex: 1;
+  padding-top: 100px;
+  padding-bottom: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.create-page {
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 24px;
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.input-section {
+  width: 100%;
+  max-width: var(--width-card);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.input-section h2 {
+  font-family: var(--poem-font-family);
+  font-size: 24px;
+  color: var(--color-highlight);
+  text-align: center;
+  letter-spacing: 2px;
+}
+
+.input-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.keyword-input {
+  flex: 1;
+  max-width: 300px;
+  text-align: center;
+  font-family: var(--poem-font-family);
+  font-size: 18px;
+  letter-spacing: 4px;
+}
+
+.error-message {
+  color: var(--color-accent);
+  font-size: 14px;
+  text-align: center;
+}
+
+.poem-card-wrapper {
+  width: 100%;
+  max-width: var(--width-card);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.poem-card {
+  position: relative;
+  width: 100%;
+  padding: var(--padding-card);
+  border-radius: var(--radius-card);
+  border: 2px solid var(--color-border);
+  background: var(--bg-color);
+  background-image: var(--bg-texture);
+  transition: all var(--transition-normal);
+  box-shadow: 
+    0 8px 32px rgba(139, 90, 43, 0.15),
+    inset 0 0 60px rgba(139, 90, 43, 0.05);
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.poem-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--color-highlight);
+  opacity: 0.6;
+}
+
+.poem-placeholder-icon {
+  font-size: 64px;
+  opacity: 0.4;
+}
+
+.poem-placeholder-text {
+  font-family: var(--poem-font-family);
+  font-size: 24px;
+  letter-spacing: 4px;
+}
+
+.poem-content {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 48px;
+  padding: 20px 0;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.poem-line {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: var(--poem-font-family);
+  font-size: 36px;
+  line-height: 1.4;
+  letter-spacing: 8px;
+  color: var(--color-secondary);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+  padding: 4px 8px;
+  transition: all var(--transition-normal);
+}
+
+.poem-meta {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0 0;
+  border-top: 1px dashed var(--color-border);
+  margin-top: 20px;
+}
+
+.poem-keyword {
+  font-family: var(--poem-font-family);
+  font-size: 18px;
+  color: var(--color-highlight);
+  letter-spacing: 2px;
+}
+
+.poem-author {
+  font-family: var(--poem-font-family);
+  font-size: 20px;
+  color: var(--color-accent);
+  letter-spacing: 3px;
+}
+
+.poem-type {
+  font-size: 12px;
+  color: var(--color-highlight);
+  opacity: 0.7;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.action-buttons button {
+  flex: 1;
+  max-width: 150px;
+}
+
+.toast {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-hover);
+  color: white;
+  padding: 12px 24px;
+  border-radius: var(--radius-button);
+  z-index: 2000;
+  animation: toastIn 0.3s ease-out;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.style-panel {
+  width: 280px;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: fit-content;
+  position: sticky;
+  top: 100px;
+}
+
+.style-panel-title {
+  font-family: var(--poem-font-family);
+  font-size: 22px;
+  color: var(--color-highlight);
+  text-align: center;
+  letter-spacing: 3px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.style-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.style-section-label {
+  font-size: 14px;
+  color: var(--color-highlight);
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.style-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.style-option {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 8px;
+  font-size: 13px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.style-option:hover {
+  border-color: var(--color-highlight);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.style-option.active {
+  background: var(--color-highlight);
+  color: white;
+  border-color: var(--color-highlight);
+}
+
+.bg-preview {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+.decoration-corner {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  opacity: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.decoration-corner.animate {
+  animation: decorationAppear var(--transition-decoration) ease-out forwards;
+}
+
+.decoration-corner.tl { top: 12px; left: 12px; }
+.decoration-corner.tr { top: 12px; right: 12px; }
+.decoration-corner.bl { bottom: 12px; left: 12px; }
+.decoration-corner.br { bottom: 12px; right: 12px; }
+
+@keyframes decorationAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) rotate(-15deg);
+  }
+  30% {
+    opacity: 0.9;
+    transform: scale(1.1) rotate(5deg);
+  }
+  60% {
+    opacity: 0.7;
+    transform: scale(1) rotate(-3deg);
+  }
+  100% {
+    opacity: 0.85;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.seal {
+  background: var(--color-accent);
+  color: white;
+  font-family: var(--poem-font-family);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  transform-origin: center;
+  box-shadow: 2px 2px 8px rgba(192, 57, 43, 0.3);
+  writing-mode: vertical-rl;
+  padding: 4px;
+  letter-spacing: 2px;
+}
+
+.petal-container {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.petal {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: radial-gradient(ellipse at 30% 30%, #FFB7C5, #FF69B4);
+  border-radius: 150% 0 150% 0;
+  opacity: 0.8;
+}
+
+.petal.p1 { top: 0; left: 10px; animation-delay: 0s; }
+.petal.p2 { top: 20px; left: 40px; animation-delay: 0.5s; width: 16px; height: 16px; }
+.petal.p3 { top: 50px; left: 5px; animation-delay: 1s; width: 14px; height: 14px; }
+.petal.p4 { top: 30px; left: 60px; animation-delay: 1.5s; }
+
+.bird-silhouette {
+  font-size: 28px;
+  color: rgba(44, 44, 44, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-page {
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 24px;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.history-title {
+  font-family: var(--poem-font-family);
+  font-size: 32px;
+  color: var(--color-highlight);
+  letter-spacing: 4px;
+}
+
+.history-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.history-card {
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+}
+
+.history-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(139, 90, 43, 0.2);
+}
+
+.history-card-thumb {
+  padding: 24px;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  transition: background var(--transition-normal);
+}
+
+.history-card-text {
+  font-family: var(--poem-font-family);
+  font-size: 20px;
+  line-height: 2;
+  letter-spacing: 4px;
+  color: var(--color-secondary);
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  padding: 12px;
+}
+
+.history-card-info {
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.5);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-card-keyword {
+  font-family: var(--poem-font-family);
+  font-size: 18px;
+  color: var(--color-highlight);
+}
+
+.history-card-date {
+  font-size: 12px;
+  color: var(--color-secondary);
+  opacity: 0.6;
+}
+
+.history-card-author {
+  font-size: 13px;
+  color: var(--color-accent);
+  font-family: var(--poem-font-family);
+}
+
+.history-empty {
+  grid-column: 1 / -1;
+  padding: 80px 40px;
+  text-align: center;
+  color: var(--color-highlight);
+  opacity: 0.6;
+}
+
+.history-empty-icon {
+  font-size: 80px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.history-empty-text {
+  font-family: var(--poem-font-family);
+  font-size: 24px;
+  letter-spacing: 3px;
+}
+
+.detail-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(44, 44, 44, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  padding: 24px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.detail-modal {
+  width: 100%;
+  max-width: var(--width-card);
+  position: relative;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.detail-close {
+  position: absolute;
+  top: -48px;
+  right: 0;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.detail-close:hover {
+  background: var(--color-accent);
+}
+
+.detail-delete {
+  position: absolute;
+  top: -48px;
+  right: 52px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: var(--radius-button);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-delete:hover {
+  background: var(--color-accent);
+}
+
+@media (max-width: 1024px) {
+  .poem-card-wrapper,
+  .input-section {
+    width: 95%;
+    max-width: none;
+  }
+
+  .history-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .create-page {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .style-panel {
+    width: 95%;
+    max-width: var(--width-card);
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --padding-card: 24px;
+  }
+
+  html {
+    font-size: 14px;
+  }
+
+  .poem-card {
+    min-height: 400px;
+  }
+
+  .poem-content {
+    gap: 24px;
+  }
+
+  .poem-line {
+    font-size: 24px;
+    letter-spacing: 4px;
+  }
+
+  .nav-bar {
+    padding: 12px 16px;
+  }
+
+  .nav-logo {
+    font-size: 22px;
+  }
+
+  .nav-links {
+    gap: 16px;
+  }
+
+  .nav-link {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+
+  .history-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-title {
+    font-size: 24px;
+  }
+
+  .input-row {
+    flex-direction: column;
+  }
+
+  .keyword-input {
+    max-width: 100%;
+  }
+
+  .decoration-corner {
+    width: 60px;
+    height: 60px;
+  }
+}

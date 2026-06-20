@@ -1,0 +1,173 @@
+{
+  "ideas": [
+    {
+      "id": "2830571c-75e0-45c5-89e0-4dd0a05d6da3",
+      "title": "智能会议助手",
+      "description": "开发一个AI驱动的会议助手，可以自动记录会议内容、生成会议纪要、识别行动项并分配给相关人员，同时支持语音转文字和多语言翻译功能。让每场会议都变得高效且有成果。",
+      "author": "张明",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhang",
+      "likes": 43,
+      "likedBy": [
+        "user1",
+        "user2",
+        "user_guv34da2dtn"
+      ],
+      "commentCount": 8,
+      "createdAt": "2026-06-16T04:07:43.115Z",
+      "updatedAt": "2026-06-17T04:17:32.990Z"
+    },
+    {
+      "id": "70f9b526-a5b0-4d51-8792-4cc3afbf1829",
+      "title": "团队健康度仪表板",
+      "description": "创建一个团队健康度实时监控面板，追踪项目进度、代码质量、团队士气等关键指标，通过可视化图表帮助管理者快速发现问题并做出决策。",
+      "author": "李华",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lihua",
+      "likes": 38,
+      "likedBy": [
+        "user3"
+      ],
+      "commentCount": 5,
+      "createdAt": "2026-06-15T04:07:43.116Z",
+      "updatedAt": "2026-06-15T04:07:43.116Z"
+    },
+    {
+      "id": "85b33451-057b-4077-b2f6-18ffc4bc079e",
+      "title": "创意灵感墙AR版",
+      "description": "利用增强现实技术，将团队的创意点子投射到真实物理空间中，成员可以通过手势交互进行分类、连接和投票，让头脑风暴变得更加沉浸和有趣。",
+      "author": "王芳",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wangfang",
+      "likes": 56,
+      "likedBy": [
+        "user1",
+        "user4",
+        "user5"
+      ],
+      "commentCount": 12,
+      "createdAt": "2026-06-14T04:07:43.116Z",
+      "updatedAt": "2026-06-14T04:07:43.116Z"
+    },
+    {
+      "id": "55cf0495-b1d1-4b77-b822-6e0935f93548",
+      "title": "代码评审游戏化系统",
+      "description": "将代码评审变成游戏，开发者完成PR评审获得经验值和徽章，高质量评审获得额外奖励，设立月度排行榜激励团队提升代码质量。",
+      "author": "陈伟",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=chenwei",
+      "likes": 31,
+      "likedBy": [],
+      "commentCount": 6,
+      "createdAt": "2026-06-13T04:07:43.116Z",
+      "updatedAt": "2026-06-13T04:07:43.116Z"
+    },
+    {
+      "id": "3224cd1d-154a-4fe9-b5fa-74ff80961eff",
+      "title": "远程团队虚拟办公室",
+      "description": "打造一个2D虚拟办公室，每个团队成员有自己的工位，可以自由走动拜访同事，支持即时语音通话、屏幕共享，营造远程办公的社交氛围。",
+      "author": "刘洋",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=liuyang",
+      "likes": 47,
+      "likedBy": [
+        "user2",
+        "user6"
+      ],
+      "commentCount": 9,
+      "createdAt": "2026-06-12T04:07:43.116Z",
+      "updatedAt": "2026-06-12T04:07:43.116Z"
+    },
+    {
+      "id": "72ab0f05-ee07-4935-8cf9-e7b5c9a67379",
+      "title": "自动化周报生成器",
+      "description": "自动收集Git提交、Jira任务、会议记录等数据，AI分析后生成个性化周报，节省团队成员写周报的时间，让汇报更高效。",
+      "author": "赵雪",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhaoxue",
+      "likes": 29,
+      "likedBy": [],
+      "commentCount": 4,
+      "createdAt": "2026-06-11T04:07:43.116Z",
+      "updatedAt": "2026-06-11T04:07:43.116Z"
+    },
+    {
+      "id": "33ba3a19-a874-4e92-821d-f431f8e8c4f8",
+      "title": "技能树可视化平台",
+      "description": "为每个团队成员建立技能树，展示技术栈掌握程度、项目经验和学习路径，方便管理者了解团队能力分布，也帮助成员规划职业发展。",
+      "author": "孙磊",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=sunlei",
+      "likes": 35,
+      "likedBy": [
+        "user7"
+      ],
+      "commentCount": 7,
+      "createdAt": "2026-06-10T04:07:43.116Z",
+      "updatedAt": "2026-06-10T04:07:43.116Z"
+    },
+    {
+      "id": "0c88410a-aeee-4f81-9973-5de3372a3447",
+      "title": "情绪感知工作环境",
+      "description": "通过匿名情绪打卡和AI情感分析，实时感知团队整体情绪状态，当压力过高时自动推送放松活动建议，帮助维护团队心理健康。",
+      "author": "周婷",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhouting",
+      "likes": 25,
+      "likedBy": [],
+      "commentCount": 3,
+      "createdAt": "2026-06-09T04:07:43.116Z",
+      "updatedAt": "2026-06-09T04:07:43.116Z"
+    },
+    {
+      "id": "fa05d400-efbf-44a9-b15f-ab64f7dd14f3",
+      "title": "知识库智能推荐引擎",
+      "description": "基于团队文档和项目历史，构建智能知识库，当开发者遇到问题时，自动推荐相关的解决方案和文档，减少重复踩坑。",
+      "author": "吴强",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wuqiang",
+      "likes": 52,
+      "likedBy": [
+        "user1",
+        "user8",
+        "user9"
+      ],
+      "commentCount": 11,
+      "createdAt": "2026-06-08T04:07:43.116Z",
+      "updatedAt": "2026-06-08T04:07:43.116Z"
+    },
+    {
+      "id": "47e50b6d-de0b-4284-a868-d07abd5212d3",
+      "title": "跨时区协作时间管家",
+      "description": "智能协调跨时区团队的工作时间，自动找出最佳会议窗口，异步任务优先级排序，确保全球团队高效协作无阻碍。",
+      "author": "郑丽",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhengli",
+      "likes": 33,
+      "likedBy": [
+        "user10"
+      ],
+      "commentCount": 5,
+      "createdAt": "2026-06-07T04:07:43.116Z",
+      "updatedAt": "2026-06-07T04:07:43.116Z"
+    },
+    {
+      "id": "77dd475d-4da8-4aba-b756-b3b097737182",
+      "title": "配对编程智能匹配",
+      "description": "根据技能互补性和协作风格，智能推荐配对编程伙伴，自动安排结对日程，并记录协作效果持续优化匹配算法。",
+      "author": "黄杰",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=huangjie",
+      "likes": 22,
+      "likedBy": [],
+      "commentCount": 2,
+      "createdAt": "2026-06-06T04:07:43.116Z",
+      "updatedAt": "2026-06-06T04:07:43.116Z"
+    },
+    {
+      "id": "333fa0e0-da93-40c3-b840-fe75a12a6180",
+      "title": "项目风险雷达",
+      "description": "通过分析代码提交频率、Bug增长趋势、任务延期情况等数据，构建项目风险雷达图，提前预警潜在风险帮助项目经理及时介入。",
+      "author": "林娜",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lina",
+      "likes": 44,
+      "likedBy": [
+        "user4",
+        "user11"
+      ],
+      "commentCount": 8,
+      "createdAt": "2026-06-05T04:07:43.116Z",
+      "updatedAt": "2026-06-05T04:07:43.116Z"
+    }
+  ],
+  "comments": []
+}

@@ -1,0 +1,158 @@
+.invoice-preview {
+  width: 100%;
+  max-width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  background: white;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+
+.header-left h2 {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.invoice-no {
+  font-size: 14px;
+  color: #7F8C8D;
+}
+
+.header-right {
+  text-align: right;
+}
+
+.date-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #7F8C8D;
+}
+
+.date-row span:first-child {
+  color: #95A5A6;
+}
+
+.preview-section {
+  margin-bottom: 30px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.customer-info .customer-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.customer-info .customer-address,
+.customer-info .customer-email {
+  font-size: 13px;
+  color: #7F8C8D;
+  margin-bottom: 2px;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.items-table th {
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.items-table td {
+  padding: 12px;
+  border-bottom: 1px solid #F1F3F5;
+  font-size: 14px;
+}
+
+.items-table tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.totals-section {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.totals {
+  width: 200px;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.total-row.grand-total {
+  padding-top: 12px;
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.notes-section {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #F1F3F5;
+}
+
+.notes-text {
+  font-size: 13px;
+  color: #7F8C8D;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .invoice-preview {
+    padding: 20px;
+    min-height: auto;
+  }
+
+  .preview-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .header-right {
+    text-align: left;
+  }
+
+  .date-row {
+    justify-content: flex-start;
+  }
+
+  .items-table th,
+  .items-table td {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .totals {
+    width: 100%;
+  }
+}

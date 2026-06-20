@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分子结构观察与编辑器</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene"></canvas>
+    
+    <div class="control-panel">
+      <h2 class="panel-title">分子控制面板</h2>
+      
+      <div class="panel-section">
+        <label class="section-label">选择分子</label>
+        <select id="molecule-select" class="select-input">
+          <option value="H2O">水分子 (H₂O)</option>
+          <option value="CO2">二氧化碳 (CO₂)</option>
+          <option value="C6H6">苯 (C₆H₆)</option>
+          <option value="NH3">氨 (NH₃)</option>
+        </select>
+      </div>
+      
+      <div class="panel-section" id="atom-info-section">
+        <label class="section-label">原子信息</label>
+        <div class="atom-info-empty">点击原子查看详情</div>
+        <div class="atom-info-content" style="display: none;">
+          <div class="info-row">
+            <span class="info-label">类型:</span>
+            <span id="atom-type" class="info-value">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">坐标:</span>
+            <span id="atom-coords" class="info-value">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">键角:</span>
+            <span id="atom-angles" class="info-value">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">键长:</span>
+            <span id="atom-bond-lengths" class="info-value">-</span>
+          </div>
+          <div class="info-row" style="margin-top: 12px;">
+            <span class="info-label">修改类型:</span>
+          </div>
+          <select id="atom-type-select" class="select-input">
+            <option value="H">氢 (H)</option>
+            <option value="C">碳 (C)</option>
+            <option value="N">氮 (N)</option>
+            <option value="O">氧 (O)</option>
+            <option value="Cl">氯 (Cl)</option>
+          </select>
+          <button id="modify-atom-btn" class="modify-btn">应用修改</button>
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <label class="section-label">分子属性</label>
+        <div class="info-row">
+          <span class="info-label">原子数:</span>
+          <span id="total-atoms" class="info-value">0</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">键数:</span>
+          <span id="total-bonds" class="info-value">0</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">平均键角:</span>
+          <span id="avg-bond-angle" class="info-value">0°</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">分子极性:</span>
+          <span id="molecule-polarity" class="info-value">-</span>
+        </div>
+      </div>
+    </div>
+    
+    <button id="help-btn" class="help-btn">?</button>
+    
+    <div id="help-modal" class="help-modal" style="display: none;">
+      <div class="modal-content">
+        <h3>操作说明</h3>
+        <ul class="help-list">
+          <li>🖱️ 鼠标左键拖拽：旋转视角</li>
+          <li>🔄 鼠标滚轮：缩放场景</li>
+          <li>➡️ 鼠标右键拖拽：平移视角</li>
+          <li>⚛️ 点击原子：查看和编辑原子属性</li>
+          <li>🔬 下拉菜单：切换不同分子结构</li>
+        </ul>
+        <button id="close-modal-btn" class="close-modal-btn">关闭</button>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

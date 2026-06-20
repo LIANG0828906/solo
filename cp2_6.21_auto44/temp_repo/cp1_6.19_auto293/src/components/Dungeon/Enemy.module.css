@@ -1,0 +1,66 @@
+.enemyContainer {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.enemySprite {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pixelCanvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.hurtFlash {
+  animation: flashWhite 0.3s ease-in-out;
+}
+
+@keyframes flashWhite {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(3) saturate(0);
+  }
+}
+
+.attacking {
+  animation: dashForward 0.2s ease-in-out;
+}
+
+@keyframes dashForward {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-20px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.hpBar {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  background: #333;
+  border: 1px solid #000;
+}
+
+.hpFill {
+  height: 100%;
+  background: #ff0000;
+  transition: width 0.3s ease;
+}

@@ -1,0 +1,42 @@
+:root {
+  --transition-duration: 0.6s;
+}
+
+.theme-classic {
+  --bg-color: #f5e6c8;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --accent-color: #8b6914;
+  --card-bg: #ffffff;
+  --card-shadow: rgba(0, 0, 0, 0.15);
+  --divider: #d4c5a0;
+  --font-family: 'Georgia', 'Times New Roman', serif;
+  --timeline-line: #b8a67c;
+  --node-color: #8b6914;
+}
+
+.theme-cyberpunk {
+  --bg-color: #0d1117;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --accent-color: #4a90d9;
+  --card-bg: #161b22;
+  --card-shadow: rgba(0, 255, 255, 0.2);
+  --divider: #30363d;
+  --font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --timeline-line: #00ffff;
+  --node-color: #ff00ff;
+}
+
+.theme-minimal {
+  --bg-color: #ffffff;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --accent-color: #4a90d9;
+  --card-bg: #ffffff;
+  --card-shadow: rgba(0, 0, 0, 0.15);
+  --divider: #e0e0e0;
+  --font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --timeline-line: #e0e0e0;
+  --node-color: #4a90d9;
+}

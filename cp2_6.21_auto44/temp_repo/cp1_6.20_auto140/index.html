@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星云发生器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0a0a14;
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    #controls-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 320px;
+      height: 100%;
+      z-index: 10;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #controls-container.collapsed {
+      transform: translateX(-320px);
+    }
+
+    #controls-panel {
+      width: 100%;
+      height: 100%;
+      background: rgba(20, 20, 30, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-right: 1px solid rgba(79, 195, 247, 0.2);
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+      overflow-y: auto;
+      padding: 20px;
+      color: #e0e0e0;
+    }
+
+    #controls-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #controls-panel::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    #controls-panel::-webkit-scrollbar-thumb {
+      background: rgba(79, 195, 247, 0.4);
+      border-radius: 3px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(79, 195, 247, 0.2);
+    }
+
+    .panel-title {
+      font-size: 20px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #4FC3F7, #7C4DFF);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 1px;
+    }
+
+    .collapse-btn {
+      background: none;
+      border: 1px solid rgba(79, 195, 247, 0.4);
+      color: #4FC3F7;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .collapse-btn:hover {
+      background: rgba(79, 195, 247, 0.15);
+      box-shadow: 0 0 12px rgba(79, 195, 247, 0.3);
+    }
+
+    #toggle-panel-btn {
+      position: fixed;
+      top: 20px;
+      left: 320px;
+      z-index: 9;
+      background: rgba(20, 20, 30, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(79, 195, 247, 0.3);
+      border-left: none;
+      color: #4FC3F7;
+      width: 36px;
+      height: 48px;
+      border-radius: 0 12px 12px 0;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
+    }
+
+    #toggle-panel-btn:hover {
+      background: rgba(79, 195, 247, 0.15);
+      box-shadow: 0 0 16px rgba(79, 195, 247, 0.4);
+    }
+
+    #controls-container.collapsed + #toggle-panel-btn {
+      left: 0;
+    }
+
+    .group-title {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 12px;
+      color: #4FC3F7;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+      margin-top: 8px;
+      padding-left: 8px;
+      border-left: 3px solid #4FC3F7;
+    }
+
+    .control-group {
+      margin-bottom: 24px;
+    }
+
+    .slider-container {
+      margin-bottom: 16px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .slider-label span:first-child {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 13px;
+      color: #b0b0c0;
+    }
+
+    .slider-value {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 13px;
+      color: #4FC3F7;
+      background: rgba(79, 195, 247, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+      min-width: 50px;
+      text-align: center;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, rgba(79, 195, 247, 0.6), rgba(124, 77, 255, 0.4));
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #4FC3F7;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(79, 195, 247, 0.6);
+      transition: all 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 16px rgba(79, 195, 247, 0.9);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #4FC3F7;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 10px rgba(79, 195, 247, 0.6);
+    }
+
+    .select-container, .radio-container {
+      margin-bottom: 16px;
+    }
+
+    .select-container label, .radio-container > span {
+      display: block;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 13px;
+      color: #b0b0c0;
+      margin-bottom: 8px;
+    }
+
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(79, 195, 247, 0.3);
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 13px;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    select:hover, select:focus {
+      border-color: #4FC3F7;
+      background: rgba(79, 195, 247, 0.08);
+      box-shadow: 0 0 8px rgba(79, 195, 247, 0.2);
+    }
+
+    .radio-options {
+      display: flex;
+      gap: 8px;
+    }
+
+    .radio-options label {
+      flex: 1;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .radio-options input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .radio-options span {
+      display: block;
+      text-align: center;
+      padding: 8px 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(79, 195, 247, 0.2);
+      border-radius: 8px;
+      color: #b0b0c0;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 12px;
+      transition: all 0.2s ease;
+    }
+
+    .radio-options input[type="radio"]:checked + span {
+      background: rgba(79, 195, 247, 0.15);
+      border-color: #4FC3F7;
+      color: #4FC3F7;
+      box-shadow: 0 0 8px rgba(79, 195, 247, 0.3);
+    }
+
+    .radio-options label:hover span {
+      border-color: rgba(79, 195, 247, 0.5);
+    }
+
+    .preset-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .preset-btn {
+      padding: 10px 12px;
+      background: linear-gradient(135deg, rgba(79, 195, 247, 0.15), rgba(124, 77, 255, 0.1));
+      border: 1px solid rgba(79, 195, 247, 0.3);
+      border-radius: 20px;
+      color: #e0e0e0;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .preset-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transition: left 0.4s ease;
+    }
+
+    .preset-btn:hover {
+      transform: translateY(-2px);
+      border-color: #4FC3F7;
+      box-shadow: 0 4px 20px rgba(79, 195, 247, 0.4);
+    }
+
+    .preset-btn:hover::before {
+      left: 100%;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, rgba(79, 195, 247, 0.2), rgba(124, 77, 255, 0.15));
+      border: 1px solid rgba(79, 195, 247, 0.4);
+      border-radius: 12px;
+      color: #4FC3F7;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 1px;
+    }
+
+    .action-btn:hover {
+      transform: translateY(-2px);
+      background: linear-gradient(135deg, rgba(79, 195, 247, 0.3), rgba(124, 77, 255, 0.25));
+      box-shadow: 0 6px 24px rgba(79, 195, 247, 0.5);
+    }
+
+    .hint-text {
+      margin-top: 20px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .hint-text p {
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 11px;
+      color: #707080;
+      line-height: 1.8;
+      margin: 0;
+    }
+
+    .hint-text kbd {
+      background: rgba(79, 195, 247, 0.15);
+      border: 1px solid rgba(79, 195, 247, 0.3);
+      border-radius: 4px;
+      padding: 1px 6px;
+      color: #4FC3F7;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="controls-container">
+    <div id="controls-panel"></div>
+  </div>
+  <button id="toggle-panel-btn" title="展开/收起面板">◀</button>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

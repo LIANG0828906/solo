@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>水陆攻战图</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #2D1B0E;
+      font-family: "SimKai", "KaiTi", "楷体", serif;
+      color: #F5DEB3;
+      font-size: 16px;
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #title {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 32px;
+      letter-spacing: 8px;
+      color: #F5DEB3;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    #fps-counter {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 6px 12px;
+      background-color: rgba(45, 27, 14, 0.7);
+      border: 2px solid #CD853F;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #F5DEB3;
+      z-index: 10;
+    }
+
+    #weather-control {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 20px;
+      z-index: 10;
+    }
+
+    .weather-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid #CD853F;
+      cursor: pointer;
+      transition: transform 0.2s ease-out, filter 0.2s ease-out;
+      outline: none;
+    }
+
+    .weather-btn:hover {
+      transform: scale(1.2) rotate(15deg);
+      filter: brightness(1.2);
+    }
+
+    .weather-btn:active {
+      transform: scale(0.95);
+      filter: brightness(0.8);
+    }
+
+    .weather-btn.sunny { background-color: #FFD700; }
+    .weather-btn.fog { background-color: #696969; }
+    .weather-btn.storm { background-color: #B0C4DE; }
+    .weather-btn.active { box-shadow: 0 0 10px 3px #F5DEB3; }
+
+    #control-panel {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 300px;
+      padding: 16px;
+      background-color: rgba(45, 27, 14, 0.85);
+      border: 2px solid #CD853F;
+      border-radius: 12px;
+      z-index: 10;
+    }
+
+    .panel-title {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #F5DEB3;
+      text-align: center;
+      border-bottom: 1px solid #CD853F;
+      padding-bottom: 8px;
+    }
+
+    .phase-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .phase-btn {
+      flex: 1;
+      padding: 8px 12px;
+      background-color: rgba(205, 133, 63, 0.3);
+      border: 2px solid #CD853F;
+      border-radius: 8px;
+      color: #F5DEB3;
+      font-family: "SimKai", "KaiTi", "楷体", serif;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease-out;
+    }
+
+    .phase-btn:hover {
+      filter: brightness(1.2);
+      transform: translateY(-2px);
+    }
+
+    .phase-btn:active {
+      transform: scale(0.95);
+      filter: brightness(0.8);
+    }
+
+    .phase-btn.active {
+      background-color: #CD853F;
+      color: #2D1B0E;
+    }
+
+    .time-slider-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .time-slider-label {
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .time-slider {
+      flex: 1;
+      accent-color: #CD853F;
+      cursor: pointer;
+    }
+
+    #unit-info-panel {
+      position: absolute;
+      width: 220px;
+      height: 160px;
+      padding: 16px;
+      background: linear-gradient(135deg, rgba(245, 222, 179, 0.95), rgba(222, 184, 135, 0.9));
+      border: 3px solid #CD853F;
+      border-radius: 8px;
+      z-index: 20;
+      display: none;
+      color: #2D1B0E;
+      box-shadow: 4px 4px 12px rgba(0,0,0,0.4);
+    }
+
+    #unit-info-panel.show {
+      display: block;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    #unit-info-panel.hide {
+      animation: slideDown 0.2s ease-in forwards;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideDown {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(20px); }
+    }
+
+    .unit-info-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #CD853F;
+    }
+
+    .unit-info-row {
+      font-size: 14px;
+      margin: 6px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    #battle-report {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px;
+      height: 300px;
+      padding: 24px;
+      background: linear-gradient(180deg, rgba(245, 222, 179, 0.98), rgba(222, 184, 135, 0.95));
+      border: 3px solid #CD853F;
+      border-radius: 12px;
+      z-index: 30;
+      display: none;
+      color: #2D1B0E;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    }
+
+    #battle-report.show {
+      display: block;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    .report-title {
+      font-size: 24px;
+      text-align: center;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #CD853F;
+    }
+
+    .report-stats {
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .report-faction {
+      margin: 8px 0;
+      padding: 8px;
+      background-color: rgba(205, 133, 63, 0.2);
+      border-radius: 4px;
+    }
+
+    .report-faction-name {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .report-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .report-btn {
+      padding: 10px 24px;
+      background-color: #CD853F;
+      color: #F5DEB3;
+      border: 2px solid #8B4513;
+      border-radius: 8px;
+      font-family: "SimKai", "KaiTi", "楷体", serif;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease-out;
+    }
+
+    .report-btn:hover {
+      filter: brightness(1.2);
+      transform: translateY(-2px);
+    }
+
+    .report-btn:active {
+      transform: scale(0.95);
+      filter: brightness(0.8);
+    }
+
+    .replay-controls {
+      display: none;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .replay-controls.show {
+      display: flex;
+    }
+
+    .damage-number {
+      position: absolute;
+      color: #FF3333;
+      font-weight: bold;
+      font-size: 20px;
+      pointer-events: none;
+      animation: damageFloat 2s ease-out forwards;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      z-index: 15;
+    }
+
+    @keyframes damageFloat {
+      0% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-40px); }
+    }
+
+    #lightning-flash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0);
+      pointer-events: none;
+      z-index: 5;
+      transition: background-color 0.05s ease-out;
+    }
+
+    #lightning-flash.active {
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <div id="title">水陆攻战图</div>
+    <div id="fps-counter">FPS: 0</div>
+
+    <div id="weather-control">
+      <button class="weather-btn sunny active" data-weather="sunny" title="晴天"></button>
+      <button class="weather-btn fog" data-weather="fog" title="浓雾"></button>
+      <button class="weather-btn storm" data-weather="storm" title="雷雨"></button>
+    </div>
+
+    <div id="control-panel">
+      <div class="panel-title">战斗控制</div>
+      <div class="phase-buttons">
+        <button class="phase-btn active" data-phase="march">行军</button>
+        <button class="phase-btn" data-phase="engage">接战</button>
+        <button class="phase-btn" data-phase="retreat">撤退</button>
+      </div>
+      <div class="time-slider-container">
+        <span class="time-slider-label">时间倍速</span>
+        <input type="range" class="time-slider" min="0.5" max="3" step="0.5" value="1" />
+        <span class="time-slider-label" id="speed-value">1x</span>
+      </div>
+      <div class="replay-controls" id="replay-controls">
+        <button class="phase-btn" id="replay-pause-btn">暂停</button>
+      </div>
+    </div>
+
+    <div id="unit-info-panel">
+      <div class="unit-info-title" id="unit-name">单位名称</div>
+      <div class="unit-info-row"><span>生命值:</span><span id="unit-health">100</span></div>
+      <div class="unit-info-row"><span>攻击力:</span><span id="unit-attack">10</span></div>
+      <div class="unit-info-row"><span>移动速度:</span><span id="unit-speed">1.5</span></div>
+      <div class="unit-info-row"><span>当前状态:</span><span id="unit-state">待命</span></div>
+    </div>
+
+    <div id="battle-report">
+      <div class="report-title">战损报告</div>
+      <div class="report-stats" id="report-content"></div>
+      <div class="report-buttons">
+        <button class="report-btn" id="replay-btn">重演</button>
+        <button class="report-btn" id="exit-btn">退出</button>
+      </div>
+    </div>
+
+    <div id="lightning-flash"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

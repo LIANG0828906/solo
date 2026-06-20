@@ -1,0 +1,273 @@
+{
+  "courses": [
+    {
+      "id": "1838510e-2ee2-4578-bd1a-d1fd4de5acad",
+      "name": "React 高级开发实战",
+      "category": "技术类",
+      "difficulty": 3,
+      "outline": [
+        {
+          "id": "f66fed2b-984f-439e-b32e-7426d5ed2617",
+          "title": "第一章：React Hooks 深度解析",
+          "content": "深入理解 useState、useEffect、useCallback、useMemo 等核心 Hooks 的原理和最佳实践。",
+          "order": 1
+        },
+        {
+          "id": "23f623a8-c349-42d0-af45-36738ff1de36",
+          "title": "第二章：状态管理方案对比",
+          "content": "Redux、Zustand、Jotai 等主流状态管理库的对比与选型。",
+          "order": 2
+        },
+        {
+          "id": "f2d3033c-721d-4fce-95c3-1fa0e68af524",
+          "title": "第三章：性能优化实战",
+          "content": "虚拟列表、代码分割、懒加载、记忆化等性能优化技术。",
+          "order": 3
+        },
+        {
+          "id": "6bebf716-10f3-4122-a88a-ca4eb1404e2e",
+          "title": "第四章：测试策略",
+          "content": "单元测试、集成测试、E2E 测试的完整测试方案。",
+          "order": 4
+        }
+      ],
+      "quizzes": [
+        {
+          "id": "303f9714-9b41-45c3-99c3-40fa8c67b47f",
+          "question": "useEffect 的依赖数组为空时，effect 会在什么时候执行？",
+          "options": [
+            "每次渲染后",
+            "仅在组件挂载时",
+            "仅在组件卸载时",
+            "从不执行"
+          ],
+          "correctAnswer": 1,
+          "explanation": "依赖数组为空时，effect 只会在组件挂载时执行一次，类似于 componentDidMount。"
+        },
+        {
+          "id": "e719e46a-2470-410b-a602-7031a07561a2",
+          "question": "以下哪个 Hook 适合用于缓存昂贵的计算结果？",
+          "options": [
+            "useCallback",
+            "useMemo",
+            "useRef",
+            "useContext"
+          ],
+          "correctAnswer": 1,
+          "explanation": "useMemo 用于缓存计算结果，只有依赖变化时才会重新计算。"
+        },
+        {
+          "id": "fe404aa4-2a59-4ec1-a588-74212c82e203",
+          "question": "React.memo 和 useMemo 的主要区别是什么？",
+          "options": [
+            "没有区别",
+            "React.memo 用于组件，useMemo 用于值",
+            "React.memo 用于值，useMemo 用于组件",
+            "React.memo 是类组件专用"
+          ],
+          "correctAnswer": 1,
+          "explanation": "React.memo 是高阶组件，用于包裹组件避免不必要的重新渲染；useMemo 用于缓存计算值。"
+        },
+        {
+          "id": "ec0bc89e-7557-4df4-848a-bc2056b088f0",
+          "question": "虚拟列表的主要作用是什么？",
+          "options": [
+            "美化界面",
+            "减少 DOM 节点数量提升性能",
+            "支持无限滚动",
+            "简化代码"
+          ],
+          "correctAnswer": 1,
+          "explanation": "虚拟列表只渲染可视区域内的元素，大幅减少 DOM 节点，提升长列表的渲染性能。"
+        }
+      ],
+      "targetSkills": [
+        "coding",
+        "architecture"
+      ],
+      "createdAt": "2026-06-14T06:25:36.559Z"
+    },
+    {
+      "id": "7ad4c39f-833a-4775-934c-ea620c6f2174",
+      "name": "敏捷项目管理精要",
+      "category": "管理类",
+      "difficulty": 2,
+      "outline": [
+        {
+          "id": "aab60b0c-8b59-4c2a-9f71-b0b1590d1233",
+          "title": "第一章：敏捷方法论基础",
+          "content": "敏捷宣言、12 大原则，以及 Scrum、Kanban 等主流敏捷框架介绍。",
+          "order": 1
+        },
+        {
+          "id": "f6b36e7b-fc1b-40ae-9751-73435c6abf48",
+          "title": "第二章：Scrum 实战演练",
+          "content": "Sprint 规划、每日站会、Sprint 评审、回顾会议的完整流程。",
+          "order": 2
+        },
+        {
+          "id": "2755732b-1125-40e0-8112-cfaec24c8c13",
+          "title": "第三章：用户故事与需求管理",
+          "content": "如何编写高质量的用户故事，INVEST 原则和需求优先级排序。",
+          "order": 3
+        }
+      ],
+      "quizzes": [
+        {
+          "id": "b598f5da-ac3e-49b7-998b-cede61484644",
+          "question": "敏捷宣言中最高优先级的是什么？",
+          "options": [
+            "遵循计划",
+            "工作的软件",
+            "个体和互动",
+            "客户合作"
+          ],
+          "correctAnswer": 2,
+          "explanation": "敏捷宣言第一条：个体和互动高于流程和工具。"
+        },
+        {
+          "id": "52d83d1b-f687-48d1-a6f9-7ad790578912",
+          "question": "Scrum 中典型的 Sprint 长度是？",
+          "options": [
+            "1-4 周",
+            "1-2 个月",
+            "1 天",
+            "1 个季度"
+          ],
+          "correctAnswer": 0,
+          "explanation": "Sprint 通常为 1-4 周，最常见的是 2 周。"
+        },
+        {
+          "id": "3ae7a74c-07b5-4b15-a075-de9da0fbedd1",
+          "question": "用户故事的 INVEST 原则中 I 代表什么？",
+          "options": [
+            "Important",
+            "Independent",
+            "Interesting",
+            "Integrated"
+          ],
+          "correctAnswer": 1,
+          "explanation": "I 代表 Independent，即故事应尽可能独立，便于优先级排序和开发。"
+        }
+      ],
+      "targetSkills": [
+        "projectManagement",
+        "teamCollaboration"
+      ],
+      "createdAt": "2026-06-14T06:25:36.560Z"
+    },
+    {
+      "id": "bb140149-f84d-45aa-bbb2-45ef5df2549a",
+      "name": "产品思维与用户体验设计",
+      "category": "产品类",
+      "difficulty": 2,
+      "outline": [
+        {
+          "id": "947ee205-8f50-4388-ac18-c35b823ce6e9",
+          "title": "第一章：产品经理的核心思维",
+          "content": "用户思维、数据思维、商业思维的培养与应用。",
+          "order": 1
+        },
+        {
+          "id": "fd273d49-f2e1-4fab-ba6e-7186a5b0412a",
+          "title": "第二章：用户研究方法",
+          "content": "用户访谈、问卷调查、可用性测试等用户研究方法。",
+          "order": 2
+        },
+        {
+          "id": "34109ea3-7e47-4ba2-a4d5-b28c334177a6",
+          "title": "第三章：原型设计与交互",
+          "content": "低保真和高保真原型设计，交互设计原则。",
+          "order": 3
+        }
+      ],
+      "quizzes": [
+        {
+          "id": "5587f8ee-1092-4079-b1fe-9f8f5f6e41fd",
+          "question": "产品设计中 MVP 指的是什么？",
+          "options": [
+            "Most Valuable Player",
+            "Minimum Viable Product",
+            "Most Viable Product",
+            "Minimum Value Proposition"
+          ],
+          "correctAnswer": 1,
+          "explanation": "MVP 是 Minimum Viable Product，最小可行产品，用最少的资源验证产品假设。"
+        },
+        {
+          "id": "71e563e5-8548-48de-822f-2bdd803211b8",
+          "question": "以下哪项是定量研究方法？",
+          "options": [
+            "用户访谈",
+            "问卷调查",
+            "焦点小组",
+            "可用性测试"
+          ],
+          "correctAnswer": 1,
+          "explanation": "问卷调查是定量研究，可以收集大量样本数据进行统计分析。"
+        },
+        {
+          "id": "c566fb91-d45b-497a-862c-b6dd6803933b",
+          "question": "尼尔森十大可用性原则中不包括以下哪项？",
+          "options": [
+            "系统状态可见性",
+            "用户控制与自由",
+            "美观最大化",
+            "一致性与标准"
+          ],
+          "correctAnswer": 2,
+          "explanation": "尼尔森原则强调的是美学与极简设计，而非美观最大化。"
+        }
+      ],
+      "targetSkills": [
+        "productThinking",
+        "businessUnderstanding"
+      ],
+      "createdAt": "2026-06-14T06:25:36.560Z"
+    }
+  ],
+  "employees": [
+    {
+      "id": "3fabbebe-4b94-4130-98dd-8b158c13e322",
+      "name": "张三",
+      "email": "zhangsan@company.com",
+      "team": "技术研发部",
+      "avatar": "👨‍💻",
+      "enrollments": []
+    },
+    {
+      "id": "d7947536-2011-4be2-9f0a-37afbc0f0fac",
+      "name": "李四",
+      "email": "lisi@company.com",
+      "team": "技术研发部",
+      "avatar": "👩‍💻",
+      "enrollments": []
+    },
+    {
+      "id": "6a999ab2-ea88-4304-b2af-38633f5897cf",
+      "name": "王五",
+      "email": "wangwu@company.com",
+      "team": "产品设计部",
+      "avatar": "🧑‍🎨",
+      "enrollments": []
+    },
+    {
+      "id": "05d83064-1644-4dbc-96e9-d331d650220a",
+      "name": "赵六",
+      "email": "zhaoliu@company.com",
+      "team": "项目管理部",
+      "avatar": "👔",
+      "enrollments": []
+    },
+    {
+      "id": "e885853e-4fa7-42b3-9e09-fdc9c11acfb1",
+      "name": "孙七",
+      "email": "sunqi@company.com",
+      "team": "技术研发部",
+      "avatar": "🧑‍💻",
+      "enrollments": []
+    }
+  ],
+  "quizResults": [],
+  "skillMatrix": []
+}

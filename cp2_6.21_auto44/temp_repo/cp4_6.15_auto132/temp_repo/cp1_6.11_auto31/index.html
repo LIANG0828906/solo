@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>星际穿越 - 躲避陨石</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0a0a2e;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #game-container {
+      position: relative;
+      width: 80vw;
+      height: 80vh;
+      min-width: 800px;
+      min-height: 600px;
+      max-width: 1200px;
+      max-height: 800px;
+    }
+
+    #game-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background-color: #0a0a2e;
+      border: 2px solid #00ffff;
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+      border-radius: 8px;
+      cursor: none;
+    }
+
+    .ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .game-ui {
+      position: absolute;
+      font-size: 24px;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .game-ui.visible {
+      opacity: 1;
+    }
+
+    #score-display {
+      top: 20px;
+      left: 20px;
+    }
+
+    #time-display {
+      top: 20px;
+      right: 20px;
+    }
+
+    #asteroid-count {
+      bottom: 20px;
+      right: 20px;
+      font-size: 18px;
+    }
+
+    .menu-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(10, 10, 46, 0.85);
+      pointer-events: auto;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 10;
+    }
+
+    .menu-screen.visible {
+      opacity: 1;
+    }
+
+    .menu-screen.hidden {
+      display: none;
+    }
+
+    .game-title {
+      font-size: 64px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #00ffff, #ff00ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: none;
+      filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.5));
+    }
+
+    .game-subtitle {
+      font-size: 18px;
+      color: #aaaaff;
+      margin-bottom: 50px;
+      text-shadow: 0 0 10px rgba(170, 170, 255, 0.5);
+    }
+
+    .menu-button {
+      padding: 16px 48px;
+      font-size: 24px;
+      font-weight: bold;
+      color: #00ffff;
+      background: transparent;
+      border: 2px solid #00ffff;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+      margin: 10px;
+    }
+
+    .menu-button:hover {
+      transform: scale(1.1);
+      color: #ff00ff;
+      border-color: #ff00ff;
+      box-shadow: 0 0 25px rgba(255, 0, 255, 0.5);
+      text-shadow: 0 0 15px rgba(255, 0, 255, 0.8);
+    }
+
+    .game-over-stats {
+      text-align: center;
+      margin: 30px 0;
+    }
+
+    .stat-item {
+      font-size: 22px;
+      color: #aaaaff;
+      margin: 12px 0;
+      text-shadow: 0 0 8px rgba(170, 170, 255, 0.5);
+    }
+
+    .stat-value {
+      color: #00ffff;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+    }
+
+    .high-score .stat-value {
+      color: #ff00ff;
+      text-shadow: 0 0 10px rgba(255, 0, 255, 0.8);
+    }
+
+    #screen-flash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, transparent 30%, rgba(255, 255, 255, 0.4) 100%);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+      z-index: 5;
+    }
+
+    #screen-flash.active {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    
+    <div id="screen-flash"></div>
+    
+    <div class="ui-overlay">
+      <div id="score-display" class="game-ui">得分: <span id="score-value">0</span></div>
+      <div id="time-display" class="game-ui">时间: <span id="time-value">0</span>s</div>
+      <div id="asteroid-count" class="game-ui">陨石: <span id="asteroid-value">0</span></div>
+    </div>
+    
+    <div id="start-screen" class="menu-screen visible">
+      <h1 class="game-title">星际穿越</h1>
+      <p class="game-subtitle">躲避陨石 · 收集水晶 · 挑战高分</p>
+      <button id="start-button" class="menu-button">开始游戏</button>
+    </div>
+    
+    <div id="game-over-screen" class="menu-screen hidden">
+      <h1 class="game-title">游戏结束</h1>
+      <div class="game-over-stats">
+        <div class="stat-item">最终得分: <span id="final-score" class="stat-value">0</span></div>
+        <div class="stat-item high-score">最高分: <span id="high-score" class="stat-value">0</span></div>
+        <div class="stat-item">躲避陨石: <span id="dodged-count" class="stat-value">0</span> 个</div>
+      </div>
+      <button id="restart-button" class="menu-button">重新开始</button>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

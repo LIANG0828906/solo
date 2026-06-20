@@ -1,0 +1,113 @@
+{
+  "works": [
+    {
+      "id": "1",
+      "title": "城市人像",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=1200&h=1800&fit=crop",
+      "category": "portrait",
+      "price": 899,
+      "description": "都市街头的人像摄影，捕捉城市与人物的完美融合"
+    },
+    {
+      "id": "2",
+      "title": "自然光人像",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=1200&h=1800&fit=crop",
+      "category": "portrait",
+      "price": 799,
+      "description": "利用自然光线拍摄的柔和人像作品"
+    },
+    {
+      "id": "3",
+      "title": "艺术人像",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&h=1800&fit=crop",
+      "category": "portrait",
+      "price": 1099,
+      "description": "创意构图与光影结合的艺术人像摄影"
+    },
+    {
+      "id": "4",
+      "title": "山川湖海",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=1800&fit=crop",
+      "category": "landscape",
+      "price": 1299,
+      "description": "壮丽的自然风光，记录大自然的壮美瞬间"
+    },
+    {
+      "id": "5",
+      "title": "日落海岸",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&h=1800&fit=crop",
+      "category": "landscape",
+      "price": 1199,
+      "description": "海边日落的绝美景色，温暖的金色光芒"
+    },
+    {
+      "id": "6",
+      "title": "森林秘境",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200&h=1800&fit=crop",
+      "category": "landscape",
+      "price": 1099,
+      "description": "神秘的森林深处，阳光穿透树叶的梦幻光影"
+    },
+    {
+      "id": "7",
+      "title": "产品摄影",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=1800&fit=crop",
+      "category": "commercial",
+      "price": 1599,
+      "description": "专业产品摄影，展示商品的最佳质感"
+    },
+    {
+      "id": "8",
+      "title": "企业形象",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=1800&fit=crop",
+      "category": "commercial",
+      "price": 1899,
+      "description": "企业团队形象照，展现专业精神"
+    },
+    {
+      "id": "9",
+      "title": "美食摄影",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1200&h=1800&fit=crop",
+      "category": "commercial",
+      "price": 1299,
+      "description": "精致美食摄影，唤醒味蕾的视觉享受"
+    },
+    {
+      "id": "10",
+      "title": "婚礼纪实",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1540317580384-e5d43867caa6?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1540317580384-e5d43867caa6?w=1200&h=1800&fit=crop",
+      "category": "event",
+      "price": 3999,
+      "description": "婚礼当天的每一个珍贵瞬间，永久珍藏"
+    },
+    {
+      "id": "11",
+      "title": "生日派对",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1513407030348-c983a97b98d8?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1513407030348-c983a97b98d8?w=1200&h=1800&fit=crop",
+      "category": "event",
+      "price": 1599,
+      "description": "生日派对的欢乐时刻，记录美好回忆"
+    },
+    {
+      "id": "12",
+      "title": "企业年会",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=600&fit=crop",
+      "fullUrl": "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&h=1800&fit=crop",
+      "category": "event",
+      "price": 2599,
+      "description": "企业年会活动摄影，记录团队精彩时刻"
+    }
+  ],
+  "bookings": []
+}

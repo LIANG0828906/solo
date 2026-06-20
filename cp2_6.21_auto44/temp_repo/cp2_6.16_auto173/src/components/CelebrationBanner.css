@@ -1,0 +1,139 @@
+.celebration-banner {
+  position: fixed;
+  top: 50%;
+  right: -400px;
+  transform: translateY(-50%);
+  background: linear-gradient(135deg, #1a2235 0%, #141a29 100%);
+  border-left: 4px solid;
+  border-radius: 16px 0 0 16px;
+  padding: 24px 32px;
+  z-index: 3000;
+  animation: banner-slide-in 0.5s ease-out forwards, banner-slide-out 0.5s ease-in 2.5s forwards;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+  min-width: 280px;
+}
+
+@keyframes banner-slide-in {
+  from {
+    right: -400px;
+  }
+  to {
+    right: 0;
+  }
+}
+
+@keyframes banner-slide-out {
+  from {
+    right: 0;
+  }
+  to {
+    right: -400px;
+  }
+}
+
+.banner-confetti {
+  position: absolute;
+  top: -20px;
+  left: 0;
+  right: 0;
+  height: 60px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  animation: confetti-fall 2s ease-out infinite;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(60px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.banner-icon {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.banner-weapon-shape {
+  width: 0;
+  height: 0;
+  border-left: 25px solid transparent;
+  border-right: 25px solid transparent;
+  border-bottom: 45px solid;
+}
+
+.banner-armor-shape {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+}
+
+.banner-accessory-shape {
+  width: 35px;
+  height: 35px;
+  transform: rotate(45deg);
+  border-radius: 4px;
+}
+
+.banner-text {
+  flex: 1;
+}
+
+.banner-label {
+  font-size: 12px;
+  margin: 0 0 4px 0;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+.banner-name {
+  font-size: 20px;
+  margin: 0 0 4px 0;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: bold;
+}
+
+.banner-set {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+}
+
+.banner-glow {
+  position: absolute;
+  top: 50%;
+  left: -2px;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 80%;
+  border-radius: 4px;
+  animation: glow-pulse 1s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}

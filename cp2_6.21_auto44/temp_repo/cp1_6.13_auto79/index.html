@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>StarfieldScape - 三维星空漫游</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(180deg, #0a0a1a 0%, #1a0a2a 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: #ffffff;
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #stats {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 100;
+      opacity: 0.7;
+    }
+
+    .ui-panel {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      width: 280px;
+      max-height: calc(100vh - 48px);
+      background: rgba(20, 15, 40, 0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      z-index: 50;
+      overflow: hidden;
+      transition: transform 0.3s ease, height 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ui-panel.collapsed {
+      height: 52px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      background: linear-gradient(90deg, #6a4eff 0%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.5px;
+    }
+
+    .toggle-btn {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+      background: rgba(168, 85, 247, 0.2);
+      border-color: rgba(168, 85, 247, 0.4);
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+    }
+
+    .toggle-arrow {
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid rgba(255, 255, 255, 0.7);
+      transition: transform 0.3s ease;
+    }
+
+    .ui-panel.collapsed .toggle-arrow {
+      transform: rotate(180deg);
+    }
+
+    .panel-body {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .panel-body::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .panel-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .panel-body::-webkit-scrollbar-thumb {
+      background: rgba(168, 85, 247, 0.3);
+      border-radius: 2px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      letter-spacing: 0.3px;
+    }
+
+    .control-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: #a855f7;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #6a4eff 0%, #a855f7 100%);
+      outline: none;
+      cursor: pointer;
+      transition: box-shadow 0.3s ease;
+    }
+
+    .slider:hover {
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #a855f7;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(168, 85, 247, 0.6);
+      transition: transform 0.2s ease;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #a855f7;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(168, 85, 247, 0.6);
+    }
+
+    .theme-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .theme-btn {
+      flex: 1;
+      padding: 8px 4px;
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      letter-spacing: 0.5px;
+    }
+
+    .theme-btn:hover {
+      background: rgba(168, 85, 247, 0.15);
+      border-color: rgba(168, 85, 247, 0.3);
+      box-shadow: 0 0 6px rgba(168, 85, 247, 0.2);
+    }
+
+    .theme-btn.active {
+      background: linear-gradient(135deg, rgba(106, 78, 255, 0.3), rgba(168, 85, 247, 0.3));
+      border-color: #a855f7;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+    }
+
+    .theme-btn.warm-preview::before,
+    .theme-btn.cool-preview::before,
+    .theme-btn.mixed-preview::before {
+      content: "";
+      display: block;
+      width: 100%;
+      height: 3px;
+      border-radius: 2px;
+      margin-bottom: 6px;
+    }
+
+    .theme-btn.warm-preview::before {
+      background: linear-gradient(90deg, #ff6b35, #ffb347, #ff4757);
+    }
+
+    .theme-btn.cool-preview::before {
+      background: linear-gradient(90deg, #4a9eff, #6a4eff, #a855f7);
+    }
+
+    .theme-btn.mixed-preview::before {
+      background: linear-gradient(90deg, #ff6b35, #a855f7, #4a9eff);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .toggle-switch:hover {
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
+    }
+
+    .toggle-switch.active {
+      background: linear-gradient(90deg, #6a4eff, #a855f7);
+      border-color: transparent;
+    }
+
+    .toggle-switch::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      background: #ffffff;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+    }
+
+    .toggle-switch.active::after {
+      transform: translateX(20px);
+    }
+
+    .hint-text {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-top: -10px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 768px) {
+      .ui-panel {
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        border-radius: 16px 16px 0 0;
+        max-height: 60vh;
+        transform: translateY(calc(100% - 52px));
+        transition: transform 0.3s ease;
+      }
+
+      .ui-panel.expanded {
+        transform: translateY(0);
+      }
+
+      .ui-panel.collapsed {
+        transform: translateY(calc(100% - 52px));
+        height: auto;
+      }
+
+      .panel-body {
+        padding: 16px;
+      }
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.152.2/examples/jsm/",
+      "gsap": "https://unpkg.com/gsap@3.12.2/index.js",
+      "stats.js": "https://unpkg.com/stats.js@0.17.0/build/stats.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="stats"></div>
+
+  <div class="ui-panel" id="ui-panel">
+    <div class="panel-header" id="panel-header">
+      <span class="panel-title">StarfieldScape</span>
+      <div class="toggle-btn" id="toggle-btn">
+        <div class="toggle-arrow"></div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="control-group">
+        <div class="control-label">
+          <span>星星密度</span>
+          <span class="control-value" id="density-value">5000</span>
+        </div>
+        <input type="range" class="slider" id="density-slider" min="1000" max="10000" step="100" value="5000" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>旋转速度</span>
+          <span class="control-value" id="speed-value">0.010</span>
+        </div>
+        <input type="range" class="slider" id="speed-slider" min="0" max="0.1" step="0.001" value="0.01" />
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">颜色主题</span>
+        <div class="theme-group">
+          <button class="theme-btn warm-preview" data-theme="warm">暖色</button>
+          <button class="theme-btn cool-preview active" data-theme="cool">冷色</button>
+          <button class="theme-btn mixed-preview" data-theme="mixed">混合</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="toggle-row">
+          <span class="control-label">流星雨效果</span>
+          <div class="toggle-switch" id="meteor-toggle"></div>
+        </div>
+        <p class="hint-text">关闭时每30秒一颗，开启后每5-8秒一颗</p>
+      </div>
+
+      <div class="control-group">
+        <p class="hint-text">💡 鼠标拖拽旋转视角，滚轮缩放，点击星星触发脉冲</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

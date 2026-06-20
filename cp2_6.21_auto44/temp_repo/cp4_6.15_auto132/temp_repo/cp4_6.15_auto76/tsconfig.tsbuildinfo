@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/graphcanvas.tsx","./src/components/sidebar.tsx","./src/context/graphcontext.tsx","./src/hooks/useforcelayout.ts"],"version":"5.8.3"}

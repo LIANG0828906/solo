@@ -1,0 +1,44 @@
+{
+  "name": "幻境弹球 - 第一关",
+  "bricks": [
+    {"x": 6, "y": 2, "color": "red", "hp": 3},
+    {"x": 8, "y": 2, "color": "red", "hp": 3},
+    {"x": 10, "y": 2, "color": "red", "hp": 3},
+    {"x": 12, "y": 2, "color": "red", "hp": 3},
+    {"x": 14, "y": 2, "color": "red", "hp": 3},
+    {"x": 16, "y": 2, "color": "red", "hp": 3},
+    {"x": 18, "y": 2, "color": "red", "hp": 3},
+    {"x": 20, "y": 2, "color": "red", "hp": 3},
+    {"x": 22, "y": 2, "color": "red", "hp": 3},
+
+    {"x": 5, "y": 4, "color": "blue", "hp": 2},
+    {"x": 7, "y": 4, "color": "blue", "hp": 2},
+    {"x": 9, "y": 4, "color": "blue", "hp": 2},
+    {"x": 11, "y": 4, "color": "blue", "hp": 2},
+    {"x": 13, "y": 4, "color": "blue", "hp": 2},
+    {"x": 15, "y": 4, "color": "blue", "hp": 2},
+    {"x": 17, "y": 4, "color": "blue", "hp": 2},
+    {"x": 19, "y": 4, "color": "blue", "hp": 2},
+    {"x": 21, "y": 4, "color": "blue", "hp": 2},
+    {"x": 23, "y": 4, "color": "blue", "hp": 2},
+
+    {"x": 6, "y": 6, "color": "green", "hp": 1},
+    {"x": 8, "y": 6, "color": "green", "hp": 1},
+    {"x": 10, "y": 6, "color": "green", "hp": 1},
+    {"x": 12, "y": 6, "color": "green", "hp": 1},
+    {"x": 14, "y": 6, "color": "green", "hp": 1},
+    {"x": 16, "y": 6, "color": "green", "hp": 1},
+    {"x": 18, "y": 6, "color": "green", "hp": 1},
+    {"x": 20, "y": 6, "color": "green", "hp": 1},
+    {"x": 22, "y": 6, "color": "green", "hp": 1},
+
+    {"x": 7, "y": 8, "color": "green", "hp": 1},
+    {"x": 9, "y": 8, "color": "blue", "hp": 2},
+    {"x": 11, "y": 8, "color": "blue", "hp": 2},
+    {"x": 13, "y": 8, "color": "red", "hp": 3},
+    {"x": 15, "y": 8, "color": "red", "hp": 3},
+    {"x": 17, "y": 8, "color": "blue", "hp": 2},
+    {"x": 19, "y": 8, "color": "blue", "hp": 2},
+    {"x": 21, "y": 8, "color": "green", "hp": 1}
+  ]
+}

@@ -1,0 +1,97 @@
+[
+  {
+    "id": "e1",
+    "name": "霓虹之夜电子音乐节",
+    "posterUrl": "",
+    "date": "2026-08-15T19:00:00.000Z",
+    "venue": "上海世博公园",
+    "status": "approved",
+    "artistId": "u1",
+    "artistBio": "Luna Chen，新生代电子音乐制作人，擅长将东方旋律与西方电子节拍融合，曾在柏林电子音乐节、东京Sonar等国际舞台演出，代表作《月影流光》全网播放量破千万。",
+    "tiers": [
+      { "name": "早鸟", "price": 299, "total": 200, "sold": 45 },
+      { "name": "普通", "price": 499, "total": 500, "sold": 120 },
+      { "name": "VIP", "price": 1299, "total": 100, "sold": 30 }
+    ],
+    "tracks": [
+      "月影流光",
+      "Neon Dreams",
+      "Cyber Lotus",
+      "东方脉冲",
+      "Digital Dawn",
+      "Shanghai Nights"
+    ],
+    "createdAt": "2026-05-01T10:00:00.000Z"
+  },
+  {
+    "id": "e2",
+    "name": "星河民谣之夜",
+    "posterUrl": "",
+    "date": "2026-09-20T18:30:00.000Z",
+    "venue": "北京星光现场",
+    "status": "approved",
+    "artistId": "u1",
+    "artistBio": "Luna Chen，新生代电子音乐制作人，擅长将东方旋律与西方电子节拍融合，曾在柏林电子音乐节、东京Sonar等国际舞台演出，代表作《月影流光》全网播放量破千万。",
+    "tiers": [
+      { "name": "早鸟", "price": 199, "total": 150, "sold": 60 },
+      { "name": "普通", "price": 399, "total": 400, "sold": 85 },
+      { "name": "VIP", "price": 899, "total": 80, "sold": 20 }
+    ],
+    "tracks": [
+      "流浪者之歌",
+      "星河漫步",
+      "晚风轻吟",
+      "城市旅人",
+      "远方来信"
+    ],
+    "createdAt": "2026-05-10T08:00:00.000Z"
+  },
+  {
+    "id": "e3",
+    "name": "午夜爵士派对",
+    "posterUrl": "",
+    "date": "2026-04-10T20:00:00.000Z",
+    "venue": "成都小酒馆",
+    "status": "approved",
+    "artistId": "u1",
+    "artistBio": "Luna Chen，新生代电子音乐制作人，擅长将东方旋律与西方电子节拍融合，曾在柏林电子音乐节、东京Sonar等国际舞台演出，代表作《月影流光》全网播放量破千万。",
+    "tiers": [
+      { "name": "早鸟", "price": 159, "total": 100, "sold": 100 },
+      { "name": "普通", "price": 299, "total": 300, "sold": 300 },
+      { "name": "VIP", "price": 699, "total": 50, "sold": 50 }
+    ],
+    "tracks": [
+      "Blue Midnight",
+      "蜀道蓝调",
+      "雨夜萨克斯",
+      "Jazz in Chengdu",
+      "Last Call"
+    ],
+    "createdAt": "2026-02-15T12:00:00.000Z"
+  },
+  {
+    "id": "e4",
+    "name": "赛博朋克音乐现场",
+    "posterUrl": "",
+    "date": "2026-12-25T21:00:00.000Z",
+    "venue": "深圳万象天地剧场",
+    "status": "approved",
+    "artistId": "u1",
+    "artistBio": "Luna Chen，新生代电子音乐制作人，擅长将东方旋律与西方电子节拍融合，曾在柏林电子音乐节、东京Sonar等国际舞台演出，代表作《月影流光》全网播放量破千万。",
+    "tiers": [
+      { "name": "早鸟", "price": 349, "total": 180, "sold": 10 },
+      { "name": "普通", "price": 599, "total": 600, "sold": 25 },
+      { "name": "VIP", "price": 1599, "total": 120, "sold": 5 }
+    ],
+    "tracks": [
+      "Cyberpunk Rhapsody",
+      "深圳2077",
+      "Neural Link",
+      "未来回响",
+      "Digital Ghost",
+      "Neo Shenzhen",
+      "Atom Heart"
+    ],
+    "createdAt": "2026-06-01T14:00:00.000Z"
+  }
+]

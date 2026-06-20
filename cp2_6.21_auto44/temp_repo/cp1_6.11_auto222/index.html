@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>浑天仪 · 星象大观</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0A0A2E;
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', serif;
+      color: #E0E0FF;
+      user-select: none;
+    }
+    
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    
+    #title {
+      position: absolute;
+      top: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 36px;
+      color: #E0E0FF;
+      text-shadow: 0 0 20px rgba(0, 191, 255, 0.5);
+      letter-spacing: 8px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    #subtitle {
+      position: absolute;
+      top: 75px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 16px;
+      color: rgba(224, 224, 255, 0.6);
+      letter-spacing: 4px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    #control-panel {
+      position: absolute;
+      top: 50%;
+      left: 20px;
+      transform: translateY(-50%);
+      width: 220px;
+      background: rgba(10, 10, 30, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 191, 255, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+      z-index: 20;
+      transition: all 0.2s ease-in-out;
+    }
+    
+    .panel-section {
+      margin-bottom: 20px;
+    }
+    
+    .panel-section:last-child {
+      margin-bottom: 0;
+    }
+    
+    .panel-label {
+      font-size: 14px;
+      color: #E0E0FF;
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+    }
+    
+    .slider-container {
+      width: 100%;
+    }
+    
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(0, 191, 255, 0.2);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    
+    input[type="range"]:hover {
+      background: rgba(0, 191, 255, 0.3);
+      box-shadow: 0 0 8px rgba(0, 191, 255, 0.5);
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #00BFFF;
+      cursor: pointer;
+      box-shadow: 0 0 5px #00BFFF;
+      transition: all 0.2s ease-in-out;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 10px #00BFFF;
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #00BFFF;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 5px #00BFFF;
+    }
+    
+    .speed-value {
+      text-align: right;
+      font-size: 13px;
+      color: #00BFFF;
+      margin-top: 5px;
+    }
+    
+    input[type="date"] {
+      width: 100%;
+      padding: 8px 12px;
+      background: rgba(0, 191, 255, 0.1);
+      border: 1px solid rgba(0, 191, 255, 0.3);
+      border-radius: 6px;
+      color: #E0E0FF;
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    
+    input[type="date"]:hover {
+      border-color: #00BFFF;
+      box-shadow: 0 0 8px rgba(0, 191, 255, 0.4);
+    }
+    
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.7) sepia(1) hue-rotate(180deg);
+      cursor: pointer;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, rgba(0, 191, 255, 0.2), rgba(0, 100, 200, 0.2));
+      border: 1px solid rgba(0, 191, 255, 0.4);
+      border-radius: 8px;
+      color: #E0E0FF;
+      font-family: inherit;
+      font-size: 14px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    
+    .btn:hover {
+      background: linear-gradient(135deg, rgba(0, 191, 255, 0.3), rgba(0, 100, 200, 0.3));
+      box-shadow: 0 0 10px rgba(0, 191, 255, 0.5);
+      transform: scale(1.02);
+    }
+    
+    .btn:active {
+      transform: scale(0.95);
+      transition: transform 0.15s ease-in-out;
+    }
+    
+    #info-panel {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid rgba(0, 191, 255, 0.2);
+      display: none;
+    }
+    
+    #info-panel.visible {
+      display: block;
+    }
+    
+    .info-title {
+      font-size: 16px;
+      color: #FFD700;
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: rgba(224, 224, 255, 0.85);
+    }
+    
+    .info-row .value {
+      color: #00BFFF;
+    }
+    
+    #tooltip {
+      position: absolute;
+      padding: 6px 12px;
+      background: rgba(10, 10, 30, 0.9);
+      border: 1px solid rgba(0, 191, 255, 0.5);
+      border-radius: 6px;
+      color: #E0E0FF;
+      font-size: 14px;
+      pointer-events: none;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+      white-space: nowrap;
+      letter-spacing: 2px;
+    }
+    
+    #tooltip.visible {
+      opacity: 1;
+    }
+    
+    @media (max-width: 1024px) {
+      #title {
+        font-size: 28px;
+      }
+      
+      #control-panel {
+        width: 200px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      #title {
+        font-size: 24px;
+        top: 15px;
+      }
+      
+      #subtitle {
+        top: 50px;
+        font-size: 12px;
+      }
+      
+      #control-panel {
+        top: auto;
+        left: 50%;
+        bottom: 15px;
+        transform: translateX(-50%);
+        width: 95%;
+        max-width: 600px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        padding: 15px;
+      }
+      
+      .panel-section {
+        margin-bottom: 0;
+        flex: 1;
+        min-width: 140px;
+      }
+      
+      #info-panel {
+        margin-top: 0;
+        padding-top: 0;
+        padding-left: 15px;
+        border-top: none;
+        border-left: 1px solid rgba(0, 191, 255, 0.2);
+        min-width: 180px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <h1 id="title">浑天仪</h1>
+    <p id="subtitle">观星象 · 察乾坤</p>
+    
+    <div id="control-panel">
+      <div class="panel-section">
+        <div class="panel-label">时间流速</div>
+        <div class="slider-container">
+          <input type="range" id="speed-slider" min="0.1" max="10" step="0.1" value="1">
+          <div class="speed-value" id="speed-value">1.0x</div>
+        </div>
+      </div>
+      
+      <div class="panel-section">
+        <div class="panel-label">观测日期</div>
+        <input type="date" id="date-picker">
+      </div>
+      
+      <div class="panel-section">
+        <button class="btn" id="reset-btn">重置视角</button>
+      </div>
+      
+      <div id="info-panel">
+        <div class="info-title" id="info-name">--</div>
+        <div class="info-row">
+          <span>经度</span>
+          <span class="value" id="info-lon">--°</span>
+        </div>
+        <div class="info-row">
+          <span>纬度</span>
+          <span class="value" id="info-lat">--°</span>
+        </div>
+        <div class="info-row">
+          <span>光度</span>
+          <span class="value" id="info-mag">--</span>
+        </div>
+      </div>
+    </div>
+    
+    <div id="tooltip"></div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

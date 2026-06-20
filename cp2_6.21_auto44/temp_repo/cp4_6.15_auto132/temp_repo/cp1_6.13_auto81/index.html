@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>节奏烟花可视化器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      overflow: hidden;
+      background-color: #0a0a1a;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    #canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    #beat-counter {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+      background: rgba(255, 255, 255, 0.1);
+      padding: 12px 24px;
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      z-index: 100;
+    }
+    
+    #control-panel {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 280px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 20px;
+      transform: translateY(calc(100% + 20px));
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      z-index: 200;
+    }
+    
+    #control-panel.visible {
+      transform: translateY(-20px);
+    }
+    
+    #control-panel.hiding {
+      transform: translateY(calc(100% + 20px));
+    }
+    
+    .control-group {
+      margin-bottom: 16px;
+    }
+    
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+    
+    .control-label {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 12px;
+      margin-bottom: 8px;
+      display: block;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .mode-switch {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .mode-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.6);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+    }
+    
+    .mode-btn:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .mode-btn.active {
+      background: rgba(100, 200, 255, 0.3);
+      color: white;
+    }
+    
+    .select-wrapper {
+      position: relative;
+    }
+    
+    .palette-select {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      appearance: none;
+      transition: all 0.2s ease;
+    }
+    
+    .palette-select:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .palette-select option {
+      background: #1a1a2e;
+      color: white;
+    }
+    
+    .threshold-container {
+      opacity: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .threshold-container.visible {
+      opacity: 1;
+      max-height: 100px;
+    }
+    
+    .threshold-slider {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.2);
+      appearance: none;
+      cursor: pointer;
+    }
+    
+    .threshold-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(100, 200, 255, 0.8);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    
+    .threshold-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+    
+    .threshold-value {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 12px;
+      margin-top: 8px;
+      text-align: center;
+    }
+    
+    #metronome {
+      position: fixed;
+      left: 50%;
+      bottom: 15%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 200px;
+      cursor: pointer;
+      z-index: 150;
+    }
+    
+    #metronome-center {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #fff 0%, rgba(255, 255, 255, 0.5) 70%, transparent 100%);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+      transition: all 0.15s ease;
+    }
+    
+    #metronome-center.pulse {
+      transform: translate(-50%, -50%) scale(1.5);
+      box-shadow: 0 0 40px rgba(255, 255, 255, 0.8);
+    }
+    
+    .tick {
+      position: absolute;
+      width: 4px;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 2px;
+      transform-origin: center 100px;
+    }
+    
+    .tick:hover {
+      background: rgba(255, 255, 255, 0.8);
+    }
+    
+    #fps-counter {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+      font-family: monospace;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  
+  <div id="beat-counter">节拍: <span id="count">0</span></div>
+  <div id="fps-counter">FPS: --</div>
+  
+  <div id="control-panel">
+    <div class="control-group">
+      <label class="control-label">模式切换</label>
+      <div class="mode-switch">
+        <button class="mode-btn active" data-mode="manual">手动</button>
+        <button class="mode-btn" data-mode="audio">音频</button>
+      </div>
+    </div>
+    
+    <div class="control-group">
+      <label class="control-label">色板选择</label>
+      <div class="select-wrapper">
+        <select class="palette-select" id="palette-select">
+          <option value="spring">春季 - 樱花粉绿</option>
+          <option value="summer">夏季 - 热情橙黄</option>
+          <option value="autumn">秋季 - 枫叶红金</option>
+          <option value="winter">冬季 - 冰蓝银白</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="control-group threshold-container" id="threshold-container">
+      <label class="control-label">触发阈值</label>
+      <input type="range" class="threshold-slider" id="threshold-slider" min="10" max="200" value="80">
+      <div class="threshold-value">灵敏度: <span id="threshold-value">80</span></div>
+    </div>
+  </div>
+  
+  <div id="metronome">
+    <div id="metronome-center"></div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

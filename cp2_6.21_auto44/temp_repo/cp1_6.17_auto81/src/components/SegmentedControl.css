@@ -1,0 +1,43 @@
+.segmented-control {
+  position: relative;
+  display: inline-flex;
+  background: #f2f4f8;
+  border-radius: 10px;
+  padding: 4px;
+  gap: 0;
+}
+
+.segmented-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  background: #6c63ff;
+  border-radius: 8px;
+  transition: transform 0.2s ease;
+  z-index: 0;
+}
+
+.segmented-button {
+  position: relative;
+  z-index: 1;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: color 0.2s ease;
+  min-width: 80px;
+  white-space: nowrap;
+}
+
+.segmented-button.active {
+  color: #ffffff;
+}
+
+.segmented-button:not(.active):hover {
+  color: #1a1a2e;
+}

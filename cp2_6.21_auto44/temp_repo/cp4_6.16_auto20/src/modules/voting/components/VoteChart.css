@@ -1,0 +1,62 @@
+.vote-chart-card {
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  height: 100%;
+}
+
+.vote-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.vote-chart-title {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.vote-chart-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.stats-label {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.stats-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  font-family: var(--font-display);
+}
+
+.vote-chart-container {
+  flex: 1;
+  min-height: 280px;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .vote-chart-card {
+    padding: var(--spacing-md);
+  }
+
+  .vote-chart-container {
+    min-height: 220px;
+  }
+
+  .vote-chart-title {
+    font-size: 1rem;
+  }
+
+  .stats-value {
+    font-size: 1.25rem;
+  }
+}

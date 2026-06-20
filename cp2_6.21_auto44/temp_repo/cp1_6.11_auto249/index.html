@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>古法合香 · 香室雅集</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="title-bar">
+      <h1>古法合香</h1>
+      <p class="subtitle">—— 香室雅集 ——</p>
+    </header>
+
+    <main id="game-container">
+      <section id="spice-rack" class="panel">
+        <div class="panel-title">香料架</div>
+        <div id="spice-list"></div>
+      </section>
+
+      <section id="work-area" class="panel">
+        <div id="grinding-station">
+          <div id="grinding-bowl-container">
+            <canvas id="bowl-canvas" width="280" height="280"></canvas>
+            <div id="fineness-display">
+              <span class="label">研磨细度</span>
+              <span id="fineness-value">0</span>
+            </div>
+          </div>
+          <div id="mixing-controls">
+            <div id="selected-spices"></div>
+            <button id="blend-btn" class="btn">调和</button>
+            <button id="clear-btn" class="btn btn-secondary">清空</button>
+          </div>
+        </div>
+
+        <div id="aging-station">
+          <div class="panel-title small">窖藏区</div>
+          <div id="pill-container"></div>
+        </div>
+      </section>
+
+      <section id="censer-area" class="panel">
+        <div class="panel-title">品香炉</div>
+        <div id="censer-container">
+          <canvas id="censer-canvas" width="260" height="320"></canvas>
+          <canvas id="particle-canvas" width="400" height="500"></canvas>
+        </div>
+      </section>
+    </main>
+
+    <section id="ledger" class="panel">
+      <div class="panel-title">香方账册</div>
+      <div id="ledger-records"></div>
+    </section>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

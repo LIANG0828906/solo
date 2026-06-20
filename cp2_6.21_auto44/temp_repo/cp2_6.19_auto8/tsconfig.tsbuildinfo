@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/goalsetting.tsx","./src/components/mealform.tsx","./src/components/mealloglist.tsx","./src/components/nutrientchart.tsx","./src/types/index.ts","./src/utils/calculatenutrients.ts"],"version":"5.8.3"}

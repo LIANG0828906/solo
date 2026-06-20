@@ -1,0 +1,322 @@
+.inventory-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 20px 16px;
+}
+
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.panel-section {
+  position: relative;
+}
+
+.section-title {
+  font-size: 20px;
+  color: var(--color-ink);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-ink-light);
+}
+
+.subsection-title {
+  font-size: 16px;
+  color: var(--color-ink);
+  margin-bottom: 8px;
+  font-family: var(--font-calligraphy);
+}
+
+.section-hint {
+  font-size: 11px;
+  color: var(--color-ink-light);
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.caravan-config {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--color-ink-light);
+}
+
+.config-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.range-input {
+  flex: 1;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.config-value {
+  min-width: 50px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.config-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 8px;
+  background: var(--color-parchment-light);
+  border-radius: 2px;
+}
+
+.stat-label {
+  display: block;
+  font-size: 10px;
+  color: var(--color-ink-light);
+  margin-bottom: 2px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.cargo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.cargo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 6px;
+  background: var(--color-parchment-light);
+  border: 1px solid var(--color-ink-light);
+  border-radius: 3px;
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.cargo-item:hover {
+  background: var(--color-parchment);
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-ink);
+}
+
+.cargo-item:active {
+  cursor: grabbing;
+}
+
+.cargo-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.cargo-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.cargo-price {
+  font-size: 10px;
+  color: var(--color-accent);
+  margin-top: 2px;
+}
+
+.selected-section {
+  min-height: 60px;
+  transition: all 0.2s ease;
+  border: 2px dashed transparent;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.selected-section.drag-over {
+  border-color: var(--color-accent);
+  background: rgba(139, 58, 58, 0.05);
+}
+
+.empty-hint {
+  text-align: center;
+  color: var(--color-ink-light);
+  font-style: italic;
+  padding: 20px;
+  font-size: 12px;
+}
+
+.selected-cargo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.selected-cargo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--color-parchment-light);
+}
+
+.cargo-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cargo-info .cargo-name {
+  font-size: 13px;
+}
+
+.cargo-weight {
+  font-size: 10px;
+  color: var(--color-ink-light);
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qty-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.qty-value {
+  min-width: 24px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.remove-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--color-accent);
+}
+
+.route-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.clear-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.route-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.route-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--color-parchment-light);
+}
+
+.route-order {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent);
+  color: var(--color-parchment-light);
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.route-icon {
+  font-size: 18px;
+}
+
+.route-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.route-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.route-type {
+  font-size: 10px;
+  color: var(--color-ink-light);
+}
+
+.cargo-summary {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--color-ink-light);
+}
+
+.summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.summary-value {
+  font-weight: 600;
+  color: var(--color-oasis);
+}
+
+@media (max-width: 900px) {
+  .inventory-panel {
+    max-height: 400px;
+  }
+
+  .cargo-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

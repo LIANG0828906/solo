@@ -1,0 +1,26 @@
+{
+  "c1": {
+    "id": "c1",
+    "username": "农场主小明",
+    "count": 15,
+    "points": 450
+  },
+  "c2": {
+    "id": "c2",
+    "username": "勤劳的小红",
+    "count": 12,
+    "points": 380
+  },
+  "c3": {
+    "id": "c3",
+    "username": "快乐农夫",
+    "count": 8,
+    "points": 240
+  },
+  "c4": {
+    "id": "c4",
+    "username": "新手小白",
+    "count": 3,
+    "points": 90
+  }
+}

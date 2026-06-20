@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-cream: #FAF7F2;
+  --color-latte: #D4C5B2;
+  --color-coffee: #8B7355;
+  --color-espresso: #5C3D2E;
+  --color-forest: #2D6A4F;
+  --color-forest-light: #40916C;
+  --color-forest-pale: #B7E4C7;
+  --color-warm-white: #FDFCF9;
+  --shadow-soft: 0 2px 12px rgba(92, 61, 46, 0.08);
+  --shadow-hover: 0 8px 24px rgba(92, 61, 46, 0.15);
+  --radius-card: 12px;
+  --font-serif: 'Noto Serif SC', serif;
+  --font-sans: 'Noto Sans SC', sans-serif;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  font-weight: 400;
+  color: var(--color-espresso);
+  background-color: var(--color-cream);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-width: 768px;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #FAF7F2 0%, #F5EFE6 100%);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  color: var(--color-espresso);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes pulse-skeleton {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes slideLeftIn {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideRightIn {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bubbleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 300ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: opacity, transform;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 400ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: opacity, transform;
+}
+
+.animate-shake {
+  animation: shake 400ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  will-change: transform;
+}
+
+.animate-slide-in-right-shake {
+  animation: slideInRight 400ms cubic-bezier(0.4, 0, 0.2, 1) both, shake 300ms 350ms ease-in-out both;
+  will-change: opacity, transform;
+}
+
+.animate-skeleton-pulse {
+  background: linear-gradient(90deg, #E8E0D5 0%, #F0E8DD 50%, #E8E0D5 100%);
+  background-size: 200% 100%;
+  animation: pulse-skeleton 1.5s ease-in-out infinite;
+  will-change: background-position;
+}
+
+.animate-slide-left {
+  animation: slideLeftIn 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: opacity, transform;
+}
+
+.animate-slide-right {
+  animation: slideRightIn 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: opacity, transform;
+}
+
+.animate-fade-in {
+  animation: fadeIn 250ms ease-out both;
+  will-change: opacity;
+}
+
+.animate-bubble-in {
+  animation: bubbleIn 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: opacity, transform;
+  transform-origin: top center;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F0E8DD;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D4C5B2;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8B7355;
+}
+
+/* Selection */
+::selection {
+  background: #B7E4C7;
+  color: #2D6A4F;
+}

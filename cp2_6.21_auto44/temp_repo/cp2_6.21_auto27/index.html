@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>星云粒子系统 - 3D可视化</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, #1a0a2e 0%, #0a0514 50%, #000008 100%);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #e0e0ff;
+        }
+        #app {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="canvas-container"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

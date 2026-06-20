@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>细胞有丝分裂3D可视化演示</title>
+  <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+  <div id="app"></div>
+  <canvas id="three-canvas"></canvas>
+
+  <div id="ui-overlay">
+    <button id="panel-toggle" class="panel-toggle">☰</button>
+    <div id="drawer-overlay" class="drawer-overlay"></div>
+
+    <aside id="info-panel" class="info-panel">
+      <div class="panel-header">
+        <h2 id="phase-name">间期</h2>
+        <span id="phase-duration">5秒</span>
+      </div>
+      <p id="phase-description">细胞进行DNA复制，准备进入分裂期。染色体以染色质形式存在于细胞核内。</p>
+      <div class="progress-container">
+        <div class="progress-bar">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <span id="progress-text">0%</span>
+      </div>
+    </aside>
+
+    <div id="control-panel" class="control-panel">
+      <button id="play-btn" class="pill-btn primary">
+        <span class="btn-icon">▶</span>
+        <span class="btn-label">播放</span>
+      </button>
+      <button id="reset-camera-btn" class="pill-btn">
+        <span class="btn-icon">◉</span>
+        <span class="btn-label">重置视角</span>
+      </button>
+      <div class="phase-buttons">
+        <button class="pill-btn phase-btn" data-phase="interphase">间期</button>
+        <button class="pill-btn phase-btn" data-phase="prophase">前期</button>
+        <button class="pill-btn phase-btn" data-phase="metaphase">中期</button>
+        <button class="pill-btn phase-btn" data-phase="anaphase">后期</button>
+        <button class="pill-btn phase-btn" data-phase="telophase">末期</button>
+      </div>
+    </div>
+
+    <div id="mini-map" class="mini-map">
+      <div class="mini-stage" data-phase="interphase">
+        <div class="mini-thumb thumb-interphase"></div>
+        <span>间期</span>
+      </div>
+      <div class="mini-stage" data-phase="prophase">
+        <div class="mini-thumb thumb-prophase"></div>
+        <span>前期</span>
+      </div>
+      <div class="mini-stage" data-phase="metaphase">
+        <div class="mini-thumb thumb-metaphase"></div>
+        <span>中期</span>
+      </div>
+      <div class="mini-stage" data-phase="anaphase">
+        <div class="mini-thumb thumb-anaphase"></div>
+        <span>后期</span>
+      </div>
+      <div class="mini-stage" data-phase="telophase">
+        <div class="mini-thumb thumb-telophase"></div>
+        <span>末期</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

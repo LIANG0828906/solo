@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlantMicroverse - 3D植物解剖结构可视化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(180deg, #0A0E27 0%, #1A1F3A 100%);
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+    }
+
+    .layer-info-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 12px;
+      padding: 16px;
+      color: #ffffff;
+      backdrop-filter: blur(8px);
+      transition: opacity 0.3s ease;
+      opacity: 1;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .layer-info-panel.hidden {
+      opacity: 0;
+    }
+
+    .layer-info-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #8FBC8F;
+    }
+
+    .layer-info-content {
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .layer-info-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: #00FF88;
+      margin-right: 8px;
+    }
+
+    .vascular-info-panel {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: #2C2C3A;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #ffffff;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      min-width: 200px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .vascular-info-panel.visible {
+      opacity: 1;
+    }
+
+    .vascular-info-title {
+      font-weight: 600;
+      color: #00FF88;
+      margin-bottom: 4px;
+    }
+
+    .vascular-info-detail {
+      color: #cccccc;
+      line-height: 1.5;
+    }
+
+    .mobile-toggle-btn {
+      display: none;
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 44px;
+      height: 44px;
+      background: rgba(0, 0, 0, 0.6);
+      border: none;
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 100;
+      transition: background 0.3s ease;
+    }
+
+    .mobile-toggle-btn:hover {
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    .gui-container {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 50;
+      transition: transform 0.3s ease;
+    }
+
+    .gui-container.collapsed {
+      transform: translateX(320px);
+    }
+
+    .close-btn {
+      display: none;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 4px;
+      color: #ffffff;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 101;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    @media (max-width: 768px) {
+      .mobile-toggle-btn {
+        display: block;
+      }
+
+      .close-btn {
+        display: block;
+      }
+
+      .gui-container {
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100vh;
+        width: 240px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 60px 12px 12px;
+        overflow-y: auto;
+        transform: translateX(260px);
+      }
+
+      .gui-container.open {
+        transform: translateX(0);
+      }
+
+      .layer-info-panel {
+        top: 12px;
+        left: 12px;
+        padding: 12px;
+      }
+
+      .vascular-info-panel {
+        bottom: 12px;
+        right: 12px;
+        left: 12px;
+        min-width: auto;
+      }
+    }
+
+    .dg.ac {
+      z-index: 50 !important;
+    }
+
+    .dg.main .close-button {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    
+    <button class="mobile-toggle-btn" id="mobileToggleBtn" aria-label="打开控制面板">
+      ≡
+    </button>
+    
+    <div class="gui-container" id="guiContainer">
+      <button class="close-btn" id="closeBtn" aria-label="关闭控制面板">×</button>
+      <div id="gui"></div>
+    </div>
+    
+    <div class="layer-info-panel" id="layerInfoPanel">
+      <div class="layer-info-title">当前层级</div>
+      <div class="layer-info-content">
+        <span class="layer-info-number" id="layerNumber">1</span>
+        <span id="layerName">表皮层</span>
+      </div>
+    </div>
+    
+    <div class="vascular-info-panel" id="vascularInfoPanel">
+      <div class="vascular-info-title" id="vascularTitle">维管束 #1</div>
+      <div class="vascular-info-detail" id="vascularDetail">位置：极角 30°，直径 0.4 单位</div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

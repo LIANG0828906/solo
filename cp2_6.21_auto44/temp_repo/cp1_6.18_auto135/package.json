@@ -1,0 +1,22 @@
+{
+  "name": "molecular-dynamics-sandbox",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "@types/three": "^0.160.0",
+    "zustand": "^4.4.7",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "@types/uuid": "^9.0.7"
+  }
+}

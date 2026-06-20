@@ -1,0 +1,28 @@
+{
+  "name": "team-vote-visualizer",
+  "version": "1.0.0",
+  "description": "在线团队决策投票与实时结果可视化",
+
+  "scripts": {
+    "dev:frontend": "vite",
+    "dev:backend": "node server.js",
+    "dev": "concurrently \"npm:dev:*\"",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "qrcode": "^1.5.3",
+    "uuid": "^9.0.1",
+    "concurrently": "^8.2.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11",
+    "@types/express": "^4.17.21",
+    "@types/socket.io": "^3.0.2",
+    "@types/node": "^20.12.12",
+    "@types/uuid": "^9.0.8"
+  }
+}

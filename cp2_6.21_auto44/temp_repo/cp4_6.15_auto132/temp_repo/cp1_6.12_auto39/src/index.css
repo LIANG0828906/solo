@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Noto Sans SC', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #5D4037;
+  background-color: #FFF3E0;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #FFF3E0;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Noto Serif SC', serif;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-[#5D4037] text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 hover:bg-[#8D6E63] active:scale-95 relative overflow-hidden;
+  }
+
+  .btn-success {
+    @apply bg-[#66BB6A] text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 hover:bg-[#43A047] active:scale-95 relative overflow-hidden;
+  }
+
+  .btn-danger {
+    @apply bg-[#E53935] text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 hover:bg-[#C62828] active:scale-95 relative overflow-hidden;
+  }
+
+  .btn-outline {
+    @apply border-2 border-[#5D4037] text-[#5D4037] px-6 py-2 rounded-lg font-medium transition-all duration-200 hover:bg-[#5D4037] hover:text-white active:scale-95 relative overflow-hidden;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-md p-4 transition-all duration-200;
+  }
+
+  .time-slot {
+    @apply rounded-lg transition-all duration-200 cursor-pointer flex items-center justify-center text-sm font-medium;
+  }
+
+  .time-slot:hover {
+    @apply transform scale-105 shadow-lg;
+  }
+
+  .time-slot-available {
+    @apply bg-[#66BB6A] text-white;
+  }
+
+  .time-slot-partial {
+    @apply bg-[#FFB74D] text-white;
+  }
+
+  .time-slot-full {
+    @apply bg-[#E53935] text-white cursor-not-allowed;
+  }
+
+  .ingredient-grid {
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  @media (min-width: 768px) {
+    .ingredient-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .ingredient-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .page-enter {
+    @apply animate-fade-in;
+  }
+
+  .ripple {
+    @apply absolute rounded-full bg-white/30 pointer-events-none animate-ripple;
+  }
+}
+
+/* 进度条渐变色 */
+.progress-gradient {
+  background: linear-gradient(to right, #66BB6A, #FFB74D, #E53935);
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFF3E0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8D6E63;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5D4037;
+}

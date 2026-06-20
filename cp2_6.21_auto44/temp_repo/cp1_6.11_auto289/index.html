@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>古钱庄账房</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=ZCOOL+XiaoWei&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #8B5A2B;
+      font-family: 'Noto Serif SC', 'SimSun', serif;
+    }
+
+    body {
+      background-image: 
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 2px,
+          rgba(0,0,0,0.03) 2px,
+          rgba(0,0,0,0.03) 4px
+        ),
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0,0,0,0.02) 2px,
+          rgba(0,0,0,0.02) 4px
+        );
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .title {
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', cursive;
+      font-size: 2.5rem;
+      color: #2C1810;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+      padding: 1rem 0;
+      letter-spacing: 0.5rem;
+    }
+
+    #mainCanvas {
+      display: block;
+      background: transparent;
+      cursor: default;
+    }
+
+    .controls {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 1rem;
+      z-index: 10;
+    }
+
+    .time-slider {
+      width: 300px;
+      accent-color: #D4AF37;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1 class="title">古 钱 庄 账 房</h1>
+    <canvas id="mainCanvas"></canvas>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

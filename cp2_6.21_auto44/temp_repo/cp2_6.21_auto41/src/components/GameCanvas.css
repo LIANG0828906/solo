@@ -1,0 +1,102 @@
+.game-canvas-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+
+.canvas-wrapper {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  background: rgba(20, 20, 40, 0.5);
+  padding: 8px;
+}
+
+.game-canvas {
+  display: block;
+  border-radius: 8px;
+  cursor: crosshair;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.canvas-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  background: rgba(30, 30, 50, 0.8);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quick-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-select-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.quick-btn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 20px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-btn:hover {
+  transform: scale(1.1);
+}
+
+.quick-btn.active {
+  border-color: #fff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+}
+
+.shift-hint {
+  font-size: 13px;
+}
+
+.shift-active {
+  color: #ffd700;
+  font-weight: bold;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.shift-inactive {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@media (max-width: 768px) {
+  .game-canvas-container {
+    padding: 10px;
+  }
+  
+  .canvas-controls {
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 16px;
+  }
+}

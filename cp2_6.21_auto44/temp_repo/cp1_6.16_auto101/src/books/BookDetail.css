@@ -1,0 +1,263 @@
+.book-detail-page {
+  min-height: 100vh;
+  padding: 80px 40px 60px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.detail-nav {
+  margin-bottom: 24px;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  border-radius: 20px;
+  color: #6b7280;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  backdrop-filter: blur(8px);
+}
+
+.back-btn:hover {
+  background: white;
+  color: #374151;
+  transform: translateX(-2px);
+}
+
+.back-btn:active {
+  transform: scale(0.95);
+}
+
+.detail-content {
+  display: flex;
+  gap: 48px;
+  margin-bottom: 48px;
+}
+
+.book-cover-section {
+  flex-shrink: 0;
+}
+
+.cover-wrapper {
+  position: relative;
+  width: 300px;
+  height: 400px;
+}
+
+.detail-cover-canvas {
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.detail-status-tag {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+  animation: statusGlow 2s ease-in-out infinite;
+}
+
+.book-info-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.book-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #1f2937;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+}
+
+.book-author {
+  font-size: 16px;
+  color: #6b7280;
+  margin: 0 0 24px 0;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #374151;
+  margin: 0 0 12px 0;
+}
+
+.book-description {
+  margin-bottom: 28px;
+}
+
+.desc-text {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #4b5563;
+  margin: 0 0 8px 0;
+}
+
+.expand-btn {
+  background: none;
+  border: none;
+  color: #f97316;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 500;
+}
+
+.expand-btn:hover {
+  text-decoration: underline;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 25px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+}
+
+.borrow-btn {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.borrow-btn:hover {
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+  transform: translateY(-2px);
+}
+
+.return-btn {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: white;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.return-btn:hover {
+  box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+  transform: translateY(-2px);
+}
+
+.doodle-btn {
+  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  color: white;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+}
+
+.doodle-btn:hover {
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+  transform: translateY(-2px);
+}
+
+.drift-section {
+  margin-bottom: 48px;
+}
+
+.route-canvas-wrapper {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  overflow-x: auto;
+}
+
+.route-canvas {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+}
+
+.drift-stats {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+.gallery-section {
+  margin-bottom: 40px;
+}
+
+.not-found {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  font-size: 18px;
+  color: #9ca3af;
+}
+
+@media (max-width: 768px) {
+  .book-detail-page {
+    padding: 70px 16px 40px;
+  }
+
+  .detail-content {
+    flex-direction: column;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .cover-wrapper {
+    width: 240px;
+    height: 320px;
+  }
+
+  .detail-cover-canvas {
+    width: 240px !important;
+    height: 320px !important;
+  }
+
+  .book-title {
+    font-size: 24px;
+    text-align: center;
+  }
+
+  .book-author {
+    text-align: center;
+  }
+
+  .section-title {
+    font-size: 16px;
+  }
+
+  .action-buttons {
+    justify-content: center;
+  }
+
+  .action-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  .route-canvas-wrapper {
+    padding: 12px;
+  }
+}

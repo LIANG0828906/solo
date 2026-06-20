@@ -1,0 +1,75 @@
+:root {
+  --color-primary: #2E7D32;
+  --color-primary-light: #4CAF50;
+  --color-primary-lighter: #81C784;
+  --color-primary-bg: #E8F5E9;
+  --color-danger: #E53935;
+  --color-danger-light: #EF5350;
+  --color-warning: #FBC02D;
+  --color-warning-light: #FFD54F;
+  --color-bg: #FAF8F3;
+  --color-bg-warm: #F5F1E8;
+  --color-text: #1A3A1A;
+  --color-text-secondary: #5A7A5A;
+  --color-text-muted: #8FA890;
+  --color-white: #FFFFFF;
+  --color-border: #D4E4D4;
+  --shadow-sm: 0 2px 8px rgba(46, 125, 50, 0.08);
+  --shadow-md: 0 4px 16px rgba(46, 125, 50, 0.12);
+  --shadow-lg: 0 8px 32px rgba(46, 125, 50, 0.16);
+  --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Noto Serif SC', serif;
+  font-weight: 600;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, select {
+  font-family: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-warm);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-lighter);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-light);
+}

@@ -1,0 +1,64 @@
+{
+  "tasks": [
+    {
+      "id": "1",
+      "title": "完成用户登录模块",
+      "assignee": "张三",
+      "status": "done",
+      "estimatedHours": 16,
+      "actualHours": 18,
+      "createdAt": "2026-06-10T08:00:00.000Z",
+      "description": "实现用户登录、注册、密码找回功能"
+    },
+    {
+      "id": "2",
+      "title": "设计数据库架构",
+      "assignee": "李四",
+      "status": "in-progress",
+      "estimatedHours": 8,
+      "actualHours": 6,
+      "createdAt": "2026-06-12T09:00:00.000Z",
+      "description": "设计用户、订单、产品表结构"
+    },
+    {
+      "id": "3",
+      "title": "编写API文档",
+      "assignee": "张三",
+      "status": "todo",
+      "estimatedHours": 4,
+      "actualHours": 0,
+      "createdAt": "2026-06-15T10:00:00.000Z",
+      "description": "使用Swagger编写REST API文档"
+    },
+    {
+      "id": "4",
+      "title": "前端页面开发",
+      "assignee": "王五",
+      "status": "in-progress",
+      "estimatedHours": 24,
+      "actualHours": 12,
+      "createdAt": "2026-06-14T10:00:00.000Z",
+      "description": "完成首页、列表页、详情页的开发"
+    },
+    {
+      "id": "5",
+      "title": "性能优化",
+      "assignee": "李四",
+      "status": "todo",
+      "estimatedHours": 8,
+      "actualHours": 0,
+      "createdAt": "2026-06-16T08:30:00.000Z",
+      "description": "优化页面加载速度，减少接口响应时间"
+    },
+    {
+      "id": "6",
+      "title": "单元测试编写",
+      "assignee": "王五",
+      "status": "done",
+      "estimatedHours": 12,
+      "actualHours": 14,
+      "createdAt": "2026-06-08T09:00:00.000Z",
+      "description": "为核心模块编写单元测试，覆盖率达到80%"
+    }
+  ]
+}

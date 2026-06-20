@@ -1,0 +1,357 @@
+:root {
+  --ink-primary: #2c2c2c;
+  --ink-secondary: #5a5a5a;
+  --ink-light: #8a8a8a;
+  --ink-bg: #f5f0e6;
+  --ink-paper: #faf8f3;
+  --ink-accent: #4a6741;
+  --ink-danger: #8b0000;
+}
+
+.fengmian-container {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 20px;
+  background: var(--ink-paper);
+  border: 1px solid var(--ink-light);
+  border-radius: 8px;
+  font-family: 'Noto Serif SC', 'STSong', serif;
+  animation: containerFadeIn 0.6s ease-out;
+}
+
+@keyframes containerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fengmian-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.label-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fengmian-icon {
+  font-size: 1.4rem;
+}
+
+.fengmian-label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+  letter-spacing: 1px;
+}
+
+.value-section {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.value-number {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.5s ease;
+  will-change: color;
+}
+
+.value-max {
+  font-size: 0.9rem;
+  color: var(--ink-light);
+  font-weight: 500;
+}
+
+.level-badge {
+  padding: 4px 12px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 8px;
+  transition: all 0.3s ease;
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.progress-wrapper {
+  position: relative;
+  height: 32px;
+  margin-bottom: 16px;
+}
+
+.ink-progress-track {
+  position: absolute;
+  inset: 0;
+  background: var(--ink-bg);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--ink-light);
+}
+
+.track-pattern {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 10px,
+    rgba(0, 0, 0, 0.03) 10px,
+    rgba(0, 0, 0, 0.03) 20px
+  );
+  opacity: 0.5;
+}
+
+.ink-progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 16px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.5s ease;
+  overflow: hidden;
+  will-change: width, background-color;
+}
+
+.fill-texture {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(0, 0, 0, 0.1) 0%, transparent 40%);
+}
+
+.fill-shine {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0.4) 0%, 
+    rgba(255, 255, 255, 0.1) 50%, 
+    rgba(255, 255, 255, 0.4) 100%
+  );
+  border-radius: 3px;
+  animation: shineMove 3s ease-in-out infinite;
+}
+
+@keyframes shineMove {
+  0%, 100% {
+    transform: translateX(-10%);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateX(10%);
+    opacity: 0.9;
+  }
+}
+
+.ink-drops-container {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  height: 100%;
+  pointer-events: none;
+}
+
+.ink-drop {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.ink-drop.animating {
+  animation: inkDropFall 0.8s ease-out forwards;
+}
+
+@keyframes inkDropFall {
+  0% {
+    opacity: 0;
+    transform: translateY(-150%) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.2);
+  }
+  100% {
+    opacity: 0.7;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+.drop-ripple {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  animation: rippleExpand 1s ease-out infinite;
+}
+
+@keyframes rippleExpand {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.ink-brush-tip {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  transition: left 0.8s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.5s ease;
+  will-change: left, background-color;
+  box-shadow: 0 0 12px currentColor;
+}
+
+.brush-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: inherit;
+  border-radius: 50%;
+  opacity: 0.6;
+  animation: particleFloat 2s ease-in-out infinite;
+}
+
+.brush-particle.delay-1 {
+  animation-delay: 0.3s;
+}
+
+.brush-particle.delay-2 {
+  animation-delay: 0.6s;
+}
+
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.6;
+  }
+  25% {
+    transform: translate(6px, -4px) scale(0.8);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(4px, -8px) scale(0.6);
+    opacity: 0.1;
+  }
+  75% {
+    transform: translate(-4px, -6px) scale(0.8);
+    opacity: 0.3;
+  }
+}
+
+.fengmian-footer {
+  margin-top: 8px;
+}
+
+.scale-markers {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.scale-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.scale-marker::before {
+  content: '';
+  width: 2px;
+  height: 8px;
+  background: var(--ink-light);
+  border-radius: 1px;
+  transition: background-color 0.3s ease;
+}
+
+.scale-marker.active::before {
+  background: inherit;
+  border-color: inherit;
+}
+
+.marker-label {
+  font-size: 0.7rem;
+  color: var(--ink-light);
+  transition: color 0.3s ease;
+}
+
+.scale-marker.active .marker-label {
+  color: var(--ink-primary);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .fengmian-container {
+    padding: 16px;
+  }
+  
+  .progress-wrapper {
+    height: 28px;
+  }
+  
+  .level-badge {
+    padding: 3px 10px;
+    font-size: 0.7rem;
+    margin-left: 4px;
+  }
+  
+  .ink-brush-tip {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .fill-shine,
+  .level-badge,
+  .drop-ripple,
+  .brush-particle {
+    animation: none !important;
+  }
+}

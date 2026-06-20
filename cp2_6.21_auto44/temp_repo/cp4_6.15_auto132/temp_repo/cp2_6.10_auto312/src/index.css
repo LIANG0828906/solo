@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: theme('fontFamily.body');
+    background: linear-gradient(135deg, theme('colors.space-dark'), theme('colors.space-light'));
+  }
+
+  #root {
+    width: 100vw;
+    height: 100vh;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl;
+  }
+
+  .star-glow {
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+  }
+
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+}
+
+@media (min-width: 768px) {
+  .md\\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .lg\\:container {
+    width: 100%;
+    margin-right: auto;
+    margin-left: auto;
+  }
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "user-1",
+    "name": "张三",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan"
+  },
+  {
+    "id": "user-2",
+    "name": "李四",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lisi"
+  },
+  {
+    "id": "user-3",
+    "name": "王五",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wangwu"
+  }
+]

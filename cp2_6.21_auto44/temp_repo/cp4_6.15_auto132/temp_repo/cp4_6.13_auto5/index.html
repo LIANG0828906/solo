@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d0221">
+    <title>CYBER MAZE RACE - 赛博迷宫竞速</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0d0221;
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(ellipse at center, #1a0a2e 0%, #0d0221 70%, #05010f 100%);
+        }
+
+        #game-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        .scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.1) 0px,
+                rgba(0, 0, 0, 0.1) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0.3;
+        }
+
+        .vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.6) 100%);
+            pointer-events: none;
+            z-index: 9;
+        }
+
+        @media (max-width: 768px) and (orientation: portrait) {
+            #rotate-hint {
+                display: flex !important;
+            }
+            #game-container {
+                display: none;
+            }
+        }
+
+        #rotate-hint {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #0d0221;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: #00f0ff;
+            font-family: 'Orbitron', sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #rotate-hint .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            animation: rotate 2s ease-in-out infinite;
+        }
+
+        @keyframes rotate {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="rotate-hint">
+        <div class="icon">📱</div>
+        <h2 style="color: #00f0ff; margin-bottom: 10px; font-family: 'Orbitron', sans-serif;">请横屏使用</h2>
+        <p style="color: #ff00ff;">为获得最佳游戏体验，请将手机旋转至横屏模式</p>
+    </div>
+    
+    <div id="game-container">
+        <div class="scanlines"></div>
+        <div class="vignette"></div>
+        <div id="phaser-game"></div>
+    </div>
+    
+    <script type="module" src="/src/client/main.ts"></script>
+</body>
+</html>

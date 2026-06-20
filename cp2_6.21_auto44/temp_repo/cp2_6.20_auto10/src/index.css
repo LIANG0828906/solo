@@ -1,0 +1,271 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background-color: #1a1a2e;
+  color: #e0e0f0;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(108, 99, 255, 0.4);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(108, 99, 255, 0.6);
+}
+
+@layer components {
+  .glass-sidebar {
+    background: rgba(26, 26, 46, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-card {
+    background: rgba(42, 41, 66, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .agenda-card {
+    @apply glass-card rounded-xl p-4 relative overflow-hidden;
+    transition: all 0.2s ease;
+  }
+
+  .agenda-card:hover {
+    @apply shadow-lg;
+    transform: translateY(-1px);
+    border-color: rgba(108, 99, 255, 0.3);
+  }
+
+  .agenda-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #6c63ff;
+  }
+
+  .agenda-card.status-pending::before {
+    background: #a8a7c0;
+  }
+
+  .agenda-card.status-discussing::before {
+    background: #6c63ff;
+  }
+
+  .agenda-card.status-resolved::before {
+    background: #4ade80;
+  }
+
+  .agenda-card.status-postponed::before {
+    background: #fbbf24;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 rounded-lg font-medium text-white;
+    background: linear-gradient(135deg, #6c63ff 0%, #8b82ff 100%);
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 20px rgba(108, 99, 255, 0.4);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 rounded-lg font-medium;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e0e0f0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(1.05);
+  }
+
+  .btn-secondary:active {
+    transform: scale(0.98);
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-lg text-white placeholder-dark-400;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+    outline: none;
+  }
+
+  .input-field:focus {
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.2);
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 8, 16, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal-content {
+    background: #1a1a2e;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .priority-high {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  .priority-medium {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+  }
+
+  .priority-low {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+  }
+
+  .task-card {
+    @apply glass-card rounded-xl p-4 cursor-grab;
+    transition: all 0.2s ease;
+  }
+
+  .task-card:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  }
+
+  .task-card.dragging {
+    cursor: grabbing;
+    transform: scale(1.05) rotate(2deg);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+  }
+
+  .avatar-bubble {
+    @apply rounded-full flex items-center justify-center text-xs font-bold text-white;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+  }
+
+  .comment-bubble {
+    @apply rounded-2xl px-4 py-2 text-sm;
+    max-width: 85%;
+    word-wrap: break-word;
+  }
+
+  .comment-bubble.self {
+    background: linear-gradient(135deg, #6c63ff 0%, #8b82ff 100%);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+
+  .comment-bubble.other {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e0e0f0;
+    border-bottom-left-radius: 4px;
+  }
+
+  .kanban-column {
+    @apply rounded-2xl p-4 flex flex-col gap-3;
+    background: rgba(15, 15, 26, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    min-height: 400px;
+  }
+
+  .kanban-column.drag-over {
+    border-color: rgba(108, 99, 255, 0.5);
+    background: rgba(108, 99, 255, 0.05);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.comment-enter {
+  animation: commentEnter 0.3s ease-out;
+}
+
+@keyframes commentEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

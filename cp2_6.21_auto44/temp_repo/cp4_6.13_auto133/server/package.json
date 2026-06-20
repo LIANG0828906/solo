@@ -1,0 +1,11 @@
+{
+  "name": "social-sentiment-server",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2",
+    "uuid": "^9.0.0"
+  }
+}

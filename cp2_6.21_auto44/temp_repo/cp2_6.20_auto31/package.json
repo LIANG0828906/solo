@@ -1,0 +1,31 @@
+{
+  "name": "auto31-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "axios": "^1.6.0",
+    "zustand": "^4.4.7",
+    "react-hook-form": "^7.48.2",
+    "uuid": "^9.0.0",
+    "dayjs": "^1.11.10",
+    "@nivo/calendar": "^0.84.0",
+    "recharts": "^2.10.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@types/uuid": "^9.0.7"
+  }
+}

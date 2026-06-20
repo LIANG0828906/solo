@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D 分子结构查看器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: #ffffff;
+      background: radial-gradient(ellipse at center, #0a0a2e 0%, #1a0a3e 100%);
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    .toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 20px;
+      background: rgba(20, 20, 40, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .toolbar select,
+    .toolbar button {
+      font-family: inherit;
+      font-size: 13px;
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 7px 14px;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
+      outline: none;
+    }
+
+    .toolbar select:hover,
+    .toolbar button:hover {
+      background: rgba(77, 166, 255, 0.5);
+      border-color: rgba(77, 166, 255, 0.6);
+    }
+
+    .toolbar select:active,
+    .toolbar button:active {
+      transform: scale(0.95);
+    }
+
+    .toolbar button.active {
+      background: rgba(77, 166, 255, 0.6);
+      border-color: rgba(77, 166, 255, 0.8);
+    }
+
+    .toolbar select option {
+      background: #1a1a3e;
+      color: #ffffff;
+    }
+
+    .toolbar label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .toolbar input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .toolbar input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #4da6ff;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .toolbar input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .toolbar .separator {
+      width: 1px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.12);
+      margin: 0 4px;
+    }
+
+    .toolbar .title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-right: 8px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .info-card {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 100;
+      background: rgba(20, 20, 40, 0.75);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px 20px;
+      min-width: 200px;
+      transform: translateY(120%);
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .info-card.visible {
+      transform: translateY(0);
+    }
+
+    .info-card .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: rgba(255, 255, 255, 0.9);
+      letter-spacing: 0.3px;
+    }
+
+    .info-card .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 3px 0;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .info-card .info-row .label {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .info-card .info-row .value {
+      color: rgba(255, 255, 255, 0.95);
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="toolbar">
+    <span class="title">3D 分子查看器</span>
+    <div class="separator"></div>
+    <label>
+      分子：
+      <select id="molecule-select">
+        <option value="h2o">水 (H₂O)</option>
+        <option value="ch4">甲烷 (CH₄)</option>
+        <option value="c6h6">苯 (C₆H₆)</option>
+      </select>
+    </label>
+    <div class="separator"></div>
+    <button id="mode-ball-stick" class="active">球棍模型</button>
+    <button id="mode-space-fill">空间填充</button>
+    <button id="mode-wireframe">线框模型</button>
+    <div class="separator"></div>
+    <label>
+      旋转速度：
+      <input type="range" id="rotation-speed" min="0" max="2" step="0.05" value="0.3" />
+    </label>
+  </div>
+
+  <div class="info-card" id="info-card">
+    <div class="card-title" id="card-molecule-name">水</div>
+    <div class="info-row">
+      <span class="label">分子式</span>
+      <span class="value" id="card-formula">H₂O</span>
+    </div>
+    <div class="info-row">
+      <span class="label">分子量</span>
+      <span class="value" id="card-weight">18.015</span>
+    </div>
+    <div class="info-row">
+      <span class="label">键角</span>
+      <span class="value" id="card-angles">104.5°</span>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

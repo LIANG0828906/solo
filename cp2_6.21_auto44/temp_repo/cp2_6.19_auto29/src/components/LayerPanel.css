@@ -1,0 +1,256 @@
+.layer-panel {
+  width: 260px;
+  background: rgba(20, 20, 30, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3),
+    0 0 40px rgba(139, 92, 246, 0.1);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.layer-count {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(139, 92, 246, 0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.layer-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layer-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.layer-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.layer-list::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 3px;
+}
+
+.layer-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}
+
+.empty-layers {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+}
+
+.layer-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(40, 40, 60, 0.4);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.layer-item-row:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.layer-item-row.selected {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+}
+
+.layer-item-row.highlighted {
+  animation: layerHighlight 0.6s ease-in-out 2;
+}
+
+@keyframes layerHighlight {
+  0%, 100% {
+    background: rgba(40, 40, 60, 0.4);
+    box-shadow: none;
+  }
+  50% {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.3));
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+  }
+}
+
+.layer-item-row.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.layer-item-row.drag-over::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.6);
+}
+
+.layer-item-row.hidden-layer {
+  opacity: 0.5;
+}
+
+.layer-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: grab;
+  padding: 2px;
+}
+
+.layer-drag-handle:active {
+  cursor: grabbing;
+}
+
+.layer-thumbnail {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 30, 45, 0.8);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.layer-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.layer-thumb-emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.layer-thumb-text {
+  font-size: 14px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.layer-thumb-draw {
+  width: 28px;
+  height: 28px;
+}
+
+.layer-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.layer-name {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.layer-type-icon {
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.layer-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.layer-action-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.layer-action-btn:hover {
+  background: rgba(139, 92, 246, 0.3);
+  color: #fff;
+}
+
+.visibility-btn:hover {
+  color: #fff;
+}
+
+.delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.delete-btn:active {
+  transform: scale(0.85);
+}
+
+@media (max-width: 1024px) {
+  .layer-panel {
+    width: 220px;
+  }
+}
+
+@media (max-width: 768px) {
+  .layer-panel {
+    width: 100%;
+    max-height: 200px;
+  }
+}

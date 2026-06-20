@@ -1,0 +1,138 @@
+{
+  "gifts": [
+    {
+      "id": "1",
+      "name": "小心心",
+      "iconUrl": "https://cdn-icons-png.flaticon.com/128/742/742756.png",
+      "price": 100,
+      "sales": 1250
+    },
+    {
+      "id": "2",
+      "name": "玫瑰花",
+      "iconUrl": "https://cdn-icons-png.flaticon.com/128/745/745069.png",
+      "price": 500,
+      "sales": 680
+    },
+    {
+      "id": "3",
+      "name": "皇冠",
+      "iconUrl": "https://cdn-icons-png.flaticon.com/128/263/263087.png",
+      "price": 1000,
+      "sales": 320
+    },
+    {
+      "id": "4",
+      "name": "火箭",
+      "iconUrl": "https://cdn-icons-png.flaticon.com/128/1387/1387436.png",
+      "price": 5000,
+      "sales": 86
+    },
+    {
+      "id": "5",
+      "name": "游艇",
+      "iconUrl": "https://cdn-icons-png.flaticon.com/128/3061/3061323.png",
+      "price": 10000,
+      "sales": 24
+    },
+    {
+      "id": "6",
+      "name": "嘉年华",
+      "iconUrl": "https://cdn-icons-png.flaticon.com/128/2583/2583461.png",
+      "price": 50000,
+      "sales": 5
+    }
+  ],
+  "danmakus": [
+    {
+      "id": "54c229ce-cf19-4164-88f2-d7c0b431e274",
+      "nickname": "测试用户",
+      "avatar": "06B6D4",
+      "content": "主播好厉害！加油！",
+      "timestamp": 1781658740418
+    }
+  ],
+  "giftRecords": [],
+  "ranking": [
+    {
+      "id": "u1",
+      "nickname": "超级粉丝小明",
+      "avatar": "FF6B00",
+      "totalCoins": 128500,
+      "todayCoins": 8500,
+      "weekCoins": 25600
+    },
+    {
+      "id": "u2",
+      "nickname": "土豪大佬",
+      "avatar": "9333EA",
+      "totalCoins": 96800,
+      "todayCoins": 15000,
+      "weekCoins": 32000
+    },
+    {
+      "id": "u3",
+      "nickname": "小甜甜",
+      "avatar": "EC4899",
+      "totalCoins": 67200,
+      "todayCoins": 3200,
+      "weekCoins": 18500
+    },
+    {
+      "id": "u4",
+      "nickname": "夜猫子",
+      "avatar": "06B6D4",
+      "totalCoins": 45600,
+      "todayCoins": 1200,
+      "weekCoins": 9800
+    },
+    {
+      "id": "u5",
+      "nickname": "追梦人",
+      "avatar": "10B981",
+      "totalCoins": 32100,
+      "todayCoins": 800,
+      "weekCoins": 6500
+    },
+    {
+      "id": "u6",
+      "nickname": "开心果",
+      "avatar": "F59E0B",
+      "totalCoins": 21500,
+      "todayCoins": 500,
+      "weekCoins": 4200
+    },
+    {
+      "id": "u7",
+      "nickname": "文艺青年",
+      "avatar": "6366F1",
+      "totalCoins": 15800,
+      "todayCoins": 300,
+      "weekCoins": 2800
+    },
+    {
+      "id": "u8",
+      "nickname": "老司机",
+      "avatar": "EF4444",
+      "totalCoins": 12300,
+      "todayCoins": 200,
+      "weekCoins": 1500
+    },
+    {
+      "id": "u9",
+      "nickname": "小萌新",
+      "avatar": "8B5CF6",
+      "totalCoins": 8600,
+      "todayCoins": 100,
+      "weekCoins": 800
+    },
+    {
+      "id": "u10",
+      "nickname": "路人甲",
+      "avatar": "64748B",
+      "totalCoins": 5200,
+      "todayCoins": 50,
+      "weekCoins": 300
+    }
+  ]
+}

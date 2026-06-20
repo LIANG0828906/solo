@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/model/buildingmanager.ts","./src/model/shadowsimulator.ts","./src/store/appstore.ts","./src/types/index.ts","./src/ui/chartpanel.tsx","./src/ui/controlpanel.tsx","./src/ui/facadepopup.tsx","./src/ui/lefttoolbar.tsx","./src/ui/map3d.tsx"],"version":"5.8.3"}

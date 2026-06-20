@@ -1,0 +1,22 @@
+{
+  "name": "tectonic-quake-3d",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build"
+  },
+  "dependencies": {
+    "three": "^0.162.0",
+    "d3-scale": "^4.0.2",
+    "d3-interpolate": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.162.0",
+    "@types/d3-scale": "^4.0.8",
+    "@types/d3-interpolate": "^3.0.4",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0"
+  }
+}

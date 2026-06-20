@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>三维音乐可视化粒子瀑布</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(180deg, #0a0e27 0%, #000000 100%);
+      color: #ffffff;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    .control-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 280px;
+      z-index: 100;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: border-color 0.3s ease;
+    }
+
+    .control-panel:hover {
+      border-color: rgba(100, 200, 255, 0.4);
+    }
+
+    .upload-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .file-name {
+      flex: 1;
+      font-size: 13px;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    .upload-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      transition: border-color 0.3s ease;
+    }
+
+    .upload-btn:hover {
+      transform: scale(1.1) rotate(5deg);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    .upload-btn:hover::before {
+      border-color: rgba(150, 220, 255, 0.8);
+    }
+
+    .upload-btn:active {
+      transform: scale(1.05) rotate(3deg);
+    }
+
+    .upload-btn svg {
+      width: 22px;
+      height: 22px;
+      fill: #ffffff;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+      transition: transform 0.3s ease;
+    }
+
+    .upload-btn:hover svg {
+      transform: scale(1.1);
+    }
+
+    .upload-btn.loading {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 4px 15px rgba(56, 239, 125, 0.4);
+      }
+      50% {
+        box-shadow: 0 4px 25px rgba(56, 239, 125, 0.8), 0 0 40px rgba(56, 239, 125, 0.3);
+      }
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .slider-value {
+      color: #64c8ff;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    input[type="range"]:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(102, 126, 234, 0.6), 0 0 20px rgba(102, 126, 234, 0.3);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      transition: all 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 15px rgba(100, 200, 255, 0.8), 0 0 30px rgba(100, 200, 255, 0.4);
+      border-color: rgba(150, 220, 255, 0.8);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:active {
+      transform: scale(1.1);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(102, 126, 234, 0.6);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    input[type="range"]:hover::-webkit-slider-thumb {
+      border-color: rgba(150, 220, 255, 0.8);
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .control-panel {
+        top: auto;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        border-radius: 16px 16px 0 0;
+        min-width: unset;
+        width: 100%;
+        padding: 14px 16px 20px;
+        gap: 12px;
+      }
+
+      .slider-group {
+        width: 100%;
+      }
+
+      .upload-btn {
+        width: 44px;
+        height: 44px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <div class="control-panel" id="control-panel">
+      <div class="upload-row">
+        <span class="file-name" id="file-name">未选择音频文件</span>
+        <button class="upload-btn" id="upload-btn" title="上传音频文件">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+          </svg>
+        </button>
+        <input type="file" id="file-input" accept="audio/mp3,audio/wav,audio/ogg,.mp3,.wav,.ogg" />
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>粒子透明度</span>
+          <span class="slider-value" id="opacity-value">0.80</span>
+        </div>
+        <input type="range" id="opacity-slider" min="0.2" max="1.0" step="0.01" value="0.8" />
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>下落速度倍率</span>
+          <span class="slider-value" id="speed-value">1.00</span>
+        </div>
+        <input type="range" id="speed-slider" min="0.5" max="3.0" step="0.01" value="1.0" />
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>音频灵敏度</span>
+          <span class="slider-value" id="sensitivity-value">1.00</span>
+        </div>
+        <input type="range" id="sensitivity-slider" min="0.5" max="2.0" step="0.01" value="1.0" />
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

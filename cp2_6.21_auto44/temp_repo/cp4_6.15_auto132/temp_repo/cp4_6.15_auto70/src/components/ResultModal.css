@@ -1,0 +1,259 @@
+.result-phase {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.result-layout {
+  position: relative;
+}
+
+.result-main {
+  position: relative;
+}
+
+.frosted-mask {
+  position: absolute;
+  inset: -30px;
+  background: rgba(245, 240, 232, 0.85);
+  backdrop-filter: blur(15px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  overflow: hidden;
+}
+
+.result-modal {
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 40px 50px;
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  max-width: 500px;
+  width: 90%;
+  animation: modalIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.result-title {
+  font-family: 'Ma Shan Zheng', cursive;
+  font-size: 40px;
+  color: #1a1a1a;
+  letter-spacing: 8px;
+  margin-bottom: 8px;
+}
+
+.lose-reason {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.result-players {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.result-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.result-player.winner {
+  transform: scale(1.1);
+  animation: winnerPop 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+
+@keyframes winnerPop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+.crown {
+  position: absolute;
+  top: -24px;
+  font-size: 28px;
+  animation: crownBounce 1s ease-in-out infinite;
+  z-index: 2;
+}
+
+@keyframes crownBounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-5deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(5deg);
+  }
+}
+
+.result-name {
+  font-weight: 600;
+  font-size: 18px;
+  color: #1a1a1a;
+}
+
+.result-tag {
+  padding: 4px 16px;
+  background: #c8102e;
+  color: white;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+.result-tag.lose {
+  background: #999;
+}
+
+.result-vs {
+  font-family: 'Ma Shan Zheng', cursive;
+  font-size: 28px;
+  color: #666;
+}
+
+.chart-container {
+  margin-bottom: 30px;
+}
+
+.chart-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 16px;
+  letter-spacing: 2px;
+}
+
+.bar-chart {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 40px;
+  height: 220px;
+}
+
+.bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.bar {
+  width: 60px;
+  border-radius: 8px 8px 4px 4px;
+  transition: height 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 4px;
+}
+
+.bar-animate {
+  animation: barGrow 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.5s backwards;
+}
+
+@keyframes barGrow {
+  from {
+    height: 0 !important;
+  }
+}
+
+.winner-bar {
+  background: linear-gradient(180deg, #c8102e 0%, #a00d25 100%);
+  box-shadow: 0 4px 15px rgba(200, 16, 46, 0.3);
+}
+
+.loser-bar {
+  background: linear-gradient(180deg, #999 0%, #666 100%);
+}
+
+.bar-label {
+  font-family: 'Ma Shan Zheng', cursive;
+  font-size: 24px;
+  font-weight: bold;
+  color: #1a1a1a;
+}
+
+.bar-name {
+  font-size: 12px;
+  color: #666;
+}
+
+.restart-btn {
+  margin-top: 0;
+  padding: 14px 40px;
+  background: linear-gradient(135deg, #c8102e 0%, #a00d25 100%);
+  background-color: #c8102e;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 4px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(200, 16, 46, 0.3);
+}
+
+.restart-btn:hover {
+  transform: scale(1.03);
+  background-color: #a00d25;
+  box-shadow: 0 6px 20px rgba(200, 16, 46, 0.4);
+}
+
+.restart-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(200, 16, 46, 0.3);
+}
+
+@media (max-width: 768px) {
+  .result-modal {
+    padding: 24px;
+  }
+
+  .result-players {
+    gap: 16px;
+  }
+
+  .bar-chart {
+    gap: 20px;
+  }
+
+  .bar {
+    width: 40px;
+  }
+
+  .result-title {
+    font-size: 32px;
+    letter-spacing: 4px;
+  }
+}

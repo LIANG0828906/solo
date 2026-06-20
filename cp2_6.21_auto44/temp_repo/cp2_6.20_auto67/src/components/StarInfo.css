@@ -1,0 +1,135 @@
+.star-info-panel {
+  position: fixed;
+  top: 0;
+  right: -360px;
+  width: 320px;
+  height: 100vh;
+  background: rgba(15, 15, 40, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 24px;
+  box-sizing: border-box;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  line-height: 1.4;
+}
+
+.star-info-panel.visible {
+  right: 0;
+}
+
+.star-info-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e8e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.star-info-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: scale(1.1);
+}
+
+.star-info-header {
+  margin-bottom: 32px;
+  padding-top: 8px;
+}
+
+.star-info-color-indicator {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  margin-bottom: 16px;
+  box-shadow: 0 0 20px currentColor;
+}
+
+.star-info-name {
+  font-size: 24px;
+  font-weight: 600;
+  color: #e8e8f0;
+  margin: 0 0 8px 0;
+}
+
+.star-info-spectral {
+  font-size: 13px;
+  color: rgba(232, 232, 240, 0.6);
+}
+
+.star-info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.star-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.star-info-label {
+  font-size: 13px;
+  color: rgba(232, 232, 240, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.star-info-value {
+  font-size: 15px;
+  color: #e8e8f0;
+  font-weight: 500;
+}
+
+.star-info-footer {
+  margin-top: 32px;
+}
+
+.star-info-btn {
+  width: 100%;
+  padding: 14px 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #e8e8f0;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.star-info-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+@media (max-width: 768px) {
+  .star-info-panel {
+    width: 100%;
+    right: -100%;
+    padding: 20px;
+  }
+
+  .star-info-name {
+    font-size: 20px;
+  }
+
+  .star-info-row {
+    padding: 10px 0;
+  }
+}

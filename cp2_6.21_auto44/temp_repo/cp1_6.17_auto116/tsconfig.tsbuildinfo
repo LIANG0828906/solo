@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/audioplayer.tsx","./src/components/parameterpanel.tsx","./src/components/particlescene.tsx","./src/hooks/useaudioanalyzer.ts","./src/hooks/useparticleanimation.ts","./src/store/useappstore.ts","./src/types/index.ts","./src/utils/audioutils.ts","./src/utils/colorutils.ts"],"errors":true,"version":"5.8.3"}

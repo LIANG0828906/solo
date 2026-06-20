@@ -1,0 +1,122 @@
+.history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.history-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--color-gray-light);
+  font-style: italic;
+}
+
+.history-item {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid var(--color-bronze-dark);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-round {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--color-bronze-light);
+}
+
+.history-profit {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.history-profit.win {
+  color: var(--color-win);
+  text-shadow: 0 0 8px rgba(46, 125, 50, 0.5);
+}
+
+.history-profit.lose {
+  color: var(--color-lose);
+  text-shadow: 0 0 8px rgba(198, 40, 40, 0.5);
+}
+
+.history-dice {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.history-dice-value {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #f5f0e0 0%, #d5d0c0 100%);
+  border-radius: 6px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--color-ink);
+  border: 1px solid #b5b0a0;
+  box-shadow:
+    inset 1px 1px 2px rgba(255, 255, 255, 0.5),
+    1px 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.history-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.result-label {
+  font-size: 12px;
+  color: var(--color-ivory);
+  opacity: 0.7;
+}
+
+.result-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.result-tag {
+  padding: 2px 8px;
+  background: var(--color-bronze-dark);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--color-gold);
+  border: 1px solid var(--color-bronze);
+}
+
+@media (max-width: 768px) {
+  .history-panel {
+    max-height: 200px;
+  }
+
+  .history-item {
+    padding: 10px;
+  }
+
+  .history-dice-value {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+}

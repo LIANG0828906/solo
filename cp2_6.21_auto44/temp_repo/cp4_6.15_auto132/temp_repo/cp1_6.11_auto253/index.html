@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>篆刻印稿设计</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <header class="toolbar">
+    <div class="toolbar-left">
+      <span class="app-title">篆刻印稿</span>
+    </div>
+    <div class="toolbar-center">
+      <div class="tool-group">
+        <label class="tool-label">印面尺寸</label>
+        <input type="range" id="sizeSlider" min="20" max="50" value="30" step="1" />
+        <span id="sizeValue" class="tool-value">30mm</span>
+      </div>
+      <div class="tool-group separator">
+        <label class="tool-label">刻刀</label>
+        <button id="roundKnife" class="btn btn-tool active">圆刀</button>
+        <button id="squareKnife" class="btn btn-tool">方刀</button>
+      </div>
+      <div class="tool-group separator">
+        <label class="tool-label">模式</label>
+        <div class="toggle-switch" id="modeToggle">
+          <span class="toggle-label active" data-mode="yang">阳刻</span>
+          <span class="toggle-track">
+            <span class="toggle-thumb"></span>
+          </span>
+          <span class="toggle-label" data-mode="yin">阴刻</span>
+        </div>
+      </div>
+    </div>
+    <div class="toolbar-right">
+      <button id="stampBtn" class="btn btn-primary">钤印</button>
+      <button id="saveBtn" class="btn btn-secondary">保存印蜕</button>
+      <button id="clearBtn" class="btn btn-secondary">清空刻痕</button>
+    </div>
+  </header>
+
+  <div class="char-library">
+    <span class="char-library-title">篆字库</span>
+    <div id="charList" class="char-list"></div>
+  </div>
+
+  <main class="workspace">
+    <div class="panel seal-panel">
+      <div class="panel-title">印面</div>
+      <div class="canvas-wrapper">
+        <canvas id="sealCanvas" width="400" height="400"></canvas>
+        <canvas id="carveCanvas" width="400" height="400"></canvas>
+      </div>
+    </div>
+    <div class="panel preview-panel">
+      <div class="panel-title">宣纸预览</div>
+      <div class="canvas-wrapper preview-wrapper">
+        <canvas id="previewCanvas" width="400" height="400"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --theme-primary: #6B7B8D;
+  --theme-secondary: #8797b8;
+  --theme-accent: #43566a;
+  --theme-bg: #ffffff;
+  --theme-text: #1d2e45;
+  --theme-heading-font: 'Playfair Display', serif;
+  --theme-body-font: 'Noto Sans SC', sans-serif;
+  --theme-radar-start: #6B7B8D;
+  --theme-radar-end: #8797b8;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--theme-body-font);
+  background: #f5f6f8;
+  color: var(--theme-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.resume-page {
+  font-family: var(--theme-body-font);
+  color: var(--theme-text);
+}
+
+.resume-page h1,
+.resume-page h2,
+.resume-page h3 {
+  font-family: var(--theme-heading-font);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.slide-up-enter-active {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+.slide-up-leave-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+.slide-up-enter-from {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.slide-up-enter-to {
+  max-height: 300px;
+  opacity: 1;
+}
+.slide-up-leave-from {
+  max-height: 300px;
+  opacity: 1;
+}
+.slide-up-leave-to {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.preview-fade-enter-active {
+  transition: opacity 0.4s ease;
+}
+.preview-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.preview-fade-enter-from,
+.preview-fade-leave-to {
+  opacity: 0;
+}
+
+.lightbox-enter-active {
+  transition: opacity 0.3s ease;
+}
+.lightbox-leave-active {
+  transition: opacity 0.2s ease;
+}
+.lightbox-enter-from,
+.lightbox-leave-to {
+  opacity: 0;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c3cbda;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8797b8;
+}
+
+input, textarea {
+  font-family: var(--theme-body-font);
+}

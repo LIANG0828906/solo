@@ -1,0 +1,280 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1a365d;
+  --color-secondary: #ed8936;
+  --color-background: #fefcbf;
+  --color-card: #ffffff;
+  --color-success: #38a169;
+  --color-warning: #d69e2e;
+  --color-danger: #e53e3e;
+  --color-text: #2d3748;
+  --color-text-light: #718096;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(26, 54, 93, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(26, 54, 93, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(26, 54, 93, 0.5);
+}
+
+/* 动画关键帧 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes drawLine {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes bounceSoft {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 500px;
+  }
+}
+
+@keyframes pulseOutline {
+  0% {
+    box-shadow: 0 0 0 0 rgba(237, 137, 54, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(237, 137, 54, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(237, 137, 54, 0);
+  }
+}
+
+@keyframes pulseGuide {
+  0%, 100% {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(237, 137, 54, 0.6);
+  }
+  50% {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 0 0 8px rgba(237, 137, 54, 0);
+    transform: translateY(-4px);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.animate-fade-in-left {
+  animation: fadeInLeft 0.5s ease forwards;
+}
+
+.animate-pulse-warning {
+  animation: pulse-warning 1.5s ease-in-out infinite;
+}
+
+.animate-bounce-soft {
+  animation: bounceSoft 0.6s ease-in-out;
+}
+
+.animate-pulse-guide {
+  animation: pulseGuide 0.8s ease-in-out;
+}
+
+/* 毛玻璃效果 */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* 按钮波纹效果容器 */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+/* 移动端响应式适配 */
+@media (max-width: 768px) {
+  .timeline-container {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .timeline-container > div {
+    width: 100%;
+    max-width: 360px;
+  }
+
+  .timeline-container > div > div:first-child > div {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .timeline-container svg {
+    display: none !important;
+  }
+
+  .timeline-container > div::after {
+    content: '';
+    display: block;
+    width: 2px;
+    height: 32px;
+    background: linear-gradient(to bottom, #1a365d, #ed8936);
+    margin: 8px auto;
+    border-radius: 1px;
+  }
+
+  .timeline-container > div:last-child::after {
+    display: none;
+  }
+
+  .radar-chart-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+  }
+
+  .radar-chart-scroll > div {
+    min-width: 280px;
+    scroll-snap-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.25rem !important;
+  }
+
+  h2 {
+    font-size: 1.1rem !important;
+  }
+
+  h3 {
+    font-size: 1rem !important;
+  }
+
+  .glass-card {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .radar-chart-scroll {
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 8px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .radar-chart-scroll > div {
+    flex-shrink: 0;
+    min-width: 260px;
+    scroll-snap-align: center;
+  }
+}

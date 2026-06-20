@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>虚拟水墨画 - 手势识别实时渲染</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a1a1a;
+      font-family: "SimSun", "宋体", serif;
+    }
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #control-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 220px;
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 8px;
+      padding: 16px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    .panel-btn {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      font-family: "SimSun", "宋体", serif;
+      font-size: 14px;
+      color: #333;
+      transition: all 0.2s ease;
+    }
+    .panel-btn:last-child {
+      margin-bottom: 0;
+    }
+    .panel-btn:hover {
+      background: #E0E0E0;
+    }
+    .panel-btn:active {
+      transform: scale(0.97);
+    }
+    .btn-clear {
+      color: #D32F2F;
+      border-color: rgba(211, 47, 47, 0.3);
+    }
+    .btn-save {
+      color: #1976D2;
+      border-color: rgba(25, 118, 210, 0.3);
+    }
+    .btn-mode {
+      color: #388E3C;
+      border-color: rgba(56, 142, 60, 0.3);
+    }
+    #camera-preview {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 240px;
+      height: 180px;
+      border-radius: 12px;
+      overflow: hidden;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      background: rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    #camera-preview.visible {
+      opacity: 1;
+    }
+    #camera-preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+    #camera-preview canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform: scaleX(-1);
+    }
+    #fps-counter {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 100;
+      color: #FFD700;
+      font-family: "Consolas", monospace;
+      font-size: 12px;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+    }
+    #gesture-hint {
+      position: absolute;
+      bottom: 220px;
+      right: 20px;
+      z-index: 100;
+      color: #666;
+      font-family: "SimSun", "宋体", serif;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.7);
+      padding: 8px 12px;
+      border-radius: 6px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    #gesture-hint.visible {
+      opacity: 1;
+    }
+    .fade-transition {
+      transition: opacity 0.3s ease;
+    }
+    .fade-out {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <div id="control-panel">
+      <button class="panel-btn btn-clear" id="btn-clear">清空画布</button>
+      <button class="panel-btn btn-save" id="btn-save">保存截图</button>
+      <button class="panel-btn btn-mode" id="btn-mode">切换模式: 手势</button>
+    </div>
+    <div id="camera-preview">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay-canvas"></canvas>
+    </div>
+    <div id="fps-counter">FPS: 60 | Latency: 0ms</div>
+    <div id="gesture-hint">请举手开始作画...</div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

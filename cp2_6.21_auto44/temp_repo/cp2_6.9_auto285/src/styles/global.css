@@ -1,0 +1,654 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-dark: #4e342e;
+  --wood-light: #6d4c41;
+  --wood-dark: #2d1b0e;
+  --mortar-color: #5c4033;
+  --paper-color: #f5f0e8;
+  --accent-red: #c62828;
+  --gold-color: #e8c68a;
+  --smoke-start: #f5f5dc;
+  --smoke-end: #e8d8c8;
+  --text-light: #f5f0e8;
+  --text-dark: #2d1b0e;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Noto Serif SC', serif;
+  background-color: var(--bg-dark);
+  color: var(--text-light);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  touch-action: manipulation;
+}
+
+/* 全局过渡动画 */
+* {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
+}
+
+/* 布局 */
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  padding: 20px;
+  gap: 20px;
+  background: linear-gradient(135deg, #4e342e 0%, #3e2723 100%);
+  position: relative;
+}
+
+.left-panel {
+  width: 30%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.center-panel {
+  width: 70%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* 香料架 */
+.spice-rack {
+  background-color: var(--wood-light);
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
+  background-image: 
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 33px,
+      rgba(0, 0, 0, 0.1) 33px,
+      rgba(0, 0, 0, 0.1) 35px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 33px,
+      rgba(0, 0, 0, 0.1) 33px,
+      rgba(0, 0, 0, 0.1) 35px
+    );
+}
+
+.spice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 35px);
+  grid-template-rows: repeat(2, 35px);
+  gap: 20px;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.spice-cell {
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  position: relative;
+}
+
+.spice-bottle {
+  width: 28px;
+  height: 32px;
+  border-radius: 6px 6px 4px 4px;
+  position: relative;
+  cursor: grab;
+  transition: transform 0.3s ease;
+  will-change: transform;
+}
+
+.spice-bottle:hover {
+  transform: rotate(5deg) scale(1.2);
+}
+
+.spice-bottle:active {
+  cursor: grabbing;
+}
+
+/* 哥窑开片纹效果 */
+.spice-bottle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(45deg, transparent 48%, rgba(255, 255, 255, 0.3) 50%, transparent 52%),
+    linear-gradient(-45deg, transparent 48%, rgba(0, 0, 0, 0.2) 50%, transparent 52%);
+  background-size: 6px 6px;
+  border-radius: 6px 6px 4px 4px;
+  opacity: 0.4;
+}
+
+.spice-bottle::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 8px;
+  background-color: #8d6e63;
+  border-radius: 2px 2px 0 0;
+}
+
+.spice-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(45, 27, 14, 0.95);
+  color: var(--text-light);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 100;
+  margin-bottom: 8px;
+}
+
+.spice-cell:hover .spice-tooltip {
+  opacity: 1;
+}
+
+.spice-tag {
+  display: inline-block;
+  background-color: var(--accent-red);
+  color: white;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+/* 香案 */
+.mixing-table {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 25px;
+}
+
+.incense-table {
+  width: 300px;
+  height: 150px;
+  background-color: var(--wood-dark);
+  border-radius: 6px;
+  position: relative;
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background-image: 
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.1) 2px,
+      rgba(0, 0, 0, 0.1) 3px
+    );
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 20px;
+}
+
+/* 铜戥子 */
+.balance-scale {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.scale-slider {
+  width: 120px;
+  height: 8px;
+  background: linear-gradient(90deg, #5d4037 0%, #8d6e63 50%, #5d4037 100%);
+  border-radius: 4px;
+  position: relative;
+  cursor: pointer;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.scale-slider input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  position: absolute;
+  top: 0;
+  left: 0;
+  cursor: pointer;
+}
+
+.scale-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #ffd700 0%, #b8860b 100%);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease;
+  will-change: transform;
+}
+
+.scale-slider input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.02);
+}
+
+.scale-markings {
+  display: flex;
+  justify-content: space-between;
+  width: 120px;
+  font-size: 10px;
+  color: var(--gold-color);
+}
+
+.scale-pan {
+  width: 40px;
+  height: 20px;
+  background: linear-gradient(180deg, #b87333 0%, #8b4513 100%);
+  border-radius: 0 0 20px 20px;
+  position: relative;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 铜臼 */
+.mortar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.mortar {
+  width: 80px;
+  height: 60px;
+  background: linear-gradient(180deg, #6d4c41 0%, var(--mortar-color) 100%);
+  border-radius: 10px 10px 20px 20px;
+  position: relative;
+  cursor: crosshair;
+  overflow: hidden;
+  box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.4);
+}
+
+.mortar::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  right: 5px;
+  bottom: 15px;
+  background: radial-gradient(ellipse at center, #3e2723 0%, #4e342e 100%);
+  border-radius: 8px 8px 15px 15px;
+}
+
+.mortar-powder {
+  position: absolute;
+  bottom: 15px;
+  left: 10px;
+  right: 10px;
+  height: 30px;
+  border-radius: 50%;
+  filter: blur(2px);
+  transition: filter 0.5s ease, height 0.3s ease;
+  will-change: filter, height;
+}
+
+/* 香模 */
+.molds-container {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.mold {
+  width: 60px;
+  height: 60px;
+  background-color: var(--gold-color);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+  will-change: transform;
+}
+
+.mold:hover {
+  transform: translateY(-5px);
+}
+
+.mold.selected {
+  box-shadow: 0 0 0 3px var(--accent-red), 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* 比例条 */
+.ratio-bar {
+  display: flex;
+  height: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  margin: 15px 0;
+  width: 200px;
+}
+
+.ratio-segment {
+  transition: width 0.3s ease, background-color 0.3s ease;
+  will-change: width, background-color;
+}
+
+/* 按钮 */
+.action-btn {
+  background: linear-gradient(135deg, var(--accent-red) 0%, #8b0000 100%);
+  color: white;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 25px;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(198, 40, 40, 0.4);
+  transition: all 0.2s ease;
+  will-change: transform, box-shadow;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(198, 40, 40, 0.5);
+}
+
+.action-btn:active {
+  transform: scale(0.98);
+}
+
+.action-btn:disabled {
+  background: #666;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.btn-group {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* 烟气效果 */
+.smoke-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  z-index: 50;
+}
+
+.smoke-particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.6;
+  animation: smokeRise 3s ease-out forwards;
+}
+
+@keyframes smokeRise {
+  0% {
+    opacity: 0.6;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-150px) scale(2);
+  }
+}
+
+/* 火星效果 */
+.spark {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #ff6b00 40%, #ff0000 100%);
+  animation: sparkFlicker 0.8s ease-in-out infinite;
+}
+
+@keyframes sparkFlicker {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.9); }
+}
+
+/* 嗅觉描述 */
+.aroma-description {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(245, 240, 232, 0.95);
+  color: var(--text-dark);
+  padding: 15px 25px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  max-width: 250px;
+  line-height: 1.8;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 记录卡片 */
+.records-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+}
+
+.record-card {
+  width: 140px;
+  height: 100px;
+  background-color: var(--paper-color);
+  border-radius: 4px;
+  padding: 10px;
+  color: var(--text-dark);
+  font-size: 11px;
+  position: relative;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.2);
+  background-image: 
+    radial-gradient(ellipse at top left, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(139, 69, 19, 0.1) 0%, transparent 50%);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  will-change: transform;
+}
+
+.record-card:hover {
+  transform: rotate(-2deg);
+  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.record-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid rgba(139, 69, 19, 0.2);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.record-title {
+  font-weight: 700;
+  font-size: 12px;
+  margin-bottom: 5px;
+  color: var(--accent-red);
+}
+
+.record-recipe {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.record-time {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  font-size: 9px;
+  color: #8d6e63;
+}
+
+/* 拖拽时的粉尘效果 */
+.dust-particle {
+  position: fixed;
+  width: 4px;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: dustFade 0.2s ease-out forwards;
+}
+
+@keyframes dustFade {
+  from { opacity: 0.6; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.5); }
+}
+
+/* 研磨粒子 */
+.grind-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: grindBurst 0.5s ease-out forwards;
+}
+
+@keyframes grindBurst {
+  from { opacity: 1; transform: translate(0, 0) scale(1); }
+  to { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.3); }
+}
+
+/* 香品成品 */
+.incense-product {
+  position: relative;
+  margin-top: 20px;
+  transition: transform 0.5s ease;
+  will-change: transform;
+}
+
+.incense-product.pressing {
+  animation: press 0.5s ease;
+}
+
+@keyframes press {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.9, 0.85); }
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    padding: 10px;
+  }
+
+  .left-panel {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .center-panel {
+    width: 100%;
+  }
+
+  .spice-grid {
+    grid-template-columns: repeat(6, 25px);
+    grid-template-rows: 25px;
+    gap: 15px;
+  }
+
+  .spice-cell {
+    width: 25px;
+    height: 25px;
+  }
+
+  .spice-bottle {
+    width: 20px;
+    height: 22px;
+  }
+
+  .mold {
+    width: 42px;
+    height: 42px;
+  }
+
+  .incense-table {
+    width: 240px;
+    height: 120px;
+  }
+
+  .records-container {
+    position: static;
+    margin-top: 20px;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .record-card {
+    width: 100px;
+    height: 70px;
+    font-size: 9px;
+  }
+
+  .aroma-description {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    font-size: 12px;
+    padding: 10px 15px;
+    max-width: 180px;
+  }
+}

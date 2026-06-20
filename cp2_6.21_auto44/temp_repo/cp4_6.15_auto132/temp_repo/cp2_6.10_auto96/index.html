@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>日晷光影模拟</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="scene-container">
+      <div class="sundial-glow"></div>
+      <canvas id="canvas"></canvas>
+    </div>
+    <div id="control-panel">
+      <h1 class="panel-title">日晷光影模拟</h1>
+      
+      <div class="control-group">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="control-label">节气日期</span>
+          <span class="control-value" id="date-value">立春</span>
+        </div>
+        <input type="range" class="slider" id="date-slider" min="0" max="364" value="0" step="1" />
+      </div>
+      
+      <div class="control-group">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="control-label">时辰时刻</span>
+          <span class="control-value" id="time-value">子时 初刻</span>
+        </div>
+        <input type="range" class="slider" id="time-slider" min="0" max="95" value="0" step="1" />
+      </div>
+      
+      <div class="control-group">
+        <span class="control-label">时辰快捷选择</span>
+        <div class="shichen-labels" id="shichen-labels"></div>
+      </div>
+      
+      <div class="info-panel">
+        <div class="info-title">时辰信息</div>
+        <div class="info-row">
+          <span class="info-label">当前时辰</span>
+          <span class="info-value" id="info-shichen">子时</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">现代时间</span>
+          <span class="info-value" id="info-modern">23:00-01:00</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">古代称谓</span>
+          <span class="info-value" id="info-ancient">夜半</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">当前节气</span>
+          <span class="info-value" id="info-solar">立春</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">太阳赤纬</span>
+          <span class="info-value" id="info-declination">0.00°</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

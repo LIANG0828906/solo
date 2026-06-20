@@ -1,0 +1,63 @@
+{
+  "profile": {
+    "id": "user-001",
+    "avatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop",
+    "name": "张开发",
+    "bio": "全栈开发工程师，热爱开源，专注于React和Node.js生态。",
+    "website": "https://github.com/developer"
+  },
+  "skills": [
+    {
+      "id": "skill-1",
+      "name": "前端开发",
+      "mastery": 90,
+      "children": [
+        {
+          "id": "skill-1-1",
+          "name": "React",
+          "mastery": 95,
+          "children": [
+            { "id": "skill-1-1-1", "name": "Hooks", "mastery": 92 },
+            { "id": "skill-1-1-2", "name": "Redux", "mastery": 85 }
+          ]
+        },
+        { "id": "skill-1-2", "name": "TypeScript", "mastery": 88 }
+      ]
+    },
+    {
+      "id": "skill-2",
+      "name": "后端开发",
+      "mastery": 80,
+      "children": [
+        { "id": "skill-2-1", "name": "Node.js", "mastery": 85 },
+        { "id": "skill-2-2", "name": "Express", "mastery": 82 }
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj-1",
+      "title": "开源UI组件库",
+      "year": 2024,
+      "shortDescription": "基于React的现代化UI组件库，支持主题定制",
+      "fullDescription": "设计并实现了一套完整的React UI组件库，包含50+高质量组件，支持暗色模式和主题定制。使用TypeScript编写，提供完整的类型定义。",
+      "tags": ["React", "TypeScript", "开源"]
+    },
+    {
+      "id": "proj-2",
+      "title": "电商后台管理系统",
+      "year": 2023,
+      "shortDescription": "全栈电商管理平台，支持商品、订单、用户管理",
+      "fullDescription": "从零搭建电商后台管理系统，前端使用React+Ant Design，后端使用Node.js+Express+MongoDB。实现了完整的商品SKU管理、订单流程、数据统计等功能。",
+      "tags": ["全栈", "Node.js", "MongoDB"]
+    },
+    {
+      "id": "proj-3",
+      "title": "个人博客系统",
+      "year": 2022,
+      "shortDescription": "基于Markdown的静态博客生成器",
+      "fullDescription": "开发了一个轻量级的静态博客生成器，支持Markdown写作、代码高亮、文章分类标签、评论系统等功能。",
+      "tags": ["Node.js", "Markdown", "静态站点"]
+    }
+  ]
+}

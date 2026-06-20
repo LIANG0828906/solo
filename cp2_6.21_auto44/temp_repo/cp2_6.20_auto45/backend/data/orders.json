@@ -1,0 +1,35 @@
+{
+  "o1": {
+    "id": "o1",
+    "name": "收集鸡蛋",
+    "icon": "🥚",
+    "targetItem": "egg",
+    "targetAmount": 50,
+    "currentAmount": 12,
+    "reward": 200,
+    "completed": false,
+    "completedAt": null
+  },
+  "o2": {
+    "id": "o2",
+    "name": "收获小麦",
+    "icon": "🌾",
+    "targetItem": "wheat",
+    "targetAmount": 30,
+    "currentAmount": 8,
+    "reward": 150,
+    "completed": false,
+    "completedAt": null
+  },
+  "o3": {
+    "id": "o3",
+    "name": "收集牛奶",
+    "icon": "🥛",
+    "targetItem": "milk",
+    "targetAmount": 20,
+    "currentAmount": 20,
+    "reward": 180,
+    "completed": true,
+    "completedAt": 1781908057169
+  }
+}

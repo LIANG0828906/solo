@@ -1,0 +1,30 @@
+[
+  {
+    "id": "t1",
+    "ticketNo": "TK-A3B7F2",
+    "eventId": "e1",
+    "tier": "早鸟",
+    "userId": "u2",
+    "status": "valid",
+    "createdAt": "2026-06-01T10:00:00.000Z"
+  },
+  {
+    "id": "t2",
+    "ticketNo": "TK-C9D1E5",
+    "eventId": "e1",
+    "tier": "VIP",
+    "userId": "u2",
+    "status": "valid",
+    "createdAt": "2026-06-02T14:30:00.000Z"
+  },
+  {
+    "id": "t3",
+    "ticketNo": "TK-F4G8H6",
+    "eventId": "e3",
+    "tier": "普通",
+    "userId": "u2",
+    "status": "used",
+    "createdAt": "2026-03-20T09:15:00.000Z",
+    "usedAt": "2026-04-10T20:30:00.000Z"
+  }
+]

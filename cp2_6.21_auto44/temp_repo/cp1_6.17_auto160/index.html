@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>音波反射潜行解谜</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0D0D1A;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      min-width: 1024px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      overflow: hidden;
+    }
+    #game-wrapper {
+      display: flex;
+      gap: 0;
+      position: relative;
+    }
+    #side-panel {
+      width: 200px;
+      background: rgba(22, 33, 62, 0.85);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 20px 16px;
+      color: #E0E0E0;
+      font-size: 13px;
+      line-height: 1.8;
+      margin-right: 12px;
+      align-self: flex-start;
+      margin-top: 20px;
+    }
+    #side-panel h3 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #FFFFFF;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      padding-bottom: 8px;
+    }
+    #side-panel .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    #side-panel .stat-label {
+      color: #8A8AAA;
+    }
+    #side-panel .stat-value {
+      color: #E0E0E0;
+      font-weight: bold;
+    }
+    #side-panel .controls-info {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      font-size: 11px;
+      color: #8A8AAA;
+      line-height: 1.7;
+    }
+    #side-panel .controls-info kbd {
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 10px;
+      color: #C0C0E0;
+    }
+    #canvas-container {
+      position: relative;
+    }
+    canvas {
+      display: block;
+      border-radius: 4px;
+      box-shadow: 0 0 40px rgba(100, 200, 255, 0.05);
+    }
+    #victory-overlay {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(26, 26, 46, 0.88);
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      border-radius: 4px;
+      z-index: 10;
+    }
+    #victory-overlay.show {
+      display: flex;
+    }
+    #victory-overlay h2 {
+      color: #FFFFFF;
+      font-size: 32px;
+      letter-spacing: 6px;
+      margin-bottom: 16px;
+      text-shadow: 0 0 20px rgba(100, 255, 150, 0.5);
+    }
+    #victory-overlay p {
+      color: #C0C0E0;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    #restart-btn {
+      background: rgba(100, 200, 255, 0.15);
+      border: 1px solid rgba(100, 200, 255, 0.4);
+      color: #E0E0E0;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 14px;
+      padding: 10px 28px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 2px;
+    }
+    #restart-btn:hover {
+      background: rgba(100, 200, 255, 0.25);
+      border-color: rgba(100, 200, 255, 0.7);
+      box-shadow: 0 0 15px rgba(100, 200, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <div id="side-panel">
+      <h3>SONAR</h3>
+      <div class="stat-row">
+        <span class="stat-label">发射次数</span>
+        <span class="stat-value" id="fire-count">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">敌人数量</span>
+        <span class="stat-value" id="enemy-count">2</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">音波频率</span>
+        <span class="stat-value" id="freq-value">1.0</span>
+      </div>
+      <div class="controls-info">
+        <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</div>
+        <div><kbd>空格</kbd> 发射音波</div>
+        <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 切换频率</div>
+        <div><kbd>R</kbd> 重新开始</div>
+        <div>鼠标瞄准发射方向</div>
+      </div>
+    </div>
+    <div id="canvas-container">
+      <canvas id="game-canvas" width="800" height="600"></canvas>
+      <div id="victory-overlay">
+        <h2>MISSION COMPLETE</h2>
+        <p>所有敌人已被消灭</p>
+        <button id="restart-btn">重新开始</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

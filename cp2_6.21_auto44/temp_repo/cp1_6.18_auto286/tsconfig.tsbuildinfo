@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/cityscene.tsx","./src/components/timecontrol.tsx","./src/store/appstore.ts","./src/utils/shadowanalysis.ts"],"version":"5.8.3"}

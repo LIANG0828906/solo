@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Comic Sans MS', 'Segoe UI', system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #f2e6d0;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.soil-texture {
+  background: 
+    repeating-linear-gradient(
+      45deg,
+      #6b4423,
+      #6b4423 2px,
+      #8b5a2b 2px,
+      #8b5a2b 4px
+    ),
+    linear-gradient(#6b4423, #8b5a2b);
+  background-blend-mode: multiply;
+}
+
+.health-gradient {
+  background: linear-gradient(to right, #22c55e 0%, #eab308 50%, #ef4444 100%);
+}
+
+.order-progress-gradient {
+  background: linear-gradient(to right, #4a7c59, #6fa87d);
+}
+
+.dashed-border {
+  border: 1px dashed #d1d5db;
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

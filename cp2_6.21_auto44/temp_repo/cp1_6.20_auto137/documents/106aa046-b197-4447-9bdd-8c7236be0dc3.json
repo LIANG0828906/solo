@@ -1,0 +1,16 @@
+{
+  "id": "106aa046-b197-4447-9bdd-8c7236be0dc3",
+  "title": "思维导图",
+  "theme": "ocean",
+  "nodes": [
+    {
+      "id": "22cb99ff-5a25-414d-bc7c-1f84a0c64c7b",
+      "text": "中心主题",
+      "x": 400,
+      "y": 300,
+      "parentId": null
+    }
+  ],
+  "createdAt": 1781942887063,
+  "updatedAt": 1781942887063
+}

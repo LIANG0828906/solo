@@ -1,0 +1,252 @@
+.taskCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  position: relative;
+  contain: layout;
+}
+
+.taskCard:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+  border-color: #D1D5DB;
+}
+
+.taskCardDragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.taskCardCompleted {
+  background: #F9FAFB;
+  transition: background-color 0.3s ease;
+}
+
+.taskCardOver {
+  border-top: 3px solid #3B82F6;
+  padding-top: 9px;
+}
+
+.dragHandle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  cursor: grab;
+  color: #D1D5DB;
+  opacity: 0;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.taskCard:hover .dragHandle {
+  opacity: 1;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.dragHandleDot {
+  width: 3px;
+  height: 3px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.priorityDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.taskCard:hover .priorityDot {
+  transform: scale(1.2);
+}
+
+.priorityP0 {
+  background: #EF4444;
+}
+
+.priorityP1 {
+  background: #F97316;
+}
+
+.priorityP2 {
+  background: #9CA3AF;
+}
+
+.checkboxWrapper {
+  flex-shrink: 0;
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #D1D5DB;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.checkbox:hover {
+  border-color: #2563EB;
+}
+
+.checkboxChecked {
+  background: #10B981;
+  border-color: #10B981;
+}
+
+.checkboxCheckmark {
+  color: white;
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+}
+
+.taskContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.taskText {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.4;
+  word-break: break-all;
+  transition: all 0.3s ease;
+}
+
+.taskTextCompleted {
+  color: #9CA3AF;
+  text-decoration: line-through;
+}
+
+.taskTextEditing {
+  display: none;
+}
+
+.editInput {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #2563EB;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #F0F5FF;
+  transition: all 0.2s;
+}
+
+.editInput:focus {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.taskMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.priorityLabel {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.priorityLabelP0 {
+  background: #FEF2F2;
+  color: #EF4444;
+}
+
+.priorityLabelP1 {
+  background: #FFF7ED;
+  color: #F97316;
+}
+
+.priorityLabelP2 {
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+.timeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  background: #F0F5FF;
+  color: #2563EB;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.actionButtons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.taskCard:hover .actionButtons {
+  opacity: 1;
+}
+
+.actionBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B7280;
+  transition: all 0.2s;
+}
+
+.actionBtn:hover {
+  background: #F3F4F6;
+}
+
+.editBtn:hover {
+  color: #2563EB;
+  background: #F0F5FF;
+}
+
+.deleteBtn:hover {
+  color: #EF4444;
+  background: #FEF2F2;
+}
+
+@media (max-width: 768px) {
+  .dragHandle {
+    opacity: 0.6;
+  }
+
+  .actionButtons {
+    opacity: 1;
+  }
+
+  .taskCard {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .taskText {
+    font-size: 13px;
+  }
+}

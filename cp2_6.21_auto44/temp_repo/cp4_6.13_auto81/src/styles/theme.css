@@ -1,0 +1,461 @@
+:root {
+  --color-wood: #4a2c11;
+  --color-wood-light: #6b3e1f;
+  --color-wood-dark: #2d1a0a;
+  --color-parchment: #f5e6c8;
+  --color-parchment-dark: #e8d4a8;
+  --color-gold: #d4af37;
+  --color-gold-light: #f0d060;
+  --color-fire: #e63946;
+  --color-fire-dark: #c41e2a;
+  --color-shadow-purple: #6a0572;
+  --color-epic-orange: #ff6b35;
+  --color-rare-purple: #a855f7;
+  --color-common-silver: #9ca3af;
+  --font-display: 'MedievalSharp', cursive;
+  --font-heading: 'Cinzel', serif;
+  --font-body: 'Crimson Text', serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-wood);
+  color: var(--color-parchment);
+  font-family: var(--font-body);
+  overflow: hidden;
+  height: 100vh;
+}
+
+#root {
+  height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-wood-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-gold);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-light);
+}
+
+.material-card {
+  background: var(--color-wood-dark);
+  border: 2px solid var(--color-gold);
+  border-radius: 8px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 12px;
+}
+
+.material-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.4);
+}
+
+.material-card[data-rarity="common"] {
+  border-color: var(--color-common-silver);
+}
+
+.material-card[data-rarity="rare"] {
+  border-color: var(--color-rare-purple);
+}
+
+.material-card[data-rarity="epic"] {
+  border-color: var(--color-epic-orange);
+}
+
+.material-tooltip {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translate(-50%, 100%);
+  background: var(--color-parchment);
+  color: var(--color-wood-dark);
+  border: 1px solid var(--color-gold);
+  border-radius: 6px;
+  padding: 12px;
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.material-card:hover .material-tooltip {
+  opacity: 1;
+}
+
+.cauldron {
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.8) 0%, transparent 70%);
+  border: 3px solid var(--color-gold);
+  border-radius: 50%;
+  position: relative;
+  margin: 0 auto;
+}
+
+.liquid-drop {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  animation: liquidOrbit 3s linear infinite, liquidPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes liquidOrbit {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg) translateX(60px) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg) translateX(60px) rotate(-360deg);
+  }
+}
+
+@keyframes liquidPulse {
+  0%, 100% {
+    scale: 1;
+    opacity: 0.8;
+  }
+  50% {
+    scale: 1.3;
+    opacity: 1;
+  }
+}
+
+.cauldron-flame {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 40px;
+  background: radial-gradient(ellipse, #ffd700 0%, #ff6600 40%, #e63946 70%, transparent 100%);
+  border-radius: 50% 50% 40% 40%;
+  animation: flicker 0.4s ease-in-out infinite alternate;
+  filter: blur(1px);
+}
+
+@keyframes flicker {
+  0% {
+    transform: translateX(-50%) scale(1, 1);
+    background: radial-gradient(ellipse, #ffd700 0%, #ff6600 40%, #e63946 70%, transparent 100%);
+  }
+  33% {
+    transform: translateX(-50%) scale(1.1, 0.9);
+    background: radial-gradient(ellipse, #ff9900 0%, #ff4400 40%, #cc1133 70%, transparent 100%);
+  }
+  66% {
+    transform: translateX(-50%) scale(0.95, 1.05);
+    background: radial-gradient(ellipse, #ffee00 0%, #ff7700 40%, #dd2244 70%, transparent 100%);
+  }
+  100% {
+    transform: translateX(-50%) scale(1.05, 0.95);
+    background: radial-gradient(ellipse, #ffcc00 0%, #ff5500 40%, #e63946 70%, transparent 100%);
+  }
+}
+
+.gold-particles {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--color-gold-light);
+  border-radius: 50%;
+  animation: goldFloat 2s ease-out infinite;
+}
+
+@keyframes goldFloat {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-80px);
+    opacity: 0;
+  }
+}
+
+.smoke-particles {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: rgba(80, 60, 40, 0.6);
+  border-radius: 50%;
+  animation: smokeRise 3s ease-out infinite;
+}
+
+@keyframes smokeRise {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-120px) scale(2);
+    opacity: 0;
+  }
+}
+
+.spark-particles {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 6px 2px var(--color-gold-light);
+  animation: sparkFly 0.8s ease-out infinite;
+}
+
+@keyframes sparkFly {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-60px) translateX(var(--spark-x, 20px));
+    opacity: 0;
+  }
+}
+
+.recipe-scroll {
+  background: var(--color-parchment);
+  color: var(--color-wood-dark);
+  font-family: var(--font-display);
+  border: double var(--color-gold);
+  border-width: 6px;
+  box-shadow: inset 0 0 30px rgba(74, 44, 17, 0.2);
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.anvil-container {
+  perspective: 800px;
+}
+
+.anvil-platform {
+  transform-style: preserve-3d;
+  transform: rotateY(-15deg);
+  transition: transform 0.3s ease;
+}
+
+.hammer {
+  transform-origin: top right;
+  animation: none;
+}
+
+.hammer.striking {
+  animation: hammerStrike 0.6s ease-in-out;
+}
+
+@keyframes hammerStrike {
+  0% {
+    transform: rotate(0deg) translateY(0) scale(1);
+  }
+  30% {
+    transform: rotate(-45deg) translateY(-30px) scale(1.1);
+  }
+  60% {
+    transform: rotate(10deg) translateY(5px) scale(1);
+  }
+  75% {
+    transform: rotate(-5deg) translateY(-2px) scale(1.02);
+  }
+  100% {
+    transform: rotate(0deg) translateY(0) scale(1);
+  }
+}
+
+.btn-forge,
+.btn-alchemy {
+  background: var(--color-fire);
+  color: white;
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  border: 2px solid var(--color-gold);
+  border-radius: 6px;
+  padding: 10px 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-forge:hover,
+.btn-alchemy:hover {
+  background: var(--color-fire-dark);
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+}
+
+.btn-forge:active,
+.btn-alchemy:active {
+  transform: scale(0.9);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.btn-forge:disabled,
+.btn-alchemy:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.gather-progress {
+  background: var(--color-wood-dark);
+  border: 1px solid var(--color-gold);
+  border-radius: 4px;
+  height: 12px;
+  overflow: hidden;
+}
+
+.gather-progress .progress-fill {
+  background: var(--color-fire);
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.attr-bar {
+  background: var(--color-wood-dark);
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.attr-fill {
+  background: linear-gradient(90deg, #e63946, #ff6b35, #ffd700, #22c55e, #3b82f6, #a855f7);
+  height: 100%;
+  border-radius: 8px;
+  transition: width 1s ease;
+}
+
+.weapon-card {
+  background: var(--color-wood-dark);
+  border: 3px solid var(--color-gold);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+  transition: all 0.3s ease;
+}
+
+.weapon-card:hover {
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.4);
+}
+
+.workshop-layout,
+.forge-layout {
+  display: grid;
+  grid-template-columns: 250px 1fr 280px;
+  height: 100vh;
+  gap: 0;
+}
+
+.dragging {
+  opacity: 0.5;
+  transform: scale(1.05);
+}
+
+.success-flash {
+  animation: successFlash 0.6s ease-out;
+}
+
+@keyframes successFlash {
+  0% {
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 rgba(212, 175, 55, 0);
+  }
+  50% {
+    border-color: var(--color-gold-light);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.8);
+  }
+  100% {
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 rgba(212, 175, 55, 0);
+  }
+}
+
+.failure-flash {
+  animation: failureFlash 0.5s ease-out;
+}
+
+@keyframes failureFlash {
+  0%, 100% {
+    transform: translateX(0);
+    border-color: var(--color-fire);
+  }
+  10% {
+    transform: translateX(-6px);
+  }
+  20% {
+    transform: translateX(6px);
+  }
+  30% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  50% {
+    transform: translateX(-2px);
+    border-color: var(--color-fire-dark);
+  }
+  60% {
+    transform: translateX(2px);
+  }
+  70% {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .workshop-layout,
+  .forge-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  .material-card {
+    font-size: 0.85rem;
+    padding: 8px;
+  }
+
+  .cauldron {
+    width: 150px;
+    height: 150px;
+  }
+
+  .btn-forge,
+  .btn-alchemy {
+    font-size: 0.85rem;
+    padding: 8px 16px;
+  }
+
+  .weapon-card {
+    padding: 12px;
+  }
+
+  .recipe-scroll {
+    padding: 12px;
+    font-size: 0.9rem;
+  }
+}

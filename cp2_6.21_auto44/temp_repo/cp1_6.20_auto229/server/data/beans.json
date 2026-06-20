@@ -1,0 +1,57 @@
+[
+  {
+    "id": "bean-1",
+    "name": "耶加雪菲 科契尔",
+    "origin": "埃塞俄比亚 耶加雪菲",
+    "roastLevel": "light",
+    "processMethod": "水洗",
+    "latitude": 6.1725,
+    "longitude": 38.2225,
+    "createdAt": "2026-01-15T10:00:00Z",
+    "userId": "user-1"
+  },
+  {
+    "id": "bean-2",
+    "name": "哥伦比亚 慧兰",
+    "origin": "哥伦比亚 慧兰省",
+    "roastLevel": "medium",
+    "processMethod": "蜜处理",
+    "latitude": 2.1833,
+    "longitude": -76.0500,
+    "createdAt": "2026-02-10T08:30:00Z",
+    "userId": "user-1"
+  },
+  {
+    "id": "bean-3",
+    "name": "巴西 喜拉多",
+    "origin": "巴西 米纳斯吉拉斯",
+    "roastLevel": "medium-dark",
+    "processMethod": "日晒",
+    "latitude": -18.5122,
+    "longitude": -46.5839,
+    "createdAt": "2026-02-20T14:00:00Z",
+    "userId": "user-1"
+  },
+  {
+    "id": "bean-4",
+    "name": "肯尼亚 AA",
+    "origin": "肯尼亚 涅里",
+    "roastLevel": "light",
+    "processMethod": "水洗",
+    "latitude": -0.4167,
+    "longitude": 36.9500,
+    "createdAt": "2026-03-05T09:00:00Z",
+    "userId": "user-1"
+  },
+  {
+    "id": "bean-5",
+    "name": "云南 保山",
+    "origin": "中国 云南保山",
+    "roastLevel": "medium",
+    "processMethod": "蜜处理",
+    "latitude": 25.1123,
+    "longitude": 99.1618,
+    "createdAt": "2026-03-15T11:00:00Z",
+    "userId": "user-1"
+  }
+]

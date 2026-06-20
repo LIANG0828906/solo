@@ -1,0 +1,79 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app {
+  width: 100vw;
+  height: 100vh;
+  background: #1A1A2E;
+  position: relative;
+  overflow: hidden;
+}
+
+.main-content {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px;
+}
+
+.hint-overlay {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 46, 0.9);
+  color: #E0E0E0;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(108, 99, 255, 0.3);
+  animation: hintPulse 2s ease-in-out infinite;
+}
+
+.hint-overlay p {
+  margin: 0;
+}
+
+@keyframes hintPulse {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.leaflet-container {
+  background: #1A1A2E !important;
+}
+
+.leaflet-control-attribution {
+  font-size: 10px !important;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    top: 56px;
+    padding: 0;
+  }
+
+  .hint-overlay {
+    bottom: 16px;
+    font-size: 12px;
+    padding: 8px 16px;
+  }
+}

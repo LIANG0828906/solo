@@ -1,0 +1,352 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --panel-bg: rgba(22, 33, 62, 0.8);
+  --text-primary: #ddd;
+  --text-emphasis: #fff;
+  --text-muted: #888;
+  --track-bg: #ccc;
+  --transition: all 0.25s ease;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.app-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.scene-container {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  height: 100%;
+}
+
+.scene-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.status-bar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 8px 14px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  display: flex;
+  gap: 18px;
+  z-index: 10;
+}
+
+.right-panel {
+  width: 25%;
+  min-width: 320px;
+  max-width: 450px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  overflow: hidden;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.bottom-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  z-index: 20;
+}
+
+.control-panel,
+.energy-chart-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 18px;
+  transition: var(--transition);
+}
+
+.right-panel .control-panel {
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.right-panel .energy-chart-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-emphasis);
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.slider-container {
+  margin-bottom: 18px;
+}
+
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.slider-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider-track-wrapper {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--track-bg);
+}
+
+.slider-track-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 4px 0 0 4px;
+  pointer-events: none;
+  opacity: 0.75;
+  transition: width 0.08s linear;
+}
+
+.slider-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--thumb-size, 16px);
+  height: var(--thumb-size, 16px);
+  border-radius: 50%;
+  background: var(--slider-color, #2196f3);
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: var(--transition);
+}
+
+.slider-input::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.slider-input::-moz-range-thumb {
+  width: var(--thumb-size, 16px);
+  height: var(--thumb-size, 16px);
+  border-radius: 50%;
+  background: var(--slider-color, #2196f3);
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: var(--transition);
+}
+
+.slider-input::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.slider-input::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.slider-input::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: transparent;
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.control-btn {
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.25s, opacity 0.25s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.control-btn:hover {
+  opacity: 0.9;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+.charts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.chart-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.chart-canvas-container {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.chart-canvas-container canvas {
+  max-height: 100%;
+}
+
+.chart-drawer {
+  background: var(--panel-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.drawer-toggle {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.drawer-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-emphasis);
+}
+
+.drawer-content {
+  max-height: 45vh;
+  overflow-y: auto;
+  padding: 0 14px 14px;
+}
+
+@media (max-width: 1024px) {
+  .app-container {
+    flex-direction: column;
+  }
+
+  .scene-container {
+    height: 55vh;
+  }
+
+  .status-bar {
+    top: 10px;
+    left: 10px;
+    font-size: 12px;
+    gap: 12px;
+    padding: 6px 10px;
+  }
+
+  .control-panel {
+    padding: 14px;
+  }
+
+  .slider-container {
+    margin-bottom: 14px;
+  }
+
+  .button-group {
+    margin-top: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-bar {
+    font-size: 11px;
+    gap: 8px;
+    padding: 5px 8px;
+  }
+
+  .panel-title {
+    font-size: 14px;
+  }
+
+  .slider-label {
+    font-size: 13px;
+  }
+}

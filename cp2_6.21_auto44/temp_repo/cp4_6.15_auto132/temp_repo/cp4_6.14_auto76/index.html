@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>考古遗址点云漫游</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #e2e8f0;
+    }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    /* Loading Progress Bar */
+    #loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #0f172a;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    #loading-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #loading-text {
+      font-size: 18px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+
+    #progress-bar-container {
+      width: 60%;
+      max-width: 600px;
+      height: 4px;
+      background-color: #1e293b;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
+      border-radius: 2px;
+      transition: width 0.1s ease-out;
+    }
+
+    #progress-text {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #64748b;
+    }
+
+    /* Control Panel */
+    .ui-panel {
+      opacity: 0.5;
+      transition: opacity 0.2s ease-in;
+    }
+
+    .ui-panel:hover {
+      opacity: 1;
+    }
+
+    .ui-panel.leaving {
+      transition: opacity 0.3s ease-out;
+    }
+
+    #control-panel {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(8px);
+      border-radius: 8px;
+      padding: 16px;
+      width: 240px;
+      z-index: 100;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    #control-panel.collapsed {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    #panel-toggle-btn {
+      display: none;
+      width: 40px;
+      height: 40px;
+      background: none;
+      border: none;
+      color: #e2e8f0;
+      font-size: 20px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #control-panel.collapsed #panel-content {
+      display: none;
+    }
+
+    #control-panel.collapsed #panel-toggle-btn {
+      display: flex;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .control-group {
+      margin-bottom: 14px;
+    }
+
+    .control-label {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      background: #334155;
+      border-radius: 2px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #1e293b;
+      transition: background 0.2s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      background: #60a5fa;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #1e293b;
+    }
+
+    .slider-value {
+      font-size: 12px;
+      color: #e2e8f0;
+      min-width: 24px;
+      text-align: right;
+      font-weight: 500;
+    }
+
+    .mode-buttons {
+      display: flex;
+      gap: 4px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 6px 4px;
+      background-color: #334155;
+      color: #94a3b8;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-btn:hover {
+      background-color: #475569;
+      color: #e2e8f0;
+    }
+
+    .mode-btn.active {
+      background-color: #2563eb;
+      color: #ffffff;
+    }
+
+    #reset-view-btn {
+      width: 100%;
+      padding: 8px 12px;
+      background-color: #334155;
+      color: #e2e8f0;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    #reset-view-btn:hover {
+      background-color: #475569;
+    }
+
+    /* Minimap */
+    #minimap-container {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 100;
+    }
+
+    #minimap {
+      width: 200px;
+      height: 200px;
+      border-radius: 12px;
+      background-color: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      display: block;
+    }
+
+    /* Annotation Info Panel */
+    #annotation-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-radius: 12px;
+      padding: 20px;
+      width: 320px;
+      z-index: 200;
+      display: none;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    #annotation-panel.visible {
+      display: block;
+      animation: panelFadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes panelFadeIn {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -48%);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+      }
+    }
+
+    #annotation-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    #annotation-textarea {
+      width: 100%;
+      min-height: 80px;
+      background-color: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+    }
+
+    #annotation-textarea:focus {
+      border-color: #3b82f6;
+    }
+
+    .annotation-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .annotation-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .annotation-btn.primary {
+      background-color: #2563eb;
+      color: white;
+    }
+
+    .annotation-btn.primary:hover {
+      background-color: #1d4ed8;
+    }
+
+    .annotation-btn.danger {
+      background-color: #dc2626;
+      color: white;
+    }
+
+    .annotation-btn.danger:hover {
+      background-color: #b91c1c;
+    }
+
+    .annotation-btn.secondary {
+      background-color: #334155;
+      color: #e2e8f0;
+    }
+
+    .annotation-btn.secondary:hover {
+      background-color: #475569;
+    }
+
+    /* Instructions */
+    #instructions {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      font-size: 12px;
+      color: rgba(148, 163, 184, 0.6);
+      z-index: 50;
+      text-align: right;
+      line-height: 1.6;
+    }
+
+    #instructions .key {
+      display: inline-block;
+      padding: 2px 6px;
+      background-color: rgba(51, 65, 85, 0.8);
+      border-radius: 3px;
+      font-family: monospace;
+      color: #e2e8f0;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #control-panel {
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      #control-panel #panel-content {
+        display: none;
+      }
+
+      #control-panel #panel-toggle-btn {
+        display: flex;
+      }
+
+      #control-panel.expanded {
+        width: 240px;
+        height: auto;
+        padding: 16px;
+        cursor: default;
+      }
+
+      #control-panel.expanded #panel-content {
+        display: block;
+      }
+
+      #control-panel.expanded #panel-toggle-btn {
+        display: none;
+      }
+
+      #minimap-container {
+        display: none;
+      }
+
+      #instructions {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay">
+    <div id="loading-text">正在加载点云数据...</div>
+    <div id="progress-bar-container">
+      <div id="progress-bar"></div>
+    </div>
+    <div id="progress-text">0%</div>
+  </div>
+
+  <!-- Control Panel -->
+  <div id="control-panel" class="ui-panel">
+    <button id="panel-toggle-btn" title="显示控制面板">⚙</button>
+    <div id="panel-content">
+      <div class="panel-title">点云显示控制</div>
+      
+      <div class="control-group">
+        <label class="control-label">点大小: <span class="slider-value" id="point-size-value">3</span></label>
+        <div class="slider-container">
+          <input type="range" id="point-size-slider" min="1" max="10" value="3" step="1" />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">显示模式</label>
+        <div class="mode-buttons">
+          <button class="mode-btn active" data-mode="original">原始颜色</button>
+          <button class="mode-btn" data-mode="height">高度染色</button>
+          <button class="mode-btn" data-mode="density">密度染色</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <button id="reset-view-btn">重置视角</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Minimap -->
+  <div id="minimap-container" class="ui-panel">
+    <canvas id="minimap" width="200" height="200"></canvas>
+  </div>
+
+  <!-- Annotation Info Panel -->
+  <div id="annotation-panel">
+    <div id="annotation-title">标注信息</div>
+    <textarea id="annotation-textarea" maxlength="100" placeholder="输入标注文本（最多100字符）"></textarea>
+    <div class="annotation-actions">
+      <button class="annotation-btn danger" id="delete-annotation-btn">删除</button>
+      <button class="annotation-btn secondary" id="cancel-annotation-btn">取消</button>
+      <button class="annotation-btn primary" id="save-annotation-btn">保存</button>
+    </div>
+  </div>
+
+  <!-- Instructions -->
+  <div id="instructions" class="ui-panel">
+    <div><span class="key">WASD</span> 移动</div>
+    <div><span class="key">鼠标左键拖拽</span> 旋转视角</div>
+    <div><span class="key">鼠标滚轮</span> 缩放</div>
+    <div><span class="key">点击场景</span> 添加标注点</div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

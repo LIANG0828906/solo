@@ -1,0 +1,9 @@
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; padding: 0; }
+body {
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+button { font-family: inherit; }

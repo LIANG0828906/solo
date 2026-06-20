@@ -1,0 +1,192 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  background-color: #f0f4f8;
+  color: #2d3748;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-green {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(56, 161, 105, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(56, 161, 105, 0);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-5px);
+  }
+  40%,
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInContent {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOutContent {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes scoreBounceUp {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  30% {
+    transform: translateY(-12px) scale(1.2);
+    opacity: 1;
+  }
+  60% {
+    transform: translateY(-6px) scale(1.1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-20px) scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes scoreShakeDown {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animate-fade-out-content {
+  animation: fadeOutContent 0.25s ease-in forwards;
+}
+
+.animate-score-bounce {
+  animation: scoreBounceUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.animate-score-shake {
+  animation: scoreShakeDown 0.6s ease-out forwards;
+}
+
+.underline-input {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid #cbd5e0;
+  border-radius: 0;
+  padding: 8px 4px;
+  font-size: 16px;
+  transition: border-color 0.3s ease, color 0.3s ease;
+  outline: none;
+  width: 100%;
+}
+
+.underline-input:focus {
+  border-bottom: 2px solid #3182ce;
+}
+
+.underline-input.filled {
+  border-bottom: 2px solid #3182ce;
+  color: #1a365d;
+}
+
+.animate-pulse-green {
+  animation: pulse-green 0.3s ease-out;
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-fade-in-content {
+  animation: fadeInContent 0.3s ease-out;
+}

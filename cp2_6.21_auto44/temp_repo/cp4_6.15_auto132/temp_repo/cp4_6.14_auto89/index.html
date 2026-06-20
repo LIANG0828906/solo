@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2D平台跳跃 - 动态关卡生成</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0f172a;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .game-container {
+      display: flex;
+      gap: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .game-area {
+      position: relative;
+      width: 800px;
+      height: 600px;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 800px;
+      height: 600px;
+    }
+
+    .hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 16px;
+      pointer-events: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .score {
+      font-size: 24px;
+      font-weight: bold;
+      color: #ffffff;
+      text-shadow: 0 0 8px #22c55e;
+    }
+
+    .timer {
+      font-size: 16px;
+      color: #ffffff;
+      background: #00000066;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .control-panel {
+      width: 240px;
+      background: #1e293b;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .level-info {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .level-badge {
+      background: #334155;
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .level-badge .level-label {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+
+    .level-badge .level-number {
+      font-size: 18px;
+      font-weight: bold;
+      color: #ffffff;
+    }
+
+    .platform-count {
+      font-size: 14px;
+      color: #94a3b8;
+      text-align: center;
+    }
+
+    .difficulty-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .chart-title {
+      font-size: 14px;
+      color: #ffffff;
+      font-weight: 500;
+    }
+
+    #difficultyCanvas {
+      width: 200px;
+      height: 80px;
+      background: #0f172a;
+      border-radius: 6px;
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .regen-button {
+      width: 120px;
+      height: 40px;
+      background: #3b82f6;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s ease, transform 0.15s ease;
+      align-self: center;
+      margin-top: auto;
+    }
+
+    .regen-button:hover {
+      background: #2563eb;
+    }
+
+    .regen-button:active {
+      transform: scale(0.95);
+    }
+
+    .instructions {
+      font-size: 12px;
+      color: #64748b;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="game-area">
+      <canvas id="gameCanvas" width="800" height="600"></canvas>
+      <div class="hud">
+        <div class="score" id="scoreDisplay">得分: 0</div>
+        <div class="timer" id="timerDisplay">15.0s</div>
+      </div>
+    </div>
+    <div class="control-panel">
+      <div class="level-info">
+        <div class="level-badge">
+          <div class="level-label">当前关卡</div>
+          <div class="level-number" id="levelNumber">第 1 关</div>
+        </div>
+        <div class="platform-count" id="platformCount">平台数量: 15</div>
+      </div>
+      <div class="difficulty-chart">
+        <div class="chart-title">难度曲线</div>
+        <canvas id="difficultyCanvas" width="200" height="80"></canvas>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <span class="legend-dot" style="background: #3b8282"></span>
+            <span>平均间距</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot" style="background: #22c55e"></span>
+            <span>高度差</span>
+          </div>
+        </div>
+      </div>
+      <button class="regen-button" id="regenButton">重新生成</button>
+      <div class="instructions">
+        ← → 移动<br />
+        空格 / ↑ 跳跃
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

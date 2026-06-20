@@ -1,0 +1,270 @@
+import { v4 as uuidv4 } from 'uuid';
+import type { InspirationNode, Link } from '../types';
+
+export function getInitialData(): {
+  nodes: InspirationNode[];
+  links: Link[];
+} {
+  const rootId = uuidv4();
+  const id1 = uuidv4();
+  const id2 = uuidv4();
+  const id3 = uuidv4();
+  const id4 = uuidv4();
+  const id5 = uuidv4();
+  const id6 = uuidv4();
+  const id7 = uuidv4();
+  const id8 = uuidv4();
+  const id9 = uuidv4();
+  const id10 = uuidv4();
+  const id11 = uuidv4();
+  const id12 = uuidv4();
+  const id13 = uuidv4();
+  const id14 = uuidv4();
+  const id15 = uuidv4();
+
+  const nodes: InspirationNode[] = [
+    {
+      id: rootId,
+      title: '创意项目总览',
+      tag: 'inspiration',
+      color: '#6C63FF',
+      priority: 50,
+      x: 600,
+      y: 400,
+      parentId: null,
+      children: [id1, id2, id3],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id1,
+      title: '品牌设计灵感',
+      tag: 'inspiration',
+      color: '#4ECDC4',
+      priority: 70,
+      x: 300,
+      y: 200,
+      parentId: rootId,
+      children: [id4, id5],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id2,
+      title: '内容策划框架',
+      tag: 'pending',
+      color: '#FFD93D',
+      priority: 40,
+      x: 600,
+      y: 150,
+      parentId: rootId,
+      children: [id6, id7, id8],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id3,
+      title: '紧急待办事项',
+      tag: 'urgent',
+      color: '#FF6B6B',
+      priority: 90,
+      x: 900,
+      y: 200,
+      parentId: rootId,
+      children: [id9, id10],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id4,
+      title: 'Logo设计参考',
+      tag: 'inspiration',
+      color: '#4ECDC4',
+      priority: 60,
+      x: 150,
+      y: 100,
+      parentId: id1,
+      children: [],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id5,
+      title: '色彩搭配方案',
+      tag: 'inspiration',
+      color: '#4ECDC4',
+      priority: 55,
+      x: 450,
+      y: 80,
+      parentId: id1,
+      children: [id11],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id6,
+      title: '博客选题清单',
+      tag: 'pending',
+      color: '#FFD93D',
+      priority: 35,
+      x: 450,
+      y: 50,
+      parentId: id2,
+      children: [],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id7,
+      title: '社交媒体规划',
+      tag: 'pending',
+      color: '#FFD93D',
+      priority: 45,
+      x: 600,
+      y: 50,
+      parentId: id2,
+      children: [id12, id13],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id8,
+      title: '视频脚本大纲',
+      tag: 'pending',
+      color: '#FFD93D',
+      priority: 50,
+      x: 750,
+      y: 80,
+      parentId: id2,
+      children: [],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id9,
+      title: '客户提案截止',
+      tag: 'urgent',
+      color: '#FF6B6B',
+      priority: 95,
+      x: 850,
+      y: 100,
+      parentId: id3,
+      children: [],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id10,
+      title: '项目评审准备',
+      tag: 'urgent',
+      color: '#FF6B6B',
+      priority: 85,
+      x: 1000,
+      y: 120,
+      parentId: id3,
+      children: [id14, id15],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id11,
+      title: '渐变色收集',
+      tag: 'inspiration',
+      color: '#4ECDC4',
+      priority: 40,
+      x: 500,
+      y: 20,
+      parentId: id5,
+      children: [],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id12,
+      title: '小红书运营',
+      tag: 'pending',
+      color: '#FFD93D',
+      priority: 30,
+      x: 550,
+      y: 20,
+      parentId: id7,
+      children: [],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id13,
+      title: '抖音短视频',
+      tag: 'pending',
+      color: '#FFD93D',
+      priority: 38,
+      x: 700,
+      y: 20,
+      parentId: id7,
+      children: [],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id14,
+      title: 'PPT设计美化',
+      tag: 'urgent',
+      color: '#FF6B6B',
+      priority: 88,
+      x: 950,
+      y: 50,
+      parentId: id10,
+      children: [],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+    {
+      id: id15,
+      title: '数据可视化',
+      tag: 'urgent',
+      color: '#FF6B6B',
+      priority: 82,
+      x: 1080,
+      y: 60,
+      parentId: id10,
+      children: [],
+      collapsed: false,
+      createdAt: Date.now(),
+    },
+  ];
+
+  const links: Link[] = [
+    {
+      id: uuidv4(),
+      sourceId: id1,
+      targetId: id3,
+      type: 'strong',
+    },
+    {
+      id: uuidv4(),
+      sourceId: id4,
+      targetId: id5,
+      type: 'weak',
+    },
+    {
+      id: uuidv4(),
+      sourceId: id6,
+      targetId: id8,
+      type: 'strong',
+    },
+    {
+      id: uuidv4(),
+      sourceId: id9,
+      targetId: id14,
+      type: 'strong',
+    },
+    {
+      id: uuidv4(),
+      sourceId: id5,
+      targetId: id7,
+      type: 'weak',
+    },
+  ];
+
+  return { nodes, links };
+}

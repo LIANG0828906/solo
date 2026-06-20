@@ -1,0 +1,107 @@
+.danmaku-panel {
+  width: 320px;
+  height: 100%;
+  background-color: var(--bg-card);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.danmaku-panel:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-dark);
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.panel-count {
+  background-color: var(--accent);
+  color: white;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.danmaku-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.danmaku-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  background-color: var(--danmaku-bg);
+  border-radius: 8px;
+  transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.danmaku-item:hover {
+  transform: translateX(4px);
+}
+
+.danmaku-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background-color: #ddd;
+}
+
+.danmaku-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.danmaku-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.danmaku-nickname {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.danmaku-text {
+  font-size: 14px;
+  color: var(--danmaku-text);
+  word-break: break-word;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.danmaku-time {
+  font-size: 11px;
+  color: #999;
+}
+
+@media (max-width: 768px) {
+  .danmaku-panel {
+    width: 100%;
+    height: 300px;
+  }
+}

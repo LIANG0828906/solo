@@ -1,0 +1,153 @@
+{
+  "title": "用户体验调查问卷",
+  "description": "感谢您参与本次调查，您的反馈对我们非常重要！请如实填写以下问题。",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single",
+      "title": "您的性别是？",
+      "options": [
+        { "value": "male", "label": "男" },
+        { "value": "female", "label": "女" },
+        { "value": "other", "label": "其他" }
+      ],
+      "required": true
+    },
+    {
+      "id": "q2",
+      "type": "single",
+      "title": "您的年龄段是？",
+      "options": [
+        { "value": "18-25", "label": "18-25岁" },
+        { "value": "26-35", "label": "26-35岁" },
+        { "value": "36-45", "label": "36-45岁" },
+        { "value": "46+", "label": "46岁以上" }
+      ],
+      "required": true
+    },
+    {
+      "id": "q3",
+      "type": "rating",
+      "title": "请对我们产品的整体满意度打分",
+      "description": "1分表示非常不满意，5分表示非常满意",
+      "required": true
+    },
+    {
+      "id": "q4",
+      "type": "multiple",
+      "title": "您最喜欢我们产品的哪些功能？（可多选）",
+      "options": [
+        { "value": "ui", "label": "界面设计" },
+        { "value": "speed", "label": "运行速度" },
+        { "value": "features", "label": "功能丰富度" },
+        { "value": "price", "label": "价格" },
+        { "value": "support", "label": "客户支持" }
+      ],
+      "required": false,
+      "skipLogic": [
+        {
+          "condition": {
+            "questionId": "q3",
+            "operator": "less_than",
+            "value": 3
+          },
+          "skip": true
+        }
+      ]
+    },
+    {
+      "id": "q5",
+      "type": "single",
+      "title": "您是否愿意向朋友推荐我们的产品？",
+      "options": [
+        { "value": "definitely", "label": "一定会" },
+        { "value": "probably", "label": "可能会" },
+        { "value": "not_sure", "label": "不确定" },
+        { "value": "probably_not", "label": "可能不会" },
+        { "value": "definitely_not", "label": "一定不会" }
+      ],
+      "required": true
+    },
+    {
+      "id": "q6",
+      "type": "text",
+      "title": "您选择不会推荐的主要原因是？",
+      "description": "请简要描述您的顾虑，帮助我们改进产品",
+      "required": false,
+      "skipLogic": [
+        {
+          "condition": {
+            "questionId": "q5",
+            "operator": "equals",
+            "value": "definitely"
+          },
+          "skip": true
+        },
+        {
+          "condition": {
+            "questionId": "q5",
+            "operator": "equals",
+            "value": "probably"
+          },
+          "skip": true
+        },
+        {
+          "condition": {
+            "questionId": "q5",
+            "operator": "equals",
+            "value": "not_sure"
+          },
+          "skip": true
+        }
+      ]
+    },
+    {
+      "id": "q7",
+      "type": "rating",
+      "title": "请对我们的客服服务质量打分",
+      "description": "如果您没有使用过客服服务，可以跳过此题",
+      "required": false
+    },
+    {
+      "id": "q8",
+      "type": "multiple",
+      "title": "您通常通过哪些渠道了解我们的产品？（可多选）",
+      "options": [
+        { "value": "search", "label": "搜索引擎" },
+        { "value": "social", "label": "社交媒体" },
+        { "value": "friend", "label": "朋友推荐" },
+        { "value": "ad", "label": "网络广告" },
+        { "value": "other", "label": "其他渠道" }
+      ],
+      "required": true
+    },
+    {
+      "id": "q9",
+      "type": "single",
+      "title": "您是否了解我们的高级会员服务？",
+      "options": [
+        { "value": "yes_know", "label": "是，我了解并正在使用" },
+        { "value": "yes_not_use", "label": "是，我了解但未使用" },
+        { "value": "no", "label": "否，完全不知道" }
+      ],
+      "required": true
+    },
+    {
+      "id": "q10",
+      "type": "text",
+      "title": "请简要描述您期望高级会员服务包含哪些权益？",
+      "description": "您的建议将直接影响我们的会员服务规划",
+      "required": false,
+      "skipLogic": [
+        {
+          "condition": {
+            "questionId": "q9",
+            "operator": "equals",
+            "value": "no"
+          },
+          "skip": true
+        }
+      ]
+    }
+  ]
+}

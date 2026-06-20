@@ -1,0 +1,302 @@
+[
+  {
+    "id": "aries",
+    "name": "白羊座",
+    "latinName": "Aries",
+    "symbol": "M20 10 L30 25 M20 10 L15 20 M20 10 L18 28 M30 25 L40 20 M30 25 L35 32 M15 20 L8 28 M8 28 L14 34 M40 20 L48 25 M48 25 L44 34",
+    "stars": [
+      {
+        "name": "Hamal",
+        "commonName": "娄宿三",
+        "position": [1.8, 0.4, 9.5],
+        "spectralType": "K",
+        "brightness": 0.95,
+        "distance": "约66光年"
+      },
+      {
+        "name": "Sheratan",
+        "commonName": "娄宿一",
+        "position": [1.75, 0.38, 9.5],
+        "spectralType": "A",
+        "brightness": 0.85,
+        "distance": "约59光年"
+      }
+    ],
+    "myth": "在古希腊神话中，白羊是拯救佛里克索斯与赫勒兄妹的救命恩物。为逃避继母迫害，兄妹骑金毛神使派金毛羊驮着二人飞越天空。途中赫勒不慎坠海，佛里克索斯抵达科尔喀斯后将白羊献祭宙斯。为表彰其忠诚，宙斯将它升上天空成为白羊座。后来伊阿宋率领阿尔戈英雄夺取的金羊毛的故事，正是这只白羊的遗物。"
+  },
+  {
+    "id": "taurus",
+    "name": "金牛座",
+    "latinName": "Taurus",
+    "symbol": "M12 18 Q20 10 Q28 18 Q28 28 Q18 34 Q10 28 Q8 20 M22 14 C26 10 M14 14 C10 18 M10 22 L8 26 M14 22 L12 28 M18 12 L22 8 M30 16 L34 12 M34 20 L38 22 M28 28 L34 32",
+    "stars": [
+      {
+        "name": "Aldebaran",
+        "commonName": "毕宿五",
+        "position": [1.0, 0.55, 9.5],
+        "spectralType": "K",
+        "brightness": 1.0,
+        "distance": "约65光年"
+      },
+      {
+        "name": "Alnath",
+        "commonName": "五车五",
+        "position": [0.95, 0.6, 9.5],
+        "spectralType": "B",
+        "brightness": 0.9,
+        "distance": "约131光年"
+      }
+    ],
+    "myth": "金牛座源于宙斯化身的浪漫传说。宙斯迷恋腓尼基公主欧罗巴，便化身为一头雪白公牛，混在牛群中等待时机。欧罗巴骑上牛背，宙斯便驮着她横渡地中海，抵达克里特岛后显露真身。为纪念这段邂逅，宙斯将化身的金牛形象升上天空。金牛座的红巨星毕宿五闪耀着温柔的橙红色光芒，正是这头神牛炯炯有神的眼睛。"
+  },
+  {
+    "id": "gemini",
+    "name": "双子座",
+    "latinName": "Gemini",
+    "symbol": "M14 8 L14 36 M26 8 L26 36 M10 10 L30 10 M10 22 L30 22 M10 34 L30 34",
+    "stars": [
+      {
+        "name": "Castor",
+        "commonName": "北河二",
+        "position": [2.4, 0.5, 9.5],
+        "spectralType": "A",
+        "brightness": 0.92,
+        "distance": "约51光年"
+      },
+      {
+        "name": "Castor",
+        "commonName": "北河三",
+        "position": [2.45, 0.48, 9.5],
+        "spectralType": "K",
+        "brightness": 0.98,
+        "distance": "约34光年"
+      }
+    ],
+    "myth": "双子座代表斯巴达王后勒达的双胞胎兄弟——卡斯托尔与波吕克斯。哥哥擅长骑术，弟弟精通拳术，兄弟情深意笃形影不离。一次争斗中卡斯托尔战死，不死之身的弟弟恳求宙斯用自己生命换回哥哥。宙斯深受感动，将二人一同升上天界，成为永远相伴的双星。北河二与北河三这对亮星，便是兄弟二人永恒的化身。"
+  },
+  {
+    "id": "cancer",
+    "name": "巨蟹座",
+    "latinName": "Cancer",
+    "symbol": "M10 18 C10 12 16 10 22 12 M10 22 C10 28 16 30 22 28 M34 18 C34 12 28 10 22 12 M34 22 C34 28 28 30 22 28 M8 20 L4 16 L4 24 L8 20 M36 20 L40 16 L40 24 L36 20",
+    "stars": [
+      {
+        "name": "Acubens",
+        "commonName": "鬼宿四",
+        "position": [3.0, 0.3, 9.5],
+        "spectralType": "A",
+        "brightness": 0.6,
+        "distance": "约174光年"
+      },
+      {
+        "name": "Al Tarf",
+        "commonName": "柳宿增三",
+        "position": [3.05, 0.28, 9.5],
+        "spectralType": "K",
+        "brightness": 0.7,
+        "distance": "约290光年"
+      }
+    ],
+    "myth": "巨蟹座的故事与赫拉克勒斯的十二功绩相关。英雄赫拉克勒斯与九头蛇海德拉鏖战正酣，天后赫拉派巨蟹从旁助攻。巨蟹死死咬住赫拉克勒斯的脚踝，却被一脚踩碎。赫拉虽计谋未成，仍感念巨蟹忠诚，将它升上天空。巨蟹座位于双子座之东、狮子座之西，虽星光黯淡却寓意奉献精神可嘉。其最亮星柳宿增三闪耀着琥珀般的温暖光辉。"
+  },
+  {
+    "id": "leo",
+    "name": "狮子座",
+    "latinName": "Leo",
+    "symbol": "M8 28 C8 16 L14 10 L20 12 L22 8 L26 10 Q32 8 34 14 Q36 20 32 26 Q28 32 20 30 Q12 32 8 28 M14 18 Q18 16 20 20 M10 16 Q12 14 14 16 M28 12 Q30 10 32 12 M10 22 L6 24 L8 26",
+    "stars": [
+      {
+        "name": "Regulus",
+        "commonName": "轩辕十四",
+        "position": [3.5, 0.55, 9.5],
+        "spectralType": "B",
+        "brightness": 0.99,
+        "distance": "约79光年"
+      },
+      {
+        "name": "Denebola",
+        "commonName": "五帝座一",
+        "position": [3.6, 0.5, 9.5],
+        "spectralType": "A",
+        "brightness": 0.88,
+        "distance": "约36光年"
+      }
+    ],
+    "myth": "狮子座是赫拉克勒斯十二功绩的首项——尼米亚猛狮。此狮铜皮铁骨刀箭不入，盘踞山谷危害一方。赫拉克勒斯徒手扼死猛狮后，发现狮皮坚不可摧，便剥下做斗篷。宙斯为纪念这场不朽战利，将猛狮升上天界。狮子座。轩辕十四这颗蓝白色亮星踞心脏位置，正是狮子威武的王者象征王。"
+  },
+  {
+    "id": "virgo",
+    "name": "处女座",
+    "latinName": "Virgo",
+    "symbol": "M10 30 Q18 10 L22 10 L22 24 L26 24 L26 10 L30 10 L22 34 L22 34 M18 30 L26 30",
+    "stars": [
+      {
+        "name": "Spica",
+        "commonName": "角宿一",
+        "position": [4.2, 0.35, 9.5],
+        "spectralType": "B",
+        "brightness": 0.97,
+        "distance": "约250光年"
+      },
+      {
+        "name": "Porrima",
+        "commonName": "东上将",
+        "position": [4.15, 0.38, 9.5],
+        "spectralType": "F",
+        "brightness": 0.75,
+        "distance": "约38光年"
+      }
+    ],
+    "myth": "处女座通常被认为是正义女神阿斯翠亚。黄金时代末期，人类恶行泛滥，众神纷纷离去。唯有阿斯翠亚留在凡间仲裁善恶天秤权衡，最后亦不得不离开。宙斯升上天界化作处女座。她手持麦穗，化身室女。她是纯洁与正义的永恒象征。角宿一这颗美丽的蓝色亮星是她手中麦穗闪耀的光芒，是暗夜中指引人们坚守的希望之光。"
+  },
+  {
+    "id": "libra",
+    "name": "天蝎座",
+    "latinName": "Libra",
+    "symbol": "M22 8 L22 24 M8 24 L36 24 M14 24 C14 34 C10 32 M30 24 C30 34 C34 32 M10 20 L14 24 L10 28 M34 20 L30 24 L34 28",
+    "stars": [
+      {
+        "name": "Zubenelgenubi",
+        "commonName": "氐宿一",
+        "position": [4.8, 0.32, 9.5],
+        "spectralType": "A",
+        "brightness": 0.78,
+        "distance": "约77光年"
+      },
+      {
+        "name": "Zubeneschamali",
+        "commonName": "氐宿四",
+        "position": [4.85, 0.34, 9.5],
+        "spectralType": "B",
+        "brightness": 0.82,
+        "distance": "约160光年"
+      }
+    ],
+    "myth": "天秤座是正义女神阿斯翠亚手中衡量善恶的天平。当人间恶行蔓延天界裁决之时，她高举神圣秩序混乱善善恶的天平便会倾斜，她便高举天平衡量人心。天平升上天界化作天平。位于处女座与天蝎座之间，象征着秋夜星空默默记录着平衡。氐宿四这颗罕见的绿白色恒星闪耀如同天秤西盘闪耀。"
+  },
+  {
+    "id": "scorpius",
+    "name": "天蝎座",
+    "latinName": "Scorpius",
+    "symbol": "M8 22 C6 28 C10 32 C14 30 C16 34 C20 30 C24 32 C26 28 C30 28 L32 24 L34 26 L36 22 C38 20 L34 16 L38 14 L36 10 M32 12 L34 8 L30 10 L26 14 C20 12 C16 18 C14 20 C10 18",
+    "stars": [
+      {
+        "name": "Antares",
+        "commonName": "心宿二",
+        "position": [5.3, 0.45, 9.5],
+        "spectralType": "M",
+        "brightness": 1.0,
+        "distance": "约550光年"
+      },
+      {
+        "name": "Shaula",
+        "commonName": "尾宿八",
+        "position": [5.4, 0.4, 9.5],
+        "spectralType": "B",
+        "brightness": 0.96,
+        "distance": "约570光年"
+      }
+    ],
+    "myth": "天蝎座源自古希腊最壮丽的传说。猎人俄里翁狂妄自称无敌天下，触怒地母盖亚。盖亚派遣巨蝎暗中行刺。巨蝎螫死俄里翁脚踵，两败俱伤同归于尽。宙斯将二者同升上天界，却命天蝎与猎人永远置于天球两端——天蝎现身猎户永不见面。心宿二这颗红超巨星如烈焰般殷红似火燃烧着蝎心之心，是夏夜星空最壮丽的标志之一。"
+  },
+  {
+    "id": "sagittarius",
+    "name": "射手座",
+    "latinName": "Sagittarius",
+    "symbol": "M10 30 L22 18 L38 6 L34 10 L26 18 L22 14 L26 10 L30 14 L26 22 L22 22 L20 30 L24 30 L22 22 L18 26",
+    "stars": [
+      {
+        "name": "Kaus Australis",
+        "commonName": "箕宿三",
+        "position": [5.8, 0.35, 9.5],
+        "spectralType": "B",
+        "brightness": 0.93,
+        "distance": "约143光年"
+      },
+      {
+        "name": "Nunki",
+        "commonName": "斗宿六",
+        "position": [5.85, 0.4, 9.5],
+        "spectralType": "B",
+        "brightness": 0.86,
+        "distance": "约224光年"
+      }
+    ],
+    "myth": "射手座是半人马族中的贤者喀戎，多位英雄的导师。他精通箭术、医术、音乐天文。教导赫拉克勒斯、伊阿宋、阿喀琉斯师从喀戎。一次赫拉克勒斯误射毒箭伤及喀戎。不死之身的喀戎愿以自己生命换普罗米修斯自由。宙斯感念其恩德，将他升上天界射手座。弓与银河最核心最亮区域是夏夜银河中心，指向银河灿烂。这弓矢永远的弓永远瞄准着前方。"
+  },
+  {
+    "id": "capricornus",
+    "name": "摩羯座",
+    "latinName": "Capricornus",
+    "symbol": "M10 28 Q14 22 Q18 24 Q20 18 Q26 18 Q30 22 Q34 18 Q38 22 L40 28 L36 30 L34 26 L30 28 L28 32 L24 30 L20 32 L16 30 L12 32 L10 28 M22 16 L20 12 L24 12 M26 16 M28 14 L30 10",
+    "stars": [
+      {
+        "name": "Deneb Algedi",
+        "commonName": "垒壁阵四",
+        "position": [0.2, 0.25, 9.5],
+        "spectralType": "F",
+        "brightness": 0.72,
+        "distance": "约39光年"
+      },
+      {
+        "name": "Dabih",
+        "commonName": "牛宿一",
+        "position": [0.15, 0.28, 9.5],
+        "spectralType": "G",
+        "brightness": 0.65,
+        "distance": "约328光年"
+      }
+    ],
+    "myth": "摩羯座源于潘神的变形传说。众神在河畔宴饮，怪物提丰突袭。诸神化作动物形态纷纷四散奔逃。牧神潘慌乱中跳入尼罗河，水中下半身化作鱼尾羊身鱼尾的怪异形象。上身山羊下身鱼的摩羯。宙斯将这形象的这的半神升上天空摩羯座。位于射手座东边冬季夜空中虽然星光较为黯淡但摩羯座的形象独特的象征着羊首鱼尾独特而神秘。"
+  },
+  {
+    "id": "aquarius",
+    "name": "水瓶座",
+    "latinName": "Aquarius",
+    "symbol": "M22 8 L18 14 Q14 18 Q18 22 Q22 26 Q26 22 Q30 26 Q26 30 Q22 34 Q18 30 M14 34 M10 26 L14 30 L18 26 M30 26 L34 30 L38 26 M18 14 L14 18 L10 14 M26 14 L30 18 L34 14",
+    "stars": [
+      {
+        "name": "Sadalsuud",
+        "commonName": "虚宿一",
+        "position": [0.6, 0.4, 9.5],
+        "spectralType": "G",
+        "brightness": 0.7,
+        "distance": "约540光年"
+      },
+      {
+        "name": "Sadr",
+        "commonName": "危宿三",
+        "position": [0.65, 0.45, 9.5],
+        "spectralType": "F",
+        "brightness": 0.78,
+        "distance": "约1300光年"
+      }
+    ],
+    "myth": "水瓶座是美少年伽倪墨得斯的化身。特洛伊王子伽倪墨得斯俊美非凡，宙斯化身巨鹰将他带至奥林匹斯山担任众神的斟酒。赫拉嫉妒不满却无法阻止。宙斯将少年的酒壶注入永不干涸的甘露洒向天空化作水瓶座。宝瓶中的甘露化作宝瓶座星辰之中。此座众星形成两条水从倾斜的宝瓶之中。夜空中倾泻而下，如甘露之水永不停息地的甘露。"
+  },
+  {
+    "id": "pisces",
+    "name": "双鱼座",
+    "latinName": "Pisces",
+    "symbol": "M10 28 C8 22 12 18 18 20 C22 14 26 18 26 24 M26 24 C30 30 34 28 34 22 M10 28 L8 32 M18 20 L14 16 L18 14 M26 24 L30 26 L34 28 M22 22 L22 14 L26 10 L30 12 L26 16 M22 14 L18 10 L14 12",
+    "stars": [
+      {
+        "name": "Alpherg",
+        "commonName": "坟墓一",
+        "position": [1.2, 0.22, 9.5],
+        "spectralType": "A",
+        "brightness": 0.68,
+        "distance": "约294光年"
+      },
+      {
+        "name": "Fumalsamakah",
+        "commonName": "外屏七",
+        "position": [1.25, 0.25, 9.5],
+        "spectralType": "F",
+        "brightness": 0.62,
+        "distance": "约170光年"
+      }
+    ],
+    "myth": "双鱼座源于美神阿佛洛狄忒与儿子厄洛斯的变身故事。两母子遭遇巨人提丰袭击。母化作两条鱼将母子系在一起双双跃入幼发拉底河逃走。为永远不分离，将鱼尾紧系。宙斯将此形象升上天界双鱼座。两条鱼尾相连的鱼，一条向北游向一条向南却永远紧紧系在一起。象征母子情深爱情的羁绊。位于白羊座西侧，是黄道十二星座中的最后一个星座。"
+  }
+]

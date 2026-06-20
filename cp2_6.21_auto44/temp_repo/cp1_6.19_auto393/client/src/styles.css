@@ -1,0 +1,717 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --primary-color: #FFCC80;
+  --secondary-color: #FFE0B2;
+  --background-color: #FFF8E1;
+  --success-color: #4CAF50;
+  --warning-color: #FF9800;
+  --error-color: #F44336;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --shadow-light: #E0E0E0;
+  --shadow-dark: #BDBDBD;
+  --category-bg: #E3F2FD;
+  --overlay-color: #00000040;
+  --easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+/* 导航栏 */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.navbar-logo {
+  font-size: 22px;
+  font-weight: bold;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.btn {
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s var(--easing);
+  font-family: inherit;
+}
+
+.btn-nav {
+  padding: 8px 20px;
+  border-radius: 8px;
+  background-color: var(--warning-color);
+  color: white;
+}
+
+.btn-nav:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+}
+
+.btn-back {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
+}
+
+.btn-back:hover {
+  background-color: white;
+  transform: translateY(-2px);
+}
+
+/* 主内容区 */
+.main-container {
+  margin-top: 60px;
+  min-height: calc(100vh - 60px);
+  padding: 24px;
+}
+
+/* 布局 */
+.layout {
+  display: flex;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.left-section {
+  flex: 0 0 60%;
+}
+
+.right-section {
+  flex: 0 0 calc(35% - 24px);
+}
+
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+  }
+  
+  .left-section,
+  .right-section {
+    flex: 1 1 100%;
+  }
+}
+
+/* 表单 */
+.publish-form {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+}
+
+.form-title {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--shadow-light);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.3s var(--easing);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(255, 204, 128, 0.3);
+}
+
+.btn-submit {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary-color), var(--warning-color));
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.btn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 152, 0, 0.4);
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 书籍列表 */
+.books-section h2 {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* 书籍卡片 */
+.book-card {
+  width: 280px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s var(--easing);
+  position: relative;
+}
+
+.book-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px var(--shadow-dark);
+}
+
+.book-card-cover {
+  width: 100%;
+  height: 160px;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.book-card-cover .book-icon {
+  width: 60px;
+  height: 60px;
+  opacity: 0.5;
+}
+
+.category-tag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background-color: var(--category-bg);
+  color: #1565C0;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.book-card-content {
+  padding: 16px;
+}
+
+.book-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-card-author {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.book-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: var(--secondary-color);
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+/* 书籍详情页 */
+.detail-layout {
+  display: flex;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.detail-main {
+  flex: 1;
+}
+
+.detail-sidebar {
+  flex: 0 0 320px;
+}
+
+@media (max-width: 768px) {
+  .detail-layout {
+    flex-direction: column;
+  }
+  
+  .detail-sidebar {
+    flex: 1 1 100%;
+  }
+}
+
+.book-detail {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px var(--shadow-light);
+}
+
+.book-detail-cover {
+  width: 100%;
+  height: 240px;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.book-detail-cover::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to top, var(--overlay-color), transparent);
+}
+
+.book-detail-cover .book-icon-large {
+  width: 100px;
+  height: 100px;
+  opacity: 0.5;
+}
+
+.book-detail-content {
+  padding: 24px;
+}
+
+.book-detail-title {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.book-detail-author {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.book-detail-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.book-detail-description {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+}
+
+.book-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.book-detail-tags .tag {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.btn-exchange {
+  width: 180px;
+  padding: 12px;
+  border-radius: 24px;
+  background-color: var(--success-color);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  display: block;
+  margin: 0 auto;
+}
+
+.btn-exchange:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(76, 175, 80, 0.4);
+}
+
+.btn-exchange:disabled {
+  background-color: var(--shadow-dark);
+  cursor: not-allowed;
+}
+
+/* 推荐区域 */
+.recommend-section {
+  position: sticky;
+  top: 84px;
+}
+
+.recommend-section h3 {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.recommend-card {
+  background: white;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  cursor: pointer;
+  transition: all 0.3s var(--easing);
+}
+
+.recommend-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px var(--shadow-light);
+}
+
+.recommend-book-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.recommend-book-author {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.similarity-bar-container {
+  height: 8px;
+  background-color: var(--shadow-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.similarity-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #81C784, #4CAF50);
+  border-radius: 4px;
+  animation: progressGrow 0.6s var(--easing) forwards;
+  width: 0;
+}
+
+@keyframes progressGrow {
+  from {
+    width: 0;
+  }
+}
+
+.similarity-text {
+  font-size: 12px;
+  color: var(--success-color);
+  font-weight: 600;
+  margin-top: 4px;
+  text-align: right;
+}
+
+/* 弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s var(--easing);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  animation: slideUp 0.3s var(--easing);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.modal-message {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-cancel {
+  padding: 10px 24px;
+  border-radius: 8px;
+  background-color: var(--shadow-light);
+  color: var(--text-primary);
+}
+
+.btn-cancel:hover {
+  background-color: var(--shadow-dark);
+}
+
+.btn-confirm {
+  padding: 10px 24px;
+  border-radius: 8px;
+  background-color: var(--success-color);
+  color: white;
+}
+
+.btn-confirm:hover {
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+/* 交换记录页 */
+.exchanges-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.exchanges-container h2 {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 24px;
+  color: var(--text-primary);
+}
+
+.exchanges-table {
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px var(--shadow-light);
+}
+
+.exchanges-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.exchanges-table th,
+.exchanges-table td {
+  padding: 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--shadow-light);
+}
+
+.exchanges-table th {
+  background-color: var(--secondary-color);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.exchanges-table tr:last-child td {
+  border-bottom: none;
+}
+
+.exchanges-table tr:hover td {
+  background-color: rgba(255, 204, 128, 0.1);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-pending {
+  background-color: rgba(255, 152, 0, 0.2);
+  color: var(--warning-color);
+}
+
+.status-accepted {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: var(--success-color);
+}
+
+.status-rejected {
+  background-color: rgba(244, 67, 54, 0.2);
+  color: var(--error-color);
+}
+
+/* 加载和错误 */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+}
+
+.error {
+  text-align: center;
+  padding: 40px;
+  color: var(--error-color);
+}
+
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* 列表页推荐区 */
+.featured-recommend {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  position: sticky;
+  top: 84px;
+}
+
+.featured-recommend h3 {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.featured-item {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--secondary-color), transparent);
+  cursor: pointer;
+  transition: all 0.3s var(--easing);
+}
+
+.featured-item:hover {
+  transform: translateX(4px);
+  background: linear-gradient(135deg, var(--primary-color), transparent);
+}
+
+.featured-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.featured-item-author {
+  font-size: 12px;
+  color: var(--text-secondary);
+}

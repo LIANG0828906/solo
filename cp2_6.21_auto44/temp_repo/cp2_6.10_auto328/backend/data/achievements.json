@@ -1,0 +1,58 @@
+[
+  {
+    "id": "first_invention",
+    "name": "初出茅庐",
+    "description": "完成第一个发明",
+    "icon": "🌟",
+    "rarity": "common"
+  },
+  {
+    "id": "speed_inventor",
+    "name": "快手发明家",
+    "description": "30秒内完成挑战",
+    "icon": "⚡",
+    "rarity": "rare"
+  },
+  {
+    "id": "perfect_day",
+    "name": "完美一天",
+    "description": "完成当日所有5个挑战",
+    "icon": "🏆",
+    "rarity": "epic"
+  },
+  {
+    "id": "creative_master",
+    "name": "创意大师",
+    "description": "累计完成50个发明",
+    "icon": "👑",
+    "rarity": "legendary"
+  },
+  {
+    "id": "legendary_craftsman",
+    "name": "传奇工匠",
+    "description": "获得传说级成就",
+    "icon": "💎",
+    "rarity": "legendary"
+  },
+  {
+    "id": "hundred_points",
+    "name": "百分达人",
+    "description": "单次挑战获得100分以上",
+    "icon": "💯",
+    "rarity": "common"
+  },
+  {
+    "id": "combo_master",
+    "name": "连击大师",
+    "description": "连续完成5个挑战",
+    "icon": "🔥",
+    "rarity": "rare"
+  },
+  {
+    "id": "collector",
+    "name": "碎片收藏家",
+    "description": "使用过所有类型的碎片",
+    "icon": "🎒",
+    "rarity": "epic"
+  }
+]

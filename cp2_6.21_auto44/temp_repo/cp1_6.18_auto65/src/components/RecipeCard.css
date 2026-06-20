@@ -1,0 +1,208 @@
+.recipe-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.recipe-card {
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.recipe-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.match-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  background: linear-gradient(135deg, #7A9E6B, #5D8250);
+  color: #fff;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(122, 158, 107, 0.3);
+}
+
+.recipe-card-image-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 70%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #ECE9E0 0%, #F5F0EB 100%);
+}
+
+.recipe-card-image-wrapper.loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.image-placeholder {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #ECE9E0 0%, #F5F0EB 100%);
+}
+
+.recipe-card-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+
+.recipe-card-image.fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+.image-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ECE9E0 0%, #F5F0EB 100%);
+  font-size: 48px;
+}
+
+.recipe-card-content {
+  padding: 14px 16px 16px;
+}
+
+.recipe-card-title {
+  margin: 0 0 6px;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: #3D3329;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recipe-card-description {
+  margin: 0 0 14px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  color: #8B7D6E;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  min-height: 40px;
+}
+
+.recipe-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.recipe-card-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 12px;
+  color: #A09282;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.stat-item.like-btn {
+  transition: all 0.2s ease;
+}
+
+.stat-item.like-btn:hover {
+  color: #C87A5A;
+}
+
+.stat-item.like-btn.liked {
+  color: #C87A5A;
+  animation: likePop 0.4s ease;
+}
+
+@keyframes likePop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.favorite-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #F8F5F1;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #B0A090;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.favorite-btn:hover {
+  background: #F5F0EB;
+  color: #9A8A7A;
+}
+
+.favorite-btn.active {
+  color: #E74C3C;
+  background: #FDECEA;
+  animation: favoritePop 0.2s ease;
+}
+
+@keyframes favoritePop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.favorite-btn:active {
+  transform: scale(0.95);
+}

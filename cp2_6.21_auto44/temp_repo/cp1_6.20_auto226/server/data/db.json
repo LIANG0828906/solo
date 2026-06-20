@@ -1,0 +1,107 @@
+{
+  "scores": [
+    {
+      "id": "demo-score-1",
+      "title": "示例乐谱",
+      "bpm": 120,
+      "voices": [
+        { "id": "vocal", "name": "主唱", "color": "#4fc3f7" },
+        { "id": "guitar", "name": "吉他", "color": "#81c784" },
+        { "id": "bass", "name": "贝斯", "color": "#ffb74d" },
+        { "id": "drums", "name": "鼓", "color": "#e57373" }
+      ],
+      "measures": [
+        {
+          "id": "m1",
+          "number": 1,
+          "voiceIds": ["vocal", "guitar", "bass", "drums"],
+          "notes": [
+            { "id": "n1", "pitch": 60, "startBeat": 0, "duration": 1, "voiceId": "vocal", "measureId": "m1" },
+            { "id": "n2", "pitch": 64, "startBeat": 1, "duration": 1, "voiceId": "vocal", "measureId": "m1" },
+            { "id": "n3", "pitch": 67, "startBeat": 2, "duration": 1, "voiceId": "vocal", "measureId": "m1" },
+            { "id": "n4", "pitch": 72, "startBeat": 3, "duration": 1, "voiceId": "vocal", "measureId": "m1" },
+            { "id": "n5", "pitch": 52, "startBeat": 0, "duration": 2, "voiceId": "guitar", "measureId": "m1" },
+            { "id": "n6", "pitch": 55, "startBeat": 2, "duration": 2, "voiceId": "guitar", "measureId": "m1" },
+            { "id": "n7", "pitch": 36, "startBeat": 0, "duration": 2, "voiceId": "bass", "measureId": "m1" },
+            { "id": "n8", "pitch": 43, "startBeat": 2, "duration": 2, "voiceId": "bass", "measureId": "m1" },
+            { "id": "n9", "pitch": 36, "startBeat": 0, "duration": 0.5, "voiceId": "drums", "measureId": "m1" },
+            { "id": "n10", "pitch": 38, "startBeat": 1, "duration": 0.5, "voiceId": "drums", "measureId": "m1" },
+            { "id": "n11", "pitch": 36, "startBeat": 2, "duration": 0.5, "voiceId": "drums", "measureId": "m1" },
+            { "id": "n12", "pitch": 38, "startBeat": 3, "duration": 0.5, "voiceId": "drums", "measureId": "m1" }
+          ]
+        },
+        {
+          "id": "m2",
+          "number": 2,
+          "voiceIds": ["vocal", "guitar", "bass", "drums"],
+          "notes": [
+            { "id": "n13", "pitch": 71, "startBeat": 0, "duration": 1.5, "voiceId": "vocal", "measureId": "m2" },
+            { "id": "n14", "pitch": 67, "startBeat": 1.5, "duration": 0.5, "voiceId": "vocal", "measureId": "m2" },
+            { "id": "n15", "pitch": 64, "startBeat": 2, "duration": 2, "voiceId": "vocal", "measureId": "m2" },
+            { "id": "n16", "pitch": 57, "startBeat": 0, "duration": 2, "voiceId": "guitar", "measureId": "m2" },
+            { "id": "n17", "pitch": 52, "startBeat": 2, "duration": 2, "voiceId": "guitar", "measureId": "m2" },
+            { "id": "n18", "pitch": 41, "startBeat": 0, "duration": 4, "voiceId": "bass", "measureId": "m2" },
+            { "id": "n19", "pitch": 36, "startBeat": 0, "duration": 0.5, "voiceId": "drums", "measureId": "m2" },
+            { "id": "n20", "pitch": 38, "startBeat": 2, "duration": 0.5, "voiceId": "drums", "measureId": "m2" }
+          ]
+        },
+        {
+          "id": "m3",
+          "number": 3,
+          "voiceIds": ["vocal", "guitar"],
+          "notes": [
+            { "id": "n21", "pitch": 65, "startBeat": 0, "duration": 1, "voiceId": "vocal", "measureId": "m3" },
+            { "id": "n22", "pitch": 69, "startBeat": 1, "duration": 1, "voiceId": "vocal", "measureId": "m3" },
+            { "id": "n23", "pitch": 60, "startBeat": 2, "duration": 2, "voiceId": "vocal", "measureId": "m3" },
+            { "id": "n24", "pitch": 48, "startBeat": 0, "duration": 4, "voiceId": "guitar", "measureId": "m3" }
+          ]
+        },
+        {
+          "id": "m4",
+          "number": 4,
+          "voiceIds": ["vocal", "guitar", "bass", "drums"],
+          "notes": [
+            { "id": "n25", "pitch": 64, "startBeat": 0, "duration": 4, "voiceId": "vocal", "measureId": "m4" },
+            { "id": "n26", "pitch": 55, "startBeat": 0, "duration": 2, "voiceId": "guitar", "measureId": "m4" },
+            { "id": "n27", "pitch": 59, "startBeat": 2, "duration": 2, "voiceId": "guitar", "measureId": "m4" },
+            { "id": "n28", "pitch": 36, "startBeat": 0, "duration": 4, "voiceId": "bass", "measureId": "m4" },
+            { "id": "n29", "pitch": 36, "startBeat": 0, "duration": 1, "voiceId": "drums", "measureId": "m4" },
+            { "id": "n30", "pitch": 42, "startBeat": 1, "duration": 0.5, "voiceId": "drums", "measureId": "m4" },
+            { "id": "n31", "pitch": 38, "startBeat": 2, "duration": 1, "voiceId": "drums", "measureId": "m4" },
+            { "id": "n32", "pitch": 42, "startBeat": 3, "duration": 0.5, "voiceId": "drums", "measureId": "m4" }
+          ]
+        }
+      ],
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "comments": [
+    {
+      "id": "c1",
+      "scoreId": "demo-score-1",
+      "voiceId": "vocal",
+      "noteId": "n2",
+      "parentId": null,
+      "text": "这里升半个调",
+      "author": "小明",
+      "x": 150,
+      "y": 30,
+      "read": false,
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "c2",
+      "scoreId": "demo-score-1",
+      "voiceId": "guitar",
+      "noteId": "n5",
+      "parentId": null,
+      "text": "节奏再慢一点",
+      "author": "小红",
+      "x": 80,
+      "y": 50,
+      "read": false,
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}

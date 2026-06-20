@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudDrift - 3D 云海</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .control-panel {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      color: #fff;
+      min-width: 240px;
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+
+    .control-panel:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .control-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      opacity: 0.9;
+      letter-spacing: 0.5px;
+    }
+
+    .slider-group {
+      margin-bottom: 16px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      margin-bottom: 8px;
+      opacity: 0.8;
+    }
+
+    .slider-value {
+      font-weight: 600;
+      color: #7FB3D8;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #7FB3D8;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(127, 179, 216, 0.8);
+      transition: all 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 16px rgba(127, 179, 216, 1);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #7FB3D8;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 12px rgba(127, 179, 216, 0.8);
+    }
+
+    .toggle-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 288px;
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.05);
+    }
+
+    .legend-card {
+      position: fixed;
+      bottom: 84px;
+      right: 288px;
+      padding: 16px;
+      background: #0D1B2A;
+      border: 1px solid #2C3E50;
+      border-radius: 3px;
+      color: #E0E0E0;
+      min-width: 200px;
+      z-index: 100;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .legend-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .legend-title {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #7FB3D8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 11px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .hint {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      z-index: 50;
+      text-align: center;
+      pointer-events: none;
+      animation: fadeInOut 4s ease 2s forwards;
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; }
+      20% { opacity: 0.6; }
+      80% { opacity: 0.6; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="hint">
+    拖拽旋转视角 · 滚轮缩放 · 点击云朵互动
+  </div>
+
+  <button class="toggle-btn" id="legend-toggle" title="显示/隐藏图例">
+    ?
+  </button>
+
+  <div class="legend-card" id="legend-card">
+    <div class="legend-title">云团色值</div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #E8D5B7;"></div>
+      <span>#E8D5B7 · 暖黄</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #A8D8EA;"></div>
+      <span>#A8D8EA · 淡蓝</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #D4A5A5;"></div>
+      <span>#D4A5A5 · 粉红</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background: #B8D4B8;"></div>
+      <span>#B8D4B8 · 淡绿</span>
+    </div>
+  </div>
+
+  <div class="control-panel">
+    <div class="control-title">云海控制</div>
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>云密度</span>
+        <span class="slider-value" id="density-value">1.0x</span>
+      </div>
+      <input type="range" id="density-slider" min="0.5" max="2" step="0.1" value="1" />
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>漂移速度</span>
+        <span class="slider-value" id="speed-value">0.5</span>
+      </div>
+      <input type="range" id="speed-slider" min="0.1" max="1" step="0.1" value="0.5" />
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>颜色变化速度</span>
+        <span class="slider-value" id="color-value">1.0</span>
+      </div>
+      <input type="range" id="color-slider" min="0.1" max="3" step="0.1" value="1" />
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

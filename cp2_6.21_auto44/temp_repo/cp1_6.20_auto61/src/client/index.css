@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #0a0a2e;
+    color: #ffffff;
+    font-family: 'Rajdhani', sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Orbitron', sans-serif;
+  }
+}
+
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow:
+      0 0 20px rgba(138, 43, 226, 0.3),
+      0 0 40px rgba(0, 191, 255, 0.15),
+      inset 0 0 20px rgba(255, 255, 255, 0.02);
+  }
+
+  .neon-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 32px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #ffffff;
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.4), rgba(0, 191, 255, 0.4));
+    border: 2px solid transparent;
+    border-image: linear-gradient(135deg, #8a2be2, #00bfff) 1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow:
+      0 0 10px rgba(138, 43, 226, 0.5),
+      0 0 20px rgba(0, 191, 255, 0.3);
+  }
+
+  .neon-button:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 0 20px rgba(138, 43, 226, 0.8),
+      0 0 40px rgba(0, 191, 255, 0.5),
+      0 0 60px rgba(138, 43, 226, 0.3);
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.6), rgba(0, 191, 255, 0.6));
+  }
+
+  .neon-button:active {
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .page-enter {
+    animation: pageEnter 0.5s ease-out forwards;
+  }
+
+  .page-exit {
+    animation: pageExit 0.3s ease-in forwards;
+  }
+
+  @keyframes pageEnter {
+    from {
+      opacity: 0;
+      transform: translateY(20px) scale(0.98);
+      filter: blur(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+  }
+
+  @keyframes pageExit {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.98);
+      filter: blur(4px);
+    }
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(10, 10, 46, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #8a2be2, #00bfff);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #a855f7, #38bdf8);
+}
+
+::-webkit-scrollbar-corner {
+  background: rgba(10, 10, 46, 0.5);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #8a2be2 rgba(10, 10, 46, 0.5);
+}

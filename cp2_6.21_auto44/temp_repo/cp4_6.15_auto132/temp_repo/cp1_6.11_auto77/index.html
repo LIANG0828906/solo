@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSS渐变粒子预览工具</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1A1A2E;
+      color: #E2E8F0;
+    }
+
+    .app {
+      display: flex;
+      width: 100%;
+      height: 100vh;
+      background: linear-gradient(135deg, #16213E 0%, #0F3460 100%);
+    }
+
+    .sidebar {
+      width: 320px;
+      flex-shrink: 0;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+      transform: translateX(-100%);
+    }
+
+    .mobile-toggle {
+      display: none;
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 100;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: #1E293B;
+      border: 0.5px solid rgba(255, 255, 255, 0.1);
+      color: #E2E8F0;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      transition: all 0.2s ease;
+    }
+
+    .mobile-toggle:hover {
+      background: #334155;
+    }
+
+    .card {
+      background: #1E293B;
+      border-radius: 12px;
+      border: 0.5px solid rgba(255, 255, 255, 0.1);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #94A3B8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .editor-container {
+      position: relative;
+      width: 100%;
+    }
+
+    .code-editor {
+      width: 100%;
+      min-height: 180px;
+      resize: vertical;
+      background: #1E1E1E;
+      color: #D4D4D4;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      padding-right: 42px;
+      font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      outline: none;
+      caret-color: #4EC9B0;
+      transition: box-shadow 0.2s ease;
+    }
+
+    .code-editor:focus {
+      box-shadow: 0 0 0 2px rgba(78, 201, 176, 0.3);
+    }
+
+    .code-editor::placeholder {
+      color: #6A737D;
+    }
+
+    .highlight-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      padding: 12px;
+      padding-right: 42px;
+      font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow: hidden;
+      color: transparent;
+    }
+
+    .highlight-layer .selector { color: #569CD6; }
+    .highlight-layer .property { color: #4EC9B0; }
+    .highlight-layer .value { color: #CE9178; }
+    .highlight-layer .function { color: #DCDCAA; }
+    .highlight-layer .color { color: #C586C0; }
+    .highlight-layer .punctuation { color: #D4D4D4; }
+
+    .error-markers {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      bottom: 12px;
+      width: 18px;
+      pointer-events: none;
+    }
+
+    .error-marker {
+      position: absolute;
+      width: 100%;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .error-marker::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #F44747;
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .error-wavy {
+      position: absolute;
+      left: 12px;
+      right: 42px;
+      height: 2px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 2'%3E%3Cpath d='M0 1 Q 2 0 4 1 T 8 1' stroke='%23F44747' fill='none' stroke-width='1'/%3E%3C/svg%3E") repeat-x;
+      pointer-events: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .preset-container {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: #475569 #1E293B;
+    }
+
+    .preset-container::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .preset-container::-webkit-scrollbar-track {
+      background: #1E293B;
+      border-radius: 3px;
+    }
+
+    .preset-container::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+
+    .preset-btn {
+      flex-shrink: 0;
+      width: 120px;
+      height: 40px;
+      border: none;
+      border-radius: 8px;
+      background: #374151;
+      color: #F9FAFB;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .preset-btn:hover {
+      background: #4B5563;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .preset-btn:active {
+      transform: translateY(0);
+    }
+
+    .preset-preview {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .slider-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #CBD5E1;
+    }
+
+    .slider-value {
+      background: #334155;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #4EC9B0;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #16213E 0%, #0F3460 100%);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #4EC9B0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(78, 201, 176, 0.4);
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 2px 10px rgba(78, 201, 176, 0.6);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #4EC9B0;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(78, 201, 176, 0.4);
+    }
+
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #2C2C2C;
+    }
+
+    #previewCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: pointer;
+    }
+
+    .canvas-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+    }
+
+    .lock-status {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #E2E8F0;
+      font-size: 20px;
+      transition: all 0.2s ease;
+      pointer-events: none;
+    }
+
+    .lock-icon {
+      transition: transform 0.2s ease;
+    }
+
+    .lock-status.locked .lock-icon {
+      transform: rotate(180deg);
+      color: #F87171;
+    }
+
+    .fps-counter {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(8px);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #4EC9B0;
+    }
+
+    .export-container {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .export-btn {
+      width: 100px;
+      height: 36px;
+      border: none;
+      border-radius: 6px;
+      background: #10B981;
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .export-btn:hover:not(:disabled) {
+      background: #059669;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+
+    .export-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .loading-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #FFFFFF;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status-hint {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(8px);
+      font-size: 12px;
+      color: #94A3B8;
+    }
+
+    .status-hint .key {
+      display: inline-block;
+      padding: 2px 6px;
+      background: #334155;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #E2E8F0;
+      margin: 0 4px;
+    }
+
+    @media (max-width: 768px) {
+      .app {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 100%;
+        max-width: 360px;
+        z-index: 90;
+        background: #1A1A2E;
+        transform: translateX(-100%);
+        padding-top: 76px;
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .mobile-toggle {
+        display: flex;
+      }
+
+      .canvas-container {
+        width: 100%;
+      }
+
+      .export-container {
+        bottom: 12px;
+        right: 12px;
+      }
+
+      .fps-counter {
+        top: 76px;
+        left: 12px;
+      }
+
+      .lock-status {
+        top: 76px;
+        right: 12px;
+      }
+
+      .status-hint {
+        bottom: 12px;
+        left: 12px;
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <button class="mobile-toggle" id="mobileToggle" aria-label="切换面板">☰</button>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="card">
+        <div class="card-title">CSS 渐变编辑器</div>
+        <div class="editor-container">
+          <div class="highlight-layer" id="highlightLayer"></div>
+          <div class="error-markers" id="errorMarkers"></div>
+          <textarea
+            id="codeEditor"
+            class="code-editor"
+            placeholder="输入CSS渐变代码，例如：
+linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%)"
+            spellcheck="false"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">预设模板</div>
+        <div class="preset-container" id="presetContainer"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">粒子参数</div>
+        <div class="slider-group">
+          <div class="slider-item">
+            <div class="slider-label">
+              <span>粒子数量</span>
+              <span class="slider-value" id="countValue">200</span>
+            </div>
+            <input type="range" class="slider" id="countSlider" min="50" max="500" value="200" step="10">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label">
+              <span>移动速度</span>
+              <span class="slider-value" id="speedValue">0.8</span>
+            </div>
+            <input type="range" class="slider" id="speedSlider" min="0.1" max="3.0" value="0.8" step="0.1">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label">
+              <span>粒子大小</span>
+              <span class="slider-value" id="sizeValue">4</span>
+            </div>
+            <input type="range" class="slider" id="sizeSlider" min="2" max="10" value="4" step="1">
+          </div>
+          <div class="slider-item">
+            <div class="slider-label">
+              <span>透明度</span>
+              <span class="slider-value" id="alphaValue">0.6</span>
+            </div>
+            <input type="range" class="slider" id="alphaSlider" min="0.1" max="1.0" value="0.6" step="0.1">
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="canvas-container">
+      <canvas id="previewCanvas"></canvas>
+      <div class="canvas-overlay">
+        <div class="fps-counter" id="fpsCounter">60 FPS</div>
+        <div class="lock-status" id="lockStatus">
+          <span class="lock-icon" id="lockIcon">▶</span>
+        </div>
+        <div class="status-hint">
+          点击画布 <span class="key">锁定</span> 粒子位置
+        </div>
+        <div class="export-container">
+          <button class="export-btn" id="exportBtn">
+            <span id="exportIcon">⬇</span>
+            <span id="exportText">导出SVG</span>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

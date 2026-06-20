@@ -1,0 +1,166 @@
+.container {
+  display: flex;
+  gap: 24px;
+  padding: 24px;
+  min-height: 100vh;
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sidebarContent {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  margin-bottom: 8px;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-wood-dark);
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: var(--color-wood-medium);
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-wood-dark);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionIcon {
+  font-size: 24px;
+}
+
+.upcomingList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emptyCard {
+  background: var(--color-card-bg);
+  border: 2px dashed var(--color-gold);
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+  color: var(--color-wood-medium);
+}
+
+.emptyIcon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.emptyText {
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.createBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: var(--color-gold);
+  color: var(--color-wood-dark);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all var(--transition-fast) ease;
+}
+
+.createBtn:hover {
+  background: var(--color-gold-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.createBtn:active {
+  animation: bounce 0.2s ease;
+}
+
+@keyframes bounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.quickActions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.actionCard {
+  flex: 1;
+  padding: 16px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-gold);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  text-align: center;
+}
+
+.actionCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-gold-dark);
+}
+
+.actionIcon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.actionLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-wood-dark);
+}
+
+@media (max-width: 1024px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .sidebarContent {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 16px;
+    padding-top: 72px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .quickActions {
+    flex-direction: column;
+  }
+}

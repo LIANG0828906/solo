@@ -1,0 +1,164 @@
+.club-card {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  backdrop-filter: blur(8px);
+  min-height: 150px;
+}
+
+.club-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-primary);
+}
+
+.club-card-cover {
+  flex-shrink: 0;
+}
+
+.club-card-cover-placeholder {
+  width: 80px;
+  height: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 4px 8px 8px 4px;
+  color: var(--text-muted);
+}
+
+.club-card-cover-placeholder svg {
+  opacity: 0.6;
+}
+
+.club-card-cover-placeholder span {
+  font-size: 11px;
+}
+
+.club-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.club-card-name {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
+  color: var(--text-primary);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.club-card-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.club-card-info-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.club-card-info-item svg {
+  color: var(--text-muted);
+}
+
+.club-card-book {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.club-card-book-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.club-card-book-title svg {
+  flex-shrink: 0;
+  color: var(--accent-blue);
+}
+
+.club-card-book-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.club-card-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.club-card-progress-bar {
+  height: 4px;
+  background: var(--bg-secondary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.club-card-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--poll-green), #4ade80);
+  border-radius: 2px;
+  transition: width var(--transition-normal);
+}
+
+.club-card-progress-text {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.club-card-empty-book {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.club-card-empty-book svg {
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .club-card {
+    padding: 16px;
+  }
+
+  .club-card-name {
+    font-size: 16px;
+  }
+}

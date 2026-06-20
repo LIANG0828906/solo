@@ -1,0 +1,42 @@
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.ant-card {
+  border-radius: 16px !important;
+}
+
+.ant-btn-primary {
+  background: linear-gradient(135deg, #3498db, #2ecc71);
+  border: none;
+}
+
+.ant-btn-primary:hover {
+  background: linear-gradient(135deg, #2980b9, #27ae60);
+}
+
+.ant-tag {
+  border-radius: 12px;
+}

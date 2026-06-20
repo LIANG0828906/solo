@@ -1,0 +1,15 @@
+{
+  "name": "rhythm-game",
+  "version": "1.0.0",
+  "description": "A browser-based rhythm game with dynamic notes and skill system",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}

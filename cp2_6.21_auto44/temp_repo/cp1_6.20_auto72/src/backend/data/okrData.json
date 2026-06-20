@@ -1,0 +1,215 @@
+{
+  "cycles": [
+    {
+      "id": "cycle-1",
+      "name": "2025 Q1",
+      "startDate": "2025-01-01",
+      "endDate": "2025-03-31",
+      "objectives": [
+        {
+          "id": "obj-1",
+          "name": "提升用户留存率",
+          "owner": "张明",
+          "ownerInitials": "张",
+          "status": "in_progress",
+          "createdAt": "2025-01-05",
+          "keyResults": [
+            {
+              "id": "kr-1",
+              "name": "7日留存率提升",
+              "description": "将新用户7日留存率从25%提升至40%",
+              "initialValue": 25,
+              "targetValue": 40,
+              "currentValue": 33,
+              "unit": "%",
+              "deadline": "2025-03-15"
+            },
+            {
+              "id": "kr-2",
+              "name": "月活跃用户增长",
+              "description": "MAU从8000增长到15000",
+              "initialValue": 8000,
+              "targetValue": 15000,
+              "currentValue": 12500,
+              "unit": "人",
+              "deadline": "2025-03-20"
+            },
+            {
+              "id": "kr-3",
+              "name": "用户平均使用时长",
+              "description": "单次使用时长从5分钟提升到12分钟",
+              "initialValue": 5,
+              "targetValue": 12,
+              "currentValue": 8,
+              "unit": "分钟",
+              "deadline": "2025-03-25"
+            }
+          ]
+        },
+        {
+          "id": "obj-2",
+          "name": "完成产品V2版本迭代",
+          "owner": "李华",
+          "ownerInitials": "李",
+          "status": "at_risk",
+          "createdAt": "2025-01-08",
+          "keyResults": [
+            {
+              "id": "kr-4",
+              "name": "核心功能开发完成",
+              "description": "完成仪表盘、数据分析、通知系统三大模块",
+              "initialValue": 0,
+              "targetValue": 3,
+              "currentValue": 1,
+              "unit": "个",
+              "deadline": "2025-02-28"
+            },
+            {
+              "id": "kr-5",
+              "name": "Bug修复率",
+              "description": "修复95%以上的P0/P1级Bug",
+              "initialValue": 0,
+              "targetValue": 95,
+              "currentValue": 68,
+              "unit": "%",
+              "deadline": "2025-03-10"
+            }
+          ]
+        },
+        {
+          "id": "obj-3",
+          "name": "拓展销售渠道",
+          "owner": "王芳",
+          "ownerInitials": "王",
+          "status": "in_progress",
+          "createdAt": "2025-01-10",
+          "keyResults": [
+            {
+              "id": "kr-6",
+              "name": "新增合作伙伴",
+              "description": "签约5家行业头部合作伙伴",
+              "initialValue": 0,
+              "targetValue": 5,
+              "currentValue": 3,
+              "unit": "家",
+              "deadline": "2025-03-15"
+            },
+            {
+              "id": "kr-7",
+              "name": "季度营收目标",
+              "description": "Q1营收达到200万",
+              "initialValue": 0,
+              "targetValue": 200,
+              "currentValue": 128,
+              "unit": "万元",
+              "deadline": "2025-03-31"
+            },
+            {
+              "id": "kr-8",
+              "name": "客户转化率",
+              "description": "销售线索转化率从8%提升至15%",
+              "initialValue": 8,
+              "targetValue": 15,
+              "currentValue": 11,
+              "unit": "%",
+              "deadline": "2025-03-20"
+            },
+            {
+              "id": "kr-9",
+              "name": "客户满意度",
+              "description": "NPS评分达到50以上",
+              "initialValue": 30,
+              "targetValue": 50,
+              "currentValue": 42,
+              "unit": "分",
+              "deadline": "2025-03-28"
+            }
+          ]
+        },
+        {
+          "id": "obj-4",
+          "name": "团队能力建设",
+          "owner": "赵强",
+          "ownerInitials": "赵",
+          "status": "not_started",
+          "createdAt": "2025-01-12",
+          "keyResults": [
+            {
+              "id": "kr-10",
+              "name": "技术培训",
+              "description": "组织8次内部技术分享会",
+              "initialValue": 0,
+              "targetValue": 8,
+              "currentValue": 0,
+              "unit": "次",
+              "deadline": "2025-03-30"
+            },
+            {
+              "id": "kr-11",
+              "name": "新人入职",
+              "description": "招聘3名高级工程师",
+              "initialValue": 0,
+              "targetValue": 3,
+              "currentValue": 0,
+              "unit": "人",
+              "deadline": "2025-03-15"
+            }
+          ]
+        },
+        {
+          "id": "obj-5",
+          "name": "优化系统性能",
+          "owner": "陈雪",
+          "ownerInitials": "陈",
+          "status": "in_progress",
+          "createdAt": "2025-01-15",
+          "keyResults": [
+            {
+              "id": "kr-12",
+              "name": "页面加载速度",
+              "description": "首屏加载时间从3.2s降低至1.5s以内",
+              "initialValue": 3.2,
+              "targetValue": 1.5,
+              "currentValue": 2.1,
+              "unit": "秒",
+              "deadline": "2025-03-05"
+            },
+            {
+              "id": "kr-13",
+              "name": "接口响应时间",
+              "description": "P95接口响应时间控制在200ms以内",
+              "initialValue": 500,
+              "targetValue": 200,
+              "currentValue": 280,
+              "unit": "毫秒",
+              "deadline": "2025-03-10"
+            },
+            {
+              "id": "kr-14",
+              "name": "系统可用性",
+              "description": "系统SLA达到99.9%",
+              "initialValue": 99,
+              "targetValue": 99.9,
+              "currentValue": 99.5,
+              "unit": "%",
+              "deadline": "2025-03-31"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "members": [
+    { "id": "m1", "name": "张明", "initials": "张" },
+    { "id": "m2", "name": "李华", "initials": "李" },
+    { "id": "m3", "name": "王芳", "initials": "王" },
+    { "id": "m4", "name": "赵强", "initials": "赵" },
+    { "id": "m5", "name": "陈雪", "initials": "陈" }
+  ],
+  "currentMember": "张明",
+  "historicalData": [
+    { "cycle": "2024 Q3", "completionRate": 62 },
+    { "cycle": "2024 Q4", "completionRate": 68 },
+    { "cycle": "2025 Q1", "completionRate": 58 }
+  ]
+}

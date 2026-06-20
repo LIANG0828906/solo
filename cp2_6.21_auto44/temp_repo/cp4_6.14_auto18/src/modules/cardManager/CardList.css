@@ -1,0 +1,199 @@
+.card-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.card-count {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.review-btn {
+  padding: 10px 20px;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.review-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(196, 167, 125, 0.4);
+}
+
+.tag-filter {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-weight: 500;
+  color: var(--text-color);
+  white-space: nowrap;
+}
+
+.tag-filter-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-filter-btn {
+  padding: 6px 14px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 2px solid transparent;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all var(--transition-fast);
+}
+
+.tag-filter-btn:hover {
+  border-color: var(--primary-color);
+}
+
+.tag-filter-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-item {
+  position: relative;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  overflow: hidden;
+}
+
+.card-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.urgency-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background-color: rgba(217, 83, 79, 0.2);
+  overflow: hidden;
+}
+
+.urgency-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #ff6b6b, #d9534f);
+  animation: urgencyPulse 2s ease-in-out infinite;
+}
+
+@keyframes urgencyPulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.card-item.overdue {
+  border-left: 4px solid var(--hard-color);
+}
+
+.card-item-content {
+  padding-top: 8px;
+}
+
+.card-front-preview {
+  font-size: 16px;
+  color: var(--text-color);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.card-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tag-chip.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.card-item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.next-review {
+  font-size: 13px;
+  color: var(--primary-color);
+}
+
+.next-review.overdue {
+  color: var(--hard-color);
+  font-weight: 500;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.5;
+  transition: all var(--transition-fast);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.delete-btn:hover {
+  opacity: 1;
+  background-color: rgba(217, 83, 79, 0.1);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-text {
+  color: var(--primary-color);
+  font-size: 16px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--primary-color);
+  font-size: 16px;
+}

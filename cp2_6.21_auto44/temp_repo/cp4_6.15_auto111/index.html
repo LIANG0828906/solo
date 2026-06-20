@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>赛博街牌生成器 | Cyber Sign Generator</title>
+    <style>
+      :root {
+        --bg-primary: #0a0a0f;
+        --bg-secondary: #15151d;
+        --bg-tertiary: #1e1e2a;
+        --neon-magenta: #ff2d95;
+        --neon-cyan: #00f0ff;
+        --neon-green: #39ff14;
+        --neon-orange: #ffb347;
+        --neon-purple: #c77dff;
+        --text-primary: #e8e8f0;
+        --text-secondary: #a0a0b8;
+        --text-muted: #6a6a80;
+        --border-glow-magenta: rgba(255, 45, 149, 0.35);
+        --border-glow-cyan: rgba(0, 240, 255, 0.35);
+        --glass-bg: rgba(20, 20, 30, 0.55);
+        --glass-border: rgba(255, 45, 149, 0.18);
+        --glass-border-alt: rgba(0, 240, 255, 0.18);
+        --grid-line: rgba(0, 240, 255, 0.12);
+        --font-display: 'Orbitron', sans-serif;
+        --font-mono: 'JetBrains Mono', monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html, body, #root {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+      }
+
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(0, 240, 255, 0.3);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 240, 255, 0.5);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

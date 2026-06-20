@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Rajdhani', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #1a1a2e;
+  color: #e0e0e0;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #16213e #1a1a2e;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #16213e;
+  border-radius: 3px;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #1a1a2e;
+}
+
+.transition-default {
+  transition: all 0.3s ease;
+}
+
+.knob-cursor {
+  cursor: grab;
+}
+
+.knob-cursor:active {
+  cursor: grabbing;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(233, 69, 96, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(233, 69, 96, 0.6); }
+}
+
+.glow-pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.effect-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+}
+
+.effect-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(233, 69, 96, 0.2);
+  background-color: #1a2744;
+}
+
+.effect-card.dragging {
+  opacity: 0.6;
+  transform: scale(1.05);
+  box-shadow: 0 8px 30px rgba(233, 69, 96, 0.4);
+}
+
+.anchor-marker {
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.anchor-marker:hover {
+  transform: scale(1.2);
+  filter: drop-shadow(0 0 6px rgba(233, 69, 96, 0.8));
+}

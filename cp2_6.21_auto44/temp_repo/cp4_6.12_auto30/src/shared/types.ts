@@ -1,0 +1,1 @@
+export type LeatherType = 'vegetable_tanned' | 'chrome

@@ -1,0 +1,45 @@
+{
+  "updated_at": "2026-06-18T08:22:32.982197",
+  "data": [
+    {
+      "location_id": "library-3f-window",
+      "heat_score": 0.0,
+      "last_updated": "2026-06-18T08:22:32.977692"
+    },
+    {
+      "location_id": "canteen-2f-ramen",
+      "heat_score": 0.0,
+      "last_updated": "2026-06-18T08:22:32.977692"
+    },
+    {
+      "location_id": "playground-old-tree",
+      "heat_score": 0.0,
+      "last_updated": "2026-06-18T08:22:32.978689"
+    },
+    {
+      "location_id": "teaching-building-roof",
+      "heat_score": 0.0,
+      "last_updated": "2026-06-18T08:22:32.978689"
+    },
+    {
+      "location_id": "dormitory-402",
+      "heat_score": 0.0,
+      "last_updated": "2026-06-18T08:22:32.978689"
+    },
+    {
+      "location_id": "basketball-court",
+      "heat_score": 0.0,
+      "last_updated": "2026-06-18T08:22:32.979689"
+    },
+    {
+      "location_id": "lotus-pond",
+      "heat_score": 0.0,
+      "last_updated": "2026-06-18T08:22:32.979689"
+    },
+    {
+      "location_id": "gate-cherry",
+      "heat_score": 0.0,
+      "last_updated": "2026-06-18T08:22:32.979689"
+    }
+  ]
+}

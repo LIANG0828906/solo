@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/animationoverlay.tsx","./src/components/envelopegrid.tsx","./src/components/envelopepreview.tsx","./src/components/lettereditor.tsx","./src/engine/envelopeanimator.ts","./src/engine/letterpaperengine.ts","./src/store/letterstore.ts"],"version":"5.8.3"}

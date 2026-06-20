@@ -1,0 +1,386 @@
+.zoneContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.zoneCard {
+  background: white;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(124, 74, 58, 0.1);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease;
+}
+
+.zoneCard.bounce {
+  animation: bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes bounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.zoneHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.zoneTitle {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #7C4A3A;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.titleIcon {
+  font-size: 26px;
+}
+
+.nameInput {
+  flex: 1;
+  min-width: 180px;
+  padding: 10px 16px;
+  border: 2px solid #F5E6CC;
+  border-radius: 14px;
+  font-size: 15px;
+  color: #5A4035;
+  background: #FFFBF5;
+  transition: border-color 0.2s ease;
+  font-family: inherit;
+}
+
+.nameInput:focus {
+  outline: none;
+  border-color: #E8B4B8;
+}
+
+.nameInput::placeholder {
+  color: #C0A090;
+}
+
+.headerActions {
+  display: flex;
+  gap: 10px;
+}
+
+.actionBtn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: inherit;
+}
+
+.saveBtn {
+  background: linear-gradient(135deg, #E8B4B8 0%, #D49A9E 100%);
+  color: white;
+}
+
+.saveBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(232, 180, 184, 0.4);
+}
+
+.saveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clearBtn {
+  background: #F5E6CC;
+  color: #7C4A3A;
+}
+
+.clearBtn:hover {
+  background: #E8D9B8;
+  transform: translateY(-2px);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 60px 20px;
+  color: #A08070;
+}
+
+.emptyEmoji {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.emptyText {
+  font-size: 16px;
+  margin: 0;
+}
+
+.emptyHint {
+  font-size: 13px;
+  margin-top: 8px;
+  color: #C0A090;
+}
+
+.ingredientList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ingredientItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #FFFBF5 0%, #FDF6F0 100%);
+  border-radius: 16px;
+  animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.itemEmoji {
+  font-size: 32px;
+  width: 48px;
+  text-align: center;
+}
+
+.itemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemName {
+  font-size: 15px;
+  font-weight: 500;
+  color: #5A4035;
+  margin-bottom: 4px;
+}
+
+.itemNutrition {
+  font-size: 12px;
+  color: #A08070;
+  display: flex;
+  gap: 10px;
+}
+
+.itemControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quantitySlider {
+  width: 120px;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #F5E6CC;
+  border-radius: 3px;
+  outline: none;
+}
+
+.quantitySlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #E8B4B8;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.quantitySlider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.quantityValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #7C4A3A;
+  min-width: 50px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.removeBtn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #F5E6CC;
+  color: #7C4A3A;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+  line-height: 1;
+}
+
+.removeBtn:hover {
+  background: #E8B4B8;
+  color: white;
+  transform: rotate(90deg);
+}
+
+.flavorSection {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #F5E6CC;
+}
+
+.flavorTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #7C4A3A;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flavorButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.flavorBtn {
+  padding: 8px 14px;
+  border: 2px solid #F5E6CC;
+  background: white;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #7C4A3A;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.flavorBtn:hover {
+  border-color: #E8B4B8;
+  transform: translateY(-1px);
+}
+
+.flavorBtn.active {
+  background: #E8B4B8;
+  border-color: #E8B4B8;
+  color: white;
+}
+
+.recommendationBox {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #FFF9E0 0%, #FFEFC4 100%);
+  border-radius: 14px;
+  border: 1px solid #FFE082;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.recommendationText {
+  font-size: 14px;
+  color: #7C4A3A;
+  margin: 0 0 10px 0;
+  line-height: 1.5;
+}
+
+.recommendationText strong {
+  color: #D4A017;
+}
+
+.recommendationItems {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.recommendationItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  font-size: 13px;
+  color: #7C4A3A;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.recommendationItem:hover {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(212, 160, 23, 0.2);
+}
+
+.recommendationItem .emoji {
+  font-size: 18px;
+}
+
+.dragOver {
+  border: 3px dashed #E8B4B8 !important;
+  background: #FFFBF5 !important;
+}
+
+@media (max-width: 640px) {
+  .zoneCard {
+    padding: 18px;
+  }
+
+  .quantitySlider {
+    width: 80px;
+  }
+
+  .itemEmoji {
+    width: 40px;
+    font-size: 28px;
+  }
+
+  .itemNutrition {
+    flex-wrap: wrap;
+  }
+}
