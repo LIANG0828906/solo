@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGeoStore } from '@/store/useGeoStore';
@@ -11,18 +11,29 @@ interface CrossSectionProps {
 export function CrossSection({ axis }: CrossSectionProps) {
   const planeRef = useRef<THREE.Mesh>(null);
   const edgesRef = useRef<THREE.LineSegments>(null);
-  const { geoData, gridSize, sliceX, sliceY, sliceZ, colorMode } = useGeoStore();
+  const gridRef = useRef<THREE.GridHelper | null>(null);
+  const { geoData, gridSize, sliceX, sliceY, sliceZ, colorMode, isDraggingSlice } = useGeoStore();
   const colorScale = getColorScale(colorMode);
+  const [showGrid, setShowGrid] = useState(false);
 
   const sliceValue = axis === 'x' ? sliceX : axis === 'y' ? sliceY : sliceZ;
+  const isThisDragging = isDraggingSlice === axis;
 
-  const { position, size, visible, avgDensity, textureData } = useMemo(() => {
+  useEffect(() => {
+    if (isThisDragging && sliceValue > 0) {
+      setShowGrid(true);
+    } else if (!isThisDragging) {
+      const timer = setTimeout(() => setShowGrid(false), 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isThisDragging, sliceValue]);
+
+  const { position, size, visible, textureData } = useMemo(() => {
     if (!geoData || sliceValue === 0) {
       return { 
         position: { x: 0, y: 0, z: 0 }, 
         size: [1, 1] as [number, number], 
         visible: false,
-        avgDensity: 0,
         textureData: null as { densities: number[][]; width: number; height: number } | null
       };
     }
@@ -31,7 +42,7 @@ export function CrossSection({ axis }: CrossSectionProps) {
     const halfY = gridSize.y / 2;
     const halfZ = gridSize.z / 2;
 
-    const { densities, avgDensity: avg } = getDensityAtSlice(geoData, axis, sliceValue, gridSize);
+    const { densities } = getDensityAtSlice(geoData, axis, sliceValue, gridSize);
 
     let pos = { x: 0, y: 0, z: 0 };
     let planeSize: [number, number] = [1, 1];
@@ -58,7 +69,6 @@ export function CrossSection({ axis }: CrossSectionProps) {
       position: pos, 
       size: planeSize, 
       visible: true,
-      avgDensity: avg,
       textureData: texData
     };
   }, [geoData, gridSize, sliceValue, axis]);
@@ -85,7 +95,7 @@ export function CrossSection({ axis }: CrossSectionProps) {
         imageData.data[idx] = rgb.r;
         imageData.data[idx + 1] = rgb.g;
         imageData.data[idx + 2] = rgb.b;
-        imageData.data[idx + 3] = 200;
+        imageData.data[idx + 3] = 210;
       }
     }
     
@@ -103,6 +113,11 @@ export function CrossSection({ axis }: CrossSectionProps) {
     if (!edgesRef.current || !visible) return;
     const pulse = 0.5 + Math.sin(clock.elapsedTime * 2) * 0.2;
     (edgesRef.current.material as THREE.Material).opacity = pulse;
+
+    if (gridRef.current) {
+      const gridMat = gridRef.current.material as THREE.Material;
+      gridMat.opacity = showGrid ? 0.35 + Math.sin(clock.elapsedTime * 4) * 0.1 : 0;
+    }
   });
 
   const rotation = useMemo(() => {
@@ -110,6 +125,12 @@ export function CrossSection({ axis }: CrossSectionProps) {
     if (axis === 'y') return [-Math.PI / 2, 0, 0] as [number, number, number];
     return [0, 0, 0] as [number, number, number];
   }, [axis]);
+
+  const gridParams = useMemo(() => {
+    const divisions = axis === 'y' ? gridSize.x : (axis === 'x' ? gridSize.z : gridSize.x);
+    const sizeVal = Math.max(size[0], size[1]);
+    return { size: sizeVal, divisions };
+  }, [size, axis, gridSize]);
 
   if (!visible || !geoData) return null;
 
@@ -120,7 +141,7 @@ export function CrossSection({ axis }: CrossSectionProps) {
         <meshBasicMaterial
           color="#22c55e"
           transparent
-          opacity={0.25}
+          opacity={0.2}
           side={THREE.DoubleSide}
           map={texture || undefined}
         />
@@ -130,6 +151,14 @@ export function CrossSection({ axis }: CrossSectionProps) {
         <edgesGeometry args={[new THREE.PlaneGeometry(size[0], size[1])]} />
         <lineBasicMaterial color="#4ade80" transparent opacity={0.8} linewidth={2} />
       </lineSegments>
+
+      {showGrid && (
+        <gridHelper
+          ref={(el) => { gridRef.current = el; }}
+          args={[gridParams.size, gridParams.divisions, '#4ade80', '#22c55e']}
+          position={[0, 0.01, 0]}
+        />
+      )}
     </group>
   );
 }

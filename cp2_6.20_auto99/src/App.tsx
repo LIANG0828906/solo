@@ -40,6 +40,10 @@ function App() {
   }, [setGeoData]);
 
   useEffect(() => {
+    (window as any).__geoStore = useGeoStore;
+  }, []);
+
+  useEffect(() => {
     if (!geoData) return;
 
     if (sliceX > 0) {

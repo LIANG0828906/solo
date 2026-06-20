@@ -35,7 +35,8 @@ export function ControlPanel({ onViewChange, onExport, onReset }: ControlPanelPr
     presetName, setGeoData, setPresetName,
     annotations, clearAnnotations,
     gridSize,
-    isPanelOpen, setPanelOpen
+    isPanelOpen, setPanelOpen,
+    setDraggingSlice
   } = useGeoStore();
 
   useEffect(() => {
@@ -130,23 +131,29 @@ export function ControlPanel({ onViewChange, onExport, onReset }: ControlPanelPr
         <div className="space-y-4">
           <SliderControl
             label="X轴切片"
+            axis="x"
             value={sliceX}
             onChange={setSliceX}
-            color="#4ade80"
+            onDragStart={() => setDraggingSlice('x')}
+            onDragEnd={() => setDraggingSlice(null)}
             gridSize={gridSize.x}
           />
           <SliderControl
             label="Y轴切片"
+            axis="y"
             value={sliceY}
             onChange={setSliceY}
-            color="#4ade80"
+            onDragStart={() => setDraggingSlice('y')}
+            onDragEnd={() => setDraggingSlice(null)}
             gridSize={gridSize.y}
           />
           <SliderControl
             label="Z轴切片"
+            axis="z"
             value={sliceZ}
             onChange={setSliceZ}
-            color="#4ade80"
+            onDragStart={() => setDraggingSlice('z')}
+            onDragEnd={() => setDraggingSlice(null)}
             gridSize={gridSize.z}
           />
         </div>
@@ -275,18 +282,48 @@ export function ControlPanel({ onViewChange, onExport, onReset }: ControlPanelPr
 
 interface SliderControlProps {
   label: string;
+  axis: 'x' | 'y' | 'z';
   value: number;
   onChange: (value: number) => void;
-  color: string;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   gridSize: number;
 }
 
-function SliderControl({ label, value, onChange, gridSize }: SliderControlProps) {
+function SliderControl({ label, value, onChange, onDragStart, onDragEnd, gridSize }: SliderControlProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(Number(e.target.value));
   };
+
+  const handlePointerDown = () => {
+    setIsDragging(true);
+    onDragStart?.();
+  };
+
+  const handlePointerUp = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      onDragEnd?.();
+    }
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      const handleGlobalUp = () => {
+        setIsDragging(false);
+        onDragEnd?.();
+      };
+      window.addEventListener('mouseup', handleGlobalUp);
+      window.addEventListener('touchend', handleGlobalUp);
+      return () => {
+        window.removeEventListener('mouseup', handleGlobalUp);
+        window.removeEventListener('touchend', handleGlobalUp);
+      };
+    }
+  }, [isDragging, onDragEnd]);
 
   const percentage = value;
   const actualIndex = Math.floor((value / 100) * (gridSize - 1));
@@ -316,12 +353,16 @@ function SliderControl({ label, value, onChange, gridSize }: SliderControlProps)
           step="1"
           value={value}
           onChange={handleChange}
+          onMouseDown={handlePointerDown}
+          onTouchStart={handlePointerDown}
+          onMouseUp={handlePointerUp}
+          onTouchEnd={handlePointerUp}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
         <div
           className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-[#4a6cf7] 
             shadow-lg transition-all duration-150 pointer-events-none
-            ${isHovered ? 'w-5 h-5 shadow-[#4a6cf7]/50' : 'w-4 h-4'}`}
+            ${isHovered || isDragging ? 'w-5 h-5 shadow-[#4a6cf7]/50' : 'w-4 h-4'}`}
           style={{ left: `${percentage}%` }}
         />
       </div>

@@ -35,6 +35,7 @@ interface GeoState {
   cameraState: CameraState;
   presetName: string;
   isPanelOpen: boolean;
+  isDraggingSlice: 'x' | 'y' | 'z' | null;
 
   setGeoData: (data: number[][][], size: { x: number; y: number; z: number }, presetName: string) => void;
   setSliceX: (value: number) => void;
@@ -49,6 +50,7 @@ interface GeoState {
   resetAll: () => void;
   setPanelOpen: (open: boolean) => void;
   setPresetName: (name: string) => void;
+  setDraggingSlice: (axis: 'x' | 'y' | 'z' | null) => void;
 }
 
 const getRockType = (density: number): { type: RockType; name: string } => {
@@ -74,6 +76,7 @@ export const useGeoStore = create<GeoState>((set, get) => ({
   cameraState: defaultCameraState,
   presetName: 'cylindrical',
   isPanelOpen: true,
+  isDraggingSlice: null,
 
   setGeoData: (data, size, presetName) => {
     set({ geoData: data, gridSize: size, presetName });
@@ -173,6 +176,8 @@ export const useGeoStore = create<GeoState>((set, get) => ({
   setPanelOpen: (open) => set({ isPanelOpen: open }),
 
   setPresetName: (name) => set({ presetName: name }),
+
+  setDraggingSlice: (axis) => set({ isDraggingSlice: axis }),
 }));
 
 export const getRockInfo = getRockType;
