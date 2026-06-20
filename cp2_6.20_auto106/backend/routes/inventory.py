@@ -44,13 +44,47 @@ async def get_inventory():
     return result
 
 
-@router.get("/{consumable_id}", response_model=Consumable)
-async def get_consumable(consumable_id: str):
-    if consumable_id not in consumables_db:
-        raise HTTPException(status_code=404, detail="Consumable not found")
-    c = consumables_db[consumable_id]
-    safety_threshold = calculate_safety_threshold(c.id, c.purchaseCycle)
-    return c.model_copy(update={"safetyThreshold": safety_threshold})
+@router.get("/records", response_model=List[StockRecord])
+async def get_records(
+    limit: Optional[int] = Query(None, description="Number of records to return"),
+    consumable_id: Optional[str] = Query(None, description="Filter by consumable ID"),
+):
+    filtered = records_db
+    if consumable_id:
+        filtered = [r for r in filtered if r.consumableId == consumable_id]
+    if limit:
+        filtered = filtered[:limit]
+    return filtered
+
+
+@router.get("/trends")
+async def get_trends(
+    consumableId: Optional[str] = Query(None, description="Filter by consumable ID"),
+    days: int = Query(30, description="Number of days to analyze"),
+):
+    now = datetime.now().date()
+    trends = []
+
+    for i in range(days - 1, -1, -1):
+        date = now - timedelta(days=i)
+        date_str = date.strftime("%m-%d")
+
+        day_records = [
+            r for r in records_db
+            if datetime.fromisoformat(r.timestamp).date() == date
+            and (consumableId is None or r.consumableId == consumableId)
+        ]
+
+        in_count = sum(r.quantity for r in day_records if r.type == "in")
+        out_count = sum(r.quantity for r in day_records if r.type == "out")
+
+        trends.append({
+            "date": date_str,
+            "inCount": in_count,
+            "outCount": out_count,
+        })
+
+    return trends
 
 
 @router.post("/check")
@@ -94,44 +128,10 @@ async def check_stock(request: StockCheckRequest):
     return {"message": "Stock updated successfully", "consumable": consumable}
 
 
-@router.get("/records", response_model=List[StockRecord])
-async def get_records(
-    limit: Optional[int] = Query(None, description="Number of records to return"),
-    consumable_id: Optional[str] = Query(None, description="Filter by consumable ID"),
-):
-    filtered = records_db
-    if consumable_id:
-        filtered = [r for r in filtered if r.consumableId == consumable_id]
-    if limit:
-        filtered = filtered[:limit]
-    return filtered
-
-
-@router.get("/trends")
-async def get_trends(
-    consumableId: Optional[str] = Query(None, description="Filter by consumable ID"),
-    days: int = Query(30, description="Number of days to analyze"),
-):
-    now = datetime.now().date()
-    trends = []
-
-    for i in range(days - 1, -1, -1):
-        date = now - timedelta(days=i)
-        date_str = date.strftime("%m-%d")
-
-        day_records = [
-            r for r in records_db
-            if datetime.fromisoformat(r.timestamp).date() == date
-            and (consumableId is None or r.consumableId == consumableId)
-        ]
-
-        in_count = sum(r.quantity for r in day_records if r.type == "in")
-        out_count = sum(r.quantity for r in day_records if r.type == "out")
-
-        trends.append({
-            "date": date_str,
-            "inCount": in_count,
-            "outCount": out_count,
-        })
-
-    return trends
+@router.get("/{consumable_id}", response_model=Consumable)
+async def get_consumable(consumable_id: str):
+    if consumable_id not in consumables_db:
+        raise HTTPException(status_code=404, detail="Consumable not found")
+    c = consumables_db[consumable_id]
+    safety_threshold = calculate_safety_threshold(c.id, c.purchaseCycle)
+    return c.model_copy(update={"safetyThreshold": safety_threshold})

@@ -62,6 +62,8 @@ export interface InventoryStoreState {
   setSelectedConsumableId: (id: string | null) => void
   getStockStatus: (current: number, threshold: number) => StockStatus
   getFilteredConsumables: () => Consumable[]
+  getRecentConsumables: (limit?: number) => Consumable[]
+  quickUpdateStock: (id: string, type: 'in' | 'out', quantity: number) => Promise<any>
 }
 
 export interface DashboardStats {

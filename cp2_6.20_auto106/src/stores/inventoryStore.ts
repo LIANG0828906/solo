@@ -125,4 +125,55 @@ export const useInventoryStore = create<InventoryStoreState>((set, get) => ({
       return matchesSearch && matchesStatus
     })
   },
+
+  getRecentConsumables: (limit: number = 5) => {
+    const { consumables, records } = get()
+    const recentConsumableIds = new Set<string>()
+    const recentConsumables: Consumable[] = []
+
+    for (const record of records) {
+      if (!recentConsumableIds.has(record.consumableId)) {
+        const consumable = consumables.find(c => c.id === record.consumableId)
+        if (consumable) {
+          recentConsumableIds.add(record.consumableId)
+          recentConsumables.push(consumable)
+          if (recentConsumables.length >= limit) break
+        }
+      }
+    }
+
+    if (recentConsumables.length < limit) {
+      const remaining = consumables
+        .filter(c => !recentConsumableIds.has(c.id))
+        .sort((a, b) => new Date(b.lastCheckTime).getTime() - new Date(a.lastCheckTime).getTime())
+        .slice(0, limit - recentConsumables.length)
+      recentConsumables.push(...remaining)
+    }
+
+    return recentConsumables
+  },
+
+  quickUpdateStock: async (id: string, type: 'in' | 'out', quantity: number) => {
+    try {
+      const response = await axios.post(`${API_BASE}/inventory/check`, {
+        consumableId: id,
+        type,
+        quantity,
+        remark: `快速${type === 'in' ? '入库' : '出库'}`,
+      })
+
+      const updatedConsumable = response.data.consumable
+      set((state) => ({
+        consumables: state.consumables.map(c =>
+          c.id === id ? updatedConsumable : c
+        ),
+      }))
+
+      await get().fetchRecords()
+      return response.data
+    } catch (error) {
+      console.error('Failed to quick update stock:', error)
+      throw error
+    }
+  },
 }))
