@@ -9,16 +9,35 @@ import {
   TextureType,
   TextureSettings,
   getDefaultGradientStops,
+  easeOutBack,
+  easeInOutCubic,
 } from './textRenderer';
 import { toPng } from 'html-to-image';
 import { saveAs } from 'file-saver';
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 400;
+const FONT_TRANSITION_DURATION = 300;
+const ALIGN_TRANSITION_DURATION = 500;
 
 interface ToastState {
   visible: boolean;
   message: string;
+}
+
+interface AnimationState {
+  fontTransition: {
+    active: boolean;
+    startTime: number;
+    oldFont: FontItem | null;
+    newFont: FontItem | null;
+  };
+  alignTransition: {
+    active: boolean;
+    startTime: number;
+    startOffsetX: number;
+    endOffsetX: number;
+  };
 }
 
 const App: React.FC = () => {
@@ -53,12 +72,19 @@ const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [activeSlider, setActiveSlider] = useState<string | null>(null);
+  const [renderPerformance, setRenderPerformance] = useState<number>(0);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const renderFrameRef = useRef<number>(0);
+  const animationFrameRef = useRef<number>(0);
   const renderOptionsRef = useRef<any>(null);
+  const needsRenderRef = useRef<boolean>(true);
+  const animationStateRef = useRef<AnimationState>({
+    fontTransition: { active: false, startTime: 0, oldFont: null, newFont: null },
+    alignTransition: { active: false, startTime: 0, startOffsetX: 0, endOffsetX: 0 },
+  });
+  const textAlignRef = useRef<'left' | 'center' | 'right'>('center');
 
   useEffect(() => {
     const availableFonts = fontLoader.getFonts();
@@ -89,60 +115,213 @@ const App: React.FC = () => {
     }, 2000);
   }, []);
 
-  const renderCanvas = useCallback(() => {
-    if (!canvasRef.current || !selectedFont) return;
+  const measureRenderPerformance = useCallback((startTime: number) => {
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    setRenderPerformance(duration);
+    
+    if (duration > 100) {
+      console.warn(`Render performance warning: ${duration.toFixed(2)}ms (target: <100ms)`);
+    }
+  }, []);
 
-    renderOptionsRef.current = {
-      text,
-      font: selectedFont,
-      fontSize,
-      textAlign,
-      rotation,
-      scale,
-      skew,
-      gradientStops,
-      gradientDirection,
-      useGradient,
-      shadow,
-      stroke,
-      texture,
-      canvasWidth: CANVAS_WIDTH,
-      canvasHeight: CANVAS_HEIGHT,
-      fillColor,
-    };
+  const getAlignOffsetX = useCallback((align: 'left' | 'center' | 'right'): number => {
+    if (!canvasRef.current || !selectedFont) return 0;
+    
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return 0;
+    
+    ctx.font = `${fontSize}px ${selectedFont.family}`;
+    const lines = text.split('\n');
+    const textWidth = Math.max(...lines.map((line) => ctx.measureText(line).width));
+    
+    switch (align) {
+      case 'left':
+        return -CANVAS_WIDTH / 2 + textWidth / 2 + 40;
+      case 'right':
+        return CANVAS_WIDTH / 2 - textWidth / 2 - 40;
+      case 'center':
+      default:
+        return 0;
+    }
+  }, [text, fontSize, selectedFont]);
 
-    if (renderFrameRef.current) {
-      cancelAnimationFrame(renderFrameRef.current);
+  const animate = useCallback(() => {
+    if (!canvasRef.current) return;
+
+    const now = performance.now();
+    let needsRedraw = needsRenderRef.current;
+    let currentFont = selectedFont;
+    let currentOpacity = 1;
+    let currentOffsetX = 0;
+
+    if (animationStateRef.current.fontTransition.active) {
+      const { startTime, oldFont, newFont } = animationStateRef.current.fontTransition;
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / FONT_TRANSITION_DURATION, 1);
+      const eased = easeInOutCubic(progress);
+
+      if (progress < 0.5) {
+        currentFont = oldFont;
+        currentOpacity = 1 - eased * 2;
+      } else {
+        currentFont = newFont;
+        currentOpacity = (eased - 0.5) * 2;
+      }
+
+      if (progress >= 1) {
+        animationStateRef.current.fontTransition.active = false;
+        currentFont = newFont;
+        currentOpacity = 1;
+      }
+      needsRedraw = true;
     }
 
-    renderFrameRef.current = requestAnimationFrame(() => {
-      if (!canvasRef.current || !renderOptionsRef.current) return;
+    if (animationStateRef.current.alignTransition.active) {
+      const { startTime, startOffsetX, endOffsetX } = animationStateRef.current.alignTransition;
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / ALIGN_TRANSITION_DURATION, 1);
+      const eased = easeOutBack(progress);
+      
+      currentOffsetX = startOffsetX + (endOffsetX - startOffsetX) * eased;
 
-      const canvas = renderTextToCanvas(renderOptionsRef.current);
+      if (progress >= 1) {
+        animationStateRef.current.alignTransition.active = false;
+        currentOffsetX = endOffsetX;
+      }
+      needsRedraw = true;
+    }
+
+    if (needsRedraw) {
+      needsRenderRef.current = false;
+      const renderStartTime = performance.now();
+      
+      const options = {
+        text,
+        font: currentFont || selectedFont!,
+        fontSize,
+        textAlign: textAlignRef.current,
+        rotation,
+        scale,
+        skew,
+        gradientStops,
+        gradientDirection,
+        useGradient,
+        shadow,
+        stroke,
+        texture,
+        canvasWidth: CANVAS_WIDTH,
+        canvasHeight: CANVAS_HEIGHT,
+        fillColor,
+        textOffsetX: currentOffsetX,
+        textOffsetY: 0,
+        opacity: currentOpacity,
+      };
+      
+      const canvas = renderTextToCanvas(options);
       const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         ctx.drawImage(canvas, 0, 0);
       }
-    });
-  }, [text, selectedFont, fontSize, textAlign, rotation, scale, skew, gradientStops, gradientDirection, useGradient, shadow, stroke, texture, fillColor]);
+      
+      renderOptionsRef.current = options;
+      measureRenderPerformance(renderStartTime);
+    }
+
+    if (
+      animationStateRef.current.fontTransition.active ||
+      animationStateRef.current.alignTransition.active
+    ) {
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }
+  }, [
+    text,
+    selectedFont,
+    fontSize,
+    rotation,
+    scale,
+    skew,
+    gradientStops,
+    gradientDirection,
+    useGradient,
+    shadow,
+    stroke,
+    texture,
+    fillColor,
+    measureRenderPerformance,
+  ]);
+
+  const renderCanvas = useCallback(() => {
+    if (!canvasRef.current || !selectedFont) return;
+
+    needsRenderRef.current = true;
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+  }, [animate, selectedFont]);
 
   useEffect(() => {
     renderCanvas();
     return () => {
-      if (renderFrameRef.current) {
-        cancelAnimationFrame(renderFrameRef.current);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [renderCanvas]);
+  }, [
+    text,
+    fontSize,
+    rotation,
+    scale,
+    skew,
+    gradientStops,
+    gradientDirection,
+    useGradient,
+    shadow,
+    stroke,
+    texture,
+    fillColor,
+    renderCanvas,
+  ]);
 
   const handleFontChange = (fontName: string) => {
-    const font = fonts.find((f) => f.name === fontName);
-    if (font) {
-      fontLoader.loadFont(font).then(() => {
-        setSelectedFont(font);
-      });
-    }
+    const newFont = fonts.find((f) => f.name === fontName);
+    if (!newFont || !selectedFont || newFont.name === selectedFont.name) return;
+
+    fontLoader.loadFont(newFont).then(() => {
+      const oldFont = selectedFont;
+      
+      animationStateRef.current.fontTransition = {
+        active: true,
+        startTime: performance.now(),
+        oldFont: oldFont,
+        newFont: newFont,
+      };
+
+      setSelectedFont(newFont);
+      renderCanvas();
+    });
+  };
+
+  const handleAlignChange = (newAlign: 'left' | 'center' | 'right') => {
+    if (newAlign === textAlignRef.current) return;
+
+    const startOffsetX = getAlignOffsetX(textAlignRef.current);
+    const endOffsetX = getAlignOffsetX(newAlign);
+
+    animationStateRef.current.alignTransition = {
+      active: true,
+      startTime: performance.now(),
+      startOffsetX,
+      endOffsetX,
+    };
+
+    textAlignRef.current = newAlign;
+    setTextAlign(newAlign);
+    renderCanvas();
   };
 
   const handleFileUpload = async (file: File) => {
@@ -157,8 +336,19 @@ const App: React.FC = () => {
     try {
       const newFont = await fontLoader.addCustomFont(file);
       setFonts(fontLoader.getFonts());
+      
+      if (selectedFont) {
+        animationStateRef.current.fontTransition = {
+          active: true,
+          startTime: performance.now(),
+          oldFont: selectedFont,
+          newFont: newFont,
+        };
+      }
+      
       setSelectedFont(newFont);
       showToast(`字体 "${newFont.name}" 已添加`);
+      renderCanvas();
     } catch (error) {
       showToast('字体加载失败');
     }
@@ -220,11 +410,11 @@ const App: React.FC = () => {
     try {
       const dataUrl = await toPng(canvasContainerRef.current, {
         quality: 1,
-        pixelRatio: 3,
+        pixelRatio: 3.125,
       });
 
       saveAs(dataUrl, 'typography-effect.png');
-      showToast('PNG图片已导出');
+      showToast('PNG图片已导出 (300 DPI)');
     } catch (error) {
       showToast('导出失败，请重试');
       console.error('Export error:', error);
@@ -254,6 +444,10 @@ const App: React.FC = () => {
 
     const transformCss = `  transform: rotate(${rotation}deg) scale(${scale}) skewX(${skew}deg);`;
 
+    const textureCss = texture.type !== 'none'
+      ? `  /* 纹理效果: ${texture.type} (透明度: ${texture.opacity}) */\n  /* 纹理效果在 CSS 中需要使用 mask 或 background-clip 实现 */`
+      : '';
+
     const cssCode = `.typography-effect {
   font-family: ${selectedFont?.family || 'sans-serif'};
   font-size: ${fontSize}px;
@@ -262,7 +456,9 @@ ${gradientCss}
 ${shadowCss}
 ${strokeCss}
 ${transformCss}
+${textureCss}
   display: inline-block;
+  line-height: 1.3;
 }`;
 
     navigator.clipboard
@@ -307,7 +503,7 @@ ${transformCss}
       <div className="control-label">
         <span>{label}</span>
         <span className={`value-display ${activeSlider === name ? 'active' : ''}`}>
-          {value}{unit}
+          {typeof value === 'number' && !isNaN(value) ? value.toFixed(step < 1 ? 1 : 0) : value}{unit}
         </span>
       </div>
       <input
@@ -414,7 +610,7 @@ ${transformCss}
                   <button
                     key={align}
                     className={`align-btn ${textAlign === align ? 'active' : ''}`}
-                    onClick={() => setTextAlign(align)}
+                    onClick={() => handleAlignChange(align)}
                   >
                     {align === 'left' ? '左' : align === 'center' ? '中' : '右'}
                   </button>
@@ -499,7 +695,7 @@ ${transformCss}
               <>
                 <div className="control-group">
                   <div className="control-label">
-                    <span>方向</span>
+                    <span>渐变方向</span>
                   </div>
                   <div className="direction-buttons">
                     {(['horizontal', 'vertical', 'diagonal'] as const).map((dir) => (
@@ -669,12 +865,18 @@ ${transformCss}
 
           <div className="section export-section">
             <button className="export-btn primary" onClick={exportToPng}>
-              导出 PNG
+              导出 PNG (300 DPI)
             </button>
             <button className="export-btn secondary" onClick={exportToCss}>
               导出 CSS 代码
             </button>
           </div>
+
+          {renderPerformance > 0 && (
+            <div className="perf-info">
+              渲染耗时: {renderPerformance.toFixed(2)}ms
+            </div>
+          )}
         </div>
       </div>
 
@@ -705,6 +907,7 @@ ${transformCss}
           background-color: #1e1e1e;
           color: #e0e0e0;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          overflow: hidden;
         }
 
         .mobile-header {
@@ -736,21 +939,24 @@ ${transformCss}
           border-radius: 4px;
           cursor: pointer;
           font-size: 14px;
+          transition: all 0.2s;
         }
 
         .toggle-panel-btn:hover {
           background: #3c3c3c;
+          border-color: #f0a030;
         }
 
         .control-panel {
           width: 320px;
           min-width: 320px;
           background: #1e1e1e;
-          border-right: none;
           display: flex;
           flex-direction: column;
           overflow: hidden;
-          transition: width 0.3s ease, min-width 0.3s ease;
+          transition: width 0.3s ease, min-width 0.3s ease, transform 0.3s ease;
+          position: relative;
+          z-index: 1;
         }
 
         .control-panel.collapsed {
@@ -762,6 +968,7 @@ ${transformCss}
           padding: 20px;
           border-bottom: 1px solid #3c3c3c;
           background: #1a1a1a;
+          flex-shrink: 0;
         }
 
         .app-title {
@@ -774,6 +981,7 @@ ${transformCss}
           flex: 1;
           overflow-y: auto;
           padding: 16px;
+          overflow-x: hidden;
         }
 
         .section {
@@ -818,6 +1026,8 @@ ${transformCss}
           border-radius: 3px;
           opacity: 0.7;
           transition: opacity 0.2s;
+          min-width: 40px;
+          text-align: center;
         }
 
         .value-display.active {
@@ -833,6 +1043,11 @@ ${transformCss}
           border-radius: 3px;
           outline: none;
           cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .slider:hover {
+          background: #353535;
         }
 
         .slider::-webkit-slider-thumb {
@@ -868,6 +1083,7 @@ ${transformCss}
           background: #2d2d2d;
           border-radius: 2px;
           outline: none;
+          cursor: pointer;
         }
 
         .slider-small::-webkit-slider-thumb {
@@ -891,6 +1107,7 @@ ${transformCss}
           cursor: pointer;
           outline: none;
           margin-bottom: 12px;
+          transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .font-select:hover {
@@ -916,6 +1133,7 @@ ${transformCss}
         .drop-zone.dragging {
           border-color: #f0a030;
           background: rgba(240, 160, 48, 0.1);
+          transform: translateY(-1px);
         }
 
         .drop-text {
@@ -948,6 +1166,7 @@ ${transformCss}
           outline: none;
           margin-bottom: 12px;
           min-height: 60px;
+          transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .text-input:hover {
@@ -973,7 +1192,7 @@ ${transformCss}
           border-radius: 4px;
           cursor: pointer;
           font-size: 13px;
-          transition: all 0.15s;
+          transition: all 0.15s ease;
         }
 
         .align-btn:hover {
@@ -1050,6 +1269,7 @@ ${transformCss}
           background: #2d2d2d;
           cursor: pointer;
           padding: 2px;
+          transition: border-color 0.2s;
         }
 
         .color-input:hover {
@@ -1064,6 +1284,11 @@ ${transformCss}
           cursor: pointer;
           padding: 1px;
           background: #2d2d2d;
+          transition: border-color 0.2s;
+        }
+
+        .color-input-small:hover {
+          border-color: #f0a030;
         }
 
         .color-text {
@@ -1076,6 +1301,7 @@ ${transformCss}
           font-size: 13px;
           font-family: monospace;
           outline: none;
+          transition: border-color 0.2s;
         }
 
         .color-text:focus {
@@ -1097,7 +1323,7 @@ ${transformCss}
           border-radius: 4px;
           cursor: pointer;
           font-size: 12px;
-          transition: all 0.15s;
+          transition: all 0.15s ease;
         }
 
         .direction-btn:hover {
@@ -1144,6 +1370,7 @@ ${transformCss}
           display: flex;
           align-items: center;
           justify-content: center;
+          transition: all 0.15s;
         }
 
         .remove-stop-btn:hover {
@@ -1161,6 +1388,7 @@ ${transformCss}
           cursor: pointer;
           font-size: 12px;
           margin-top: 4px;
+          transition: all 0.2s;
         }
 
         .add-stop-btn:hover {
@@ -1183,7 +1411,7 @@ ${transformCss}
           border-radius: 4px;
           cursor: pointer;
           font-size: 12px;
-          transition: all 0.15s;
+          transition: all 0.15s ease;
         }
 
         .texture-btn:hover {
@@ -1210,7 +1438,7 @@ ${transformCss}
           font-size: 14px;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
           margin-bottom: 8px;
         }
 
@@ -1244,6 +1472,16 @@ ${transformCss}
           border-color: #505050;
         }
 
+        .perf-info {
+          margin-top: 12px;
+          padding: 8px 12px;
+          background: #1a1a1a;
+          border-radius: 4px;
+          font-size: 11px;
+          color: #707070;
+          text-align: center;
+        }
+
         .divider {
           width: 1px;
           background: #3c3c3c;
@@ -1258,6 +1496,7 @@ ${transformCss}
           background: #f5f5f5;
           padding: 40px;
           overflow: auto;
+          min-width: 0;
         }
 
         .canvas-container {
@@ -1271,6 +1510,8 @@ ${transformCss}
           display: block;
           border: 1px solid #ccc;
           border-radius: 4px;
+          max-width: 100%;
+          height: auto;
         }
 
         .toast {
@@ -1300,6 +1541,7 @@ ${transformCss}
           .app-container {
             flex-direction: column;
             padding-top: 50px;
+            height: 100vh;
           }
 
           .mobile-header {
@@ -1311,18 +1553,23 @@ ${transformCss}
             top: 50px;
             left: 0;
             right: 0;
-            bottom: 0;
             width: 100%;
             min-width: unset;
             height: calc(100vh - 50px);
             z-index: 90;
             transform: translateY(0);
             transition: transform 0.3s ease;
+            overflow: hidden;
           }
 
           .control-panel.collapsed {
             transform: translateY(-100%);
             width: 100%;
+            min-width: unset;
+          }
+
+          .panel-header {
+            display: none;
           }
 
           .divider {
@@ -1332,11 +1579,22 @@ ${transformCss}
           .canvas-area {
             flex: 1;
             padding: 20px;
+            min-height: 0;
           }
 
           .preview-canvas {
             max-width: 100%;
             height: auto;
+          }
+        }
+
+        @media (max-width: 600px) {
+          .canvas-area {
+            padding: 10px;
+          }
+
+          .preview-canvas {
+            max-width: 100%;
           }
         }
       `}</style>
