@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import TeacherCard from '../modules/teachers/TeacherCard'
 import { Teacher, getTeachers } from '../modules/teachers/TeacherService'
 import './HomePage.css'
@@ -8,7 +8,8 @@ const HomePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredTeachers, setFilteredTeachers] = useState<Teacher[]>([])
   const [loading, setLoading] = useState(true)
-  const [animationKey, setAnimationKey] = useState(0)
+  const [animate, setAnimate] = useState(false)
+  const prevSearchRef = useRef('')
 
   useEffect(() => {
     fetchTeachers()
@@ -16,7 +17,15 @@ const HomePage: React.FC = () => {
 
   useEffect(() => {
     filterTeachers()
-    setAnimationKey((prev) => prev + 1)
+    if (prevSearchRef.current !== searchQuery) {
+      setAnimate(false)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setAnimate(true)
+        })
+      })
+      prevSearchRef.current = searchQuery
+    }
   }, [searchQuery, teachers])
 
   const fetchTeachers = async () => {
@@ -25,6 +34,7 @@ const HomePage: React.FC = () => {
       const data = await getTeachers()
       setTeachers(data)
       setFilteredTeachers(data)
+      setAnimate(true)
     } catch (error) {
       console.error('Failed to fetch teachers:', error)
     } finally {
@@ -75,11 +85,11 @@ const HomePage: React.FC = () => {
         {loading ? (
           <div className="loading">加载中...</div>
         ) : filteredTeachers.length > 0 ? (
-          <div className="teacher-grid" key={animationKey}>
+          <div className="teacher-grid">
             {filteredTeachers.map((teacher, index) => (
             <div
               key={teacher.id}
-              className="teacher-card-wrapper fade-in"
+              className={`teacher-card-wrapper ${animate ? 'fade-in' : 'fade-out'}`}
               style={{ animationDelay: `${index * 0.05}s` }}
             >
               <TeacherCard teacher={teacher} />

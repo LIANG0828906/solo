@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Calendar, momentLocalizer, Event } from 'react-big-calendar'
 import moment from 'moment'
-import { Booking, getBookings, createBooking } from './BookingService'
+import { Booking, getBookings, createBooking, addReview, cancelBooking } from './BookingService'
 import { Teacher, getTeachers } from '../teachers/TeacherService'
 import { useAuth } from '../auth/AuthContext'
 import './BookingCalendar.css'
@@ -25,6 +25,9 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({ showCreateModal = tru
   const [selectedTeacher, setSelectedTeacher] = useState<number | ''>('')
   const [subject, setSubject] = useState('')
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [showReviewForm, setShowReviewForm] = useState(false)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState('')
   const { user, isTeacher } = useAuth()
 
   useEffect(() => {
@@ -66,15 +69,26 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({ showCreateModal = tru
     }
   }
 
+  const canAddReview = (booking: Booking) => {
+    if (booking.status !== 'completed' && booking.status !== 'confirmed') return false
+    const endTime = moment(`${booking.date} ${booking.endTime}`)
+    const now = moment()
+    const hoursDiff = now.diff(endTime, 'hours')
+    return hoursDiff <= 24 && hoursDiff >= 0
+  }
+
   const handleSelectSlot = (slotInfo: { start: Date; end: Date }) => {
     if (showCreateModal && !isTeacher) {
       setSelectedSlot(slotInfo)
+      setSelectedBooking(null)
       setShowModal(true)
     }
   }
 
   const handleSelectEvent = (event: BookingEvent) => {
     setSelectedBooking(event.booking)
+    setSelectedSlot(null)
+    setShowReviewForm(false)
     setShowModal(true)
   }
 
@@ -108,6 +122,34 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({ showCreateModal = tru
     }
   }
 
+  const handleCancelBooking = async () => {
+    if (!selectedBooking) return
+    try {
+      await cancelBooking(selectedBooking.id)
+      setShowModal(false)
+      setSelectedBooking(null)
+      fetchBookings()
+    } catch (error) {
+      console.error('Failed to cancel booking:', error)
+      alert('取消失败，请重试')
+    }
+  }
+
+  const handleSubmitReview = async () => {
+    if (!selectedBooking) return
+    try {
+      await addReview(selectedBooking.id, { rating: reviewRating, comment: reviewComment })
+      setShowReviewForm(false)
+      setReviewRating(5)
+      setReviewComment('')
+      alert('评价成功！')
+      fetchBookings()
+    } catch (error) {
+      console.error('Failed to add review:', error)
+      alert('评价失败，请重试')
+    }
+  }
+
   const eventStyleGetter = (event: BookingEvent) => {
     let backgroundColor = '#4a90d9'
     switch (event.booking.status) {
@@ -136,6 +178,16 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({ showCreateModal = tru
     }
   }
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending': return '待确认'
+      case 'confirmed': return '已确认'
+      case 'cancelled': return '已取消'
+      case 'completed': return '已完成'
+      default: return status
+    }
+  }
+
   return (
     <div className="booking-calendar">
       <Calendar
@@ -153,9 +205,9 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({ showCreateModal = tru
       />
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowModal(false); setShowReviewForm(false) }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            {selectedBooking ? (
+            {selectedBooking && !showReviewForm ? (
               <>
                 <h3>预约详情</h3>
                 <div className="booking-detail">
@@ -166,16 +218,63 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({ showCreateModal = tru
                   <p><strong>时间：</strong>{selectedBooking.startTime} - {selectedBooking.endTime}</p>
                   <p><strong>状态：</strong>
                     <span className={`status status-${selectedBooking.status}`}>
-                      {selectedBooking.status === 'pending' && '待确认'}
-                      {selectedBooking.status === 'confirmed' && '已确认'}
-                      {selectedBooking.status === 'cancelled' && '已取消'}
-                      {selectedBooking.status === 'completed' && '已完成'}
+                      {getStatusText(selectedBooking.status)}
                     </span>
                   </p>
                 </div>
                 <div className="modal-actions">
+                  {!isTeacher && selectedBooking.status === 'pending' && (
+                    <button className="btn btn-danger" onClick={handleCancelBooking}>
+                      取消预约
+                    </button>
+                  )}
+                  {!isTeacher && canAddReview(selectedBooking) && (
+                    <button className="btn btn-review" onClick={() => setShowReviewForm(true)}>
+                      评价
+                    </button>
+                  )}
                   <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
                     关闭
+                  </button>
+                </div>
+              </>
+            ) : selectedBooking && showReviewForm ? (
+              <>
+                <h3>添加评价</h3>
+                <div className="review-form">
+                  <div className="form-group">
+                    <label>评分</label>
+                    <div className="rating-stars">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <span
+                          key={star}
+                          className={`star-rating ${star <= reviewRating ? 'active' : ''}`}
+                          onClick={() => setReviewRating(star)}
+                        >
+                          ★
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>评价内容</label>
+                    <textarea
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value.slice(0, 200))}
+                      placeholder="请输入您的评价..."
+                      className="form-textarea"
+                      rows={4}
+                      maxLength={200}
+                    />
+                    <div className="char-count">{reviewComment.length}/200</div>
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button className="btn btn-secondary" onClick={() => setShowReviewForm(false)}>
+                    取消
+                  </button>
+                  <button className="btn btn-primary" onClick={handleSubmitReview}>
+                    提交评价
                   </button>
                 </div>
               </>

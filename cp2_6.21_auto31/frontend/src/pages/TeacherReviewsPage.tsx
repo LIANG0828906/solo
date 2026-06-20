@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import moment from 'moment'
-import { Review, getTeacherReviews } from '../modules/teachers/TeacherService'
+import { Review, getMyReviews } from '../modules/teachers/TeacherService'
 import './TeacherReviewsPage.css'
 
 const TeacherReviewsPage: React.FC = () => {
@@ -14,7 +14,7 @@ const TeacherReviewsPage: React.FC = () => {
   const fetchReviews = async () => {
     try {
       setLoading(true)
-      const data = await getTeacherReviews(0)
+      const data = await getMyReviews()
       setReviews(data)
     } catch (error) {
       console.error('Failed to fetch reviews:', error)

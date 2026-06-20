@@ -62,11 +62,7 @@ const TeacherCard: React.FC<TeacherCardProps> = ({ teacher }) => {
   return (
     <div className="teacher-card" onClick={handleClick}>
       <div className="teacher-avatar">
-        {teacher.avatar ? (
-          <img src={teacher.avatar} alt={teacher.name} />
-        ) : (
-          <span className="avatar-letter">{teacher.name.charAt(0)}</span>
-        )}
+        <span className="avatar-letter">{teacher.name.charAt(0)}</span>
       </div>
       <div className="teacher-info">
         <h3 className="teacher-name">{teacher.name}</h3>

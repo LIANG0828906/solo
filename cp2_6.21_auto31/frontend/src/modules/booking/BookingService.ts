@@ -28,13 +28,31 @@ export interface ReviewData {
 }
 
 export const createBooking = async (data: CreateBookingData): Promise<Booking> => {
-  const response = await api.post('/bookings', data)
+  const payload = {
+    teacher_id: data.teacherId,
+    start_time: `${data.date}T${data.startTime}:00`,
+    end_time: `${data.date}T${data.endTime}:00`,
+    subject: data.subject,
+  }
+  const response = await api.post('/bookings', payload)
   return response.data
 }
 
 export const getBookings = async (): Promise<Booking[]> => {
   const response = await api.get('/bookings')
-  return response.data
+  return response.data.map((b: any) => ({
+    id: b.id,
+    teacherId: b.teacher_id,
+    teacherName: b.teacher_name,
+    studentId: b.student_id,
+    studentName: b.student_name,
+    subject: b.subject,
+    date: b.start_time.slice(0, 10),
+    startTime: b.start_time.slice(11, 16),
+    endTime: b.end_time.slice(11, 16),
+    status: b.status,
+    createdAt: b.start_time,
+  }))
 }
 
 export const cancelBooking = async (id: number): Promise<Booking> => {
@@ -48,11 +66,29 @@ export const confirmBooking = async (id: number): Promise<Booking> => {
 }
 
 export const addReview = async (id: number, data: ReviewData): Promise<any> => {
-  const response = await api.post(`/bookings/${id}/review`, data)
+  const payload = {
+    booking_id: id,
+    rating: data.rating,
+    comment: data.comment,
+  }
+  const response = await api.post('/reviews', payload)
   return response.data
 }
 
 export const getBookingDetail = async (id: number): Promise<Booking> => {
   const response = await api.get(`/bookings/${id}`)
-  return response.data
+  const b = response.data
+  return {
+    id: b.id,
+    teacherId: b.teacher_id,
+    teacherName: b.teacher_name,
+    studentId: b.student_id,
+    studentName: b.student_name,
+    subject: b.subject,
+    date: b.start_time.slice(0, 10),
+    startTime: b.start_time.slice(11, 16),
+    endTime: b.end_time.slice(11, 16),
+    status: b.status,
+    createdAt: b.start_time,
+  }
 }
