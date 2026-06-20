@@ -30,7 +30,9 @@ export interface PointLightData {
 export interface LightingConfig {
   ambientIntensity: number;
   ambientColor: string;
+  ambientEnabled: boolean;
   pointLights: PointLightData[];
+  pointLightsEnabled: Record<string, boolean>;
 }
 
 export type CameraPathType = 'orbit' | 'linear' | 'snake' | 'none';
@@ -56,6 +58,8 @@ export interface SceneActions {
   setAmbientIntensity: (intensity: number) => void;
   setCameraPath: (path: CameraPathType) => void;
   toggleAnimation: () => void;
+  toggleLight: (lightId: string | 'ambient') => void;
+  setPointLightIntensity: (id: string, intensity: number) => void;
   exportScene: () => string;
   importScene: (json: string) => void;
 }

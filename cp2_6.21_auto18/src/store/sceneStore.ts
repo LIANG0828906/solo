@@ -21,6 +21,12 @@ const initialPointLights: PointLightData[] = [
   { id: 'light3', position: { x: 0, y: 2, z: -5 }, color: '#ff66aa', intensity: 1.0 },
 ];
 
+const initialPointLightsEnabled: Record<string, boolean> = {
+  light1: true,
+  light2: true,
+  light3: true,
+};
+
 export const useSceneStore = create<SceneStore>((set, get) => ({
   exhibits: [],
   selectedId: null,
@@ -28,7 +34,9 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
   lighting: {
     ambientIntensity: 0.4,
     ambientColor: '#ffffff',
+    ambientEnabled: true,
     pointLights: initialPointLights,
+    pointLightsEnabled: initialPointLightsEnabled,
   },
   cameraPath: 'none',
   isAnimating: false,
@@ -112,6 +120,41 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
     const { isAnimating, cameraPath } = get();
     if (cameraPath === 'none') return;
     set({ isAnimating: !isAnimating });
+  },
+
+  toggleLight: (lightId: string | 'ambient') => {
+    const { lighting } = get();
+    if (lightId === 'ambient') {
+      set({
+        lighting: {
+          ...lighting,
+          ambientEnabled: !lighting.ambientEnabled,
+        },
+      });
+    } else {
+      set({
+        lighting: {
+          ...lighting,
+          pointLightsEnabled: {
+            ...lighting.pointLightsEnabled,
+            [lightId]: !lighting.pointLightsEnabled[lightId],
+          },
+        },
+      });
+    }
+  },
+
+  setPointLightIntensity: (id: string, intensity: number) => {
+    const { lighting } = get();
+    const clampedIntensity = Math.max(0, Math.min(3, intensity));
+    set({
+      lighting: {
+        ...lighting,
+        pointLights: lighting.pointLights.map((light) =>
+          light.id === id ? { ...light, intensity: clampedIntensity } : light
+        ),
+      },
+    });
   },
 
   exportScene: (): string => {

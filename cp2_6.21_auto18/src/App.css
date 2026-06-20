@@ -566,7 +566,7 @@ body {
   font-size: 12px;
   color: var(--text-secondary);
   text-align: right;
-  font-family: 'SF Mono, Monaco, monospace;
+  font-family: 'SF Mono', Monaco, monospace;
   flex-shrink: 0;
 }
 
@@ -664,6 +664,54 @@ body {
   font-size: 10px;
   color: var(--text-muted);
   opacity: 0.6;
+}
+
+.toggle-button {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  margin-left: auto;
+  padding: 0;
+}
+
+.toggle-button.on {
+  background: rgba(0, 255, 170, 0.2);
+  color: var(--accent-color);
+}
+
+.toggle-button.off {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+}
+
+.toggle-button:hover {
+  transform: scale(1.1);
+}
+
+.slider:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.color-picker:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.light-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.light-section-header span {
+  flex: 1;
 }
 
 @media (max-width: 1024px) {

@@ -55,6 +55,17 @@ export function parseSceneJSON(json: string): SceneData | null {
     if (!data.lighting || !data.lighting.pointLights) {
       return null;
     }
+
+    if (data.lighting.ambientEnabled === undefined) {
+      data.lighting.ambientEnabled = true;
+    }
+    if (!data.lighting.pointLightsEnabled) {
+      data.lighting.pointLightsEnabled = {};
+      data.lighting.pointLights.forEach((light) => {
+        data.lighting.pointLightsEnabled[light.id] = true;
+      });
+    }
+
     return data;
   } catch {
     return null;
