@@ -40,7 +40,7 @@ export default function MilestoneGantt() {
   return (
     <div>
       <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24, color: '#1e293b' }}>里程碑甘特图</h2>
-      <div className="gantt-container" ref={containerRef} style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+      <div className="gantt-container" ref={containerRef} style={{ maxHeight: '70vh' }}>
         <div className="gantt-header">
           <div style={{ width: 180, padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#64748b', flexShrink: 0 }}>里程碑</div>
           {MONTHS.map((m) => (

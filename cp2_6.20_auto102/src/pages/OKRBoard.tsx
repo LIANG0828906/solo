@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useOKRStore, Objective } from '../store/okrStore'
 import ObjectiveCard from '../components/ObjectiveCard'
 import { v4 as uuidv4 } from 'uuid'
@@ -8,6 +8,37 @@ const LEVEL_CONFIG = [
   { key: 'department' as const, label: '部门级' },
   { key: 'individual' as const, label: '个人级' },
 ]
+
+interface VirtualColumnProps {
+  items: Objective[]
+  renderItem: (obj: Objective) => React.ReactNode
+}
+
+const VirtualColumn = ({ items, renderItem }: VirtualColumnProps) => {
+  const [scrollTop, setScrollTop] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const itemHeight = 140
+  const overscan = 3
+  const containerHeight = 600
+
+  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan)
+  const endIndex = Math.min(items.length, Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan)
+  const visibleItems = items.slice(startIndex, endIndex)
+
+  return (
+    <div
+      ref={containerRef}
+      style={{ height: containerHeight, overflowY: 'auto' }}
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+    >
+      <div style={{ height: items.length * itemHeight, position: 'relative' }}>
+        <div style={{ position: 'absolute', top: startIndex * itemHeight, width: '100%' }}>
+          {visibleItems.map(renderItem)}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function OKRBoard() {
   const { objectives, fetchObjectives, createObjective, moveObjective } = useOKRStore()
@@ -70,6 +101,18 @@ export default function OKRBoard() {
     }
   }
 
+  const renderCard = (obj: Objective) => (
+    <ObjectiveCard
+      key={obj.id}
+      objective={obj}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      onDragEnd={handleDragEnd}
+      isDragOver={dragOverId === obj.id}
+    />
+  )
+
   return (
     <div>
       <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24, color: '#1e293b' }}>OKR 目标看板</h2>
@@ -82,17 +125,7 @@ export default function OKRBoard() {
                 <span className="level-badge">{label}</span>
                 <span className="count-badge">{items.length}</span>
               </div>
-              {items.map((obj) => (
-                <ObjectiveCard
-                  key={obj.id}
-                  objective={obj}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  onDragEnd={handleDragEnd}
-                  isDragOver={dragOverId === obj.id}
-                />
-              ))}
+              <VirtualColumn items={items} renderItem={renderCard} />
               <button className="add-objective-btn" onClick={() => handleAddObjective(key)}>
                 + 添加{label}目标
               </button>

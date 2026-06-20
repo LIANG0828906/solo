@@ -7,7 +7,7 @@ interface KeyResultEditorProps {
 }
 
 export default function KeyResultEditor({ objective, onClose }: KeyResultEditorProps) {
-  const { updateObjective } = useOKRStore()
+  const { updateObjective, broadcastUpdate } = useOKRStore()
   const [keyResults, setKeyResults] = useState<KeyResult[]>(
     objective.keyResults.map((kr) => ({ ...kr }))
   )
@@ -20,6 +20,7 @@ export default function KeyResultEditor({ objective, onClose }: KeyResultEditorP
 
   const handleSave = async () => {
     await updateObjective(objective.id, { keyResults })
+    broadcastUpdate('objective_updated', { ...objective, keyResults })
     onClose()
   }
 

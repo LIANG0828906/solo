@@ -53,6 +53,7 @@ interface OKRStore {
   removeToast: (id: string) => void
   initSocket: () => void
   disconnectSocket: () => void
+  broadcastUpdate: (event: string, data: any) => void
 }
 
 let toastIdCounter = 0
@@ -85,7 +86,18 @@ export const useOKRStore = create<OKRStore>((set, get) => ({
   },
 
   moveObjective: async (id, parentId) => {
-    await okrAPI.moveObjective(id, parentId)
+    await okrAPI.updateObjective(id, { parentId })
+  },
+
+  broadcastUpdate: (event: string, data: any) => {
+    const { socket } = get()
+    if (socket) {
+      socket.emit('message', JSON.stringify({
+        event,
+        data,
+        user: '当前用户'
+      }))
+    }
   },
 
   fetchMilestones: async () => {

@@ -51,7 +51,7 @@ function App() {
           <div key={toast.id} className="toast">
             <svg className="toast-ring" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="9" fill="none" stroke="#4338ca" strokeWidth="2" opacity="0.3" />
-              <circle cx="12" cy="12" r="9" fill="none" stroke="#6366f1" strokeWidth="2" strokeDasharray="56.55" strokeDashoffset="0" style={{ animation: 'toastRing 3s linear forwards', transformOrigin: 'center', transform: 'rotate(-90deg)' }} />
+              <circle cx="12" cy="12" r="9" fill="none" stroke="#6366f1" strokeWidth="2" strokeDasharray="56.55" strokeDashoffset="0" style={{ animation: 'toastRingAnim 3s linear forwards', transformOrigin: 'center', transform: 'rotate(-90deg)' }} />
             </svg>
             {toast.message}
           </div>
