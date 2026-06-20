@@ -100,12 +100,45 @@ INGREDIENTS_DB: Dict[str, Dict] = {
 
 
 UNIT_CONVERSIONS = {
-    "g": 1.0,
-    "ml": 1.0,
-    "个": 50.0,
-    "片": 30.0,
-    "根": 120.0,
+    "g": {"factor": 1.0, "category": "weight", "label": "克"},
+    "克": {"factor": 1.0, "category": "weight", "label": "克"},
+    "ml": {"factor": 1.0, "category": "volume", "label": "毫升"},
+    "毫升": {"factor": 1.0, "category": "volume", "label": "毫升"},
+    "个": {"factor": 50.0, "category": "piece", "label": "个"},
+    "只": {"factor": 50.0, "category": "piece", "label": "只"},
+    "片": {"factor": 30.0, "category": "piece", "label": "片"},
+    "根": {"factor": 120.0, "category": "piece", "label": "根"},
+    "勺": {"factor": 15.0, "category": "volume", "label": "勺"},
+    "汤匙": {"factor": 15.0, "category": "volume", "label": "汤匙"},
+    "茶匙": {"factor": 5.0, "category": "volume", "label": "茶匙"},
+    "杯": {"factor": 240.0, "category": "volume", "label": "杯"},
+    "小碗": {"factor": 150.0, "category": "volume", "label": "小碗"},
+    "大碗": {"factor": 300.0, "category": "volume", "label": "大碗"},
+    "块": {"factor": 30.0, "category": "piece", "label": "块"},
+    "条": {"factor": 25.0, "category": "piece", "label": "条"},
 }
+
+DEFAULT_UNIT_FACTOR = 1.0
+DEFAULT_UNIT_CATEGORY = "weight"
+
+
+def get_unit_factor(unit: str) -> float:
+    unit_info = UNIT_CONVERSIONS.get(unit)
+    if unit_info:
+        return unit_info["factor"]
+    lower_unit = unit.lower().strip()
+    for key, info in UNIT_CONVERSIONS.items():
+        if key.lower() == lower_unit:
+            return info["factor"]
+    return DEFAULT_UNIT_FACTOR
+
+
+def register_unit(unit: str, factor: float, category: str = "custom", label: str = "") -> None:
+    UNIT_CONVERSIONS[unit] = {
+        "factor": factor,
+        "category": category,
+        "label": label or unit,
+    }
 
 
 recipes: List[Recipe] = []
@@ -250,30 +283,55 @@ def calculate_nutrition(ingredients: List[RecipeIngredient]) -> Dict[str, float]
     total_protein = 0.0
     total_fat = 0.0
     total_carbs = 0.0
+    processed_count = 0
+    skipped_ingredients = []
     
     for ing in ingredients:
-        ing_data = None
-        for db_ing in INGREDIENTS_DB.values():
-            if db_ing["name"] == ing.name:
-                ing_data = db_ing
-                break
-        if not ing_data and ing.ingredientId and ing.ingredientId in INGREDIENTS_DB:
-            ing_data = INGREDIENTS_DB[ing.ingredientId]
-        
-        if ing_data:
-            unit_factor = UNIT_CONVERSIONS.get(ing.unit, 1.0)
-            weight_grams = ing.amount * unit_factor
+        try:
+            ing_data = None
+            
+            if ing.ingredientId and ing.ingredientId in INGREDIENTS_DB:
+                ing_data = INGREDIENTS_DB[ing.ingredientId]
+            
+            if not ing_data:
+                for db_ing in INGREDIENTS_DB.values():
+                    if db_ing["name"] == ing.name:
+                        ing_data = db_ing
+                        break
+            
+            if not ing_data:
+                skipped_ingredients.append(ing.name)
+                continue
+            
+            unit_factor = get_unit_factor(ing.unit)
+            if unit_factor <= 0:
+                unit_factor = DEFAULT_UNIT_FACTOR
+            
+            amount = float(ing.amount) if ing.amount else 0.0
+            if amount <= 0:
+                continue
+            
+            weight_grams = amount * unit_factor
             factor = weight_grams / 100.0
-            total_calories += ing_data["caloriesPer100g"] * factor
-            total_protein += ing_data["proteinPer100g"] * factor
-            total_fat += ing_data["fatPer100g"] * factor
-            total_carbs += ing_data["carbsPer100g"] * factor
+            
+            total_calories += float(ing_data.get("caloriesPer100g", 0)) * factor
+            total_protein += float(ing_data.get("proteinPer100g", 0)) * factor
+            total_fat += float(ing_data.get("fatPer100g", 0)) * factor
+            total_carbs += float(ing_data.get("carbsPer100g", 0)) * factor
+            
+            processed_count += 1
+            
+        except (ValueError, TypeError, KeyError) as e:
+            skipped_ingredients.append(f"{ing.name} (error: {str(e)})")
+            continue
     
     return {
-        "calories": round(total_calories, 1),
-        "protein": round(total_protein, 1),
-        "fat": round(total_fat, 1),
-        "carbs": round(total_carbs, 1)
+        "calories": round(max(total_calories, 0), 1),
+        "protein": round(max(total_protein, 0), 1),
+        "fat": round(max(total_fat, 0), 1),
+        "carbs": round(max(total_carbs, 0), 1),
+        "processedCount": processed_count,
+        "skippedIngredients": skipped_ingredients,
     }
 
 

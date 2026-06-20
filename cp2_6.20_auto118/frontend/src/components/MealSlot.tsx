@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Recipe } from '../types';
+import { useDragDrop } from '../contexts/DragDropContext';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner';
 
@@ -19,6 +20,21 @@ const mealTypeLabels: Record<MealType, string> = {
 
 const MealSlot: React.FC<MealSlotProps> = ({ date, mealType, recipe, onDrop, onRemove }) => {
   const [isOver, setIsOver] = useState(false);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const { overSlotKey, draggedRecipe, registerSlot, unregisterSlot, isDragging } = useDragDrop();
+  
+  const slotKey = `${date}-${mealType}`;
+  const isTouchOver = overSlotKey === slotKey;
+  const showDropPlaceholder = (isOver || isTouchOver) && draggedRecipe;
+
+  useEffect(() => {
+    if (slotRef.current) {
+      registerSlot(slotKey, slotRef.current, date, mealType);
+    }
+    return () => {
+      unregisterSlot(slotKey);
+    };
+  }, [slotKey, date, mealType, registerSlot, unregisterSlot]);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -41,7 +57,8 @@ const MealSlot: React.FC<MealSlotProps> = ({ date, mealType, recipe, onDrop, onR
 
   return (
     <div
-      className={`meal-slot${isOver ? ' meal-slot-over' : ''}${recipe ? ' meal-slot-filled' : ''}`}
+      ref={slotRef}
+      className={`meal-slot${isOver || isTouchOver ? ' meal-slot-over' : ''}${recipe ? ' meal-slot-filled' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -75,6 +92,11 @@ const MealSlot: React.FC<MealSlotProps> = ({ date, mealType, recipe, onDrop, onR
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           <span>拖拽食谱到此</span>
+        </div>
+      )}
+      {showDropPlaceholder && (
+        <div className="meal-slot-drop-placeholder">
+          <div className="meal-slot-drop-recipe-name">{draggedRecipe?.title}</div>
         </div>
       )}
     </div>

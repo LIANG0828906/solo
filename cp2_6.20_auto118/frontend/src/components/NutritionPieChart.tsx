@@ -56,7 +56,11 @@ const NutritionPieChart = ({ nutrition }: NutritionPieChartProps) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    let animationId = 0;
+    let isMounted = true;
+
     const resizeCanvas = () => {
+      if (!isMounted || !canvas || !container || !ctx) return;
       const size = Math.min(container.clientWidth, 360);
       const dpr = window.devicePixelRatio || 1;
       canvas.width = size * dpr;
@@ -71,6 +75,8 @@ const NutritionPieChart = ({ nutrition }: NutritionPieChartProps) => {
     resizeObserver.observe(container);
 
     const draw = (timestamp: number) => {
+      if (!isMounted || !canvas || !ctx) return;
+
       if (!startTimeRef.current) {
         startTimeRef.current = timestamp;
       }
@@ -102,7 +108,10 @@ const NutritionPieChart = ({ nutrition }: NutritionPieChartProps) => {
         ctx.fillStyle = '#8a8275';
         ctx.fillText('kcal', centerX, centerY + 14);
 
-        animationRef.current = requestAnimationFrame(draw);
+        if (isMounted) {
+          animationId = requestAnimationFrame(draw);
+          animationRef.current = animationId;
+        }
         return;
       }
 
@@ -147,15 +156,25 @@ const NutritionPieChart = ({ nutrition }: NutritionPieChartProps) => {
       ctx.fillText('kcal', centerX, centerY + 14);
 
       lastFrameTimeRef.current = timestamp;
-      animationRef.current = requestAnimationFrame(draw);
+
+      if (isMounted) {
+        animationId = requestAnimationFrame(draw);
+        animationRef.current = animationId;
+      }
     };
 
-    animationRef.current = requestAnimationFrame(draw);
+    animationId = requestAnimationFrame(draw);
+    animationRef.current = animationId;
 
     return () => {
+      isMounted = false;
+      cancelAnimationFrame(animationId);
       cancelAnimationFrame(animationRef.current);
-      resizeObserver.disconnect();
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       startTimeRef.current = 0;
+      lastFrameTimeRef.current = 0;
     };
   }, [values, total, nutrition.calories]);
 

@@ -144,15 +144,35 @@ def meal_plan_to_dict(mp: MealPlan) -> Dict[str, Any]:
     }
 
 
-def _notify_summary_change():
-    today_str = date.today().strftime("%Y-%m-%d")
-    summary = calculate_daily_summary(today_str)
+def _notify_summary_change(target_date: Optional[str] = None):
+    if target_date is None:
+        target_date = date.today().strftime("%Y-%m-%d")
+    summary = calculate_daily_summary(target_date)
+    summary["date"] = target_date
     import asyncio
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            loop.create_task(manager.broadcast(summary))
-    except:
+            loop.create_task(manager.broadcast({
+                "type": "daily_summary",
+                "data": summary
+            }))
+        else:
+            import threading
+            def _broadcast_in_thread():
+                try:
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    new_loop.run_until_complete(manager.broadcast({
+                        "type": "daily_summary",
+                        "data": summary
+                    }))
+                    new_loop.close()
+                except Exception:
+                    pass
+            thread = threading.Thread(target=_broadcast_in_thread, daemon=True)
+            thread.start()
+    except Exception:
         pass
 
 
@@ -195,23 +215,29 @@ def update_existing_recipe(recipe_id: str, req: UpdateRecipeRequest):
         raise HTTPException(status_code=404, detail="食谱不存在")
     
     today_str = date.today().strftime("%Y-%m-%d")
+    affected_dates = set()
     for mp in meal_plans:
-        if mp.recipeId == recipe_id and mp.date == today_str:
-            _notify_summary_change()
-            break
+        if mp.recipeId == recipe_id:
+            affected_dates.add(mp.date)
+    
+    for d in affected_dates:
+        _notify_summary_change(d)
     
     return recipe_to_dict(recipe)
 
 
 @app.delete("/recipes/{recipe_id}")
 def delete_existing_recipe(recipe_id: str):
-    had_today_plan = any(mp.recipeId == recipe_id and mp.date == date.today().strftime("%Y-%m-%d") for mp in meal_plans)
+    affected_dates = set()
+    for mp in meal_plans:
+        if mp.recipeId == recipe_id:
+            affected_dates.add(mp.date)
     
     if not delete_recipe(recipe_id):
         raise HTTPException(status_code=404, detail="食谱不存在")
     
-    if had_today_plan:
-        _notify_summary_change()
+    for d in affected_dates:
+        _notify_summary_change(d)
     
     return {"success": True}
 
@@ -252,21 +278,20 @@ def get_weekly_meal_plans(weekStart: Optional[str] = None):
 @app.post("/meal-plans")
 def create_meal_plan(req: MealPlanRequest):
     mp = add_meal_plan(req.dict())
-    if mp.date == date.today().strftime("%Y-%m-%d"):
-        _notify_summary_change()
+    _notify_summary_change(req.date)
     return meal_plan_to_dict(mp)
 
 
 @app.delete("/meal-plans/{meal_plan_id}")
 def delete_meal_plan(meal_plan_id: str):
     target_mp = next((mp for mp in meal_plans if mp.id == meal_plan_id), None)
-    was_today = target_mp and target_mp.date == date.today().strftime("%Y-%m-%d")
+    target_date = target_mp.date if target_mp else None
     
     if not remove_meal_plan(meal_plan_id):
         raise HTTPException(status_code=404, detail="餐食计划不存在")
     
-    if was_today:
-        _notify_summary_change()
+    if target_date:
+        _notify_summary_change(target_date)
     
     return {"success": True}
 
@@ -291,7 +316,10 @@ def update_daily_goal(req: DailyGoalRequest):
         daily_goal.fat = req.fat
     if req.carbs is not None:
         daily_goal.carbs = req.carbs
-    _notify_summary_change()
+    
+    today_str = date.today().strftime("%Y-%m-%d")
+    _notify_summary_change(today_str)
+    
     return get_daily_goal()
 
 
@@ -308,7 +336,10 @@ async def websocket_daily_summary(websocket: WebSocket):
     try:
         today_str = datetime.now().strftime("%Y-%m-%d")
         summary = calculate_daily_summary(today_str)
-        await websocket.send_json(summary)
+        await websocket.send_json({
+            "type": "daily_summary",
+            "data": summary
+        })
         
         while True:
             await websocket.receive_text()

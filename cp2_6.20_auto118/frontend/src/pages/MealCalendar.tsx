@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { useStore } from '../store/useStore';
 import { getRecipes, getMealPlans, addMealPlan, removeMealPlan, getDailySummary } from '../api/recipeApi';
@@ -6,12 +6,14 @@ import DraggableRecipe from '../components/DraggableRecipe';
 import MealSlot from '../components/MealSlot';
 import ProgressBar from '../components/ProgressBar';
 import { Recipe, MealPlan, DailySummary, Nutrition } from '../types';
+import { DragDropProvider, useDragDrop } from '../contexts/DragDropContext';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner';
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner'];
 
-const MealCalendar: React.FC = () => {
+const MealCalendarContent: React.FC = () => {
   const { recipes, setRecipes, mealPlans, setMealPlans, dailyGoal } = useStore();
+  const { setOnDrop } = useDragDrop();
   const [weekStart, setWeekStart] = useState(dayjs().startOf('week').add(1, 'day'));
   const [dailySummaries, setDailySummaries] = useState<Record<string, DailySummary>>({});
   const [loading, setLoading] = useState(true);
@@ -67,13 +69,13 @@ const MealCalendar: React.FC = () => {
     return plan?.id;
   };
 
-  const handleDrop = async (date: string, mealType: MealType, recipeId: string) => {
+  const handleDrop = useCallback(async (date: string, mealType: string, recipeId: string) => {
     try {
-      const existingId = getMealPlanId(date, mealType);
+      const existingId = getMealPlanId(date, mealType as MealType);
       if (existingId) {
         await removeMealPlan(existingId);
       }
-      const newPlan = await addMealPlan({ date, mealType, recipeId });
+      const newPlan = await addMealPlan({ date, mealType: mealType as MealType, recipeId });
       setMealPlans([
         ...mealPlans.filter((p) => !(p.date === date && p.mealType === mealType)),
         newPlan,
@@ -83,7 +85,11 @@ const MealCalendar: React.FC = () => {
     } catch (error) {
       console.error('Failed to add meal plan:', error);
     }
-  };
+  }, [mealPlans, dailySummaries]);
+
+  useEffect(() => {
+    setOnDrop(handleDrop);
+  }, [handleDrop, setOnDrop]);
 
   const handleRemove = async (date: string, mealType: MealType) => {
     try {
@@ -219,6 +225,14 @@ const MealCalendar: React.FC = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const MealCalendar: React.FC = () => {
+  return (
+    <DragDropProvider>
+      <MealCalendarContent />
+    </DragDropProvider>
   );
 };
 
