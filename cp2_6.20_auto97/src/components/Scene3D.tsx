@@ -379,6 +379,17 @@ function SceneContent({
   const particleType = openResult?.success ? 'success' : 'fail';
   const trapType = openResult?.trap_type;
 
+  const MAX_TOTAL_PARTICLES = 200;
+  const baseParticleCount = Math.min(particleCount, MAX_TOTAL_PARTICLES);
+  let mainParticleCount = baseParticleCount;
+  let trapParticleCount = 0;
+
+  if (showParticles && trapType) {
+    const trapRatio = 0.3;
+    trapParticleCount = Math.floor(baseParticleCount * trapRatio);
+    mainParticleCount = baseParticleCount - trapParticleCount;
+  }
+
   return (
     <>
       <ambientLight intensity={0.4} />
@@ -430,15 +441,9 @@ function SceneContent({
 
       {showParticles && (
         <>
-          <ParticleSystem count={particleCount} type={particleType} active={showParticles} />
-          {trapType === 'lightning' && (
-            <ParticleSystem count={Math.min(50, particleCount)} type="lightning" active={showParticles} />
-          )}
-          {trapType === 'poison' && (
-            <ParticleSystem count={Math.min(50, particleCount)} type="poison" active={showParticles} />
-          )}
-          {trapType === 'spike' && (
-            <ParticleSystem count={Math.min(50, particleCount)} type="spike" active={showParticles} />
+          <ParticleSystem count={mainParticleCount} type={particleType} active={showParticles} />
+          {trapType && trapParticleCount > 0 && (
+            <ParticleSystem count={trapParticleCount} type={trapType} active={showParticles} />
           )}
         </>
       )}

@@ -104,8 +104,26 @@ export const PlayerPanel: React.FC<PlayerPanelProps> = ({ style }) => {
   const fragments = useGameStore((s) => s.fragments);
   const synthesizeInscription = useGameStore((s) => s.synthesizeInscription);
 
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
   const hpPercent = (playerStats.hp / 100) * 100;
   const hpColor = hpPercent > 60 ? '#10B981' : hpPercent > 30 ? '#F59E0B' : '#EF4444';
+
+  const handleSynthesize = (el: ElementType) => {
+    const result = synthesizeInscription(el);
+    if (result.success && result.inscription) {
+      setToast({
+        message: `✨ 合成成功！获得 ${result.inscription.name} Lv.${result.inscription.level}`,
+        type: 'success',
+      });
+    } else {
+      setToast({
+        message: `❌ ${result.error || '合成失败，碎片不足'}`,
+        type: 'error',
+      });
+    }
+    setTimeout(() => setToast(null), 2500);
+  };
 
   return (
     <div
@@ -116,9 +134,37 @@ export const PlayerPanel: React.FC<PlayerPanelProps> = ({ style }) => {
         padding: '20px',
         color: '#d4c8f0',
         backdropFilter: 'blur(10px)',
+        position: 'relative',
         ...style,
       }}
     >
+      {toast && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+            padding: '10px 20px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            color: '#fff',
+            background: toast.type === 'success'
+              ? 'linear-gradient(135deg, rgba(16,185,129,0.95), rgba(5,150,105,0.95))'
+              : 'linear-gradient(135deg, rgba(239,68,68,0.95), rgba(220,38,38,0.95))',
+            border: `1px solid ${toast.type === 'success' ? '#10B981' : '#EF4444'}`,
+            boxShadow: toast.type === 'success'
+              ? '0 4px 20px rgba(16,185,129,0.5)'
+              : '0 4px 20px rgba(239,68,68,0.5)',
+            animation: 'fadeIn 0.3s ease-out',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
       <h2 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#e8dff5', borderBottom: '1px solid #3a2a5a', paddingBottom: '10px' }}>
         🗡️ 冒险者状态
       </h2>
@@ -196,7 +242,7 @@ export const PlayerPanel: React.FC<PlayerPanelProps> = ({ style }) => {
                 </div>
                 {canSynthesize && (
                   <button
-                    onClick={() => synthesizeInscription(el)}
+                    onClick={() => handleSynthesize(el)}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'scale(1.05)';
                       e.currentTarget.style.boxShadow = `0 0 10px ${ELEMENT_INFO[el].color}`;
@@ -359,23 +405,22 @@ export const MethodSelector: React.FC<MethodSelectorProps> = ({ style }) => {
         const color = METHOD_INFO[method].color;
         return (
           <div key={method} style={{ textAlign: 'center', position: 'relative' }}>
-            {isSelected && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  width: '72px',
-                  height: '72px',
-                  borderRadius: '50%',
-                  border: `2px solid ${color}`,
-                  transform: 'translate(-50%, -50%)',
-                  animation: 'pulseRing 1.5s ease-in-out infinite',
-                  pointerEvents: 'none',
-                  opacity: 0.6,
-                }}
-              />
-            )}
+            <div
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                width: '72px',
+                height: '72px',
+                borderRadius: '50%',
+                border: isSelected ? `2px solid ${color}` : `2px solid transparent`,
+                transform: 'translate(-50%, -50%)',
+                animation: isSelected ? 'pulseRing 1.5s ease-in-out infinite' : 'none',
+                pointerEvents: 'none',
+                opacity: isSelected ? 0.6 : 0,
+                transition: 'opacity 0.3s ease, border-color 0.3s ease',
+              }}
+            />
             <button
               onClick={() => selectMethod(method)}
               onMouseEnter={(e) => {
@@ -524,6 +569,67 @@ export const InscriptionPanel: React.FC<InscriptionPanelProps> = ({ style }) => 
     animationFrameRef.current = requestAnimationFrame(updatePosition);
   };
 
+  const updateDragPosition = (x: number, y: number) => {
+    targetPositionRef.current = {
+      x: x - dragOffset.x,
+      y: y - dragOffset.y,
+    };
+
+    let hoveredSlot: number | null = null;
+    slotRefs.current.forEach((slotRef, idx) => {
+      if (slotRef) {
+        const slotRect = slotRef.getBoundingClientRect();
+        if (
+          x >= slotRect.left &&
+          x <= slotRect.right &&
+          y >= slotRect.top &&
+          y <= slotRect.bottom
+        ) {
+          hoveredSlot = idx;
+        }
+      }
+    });
+    setDragOverSlot(hoveredSlot);
+  };
+
+  const endDrag = (x: number, y: number) => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    let targetSlot: number | null = null;
+    slotRefs.current.forEach((slotRef, idx) => {
+      if (slotRef) {
+        const slotRect = slotRef.getBoundingClientRect();
+        if (
+          x >= slotRect.left &&
+          x <= slotRect.right &&
+          y >= slotRect.top &&
+          y <= slotRect.bottom
+        ) {
+          targetSlot = idx;
+        }
+      }
+    });
+
+    const currentDraggedId = draggedIdRef.current;
+    if (targetSlot !== null && currentDraggedId) {
+      setFlyToSlot({ id: currentDraggedId, slotIndex: targetSlot });
+      setTimeout(() => {
+        equipInscription(currentDraggedId, targetSlot!);
+        setFlyToSlot(null);
+      }, 300);
+    }
+
+    setDraggedId(null);
+    setDragPosition(null);
+    setDragOverSlot(null);
+    targetPositionRef.current = null;
+  };
+
+  const draggedIdRef = useRef<string | null>(null);
+
   const handleMouseDown = (e: React.MouseEvent, inscriptionId: string, cardElement: HTMLDivElement) => {
     e.preventDefault();
     const rect = cardElement.getBoundingClientRect();
@@ -532,6 +638,7 @@ export const InscriptionPanel: React.FC<InscriptionPanelProps> = ({ style }) => 
       y: e.clientY - rect.top,
     });
     setDraggedId(inscriptionId);
+    draggedIdRef.current = inscriptionId;
     targetPositionRef.current = {
       x: e.clientX - (e.clientX - rect.left),
       y: e.clientY - (e.clientY - rect.top),
@@ -539,68 +646,50 @@ export const InscriptionPanel: React.FC<InscriptionPanelProps> = ({ style }) => 
     setDragPosition({ ...targetPositionRef.current });
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      targetPositionRef.current = {
-        x: moveEvent.clientX - dragOffset.x,
-        y: moveEvent.clientY - dragOffset.y,
-      };
-
-      let hoveredSlot: number | null = null;
-      slotRefs.current.forEach((slotRef, idx) => {
-        if (slotRef) {
-          const slotRect = slotRef.getBoundingClientRect();
-          if (
-            moveEvent.clientX >= slotRect.left &&
-            moveEvent.clientX <= slotRect.right &&
-            moveEvent.clientY >= slotRect.top &&
-            moveEvent.clientY <= slotRect.bottom
-          ) {
-            hoveredSlot = idx;
-          }
-        }
-      });
-      setDragOverSlot(hoveredSlot);
+      updateDragPosition(moveEvent.clientX, moveEvent.clientY);
     };
 
     const handleMouseUp = (upEvent: MouseEvent) => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
-
-      let targetSlot: number | null = null;
-      slotRefs.current.forEach((slotRef, idx) => {
-        if (slotRef) {
-          const slotRect = slotRef.getBoundingClientRect();
-          if (
-            upEvent.clientX >= slotRect.left &&
-            upEvent.clientX <= slotRect.right &&
-            upEvent.clientY >= slotRect.top &&
-            upEvent.clientY <= slotRect.bottom
-          ) {
-            targetSlot = idx;
-          }
-        }
-      });
-
-      if (targetSlot !== null && draggedId) {
-        setFlyToSlot({ id: draggedId, slotIndex: targetSlot });
-        setTimeout(() => {
-          equipInscription(draggedId, targetSlot!);
-          setFlyToSlot(null);
-        }, 300);
-      }
-
-      setDraggedId(null);
-      setDragPosition(null);
-      setDragOverSlot(null);
-      targetPositionRef.current = null;
-
+      endDrag(upEvent.clientX, upEvent.clientY);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+    animationFrameRef.current = requestAnimationFrame(updatePosition);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, inscriptionId: string, cardElement: HTMLDivElement) => {
+    const touch = e.touches[0];
+    const rect = cardElement.getBoundingClientRect();
+    setDragOffset({
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    });
+    setDraggedId(inscriptionId);
+    draggedIdRef.current = inscriptionId;
+    targetPositionRef.current = {
+      x: touch.clientX - (touch.clientX - rect.left),
+      y: touch.clientY - (touch.clientY - rect.top),
+    };
+    setDragPosition({ ...targetPositionRef.current });
+
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      moveEvent.preventDefault();
+      const t = moveEvent.touches[0];
+      updateDragPosition(t.clientX, t.clientY);
+    };
+
+    const handleTouchEnd = (endEvent: TouchEvent) => {
+      const t = endEvent.changedTouches[0];
+      endDrag(t.clientX, t.clientY);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
     animationFrameRef.current = requestAnimationFrame(updatePosition);
   };
 
@@ -787,6 +876,12 @@ export const InscriptionPanel: React.FC<InscriptionPanelProps> = ({ style }) => 
                       const cardEl = cardRefs.current[inscription.id];
                       if (cardEl) {
                         handleMouseDown(e, inscription.id, cardEl);
+                      }
+                    }}
+                    onTouchStart={(e) => {
+                      const cardEl = cardRefs.current[inscription.id];
+                      if (cardEl) {
+                        handleTouchStart(e, inscription.id, cardEl);
                       }
                     }}
                     style={{

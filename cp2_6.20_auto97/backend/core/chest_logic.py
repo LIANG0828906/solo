@@ -130,9 +130,9 @@ OPEN_METHOD_EFFECTS: Dict[str, Dict] = {
     },
     "element_infusion": {
         "name": "元素注入",
-        "description": "注入元素力量开启宝箱，高风险高回报",
-        # 成功率加成（百分比）：-5% 略降低
-        "success_rate_boost": -5.0,
+        "description": "注入元素力量开启宝箱，高风险高回报——成功率看似正常，但失败代价极其惨重",
+        # 成功率加成（百分比）：0% 保持正常成功率（不再人为降低）
+        "success_rate_boost": 0.0,
         # 陷阱概率变化（百分比）：+20% 更高风险
         "trap_chance_modifier": 20.0,
         # 陷阱伤害系数（乘法）：1.5 即+50%伤害
@@ -143,6 +143,10 @@ OPEN_METHOD_EFFECTS: Dict[str, Dict] = {
         "fragment_multiplier": 1.5,
         # 失败惩罚系数（乘法）：1.5 即+50%扣血
         "fail_penalty_multiplier": 1.5,
+        # 元素注入失败时额外惩罚倍率（仅 element_infusion 生效）
+        "element_fail_extra_penalty": 2.0,
+        # 元素注入失败时额外陷阱概率（仅 element_infusion 生效，且仅在失败时判定）
+        "element_trap_extra_chance": 15.0,
     },
 }
 
@@ -380,8 +384,9 @@ def _calculate_fail_penalty(
     计算开箱失败但未触发陷阱时的惩罚伤害
     
     规则：
-    - 失败但未触发陷阱：扣血 = 宝箱等级 × 2 × 失败惩罚系数
+    - 失败但未触发陷阱：扣血 = 宝箱等级 × 2 × 失败惩罚系数 × 元素额外惩罚倍率
     - 宝箱等级：铁=1，水晶=2，暗影=3 → 对应扣血 2/4/6 基础值
+    - 元素注入：额外乘以 element_fail_extra_penalty（2.0），惩罚翻倍
     
     Args:
         chest_type: 宝箱类型
@@ -403,6 +408,11 @@ def _calculate_fail_penalty(
     # 应用失败惩罚系数
     fail_penalty_multiplier = method_effects.get("fail_penalty_multiplier", 1.0)
     final_penalty = base_penalty * fail_penalty_multiplier
+
+    # 元素注入专属：额外惩罚倍率（仅在失败未触发陷阱时生效）
+    if open_method == "element_infusion":
+        element_extra_penalty = method_effects.get("element_fail_extra_penalty", 1.0)
+        final_penalty = final_penalty * element_extra_penalty
 
     # 向上取整，确保至少1点伤害
     return max(1, int(math.ceil(final_penalty)))
@@ -622,7 +632,9 @@ def open_chest(
     total_damage = 0
     trap_damage = 0
     fail_penalty = 0
+    element_backlash_damage = 0
     trap_info = {}
+    element_backlash_triggered = False
     damage_breakdown = {}
 
     if trap_triggered:
@@ -642,6 +654,46 @@ def open_chest(
             damage_breakdown["fail_penalty"] = fail_penalty
         # 如果触发了陷阱，陷阱伤害已经包含了失败惩罚系数
 
+        # ========== 元素注入专属逻辑：失败时额外判定元素反噬陷阱 ==========
+        if open_method == "element_infusion":
+            element_extra_chance = method_config.get("element_trap_extra_chance", 0.0)
+            # 判定是否触发额外的元素反噬陷阱（15%概率）
+            if random.uniform(0, 100) < element_extra_chance:
+                element_backlash_triggered = True
+                # 强制使用闪电类型陷阱（高伤害类型）
+                lightning_trap = None
+                for t in TRAP_TYPES:
+                    if t["id"] == "lightning":
+                        lightning_trap = t
+                        break
+                if lightning_trap is None:
+                    lightning_trap = TRAP_TYPES[1] if len(TRAP_TYPES) > 1 else TRAP_TYPES[0]
+
+                # 计算反噬伤害（使用闪电类型的伤害系数，同时应用开箱方式的陷阱伤害系数和失败惩罚系数）
+                chest_cfg = CHEST_CONFIGS.get(chest_type)
+                dmg_min, dmg_max = chest_cfg["trap_damage_range"]
+                base_backlash_dmg = random.randint(dmg_min, dmg_max)
+                lightning_multiplier = lightning_trap["damage_multiplier"]
+                method_dmg_mult = method_config.get("trap_damage_multiplier", 1.0)
+                fail_penalty_mult = method_config.get("fail_penalty_multiplier", 1.0)
+                element_extra_penalty = method_config.get("element_fail_extra_penalty", 1.0)
+                trap_reduction = bonuses.get("trap_reduction", 0.0)
+
+                # 反噬伤害计算：基础伤害 × 闪电系数 × 方式系数 × 失败惩罚 × 元素额外惩罚，再应用减伤
+                element_backlash_damage = (
+                    base_backlash_dmg
+                    * lightning_multiplier
+                    * method_dmg_mult
+                    * fail_penalty_mult
+                    * element_extra_penalty
+                )
+                element_backlash_damage = element_backlash_damage * (1.0 - trap_reduction / 100.0)
+                element_backlash_damage = max(1, int(math.ceil(element_backlash_damage)))
+
+                # 叠加到总伤害并记录明细
+                total_damage += element_backlash_damage
+                damage_breakdown["element_backlash_damage"] = element_backlash_damage
+
     # ========== 步骤4：计算奖励（仅当成功时） ==========
     items = []
     fragments = []
@@ -656,10 +708,25 @@ def open_chest(
         msg = (f"成功开启{chest_config['name']}，但触发了{trap_info.get('name', '陷阱')}，"
                f"受到{trap_damage}点伤害。")
     elif not roll_success and trap_triggered:
-        msg = (f"开启{chest_config['name']}失败，触发了{trap_info.get('name', '陷阱')}，"
-               f"受到{trap_damage}点伤害！")
+        # 元素注入失败且触发陷阱，再判定是否有额外反噬
+        if element_backlash_triggered:
+            msg = (
+                f"开启{chest_config['name']}失败，触发了{trap_info.get('name', '陷阱')}，"
+                f"受到{trap_damage}点伤害！元素能量失控，引发了额外的元素反噬！"
+                f"反噬额外造成{element_backlash_damage}点伤害。"
+            )
+        else:
+            msg = (f"开启{chest_config['name']}失败，触发了{trap_info.get('name', '陷阱')}，"
+                   f"受到{trap_damage}点伤害！")
     else:
-        msg = f"开启{chest_config['name']}失败，宝箱损毁，受到{fail_penalty}点轻伤。"
+        # 失败但未触发陷阱
+        if element_backlash_triggered:
+            msg = (
+                f"开启{chest_config['name']}失败，宝箱损毁，受到{fail_penalty}点轻伤。"
+                f"元素能量失控，引发了额外的元素反噬！反噬额外造成{element_backlash_damage}点伤害。"
+            )
+        else:
+            msg = f"开启{chest_config['name']}失败，宝箱损毁，受到{fail_penalty}点轻伤。"
 
     # ========== 步骤6：决定动画类型 ==========
     animation_type = _determine_animation(roll_success, items, trap_triggered)

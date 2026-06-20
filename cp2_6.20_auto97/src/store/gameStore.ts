@@ -19,6 +19,13 @@ interface PlayerStats {
   successCount: number;
 }
 
+interface SynthesizeResult {
+  success: boolean;
+  inscription?: Inscription;
+  error?: string;
+  element?: ElementType;
+}
+
 interface GameState {
   selectedChest: ChestType | null;
   selectedMethod: OpenMethod | null;
@@ -34,7 +41,7 @@ interface GameState {
   selectMethod: (method: OpenMethod) => void;
   openChest: () => Promise<void>;
   addFragments: (newFragments: Fragment[]) => void;
-  synthesizeInscription: (element: ElementType) => boolean;
+  synthesizeInscription: (element: ElementType) => SynthesizeResult;
   equipInscription: (inscriptionId: string, slotIndex: number) => void;
   unequipInscription: (slotIndex: number) => void;
   clearOpenResult: () => void;
@@ -202,10 +209,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  synthesizeInscription: (element: ElementType): boolean => {
+  synthesizeInscription: (element: ElementType): SynthesizeResult => {
     const { fragments } = get();
-    if (fragments[element] < 5) {
-      return false;
+    const currentCount = fragments[element];
+
+    if (currentCount < 5) {
+      return {
+        success: false,
+        error: `碎片不足，当前${currentCount}个，需要5个`,
+        element,
+      };
     }
 
     const newInscription = createInscription(element, 1);
@@ -218,7 +231,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       inscriptions: [...state.inscriptions, newInscription],
     }));
 
-    return true;
+    return {
+      success: true,
+      inscription: newInscription,
+      element,
+    };
   },
 
   equipInscription: (inscriptionId: string, slotIndex: number) => {
