@@ -16,16 +16,30 @@ const BuildingBlock: React.FC<{
   onDragStart: (e: React.MouseEvent) => void;
 }> = ({ building, isSelected, onSelect, onDragStart }) => {
   const [animating, setAnimating] = useState(true);
+  const prevDims = useRef({ width: building.width, height: building.height });
 
   useEffect(() => {
+    setAnimating(true);
     const timer = setTimeout(() => setAnimating(false), 300);
     return () => clearTimeout(timer);
   }, [building.id, building.width, building.height]);
 
+  useEffect(() => {
+    if (
+      prevDims.current.width !== building.width ||
+      prevDims.current.height !== building.height
+    ) {
+      prevDims.current = { width: building.width, height: building.height };
+      setAnimating(true);
+      const timer = setTimeout(() => setAnimating(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [building.width, building.height]);
+
   return (
     <div
       className={`absolute cursor-move transition-all ${
-        animating ? '' : 'duration-150'
+        animating ? 'duration-300' : 'duration-150'
       }`}
       style={{
         left: building.x,
@@ -35,7 +49,7 @@ const BuildingBlock: React.FC<{
         backgroundColor: building.color,
         borderRadius: '2px 2px 0 0',
         boxShadow: isSelected
-          ? '0 0 20px rgba(15, 52, 96, 0.8), inset 0 0 10px rgba(15, 52, 96, 0.3)'
+          ? '0 0 30px rgba(15, 52, 96, 0.9), 0 0 60px rgba(15, 52, 96, 0.4), inset 0 0 15px rgba(15, 52, 96, 0.5)'
           : '0 2px 8px rgba(0, 0, 0, 0.3)',
         border: isSelected ? '2px solid #0f3460' : '1px solid rgba(255,255,255,0.1)',
         transform: animating ? 'scale(1.02)' : 'scale(1)',
@@ -86,12 +100,20 @@ const PropertyPanel: React.FC<{
         <div>
           <div className="flex justify-between items-center mb-2">
             <label className="text-gray-300 text-sm font-medium">高度</label>
-            <span
-              className="text-xs px-2 py-0.5 rounded-lg font-mono"
-              style={{ background: 'rgba(15, 52, 96, 0.5)', color: '#87ceeb' }}
-            >
-              {building.height}px
-            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={10}
+                max={300}
+                value={building.height}
+                onChange={(e) => {
+                  const val = Math.max(10, Math.min(300, Number(e.target.value)));
+                  onUpdate({ height: val });
+                }}
+                className="w-16 px-2 py-1 text-xs text-center rounded-lg font-mono text-white bg-gray-800/80 border border-gray-600 focus:border-blue-500 focus:outline-none"
+              />
+              <span className="text-gray-500 text-xs">px</span>
+            </div>
           </div>
           <input
             type="range"
@@ -103,7 +125,8 @@ const PropertyPanel: React.FC<{
             style={{
               background: `linear-gradient(to right, #0f3460 0%, #0f3460 ${
                 ((building.height - 10) / 290) * 100
-              }%, rgba(255,255,255,0.1) ${((building.height - 10) / 290) * 100}%, rgba(255,255,255,0.1) 100%)`,
+              }%, rgba(255,255,255,0.15) ${((building.height - 10) / 290) * 100}%, rgba(255,255,255,0.15) 100%)`,
+              outline: 'none',
             }}
           />
           <div className="flex justify-between mt-1">
@@ -115,12 +138,20 @@ const PropertyPanel: React.FC<{
         <div>
           <div className="flex justify-between items-center mb-2">
             <label className="text-gray-300 text-sm font-medium">宽度</label>
-            <span
-              className="text-xs px-2 py-0.5 rounded-lg font-mono"
-              style={{ background: 'rgba(15, 52, 96, 0.5)', color: '#87ceeb' }}
-            >
-              {building.width}px
-            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={20}
+                max={100}
+                value={building.width}
+                onChange={(e) => {
+                  const val = Math.max(20, Math.min(100, Number(e.target.value)));
+                  onUpdate({ width: val });
+                }}
+                className="w-16 px-2 py-1 text-xs text-center rounded-lg font-mono text-white bg-gray-800/80 border border-gray-600 focus:border-blue-500 focus:outline-none"
+              />
+              <span className="text-gray-500 text-xs">px</span>
+            </div>
           </div>
           <input
             type="range"
@@ -132,7 +163,8 @@ const PropertyPanel: React.FC<{
             style={{
               background: `linear-gradient(to right, #0f3460 0%, #0f3460 ${
                 ((building.width - 20) / 80) * 100
-              }%, rgba(255,255,255,0.1) ${((building.width - 20) / 80) * 100}%, rgba(255,255,255,0.1) 100%)`,
+              }%, rgba(255,255,255,0.15) ${((building.width - 20) / 80) * 100}%, rgba(255,255,255,0.15) 100%)`,
+              outline: 'none',
             }}
           />
           <div className="flex justify-between mt-1">
@@ -189,8 +221,23 @@ export const Editor2D: React.FC = () => {
 
   const handleCanvasClick = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target !== e.currentTarget) return;
       if (!canvasRef.current) return;
+
+      const clickedBuilding = buildings.find((b) => {
+        const bx = b.x;
+        const by = b.y;
+        const bw = b.width;
+        const bh = b.height;
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        return cx >= bx && cx <= bx + bw && cy >= by && cy <= by + bh;
+      });
+
+      if (clickedBuilding) {
+        selectBuilding(clickedBuilding.id);
+        return;
+      }
 
       const rect = canvasRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left - 25;
@@ -199,9 +246,10 @@ export const Editor2D: React.FC = () => {
       addBuilding({
         x: Math.max(0, Math.min(x, rect.width - 50)),
         y: Math.max(0, Math.min(y, rect.height - 120)),
+        color: '#a0a0a0',
       });
     },
-    [addBuilding]
+    [addBuilding, buildings, selectBuilding]
   );
 
   const handleBuildingDragStart = useCallback(
@@ -317,9 +365,11 @@ export const Editor2D: React.FC = () => {
         className="absolute inset-0 cursor-crosshair"
         onClick={handleCanvasClick}
         onMouseLeave={() => setMousePos(null)}
+        style={{ pointerEvents: 'auto' }}
       >
         <svg
-          className="absolute inset-0 w-full h-full pointer-events-none opacity-20"
+          className="absolute inset-0 w-full h-full opacity-20"
+          style={{ pointerEvents: 'none' }}
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
@@ -341,8 +391,9 @@ export const Editor2D: React.FC = () => {
         </svg>
 
         <div
-          className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none"
+          className="absolute bottom-0 left-0 right-0 h-12"
           style={{
+            pointerEvents: 'none',
             background:
               'linear-gradient(to top, rgba(30, 50, 80, 0.8), transparent)',
           }}
@@ -358,17 +409,18 @@ export const Editor2D: React.FC = () => {
           />
         ))}
 
-        {mousePos && buildings.length === 0 && (
+        {mousePos && (
           <div
-            className="absolute pointer-events-none text-xs text-gray-400 px-3 py-1.5 rounded-lg"
+            className="absolute text-xs text-gray-400 px-3 py-1.5 rounded-lg"
             style={{
+              pointerEvents: 'none',
               left: mousePos.x + 15,
               top: mousePos.y + 15,
               background: 'rgba(15, 52, 96, 0.7)',
               backdropFilter: 'blur(4px)',
             }}
           >
-            点击此处添加建筑
+            {buildings.length === 0 ? '点击此处添加建筑' : '点击空白处添加建筑'}
           </div>
         )}
       </div>
