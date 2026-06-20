@@ -13,6 +13,9 @@ export interface Specialty {
   name: string;
   type: 'fruit' | 'vegetable' | 'craft' | 'food';
   description: string;
+  region: string;
+  regionId: string;
+  bestTime: string;
   lat: number;
   lng: number;
   solarTerms: string[];
@@ -24,6 +27,9 @@ export interface Activity {
   name: string;
   type: 'sowing' | 'harvest' | 'festival';
   description: string;
+  region: string;
+  regionId: string;
+  date: string;
   lat: number;
   lng: number;
   solarTerms: string[];
@@ -44,6 +50,7 @@ export interface Region {
     lat: number;
     lng: number;
   };
+  polygon: [number, number][];
   specialties: Specialty[];
   activities: Activity[];
 }
@@ -63,7 +70,18 @@ export type FilterType = 'all' | 'harvest' | 'festival' | 'food';
 
 export type MarkerType = 'specialty' | 'activity';
 
+export type SpecialtyType = Specialty['type'];
+export type ActivityType = Activity['type'];
+
 export interface SelectedMarker {
   id: string;
   type: MarkerType;
+}
+
+export type MarkerIconKey = SpecialtyType | ActivityType;
+
+export interface MarkerIconConfig {
+  icon: string;
+  bgColor: string;
+  label: string;
 }
