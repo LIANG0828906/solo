@@ -50,6 +50,7 @@ export default function GridMap() {
   const [animatingUnits, setAnimatingUnits] = useState<Record<string, { x: number; y: number }>>({});
   const prevUnitsRef = useRef<Unit[]>([]);
   const animationTimersRef = useRef<Record<string, number[]>>({});
+  const isMountedRef = useRef(true);
 
   const selectedUnit = useMemo(
     () => units.find((u) => u.id === selectedUnitId) || null,
@@ -138,6 +139,16 @@ export default function GridMap() {
     prevUnitsRef.current = units;
   }, [units, addDamagePopup, triggerAnimation]);
 
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      Object.values(animationTimersRef.current).forEach((timers) => {
+        timers.forEach((t) => clearTimeout(t));
+      });
+      animationTimersRef.current = {};
+    };
+  }, []);
+
   const animateAlongPath = useCallback(
     (unitId: string, path: { x: number; y: number }[]) => {
       if (animationTimersRef.current[unitId]) {
@@ -148,6 +159,7 @@ export default function GridMap() {
 
       path.forEach((point, i) => {
         const timer = window.setTimeout(() => {
+          if (!isMountedRef.current) return;
           setAnimatingUnits((prev) => ({
             ...prev,
             [unitId]: { x: point.x, y: point.y },

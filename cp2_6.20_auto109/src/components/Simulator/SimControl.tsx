@@ -34,9 +34,10 @@ export default function SimControl() {
   } = useGameStore();
 
   const [scrollTop, setScrollTop] = useState(0);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [isAtBottom, setIsAtBottom] = useState(true);
   const logListRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const autoScrollRef = useRef(true);
 
   const handleStart = useCallback(() => {
     if (!isSimulating) {
@@ -100,15 +101,20 @@ export default function SimControl() {
   }, []);
 
   useEffect(() => {
-    if (autoScrollRef.current && logListRef.current) {
+    if (autoScroll && logListRef.current) {
       logListRef.current.scrollTop = logListRef.current.scrollHeight;
+      setIsAtBottom(true);
     }
-  }, [battleLogs.length]);
+  }, [battleLogs.length, autoScroll]);
 
   const handleScroll = useCallback(() => {
     if (!logListRef.current) return;
     const el = logListRef.current;
-    autoScrollRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < ITEM_HEIGHT * 2;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < ITEM_HEIGHT * 2;
+    setIsAtBottom(atBottom);
+    if (!atBottom) {
+      setAutoScroll(false);
+    }
     setScrollTop(el.scrollTop);
   }, []);
 
@@ -141,6 +147,25 @@ export default function SimControl() {
   const handleClear = useCallback(() => {
     clearLogs();
   }, [clearLogs]);
+
+  const handleToggleAutoScroll = useCallback(() => {
+    setAutoScroll((prev) => {
+      const next = !prev;
+      if (next && logListRef.current) {
+        logListRef.current.scrollTop = logListRef.current.scrollHeight;
+        setIsAtBottom(true);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleScrollToBottom = useCallback(() => {
+    if (logListRef.current) {
+      logListRef.current.scrollTop = logListRef.current.scrollHeight;
+      setAutoScroll(true);
+      setIsAtBottom(true);
+    }
+  }, []);
 
   const canStart = !isSimulating || isPaused;
   const canPause = isSimulating && !isPaused;
@@ -192,7 +217,29 @@ export default function SimControl() {
       <div className="battle-log-panel">
         <div className="battle-log-header">
           <span>战斗日志</span>
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className="sim-btn"
+              onClick={handleScrollToBottom}
+              style={{
+                display: isAtBottom ? 'none' : 'inline-block',
+                padding: '4px 10px',
+                fontSize: 12,
+              }}
+            >
+              回到最新
+            </button>
+            <button
+              className="sim-btn"
+              onClick={handleToggleAutoScroll}
+              style={{
+                padding: '4px 10px',
+                fontSize: 12,
+                color: autoScroll ? '#52c41a' : '#8c8c8c',
+              }}
+            >
+              自动滚动: {autoScroll ? '开' : '关'}
+            </button>
             <button className="sim-btn" onClick={handleExport} disabled={battleLogs.length === 0}>
               导出
             </button>
@@ -205,7 +252,7 @@ export default function SimControl() {
         <div
           className="log-list"
           ref={logListRef}
-          onScroll={useVirtual ? handleScroll : undefined}
+          onScroll={handleScroll}
           style={useVirtual ? { position: 'relative', overflowY: 'auto' } : undefined}
         >
           {useVirtual ? (

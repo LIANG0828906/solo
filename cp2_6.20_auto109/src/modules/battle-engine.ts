@@ -20,6 +20,19 @@ export const TERRAIN_INFO: Record<TerrainType, TerrainInfo> = {
   river: { type: 'river', moveCost: Infinity, passable: false, color: '#4169e1', icon: '🌊' },
 };
 
+const ALL_TERRAINS: TerrainType[] = ['grass', 'forest', 'rock', 'river'];
+
+export function isValidTerrain(value: unknown): value is TerrainType {
+  return ALL_TERRAINS.includes(value as TerrainType);
+}
+
+export function getTerrainInfo(terrain: string): TerrainInfo {
+  if (isValidTerrain(terrain)) {
+    return TERRAIN_INFO[terrain];
+  }
+  return TERRAIN_INFO.grass;
+}
+
 export interface UnitStats {
   maxHp: number;
   attack: number;
@@ -195,7 +208,7 @@ export function findPath(
       if (closedSet.has(key)) continue;
 
       const terrain = grid[neighbor.y][neighbor.x].terrain;
-      const terrainInfo = TERRAIN_INFO[terrain];
+      const terrainInfo = getTerrainInfo(terrain);
       if (!terrainInfo.passable) continue;
 
       const tentativeG = current.g + terrainInfo.moveCost;
@@ -276,7 +289,7 @@ export function getMovableCells(
       if (occupied.has(`${x},${y}`)) continue;
 
       const terrain = grid[y][x].terrain;
-      if (!TERRAIN_INFO[terrain].passable) continue;
+      if (!getTerrainInfo(terrain).passable) continue;
 
       const path = findPath(unit.position.x, unit.position.y, x, y, grid, unit.moveRange);
       if (path && path.length > 1) {
@@ -370,7 +383,7 @@ export function executeUnitTurn(
       height: GRID_HEIGHT,
       isPassable: (x: number, y: number) => {
         if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) return false;
-        return TERRAIN_INFO[grid[y][x].terrain].passable;
+        return getTerrainInfo(grid[y][x].terrain).passable;
       },
       getDistance,
     },
@@ -483,7 +496,7 @@ function moveUnitTowardsTarget(
       if (occupied.has(`${x},${y}`)) continue;
 
       const terrain = grid[y][x].terrain;
-      if (!TERRAIN_INFO[terrain].passable) continue;
+      if (!getTerrainInfo(terrain).passable) continue;
 
       const path = findPath(unit.position.x, unit.position.y, x, y, grid, unit.moveRange);
       if (!path || path.length <= 1) continue;
@@ -550,7 +563,7 @@ function fleeFromEnemies(
       if (occupied.has(`${x},${y}`)) continue;
 
       const terrain = grid[y][x].terrain;
-      if (!TERRAIN_INFO[terrain].passable) continue;
+      if (!getTerrainInfo(terrain).passable) continue;
 
       const path = findPath(unit.position.x, unit.position.y, x, y, grid, unit.moveRange);
       if (!path || path.length <= 1) continue;

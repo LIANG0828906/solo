@@ -78,6 +78,30 @@ export default function BTEditor() {
   const nodeCount = Object.keys(nodes).length;
   const selectedNode = selectedNodeId ? nodes[selectedNodeId] ?? null : null;
 
+  const conditionOptionsWithCustom = useMemo(
+    () => [...CONDITION_OPTIONS, { value: 'custom', label: '自定义...' }],
+    []
+  );
+
+  const actionOptionsWithCustom = useMemo(
+    () => [...ACTION_OPTIONS, { value: 'custom', label: '自定义...' }],
+    []
+  );
+
+  const isCustomCondition = useMemo(() => {
+    if (!selectedNode || selectedNode.type !== 'condition') return false;
+    const condition = selectedNode.condition;
+    if (!condition) return true;
+    return !CONDITION_OPTIONS.some((opt) => opt.value === condition);
+  }, [selectedNode]);
+
+  const isCustomAction = useMemo(() => {
+    if (!selectedNode || selectedNode.type !== 'action') return false;
+    const actionType = selectedNode.actionType;
+    if (!actionType) return true;
+    return !ACTION_OPTIONS.some((opt) => opt.value === actionType);
+  }, [selectedNode]);
+
   const getNodeSize = useCallback((type: NodeType) => {
     switch (type) {
       case 'condition':
@@ -221,16 +245,27 @@ export default function BTEditor() {
   const handleMouseUp = useCallback(
     (e: MouseEvent) => {
       if (nodeDragRef.current) {
+        const nodeId = nodeDragRef.current.nodeId;
+        let position: { x: number; y: number } | null = null;
+
         if (pendingPosRef.current) {
-          moveNode(nodeDragRef.current.nodeId, pendingPosRef.current);
+          position = pendingPosRef.current;
+        } else if (draggingNodePos[nodeId]) {
+          position = draggingNodePos[nodeId];
+        } else if (nodes[nodeId]) {
+          position = nodes[nodeId].position;
         }
-        const dragNodeId = nodeDragRef.current.nodeId;
+
+        if (position) {
+          moveNode(nodeId, position);
+        }
+
         nodeDragRef.current = null;
         pendingPosRef.current = null;
         setDraggingNodePos((prev) => {
-          if (!(dragNodeId in prev)) return prev;
+          if (!(nodeId in prev)) return prev;
           const next = { ...prev };
-          delete next[dragNodeId];
+          delete next[nodeId];
           return next;
         });
       }
@@ -302,15 +337,35 @@ export default function BTEditor() {
     }
   };
 
-  const handleConditionChange = (value: ConditionType) => {
+  const handleConditionChange = (value: string) => {
     if (selectedNodeId) {
-      updateNode(selectedNodeId, { condition: value });
+      if (value === 'custom') {
+        updateNode(selectedNodeId, { condition: '' as ConditionType });
+      } else {
+        updateNode(selectedNodeId, { condition: value as ConditionType });
+      }
     }
   };
 
-  const handleActionTypeChange = (value: ActionType) => {
+  const handleCustomConditionChange = (value: string) => {
     if (selectedNodeId) {
-      updateNode(selectedNodeId, { actionType: value });
+      updateNode(selectedNodeId, { condition: value as ConditionType });
+    }
+  };
+
+  const handleActionTypeChange = (value: string) => {
+    if (selectedNodeId) {
+      if (value === 'custom') {
+        updateNode(selectedNodeId, { actionType: '' as ActionType });
+      } else {
+        updateNode(selectedNodeId, { actionType: value as ActionType });
+      }
+    }
+  };
+
+  const handleCustomActionChange = (value: string) => {
+    if (selectedNodeId) {
+      updateNode(selectedNodeId, { actionType: value as ActionType });
     }
   };
 
@@ -446,19 +501,32 @@ export default function BTEditor() {
         </div>
 
         {selectedNode.type === 'condition' && (
-          <div className="prop-row">
-            <label>条件类型</label>
-            <select
-              value={selectedNode.condition || ''}
-              onChange={(e) => handleConditionChange(e.target.value as ConditionType)}
-            >
-              {CONDITION_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <>
+            <div className="prop-row">
+              <label>条件类型</label>
+              <select
+                value={isCustomCondition ? 'custom' : selectedNode.condition || ''}
+                onChange={(e) => handleConditionChange(e.target.value)}
+              >
+                {conditionOptionsWithCustom.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {isCustomCondition && (
+              <div className="prop-row">
+                <label>自定义条件</label>
+                <input
+                  type="text"
+                  value={selectedNode.condition || ''}
+                  onChange={(e) => handleCustomConditionChange(e.target.value)}
+                  placeholder="请输入自定义条件值"
+                />
+              </div>
+            )}
+          </>
         )}
 
         {selectedNode.type === 'action' && (
@@ -466,16 +534,27 @@ export default function BTEditor() {
             <div className="prop-row">
               <label>行动类型</label>
               <select
-                value={selectedNode.actionType || ''}
-                onChange={(e) => handleActionTypeChange(e.target.value as ActionType)}
+                value={isCustomAction ? 'custom' : selectedNode.actionType || ''}
+                onChange={(e) => handleActionTypeChange(e.target.value)}
               >
-                {ACTION_OPTIONS.map((opt) => (
+                {actionOptionsWithCustom.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
                 ))}
               </select>
             </div>
+            {isCustomAction && (
+              <div className="prop-row">
+                <label>自定义行动</label>
+                <input
+                  type="text"
+                  value={selectedNode.actionType || ''}
+                  onChange={(e) => handleCustomActionChange(e.target.value)}
+                  placeholder="请输入自定义行动值"
+                />
+              </div>
+            )}
             <div className="prop-row">
               <label>目标类型</label>
               <select
