@@ -519,6 +519,61 @@ body {
   align-self: center;
 }
 
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.tag-cloud-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.tag-cloud-item:hover {
+  border-color: var(--accent-gold);
+  background: rgba(230, 200, 138, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.tag-cloud-item.active {
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+  color: #5c4a30;
+  box-shadow: 0 4px 12px rgba(230, 200, 138, 0.3);
+}
+
+.tag-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tag-cloud-item.active .tag-count {
+  background: rgba(92, 74, 48, 0.2);
+}
+
 .calendar {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -625,30 +680,46 @@ body {
 }
 
 .stats-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 8px;
   margin-bottom: 32px;
 }
 
 .stat-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  flex: 1;
+  min-width: 140px;
   padding: 20px;
   text-align: center;
+  background: transparent;
+  border: none;
+  position: relative;
+}
+
+.stat-card-divider {
+  width: 1px;
+  background: var(--border-color);
+  margin: 12px 0;
+}
+
+.stat-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
 }
 
 .stat-number {
   font-family: Georgia, serif;
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 700;
   color: var(--progress-end);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 13px;
   color: #888;
 }
 
@@ -677,7 +748,16 @@ body {
   }
 
   .stats-row {
-    grid-template-columns: repeat(3, 1fr);
+    padding: 4px;
+  }
+
+  .stat-card {
+    min-width: 120px;
+    padding: 16px;
+  }
+
+  .stat-card-divider {
+    display: none;
   }
 }
 

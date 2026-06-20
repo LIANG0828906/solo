@@ -291,36 +291,40 @@ export function BookDetail({
           </div>
         </div>
 
+        {Object.keys(tagStats).length > 0 && (
+          <div className="section">
+            <h2 className="section-title">标签云</h2>
+            <div className="tag-cloud">
+              <button
+                className={`tag-cloud-item ${selectedTag === null ? 'active' : ''}`}
+                onClick={() => setSelectedTag(null)}
+              >
+                全部 <span className="tag-count">{book.notes.length}</span>
+              </button>
+              {Object.entries(tagStats)
+                .sort((a, b) => b[1] - a[1])
+                .map(([tag, count]) => (
+                  <button
+                    key={tag}
+                    className={`tag-cloud-item ${selectedTag === tag ? 'active' : ''}`}
+                    onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                  >
+                    {tag} <span className="tag-count">{count}</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
         <div className="section">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 className="section-title" style={{ marginBottom: 0, borderBottom: 'none', paddingBottom: 0 }}>
-              阅读笔记 ({book.notes.length})
+              阅读笔记 ({filteredNotes.length})
             </h2>
             <button className="btn-primary" style={{ flex: 'none', padding: '10px 20px', width: 'auto' }} onClick={() => setShowAddNote(true)}>
               + 添加笔记
             </button>
           </div>
-
-          {Object.keys(tagStats).length > 0 && (
-            <div className="tag-filter" style={{ marginTop: '16px' }}>
-              <span className="tag-filter-label">标签筛选：</span>
-              <span
-                className={`tag ${selectedTag === null ? 'active' : ''}`}
-                onClick={() => setSelectedTag(null)}
-              >
-                全部
-              </span>
-              {Object.entries(tagStats).map(([tag, count]) => (
-                <span
-                  key={tag}
-                  className={`tag ${selectedTag === tag ? 'active' : ''}`}
-                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                >
-                  {tag} ({count})
-                </span>
-              ))}
-            </div>
-          )}
 
           {showAddNote && (
             <div className="modal-overlay" onClick={() => setShowAddNote(false)}>
