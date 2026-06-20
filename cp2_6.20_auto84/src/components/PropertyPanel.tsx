@@ -1,19 +1,46 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AlignLeft, AlignCenter, AlignRight, Trash2 } from 'lucide-react'
 import { useEditorStore } from '../store/editorStore'
 import type { CanvasElement, TextElement, StickerElement, DrawingElement } from '../store/editorStore'
 import './PropertyPanel.css'
 
 const FONT_FAMILIES = [
-  'Arial',
-  'Georgia',
-  'Times New Roman',
-  'Courier New',
-  'Verdana',
-  'Impact',
-  'Comic Sans MS',
-  'Microsoft YaHei',
-  'PingFang SC',
+  { name: '微软雅黑', value: 'Microsoft YaHei' },
+  { name: '黑体', value: 'SimHei' },
+  { name: '宋体', value: 'SimSun' },
+  { name: '楷体', value: 'KaiTi' },
+  { name: '仿宋', value: 'FangSong' },
+  { name: '思源黑体', value: '"Source Han Sans CN", "Noto Sans SC", sans-serif' },
+  { name: '思源宋体', value: '"Source Han Serif CN", "Noto Serif SC", serif' },
+  { name: '苹方', value: 'PingFang SC' },
+  { name: 'Arial', value: 'Arial' },
+  { name: 'Georgia', value: 'Georgia' },
+  { name: 'Times New Roman', value: 'Times New Roman' },
+  { name: 'Courier New', value: 'Courier New' },
+  { name: 'Verdana', value: 'Verdana' },
+  { name: 'Impact', value: 'Impact' },
+  { name: 'Comic Sans MS', value: 'Comic Sans MS' },
+]
+
+const PRESET_COLORS = [
+  '#6c5ce7',
+  '#a29bfe',
+  '#2d3436',
+  '#636e72',
+  '#ffffff',
+  '#000000',
+  '#e17055',
+  '#d63031',
+  '#e84393',
+  '#fd79a8',
+  '#fdcb6e',
+  '#f39c12',
+  '#00b894',
+  '#00cec9',
+  '#0984e3',
+  '#74b9ff',
+  '#6c5ce7',
+  '#a29bfe',
 ]
 
 function PropertyPanel() {
@@ -125,7 +152,9 @@ function TextProperties({ element, onUpdate, onUpdateComplete }: ControlProps & 
           }}
         >
           {FONT_FAMILIES.map((f) => (
-            <option key={f} value={f}>{f}</option>
+            <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+              {f.name}
+            </option>
           ))}
         </select>
       </div>
@@ -210,6 +239,14 @@ function StickerProperties({ element, onUpdate, onUpdateComplete }: ControlProps
           max={300}
           unit="%"
           onChange={(v) => onUpdate({ scale: v / 100 } as Partial<StickerElement>)}
+          onChangeComplete={onUpdateComplete}
+        />
+      </div>
+      <div className="property-section">
+        <label className="property-label">旋转角度</label>
+        <RotationKnob
+          value={element.rotation}
+          onChange={(v) => onUpdate({ rotation: v } as Partial<StickerElement>)}
           onChangeComplete={onUpdateComplete}
         />
       </div>
@@ -374,35 +411,120 @@ interface ColorPickerProps {
 }
 
 function ColorPicker({ value, onChange, onChangeComplete, allowTransparent, isTransparent }: ColorPickerProps) {
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [hexInput, setHexInput] = useState(value)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setHexInput(value)
+  }, [value])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setIsPanelOpen(false)
+      }
+    }
+    if (isPanelOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isPanelOpen])
+
+  const handleHexBlur = () => {
+    let hex = hexInput.trim()
+    if (!hex.startsWith('#')) hex = '#' + hex
+    if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+      onChange(hex.toLowerCase(), false)
+      onChangeComplete?.()
+    } else {
+      setHexInput(value)
+    }
+  }
+
+  const handlePresetClick = (color: string) => {
+    onChange(color, false)
+    onChangeComplete?.()
+  }
+
   return (
-    <div className="color-picker">
-      {allowTransparent && (
+    <div className="color-picker-container" ref={panelRef}>
+      <div className="color-picker">
+        {allowTransparent && (
+          <button
+            className={`transparent-btn ${isTransparent ? 'active' : ''}`}
+            onClick={() => {
+              onChange(value, true)
+              onChangeComplete?.()
+            }}
+          >
+            无
+          </button>
+        )}
         <button
-          className={`transparent-btn ${isTransparent ? 'active' : ''}`}
-          onClick={() => {
-            onChange(value, true)
-            onChangeComplete?.()
-          }}
+          className="custom-color-btn"
+          onClick={() => setIsPanelOpen(!isPanelOpen)}
+          title="选择颜色"
         >
-          无
+          <div
+            className="color-preview-large"
+            style={{ background: isTransparent ? 'repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 10px 10px' : value }}
+          />
         </button>
+        <span className="color-hex">{isTransparent ? '透明' : value}</span>
+      </div>
+      {isPanelOpen && (
+        <div className="color-panel">
+          <div className="color-panel-section">
+            <span className="color-panel-label">预设颜色</span>
+            <div className="preset-colors">
+              {PRESET_COLORS.map((color, idx) => (
+                <button
+                  key={idx}
+                  className={`preset-color ${value.toLowerCase() === color.toLowerCase() && !isTransparent ? 'selected' : ''}`}
+                  style={{ backgroundColor: color }}
+                  onClick={() => handlePresetClick(color)}
+                  title={color}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="color-panel-section">
+            <span className="color-panel-label">自定义颜色</span>
+            <div className="hex-input-row">
+              <span className="hash-symbol">#</span>
+              <input
+                type="text"
+                className="hex-input"
+                value={hexInput.replace('#', '')}
+                maxLength={6}
+                onChange={(e) => setHexInput('#' + e.target.value.replace(/[^0-9A-Fa-f]/g, ''))}
+                onBlur={handleHexBlur}
+                onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                placeholder="FFFFFF"
+              />
+            </div>
+            <div className="native-color-row">
+              <span className="color-panel-label-small">调色板</span>
+              <label className="native-color-label">
+                <input
+                  type="color"
+                  value={value}
+                  onChange={(e) => {
+                    onChange(e.target.value, false)
+                    setHexInput(e.target.value)
+                  }}
+                  onMouseUp={onChangeComplete}
+                  className="native-color-input"
+                />
+                <span className="native-color-text">点击选择</span>
+              </label>
+            </div>
+          </div>
+        </div>
       )}
-      <label className="color-input-label">
-        <div
-          className="color-preview"
-          style={{ background: isTransparent ? 'repeating-conic-gradient(#ddd 0% 25%, #fff 0% 50%) 50% / 10px 10px' : value }}
-        />
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value, false)
-          }}
-          onBlur={onChangeComplete}
-          className="color-input"
-        />
-      </label>
-      <span className="color-hex">{value}</span>
     </div>
   )
 }
