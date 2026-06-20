@@ -3,6 +3,7 @@ export type PlayerColor = 'red' | 'blue' | 'yellow' | 'green';
 export interface Piece {
   id: string;
   position: number;
+  distanceTraveled: number;
   isHome: boolean;
 }
 

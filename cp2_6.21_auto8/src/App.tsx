@@ -1,12 +1,22 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "@/pages/Home";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Lobby from './Lobby';
+import GameBoard from './GameBoard';
+import { SyncManager } from './SyncManager';
+import { useEffect } from 'react';
 
 export default function App() {
+  useEffect(() => {
+    SyncManager.start();
+    return () => {
+      SyncManager.stop();
+    };
+  }, []);
+
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/other" element={<div className="text-center text-xl">Other Page - Coming Soon</div>} />
+        <Route path="/" element={<Lobby />} />
+        <Route path="/game" element={<GameBoard />} />
       </Routes>
     </Router>
   );
