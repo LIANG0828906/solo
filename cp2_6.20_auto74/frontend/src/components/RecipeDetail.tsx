@@ -1,29 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { saveAs } from 'file-saver';
 import { useRecipeStore } from '../stores/recipeStore';
 import { ShoppingItem } from '../types';
+
+const GRADIENT_IDS = ['gradCalories', 'gradProtein', 'gradFat'];
 
 const NutritionRing: React.FC<{
   value: number;
   max: number;
   label: string;
   unit: string;
-  color: string;
+  colorStart: string;
+  colorEnd: string;
+  gradientId: string;
   delay: number;
-}> = ({ value, max, label, unit, color, delay }) => {
+}> = ({ value, max, label, unit, colorStart, colorEnd, gradientId, delay }) => {
   const [displayValue, setDisplayValue] = useState(0);
-  const percentage = (displayValue / max) * 100;
+  const [animatedOffset, setAnimatedOffset] = useState(0);
+  const rafRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(0);
+  const startValueRef = useRef<number>(0);
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  const animateValue = useCallback((from: number, to: number, duration: number) => {
+    startValueRef.current = from;
+    startTimeRef.current = performance.now();
+
+    const step = (timestamp: number) => {
+      const elapsed = timestamp - startTimeRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = from + (to - from) * eased;
+      const pct = (current / max) * 100;
+      const offset = circumference - (pct / 100) * circumference;
+
+      setDisplayValue(current);
+      setAnimatedOffset(offset);
+
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(step);
+  }, [max, circumference]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDisplayValue(value);
+      animateValue(0, value, 1200);
     }, delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
+    return () => {
+      clearTimeout(timer);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [value, delay, animateValue]);
 
   return (
     <div
@@ -32,10 +64,17 @@ const NutritionRing: React.FC<{
         flexDirection: 'column',
         alignItems: 'center',
         gap: '8px',
+        willChange: 'transform',
       }}
     >
       <div style={{ position: 'relative', width: '100px', height: '100px' }}>
-        <svg width="100" height="100">
+        <svg width="100" height="100" style={{ willChange: 'transform' }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={colorStart} />
+              <stop offset="100%" stopColor={colorEnd} />
+            </linearGradient>
+          </defs>
           <circle
             cx="50"
             cy="50"
@@ -49,14 +88,16 @@ const NutritionRing: React.FC<{
             cy="50"
             r={radius}
             fill="none"
-            stroke={color}
+            stroke={`url(#${gradientId})`}
             strokeWidth="8"
             strokeLinecap="round"
             strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
+            strokeDashoffset={animatedOffset}
             transform="rotate(-90 50 50)"
             style={{
-              transition: 'stroke-dashoffset 1s ease-out',
+              transition: 'none',
+              willChange: 'stroke-dashoffset',
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))',
             }}
           />
         </svg>
@@ -146,6 +187,7 @@ const RecipeDetail: React.FC = () => {
         margin: '0 auto',
         padding: '24px',
         animation: 'fadeIn 0.4s ease-out',
+        willChange: 'transform, opacity',
       }}
     >
       <button
@@ -161,6 +203,7 @@ const RecipeDetail: React.FC = () => {
           padding: '8px 16px',
           borderRadius: '8px',
           transition: 'background-color 0.2s',
+          willChange: 'transform',
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = '#f0ebe5';
@@ -269,7 +312,9 @@ const RecipeDetail: React.FC = () => {
               max={800}
               label="热量"
               unit="kcal"
-              color="#ff9800"
+              colorStart="#ffb74d"
+              colorEnd="#ff9800"
+              gradientId={GRADIENT_IDS[0]}
               delay={100}
             />
             <NutritionRing
@@ -277,7 +322,9 @@ const RecipeDetail: React.FC = () => {
               max={60}
               label="蛋白质"
               unit="g"
-              color="#4caf50"
+              colorStart="#81c784"
+              colorEnd="#4caf50"
+              gradientId={GRADIENT_IDS[1]}
               delay={300}
             />
             <NutritionRing
@@ -285,7 +332,9 @@ const RecipeDetail: React.FC = () => {
               max={50}
               label="脂肪"
               unit="g"
-              color="#f44336"
+              colorStart="#e57373"
+              colorEnd="#f44336"
+              gradientId={GRADIENT_IDS[2]}
               delay={500}
             />
           </div>
@@ -360,6 +409,7 @@ const RecipeDetail: React.FC = () => {
                     marginBottom: '20px',
                     animationDelay: `${index * 0.15}s`,
                     opacity: 0,
+                    willChange: 'transform, opacity',
                   }}
                 >
                   <div
@@ -420,8 +470,9 @@ const RecipeDetail: React.FC = () => {
               fontSize: '16px',
               fontWeight: 600,
               borderRadius: '12px',
-              transition: 'all 0.3s ease',
+              transition: 'transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease',
               boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+              willChange: 'transform',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = '#43a047';
@@ -533,6 +584,7 @@ const RecipeDetail: React.FC = () => {
                     fontWeight: 600,
                     borderRadius: '10px',
                     transition: 'background-color 0.2s',
+                    willChange: 'transform',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = '#fb8c00';

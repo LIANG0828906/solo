@@ -1,5 +1,6 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from pydantic import BaseModel
+from functools import lru_cache
 
 
 class Nutrition(BaseModel):
@@ -252,11 +253,14 @@ def filter_by_dietary(recipes: List[RecipeData], dietary_filter: Optional[str]) 
     return [r for r in recipes if tag in r.dietary_tags]
 
 
-def recommend_recipes(
-    user_ingredients: List[str],
-    dietary_filter: Optional[str] = None,
-    top_n: int = 10
-) -> List[Dict]:
+@lru_cache(maxsize=128)
+def _recommend_cached(
+    ingredients_tuple: Tuple[str, ...],
+    dietary_filter: Optional[str],
+) -> str:
+    import json
+
+    user_ingredients = list(ingredients_tuple)
     recipes = filter_by_dietary(SAMPLE_RECIPES, dietary_filter)
 
     scored_recipes = []
@@ -276,12 +280,28 @@ def recommend_recipes(
         })
 
     scored_recipes.sort(key=lambda x: x["match_score"], reverse=True)
-    return scored_recipes[:top_n]
+    return json.dumps(scored_recipes[:10])
 
 
-def get_all_recipes(dietary_filter: Optional[str] = None) -> List[Dict]:
+def recommend_recipes(
+    user_ingredients: List[str],
+    dietary_filter: Optional[str] = None,
+    top_n: int = 10
+) -> List[Dict]:
+    import json
+
+    ingredients_tuple = tuple(sorted(user_ingredients))
+    cached_result = _recommend_cached(ingredients_tuple, dietary_filter)
+    all_results = json.loads(cached_result)
+    return all_results[:top_n]
+
+
+@lru_cache(maxsize=32)
+def _get_all_recipes_cached(dietary_filter: Optional[str]) -> str:
+    import json
+
     recipes = filter_by_dietary(SAMPLE_RECIPES, dietary_filter)
-    return [
+    return json.dumps([
         {
             "id": r.id,
             "name": r.name,
@@ -294,7 +314,13 @@ def get_all_recipes(dietary_filter: Optional[str] = None) -> List[Dict]:
             "dietary_tags": r.dietary_tags,
         }
         for r in recipes
-    ]
+    ])
+
+
+def get_all_recipes(dietary_filter: Optional[str] = None) -> List[Dict]:
+    import json
+
+    return json.loads(_get_all_recipes_cached(dietary_filter))
 
 
 def get_recipe_by_id(recipe_id: int) -> Optional[Dict]:

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { useRecipeStore } from '../stores/recipeStore';
 import { Recipe, MealPlanItem, DayMealPlan } from '../types';
@@ -40,9 +40,9 @@ const MealPlanner: React.FC = () => {
   }, [currentMonth]);
 
   const hasMealPlan = (date: string): boolean => {
-      const plan = getMealPlanByDate(date);
-      return plan !== undefined && plan.meals.length > 0;
-    };
+    const plan = getMealPlanByDate(date);
+    return plan !== undefined && plan.meals.length > 0;
+  };
 
   const handleDateClick = (date: string) => {
     setSelectedDate(date);
@@ -62,32 +62,46 @@ const MealPlanner: React.FC = () => {
     removeMealPlan(selectedDate, mealPlanId);
   };
 
-  const handleDragStart = (meal: MealPlanItem, date: string) => {
+  const handleDragStart = useCallback((meal: MealPlanItem, date: string) => {
     setDraggedMeal({ meal, fromDate: date });
-  };
+    setSelectedDate(null);
+  }, []);
 
-  const handleDragOver = (e: React.DragEvent, date: string) => {
+  const handleDragOver = useCallback((e: React.DragEvent, date: string) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     setDragOverDate(date);
-  };
+  }, []);
 
-  const handleDragLeave = () => {
+  const handleDragLeave = useCallback(() => {
     setDragOverDate(null);
-  };
+  }, []);
 
-  const handleDrop = (e: React.DragEvent, toDate: string) => {
+  const handleDrop = useCallback((e: React.DragEvent, toDate: string) => {
     e.preventDefault();
     if (draggedMeal && draggedMeal.fromDate !== toDate) {
       moveMealPlan(draggedMeal.fromDate, toDate, draggedMeal.meal.id);
     }
     setDraggedMeal(null);
     setDragOverDate(null);
-  };
+  }, [draggedMeal, moveMealPlan]);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setDraggedMeal(null);
     setDragOverDate(null);
-  };
+  }, []);
+
+  const handleCalendarCellDragStart = useCallback((e: React.DragEvent, date: string) => {
+    const plan = getMealPlanByDate(date);
+    if (!plan || plan.meals.length === 0) return;
+    const firstMeal = plan.meals[0];
+    setDraggedMeal({ meal: firstMeal, fromDate: date });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      mealId: firstMeal.id,
+      fromDate: date,
+    }));
+  }, [getMealPlanByDate]);
 
   const selectedDayPlan = selectedDate ? getMealPlanByDate(selectedDate) : undefined;
 
@@ -126,9 +140,9 @@ const MealPlanner: React.FC = () => {
     const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', willChange: 'transform' }}>
         <div style={{ position: 'relative', width: '64px', height: '64px' }}>
-          <svg width="64" height="64">
+          <svg width="64" height="64" style={{ willChange: 'transform' }}>
             <circle cx="32" cy="32" r={radius} fill="none" stroke="#f0f0f0" strokeWidth="6" />
             <circle
               cx="32"
@@ -141,7 +155,7 @@ const MealPlanner: React.FC = () => {
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
               transform="rotate(-90 32 32)"
-              style={{ transition: 'stroke-dashoffset 0.5s ease-out' }}
+              style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1)', willChange: 'stroke-dashoffset' }}
             />
           </svg>
           <div
@@ -164,7 +178,7 @@ const MealPlanner: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '24px', animation: 'fadeIn 0.4s ease-out' }}>
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '24px', animation: 'fadeIn 0.4s ease-out', willChange: 'transform, opacity' }}>
       <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#333', marginBottom: '24px' }}>
         📅 膳食计划
       </h1>
@@ -186,13 +200,16 @@ const MealPlanner: React.FC = () => {
               borderRadius: '8px',
               fontSize: '14px',
               color: '#666',
-              transition: 'background-color 0.2s',
+              transition: 'background-color 0.2s, transform 0.2s',
+              willChange: 'transform',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = '#ebe6e1';
+              e.currentTarget.style.transform = 'scale(1.05)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = '#f5f0eb';
+              e.currentTarget.style.transform = 'scale(1)';
             }}
           >
             ← 上月
@@ -208,13 +225,16 @@ const MealPlanner: React.FC = () => {
               borderRadius: '8px',
               fontSize: '14px',
               color: '#666',
-              transition: 'background-color 0.2s',
+              transition: 'background-color 0.2s, transform 0.2s',
+              willChange: 'transform',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = '#ebe6e1';
+              e.currentTarget.style.transform = 'scale(1.05)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = '#f5f0eb';
+              e.currentTarget.style.transform = 'scale(1)';
             }}
           >
             下月 →
@@ -255,10 +275,13 @@ const MealPlanner: React.FC = () => {
             return (
               <div
                 key={day.date}
+                draggable={hasPlan && day.isCurrentMonth}
                 onClick={() => day.isCurrentMonth && handleDateClick(day.date)}
+                onDragStart={(e) => day.isCurrentMonth && hasPlan && handleCalendarCellDragStart(e, day.date)}
                 onDragOver={(e) => day.isCurrentMonth && handleDragOver(e, day.date)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => day.isCurrentMonth && handleDrop(e, day.date)}
+                onDragEnd={handleDragEnd}
                 style={{
                   aspectRatio: '1',
                   borderRadius: '12px',
@@ -269,15 +292,16 @@ const MealPlanner: React.FC = () => {
                     : day.isCurrentMonth
                     ? '#faf5ef'
                     : '#fafafa',
-                  cursor: day.isCurrentMonth ? 'pointer' : 'default',
+                  cursor: day.isCurrentMonth ? (hasPlan ? 'grab' : 'pointer') : 'default',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
                   position: 'relative',
-                  transition: 'all 0.2s ease',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease',
+                  willChange: 'transform',
                   opacity: day.isCurrentMonth ? 1 : 0.4,
-                  border: isToday ? '2px solid #ff9800' : '2px solid transparent',
+                  border: isToday ? '2px solid #ff9800' : isDragOver ? '2px solid #4caf50' : '2px solid transparent',
                 }}
                 onMouseEnter={(e) => {
                   if (day.isCurrentMonth) {
@@ -309,9 +333,10 @@ const MealPlanner: React.FC = () => {
                       gap: '3px',
                     }}
                   >
-                    {dayPlan?.meals.slice(0, 3).map((_, idx) => (
+                    {dayPlan?.meals.slice(0, 3).map((meal, idx) => (
                       <div
                         key={idx}
+                        title={meal.recipe.name}
                         style={{
                           width: '6px',
                           height: '6px',
@@ -340,8 +365,8 @@ const MealPlanner: React.FC = () => {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4caf50' }} />
-          <span>有计划</span>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4caf50' }} />
+            <span>有计划</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div
@@ -354,7 +379,7 @@ const MealPlanner: React.FC = () => {
             />
             <span>今天</span>
           </div>
-          <span style={{ marginLeft: 'auto' }}>💡 点击日期添加食谱，拖拽移动食谱到其他日期</span>
+          <span style={{ marginLeft: 'auto' }}>💡 点击日期添加食谱，拖拽有计划的日期到其他日期可移动</span>
         </div>
       </div>
 
@@ -414,6 +439,16 @@ const MealPlanner: React.FC = () => {
                   borderRadius: '50%',
                   fontSize: '18px',
                   color: '#666',
+                  transition: 'background-color 0.2s, transform 0.2s',
+                  willChange: 'transform',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ebe6e1';
+                  e.currentTarget.style.transform = 'rotate(90deg)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f5f0eb';
+                  e.currentTarget.style.transform = 'rotate(0deg)';
                 }}
               >
                 ×
@@ -473,15 +508,15 @@ const MealPlanner: React.FC = () => {
             {selectedDayPlan && selectedDayPlan.meals.length > 0 && (
               <div style={{ marginBottom: '20px' }}>
                 <div
-                style={{
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  color: '#666',
-                  marginBottom: '12px',
-                }}
-              >
-                已添加的食谱
-              </div>
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    color: '#666',
+                    marginBottom: '12px',
+                  }}
+                >
+                  已添加的食谱
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {selectedDayPlan.meals.map((meal) => (
                     <div
@@ -497,6 +532,8 @@ const MealPlanner: React.FC = () => {
                         backgroundColor: '#fff8e1',
                         borderRadius: '12px',
                         cursor: 'grab',
+                        transition: 'transform 0.2s, box-shadow 0.2s',
+                        willChange: 'transform',
                       }}
                     >
                       <div
@@ -525,6 +562,14 @@ const MealPlanner: React.FC = () => {
                           fontSize: '18px',
                           width: '28px',
                           height: '28px',
+                          transition: 'transform 0.2s',
+                          willChange: 'transform',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
                         }}
                       >
                         ×
@@ -548,22 +593,23 @@ const MealPlanner: React.FC = () => {
               </div>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                 {(['breakfast', 'lunch', 'dinner'] as const).map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setSelectedMealType(type)}
-                  style={{
-                    padding: '8px 20px',
-                    borderRadius: '20px',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    backgroundColor: selectedMealType === type ? '#ff9800' : '#f5f0eb',
-                    color: selectedMealType === type ? '#fff' : '#666',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {mealTypeLabels[type]}
-                </button>
-              ))}
+                  <button
+                    key={type}
+                    onClick={() => setSelectedMealType(type)}
+                    style={{
+                      padding: '8px 20px',
+                      borderRadius: '20px',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      backgroundColor: selectedMealType === type ? '#ff9800' : '#f5f0eb',
+                      color: selectedMealType === type ? '#fff' : '#666',
+                      transition: 'all 0.2s',
+                      willChange: 'transform',
+                    }}
+                  >
+                    {mealTypeLabels[type]}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -587,15 +633,16 @@ const MealPlanner: React.FC = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '8px',
+                    willChange: 'transform',
                   }}
                 >
                   <div
                     style={{
                       width: '100%',
-                    height: '100px',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                  }}
+                      height: '100px',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                    }}
                   >
                     <img
                       src={recipe.image}

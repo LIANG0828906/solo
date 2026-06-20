@@ -32,7 +32,8 @@ button {
 .card {
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  will-change: transform, box-shadow;
 }
 
 .card:hover {
@@ -105,23 +106,36 @@ button {
 .ingredient-card.expiring-soon {
   animation: pulse-border 1.5s ease-in-out infinite;
   border: 2px solid #ef4444;
+  will-change: border-color, box-shadow;
+}
+
+.ingredient-card {
+  will-change: transform, opacity, border-color, box-shadow;
 }
 
 .step-card {
   animation: slideInLeft 0.5s ease-out forwards;
   opacity: 0;
+  will-change: transform, opacity;
 }
 
 .modal-overlay {
   animation: fadeIn 0.3s ease-out;
+  will-change: opacity;
 }
 
 .modal-content {
   animation: slideUp 0.3s ease-out;
+  will-change: transform, opacity;
 }
 
 .dot-indicator {
   animation: bounceIn 0.4s ease-out;
+  will-change: transform, opacity;
+}
+
+.recipe-card {
+  will-change: transform, opacity;
 }
 
 ::-webkit-scrollbar {

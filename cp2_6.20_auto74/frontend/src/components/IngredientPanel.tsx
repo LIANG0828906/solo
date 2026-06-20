@@ -1,14 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
 import dayjs from 'dayjs';
 import { useIngredientStore } from '../stores/ingredientStore';
 
 const IngredientPanel: React.FC = () => {
-  const { ingredients, getExpiringSoon } = useIngredientStore();
+  const { ingredients, getExpiringSoon, addIngredient, removeIngredient } = useIngredientStore();
   const expiringSoon = getExpiringSoon();
   const expiringIds = new Set(expiringSoon.map((i) => i.id));
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newQuantity, setNewQuantity] = useState('');
+  const [newUnit, setNewUnit] = useState('g');
+  const [newExpireDate, setNewExpireDate] = useState('');
 
   const getDaysRemaining = (expireDate: string) => {
     return dayjs(expireDate).diff(dayjs(), 'day');
+  };
+
+  const handleAdd = () => {
+    if (!newName.trim() || !newQuantity) return;
+    addIngredient({
+      name: newName.trim(),
+      quantity: Number(newQuantity),
+      unit: newUnit,
+      expireDate: newExpireDate || dayjs().add(7, 'day').format('YYYY-MM-DD'),
+      category: '其他',
+    });
+    setNewName('');
+    setNewQuantity('');
+    setNewUnit('g');
+    setNewExpireDate('');
+    setShowAddForm(false);
   };
 
   return (
@@ -37,21 +58,164 @@ const IngredientPanel: React.FC = () => {
         <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#333' }}>
           🥬 我的食材
         </h2>
-        {expiringSoon.length > 0 && (
-          <span
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {expiringSoon.length > 0 && (
+            <span
+              style={{
+                fontSize: '12px',
+                color: '#ef4444',
+                backgroundColor: '#fef2f2',
+                padding: '4px 10px',
+                borderRadius: '20px',
+                fontWeight: 500,
+              }}
+            >
+              {expiringSoon.length} 项即将过期
+            </span>
+          )}
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
             style={{
-              fontSize: '12px',
-              color: '#ef4444',
-              backgroundColor: '#fef2f2',
-              padding: '4px 10px',
-              borderRadius: '20px',
-              fontWeight: 500,
+              backgroundColor: '#4caf50',
+              color: '#fff',
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              fontSize: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'transform 0.2s, background-color 0.2s',
+              willChange: 'transform',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.1) rotate(90deg)';
+              e.currentTarget.style.backgroundColor = '#43a047';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+              e.currentTarget.style.backgroundColor = '#4caf50';
             }}
           >
-            {expiringSoon.length} 项即将过期
-          </span>
-        )}
+            +
+          </button>
+        </div>
       </div>
+
+      {showAddForm && (
+        <div
+          style={{
+            backgroundColor: '#f1f8e9',
+            borderRadius: '12px',
+            padding: '14px',
+            marginBottom: '12px',
+            animation: 'fadeIn 0.3s ease-out',
+            willChange: 'transform, opacity',
+          }}
+        >
+          <input
+            placeholder="食材名称"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid #c8e6c9',
+              fontSize: '14px',
+              marginBottom: '8px',
+              outline: 'none',
+              backgroundColor: '#fff',
+            }}
+          />
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+            <input
+              placeholder="数量"
+              type="number"
+              value={newQuantity}
+              onChange={(e) => setNewQuantity(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid #c8e6c9',
+                fontSize: '14px',
+                outline: 'none',
+                backgroundColor: '#fff',
+              }}
+            />
+            <select
+              value={newUnit}
+              onChange={(e) => setNewUnit(e.target.value)}
+              style={{
+                width: '60px',
+                padding: '8px',
+                borderRadius: '8px',
+                border: '1px solid #c8e6c9',
+                fontSize: '14px',
+                outline: 'none',
+                backgroundColor: '#fff',
+              }}
+            >
+              <option value="g">g</option>
+              <option value="ml">ml</option>
+              <option value="个">个</option>
+            </select>
+          </div>
+          <input
+            type="date"
+            value={newExpireDate}
+            onChange={(e) => setNewExpireDate(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid #c8e6c9',
+              fontSize: '14px',
+              marginBottom: '8px',
+              outline: 'none',
+              backgroundColor: '#fff',
+            }}
+          />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleAdd}
+              style={{
+                flex: 1,
+                padding: '8px',
+                backgroundColor: '#4caf50',
+                color: '#fff',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 500,
+                willChange: 'transform',
+                transition: 'transform 0.2s, background-color 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#43a047';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#4caf50';
+              }}
+            >
+              添加
+            </button>
+            <button
+              onClick={() => setShowAddForm(false)}
+              style={{
+                flex: 1,
+                padding: '8px',
+                backgroundColor: '#e0e0e0',
+                color: '#666',
+                borderRadius: '8px',
+                fontSize: '13px',
+              }}
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
 
       <div
         className="ingredient-grid"
@@ -76,16 +240,52 @@ const IngredientPanel: React.FC = () => {
                 backgroundColor: '#e8f5e9',
                 padding: '14px',
                 borderRadius: '12px',
-                animationDelay: `${index * 0.05}s`,
-                animation: `fadeIn 0.4s ease-out ${index * 0.05}s both`,
+                border: isExpiring ? '2px solid #ef4444' : '2px solid transparent',
+                animation: isExpiring
+                  ? 'pulse-border 1.5s ease-in-out infinite'
+                  : `fadeIn 0.4s ease-out ${index * 0.05}s both`,
+                willChange: 'transform, opacity, border-color, box-shadow',
+                position: 'relative',
               }}
             >
+              <button
+                onClick={() => removeIngredient(ingredient.id)}
+                style={{
+                  position: 'absolute',
+                  top: '6px',
+                  right: '6px',
+                  backgroundColor: 'transparent',
+                  color: '#999',
+                  fontSize: '14px',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%',
+                  opacity: 0.5,
+                  transition: 'opacity 0.2s, background-color 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.backgroundColor = '#fef2f2';
+                  e.currentTarget.style.color = '#ef4444';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '0.5';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#999';
+                }}
+              >
+                ×
+              </button>
               <div
                 style={{
                   fontSize: '15px',
                   fontWeight: 600,
                   color: '#2e7d32',
                   marginBottom: '8px',
+                  paddingRight: '16px',
                 }}
               >
                 {ingredient.name}
@@ -97,14 +297,13 @@ const IngredientPanel: React.FC = () => {
                   marginBottom: '6px',
                 }}
               >
-                剩余: {ingredient.quantity}
-                {ingredient.unit}
+                剩余: {ingredient.quantity}{ingredient.unit}
               </div>
               <div
                 style={{
                   fontSize: '12px',
                   color: isExpiring ? '#ef4444' : '#666',
-                  fontWeight: isExpiring ? 500 : 400,
+                  fontWeight: isExpiring ? 600 : 400,
                 }}
               >
                 {isExpiring
