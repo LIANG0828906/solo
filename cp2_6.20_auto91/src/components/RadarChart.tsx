@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 import type { CreatureStats } from '../types';
 import { STAT_LABELS } from '../utils/constants';
 
@@ -6,11 +6,61 @@ interface RadarChartProps {
   stats: CreatureStats;
 }
 
+interface PointAnimation {
+  outerRadius: number;
+  outerOpacity: number;
+  innerRadius: number;
+}
+
 const RadarChart: React.FC<RadarChartProps> = ({ stats }) => {
   const statKeys = useMemo(
     () => (['health', 'attack', 'defense', 'speed', 'spirit', 'potential'] as const),
     []
   );
+
+  const [animations, setAnimations] = useState<PointAnimation[]>(
+    statKeys.map(() => ({
+      outerRadius: 6,
+      outerOpacity: 0.5,
+      innerRadius: 5,
+    }))
+  );
+
+  const animationRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    const animate = (timestamp: number) => {
+      if (!startTimeRef.current) {
+        startTimeRef.current = timestamp;
+      }
+      const elapsed = timestamp - startTimeRef.current;
+      const period = 2000;
+
+      const newAnimations = statKeys.map((_, index) => {
+        const phase = index * 150;
+        const t = ((elapsed + phase) % period) / period;
+        const eased = 0.5 - 0.5 * Math.cos(t * Math.PI * 2);
+
+        return {
+          outerRadius: 6 + (12 - 6) * eased,
+          outerOpacity: 0.5 + (0.1 - 0.5) * eased,
+          innerRadius: 4.5 + (5.5 - 4.5) * eased,
+        };
+      });
+
+      setAnimations(newAnimations);
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [statKeys]);
 
   const points = useMemo(() => {
     const centerX = 150;
@@ -80,35 +130,22 @@ const RadarChart: React.FC<RadarChartProps> = ({ stats }) => {
           </filter>
         </defs>
 
-        <style>{`
-          @keyframes breathe {
-            0%, 100% {
-              transform: scale(1);
-              opacity: 0.6;
-            }
-            50% {
-              transform: scale(1.5);
-              opacity: 0.15;
-            }
-          }
-          .glow-point {
-            animation: breathe 2s ease-in-out infinite;
-          }
-        `}</style>
-
         <circle cx="150" cy="150" r="120" fill="url(#radarBg)" />
 
-        {gridPoints.map((grid, level) => (
-          <polygon
-            key={level}
-            points={grid.map((p) => `${p.x},${p.y}`).join(' ')}
-            fill="#1e3a5f"
-            fillOpacity="0.15"
-            stroke="#3b82f6"
-            strokeOpacity="0.3"
-            strokeWidth="1"
-          />
-        ))}
+        {gridPoints.map((grid, level) => {
+          const isOutermost = level === gridPoints.length - 1;
+          return (
+            <polygon
+              key={level}
+              points={grid.map((p) => `${p.x},${p.y}`).join(' ')}
+              fill={isOutermost ? "#1e3a5f" : "none"}
+              fillOpacity={isOutermost ? "0.15" : "0"}
+              stroke="#3b82f6"
+              strokeOpacity="0.3"
+              strokeWidth="1"
+            />
+          );
+        })}
 
         {points.map((point, index) => (
           <line
@@ -137,19 +174,14 @@ const RadarChart: React.FC<RadarChartProps> = ({ stats }) => {
             <circle
               cx={point.x}
               cy={point.y}
-              r="8"
+              r={animations[index].outerRadius}
               fill="#ffd700"
-              fillOpacity="0.4"
-              className="glow-point"
-              style={{
-                transformOrigin: `${point.x}px ${point.y}px`,
-                animationDelay: `${index * 0.15}s`,
-              }}
+              fillOpacity={animations[index].outerOpacity}
             />
             <circle
               cx={point.x}
               cy={point.y}
-              r="5"
+              r={animations[index].innerRadius}
               fill="#ffd700"
               filter="url(#statGlow)"
             />

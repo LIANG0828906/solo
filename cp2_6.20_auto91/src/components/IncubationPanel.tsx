@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useIncubationStore } from '../store/incubationStore';
 import { getSuccessRateColor } from '../utils/calculations';
 import ProgressGauge from './ProgressGauge';
@@ -16,7 +16,13 @@ const IncubationPanel: React.FC = () => {
   const startIncubation = useIncubationStore((state) => state.startIncubation);
   const reset = useIncubationStore((state) => state.reset);
 
+  const isInteractingRef = useRef<string | null>(null);
   const [activeSlider, setActiveSlider] = useState<string | null>(null);
+  const [pulseScale, setPulseScale] = useState<Record<string, number>>({
+    temperature: 1,
+    humidity: 1,
+    aura: 1,
+  });
 
   const handleSliderChange = useCallback(
     (param: keyof typeof environment, value: number) => {
@@ -25,16 +31,75 @@ const IncubationPanel: React.FC = () => {
     [setEnvironment]
   );
 
+  const animationFrameRef = useRef<number | null>(null);
+  const startTimeRef = useRef<Record<string, number>>({
+    temperature: 0,
+    humidity: 0,
+    aura: 0,
+  });
+
   const handlePointerDown = useCallback((key: string) => {
+    isInteractingRef.current = key;
     setActiveSlider(key);
+    startTimeRef.current[key] = performance.now();
   }, []);
 
   const handlePointerUp = useCallback(() => {
+    isInteractingRef.current = null;
     setActiveSlider(null);
   }, []);
 
   const handleInput = useCallback((key: string) => {
+    isInteractingRef.current = key;
     setActiveSlider(key);
+    if (startTimeRef.current[key] === 0) {
+      startTimeRef.current[key] = performance.now();
+    }
+  }, []);
+
+  const handleTouchStart = useCallback((key: string) => {
+    isInteractingRef.current = key;
+    setActiveSlider(key);
+    startTimeRef.current[key] = performance.now();
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    isInteractingRef.current = null;
+    setActiveSlider(null);
+  }, []);
+
+  useEffect(() => {
+    const targetScale = 1.8;
+    const period = 0.7;
+    const frequency = (Math.PI * 2) / period;
+
+    const animate = () => {
+      const now = performance.now();
+      const newPulseScale: Record<string, number> = {
+        temperature: 1,
+        humidity: 1,
+        aura: 1,
+      };
+
+      (['temperature', 'humidity', 'aura'] as const).forEach((key) => {
+        if (isInteractingRef.current === key) {
+          const elapsed = (now - startTimeRef.current[key]) / 1000;
+          newPulseScale[key] =
+            1 + (targetScale - 1) * (0.5 + 0.5 * Math.sin(elapsed * frequency));
+        }
+      });
+
+      setPulseScale(newPulseScale);
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
   }, []);
 
   const sliders = [
@@ -74,28 +139,6 @@ const IncubationPanel: React.FC = () => {
 
   return (
     <>
-      <style>{`
-        @keyframes iconPulse {
-          0%, 100% {
-            transform: scale(1);
-            box-shadow: 0 0 8px var(--glow-color);
-          }
-          50% {
-            transform: scale(1.3);
-            box-shadow: 0 0 24px var(--glow-color), 0 0 48px var(--glow-color);
-          }
-        }
-        @keyframes glowRing {
-          0%, 100% {
-            opacity: 0.4;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.9;
-            transform: scale(1.5);
-          }
-        }
-      `}</style>
       <div className="space-y-6">
         {showHatchingControls && (
           <>
@@ -145,9 +188,10 @@ const IncubationPanel: React.FC = () => {
                           onChange={(e) => handleSliderChange(slider.key, Number(e.target.value))}
                           onPointerDown={() => handlePointerDown(slider.key)}
                           onPointerUp={handlePointerUp}
+                          onPointerLeave={handlePointerUp}
                           onInput={() => handleInput(slider.key)}
-                          onTouchStart={() => setActiveSlider(slider.key)}
-                          onTouchEnd={() => setActiveSlider(null)}
+                          onTouchStart={() => handleTouchStart(slider.key)}
+                          onTouchEnd={handleTouchEnd}
                           disabled={isIncubating}
                           className="w-full h-2 rounded-full appearance-none cursor-pointer"
                           style={{
@@ -166,7 +210,8 @@ const IncubationPanel: React.FC = () => {
                                 inset: -6,
                                 borderRadius: '50%',
                                 border: `2px solid ${slider.iconColor}`,
-                                animation: 'glowRing 0.8s ease-in-out infinite',
+                                opacity: 0.4 + 0.5 * ((pulseScale[slider.key] - 1) / 0.8),
+                                transform: `scale(${pulseScale[slider.key]})`,
                                 pointerEvents: 'none',
                               }}
                             />
@@ -183,18 +228,19 @@ const IncubationPanel: React.FC = () => {
                                 ? `${slider.iconColor}30`
                                 : `${slider.iconColor}15`,
                               border: `2px solid ${isActive ? slider.iconColor : slider.iconColor}40`,
-                              animation: isActive
-                                ? `iconPulse 0.8s ease-in-out infinite`
+                              transform: `scale(${pulseScale[slider.key]})`,
+                              boxShadow: isActive
+                                ? `0 0 ${8 + 40 * (pulseScale[slider.key] - 1) / 0.8}px ${slider.iconColor}, 0 0 ${16 + 80 * (pulseScale[slider.key] - 1) / 0.8}px ${slider.iconColor}60`
                                 : 'none',
-                              '--glow-color': slider.iconColor,
-                            } as React.CSSProperties}
+                              transition: !isActive ? 'transform 0.2s ease-out, box-shadow 0.2s ease-out' : 'none',
+                            }}
                           >
                             <Icon
                               className="w-5 h-5"
                               style={{
                                 color: slider.iconColor,
                                 filter: isActive
-                                  ? `drop-shadow(0 0 6px ${slider.iconColor})`
+                                  ? `drop-shadow(0 0 ${4 + 10 * (pulseScale[slider.key] - 1) / 0.8}px ${slider.iconColor})`
                                   : 'none',
                               }}
                             />

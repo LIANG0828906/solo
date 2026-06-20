@@ -1,5 +1,4 @@
 import { useMemo, useEffect } from 'react';
-import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
 import { EffectComposer, Bloom, SSAO } from '@react-three/postprocessing';
@@ -81,20 +80,24 @@ const CreatureEvolution = () => {
               evolutionAnimation={evolutionAnimation}
             />
 
-            {evolutionAnimation.particleIntensity > 0 && (
+            {(evolutionAnimation.phase === 'particles' || evolutionAnimation.phase === 'transition') && (
               <>
-                <ParticleSystem
-                  active={evolutionAnimation.particleIntensity > 0}
-                  intensity={evolutionAnimation.particleIntensity}
-                  element={element}
-                  type="vortex"
-                />
-                <ParticleSystem
-                  active={evolutionAnimation.particleIntensity > 0}
-                  intensity={evolutionAnimation.particleIntensity * 0.5}
-                  element={element}
-                  type="burst"
-                />
+                {evolutionAnimation.phase === 'particles' && (
+                  <ParticleSystem
+                    active={true}
+                    intensity={evolutionAnimation.particleIntensity}
+                    element={element}
+                    type="vortex"
+                  />
+                )}
+                {evolutionAnimation.phase === 'transition' && (
+                  <ParticleSystem
+                    active={true}
+                    intensity={evolutionAnimation.particleIntensity}
+                    element={element}
+                    type="burst"
+                  />
+                )}
               </>
             )}
 
@@ -107,7 +110,7 @@ const CreatureEvolution = () => {
               />
             )}
 
-            <LightBeam active={evolutionAnimation.showLightBeam} />
+            <LightBeam active={evolutionAnimation.phase === 'lightBeam'} />
           </>
         )}
 

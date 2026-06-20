@@ -64,6 +64,222 @@ const Eyes = ({ y, z, sp, sz, gc }: { y: number; z: number; sp: number; sz: numb
 const useC = (hex: string) => useMemo(() => new THREE.Color(hex), [hex]);
 const useMix = (a: string, b: string, t: number) => useMemo(() => new THREE.Color(a).lerp(new THREE.Color(b), t), [a, b, t]);
 
+interface PhoenixWingProps {
+  side: 'left' | 'right';
+  stage: EvolutionStage;
+  sc: THREE.Color;
+  cl: StageColors;
+  mx: (t: number) => THREE.Color;
+}
+
+const PhoenixWing = ({ side, stage, sc, cl, mx }: PhoenixWingProps) => {
+  const sideSign = side === 'left' ? 1 : -1;
+  const wingScale = stage === 'evolved' ? 1.2 : stage === 'adult' ? 1.0 : 0.7;
+  const layerCount = stage === 'evolved' ? 3 : stage === 'adult' ? 2 : 1;
+
+  const wingBones = useMemo(() => {
+    const bones: { curve: THREE.CatmullRomCurve3; radius: number; emissiveMult: number; colorMix: number }[] = [];
+    for (let layer = 0; layer < layerCount; layer++) {
+      const layerOffset = layer * 0.12;
+      const layerScale = 1 - layer * 0.22;
+      const points: THREE.Vector3[] = [];
+      const segs = 10;
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const x = sideSign * (0.08 + t * 0.62 * wingScale * layerScale);
+        const y = Math.sin(t * Math.PI) * 0.16 * layerScale - layerOffset;
+        const z = -t * 0.28 * wingScale * layerScale;
+        points.push(new THREE.Vector3(x, y, z));
+      }
+      bones.push({
+        curve: new THREE.CatmullRomCurve3(points),
+        radius: 0.032 * layerScale,
+        emissiveMult: 0.62 - layer * 0.16,
+        colorMix: layer * 0.32,
+      });
+    }
+    return bones;
+  }, [sideSign, layerCount, wingScale]);
+
+  const featherBlades = useMemo(() => {
+    const blades: {
+      position: [number, number, number];
+      rotation: [number, number, number];
+      size: [number, number, number];
+      colorMix: number;
+      emissiveMult: number;
+    }[] = [];
+    for (let layer = 0; layer < layerCount; layer++) {
+      const layerScale = 1 - layer * 0.22;
+      const layerOffset = layer * 0.12;
+      const featherCount = stage === 'evolved' ? 13 : stage === 'adult' ? 10 : 6;
+      for (let i = 0; i < featherCount; i++) {
+        const t = (i + 1) / (featherCount + 1);
+        const bx = sideSign * (0.08 + t * 0.62 * wingScale * layerScale);
+        const by = Math.sin(t * Math.PI) * 0.16 * layerScale - layerOffset;
+        const bz = -t * 0.28 * wingScale * layerScale;
+        const bw = (0.09 + (1 - t) * 0.11) * layerScale;
+        const bh = 0.01;
+        const bl = (0.17 + (1 - t) * 0.09) * layerScale;
+        blades.push({
+          position: [bx, by, bz],
+          rotation: [0.22 + (1 - t) * 0.28, sideSign * (0.08 + (1 - t) * 0.22), sideSign * (0.48 + (1 - t) * 0.12)],
+          size: [bl, bh, bw],
+          colorMix: layer * 0.32 + (1 - t) * 0.22,
+          emissiveMult: 0.52 - layer * 0.12 - (1 - t) * 0.12,
+        });
+      }
+    }
+    return blades;
+  }, [sideSign, layerCount, wingScale, stage]);
+
+  return (
+    <group>
+      {wingBones.map((b, i) => (
+        <mesh key={`pb-${i}`}>
+          <tubeGeometry args={[b.curve, 32, b.radius, 8, false]} />
+          <M c={mx(b.colorMix)} e={sc} ei={cl.emissive * b.emissiveMult} m={cl.metalness} r={cl.roughness} />
+        </mesh>
+      ))}
+      {featherBlades.map((fb, i) => (
+        <mesh key={`pf-${i}`} position={fb.position} rotation={fb.rotation}>
+          <boxGeometry args={fb.size} />
+          <M c={mx(fb.colorMix)} e={sc} ei={cl.emissive * fb.emissiveMult} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+interface DragonWingProps {
+  side: 'left' | 'right';
+  stage: EvolutionStage;
+  pc: THREE.Color;
+  sc: THREE.Color;
+  cr: THREE.Color;
+  cl: StageColors;
+  mx: (t: number) => THREE.Color;
+}
+
+const DragonWing = ({ side, stage, pc, sc, cr, cl, mx }: DragonWingProps) => {
+  const sideSign = side === 'left' ? 1 : -1;
+  const wingScale = stage === 'evolved' ? 1.28 : stage === 'adult' ? 1.0 : 0.7;
+
+  const wingBones = useMemo(() => {
+    const bones: { curve: THREE.CatmullRomCurve3; radius: number; color: THREE.Color | string; emissiveMult: number }[] = [];
+
+    const leadingPoints: THREE.Vector3[] = [];
+    for (let i = 0; i <= 12; i++) {
+      const t = i / 12;
+      const x = sideSign * (0.08 + t * 0.72 * wingScale);
+      const y = Math.sin(t * Math.PI * 0.85) * 0.22 * wingScale;
+      const z = -t * 0.16 * wingScale;
+      leadingPoints.push(new THREE.Vector3(x, y, z));
+    }
+    bones.push({ curve: new THREE.CatmullRomCurve3(leadingPoints), radius: 0.03, color: cr, emissiveMult: 0.32 });
+
+    const fingerCount = stage === 'evolved' ? 5 : 4;
+    for (let f = 0; f < fingerCount; f++) {
+      const ft = 0.28 + f * 0.16;
+      const fingerPoints: THREE.Vector3[] = [];
+      const sx = sideSign * (0.08 + ft * 0.72 * wingScale);
+      const sy = Math.sin(ft * Math.PI * 0.85) * 0.22 * wingScale;
+      const sz = -ft * 0.16 * wingScale;
+      for (let i = 0; i <= 7; i++) {
+        const t = i / 7;
+        const sa = (f - (fingerCount - 1) / 2) * 0.38;
+        const x = sx + sideSign * t * 0.28 * wingScale * Math.cos(sa);
+        const y = sy + t * (0.17 + f * 0.03) * wingScale;
+        const z = sz - t * 0.22 * wingScale * Math.sin(sa);
+        fingerPoints.push(new THREE.Vector3(x, y, z));
+      }
+      bones.push({ curve: new THREE.CatmullRomCurve3(fingerPoints), radius: 0.018, color: cr, emissiveMult: 0.26 });
+    }
+
+    const trailingPoints: THREE.Vector3[] = [];
+    for (let i = 0; i <= 12; i++) {
+      const t = i / 12;
+      const x = sideSign * (0.08 + (0.72 + 0.22 * Math.sin(t * Math.PI)) * wingScale * t);
+      const y = -0.06 + Math.sin(t * Math.PI) * 0.14 * wingScale;
+      const z = -0.1 - t * 0.38 * wingScale;
+      trailingPoints.push(new THREE.Vector3(x, y, z));
+    }
+    bones.push({ curve: new THREE.CatmullRomCurve3(trailingPoints), radius: 0.022, color: mx(0.3), emissiveMult: 0.2 });
+
+    return bones;
+  }, [sideSign, wingScale, stage, cr, mx]);
+
+  const membraneShapes = useMemo(() => {
+    const results: { shape: THREE.Shape; position: [number, number, number]; rotation: [number, number, number] }[] = [];
+    const ms = wingScale;
+    const shape = new THREE.Shape();
+
+    shape.moveTo(0, 0);
+    for (let i = 1; i <= 12; i++) {
+      const t = i / 12;
+      const x = 0.08 + t * 0.72 * ms;
+      const y = Math.sin(t * Math.PI * 0.85) * 0.22 * ms;
+      shape.lineTo(x, y);
+    }
+    for (let i = 12; i >= 0; i--) {
+      const t = i / 12;
+      const x = 0.08 + (0.72 + 0.22 * Math.sin(t * Math.PI)) * ms * (1 - t * 0.28);
+      const y = -0.06 + Math.sin(t * Math.PI) * 0.14 * ms - t * 0.1;
+      shape.lineTo(x, y);
+    }
+    shape.closePath();
+
+    results.push({
+      shape,
+      position: [0, 0, 0],
+      rotation: [0.16, sideSign * 0.1, sideSign * 0.56],
+    });
+
+    if (stage === 'evolved') {
+      const inner = new THREE.Shape();
+      const ims = ms * 0.62;
+      inner.moveTo(0, 0);
+      for (let i = 1; i <= 8; i++) {
+        const t = i / 8;
+        const x = 0.06 + t * 0.45 * ims;
+        const y = Math.sin(t * Math.PI * 0.7) * 0.12 * ims;
+        inner.lineTo(x, y);
+      }
+      for (let i = 8; i >= 0; i--) {
+        const t = i / 8;
+        const x = 0.06 + 0.45 * ims * (1 - t * 0.18);
+        const y = -0.04 + Math.sin(t * Math.PI) * 0.08 * ims - t * 0.06;
+        inner.lineTo(x, y);
+      }
+      inner.closePath();
+      results.push({
+        shape: inner,
+        position: [0, -0.04, 0.08],
+        rotation: [0.1, sideSign * 0.16, sideSign * 0.42],
+      });
+    }
+
+    return results;
+  }, [wingScale, sideSign, stage]);
+
+  return (
+    <group position={[0, stage === 'evolved' ? 0.06 : 0, 0]}>
+      {membraneShapes.map((m, i) => (
+        <mesh key={`dm-${i}`} position={m.position} rotation={m.rotation}>
+          <extrudeGeometry args={[m.shape, { depth: 0.005, bevelEnabled: false }]} />
+          <M c={pc} e={sc} ei={cl.emissive * 0.12} m={cl.metalness * 0.8} r={cl.roughness} sd={THREE.DoubleSide} t o={0.85} />
+        </mesh>
+      ))}
+      {wingBones.map((b, i) => (
+        <mesh key={`db-${i}`}>
+          <tubeGeometry args={[b.curve, 24, b.radius, 8, false]} />
+          <M c={b.color} e={sc} ei={cl.emissive * b.emissiveMult} m={0.5} r={0.3} />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
 const PhoenixModel = ({ stage, cl }: { stage: EvolutionStage; cl: StageColors }) => {
   const pc = useC(cl.primary), sc = useC(cl.secondary);
   const mx = (t: number) => useMix(cl.primary, cl.secondary, t);
@@ -93,10 +309,8 @@ const PhoenixModel = ({ stage, cl }: { stage: EvolutionStage; cl: StageColors })
       <mesh position={[0.04, 0.9, 0]} rotation={[0.1, 0, -0.25]}><coneGeometry args={[0.04, 0.15, 6]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.2} r={0.5} /></mesh>
       <mesh position={[0, 0.92, -0.02]} rotation={[0.15, 0, 0]}><coneGeometry args={[0.03, 0.12, 5]} /><M c={cl.secondary} e={sc} ei={0.35} m={0.2} r={0.5} /></mesh>
       <group position={[0, 0.4, 0]}>
-        <mesh rotation={[0.2, 0.1, 0.5]} position={[-0.55, 0.05, -0.05]}><boxGeometry args={[0.6, 0.035, 0.22]} /><M c={pc} e={sc} ei={cl.emissive * 0.6} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.15, 0.1, 0.65]} position={[-0.65, 0, -0.12]}><boxGeometry args={[0.4, 0.03, 0.18]} /><M c={mx(0.3)} e={sc} ei={cl.emissive * 0.4} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.2, -0.1, -0.5]} position={[0.55, 0.05, -0.05]}><boxGeometry args={[0.6, 0.035, 0.22]} /><M c={pc} e={sc} ei={cl.emissive * 0.6} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.15, -0.1, -0.65]} position={[0.65, 0, -0.12]}><boxGeometry args={[0.4, 0.03, 0.18]} /><M c={mx(0.3)} e={sc} ei={cl.emissive * 0.4} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
+        <PhoenixWing side="left" stage={stage} sc={sc} cl={cl} mx={mx} />
+        <PhoenixWing side="right" stage={stage} sc={sc} cl={cl} mx={mx} />
       </group>
       <mesh position={[0, 0.15, -0.45]} rotation={[0.35, 0, 0]}><coneGeometry args={[0.07, 0.45, 8]} /><M c={cl.secondary} e={sc} ei={0.35} m={0.2} r={0.5} /></mesh>
       <mesh position={[0, 0.22, -0.7]} rotation={[0.25, 0, 0]}><coneGeometry args={[0.05, 0.25, 8]} /><M c={mx(0.6)} e={sc} ei={0.4} m={0.2} r={0.5} /></mesh>
@@ -117,12 +331,8 @@ const PhoenixModel = ({ stage, cl }: { stage: EvolutionStage; cl: StageColors })
       <mesh position={[-0.1, 1.08, -0.03]} rotation={[0.15, 0.2, 0.35]}><coneGeometry args={[0.03, 0.14, 5]} /><M c="#ffd700" e={sc} ei={0.6} m={0.7} r={0.25} /></mesh>
       <mesh position={[0.1, 1.08, -0.03]} rotation={[0.15, -0.2, -0.35]}><coneGeometry args={[0.03, 0.14, 5]} /><M c="#ffd700" e={sc} ei={0.6} m={0.7} r={0.25} /></mesh>
       <group position={[0, 0.45, 0]}>
-        <mesh rotation={[0.2, 0.1, 0.5]} position={[-0.65, 0.08, -0.06]}><boxGeometry args={[0.75, 0.035, 0.28]} /><M c={pc} e={sc} ei={cl.emissive * 0.7} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.15, 0.15, 0.7]} position={[-0.8, 0.02, -0.15]}><boxGeometry args={[0.5, 0.03, 0.22]} /><M c={mx(0.4)} e={sc} ei={cl.emissive * 0.5} m={0.5} r={0.25} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.1, 0.2, 0.85]} position={[-0.9, -0.03, -0.22]}><boxGeometry args={[0.35, 0.025, 0.16]} /><M c={mx(0.6)} e={sc} ei={cl.emissive * 0.35} m={0.5} r={0.25} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.2, -0.1, -0.5]} position={[0.65, 0.08, -0.06]}><boxGeometry args={[0.75, 0.035, 0.28]} /><M c={pc} e={sc} ei={cl.emissive * 0.7} m={cl.metalness} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.15, -0.15, -0.7]} position={[0.8, 0.02, -0.15]}><boxGeometry args={[0.5, 0.03, 0.22]} /><M c={mx(0.4)} e={sc} ei={cl.emissive * 0.5} m={0.5} r={0.25} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.1, -0.2, -0.85]} position={[0.9, -0.03, -0.22]}><boxGeometry args={[0.35, 0.025, 0.16]} /><M c={mx(0.6)} e={sc} ei={cl.emissive * 0.35} m={0.5} r={0.25} sd={THREE.DoubleSide} /></mesh>
+        <PhoenixWing side="left" stage={stage} sc={sc} cl={cl} mx={mx} />
+        <PhoenixWing side="right" stage={stage} sc={sc} cl={cl} mx={mx} />
       </group>
       <mesh position={[0, 0.18, -0.5]} rotation={[0.3, 0, 0]}><coneGeometry args={[0.08, 0.6, 8]} /><M c={cl.secondary} e={sc} ei={0.5} m={0.3} r={0.4} /></mesh>
       <mesh position={[0, 0.28, -0.85]} rotation={[0.2, 0, 0]}><coneGeometry args={[0.06, 0.4, 8]} /><M c={mx(0.5)} e={sc} ei={0.55} m={0.3} r={0.4} /></mesh>
@@ -164,10 +374,8 @@ const DragonModel = ({ stage, cl }: { stage: EvolutionStage; cl: StageColors }) 
       <mesh position={[0.07, 0.98, 0.05]} rotation={[0.15, 0, -0.2]}><coneGeometry args={[0.04, 0.2, 6]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.3} r={0.4} /></mesh>
       <mesh position={[0, 1.0, -0.02]} rotation={[0.1, 0, 0]}><coneGeometry args={[0.03, 0.12, 5]} /><M c={cl.secondary} e={sc} ei={0.35} m={0.3} r={0.4} /></mesh>
       <group position={[0, 0.42, 0]}>
-        <mesh rotation={[0.15, 0.1, 0.55]} position={[-0.55, 0.1, -0.1]}><boxGeometry args={[0.65, 0.025, 0.45]} /><M c={pc} ei={0} m={cl.metalness * 0.8} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.15, -0.1, -0.55]} position={[0.55, 0.1, -0.1]}><boxGeometry args={[0.65, 0.025, 0.45]} /><M c={pc} ei={0} m={cl.metalness * 0.8} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.2, 0.1, 0.55]} position={[-0.5, 0.08, -0.08]}><boxGeometry args={[0.55, 0.02, 0.02]} /><M c={cl.secondary} e={sc} ei={0.2} m={0.3} r={0.4} /></mesh>
-        <mesh rotation={[0.2, -0.1, -0.55]} position={[0.5, 0.08, -0.08]}><boxGeometry args={[0.55, 0.02, 0.02]} /><M c={cl.secondary} e={sc} ei={0.2} m={0.3} r={0.4} /></mesh>
+        <DragonWing side="left" stage={stage} pc={pc} sc={sc} cr={cr} cl={cl} mx={mx} />
+        <DragonWing side="right" stage={stage} pc={pc} sc={sc} cr={cr} cl={cl} mx={mx} />
       </group>
       <mesh position={[0, 0.22, -0.55]} rotation={[0.3, 0, 0]}><coneGeometry args={[0.06, 0.5, 8]} /><M c={cl.secondary} e={sc} ei={0.3} m={0.3} r={0.4} /></mesh>
       {[[-0.04, 0.2, -0.8], [0.04, 0.22, -0.82], [0, 0.18, -0.85]].map(([x, y, z], i) => (
@@ -191,12 +399,8 @@ const DragonModel = ({ stage, cl }: { stage: EvolutionStage; cl: StageColors }) 
       <mesh position={[0.15, 1.18, -0.03]} rotation={[0.2, -0.3, -0.4]}><coneGeometry args={[0.03, 0.18, 5]} /><M c={cr} e={sc} ei={0.6} m={0.8} r={0.15} /></mesh>
       <mesh position={[0, 1.15, -0.03]} rotation={[0.1, 0, 0]}><coneGeometry args={[0.04, 0.2, 5]} /><M c={cr} e={sc} ei={0.65} m={0.8} r={0.15} /></mesh>
       <group position={[0, 0.48, 0]}>
-        <mesh rotation={[0.2, 0.1, 0.55]} position={[-0.7, 0.12, -0.12]}><boxGeometry args={[0.8, 0.025, 0.55]} /><M c={pc} ei={0} m={cl.metalness * 0.8} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.2, -0.1, -0.55]} position={[0.7, 0.12, -0.12]}><boxGeometry args={[0.8, 0.025, 0.55]} /><M c={pc} ei={0} m={cl.metalness * 0.8} r={cl.roughness} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.25, 0.1, 0.55]} position={[-0.62, 0.1, -0.1]}><boxGeometry args={[0.65, 0.02, 0.02]} /><M c={cr} e={sc} ei={0.3} m={0.7} r={0.2} /></mesh>
-        <mesh rotation={[0.25, -0.1, -0.55]} position={[0.62, 0.1, -0.1]}><boxGeometry args={[0.65, 0.02, 0.02]} /><M c={cr} e={sc} ei={0.3} m={0.7} r={0.2} /></mesh>
-        <mesh rotation={[0.25, 0.15, 0.7]} position={[-0.82, 0.06, -0.18]}><boxGeometry args={[0.5, 0.02, 0.35]} /><M c={mx(0.3)} e={sc} ei={cl.emissive * 0.4} m={0.6} r={0.2} sd={THREE.DoubleSide} /></mesh>
-        <mesh rotation={[0.25, -0.15, -0.7]} position={[0.82, 0.06, -0.18]}><boxGeometry args={[0.5, 0.02, 0.35]} /><M c={mx(0.3)} e={sc} ei={cl.emissive * 0.4} m={0.6} r={0.2} sd={THREE.DoubleSide} /></mesh>
+        <DragonWing side="left" stage={stage} pc={pc} sc={sc} cr={cr} cl={cl} mx={mx} />
+        <DragonWing side="right" stage={stage} pc={pc} sc={sc} cr={cr} cl={cl} mx={mx} />
       </group>
       <mesh position={[0, 0.25, -0.6]} rotation={[0.3, 0, 0]}><coneGeometry args={[0.07, 0.65, 8]} /><M c={cl.secondary} e={sc} ei={0.4} m={0.3} r={0.4} /></mesh>
       {[[-0.05, 0.22, -0.95], [0.05, 0.25, -1.0], [-0.03, 0.18, -1.05], [0.03, 0.2, -0.98], [0, 0.22, -1.08]].map(([x, y, z], i) => (

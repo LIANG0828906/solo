@@ -6,7 +6,7 @@ interface EvolutionAnimationState {
   scale: number;
   particleIntensity: number;
   showLightBeam: boolean;
-  phase: 'idle' | 'rotating' | 'particles' | 'lightBeam';
+  phase: 'idle' | 'rotating' | 'particles' | 'transition' | 'lightBeam';
   shouldTransition: boolean;
 }
 
@@ -53,24 +53,34 @@ export function useEvolution() {
         let particleIntensity = 0;
         let showLightBeam = false;
         let phase: EvolutionAnimationState['phase'] = 'rotating';
+        let shouldTransition = false;
 
         if (elapsed < 0.5) {
           const t = elapsed / 0.5;
           rotation = t * Math.PI * 4;
-          scale = 1 + Math.sin(t * Math.PI) * 0.5;
-          particleIntensity = t * 0.5;
+          scale = t < 0.5 ? 1 + t * 1 : 1.5 - (t - 0.5) * 0.6;
+          particleIntensity = 0;
           phase = 'rotating';
         } else if (elapsed < 2) {
           const t = (elapsed - 0.5) / 1.5;
           rotation = Math.PI * 4 + t * Math.PI * 8;
-          scale = 1.5 - t * 0.3;
-          particleIntensity = 0.5 + t * 0.5;
-          phase = 'particles';
-        } else {
-          const t = (elapsed - 2) / 2;
-          rotation = Math.PI * 12;
           scale = 1.2 - t * 0.2;
+          particleIntensity = t;
+          phase = 'particles';
+        } else if (elapsed < 2.5) {
+          const t = (elapsed - 2) / 0.5;
+          const easeOut = 1 - Math.pow(1 - t, 2);
+          rotation = Math.PI * 12 + (1 - easeOut) * Math.PI * 2;
+          scale = 1;
           particleIntensity = 1 - t;
+          phase = 'transition';
+          shouldTransition = true;
+        } else {
+          const t = (elapsed - 2.5) / 1.5;
+          const easeOut = 1 - Math.pow(1 - t, 2);
+          rotation = Math.PI * 12 + (1 - easeOut) * Math.PI * 1;
+          scale = 1;
+          particleIntensity = 0;
           showLightBeam = true;
           phase = 'lightBeam';
         }
@@ -81,7 +91,7 @@ export function useEvolution() {
           particleIntensity,
           showLightBeam,
           phase,
-          shouldTransition: elapsed >= 2,
+          shouldTransition,
         });
 
         animationFrameRef.current = requestAnimationFrame(animate);
