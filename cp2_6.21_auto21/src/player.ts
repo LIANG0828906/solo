@@ -1,4 +1,4 @@
-import { Card, createDeck, MinionCard } from './card';
+import { Card, createDeck, MinionCard, DeathrattleEffect } from './card';
 
 export interface BoardMinion {
   instanceId: string;
@@ -12,6 +12,9 @@ export interface BoardMinion {
   maxAttacksPerTurn: number;
   taunt?: boolean;
   frozen?: boolean;
+  hasCharge?: boolean;
+  summonedThisTurn?: boolean;
+  deathrattle?: DeathrattleEffect;
 }
 
 export interface Weapon {
@@ -106,6 +109,7 @@ export function restoreMana(player: PlayerState): void {
 }
 
 export function createBoardMinion(card: MinionCard): BoardMinion {
+  const hasCharge = !!card.charge;
   return {
     instanceId: generateInstanceId(),
     cardId: card.id,
@@ -113,10 +117,13 @@ export function createBoardMinion(card: MinionCard): BoardMinion {
     attack: card.attack,
     maxHealth: card.health,
     currentHealth: card.health,
-    canAttack: card.charge || false,
+    canAttack: hasCharge,
     attacksThisTurn: 0,
     maxAttacksPerTurn: 1,
     taunt: card.taunt,
+    hasCharge,
+    summonedThisTurn: true,
+    deathrattle: card.deathrattle,
   };
 }
 
@@ -161,6 +168,7 @@ export function removeDeadMinions(player: PlayerState): BoardMinion[] {
     for (let col = 0; col < BOARD_COLS; col++) {
       const minion = player.board[row][col];
       if (minion && minion.currentHealth <= 0) {
+        minion.currentHealth = 0;
         dead.push(minion);
         player.board[row][col] = null;
       }
@@ -174,16 +182,29 @@ export function resetMinionAttacks(player: PlayerState): void {
     for (let col = 0; col < BOARD_COLS; col++) {
       const minion = player.board[row][col];
       if (minion) {
+        minion.summonedThisTurn = false;
         minion.canAttack = true;
         minion.attacksThisTurn = 0;
         minion.frozen = false;
+        minion.maxAttacksPerTurn = 1;
       }
     }
   }
 }
 
+export function canMinionAttack(minion: BoardMinion): boolean {
+  if (minion.frozen) return false;
+  if (minion.attacksThisTurn >= minion.maxAttacksPerTurn) return false;
+  if (minion.summonedThisTurn && !minion.hasCharge) return false;
+  return minion.canAttack;
+}
+
 export function getDeckRemaining(player: PlayerState): number {
   return player.deck.length;
+}
+
+export function damageMinion(minion: BoardMinion, amount: number): void {
+  minion.currentHealth = Math.max(0, minion.currentHealth - amount);
 }
 
 export function damageHero(player: PlayerState, amount: number): void {

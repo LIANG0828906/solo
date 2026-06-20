@@ -4,8 +4,9 @@ import {
   SpellCard,
   WeaponCard,
   SpellEffect,
-  getCardById,
   TOKEN_CARDS,
+  tokenDefinitionToMinionCard,
+  DeathrattleEffect,
 } from './card';
 import {
   PlayerState,
@@ -16,10 +17,12 @@ import {
   placeMinion,
   removeDeadMinions,
   damageHero,
+  damageMinion,
   healHero,
   drawCards,
   findEmptyCell,
   getBoardMinions,
+  canMinionAttack,
 } from './player';
 
 export type Phase = 'draw' | 'main' | 'combat' | 'end';
@@ -41,6 +44,8 @@ export interface GameState {
   selectedCardIndex: number | null;
   selectedMinion: { side: 'player' | 'ai'; row: number; col: number } | null;
   pendingTarget: { cardIndex: number; effect: SpellEffect } | null;
+  cardsPlayedThisTurn: number;
+  attacksMadeThisTurn: number;
   gameOver: boolean;
   winner: 'player' | 'ai' | null;
   isAiThinking: boolean;
@@ -50,6 +55,94 @@ export interface GameState {
     screenShake: boolean;
     damagingTargets: string[];
   };
+}
+
+export type DeathrattleCallback = (
+  state: GameState,
+  ownerSide: 'player' | 'ai',
+  deadMinion: BoardMinion,
+  deathrattle: DeathrattleEffect
+) => void;
+
+export const deathrattleCallbacks: DeathrattleCallback[] = [];
+
+export function registerDeathrattleCallback(callback: DeathrattleCallback): void {
+  deathrattleCallbacks.push(callback);
+}
+
+function triggerDeathrattles(
+  state: GameState,
+  ownerSide: 'player' | 'ai',
+  deadMinions: BoardMinion[]
+): void {
+  deadMinions.forEach((minion) => {
+    if (minion.deathrattle) {
+      addLog(state, `${minion.name} 的亡语触发！`);
+      executeDeathrattle(state, ownerSide, minion, minion.deathrattle);
+      deathrattleCallbacks.forEach((cb) => {
+        cb(state, ownerSide, minion, minion.deathrattle!);
+      });
+    }
+  });
+}
+
+function executeDeathrattle(
+  state: GameState,
+  ownerSide: 'player' | 'ai',
+  deadMinion: BoardMinion,
+  deathrattle: DeathrattleEffect
+): void {
+  const owner = ownerSide === 'player' ? state.player : state.ai;
+  const enemySide = ownerSide === 'player' ? 'ai' : 'player';
+  const enemy = enemySide === 'player' ? state.player : state.ai;
+
+  switch (deathrattle.type) {
+    case 'damage': {
+      if (deathrattle.target === 'all' || deathrattle.target === 'enemy') {
+        const targetPlayer = deathrattle.target === 'all' ? enemy : enemy;
+        const minions = getBoardMinions(targetPlayer);
+        minions.forEach((m) => {
+          damageMinion(m, deathrattle.value || 0);
+          state.animationState.damagingTargets.push(m.instanceId);
+        });
+        if (deathrattle.target === 'all') {
+          damageHero(targetPlayer, deathrattle.value || 0);
+        }
+        state.animationState.screenShake = true;
+      }
+      break;
+    }
+    case 'summon': {
+      if (deathrattle.token) {
+        const tokenCard = tokenDefinitionToMinionCard(deathrattle.token);
+        for (let i = 0; i < (deathrattle.count || 1); i++) {
+          const emptyCell = findEmptyCell(owner);
+          if (emptyCell) {
+            const minion = createBoardMinion(tokenCard);
+            placeMinion(owner, minion, emptyCell.row, emptyCell.col);
+          }
+        }
+        addLog(state, `召唤了 ${deathrattle.count} 个 ${deathrattle.token.name}`);
+      }
+      break;
+    }
+    case 'draw': {
+      const drawn = drawCards(owner, deathrattle.count || 1);
+      addLog(state, `抽了 ${drawn.length} 张牌`);
+      break;
+    }
+    case 'heal': {
+      healHero(owner, deathrattle.value || 0);
+      const minions = getBoardMinions(owner);
+      if (deathrattle.target === 'all' || deathrattle.target === 'friendly') {
+        minions.forEach((m) => {
+          m.currentHealth = Math.min(m.maxHealth, m.currentHealth + (deathrattle.value || 0));
+        });
+      }
+      addLog(state, `恢复了 ${deathrattle.value} 点生命值`);
+      break;
+    }
+  }
 }
 
 export function canPlayCard(
@@ -81,6 +174,7 @@ export function playMinionCard(
 
   player.mana.current -= card.cost;
   player.hand.splice(cardIndex, 1);
+  state.cardsPlayedThisTurn++;
 
   const minion = createBoardMinion(card);
   placeMinion(player, minion, row, col);
@@ -113,6 +207,7 @@ export function playSpellCard(
 
   player.mana.current -= card.cost;
   player.hand.splice(cardIndex, 1);
+  state.cardsPlayedThisTurn++;
 
   addLog(state, `${player.name} 施放了 ${card.name}`);
   executeSpellEffect(state, playerId, card.effect, target);
@@ -134,6 +229,7 @@ export function playWeaponCard(
 
   player.mana.current -= card.cost;
   player.hand.splice(cardIndex, 1);
+  state.cardsPlayedThisTurn++;
 
   player.weapon = {
     cardId: card.id,
@@ -173,10 +269,8 @@ function executeSpellEffect(
         } else if (target.row !== undefined && target.col !== undefined) {
           const minion = targetPlayer.board[target.row][target.col];
           if (minion) {
-            minion.currentHealth -= effect.value || 0;
-            if (effect.value) {
-              state.animationState.damagingTargets.push(minion.instanceId);
-            }
+            damageMinion(minion, effect.value || 0);
+            state.animationState.damagingTargets.push(minion.instanceId);
             addLog(state, `对 ${minion.name} 造成 ${effect.value} 点伤害`);
           }
         }
@@ -188,7 +282,7 @@ function executeSpellEffect(
       const targetPlayer = effect.target === 'enemy' ? enemy : caster;
       const minions = getBoardMinions(targetPlayer);
       minions.forEach((m) => {
-        m.currentHealth -= effect.value || 0;
+        damageMinion(m, effect.value || 0);
         state.animationState.damagingTargets.push(m.instanceId);
       });
       state.animationState.screenShake = true;
@@ -227,8 +321,12 @@ function executeSpellEffect(
       break;
     }
     case 'summon': {
-      const tokenId = effect.summonId;
-      const tokenCard = tokenId ? TOKEN_CARDS[tokenId] : null;
+      let tokenCard: MinionCard | null = null;
+      if (effect.token) {
+        tokenCard = tokenDefinitionToMinionCard(effect.token);
+      } else if (effect.summonId) {
+        tokenCard = TOKEN_CARDS[effect.summonId] || null;
+      }
       if (tokenCard) {
         for (let i = 0; i < (effect.count || 1); i++) {
           const emptyCell = findEmptyCell(caster);
@@ -277,9 +375,7 @@ export function canAttackTarget(
   const attackerPlayer = attackerSide === 'player' ? state.player : state.ai;
   const attacker = attackerPlayer.board[attackerRow][attackerCol];
   if (!attacker) return false;
-  if (!attacker.canAttack) return false;
-  if (attacker.attacksThisTurn >= attacker.maxAttacksPerTurn) return false;
-  if (attacker.frozen) return false;
+  if (!canMinionAttack(attacker)) return false;
   if (state.currentPlayer !== attackerSide) return false;
 
   const defenderSide = target.side;
@@ -322,6 +418,7 @@ export function attackTarget(
   if (!attacker) return false;
 
   state.animationState.screenShake = true;
+  state.attacksMadeThisTurn++;
 
   if (target.type === 'hero') {
     damageHero(defenderPlayer, attacker.attack);
@@ -329,16 +426,20 @@ export function attackTarget(
   } else if (target.row !== undefined && target.col !== undefined) {
     const defender = defenderPlayer.board[target.row][target.col];
     if (defender) {
-      defender.currentHealth -= attacker.attack;
-      attacker.currentHealth -= defender.attack;
+      const overflowDamage = Math.max(0, attacker.attack - defender.maxHealth);
+      damageMinion(defender, attacker.attack);
+      damageMinion(attacker, defender.attack);
       state.animationState.damagingTargets.push(attacker.instanceId);
       state.animationState.damagingTargets.push(defender.instanceId);
-      addLog(state, `${attacker.name} 与 ${defender.name} 交战`);
+      const logMsg = overflowDamage > 0
+        ? `${attacker.name} 与 ${defender.name} 交战，溢出伤害 ${overflowDamage}`
+        : `${attacker.name} 与 ${defender.name} 交战`;
+      addLog(state, logMsg);
     }
   }
 
   attacker.attacksThisTurn++;
-  if (attacker.attacksThisTurn >= attacker.maxAttacksPerTurn) {
+  if (!canMinionAttack(attacker)) {
     attacker.canAttack = false;
   }
 
@@ -348,10 +449,38 @@ export function attackTarget(
 }
 
 function cleanupDeadMinions(state: GameState): void {
-  const playerDead = removeDeadMinions(state.player);
-  const aiDead = removeDeadMinions(state.ai);
-  playerDead.forEach((m) => addLog(state, `${state.player.name} 的 ${m.name} 被消灭了`));
-  aiDead.forEach((m) => addLog(state, `${state.ai.name} 的 ${m.name} 被消灭了`));
+  let allDead: { side: 'player' | 'ai'; minion: BoardMinion }[] = [];
+  let hasDeaths = true;
+  let iterations = 0;
+  const maxIterations = 10;
+
+  while (hasDeaths && iterations < maxIterations) {
+    hasDeaths = false;
+    iterations++;
+
+    const playerDead = removeDeadMinions(state.player);
+    const aiDead = removeDeadMinions(state.ai);
+
+    playerDead.forEach((m) => {
+      allDead.push({ side: 'player', minion: m });
+      addLog(state, `${state.player.name} 的 ${m.name} 被消灭了`);
+      hasDeaths = true;
+    });
+    aiDead.forEach((m) => {
+      allDead.push({ side: 'ai', minion: m });
+      addLog(state, `${state.ai.name} 的 ${m.name} 被消灭了`);
+      hasDeaths = true;
+    });
+
+    allDead.forEach(({ side, minion }) => {
+      triggerDeathrattles(state, side, [minion]);
+    });
+    allDead = [];
+  }
+}
+
+export function canTransitionToEnd(state: GameState): boolean {
+  return true;
 }
 
 export function checkGameOver(state: GameState): void {

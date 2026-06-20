@@ -10,6 +10,15 @@ export type SpellEffectType =
   | 'buff'
   | 'freeze';
 
+export interface TokenDefinition {
+  name: string;
+  attack: number;
+  health: number;
+  taunt?: boolean;
+  charge?: boolean;
+  description?: string;
+}
+
 export interface BaseCard {
   id: string;
   name: string;
@@ -19,6 +28,14 @@ export interface BaseCard {
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
 }
 
+export interface DeathrattleEffect {
+  type: 'damage' | 'summon' | 'draw' | 'heal' | 'buff';
+  value?: number;
+  target?: 'enemy' | 'friendly' | 'all' | 'any';
+  token?: TokenDefinition;
+  count?: number;
+}
+
 export interface MinionCard extends BaseCard {
   type: 'minion';
   attack: number;
@@ -26,6 +43,7 @@ export interface MinionCard extends BaseCard {
   taunt?: boolean;
   charge?: boolean;
   battlecry?: SpellEffect;
+  deathrattle?: DeathrattleEffect;
 }
 
 export interface SpellEffect {
@@ -34,6 +52,7 @@ export interface SpellEffect {
   target?: 'enemy' | 'friendly' | 'all' | 'self' | 'enemy_hero' | 'any';
   summonId?: string;
   count?: number;
+  token?: TokenDefinition;
 }
 
 export interface SpellCard extends BaseCard {
@@ -78,8 +97,12 @@ export const CARD_DATABASE: Card[] = [
     type: 'minion',
     attack: 3,
     health: 2,
-    battlecry: { type: 'damage', value: 2, target: 'any' },
-    description: '战吼：对任意目标造成2点伤害。',
+    battlecry: {
+      type: 'damage',
+      value: 3,
+      target: 'any',
+    },
+    description: '战吼：对任意目标造成3点伤害。',
     rarity: 'rare',
   },
   {
@@ -100,7 +123,12 @@ export const CARD_DATABASE: Card[] = [
     type: 'minion',
     attack: 7,
     health: 7,
-    description: '传说中的巨龙，拥有毁灭性的力量。',
+    deathrattle: {
+      type: 'damage',
+      value: 2,
+      target: 'all',
+    },
+    description: '亡语：对所有敌方随从造成2点伤害。',
     rarity: 'legendary',
   },
   {
@@ -132,7 +160,18 @@ export const CARD_DATABASE: Card[] = [
     attack: 6,
     health: 5,
     charge: true,
-    description: '冲锋：召唤当回合即可攻击。',
+    deathrattle: {
+      type: 'summon',
+      count: 1,
+      token: {
+        name: '狂战士之魂',
+        attack: 2,
+        health: 1,
+        charge: true,
+        description: '狂战士牺牲后残留的战意。',
+      },
+    },
+    description: '冲锋：召唤当回合即可攻击。亡语：召唤一个2/1的狂战士之魂。',
     rarity: 'epic',
   },
   {
@@ -185,7 +224,17 @@ export const CARD_DATABASE: Card[] = [
     name: '召唤小鬼',
     cost: 3,
     type: 'spell',
-    effect: { type: 'summon', summonId: 'token_imp', count: 2 },
+    effect: {
+      type: 'summon',
+      summonId: 'token_imp',
+      count: 2,
+      token: {
+        name: '小鬼',
+        attack: 2,
+        health: 2,
+        description: '被召唤的小鬼。',
+      },
+    },
     description: '召唤2个2/2的小鬼。',
     rarity: 'rare',
   },
@@ -244,6 +293,21 @@ export const TOKEN_CARDS: Record<string, MinionCard> = {
 
 export function getCardById(id: string): Card | undefined {
   return CARD_DATABASE.find((c) => c.id === id) || TOKEN_CARDS[id];
+}
+
+export function tokenDefinitionToMinionCard(token: TokenDefinition): MinionCard {
+  return {
+    id: `token_${token.name}_${Date.now()}`,
+    name: token.name,
+    cost: 0,
+    type: 'minion',
+    attack: token.attack,
+    health: token.health,
+    taunt: token.taunt,
+    charge: token.charge,
+    description: token.description || '',
+    rarity: 'common',
+  };
 }
 
 export function createDeck(): Card[] {

@@ -2,12 +2,10 @@ import { create } from 'zustand';
 import {
   GameState,
   Target,
-  Phase,
   canPlayCard,
   playMinionCard,
   playSpellCard,
   playWeaponCard,
-  canAttackTarget,
   attackTarget,
   needsTarget,
 } from './gameEngine';
@@ -17,6 +15,7 @@ import {
   drawCard,
   resetMinionAttacks,
   getDeckRemaining,
+  canMinionAttack,
 } from './player';
 import { SpellCard } from './card';
 import { makeAIDecision, executeAIDecision } from './AI';
@@ -25,12 +24,14 @@ function createInitialState(): GameState {
   return {
     turn: 1,
     currentPlayer: 'player',
-    phase: 'main',
+    phase: 'draw',
     player: createPlayer('player', '玩家'),
     ai: createPlayer('ai', 'AI对手'),
     selectedCardIndex: null,
     selectedMinion: null,
     pendingTarget: null,
+    cardsPlayedThisTurn: 0,
+    attacksMadeThisTurn: 0,
     gameOver: false,
     winner: null,
     isAiThinking: false,
@@ -45,6 +46,12 @@ function createInitialState(): GameState {
 
 function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
+}
+
+function startMainPhase(state: GameState): void {
+  if (state.phase === 'draw') {
+    state.phase = 'main';
+  }
 }
 
 interface GameActions {
@@ -62,13 +69,39 @@ interface GameActions {
   clearDamagingTargets: () => void;
   getPlayerDeckRemaining: () => number;
   getAIDeckRemaining: () => number;
+  triggerFlyingAnimation: (from: { x: number; y: number }, to: { x: number; y: number }) => void;
+  clearFlyingAnimation: () => void;
 }
 
 export const useGameStore = create<GameState & GameActions>((set, get) => ({
   ...createInitialState(),
 
   resetGame: () => {
-    set(createInitialState());
+    const ns = createInitialState();
+    drawCard(ns.player);
+    restoreMana(ns.player);
+    ns.phase = 'main';
+    set(ns);
+  },
+
+  triggerFlyingAnimation: (from, to) => {
+    const state = get();
+    set({
+      animationState: {
+        ...state.animationState,
+        flyingCard: { from, to },
+      },
+    });
+  },
+
+  clearFlyingAnimation: () => {
+    const state = get();
+    set({
+      animationState: {
+        ...state.animationState,
+        flyingCard: null,
+      },
+    });
   },
 
   selectCard: (index: number | null) => {
@@ -91,7 +124,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
   selectMinion: (side: 'player' | 'ai', row: number, col: number) => {
     const state = get();
-    if (state.gameOver || state.currentPlayer !== 'player' || state.phase !== 'main') return;
+    if (state.gameOver || state.currentPlayer !== 'player') return;
+    if (state.phase !== 'main') return;
 
     if (state.selectedCardIndex !== null && state.pendingTarget) {
       const target: Target = { type: 'minion', side, row, col };
@@ -102,7 +136,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (side === 'player') {
       const player = state.player;
       const minion = player.board[row][col];
-      if (minion && minion.canAttack && minion.attacksThisTurn < minion.maxAttacksPerTurn && !minion.frozen) {
+      if (minion && canMinionAttack(minion)) {
         set({ selectedMinion: { side, row, col }, selectedCardIndex: null, pendingTarget: null });
       } else if (state.selectedCardIndex !== null) {
         const card = state.player.hand[state.selectedCardIndex];
@@ -128,6 +162,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const state = get();
     if (state.selectedCardIndex === null) return false;
     const newState = deepClone(state);
+    if (newState.phase === 'draw') startMainPhase(newState);
     const success = playMinionCard(newState, 'player', state.selectedCardIndex, row, col);
     if (success) {
       newState.selectedCardIndex = null;
@@ -143,6 +178,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const state = get();
     if (state.selectedCardIndex === null) return false;
     const newState = deepClone(state);
+    if (newState.phase === 'draw') startMainPhase(newState);
     const success = playSpellCard(newState, 'player', state.selectedCardIndex, target);
     if (success) {
       newState.selectedCardIndex = null;
@@ -160,6 +196,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const card = state.player.hand[state.selectedCardIndex];
     if (!card) return false;
     const newState = deepClone(state);
+    if (newState.phase === 'draw') startMainPhase(newState);
     let success = false;
     if (card.type === 'weapon') {
       success = playWeaponCard(newState, 'player', state.selectedCardIndex);
@@ -180,10 +217,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const state = get();
     if (!state.selectedMinion) return false;
     const newState = deepClone(state);
+    if (newState.phase === 'draw') startMainPhase(newState);
     const { side, row, col } = state.selectedMinion;
     const success = attackTarget(newState, side, row, col, target);
     if (success) {
       newState.selectedMinion = null;
+      if (newState.phase === 'main') newState.phase = 'combat';
       set(newState);
       setTimeout(() => get().clearScreenShake(), 300);
       setTimeout(() => get().clearDamagingTargets(), 500);
@@ -194,6 +233,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   endTurn: () => {
     const state = get();
     if (state.gameOver || state.currentPlayer !== 'player') return;
+
+    if (state.phase === 'draw') {
+      startMainPhase(state);
+    }
+
     const newState = deepClone(state);
     newState.phase = 'end';
     newState.selectedCardIndex = null;
@@ -206,6 +250,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const ns = deepClone(s);
       ns.currentPlayer = 'ai';
       ns.phase = 'draw';
+      ns.cardsPlayedThisTurn = 0;
+      ns.attacksMadeThisTurn = 0;
       drawCard(ns.ai);
       restoreMana(ns.ai);
       resetMinionAttacks(ns.ai);
@@ -265,6 +311,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     ns.turn = ns.turn + 1;
     ns.currentPlayer = 'player';
     ns.phase = 'draw';
+    ns.cardsPlayedThisTurn = 0;
+    ns.attacksMadeThisTurn = 0;
     drawCard(ns.player);
     restoreMana(ns.player);
     resetMinionAttacks(ns.player);
@@ -310,3 +358,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     return getDeckRemaining(get().ai);
   },
 }));
+
+setTimeout(() => {
+  const s = useGameStore.getState();
+  if (s.turn === 1 && s.phase === 'draw') {
+    const ns = deepClone(s);
+    drawCard(ns.player);
+    ns.phase = 'main';
+    useGameStore.setState(ns);
+  }
+}, 0);
