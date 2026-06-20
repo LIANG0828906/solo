@@ -1,9 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional
-from datetime import datetime
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict
+from datetime import datetime, timedelta
 import uuid
+import time
+import hashlib
 
 app = FastAPI(title="在线答题系统 API")
 
@@ -63,6 +65,45 @@ class SubmitRequest(BaseModel):
     quizId: str
     studentName: str
     answers: List[Answer]
+
+
+class QuestionCreate(BaseModel):
+    type: str
+    content: str
+    options: Optional[List[str]] = None
+    answer: str
+    score: int = 10
+
+
+class QuizCreateRequest(BaseModel):
+    title: str = Field(..., min_length=1, description="测验标题")
+    questions: List[QuestionCreate] = Field(..., min_length=10, description="至少10道题")
+
+
+class QuestionAnswerRecord(BaseModel):
+    questionId: str
+    startTime: float
+    endTime: float
+    timeSpent: int
+    answer: str
+    isCorrect: bool
+
+
+class QuizAnswerRecord(BaseModel):
+    quizId: str
+    studentName: str
+    submittedAt: str
+    questionRecords: List[QuestionAnswerRecord]
+
+
+last_modified = time.time()
+answer_records_db: List[QuizAnswerRecord] = []
+question_time_aggregates: Dict[str, List[int]] = {}
+
+
+def update_last_modified():
+    global last_modified
+    last_modified = time.time()
 
 
 quizzes_db: List[Quiz] = [
@@ -143,7 +184,19 @@ scores_db: List[Score] = [
 
 
 @app.get("/api/quizzes")
-async def get_quizzes():
+async def get_quizzes(request: Request, response: Response):
+    if_modified_since = request.headers.get("if-modified-since")
+    if if_modified_since:
+        try:
+            client_time = float(if_modified_since)
+            if client_time >= last_modified:
+                response.status_code = 304
+                return []
+        except (ValueError, TypeError):
+            pass
+
+    response.headers["Last-Modified"] = str(last_modified)
+    response.headers["Cache-Control"] = "no-cache"
     return quizzes_db
 
 
@@ -153,6 +206,43 @@ async def get_quiz(quiz_id: str):
         if quiz.id == quiz_id:
             return quiz
     raise HTTPException(status_code=404, detail="Quiz not found")
+
+
+@app.post("/api/quizzes")
+async def create_quiz(request: QuizCreateRequest):
+    for q in request.questions:
+        if q.type not in ["choice", "judge", "fill"]:
+            raise HTTPException(status_code=400, detail=f"无效的题目类型: {q.type}")
+        if q.type == "choice":
+            if not q.options or len(q.options) < 4:
+                raise HTTPException(status_code=400, detail="选择题至少需要4个选项")
+        if not q.content.strip():
+            raise HTTPException(status_code=400, detail="题目内容不能为空")
+        if not q.answer.strip():
+            raise HTTPException(status_code=400, detail="答案不能为空")
+
+    questions = [
+        Question(
+            id=str(uuid.uuid4()),
+            type=q.type,
+            content=q.content,
+            options=q.options,
+            answer=q.answer,
+            score=q.score,
+        )
+        for q in request.questions
+    ]
+
+    quiz = Quiz(
+        id=str(uuid.uuid4()),
+        title=request.title,
+        questions=questions,
+        createdAt=datetime.utcnow().isoformat() + "Z",
+    )
+
+    quizzes_db.append(quiz)
+    update_last_modified()
+    return quiz
 
 
 @app.post("/api/quizzes/submit")
@@ -165,6 +255,7 @@ async def submit_quiz(request: SubmitRequest):
     correct_count = 0
     total_time = 0
     processed_answers: List[Answer] = []
+    question_records: List[QuestionAnswerRecord] = []
 
     for ua in request.answers:
         question = next((q for q in quiz.questions if q.id == ua.questionId), None)
@@ -182,15 +273,53 @@ async def submit_quiz(request: SubmitRequest):
             )
         )
 
+        if ua.questionId not in question_time_aggregates:
+            question_time_aggregates[ua.questionId] = []
+        question_time_aggregates[ua.questionId].append(ua.timeSpent)
+
+        end_time = time.time()
+        start_time = end_time - ua.timeSpent
+        question_records.append(
+            QuestionAnswerRecord(
+                questionId=ua.questionId,
+                startTime=start_time,
+                endTime=end_time,
+                timeSpent=ua.timeSpent,
+                answer=ua.answer,
+                isCorrect=bool(is_correct),
+            )
+        )
+
+    answer_record = QuizAnswerRecord(
+        quizId=request.quizId,
+        studentName=request.studentName,
+        submittedAt=datetime.utcnow().isoformat() + "Z",
+        questionRecords=question_records,
+    )
+    answer_records_db.append(answer_record)
+
     question_stats: List[QuestionStat] = []
     for idx, q in enumerate(quiz.questions):
         answer = next((a for a in processed_answers if a.questionId == q.id), None)
+        correct_answers = [
+            ar for ar in answer_records_db
+            if any(qr.questionId == q.id and qr.isCorrect for qr in ar.questionRecords)
+        ]
+        total_answers = [
+            ar for ar in answer_records_db
+            if any(qr.questionId == q.id for qr in ar.questionRecords)
+        ]
+
+        times = question_time_aggregates.get(q.id, [answer.timeSpent if answer else 0])
+        avg_time = sum(times) / len(times) if times else 0
+        accuracy = (len(correct_answers) / len(total_answers) * 100) if total_answers else (100 if (answer and answer.isCorrect) else 0)
+
         question_stats.append(
             QuestionStat(
                 questionId=q.id,
                 questionIndex=idx,
-                accuracy=100 if (answer and answer.isCorrect) else 0,
-                avgTimeSpent=answer.timeSpent if answer else 0,
+                accuracy=round(accuracy, 1),
+                avgTimeSpent=round(avg_time, 1),
             )
         )
 
@@ -208,14 +337,31 @@ async def submit_quiz(request: SubmitRequest):
     )
 
     scores_db.append(score)
+    update_last_modified()
     return score
 
 
 @app.get("/api/scores")
-async def get_scores(quizId: Optional[str] = None):
-    if quizId:
-        return [s for s in scores_db if s.quizId == quizId]
-    return scores_db
+async def get_scores(request: Request, response: Response, quizId: Optional[str] = None, since: Optional[float] = None):
+    if_modified_since = request.headers.get("if-modified-since")
+    check_time = since or (float(if_modified_since) if if_modified_since else None)
+
+    if check_time and check_time >= last_modified:
+        response.status_code = 304
+        return []
+
+    all_scores = [s for s in scores_db if s.quizId == quizId] if quizId else scores_db
+
+    if since:
+        cutoff = datetime.fromtimestamp(since)
+        all_scores = [
+            s for s in all_scores
+            if datetime.fromisoformat(s.submittedAt.replace("Z", "+00:00")).replace(tzinfo=None) > cutoff
+        ]
+
+    response.headers["Last-Modified"] = str(last_modified)
+    response.headers["X-Total-Count"] = str(len(all_scores))
+    return all_scores
 
 
 @app.get("/api/scores/{score_id}")

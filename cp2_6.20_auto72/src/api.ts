@@ -1,17 +1,34 @@
-import axios from 'axios';
-import type { Quiz, Score, Answer } from './types';
+import axios, { AxiosResponse } from 'axios';
+import type { Quiz, Score, Answer, QuizCreateRequest } from './types';
 
 const api = axios.create({
   baseURL: '/api',
   timeout: 10000,
 });
 
+let lastModifiedQuizzes: string | null = null;
+let lastModifiedScores: string | null = null;
+let lastScoreFetchTime: number = 0;
+
 export const quizApi = {
   async getQuizzes(): Promise<Quiz[]> {
     try {
-      const response = await api.get('/quizzes');
+      const headers: Record<string, string> = {};
+      if (lastModifiedQuizzes) {
+        headers['If-Modified-Since'] = lastModifiedQuizzes;
+      }
+      const response: AxiosResponse<Quiz[]> = await api.get('/quizzes', { headers });
+      if (response.status === 304) {
+        return [];
+      }
+      if (response.headers['last-modified']) {
+        lastModifiedQuizzes = response.headers['last-modified'];
+      }
       return response.data;
-    } catch {
+    } catch (error: any) {
+      if (error?.response?.status === 304) {
+        return [];
+      }
       return getMockQuizzes();
     }
   },
@@ -26,6 +43,19 @@ export const quizApi = {
     }
   },
 
+  async createQuiz(request: QuizCreateRequest): Promise<Quiz> {
+    try {
+      const response = await api.post('/quizzes', request);
+      lastModifiedQuizzes = null;
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      }
+      throw new Error('创建测验失败');
+    }
+  },
+
   async submitQuiz(
     quizId: string,
     studentName: string,
@@ -37,19 +67,41 @@ export const quizApi = {
         studentName,
         answers,
       });
+      lastModifiedScores = null;
       return response.data;
     } catch {
       return calculateMockScore(quizId, studentName, answers);
     }
   },
 
-  async getAllScores(quizId?: string): Promise<Score[]> {
+  async getAllScores(quizId?: string, incremental: boolean = false): Promise<Score[]> {
     try {
-      const url = quizId ? `/scores?quizId=${quizId}` : '/scores';
-      const response = await api.get(url);
+      const params: Record<string, string | number> = {};
+      if (quizId) params.quizId = quizId;
+      if (incremental && lastScoreFetchTime > 0) {
+        params.since = lastScoreFetchTime;
+      }
+
+      const headers: Record<string, string> = {};
+      if (lastModifiedScores && incremental) {
+        headers['If-Modified-Since'] = lastModifiedScores;
+      }
+
+      const response: AxiosResponse<Score[]> = await api.get('/scores', { params, headers });
+      lastScoreFetchTime = Date.now() / 1000;
+
+      if (response.status === 304) {
+        return [];
+      }
+      if (response.headers['last-modified']) {
+        lastModifiedScores = response.headers['last-modified'];
+      }
       return response.data;
-    } catch {
-      return getMockScores();
+    } catch (error: any) {
+      if (error?.response?.status === 304) {
+        return [];
+      }
+      return incremental ? [] : getMockScores();
     }
   },
 

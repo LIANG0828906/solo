@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useQuizStore } from '../store';
 import { quizApi } from '../api';
@@ -12,28 +13,47 @@ function TeacherDashboard() {
   const [selectedQuiz, setSelectedQuiz] = useState<string>('all');
   const [selectedStudent, setSelectedStudent] = useState<Score | null>(null);
   const [newScoreIds, setNewScoreIds] = useState<Set<string>>(new Set());
-  const prevScoreCountRef = useRef(0);
+  const isFirstLoadRef = useRef(true);
+  const scoreKeySetRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const loadScores = async () => {
       const scores = await quizApi.getAllScores(
-        selectedQuiz === 'all' ? undefined : selectedQuiz
+        selectedQuiz === 'all' ? undefined : selectedQuiz,
+        !isFirstLoadRef.current
       );
-      if (scores.length > prevScoreCountRef.current && prevScoreCountRef.current > 0) {
-        const newIds = new Set(
-          scores.slice(prevScoreCountRef.current).map((s) => s.quizId + s.studentName)
-        );
-        setNewScoreIds(newIds);
-        setTimeout(() => setNewScoreIds(new Set()), 500);
+
+      if (scores.length > 0) {
+        if (isFirstLoadRef.current) {
+          setAllScores(scores);
+          scores.forEach((s) =>
+            scoreKeySetRef.current.add(s.quizId + s.studentName + s.submittedAt)
+          );
+        } else {
+          const newScores = scores.filter(
+            (s) => !scoreKeySetRef.current.has(s.quizId + s.studentName + s.submittedAt)
+          );
+          if (newScores.length > 0) {
+            const newIds = new Set(
+              newScores.map((s) => s.quizId + s.studentName + s.submittedAt)
+            );
+            newIds.forEach((id) => scoreKeySetRef.current.add(id));
+            setNewScoreIds(newIds);
+            setAllScores([...allScores, ...newScores]);
+            setTimeout(() => setNewScoreIds(new Set()), 500);
+          }
+        }
       }
-      prevScoreCountRef.current = scores.length;
-      setAllScores(scores);
+      isFirstLoadRef.current = false;
     };
+
     loadScores();
+    scoreKeySetRef.current = new Set();
+    isFirstLoadRef.current = true;
 
     const interval = setInterval(loadScores, 30000);
     return () => clearInterval(interval);
-  }, [selectedQuiz, setAllScores]);
+  }, [selectedQuiz, setAllScores, allScores]);
 
   const filteredScores =
     selectedQuiz === 'all'
@@ -204,13 +224,28 @@ function TeacherDashboard() {
         <h2 style={{ color: '#1a365d', fontSize: '24px', fontWeight: 700 }}>
           学生成绩概览
         </h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <Link
+            to="/teacher/create"
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#38a169',
+              color: '#ffffff',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              fontSize: '14px',
+              fontWeight: 500,
+            }}
+          >
+            + 创建测验
+          </Link>
           <span style={{ color: '#718096', fontSize: '14px' }}>筛选测验：</span>
           <select
             value={selectedQuiz}
             onChange={(e) => {
               setSelectedQuiz(e.target.value);
-              prevScoreCountRef.current = 0;
+              scoreKeySetRef.current = new Set();
+              isFirstLoadRef.current = true;
             }}
             style={{
               padding: '8px 12px',
@@ -275,10 +310,11 @@ function TeacherDashboard() {
             </thead>
             <tbody>
               {filteredScores.map((score, index) => {
-                const isNew = newScoreIds.has(score.quizId + score.studentName);
+                const key = score.quizId + score.studentName + score.submittedAt;
+                const isNew = newScoreIds.has(key);
                 return (
                   <tr
-                    key={score.quizId + score.studentName + index}
+                    key={key}
                     className={isNew ? 'animate-slide-in-right' : ''}
                     style={{
                       backgroundColor: index % 2 === 0 ? '#ffffff' : '#e8f4fd',

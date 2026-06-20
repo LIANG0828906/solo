@@ -1,22 +1,39 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import QuizList from './components/QuizList';
 import QuizPlayer from './components/QuizPlayer';
 import ResultDashboard from './components/ResultDashboard';
 import TeacherDashboard from './components/TeacherDashboard';
+import CreateQuiz from './components/CreateQuiz';
 import { useQuizStore } from './store';
 import { quizApi } from './api';
 
 function App() {
   const location = useLocation();
   const setQuizzes = useQuizStore((state) => state.setQuizzes);
+  const refreshIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     const loadQuizzes = async () => {
-      const quizzes = await quizApi.getQuizzes();
-      setQuizzes(quizzes);
+      const newQuizzes = await quizApi.getQuizzes();
+      if (newQuizzes.length > 0) {
+        setQuizzes(newQuizzes);
+      }
     };
     loadQuizzes();
+
+    refreshIntervalRef.current = window.setInterval(async () => {
+      const newQuizzes = await quizApi.getQuizzes();
+      if (newQuizzes.length > 0) {
+        setQuizzes(newQuizzes);
+      }
+    }, 30000);
+
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
   }, [setQuizzes]);
 
   const isActive = (path: string) => location.pathname === path;
@@ -85,6 +102,7 @@ function App() {
           <Route path="/quiz/:id" element={<QuizPlayer />} />
           <Route path="/result/:id" element={<ResultDashboard />} />
           <Route path="/teacher" element={<TeacherDashboard />} />
+          <Route path="/teacher/create" element={<CreateQuiz />} />
         </Routes>
       </main>
     </div>

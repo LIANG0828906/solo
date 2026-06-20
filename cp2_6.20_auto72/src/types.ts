@@ -9,11 +9,26 @@ export interface Question {
   score: number;
 }
 
+export interface QuestionCreate {
+  type: QuestionType;
+  content: string;
+  options?: string[];
+  answer: string;
+  score: number;
+}
+
+export interface QuizCreateRequest {
+  title: string;
+  questions: QuestionCreate[];
+}
+
 export interface Answer {
   questionId: string;
   answer: string;
   isCorrect: boolean;
   timeSpent: number;
+  startTime?: number;
+  endTime?: number;
 }
 
 export interface Quiz {
