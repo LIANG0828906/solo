@@ -1,10 +1,12 @@
-import { useRef, useEffect, useCallback, useState, useMemo } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 import { useGameStore } from '../store/game-store'
 import { Enemy, getEnemyConfig, updateEnemies } from '../game-logic/enemy'
 import {
   Tower,
   TOWER_CONFIGS,
-  AttackEffect,
+  GameEffect,
+  DeathEffect,
+  GoldEffect,
   processTowerAttacks,
   cleanupEffects,
   getUpgradeCost,
@@ -26,13 +28,18 @@ const GRASS_COLOR = '#2d5a27'
 const BUILDABLE_COLOR = '#8b7355'
 const BORDER_COLOR = '#2a1e14'
 
+const RANGE_PULSE_PERIOD = 1500
+
 export function GameBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationRef = useRef<number>(0)
   const lastTimeRef = useRef<number>(0)
   const waveAccumRef = useRef<number>(0)
   const hoverPosRef = useRef<{ col: number; row: number } | null>(null)
+  const livesRef = useRef<number>(20)
+  const hoverTowerIdRef = useRef<string | null>(null)
 
+  const gameState = useGameStore()
   const {
     selectedTowerType,
     selectedTowerId,
@@ -49,86 +56,44 @@ export function GameBoard() {
     upgradeTowerById,
     addWaveKill,
     towers,
-  } = useGameStore()
+  } = gameState
 
   const enemiesRef = useRef<Enemy[]>([])
   const towersRef = useRef<Tower[]>([])
-  const effectsRef = useRef<AttackEffect[]>([])
+  const effectsRef = useRef<GameEffect[]>([])
   const isPausedRef = useRef<boolean>(false)
   const gameOverRef = useRef<boolean>(false)
   const waveRef = useRef<number>(0)
 
   useEffect(() => {
-    const unsubscribe = useGameStore.subscribe(
-      (state) => state.enemies,
-      (enemies) => {
-        enemiesRef.current = enemies
-      }
-    )
-    return unsubscribe
-  }, [])
+    enemiesRef.current = gameState.enemies
+  }, [gameState.enemies])
 
   useEffect(() => {
-    const unsubscribe = useGameStore.subscribe(
-      (state) => state.towers,
-      (towers) => {
-        towersRef.current = towers
-      }
-    )
-    return unsubscribe
-  }, [])
+    towersRef.current = gameState.towers
+  }, [gameState.towers])
 
   useEffect(() => {
-    const unsubscribe = useGameStore.subscribe(
-      (state) => state.effects,
-      (effects) => {
-        effectsRef.current = effects
-      }
-    )
-    return unsubscribe
-  }, [])
+    effectsRef.current = gameState.effects
+  }, [gameState.effects])
 
   useEffect(() => {
-    const unsubscribe = useGameStore.subscribe(
-      (state) => state.isPaused,
-      (isPaused) => {
-        isPausedRef.current = isPaused
-      }
-    )
-    return unsubscribe
-  }, [])
+    isPausedRef.current = gameState.isPaused
+  }, [gameState.isPaused])
 
   useEffect(() => {
-    const unsubscribe = useGameStore.subscribe(
-      (state) => state.gameOver,
-      (gameOver) => {
-        gameOverRef.current = gameOver
-      }
-    )
-    return unsubscribe
-  }, [])
+    gameOverRef.current = gameState.gameOver
+  }, [gameState.gameOver])
 
   useEffect(() => {
-    const unsubscribe = useGameStore.subscribe(
-      (state) => state.wave,
-      (w) => {
-        waveRef.current = w
-      }
-    )
-    return unsubscribe
-  }, [])
+    waveRef.current = gameState.wave
+  }, [gameState.wave])
 
   useEffect(() => {
-    const unsubscribe = useGameStore.subscribe(
-      (state) => state.lives,
-      (lives) => {
-        livesRef.current = lives
-      }
-    )
-    return unsubscribe
-  }, [])
+    livesRef.current = gameState.lives
+  }, [gameState.lives])
 
-  const pathTiles = useMemo(() => getPathTiles(), [])
+  const realPathTiles = useRef(getPathTiles())
   const canvasWidth = GRID_COLS * TILE_SIZE
   const canvasHeight = GRID_ROWS * TILE_SIZE
 
@@ -143,7 +108,7 @@ export function GameBoard() {
           const x = col * TILE_SIZE
           const y = row * TILE_SIZE
 
-          if (pathTiles.has(key)) {
+          if (realPathTiles.current.has(key)) {
             ctx.fillStyle = PATH_COLOR
             ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE)
             ctx.strokeStyle = '#4a4a4a'
@@ -163,7 +128,7 @@ export function GameBoard() {
       ctx.lineWidth = 4
       ctx.strokeRect(2, 2, canvasWidth - 4, canvasHeight - 4)
     },
-    [pathTiles, canvasWidth, canvasHeight]
+    [canvasWidth, canvasHeight]
   )
 
   const drawEnemy = useCallback((ctx: CanvasRenderingContext2D, enemy: Enemy) => {
@@ -226,19 +191,49 @@ export function GameBoard() {
     ctx.fillRect(barX, barY, barWidth * hpPercent, barHeight)
   }, [])
 
+  const drawRangeRing = useCallback(
+    (ctx: CanvasRenderingContext2D, x: number, y: number, range: number, time: number) => {
+      const pulsePhase = (time % RANGE_PULSE_PERIOD) / RANGE_PULSE_PERIOD
+      const pulse = 0.5 + 0.5 * Math.sin(pulsePhase * Math.PI * 2)
+      const alpha = 0.2 + pulse * 0.2
+      const ringAlpha = 0.25 + pulse * 0.2
+      const radiusPulse = 1 + pulse * 0.03
+
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`
+      ctx.beginPath()
+      ctx.arc(x, y, range * radiusPulse, 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.strokeStyle = `rgba(255, 255, 255, ${ringAlpha})`
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(x, y, range * radiusPulse, 0, Math.PI * 2)
+      ctx.stroke()
+
+      if (pulse > 0.5) {
+        ctx.strokeStyle = `rgba(100, 200, 255, ${(pulse - 0.5) * 0.4})`
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.arc(x, y, range * (1 + pulse * 0.08), 0, Math.PI * 2)
+        ctx.stroke()
+      }
+    },
+    []
+  )
+
   const drawTower = useCallback(
-    (ctx: CanvasRenderingContext2D, tower: Tower, isSelected: boolean) => {
+    (
+      ctx: CanvasRenderingContext2D,
+      tower: Tower,
+      isSelected: boolean,
+      isHovered: boolean,
+      time: number
+    ) => {
       const config = TOWER_CONFIGS[tower.type]
       const size = TILE_SIZE * 0.7
 
-      if (isSelected) {
-        ctx.fillStyle = 'rgba(255,255,255,0.12)'
-        ctx.beginPath()
-        ctx.arc(tower.x, tower.y, tower.range, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.strokeStyle = 'rgba(255,255,255,0.35)'
-        ctx.lineWidth = 2
-        ctx.stroke()
+      if (isSelected || isHovered) {
+        drawRangeRing(ctx, tower.x, tower.y, tower.range, time)
       }
 
       ctx.fillStyle = 'rgba(0,0,0,0.4)'
@@ -271,61 +266,268 @@ export function GameBoard() {
         ctx.fillText(`Lv${tower.level}`, tower.x, tower.y - size / 2 - 2)
       }
     },
-    []
+    [drawRangeRing]
   )
 
-  const drawEffect = useCallback(
-    (ctx: CanvasRenderingContext2D, effect: AttackEffect, now: number) => {
+  const drawAttackEffect = useCallback(
+    (ctx: CanvasRenderingContext2D, effect: GameEffect, now: number) => {
+      if (effect.kind !== 'attack') return
       const progress = (now - effect.createdAt) / effect.duration
       const alpha = 1 - progress
 
       if (effect.type === 'arrow') {
-        ctx.strokeStyle = `rgba(139, 195, 74, ${alpha})`
-        ctx.lineWidth = 2
-        ctx.beginPath()
-        ctx.moveTo(effect.x, effect.y)
-        ctx.lineTo(effect.targetX, effect.targetY)
-        ctx.stroke()
+        const moveProgress = Math.min(progress / 0.7, 1)
+        const currentX = effect.x + (effect.targetX - effect.x) * moveProgress
+        const currentY = effect.y + (effect.targetY - effect.y) * moveProgress
+        const trailStartX = currentX - (effect.targetX - effect.x) * 0.2
+        const trailStartY = currentY - (effect.targetY - effect.y) * 0.2
 
         const angle = Math.atan2(effect.targetY - effect.y, effect.targetX - effect.x)
+
+        const tailGradient = ctx.createLinearGradient(trailStartX, trailStartY, currentX, currentY)
+        tailGradient.addColorStop(0, `rgba(139, 195, 74, 0)`)
+        tailGradient.addColorStop(1, `rgba(139, 195, 74, ${alpha})`)
+        ctx.strokeStyle = tailGradient
+        ctx.lineWidth = 3
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(trailStartX, trailStartY)
+        ctx.lineTo(currentX, currentY)
+        ctx.stroke()
+
         ctx.fillStyle = `rgba(139, 195, 74, ${alpha})`
         ctx.beginPath()
-        ctx.moveTo(effect.targetX, effect.targetY)
+        ctx.moveTo(currentX, currentY)
         ctx.lineTo(
-          effect.targetX - 8 * Math.cos(angle - Math.PI / 6),
-          effect.targetY - 8 * Math.sin(angle - Math.PI / 6)
+          currentX - 10 * Math.cos(angle - Math.PI / 6),
+          currentY - 10 * Math.sin(angle - Math.PI / 6)
         )
         ctx.lineTo(
-          effect.targetX - 8 * Math.cos(angle + Math.PI / 6),
-          effect.targetY - 8 * Math.sin(angle + Math.PI / 6)
+          currentX - 10 * Math.cos(angle + Math.PI / 6),
+          currentY - 10 * Math.sin(angle + Math.PI / 6)
         )
         ctx.closePath()
         ctx.fill()
-      } else if (effect.type === 'cannon') {
-        const radius = 20 + progress * 30
-        ctx.strokeStyle = `rgba(255, 152, 0, ${alpha})`
-        ctx.lineWidth = 3
+
+        ctx.fillStyle = `rgba(200, 230, 100, ${alpha * 0.6})`
         ctx.beginPath()
-        ctx.arc(effect.targetX, effect.targetY, radius, 0, Math.PI * 2)
+        ctx.arc(currentX, currentY, 3, 0, Math.PI * 2)
+        ctx.fill()
+      } else if (effect.type === 'cannon') {
+        const explosionProgress = Math.min(progress / 0.6, 1)
+        const baseRadius = 15
+        const mainRadius = baseRadius + explosionProgress * 40
+        const shockwaveRadius = baseRadius + explosionProgress * 70
+        const mainAlpha = alpha * (1 - explosionProgress * 0.5)
+        const shockwaveAlpha = alpha * (1 - explosionProgress)
+
+        if (explosionProgress < 0.3) {
+          const flashAlpha = (1 - explosionProgress / 0.3) * 0.6
+          ctx.fillStyle = `rgba(255, 255, 200, ${flashAlpha})`
+          ctx.beginPath()
+          ctx.arc(effect.targetX, effect.targetY, 25, 0, Math.PI * 2)
+          ctx.fill()
+        }
+
+        const innerGradient = ctx.createRadialGradient(
+          effect.targetX,
+          effect.targetY,
+          0,
+          effect.targetX,
+          effect.targetY,
+          mainRadius
+        )
+        innerGradient.addColorStop(0, `rgba(255, 200, 50, ${mainAlpha})`)
+        innerGradient.addColorStop(0.4, `rgba(255, 120, 30, ${mainAlpha * 0.8})`)
+        innerGradient.addColorStop(1, `rgba(255, 60, 20, 0)`)
+        ctx.fillStyle = innerGradient
+        ctx.beginPath()
+        ctx.arc(effect.targetX, effect.targetY, mainRadius, 0, Math.PI * 2)
+        ctx.fill()
+
+        ctx.strokeStyle = `rgba(255, 150, 50, ${shockwaveAlpha})`
+        ctx.lineWidth = 4 - explosionProgress * 2
+        ctx.beginPath()
+        ctx.arc(effect.targetX, effect.targetY, shockwaveRadius, 0, Math.PI * 2)
         ctx.stroke()
 
-        ctx.fillStyle = `rgba(255, 87, 34, ${alpha * 0.3})`
-        ctx.beginPath()
-        ctx.arc(effect.targetX, effect.targetY, radius * 0.6, 0, Math.PI * 2)
-        ctx.fill()
-      } else if (effect.type === 'magic') {
-        const radius = 10 + progress * 25
-        ctx.strokeStyle = `rgba(33, 150, 243, ${alpha})`
+        ctx.strokeStyle = `rgba(255, 220, 100, ${shockwaveAlpha * 0.6})`
         ctx.lineWidth = 2
         ctx.beginPath()
-        ctx.arc(effect.targetX, effect.targetY, radius, 0, Math.PI * 2)
+        ctx.arc(effect.targetX, effect.targetY, shockwaveRadius * 0.7, 0, Math.PI * 2)
+        ctx.stroke()
+      } else if (effect.type === 'magic') {
+        const rippleProgress = Math.min(progress / 0.8, 1)
+        const baseRadius = 10
+        const outerRadius = baseRadius + rippleProgress * 35
+        const midRadius = baseRadius + rippleProgress * 22
+        const innerRadius = baseRadius + rippleProgress * 10
+        const rippleAlpha = alpha * (1 - rippleProgress * 0.3)
+
+        const innerGradient = ctx.createRadialGradient(
+          effect.targetX,
+          effect.targetY,
+          0,
+          effect.targetX,
+          effect.targetY,
+          outerRadius
+        )
+        innerGradient.addColorStop(0, `rgba(100, 180, 255, ${rippleAlpha * 0.3})`)
+        innerGradient.addColorStop(0.5, `rgba(50, 130, 255, ${rippleAlpha * 0.15})`)
+        innerGradient.addColorStop(1, `rgba(30, 80, 200, 0)`)
+        ctx.fillStyle = innerGradient
+        ctx.beginPath()
+        ctx.arc(effect.targetX, effect.targetY, outerRadius, 0, Math.PI * 2)
+        ctx.fill()
+
+        ctx.strokeStyle = `rgba(100, 180, 255, ${rippleAlpha})`
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.arc(effect.targetX, effect.targetY, outerRadius, 0, Math.PI * 2)
         ctx.stroke()
 
-        ctx.strokeStyle = `rgba(100, 181, 246, ${alpha * 0.6})`
+        ctx.strokeStyle = `rgba(150, 210, 255, ${rippleAlpha * 0.8})`
+        ctx.lineWidth = 2
         ctx.beginPath()
-        ctx.arc(effect.targetX, effect.targetY, radius * 0.6, 0, Math.PI * 2)
+        ctx.arc(effect.targetX, effect.targetY, midRadius, 0, Math.PI * 2)
         ctx.stroke()
+
+        ctx.strokeStyle = `rgba(200, 230, 255, ${rippleAlpha * 0.6})`
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.arc(effect.targetX, effect.targetY, innerRadius, 0, Math.PI * 2)
+        ctx.stroke()
+
+        if (rippleProgress < 0.5) {
+          const sparkAlpha = (1 - rippleProgress / 0.5) * rippleAlpha
+          for (let i = 0; i < 5; i++) {
+            const sparkAngle = (i / 5) * Math.PI * 2 + rippleProgress * Math.PI
+            const sparkRadius = midRadius + Math.sin(rippleProgress * Math.PI * 3 + i) * 6
+            const sx = effect.targetX + Math.cos(sparkAngle) * sparkRadius
+            const sy = effect.targetY + Math.sin(sparkAngle) * sparkRadius
+            ctx.fillStyle = `rgba(180, 220, 255, ${sparkAlpha})`
+            ctx.beginPath()
+            ctx.arc(sx, sy, 2, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        }
       }
+    },
+    []
+  )
+
+  const drawDeathEffect = useCallback(
+    (ctx: CanvasRenderingContext2D, effect: DeathEffect, now: number) => {
+      const progress = (now - effect.createdAt) / effect.duration
+      const alpha = 1 - progress
+
+      if (effect.type === 'normal') {
+        const size = (1 - progress * 0.7) * 14
+        ctx.fillStyle = `rgba(229, 57, 53, ${alpha})`
+        ctx.beginPath()
+        ctx.arc(effect.x, effect.y, size / 2, 0, Math.PI * 2)
+        ctx.fill()
+
+        ctx.fillStyle = `rgba(255, 150, 150, ${alpha * 0.5})`
+        ctx.beginPath()
+        ctx.arc(effect.x, effect.y, size / 2 + 4 + progress * 10, 0, Math.PI * 2)
+        ctx.fill()
+      } else if (effect.type === 'fast') {
+        for (const particle of effect.particles) {
+          const px = effect.x + particle.vx * progress
+          const py = effect.y + particle.vy * progress - progress * progress * 40
+          const particleAlpha = alpha * (1 - progress * 0.3)
+          const particleSize = particle.size * (1 - progress * 0.5)
+
+          ctx.fillStyle = particle.color
+          ctx.globalAlpha = particleAlpha
+          ctx.beginPath()
+          ctx.arc(px, py, particleSize, 0, Math.PI * 2)
+          ctx.fill()
+
+          ctx.globalAlpha = particleAlpha * 0.3
+          ctx.beginPath()
+          ctx.arc(px, py, particleSize * 2, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.globalAlpha = 1
+        }
+      } else {
+        for (const particle of effect.particles) {
+          const rotation = progress * 4 + particle.angle
+          const px = effect.x + particle.vx * progress
+          const py = effect.y + particle.vy * progress + progress * progress * 30
+          const particleAlpha = alpha * (1 - progress * 0.2)
+          const particleSize = particle.size * (1 - progress * 0.3)
+
+          ctx.save()
+          ctx.translate(px, py)
+          ctx.rotate(rotation)
+          ctx.fillStyle = particle.color
+          ctx.globalAlpha = particleAlpha
+          ctx.fillRect(-particleSize / 2, -particleSize / 2, particleSize, particleSize)
+          ctx.globalAlpha = 1
+          ctx.restore()
+        }
+      }
+    },
+    []
+  )
+
+  const drawGoldEffect = useCallback(
+    (ctx: CanvasRenderingContext2D, effect: GoldEffect, now: number) => {
+      const progress = (now - effect.createdAt) / effect.duration
+      const floatProgress = Math.min(progress / 0.8, 1)
+      const fadeProgress = Math.max(0, (progress - 0.5) / 0.5)
+      const alpha = 1 - fadeProgress
+      const floatY = -floatProgress * 40
+
+      const coinSize = 10 + floatProgress * 2
+      const wobble = Math.sin(progress * Math.PI * 4) * 3
+
+      ctx.save()
+      ctx.translate(effect.x + wobble, effect.y + floatY)
+
+      const gradient = ctx.createRadialGradient(-coinSize / 3, -coinSize / 3, 0, 0, 0, coinSize)
+      gradient.addColorStop(0, `rgba(255, 240, 150, ${alpha})`)
+      gradient.addColorStop(0.5, `rgba(255, 215, 0, ${alpha})`)
+      gradient.addColorStop(1, `rgba(184, 134, 11, ${alpha})`)
+      ctx.fillStyle = gradient
+      ctx.beginPath()
+      ctx.arc(0, 0, coinSize, 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.strokeStyle = `rgba(150, 100, 0, ${alpha})`
+      ctx.lineWidth = 1.5
+      ctx.stroke()
+
+      ctx.fillStyle = `rgba(150, 100, 0, ${alpha})`
+      ctx.font = `bold ${coinSize}px Arial`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('$', 0, 1)
+
+      if (effect.amount > 1 && progress < 0.6) {
+        ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.8})`
+        ctx.font = 'bold 12px Arial'
+        ctx.textAlign = 'center'
+        ctx.fillText(`+${effect.amount}`, 0, -coinSize - 8)
+      }
+
+      if (progress < 0.3) {
+        const sparkleAlpha = (1 - progress / 0.3) * alpha
+        for (let i = 0; i < 4; i++) {
+          const angle = (i / 4) * Math.PI * 2 + progress * Math.PI * 2
+          const dist = coinSize + 4 + progress * 15
+          const sx = Math.cos(angle) * dist
+          const sy = Math.sin(angle) * dist
+          ctx.fillStyle = `rgba(255, 255, 200, ${sparkleAlpha})`
+          ctx.beginPath()
+          ctx.arc(sx, sy, 1.5, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+
+      ctx.restore()
     },
     []
   )
@@ -340,7 +542,9 @@ export function GameBoard() {
       drawMap(ctx)
 
       for (const tower of towersRef.current) {
-        drawTower(ctx, tower, tower.id === selectedTowerId)
+        const isSelected = tower.id === selectedTowerId
+        const isHovered = tower.id === hoverTowerIdRef.current
+        drawTower(ctx, tower, isSelected, isHovered, timestamp)
       }
 
       for (const enemy of enemiesRef.current) {
@@ -350,7 +554,13 @@ export function GameBoard() {
       }
 
       for (const effect of effectsRef.current) {
-        drawEffect(ctx, effect, timestamp)
+        if (effect.kind === 'attack') {
+          drawAttackEffect(ctx, effect, timestamp)
+        } else if (effect.kind === 'death') {
+          drawDeathEffect(ctx, effect, timestamp)
+        } else if (effect.kind === 'gold') {
+          drawGoldEffect(ctx, effect, timestamp)
+        }
       }
 
       if (selectedTowerType && hoverPosRef.current) {
@@ -363,17 +573,11 @@ export function GameBoard() {
         ctx.fillRect(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE)
 
         if (canBuild) {
-          ctx.fillStyle = 'rgba(255,255,255,0.08)'
-          ctx.beginPath()
-          ctx.arc(x, y, config.range, 0, Math.PI * 2)
-          ctx.fill()
-          ctx.strokeStyle = 'rgba(255,255,255,0.25)'
-          ctx.lineWidth = 2
-          ctx.stroke()
+          drawRangeRing(ctx, x, y, config.range, timestamp)
         }
       }
     },
-    [drawMap, drawTower, drawEnemy, drawEffect, selectedTowerType, selectedTowerId]
+    [drawMap, drawTower, drawEnemy, drawAttackEffect, drawDeathEffect, drawGoldEffect, drawRangeRing, selectedTowerType, selectedTowerId]
   )
 
   const gameLoop = useCallback(
@@ -474,12 +678,21 @@ export function GameBoard() {
       const x = (e.clientX - rect.left) * scaleX
       const y = (e.clientY - rect.top) * scaleY
       hoverPosRef.current = pixelToGrid(x, y)
+
+      if (!selectedTowerType) {
+        const { col, row } = pixelToGrid(x, y)
+        const hoveredTower = towersRef.current.find((t) => t.col === col && t.row === row)
+        hoverTowerIdRef.current = hoveredTower ? hoveredTower.id : null
+      } else {
+        hoverTowerIdRef.current = null
+      }
     },
-    []
+    [selectedTowerType]
   )
 
   const handleCanvasMouseLeave = useCallback(() => {
     hoverPosRef.current = null
+    hoverTowerIdRef.current = null
   }, [])
 
   useEffect(() => {

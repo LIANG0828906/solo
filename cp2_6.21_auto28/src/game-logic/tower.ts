@@ -1,5 +1,5 @@
 import { TILE_SIZE } from '../utils/path-data'
-import { Enemy, getEnemiesInRange, applyDamage, applySlow } from './enemy'
+import { Enemy, EnemyType, getEnemiesInRange, getEnemyConfig, applyDamage, applySlow } from './enemy'
 
 export type TowerType = 'arrow' | 'cannon' | 'magic'
 
@@ -18,8 +18,11 @@ export interface Tower {
   cost: number
 }
 
+export type EffectKind = 'attack' | 'death' | 'gold'
+
 export interface AttackEffect {
   id: string
+  kind: 'attack'
   type: TowerType
   x: number
   y: number
@@ -28,6 +31,38 @@ export interface AttackEffect {
   createdAt: number
   duration: number
 }
+
+export interface DeathEffectParticle {
+  angle: number
+  speed: number
+  size: number
+  vx: number
+  vy: number
+  color: string
+}
+
+export interface DeathEffect {
+  id: string
+  kind: 'death'
+  type: EnemyType
+  x: number
+  y: number
+  createdAt: number
+  duration: number
+  particles: DeathEffectParticle[]
+}
+
+export interface GoldEffect {
+  id: string
+  kind: 'gold'
+  x: number
+  y: number
+  amount: number
+  createdAt: number
+  duration: number
+}
+
+export type GameEffect = AttackEffect | DeathEffect | GoldEffect
 
 export interface TowerConfig {
   cost: number
@@ -118,6 +153,73 @@ export function upgradeTower(tower: Tower): Tower {
   }
 }
 
+export function createDeathEffect(enemy: Enemy, now: number): DeathEffect {
+  const config = getEnemyConfig(enemy.type)
+  const particles: DeathEffectParticle[] = []
+
+  if (enemy.type === 'normal') {
+    particles.push({
+      angle: 0,
+      speed: 0,
+      size: 14,
+      vx: 0,
+      vy: 0,
+      color: config.color,
+    })
+  } else if (enemy.type === 'fast') {
+    const particleCount = 8
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2
+      const speed = 40 + Math.random() * 30
+      particles.push({
+        angle,
+        speed,
+        size: 3 + Math.random() * 3,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color: config.color,
+      })
+    }
+  } else {
+    const particleCount = 6
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2 + Math.random() * 0.3
+      const speed = 25 + Math.random() * 25
+      particles.push({
+        angle,
+        speed,
+        size: 5 + Math.random() * 4,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color: config.color,
+      })
+    }
+  }
+
+  return {
+    id: generateEffectId(),
+    kind: 'death',
+    type: enemy.type,
+    x: enemy.x,
+    y: enemy.y,
+    createdAt: now,
+    duration: enemy.type === 'normal' ? 300 : 500,
+    particles,
+  }
+}
+
+export function createGoldEffect(x: number, y: number, amount: number, now: number): GoldEffect {
+  return {
+    id: generateEffectId(),
+    kind: 'gold',
+    x,
+    y,
+    amount,
+    createdAt: now,
+    duration: 800,
+  }
+}
+
 export function processTowerAttacks(
   towers: Tower[],
   enemies: Enemy[],
@@ -125,13 +227,15 @@ export function processTowerAttacks(
 ): {
   updatedTowers: Tower[]
   updatedEnemies: Enemy[]
-  newEffects: AttackEffect[]
+  newEffects: GameEffect[]
   goldEarned: number
+  killedEnemies: Enemy[]
 } {
   const updatedTowers: Tower[] = []
   let currentEnemies = [...enemies]
-  const newEffects: AttackEffect[] = []
+  const newEffects: GameEffect[] = []
   let goldEarned = 0
+  const killedEnemies: Enemy[] = []
 
   for (const tower of towers) {
     const fireInterval = tower.fireRate * 1000
@@ -149,18 +253,20 @@ export function processTowerAttacks(
     const target = enemiesInRange.reduce((a, b) => (a.pathIndex > b.pathIndex ? a : b))
 
     const config = TOWER_CONFIGS[tower.type]
+    const attackDuration = tower.type === 'arrow' ? 150 : 200
     newEffects.push({
       id: generateEffectId(),
+      kind: 'attack',
       type: tower.type,
       x: tower.x,
       y: tower.y,
       targetX: target.x,
       targetY: target.y,
       createdAt: now,
-      duration: 200,
+      duration: attackDuration,
     })
 
-    const enemyMap = new Map(currentEnemies.map((e) => [e.id, e]))
+    const enemyMap = new Map(currentEnemies.map((e) => [e.id, { ...e }]))
 
     if (tower.type === 'cannon' && config.splashRadius) {
       const splashTargets = getEnemiesInRange(
@@ -170,24 +276,35 @@ export function processTowerAttacks(
         config.splashRadius
       )
       for (const e of splashTargets) {
-        const damaged = applyDamage(e, tower.damage)
+        const damaged = applyDamage(enemyMap.get(e.id)!, tower.damage)
         enemyMap.set(e.id, damaged)
         if (damaged.hp <= 0) {
           goldEarned += e.goldReward
+          killedEnemies.push({ ...damaged })
+          newEffects.push(createDeathEffect({ ...damaged }, now))
+          newEffects.push(createGoldEffect(e.x, e.y, e.goldReward, now))
         }
       }
     } else if (tower.type === 'magic' && config.slowDuration) {
-      const damaged = applyDamage(target, tower.damage)
+      const targetEnemy = enemyMap.get(target.id)!
+      const damaged = applyDamage(targetEnemy, tower.damage)
       const slowed = applySlow(damaged, config.slowDuration, now)
       enemyMap.set(target.id, slowed)
       if (slowed.hp <= 0) {
         goldEarned += target.goldReward
+        killedEnemies.push({ ...slowed })
+        newEffects.push(createDeathEffect({ ...slowed }, now))
+        newEffects.push(createGoldEffect(target.x, target.y, target.goldReward, now))
       }
     } else {
-      const damaged = applyDamage(target, tower.damage)
+      const targetEnemy = enemyMap.get(target.id)!
+      const damaged = applyDamage(targetEnemy, tower.damage)
       enemyMap.set(target.id, damaged)
       if (damaged.hp <= 0) {
         goldEarned += target.goldReward
+        killedEnemies.push({ ...damaged })
+        newEffects.push(createDeathEffect({ ...damaged }, now))
+        newEffects.push(createGoldEffect(target.x, target.y, target.goldReward, now))
       }
     }
 
@@ -202,9 +319,10 @@ export function processTowerAttacks(
     updatedEnemies: aliveEnemies,
     newEffects,
     goldEarned,
+    killedEnemies,
   }
 }
 
-export function cleanupEffects(effects: AttackEffect[], now: number): AttackEffect[] {
+export function cleanupEffects(effects: GameEffect[], now: number): GameEffect[] {
   return effects.filter((e) => now - e.createdAt < e.duration)
 }

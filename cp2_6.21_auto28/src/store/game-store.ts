@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { Enemy, generateWaveEnemies } from '../game-logic/enemy'
-import { Tower, TowerType, AttackEffect, createTower, upgradeTower, getUpgradeCost } from '../game-logic/tower'
+import { Tower, TowerType, GameEffect, createTower, upgradeTower, getUpgradeCost } from '../game-logic/tower'
 import { INITIAL_LIVES, ENEMY_DAMAGE } from '../utils/path-data'
 
 export interface WaveStatsData {
@@ -21,7 +21,7 @@ interface GameState {
   waveStats: WaveStatsData | null
   enemies: Enemy[]
   towers: Tower[]
-  effects: AttackEffect[]
+  effects: GameEffect[]
   selectedTowerType: TowerType | null
   selectedTowerId: string | null
   goldBounceKey: number
@@ -35,8 +35,8 @@ interface GameState {
   takeDamage: (amount: number) => void
   setEnemies: (enemies: Enemy[]) => void
   setTowers: (towers: Tower[]) => void
-  setEffects: (effects: AttackEffect[]) => void
-  addEffect: (effect: AttackEffect) => void
+  setEffects: (effects: GameEffect[]) => void
+  addEffect: (effect: GameEffect) => void
   placeTower: (type: TowerType, col: number, row: number) => boolean
   upgradeTowerById: (towerId: string) => boolean
   selectTowerType: (type: TowerType | null) => void
@@ -142,11 +142,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ towers })
   },
 
-  setEffects: (effects: AttackEffect[]) => {
+  setEffects: (effects: GameEffect[]) => {
     set({ effects })
   },
 
-  addEffect: (effect: AttackEffect) => {
+  addEffect: (effect: GameEffect) => {
     set((state) => ({ effects: [...state.effects, effect] }))
   },
 
