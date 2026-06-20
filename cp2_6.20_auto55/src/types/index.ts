@@ -12,6 +12,8 @@ export interface VoteOption {
   scoreSum?: number;
   scoreCount?: number;
   avgScore?: number;
+  rankPosition?: number;
+  scoreValue?: number;
 }
 
 export interface VoteSelection {

@@ -13,6 +13,8 @@ import {
   PolarRadiusAxis,
   Radar as RechartsRadar,
   Legend,
+  LabelList,
+  Cell,
 } from 'recharts';
 import { BarChart3, Radar as RadarIcon, Table, Download } from 'lucide-react';
 import type { Vote } from '@/types';
@@ -29,6 +31,44 @@ const ACCENT_COLOR = '#ff7b54';
 const CARD_COLOR = '#2a2f4a';
 const TEXT_COLOR = '#e0e4f0';
 const GRID_COLOR = '#3a3f5a';
+const RANK_COLOR = '#ff7b54';
+const SCORE_COLOR = '#ffd700';
+
+const renderCustomLabel = (props: any, isScore = false) => {
+  const { x, y, width, value } = props;
+  if (value === undefined || value === null) return null;
+  const displayValue = isScore ? Number(value).toFixed(1) : value;
+  return (
+    <text
+      x={x + width / 2}
+      y={y - 8}
+      fill={TEXT_COLOR}
+      textAnchor="middle"
+      fontSize={12}
+      fontWeight={600}
+    >
+      {displayValue}
+    </text>
+  );
+};
+
+const renderHorizontalLabel = (props: any) => {
+  const { x, y, height, value } = props;
+  if (value === undefined || value === null) return null;
+  return (
+    <text
+      x={x + 8}
+      y={y + height / 2}
+      fill={TEXT_COLOR}
+      textAnchor="start"
+      dominantBaseline="middle"
+      fontSize={12}
+      fontWeight={600}
+    >
+      {Number(value).toFixed(2)}
+    </text>
+  );
+};
 
 export default function ResultChart({ vote }: ResultChartProps) {
   const [viewType, setViewType] = useState<ViewType>('chart');
@@ -36,7 +76,7 @@ export default function ResultChart({ vote }: ResultChartProps) {
 
   // 根据投票类型准备图表数据
   const getChartData = () => {
-    return vote.options.map((opt) => ({
+    let data = vote.options.map((opt) => ({
       name: opt.text,
       value:
         vote.type === 'rank'
@@ -45,6 +85,12 @@ export default function ResultChart({ vote }: ResultChartProps) {
           ? opt.avgScore ?? 0
           : opt.votes,
     }));
+
+    if (vote.type === 'rank') {
+      data = data.sort((a, b) => a.value - b.value);
+    }
+
+    return data;
   };
 
   // 获取数值标签
@@ -151,11 +197,11 @@ export default function ResultChart({ vote }: ResultChartProps) {
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
             {vote.type === 'rank' ? (
-              // 排名：横向条形图
+              // 排名：横向条形图（按平均排名升序排序）
               <BarChart
                 data={data}
                 layout="vertical"
-                margin={{ top: 10, right: 30, left: 20, bottom: 10 }}
+                margin={{ top: 10, right: 60, left: 20, bottom: 10 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
                 <XAxis
@@ -189,15 +235,24 @@ export default function ResultChart({ vote }: ResultChartProps) {
                 />
                 <Bar
                   dataKey="value"
-                  fill={PRIMARY_COLOR}
+                  fill={RANK_COLOR}
                   radius={[0, 4, 4, 0]}
-                />
+                  barSize={24}
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={RANK_COLOR} />
+                  ))}
+                  <LabelList
+                    dataKey="value"
+                    content={(props) => renderHorizontalLabel(props)}
+                  />
+                </Bar>
               </BarChart>
             ) : (
               // 单选/多选/评分：柱状图
               <BarChart
                 data={data}
-                margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+                margin={{ top: 30, right: 30, left: 10, bottom: 10 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
                 <XAxis
@@ -215,6 +270,7 @@ export default function ResultChart({ vote }: ResultChartProps) {
                     fill: TEXT_COLOR,
                     fontSize: 12,
                   }}
+                  domain={vote.type === 'score' ? [0, vote.maxScore || 10] : undefined}
                 />
                 <Tooltip
                   contentStyle={{
@@ -234,9 +290,29 @@ export default function ResultChart({ vote }: ResultChartProps) {
                 <Bar
                   dataKey="value"
                   name={getValueLabel()}
-                  fill={PRIMARY_COLOR}
+                  fill={vote.type === 'score' ? SCORE_COLOR : PRIMARY_COLOR}
                   radius={[4, 4, 0, 0]}
-                />
+                  barSize={vote.type === 'score' ? 36 : 40}
+                >
+                  {vote.type === 'score' && (
+                    <LabelList
+                      dataKey="value"
+                      content={(props) => renderCustomLabel(props, true)}
+                    />
+                  )}
+                  {(vote.type === 'single' || vote.type === 'multiple') && (
+                    <LabelList
+                      dataKey="value"
+                      content={(props) => renderCustomLabel(props, false)}
+                    />
+                  )}
+                  {data.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={vote.type === 'score' ? SCORE_COLOR : PRIMARY_COLOR}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             )}
           </ResponsiveContainer>

@@ -42,14 +42,51 @@ const getStatusStyle = (status: Vote['status']) => {
   }
 };
 
+// 根据投票类型获取卡片边框和标签样式
+const getTypeStyle = (type: Vote['type']) => {
+  switch (type) {
+    case 'single':
+      return {
+        card: 'border-l-4 border-l-[#4a90d9]',
+        label: 'bg-[#4a90d9]/15 border-[#4a90d9]/30 text-[#4a90d9]',
+        icon: '#4a90d9',
+      };
+    case 'multiple':
+      return {
+        card: 'border-l-4 border-l-[#9c6ade]',
+        label: 'bg-[#9c6ade]/15 border-[#9c6ade]/30 text-[#9c6ade]',
+        icon: '#9c6ade',
+      };
+    case 'rank':
+      return {
+        card: 'border-l-4 border-l-[#ff7b54]',
+        label: 'bg-[#ff7b54]/15 border-[#ff7b54]/30 text-[#ff7b54]',
+        icon: '#ff7b54',
+      };
+    case 'score':
+      return {
+        card: 'border-l-4 border-l-[#ffd700]',
+        label: 'bg-[#ffd700]/15 border-[#ffd700]/30 text-[#ffd700]',
+        icon: '#ffd700',
+      };
+    default:
+      return {
+        card: '',
+        label: 'bg-[#4a90d9]/15 border-[#4a90d9]/30 text-[#4a90d9]',
+        icon: '#4a90d9',
+      };
+  }
+};
+
 export default function VoteCard({ vote, onEdit, onDelete }: VoteCardProps) {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const TypeIcon = getTypeIcon(vote.type);
-  const progressPercent = vote.maxVoters > 0 
-    ? Math.min((vote.currentVoters / vote.maxVoters) * 100, 100) 
+  const typeStyle = getTypeStyle(vote.type);
+  const progressPercent = vote.maxVoters > 0
+    ? Math.min((vote.currentVoters / vote.maxVoters) * 100, 100)
     : 0;
 
   // 点击卡片跳转详情页
@@ -87,7 +124,9 @@ export default function VoteCard({ vote, onEdit, onDelete }: VoteCardProps) {
         'relative rounded-xl bg-[#2a2f4a] cursor-pointer overflow-hidden',
         'transition-all duration-200 ease-out',
         'shadow-md hover:shadow-2xl hover:-translate-y-1',
-        'border border-white/5 hover:border-[#4a90d9]/30'
+        'border border-white/5',
+        typeStyle.card,
+        isHovered ? 'ring-1 ring-white/10' : ''
       )}
       style={{ borderRadius: '12px' }}
       onMouseEnter={() => setIsHovered(true)}
@@ -165,9 +204,14 @@ export default function VoteCard({ vote, onEdit, onDelete }: VoteCardProps) {
         {/* 顶部：类型标签和状态标签 */}
         <div className="flex items-start justify-between mb-3 gap-2">
           {/* 投票类型标签 */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#4a90d9]/15 border border-[#4a90d9]/30">
-            <TypeIcon size={14} className="text-[#4a90d9]" />
-            <span className="text-xs font-medium text-[#4a90d9]">
+          <div
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-md border',
+              typeStyle.label
+            )}
+          >
+            <TypeIcon size={14} style={{ color: typeStyle.icon }} />
+            <span className="text-xs font-medium" style={{ color: typeStyle.icon }}>
               {VOTE_TYPE_LABELS[vote.type]}
             </span>
           </div>

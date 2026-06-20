@@ -13,6 +13,23 @@ const request = axios.create({
   timeout: 10000,
 });
 
+function validateVoteData(data: CreateVoteRequest | UpdateVoteRequest): void {
+  const { type, options, maxScore } = data;
+
+  if (type === 'rank') {
+    const validOptions = options?.filter((o) => o && o.trim());
+    if (validOptions && validOptions.length < 2) {
+      throw new Error('排名投票至少需要2个有效选项');
+    }
+  }
+
+  if (type === 'score') {
+    if (maxScore !== undefined && (maxScore < 0 || maxScore > 10)) {
+      throw new Error('评分投票的最大分数必须在0-10之间');
+    }
+  }
+}
+
 export function fetchVotes(filters?: Partial<VoteFilters>): Promise<Vote[]> {
   return request.get('/votes', { params: filters }).then((res) => res.data);
 }
@@ -22,10 +39,12 @@ export function fetchVote(id: string): Promise<Vote> {
 }
 
 export function createVote(data: CreateVoteRequest): Promise<Vote> {
+  validateVoteData(data);
   return request.post('/votes', data).then((res) => res.data);
 }
 
 export function updateVote(id: string, data: UpdateVoteRequest): Promise<Vote> {
+  validateVoteData(data);
   return request.put(`/votes/${id}`, data).then((res) => res.data);
 }
 

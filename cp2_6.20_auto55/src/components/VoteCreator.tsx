@@ -54,6 +54,8 @@ export default function VoteCreator({ isOpen, onClose, editVote }: VoteCreatorPr
 
   // 拖拽相关状态
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [touchDragIndex, setTouchDragIndex] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number>(0);
 
   // 计算默认截止时间（7天后）
   const getDefaultDeadline = () => {
@@ -197,6 +199,54 @@ export default function VoteCreator({ isOpen, onClose, editVote }: VoteCreatorPr
     setDragIndex(null);
   };
 
+  // 触摸拖拽开始
+  const handleTouchStart = (index: number, e: React.TouchEvent) => {
+    setTouchDragIndex(index);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  // 触摸拖拽移动
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchDragIndex === null) return;
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    const optionItem = element?.closest('[data-option-index]');
+    if (optionItem) {
+      const targetIndex = Number(optionItem.getAttribute('data-option-index'));
+      if (!isNaN(targetIndex) && targetIndex !== touchDragIndex) {
+        const newOptions = [...options];
+        const dragItem = newOptions[touchDragIndex];
+        newOptions.splice(touchDragIndex, 1);
+        newOptions.splice(targetIndex, 0, dragItem);
+        setOptions(newOptions);
+        setTouchDragIndex(targetIndex);
+      }
+    }
+  };
+
+  // 触摸拖拽结束
+  const handleTouchEnd = () => {
+    setTouchDragIndex(null);
+  };
+
+  // 拖拽选项向上移动
+  const moveOptionUp = (index: number) => {
+    if (index === 0) return;
+    const newOptions = [...options];
+    [newOptions[index - 1], newOptions[index]] = [newOptions[index], newOptions[index - 1]];
+    setOptions(newOptions);
+  };
+
+  // 拖拽选项向下移动
+  const moveOptionDown = (index: number) => {
+    if (index === options.length - 1) return;
+    const newOptions = [...options];
+    [newOptions[index], newOptions[index + 1]] = [newOptions[index + 1], newOptions[index]];
+    setOptions(newOptions);
+  };
+
   if (!isOpen) return null;
 
   const voteTypes: VoteType[] = ['single', 'multiple', 'rank', 'score'];
@@ -308,26 +358,70 @@ export default function VoteCreator({ isOpen, onClose, editVote }: VoteCreatorPr
             <div className="space-y-2">
               {options.map((option, index) => {
                 const Icon = getTypeIcon(type);
+                const isDragging = dragIndex === index || touchDragIndex === index;
                 return (
                   <div
                     key={index}
+                    data-option-index={index}
                     draggable={type === 'rank'}
                     onDragStart={() => handleDragStart(index)}
                     onDragOver={(e) => handleDragOver(e, index)}
                     onDragEnd={handleDragEnd}
+                    onTouchStart={(e) => type === 'rank' && handleTouchStart(index, e)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
                     className={cn(
-                      'flex items-center gap-2 p-2 bg-[#2a2f4a] rounded-lg border transition-all duration-200',
-                      dragIndex === index
-                        ? 'border-[#4a90d9] opacity-60'
+                      'flex items-center gap-2 p-2 bg-[#2a2f4a] rounded-lg border transition-all duration-200 select-none',
+                      isDragging
+                        ? 'border-[#4a90d9] opacity-60 scale-[0.98] shadow-lg'
                         : 'border-white/10'
                     )}
                   >
                     {type === 'rank' && (
-                      <div className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-white transition-colors px-1">
-                        <GripVertical size={18} />
+                      <div className="flex flex-col items-center gap-1">
+                        <div
+                          className="flex items-center gap-1 text-gray-500 hover:text-white transition-colors px-1 cursor-grab active:cursor-grabbing touch-none"
+                          title="拖拽排序"
+                        >
+                          <span className="w-5 h-5 flex items-center justify-center rounded bg-[#4a90d9]/20 text-[#4a90d9] text-xs font-bold">
+                            {index + 1}
+                          </span>
+                          <GripVertical size={18} />
+                        </div>
+                        <div className="flex flex-col gap-0.5 md:hidden">
+                          <button
+                            type="button"
+                            onClick={() => moveOptionUp(index)}
+                            disabled={index === 0}
+                            className={cn(
+                              'p-0.5 rounded transition-colors',
+                              index === 0
+                                ? 'text-gray-600 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-white hover:bg-white/10'
+                            )}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveOptionDown(index)}
+                            disabled={index === options.length - 1}
+                            className={cn(
+                              'p-0.5 rounded transition-colors',
+                              index === options.length - 1
+                                ? 'text-gray-600 cursor-not-allowed'
+                                : 'text-gray-400 hover:text-white hover:bg-white/10'
+                            )}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                          </button>
+                        </div>
                       </div>
                     )}
-                    <div className="text-[#4a90d9]">
+                    <div className={cn(
+                      'shrink-0',
+                      type === 'rank' ? 'text-[#ff7b54]' : 'text-[#4a90d9]'
+                    )}>
                       <Icon size={16} />
                     </div>
                     <input
@@ -337,12 +431,44 @@ export default function VoteCreator({ isOpen, onClose, editVote }: VoteCreatorPr
                       placeholder={`选项 ${index + 1}`}
                       className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm outline-none py-1.5"
                     />
+                    {type === 'rank' && (
+                      <div className="hidden md:flex items-center gap-0.5 text-gray-600">
+                        <button
+                          type="button"
+                          onClick={() => moveOptionUp(index)}
+                          disabled={index === 0}
+                          className={cn(
+                            'p-1 rounded transition-colors',
+                            index === 0
+                              ? 'text-gray-600 cursor-not-allowed'
+                              : 'text-gray-400 hover:text-white hover:bg-white/10'
+                          )}
+                          title="上移"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveOptionDown(index)}
+                          disabled={index === options.length - 1}
+                          className={cn(
+                            'p-1 rounded transition-colors',
+                            index === options.length - 1
+                              ? 'text-gray-600 cursor-not-allowed'
+                              : 'text-gray-400 hover:text-white hover:bg-white/10'
+                          )}
+                          title="下移"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => removeOption(index)}
                       disabled={options.length <= 2}
                       className={cn(
-                        'p-1.5 rounded transition-all duration-200',
+                        'p-1.5 rounded transition-all duration-200 shrink-0',
                         options.length <= 2
                           ? 'text-gray-600 cursor-not-allowed'
                           : 'text-gray-500 hover:text-[#ff7b54] hover:bg-white/10'

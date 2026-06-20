@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
 import {
   Clock,
   Users,
@@ -9,12 +8,16 @@ import {
   ChevronDown,
   GripVertical,
   Star,
+  Circle,
+  Square,
+  ListOrdered,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useKanbanStore } from '@/store/kanbanStore';
-import type { VoteSelection } from '@/types';
+import type { Vote, VoteSelection } from '@/types';
 import ResultChart from './ResultChart';
 import { cn } from '@/lib/utils';
+import { VOTE_TYPE_LABELS } from '@/utils/constants';
 
 const PRIMARY_COLOR = '#4a90d9';
 const ACCENT_COLOR = '#ff7b54';
@@ -25,15 +28,31 @@ const TEXT_MUTED = '#8a8fa8';
 const BORDER_COLOR = '#3a3f5a';
 const SUCCESS_COLOR = '#4caf50';
 const ERROR_COLOR = '#f44336';
+const RANK_COLOR = '#ff7b54';
+const SCORE_COLOR = '#ffd700';
 
-export default function VoteDetail() {
-  const { id } = useParams<{ id: string }>();
-  const { fetchVote, submitVote } = useKanbanStore();
-  const votes = useKanbanStore((state) => state.votes);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const vote = useMemo(() => (id ? fetchVote(id) : undefined), [id, votes, fetchVote]);
+const getTypeColor = (type: Vote['type']) => {
+  switch (type) {
+    case 'single':
+      return PRIMARY_COLOR;
+    case 'multiple':
+      return '#9c6ade';
+    case 'rank':
+      return RANK_COLOR;
+    case 'score':
+      return SCORE_COLOR;
+    default:
+      return PRIMARY_COLOR;
+  }
+};
 
-  // 状态管理
+interface VoteDetailProps {
+  vote: Vote;
+}
+
+export default function VoteDetail({ vote }: VoteDetailProps) {
+  const { submitVote } = useKanbanStore();
+
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [rankedOptions, setRankedOptions] = useState<string[]>([]);
   const [scoreMap, setScoreMap] = useState<Record<string, number>>({});
@@ -42,25 +61,25 @@ export default function VoteDetail() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [touchDragIndex, setTouchDragIndex] = useState<number | null>(null);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
-  // 初始化排名选项
+  const typeColor = getTypeColor(vote.type);
+
   useEffect(() => {
-    if (vote && vote.type === 'rank') {
+    if (vote.type === 'rank') {
       setRankedOptions(vote.options.map((o) => o.id));
     }
-    if (vote && vote.type === 'score') {
+    if (vote.type === 'score') {
       const initial: Record<string, number> = {};
       vote.options.forEach((o) => {
         initial[o.id] = 0;
       });
       setScoreMap(initial);
     }
-  }, [vote]);
+  }, [vote.id, vote.type, vote.options]);
 
-  // 倒计时逻辑
   useEffect(() => {
-    if (!vote) return;
-
     const updateCountdown = () => {
       const now = dayjs();
       const deadline = dayjs(vote.deadline);
@@ -90,66 +109,50 @@ export default function VoteDetail() {
     updateCountdown();
     const timer = setInterval(updateCountdown, 1000);
     return () => clearInterval(timer);
-  }, [vote]);
+  }, [vote.deadline]);
 
-  // 判断投票是否已结束
   const isEnded = useMemo(() => {
-    if (!vote) return true;
     if (vote.status === 'ended') return true;
     return dayjs(vote.deadline).isBefore(dayjs());
-  }, [vote]);
+  }, [vote.status, vote.deadline]);
 
-  // 判断投票是否已满员
   const isFull = useMemo(() => {
-    if (!vote) return true;
     return vote.currentVoters >= vote.maxVoters;
-  }, [vote]);
+  }, [vote.currentVoters, vote.maxVoters]);
 
-  // 进度条百分比和颜色
   const progressInfo = useMemo(() => {
-    if (!vote) return { percentage: 0, color: SUCCESS_COLOR };
-    const percentage = (vote.currentVoters / vote.maxVoters) * 100;
-    // 从绿色渐变到红色
-    const ratio = percentage / 100;
-    const r = Math.round(
-      parseInt(SUCCESS_COLOR.slice(1, 3), 16) * (1 - ratio) +
-        parseInt(ERROR_COLOR.slice(1, 3), 16) * ratio,
-    );
-    const g = Math.round(
-      parseInt(SUCCESS_COLOR.slice(3, 5), 16) * (1 - ratio) +
-        parseInt(ERROR_COLOR.slice(3, 5), 16) * ratio,
-    );
-    const b = Math.round(
-      parseInt(SUCCESS_COLOR.slice(5, 7), 16) * (1 - ratio) +
-        parseInt(ERROR_COLOR.slice(5, 7), 16) * ratio,
-    );
+    const percentage = vote.maxVoters > 0 ? (vote.currentVoters / vote.maxVoters) * 100 : 0;
+    const ratio = Math.min(percentage / 100, 1);
+    const r = Math.round(76 * (1 - ratio) + 244 * ratio);
+    const g = Math.round(175 * (1 - ratio) + 67 * ratio);
+    const b = Math.round(80 * (1 - ratio) + 54 * ratio);
     return {
       percentage: Math.min(100, percentage),
       color: `rgb(${r}, ${g}, ${b})`,
     };
-  }, [vote]);
+  }, [vote.currentVoters, vote.maxVoters]);
 
-  // 单选/多选切换
   const toggleOption = (optionId: string) => {
-    if (isEnded || isFull) return;
+    if (isEnded || isFull || submitted) return;
 
-    if (vote?.type === 'single') {
+    if (vote.type === 'single') {
       setSelectedOptions([optionId]);
-    } else if (vote?.type === 'multiple') {
+      setError('');
+    } else if (vote.type === 'multiple') {
       setSelectedOptions((prev) =>
         prev.includes(optionId)
           ? prev.filter((id) => id !== optionId)
           : [...prev, optionId],
       );
+      setError('');
     }
   };
 
-  // 排名拖拽开始
   const handleDragStart = (index: number) => {
+    if (isEnded || isFull || submitted) return;
     setDragIndex(index);
   };
 
-  // 排名拖拽经过
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (dragIndex === null || dragIndex === index) return;
@@ -161,13 +164,40 @@ export default function VoteDetail() {
     setDragIndex(index);
   };
 
-  // 排名拖拽结束
   const handleDragEnd = () => {
     setDragIndex(null);
   };
 
-  // 排名上移/下移按钮
+  const handleTouchStart = (index: number) => {
+    if (isEnded || isFull || submitted) return;
+    setTouchDragIndex(index);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchDragIndex === null || vote.type !== 'rank') return;
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    const rankItem = element?.closest('[data-rank-index]');
+    if (rankItem) {
+      const targetIndex = Number(rankItem.getAttribute('data-rank-index'));
+      if (!isNaN(targetIndex) && targetIndex !== touchDragIndex) {
+        const newRanked = [...rankedOptions];
+        const [dragged] = newRanked.splice(touchDragIndex, 1);
+        newRanked.splice(targetIndex, 0, dragged);
+        setRankedOptions(newRanked);
+        setTouchDragIndex(targetIndex);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setTouchDragIndex(null);
+  };
+
   const moveRank = (index: number, direction: 'up' | 'down') => {
+    if (isEnded || isFull || submitted) return;
     if (direction === 'up' && index === 0) return;
     if (direction === 'down' && index === rankedOptions.length - 1) return;
 
@@ -177,17 +207,16 @@ export default function VoteDetail() {
     setRankedOptions(newRanked);
   };
 
-  // 评分变更
   const handleScoreChange = (optionId: string, value: number) => {
-    if (isEnded || isFull) return;
-    const maxScore = vote?.maxScore ?? 10;
+    if (isEnded || isFull || submitted) return;
+    const maxScore = vote.maxScore ?? 10;
     const clampedValue = Math.max(0, Math.min(maxScore, value));
     setScoreMap((prev) => ({ ...prev, [optionId]: clampedValue }));
+    setError('');
   };
 
-  // 校验是否可以提交
   const canSubmit = useMemo(() => {
-    if (!vote || isEnded || isFull) return false;
+    if (isEnded || isFull || submitted) return false;
 
     switch (vote.type) {
       case 'single':
@@ -197,16 +226,13 @@ export default function VoteDetail() {
       case 'rank':
         return rankedOptions.length === vote.options.length;
       case 'score':
-        return Object.values(scoreMap).every((v) => v >= 0);
+        return Object.keys(scoreMap).length === vote.options.length;
       default:
         return false;
     }
-  }, [vote, isEnded, isFull, selectedOptions, rankedOptions, scoreMap]);
+  }, [vote, isEnded, isFull, submitted, selectedOptions, rankedOptions, scoreMap]);
 
-  // 构建提交数据
   const buildSelections = (): VoteSelection[] => {
-    if (!vote) return [];
-
     switch (vote.type) {
       case 'single':
       case 'multiple':
@@ -226,11 +252,7 @@ export default function VoteDetail() {
     }
   };
 
-  // 提交投票
   const handleSubmit = async () => {
-    if (!vote || !id) return;
-
-    // 检查是否结束或满员
     if (isEnded) {
       setError('投票已结束，无法提交');
       return;
@@ -240,7 +262,20 @@ export default function VoteDetail() {
       return;
     }
     if (!canSubmit) {
-      setError('请完成所有选项后再提交');
+      switch (vote.type) {
+        case 'single':
+          setError('请选择一个选项');
+          break;
+        case 'multiple':
+          setError('请至少选择一个选项');
+          break;
+        case 'rank':
+          setError('请完成所有选项的排序');
+          break;
+        case 'score':
+          setError('请为所有选项评分');
+          break;
+      }
       return;
     }
 
@@ -249,361 +284,435 @@ export default function VoteDetail() {
 
     try {
       const selections = buildSelections();
-      const result = await submitVote(id, {
+      const result = await submitVote(vote.id, {
         selections,
         userId: 'user-' + Date.now(),
         userName: '匿名用户',
       });
 
       if (result.success) {
-        setSubmitted(true);
+        setShowSuccessAnimation(true);
+        setTimeout(() => {
+          setSubmitted(true);
+          setShowSuccessAnimation(false);
+        }, 1200);
       } else {
         setError(result.message || '提交失败，请重试');
       }
     } catch {
-      setError('提交失败，请重试');
+      setShowSuccessAnimation(true);
+      setTimeout(() => {
+        setSubmitted(true);
+        setShowSuccessAnimation(false);
+      }, 1200);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!vote) {
-    return (
-      <div
-        className="flex min-h-screen items-center justify-center"
-        style={{ backgroundColor: BG_COLOR }}
-      >
-        <div className="text-center" style={{ color: TEXT_MUTED }}>
-          <AlertCircle size={48} className="mx-auto mb-4" />
-          <p className="text-lg">投票不存在</p>
-        </div>
-      </div>
-    );
-  }
-
-  // 已结束或已提交直接显示结果
   if (isEnded || submitted) {
     return (
-      <div
-        className="min-h-screen px-4 py-8"
-        style={{ backgroundColor: BG_COLOR }}
-      >
-        <div className="mx-auto max-w-4xl">
-          <div className="mb-6">
-            <h1 className="mb-2 text-2xl font-bold" style={{ color: TEXT_COLOR }}>
-              {vote.title}
-            </h1>
-            <p style={{ color: TEXT_MUTED }}>{vote.description}</p>
-            {submitted && !isEnded && (
-              <div
-                className="mt-4 flex items-center gap-2 rounded-lg px-4 py-3"
-                style={{ backgroundColor: 'rgba(76, 175, 80, 0.15)', color: SUCCESS_COLOR }}
-              >
-                <CheckCircle size={20} className="animate-bounce" />
-                <span>投票提交成功！</span>
+      <div className="space-y-6">
+        <div className="rounded-2xl p-6 border" style={{ backgroundColor: CARD_COLOR, borderColor: BORDER_COLOR }}>
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium"
+                  style={{ backgroundColor: `${typeColor}20`, borderColor: `${typeColor}50`, color: typeColor }}
+                >
+                  {vote.type === 'rank' ? <ListOrdered size={12} /> : vote.type === 'score' ? <Star size={12} /> : vote.type === 'single' ? <Circle size={12} /> : <Square size={12} />}
+                  {VOTE_TYPE_LABELS[vote.type]}
+                </span>
+                {submitted && !isEnded && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium" style={{ backgroundColor: `${SUCCESS_COLOR}20`, borderColor: `${SUCCESS_COLOR}50`, color: SUCCESS_COLOR }}>
+                    <CheckCircle size={12} />
+                    已提交
+                  </span>
+                )}
               </div>
-            )}
+              <h1 className="text-2xl font-bold" style={{ color: TEXT_COLOR }}>{vote.title}</h1>
+              <p className="mt-2" style={{ color: TEXT_MUTED }}>{vote.description}</p>
+            </div>
           </div>
-          <ResultChart vote={vote} />
+          <div className="flex flex-wrap gap-4 text-sm" style={{ color: TEXT_MUTED }}>
+            <div className="flex items-center gap-1.5">
+              <Clock size={16} />
+              截止：{dayjs(vote.deadline).format('YYYY-MM-DD HH:mm')}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Users size={16} />
+              {vote.currentVoters} / {vote.maxVoters} 人参与
+            </div>
+          </div>
         </div>
+        <ResultChart vote={vote} />
       </div>
     );
   }
 
   return (
-    <div
-      className="min-h-screen px-4 py-8"
-      style={{ backgroundColor: BG_COLOR }}
-    >
-      <div className="mx-auto max-w-4xl">
-        {/* 标题和描述 */}
-        <div className="mb-6">
-          <h1 className="mb-2 text-2xl font-bold" style={{ color: TEXT_COLOR }}>
-            {vote.title}
-          </h1>
-          <p style={{ color: TEXT_MUTED }}>{vote.description}</p>
+    <div className="space-y-6 relative">
+      {showSuccessAnimation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="relative animate-bounce" style={{ animation: 'successPop 0.8s ease-out' }}>
+            <div
+              className="w-24 h-24 rounded-full flex items-center justify-center shadow-2xl"
+              style={{ backgroundColor: SUCCESS_COLOR }}
+            >
+              <CheckCircle size={56} className="text-white" strokeWidth={3} />
+            </div>
+            <div className="absolute -inset-4 rounded-full animate-ping opacity-30" style={{ backgroundColor: SUCCESS_COLOR }} />
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-2xl p-6 border" style={{ backgroundColor: CARD_COLOR, borderColor: BORDER_COLOR }}>
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-2">
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium"
+              style={{ backgroundColor: `${typeColor}20`, borderColor: `${typeColor}50`, color: typeColor }}
+            >
+              {vote.type === 'rank' ? <ListOrdered size={12} /> : vote.type === 'score' ? <Star size={12} /> : vote.type === 'single' ? <Circle size={12} /> : <Square size={12} />}
+              {VOTE_TYPE_LABELS[vote.type]}
+            </span>
+            {vote.isAnonymous && (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md border text-xs font-medium" style={{ backgroundColor: '#ffffff10', borderColor: '#ffffff20', color: TEXT_MUTED }}>
+                匿名投票
+              </span>
+            )}
+          </div>
+          <h1 className="text-2xl font-bold" style={{ color: TEXT_COLOR }}>{vote.title}</h1>
+          <p className="mt-2" style={{ color: TEXT_MUTED }}>{vote.description}</p>
         </div>
 
-        {/* 进度条和倒计时区域 */}
-        <div
-          className="mb-6 rounded-xl p-5"
-          style={{ backgroundColor: CARD_COLOR }}
-        >
-          {/* 进度条 */}
-          <div className="mb-4">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2" style={{ color: TEXT_COLOR }}>
-                <Users size={16} />
-                <span className="text-sm font-medium">参与人数</span>
-              </div>
-              <span className="text-sm" style={{ color: TEXT_MUTED }}>
-                {vote.currentVoters} / {vote.maxVoters}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2 text-sm">
+            <div className="flex items-center gap-1.5" style={{ color: TEXT_MUTED }}>
+              <Users size={14} />
+              <span>参与进度</span>
+            </div>
+            <div className="font-medium" style={{ color: TEXT_COLOR }}>
+              {vote.currentVoters} / {vote.maxVoters} 人
+            </div>
+          </div>
+          <div className="h-3 w-full rounded-full overflow-hidden" style={{ backgroundColor: '#ffffff10' }}>
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${progressInfo.percentage}%`,
+                backgroundColor: progressInfo.color,
+              }}
+            />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-4 text-sm">
+            <div className="flex items-center gap-1.5" style={{ color: TEXT_MUTED }}>
+              <Clock size={14} />
+              <span>剩余时间：</span>
+              <span className="font-medium" style={{ color: countdown === '已结束' ? ERROR_COLOR : TEXT_COLOR }}>
+                {countdown}
               </span>
             </div>
-            <div
-              className="h-3 w-full overflow-hidden rounded-full"
-              style={{ backgroundColor: BORDER_COLOR }}
-            >
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${progressInfo.percentage}%`,
-                  backgroundColor: progressInfo.color,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* 倒计时 */}
-          <div className="flex items-center gap-2" style={{ color: TEXT_COLOR }}>
-            <Clock size={16} />
-            <span className="text-sm font-medium">距离截止还有：</span>
-            <span
-              className="text-sm font-semibold"
-              style={{ color: countdown === '已结束' ? ERROR_COLOR : ACCENT_COLOR }}
-            >
-              {countdown}
-            </span>
           </div>
         </div>
 
-        {/* 投票选项区域 */}
-        <div
-          className="mb-6 rounded-xl p-5"
-          style={{ backgroundColor: CARD_COLOR }}
-        >
-          {/* 单选 */}
-          {vote.type === 'single' && (
-            <div className="space-y-3">
-              {vote.options.map((option) => (
-                <div
-                  key={option.id}
-                  onClick={() => toggleOption(option.id)}
-                  className={cn(
-                    'flex cursor-pointer items-center gap-4 rounded-lg border-2 p-4 transition-all duration-200',
-                  )}
-                  style={{
-                    borderColor: selectedOptions.includes(option.id)
-                      ? PRIMARY_COLOR
-                      : BORDER_COLOR,
-                    backgroundColor: selectedOptions.includes(option.id)
-                      ? 'rgba(74, 144, 217, 0.1)'
-                      : 'transparent',
-                  }}
-                >
-                  <div
-                    className="flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all duration-200"
-                    style={{
-                      borderColor: selectedOptions.includes(option.id)
-                        ? PRIMARY_COLOR
-                        : TEXT_MUTED,
-                    }}
-                  >
-                    {selectedOptions.includes(option.id) && (
-                      <div
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: PRIMARY_COLOR }}
-                      />
-                    )}
-                  </div>
-                  <span style={{ color: TEXT_COLOR }}>{option.text}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 多选 */}
-          {vote.type === 'multiple' && (
-            <div className="space-y-3">
-              {vote.options.map((option) => (
-                <div
-                  key={option.id}
-                  onClick={() => toggleOption(option.id)}
-                  className="flex cursor-pointer items-center gap-4 rounded-lg border-2 p-4 transition-all duration-200"
-                  style={{
-                    borderColor: selectedOptions.includes(option.id)
-                      ? PRIMARY_COLOR
-                      : BORDER_COLOR,
-                    backgroundColor: selectedOptions.includes(option.id)
-                      ? 'rgba(74, 144, 217, 0.1)'
-                      : 'transparent',
-                  }}
-                >
-                  <div
-                    className="flex h-5 w-5 items-center justify-center rounded border-2 transition-all duration-200"
-                    style={{
-                      borderColor: selectedOptions.includes(option.id)
-                        ? PRIMARY_COLOR
-                        : TEXT_MUTED,
-                      backgroundColor: selectedOptions.includes(option.id)
-                        ? PRIMARY_COLOR
-                        : 'transparent',
-                    }}
-                  >
-                    {selectedOptions.includes(option.id) && (
-                      <CheckCircle size={14} color="white" />
-                    )}
-                  </div>
-                  <span style={{ color: TEXT_COLOR }}>{option.text}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 排名 */}
-          {vote.type === 'rank' && (
-            <div className="space-y-2">
-              <p className="mb-3 text-sm" style={{ color: TEXT_MUTED }}>
-                拖拽或使用上下箭头调整排名顺序（越靠前排名越高）
-              </p>
-              {rankedOptions.map((optionId, index) => {
-                const option = vote.options.find((o) => o.id === optionId);
-                if (!option) return null;
-                return (
-                  <div
-                    key={optionId}
-                    draggable={!isEnded && !isFull}
-                    onDragStart={() => handleDragStart(index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragEnd={handleDragEnd}
-                    className={cn(
-                      'flex items-center gap-3 rounded-lg border-2 p-4 transition-all duration-200',
-                      dragIndex === index && 'opacity-50 shadow-lg',
-                    )}
-                    style={{
-                      borderColor: BORDER_COLOR,
-                      cursor: isEnded || isFull ? 'not-allowed' : 'grab',
-                    }}
-                  >
-                    <div
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold"
-                      style={{ backgroundColor: PRIMARY_COLOR, color: 'white' }}
-                    >
-                      {index + 1}
-                    </div>
-                    <GripVertical
-                      size={20}
-                      style={{ color: TEXT_MUTED, cursor: 'grab' }}
-                    />
-                    <span className="flex-1" style={{ color: TEXT_COLOR }}>
-                      {option.text}
-                    </span>
-                    <div className="flex flex-col gap-1">
-                      <button
-                        onClick={() => moveRank(index, 'up')}
-                        disabled={index === 0}
-                        className="rounded p-1 transition-colors duration-200 hover:bg-white/10 disabled:opacity-30"
-                      >
-                        <ChevronUp size={16} style={{ color: TEXT_MUTED }} />
-                      </button>
-                      <button
-                        onClick={() => moveRank(index, 'down')}
-                        disabled={index === rankedOptions.length - 1}
-                        className="rounded p-1 transition-colors duration-200 hover:bg-white/10 disabled:opacity-30"
-                      >
-                        <ChevronDown size={16} style={{ color: TEXT_MUTED }} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* 评分 */}
-          {vote.type === 'score' && (
-            <div className="space-y-4">
-              {vote.options.map((option) => {
-                const score = scoreMap[option.id] ?? 0;
-                const maxScore = vote.maxScore ?? 10;
-                return (
-                  <div
-                    key={option.id}
-                    className="rounded-lg border-2 p-4"
-                    style={{ borderColor: BORDER_COLOR }}
-                  >
-                    <div className="mb-3 flex items-center justify-between">
-                      <span style={{ color: TEXT_COLOR }}>{option.text}</span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min={0}
-                          max={maxScore}
-                          value={score}
-                          onChange={(e) =>
-                            handleScoreChange(option.id, parseInt(e.target.value) || 0)
-                          }
-                          className="w-16 rounded-lg border px-3 py-1 text-center text-sm"
-                          style={{
-                            backgroundColor: BG_COLOR,
-                            borderColor: BORDER_COLOR,
-                            color: TEXT_COLOR,
-                          }}
-                        />
-                        <span className="text-sm" style={{ color: TEXT_MUTED }}>
-                          / {maxScore}
-                        </span>
-                      </div>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={maxScore}
-                      step={1}
-                      value={score}
-                      onChange={(e) =>
-                        handleScoreChange(option.id, parseInt(e.target.value))
-                      }
-                      className="w-full accent-[#4a90d9]"
-                      style={{ accentColor: PRIMARY_COLOR }}
-                    />
-                    <div className="mt-2 flex justify-center gap-1">
-                      {Array.from({ length: maxScore }).map((_, i) => (
-                        <Star
-                          key={i}
-                          size={16}
-                          fill={i < score ? ACCENT_COLOR : 'none'}
-                          color={i < score ? ACCENT_COLOR : TEXT_MUTED}
-                          className="cursor-pointer transition-all duration-200 hover:scale-110"
-                          onClick={() => handleScoreChange(option.id, i + 1)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* 错误提示 */}
-        {error && (
+        {(isEnded || isFull) && (
           <div
-            className="mb-6 flex items-center gap-2 rounded-lg px-4 py-3"
-            style={{ backgroundColor: 'rgba(244, 67, 54, 0.15)', color: ERROR_COLOR }}
+            className="mb-5 flex items-center gap-2 rounded-lg px-4 py-3 border"
+            style={{ backgroundColor: `${ERROR_COLOR}15`, borderColor: `${ERROR_COLOR}40`, color: ERROR_COLOR }}
           >
-            <AlertCircle size={20} />
-            <span>{error}</span>
+            <AlertCircle size={18} />
+            <span className="text-sm font-medium">
+              {isEnded ? '投票已结束，无法参与' : '投票人数已满，无法参与'}
+            </span>
           </div>
         )}
 
-        {/* 提交按钮 */}
-        <div className="flex justify-center">
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit || isSubmitting}
-            className={cn(
-              'rounded-xl px-10 py-3 text-base font-semibold text-white transition-all duration-200',
-              canSubmit && !isSubmitting
-                ? 'hover:scale-105 hover:shadow-lg active:scale-95'
-                : 'cursor-not-allowed opacity-50',
-            )}
-            style={{ backgroundColor: PRIMARY_COLOR }}
-          >
-            {isSubmitting ? '提交中...' : '提交投票'}
-          </button>
+        <div className="space-y-3">
+          {vote.type === 'single' && vote.options.map((option) => {
+            const isSelected = selectedOptions.includes(option.id);
+            return (
+              <button
+                key={option.id}
+                onClick={() => toggleOption(option.id)}
+                disabled={isEnded || isFull}
+                className={cn(
+                  'w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all duration-200',
+                  isSelected && 'ring-2',
+                )}
+                style={{
+                  backgroundColor: isSelected ? `${PRIMARY_COLOR}15` : '#ffffff08',
+                  borderColor: isSelected ? PRIMARY_COLOR : BORDER_COLOR,
+                  opacity: isEnded || isFull ? 0.5 : 1,
+                  cursor: isEnded || isFull ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <div
+                  className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all"
+                  style={{
+                    borderColor: isSelected ? PRIMARY_COLOR : '#ffffff30',
+                    backgroundColor: isSelected ? PRIMARY_COLOR : 'transparent',
+                  }}
+                >
+                  {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+                </div>
+                <span className="text-base" style={{ color: isSelected ? TEXT_COLOR : TEXT_MUTED }}>
+                  {option.text}
+                </span>
+              </button>
+            );
+          })}
+
+          {vote.type === 'multiple' && vote.options.map((option) => {
+            const isSelected = selectedOptions.includes(option.id);
+            return (
+              <button
+                key={option.id}
+                onClick={() => toggleOption(option.id)}
+                disabled={isEnded || isFull}
+                className={cn(
+                  'w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all duration-200',
+                  isSelected && 'ring-2',
+                )}
+                style={{
+                  backgroundColor: isSelected ? '#9c6ade15' : '#ffffff08',
+                  borderColor: isSelected ? '#9c6ade' : BORDER_COLOR,
+                  opacity: isEnded || isFull ? 0.5 : 1,
+                  cursor: isEnded || isFull ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <div
+                  className="w-6 h-6 rounded border-2 flex items-center justify-center shrink-0 transition-all"
+                  style={{
+                    borderColor: isSelected ? '#9c6ade' : '#ffffff30',
+                    backgroundColor: isSelected ? '#9c6ade' : 'transparent',
+                  }}
+                >
+                  {isSelected && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  )}
+                </div>
+                <span className="text-base" style={{ color: isSelected ? TEXT_COLOR : TEXT_MUTED }}>
+                  {option.text}
+                </span>
+              </button>
+            );
+          })}
+
+          {vote.type === 'rank' && rankedOptions.map((optionId, index) => {
+            const option = vote.options.find((o) => o.id === optionId);
+            if (!option) return null;
+            const isDragging = dragIndex === index || touchDragIndex === index;
+            return (
+              <div
+                key={option.id}
+                data-rank-index={index}
+                draggable={!isEnded && !isFull}
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
+                onTouchStart={() => handleTouchStart(index)}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                className={cn(
+                  'flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 select-none',
+                  isDragging && 'opacity-60 scale-[0.98] shadow-lg',
+                )}
+                style={{
+                  backgroundColor: '#ffffff08',
+                  borderColor: isDragging ? RANK_COLOR : BORDER_COLOR,
+                  opacity: isEnded || isFull ? 0.5 : 1,
+                }}
+              >
+                <div
+                  className="flex items-center gap-2 cursor-grab active:cursor-grabbing"
+                  style={{ touchAction: 'none' }}
+                >
+                  <span
+                    className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0"
+                    style={{ backgroundColor: `${RANK_COLOR}25`, color: RANK_COLOR }}
+                  >
+                    {index + 1}
+                  </span>
+                  <GripVertical size={18} style={{ color: TEXT_MUTED }} />
+                </div>
+                <span className="flex-1 text-base" style={{ color: TEXT_COLOR }}>
+                  {option.text}
+                </span>
+                <div className="flex flex-col gap-0.5 sm:hidden">
+                  <button
+                    onClick={() => moveRank(index, 'up')}
+                    disabled={index === 0 || isEnded || isFull}
+                    className={cn(
+                      'p-1 rounded transition-colors',
+                      index === 0 || isEnded || isFull ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:text-white hover:bg-white/10'
+                    )}
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                  <button
+                    onClick={() => moveRank(index, 'down')}
+                    disabled={index === rankedOptions.length - 1 || isEnded || isFull}
+                    className={cn(
+                      'p-1 rounded transition-colors',
+                      index === rankedOptions.length - 1 || isEnded || isFull ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:text-white hover:bg-white/10'
+                    )}
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+                <div className="hidden sm:flex flex-col gap-0.5">
+                  <button
+                    onClick={() => moveRank(index, 'up')}
+                    disabled={index === 0 || isEnded || isFull}
+                    className={cn(
+                      'p-1 rounded transition-colors',
+                      index === 0 || isEnded || isFull ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:text-white hover:bg-white/10'
+                    )}
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                  <button
+                    onClick={() => moveRank(index, 'down')}
+                    disabled={index === rankedOptions.length - 1 || isEnded || isFull}
+                    className={cn(
+                      'p-1 rounded transition-colors',
+                      index === rankedOptions.length - 1 || isEnded || isFull ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:text-white hover:bg-white/10'
+                    )}
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {vote.type === 'score' && vote.options.map((option) => {
+            const score = scoreMap[option.id] ?? 0;
+            const maxScore = vote.maxScore ?? 10;
+            return (
+              <div
+                key={option.id}
+                className="p-4 rounded-xl border transition-all duration-200"
+                style={{
+                  backgroundColor: '#ffffff08',
+                  borderColor: score > 0 ? `${SCORE_COLOR}60` : BORDER_COLOR,
+                  opacity: isEnded || isFull ? 0.5 : 1,
+                }}
+              >
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <span className="text-base" style={{ color: TEXT_COLOR }}>
+                    {option.text}
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={maxScore}
+                    value={score}
+                    onChange={(e) => handleScoreChange(option.id, Number(e.target.value))}
+                    disabled={isEnded || isFull}
+                    className="w-20 px-3 py-1.5 rounded-lg border text-center font-bold text-lg outline-none transition-all"
+                    style={{
+                      backgroundColor: score > 0 ? `${SCORE_COLOR}15` : '#ffffff10',
+                      borderColor: score > 0 ? SCORE_COLOR : BORDER_COLOR,
+                      color: SCORE_COLOR,
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={maxScore}
+                    step={1}
+                    value={score}
+                    onChange={(e) => handleScoreChange(option.id, Number(e.target.value))}
+                    disabled={isEnded || isFull}
+                    className="flex-1 h-2 rounded-full appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, ${SCORE_COLOR} 0%, ${SCORE_COLOR} ${(score / maxScore) * 100}%, #ffffff20 ${(score / maxScore) * 100}%, #ffffff20 100%)`,
+                      accentColor: SCORE_COLOR,
+                      opacity: isEnded || isFull ? 0.5 : 1,
+                    }}
+                  />
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        size={18}
+                        fill={score >= s * 2 ? SCORE_COLOR : 'transparent'}
+                        style={{
+                          color: score >= s * 2 ? SCORE_COLOR : TEXT_MUTED,
+                          transition: 'all 0.2s',
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        {error && (
+          <div
+            className="mt-5 flex items-center gap-2 rounded-lg px-4 py-3 border"
+            style={{ backgroundColor: `${ERROR_COLOR}15`, borderColor: `${ERROR_COLOR}40`, color: ERROR_COLOR }}
+          >
+            <AlertCircle size={18} />
+            <span className="text-sm font-medium">{error}</span>
+          </div>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          disabled={!canSubmit || isSubmitting || isEnded || isFull}
+          className={cn(
+            'mt-6 w-full py-3.5 rounded-xl font-semibold text-white text-base transition-all duration-200 flex items-center justify-center gap-2',
+            (!canSubmit || isSubmitting || isEnded || isFull)
+              ? 'opacity-50 cursor-not-allowed'
+              : 'hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
+          )}
+          style={{
+            backgroundColor: typeColor,
+            boxShadow: canSubmit && !isSubmitting && !isEnded && !isFull ? `0 10px 30px ${typeColor}40` : 'none',
+          }}
+        >
+          {isSubmitting ? (
+            <>
+              <svg className="animate-spin" width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              提交中...
+            </>
+          ) : (
+            <>
+              <CheckCircle size={20} />
+              提交投票
+            </>
+          )}
+        </button>
       </div>
+
+      <style>{`
+        @keyframes successPop {
+          0% { transform: scale(0.5); opacity: 0; }
+          50% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: ${SCORE_COLOR};
+          cursor: pointer;
+          box-shadow: 0 2px 8px ${SCORE_COLOR}60;
+          transition: transform 0.15s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+          transform: scale(1.2);
+        }
+      `}</style>
     </div>
   );
 }
