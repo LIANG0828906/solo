@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSS 渐变生成器 - Gradient Studio</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="toolbar">
+      <div class="toolbar-left">
+        <span class="toolbar-title">🎨 Gradient Studio</span>
+      </div>
+      <div class="toolbar-right">
+        <button id="saveFavoriteBtn" class="btn">
+          <span class="btn-icon">⭐</span>
+          <span>收藏</span>
+        </button>
+        <button id="showFavoritesBtn" class="btn">
+          <span class="btn-icon">📚</span>
+          <span>收藏列表</span>
+        </button>
+        <button id="exportCSSBtn" class="btn btn-accent">
+          <span class="btn-icon">📋</span>
+          <span>复制CSS</span>
+        </button>
+      </div>
+    </header>
+
+    <button class="drawer-toggle">
+      <span>☰</span>
+      <span>控制面板</span>
+    </button>
+    <div class="drawer-overlay"></div>
+
+    <div class="main-container">
+      <aside class="control-panel">
+        <div class="section">
+          <h3 class="section-title">渐变类型</h3>
+          <div class="gradient-types">
+            <button class="type-btn active" data-type="linear">线性渐变</button>
+            <button class="type-btn" data-type="radial">径向渐变</button>
+            <button class="type-btn" data-type="conic">锥形渐变</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">色标控制</h3>
+          <div class="color-stops"></div>
+          <button class="add-btn" style="margin-top: 12px;">
+            <span>+ 添加色标</span>
+          </button>
+        </div>
+
+        <div class="section">
+          <h3 class="section-title">操作提示</h3>
+          <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+            <p style="margin-bottom: 8px;">• 在预览画布上拖拽调整参数</p>
+            <p style="margin-bottom: 8px;">• 线性渐变：拖拽调整角度</p>
+            <p style="margin-bottom: 8px;">• 径向渐变：拖拽中心和半径控制点</p>
+            <p style="margin-bottom: 8px;">• 锥形渐变：拖拽中心和旋转角度</p>
+            <p>• 最多支持 8 个色标</p>
+          </div>
+        </div>
+      </aside>
+
+      <main class="preview-container">
+        <div class="preview-canvas-wrapper">
+          <canvas class="preview-canvas"></canvas>
+        </div>
+      </main>
+    </div>
+
+    <div class="favorites-overlay"></div>
+    <div class="favorites-panel">
+      <div class="favorites-header">
+        <h2 class="favorites-title">⭐ 我的收藏</h2>
+        <button class="close-btn" title="关闭">×</button>
+      </div>
+      <div class="favorites-grid"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
