@@ -22,10 +22,10 @@ export interface TemperatureGrid {
 }
 
 const RESOLUTION = { width: 20, height: 10 };
-const LON_START = -171;
-const LON_STEP = 18;
-const LAT_START = -81;
-const LAT_STEP = 18;
+const LON_STEP = 360 / RESOLUTION.width;
+const LAT_STEP = 180 / RESOLUTION.height;
+const LON_START = -180 + LON_STEP / 2;
+const LAT_START = -90 + LAT_STEP / 2;
 
 export const temperatureColorScale = scaleLinear<string>()
   .domain([-10, 0, 10, 20, 30])

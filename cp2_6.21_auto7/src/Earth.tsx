@@ -105,15 +105,26 @@ interface OceanPathLineProps {
   current: CurrentWithPoints;
   baseOpacity: number;
   isHighlighted: boolean;
-  cameraDistance: number;
 }
 
 function OceanPathLine({
   current,
   baseOpacity,
   isHighlighted,
-  cameraDistance,
 }: OceanPathLineProps) {
+  const { camera } = useThree();
+  const lineRef = useRef<THREE.Line>(null);
+  const baseOpacityRef = useRef(baseOpacity);
+  const isHighlightedRef = useRef(isHighlighted);
+
+  useEffect(() => {
+    baseOpacityRef.current = baseOpacity;
+  }, [baseOpacity]);
+
+  useEffect(() => {
+    isHighlightedRef.current = isHighlighted;
+  }, [isHighlighted]);
+
   const lineObject = useMemo(() => {
     const positions = new Float32Array(current.vectors.length * 3);
     const colors = new Float32Array(current.vectors.length * 3);
@@ -134,25 +145,28 @@ function OceanPathLine({
     const mat = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending,
       depthWrite: false,
-      toneMapped: false,
     });
     return new THREE.Line(geo, mat);
   }, [current]);
 
-  const lineWidth = useMemo(() => {
-    const base = Math.max(0.2, 0.35 * (cameraDistance / 6));
-    return isHighlighted ? base * 2 : base;
-  }, [cameraDistance, isHighlighted]);
-
   useEffect(() => {
     const mat = lineObject.material as THREE.LineBasicMaterial;
-    mat.opacity = baseOpacity * (isHighlighted ? 1 : 0.75);
-    mat.linewidth = lineWidth;
-  }, [lineObject, baseOpacity, isHighlighted, lineWidth]);
+    mat.opacity = baseOpacity * (isHighlighted ? 1 : 0.9);
+  }, [lineObject, baseOpacity, isHighlighted]);
 
-  return <primitive object={lineObject} />;
+  useFrame(() => {
+    if (!lineRef.current) return;
+    const mat = lineRef.current.material as THREE.LineBasicMaterial;
+    const distance = camera.position.length();
+    const base = Math.max(0.2, 0.35 * (distance / 6));
+    const width = isHighlightedRef.current ? base * 2 : base;
+    mat.linewidth = width;
+    mat.opacity = baseOpacityRef.current * (isHighlightedRef.current ? 1 : 0.9);
+  });
+
+  return <primitive ref={lineRef} object={lineObject} />;
 }
 
 interface OceanParticlesProps {
@@ -168,38 +182,25 @@ function OceanParticles({
 }: OceanParticlesProps) {
   const localTime = useRef(0);
   const pointsRef = useRef<THREE.Points>(null);
+  const particleSpeedRef = useRef(particleSpeed);
+  const baseOpacityRef = useRef(baseOpacity);
   const numParticles = PARTICLES_PER_CURRENT;
 
-  const { positions, baseProgresses, particleColors } = useMemo(() => {
-    const positions = new Float32Array(numParticles * 3);
+  useEffect(() => {
+    particleSpeedRef.current = particleSpeed;
+  }, [particleSpeed]);
+
+  useEffect(() => {
+    baseOpacityRef.current = baseOpacity;
+  }, [baseOpacity]);
+
+  const { baseProgresses } = useMemo(() => {
     const baseProgresses = new Float32Array(numParticles);
-    const particleColors = new Float32Array(numParticles * 3);
     for (let i = 0; i < numParticles; i++) {
       baseProgresses[i] = i / numParticles;
-      const c = getCurrentColor(current.type, baseProgresses[i]);
-      particleColors[i * 3] = c.r / 255;
-      particleColors[i * 3 + 1] = c.g / 255;
-      particleColors[i * 3 + 2] = c.b / 255;
-      positions[i * 3] = 0;
-      positions[i * 3 + 1] = 0;
-      positions[i * 3 + 2] = 0;
     }
-    return { positions, baseProgresses, particleColors };
-  }, [current]);
-
-  useMemo(() => {
-    const geo = pointsRef.current?.geometry as THREE.BufferGeometry | undefined;
-    if (geo) {
-      geo.setAttribute(
-        'position',
-        new THREE.BufferAttribute(new Float32Array(positions), 3)
-      );
-      geo.setAttribute(
-        'color',
-        new THREE.BufferAttribute(new Float32Array(particleColors), 3)
-      );
-    }
-  }, [positions, particleColors]);
+    return { baseProgresses };
+  }, [numParticles]);
 
   useEffect(() => {
     if (!pointsRef.current) return;
@@ -216,13 +217,7 @@ function OceanParticles({
         new THREE.BufferAttribute(new Float32Array(numParticles * 3), 3)
       );
     }
-    const colorAttr = geo.getAttribute('color') as THREE.BufferAttribute;
-    for (let i = 0; i < numParticles; i++) {
-      const c = getCurrentColor(current.type, baseProgresses[i]);
-      colorAttr.setXYZ(i, c.r / 255, c.g / 255, c.b / 255);
-    }
-    colorAttr.needsUpdate = true;
-  }, [current, baseProgresses, numParticles]);
+  }, [numParticles]);
 
   useFrame((_, delta) => {
     if (!pointsRef.current) return;
@@ -230,7 +225,9 @@ function OceanParticles({
     const geo = pointsRef.current.geometry;
     const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
     const colorAttr = geo.getAttribute('color') as THREE.BufferAttribute;
-    const speedFactor = particleSpeed * 0.12;
+    const speedFactor = particleSpeedRef.current * 0.12;
+    const mat = pointsRef.current.material as THREE.PointsMaterial;
+    mat.opacity = baseOpacityRef.current * 1.0;
 
     for (let i = 0; i < numParticles; i++) {
       let progress =
@@ -264,9 +261,9 @@ function OceanParticles({
         size={0.055}
         vertexColors
         transparent
-        opacity={baseOpacity * 0.9}
+        opacity={baseOpacity * 1.0}
         sizeAttenuation
-        blending={THREE.AdditiveBlending}
+        blending={THREE.NormalBlending}
         depthWrite={false}
       />
     </points>
@@ -285,28 +282,32 @@ function TemperatureGridMesh({
   transitionProgress,
 }: TemperatureGridMeshProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  const textRefs = useRef<Map<number, { prev: number; next: number; color: RgbColor }>>(new Map());
-  const p = Math.max(0, Math.min(1, transitionProgress));
+  const prevGridRef = useRef(prevGrid);
+  const nextGridRef = useRef(nextGrid);
+  const progressRef = useRef(transitionProgress);
+  const tempColor = useMemo(() => new THREE.Color(), []);
 
-  const tempData = useMemo(() => {
-    return prevGrid.data.map((prev, i) => {
-      const next = nextGrid.data[i];
-      const temp = prev.temperature + (next.temperature - prev.temperature) * p;
-      const color = lerpColor(prev.color, next.color, p);
-      return { lon: prev.lon, lat: prev.lat, temp, color };
-    });
-  }, [prevGrid, nextGrid, p]);
+  useEffect(() => {
+    prevGridRef.current = prevGrid;
+  }, [prevGrid]);
 
-  const instancedData = useMemo(() => {
-    const count = tempData.length;
+  useEffect(() => {
+    nextGridRef.current = nextGrid;
+  }, [nextGrid]);
+
+  useEffect(() => {
+    progressRef.current = transitionProgress;
+  }, [transitionProgress]);
+
+  const gridData = useMemo(() => {
+    const count = prevGrid.data.length;
     const dummy = new THREE.Object3D();
-    const colors: THREE.Color[] = [];
+    const positions: Array<{ lon: number; lat: number; index: number }> = [];
 
     for (let i = 0; i < count; i++) {
-      const { lon, lat, color } = tempData[i];
+      const { lon, lat } = prevGrid.data[i];
       const pos = latLonToVector3(lat, lon, GRID_RADIUS);
       const v = new THREE.Vector3(pos[0], pos[1], pos[2]);
-      const normal = v.clone().normalize();
       dummy.position.copy(v);
       dummy.lookAt(new THREE.Vector3(0, 0, 0));
       dummy.rotateX(Math.PI / 2);
@@ -314,30 +315,51 @@ function TemperatureGridMesh({
       dummy.scale.set(scale, scale, 1);
       dummy.updateMatrix();
       meshRef.current?.setMatrixAt(i, dummy.matrix);
-      colors.push(new THREE.Color(color.r, color.g, color.b));
-      textRefs.current.set(i, {
-        prev: prevGrid.data[i].temperature,
-        next: nextGrid.data[i].temperature,
-        color,
-      });
+      positions.push({ lon, lat, index: i });
     }
     if (meshRef.current) {
       meshRef.current.instanceMatrix.needsUpdate = true;
-      for (let i = 0; i < count; i++) {
-        meshRef.current.setColorAt(i, colors[i]);
-      }
-      if (meshRef.current.instanceColor) {
-        meshRef.current.instanceColor.needsUpdate = true;
-      }
     }
-    return { count, tempData };
-  }, [tempData, prevGrid, nextGrid]);
+
+    return { count, positions };
+  }, [prevGrid]);
+
+  useFrame(() => {
+    if (!meshRef.current) return;
+    const p = Math.max(0, Math.min(1, progressRef.current));
+    const prev = prevGridRef.current.data;
+    const next = nextGridRef.current.data;
+    const count = prev.length;
+
+    for (let i = 0; i < count; i++) {
+      const prevColor = prev[i].color;
+      const nextColor = next[i].color;
+      const r = prevColor.r + (nextColor.r - prevColor.r) * p;
+      const g = prevColor.g + (nextColor.g - prevColor.g) * p;
+      const b = prevColor.b + (nextColor.b - prevColor.b) * p;
+      tempColor.setRGB(r, g, b);
+      meshRef.current.setColorAt(i, tempColor);
+    }
+    if (meshRef.current.instanceColor) {
+      meshRef.current.instanceColor.needsUpdate = true;
+    }
+  });
+
+  const displayData = useMemo(() => {
+    const p = Math.max(0, Math.min(1, transitionProgress));
+    return prevGrid.data.map((prev, i) => {
+      const next = nextGrid.data[i];
+      const temp = prev.temperature + (next.temperature - prev.temperature) * p;
+      const color = lerpColor(prev.color, next.color, p);
+      return { lon: prev.lon, lat: prev.lat, temp, color, index: i };
+    });
+  }, [prevGrid, nextGrid, transitionProgress]);
 
   return (
     <group>
       <instancedMesh
         ref={meshRef}
-        args={[undefined, undefined, instancedData.count]}
+        args={[undefined, undefined, gridData.count]}
         frustumCulled={false}
       >
         <planeGeometry args={[1, 1]} />
@@ -348,16 +370,13 @@ function TemperatureGridMesh({
           depthWrite={false}
         />
       </instancedMesh>
-      {instancedData.tempData
-        .filter((_, i) => i % 6 === 0 || (instancedData.tempData[i].lat % 36 === 0 && i % 3 === 0))
-        .map((d, idx) => {
-          const realIndex = instancedData.tempData.findIndex(
-            (x) => x.lon === d.lon && x.lat === d.lat
-          );
+      {displayData
+        .filter((d) => d.index % 6 === 0 || (d.lat % 36 === 0 && d.index % 3 === 0))
+        .map((d) => {
           const pos = latLonToVector3(d.lat, d.lon, GRID_RADIUS + 0.06);
           return (
             <Html
-              key={`temp-label-${realIndex}`}
+              key={`temp-label-${d.index}`}
               position={pos}
               style={{
                 color: rgbToHex(d.color),
@@ -559,7 +578,6 @@ export default function Earth() {
               current={current}
               baseOpacity={opacity}
               isHighlighted={isHighlighted}
-              cameraDistance={cameraDistance.current}
             />
             <OceanParticles
               current={current}
