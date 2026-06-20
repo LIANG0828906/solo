@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import type { SensorData, SensorHistory, MapState, Route, MapPoint, RealtimeDataItem, RoutePoint } from '../types'
+import type { SensorData, SensorHistory, MapState, Route, MapPoint, RealtimeDataItem, RoutePoint, SensorType } from '../types'
 import { v4 as uuidv4 } from 'uuid'
+import { io, Socket } from 'socket.io-client'
 
 interface ClimateStore {
   sensorList: SensorData[]
@@ -15,6 +16,9 @@ interface ClimateStore {
   isPlanningRoute: boolean
   routeStart: MapPoint | null
   routeEnd: MapPoint | null
+  socket: Socket | null
+  isConnected: boolean
+  previousValues: Record<string, number>
 
   updateSensorData: (sensorId: string, data: Partial<SensorData>) => void
   addVirtualSensor: (x: number, y: number, range: [number, number]) => void
@@ -29,10 +33,13 @@ interface ClimateStore {
   addRealtimeData: (item: RealtimeDataItem) => void
   fetchSensorHistory: (sensorId: string, range: string) => void
   loadInitialData: () => void
+  initWebSocket: () => void
+  disconnectWebSocket: () => void
+  flyToRoute: (routeId: string) => void
 }
 
 const generateMockSensors = (): SensorData[] => {
-  const types: Array<{ type: SensorData['type']; unit: string; baseValue: number }> = [
+  const types: Array<{ type: SensorType; unit: string; baseValue: number }> = [
     { type: 'temperature', unit: '°C', baseValue: 25 },
     { type: 'humidity', unit: '%', baseValue: 60 },
     { type: 'wind', unit: 'm/s', baseValue: 3 },
@@ -58,7 +65,7 @@ const generateMockSensors = (): SensorData[] => {
       id: uuidv4(),
       name,
       type: typeInfo.type,
-      value: typeInfo.baseValue + (Math.random() - 0.5) * 10,
+      value: parseFloat((typeInfo.baseValue + (Math.random() - 0.5) * 10).toFixed(1)),
       unit: typeInfo.unit,
       status: Math.random() > 0.1 ? 'online' : 'warning',
       x: positions[i].x,
@@ -77,11 +84,30 @@ const generateMockHistory = (sensorId: string, range: string): SensorHistory => 
   for (let i = points; i >= 0; i--) {
     data.push({
       timestamp: new Date(now - i * interval).toISOString(),
-      value: 20 + Math.random() * 15 + Math.sin(i / 3) * 3,
+      value: parseFloat((20 + Math.random() * 15 + Math.sin(i / 3) * 3).toFixed(1)),
     })
   }
 
   return { sensorId, data }
+}
+
+function generateRoutePoints(start: MapPoint, end: MapPoint, type: string): RoutePoint[] {
+  const points: RoutePoint[] = [{ ...start, index: 0 }]
+  const midX = (start.x + end.x) / 2
+  const midY = (start.y + end.y) / 2
+
+  if (type === 'shortest') {
+    points.push({ x: midX, y: midY, index: 1 })
+  } else if (type === 'coolest') {
+    points.push({ x: midX - 50, y: midY + 30, index: 1 })
+    points.push({ x: midX + 20, y: midY + 60, index: 2 })
+  } else {
+    points.push({ x: midX + 30, y: midY - 20, index: 1 })
+    points.push({ x: midX + 10, y: midY + 40, index: 2 })
+  }
+
+  points.push({ ...end, index: points.length })
+  return points
 }
 
 export const useClimateStore = create<ClimateStore>((set, get) => ({
@@ -89,8 +115,8 @@ export const useClimateStore = create<ClimateStore>((set, get) => ({
   sensorHistoryMap: {},
   mapState: {
     zoom: 1,
-    offsetX: 0,
-    offsetY: 0,
+    offsetX: 20,
+    offsetY: 20,
     selectedPoint: null,
     showPopup: false,
     popupData: null,
@@ -104,6 +130,9 @@ export const useClimateStore = create<ClimateStore>((set, get) => ({
   isPlanningRoute: false,
   routeStart: null,
   routeEnd: null,
+  socket: null,
+  isConnected: false,
+  previousValues: {},
 
   updateSensorData: (sensorId, data) => {
     set(state => ({
@@ -118,7 +147,7 @@ export const useClimateStore = create<ClimateStore>((set, get) => ({
       id: uuidv4(),
       name: `虚拟传感器_${Math.floor(Math.random() * 1000)}`,
       type: 'temperature',
-      value: (range[0] + range[1]) / 2,
+      value: parseFloat(((range[0] + range[1]) / 2).toFixed(1)),
       unit: '°C',
       status: 'online',
       x,
@@ -180,6 +209,7 @@ export const useClimateStore = create<ClimateStore>((set, get) => ({
       },
     ]
     set({ routes, selectedRouteId: routes[0].id })
+    get().flyToRoute(routes[0].id)
   },
 
   setSelectedSensor: (id) => set({ selectedSensorId: id }),
@@ -194,13 +224,18 @@ export const useClimateStore = create<ClimateStore>((set, get) => ({
     sensorList.forEach(s => fetchSensorHistory(s.id, range))
   },
 
-  setSelectedRoute: (id) => set({ selectedRouteId: id }),
+  setSelectedRoute: (id) => {
+    set({ selectedRouteId: id })
+    if (id) {
+      get().flyToRoute(id)
+    }
+  },
 
   setIsPlanningRoute: (planning) => {
     if (!planning) {
-      set({ isPlanningRoute: false, routeStart: null, routeEnd: null, routes: [] })
+      set({ isPlanningRoute: false, routeStart: null, routeEnd: null, routes: [], selectedRouteId: null })
     } else {
-      set({ isPlanningRoute: true })
+      set({ isPlanningRoute: true, routeStart: null, routeEnd: null, routes: [], selectedRouteId: null })
     }
   },
 
@@ -221,26 +256,107 @@ export const useClimateStore = create<ClimateStore>((set, get) => ({
   },
 
   loadInitialData: () => {
-    const { sensorList, fetchSensorHistory, timeRange } = get()
-    sensorList.forEach(s => fetchSensorHistory(s.id, timeRange))
+    const { sensorList, fetchSensorHistory, timeRange, previousValues } = get()
+    const prev: Record<string, number> = {}
+    sensorList.forEach(s => {
+      fetchSensorHistory(s.id, timeRange)
+      prev[s.id] = s.value
+    })
+    set({ previousValues: prev })
+  },
+
+  initWebSocket: () => {
+    try {
+      const socket = io('ws://localhost:8000', {
+        path: '/ws',
+        transports: ['websocket'],
+      })
+
+      socket.on('connect', () => {
+        set({ isConnected: true })
+      })
+
+      socket.on('sensor_update', (data: { sensor: SensorData; timestamp: string }) => {
+        const { sensor } = data
+        const prev = get().previousValues[sensor.id] || sensor.value
+        const change = prev !== 0 ? ((sensor.value - prev) / prev) * 100 : 0
+
+        get().updateSensorData(sensor.id, { value: sensor.value, status: sensor.status })
+
+        get().addRealtimeData({
+          id: `${sensor.id}-${Date.now()}`,
+          sensorName: sensor.name,
+          sensorType: sensor.type,
+          value: sensor.value,
+          unit: sensor.unit,
+          change,
+          timestamp: data.timestamp,
+        })
+
+        set(state => ({
+          previousValues: { ...state.previousValues, [sensor.id]: sensor.value },
+        }))
+      })
+
+      socket.on('disconnect', () => {
+        set({ isConnected: false })
+      })
+
+      set({ socket })
+    } catch (e) {
+      console.log('WebSocket connection failed, using mock data instead')
+    }
+  },
+
+  disconnectWebSocket: () => {
+    const { socket } = get()
+    if (socket) {
+      socket.disconnect()
+      set({ socket: null, isConnected: false })
+    }
+  },
+
+  flyToRoute: (routeId) => {
+    const { routes, mapState } = get()
+    const route = routes.find(r => r.id === routeId)
+    if (!route || route.points.length === 0) return
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+    route.points.forEach(p => {
+      minX = Math.min(minX, p.x)
+      maxX = Math.max(maxX, p.x)
+      minY = Math.min(minY, p.y)
+      maxY = Math.max(maxY, p.y)
+    })
+
+    const centerX = (minX + maxX) / 2
+    const centerY = (minY + maxY) / 2
+
+    const targetOffsetX = 400 - centerX * mapState.zoom
+    const targetOffsetY = 250 - centerY * mapState.zoom
+
+    const startOffsetX = mapState.offsetX
+    const startOffsetY = mapState.offsetY
+    const duration = 600
+    const startTime = Date.now()
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2
+
+      set(state => ({
+        mapState: {
+          ...state.mapState,
+          offsetX: startOffsetX + (targetOffsetX - startOffsetX) * ease,
+          offsetY: startOffsetY + (targetOffsetY - startOffsetY) * ease,
+        },
+      }))
+
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+    requestAnimationFrame(animate)
   },
 }))
-
-function generateRoutePoints(start: MapPoint, end: MapPoint, type: string): RoutePoint[] {
-  const points: RoutePoint[] = [{ ...start, index: 0 }]
-  const midX = (start.x + end.x) / 2
-  const midY = (start.y + end.y) / 2
-
-  if (type === 'shortest') {
-    points.push({ x: midX, y: midY, index: 1 })
-  } else if (type === 'coolest') {
-    points.push({ x: midX - 50, y: midY + 30, index: 1 })
-    points.push({ x: midX + 20, y: midY + 60, index: 2 })
-  } else {
-    points.push({ x: midX + 30, y: midY - 20, index: 1 })
-    points.push({ x: midX + 10, y: midY + 40, index: 2 })
-  }
-
-  points.push({ ...end, index: points.length })
-  return points
-}

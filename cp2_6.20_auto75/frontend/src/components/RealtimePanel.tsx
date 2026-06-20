@@ -20,41 +20,41 @@ const sensorTypeLabels: Record<SensorType, string> = {
   pm25: 'PM2.5',
 }
 
+const sensorTypeIcons: Record<SensorType, string> = {
+  temperature: '🌡️',
+  humidity: '💧',
+  wind: '💨',
+  light: '☀️',
+  pm25: '🌫️',
+}
+
 const RealtimePanel = () => {
   const sensorList = useClimateStore(state => state.sensorList)
-  const realtimeData = useClimateStore(state => state.realtimeData)
   const addRealtimeData = useClimateStore(state => state.addRealtimeData)
   const updateSensorData = useClimateStore(state => state.updateSensorData)
   const timeRange = useClimateStore(state => state.timeRange)
   const setTimeRange = useClimateStore(state => state.setTimeRange)
   const sensorHistoryMap = useClimateStore(state => state.sensorHistoryMap)
-  const fetchSensorHistory = useClimateStore(state => state.fetchSensorHistory)
   const selectedSensorId = useClimateStore(state => state.selectedSensorId)
+  const previousValues = useClimateStore(state => state.previousValues)
 
-  const [previousValues, setPreviousValues] = useState<Record<string, number>>({})
+  const [, forceUpdate] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const initial: Record<string, number> = {}
-    sensorList.forEach(s => {
-      initial[s.id] = s.value
-    })
-    setPreviousValues(initial)
-  }, [])
+  const highlightIds = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     const interval = setInterval(() => {
       sensorList.forEach(sensor => {
-      const change = (Math.random() - 0.5) * 2
-      const newValue = sensor.value + change
+      const change = (Math.random() - 0.5) * 1.2
+      const newValue = parseFloat((sensor.value + change).toFixed(1))
       const prevValue = previousValues[sensor.id] || sensor.value
+      const changePercent = prevValue !== 0 ? ((newValue - prevValue) / prevValue) * 100 : 0
 
-      updateSensorData(sensor.id, { value: parseFloat(newValue.toFixed(1)) })
+      updateSensorData(sensor.id, { value: newValue })
 
-      const changePercent = ((newValue - prevValue) / prevValue) * 100
-
+      const dataId = `${sensor.id}-${Date.now()}`
       addRealtimeData({
-        id: `${sensor.id}-${Date.now()}`,
+        id: dataId,
         sensorName: sensor.name,
         sensorType: sensor.type,
         value: newValue,
@@ -63,8 +63,13 @@ const RealtimePanel = () => {
         timestamp: new Date().toISOString(),
       })
 
-      setPreviousValues(prev => ({ ...prev, [sensor.id]: newValue }))
+      highlightIds.current.add(dataId)
+
+      setTimeout(() => {
+        highlightIds.current.delete(dataId)
+      }, 1500)
     })
+    forceUpdate(n => n + 1)
     }, 3000)
 
     return () => clearInterval(interval)
@@ -85,13 +90,12 @@ const RealtimePanel = () => {
     if (!history) return []
 
     return history.data.map(d => ({
-      time: dayjs(d.timestamp).format('MM-DD HH:mm'),
+      time: dayjs(d.timestamp).format(timeRange === '7d' ? 'MM-DD' : 'MM-DD HH:mm'),
       value: d.value,
     }))
   }
 
   const chartData = getHistoryChartData()
-
   const selectedSensor = sensorList.find(s => s.id === selectedSensorId)
 
   return (
@@ -101,11 +105,31 @@ const RealtimePanel = () => {
       flexDirection: 'column',
       gap: 12,
       overflow: 'hidden',
+      minHeight: 0,
     }}>
-      <div className="card" style={{ padding: 12 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 10 }}>
-          实时数据流
-        </h3>
+      <div className="card" style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>
+            📡 实时数据流
+          </h3>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '3px 8px',
+            borderRadius: 10,
+            background: 'rgba(46, 213, 115, 0.15)',
+          }}>
+            <div style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: '#2ed573',
+              animation: 'pulse 1.5s infinite',
+            }} />
+            <span style={{ fontSize: 10, color: '#2ed573' }}>实时</span>
+          </div>
+        </div>
         <div
           ref={listRef}
           style={{
@@ -113,34 +137,32 @@ const RealtimePanel = () => {
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
-            gap: 6,
+            gap: 4,
           }}
         >
           {sensorList.map(sensor => {
             const prevVal = previousValues[sensor.id] || sensor.value
-            const change = ((sensor.value - prevVal) / prevVal) * 100
+            const change = prevVal !== 0 ? ((sensor.value - prevVal) / prevVal) * 100 : 0
             const isPositive = change >= 0
+            const isNew = Array.from(highlightIds.current).some(id => id.startsWith(sensor.id))
 
             return (
               <div
                 key={sensor.id}
-                className="fade-in"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
                   padding: '8px 10px',
-                  background: 'rgba(0, 0, 0, 0.2)',
+                  background: isNew ? 'rgba(0, 217, 255, 0.15)' : 'rgba(0, 0, 0, 0.2)',
                   borderRadius: 6,
                   fontSize: 12,
+                  border: isNew ? '1px solid rgba(0, 217, 255, 0.3)' : '1px solid transparent',
+                  transition: 'all 0.3s ease',
                 }}
+                className={isNew ? 'fade-in' : ''}
               >
-                <div style={{
-                  width: 3,
-                  height: 16,
-                  borderRadius: 2,
-                  background: sensorTypeColors[sensor.type],
-                }} />
+                <div style={{ fontSize: 14 }}>{sensorTypeIcons[sensor.type]}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     color: '#fff',
@@ -152,8 +174,8 @@ const RealtimePanel = () => {
                     {sensor.name}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right', minWidth: 70 }}>
-                  <span style={{ color: '#fff', fontWeight: 500 }}>
+                <div style={{ textAlign: 'right', minWidth: 65 }}>
+                  <span style={{ color: sensorTypeColors[sensor.type], fontWeight: 600, fontSize: 13 }}>
                     {sensor.value.toFixed(1)}
                   </span>
                   <span style={{ color: '#a0aec0', fontSize: 10, marginLeft: 2 }}>
@@ -162,26 +184,27 @@ const RealtimePanel = () => {
                 </div>
                 <div style={{
                   display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                color: isPositive ? '#2ed573' : '#ff4757',
-                fontSize: 11,
-                minWidth: 40,
-                justifyContent: 'flex-end',
-              }}>
-                <span>{isPositive ? '↑' : '↓'}</span>
-                <span>{Math.abs(change).toFixed(1)}%</span>
+                  alignItems: 'center',
+                  gap: 2,
+                  color: isPositive ? '#2ed573' : '#ff4757',
+                  fontSize: 11,
+                  minWidth: 40,
+                  justifyContent: 'flex-end',
+                  fontWeight: 500,
+                }}>
+                  <span style={{ fontSize: 12 }}>{isPositive ? '↑' : '↓'}</span>
+                  <span>{Math.abs(change).toFixed(1)}%</span>
+                </div>
               </div>
-            </div>
             )
           })}
         </div>
       </div>
 
       <div className="card" style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>
-            历史趋势
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexShrink: 0 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>
+            📈 历史趋势
           </h3>
           <div style={{ display: 'flex', gap: 4 }}>
             {timeRanges.map(range => (
@@ -195,6 +218,7 @@ const RealtimePanel = () => {
                   background: timeRange === range.value ? '#00d9ff' : 'rgba(255,255,255,0.1)',
                   color: timeRange === range.value ? '#0f3460' : '#a0aec0',
                   fontWeight: timeRange === range.value ? 600 : 400,
+                  border: 'none',
                 }}
               >
                 {range.label}
@@ -206,18 +230,22 @@ const RealtimePanel = () => {
         <div style={{ flex: 1, minHeight: 0 }}>
           {selectedSensor ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <LineChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis
                   dataKey="time"
                   stroke="#718096"
-                  fontSize={10}
+                  fontSize={9}
                   tick={{ fill: '#718096' }}
+                  tickLine={false}
+                  axisLine={false}
                 />
                 <YAxis
                   stroke="#718096"
-                  fontSize={10}
+                  fontSize={9}
                   tick={{ fill: '#718096' }}
+                  tickLine={false}
+                  axisLine={false}
                 />
                 <Tooltip
                   contentStyle={{
@@ -225,22 +253,27 @@ const RealtimePanel = () => {
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: 6,
                     color: '#fff',
-                    fontSize: 12,
+                    fontSize: 11,
                   }}
-                  labelStyle={{ color: '#a0aec0' }}
+                  labelStyle={{ color: '#a0aec0', fontSize: 10 }}
+                  formatter={(value: number) => [`${value.toFixed(1)} ${selectedSensor.unit}`, sensorTypeLabels[selectedSensor.type]]}
                 />
                 <Legend
-                  wrapperStyle={{ color: '#a0aec0' }}
-                  formatter={() => <span style={{ color: '#fff', fontSize: 12 }}>{sensorTypeLabels[selectedSensor.type]}</span>}
+                  wrapperStyle={{ color: '#a0aec0', fontSize: 11 }}
+                  formatter={() => (
+                    <span style={{ color: sensorTypeColors[selectedSensor.type], fontSize: 11 }}>
+                      {sensorTypeIcons[selectedSensor.type]} {sensorTypeLabels[selectedSensor.type]}
+                    </span>
+                  )}
                 />
                 <Line
                   type="monotone"
                   dataKey="value"
                   stroke={sensorTypeColors[selectedSensor.type]}
-                  strokeWidth={2}
+                  strokeWidth={2.5}
                   dot={false}
                   name={sensorTypeLabels[selectedSensor.type]}
-                  animationDuration={500}
+                  animationDuration={800}
                   animationEasing="ease-in-out"
                 />
               </LineChart>
@@ -250,26 +283,30 @@ const RealtimePanel = () => {
               width: '100%',
               height: '100%',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: 8,
               color: '#718096',
-              fontSize: 13,
+              fontSize: 12,
             }}>
-              点击左侧传感器查看历史趋势
+              <div style={{ fontSize: 32, opacity: 0.5 }}>📊</div>
+              <div>点击左侧传感器查看历史趋势</div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="card" style={{ padding: 12 }}>
+      <div className="card" style={{ padding: 12, flexShrink: 0 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 10 }}>
-          指标说明
+          🏷️ 指标说明
         </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {Object.entries(sensorTypeLabels).map(([type, label]) => (
-            <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+            <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
+              <span style={{ fontSize: 14 }}>{sensorTypeIcons[type as SensorType]}</span>
               <div style={{
-                width: 12,
+                width: 14,
                 height: 3,
                 borderRadius: 2,
                 background: sensorTypeColors[type as SensorType],

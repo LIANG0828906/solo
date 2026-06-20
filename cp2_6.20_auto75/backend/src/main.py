@@ -1,13 +1,19 @@
 import random
 import asyncio
+import math
+import heapq
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid
 
-app = FastAPI(title="Microclimate Monitoring API")
+app = FastAPI(
+    title="Microclimate Monitoring API",
+    description="微气候环境监测系统后端API",
+    version="1.0.0"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -60,6 +66,11 @@ class VirtualSensorCreate(BaseModel):
     max_value: float
 
 
+class RouteCalculateRequest(BaseModel):
+    start: RoutePoint
+    end: RoutePoint
+
+
 sensor_types = [
     {"type": "temperature", "unit": "°C", "base": 25},
     {"type": "humidity", "unit": "%", "base": 60},
@@ -83,6 +94,10 @@ positions = [
     {"x": 550, "y": 200},
 ]
 
+MAP_WIDTH = 800
+MAP_HEIGHT = 600
+GRID_SIZE = 20
+
 
 def generate_sensors() -> List[SensorData]:
     sensors = []
@@ -102,14 +117,206 @@ def generate_sensors() -> List[SensorData]:
     return sensors
 
 
-sensors_db = generate_sensors()
+sensors_db: List[SensorData] = generate_sensors()
+sensor_trends: Dict[str, float] = {}
 
 
-def generate_history(sensor_id: str, range_hours: int) -> List[HistoryPoint]:
-    points = []
+def smooth_random_walk(current_value: float, volatility: float = 0.3, min_val: float = 0, max_val: float = 100) -> float:
+    if current_value not in sensor_trends:
+        sensor_trends[str(current_value)] = random.uniform(-0.1, 0.1)
+
+    trend = sensor_trends.get(str(current_value), 0)
+    trend += random.uniform(-0.05, 0.05)
+    trend = max(-0.5, min(0.5, trend))
+
+    change = random.gauss(trend, volatility)
+    new_value = current_value + change
+
+    if new_value < min_val or new_value > max_val:
+        trend = -trend
+        new_value = current_value + random.gauss(-trend, volatility)
+
+    sensor_trends[str(current_value)] = trend
+    return max(min_val, min(max_val, new_value))
+
+
+def get_temperature_at(x: float, y: float, sensors: List[SensorData]) -> float:
+    total_weight = 0
+    total_value = 0
+
+    for sensor in sensors:
+        if sensor.type != "temperature":
+            continue
+        dx = x - sensor.x
+        dy = y - sensor.y
+        distance = math.sqrt(dx * dx + dy * dy)
+        radius = 200
+        if distance < radius:
+            weight = (1 - distance / radius) ** 2
+            total_value += sensor.value * weight
+            total_weight += weight
+
+    if total_weight > 0:
+        return total_value / total_weight
+    return 25
+
+
+def get_humidity_at(x: float, y: float, sensors: List[SensorData]) -> float:
+    total_weight = 0
+    total_value = 0
+
+    for sensor in sensors:
+        if sensor.type != "humidity":
+            continue
+        dx = x - sensor.x
+        dy = y - sensor.y
+        distance = math.sqrt(dx * dx + dy * dy)
+        radius = 200
+        if distance < radius:
+            weight = (1 - distance / radius) ** 2
+            total_value += sensor.value * weight
+            total_weight += weight
+
+    if total_weight > 0:
+        return total_value / total_weight
+    return 60
+
+
+def generate_smooth_route(start: RoutePoint, end: RoutePoint, waypoints: List[Tuple[float, float]] = None) -> List[RoutePoint]:
+    points = [RoutePoint(x=start.x, y=start.y, index=0)]
+
+    if waypoints:
+        for i, (wx, wy) in enumerate(waypoints):
+            points.append(RoutePoint(x=wx, y=wy, index=i + 1))
+
+    points.append(RoutePoint(x=end.x, y=end.y, index=len(points)))
+    return points
+
+
+def dijkstra_route(start: RoutePoint, end: RoutePoint, sensors: List[SensorData], weight_func) -> List[RoutePoint]:
+    cols = MAP_WIDTH // GRID_SIZE
+    rows = MAP_HEIGHT // GRID_SIZE
+
+    start_col = int(max(0, min(cols - 1, start.x // GRID_SIZE)))
+    start_row = int(max(0, min(rows - 1, start.y // GRID_SIZE)))
+    end_col = int(max(0, min(cols - 1, end.x // GRID_SIZE)))
+    end_row = int(max(0, min(rows - 1, end.y // GRID_SIZE)))
+
+    heap = [(0, start_col, start_row)]
+    distances = {(start_col, start_row): 0}
+    came_from = {}
+
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+
+    while heap:
+        dist, col, row = heapq.heappop(heap)
+
+        if col == end_col and row == end_row:
+            break
+
+        if dist > distances.get((col, row), float('inf')):
+            continue
+
+        for dc, dr in directions:
+            new_col, new_row = col + dc, row + dr
+            if 0 <= new_col < cols and 0 <= new_row < rows:
+                wx = new_col * GRID_SIZE + GRID_SIZE / 2
+                wy = new_row * GRID_SIZE + GRID_SIZE / 2
+
+                step_cost = weight_func(wx, wy, sensors)
+                step_dist = math.sqrt(dc * dc + dr * dr) * GRID_SIZE
+                new_dist = dist + step_cost * step_dist
+
+                if new_dist < distances.get((new_col, new_row), float('inf')):
+                    distances[(new_col, new_row)] = new_dist
+                    came_from[(new_col, new_row)] = (col, row)
+                    heapq.heappush(heap, (new_dist, new_col, new_row))
+
+    path = []
+    current = (end_col, end_row)
+    while current in came_from:
+        col, row = current
+        path.append(RoutePoint(
+            x=col * GRID_SIZE + GRID_SIZE / 2,
+            y=row * GRID_SIZE + GRID_SIZE / 2
+        ))
+        current = came_from[current]
+
+    path.reverse()
+
+    if len(path) > 6:
+        step = len(path) // 4
+        simplified = [path[0]]
+        for i in range(step, len(path) - 1, step):
+            simplified.append(path[i])
+        simplified.append(path[-1])
+        for i, p in enumerate(simplified):
+            p.index = i
+        return simplified
+
+    result = [RoutePoint(x=start.x, y=start.y, index=0)]
+    for i, p in enumerate(path):
+        p.index = i + 1
+        result.append(p)
+    return result
+
+
+def shortest_weight(x: float, y: float, sensors: List[SensorData]) -> float:
+    return 1.0
+
+
+def coolest_weight(x: float, y: float, sensors: List[SensorData]) -> float:
+    temp = get_temperature_at(x, y, sensors)
+    humidity = get_humidity_at(x, y, sensors)
+    discomfort = (temp - 20) * 0.8 + max(0, humidity - 60) * 0.5
+    return max(0.2, 1 + discomfort * 0.15)
+
+
+def comfortable_weight(x: float, y: float, sensors: List[SensorData]) -> float:
+    temp = get_temperature_at(x, y, sensors)
+    humidity = get_humidity_at(x, y, sensors)
+    temp_penalty = abs(temp - 23) * 0.6
+    humidity_penalty = abs(humidity - 55) * 0.4
+    return max(0.2, 1 + (temp_penalty + humidity_penalty) * 0.08)
+
+
+@app.get("/api/sensors", response_model=List[SensorData])
+async def get_sensors() -> List[SensorData]:
+    for sensor in sensors_db:
+        sensor.lastUpdate = datetime.now().isoformat()
+        if sensor.isVirtual and sensor.virtualRange:
+            r = sensor.virtualRange
+            mid = (r[0] + r[1]) / 2
+            sensor.value = round(smooth_random_walk(
+                sensor.value if sensor.value != mid else mid,
+                volatility=0.5,
+                min_val=r[0],
+                max_val=r[1]
+            ), 1)
+        else:
+            min_v = 10 if sensor.type == "temperature" else 0
+            max_v = 40 if sensor.type == "temperature" else (100 if sensor.type == "humidity" else 99999)
+            sensor.value = round(smooth_random_walk(
+                sensor.value,
+                volatility=0.25,
+                min_val=min_v,
+                max_val=max_v
+            ), 1)
+    return sensors_db
+
+
+@app.get("/api/sensor-history/{sensor_id}", response_model=List[HistoryPoint])
+async def get_sensor_history(sensor_id: str, range: str = "24h") -> List[HistoryPoint]:
+    range_map = {
+        "1h": 6,
+        "6h": 12,
+        "24h": 24,
+        "7d": 168,
+    }
+    hours = range_map.get(range, 24)
+    total_points = hours
+    data = []
     now = datetime.now()
-    total_points = range_hours * 4
-    interval = timedelta(minutes=15)
 
     base_value = 25
     for s in sensors_db:
@@ -117,41 +324,19 @@ def generate_history(sensor_id: str, range_hours: int) -> List[HistoryPoint]:
             base_value = s.value
             break
 
+    interval = timedelta(minutes=(24 * 60) // max(1, total_points))
     for i in range(total_points, -1, -1):
         timestamp = now - i * interval
-        value = base_value + random.uniform(-3, 3) + (i % 8) * 0.3
-        points.append(HistoryPoint(
+        hour_factor = math.sin(i / 4) * 2
+        value = base_value + random.uniform(-2, 2) + hour_factor + (i % 6) * 0.2
+        data.append(HistoryPoint(
             timestamp=timestamp.isoformat(),
-            value=round(value, 2),
+            value=round(max(0, value), 2),
         ))
-    return points
+    return data
 
 
-@app.get("/api/sensors")
-async def get_sensors() -> List[SensorData]:
-    for sensor in sensors_db:
-        sensor.lastUpdate = datetime.now().isoformat()
-        if sensor.isVirtual and sensor.virtualRange:
-            r = sensor.virtualRange
-            sensor.value = round(r[0] + random.random() * (r[1] - r[0]), 1)
-        else:
-            sensor.value = round(sensor.value + (random.random() - 0.5) * 0.5, 1)
-    return sensors_db
-
-
-@app.get("/api/sensor-history/{sensor_id}")
-async def get_sensor_history(sensor_id: str, range: str = "24h") -> List[HistoryPoint]:
-    range_map = {
-        "1h": 1,
-        "6h": 6,
-        "24h": 24,
-        "7d": 168,
-    }
-    hours = range_map.get(range, 24)
-    return generate_history(sensor_id, hours)
-
-
-@app.post("/api/virtual-sensor")
+@app.post("/api/virtual-sensor", response_model=SensorData)
 async def add_virtual_sensor(data: VirtualSensorCreate) -> SensorData:
     new_sensor = SensorData(
         id=str(uuid.uuid4()),
@@ -170,10 +355,25 @@ async def add_virtual_sensor(data: VirtualSensorCreate) -> SensorData:
     return new_sensor
 
 
-@app.post("/api/calculate-routes")
-async def calculate_routes(start: RoutePoint, end: RoutePoint) -> List[Route]:
-    mid_x = (start.x + end.x) / 2
-    mid_y = (start.y + end.y) / 2
+@app.post("/api/calculate-routes", response_model=List[Route])
+async def calculate_routes(request: RouteCalculateRequest) -> List[Route]:
+    start = request.start
+    end = request.end
+
+    shortest_waypoints = dijkstra_route(start, end, sensors_db, shortest_weight)
+    coolest_waypoints = dijkstra_route(start, end, sensors_db, coolest_weight)
+    comfortable_waypoints = dijkstra_route(start, end, sensors_db, comfortable_weight)
+
+    def calc_distance(points: List[RoutePoint]) -> float:
+        dist = 0
+        for i in range(1, len(points)):
+            dist += math.sqrt(
+                (points[i].x - points[i - 1].x) ** 2 +
+                (points[i].y - points[i - 1].y) ** 2
+            )
+        return dist
+
+    shortest_dist = calc_distance(shortest_waypoints)
 
     routes = [
         Route(
@@ -181,12 +381,8 @@ async def calculate_routes(start: RoutePoint, end: RoutePoint) -> List[Route]:
             type="shortest",
             name="最短路线",
             color="#3498db",
-            points=[
-                RoutePoint(x=start.x, y=start.y, index=0),
-                RoutePoint(x=mid_x, y=mid_y, index=1),
-                RoutePoint(x=end.x, y=end.y, index=2),
-            ],
-            duration=15,
+            points=shortest_waypoints,
+            duration=max(5, int(shortest_dist / 80)),
             comfortIndex=65,
         ),
         Route(
@@ -194,13 +390,8 @@ async def calculate_routes(start: RoutePoint, end: RoutePoint) -> List[Route]:
             type="coolest",
             name="最凉爽路线",
             color="#00d9ff",
-            points=[
-                RoutePoint(x=start.x, y=start.y, index=0),
-                RoutePoint(x=mid_x - 50, y=mid_y + 30, index=1),
-                RoutePoint(x=mid_x + 20, y=mid_y + 60, index=2),
-                RoutePoint(x=end.x, y=end.y, index=3),
-            ],
-            duration=22,
+            points=coolest_waypoints,
+            duration=max(8, int(shortest_dist / 60)),
             comfortIndex=88,
         ),
         Route(
@@ -208,17 +399,21 @@ async def calculate_routes(start: RoutePoint, end: RoutePoint) -> List[Route]:
             type="comfortable",
             name="最舒适路线",
             color="#ffd700",
-            points=[
-                RoutePoint(x=start.x, y=start.y, index=0),
-                RoutePoint(x=mid_x + 30, y=mid_y - 20, index=1),
-                RoutePoint(x=mid_x + 10, y=mid_y + 40, index=2),
-                RoutePoint(x=end.x, y=end.y, index=3),
-            ],
-            duration=18,
+            points=comfortable_waypoints,
+            duration=max(6, int(shortest_dist / 70)),
             comfortIndex=92,
         ),
     ]
     return routes
+
+
+@app.get("/api/aqi")
+async def get_aqi():
+    return {
+        "value": int(smooth_random_walk(72, volatility=5, min_val=20, max_val=180)),
+        "level": "良",
+        "timestamp": datetime.now().isoformat()
+    }
 
 
 class ConnectionManager:
@@ -230,14 +425,18 @@ class ConnectionManager:
         self.active_connections.append(websocket)
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict):
+        disconnected = []
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
-            except:
-                pass
+            except Exception:
+                disconnected.append(connection)
+        for conn in disconnected:
+            self.disconnect(conn)
 
 
 manager = ConnectionManager()
@@ -251,28 +450,58 @@ async def websocket_endpoint(websocket: WebSocket):
             for sensor in sensors_db:
                 if sensor.isVirtual and sensor.virtualRange:
                     r = sensor.virtualRange
-                    new_value = round(r[0] + random.random() * (r[1] - r[0]), 1)
+                    new_value = round(smooth_random_walk(
+                        sensor.value,
+                        volatility=0.4,
+                        min_val=r[0],
+                        max_val=r[1]
+                    ), 1)
                 else:
-                    new_value = round(sensor.value + (random.random() - 0.5) * 0.8, 1)
+                    min_v = 10 if sensor.type == "temperature" else 0
+                    max_v = 40 if sensor.type == "temperature" else (100 if sensor.type == "humidity" else 99999)
+                    new_value = round(smooth_random_walk(
+                        sensor.value,
+                        volatility=0.2,
+                        min_val=min_v,
+                        max_val=max_v
+                    ), 1)
                 sensor.value = new_value
                 sensor.lastUpdate = datetime.now().isoformat()
 
                 await manager.broadcast({
                     "type": "sensor_update",
-                    "sensor": sensor.dict(),
+                    "sensor": sensor.model_dump(),
                     "timestamp": datetime.now().isoformat(),
                 })
+
+            aqi_data = await get_aqi()
+            await manager.broadcast({
+                "type": "aqi_update",
+                "data": aqi_data,
+                "timestamp": datetime.now().isoformat(),
+            })
 
             await asyncio.sleep(3)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
 
-@app.get("/api/aqi")
-async def get_aqi():
-    return {"value": random.randint(30, 120), "level": "良"}
+@app.get("/")
+async def root():
+    return {
+        "message": "Microclimate Monitoring API",
+        "version": "1.0.0",
+        "endpoints": {
+            "sensors": "/api/sensors",
+            "sensor_history": "/api/sensor-history/{sensor_id}",
+            "virtual_sensor": "/api/virtual-sensor",
+            "calculate_routes": "/api/calculate-routes",
+            "aqi": "/api/aqi",
+            "websocket": "/ws"
+        }
+    }
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

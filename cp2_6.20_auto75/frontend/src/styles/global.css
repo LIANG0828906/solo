@@ -41,6 +41,10 @@ button:hover {
   transform: scale(1.05);
 }
 
+button:active {
+  transform: scale(1.02);
+}
+
 .card {
   background: var(--bg-secondary);
   border-radius: var(--radius);
@@ -72,37 +76,148 @@ button:hover {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .fade-in {
   animation: fadeIn 0.3s ease forwards;
 }
 
+.slide-in {
+  animation: slideIn 0.4s ease forwards;
+}
+
 @media (max-width: 1280px) {
   .dashboard-container {
     min-width: 100%;
   }
+
+  .left-panel {
+    width: 260px !important;
+  }
+
+  .right-panel {
+    width: 280px !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .left-panel {
+    width: 240px !important;
+  }
+
+  .right-panel {
+    width: 260px !important;
+  }
 }
 
 @media (max-width: 768px) {
+  html, body, #root {
+    overflow: auto;
+  }
+
+  .dashboard-container {
+    flex-direction: column;
+    overflow: visible !important;
+    padding: 12px !important;
+  }
+
+  .left-panel,
+  .center-panel,
   .right-panel {
+    width: 100% !important;
+  }
+
+  .right-panel {
+    display: none;
+  }
+
+  .climate-map {
+    height: 350px !important;
+    min-height: 350px !important;
+  }
+
+  header {
+    padding: 0 16px !important;
+    height: 60px !important;
+  }
+
+  header h1 {
+    font-size: 14px !important;
+  }
+
+  header p {
     display: none;
   }
 }
 
-@media (max-width: 767px) {
-  .dashboard-container {
-    flex-direction: column;
-  }
-  
+@media (max-width: 640px) {
   .climate-map {
-    height: 300px;
+    height: 300px !important;
+    min-height: 300px !important;
+  }
+
+  header {
+    flex-wrap: wrap;
+    height: auto !important;
+    padding: 10px 16px !important;
+    gap: 8px;
+  }
+
+  header > div:nth-child(2) {
+    order: 3;
+    width: 100%;
+    text-align: center;
+    font-size: 16px !important;
+  }
+
+  .dashboard-container {
+    padding: 8px !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .climate-map {
+    height: 280px !important;
+    min-height: 280px !important;
+  }
+
+  header h1 {
+    font-size: 13px !important;
+  }
+
+  header svg {
+    width: 70px !important;
+    height: 70px !important;
   }
 }

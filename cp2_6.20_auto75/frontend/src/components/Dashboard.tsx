@@ -9,13 +9,20 @@ const Dashboard = () => {
   const [currentTime, setCurrentTime] = useState(dayjs().format('YYYY-MM-DD HH:mm:ss'))
   const aqiValue = useClimateStore(state => state.aqiValue)
   const loadInitialData = useClimateStore(state => state.loadInitialData)
+  const initWebSocket = useClimateStore(state => state.initWebSocket)
+  const disconnectWebSocket = useClimateStore(state => state.disconnectWebSocket)
+  const isConnected = useClimateStore(state => state.isConnected)
 
   useEffect(() => {
     loadInitialData()
+    initWebSocket()
     const timer = setInterval(() => {
       setCurrentTime(dayjs().format('YYYY-MM-DD HH:mm:ss'))
     }, 1000)
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+      disconnectWebSocket()
+    }
   }, [])
 
   const getAqiColor = (aqi: number) => {
@@ -37,17 +44,24 @@ const Dashboard = () => {
   const strokeDashoffset = circumference - (progressPercent / 100) * circumference
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)' }}>
+    <div style={{
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)',
+      overflow: 'hidden',
+    }}>
       <header style={{
         height: 70,
-        background: 'rgba(22, 33, 62, 0.9)',
+        background: 'rgba(22, 33, 62, 0.95)',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 24px',
         backdropFilter: 'blur(10px)',
-        zIndex: 100,
+        flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
@@ -60,16 +74,37 @@ const Dashboard = () => {
             justifyContent: 'center',
             fontWeight: 'bold',
             fontSize: 20,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
           }}>
             🌡️
           </div>
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 600, color: '#fff' }}>微气候环境监测系统</h1>
-            <p style={{ fontSize: 12, color: '#a0aec0' }}>Microclimate Environment Monitoring</p>
+            <h1 style={{ fontSize: 18, fontWeight: 600, color: '#fff', margin: 0 }}>微气候环境监测系统</h1>
+            <p style={{ fontSize: 12, color: '#a0aec0', margin: 0 }}>Microclimate Environment Monitoring</p>
+          </div>
+          <div style={{
+            marginLeft: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '4px 10px',
+            borderRadius: 12,
+            background: isConnected ? 'rgba(46, 213, 115, 0.15)' : 'rgba(255, 71, 87, 0.15)',
+          }}>
+            <div style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: isConnected ? '#2ed573' : '#ff4757',
+              animation: 'pulse 2s infinite',
+            }} />
+            <span style={{ fontSize: 11, color: isConnected ? '#2ed573' : '#ff4757' }}>
+              {isConnected ? '实时连接' : '模拟模式'}
+            </span>
           </div>
         </div>
 
-        <div style={{ fontSize: 20, fontWeight: 500, color: '#00d9ff', fontFamily: 'monospace' }}>
+        <div style={{ fontSize: 20, fontWeight: 500, color: '#00d9ff', fontFamily: 'monospace', letterSpacing: 1 }}>
           {currentTime}
         </div>
 
@@ -110,16 +145,42 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <div style={{ flex: 1, display: 'flex', gap: 16, padding: 16, overflow: 'hidden' }} className="dashboard-container">
-        <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        gap: 16,
+        padding: 16,
+        overflow: 'hidden',
+        minWidth: 0,
+      }} className="dashboard-container">
+        <div className="left-panel" style={{
+          width: 300,
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          minWidth: 0,
+        }}>
           <SensorList />
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+        <div className="center-panel" style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          minWidth: 0,
+        }}>
           <ClimateMap />
         </div>
 
-        <div style={{ width: 320, flexShrink: 0, display: 'flex', flexDirection: 'column' }} className="right-panel">
+        <div className="right-panel" style={{
+          width: 320,
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+        }}>
           <RealtimePanel />
         </div>
       </div>
