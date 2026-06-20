@@ -5,6 +5,9 @@ import * as THREE from 'three'
 import { useStarStore, getSpectralColor, Star, Constellation, Planet } from './StarDataStore'
 
 const SCALE = 100
+const MAX_LABELS = 50
+const LABEL_MAG_THRESHOLD = 3.0
+const LABEL_CAMERA_DISTANCE = 200
 
 const raDecToVector3 = (ra: number, dec: number, radius: number = SCALE): THREE.Vector3 => {
   const raRad = (ra * Math.PI) / 12
@@ -15,11 +18,127 @@ const raDecToVector3 = (ra: number, dec: number, radius: number = SCALE): THREE.
   return new THREE.Vector3(x, y, z)
 }
 
-const StarPoint = ({ star, isSelected, isFiltered, onClick }: {
+const StarLabel = ({ star, isSelected, isHovered }: {
+  star: Star
+  isSelected: boolean
+  isHovered: boolean
+}) => {
+  const { camera } = useThree()
+  const position = useMemo(() => raDecToVector3(star.ra, star.dec, SCALE), [star.ra, star.dec])
+  const [opacity, setOpacity] = useState(0)
+  const opacityRef = useRef(0)
+
+  useFrame(() => {
+    const starWorldPos = position.clone()
+    const camWorldPos = new THREE.Vector3()
+    camera.getWorldPosition(camWorldPos)
+    const dist = camWorldPos.distanceTo(starWorldPos)
+    const maxDist = LABEL_CAMERA_DISTANCE * 2
+    const minDist = LABEL_CAMERA_DISTANCE * 0.5
+    let newOpacity = 0
+    if (dist <= minDist) {
+      newOpacity = 1
+    } else if (dist >= maxDist) {
+      newOpacity = 0
+    } else {
+      newOpacity = 1 - (dist - minDist) / (maxDist - minDist)
+      newOpacity = Math.pow(newOpacity, 1.5)
+    }
+    
+    if (Math.abs(newOpacity - opacityRef.current) > 0.01) {
+      opacityRef.current = newOpacity
+      setOpacity(newOpacity)
+    }
+  })
+
+  const showDetail = isSelected || isHovered
+  const baseOpacity = Math.min(1, opacity)
+
+  if (baseOpacity <= 0.01) return null
+
+  return (
+    <Html
+      position={[position.x, position.y + 1.5, position.z]}
+      center
+      style={{ pointerEvents: 'none' }}
+    >
+      <div
+        style={{
+          transform: showDetail ? 'scale(1.3)' : 'scale(1)',
+          transition: 'transform 0.2s ease-out',
+          whiteSpace: 'nowrap',
+          textAlign: 'center',
+        }}
+      >
+        <div
+          style={{
+            color: showDetail ? '#ff6b35' : 'rgba(255, 255, 255, 0.85)',
+            fontSize: showDetail ? '14px' : '12px',
+            fontWeight: showDetail ? 700 : 500,
+            textShadow: '0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)',
+            opacity: baseOpacity,
+            transition: 'all 0.2s ease-out',
+            letterSpacing: '0.5px',
+          }}
+        >
+          {star.name}
+        </div>
+
+        {showDetail && (
+          <div
+            style={{
+              marginTop: '2px',
+              padding: '3px 8px',
+              background: 'rgba(10, 14, 39, 0.85)',
+              backdropFilter: 'blur(6px)',
+              border: '1px solid rgba(255, 107, 53, 0.5)',
+              borderRadius: '4px',
+              opacity: baseOpacity,
+            }}
+          >
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', marginBottom: '2px' }}>
+              {star.nameEn}
+            </div>
+            <div
+              style={{
+                fontSize: '10px',
+                display: 'flex',
+                gap: '6px',
+                justifyContent: 'center',
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: getSpectralColor(star.spectralType),
+                  alignSelf: 'center',
+                }}
+              />
+              <span style={{ color: 'rgba(255,255,255,0.8)' }}>
+                {star.spectralType}型
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.6)' }}>·</span>
+              <span style={{ color: 'rgba(255,255,255,0.9)', fontFamily: 'monospace' }}>
+                {star.magnitude.toFixed(2)}m
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </Html>
+  )
+}
+
+const StarPoint = ({ star, isSelected, isFiltered, isHovered, onClick, onHover }: {
   star: Star
   isSelected: boolean
   isFiltered: boolean
+  isHovered: boolean
   onClick: () => void
+  onHover: (hovered: boolean) => void
 }) => {
   const meshRef = useRef<THREE.Points>(null)
   const color = getSpectralColor(star.spectralType)
@@ -40,7 +159,9 @@ const StarPoint = ({ star, isSelected, isFiltered, onClick }: {
     if (meshRef.current) {
       const material = meshRef.current.material as THREE.PointsMaterial
       const twinkle = 0.8 + 0.2 * Math.sin(state.clock.elapsedTime * 2 + star.id)
-      material.opacity = isFiltered ? 0.2 : (isSelected ? 1 : twinkle)
+      const baseOpacity = isFiltered ? 0.2 : (isSelected ? 1 : twinkle)
+      material.opacity = isHovered ? 1 : baseOpacity
+      material.size = isHovered || isSelected ? size * 1.6 : size
     }
   })
 
@@ -52,9 +173,17 @@ const StarPoint = ({ star, isSelected, isFiltered, onClick }: {
         e.stopPropagation()
         onClick()
       }}
+      onPointerOver={(e) => {
+        e.stopPropagation()
+        onHover(true)
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation()
+        onHover(false)
+      }}
     >
       <pointsMaterial
-        size={isSelected ? size * 2 : size}
+        size={size}
         color={isFiltered ? '#666666' : color}
         transparent
         opacity={1}
@@ -71,21 +200,40 @@ const ConstellationLines = ({ constellation, isHighlighted, stars }: {
   stars: Star[]
 }) => {
   const lines = useMemo(() => {
-    const constellationStars = stars.filter(s => s.constellationId === constellation.id)
-    if (constellationStars.length < 2) return null
-
-    const starMap = new Map<string, Star>()
-    constellationStars.forEach(s => {
-      starMap.set(s.nameEn.toLowerCase(), s)
-      starMap.set(s.name, s)
-    })
-
     const points: THREE.Vector3[] = []
-    
-    if (constellationStars.length >= 2) {
-      for (let i = 0; i < constellationStars.length - 1; i++) {
-        points.push(raDecToVector3(constellationStars[i].ra, constellationStars[i].dec, SCALE))
-        points.push(raDecToVector3(constellationStars[i + 1].ra, constellationStars[i + 1].dec, SCALE))
+
+    if (constellation.lineVertices && constellation.lineVertices.length > 0) {
+      for (const vertexPair of constellation.lineVertices) {
+        if (vertexPair.length >= 2) {
+          const [ra1, dec1] = vertexPair[0]
+          const [ra2, dec2] = vertexPair[1]
+          points.push(raDecToVector3(ra1, dec1, SCALE))
+          points.push(raDecToVector3(ra2, dec2, SCALE))
+        }
+      }
+    } else {
+      const constellationStars = stars.filter(s => s.constellationId === constellation.id)
+      if (constellationStars.length < 2) return null
+
+      if (constellation.lines && constellation.lines.length > 0) {
+        for (const lineIndices of constellation.lines) {
+          if (lineIndices.length >= 2) {
+            const idx1 = lineIndices[0] - 1
+            const idx2 = lineIndices[1] - 1
+            if (idx1 >= 0 && idx1 < constellationStars.length &&
+                idx2 >= 0 && idx2 < constellationStars.length) {
+              points.push(raDecToVector3(constellationStars[idx1].ra, constellationStars[idx1].dec, SCALE))
+              points.push(raDecToVector3(constellationStars[idx2].ra, constellationStars[idx2].dec, SCALE))
+            }
+          }
+        }
+      }
+
+      if (points.length === 0 && constellationStars.length >= 2) {
+        for (let i = 0; i < constellationStars.length - 1; i++) {
+          points.push(raDecToVector3(constellationStars[i].ra, constellationStars[i].dec, SCALE))
+          points.push(raDecToVector3(constellationStars[i + 1].ra, constellationStars[i + 1].dec, SCALE))
+        }
       }
     }
 
@@ -122,6 +270,8 @@ const PlanetOrbit = ({ planet, isSelected, onClick }: {
   onClick: () => void
 }) => {
   const orbitScale = 5
+  const inclinationRad = (planet.inclination || 0) * Math.PI / 180
+  const initialAngleRad = (planet.initialAngle || 0) * Math.PI / 180
 
   const orbitGeometry = useMemo(() => {
     const curve = new THREE.EllipseCurve(
@@ -136,25 +286,32 @@ const PlanetOrbit = ({ planet, isSelected, onClick }: {
     )
     const points = curve.getPoints(128)
     const positions = new Float32Array(points.length * 3)
+    const inclSin = Math.sin(inclinationRad)
+    const inclCos = Math.cos(inclinationRad)
     points.forEach((p, i) => {
-      positions[i * 3] = p.x
-      positions[i * 3 + 1] = 0
-      positions[i * 3 + 2] = p.y
+      const x = p.x
+      const yRaw = 0
+      const z = p.y
+      positions[i * 3] = x
+      positions[i * 3 + 1] = z * inclSin + yRaw * inclCos
+      positions[i * 3 + 2] = z * inclCos - yRaw * inclSin
     })
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     return geometry
-  }, [planet.semiMajorAxis, planet.eccentricity])
+  }, [planet.semiMajorAxis, planet.eccentricity, inclinationRad])
 
   const planetRef = useRef<THREE.Mesh>(null)
 
   useFrame((state) => {
     if (planetRef.current) {
       const time = state.clock.elapsedTime * useStarStore.getState().timeSpeed * 0.1
-      const angle = (time / planet.orbitalPeriod) * Math.PI * 2
+      const angle = initialAngleRad + (time / planet.orbitalPeriod) * Math.PI * 2
       const x = planet.semiMajorAxis * orbitScale * Math.cos(angle) - planet.semiMajorAxis * planet.eccentricity * orbitScale
-      const z = planet.semiMajorAxis * orbitScale * Math.sin(angle) * Math.sqrt(1 - planet.eccentricity * planet.eccentricity)
-      planetRef.current.position.set(x, 0, z)
+      const zRaw = planet.semiMajorAxis * orbitScale * Math.sin(angle) * Math.sqrt(1 - planet.eccentricity * planet.eccentricity)
+      const y = zRaw * Math.sin(inclinationRad)
+      const z = zRaw * Math.cos(inclinationRad)
+      planetRef.current.position.set(x, y, z)
     }
   })
 
@@ -197,6 +354,14 @@ const SceneContent = () => {
   const { camera } = useThree()
   const targetPosition = useRef<THREE.Vector3 | null>(null)
   const isAnimating = useRef(false)
+  const [hoveredStarId, setHoveredStarId] = useState<number | null>(null)
+
+  const brightStarsForLabels = useMemo(() => {
+    return stars
+      .filter(s => s.magnitude < LABEL_MAG_THRESHOLD)
+      .sort((a, b) => a.magnitude - b.magnitude)
+      .slice(0, MAX_LABELS)
+  }, [stars])
 
   useEffect(() => {
     if (selectedStarId) {
@@ -241,11 +406,24 @@ const SceneContent = () => {
           star={star}
           isSelected={selectedStarId === star.id}
           isFiltered={isStarFiltered(star)}
+          isHovered={hoveredStarId === star.id}
           onClick={() => {
             setSelectedStar(star.id)
             setSelectedConstellation(star.constellationId)
             setSelectedPlanet(null)
           }}
+          onHover={(hovered) => {
+            setHoveredStarId(hovered ? star.id : null)
+          }}
+        />
+      ))}
+
+      {brightStarsForLabels.map((star) => (
+        <StarLabel
+          key={`label-${star.id}`}
+          star={star}
+          isSelected={selectedStarId === star.id}
+          isHovered={hoveredStarId === star.id}
         />
       ))}
 

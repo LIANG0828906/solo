@@ -1,9 +1,31 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useStarStore, getSpectralColor } from '../scene/StarDataStore'
 import './ControlPanel.css'
 
 const SPECTRAL_TYPES = ['O', 'B', 'A', 'F', 'G', 'K', 'M']
 const TIME_SPEEDS = [1, 10, 100]
+
+function useDebounce<T>(value: T, delay: number = 200): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+  const timerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current)
+    }
+    timerRef.current = window.setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      if (timerRef.current) {
+        window.clearTimeout(timerRef.current)
+      }
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
 
 const ControlPanel = () => {
   const {
@@ -30,6 +52,7 @@ const ControlPanel = () => {
 
   const [showFilters, setShowFilters] = useState(false)
   const [searchInput, setSearchInput] = useState('')
+  const debouncedSearch = useDebounce(searchInput, 200)
 
   const selectedStar = useMemo(
     () => stars.find((s) => s.id === selectedStarId) || null,
@@ -46,10 +69,10 @@ const ControlPanel = () => {
     [planets, selectedPlanetId]
   )
 
-  const handleSearch = (query: string) => {
-    setSearchInput(query)
+  useEffect(() => {
+    const query = debouncedSearch
     setSearchQuery(query)
-    
+
     const starResult = searchStar(query)
     if (starResult) {
       setSelectedStar(starResult.id)
@@ -65,7 +88,7 @@ const ControlPanel = () => {
       setSelectedPlanet(null)
       return
     }
-  }
+  }, [debouncedSearch])
 
   const toggleSpectralType = (type: string) => {
     const current = filters.spectralTypes
@@ -88,7 +111,7 @@ const ControlPanel = () => {
           type="text"
           placeholder="搜索恒星或星座..."
           value={searchInput}
-          onChange={(e) => handleSearch(e.target.value)}
+          onChange={(e) => setSearchInput(e.target.value)}
           className="search-input"
         />
         <button
@@ -300,7 +323,7 @@ const ControlPanel = () => {
               </div>
               <div className="metadata-item">
                 <span className="label">最佳观测季节</span>
-                <span className="value">{selectedConstellation.season}</span>
+                <span className="value">{selectedConstellation.bestSeason || selectedConstellation.season}</span>
               </div>
               <div className="metadata-item">
                 <span className="label">面积排名</span>
@@ -311,24 +334,56 @@ const ControlPanel = () => {
                 <span className="value">{selectedConstellation.id}</span>
               </div>
               
-              {constellationStars.length > 0 && (
+              {(selectedConstellation.mainStars.length > 0 || constellationStars.length > 0) && (
                 <div className="metadata-item main-stars">
                   <span className="label">主星列表</span>
                   <div className="star-list">
-                    {constellationStars.slice(0, 8).map((star) => (
-                      <div
-                        key={star.id}
-                        className={`star-item ${selectedStarId === star.id ? 'selected' : ''}`}
-                        onClick={() => setSelectedStar(star.id)}
-                      >
-                        <span
-                          className="star-dot"
-                          style={{ background: getSpectralColor(star.spectralType) }}
-                        />
-                        <span className="star-name">{star.name}</span>
-                        <span className="star-mag">{star.magnitude.toFixed(2)}m</span>
-                      </div>
-                    ))}
+                    {constellationStars.length > 0 ? (
+                      constellationStars.slice(0, 8).map((star) => (
+                        <div
+                          key={star.id}
+                          className={`star-item ${selectedStarId === star.id ? 'selected' : ''}`}
+                          onClick={() => setSelectedStar(star.id)}
+                        >
+                          <span
+                            className="star-dot"
+                            style={{ background: getSpectralColor(star.spectralType) }}
+                          />
+                          <span className="star-name">{star.name}</span>
+                          <span className="star-mag">{star.magnitude.toFixed(2)}m</span>
+                        </div>
+                      ))
+                    ) : (
+                      selectedConstellation.mainStars.slice(0, 8).map((mainStar, idx) => {
+                        const star = stars.find(s =>
+                          s.name === mainStar.name || s.nameEn === mainStar.nameEn
+                        )
+                        return (
+                          <div
+                            key={idx}
+                            className={`star-item ${star && selectedStarId === star.id ? 'selected' : ''}`}
+                            onClick={() => star && setSelectedStar(star.id)}
+                            style={{ cursor: star ? 'pointer' : 'default' }}
+                          >
+                            <span
+                              className="star-dot"
+                              style={{ background: star ? getSpectralColor(star.spectralType) : '#888' }}
+                            />
+                            <span className="star-name">
+                              {mainStar.name}
+                              {mainStar.nameEn && mainStar.name !== mainStar.nameEn && (
+                                <span style={{ color: 'rgba(255,255,255,0.5)', marginLeft: '4px', fontSize: '11px' }}>
+                                  {mainStar.nameEn}
+                                </span>
+                              )}
+                            </span>
+                            {star && (
+                              <span className="star-mag">{star.magnitude.toFixed(2)}m</span>
+                            )}
+                          </div>
+                        )
+                      })
+                    )}
                   </div>
                 </div>
               )}

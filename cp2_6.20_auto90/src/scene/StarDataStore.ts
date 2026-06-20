@@ -3,11 +3,17 @@ import starCatalogData from '../data/starCatalog.json'
 import constellationData from '../data/constellation.json'
 import planetOrbitData from '../data/planetOrbit.json'
 
+export interface MainStar {
+  name: string
+  nameEn: string
+}
+
 export interface Star {
   id: number
   name: string
   nameEn: string
   constellationId: string
+  constellation?: string
   ra: number
   dec: number
   magnitude: number
@@ -20,9 +26,11 @@ export interface Constellation {
   name: string
   nameEn: string
   season: string
+  bestSeason: string
   areaRank: number
-  mainStars: string[]
+  mainStars: MainStar[]
   lines: number[][]
+  lineVertices: number[][][]
 }
 
 export interface Planet {
@@ -36,6 +44,8 @@ export interface Planet {
   distanceFromSun: string
   moons: number
   isInnerPlanet: boolean
+  initialAngle: number
+  inclination: number
 }
 
 export interface FilterState {
@@ -84,10 +94,64 @@ export const getSpectralColor = (type: string): string => {
   return SPECTRAL_COLORS[type.charAt(0)] || '#ffffff'
 }
 
+const processStarData = (raw: any[]): Star[] => {
+  return raw
+    .filter(item => item && typeof item.id === 'number')
+    .map(item => ({
+      id: item.id,
+      name: item.name || '',
+      nameEn: item.nameEn || '',
+      constellationId: item.constellationId || '',
+      constellation: item.constellation,
+      ra: item.ra || 0,
+      dec: item.dec || 0,
+      magnitude: item.magnitude || 0,
+      spectralType: item.spectralType || 'G',
+      distance: item.distance || 0,
+    }))
+}
+
+const processConstellationData = (raw: any[]): Constellation[] => {
+  return raw
+    .filter(item => item && typeof item.id === 'string')
+    .map(item => ({
+      id: item.id,
+      name: item.name || '',
+      nameEn: item.nameEn || '',
+      season: item.season || '',
+      bestSeason: item.bestSeason || item.season || '',
+      areaRank: item.areaRank || 0,
+      mainStars: Array.isArray(item.mainStars) && typeof item.mainStars[0] === 'object'
+        ? item.mainStars.map((s: any) => ({ name: s.name || '', nameEn: s.nameEn || '' }))
+        : (item.mainStars || []).map((s: string) => ({ name: s, nameEn: s })),
+      lines: item.lines || [],
+      lineVertices: item.lineVertices || [],
+    }))
+}
+
+const processPlanetData = (raw: any[]): Planet[] => {
+  return raw
+    .filter(item => item && typeof item.id === 'string')
+    .map(item => ({
+      id: item.id,
+      name: item.name || '',
+      nameEn: item.nameEn || '',
+      color: item.color || '#ffffff',
+      semiMajorAxis: item.semiMajorAxis || 1,
+      eccentricity: item.eccentricity || 0,
+      orbitalPeriod: item.orbitalPeriod || 365,
+      distanceFromSun: item.distanceFromSun || '',
+      moons: item.moons || 0,
+      isInnerPlanet: item.isInnerPlanet || false,
+      initialAngle: item.initialAngle || 0,
+      inclination: item.inclination || 0,
+    }))
+}
+
 export const useStarStore = create<StarStore>((set, get) => ({
-  stars: starCatalogData as Star[],
-  constellations: constellationData as Constellation[],
-  planets: planetOrbitData as Planet[],
+  stars: processStarData(starCatalogData as any[]),
+  constellations: processConstellationData(constellationData as any[]),
+  planets: processPlanetData(planetOrbitData as any[]),
   selectedStarId: null,
   selectedConstellationId: null,
   selectedPlanetId: null,
@@ -116,8 +180,8 @@ export const useStarStore = create<StarStore>((set, get) => ({
     const lowerQuery = query.toLowerCase()
     const star = get().stars.find(
       (s) =>
-        s.name.toLowerCase().includes(lowerQuery) ||
-        s.nameEn.toLowerCase().includes(lowerQuery)
+        (s.name && s.name.toLowerCase().includes(lowerQuery)) ||
+        (s.nameEn && s.nameEn.toLowerCase().includes(lowerQuery))
     )
     return star || null
   },
@@ -127,9 +191,9 @@ export const useStarStore = create<StarStore>((set, get) => ({
     const lowerQuery = query.toLowerCase()
     const constellation = get().constellations.find(
       (c) =>
-        c.name.toLowerCase().includes(lowerQuery) ||
-        c.nameEn.toLowerCase().includes(lowerQuery) ||
-        c.id.toLowerCase().includes(lowerQuery)
+        (c.name && c.name.toLowerCase().includes(lowerQuery)) ||
+        (c.nameEn && c.nameEn.toLowerCase().includes(lowerQuery)) ||
+        (c.id && c.id.toLowerCase().includes(lowerQuery))
     )
     return constellation || null
   },
