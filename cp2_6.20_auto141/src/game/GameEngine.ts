@@ -48,8 +48,15 @@ const CELL_SIZE = 30;
 const GRAVITY = 0.6;
 const MAX_JUMP_HOLD_TIME = 20;
 const BASE_SPEED = 5;
-const MAX_JUMP_GRID_HEIGHT = 6;
 const GROUND_Y = GRID_HEIGHT - 1;
+
+const MIN_JUMP_HEIGHT_CELLS = 1;
+const MAX_JUMP_HEIGHT_CELLS = 6;
+const MIN_JUMP_HEIGHT = MIN_JUMP_HEIGHT_CELLS * CELL_SIZE;
+const MAX_JUMP_HEIGHT = MAX_JUMP_HEIGHT_CELLS * CELL_SIZE;
+
+const JUMP_INITIAL_VELOCITY = -6.3;
+const JUMP_BOOST_STRENGTH = 1.0853;
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -232,18 +239,18 @@ export class GameEngine {
       this.player.isJumping = true;
       this.player.isOnGround = false;
       this.player.jumpHoldTime = 0;
-      this.player.vy = -8;
+      this.player.vy = JUMP_INITIAL_VELOCITY;
     }
     this.keys.spacePressed = false;
 
-    if (this.keys.space && this.player.isJumping && this.player.jumpHoldTime < this.player.maxJumpHoldTime) {
+    if (this.keys.space && this.player.isJumping && this.player.jumpHoldTime < this.player.maxJumpHoldTime && this.player.vy < 0) {
       const jumpProgress = this.player.jumpHoldTime / this.player.maxJumpHoldTime;
-      const extraBoost = -0.4 * (1 - jumpProgress);
+      const extraBoost = -JUMP_BOOST_STRENGTH * (1 - jumpProgress);
       this.player.vy += extraBoost;
       this.player.jumpHoldTime++;
     }
 
-    if (!this.keys.space) {
+    if (!this.keys.space || this.player.vy >= 0) {
       this.player.isJumping = false;
     }
   }
@@ -573,6 +580,10 @@ export class GameEngine {
     const armOffset = Math.sin(frame * 0.8 + Math.PI) * 3;
     const armY = bodyY + 2;
 
+    if (!isAfterImage && this.player.accessory) {
+      this.drawCape(x, bodyY, bodyW, bodyH);
+    }
+
     ctx.fillStyle = color;
 
     ctx.fillRect(headX, headY, headSize, headSize);
@@ -607,16 +618,174 @@ export class GameEngine {
     }
   }
 
+  private drawCape(x: number, bodyY: number, bodyW: number, bodyH: number): void {
+    const ctx = this.ctx;
+    const accessory = this.player.accessory;
+    const capeStyle = accessory.cape;
+
+    if (!capeStyle) return;
+
+    const capeColor = '#7209b7';
+    ctx.fillStyle = capeColor;
+    ctx.shadowColor = capeColor;
+    ctx.shadowBlur = 3;
+
+    const centerX = x + this.player.width / 2;
+
+    if (capeStyle === 'style1') {
+      ctx.beginPath();
+      ctx.moveTo(centerX - bodyW / 2 - 2, bodyY + 2);
+      ctx.lineTo(centerX - bodyW / 2 - 5, bodyY + bodyH + 5);
+      ctx.lineTo(centerX + bodyW / 2 + 5, bodyY + bodyH + 5);
+      ctx.lineTo(centerX + bodyW / 2 + 2, bodyY + 2);
+      ctx.closePath();
+      ctx.fill();
+    } else if (capeStyle === 'style2') {
+      ctx.beginPath();
+      ctx.moveTo(centerX - bodyW / 2 - 2, bodyY + 2);
+      ctx.lineTo(centerX - bodyW / 2 - 7, bodyY + bodyH + 15);
+      ctx.lineTo(centerX + bodyW / 2 + 7, bodyY + bodyH + 15);
+      ctx.lineTo(centerX + bodyW / 2 + 2, bodyY + 2);
+      ctx.closePath();
+      ctx.fill();
+    } else if (capeStyle === 'style3') {
+      ctx.beginPath();
+      ctx.moveTo(centerX - bodyW / 2 - 2, bodyY + 4);
+      ctx.lineTo(centerX - bodyW / 2 - 12, bodyY + bodyH - 2);
+      ctx.lineTo(centerX - bodyW / 2 - 7, bodyY + bodyH + 8);
+      ctx.lineTo(centerX + bodyW / 2 + 7, bodyY + bodyH + 8);
+      ctx.lineTo(centerX + bodyW / 2 + 12, bodyY + bodyH - 2);
+      ctx.lineTo(centerX + bodyW / 2 + 2, bodyY + 4);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.shadowBlur = 0;
+  }
+
   private drawAccessory(headX: number, headY: number, headSize: number): void {
     const ctx = this.ctx;
     const accessory = this.player.accessory;
 
-    if (accessory.hat === 'cap') {
-      const hatColor = typeof accessory.hatColor === 'string' ? accessory.hatColor : '#ff006e';
-      ctx.fillStyle = hatColor;
-      ctx.fillRect(headX - 1, headY - 4, headSize + 2, 4);
-      ctx.fillRect(headX + headSize, headY - 2, 4, 2);
+    const cx = headX + headSize / 2;
+    const cy = headY + headSize / 2;
+
+    if (accessory.glasses) {
+      this.drawGlasses(cx, cy, accessory.glasses as string);
     }
+
+    if (accessory.helmet) {
+      this.drawHelmet(cx, cy, headSize, accessory.helmet as string);
+    }
+  }
+
+  private drawGlasses(cx: number, cy: number, style: string): void {
+    const ctx = this.ctx;
+    ctx.strokeStyle = '#00f5d4';
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = '#00f5d4';
+    ctx.shadowBlur = 3;
+
+    if (style === 'style1') {
+      ctx.beginPath();
+      ctx.arc(cx - 2.5, cy - 1, 2.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx + 2.5, cy - 1, 2.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - 0.5, cy - 1);
+      ctx.lineTo(cx + 0.5, cy - 1);
+      ctx.stroke();
+    } else if (style === 'style2') {
+      ctx.strokeRect(cx - 5, cy - 3, 4, 4);
+      ctx.strokeRect(cx + 1, cy - 3, 4, 4);
+      ctx.beginPath();
+      ctx.moveTo(cx - 1, cy - 1);
+      ctx.lineTo(cx + 1, cy - 1);
+      ctx.stroke();
+    } else if (style === 'style3') {
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, cy - 1);
+      ctx.lineTo(cx - 2, cy - 3);
+      ctx.lineTo(cx - 0.5, cy - 1);
+      ctx.lineTo(cx - 3, cy + 1);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + 5, cy - 1);
+      ctx.lineTo(cx + 2, cy - 3);
+      ctx.lineTo(cx + 0.5, cy - 1);
+      ctx.lineTo(cx + 3, cy + 1);
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    ctx.shadowBlur = 0;
+  }
+
+  private drawHelmet(cx: number, cy: number, headSize: number, style: string): void {
+    const ctx = this.ctx;
+
+    if (style === 'style1') {
+      const helmetColor = '#8338ec';
+      ctx.fillStyle = helmetColor;
+      ctx.shadowColor = helmetColor;
+      ctx.shadowBlur = 3;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy - 1, headSize / 2 + 1.5, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(cx - headSize / 2 - 1.5, cy - 1, headSize + 3, 2.5);
+    } else if (style === 'style2') {
+      const helmetColor = '#8338ec';
+      ctx.fillStyle = helmetColor;
+      ctx.shadowColor = helmetColor;
+      ctx.shadowBlur = 3;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy - 1, headSize / 2 + 1.5, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(cx - headSize / 2 - 1.5, cy - 1, headSize + 3, 2.5);
+
+      ctx.fillStyle = '#ff006e';
+      ctx.shadowColor = '#ff006e';
+      ctx.beginPath();
+      ctx.moveTo(cx - headSize / 2 - 1, cy - headSize / 2 - 1);
+      ctx.lineTo(cx - headSize / 2 - 3.5, cy - headSize / 2 - 6);
+      ctx.lineTo(cx - headSize / 2 + 1, cy - headSize / 2 - 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx + headSize / 2 + 1, cy - headSize / 2 - 1);
+      ctx.lineTo(cx + headSize / 2 + 3.5, cy - headSize / 2 - 6);
+      ctx.lineTo(cx + headSize / 2 - 1, cy - headSize / 2 - 2);
+      ctx.closePath();
+      ctx.fill();
+    } else if (style === 'style3') {
+      ctx.fillStyle = '#ffbe0b';
+      ctx.shadowColor = '#ffbe0b';
+      ctx.shadowBlur = 4;
+
+      ctx.beginPath();
+      ctx.moveTo(cx - headSize / 2, cy - 1);
+      ctx.lineTo(cx - headSize / 2, cy - headSize / 2 - 2);
+      ctx.lineTo(cx - headSize / 4, cy - headSize / 2 + 1);
+      ctx.lineTo(cx, cy - headSize / 2 - 5);
+      ctx.lineTo(cx + headSize / 4, cy - headSize / 2 + 1);
+      ctx.lineTo(cx + headSize / 2, cy - headSize / 2 - 2);
+      ctx.lineTo(cx + headSize / 2, cy - 1);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#fb5607';
+      ctx.shadowColor = '#fb5607';
+      ctx.beginPath();
+      ctx.arc(cx, cy - headSize / 2 - 1, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.shadowBlur = 0;
   }
 
   destroy(): void {
