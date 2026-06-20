@@ -217,22 +217,28 @@ const GoodsList: React.FC = () => {
       )}
 
       <style>{`
-        .goods-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 16px;
-          justify-items: center;
+        div.goods-grid {
+          display: grid !important;
+          grid-template-columns: repeat(2, 1fr) !important;
+          gap: 12px !important;
+          justify-items: center !important;
         }
-        @media (min-width: 768px) {
-          .goods-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
+        @media (min-width: 481px) and (max-width: 1023px) {
+          div.goods-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 20px !important;
           }
         }
         @media (min-width: 1024px) {
-          .goods-grid {
-            grid-template-columns: repeat(4, 1fr);
-            gap: 24px;
+          div.goods-grid {
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 24px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          div.goods-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
           }
         }
         div[style*="scrollbarWidth: none"]::-webkit-scrollbar {

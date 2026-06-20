@@ -109,7 +109,7 @@ const GoodsCard: React.FC<GoodsCardProps> = ({
         overflow: 'hidden',
         backgroundColor: '#f9fafb',
       }}>
-        {imageError ? (
+        {!image || imageError ? (
           getPlaceholderImage()
         ) : (
           <img
@@ -273,11 +273,9 @@ const GoodsCard: React.FC<GoodsCardProps> = ({
         @keyframes lowStockBlink {
           0%, 100% {
             opacity: 1;
-            transform: scale(1);
           }
           50% {
-            opacity: 0.7;
-            transform: scale(1.05);
+            opacity: 0.5;
           }
         }
         @media (max-width: 480px) {
