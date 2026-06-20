@@ -132,7 +132,7 @@ const BookCard: React.FC<{ book: Book }> = ({ book }) => {
                   height: '100%',
                   width: `${progress}%`,
                   borderRadius: 4,
-                  background: 'linear-gradient(90deg, #6a994e, #a7c957)',
+                  backgroundImage: 'linear-gradient(to right, #6a994e, #a7c957)',
                   transition: 'width 0.3s ease',
                 }}
               />

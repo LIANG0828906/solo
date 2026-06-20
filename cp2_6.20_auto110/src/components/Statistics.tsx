@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
-import { Select, Statistic, Modal } from 'antd';
+import { Select, Statistic, Modal, Empty } from 'antd';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
   LineChart, Line, CartesianGrid,
 } from 'recharts';
 import dayjs from 'dayjs';
-import useStore from '@/store';
+import isLeapYear from 'dayjs/plugin/isLeapYear';
+dayjs.extend(isLeapYear);
+import { useStore } from '@/store';
 import type { Book } from '@/types';
 
 const TAG_COLORS = ['#6a994e', '#bc4749', '#e76f51', '#f4a261', '#2a9d8f', '#264653', '#e9c46a', '#a7c957'];
@@ -15,17 +17,17 @@ const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8
 function MonthlyPagesTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#fff', padding: '8px 12px', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-      <p style={{ margin: 0, fontSize: 14 }}>{label}: {payload[0].value}页</p>
+    <div style={{ background: '#fff', padding: '8px 12px', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', border: '1px solid #f0f0f0' }}>
+      <p style={{ margin: 0, fontSize: 14, color: '#333' }}>{label}: {payload[0].value} 页</p>
     </div>
   );
 }
 
-function CumulativeDaysTooltip({ active, payload }: any) {
+function CumulativeDaysTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#fff', padding: '8px 12px', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-      <p style={{ margin: 0, fontSize: 14 }}>累计{payload[0].value}天</p>
+    <div style={{ background: '#fff', padding: '8px 12px', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', border: '1px solid #f0f0f0' }}>
+      <p style={{ margin: 0, fontSize: 14, color: '#333' }}>{label || ''} 累计 {payload[0].value} 天</p>
     </div>
   );
 }
@@ -34,8 +36,11 @@ function TagPieTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   const data = payload[0].payload;
   return (
-    <div style={{ background: '#fff', padding: '8px 12px', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-      <p style={{ margin: 0, fontSize: 14 }}>{data.tag}: {data.count}本</p>
+    <div style={{ background: '#fff', padding: '8px 12px', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', border: '1px solid #f0f0f0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: data.color }} />
+        <p style={{ margin: 0, fontSize: 14, color: '#333' }}>{data.tag}: {data.count} 本</p>
+      </div>
     </div>
   );
 }
@@ -47,11 +52,14 @@ function renderPieLabel(props: any) {
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
   return (
-    <text x={x} y={y} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>
+    <text x={x} y={y} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12} fill="#555">
       {tag} {count}
     </text>
   );
 }
+
+const cardStyle: React.CSSProperties = { background: '#fff', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: 20 };
+const chartTitleStyle: React.CSSProperties = { margin: '0 0 16px 0', fontSize: 15, fontWeight: 600, color: '#333' };
 
 export default function Statistics() {
   const currentYear = dayjs().year();
@@ -101,22 +109,31 @@ export default function Statistics() {
     [stats],
   );
 
-  const cumulativeData = useMemo(
-    () =>
-      stats.cumulativeDays.map((d: any) => ({
-        ...d,
-        month: MONTH_LABELS[dayjs(d.date).month()],
-      })),
-    [stats],
-  );
+  const cumulativeData = useMemo(() => {
+    const monthlyCumulative: { month: string; days: number; date: string }[] = [];
+    let cum = 0;
+    MONTH_LABELS.forEach((label, i) => {
+      const monthDays = stats.cumulativeDays.filter(
+        (d: any) => dayjs(d.date).month() === i,
+      );
+      if (monthDays.length > 0) {
+        const lastDay = monthDays[monthDays.length - 1];
+        cum = lastDay.days;
+        monthlyCumulative.push({ month: label, days: lastDay.days, date: lastDay.date });
+      } else {
+        monthlyCumulative.push({ month: label, days: cum, date: '' });
+      }
+    });
+    return monthlyCumulative.filter(d => d.days > 0);
+  }, [stats]);
 
   const tagBooks = useMemo(
     () => books.filter((b: Book) => b.tags?.includes(selectedTag)),
     [books, selectedTag],
   );
 
-  const handlePieClick = (data: any, index: number) => {
-    const tag = data?.tag || data?.payload?.tag || tagData[index]?.tag;
+  const handlePieClick = (entry: any) => {
+    const tag = entry?.tag || entry?.payload?.tag;
     if (tag) {
       setSelectedTag(tag);
       setModalOpen(true);
@@ -124,14 +141,24 @@ export default function Statistics() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">年度统计</h2>
-        <Select value={selectedYear} onChange={setSelectedYear} options={yearOptions} className="w-28" />
+    <div style={{ padding: 24, maxWidth: 1400, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#2d4a1a' }}>年度阅读统计</h2>
+        <Select
+          value={selectedYear}
+          onChange={(v) => setSelectedYear(v)}
+          options={yearOptions}
+          style={{ width: 120 }}
+        />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow-sm p-4">
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: 16,
+        marginBottom: 24,
+      }}>
+        <div style={cardStyle}>
           <Statistic
             title="已读书籍"
             value={summaryStats.totalBooks}
@@ -139,7 +166,7 @@ export default function Statistics() {
             valueStyle={{ color: '#6a994e', fontWeight: 600 }}
           />
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div style={cardStyle}>
           <Statistic
             title="阅读页数"
             value={summaryStats.totalPages}
@@ -147,7 +174,7 @@ export default function Statistics() {
             valueStyle={{ color: '#6a994e', fontWeight: 600 }}
           />
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div style={cardStyle}>
           <Statistic
             title="阅读次数"
             value={summaryStats.totalSessions}
@@ -155,7 +182,7 @@ export default function Statistics() {
             valueStyle={{ color: '#6a994e', fontWeight: 600 }}
           />
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div style={cardStyle}>
           <Statistic
             title="日均页数"
             value={summaryStats.avgPagesPerDay}
@@ -165,73 +192,146 @@ export default function Statistics() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <h3 className="text-base font-medium mb-4">每月阅读页数</h3>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+        gap: 20,
+      }}>
+        <div style={cardStyle}>
+          <h3 style={chartTitleStyle}>每月阅读页数</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyPagesData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip content={<MonthlyPagesTooltip />} />
-              <Bar dataKey="pages" fill="#6a994e" radius={[4, 4, 0, 0]} activeBar={{ fill: '#5a8a3e', stroke: '#6a994e', strokeWidth: 2 }} />
+            <BarChart data={monthlyPagesData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#888' }} axisLine={{ stroke: '#e0e0e0' }} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: '#888' }} axisLine={{ stroke: '#e0e0e0' }} tickLine={false} />
+              <Tooltip
+                content={<MonthlyPagesTooltip />}
+                cursor={{ fill: 'rgba(106, 153, 78, 0.06)' }}
+                contentStyle={{ border: 'none', background: 'transparent', padding: 0 }}
+              />
+              <Bar
+                dataKey="pages"
+                fill="#6a994e"
+                radius={[4, 4, 0, 0]}
+                activeBar={{ fill: '#5a8a3e', stroke: '#6a994e', strokeWidth: 2 }}
+                animationDuration={500}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <h3 className="text-base font-medium mb-4">标签分布</h3>
+        <div style={cardStyle}>
+          <h3 style={chartTitleStyle}>标签分布 <span style={{ fontSize: 12, fontWeight: 400, color: '#888' }}>(点击查看详情)</span></h3>
           <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
+            <PieChart margin={{ top: 10, right: 40, left: 40, bottom: 10 }}>
+              <Tooltip
+                content={<TagPieTooltip />}
+                cursor={{ stroke: '#6a994e', strokeWidth: 2 }}
+                contentStyle={{ border: 'none', background: 'transparent', padding: 0 }}
+              />
               <Pie
                 data={tagData}
                 dataKey="count"
                 nameKey="tag"
                 cx="50%"
                 cy="50%"
+                innerRadius={40}
                 outerRadius={80}
                 label={renderPieLabel}
                 onClick={handlePieClick}
                 style={{ cursor: 'pointer' }}
+                animationDuration={500}
               >
                 {tagData.map((entry: any, i: number) => (
-                  <Cell key={i} fill={entry.color} style={{ cursor: 'pointer' }} />
+                  <Cell
+                    key={i}
+                    fill={entry.color}
+                    stroke="#fff"
+                    strokeWidth={2}
+                    style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                  />
                 ))}
               </Pie>
-              <Tooltip content={<TagPieTooltip />} />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-4 md:col-span-2">
-          <h3 className="text-base font-medium mb-4">累计阅读天数</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={cumulativeData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip content={<CumulativeDaysTooltip />} />
-              <Line type="monotone" dataKey="days" stroke="#6a994e" strokeWidth={2} dot={{ r: 4, fill: '#6a994e' }} activeDot={{ r: 6, fill: '#6a994e', stroke: '#fff', strokeWidth: 2 }} />
+        <div style={{ ...cardStyle, gridColumn: '1 / -1' }}>
+          <h3 style={chartTitleStyle}>累计阅读天数趋势</h3>
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart data={cumulativeData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#888' }} axisLine={{ stroke: '#e0e0e0' }} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: '#888' }} axisLine={{ stroke: '#e0e0e0' }} tickLine={false} />
+              <Tooltip
+                content={<CumulativeDaysTooltip />}
+                cursor={{ stroke: '#6a994e', strokeWidth: 1, strokeDasharray: '4 4' }}
+                contentStyle={{ border: 'none', background: 'transparent', padding: 0 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="days"
+                stroke="#6a994e"
+                strokeWidth={3}
+                dot={{ r: 5, fill: '#6a994e', stroke: '#fff', strokeWidth: 2 }}
+                activeDot={{ r: 8, fill: '#6a994e', stroke: '#fff', strokeWidth: 3 }}
+                animationDuration={600}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       <Modal
-        title={`${selectedTag} 相关书籍`}
+        title={`标签「${selectedTag}」相关书籍`}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         footer={null}
+        width={520}
+        destroyOnClose
       >
-        <ul className="space-y-2">
-          {tagBooks.map((b: Book) => (
-            <li key={b.id} className="p-3 bg-gray-50 rounded-lg">
-              <div className="font-medium">{b.title}</div>
-              <div className="text-sm text-gray-500">{b.author}</div>
-            </li>
-          ))}
-          {tagBooks.length === 0 && <li className="text-gray-400 text-center py-4">暂无书籍</li>}
-        </ul>
+        {tagBooks.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 400, overflowY: 'auto' }}>
+            {tagBooks.map((b: Book) => (
+              <div
+                key={b.id}
+                style={{
+                  padding: 14,
+                  background: '#fafaf5',
+                  borderRadius: 8,
+                  display: 'flex',
+                  gap: 12,
+                  border: '1px solid rgba(106, 153, 78, 0.1)',
+                }}
+              >
+                <div style={{
+                  width: 48,
+                  height: 64,
+                  borderRadius: 4,
+                  background: b.coverUrl ? `url(${b.coverUrl}) center/cover` : 'linear-gradient(135deg, #e8f5e1, #f0f7eb)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 20,
+                  flexShrink: 0,
+                }}>
+                  {!b.coverUrl && '📖'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, color: '#2d4a1a', marginBottom: 4 }}>{b.title}</div>
+                  <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>{b.author}</div>
+                  <div style={{ fontSize: 12, color: '#6a994e' }}>
+                    进度: {b.totalPages > 0 ? Math.round((b.currentPage / b.totalPages) * 100) : 0}%
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Empty description="暂无该标签下的书籍" />
+        )}
       </Modal>
     </div>
   );

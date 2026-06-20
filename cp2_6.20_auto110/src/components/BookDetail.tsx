@@ -1,13 +1,23 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Modal, Input, Form, Button } from 'antd';
-import { ArrowLeft, Plus, Play, Pause, Quote, Trash2, Clock } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
+import { ArrowLeft, Plus, Play, Pause, Quote, Trash2, Clock, Search } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/store';
-import type { Note, Highlight } from '@/types';
+import type { Note, Highlight, Book } from '@/types';
 
-const NOTE_COLORS = ['#6a994e', '#bc4749', '#e76f51', '#f4a261', '#2a9d8f'];
+const TAG_COLOR_MAP: Record<string, string> = {
+  '小说': '#6a994e',
+  '历史': '#bc4749',
+  '科幻': '#2a9d8f',
+  '哲学': '#264653',
+  '传记': '#e76f51',
+  '科普': '#f4a261',
+  '文学': '#e9c46a',
+  '技术': '#a7c957',
+};
+const DEFAULT_NOTE_COLOR = '#6a994e';
+const PAGES_PER_HOUR = 30;
 
 function formatTimer(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -28,24 +38,44 @@ function renderMarkdown(text: string): string {
     }
     if (/^### /.test(trimmed)) {
       if (inList) { result.push('</ul>'); inList = false; }
-      result.push(`<h3>${trimmed.slice(4)}</h3>`);
+      result.push(`<h3 style="font-size:14px;margin:4px 0;font-weight:600;">${trimmed.slice(4)}</h3>`);
     } else if (/^## /.test(trimmed)) {
       if (inList) { result.push('</ul>'); inList = false; }
-      result.push(`<h2>${trimmed.slice(3)}</h2>`);
+      result.push(`<h2 style="font-size:16px;margin:6px 0;font-weight:600;">${trimmed.slice(3)}</h2>`);
     } else if (/^# /.test(trimmed)) {
       if (inList) { result.push('</ul>'); inList = false; }
-      result.push(`<h1>${trimmed.slice(2)}</h1>`);
+      result.push(`<h1 style="font-size:18px;margin:8px 0;font-weight:700;">${trimmed.slice(2)}</h1>`);
     } else if (/^- /.test(trimmed)) {
-      if (!inList) { result.push('<ul>'); inList = true; }
-      result.push(`<li>${trimmed.slice(2)}</li>`);
+      if (!inList) { result.push('<ul style="padding-left:20px;margin:4px 0;">'); inList = true; }
+      const processed = trimmed.slice(2).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      result.push(`<li style="margin:2px 0;">${processed}</li>`);
     } else {
       if (inList) { result.push('</ul>'); inList = false; }
       const processed = trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      result.push(`<p>${processed}</p>`);
+      result.push(`<p style="margin:4px 0;">${processed}</p>`);
     }
   }
   if (inList) result.push('</ul>');
   return result.join('');
+}
+
+function getNoteColorByTags(tags: string[], fallbackIndex: number): string {
+  if (tags && tags.length > 0) {
+    for (const t of tags) {
+      if (TAG_COLOR_MAP[t]) return TAG_COLOR_MAP[t];
+    }
+  }
+  const palette = Object.values(TAG_COLOR_MAP);
+  return palette[fallbackIndex % palette.length];
+}
+
+function useDebounced<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
 }
 
 export default function BookDetail() {
@@ -62,18 +92,10 @@ export default function BookDetail() {
     timerRunning, timerSeconds, timerBookId, timerChapterId,
   } = useStore();
 
-  const book = books.find(b => b.id === bookId);
+  const book = books.find(b => b.id === bookId) as Book | undefined;
   const bookChapters = useMemo(
     () => chapters.filter(c => c.bookId === bookId).sort((a, b) => a.order - b.order),
     [chapters, bookId]
-  );
-  const chapterNotes = useMemo(
-    () => notes.filter(n => n.chapterId === currentChapterId),
-    [notes, currentChapterId]
-  );
-  const chapterHighlights = useMemo(
-    () => highlights.filter(h => h.chapterId === currentChapterId),
-    [highlights, currentChapterId]
   );
 
   const [noteModalOpen, setNoteModalOpen] = useState(false);
@@ -85,6 +107,9 @@ export default function BookDetail() {
   const [pageInputVisible, setPageInputVisible] = useState(false);
   const [pageInputValue, setPageInputValue] = useState('');
   const [form] = Form.useForm();
+  const [noteSearchQuery, setNoteSearchQuery] = useState('');
+  const debouncedSearch = useDebounced(noteSearchQuery, 250);
+  const searchStartRef = useRef<number>(0);
 
   useEffect(() => {
     const onResize = () => setIsTablet(window.innerWidth <= 768);
@@ -98,6 +123,14 @@ export default function BookDetail() {
     }
   }, [currentChapterId, bookChapters, setCurrentChapter]);
 
+  useEffect(() => {
+    return () => {
+      if (timerRunning && timerBookId === bookId) {
+        pauseTimer();
+      }
+    };
+  }, [bookId]);
+
   const isTimerForThisChapter = timerBookId === bookId && timerChapterId === currentChapterId;
   const displaySeconds = isTimerForThisChapter ? timerSeconds : 0;
   const isRunning = timerRunning && isTimerForThisChapter;
@@ -108,24 +141,62 @@ export default function BookDetail() {
     return () => clearInterval(interval);
   }, [isRunning, tickTimer]);
 
+  const searchAndFilter = useCallback((allNotes: Note[], query: string) => {
+    searchStartRef.current = performance.now();
+    if (!query.trim()) {
+      return allNotes;
+    }
+    const q = query.trim().toLowerCase();
+    const results = allNotes.filter(n => n.content.toLowerCase().includes(q));
+    const elapsed = performance.now() - searchStartRef.current;
+    return results;
+  }, []);
+
+  const chapterNotes = useMemo(
+    () => searchAndFilter(notes.filter(n => n.chapterId === currentChapterId).sort((a, b) =>
+      dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf()
+    ), debouncedSearch),
+    [notes, currentChapterId, debouncedSearch, searchAndFilter]
+  );
+
+  const chapterHighlights = useMemo(
+    () => highlights.filter(h => h.chapterId === currentChapterId).sort((a, b) =>
+      dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf()
+    ),
+    [highlights, currentChapterId]
+  );
+
   const handleStartTimer = useCallback(() => {
     if (currentChapterId) startTimer(bookId, currentChapterId);
   }, [bookId, currentChapterId, startTimer]);
 
   const handlePauseTimer = useCallback(() => {
+    if (!timerBookId || !book) {
+      pauseTimer();
+      return;
+    }
+    const elapsedSeconds = timerSeconds;
     pauseTimer();
-  }, [pauseTimer]);
+    if (elapsedSeconds > 60 && book.totalPages > 0) {
+      const hoursRead = elapsedSeconds / 3600;
+      const pagesRead = Math.max(1, Math.round(hoursRead * PAGES_PER_HOUR));
+      const newPage = Math.min(book.currentPage + pagesRead, book.totalPages);
+      if (newPage !== book.currentPage) {
+        updateProgress(book.id, newPage);
+      }
+    }
+  }, [timerBookId, timerSeconds, book, pauseTimer, updateProgress]);
 
   const handleAddChapter = useCallback(() => {
     if (!chapterName.trim()) return;
-    addChapter({ id: uuidv4(), bookId, name: chapterName.trim(), order: bookChapters.length });
+    addChapter(bookId, chapterName.trim());
     setChapterName('');
     setChapterInputVisible(false);
-  }, [chapterName, addChapter, bookId, bookChapters.length]);
+  }, [chapterName, addChapter, bookId]);
 
   const handleAddNote = useCallback(() => {
     if (!noteContent.trim() || !currentChapterId) return;
-    addNote({ id: uuidv4(), chapterId: currentChapterId, content: noteContent.trim(), createdAt: new Date().toISOString() });
+    addNote(currentChapterId, noteContent.trim());
     setNoteContent('');
     setNoteModalOpen(false);
   }, [noteContent, currentChapterId, addNote]);
@@ -133,21 +204,15 @@ export default function BookDetail() {
   const handleAddHighlight = useCallback(() => {
     const values = form.getFieldsValue();
     if (!values.text?.trim() || !currentChapterId) return;
-    addHighlight({
-      id: uuidv4(),
-      chapterId: currentChapterId,
-      text: values.text.trim(),
-      pageLocation: values.pageLocation?.trim() || '',
-      createdAt: new Date().toISOString(),
-    });
+    addHighlight(currentChapterId, values.text.trim(), values.pageLocation?.trim() || '');
     form.resetFields();
     setHighlightModalOpen(false);
   }, [currentChapterId, addHighlight, form]);
 
   const handleChapterClick = useCallback((chapterId: string) => {
-    if (isRunning) pauseTimer();
+    if (isRunning) handlePauseTimer();
     setCurrentChapter(chapterId);
-  }, [isRunning, pauseTimer, setCurrentChapter]);
+  }, [isRunning, handlePauseTimer, setCurrentChapter]);
 
   const handlePageSubmit = useCallback(() => {
     const page = parseInt(pageInputValue, 10);
@@ -264,7 +329,7 @@ export default function BookDetail() {
   );
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#fafaf8' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#faf5ef' }}>
       <div style={{ padding: '16px 24px', borderBottom: '1px solid #e5e5e5', background: '#fff', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
           <button
@@ -287,6 +352,7 @@ export default function BookDetail() {
             <button
               onClick={isRunning ? handlePauseTimer : handleStartTimer}
               disabled={!currentChapterId}
+              title={isRunning ? '暂停并同步进度' : '开始计时阅读'}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 width: 32, height: 32, border: 'none', borderRadius: '50%',
@@ -300,7 +366,7 @@ export default function BookDetail() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ flex: 1, height: 6, background: '#e5e5e5', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg, #6a994e, #a7c957)', borderRadius: 3, transition: 'width 0.3s' }} />
+            <div style={{ width: `${progress}%`, height: '100%', backgroundImage: 'linear-gradient(to right, #6a994e, #a7c957)', borderRadius: 3, transition: 'width 0.3s' }} />
           </div>
           {pageInputVisible ? (
             <input
@@ -333,38 +399,61 @@ export default function BookDetail() {
             </div>
           ) : (
             <>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Button icon={<Plus size={14} />} onClick={() => setNoteModalOpen(true)}>添加笔记</Button>
                 <Button icon={<Plus size={14} />} onClick={() => setHighlightModalOpen(true)}>添加高亮</Button>
+                <div style={{ position: 'relative', marginLeft: 'auto', width: 240, maxWidth: '100%' }}>
+                  <Input
+                    prefix={<Search size={14} color="#999" />}
+                    placeholder="搜索笔记内容..."
+                    value={noteSearchQuery}
+                    onChange={(e) => setNoteSearchQuery(e.target.value)}
+                    allowClear
+                    style={{ width: '100%' }}
+                  />
+                </div>
               </div>
 
               {chapterNotes.length > 0 && (
                 <div style={{ marginBottom: 32 }}>
-                  <h3 style={{ margin: '0 0 16px 0', fontSize: 16, fontWeight: 600, color: '#333' }}>笔记</h3>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: 16, fontWeight: 600, color: '#333' }}>
+                    笔记 {noteSearchQuery && `(${chapterNotes.length} 条匹配)`}
+                  </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {chapterNotes.map((note, idx) => (
-                      <div key={note.id} style={{ display: 'flex', background: '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-                        <div style={{ width: 4, background: NOTE_COLORS[idx % NOTE_COLORS.length], flexShrink: 0 }} />
-                        <div style={{ flex: 1, padding: '12px 16px', minWidth: 0 }}>
-                          <div
-                            style={{ fontSize: 14, lineHeight: 1.6, wordBreak: 'break-word' }}
-                            dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}
-                          />
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                            <span style={{ fontSize: 12, color: '#999' }}>{dayjs(note.createdAt).format('YYYY-MM-DD HH:mm')}</span>
-                            <button
-                              onClick={() => deleteNote(note.id)}
-                              style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', color: '#bbb', cursor: 'pointer', fontSize: 12, padding: '2px 6px', borderRadius: 4 }}
-                              onMouseEnter={e => e.currentTarget.style.color = '#bc4749'}
-                              onMouseLeave={e => e.currentTarget.style.color = '#bbb'}
-                            >
-                              <Trash2 size={14} /> 删除
-                            </button>
+                    {chapterNotes.map((note, idx) => {
+                      const barColor = book.tags?.length > 0
+                        ? (TAG_COLOR_MAP[book.tags[idx % book.tags.length]] || getNoteColorByTags(book.tags, idx))
+                        : getNoteColorByTags([], idx);
+                      return (
+                        <div key={note.id} style={{ display: 'flex', background: '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                          <div style={{ width: 4, background: barColor, flexShrink: 0 }} />
+                          <div style={{ flex: 1, padding: '12px 16px', minWidth: 0 }}>
+                            <div
+                              style={{ fontSize: 14, lineHeight: 1.6, wordBreak: 'break-word', color: '#333' }}
+                              dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}
+                            />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                              <span style={{ fontSize: 12, color: '#999' }}>{dayjs(note.createdAt).format('YYYY-MM-DD HH:mm')}</span>
+                              <button
+                                onClick={() => deleteNote(note.id)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', color: '#bbb', cursor: 'pointer', fontSize: 12, padding: '2px 6px', borderRadius: 4 }}
+                                onMouseEnter={e => e.currentTarget.style.color = '#bc4749'}
+                                onMouseLeave={e => e.currentTarget.style.color = '#bbb'}
+                              >
+                                <Trash2 size={14} /> 删除
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                </div>
+              )}
+
+              {chapterNotes.length === 0 && noteSearchQuery && (
+                <div style={{ marginBottom: 24, textAlign: 'center', color: '#aaa', fontSize: 14 }}>
+                  未找到包含 "{noteSearchQuery}" 的笔记
                 </div>
               )}
 
@@ -400,7 +489,7 @@ export default function BookDetail() {
                 </div>
               )}
 
-              {chapterNotes.length === 0 && chapterHighlights.length === 0 && (
+              {chapterNotes.length === 0 && chapterHighlights.length === 0 && !noteSearchQuery && (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200, color: '#ccc', fontSize: 15 }}>
                   暂无笔记和高亮
                 </div>
