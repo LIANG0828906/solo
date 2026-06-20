@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { Season } from './oceanCurrents';
-import { getAllCurrentIds } from './oceanCurrents';
+import type { Season, OceanCurrent } from './oceanCurrents';
+import { getSeasonalCurrents, getAllCurrentIds } from './oceanCurrents';
 
 interface AppState {
   season: Season;
@@ -11,6 +11,9 @@ interface AppState {
   isTransitioning: boolean;
   transitionProgress: number;
 
+  readonly activeSeasonalCurrentIds: string[];
+  readonly previousSeasonalCurrentIds: string[];
+
   setSeason: (season: string) => void;
   toggleCurrent: (id: string) => void;
   setParticleSpeed: (speed: number) => void;
@@ -18,56 +21,108 @@ interface AppState {
   startTransition: () => void;
   updateTransitionProgress: (progress: number) => void;
   endTransition: () => void;
+
+  lerpTemperature: (prevTemp: number, nextTemp: number, progress: number) => number;
+  getSeasonalOpacity: (currentId: string, progress: number) => number;
 }
 
 const allCurrentIds = getAllCurrentIds();
 
-export const useAppStore = create<AppState>((set) => ({
-  season: 'spring',
-  previousSeason: 'spring',
-  visibleCurrents: allCurrentIds,
-  particleSpeed: 2,
-  highlightedCurrent: null,
-  isTransitioning: false,
-  transitionProgress: 0,
+function computeSeasonalCurrentIds(season: Season): string[] {
+  return getSeasonalCurrents(season).map((c: OceanCurrent) => c.id);
+}
 
-  setSeason: (season: string) =>
-    set((state) => ({
-      previousSeason: state.season,
-      season: season as Season,
-    })),
+export const useAppStore = create<AppState>((set, get) => {
+  const state: AppState = {
+    season: 'spring',
+    previousSeason: 'spring',
+    visibleCurrents: allCurrentIds,
+    particleSpeed: 2,
+    highlightedCurrent: null,
+    isTransitioning: false,
+    transitionProgress: 0,
 
-  toggleCurrent: (id: string) =>
-    set((state) => ({
-      visibleCurrents: state.visibleCurrents.includes(id)
-        ? state.visibleCurrents.filter((currentId) => currentId !== id)
-        : [...state.visibleCurrents, id],
-    })),
+    get activeSeasonalCurrentIds(): string[] {
+      return computeSeasonalCurrentIds(get().season);
+    },
 
-  setParticleSpeed: (speed: number) =>
-    set(() => ({
-      particleSpeed: Math.max(1, Math.min(5, speed)),
-    })),
+    get previousSeasonalCurrentIds(): string[] {
+      return computeSeasonalCurrentIds(get().previousSeason);
+    },
 
-  setHighlightedCurrent: (id: string | null) =>
-    set(() => ({
-      highlightedCurrent: id,
-    })),
+    setSeason: (season: string) =>
+      set((state) => {
+        const newSeason = season as Season;
+        if (state.season === newSeason) {
+          return {};
+        }
+        const partial = {
+          previousSeason: state.season,
+          season: newSeason,
+        };
+        queueMicrotask(() => {
+          get().startTransition();
+        });
+        return partial;
+      }),
 
-  startTransition: () =>
-    set(() => ({
-      isTransitioning: true,
-      transitionProgress: 0,
-    })),
+    toggleCurrent: (id: string) =>
+      set((state) => ({
+        visibleCurrents: state.visibleCurrents.includes(id)
+          ? state.visibleCurrents.filter((currentId) => currentId !== id)
+          : [...state.visibleCurrents, id],
+      })),
 
-  updateTransitionProgress: (progress: number) =>
-    set(() => ({
-      transitionProgress: Math.max(0, Math.min(1, progress)),
-    })),
+    setParticleSpeed: (speed: number) =>
+      set(() => ({
+        particleSpeed: Math.max(1, Math.min(5, speed)),
+      })),
 
-  endTransition: () =>
-    set(() => ({
-      isTransitioning: false,
-      transitionProgress: 0,
-    })),
-}));
+    setHighlightedCurrent: (id: string | null) =>
+      set((state) => ({
+        highlightedCurrent: state.highlightedCurrent === id ? null : id,
+      })),
+
+    startTransition: () =>
+      set(() => ({
+        isTransitioning: true,
+        transitionProgress: 0,
+      })),
+
+    updateTransitionProgress: (progress: number) =>
+      set(() => ({
+        transitionProgress: Math.max(0, Math.min(1, progress)),
+      })),
+
+    endTransition: () =>
+      set(() => ({
+        isTransitioning: false,
+        transitionProgress: 0,
+      })),
+
+    lerpTemperature: (prevTemp: number, nextTemp: number, progress: number): number => {
+      const p = Math.max(0, Math.min(1, progress));
+      return prevTemp + (nextTemp - prevTemp) * p;
+    },
+
+    getSeasonalOpacity: (currentId: string, progress: number): number => {
+      const p = Math.max(0, Math.min(1, progress));
+      const { activeSeasonalCurrentIds, previousSeasonalCurrentIds } = get();
+      const inActive = activeSeasonalCurrentIds.includes(currentId);
+      const inPrevious = previousSeasonalCurrentIds.includes(currentId);
+
+      if (inActive && inPrevious) {
+        return 1;
+      }
+      if (inActive && !inPrevious) {
+        return p;
+      }
+      if (!inActive && inPrevious) {
+        return 1 - p;
+      }
+      return 0;
+    },
+  };
+
+  return state;
+});
