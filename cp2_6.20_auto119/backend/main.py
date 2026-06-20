@@ -41,8 +41,8 @@ def get_today_str():
 @app.get("/habits")
 def get_habits(db: Session = Depends(get_db)):
     records = db.query(HabitRecord.habit_name).distinct().all()
-    habits = [r[0] for r in records]
-    return {"habits": habits}
+    habits = [{"name": r[0]} for r in records]
+    return habits
 
 
 @app.post("/habits")
@@ -52,11 +52,12 @@ def add_habit(habit_data: HabitName, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="最多只能添加10个习惯")
     
     today = get_today_str()
+    habit_name = habit_data.habit_name or habit_data.name
     
     existing = (
         db.query(HabitRecord)
         .filter(
-            HabitRecord.habit_name == habit_data.habit_name,
+            HabitRecord.habit_name == habit_name,
             HabitRecord.date == today,
         )
         .first()
@@ -65,14 +66,13 @@ def add_habit(habit_data: HabitName, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="该习惯已存在")
     
     new_record = HabitRecord(
-        habit_name=habit_data.habit_name,
+        habit_name=habit_name,
         date=today,
         completed=False,
     )
     db.add(new_record)
     db.commit()
-    db.refresh(new_record)
-    return {"message": "习惯添加成功"}
+    return {"name": habit_name}
 
 
 @app.delete("/habits/{habit_name}")
@@ -89,6 +89,23 @@ def delete_habit(habit_name: str, db: Session = Depends(get_db)):
         db.delete(record)
     db.commit()
     return {"message": "习惯删除成功"}
+
+
+@app.delete("/records")
+def delete_record(habit_name: str, date: str, db: Session = Depends(get_db)):
+    record = (
+        db.query(HabitRecord)
+        .filter(
+            HabitRecord.habit_name == habit_name,
+            HabitRecord.date == date,
+        )
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    db.delete(record)
+    db.commit()
+    return {"message": "记录删除成功"}
 
 
 @app.post("/habits/toggle")
@@ -108,7 +125,7 @@ def toggle_habit(toggle_data: ToggleRecord, db: Session = Depends(get_db)):
         db.refresh(record)
         return {
             "id": record.id,
-            "habit_name": record.habit_name,
+            "habitName": record.habit_name,
             "date": record.date,
             "completed": record.completed,
         }
@@ -123,7 +140,7 @@ def toggle_habit(toggle_data: ToggleRecord, db: Session = Depends(get_db)):
         db.refresh(new_record)
         return {
             "id": new_record.id,
-            "habit_name": new_record.habit_name,
+            "habitName": new_record.habit_name,
             "date": new_record.date,
             "completed": new_record.completed,
         }
@@ -150,14 +167,12 @@ def get_records(
     for habit_name in habit_names:
         record = next((r for r in records if r.habit_name == habit_name), None)
         if record:
-            result_records.append(
-                HabitRecordResponse(
-                    id=record.id,
-                    habit_name=record.habit_name,
-                    date=record.date,
-                    completed=record.completed,
-                )
-            )
+            result_records.append({
+                "id": record.id,
+                "habitName": record.habit_name,
+                "date": record.date,
+                "completed": record.completed,
+            })
         else:
             new_record = HabitRecord(
                 habit_name=habit_name,
@@ -167,16 +182,14 @@ def get_records(
             db.add(new_record)
             db.commit()
             db.refresh(new_record)
-            result_records.append(
-                HabitRecordResponse(
-                    id=new_record.id,
-                    habit_name=new_record.habit_name,
-                    date=new_record.date,
-                    completed=new_record.completed,
-                )
-            )
+            result_records.append({
+                "id": new_record.id,
+                "habitName": new_record.habit_name,
+                "date": new_record.date,
+                "completed": new_record.completed,
+            })
     
-    return {"records": result_records}
+    return result_records
 
 
 @app.get("/stats")
@@ -208,13 +221,13 @@ def get_stats(
         )
         
         completed_count = sum(1 for r in records if r.completed)
-        completion_rate = (completed_count / total_habits * 100) if total_habits > 0 else 0
+        percentage = round((completed_count / total_habits * 100), 1) if total_habits > 0 else 0
         
         daily_stats.append({
             "date": current_date_str,
-            "completed_count": completed_count,
-            "total_habits": total_habits,
-            "completion_rate": round(completion_rate, 1),
+            "completed": completed_count,
+            "total": total_habits,
+            "percentage": percentage,
         })
         
         for r in records:
@@ -222,11 +235,29 @@ def get_stats(
                 habit_stats_dict[r.habit_name] += 1
     
     habit_stats = [
-        {"habit_name": name, "completed_days": count}
+        {
+            "habitName": name,
+            "completedDays": count,
+            "totalDays": days,
+            "percentage": round((count / days * 100), 1) if days > 0 else 0,
+            "currentStreak": 0,
+            "longestStreak": 0,
+        }
         for name, count in habit_stats_dict.items()
     ]
+
+    overall_total = sum(1 for d in daily_stats if d["completed"] > 0)
     
-    return {"daily_stats": daily_stats, "habit_stats": habit_stats}
+    return {
+        "habits": habit_stats,
+        "daily": daily_stats,
+        "overall": {
+            "totalHabits": total_habits,
+            "totalRecords": len(daily_stats) * total_habits,
+            "avgCompletion": round(sum(d["percentage"] for d in daily_stats) / max(len(daily_stats), 1), 1),
+            "bestStreak": overall_total,
+        },
+    }
 
 
 @app.get("/heatmap")

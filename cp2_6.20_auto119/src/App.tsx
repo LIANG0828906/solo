@@ -19,6 +19,9 @@ import {
   Col,
   Checkbox,
   Tooltip,
+  Select,
+  Switch,
+  Empty,
 } from 'antd';
 import {
   CheckOutlined,
@@ -30,9 +33,10 @@ import {
 } from '@ant-design/icons';
 import { useHabits } from './hooks/useHabits';
 import { useHabitsStore } from './store/useHabitsStore';
-import { getHabitColor, getHeatmapColor } from './utils/habitColors';
+import { getHabitColor, getHeatmapColor, getHeatmapPalette, HEATMAP_THEME_LABELS } from './utils/habitColors';
 import type { MenuProps } from 'antd';
 import type { Habit, HabitRecord, HeatmapDataItem, DailyStats } from './types';
+import type { HeatmapTheme } from './utils/habitColors';
 
 const { Header, Content, Sider } = Layout;
 const { Title, Text } = Typography;
@@ -43,14 +47,22 @@ const CalendarHeatmap: React.FC<{
   habits: { name: string; color: string }[];
   selectedHabits: string[];
   onSelectedHabitsChange: (habits: string[]) => void;
-  onDateClick: (date: string) => void;
-}> = ({ data, habits, selectedHabits, onSelectedHabitsChange, onDateClick }) => {
-  const currentYear = dayjs().year();
-  const startDate = dayjs(`${currentYear}-01-01`);
-  const endDate = dayjs(`${currentYear}-12-31`);
+  onDateClick: (date: string, habitDetails?: Record<string, boolean>) => void;
+  theme: HeatmapTheme;
+  year: number;
+  onYearChange: (year: number) => void;
+  onThemeChange: (theme: HeatmapTheme) => void;
+}> = ({ data, habits, selectedHabits, onSelectedHabitsChange, onDateClick, theme, year, onYearChange, onThemeChange }) => {
+  const startDate = dayjs(`${year}-01-01`);
+  const endDate = dayjs(`${year}-12-31`);
   const totalDays = endDate.diff(startDate, 'day') + 1;
 
   const [hoveredDay, setHoveredDay] = useState<{ item: HeatmapDataItem; x: number; y: number } | null>(null);
+
+  const years = useMemo(() => {
+    const current = dayjs().year();
+    return Array.from({ length: 5 }, (_, i) => current - 4 + i);
+  }, []);
 
   const handleCheckboxChange = (checkedValues: string[]) => {
     if (checkedValues.length === 0) {
@@ -115,6 +127,7 @@ const CalendarHeatmap: React.FC<{
   }, [weeks]);
 
   const weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+  const palette = getHeatmapPalette(theme);
 
   const buildTooltipContent = (item: HeatmapDataItem) => {
     const dateStr = dayjs(item.date).format('YYYY年M月D日');
@@ -130,130 +143,182 @@ const CalendarHeatmap: React.FC<{
     } else {
       lines.push(`完成 ${item.count}/${item.total}`);
     }
+    lines.push('点击编辑');
     return lines.join('\n');
   };
 
   return (
     <div style={{ padding: '16px 0' }}>
-      {habits.length > 0 && (
-        <div style={{ marginBottom: '16px' }}>
-          <Text style={{ fontSize: '13px', color: '#6b7280', marginRight: '12px' }}>筛选习惯:</Text>
-          <Checkbox.Group
-            value={effectiveSelected}
-            onChange={(vals) => handleCheckboxChange(vals as string[])}
-            style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '8px' }}
-          >
-            {habits.map((habit) => (
-              <Checkbox key={habit.name} value={habit.name}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: habit.color,
-                    }}
-                  />
-                  <span style={{ fontSize: '13px' }}>{habit.name}</span>
-                </span>
-              </Checkbox>
+      <Row gutter={[12, 12]} style={{ marginBottom: '16px' }}>
+        <Col xs={24} sm={12} md={6}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Text style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>年份:</Text>
+            <Select
+              value={year}
+              onChange={onYearChange}
+              style={{ flex: 1 }}
+              size="small"
+            >
+              {years.map((y) => (
+                <Select.Option key={y} value={y}>{y}年</Select.Option>
+              ))}
+            </Select>
+          </div>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Text style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>主题:</Text>
+            <Select
+              value={theme}
+              onChange={onThemeChange}
+              style={{ flex: 1 }}
+              size="small"
+            >
+              {(['green', 'blue', 'red'] as HeatmapTheme[]).map((t) => (
+                <Select.Option key={t} value={t}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '2px',
+                        background: `linear-gradient(90deg, ${getHeatmapPalette(t)[1]}, ${getHeatmapPalette(t)[4]})`,
+                      }}
+                    />
+                    {HEATMAP_THEME_LABELS[t]}
+                  </span>
+                </Select.Option>
+              ))}
+            </Select>
+          </div>
+        </Col>
+        <Col xs={24} md={12}>
+          {habits.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <Text style={{ fontSize: '13px', color: '#6b7280' }}>筛选习惯:</Text>
+              <Checkbox.Group
+                value={effectiveSelected}
+                onChange={(vals) => handleCheckboxChange(vals as string[])}
+                style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '8px' }}
+              >
+                {habits.map((habit) => (
+                  <Checkbox key={habit.name} value={habit.name}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: habit.color,
+                        }}
+                      />
+                      <span style={{ fontSize: '13px' }}>{habit.name}</span>
+                    </span>
+                  </Checkbox>
+                ))}
+              </Checkbox.Group>
+            </div>
+          )}
+        </Col>
+      </Row>
+
+      {habits.length === 0 ? (
+        <Empty description="暂无习惯，请先添加习惯" style={{ padding: '40px 0' }} />
+      ) : (
+        <div style={{ position: 'relative', overflowX: 'auto' }}>
+          <div style={{ display: 'flex', marginBottom: '8px', paddingLeft: '40px', minWidth: `${40 + weeks.length * 14}px` }}>
+            {monthLabels.map((month, idx) => (
+              <span
+                key={idx}
+                style={{
+                  position: 'absolute',
+                  left: `${40 + month.weekIndex * 14}px`,
+                  fontSize: '12px',
+                  color: '#6b7280',
+                }}
+              >
+                {month.label}
+              </span>
             ))}
-          </Checkbox.Group>
+          </div>
+          <div style={{ display: 'flex', marginTop: '20px', minWidth: `${40 + weeks.length * 14}px` }}>
+            <div style={{ width: '30px', flexShrink: 0 }}>
+              {weekdayLabels.map((day, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    height: '12px',
+                    marginBottom: '2px',
+                    fontSize: '10px',
+                    color: '#6b7280',
+                    lineHeight: '12px',
+                  }}
+                >
+                  {idx % 2 === 1 ? day : ''}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '2px' }}>
+              {weeks.map((week, weekIdx) => (
+                <div key={weekIdx} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {week.map((day, dayIdx) => (
+                    <div
+                      key={dayIdx}
+                      onClick={() => day && onDateClick(day.date, day.habitDetails)}
+                      onMouseEnter={(e) => {
+                        if (day) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setHoveredDay({ item: day, x: rect.left + rect.width / 2, y: rect.top });
+                        }
+                      }}
+                      onMouseLeave={() => setHoveredDay(null)}
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '2px',
+                        backgroundColor: day
+                          ? getHeatmapColor(day.count, day.total, theme)
+                          : 'transparent',
+                        cursor: day ? 'pointer' : 'default',
+                        transition: 'all 0.2s ease',
+                      }}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {hoveredDay && (
+            <div
+              style={{
+                position: 'fixed',
+                left: hoveredDay.x,
+                top: hoveredDay.y - 8,
+                transform: 'translate(-50%, -100%)',
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                color: '#fff',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                lineHeight: '1.6',
+                whiteSpace: 'pre-line',
+                zIndex: 1000,
+                pointerEvents: 'none',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              }}
+            >
+              {buildTooltipContent(hoveredDay.item)}
+            </div>
+          )}
         </div>
       )}
 
-      <div style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', marginBottom: '8px', paddingLeft: '40px' }}>
-          {monthLabels.map((month, idx) => (
-            <span
-              key={idx}
-              style={{
-                position: 'absolute',
-                left: `${40 + month.weekIndex * 14}px`,
-                fontSize: '12px',
-                color: '#6b7280',
-              }}
-            >
-              {month.label}
-            </span>
-          ))}
-        </div>
-        <div style={{ display: 'flex', marginTop: '20px' }}>
-          <div style={{ width: '30px', flexShrink: 0 }}>
-            {weekdayLabels.map((day, idx) => (
-              <div
-                key={idx}
-                style={{
-                  height: '12px',
-                  marginBottom: '2px',
-                  fontSize: '10px',
-                  color: '#6b7280',
-                  lineHeight: '12px',
-                }}
-              >
-                {idx % 2 === 1 ? day : ''}
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: '2px' }}>
-            {weeks.map((week, weekIdx) => (
-              <div key={weekIdx} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {week.map((day, dayIdx) => (
-                  <div
-                    key={dayIdx}
-                    onClick={() => day && onDateClick(day.date)}
-                    onMouseEnter={(e) => {
-                      if (day) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setHoveredDay({ item: day, x: rect.left + rect.width / 2, y: rect.top });
-                      }
-                    }}
-                    onMouseLeave={() => setHoveredDay(null)}
-                    style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '2px',
-                      backgroundColor: day
-                        ? getHeatmapColor(day.count, day.total)
-                        : 'transparent',
-                      cursor: day ? 'pointer' : 'default',
-                      transition: 'all 0.2s ease',
-                    }}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {hoveredDay && (
-          <div
-            style={{
-              position: 'fixed',
-              left: hoveredDay.x,
-              top: hoveredDay.y - 8,
-              transform: 'translate(-50%, -100%)',
-              backgroundColor: 'rgba(0,0,0,0.8)',
-              color: '#fff',
-              padding: '8px 12px',
-              borderRadius: '6px',
-              fontSize: '12px',
-              lineHeight: '1.6',
-              whiteSpace: 'pre-line',
-              zIndex: 1000,
-              pointerEvents: 'none',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            }}
-          >
-            {buildTooltipContent(hoveredDay.item)}
-          </div>
-        )}
-      </div>
-
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginTop: '12px', gap: '8px' }}>
         <Text type="secondary" style={{ fontSize: '12px' }}>少</Text>
-        {['#ebedf0', '#c6e48b', '#9be9a8', '#40c463', '#216e39'].map((color, idx) => (
+        {palette.map((color, idx) => (
           <div
             key={idx}
             style={{
@@ -472,17 +537,31 @@ const QuickCheckButton: React.FC<{
 };
 
 export default function App() {
-  const { refreshAll, toggleHabit, addHabit, deleteHabit, fetchHeatmap } = useHabits();
-  const { habits, records, heatmapData, stats, loading, selectedHabits, setSelectedHabits } = useHabitsStore();
+  const { refreshAll, toggleHabit, addHabit, deleteHabit, fetchHeatmap, deleteRecord } = useHabits();
+  const {
+    habits,
+    records,
+    heatmapData,
+    stats,
+    loading,
+    heatmapTheme,
+    heatmapYear,
+    setHeatmapTheme,
+    setHeatmapYear,
+    selectedHabits,
+    setSelectedHabits,
+  } = useHabitsStore();
   const { md } = useBreakpoint();
 
   const [inputValue, setInputValue] = useState('');
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedDateHabitDetails, setSelectedDateHabitDetails] = useState<Record<string, boolean> | undefined>(undefined);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [dateEditorStates, setDateEditorStates] = useState<Record<string, boolean>>({});
 
   const today = dayjs().format('YYYY-MM-DD');
 
@@ -503,9 +582,17 @@ export default function App() {
 
   useEffect(() => {
     if (selectedHabits.length > 0) {
-      fetchHeatmap(dayjs().year(), selectedHabits);
+      fetchHeatmap(heatmapYear, selectedHabits);
     }
-  }, [selectedHabits, fetchHeatmap]);
+  }, [selectedHabits, heatmapYear, fetchHeatmap]);
+
+  const handleHeatmapThemeChange = useCallback((theme: HeatmapTheme) => {
+    setHeatmapTheme(theme);
+  }, [setHeatmapTheme]);
+
+  const handleHeatmapYearChange = useCallback((year: number) => {
+    setHeatmapYear(year);
+  }, [setHeatmapYear]);
 
   const isHabitCompletedToday = useCallback(
     (habitName: string) => {
@@ -549,6 +636,35 @@ export default function App() {
     }
   };
 
+  const handleToggleHabitByDate = async (habitName: string, date: string) => {
+    try {
+      await toggleHabit(habitName, date);
+      setDateEditorStates((prev) => ({
+        ...prev,
+        [`${date}-${habitName}`]: !(prev[`${date}-${habitName}`] ?? false),
+      }));
+    } catch (err) {
+      // Error handled in hook
+    }
+  };
+
+  const handleDeleteRecord = async (habitName: string, date: string) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除 ${dayjs(date).format('YYYY年M月D日')} "${habitName}" 的记录吗？`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await deleteRecord(habitName, date);
+        } catch (err) {
+          // Error handled in hook
+        }
+      },
+    });
+  };
+
   const handleDeleteHabit = (habitName: string) => {
     Modal.confirm({
       title: '确认删除',
@@ -568,10 +684,11 @@ export default function App() {
     setEditModalVisible(true);
   };
 
-  const handleDateClick = (date: string) => {
+  const handleDateClick = useCallback((date: string, habitDetails?: Record<string, boolean>) => {
     setSelectedDate(date);
+    setSelectedDateHabitDetails(habitDetails);
     setModalVisible(true);
-  };
+  }, []);
 
   const selectedDateRecords = useMemo(
     () => (selectedDate ? getDateRecords(selectedDate) : []),
@@ -715,6 +832,10 @@ export default function App() {
                       selectedHabits={selectedHabits}
                       onSelectedHabitsChange={setSelectedHabits}
                       onDateClick={handleDateClick}
+                      theme={heatmapTheme}
+                      year={heatmapYear}
+                      onYearChange={handleHeatmapYearChange}
+                      onThemeChange={handleHeatmapThemeChange}
                     />
                   </Card>
 
@@ -818,6 +939,10 @@ export default function App() {
                     selectedHabits={selectedHabits}
                     onSelectedHabitsChange={setSelectedHabits}
                     onDateClick={handleDateClick}
+                    theme={heatmapTheme}
+                    year={heatmapYear}
+                    onYearChange={handleHeatmapYearChange}
+                    onThemeChange={handleHeatmapThemeChange}
                   />
                 </Card>
 
@@ -848,55 +973,97 @@ export default function App() {
           onClose={() => setDrawerVisible(false)}
           open={drawerVisible}
           width={300}
-          bodyStyle={{ padding: 0 }}
+          styles={{ body: { padding: 0 } }}
         >
           <HabitPanel />
         </Drawer>
 
         <Modal
-          title={`${selectedDate} 详情`}
+          title={`${dayjs(selectedDate).format('YYYY年M月D日')} 记录编辑`}
           open={modalVisible}
           onCancel={() => setModalVisible(false)}
           footer={[
-            <Button key="close" onClick={() => setModalVisible(false)}>
-              关闭
+            <Button key="close" type="primary" onClick={() => setModalVisible(false)}>
+              完成
             </Button>,
           ]}
+          width={420}
         >
           {selectedDateRecords.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
               <Text type="secondary">暂无记录</Text>
             </div>
           ) : (
-            <List
-              dataSource={selectedDateRecords}
-              renderItem={(item) => (
-                <List.Item
-                  style={{
-                    border: 'none',
-                    padding: '12px 0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div
-                      style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: getHabitColor(item.habit.name),
-                      }}
-                    />
-                    <Text>{item.habit.name}</Text>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {selectedDateRecords.map((item) => {
+                const key = `${selectedDate}-${item.habit.name}`;
+                const isCompleted = dateEditorStates[key] !== undefined ? dateEditorStates[key] : item.completed;
+                const color = getHabitColor(item.habit.name);
+                return (
+                  <div
+                    key={item.habit.name}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      backgroundColor: '#f9fafb',
+                      border: '1px solid #f0f0f0',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          backgroundColor: color,
+                        }}
+                      />
+                      <Text style={{ fontSize: '14px', color: '#1f2937' }}>{item.habit.name}</Text>
+                    </div>
+                    <Space size="middle">
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                      >
+                        <Switch
+                          checked={isCompleted}
+                          onChange={() => handleToggleHabitByDate(item.habit.name, selectedDate)}
+                          checkedChildren="已完成"
+                          unCheckedChildren="未完成"
+                        />
+                      </div>
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        onClick={() => handleDeleteRecord(item.habit.name, selectedDate)}
+                      />
+                    </Space>
                   </div>
-                  <Tag color={item.completed ? 'success' : 'default'}>
-                    {item.completed ? '已完成' : '未完成'}
-                  </Tag>
-                </List.Item>
-              )}
-            />
+                );
+              })}
+              <div
+                style={{
+                  marginTop: '4px',
+                  padding: '10px 12px',
+                  backgroundColor: '#f0f7ff',
+                  borderRadius: '8px',
+                  border: '1px solid #d6e4ff',
+                }}
+              >
+                <Text style={{ fontSize: '12px', color: '#597ef7' }}>
+                  💡 提示：使用开关可快速切换完成状态，垃圾桶图标删除该日记录。
+                </Text>
+              </div>
+            </div>
           )}
         </Modal>
 

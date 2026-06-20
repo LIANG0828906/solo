@@ -8,12 +8,16 @@ interface HabitsState {
   stats: StatsResponse | null;
   loading: boolean;
   error: string | null;
+  heatmapTheme: 'green' | 'blue' | 'red';
+  heatmapYear: number;
   setHabits: (habits: Habit[]) => void;
   setRecords: (records: HabitRecord[]) => void;
   setHeatmapData: (data: HeatmapDataItem[]) => void;
   setStats: (stats: StatsResponse | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setHeatmapTheme: (theme: 'green' | 'blue' | 'red') => void;
+  setHeatmapYear: (year: number) => void;
   selectedHabits: string[];
   setSelectedHabits: (habits: string[]) => void;
   toggleRecord: (habitName: string, date: string) => void;
@@ -28,6 +32,8 @@ export const useHabitsStore = create<HabitsState>((set) => ({
   stats: null,
   loading: false,
   error: null,
+  heatmapTheme: 'green',
+  heatmapYear: new Date().getFullYear(),
   selectedHabits: [],
 
   setHabits: (habits) => set({ habits }),
@@ -36,6 +42,8 @@ export const useHabitsStore = create<HabitsState>((set) => ({
   setStats: (stats) => set({ stats }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+  setHeatmapTheme: (heatmapTheme) => set({ heatmapTheme }),
+  setHeatmapYear: (heatmapYear) => set({ heatmapYear }),
   setSelectedHabits: (selectedHabits) => set({ selectedHabits }),
 
   toggleRecord: (habitName, date) =>
