@@ -129,6 +129,19 @@
   background: rgba(139, 90, 43, 0.2);
 }
 
+.equip-slot-box.drag-over {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.2);
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+  transform: scale(1.05);
+}
+
+.inventory-grid.drag-over {
+  border-color: #22c55e;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.05);
+}
+
 .slot-empty {
   font-size: 11px;
   color: #a07040;
@@ -140,6 +153,10 @@
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: repeat(6, 1fr);
   gap: 6px;
+  padding: 8px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  transition: all 0.2s;
 }
 
 .inventory-slot {
@@ -172,6 +189,19 @@
 
 .item-icon {
   font-size: 24px;
+  cursor: grab;
+  user-select: none;
+  display: inline-block;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.item-icon:active {
+  cursor: grabbing;
+}
+
+.item-icon.dragging {
+  opacity: 0.4;
+  transform: scale(0.9);
 }
 
 .item-quantity {

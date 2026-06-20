@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { Item, EquipmentSlot } from '../types';
 import './InventoryPanel.css';
 
+type DragSource = { type: 'inventory'; itemId: string } | { type: 'equipment'; slot: EquipmentSlot };
+
 function InventoryPanel() {
-  const { character, inventoryOpen, setInventoryOpen, useItem, equipItem, removeItem } =
+  const { character, inventoryOpen, setInventoryOpen, useItem, equipItem, unequipItem, removeItem } =
     useGameStore();
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [contextMenu, setContextMenu] = useState<{
@@ -12,6 +14,11 @@ function InventoryPanel() {
     x: number;
     y: number;
   } | null>(null);
+  const [dragSource, setDragSource] = useState<DragSource | null>(null);
+  const [dragOverSlot, setDragOverSlot] = useState<EquipmentSlot | null>(null);
+  const [dragOverInventory, setDragOverInventory] = useState(false);
+  const [flyingItem, setFlyingItem] = useState<{ item: Item; startX: number; startY: number } | null>(null);
+  const dragGhostRef = useRef<HTMLDivElement>(null);
 
   if (!inventoryOpen || !character) return null;
 
@@ -70,6 +77,121 @@ function InventoryPanel() {
     setInventoryOpen(false);
     setSelectedItem(null);
     setContextMenu(null);
+    setDragSource(null);
+    setDragOverSlot(null);
+    setDragOverInventory(false);
+  };
+
+  const handleDragStartInventory = (e: React.DragEvent, item: Item) => {
+    setDragSource({ type: 'inventory', itemId: item.id });
+    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', item.id);
+    } catch {
+    }
+    setTimeout(() => {
+      if (e.currentTarget instanceof HTMLElement) {
+        e.currentTarget.classList.add('dragging');
+      }
+    }, 0);
+  };
+
+  const handleDragStartEquipment = (e: React.DragEvent, slot: EquipmentSlot, item: Item) => {
+    setDragSource({ type: 'equipment', slot });
+    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', slot);
+    } catch {
+    }
+    setTimeout(() => {
+      if (e.currentTarget instanceof HTMLElement) {
+        e.currentTarget.classList.add('dragging');
+      }
+    }, 0);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setDragSource(null);
+    setDragOverSlot(null);
+    setDragOverInventory(false);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.classList.remove('dragging');
+    }
+  };
+
+  const handleDragOverSlot = (e: React.DragEvent, slot: EquipmentSlot) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!dragSource) return;
+    if (dragSource.type === 'inventory') {
+      const item = character.inventory.find((i) => i.id === dragSource.itemId);
+      if (item && item.slot === slot) {
+        setDragOverSlot(slot);
+      }
+    } else if (dragSource.type === 'equipment' && dragSource.slot === slot) {
+      setDragOverSlot(slot);
+    }
+  };
+
+  const handleDragLeaveSlot = () => {
+    setDragOverSlot(null);
+  };
+
+  const handleDropSlot = (e: React.DragEvent, slot: EquipmentSlot) => {
+    e.preventDefault();
+    if (!dragSource) return;
+
+    if (dragSource.type === 'inventory') {
+      const item = character.inventory.find((i) => i.id === dragSource.itemId);
+      if (item && item.slot === slot) {
+        equipItem(item.id, slot);
+      }
+    }
+
+    setDragSource(null);
+    setDragOverSlot(null);
+  };
+
+  const handleDragOverInventory = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragSource?.type === 'equipment') {
+      setDragOverInventory(true);
+    }
+  };
+
+  const handleDragLeaveInventory = () => {
+    setDragOverInventory(false);
+  };
+
+  const handleDropInventory = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (dragSource?.type === 'equipment') {
+      unequipItem(dragSource.slot);
+    }
+    setDragSource(null);
+    setDragOverInventory(false);
+  };
+
+  const handleDropToTrash = (e: React.DragEvent, item: Item, startX: number, startY: number) => {
+    e.preventDefault();
+    setFlyingItem({ item, startX, startY });
+    setTimeout(() => {
+      removeItem(item.id);
+      setFlyingItem(null);
+    }, 400);
+    setDragSource(null);
+    setSelectedItem(null);
+    setContextMenu(null);
+  };
+
+  const getDraggedItem = (): Item | null => {
+    if (!dragSource) return null;
+    if (dragSource.type === 'inventory') {
+      return character.inventory.find((i) => i.id === dragSource.itemId) || null;
+    } else {
+      return character.equipment[dragSource.slot];
+    }
   };
 
   const selectedItemData = selectedItem || contextMenu?.item;
@@ -93,15 +215,26 @@ function InventoryPanel() {
             <div className="equip-slots-grid">
               {slots.map((slot) => {
                 const item = character.equipment[slot];
+                const isDragOver = dragOverSlot === slot;
                 return (
                   <div key={slot} className="equip-slot-cell">
                     <span className="slot-label">{slotNames[slot]}</span>
                     <div
-                      className={`equip-slot-box ${item ? 'has-item' : ''}`}
+                      className={`equip-slot-box ${item ? 'has-item' : ''} ${isDragOver ? 'drag-over' : ''}`}
                       onClick={() => item && setSelectedItem(item)}
+                      onDragOver={(e) => handleDragOverSlot(e, slot)}
+                      onDragLeave={handleDragLeaveSlot}
+                      onDrop={(e) => handleDropSlot(e, slot)}
                     >
                       {item ? (
-                        <span className="item-icon">{item.icon}</span>
+                        <span
+                          className="item-icon"
+                          draggable
+                          onDragStart={(e) => handleDragStartEquipment(e, slot, item)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          {item.icon}
+                        </span>
                       ) : (
                         <span className="slot-empty">空</span>
                       )}
@@ -116,7 +249,12 @@ function InventoryPanel() {
             <h3>
               物品栏 ({character.inventory.length}/{totalSlots})
             </h3>
-            <div className="inventory-grid">
+            <div
+              className={`inventory-grid ${dragOverInventory ? 'drag-over' : ''}`}
+              onDragOver={handleDragOverInventory}
+              onDragLeave={handleDragLeaveInventory}
+              onDrop={handleDropInventory}
+            >
               {Array.from({ length: totalSlots }).map((_, index) => {
                 const item = character.inventory[index];
                 return (
@@ -128,7 +266,14 @@ function InventoryPanel() {
                   >
                     {item && (
                       <>
-                        <span className="item-icon">{item.icon}</span>
+                        <span
+                          className="item-icon"
+                          draggable
+                          onDragStart={(e) => handleDragStartInventory(e, item)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          {item.icon}
+                        </span>
                         {item.quantity && item.quantity > 1 && (
                           <span className="item-quantity">{item.quantity}</span>
                         )}

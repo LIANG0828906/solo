@@ -38,6 +38,7 @@ export interface Item {
     damage?: number;
     defense?: number;
   };
+  damageDice?: string;
   quantity?: number;
 }
 

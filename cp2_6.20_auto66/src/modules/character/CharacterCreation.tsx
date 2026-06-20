@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useGameStore } from '../../store/gameStore';
 import { CharacterAPI } from './CharacterAPI';
-import { roll4d6DropLowest, getAttributeModifier } from '../../utils/dice';
+import { rollD6, getAttributeModifier } from '../../utils/dice';
 import {
   CLASS_DATA,
   STARTER_ITEMS,
@@ -14,6 +14,20 @@ import {
 import type { CharacterClass, Attributes } from '../../types';
 import DiceRoller from '../../components/DiceRoller';
 import './CharacterCreation.css';
+
+interface RollDetail {
+  rolls: number[];
+  dropped: number;
+  total: number;
+}
+
+function roll4d6WithDetail(): RollDetail {
+  const rolls = [rollD6(), rollD6(), rollD6(), rollD6()];
+  const sorted = [...rolls].sort((a, b) => a - b);
+  const dropped = sorted[0];
+  const total = sorted[1] + sorted[2] + sorted[3];
+  return { rolls, dropped, total };
+}
 
 function CharacterCreation() {
   const navigate = useNavigate();
@@ -32,34 +46,108 @@ function CharacterCreation() {
     charisma: 10,
   });
   const [rolledAttributes, setRolledAttributes] = useState<Attributes | null>(null);
+  const [rollDetails, setRollDetails] = useState<Record<keyof Attributes, RollDetail | null>>({
+    strength: null,
+    dexterity: null,
+    constitution: null,
+    intelligence: null,
+    wisdom: null,
+    charisma: null,
+  });
+  const [currentRollingAttr, setCurrentRollingAttr] = useState<keyof Attributes | null>(null);
   const [name, setName] = useState('');
   const [avatarColor, setAvatarColor] = useState(AVATAR_COLORS[0]);
   const [avatarShape, setAvatarShape] = useState<'circle' | 'square' | 'diamond'>(
     'circle'
   );
   const [isRolling, setIsRolling] = useState(false);
+  const [adjustmentsLeft, setAdjustmentsLeft] = useState(2);
+  const rollTimerRef = useRef<NodeJS.Timeout[]>([]);
 
-  const rollAttributes = () => {
+  const clearRollTimers = () => {
+    rollTimerRef.current.forEach((t) => clearTimeout(t));
+    rollTimerRef.current = [];
+  };
+
+  const rollSingleAttribute = (attrKey: keyof Attributes, delay: number): Promise<RollDetail> => {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        setCurrentRollingAttr(attrKey);
+        const detail = roll4d6WithDetail();
+        setRollDetails((prev) => ({ ...prev, [attrKey]: detail }));
+        setAttributes((prev) => ({ ...prev, [attrKey]: detail.total }));
+        resolve(detail);
+      }, delay);
+      rollTimerRef.current.push(timer);
+    });
+  };
+
+  const rollAttributes = async () => {
+    if (isRolling) return;
+    clearRollTimers();
     setIsRolling(true);
+    setCurrentRollingAttr(null);
+    setAdjustmentsLeft(2);
+
+    const attrKeys: (keyof Attributes)[] = [
+      'strength',
+      'dexterity',
+      'constitution',
+      'intelligence',
+      'wisdom',
+      'charisma',
+    ];
+
+    const newRollDetails: Record<keyof Attributes, RollDetail | null> = {
+      strength: null,
+      dexterity: null,
+      constitution: null,
+      intelligence: null,
+      wisdom: null,
+      charisma: null,
+    };
+
+    for (let i = 0; i < attrKeys.length; i++) {
+      const detail = await rollSingleAttribute(attrKeys[i], i * 450);
+      newRollDetails[attrKeys[i]] = detail;
+    }
+
+    const finalAttrs: Attributes = {
+      strength: newRollDetails.strength!.total,
+      dexterity: newRollDetails.dexterity!.total,
+      constitution: newRollDetails.constitution!.total,
+      intelligence: newRollDetails.intelligence!.total,
+      wisdom: newRollDetails.wisdom!.total,
+      charisma: newRollDetails.charisma!.total,
+    };
+
     setTimeout(() => {
-      const newAttrs: Attributes = {
-        strength: roll4d6DropLowest(),
-        dexterity: roll4d6DropLowest(),
-        constitution: roll4d6DropLowest(),
-        intelligence: roll4d6DropLowest(),
-        wisdom: roll4d6DropLowest(),
-        charisma: roll4d6DropLowest(),
-      };
-      setRolledAttributes(newAttrs);
-      setAttributes(newAttrs);
+      setRolledAttributes(finalAttrs);
+      setCurrentRollingAttr(null);
       setIsRolling(false);
-    }, 1500);
+    }, 500);
+  };
+
+  const adjustAttribute = (attrKey: keyof Attributes, delta: number) => {
+    if (adjustmentsLeft <= 0) return;
+    if (delta > 0 && adjustmentsLeft <= 0) return;
+    const newValue = attributes[attrKey] + delta;
+    if (newValue < 3 || newValue > 20) return;
+
+    setAttributes((prev) => ({ ...prev, [attrKey]: newValue }));
+    setAdjustmentsLeft((prev) => prev - (delta > 0 ? 1 : delta < 0 ? 0 : 0));
+    if (delta < 0) {
+      setAdjustmentsLeft((prev) => Math.min(prev + 1, 5));
+    }
   };
 
   useEffect(() => {
     if (step === 'attributes' && !rolledAttributes) {
       rollAttributes();
     }
+    return () => {
+      clearRollTimers();
+    };
   }, [step]);
 
   const createCharacter = async () => {
@@ -178,33 +266,90 @@ function CharacterCreation() {
               投掷 4d6 取最高 3 个之和，决定你的六项基础属性。
             </p>
 
-            {isRolling ? (
-              <div className="dice-rolling-section">
-                <DiceRoller autoRoll showResult={false} size="large" />
-                <p>正在投掷命运之骰...</p>
-              </div>
-            ) : (
-              <>
-                <div className="attributes-grid">
-                  {(Object.keys(attributes) as (keyof Attributes)[]).map((key) => (
-                    <div key={key} className="attribute-item">
-                      <span className="attr-name">{getAttributeNames[key]}</span>
-                      <span className="attr-value">{attributes[key]}</span>
-                      <span className="attr-modifier">
-                        ({getAttributeModifier(attributes[key]) >= 0 ? '+' : ''}
-                        {getAttributeModifier(attributes[key])})
-                      </span>
-                    </div>
-                  ))}
+            <div className="attributes-rolling-section">
+              {isRolling && (
+                <div className="rolling-status">
+                  <DiceRoller autoRoll showResult={false} size="small" />
+                  <p className="rolling-text">
+                    {currentRollingAttr ? `投掷中: ${getAttributeNames[currentRollingAttr]}` : '准备投骰...'}
+                  </p>
                 </div>
+              )}
+
+              <div className="attributes-grid detailed">
+                {(Object.keys(attributes) as (keyof Attributes)[]).map((key) => {
+                  const detail = rollDetails[key];
+                  const isCurrentRolling = currentRollingAttr === key;
+                  const modifier = getAttributeModifier(attributes[key]);
+                  return (
+                    <div
+                      key={key}
+                      className={`attribute-item detailed ${isCurrentRolling ? 'rolling' : ''} ${detail ? 'rolled' : ''}`}
+                    >
+                      <div className="attr-header">
+                        <span className="attr-name">{getAttributeNames[key]}</span>
+                        <div className="attr-value-group">
+                          <span className="attr-value">{attributes[key]}</span>
+                          <span className={`attr-modifier ${modifier >= 0 ? 'positive' : 'negative'}`}>
+                            ({modifier >= 0 ? '+' : ''}{modifier})
+                          </span>
+                        </div>
+                      </div>
+                      {detail && (
+                        <div className="roll-detail">
+                          <div className="dice-rolls">
+                            {detail.rolls.map((r, i) => {
+                              const sorted = [...detail.rolls].sort((a, b) => a - b);
+                              const isDropped = r === sorted[0] && detail.rolls.filter(x => x === sorted[0]).length - detail.rolls.slice().sort().indexOf(sorted[0]) <= 0 ? i === detail.rolls.indexOf(sorted[0]) : false;
+                              return (
+                                <span
+                                  key={i}
+                                  className={`mini-dice ${isDropped ? 'dropped' : ''}`}
+                                >
+                                  {r}
+                                </span>
+                              );
+                            })}
+                          </div>
+                          <span className="roll-total">= {detail.total}</span>
+                        </div>
+                      )}
+                      {!isRolling && rolledAttributes && (
+                        <div className="attr-adjust">
+                          <button
+                            className="adjust-btn minus"
+                            onClick={() => adjustAttribute(key, -1)}
+                            disabled={attributes[key] <= 3}
+                          >
+                            −
+                          </button>
+                          <span className="adjust-label">微调</span>
+                          <button
+                            className="adjust-btn plus"
+                            onClick={() => adjustAttribute(key, 1)}
+                            disabled={attributes[key] >= 20 || adjustmentsLeft <= 0}
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {!isRolling && rolledAttributes && (
                 <div className="reroll-section">
+                  <div className="adjustments-info">
+                    <span>剩余微调点数: <strong>{adjustmentsLeft}</strong></span>
+                  </div>
                   <button className="btn-secondary" onClick={rollAttributes}>
                     🎲 重新投掷
                   </button>
-                  <p className="reroll-hint">你可以无限次重新投掷</p>
+                  <p className="reroll-hint">你可以无限次重新投掷，或使用微调点手动调整</p>
                 </div>
-              </>
-            )}
+              )}
+            </div>
 
             <div className="step-actions">
               <button

@@ -4,85 +4,283 @@
   align-items: center;
   gap: 16px;
   padding: 20px;
+  user-select: none;
 }
 
-.dice-roller.dice-small .dice-container {
+.dice-container {
+  width: 100px;
+  height: 100px;
+  perspective: 600px;
+  perspective-origin: 50% 50%;
+}
+
+.dice-container.dice-small {
   width: 60px;
   height: 60px;
+  perspective: 400px;
 }
 
-.dice-roller.dice-small .dice-face {
-  width: 48px;
-  height: 48px;
-  font-size: 20px;
-}
-
-.dice-roller.dice-small .dice-face.front  { transform: translateZ(24px); }
-.dice-roller.dice-small .dice-face.back   { transform: rotateY(180deg) translateZ(24px); }
-.dice-roller.dice-small .dice-face.right  { transform: rotateY(90deg) translateZ(24px); }
-.dice-roller.dice-small .dice-face.left   { transform: rotateY(-90deg) translateZ(24px); }
-.dice-roller.dice-small .dice-face.top    { transform: rotateX(90deg) translateZ(24px); }
-.dice-roller.dice-small .dice-face.bottom { transform: rotateX(-90deg) translateZ(24px); }
-
-.dice-roller.dice-large .dice-container {
+.dice-container.dice-large {
   width: 140px;
   height: 140px;
+  perspective: 800px;
 }
 
-.dice-roller.dice-large .dice-face {
-  width: 112px;
-  height: 112px;
-  font-size: 48px;
+.dice {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 
-.dice-roller.dice-large .dice-face.front  { transform: translateZ(56px); }
-.dice-roller.dice-large .dice-face.back   { transform: rotateY(180deg) translateZ(56px); }
-.dice-roller.dice-large .dice-face.right  { transform: rotateY(90deg) translateZ(56px); }
-.dice-roller.dice-large .dice-face.left   { transform: rotateY(-90deg) translateZ(56px); }
-.dice-roller.dice-large .dice-face.top    { transform: rotateX(90deg) translateZ(56px); }
-.dice-roller.dice-large .dice-face.bottom { transform: rotateX(-90deg) translateZ(56px); }
+.d20 {
+  transform: rotateX(-20deg) rotateY(30deg) rotateZ(0deg);
+}
+
+.d20.settled {
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.4));
+}
+
+.d20.rolling {
+  filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.5));
+}
+
+.dice.success {
+  filter: drop-shadow(0 0 30px rgba(34, 197, 94, 0.7));
+}
+
+.dice.failure {
+  filter: drop-shadow(0 0 30px rgba(239, 68, 68, 0.7));
+}
+
+.dice-face {
+  position: absolute;
+  width: 58px;
+  height: 58px;
+  left: 50%;
+  top: 50%;
+  margin-left: -29px;
+  margin-top: -29px;
+  background: linear-gradient(135deg, #dc143c 0%, #8b0000 50%, #5c0000 100%);
+  border: 1.5px solid #ffd700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backface-visibility: visible;
+  clip-path: polygon(50% 0%, 95% 35%, 77% 90%, 23% 90%, 5% 35%);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+}
+
+.dice-container.dice-small .dice-face {
+  width: 35px;
+  height: 35px;
+  margin-left: -17.5px;
+  margin-top: -17.5px;
+}
+
+.dice-container.dice-large .dice-face {
+  width: 82px;
+  height: 82px;
+  margin-left: -41px;
+  margin-top: -41px;
+}
+
+.face-number {
+  color: #ffd700;
+  font-weight: 900;
+  font-family: 'Cinzel', Georgia, serif;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.6);
+  font-size: 22px;
+  letter-spacing: -1px;
+  transform: translateY(-4px);
+}
+
+.dice-container.dice-small .face-number {
+  font-size: 14px;
+}
+
+.dice-container.dice-large .face-number {
+  font-size: 32px;
+}
+
+.face-1  { transform: translateZ(42px); }
+.face-2  { transform: rotateY(72deg) translateZ(42px); }
+.face-3  { transform: rotateY(144deg) translateZ(42px); }
+.face-4  { transform: rotateY(216deg) translateZ(42px); }
+.face-5  { transform: rotateY(288deg) translateZ(42px); }
+.face-6  { transform: rotateX(52deg) translateZ(42px); }
+
+.dice-container.dice-small .face-1  { transform: translateZ(25px); }
+.dice-container.dice-small .face-2  { transform: rotateY(72deg) translateZ(25px); }
+.dice-container.dice-small .face-3  { transform: rotateY(144deg) translateZ(25px); }
+.dice-container.dice-small .face-4  { transform: rotateY(216deg) translateZ(25px); }
+.dice-container.dice-small .face-5  { transform: rotateY(288deg) translateZ(25px); }
+.dice-container.dice-small .face-6  { transform: rotateX(52deg) translateZ(25px); }
+
+.dice-container.dice-large .face-1  { transform: translateZ(58px); }
+.dice-container.dice-large .face-2  { transform: rotateY(72deg) translateZ(58px); }
+.dice-container.dice-large .face-3  { transform: rotateY(144deg) translateZ(58px); }
+.dice-container.dice-large .face-4  { transform: rotateY(216deg) translateZ(58px); }
+.dice-container.dice-large .face-5  { transform: rotateY(288deg) translateZ(58px); }
+.dice-container.dice-large .face-6  { transform: rotateX(52deg) translateZ(58px); }
+
+.d20-glow {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 215, 0, 0.15) 0%,
+    transparent 50%
+  );
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
 
 .dice-result {
   text-align: center;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  animation: fadeInUp 0.4s ease;
+}
+
+.dice-result.rolling-display {
+  animation: none;
+  opacity: 0.7;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .dice-result-value {
   font-size: 48px;
   font-weight: bold;
+  font-family: 'Cinzel', Georgia, serif;
+  line-height: 1;
+}
+
+.gold-text {
+  background: linear-gradient(180deg, #ffd700 0%, #ffb700 50%, #daa520 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+.critical-hit {
+  background: linear-gradient(180deg, #ff6b6b 0%, #ff0000 50%, #cc0000 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 15px rgba(255, 0, 0, 0.7));
+  animation: criticalPulse 0.6s ease infinite alternate;
+}
+
+.critical-fumble {
+  background: linear-gradient(180deg, #666 0%, #333 50%, #1a1a1a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 10px rgba(100, 100, 100, 0.5));
+}
+
+@keyframes criticalPulse {
+  from {
+    filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.5));
+  }
+  to {
+    filter: drop-shadow(0 0 25px rgba(255, 0, 0, 0.9));
+  }
+}
+
+.critical-label {
+  font-size: 16px;
+  color: #ff4444;
+  font-weight: bold;
   font-family: 'Cinzel', serif;
+  letter-spacing: 2px;
+  animation: shake 0.3s ease;
+}
+
+.critical-label.fumble {
+  color: #888;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.rolling-number {
+  animation: numberBlur 0.08s linear infinite;
+}
+
+@keyframes numberBlur {
+  0% { filter: blur(1px); }
+  50% { filter: blur(0px); }
+  100% { filter: blur(1px); }
 }
 
 .dice-modifier {
   font-size: 18px;
   color: #f5e6c8;
+  font-weight: 500;
 }
 
 .dice-dc {
   font-size: 14px;
   color: #a08060;
+  font-style: italic;
 }
 
 .dice-result.success .dice-result-value {
-  color: #22c55e;
-  animation: pulse-success 0.6s ease;
+  animation: pulse-success 0.8s ease;
 }
 
 .dice-result.failure .dice-result-value {
-  color: #ef4444;
-  animation: pulse-failure 0.6s ease;
+  animation: pulse-failure 0.8s ease;
 }
 
 .roll-btn {
-  min-width: 120px;
+  min-width: 140px;
+  font-size: 16px;
+  padding: 12px 20px;
 }
 
 .dice.success {
-  animation: pulse-success 0.6s ease;
+  animation: pulse-success 0.8s ease;
 }
 
 .dice.failure {
-  animation: pulse-failure 0.6s ease;
+  animation: pulse-failure 0.8s ease;
+}
+
+@keyframes pulse-success {
+  0% { filter: drop-shadow(0 0 10px rgba(34, 197, 94, 0.3)); }
+  50% { filter: drop-shadow(0 0 40px rgba(34, 197, 94, 0.9)); }
+  100% { filter: drop-shadow(0 0 20px rgba(34, 197, 94, 0.5)); }
+}
+
+@keyframes pulse-failure {
+  0% { filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.3)); }
+  50% { filter: drop-shadow(0 0 40px rgba(239, 68, 68, 0.9)); }
+  100% { filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.5)); }
+}
+
+@media (max-width: 640px) {
+  .dice-result-value {
+    font-size: 36px;
+  }
 }
