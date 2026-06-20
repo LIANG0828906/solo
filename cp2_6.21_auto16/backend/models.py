@@ -29,6 +29,7 @@ class Artwork(Base):
     title = Column(String, nullable=False)
     creator = Column(String, nullable=False)
     description = Column(Text, nullable=False)
+    category = Column(String, nullable=False)
     image_url = Column(String, nullable=False)
     start_price = Column(Float, nullable=False)
     current_price = Column(Float, nullable=False)

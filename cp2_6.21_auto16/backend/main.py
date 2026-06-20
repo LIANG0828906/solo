@@ -35,6 +35,7 @@ class ArtworkResponse(BaseModel):
     title: str
     creator: str
     description: str
+    category: str
     image_url: str
     start_price: float
     current_price: float
@@ -199,68 +200,78 @@ def init_seed_data():
 
         artworks_data = [
             {
-                "title": "星空下的麦田",
+                "title": "星夜麦田",
                 "creator": "Vincent van Gogh",
-                "description": "这幅画描绘了法国南部普罗旺斯地区夜晚星空下的金色麦田，充满了梵高标志性的漩涡状笔触和强烈的情感表达。深蓝色的夜空中闪烁着明亮的星星，与金黄色的麦田形成鲜明对比。",
+                "category": "绘画",
+                "description": "后印象派大师梵高的经典风格作品，漩涡状的星空与金黄色的麦田交相辉映，强烈的笔触传达出内心深处的情感波澜。深邃的蓝色夜空与明亮的星月形成震撼对比。",
                 "image_url": "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800&q=80",
-                "start_price": 35000.0,
+                "start_price": 28000.0,
                 "min_increment": 500.0,
-                "hours": 2,
+                "minutes": 90,
             },
             {
-                "title": "睡莲池畔",
+                "title": "睡莲晨光",
                 "creator": "Claude Monet",
-                "description": "莫奈晚年的代表作之一，捕捉了吉维尼花园中睡莲池的光影变化。水面倒映着天空和垂柳，粉色、紫色和绿色的笔触交织在一起，展现了印象派对光线的极致追求。",
+                "category": "绘画",
+                "description": "印象派宗师莫奈风格的睡莲池作品，捕捉了清晨阳光下睡莲池的微妙光影变化。水面倒映着天空的色彩，粉色、紫色与绿色的笔触轻盈交织，展现印象派对光线的极致追求。",
                 "image_url": "https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=800&q=80",
-                "start_price": 50000.0,
+                "start_price": 45000.0,
                 "min_increment": 1000.0,
+                "minutes": 45,
+            },
+            {
+                "title": "青铜思想者",
+                "creator": "Auguste Rodin",
+                "category": "雕塑",
+                "description": "受罗丹风格启发的青铜雕塑作品，展现了沉思中的人体姿态。古铜色的表面经过精细打磨，肌肉线条和面部表情栩栩如生，传递出深刻的哲思与力量感。",
+                "image_url": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80",
+                "start_price": 15000.0,
+                "min_increment": 300.0,
+                "minutes": 60,
+            },
+            {
+                "title": "城市光影",
+                "creator": "Ansel Adams",
+                "category": "摄影",
+                "description": "黑白摄影大师风格的城市风光作品，通过精确的光影控制展现建筑的几何美感。高对比度的黑白影调赋予画面永恒的艺术质感，每一处细节都充满叙事力量。",
+                "image_url": "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&q=80",
+                "start_price": 3000.0,
+                "min_increment": 100.0,
                 "hours": 12,
             },
             {
-                "title": "格尔尼卡的记忆",
-                "creator": "Pablo Picasso",
-                "description": "受毕加索立体主义风格启发的作品，用碎裂的几何形状和强烈的黑白对比表达战争的痛苦。扭曲的人物形象和公牛象征着苦难与抗争，是现代艺术中最具政治意义的作品之一。",
-                "image_url": "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800&q=80",
-                "start_price": 45000.0,
-                "min_increment": 800.0,
+                "title": "赛博朋克之梦",
+                "creator": "Beeple",
+                "category": "数字艺术",
+                "description": "NFT风格的数字艺术作品，融合赛博朋克美学与超现实想象。霓虹色彩与未来主义建筑构建出迷幻的虚拟世界，代表着数字时代艺术的全新可能性。",
+                "image_url": "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80",
+                "start_price": 8000.0,
+                "min_increment": 200.0,
                 "hours": 24,
             },
             {
-                "title": "日出印象",
-                "creator": "Claude Monet",
-                "description": "印象派运动的开山之作，描绘了勒阿弗尔港口的日出景象。橙色的太阳在薄雾中若隐若现，水面上的倒影用短促而破碎的笔触表现，彻底改变了西方绘画的方向。",
-                "image_url": "https://images.unsplash.com/photo-1549289524-06cf8837ace5?w=800&q=80",
-                "start_price": 5000.0,
-                "min_increment": 100.0,
+                "title": "限量蚀刻版画",
+                "creator": "Albrecht Dürer",
+                "category": "版画",
+                "description": "文艺复兴风格的限量蚀刻版画，采用传统铜版蚀刻技法精心制作。细腻的线条与丰富的层次展现了版画艺术的独特魅力，每件作品都有独立编号。",
+                "image_url": "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800&q=80",
+                "start_price": 1000.0,
+                "min_increment": 50.0,
                 "hours": 48,
-            },
-            {
-                "title": "向日葵的生命",
-                "creator": "Vincent van Gogh",
-                "description": "梵高最著名的系列作品之一，用炽热的黄色调描绘瓶中的向日葵。厚重的颜料层和奔放的笔触展现了花朵旺盛的生命力，同时也透露出画家内心的孤独与渴望。",
-                "image_url": "https://images.unsplash.com/photo-1578926288207-a90a5366759d?w=800&q=80",
-                "start_price": 28000.0,
-                "min_increment": 500.0,
-                "hours": 8,
-            },
-            {
-                "title": "亚维农少女",
-                "creator": "Pablo Picasso",
-                "description": "立体主义的里程碑作品，彻底打破了传统透视法。五个女性形象以碎片化的几何形式呈现，非洲面具的影响清晰可见，标志着现代艺术进入了全新的维度。",
-                "image_url": "https://images.unsplash.com/photo-1547891654-e66ed7ebb968?w=800&q=80",
-                "start_price": 42000.0,
-                "min_increment": 700.0,
-                "hours": 36,
             },
         ]
 
         artworks = []
         for ad in artworks_data:
-            end_time = datetime.utcnow() + timedelta(hours=ad["hours"])
+            if "minutes" in ad:
+                end_time = datetime.utcnow() + timedelta(minutes=ad["minutes"])
+            else:
+                end_time = datetime.utcnow() + timedelta(hours=ad["hours"])
             artwork = Artwork(
                 title=ad["title"],
                 creator=ad["creator"],
                 description=ad["description"],
+                category=ad["category"],
                 image_url=ad["image_url"],
                 start_price=ad["start_price"],
                 current_price=ad["start_price"],

@@ -1,11 +1,11 @@
 import { Routes, Route, Link } from 'react-router-dom';
 import { useState } from 'react';
-import Home from '@/pages/Home';
-import DetailPage from '@/pages/DetailPage';
-import useAuthStore from '@/store/useAuthStore';
+import Home from '@/components/Home';
+import DetailPage from '@/components/DetailPage';
+import { useStore } from '@/store';
 
 function Navbar() {
-  const { user, isLoggedIn, login } = useAuthStore();
+  const { user, login } = useStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -51,7 +51,7 @@ function Navbar() {
         </Link>
 
         <div className="navbar-right desktop-menu">
-          {!isLoggedIn ? (
+          {!user ? (
             <button
               className="login-btn"
               onClick={() => login('artlover')}
@@ -88,7 +88,7 @@ function Navbar() {
 
       {mobileMenuOpen && (
         <div className="mobile-menu">
-          {!isLoggedIn ? (
+          {!user ? (
             <button
               className="login-btn mobile-login-btn"
               onClick={() => {

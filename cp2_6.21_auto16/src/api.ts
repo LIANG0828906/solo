@@ -7,6 +7,7 @@ export type Artwork = {
   title: string;
   creator: string;
   description: string;
+  category: string;
   imageUrl: string;
   startPrice: number;
   currentPrice: number;
@@ -32,28 +33,49 @@ const api = axios.create({
 });
 
 api.interceptors.response.use(
-  (response) => {
-    return response.data.data !== undefined ? response.data.data : response.data;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (response) => response.data,
+  (error) => Promise.reject(error)
 );
 
+const convertArtwork = (data: any): Artwork => ({
+  id: data.id,
+  title: data.title,
+  creator: data.creator,
+  description: data.description,
+  category: data.category,
+  imageUrl: data.image_url,
+  startPrice: data.start_price,
+  currentPrice: data.current_price,
+  minIncrement: data.min_increment,
+  highestBidder: data.highest_bidder,
+  endTime: data.end_time,
+  createdAt: data.created_at,
+});
+
+const convertBid = (data: any): Bid => ({
+  id: data.id,
+  artworkId: data.artwork_id,
+  userId: data.user_id,
+  username: data.username,
+  avatar: data.avatar,
+  amount: data.amount,
+  createdAt: data.created_at,
+});
+
 export const getArtworks = (): Promise<Artwork[]> => {
-  return api.get('/artworks').then((res) => res.data);
+  return api.get('/artworks').then((res) => res.map(convertArtwork));
 };
 
 export const getArtworkById = (id: number): Promise<Artwork> => {
-  return api.get(`/artworks/${id}`).then((res) => res.data);
+  return api.get(`/artworks/${id}`).then(convertArtwork);
 };
 
 export const getBids = (artworkId: number): Promise<Bid[]> => {
-  return api.get(`/artworks/${artworkId}/bids`).then((res) => res.data);
+  return api.get(`/artworks/${artworkId}/bids`).then((res) => res.map(convertBid));
 };
 
 export const login = (username: string): Promise<User> => {
-  return api.post('/auth/login', { username }).then((res) => res.data);
+  return api.post('/auth/login', { username });
 };
 
 export const submitBid = (payload: {
@@ -61,11 +83,18 @@ export const submitBid = (payload: {
   userId: number;
   amount: number;
 }): Promise<Bid> => {
-  return api.post('/bids', payload).then((res) => res.data);
+  return api.post('/bids', {
+    artwork_id: payload.artworkId,
+    user_id: payload.userId,
+    amount: payload.amount,
+  }).then(convertBid);
 };
 
 export const pollArtwork = (
   id: number
 ): Promise<{ artwork: Artwork; bids: Bid[] }> => {
-  return api.get(`/artworks/${id}/poll`).then((res) => res.data);
+  return api.get(`/artworks/${id}/poll`).then((res) => ({
+    artwork: convertArtwork(res.artwork),
+    bids: res.bids.map(convertBid),
+  }));
 };
