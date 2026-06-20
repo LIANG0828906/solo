@@ -94,24 +94,11 @@ const pointsToFullBezierPath = (points: Point[], baseThickness: number): string 
   const simplified = simplifyPoints(points, 0.3)
   if (simplified.length < 2) return ''
 
-  const totalLen = simplified.length
-  const tipStartIdx = Math.max(0, totalLen - Math.floor(totalLen * TIP_LENGTH_RATIO))
-
   let d = `M ${simplified[0].x.toFixed(3)} ${simplified[0].y.toFixed(3)}`
 
   for (let i = 1; i < simplified.length; i++) {
     const p0 = simplified[i - 1]
     const p1 = simplified[i]
-
-    let thickness = baseThickness
-    if (i >= tipStartIdx) {
-      const progress = (i - tipStartIdx) / Math.max(1, (totalLen - 1) - tipStartIdx)
-      thickness = baseThickness * (1 - progress * 0.85)
-    }
-    if (i <= 3) {
-      const startProgress = i / 3
-      thickness = baseThickness * Math.min(1, startProgress * 1.2)
-    }
 
     const jitter = JITTER_AMOUNT * (baseThickness / 8)
     const cp1x = (p0.x + (Math.random() - 0.5) * jitter + p1.x + (Math.random() - 0.5) * jitter) / 2
@@ -160,8 +147,8 @@ const drawStrokeWithBezier = (
 
 export const canvasToPNG = (
   strokes: DoodleStroke[],
-  width: number,
-  height: number,
+  _width: number,
+  _height: number,
   bgColor: string = '#faf3e0'
 ): void => {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
