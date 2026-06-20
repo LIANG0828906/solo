@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { EffectComposer, Bloom, Vignette } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
+import * as THREE from 'three';
 import { SceneManager } from '@/game/SceneManager';
 import { NodeSystem } from '@/game/NodeSystem';
 import { MatrixPuzzle } from '@/game/MatrixPuzzle';
@@ -17,34 +18,68 @@ import VictoryBurst from '@/components/VictoryBurst';
 import UILayer from '@/ui/UILayer';
 import './index.css';
 
+const SceneInitializer: React.FC<{ sceneManager: SceneManager }> = ({ sceneManager }) => {
+  const { gl, scene } = useThree();
+
+  useEffect(() => {
+    sceneManager.setRenderer(gl);
+    scene.background = null;
+  }, [sceneManager, gl, scene]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      sceneManager.updateSize(window.innerWidth, window.innerHeight);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [sceneManager]);
+
+  return null;
+};
+
 const GameLoop: React.FC<{
   sceneManager: SceneManager;
   nodeSystem: NodeSystem;
   matrixPuzzle: MatrixPuzzle;
 }> = ({ sceneManager, nodeSystem, matrixPuzzle }) => {
   const initLevel = useGameStore((s) => s.initLevel);
-  const setNodesFromStore = useGameStore((s) => s.nodes);
+  const nodes = useGameStore((s) => s.nodes);
   const fragments = useGameStore((s) => s.fragments);
   const runes = useGameStore((s) => s.runes);
   const showRift = useGameStore((s) => s.showRift);
   const phase = useGameStore((s) => s.phase);
   const successBurstNodeId = useGameStore((s) => s.successBurstNodeId);
+  const initMatrix = useGameStore((s) => s.initMatrix);
 
   const initializedRef = useRef(false);
+  const nodesInitedRef = useRef(false);
 
   useEffect(() => {
-    if (!initializedRef.current && setNodesFromStore.length === undefined) return;
-    initializedRef.current = true;
-    initLevel();
-  }, [initLevel, setNodesFromStore]);
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      initLevel();
+    }
+  }, [initLevel]);
 
   useEffect(() => {
-    sceneManager.setNodes(setNodesFromStore);
-  }, [sceneManager, setNodesFromStore]);
+    if (nodes.length > 0 && !nodesInitedRef.current) {
+      nodesInitedRef.current = true;
+      nodes.forEach((node) => {
+        sceneManager.addNode(node);
+      });
+      fragments.forEach((frag) => {
+        sceneManager.addFragment(frag);
+      });
+    }
+  }, [nodes, fragments, sceneManager]);
 
   useEffect(() => {
-    sceneManager.setFragments(fragments);
-  }, [sceneManager, fragments]);
+    if (showRift && phase === 'matrix' && runes.length === 0) {
+      const newRunes = matrixPuzzle.generateRunes();
+      useGameStore.setState({ runes: newRunes });
+    }
+  }, [showRift, phase, runes.length, matrixPuzzle]);
 
   useFrame((_, dt) => {
     const delta = Math.min(dt, 0.05);
@@ -54,6 +89,7 @@ const GameLoop: React.FC<{
 
   return (
     <>
+      <SceneInitializer sceneManager={sceneManager} />
       <VoidBackground />
       <ParticleField count={1200} />
       <ambientLight intensity={0.25} />
@@ -68,7 +104,7 @@ const GameLoop: React.FC<{
         />
       ))}
 
-      {setNodesFromStore.map((node) => (
+      {nodes.map((node) => (
         <EnergyNode
           key={node.id}
           nodeId={node.id}

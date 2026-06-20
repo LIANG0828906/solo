@@ -316,16 +316,24 @@ export const useGameStore = create<GameState>((set, get) => ({
   updateBurstParticles: (dt) =>
     set((s) => ({
       burstParticles: s.burstParticles
-        .map((p) => ({
-          ...p,
-          position: [
+        .map((p) => {
+          const newPos: [number, number, number] = [
             p.position[0] + p.velocity[0] * dt,
             p.position[1] + p.velocity[1] * dt,
             p.position[2] + p.velocity[2] * dt,
-          ],
-          velocity: [p.velocity[0], p.velocity[1] - 2 * dt, p.velocity[2]],
-          life: p.life - dt * 0.5,
-        }))
+          ];
+          const newVel: [number, number, number] = [
+            p.velocity[0],
+            p.velocity[1] - 2 * dt,
+            p.velocity[2],
+          ];
+          return {
+            ...p,
+            position: newPos,
+            velocity: newVel,
+            life: p.life - dt * 0.5,
+          };
+        })
         .filter((p) => p.life > 0),
     })),
 

@@ -6,17 +6,29 @@ export interface PlatformData {
   scale: [number, number, number];
 }
 
+export interface NodeObject {
+  id: string;
+  data: EnergyNode;
+  mesh: THREE.Group;
+  light: THREE.PointLight;
+}
+
+export interface FragmentObject {
+  id: string;
+  data: Fragment;
+  mesh: THREE.Group;
+}
+
 export class SceneManager {
   public scene: THREE.Scene;
   public camera: THREE.PerspectiveCamera;
   public renderer: THREE.WebGLRenderer | null = null;
   private lights: THREE.Light[] = [];
   private platforms: PlatformData[] = [];
-  private nodes: EnergyNode[] = [];
-  private fragments: Fragment[] = [];
+  private nodeObjects: Map<string, NodeObject> = new Map();
+  private fragmentObjects: Map<string, FragmentObject> = new Map();
   private raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2;
-  private dragPlane: THREE.Plane;
 
   constructor() {
     this.scene = new THREE.Scene();
@@ -29,7 +41,6 @@ export class SceneManager {
 
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
-    this.dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
     this.setupLights();
     this.setupPlatforms();
@@ -65,6 +76,62 @@ export class SceneManager {
     ];
   }
 
+  public addNode(nodeData: EnergyNode): NodeObject {
+    const group = new THREE.Group();
+    group.position.set(...nodeData.position);
+
+    const light = new THREE.PointLight(
+      new THREE.Color(nodeData.acceptElement),
+      nodeData.isLit ? 1.5 : 0.4,
+      10
+    );
+    group.add(light);
+
+    this.scene.add(group);
+
+    const nodeObj: NodeObject = {
+      id: nodeData.id,
+      data: { ...nodeData },
+      mesh: group,
+      light,
+    };
+    this.nodeObjects.set(nodeData.id, nodeObj);
+
+    return nodeObj;
+  }
+
+  public addFragment(fragmentData: Fragment): FragmentObject {
+    const group = new THREE.Group();
+    group.position.set(...fragmentData.position);
+
+    this.scene.add(group);
+
+    const fragObj: FragmentObject = {
+      id: fragmentData.id,
+      data: { ...fragmentData },
+      mesh: group,
+    };
+    this.fragmentObjects.set(fragmentData.id, fragObj);
+
+    return fragObj;
+  }
+
+  public getNode(id: string): NodeObject | undefined {
+    return this.nodeObjects.get(id);
+  }
+
+  public getFragment(id: string): FragmentObject | undefined {
+    return this.fragmentObjects.get(id);
+  }
+
+  public getAllNodes(): NodeObject[] {
+    return Array.from(this.nodeObjects.values());
+  }
+
+  public getAllFragments(): FragmentObject[] {
+    return Array.from(this.fragmentObjects.values());
+  }
+
   public setRenderer(renderer: THREE.WebGLRenderer) {
     this.renderer = renderer;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -80,36 +147,8 @@ export class SceneManager {
     }
   }
 
-  public setNodes(nodes: EnergyNode[]) {
-    this.nodes = nodes;
-    this.nodes.forEach((node) => {
-      const pointLight = new THREE.PointLight(
-        new THREE.Color(node.acceptElement),
-        node.isLit ? 1.5 : 0.4,
-        10
-      );
-      pointLight.position.set(...node.position);
-      pointLight.name = `node-light-${node.id}`;
-      const existing = this.scene.getObjectByName(pointLight.name);
-      if (existing) this.scene.remove(existing);
-      this.scene.add(pointLight);
-    });
-  }
-
-  public setFragments(fragments: Fragment[]) {
-    this.fragments = fragments;
-  }
-
   public getPlatforms(): PlatformData[] {
     return this.platforms;
-  }
-
-  public getNodes(): EnergyNode[] {
-    return this.nodes;
-  }
-
-  public getFragments(): Fragment[] {
-    return this.fragments;
   }
 
   public screenToWorld(
@@ -138,36 +177,62 @@ export class SceneManager {
   public findNearestNode(
     position: [number, number, number],
     fragment: Fragment
-  ): { node: EnergyNode | null; distance: number; isMatch: boolean } {
-    let nearest: EnergyNode | null = null;
+  ): { node: NodeObject | null; distance: number; isMatch: boolean } {
+    let nearest: NodeObject | null = null;
     let minDist = Infinity;
 
-    for (const node of this.nodes) {
-      if (node.isLit) continue;
-      const dx = position[0] - node.position[0];
-      const dy = position[1] - node.position[1];
-      const dz = position[2] - node.position[2];
+    for (const nodeObj of this.nodeObjects.values()) {
+      if (nodeObj.data.isLit) continue;
+
+      const dx = position[0] - nodeObj.data.position[0];
+      const dy = position[1] - nodeObj.data.position[1];
+      const dz = position[2] - nodeObj.data.position[2];
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
       if (dist < minDist) {
         minDist = dist;
-        nearest = node;
+        nearest = nodeObj;
       }
     }
 
     const isMatch =
       nearest !== null &&
       minDist < 2.0 &&
-      fragment.elementColor === nearest.acceptElement &&
-      fragment.matchedNodeId === nearest.id;
+      fragment.elementColor === nearest.data.acceptElement &&
+      fragment.matchedNodeId === nearest.data.id;
 
     return { node: nearest, distance: minDist, isMatch };
   }
 
-  public updateNodeLight(nodeId: string, isLit: boolean) {
-    const light = this.scene.getObjectByName(`node-light-${nodeId}`) as THREE.PointLight;
-    if (light) {
-      light.intensity = isLit ? 1.8 : 0.4;
-      light.distance = isLit ? 15 : 10;
+  public updateNodePosition(nodeId: string, position: [number, number, number]) {
+    const nodeObj = this.nodeObjects.get(nodeId);
+    if (nodeObj) {
+      nodeObj.data.position = position;
+      nodeObj.mesh.position.set(...position);
+    }
+  }
+
+  public updateFragmentPosition(fragmentId: string, position: [number, number, number]) {
+    const fragObj = this.fragmentObjects.get(fragmentId);
+    if (fragObj) {
+      fragObj.data.position = position;
+      fragObj.mesh.position.set(...position);
+    }
+  }
+
+  public lightUpNode(nodeId: string) {
+    const nodeObj = this.nodeObjects.get(nodeId);
+    if (nodeObj) {
+      nodeObj.data.isLit = true;
+      nodeObj.light.intensity = 1.8;
+      nodeObj.light.distance = 15;
+    }
+  }
+
+  public setNodeError(nodeId: string, isError: boolean) {
+    const nodeObj = this.nodeObjects.get(nodeId);
+    if (nodeObj) {
+      nodeObj.data.isError = isError;
     }
   }
 
@@ -184,8 +249,17 @@ export class SceneManager {
       this.scene.remove(l);
     });
     this.lights = [];
+
+    this.nodeObjects.forEach((obj) => {
+      this.scene.remove(obj.mesh);
+    });
+    this.nodeObjects.clear();
+
+    this.fragmentObjects.forEach((obj) => {
+      this.scene.remove(obj.mesh);
+    });
+    this.fragmentObjects.clear();
+
     this.platforms = [];
-    this.nodes = [];
-    this.fragments = [];
   }
 }
