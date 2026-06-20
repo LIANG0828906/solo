@@ -20,11 +20,20 @@ export interface Connection {
   type: ConnectionType;
 }
 
+export interface HistorySnapshot {
+  nodes: TimelineNode[];
+  connections: Connection[];
+}
+
 export interface TimelineState {
   nodes: TimelineNode[];
   connections: Connection[];
   selectedNodeId: string | null;
   currentTheme: ThemeType;
+  history: HistorySnapshot[];
+  historyIndex: number;
+  canUndo: boolean;
+  canRedo: boolean;
   addNode: (node?: Partial<TimelineNode>) => void;
   updateNode: (id: string, updates: Partial<TimelineNode>) => void;
   deleteNode: (id: string) => void;
@@ -34,4 +43,6 @@ export interface TimelineState {
   deleteConnection: (id: string) => void;
   setTheme: (theme: ThemeType) => void;
   clearNewFlag: (id: string) => void;
+  undo: () => void;
+  redo: () => void;
 }

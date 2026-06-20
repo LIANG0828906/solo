@@ -31,10 +31,54 @@
   pointer-events: stroke;
 }
 
-.add-node-button {
+.editor-toolbar {
   position: absolute;
   top: 20px;
   left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 30;
+}
+
+.tool-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg, #ffffff);
+  color: var(--text-primary, #333333);
+  border: 1px solid var(--divider, #e0e0e0);
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--card-shadow, rgba(0, 0, 0, 0.1));
+  transition: box-shadow 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.tool-btn:hover:not(.disabled) {
+  box-shadow: 0 4px 12px var(--card-shadow, rgba(0, 0, 0, 0.15));
+  background: var(--divider, #f0f0f0);
+}
+
+.tool-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tool-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--divider, #e0e0e0);
+  margin: 0 4px;
+}
+
+.add-node-button-inline {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -47,11 +91,10 @@
   font-weight: 500;
   cursor: pointer;
   box-shadow: 0 4px 12px var(--card-shadow, rgba(0, 0, 0, 0.15));
-  z-index: 30;
   transition: box-shadow 0.2s ease;
 }
 
-.add-node-button:hover {
+.add-node-button-inline:hover {
   box-shadow: 0 6px 20px var(--card-shadow, rgba(0, 0, 0, 0.2));
 }
 

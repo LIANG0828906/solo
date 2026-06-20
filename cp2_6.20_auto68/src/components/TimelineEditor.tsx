@@ -4,7 +4,7 @@ import { TimelineNode } from './TimelineNode';
 import { ConnectionLine } from './ConnectionLine';
 import type { ConnectionType } from '@/types';
 import { useTimelineStore } from '@/store/timelineStore';
-import { Plus } from 'lucide-react';
+import { Plus, Undo2, Redo2 } from 'lucide-react';
 import '@/styles/Editor.css';
 
 export const TimelineEditor = () => {
@@ -17,6 +17,10 @@ export const TimelineEditor = () => {
     addNode,
     addConnection,
     selectNode,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useTimelineStore();
 
   const [draggingConnection, setDraggingConnection] = useState<{
@@ -41,6 +45,22 @@ export const TimelineEditor = () => {
   const handleEditorClick = useCallback(() => {
     selectNode(null);
   }, [selectNode]);
+
+  const handleUndo = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      undo();
+    },
+    [undo]
+  );
+
+  const handleRedo = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      redo();
+    },
+    [redo]
+  );
 
   const handleStartDragConnection = useCallback(
     (nodeId: string, e: React.MouseEvent) => {
@@ -164,18 +184,44 @@ export const TimelineEditor = () => {
         />
       ))}
 
-      <motion.button
-        className="add-node-button"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleAddNode();
-        }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <Plus size={18} />
-        <span>添加事件</span>
-      </motion.button>
+      <div className="editor-toolbar">
+        <motion.button
+          className={`tool-btn undo-btn ${!canUndo ? 'disabled' : ''}`}
+          onClick={handleUndo}
+          whileHover={canUndo ? { scale: 1.05 } : {}}
+          whileTap={canUndo ? { scale: 0.95 } : {}}
+          disabled={!canUndo}
+          title="撤销"
+        >
+          <Undo2 size={18} />
+        </motion.button>
+
+        <motion.button
+          className={`tool-btn redo-btn ${!canRedo ? 'disabled' : ''}`}
+          onClick={handleRedo}
+          whileHover={canRedo ? { scale: 1.05 } : {}}
+          whileTap={canRedo ? { scale: 0.95 } : {}}
+          disabled={!canRedo}
+          title="重做"
+        >
+          <Redo2 size={18} />
+        </motion.button>
+
+        <div className="toolbar-divider" />
+
+        <motion.button
+          className="add-node-button-inline"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleAddNode();
+          }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Plus size={18} />
+          <span>添加事件</span>
+        </motion.button>
+      </div>
 
       <div className="event-counter">事件数：{nodes.length}</div>
 
