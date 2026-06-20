@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { MECHANISM_LABELS, MECHANISM_COLORS, MechanismType, TriggerType, Link } from '../types';
 
-const NODE_W = 120;
+const NODE_W = 140;
 const NODE_H = 50;
 
 export function LogicGraphPanel() {
@@ -14,44 +14,124 @@ export function LogicGraphPanel() {
   const selectedPropId = useStore((s) => s.selectedPropId);
   const selectProp = useStore((s) => s.selectProp);
   const startConnecting = useStore((s) => s.startConnecting);
+  const connectingFromId = useStore((s) => s.connectingFromId);
+  const finishConnecting = useStore((s) => s.finishConnecting);
+  const pushSnapshot = useStore((s) => s.pushSnapshot);
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragStartPosRef = useRef<{ x: number; y: number; origX: number; origY: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; linkId: string } | null>(null);
+  const [panelHeight, setPanelHeight] = useState(400);
+
+  useEffect(() => {
+    const updateH = () => {
+      if (containerRef.current) {
+        setPanelHeight(containerRef.current.clientHeight);
+      }
+    };
+    updateH();
+    window.addEventListener('resize', updateH);
+    return () => window.removeEventListener('resize', updateH);
+  }, []);
+
+  useEffect(() => {
+    if (!draggingId) return;
+
+    const onMove = (e: MouseEvent) => {
+      if (!svgRef.current || !dragStartPosRef.current) return;
+      const rect = svgRef.current.getBoundingClientRect();
+      const dx = e.clientX - dragStartPosRef.current.x;
+      const dy = e.clientY - dragStartPosRef.current.y;
+      const nx = Math.max(4, Math.min(rect.width - NODE_W - 4, dragStartPosRef.current.origX + dx));
+      const ny = Math.max(4, Math.min(rect.height - NODE_H - 4, dragStartPosRef.current.origY + dy));
+      setLogicNodePosition(draggingId, nx, ny);
+    };
+
+    const onUp = () => {
+      if (draggingId && dragStartPosRef.current) {
+        const rect = svgRef.current?.getBoundingClientRect();
+        if (rect) {
+          const dx = (window as any).__lastMouseX ? (window as any).__lastMouseX - dragStartPosRef.current.x : 0;
+          const dy = (window as any).__lastMouseY ? (window as any).__lastMouseY - dragStartPosRef.current.y : 0;
+          if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+            pushSnapshot();
+          }
+        }
+      }
+      setDraggingId(null);
+      dragStartPosRef.current = null;
+    };
+
+    const onTrack = (e: MouseEvent) => {
+      (window as any).__lastMouseX = e.clientX;
+      (window as any).__lastMouseY = e.clientY;
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('mousemove', onTrack, true);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('mousemove', onTrack, true);
+    };
+  }, [draggingId, setLogicNodePosition, pushSnapshot]);
 
   const getInitialPosition = useCallback(
     (id: string, index: number) => {
       if (logicNodePositions[id]) return logicNodePositions[id];
-      const col = index % 3;
-      const row = Math.floor(index / 3);
-      return { x: 20 + col * 140, y: 20 + row * 70 };
+      const cols = 1;
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      return { x: 16 + col * (NODE_W + 8), y: 16 + row * 68 };
     },
     [logicNodePositions]
   );
 
-  const handleMouseDown = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    const pos = getInitialPosition(id, props.findIndex((p) => p.id === id));
-    setDraggingId(id);
-    setDragOffset({ x: e.clientX - pos.x, y: e.clientY - pos.y });
-  };
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (!draggingId) return;
-      const svgRect = svgRef.current?.getBoundingClientRect();
-      if (!svgRect) return;
-      const x = Math.max(0, e.clientX - dragOffset.x - svgRect.left);
-      const y = Math.max(0, e.clientY - dragOffset.y - svgRect.top);
-      setLogicNodePosition(draggingId, x, y);
+  const handleNodeMouseDown = useCallback(
+    (e: React.MouseEvent, id: string, index: number) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const pos = getInitialPosition(id, index);
+      dragStartPosRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        origX: pos.x,
+        origY: pos.y,
+      };
+      setDraggingId(id);
     },
-    [draggingId, dragOffset, setLogicNodePosition]
+    [getInitialPosition]
   );
 
-  const handleMouseUp = useCallback(() => {
-    setDraggingId(null);
-  }, []);
+  const handleNodeClick = useCallback(
+    (id: string) => {
+      if (draggingId && dragStartPosRef.current) {
+        if (dragStartPosRef.current) {
+        }
+        return;
+      }
+      if (connectingFromId) {
+        if (connectingFromId !== id) {
+          finishConnecting(id, TriggerType.Continuous);
+        }
+        return;
+      }
+      selectProp(id);
+    },
+    [draggingId, connectingFromId, finishConnecting, selectProp]
+  );
+
+  const handleNodeDoubleClick = useCallback(
+    (id: string) => {
+      if (!connectingFromId) {
+        startConnecting(id);
+      }
+    },
+    [connectingFromId, startConnecting]
+  );
 
   const handleContextMenu = (e: React.MouseEvent, linkId: string) => {
     e.preventDefault();
@@ -67,6 +147,7 @@ export function LogicGraphPanel() {
 
   const handleDeleteLink = () => {
     if (contextMenu) {
+      pushSnapshot();
       removeLink(contextMenu.linkId);
       setContextMenu(null);
     }
@@ -84,9 +165,9 @@ export function LogicGraphPanel() {
     return getInitialPosition(id, index);
   };
 
-  const getEdgePath = (link: Link) => {
-    const sourceIdx = props.findIndex((p) => p.id === link.sourceId);
-    const targetIdx = props.findIndex((p) => p.id === link.targetId);
+  const getEdgePath = (link: Link, p: typeof props) => {
+    const sourceIdx = p.findIndex((x) => x.id === link.sourceId);
+    const targetIdx = p.findIndex((x) => x.id === link.targetId);
     const s = nodePos(link.sourceId, sourceIdx);
     const t = nodePos(link.targetId, targetIdx);
     const sx = s.x + NODE_W / 2;
@@ -94,16 +175,15 @@ export function LogicGraphPanel() {
     const tx = t.x + NODE_W / 2;
     const ty = t.y + NODE_H / 2;
     const mx = (sx + tx) / 2;
-    const my = (sy + ty) / 2 - 30;
-    return `M ${sx} ${sy} Q ${mx} ${my} ${tx} ${ty}`;
+    const my = (sy + ty) / 2 - 28;
+    return { d: `M ${sx} ${sy} Q ${mx} ${my} ${tx} ${ty}`, endX: tx, endY: ty, midX: mx, midY: my };
   };
-
-  const panelW = 280;
 
   return (
     <div
+      ref={containerRef}
       style={{
-        width: panelW,
+        width: 280,
         background: '#1e1e2e',
         borderLeft: '1px solid #333',
         display: 'flex',
@@ -121,93 +201,150 @@ export function LogicGraphPanel() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexShrink: 0,
         }}
       >
         <span>🔗 逻辑图</span>
-        <span style={{ fontSize: '11px', color: '#666' }}>{links.length} 条连线</span>
+        <span style={{ fontSize: '11px', color: '#666' }}>
+          {props.length}节点 · {links.length}连线
+        </span>
       </div>
       <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
         <svg
           ref={svgRef}
-          width={panelW - 2}
-          height={Math.max(300, props.length * 70 + 40)}
-          style={{ display: 'block' }}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
+          width={278}
+          height={Math.max(300, props.length * 68 + 80, panelHeight - 40)}
+          style={{ display: 'block', userSelect: 'none' }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <defs>
-            <marker id="arrowBlue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" fill="#4488ff" />
+            <marker id="arrowBlue" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+              <polygon points="0 0, 10 4, 0 8" fill="#4488ff" />
             </marker>
-            <marker id="arrowOrange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" fill="#ff8844" />
+            <marker id="arrowOrange" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+              <polygon points="0 0, 10 4, 0 8" fill="#ff8844" />
             </marker>
+            <filter id="glowBlue">
+              <feGaussianBlur stdDeviation="1.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="glowOrange">
+              <feGaussianBlur stdDeviation="1.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
+
+          <rect width="100%" height="100%" fill="transparent" />
 
           {links.map((link) => {
             const color = link.triggerType === TriggerType.Continuous ? '#4488ff' : '#ff8844';
             const markerId = link.triggerType === TriggerType.Continuous ? 'arrowBlue' : 'arrowOrange';
+            const filterId = link.triggerType === TriggerType.Continuous ? 'glowBlue' : 'glowOrange';
+            const { d, midX, midY } = getEdgePath(link, props);
             return (
-              <path
-                key={link.id}
-                d={getEdgePath(link)}
-                fill="none"
-                stroke={color}
-                strokeWidth={2}
-                markerEnd={`url(#${markerId})`}
-                opacity={0.7}
-                onContextMenu={(e) => handleContextMenu(e as any, link.id)}
-                style={{ cursor: 'context-menu' }}
-              />
+              <g key={link.id}>
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  markerEnd={`url(#${markerId})`}
+                  opacity={0.55}
+                  filter={`url(#${filterId})`}
+                  pointerEvents="none"
+                />
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={14}
+                  opacity={0}
+                  onContextMenu={(e) => handleContextMenu(e as any, link.id)}
+                  style={{ cursor: 'pointer' }}
+                />
+                <circle
+                  cx={midX}
+                  cy={midY}
+                  r={8}
+                  fill={color}
+                  opacity={0.9}
+                  onContextMenu={(e) => handleContextMenu(e as any, link.id)}
+                  style={{ cursor: 'context-menu' }}
+                >
+                  <title>右键删除</title>
+                </circle>
+              </g>
             );
           })}
 
           {props.map((prop, idx) => {
             const pos = nodePos(prop.id, idx);
-            const color = prop.activated
-              ? MECHANISM_COLORS[prop.type].active
-              : MECHANISM_COLORS[prop.type].inactive;
+            const typeColors = MECHANISM_COLORS[prop.type];
+            const color = prop.activated ? typeColors.active : typeColors.inactive;
             const isSelected = selectedPropId === prop.id;
+            const isConnecting = connectingFromId === prop.id;
+            const isDraggingThis = draggingId === prop.id;
+
             return (
               <g
                 key={prop.id}
                 style={{
-                  cursor: draggingId === prop.id ? 'grabbing' : 'grab',
-                  transform: draggingId === prop.id ? 'scale(1.05)' : 'scale(1)',
+                  cursor: isDraggingThis ? 'grabbing' : 'grab',
+                  transform: isDraggingThis ? 'scale(1.05)' : 'scale(1)',
                   transformOrigin: `${pos.x + NODE_W / 2}px ${pos.y + NODE_H / 2}px`,
-                  transition: draggingId === prop.id ? 'none' : 'transform 0.15s',
+                  transformBox: 'fill-box' as any,
+                  transition: isDraggingThis ? 'none' : 'transform 0.12s ease-out',
                 }}
-                onMouseDown={(e) => handleMouseDown(e as any, prop.id)}
-                onClick={() => selectProp(prop.id)}
-                onDoubleClick={() => startConnecting(prop.id)}
+                onMouseDown={(e) => handleNodeMouseDown(e as any, prop.id, idx)}
+                onClick={() => handleNodeClick(prop.id)}
+                onDoubleClick={() => handleNodeDoubleClick(prop.id)}
               >
+                {isConnecting && (
+                  <rect
+                    x={pos.x - 3}
+                    y={pos.y - 3}
+                    width={NODE_W + 6}
+                    height={NODE_H + 6}
+                    rx={11}
+                    fill="none"
+                    stroke="#ffcc44"
+                    strokeWidth={2}
+                    strokeDasharray="5 3"
+                  />
+                )}
                 <rect
                   x={pos.x}
                   y={pos.y}
                   width={NODE_W}
                   height={NODE_H}
                   rx={8}
-                  fill={isSelected ? '#2a3a5a' : '#252535'}
-                  stroke={isSelected ? '#5588cc' : '#444'}
+                  fill={isSelected ? '#253550' : '#1e1e2e'}
+                  stroke={isSelected ? '#5588cc' : isConnecting ? '#ffcc44' : '#3a3a4a'}
                   strokeWidth={isSelected ? 2 : 1}
+                  style={{ filter: prop.activated ? `drop-shadow(0 0 4px ${color})` : 'none' }}
                 />
-                <circle cx={pos.x + 14} cy={pos.y + NODE_H / 2} r={5} fill={color} />
+                <circle cx={pos.x + 16} cy={pos.y + NODE_H / 2} r={7} fill={color}>
+                  {prop.activated && (
+                    <animate attributeName="r" values="7;8;7" dur="1.5s" repeatCount="indefinite" />
+                  )}
+                </circle>
                 <text
-                  x={pos.x + 26}
+                  x={pos.x + 32}
                   y={pos.y + 20}
                   fontSize={11}
-                  fill="#ddd"
-                  fontWeight={500}
+                  fill="#e0e0e0"
+                  fontWeight={isSelected ? 600 : 500}
                 >
-                  {prop.name.slice(0, 8)}
+                  {prop.name.slice(0, 10)}
                 </text>
-                <text
-                  x={pos.x + 26}
-                  y={pos.y + 36}
-                  fontSize={9}
-                  fill="#888"
-                >
+                <text x={pos.x + 32} y={pos.y + 36} fontSize={9} fill="#778">
                   {MECHANISM_LABELS[prop.type]}
                 </text>
               </g>
@@ -226,22 +363,26 @@ export function LogicGraphPanel() {
               borderRadius: '6px',
               padding: '4px 0',
               zIndex: 10,
-              minWidth: '100px',
+              minWidth: '110px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
             }}
           >
             <div
               onClick={handleDeleteLink}
               style={{
-                padding: '6px 14px',
+                padding: '7px 14px',
                 cursor: 'pointer',
                 fontSize: '12px',
-                color: '#ff6666',
+                color: '#ff7777',
                 transition: 'background 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = '#3a2a2a')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              删除连线
+              🗑 删除连线
             </div>
           </div>
         )}
@@ -252,9 +393,11 @@ export function LogicGraphPanel() {
           borderTop: '1px solid #333',
           fontSize: '10px',
           color: '#666',
+          lineHeight: 1.4,
+          flexShrink: 0,
         }}
       >
-        双击节点开始连接 | 右键连线删除
+        拖拽节点布局 · 双击节点连接 · 右键连线删除
       </div>
     </div>
   );

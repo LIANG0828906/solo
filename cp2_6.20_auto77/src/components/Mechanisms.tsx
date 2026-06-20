@@ -6,6 +6,7 @@ import { MechanismProp, MechanismType, MECHANISM_COLORS } from '../types';
 interface MechanismObjectProps {
   prop: MechanismProp;
   onClick: (e: any) => void;
+  onDoubleClick?: (e: any) => void;
   isSelected: boolean;
   isConnectingFrom: boolean;
 }
@@ -202,7 +203,7 @@ function PortalMesh({ prop, isSelected, isConnectingFrom }: Omit<MechanismObject
   );
 }
 
-export function MechanismObject({ prop, onClick, isSelected, isConnectingFrom }: MechanismObjectProps) {
+export function MechanismObject({ prop, onClick, onDoubleClick, isSelected, isConnectingFrom }: MechanismObjectProps) {
   const renderMesh = () => {
     switch (prop.type) {
       case MechanismType.PressurePlate:
@@ -219,7 +220,10 @@ export function MechanismObject({ prop, onClick, isSelected, isConnectingFrom }:
   };
 
   return (
-    <group onClick={(e) => { e.stopPropagation(); onClick(e); }}>
+    <group
+      onClick={(e) => { e.stopPropagation(); onClick(e); }}
+      onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick && onDoubleClick(e); }}
+    >
       {renderMesh()}
     </group>
   );

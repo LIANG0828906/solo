@@ -28,6 +28,7 @@ interface GameStore {
   redoStack: Snapshot[];
   transitionOpacity: number;
   logicNodePositions: Record<string, { x: number; y: number }>;
+  pendingTriggerType: TriggerType;
 
   setMode: (mode: EditorMode) => void;
   addProp: (type: MechanismType, position: [number, number, number]) => void;
@@ -36,8 +37,9 @@ interface GameStore {
   selectProp: (id: string | null) => void;
   setPlacingType: (type: MechanismType | null) => void;
   startConnecting: (id: string) => void;
-  finishConnecting: (targetId: string, triggerType: TriggerType) => void;
+  finishConnecting: (targetId: string, triggerType?: TriggerType) => void;
   cancelConnecting: () => void;
+  setPendingTriggerType: (t: TriggerType) => void;
   removeLink: (id: string) => void;
   activateProp: (id: string) => void;
   deactivateProp: (id: string) => void;
@@ -154,6 +156,7 @@ export const useStore = create<GameStore>((set, get) => ({
   redoStack: [],
   transitionOpacity: 1,
   logicNodePositions: {},
+  pendingTriggerType: TriggerType.Continuous,
 
   setMode: (mode) => {
     const state = get();
@@ -217,6 +220,8 @@ export const useStore = create<GameStore>((set, get) => ({
 
   startConnecting: (id) => set({ connectingFromId: id, selectedPropId: null }),
 
+  setPendingTriggerType: (t) => set({ pendingTriggerType: t }),
+
   finishConnecting: (targetId, triggerType) => {
     const state = get();
     if (!state.connectingFromId || state.connectingFromId === targetId) return;
@@ -228,7 +233,7 @@ export const useStore = create<GameStore>((set, get) => ({
       id: uuidv4(),
       sourceId: state.connectingFromId,
       targetId,
-      triggerType,
+      triggerType: triggerType || state.pendingTriggerType,
     };
     set({
       ...pushSnapshot(state),

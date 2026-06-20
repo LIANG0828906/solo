@@ -13,10 +13,15 @@ export function PlayerController() {
   const mode = useStore((s) => s.mode);
   const portalCooldownRef = useRef(0);
   const [teleportAnim, setTeleportAnim] = useState<{ active: boolean; phase: 'shrink' | 'grow'; t: number }>({ active: false, phase: 'shrink', t: 0 });
+  const teleportTargetRef = useRef<[number, number, number] | null>(null);
+  const camYawRef = useRef(0);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysRef.current.add(e.code);
+      if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+        e.preventDefault();
+      }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       keysRef.current.delete(e.code);
@@ -32,83 +37,153 @@ export function PlayerController() {
   useEffect(() => {
     if (mode === 'run' && meshRef.current) {
       meshRef.current.position.set(0, 0.5, 0);
+      setPlayerPosition([0, 0.5, 0]);
+      camera.position.set(6, 8, 6);
+      camera.lookAt(0, 0.5, 0);
     }
-  }, [mode]);
+  }, [mode, camera, setPlayerPosition]);
 
   useFrame((state, delta) => {
     if (mode !== 'run' || !meshRef.current) return;
 
+    const dt = Math.min(delta, 0.05);
     const speed = 5;
     const keys = keysRef.current;
-    let dx = 0, dz = 0;
-    if (keys.has('KeyW')) dz -= speed * delta;
-    if (keys.has('KeyS')) dz += speed * delta;
-    if (keys.has('KeyA')) dx -= speed * delta;
-    if (keys.has('KeyD')) dx += speed * delta;
 
-    if (Math.abs(dx) > 0 && Math.abs(dz) > 0) {
-      dx *= 0.707;
-      dz *= 0.707;
+    const playerPos = meshRef.current.position;
+
+    const dirToPlayer = new THREE.Vector3().subVectors(playerPos, camera.position);
+    dirToPlayer.y = 0;
+    dirToPlayer.normalize();
+    const rightDir = new THREE.Vector3().crossVectors(dirToPlayer, new THREE.Vector3(0, 1, 0)).normalize();
+
+    let moveX = 0;
+    let moveZ = 0;
+    if (keys.has('KeyW') || keys.has('ArrowUp')) {
+      moveX += dirToPlayer.x;
+      moveZ += dirToPlayer.z;
+    }
+    if (keys.has('KeyS') || keys.has('ArrowDown')) {
+      moveX -= dirToPlayer.x;
+      moveZ -= dirToPlayer.z;
+    }
+    if (keys.has('KeyD') || keys.has('ArrowRight')) {
+      moveX += rightDir.x;
+      moveZ += rightDir.z;
+    }
+    if (keys.has('KeyA') || keys.has('ArrowLeft')) {
+      moveX -= rightDir.x;
+      moveZ -= rightDir.z;
     }
 
-    meshRef.current.position.x += dx;
-    meshRef.current.position.z += dz;
-    meshRef.current.position.x = THREE.MathUtils.clamp(meshRef.current.position.x, -19, 19);
-    meshRef.current.position.z = THREE.MathUtils.clamp(meshRef.current.position.z, -19, 19);
+    const moveLen = Math.sqrt(moveX * moveX + moveZ * moveZ);
+    if (moveLen > 0) {
+      moveX = (moveX / moveLen) * speed * dt;
+      moveZ = (moveZ / moveLen) * speed * dt;
+
+      const targetAngle = Math.atan2(moveX, moveZ);
+      const currentAngle = meshRef.current.rotation.y;
+      let angleDiff = targetAngle - currentAngle;
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      meshRef.current.rotation.y = currentAngle + angleDiff * Math.min(1, dt * 10);
+    }
 
     const storeState = useStore.getState();
     const props = storeState.props;
-    let groundY = 0.5;
 
+    let platformDeltaX = 0;
+    let platformDeltaY = 0;
+    let platformDeltaZ = 0;
+    let onPlatformId: string | null = null;
+
+    for (const prop of props) {
+      if (prop.type === MechanismType.MovingPlatform) {
+        const pxCur = prop.position[0] + (prop.moveAxis === 'x' ? prop.currentOffset : 0);
+        const pyCur = prop.position[1] + (prop.moveAxis === 'y' ? prop.currentOffset : 0);
+        const pzCur = prop.position[2] + (prop.moveAxis === 'z' ? prop.currentOffset : 0);
+
+        if (
+          Math.abs(playerPos.x - pxCur) < 1.3 &&
+          Math.abs(playerPos.z - pzCur) < 1.3 &&
+          playerPos.y >= pyCur + 0.1 &&
+          playerPos.y <= pyCur + 0.9
+        ) {
+          onPlatformId = prop.id;
+          const nextOffset = prop.activated
+            ? Math.min(prop.currentOffset + prop.moveSpeed * dt, prop.moveRange)
+            : Math.max(prop.currentOffset - prop.moveSpeed * dt, 0);
+          const deltaOff = nextOffset - prop.currentOffset;
+          if (prop.moveAxis === 'x') platformDeltaX = deltaOff;
+          if (prop.moveAxis === 'y') platformDeltaY = deltaOff;
+          if (prop.moveAxis === 'z') platformDeltaZ = deltaOff;
+        }
+      }
+    }
+
+    playerPos.x += moveX + platformDeltaX;
+    playerPos.z += moveZ + platformDeltaZ;
+    playerPos.x = THREE.MathUtils.clamp(playerPos.x, -19, 19);
+    playerPos.z = THREE.MathUtils.clamp(playerPos.z, -19, 19);
+
+    let groundY = 0.5;
     for (const prop of props) {
       if (prop.type === MechanismType.MovingPlatform) {
         const px = prop.position[0] + (prop.moveAxis === 'x' ? prop.currentOffset : 0);
         const py = prop.position[1] + (prop.moveAxis === 'y' ? prop.currentOffset : 0);
         const pz = prop.position[2] + (prop.moveAxis === 'z' ? prop.currentOffset : 0);
         if (
-          Math.abs(meshRef.current.position.x - px) < 1.3 &&
-          Math.abs(meshRef.current.position.z - pz) < 1.3 &&
-          meshRef.current.position.y >= py &&
-          meshRef.current.position.y <= py + 1.2
+          Math.abs(playerPos.x - px) < 1.3 &&
+          Math.abs(playerPos.z - pz) < 1.3
         ) {
-          groundY = py + 0.65;
-          if (prop.activated) {
-            const prevOffset = prop.currentOffset;
-            if (prop.moveAxis === 'x') meshRef.current.position.x += (prop.currentOffset - prevOffset);
+          const targetY = py + 0.65;
+          if (playerPos.y + 0.01 >= py && playerPos.y <= targetY + 0.5) {
+            groundY = Math.max(groundY, targetY);
           }
         }
       }
     }
 
-    meshRef.current.position.y = THREE.MathUtils.lerp(meshRef.current.position.y, groundY, delta * 10);
+    playerPos.y += platformDeltaY;
+    playerPos.y = THREE.MathUtils.lerp(playerPos.y, groundY, dt * 8);
 
     if (portalCooldownRef.current > 0) {
-      portalCooldownRef.current -= delta;
+      portalCooldownRef.current -= dt;
     }
 
     for (const prop of props) {
-      if (prop.type === MechanismType.Portal && prop.activated && portalCooldownRef.current <= 0) {
+      if (prop.type === MechanismType.Portal && prop.activated && portalCooldownRef.current <= 0 && !teleportAnim.active) {
         const dist = Math.sqrt(
-          (meshRef.current.position.x - prop.position[0]) ** 2 +
-          (meshRef.current.position.z - prop.position[2]) ** 2
+          (playerPos.x - prop.position[0]) ** 2 +
+          (playerPos.z - prop.position[2]) ** 2
         );
         if (dist < 1.0) {
           playPortalSound();
-          meshRef.current.position.x = prop.portalTarget[0];
-          meshRef.current.position.z = prop.portalTarget[2];
-          meshRef.current.position.y = prop.portalTarget[1] + 0.5;
           portalCooldownRef.current = 1.0;
+          teleportTargetRef.current = [
+            prop.portalTarget[0],
+            prop.portalTarget[1] + 0.5,
+            prop.portalTarget[2],
+          ];
           setTeleportAnim({ active: true, phase: 'shrink', t: 0 });
         }
       }
     }
 
     if (teleportAnim.active && meshRef.current) {
-      const newT = teleportAnim.t + delta / 0.2;
+      const phaseLen = 0.2;
+      const newT = teleportAnim.t + dt / phaseLen;
       if (teleportAnim.phase === 'shrink') {
         const scale = Math.max(0.01, 1 - newT);
         meshRef.current.scale.set(scale, scale, scale);
         if (newT >= 1) {
+          if (teleportTargetRef.current) {
+            playerPos.set(
+              teleportTargetRef.current[0],
+              teleportTargetRef.current[1],
+              teleportTargetRef.current[2]
+            );
+          }
           setTeleportAnim({ active: true, phase: 'grow', t: 0 });
         } else {
           setTeleportAnim({ ...teleportAnim, t: newT });
@@ -119,37 +194,56 @@ export function PlayerController() {
         if (newT >= 1) {
           meshRef.current.scale.set(1, 1, 1);
           setTeleportAnim({ active: false, phase: 'shrink', t: 0 });
+          teleportTargetRef.current = null;
         } else {
           setTeleportAnim({ ...teleportAnim, t: newT });
         }
       }
     }
 
-    setPlayerPosition([meshRef.current.position.x, meshRef.current.position.y, meshRef.current.position.z]);
+    setPlayerPosition([playerPos.x, playerPos.y, playerPos.z]);
 
-    const camTarget = new THREE.Vector3(meshRef.current.position.x, meshRef.current.position.y, meshRef.current.position.z);
-    const camPos = new THREE.Vector3(meshRef.current.position.x + 6, meshRef.current.position.y + 8, meshRef.current.position.z + 6);
-    camera.position.lerp(camPos, delta * 3);
+    const camTarget = new THREE.Vector3(playerPos.x, playerPos.y + 0.2, playerPos.z);
+    const offsetBack = 7;
+    const offsetUp = 6;
+    const camOffsetDir = dirToPlayer.clone().negate();
+    const desiredCamPos = new THREE.Vector3(
+      playerPos.x + camOffsetDir.x * offsetBack,
+      playerPos.y + offsetUp,
+      playerPos.z + camOffsetDir.z * offsetBack
+    );
+
+    camera.position.lerp(desiredCamPos, dt * 3);
     camera.lookAt(camTarget);
+
+    const currentYaw = Math.atan2(
+      playerPos.x - camera.position.x,
+      playerPos.z - camera.position.z
+    );
+    camYawRef.current = currentYaw;
   });
 
   return (
     <group ref={meshRef} position={[0, 0.5, 0]}>
       <mesh position={[0, 0, 0]} castShadow>
-        <boxGeometry args={[0.5, 0.8, 0.3]} />
-        <meshStandardMaterial color="#88aaff" emissive="#2244aa" emissiveIntensity={0.3} />
+        <boxGeometry args={[0.5, 0.8, 0.35]} />
+        <meshStandardMaterial color="#6a8aff" emissive="#2244aa" emissiveIntensity={0.4} metalness={0.2} roughness={0.6} />
       </mesh>
-      <mesh position={[0, 0.55, 0]} castShadow>
-        <boxGeometry args={[0.4, 0.4, 0.35]} />
-        <meshStandardMaterial color="#99bbff" emissive="#3355bb" emissiveIntensity={0.2} />
+      <mesh position={[0, 0.62, 0]} castShadow>
+        <boxGeometry args={[0.42, 0.4, 0.38]} />
+        <meshStandardMaterial color="#88aaff" emissive="#3355bb" emissiveIntensity={0.25} />
       </mesh>
-      <mesh position={[0, 0.5, 0.18]}>
-        <boxGeometry args={[0.08, 0.08, 0.08]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.8} />
+      <mesh position={[-0.08, 0.65, 0.2]}>
+        <boxGeometry args={[0.07, 0.07, 0.07]} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.9} />
       </mesh>
-      <mesh position={[0.12, 0.5, 0.18]}>
-        <boxGeometry args={[0.08, 0.08, 0.08]} />
-        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.8} />
+      <mesh position={[0.08, 0.65, 0.2]}>
+        <boxGeometry args={[0.07, 0.07, 0.07]} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.9} />
+      </mesh>
+      <mesh position={[0, 0.5, 0.22]}>
+        <boxGeometry args={[0.04, 0.02, 0.04]} />
+        <meshStandardMaterial color="#222" />
       </mesh>
     </group>
   );
