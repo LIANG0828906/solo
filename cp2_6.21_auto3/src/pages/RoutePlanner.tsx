@@ -13,7 +13,6 @@ import L from 'leaflet'
 import { useRouteStore } from '../stores/routeStore'
 import { useTeamStore } from '../stores/teamStore'
 import { supplyIcon, campIcon } from '../components/mapIcons'
-import { generateId } from '../utils'
 import type { PointType, RoutePoint, MemberStatus } from '../types'
 
 function MapClickHandler({
@@ -49,12 +48,14 @@ function FitBounds({ points }: { points: RoutePoint[] }) {
 function DraggableMarker({
   point,
   onDragEnd,
-  onClick,
+  onEdit,
+  onDelete,
   isSelected,
 }: {
   point: RoutePoint
   onDragEnd: (id: string, lat: number, lng: number) => void
-  onClick: (point: RoutePoint) => void
+  onEdit: (point: RoutePoint) => void
+  onDelete: (pointId: string) => void
   isSelected: boolean
 }) {
   const markerRef = useRef<L.Marker>(null)
@@ -69,31 +70,41 @@ function DraggableMarker({
           onDragEnd(point.id, pos.lat, pos.lng)
         }
       },
-      click() {
-        onClick(point)
-      },
     }),
-    [point.id, onDragEnd, onClick],
+    [point.id, onDragEnd],
   )
 
   return (
-    <div className={isSelected ? 'pulse-marker' : ''}>
-      <Marker
-        ref={markerRef}
-        position={[point.lat, point.lng]}
-        icon={icon}
-        draggable={true}
-        eventHandlers={eventHandlers}
-      >
-        <Popup className="point-popup" minWidth={300} maxWidth={300}>
-          <PointPopupContent point={point} />
-        </Popup>
-      </Marker>
-    </div>
+    <Marker
+      ref={markerRef}
+      position={[point.lat, point.lng]}
+      icon={icon}
+      draggable={true}
+      eventHandlers={eventHandlers}
+    >
+      <Popup className="point-popup" minWidth={300} maxWidth={300} closeOnClick={false}>
+        <PointPopupContent
+          point={point}
+          onEdit={() => onEdit(point)}
+          onDelete={() => onDelete(point.id)}
+          isSelected={isSelected}
+        />
+      </Popup>
+    </Marker>
   )
 }
 
-function PointPopupContent({ point }: { point: RoutePoint }) {
+function PointPopupContent({
+  point,
+  onEdit,
+  onDelete,
+  isSelected,
+}: {
+  point: RoutePoint
+  onEdit: () => void
+  onDelete: () => void
+  isSelected: boolean
+}) {
   const { teamData } = useTeamStore()
   const membersAtPoint = teamData
     ? teamData.members.filter((m) => m.nearestPointId === point.id)
@@ -112,15 +123,10 @@ function PointPopupContent({ point }: { point: RoutePoint }) {
         <span>{point.name}</span>
       </div>
       <div className="popup-amenities">
-        {point.hasWater && (
-          <span className="amenity-icon">
-            💧 水源
-          </span>
-        )}
-        {point.hasShelter && (
-          <span className="amenity-icon">
-            ⛺ 庇护所
-          </span>
+        {point.hasWater && <span className="amenity-icon">💧 水源</span>}
+        {point.hasShelter && <span className="amenity-icon">⛺ 庇护所</span>}
+        {!point.hasWater && !point.hasShelter && (
+          <span style={{ fontSize: 12, color: '#9ca3af' }}>暂无设施信息</span>
         )}
       </div>
       <div className="popup-detail">
@@ -132,7 +138,7 @@ function PointPopupContent({ point }: { point: RoutePoint }) {
         <span className="popup-value">{point.eta}</span>
       </div>
       <div className="popup-detail">
-        <span className="popup-label">坐标</span>
+        <span className="popup-label">经纬度</span>
         <span className="popup-value">
           {point.lat.toFixed(4)}, {point.lng.toFixed(4)}
         </span>
@@ -154,10 +160,32 @@ function PointPopupContent({ point }: { point: RoutePoint }) {
                 }}
               />
               <span>{m.name}</span>
+              <span
+                className={`status-tag ${m.status === 'moving' ? 'status-moving' : m.status === 'resting' ? 'status-resting' : 'status-trouble'}`}
+                style={{ fontSize: 10, padding: '1px 6px', marginLeft: 4 }}
+              >
+                {m.status === 'moving' ? '行进中' : m.status === 'resting' ? '休息中' : '困难'}
+              </span>
             </div>
           ))}
         </div>
       )}
+      <div style={{ display: 'flex', gap: 8, marginTop: 14, paddingTop: 10, borderTop: '1px solid #f0f0f0' }}>
+        <button
+          className="btn-primary"
+          style={{ flex: 1, padding: '8px 12px', fontSize: 12 }}
+          onClick={onEdit}
+        >
+          编辑
+        </button>
+        <button
+          className="btn-danger"
+          style={{ padding: '8px 12px', fontSize: 12 }}
+          onClick={onDelete}
+        >
+          删除
+        </button>
+      </div>
     </div>
   )
 }
@@ -172,6 +200,7 @@ export default function RoutePlanner() {
   const [showPointModal, setShowPointModal] = useState(false)
   const [editingPoint, setEditingPoint] = useState<Partial<RoutePoint> | null>(null)
   const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (routeId) {
@@ -212,19 +241,21 @@ export default function RoutePlanner() {
   }
 
   const handleSavePoint = async () => {
-    if (!editingPoint || !routeId || !pendingCoords) return
+    if (!editingPoint || !routeId) return
     if (!editingPoint.name) return
 
     try {
-      if (selectedPoint && selectedPoint.id === (editingPoint as any).id) {
+      if (selectedPoint && pendingCoords && selectedPoint.id) {
         await updatePoint(routeId, selectedPoint.id, {
           name: editingPoint.name,
           elevation: Number(editingPoint.elevation) || 0,
           eta: editingPoint.eta || '12:00',
           hasWater: editingPoint.hasWater,
           hasShelter: editingPoint.hasShelter,
+          lat: pendingCoords.lat,
+          lng: pendingCoords.lng,
         })
-      } else {
+      } else if (pendingCoords) {
         await addPoint(routeId, {
           name: editingPoint.name!,
           lat: pendingCoords.lat,
@@ -251,25 +282,41 @@ export default function RoutePlanner() {
     await updatePoint(routeId, id, { lat, lng })
   }
 
-  const handlePointClick = (point: RoutePoint) => {
+  const handleEditPoint = (point: RoutePoint) => {
     setSelectedPoint(point)
     setEditingPoint({ ...point })
-    setShowPointModal(true)
     setPendingCoords({ lat: point.lat, lng: point.lng })
+    setShowPointModal(true)
   }
 
-  const handleDeletePoint = async () => {
-    if (!selectedPoint || !routeId) return
-    await deletePoint(routeId, selectedPoint.id)
-    setShowPointModal(false)
-    setSelectedPoint(null)
-    setEditingPoint(null)
+  const handleDeletePoint = async (pointId: string) => {
+    if (!routeId) return
+    await deletePoint(routeId, pointId)
   }
 
   const formatDuration = (minutes: number) => {
     const h = Math.floor(minutes / 60)
     const m = Math.round(minutes % 60)
     return h > 0 ? `${h}小时${m}分钟` : `${m}分钟`
+  }
+
+  const copyShareLink = async () => {
+    if (!currentRoute) return
+    const shareUrl = `${window.location.origin}/join/${currentRoute.code}`
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (e) {
+      const textArea = document.createElement('textarea')
+      textArea.value = shareUrl
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   const center: [number, number] = points.length > 0
@@ -308,7 +355,8 @@ export default function RoutePlanner() {
               key={point.id}
               point={point}
               onDragEnd={handleDragEnd}
-              onClick={handlePointClick}
+              onEdit={handleEditPoint}
+              onDelete={handleDeletePoint}
               isSelected={selectedPoint?.id === point.id}
             />
           ))}
@@ -351,9 +399,47 @@ export default function RoutePlanner() {
               {formatDuration(currentRoute.totalDistance * 30)}
             </span>
           </div>
+
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>分享路线</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <code style={{
+                flex: 1,
+                padding: '6px 10px',
+                background: '#f0f4f1',
+                borderRadius: 6,
+                fontSize: 14,
+                fontFamily: 'monospace',
+                letterSpacing: 2,
+                color: '#1a3c2e',
+                textAlign: 'center',
+              }}>
+                {currentRoute.code}
+              </code>
+              <button
+                onClick={copyShareLink}
+                style={{
+                  padding: '6px 12px',
+                  border: 'none',
+                  borderRadius: 6,
+                  background: copied ? '#27ae60' : 'linear-gradient(135deg, #2ecc71, #27ae60)',
+                  color: 'white',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease-out',
+                  whiteSpace: 'nowrap',
+                }}
+                title="复制分享链接"
+              >
+                {copied ? '✓ 已复制' : '复制链接'}
+              </button>
+            </div>
+          </div>
+
           <button
             className="nav-btn"
-            style={{ width: '100%', marginTop: 10, padding: '8px 16px' }}
+            style={{ width: '100%', marginTop: 12, padding: '8px 16px' }}
             onClick={() => navigate(`/tracker/${currentRoute.id}`)}
           >
             查看队伍追踪
@@ -442,40 +528,47 @@ export default function RoutePlanner() {
               </div>
             </div>
 
-            {editingPoint.type === 'supply' && (
-              <div className="form-group">
-                <label className="form-label">设施</label>
-                <div className="form-checkbox-group">
-                  <label className="form-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={editingPoint.hasWater || false}
-                      onChange={(e) =>
-                        setEditingPoint({ ...editingPoint, hasWater: e.target.checked })
-                      }
-                    />
-                    💧 水源
-                  </label>
-                  <label className="form-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={editingPoint.hasShelter || false}
-                      onChange={(e) =>
-                        setEditingPoint({
-                          ...editingPoint,
-                          hasShelter: e.target.checked,
-                        })
-                      }
-                    />
-                    ⛺ 庇护所
-                  </label>
-                </div>
+            <div className="form-group">
+              <label className="form-label">设施</label>
+              <div className="form-checkbox-group">
+                <label className="form-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={editingPoint.hasWater || false}
+                    onChange={(e) =>
+                      setEditingPoint({ ...editingPoint, hasWater: e.target.checked })
+                    }
+                  />
+                  💧 水源
+                </label>
+                <label className="form-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={editingPoint.hasShelter || false}
+                    onChange={(e) =>
+                      setEditingPoint({
+                        ...editingPoint,
+                        hasShelter: e.target.checked,
+                      })
+                    }
+                  />
+                  ⛺ 庇护所
+                </label>
               </div>
-            )}
+            </div>
 
             <div className="modal-actions">
               {selectedPoint && (
-                <button className="btn-danger" onClick={handleDeletePoint}>
+                <button
+                  className="btn-danger"
+                  onClick={async () => {
+                    if (!routeId || !selectedPoint) return
+                    await deletePoint(routeId, selectedPoint.id)
+                    setShowPointModal(false)
+                    setSelectedPoint(null)
+                    setEditingPoint(null)
+                  }}
+                >
                   删除
                 </button>
               )}

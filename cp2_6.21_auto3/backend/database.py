@@ -144,7 +144,7 @@ def update_route(route_id: str, **kwargs) -> Optional[Dict[str, Any]]:
             f"UPDATE routes SET {', '.join(fields)} WHERE id = ?",
             tuple(values)
         )
-        return get_route(route_id)
+    return get_route(route_id)
 
 
 def get_route_points(route_id: str) -> List[Dict[str, Any]]:
@@ -234,7 +234,7 @@ def update_route_point(point_id: str, **kwargs) -> Optional[Dict[str, Any]]:
             f"UPDATE route_points SET {', '.join(fields)} WHERE id = ?",
             tuple(values)
         )
-        return get_point(point_id)
+    return get_point(point_id)
 
 
 def delete_route_point(point_id: str) -> bool:

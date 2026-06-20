@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   MapContainer,
@@ -9,33 +9,20 @@ import {
   useMap,
 } from 'react-leaflet'
 import L from 'leaflet'
-import 'leaflet.heat'
 import { useRouteStore } from '../stores/routeStore'
 import { useTeamStore } from '../stores/teamStore'
 import { supplyIcon, campIcon, createMemberIcon } from '../components/mapIcons'
 import { formatRelativeTime } from '../utils'
-import type { RoutePoint, MemberStatus } from '../types'
+import type { RoutePoint, MemberStatus, TeamMember } from '../types'
 
-declare module 'leaflet' {
-  function heatLayer(
-    latlngs: [number, number, number][],
-    options?: {
-      minOpacity?: number
-      maxZoom?: number
-      max?: number
-      radius?: number
-      blur?: number
-      gradient?: Record<number, string>
-    },
-  ): any
-}
+const GL = (window as any).L as any
 
-function FitBounds({ points, members }: { points: RoutePoint[]; members: any[] }) {
+function FitBounds({ points, members }: { points: RoutePoint[]; members: TeamMember[] }) {
   const map = useMap()
   useEffect(() => {
     const allPositions: [number, number][] = [
       ...points.map((p) => [p.lat, p.lng] as [number, number]),
-      ...members.map((m) => [m.lat, m.lng] as [number, number]),
+      ...members.filter((m) => m.lat !== 0 && m.lng !== 0).map((m) => [m.lat, m.lng] as [number, number]),
     ]
     if (allPositions.length > 0) {
       const bounds = L.latLngBounds(allPositions)
@@ -54,25 +41,32 @@ function HeatmapLayer({ data }: { data: [number, number, number][] }) {
   useEffect(() => {
     if (heatRef.current) {
       heatRef.current.remove()
+      heatRef.current = null
     }
-    if (data.length > 0) {
-      heatRef.current = (L as any).heatLayer(data, {
-        radius: 35,
-        blur: 25,
-        maxZoom: 13,
+    if (data.length > 0 && GL && typeof GL.heatLayer === 'function') {
+      heatRef.current = GL.heatLayer(data, {
+        minOpacity: 0.3,
+        maxZoom: 14,
+        max: 1.0,
+        radius: 40,
+        blur: 30,
         gradient: {
-          0.1: 'blue',
-          0.3: 'cyan',
-          0.5: 'lime',
-          0.7: 'yellow',
-          0.9: 'orange',
-          1.0: 'red',
+          0.0: '#0000ff',
+          0.2: '#0066ff',
+          0.4: '#00ccff',
+          0.5: '#00ff88',
+          0.6: '#88ff00',
+          0.7: '#ffff00',
+          0.8: '#ff8800',
+          0.9: '#ff3300',
+          1.0: '#ff0000',
         },
       }).addTo(map)
     }
     return () => {
       if (heatRef.current) {
         heatRef.current.remove()
+        heatRef.current = null
       }
     }
   }, [data, map])
@@ -91,10 +85,13 @@ export default function TeamTracker() {
     updatePosition,
     setCurrentMember,
     error,
+    resetFailures,
   } = useTeamStore()
   const [status, setStatus] = useState<MemberStatus>('moving')
+  const [geoError, setGeoError] = useState<string | null>(null)
   const watchIdRef = useRef<number | null>(null)
   const intervalRef = useRef<number | null>(null)
+  const lastPosRef = useRef<{ lat: number; lng: number } | null>(null)
 
   useEffect(() => {
     if (routeId) {
@@ -121,39 +118,69 @@ export default function TeamTracker() {
     }
   }, [currentMember])
 
+  const sendPositionUpdate = useCallback(
+    (memberId: string, lat: number, lng: number, currentStatus: MemberStatus) => {
+      updatePosition(memberId, lat, lng, currentStatus)
+      lastPosRef.current = { lat, lng }
+    },
+    [updatePosition],
+  )
+
   useEffect(() => {
     if (!currentMember) return
+    if (!navigator.geolocation) {
+      setGeoError('浏览器不支持地理定位')
+      return
+    }
 
-    const updateGeo = (position: GeolocationPosition) => {
+    const memberId = currentMember.id
+    let active = true
+
+    const onPosition = (position: GeolocationPosition) => {
+      if (!active) return
       const { latitude, longitude } = position.coords
-      updatePosition(currentMember.id, latitude, longitude, status)
+      setGeoError(null)
+      sendPositionUpdate(memberId, latitude, longitude, status)
     }
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(updateGeo, (err) => {
-        console.warn('获取位置失败:', err.message)
-      })
-
-      watchIdRef.current = navigator.geolocation.watchPosition(updateGeo, (err) => {
-        console.warn('位置更新失败:', err.message)
-      })
-
-      intervalRef.current = window.setInterval(() => {
-        navigator.geolocation.getCurrentPosition(updateGeo, (err) => {
-          console.warn('定时获取位置失败:', err.message)
-        })
-      }, 10000)
+    const onError = (err: GeolocationPositionError) => {
+      if (!active) return
+      if (err.code === err.PERMISSION_DENIED) {
+        setGeoError('位置权限被拒绝，请在浏览器设置中允许')
+      } else if (err.code === err.POSITION_UNAVAILABLE) {
+        setGeoError('无法获取位置信息')
+      } else if (err.code === err.TIMEOUT) {
+        setGeoError('获取位置超时')
+      }
     }
+
+    const geoOptions: PositionOptions = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 5000,
+    }
+
+    navigator.geolocation.getCurrentPosition(onPosition, onError, geoOptions)
+
+    watchIdRef.current = navigator.geolocation.watchPosition(onPosition, onError, geoOptions)
+
+    intervalRef.current = window.setInterval(() => {
+      if (!active) return
+      navigator.geolocation.getCurrentPosition(onPosition, onError, geoOptions)
+    }, 10000)
 
     return () => {
+      active = false
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
       }
       if (intervalRef.current !== null) {
         clearInterval(intervalRef.current)
+        intervalRef.current = null
       }
     }
-  }, [currentMember, status, updatePosition])
+  }, [currentMember, status, sendPositionUpdate])
 
   useEffect(() => {
     if (!routeId) return
@@ -162,6 +189,13 @@ export default function TeamTracker() {
     }, 5000)
     return () => clearInterval(interval)
   }, [routeId, fetchTeam])
+
+  useEffect(() => {
+    if (error && error.includes('位置同步失败')) {
+      const timer = setTimeout(() => resetFailures(), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [error, resetFailures])
 
   const points = currentRoute?.points || []
   const members = teamData?.members || []
@@ -183,6 +217,8 @@ export default function TeamTracker() {
     points.length > 0
       ? [points[0].lat, points[0].lng]
       : [31.2304, 121.4737]
+
+  const heatmapData: [number, number, number][] = (teamData?.heatmapData || []) as any
 
   if (!currentRoute) {
     return (
@@ -207,9 +243,7 @@ export default function TeamTracker() {
             maxZoom={17}
           />
           <FitBounds points={points} members={members} />
-          {teamData && teamData.heatmapData.length > 0 && (
-            <HeatmapLayer data={teamData.heatmapData} />
-          )}
+          {heatmapData.length > 0 && <HeatmapLayer data={heatmapData} />}
           {polylinePositions.length > 1 && (
             <Polyline
               positions={polylinePositions}
@@ -228,17 +262,19 @@ export default function TeamTracker() {
               icon={point.type === 'supply' ? supplyIcon : campIcon}
             >
               <Popup className="point-popup" minWidth={300} maxWidth={300}>
-                <PopupContent point={point} members={members} />
+                <PointPopupContent point={point} members={members} />
               </Popup>
             </Marker>
           ))}
-          {members.map((member) => (
-            <Marker
-              key={member.id}
-              position={[member.lat, member.lng]}
-              icon={createMemberIcon(member.status, member.name)}
-            />
-          ))}
+          {members
+            .filter((m) => m.lat !== 0 && m.lng !== 0)
+            .map((member) => (
+              <Marker
+                key={member.id}
+                position={[member.lat, member.lng]}
+                icon={createMemberIcon(member.status, member.name)}
+              />
+            ))}
         </MapContainer>
       </div>
 
@@ -271,7 +307,7 @@ export default function TeamTracker() {
 
         {currentMember && (
           <div style={{ padding: '10px 0', borderBottom: '1px solid #e5e7eb' }}>
-            <div className="form-label" style={{ fontSize: 12 }}>
+            <div className="form-label" style={{ fontSize: 12, color: '#374151' }}>
               我的状态
             </div>
             <div className="status-selector">
@@ -306,6 +342,16 @@ export default function TeamTracker() {
                 </div>
               ))}
             </div>
+            {geoError && (
+              <div style={{ fontSize: 11, color: '#dc2626', marginTop: 6 }}>
+                {geoError}
+              </div>
+            )}
+            {lastPosRef.current && (
+              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4, fontFamily: 'monospace' }}>
+                最后上报: {lastPosRef.current.lat.toFixed(4)}, {lastPosRef.current.lng.toFixed(4)}
+              </div>
+            )}
           </div>
         )}
 
@@ -315,9 +361,9 @@ export default function TeamTracker() {
               <div className="member-card-header">
                 <span className="member-name">{member.name}</span>
                 <span
-                  className={`status-tag ${statusLabels[member.status].cls}`}
+                  className={`status-tag ${statusLabels[member.status as MemberStatus]?.cls || 'status-moving'}`}
                 >
-                  {statusLabels[member.status].label}
+                  {statusLabels[member.status as MemberStatus]?.label || '未知'}
                 </span>
               </div>
               <div className="member-info">
@@ -375,12 +421,12 @@ export default function TeamTracker() {
   )
 }
 
-function PopupContent({
+function PointPopupContent({
   point,
   members,
 }: {
   point: RoutePoint
-  members: any[]
+  members: TeamMember[]
 }) {
   const membersAtPoint = members.filter((m) => m.nearestPointId === point.id)
   const statusColor: Record<MemberStatus, string> = {
@@ -425,11 +471,17 @@ function PopupContent({
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  background: statusColor[m.status as MemberStatus],
+                  background: statusColor[m.status as MemberStatus] || '#9ca3af',
                   display: 'inline-block',
                 }}
               />
               <span>{m.name}</span>
+              <span
+                className={`status-tag ${m.status === 'moving' ? 'status-moving' : m.status === 'resting' ? 'status-resting' : 'status-trouble'}`}
+                style={{ fontSize: 10, padding: '1px 6px', marginLeft: 4 }}
+              >
+                {m.status === 'moving' ? '行进中' : m.status === 'resting' ? '休息中' : '困难'}
+              </span>
             </div>
           ))}
         </div>
