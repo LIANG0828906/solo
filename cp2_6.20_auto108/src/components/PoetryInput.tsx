@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 
 interface HistoryItem {
   id: string
@@ -25,6 +25,10 @@ function PoetryInput({
   const [isGenerating, setIsGenerating] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
+  useEffect(() => {
+    setText(defaultText)
+  }, [defaultText])
+
   const createRipple = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     const button = buttonRef.current
     if (!button) return
@@ -39,15 +43,17 @@ function PoetryInput({
     circle.style.top = `${e.clientY - rect.top - radius}px`
     circle.classList.add('ripple')
 
-    const ripple = button.querySelector('.ripple')
-    if (ripple) {
-      ripple.remove()
+    const existingRipple = button.querySelector('.ripple')
+    if (existingRipple) {
+      existingRipple.remove()
     }
 
     button.appendChild(circle)
 
     setTimeout(() => {
-      circle.remove()
+      if (circle.parentNode) {
+        circle.remove()
+      }
     }, 600)
   }, [])
 
@@ -57,12 +63,14 @@ function PoetryInput({
       if (!text.trim() || isGenerating) return
 
       setIsGenerating(true)
-      createRipple(e as React.MouseEvent<HTMLButtonElement>)
+      if ((e as React.MouseEvent<HTMLButtonElement>).clientX !== undefined) {
+        createRipple(e as React.MouseEvent<HTMLButtonElement>)
+      }
 
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         onGenerate(text.trim())
         setIsGenerating(false)
-      }, 300)
+      })
     },
     [text, isGenerating, onGenerate, createRipple],
   )

@@ -1,6 +1,6 @@
-import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
+import { useRef, useEffect, useState, useCallback, useMemo, memo } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import type { PoetryData, ImageryItem } from '../utils/parsePoetry'
+import type { PoetryData } from '../utils/parsePoetry'
 
 interface CanvasElement {
   id: string
@@ -11,6 +11,7 @@ interface CanvasElement {
   rotation: number
   opacity: number
   zIndex: number
+  layer: 'background' | 'midground' | 'foreground' | 'text'
 }
 
 interface InkCanvasProps {
@@ -20,11 +21,11 @@ interface InkCanvasProps {
   onRefreshSeed: () => void
 }
 
-function seededRandom(seed: number) {
-  let s = seed
+function createSeededRandom(seed: number) {
+  let s = Math.abs(seed) || 1
   return function () {
-    s = (s * 9301 + 49297) % 233280
-    return s / 233280
+    s = (s * 16807 + 0) % 2147483647
+    return (s - 1) / 2147483646
   }
 }
 
@@ -39,7 +40,7 @@ function generateMountainPath(
   const points: { x: number; y: number }[] = []
   const startX = baseX
   const endX = baseX + width
-  const peakCount = Math.floor(segments / 2) + 1
+  const peakCount = Math.max(1, Math.floor(segments / 2) + 1)
 
   for (let i = 0; i <= segments; i++) {
     const t = i / segments
@@ -56,7 +57,7 @@ function generateMountainPath(
       }
     }
 
-    const jitter = (random() - 0.5) * height * 0.1
+    const jitter = (random() - 0.5) * height * 0.12
     points.push({ x, y: baseY - yOffset + jitter })
   }
 
@@ -80,31 +81,37 @@ function generateTreePath(
   y: number,
   height: number,
   random: () => number,
-): { trunk: string; branches: string[] } {
+): { trunk: string; branches: string[]; leaves: string[] } {
   const trunkWidth = height * 0.08
   let trunkPath = `M ${x - trunkWidth / 2} ${y}`
-  trunkPath += ` Q ${x + (random() - 0.5) * trunkWidth} ${y - height * 0.5}`
+  trunkPath += ` Q ${x + (random() - 0.5) * trunkWidth * 2} ${y - height * 0.5}`
   trunkPath += ` ${x - trunkWidth / 4} ${y - height}`
   trunkPath += ` L ${x + trunkWidth / 4} ${y - height}`
-  trunkPath += ` Q ${x + (random() - 0.5) * trunkWidth} ${y - height * 0.5}`
+  trunkPath += ` Q ${x + (random() - 0.5) * trunkWidth * 2} ${y - height * 0.5}`
   trunkPath += ` ${x + trunkWidth / 2} ${y} Z`
 
   const branches: string[] = []
-  const branchCount = 3 + Math.floor(random() * 3)
+  const leaves: string[] = []
+  const branchCount = 3 + Math.floor(random() * 4)
   for (let i = 0; i < branchCount; i++) {
-    const branchY = y - height * (0.3 + (i / branchCount) * 0.6)
+    const branchY = y - height * (0.25 + (i / branchCount) * 0.65)
     const direction = random() > 0.5 ? 1 : -1
-    const branchLength = height * (0.2 + random() * 0.3)
+    const branchLength = height * (0.2 + random() * 0.35)
     const startX = x + direction * trunkWidth * 0.3
     const endX = startX + direction * branchLength
     const endY = branchY - branchLength * 0.3 + (random() - 0.5) * 10
 
     let branchPath = `M ${startX} ${branchY}`
     const cpx = (startX + endX) / 2 + (random() - 0.5) * 20
-    const cpy = (branchY + endY) / 2 - 10 - random() * 10
+    const cpy = (branchY + endY) / 2 - 10 - random() * 15
     branchPath += ` Q ${cpx} ${cpy}, ${endX} ${endY}`
-
     branches.push(branchPath)
+
+    if (random() > 0.3) {
+      const leafR = 3 + random() * 5
+      const leafPath = `M ${endX - leafR} ${endY} A ${leafR} ${leafR * 0.8} 0 1 1 ${endX + leafR} ${endY} A ${leafR} ${leafR * 0.8} 0 1 1 ${endX - leafR} ${endY} Z`
+      leaves.push(leafPath)
+    }
 
     if (random() > 0.4) {
       const subBranchLength = branchLength * 0.5
@@ -112,19 +119,25 @@ function generateTreePath(
       subBranchPath += ` Q ${cpx + direction * subBranchLength * 0.5} ${cpy - subBranchLength * 0.4}`
       subBranchPath += ` ${cpx + direction * subBranchLength} ${cpy - subBranchLength * 0.3}`
       branches.push(subBranchPath)
+
+      if (random() > 0.5) {
+        const subLeafR = 2 + random() * 4
+        const subLeafPath = `M ${cpx + direction * subBranchLength - subLeafR} ${cpy - subBranchLength * 0.3} A ${subLeafR} ${subLeafR * 0.7} 0 1 1 ${cpx + direction * subBranchLength + subLeafR} ${cpy - subBranchLength * 0.3} A ${subLeafR} ${subLeafR * 0.7} 0 1 1 ${cpx + direction * subBranchLength - subLeafR} ${cpy - subBranchLength * 0.3} Z`
+        leaves.push(subLeafPath)
+      }
     }
   }
 
-  return { trunk: trunkPath, branches }
+  return { trunk: trunkPath, branches, leaves }
 }
 
 function generateBirdPath(x: number, y: number, scale: number): string {
   const s = scale
-  let path = `M ${x - 15 * s} ${y}`
-  path += ` Q ${x - 8 * s} ${y - 10 * s}, ${x} ${y - 2 * s}`
-  path += ` Q ${x + 8 * s} ${y - 10 * s}, ${x + 15 * s} ${y}`
-  path += ` Q ${x + 8 * s} ${y + 2 * s}, ${x} ${y + 1 * s}`
-  path += ` Q ${x - 8 * s} ${y + 2 * s}, ${x - 15 * s} ${y} Z`
+  let path = `M ${x - 18 * s} ${y + 2 * s}`
+  path += ` Q ${x - 10 * s} ${y - 12 * s}, ${x} ${y - 3 * s}`
+  path += ` Q ${x + 10 * s} ${y - 12 * s}, ${x + 18 * s} ${y + 2 * s}`
+  path += ` Q ${x + 10 * s} ${y - 4 * s}, ${x} ${y + 1 * s}`
+  path += ` Q ${x - 10 * s} ${y - 4 * s}, ${x - 18 * s} ${y + 2 * s} Z`
   return path
 }
 
@@ -133,13 +146,13 @@ function generateFlowerPath(
   y: number,
   scale: number,
   random: () => number,
-): { petals: string[]; center: string } {
+): { petals: string[]; center: string; stem: string } {
   const petalCount = 5 + Math.floor(random() * 3)
   const petals: string[] = []
   const s = scale
 
   for (let i = 0; i < petalCount; i++) {
-    const angle = (i / petalCount) * Math.PI * 2
+    const angle = (i / petalCount) * Math.PI * 2 - Math.PI / 2
     const petalLength = (10 + random() * 8) * s
     const petalWidth = (5 + random() * 3) * s
     const tipX = x + Math.cos(angle) * petalLength
@@ -156,9 +169,14 @@ function generateFlowerPath(
     petals.push(petalPath)
   }
 
-  const center = `M ${x - 4 * s} ${y - 4 * s} Q ${x + 4 * s} ${y - 4 * s}, ${x + 4 * s} ${y + 4 * s} Q ${x - 4 * s} ${y + 4 * s}, ${x - 4 * s} ${y - 4 * s} Z`
+  const centerR = 4 * s
+  const center = `M ${x - centerR} ${y} A ${centerR} ${centerR} 0 1 1 ${x + centerR} ${y} A ${centerR} ${centerR} 0 1 1 ${x - centerR} ${y} Z`
 
-  return { petals, center }
+  const stemEndY = y + 25 * s
+  const stemCpx = x + (random() - 0.5) * 10
+  const stem = `M ${x} ${y + centerR} Q ${stemCpx} ${y + (stemEndY - y) * 0.5}, ${x + (random() - 0.5) * 8} ${stemEndY}`
+
+  return { petals, center, stem }
 }
 
 function generateCloudPath(
@@ -172,15 +190,16 @@ function generateCloudPath(
   let path = ''
 
   for (let i = 0; i < circles; i++) {
-    const cx = x + (i / (circles - 1)) * width - width / 2
-    const cy = y + (random() - 0.5) * height * 0.3
+    const t = circles > 1 ? i / (circles - 1) : 0.5
+    const cx = x + t * width - width / 2
+    const cy = y + (random() - 0.5) * height * 0.4
     const r = (height / 2) * (0.7 + random() * 0.6)
 
     if (i === 0) {
       path += `M ${cx - r} ${cy}`
     }
-    path += ` A ${r} ${r * 0.7} 0 0 1 ${cx + r} ${cy}`
-    path += ` A ${r} ${r * 0.7} 0 0 1 ${cx - r} ${cy}`
+    path += ` A ${r} ${r * 0.6} 0 0 1 ${cx + r} ${cy}`
+    path += ` A ${r} ${r * 0.6} 0 0 1 ${cx - r} ${cy}`
   }
 
   return path
@@ -192,29 +211,38 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
   const [elements, setElements] = useState<CanvasElement[]>([])
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
   const [draggingId, setDraggingId] = useState<string | null>(null)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const dragOffsetRef = useRef({ x: 0, y: 0 })
   const [animPhase, setAnimPhase] = useState(0)
-
-  const random = useMemo(() => seededRandom(seed), [seed])
+  const animTimerRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const updateDimensions = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        })
-      }
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current)
+      resizeTimerRef.current = setTimeout(() => {
+        if (containerRef.current) {
+          const w = containerRef.current.clientWidth
+          const h = containerRef.current.clientHeight
+          setDimensions({ width: w, height: h })
+        }
+      }, 100)
     }
 
-    updateDimensions()
-    window.addEventListener('resize', updateDimensions)
-    return () => window.removeEventListener('resize', updateDimensions)
+    const ro = new ResizeObserver(updateDimensions)
+    if (containerRef.current) {
+      ro.observe(containerRef.current)
+    }
+
+    return () => {
+      ro.disconnect()
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current)
+    }
   }, [])
 
   useEffect(() => {
     if (!poetryData || dimensions.width === 0) return
 
+    const random = createSeededRandom(seed)
     const newElements: CanvasElement[] = []
     const { width, height } = dimensions
 
@@ -225,84 +253,12 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
         id: uuidv4(),
         type: `mountain-${i}`,
         x: 0,
-        y: height * (0.5 + i * 0.12),
+        y: height * (0.5 + i * 0.1),
         scale: 1,
         rotation: 0,
-        opacity: 0.15 + i * 0.1,
+        opacity: 0.12 + i * 0.08,
         zIndex: i,
-      })
-    }
-
-    const hasTree = poetryData.imagery.find(i => i.type === 'tree')
-    const treeCount = hasTree ? Math.min(hasTree.count + 1, 4) : 0
-    for (let i = 0; i < treeCount; i++) {
-      newElements.push({
-        id: uuidv4(),
-        type: 'tree',
-        x: width * (0.1 + random() * 0.8),
-        y: height * (0.65 + random() * 0.2),
-        scale: 0.6 + random() * 0.6,
-        rotation: (random() - 0.5) * 0.1,
-        opacity: 0.7 + random() * 0.3,
-        zIndex: 10 + i,
-      })
-    }
-
-    const hasBird = poetryData.imagery.find(i => i.type === 'bird')
-    const birdCount = hasBird ? Math.min(hasBird.count + 2, 6) : 0
-    for (let i = 0; i < birdCount; i++) {
-      newElements.push({
-        id: uuidv4(),
-        type: 'bird',
-        x: width * (0.2 + random() * 0.6),
-        y: height * (0.15 + random() * 0.35),
-        scale: 0.5 + random() * 0.5,
-        rotation: (random() - 0.5) * 0.3,
-        opacity: 0.6 + random() * 0.4,
-        zIndex: 20 + i,
-      })
-    }
-
-    const hasMoon = poetryData.imagery.find(i => i.type === 'moon')
-    if (hasMoon) {
-      newElements.push({
-        id: uuidv4(),
-        type: 'moon',
-        x: width * (0.7 + random() * 0.15),
-        y: height * (0.12 + random() * 0.1),
-        scale: 0.8 + random() * 0.4,
-        rotation: 0,
-        opacity: 0.9,
-        zIndex: 5,
-      })
-    }
-
-    const hasWater = poetryData.imagery.find(i => i.type === 'water')
-    if (hasWater) {
-      newElements.push({
-        id: uuidv4(),
-        type: 'water',
-        x: 0,
-        y: height * 0.82,
-        scale: 1,
-        rotation: 0,
-        opacity: 0.4,
-        zIndex: 8,
-      })
-    }
-
-    const hasFlower = poetryData.imagery.find(i => i.type === 'flower')
-    const flowerCount = hasFlower ? Math.min(hasFlower.count + 2, 5) : 0
-    for (let i = 0; i < flowerCount; i++) {
-      newElements.push({
-        id: uuidv4(),
-        type: 'flower',
-        x: width * (0.1 + random() * 0.8),
-        y: height * (0.75 + random() * 0.15),
-        scale: 0.6 + random() * 0.6,
-        rotation: (random() - 0.5) * 0.2,
-        opacity: 0.7 + random() * 0.3,
-        zIndex: 15 + i,
+        layer: 'background',
       })
     }
 
@@ -312,125 +268,221 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
       newElements.push({
         id: uuidv4(),
         type: 'cloud',
-        x: width * (0.2 + random() * 0.6),
-        y: height * (0.08 + random() * 0.15),
+        x: width * (0.15 + random() * 0.7),
+        y: height * (0.06 + random() * 0.15),
         scale: 0.8 + random() * 0.8,
         rotation: 0,
-        opacity: 0.3 + random() * 0.2,
+        opacity: 0.25 + random() * 0.2,
         zIndex: 3 + i,
+        layer: 'background',
       })
     }
+
+    const hasMoon = poetryData.imagery.find(i => i.type === 'moon')
+    if (hasMoon) {
+      newElements.push({
+        id: uuidv4(),
+        type: 'moon',
+        x: width * (0.72 + random() * 0.12),
+        y: height * (0.1 + random() * 0.1),
+        scale: 0.8 + random() * 0.4,
+        rotation: 0,
+        opacity: 0.9,
+        zIndex: 5,
+        layer: 'background',
+      })
+    }
+
+    const hasWater = poetryData.imagery.find(i => i.type === 'water')
+    if (hasWater) {
+      newElements.push({
+        id: uuidv4(),
+        type: 'water',
+        x: 0,
+        y: height * 0.8,
+        scale: 1,
+        rotation: 0,
+        opacity: 0.4,
+        zIndex: 8,
+        layer: 'midground',
+      })
+    }
+
+    const hasTree = poetryData.imagery.find(i => i.type === 'tree')
+    const treeCount = hasTree ? Math.min(hasTree.count + 1, 4) : 0
+    for (let i = 0; i < treeCount; i++) {
+      newElements.push({
+        id: uuidv4(),
+        type: 'tree',
+        x: width * (0.08 + random() * 0.84),
+        y: height * (0.62 + random() * 0.2),
+        scale: 0.6 + random() * 0.6,
+        rotation: (random() - 0.5) * 0.1,
+        opacity: 0.7 + random() * 0.3,
+        zIndex: 10 + i,
+        layer: 'midground',
+      })
+    }
+
+    const hasFlower = poetryData.imagery.find(i => i.type === 'flower')
+    const flowerCount = hasFlower ? Math.min(hasFlower.count + 2, 5) : 0
+    for (let i = 0; i < flowerCount; i++) {
+      newElements.push({
+        id: uuidv4(),
+        type: 'flower',
+        x: width * (0.1 + random() * 0.75),
+        y: height * (0.72 + random() * 0.18),
+        scale: 0.5 + random() * 0.6,
+        rotation: (random() - 0.5) * 0.2,
+        opacity: 0.7 + random() * 0.3,
+        zIndex: 15 + i,
+        layer: 'midground',
+      })
+    }
+
+    const hasBird = poetryData.imagery.find(i => i.type === 'bird')
+    const birdCount = hasBird ? Math.min(hasBird.count + 2, 6) : 0
+    for (let i = 0; i < birdCount; i++) {
+      newElements.push({
+        id: uuidv4(),
+        type: 'bird',
+        x: width * (0.15 + random() * 0.6),
+        y: height * (0.12 + random() * 0.35),
+        scale: 0.4 + random() * 0.5,
+        rotation: (random() - 0.5) * 0.3,
+        opacity: 0.6 + random() * 0.4,
+        zIndex: 20 + i,
+        layer: 'foreground',
+      })
+    }
+
+    newElements.push({
+      id: uuidv4(),
+      type: 'poetry-text',
+      x: 0,
+      y: 0,
+      scale: 1,
+      rotation: 0,
+      opacity: 1,
+      zIndex: 30,
+      layer: 'text',
+    })
 
     newElements.sort((a, b) => a.zIndex - b.zIndex)
     setElements(newElements)
 
+    animTimerRef.current.forEach(t => clearTimeout(t))
+    animTimerRef.current = []
     setAnimPhase(0)
-    setTimeout(() => setAnimPhase(1), 100)
-    setTimeout(() => setAnimPhase(2), 400)
-    setTimeout(() => setAnimPhase(3), 700)
-  }, [poetryData, seed, dimensions])
+
+    const t1 = setTimeout(() => setAnimPhase(1), 50)
+    const t2 = setTimeout(() => setAnimPhase(2), 350)
+    const t3 = setTimeout(() => setAnimPhase(3), 650)
+    animTimerRef.current = [t1, t2, t3]
+
+    return () => {
+      animTimerRef.current.forEach(t => clearTimeout(t))
+    }
+  }, [poetryData, seed, dimensions.width, dimensions.height])
+
+  const getSvgPoint = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current
+    if (!svg) return null
+    const pt = svg.createSVGPoint()
+    pt.x = clientX
+    pt.y = clientY
+    const ctm = svg.getScreenCTM()
+    if (!ctm) return null
+    return pt.matrixTransform(ctm.inverse())
+  }, [])
 
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent, elementId: string) => {
+    (e: React.MouseEvent | React.TouchEvent, elementId: string) => {
       e.preventDefault()
+      e.stopPropagation()
       const element = elements.find(el => el.id === elementId)
       if (!element) return
 
-      const svg = svgRef.current
-      if (!svg) return
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
 
-      const pt = svg.createSVGPoint()
-      pt.x = e.clientX
-      pt.y = e.clientY
-      const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse())
+      const svgP = getSvgPoint(clientX, clientY)
+      if (!svgP) return
 
       setDraggingId(elementId)
-      setDragOffset({
+      dragOffsetRef.current = {
         x: svgP.x - element.x,
         y: svgP.y - element.y,
-      })
+      }
     },
-    [elements],
+    [elements, getSvgPoint],
   )
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
+  const handlePointerMove = useCallback(
+    (clientX: number, clientY: number) => {
       if (!draggingId) return
+      const svgP = getSvgPoint(clientX, clientY)
+      if (!svgP) return
 
-      const svg = svgRef.current
-      if (!svg) return
-
-      const pt = svg.createSVGPoint()
-      pt.x = e.clientX
-      pt.y = e.clientY
-      const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse())
+      const offsetX = dragOffsetRef.current.x
+      const offsetY = dragOffsetRef.current.y
 
       setElements(prev =>
         prev.map(el =>
           el.id === draggingId
-            ? { ...el, x: svgP.x - dragOffset.x, y: svgP.y - dragOffset.y }
+            ? { ...el, x: svgP.x - offsetX, y: svgP.y - offsetY }
             : el,
         ),
       )
     },
-    [draggingId, dragOffset],
+    [draggingId, getSvgPoint],
   )
 
-  const handleMouseUp = useCallback(() => {
-    setDraggingId(null)
-  }, [])
-
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent, elementId: string) => {
-      e.preventDefault()
-      const touch = e.touches[0]
-      const element = elements.find(el => el.id === elementId)
-      if (!element) return
-
-      const svg = svgRef.current
-      if (!svg) return
-
-      const pt = svg.createSVGPoint()
-      pt.x = touch.clientX
-      pt.y = touch.clientY
-      const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse())
-
-      setDraggingId(elementId)
-      setDragOffset({
-        x: svgP.x - element.x,
-        y: svgP.y - element.y,
-      })
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      handlePointerMove(e.clientX, e.clientY)
     },
-    [elements],
+    [handlePointerMove],
   )
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
       if (!draggingId) return
-
-      const touch = e.touches[0]
-      const svg = svgRef.current
-      if (!svg) return
-
-      const pt = svg.createSVGPoint()
-      pt.x = touch.clientX
-      pt.y = touch.clientY
-      const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse())
-
-      setElements(prev =>
-        prev.map(el =>
-          el.id === draggingId
-            ? { ...el, x: svgP.x - dragOffset.x, y: svgP.y - dragOffset.y }
-            : el,
-        ),
-      )
+      e.preventDefault()
+      handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)
     },
-    [draggingId, dragOffset],
+    [draggingId, handlePointerMove],
   )
 
-  const handleTouchEnd = useCallback(() => {
+  const handlePointerUp = useCallback(() => {
     setDraggingId(null)
   }, [])
+
+  useEffect(() => {
+    if (!draggingId) return
+
+    const handleGlobalMove = (e: MouseEvent) => {
+      handlePointerMove(e.clientX, e.clientY)
+    }
+    const handleGlobalTouchMove = (e: TouchEvent) => {
+      handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)
+    }
+    const handleGlobalUp = () => {
+      setDraggingId(null)
+    }
+
+    window.addEventListener('mousemove', handleGlobalMove)
+    window.addEventListener('mouseup', handleGlobalUp)
+    window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false })
+    window.addEventListener('touchend', handleGlobalUp)
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMove)
+      window.removeEventListener('mouseup', handleGlobalUp)
+      window.removeEventListener('touchmove', handleGlobalTouchMove)
+      window.removeEventListener('touchend', handleGlobalUp)
+    }
+  }, [draggingId, handlePointerMove])
 
   const exportPNG = useCallback(() => {
     const svg = svgRef.current
@@ -443,33 +495,34 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
     const img = new Image()
     img.onload = () => {
       const canvas = document.createElement('canvas')
-      const scale = 2
-      canvas.width = dimensions.width * scale
-      canvas.height = dimensions.height * scale
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      canvas.width = dimensions.width * dpr
+      canvas.height = dimensions.height * dpr
       const ctx = canvas.getContext('2d')
       if (!ctx) return
 
       ctx.fillStyle = '#e8ddd0'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-      ctx.scale(scale, scale)
-      ctx.drawImage(img, 0, 0)
+      ctx.scale(dpr, dpr)
+      ctx.drawImage(img, 0, 0, dimensions.width, dimensions.height)
 
       const pngUrl = canvas.toDataURL('image/png')
       const link = document.createElement('a')
       link.download = `poetry-ink-${Date.now()}.png`
       link.href = pngUrl
+      document.body.appendChild(link)
       link.click()
+      document.body.removeChild(link)
 
       URL.revokeObjectURL(url)
     }
     img.src = url
   }, [dimensions])
 
-  const renderMountain = (element: CanvasElement, index: number) => {
-    const mountainRandom = seededRandom(seed + index * 1000)
+  const renderMountain = useCallback((element: CanvasElement, index: number) => {
+    const mountainRandom = createSeededRandom(seed + index * 1000)
     const width = dimensions.width * 1.2
-    const height = dimensions.height * (0.3 + mountainRandom() * 0.2)
+    const height = dimensions.height * (0.3 + mountainRandom() * 0.25)
     const path = generateMountainPath(
       element.x - dimensions.width * 0.1,
       element.y,
@@ -479,31 +532,30 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
       6 + Math.floor(mountainRandom() * 4),
     )
 
-    const grayValue = Math.floor(120 + (1 - element.opacity) * 80)
-    const fillColor = `rgb(${grayValue}, ${grayValue}, ${grayValue + 10})`
+    const grayValue = Math.floor(130 + (1 - element.opacity) * 70)
+    const fillColor = `rgb(${grayValue}, ${grayValue}, ${grayValue + 8})`
 
     return (
       <path
         key={element.id}
         d={path}
         fill={fillColor}
-        opacity={element.opacity}
         className="canvas-element"
         style={{
-          animationDelay: `${0}ms`,
           opacity: animPhase >= 1 ? element.opacity : 0,
           transition: 'opacity 0.5s ease-out',
+          willChange: 'opacity',
         }}
         onMouseDown={e => handleMouseDown(e, element.id)}
-        onTouchStart={e => handleTouchStart(e, element.id)}
+        onTouchStart={e => handleMouseDown(e, element.id)}
       />
     )
-  }
+  }, [seed, dimensions, animPhase, handleMouseDown])
 
-  const renderTree = (element: CanvasElement, index: number) => {
-    const treeRandom = seededRandom(seed + index * 2000)
-    const height = (60 + treeRandom() * 40) * element.scale
-    const { trunk, branches } = generateTreePath(element.x, element.y, height, treeRandom)
+  const renderTree = useCallback((element: CanvasElement, index: number) => {
+    const treeRandom = createSeededRandom(seed + index * 2000)
+    const height = (60 + treeRandom() * 50) * element.scale
+    const { trunk, branches, leaves } = generateTreePath(element.x, element.y, height, treeRandom)
 
     return (
       <g
@@ -512,30 +564,37 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
         style={{
           opacity: animPhase >= 2 ? element.opacity : 0,
           transition: 'opacity 0.5s ease-out',
+          willChange: 'opacity',
         }}
         onMouseDown={e => handleMouseDown(e, element.id)}
-        onTouchStart={e => handleTouchStart(e, element.id)}
+        onTouchStart={e => handleMouseDown(e, element.id)}
       >
-        <path d={trunk} fill="#3d2b1e" opacity="0.8" />
+        <path d={trunk} fill="#3d2b1e" opacity="0.85" />
         {branches.map((branch, i) => (
           <path
             key={i}
             d={branch}
             fill="none"
             stroke="#3d2b1e"
-            strokeWidth={2 * element.scale}
+            strokeWidth={1.5 + element.scale}
             strokeLinecap="round"
-            opacity="0.7"
+            opacity="0.75"
+          />
+        ))}
+        {leaves.map((leaf, i) => (
+          <path
+            key={`leaf-${i}`}
+            d={leaf}
+            fill="#4a6741"
+            opacity="0.5"
           />
         ))}
       </g>
     )
-  }
+  }, [seed, animPhase, handleMouseDown])
 
-  const renderBird = (element: CanvasElement, index: number) => {
-    const birdRandom = seededRandom(seed + index * 3000)
+  const renderBird = useCallback((element: CanvasElement, index: number) => {
     const path = generateBirdPath(element.x, element.y, element.scale)
-    const wingOffset = birdRandom() * Math.PI * 2
 
     return (
       <g
@@ -544,26 +603,20 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
         style={{
           opacity: animPhase >= 3 ? element.opacity : 0,
           transition: 'opacity 0.5s ease-out',
+          willChange: 'opacity',
         }}
         onMouseDown={e => handleMouseDown(e, element.id)}
-        onTouchStart={e => handleTouchStart(e, element.id)}
+        onTouchStart={e => handleMouseDown(e, element.id)}
       >
         <path d={path} fill="#2c1810" opacity={element.opacity} />
-        <path
-          d={generateBirdPath(element.x, element.y - 3 * element.scale, element.scale * 0.8)}
-          fill="#2c1810"
-          opacity={element.opacity * 0.5}
-          style={{
-            transformOrigin: `${element.x}px ${element.y}px`,
-          }}
-        />
       </g>
     )
-  }
+  }, [animPhase, handleMouseDown])
 
-  const renderMoon = (element: CanvasElement) => {
-    const radius = 25 * element.scale
-    const gradientId = `moon-gradient-${element.id}`
+  const renderMoon = useCallback((element: CanvasElement) => {
+    const radius = 28 * element.scale
+    const gradientId = `moon-grad-${element.id}`
+    const filterId = `moon-blur-${element.id}`
 
     return (
       <g
@@ -571,27 +624,28 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
         className="canvas-element"
         style={{
           opacity: animPhase >= 1 ? element.opacity : 0,
-          transition: 'opacity 0.5s ease-out',
+          transition: 'opacity 0.6s ease-out',
+          willChange: 'opacity',
         }}
         onMouseDown={e => handleMouseDown(e, element.id)}
-        onTouchStart={e => handleTouchStart(e, element.id)}
+        onTouchStart={e => handleMouseDown(e, element.id)}
       >
         <defs>
           <radialGradient id={gradientId} cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="#fffdf5" stopOpacity="0.95" />
-            <stop offset="60%" stopColor="#f5f0e0" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#e8e0d0" stopOpacity="0.2" />
+            <stop offset="50%" stopColor="#f5f0e0" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="#e8e0d0" stopOpacity="0.15" />
           </radialGradient>
-          <filter id={`blur-${element.id}`}>
-            <feGaussianBlur stdDeviation="4" />
+          <filter id={filterId}>
+            <feGaussianBlur stdDeviation="6" />
           </filter>
         </defs>
         <circle
           cx={element.x}
           cy={element.y}
-          r={radius * 1.8}
+          r={radius * 2}
           fill={`url(#${gradientId})`}
-          filter={`url(#blur-${element.id})`}
+          filter={`url(#${filterId})`}
         />
         <circle
           cx={element.x}
@@ -601,82 +655,88 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
           opacity="0.95"
         />
         <circle
-          cx={element.x + radius * 0.3}
-          cy={element.y - radius * 0.2}
-          r={radius * 0.15}
+          cx={element.x + radius * 0.25}
+          cy={element.y - radius * 0.15}
+          r={radius * 0.12}
           fill="#e8e0d0"
-          opacity="0.4"
+          opacity="0.35"
+        />
+        <circle
+          cx={element.x - radius * 0.2}
+          cy={element.y + radius * 0.25}
+          r={radius * 0.08}
+          fill="#e8e0d0"
+          opacity="0.25"
         />
       </g>
     )
-  }
+  }, [animPhase, handleMouseDown])
 
-  const renderWater = (element: CanvasElement) => {
-    const waveCount = 5
+  const renderWater = useCallback((element: CanvasElement) => {
+    const waterRandom = createSeededRandom(seed + 5000)
+    const waveCount = 6
     const waves = []
-    const waterRandom = seededRandom(seed + 5000)
 
     for (let i = 0; i < waveCount; i++) {
-      const yOffset = i * 8
-      const amplitude = 5 + waterRandom() * 5
-      const frequency = 0.02 + waterRandom() * 0.01
+      const yOffset = i * 7
+      const amplitude = 4 + waterRandom() * 5
+      const frequency = 0.015 + waterRandom() * 0.012
       const phase = waterRandom() * Math.PI * 2
 
       let path = `M 0 ${element.y + yOffset}`
-      for (let x = 0; x <= dimensions.width; x += 10) {
+      for (let x = 0; x <= dimensions.width; x += 8) {
         const y = element.y + yOffset + Math.sin(x * frequency + phase) * amplitude
         path += ` L ${x} ${y}`
       }
-      waves.push(path)
+      waves.push({ path, index: i })
     }
 
     return (
       <g
         key={element.id}
-        className="canvas-element"
         style={{
           opacity: animPhase >= 2 ? element.opacity : 0,
           transition: 'opacity 0.5s ease-out',
         }}
       >
+        <defs>
+          <linearGradient id="water-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#7a8c99" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#5a6c79" stopOpacity="0.5" />
+          </linearGradient>
+        </defs>
         <rect
           x="0"
           y={element.y}
           width={dimensions.width}
           height={dimensions.height - element.y}
           fill="url(#water-gradient)"
-          opacity="0.3"
+          opacity="0.25"
         />
-        <defs>
-          <linearGradient id="water-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#7a8c99" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#5a6c79" stopOpacity="0.6" />
-          </linearGradient>
-        </defs>
-        {waves.map((path, i) => (
+        {waves.map(({ path, index: i }) => (
           <path
             key={i}
             d={path}
             fill="none"
             stroke="#6a7c89"
-            strokeWidth={1.5}
-            opacity={0.3 + i * 0.1}
+            strokeWidth={1.2}
+            opacity={0.25 + i * 0.08}
           />
         ))}
       </g>
     )
-  }
+  }, [seed, dimensions, animPhase])
 
-  const renderFlower = (element: CanvasElement, index: number) => {
-    const flowerRandom = seededRandom(seed + index * 4000)
-    const { petals, center } = generateFlowerPath(
+  const renderFlower = useCallback((element: CanvasElement, index: number) => {
+    const flowerRandom = createSeededRandom(seed + index * 4000)
+    const { petals, center, stem } = generateFlowerPath(
       element.x,
       element.y,
       element.scale,
       flowerRandom,
     )
 
-    const petalColors = ['#c95a6b', '#d47a8a', '#b84a5b', '#e89aaa']
+    const petalColors = ['#c95a6b', '#d47a8a', '#b84a5b', '#e89aaa', '#cf6a7b']
     const petalColor = petalColors[index % petalColors.length]
 
     return (
@@ -686,22 +746,24 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
         style={{
           opacity: animPhase >= 3 ? element.opacity : 0,
           transition: 'opacity 0.5s ease-out',
+          willChange: 'opacity',
         }}
         onMouseDown={e => handleMouseDown(e, element.id)}
-        onTouchStart={e => handleTouchStart(e, element.id)}
+        onTouchStart={e => handleMouseDown(e, element.id)}
       >
+        <path d={stem} fill="none" stroke="#4a6741" strokeWidth={1.5 * element.scale} opacity="0.6" />
         {petals.map((petal, i) => (
-          <path key={i} d={petal} fill={petalColor} opacity="0.8" />
+          <path key={i} d={petal} fill={petalColor} opacity="0.75" />
         ))}
-        <path d={center} fill="#f5d060" />
+        <path d={center} fill="#f5d060" opacity="0.9" />
       </g>
     )
-  }
+  }, [seed, animPhase, handleMouseDown])
 
-  const renderCloud = (element: CanvasElement, index: number) => {
-    const cloudRandom = seededRandom(seed + index * 6000)
-    const width = (80 + cloudRandom() * 60) * element.scale
-    const height = (25 + cloudRandom() * 15) * element.scale
+  const renderCloud = useCallback((element: CanvasElement, index: number) => {
+    const cloudRandom = createSeededRandom(seed + index * 6000)
+    const width = (80 + cloudRandom() * 70) * element.scale
+    const height = (25 + cloudRandom() * 18) * element.scale
     const path = generateCloudPath(element.x, element.y, width, height, cloudRandom)
 
     return (
@@ -713,114 +775,127 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
           transition: 'opacity 0.5s ease-out',
         }}
         onMouseDown={e => handleMouseDown(e, element.id)}
-        onTouchStart={e => handleTouchStart(e, element.id)}
+        onTouchStart={e => handleMouseDown(e, element.id)}
       >
         <path d={path} fill="#ffffff" opacity={element.opacity} />
       </g>
     )
-  }
+  }, [seed, animPhase, handleMouseDown])
 
-  const renderPoetryText = () => {
+  const renderPoetryText = useCallback(() => {
     if (!poetryData) return null
 
-    const lines = poetryData.content.split('\n').filter(l => l.trim())
-    const fontSize = Math.min(dimensions.width, dimensions.height) * 0.045
-    const lineHeight = fontSize * 1.8
-    const startX = dimensions.width * 0.82
-    const startY = dimensions.height * 0.15
+    const lines = poetryData.content.split(/[，。？！\n]/).filter(l => l.trim())
+    if (lines.length === 0) return null
 
-    return (
-      <g
-        className="poetry-text"
-        style={{
-          opacity: animPhase >= 3 ? 1 : 0,
-          transition: 'opacity 0.5s ease-out',
-        }}
-      >
+    const fontSize = Math.min(dimensions.width, dimensions.height) * 0.042
+    const lineHeight = fontSize * 2.2
+    const columnX = dimensions.width * 0.85
+
+    const textElements: JSX.Element[] = []
+    const titleLines = poetryData.title ? [poetryData.title] : []
+
+    let currentY = dimensions.height * 0.12
+
+    if (titleLines.length > 0) {
+      textElements.push(
         <text
-          x={startX}
-          y={startY - fontSize * 1.5}
-          fontSize={fontSize * 0.7}
+          key="title"
+          x={columnX}
+          y={currentY}
+          fontSize={fontSize * 0.65}
           fill="#5a3e2b"
           textAnchor="middle"
           style={{ fontFamily: 'var(--font-brush)' }}
         >
-          {poetryData.title}
+          {titleLines[0]}
         </text>
-        {lines.map((line, i) => (
+      )
+      currentY += lineHeight * 0.8
+    }
+
+    const contentLines = poetryData.content.split('\n').filter(l => l.trim())
+    for (let i = 0; i < contentLines.length; i++) {
+      const chars = contentLines[i].replace(/[，。？！、；：\s]/g, '')
+      for (let j = 0; j < chars.length; j++) {
+        textElements.push(
           <text
-            key={i}
-            x={startX}
-            y={startY + i * lineHeight}
+            key={`line-${i}-char-${j}`}
+            x={columnX - j * fontSize * 1.1}
+            y={currentY + i * lineHeight}
             fontSize={fontSize}
             fill="#3d2b1e"
             textAnchor="middle"
             style={{ fontFamily: 'var(--font-brush)' }}
           >
-            {line}
+            {chars[j]}
           </text>
-        ))}
-        <rect
-          x={startX - fontSize * 0.8}
-          y={startY - fontSize * 2.5}
-          width={fontSize * 1.6}
-          height={fontSize * 1.6}
-          fill="none"
-          stroke="#c95a6b"
-          strokeWidth="2"
-          opacity="0.6"
-          rx="4"
-        />
-      </g>
-    )
-  }
-
-  const renderElements = () => {
-    const mountains: JSX.Element[] = []
-    const trees: JSX.Element[] = []
-    const birds: JSX.Element[] = []
-    const flowers: JSX.Element[] = []
-    const clouds: JSX.Element[] = []
-    let moon: JSX.Element | null = null
-    let water: JSX.Element | null = null
-
-    let mountainIndex = 0
-    let treeIndex = 0
-    let birdIndex = 0
-    let flowerIndex = 0
-    let cloudIndex = 0
-
-    elements.forEach(element => {
-      if (element.type.startsWith('mountain')) {
-        mountains.push(renderMountain(element, mountainIndex++))
-      } else if (element.type === 'tree') {
-        trees.push(renderTree(element, treeIndex++))
-      } else if (element.type === 'bird') {
-        birds.push(renderBird(element, birdIndex++))
-      } else if (element.type === 'moon') {
-        moon = renderMoon(element)
-      } else if (element.type === 'water') {
-        water = renderWater(element)
-      } else if (element.type === 'flower') {
-        flowers.push(renderFlower(element, flowerIndex++))
-      } else if (element.type === 'cloud') {
-        clouds.push(renderCloud(element, cloudIndex++))
+        )
       }
-    })
+    }
+
+    const sealSize = fontSize * 1.4
+    textElements.push(
+      <rect
+        key="seal"
+        x={columnX + fontSize * 0.5}
+        y={currentY + contentLines.length * lineHeight + 5}
+        width={sealSize}
+        height={sealSize}
+        fill="none"
+        stroke="#c95a6b"
+        strokeWidth="2"
+        opacity="0.55"
+        rx="3"
+      />
+    )
+    textElements.push(
+      <text
+        key="seal-text"
+        x={columnX + fontSize * 0.5 + sealSize / 2}
+        y={currentY + contentLines.length * lineHeight + 5 + sealSize * 0.65}
+        fontSize={sealSize * 0.35}
+        fill="#c95a6b"
+        textAnchor="middle"
+        opacity="0.55"
+        style={{ fontFamily: 'var(--font-brush)' }}
+      >
+        诗画
+      </text>
+    )
 
     return (
-      <>
-        {clouds}
-        {moon}
-        {mountains}
-        {water}
-        {trees}
-        {flowers}
-        {birds}
-        {renderPoetryText()}
-      </>
+      <g
+        key="poetry-text-group"
+        className="poetry-text"
+        style={{
+          opacity: animPhase >= 3 ? 1 : 0,
+          transition: 'opacity 0.6s ease-out',
+          willChange: 'opacity',
+        }}
+      >
+        {textElements}
+      </g>
     )
-  }
+  }, [poetryData, dimensions, animPhase])
+
+  const renderElement = useCallback((element: CanvasElement, index: number) => {
+    if (element.type.startsWith('mountain')) {
+      return renderMountain(element, parseInt(element.type.split('-')[1] || '0'))
+    }
+    if (element.type === 'tree') return renderTree(element, index)
+    if (element.type === 'bird') return renderBird(element, index)
+    if (element.type === 'moon') return renderMoon(element)
+    if (element.type === 'water') return renderWater(element)
+    if (element.type === 'flower') return renderFlower(element, index)
+    if (element.type === 'cloud') return renderCloud(element, index)
+    if (element.type === 'poetry-text') return renderPoetryText()
+    return null
+  }, [renderMountain, renderTree, renderBird, renderMoon, renderWater, renderFlower, renderCloud, renderPoetryText])
+
+  const renderedElements = useMemo(() => {
+    return elements.map((element, index) => renderElement(element, index))
+  }, [elements, renderElement])
 
   return (
     <div className="canvas-wrapper" ref={containerRef}>
@@ -829,14 +904,16 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
         className="ink-svg"
         viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
         preserveAspectRatio="xMidYMid meet"
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        xmlns="http://www.w3.org/2000/svg"
       >
+        <defs>
+          <filter id="ink-texture">
+            <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" />
+          </filter>
+        </defs>
         {elements.length > 0 ? (
-          renderElements()
+          renderedElements
         ) : (
           <g>
             <text
@@ -857,8 +934,7 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
               fill="#a89078"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              <i className="fa-solid fa-arrow-left" style={{ marginRight: '8px' }}></i>
-              输入诗词，点击生成按钮
+              ← 输入诗词，点击生成按钮
             </text>
           </g>
         )}
@@ -882,4 +958,4 @@ function InkCanvas({ poetryData, seed, onReParse, onRefreshSeed }: InkCanvasProp
   )
 }
 
-export default InkCanvas
+export default memo(InkCanvas)

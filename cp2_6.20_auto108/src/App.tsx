@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useMemo, memo } from 'react'
 import PoetryInput from './components/PoetryInput'
 import InkCanvas from './components/InkCanvas'
 import { parsePoetry, type PoetryData } from './utils/parsePoetry'
@@ -9,20 +9,24 @@ interface HistoryItem {
   content: string
 }
 
+const DEFAULT_HISTORY: HistoryItem[] = [
+  { id: '1', title: '静夜思', content: '床前明月光，疑是地上霜。\n举头望明月，低头思故乡。' },
+  { id: '2', title: '春晓', content: '春眠不觉晓，处处闻啼鸟。\n夜来风雨声，花落知多少。' },
+  { id: '3', title: '登鹳雀楼', content: '白日依山尽，黄河入海流。\n欲穷千里目，更上一层楼。' },
+]
+
 function App() {
   const [poetryData, setPoetryData] = useState<PoetryData | null>(null)
-  const [history, setHistory] = useState<HistoryItem[]>([
-    { id: '1', title: '静夜思', content: '床前明月光，疑是地上霜。\n举头望明月，低头思故乡。' },
-    { id: '2', title: '春晓', content: '春眠不觉晓，处处闻啼鸟。\n夜来风雨声，花落知多少。' },
-    { id: '3', title: '登鹳雀楼', content: '白日依山尽，黄河入海流。\n欲穷千里目，更上一层楼。' },
-  ])
-  const [seed, setSeed] = useState(Date.now())
+  const [history, setHistory] = useState<HistoryItem[]>(DEFAULT_HISTORY)
+  const [seed, setSeed] = useState(() => Date.now())
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [inputText, setInputText] = useState('')
 
   const handleGenerate = useCallback((text: string) => {
     const data = parsePoetry(text)
     setPoetryData(data)
     setSeed(Date.now())
+    setInputText(text)
     setMobileOpen(false)
 
     setHistory(prev => {
@@ -37,8 +41,12 @@ function App() {
   }, [])
 
   const handleReParse = useCallback(() => {
+    if (inputText) {
+      const data = parsePoetry(inputText)
+      setPoetryData(data)
+    }
     setSeed(Date.now())
-  }, [])
+  }, [inputText])
 
   const handleRefreshSeed = useCallback(() => {
     setSeed(Date.now())
@@ -47,8 +55,19 @@ function App() {
   const handleHistoryClick = useCallback((item: HistoryItem) => {
     const data = parsePoetry(item.content)
     setPoetryData(data)
+    setInputText(item.content)
     setSeed(Date.now())
     setMobileOpen(false)
+  }, [])
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) {
+        setMobileOpen(false)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   return (
@@ -71,7 +90,7 @@ function App() {
         onGenerate={handleGenerate}
         history={history}
         onHistoryClick={handleHistoryClick}
-        defaultText={poetryData?.content || ''}
+        defaultText={inputText}
       />
 
       <div className="canvas-area">
