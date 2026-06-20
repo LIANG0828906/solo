@@ -41,76 +41,96 @@ export default function EditorPage() {
   const [showNewTrack, setShowNewTrack] = useState(false);
 
   const MAX_HISTORY = 50;
-  const [history, setHistory] = useState<Track[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  interface HistoryChange {
+    x: number;
+    y: number;
+    oldCell: Cell;
+    newCell: Cell;
+  }
+
+  const historyRef = useRef<HistoryChange[][]>([]);
   const historyIndexRef = useRef(-1);
+  const [historyVersion, setHistoryVersion] = useState(0);
 
-  useEffect(() => {
-    historyIndexRef.current = historyIndex;
-  }, [historyIndex]);
+  const bumpHistoryVersion = useCallback(() => {
+    setHistoryVersion((v) => v + 1);
+  }, []);
 
-  const pushToHistory = useCallback((track: Track) => {
-    const snapshot: Track = {
-      ...track,
-      cells: track.cells.map((row) => row.map((c) => ({ ...c }))),
-    };
+  const pushToHistory = useCallback((changes: HistoryChange[]) => {
+    if (changes.length === 0) return;
+
     const currentIndex = historyIndexRef.current;
-    setHistory((prev) => {
-      const newHistory = prev.slice(0, currentIndex + 1);
-      newHistory.push(snapshot);
-      if (newHistory.length > MAX_HISTORY) {
-        newHistory.shift();
-      }
-      return newHistory;
-    });
-    const nextIndex = Math.min(currentIndex + 1, MAX_HISTORY - 1);
-    setHistoryIndex(nextIndex);
-    historyIndexRef.current = nextIndex;
-  }, []);
+    const history = historyRef.current;
 
-  const initializeHistory = useCallback((track: Track) => {
-    const snapshot: Track = {
-      ...track,
-      cells: track.cells.map((row) => row.map((c) => ({ ...c }))),
-    };
-    setHistory([snapshot]);
-    setHistoryIndex(0);
-    historyIndexRef.current = 0;
-  }, []);
+    if (currentIndex >= 0 && currentIndex < history.length) {
+      const lastChanges = history[currentIndex];
+      if (lastChanges.length === changes.length) {
+        const isDuplicate = changes.every((c, i) => {
+          const lc = lastChanges[i];
+          return (
+            c.x === lc.x &&
+            c.y === lc.y &&
+            c.newCell.type === lc.newCell.type &&
+            c.newCell.height === lc.newCell.height &&
+            c.newCell.multiplier === lc.newCell.multiplier
+          );
+        });
+        if (isDuplicate) return;
+      }
+    }
+
+    const newHistory = history.slice(0, currentIndex + 1);
+    newHistory.push(changes);
+    if (newHistory.length > MAX_HISTORY) {
+      newHistory.shift();
+    }
+    historyRef.current = newHistory;
+    historyIndexRef.current = newHistory.length - 1;
+    bumpHistoryVersion();
+  }, [bumpHistoryVersion]);
+
+  const initializeHistory = useCallback(() => {
+    historyRef.current = [];
+    historyIndexRef.current = -1;
+    bumpHistoryVersion();
+  }, [bumpHistoryVersion]);
 
   const handleUndo = useCallback(() => {
-    if (historyIndexRef.current <= 0) return;
-    const newIndex = historyIndexRef.current - 1;
-    setHistory((prevHistory) => {
-      const prevTrack = prevHistory[newIndex];
-      if (prevTrack) {
-        setCurrentTrack({
-          ...prevTrack,
-          cells: prevTrack.cells.map((row) => row.map((c) => ({ ...c }))),
-        });
+    if (historyIndexRef.current < 0) return;
+    const changes = historyRef.current[historyIndexRef.current];
+    if (!changes || changes.length === 0) return;
+
+    setCurrentTrack((prevTrack) => {
+      if (!prevTrack) return prevTrack;
+      const newCells = prevTrack.cells.map((row) => row.map((c) => ({ ...c })));
+      for (const change of changes) {
+        newCells[change.y][change.x] = { ...change.oldCell };
       }
-      return prevHistory;
+      return { ...prevTrack, cells: newCells };
     });
-    setHistoryIndex(newIndex);
-    historyIndexRef.current = newIndex;
-  }, []);
+
+    historyIndexRef.current--;
+    bumpHistoryVersion();
+  }, [bumpHistoryVersion]);
 
   const handleRedo = useCallback(() => {
-    setHistory((prevHistory) => {
-      if (historyIndexRef.current >= prevHistory.length - 1) return prevHistory;
-      const newIndex = historyIndexRef.current + 1;
-      const nextTrack = prevHistory[newIndex];
-      if (nextTrack) {
-        setCurrentTrack({
-          ...nextTrack,
-          cells: nextTrack.cells.map((row) => row.map((c) => ({ ...c }))),
-        });
-        setHistoryIndex(newIndex);
-        historyIndexRef.current = newIndex;
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    historyIndexRef.current++;
+    const changes = historyRef.current[historyIndexRef.current];
+    if (!changes || changes.length === 0) return;
+
+    setCurrentTrack((prevTrack) => {
+      if (!prevTrack) return prevTrack;
+      const newCells = prevTrack.cells.map((row) => row.map((c) => ({ ...c })));
+      for (const change of changes) {
+        newCells[change.y][change.x] = { ...change.newCell };
       }
-      return prevHistory;
+      return { ...prevTrack, cells: newCells };
     });
-  }, []);
+
+    bumpHistoryVersion();
+  }, [bumpHistoryVersion]);
 
 
 
@@ -233,28 +253,30 @@ export default function EditorPage() {
       const gy = Math.floor(my / CELL_SIZE);
       if (gx < 0 || gx >= GRID_WIDTH || gy < 0 || gy >= GRID_HEIGHT) return;
 
-      const cell = currentTrack.cells[gy][gx];
-      const currentIdx = CELL_TYPES.indexOf(cell.type);
+      const oldCell = { ...currentTrack.cells[gy][gx] };
+      const currentIdx = CELL_TYPES.indexOf(oldCell.type);
       const nextType = CELL_TYPES[(currentIdx + 1) % CELL_TYPES.length];
+
+      const newCell: Cell = {
+        ...oldCell,
+        type: nextType,
+        ...(nextType === 'obstacle' ? { height: 1 } : {}),
+        ...(nextType === 'speed_boost' ? { multiplier: 1.5 } : {}),
+      };
 
       const newTrack: Track = {
         ...currentTrack,
         cells: currentTrack.cells.map((row, y) =>
           row.map((c, x) => {
             if (x === gx && y === gy) {
-              return {
-                ...c,
-                type: nextType,
-                ...(nextType === 'obstacle' ? { height: 1 } : {}),
-                ...(nextType === 'speed_boost' ? { multiplier: 1.5 } : {}),
-              };
+              return newCell;
             }
             return c;
           })
         ),
       };
 
-      pushToHistory(newTrack);
+      pushToHistory([{ x: gx, y: gy, oldCell, newCell }]);
       setCurrentTrack(newTrack);
       setSelectedCell({ x: gx, y: gy });
     },
@@ -264,53 +286,59 @@ export default function EditorPage() {
   const handleCellTypeChange = (newType: CellType) => {
     if (!currentTrack || !selectedCell) return;
     const { x, y } = selectedCell;
+    const oldCell = { ...currentTrack.cells[y][x] };
+    const newCell: Cell = {
+      ...oldCell,
+      type: newType,
+      ...(newType === 'obstacle' ? { height: 1 } : {}),
+      ...(newType === 'speed_boost' ? { multiplier: 1.5 } : {}),
+    };
     const newTrack: Track = {
       ...currentTrack,
       cells: currentTrack.cells.map((row, ry) =>
         row.map((c, cx) => {
           if (cx === x && ry === y) {
-            return {
-              ...c,
-              type: newType,
-              ...(newType === 'obstacle' ? { height: 1 } : {}),
-              ...(newType === 'speed_boost' ? { multiplier: 1.5 } : {}),
-            };
+            return newCell;
           }
           return c;
         })
       ),
     };
-    pushToHistory(newTrack);
+    pushToHistory([{ x, y, oldCell, newCell }]);
     setCurrentTrack(newTrack);
   };
 
   const handleHeightChange = (height: number) => {
     if (!currentTrack || !selectedCell) return;
     const { x, y } = selectedCell;
+    const oldCell = { ...currentTrack.cells[y][x] };
+    const newCell: Cell = { ...oldCell, height };
     const newTrack: Track = {
       ...currentTrack,
       cells: currentTrack.cells.map((row, ry) =>
         row.map((c, cx) =>
-          cx === x && ry === y ? { ...c, height } : c
+          cx === x && ry === y ? newCell : c
         )
       ),
     };
-    pushToHistory(newTrack);
+    pushToHistory([{ x, y, oldCell, newCell }]);
     setCurrentTrack(newTrack);
   };
 
   const handleMultiplierChange = (multiplier: number) => {
     if (!currentTrack || !selectedCell) return;
     const { x, y } = selectedCell;
+    const oldCell = { ...currentTrack.cells[y][x] };
+    const newCell: Cell = { ...oldCell, multiplier };
     const newTrack: Track = {
       ...currentTrack,
       cells: currentTrack.cells.map((row, ry) =>
         row.map((c, cx) =>
-          cx === x && ry === y ? { ...c, multiplier } : c
+          cx === x && ry === y ? newCell : c
         )
       ),
     };
-    pushToHistory(newTrack);
+    pushToHistory([{ x, y, oldCell, newCell }]);
     setCurrentTrack(newTrack);
   };
 
@@ -319,7 +347,7 @@ export default function EditorPage() {
     saveTrack(currentTrack);
     setSaveFeedback(true);
     setTimeout(() => setSaveFeedback(false), 1500);
-    initializeHistory(currentTrack);
+    initializeHistory();
   };
 
   const handleExport = () => {
@@ -353,7 +381,7 @@ export default function EditorPage() {
       setSelectedCell(null);
       setImportText('');
       setShowImport(false);
-      initializeHistory(parsed);
+      initializeHistory();
     } catch {
       setErrorMessage('导入失败：JSON 解析错误');
     }
@@ -368,7 +396,7 @@ export default function EditorPage() {
     setShowTrackList(false);
     setTrackName('');
     setShowNewTrack(false);
-    initializeHistory(track);
+    initializeHistory();
   };
 
   const handleDeleteTrack = (id: string) => {
@@ -380,7 +408,7 @@ export default function EditorPage() {
     setCurrentTrack(newTrack);
     setSelectedCell(null);
     setShowTrackList(false);
-    initializeHistory(newTrack);
+    initializeHistory();
   };
 
   if (showTrackList) {
@@ -457,6 +485,11 @@ export default function EditorPage() {
     selectedCell && currentTrack
       ? currentTrack.cells[selectedCell.y][selectedCell.x]
       : null;
+
+  const canUndo = historyIndexRef.current >= 0;
+  const canRedo = historyIndexRef.current < historyRef.current.length - 1;
+  // historyVersion 用于触发重渲染，请勿移除
+  void historyVersion;
 
   return (
     <div className="page-container">
@@ -538,7 +571,7 @@ export default function EditorPage() {
               <button
                 className="undo-redo-btn"
                 onClick={handleUndo}
-                disabled={historyIndex <= 0}
+                disabled={!canUndo}
                 title="撤销 (Ctrl+Z)"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -550,7 +583,7 @@ export default function EditorPage() {
               <button
                 className="undo-redo-btn"
                 onClick={handleRedo}
-                disabled={historyIndex >= history.length - 1}
+                disabled={!canRedo}
                 title="重做 (Ctrl+Y)"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
