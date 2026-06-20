@@ -7,13 +7,13 @@ import {
   getCheetahNextMove,
   collectFruit,
   checkGameOver,
-  spawnFruits,
+  trySpawnFruits,
   CHEETAH_MOVE_COST,
   ANTELOPE_MOVE_COST,
-  FRUIT_SPAWN_INTERVAL,
-  FRUIT_SPAWN_COUNT,
   MOVE_ANIMATION_DURATION,
   INITIAL_STAMINA,
+  GRID_WIDTH,
+  GRID_HEIGHT,
 } from './game/GameEngine';
 import { CanvasRenderer } from './renderer/CanvasRenderer';
 
@@ -35,63 +35,53 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
   emoji,
 }) => {
   const pct = Math.max(0, Math.min(1, value / max));
-  const radius = size / 2 - 6;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - pct);
-
-  const gradientId = `grad-${label}-${colors[0].replace('#', '')}`;
+  const degrees = pct * 360;
+  const innerSize = size - 14;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
       <span style={{ color: '#fff', fontSize: 13, fontWeight: 500, opacity: 0.9 }}>
         {emoji} {label}
       </span>
-      <div style={{ position: 'relative', width: size, height: size }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <defs>
-            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={colors[0]} />
-              <stop offset="100%" stopColor={colors[1]} />
-            </linearGradient>
-          </defs>
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="rgba(255,255,255,0.15)"
-            strokeWidth={5}
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={`url(#${gradientId})`}
-            strokeWidth={5}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            style={{ transition: 'stroke-dashoffset 0.3s ease' }}
-          />
-        </svg>
+      <div
+        style={{
+          position: 'relative',
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: `conic-gradient(${colors[0]} 0deg, ${colors[1]} ${degrees}deg, rgba(255,255,255,0.12) ${degrees}deg, rgba(255,255,255,0.12) 360deg)`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: `0 0 12px ${colors[0]}40, inset 0 0 0 1px rgba(255,255,255,0.08)`,
+          transition: 'background 0.3s ease',
+        }}
+      >
         <div
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            width: innerSize,
+            height: innerSize,
+            borderRadius: '50%',
+            background: 'rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff',
-            fontSize: 15,
-            fontWeight: 700,
-            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.08)',
           }}
         >
-          {Math.ceil(value)}
+          <span
+            style={{
+              color: '#fff',
+              fontSize: 15,
+              fontWeight: 700,
+              textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {Math.ceil(value)}
+          </span>
         </div>
       </div>
     </div>
@@ -311,9 +301,7 @@ const App: React.FC = () => {
     }
 
     st.turn += 1;
-    if (st.turn % FRUIT_SPAWN_INTERVAL === 0) {
-      st.fruits = spawnFruits(st, FRUIT_SPAWN_COUNT);
-    }
+    st.fruits = trySpawnFruits(st);
 
     forceUpdate();
   }, [forceUpdate]);
@@ -545,6 +533,7 @@ const App: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center',
           padding: '8px 20px 80px',
+          minHeight: 0,
         }}
       >
         <div
@@ -552,7 +541,8 @@ const App: React.FC = () => {
             position: 'relative',
             width: '100%',
             maxWidth: 900,
-            height: '100%',
+            aspectRatio: `${GRID_WIDTH} / ${GRID_HEIGHT}`,
+            maxHeight: '100%',
           }}
         >
           <canvas

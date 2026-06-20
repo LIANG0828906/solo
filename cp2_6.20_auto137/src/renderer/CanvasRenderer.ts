@@ -30,20 +30,42 @@ export class CanvasRenderer {
   private offsetX: number = 0;
   private offsetY: number = 0;
   private time: number = 0;
+  private lastWidth: number = 0;
+  private lastHeight: number = 0;
+  private ro: ResizeObserver | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not get canvas context');
     this.ctx = ctx;
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this.ro = new ResizeObserver(() => {
+        this.resize();
+      });
+      this.ro.observe(canvas);
+    }
     this.resize();
+  }
+
+  destroy(): void {
+    if (this.ro) {
+      this.ro.disconnect();
+      this.ro = null;
+    }
   }
 
   resize(): void {
     const rect = this.canvas.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
     const dpr = window.devicePixelRatio || 1;
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
+    if (this.canvas.width !== rect.width * dpr || this.canvas.height !== rect.height * dpr) {
+      this.canvas.width = rect.width * dpr;
+      this.canvas.height = rect.height * dpr;
+    }
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.scale(dpr, dpr);
 
     const maxCellWidth = rect.width / GRID_WIDTH;
@@ -54,6 +76,8 @@ export class CanvasRenderer {
     const gridPixelHeight = this.cellSize * GRID_HEIGHT;
     this.offsetX = (rect.width - gridPixelWidth) / 2;
     this.offsetY = (rect.height - gridPixelHeight) / 2;
+    this.lastWidth = rect.width;
+    this.lastHeight = rect.height;
   }
 
   getCellAtPixel(px: number, py: number): { x: number; y: number } | null {
@@ -74,6 +98,17 @@ export class CanvasRenderer {
     this.time = timestamp;
     const ctx = this.ctx;
     const rect = this.canvas.getBoundingClientRect();
+
+    if (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      (rect.width !== this.lastWidth || rect.height !== this.lastHeight)
+    ) {
+      this.resize();
+    }
+
+    if (this.cellSize <= 0) return;
+
     ctx.clearRect(0, 0, rect.width, rect.height);
 
     this.drawGrid(state);
@@ -199,10 +234,11 @@ export class CanvasRenderer {
     ctx.restore();
   }
 
-  private drawCheetah(cx: number, cy: number): void {
+  private drawCheetah(cx: number, cy: number, alpha: number = 1): void {
     const ctx = this.ctx;
     const r = this.cellSize * 0.35;
     ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.shadowColor = 'rgba(0,0,0,0.4)';
     ctx.shadowBlur = 8;
     ctx.shadowOffsetY = 3;
@@ -217,8 +253,24 @@ export class CanvasRenderer {
     ctx.restore();
 
     ctx.save();
-    ctx.fillStyle = '#4a2c0a';
-    const spotPositions = [
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#000000';
+    const seedX = Math.floor(cx);
+    const seedY = Math.floor(cy);
+    const spotCount = 10;
+    for (let i = 0; i < spotCount; i++) {
+      const pseudo = Math.sin((i + seedX * 0.13 + seedY * 0.17) * 12.9898) * 43758.5453;
+      const noise = pseudo - Math.floor(pseudo);
+      const angle = noise * Math.PI * 2;
+      const dist = (0.2 + ((pseudo * 100) % 60) / 100 * 0.6) * r;
+      const sx = cx + Math.cos(angle) * dist;
+      const sy = cy + Math.sin(angle) * dist;
+      const spotR = r * (0.08 + ((pseudo * 10) % 5) / 100);
+      ctx.beginPath();
+      ctx.arc(sx, sy, spotR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const fixedSpots = [
       [0.35, -0.25],
       [-0.15, -0.4],
       [-0.4, 0.0],
@@ -228,14 +280,15 @@ export class CanvasRenderer {
       [0.1, -0.55],
       [-0.05, 0.5],
     ];
-    for (const [sx, sy] of spotPositions) {
+    for (const [sx, sy] of fixedSpots) {
       ctx.beginPath();
-      ctx.arc(cx + r * sx, cy + r * sy, r * 0.12, 0, Math.PI * 2);
+      ctx.arc(cx + r * sx, cy + r * sy, r * 0.11, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
 
     ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.arc(cx - r * 0.3, cy - r * 0.2, r * 0.13, 0, Math.PI * 2);
@@ -249,10 +302,11 @@ export class CanvasRenderer {
     ctx.restore();
   }
 
-  private drawAntelope(cx: number, cy: number): void {
+  private drawAntelope(cx: number, cy: number, alpha: number = 1): void {
     const ctx = this.ctx;
     const size = this.cellSize * 0.7;
     ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.shadowColor = 'rgba(0,0,0,0.4)';
     ctx.shadowBlur = 8;
     ctx.shadowOffsetY = 3;
@@ -270,21 +324,44 @@ export class CanvasRenderer {
     ctx.restore();
 
     ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    const spotPositions = [
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    const seedX = Math.floor(cx);
+    const seedY = Math.floor(cy);
+    const randSpots = 8;
+    for (let i = 0; i < randSpots; i++) {
+      const pseudo = Math.sin((i + seedX * 0.11 + seedY * 0.19) * 12.9898) * 43758.5453;
+      const noise = pseudo - Math.floor(pseudo);
+      const angle = noise * Math.PI * 2;
+      const dist = (0.15 + ((pseudo * 100) % 55) / 100 * 0.55) * (size * 0.45);
+      const sx = cx + Math.cos(angle) * dist;
+      const sy = cy + Math.sin(angle) * dist * 0.9 + size * 0.05;
+      const spotR = size * (0.035 + ((pseudo * 10) % 4) / 100);
+      const insideTriangle =
+        sy > cy - size / 2 + size * 0.08 && sy < cy + size / 2 - size * 0.08;
+      if (insideTriangle) {
+        ctx.beginPath();
+        ctx.arc(sx, sy, spotR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    const fixedSpots = [
       [0.0, -0.1],
       [-0.25, 0.1],
       [0.2, 0.2],
       [0.0, 0.35],
+      [-0.1, 0.25],
+      [0.15, -0.05],
     ];
-    for (const [sx, sy] of spotPositions) {
+    for (const [sx, sy] of fixedSpots) {
       ctx.beginPath();
-      ctx.arc(cx + size * sx * 0.5, cy + size * sy * 0.5, size * 0.06, 0, Math.PI * 2);
+      ctx.arc(cx + size * sx * 0.5, cy + size * sy * 0.5, size * 0.055, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
 
     ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = '#000';
     ctx.beginPath();
     ctx.arc(cx - size * 0.12, cy + size * 0.05, size * 0.05, 0, Math.PI * 2);
@@ -352,26 +429,23 @@ export class CanvasRenderer {
     toY: number;
     progress: number;
   }): void {
-    const ctx = this.ctx;
-    const trails = 3;
+    const trails = 5;
     for (let i = trails; i >= 1; i--) {
-      const trailT = Math.max(0, anim.progress - i * 0.1);
+      const offset = i * 0.06;
+      const trailT = Math.max(0, anim.progress - offset);
       if (trailT <= 0) continue;
       const t = easeOutCubic(trailT);
       const from = this.getCellCenter(anim.fromX, anim.fromY);
       const to = this.getCellCenter(anim.toX, anim.toY);
       const cx = lerp(from.cx, to.cx, t);
       const cy = lerp(from.cy, to.cy, t);
-      const alpha = (1 - i / (trails + 1)) * 0.4;
+      const alpha = Math.max(0, (1 - i / (trails + 1)) * 0.55);
 
-      ctx.save();
-      ctx.globalAlpha = alpha;
       if (anim.entity === 'cheetah') {
-        this.drawCheetah(cx, cy);
+        this.drawCheetah(cx, cy, alpha);
       } else {
-        this.drawAntelope(cx, cy);
+        this.drawAntelope(cx, cy, alpha);
       }
-      ctx.restore();
     }
   }
 }

@@ -152,11 +152,68 @@ function findPath(
   return null;
 }
 
+interface PathCache {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  path: { x: number; y: number }[] | null;
+  gridHash: string;
+}
+
+let pathCache: PathCache | null = null;
+
+function computeGridHash(grid: Cell[][]): string {
+  let hash = '';
+  for (let y = 0; y < grid.length; y++) {
+    for (let x = 0; x < grid[y].length; x++) {
+      hash += grid[y][x].terrain[0];
+    }
+  }
+  return hash;
+}
+
 export function getCheetahNextMove(state: GameState): { x: number; y: number } | null {
-  const { cheetah, antelope } = state;
+  const { cheetah, antelope, grid } = state;
+  const gridHash = computeGridHash(grid);
+
+  if (
+    pathCache &&
+    pathCache.startX === cheetah.x &&
+    pathCache.startY === cheetah.y &&
+    pathCache.endX === antelope.x &&
+    pathCache.endY === antelope.y &&
+    pathCache.gridHash === gridHash
+  ) {
+    const cached = pathCache.path;
+    if (cached && cached.length > 0) {
+      return cached[0];
+    }
+    return null;
+  }
+
   const path = findPath(state, cheetah.x, cheetah.y, antelope.x, antelope.y);
+  pathCache = {
+    startX: cheetah.x,
+    startY: cheetah.y,
+    endX: antelope.x,
+    endY: antelope.y,
+    path,
+    gridHash,
+  };
   if (!path || path.length === 0) return null;
   return path[0];
+}
+
+export function shouldSpawnFruits(turn: number): boolean {
+  return turn > 0 && turn % FRUIT_SPAWN_INTERVAL === 0;
+}
+
+export function trySpawnFruits(state: GameState): Fruit[] {
+  if (shouldSpawnFruits(state.turn)) {
+    return spawnFruits(state, FRUIT_SPAWN_COUNT);
+  }
+  return state.fruits;
 }
 
 export function spawnFruits(state: GameState, count: number): Fruit[] {
