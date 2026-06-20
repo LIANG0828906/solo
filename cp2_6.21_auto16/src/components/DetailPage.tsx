@@ -56,6 +56,15 @@ export default function DetailPage() {
     }
   }, [currentArtwork]);
 
+  const bidAmountNum = parseInt(bidAmount, 10);
+  const isBidValid = !isNaN(bidAmountNum) && bidAmountNum >= minBid;
+  const priceDiff = isBidValid ? bidAmountNum - currentArtwork.currentPrice : 0;
+
+  const handleQuickBid = () => {
+    if (!currentArtwork) return;
+    setBidAmount(String(currentArtwork.currentPrice + currentArtwork.minIncrement));
+  };
+
   const handleBid = async () => {
     if (!user) {
       try {
@@ -70,8 +79,8 @@ export default function DetailPage() {
     if (!currentUser || !currentArtwork) return;
 
     const amount = parseInt(bidAmount, 10);
-    if (isNaN(amount) || amount <= currentArtwork.currentPrice) {
-      setError('出价必须高于当前价格');
+    if (isNaN(amount) || amount < minBid) {
+      setError(`出价必须至少为 ¥${minBid.toLocaleString()}`);
       return;
     }
 
@@ -93,7 +102,7 @@ export default function DetailPage() {
       deductWallet(amount);
       setBidAmount(String(amount + currentArtwork.minIncrement));
     } catch (err: any) {
-      setError(err.response?.data?.message || '出价失败，请重试');
+      setError(err.response?.data?.detail || '出价失败，请重试');
     } finally {
       setSubmitting(false);
     }
@@ -153,13 +162,43 @@ export default function DetailPage() {
                 placeholder={`最低 ${minBid}`}
               />
             </div>
-            <button
-              className="bid-button"
-              onClick={handleBid}
-              disabled={submitting || !user}
-            >
-              {submitting ? '出价中...' : user ? '立即出价' : '登录并出价'}
-            </button>
+            <div className="bid-buttons-row">
+              <button
+                className="quick-bid-btn"
+                onClick={handleQuickBid}
+                disabled={submitting}
+                type="button"
+              >
+                +¥{currentArtwork.minIncrement}
+              </button>
+              <button
+                className="bid-button"
+                onClick={handleBid}
+                disabled={submitting || !user || !isBidValid}
+              >
+                {submitting ? '出价中...' : user ? '立即出价' : '登录并出价'}
+              </button>
+            </div>
+            <div className="price-compare">
+              <div className="price-compare-row">
+                <span className="compare-label">当前最高价</span>
+                <span className="compare-current">¥{currentArtwork.currentPrice.toLocaleString()}</span>
+              </div>
+              <div className="price-compare-row">
+                <span className="compare-label">您将出价</span>
+                <span className={`compare-your-bid ${isBidValid ? 'valid' : 'invalid'}`}>
+                  {isBidValid ? `¥${bidAmountNum.toLocaleString()}` : '--'}
+                </span>
+              </div>
+              {bidAmount && !isBidValid ? (
+                <div className="price-warning">出价低于当前最高价</div>
+              ) : isBidValid ? (
+                <div className="price-diff">
+                  <span className="diff-label">差价</span>
+                  <span className="diff-value">+¥{priceDiff.toLocaleString()}</span>
+                </div>
+              ) : null}
+            </div>
             {error && <p className="bid-error">{error}</p>}
           </div>
 
