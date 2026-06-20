@@ -245,10 +245,22 @@ body {
 
 .prop-hint {
   font-size: 11px;
-  color: #94a3b8;
-  padding-top: 2px;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  color: #64748b;
   padding-top: 6px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.04), rgba(251, 146, 60, 0.04));
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.hint-icon {
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .prop-hint kbd {
@@ -257,10 +269,11 @@ body {
   font-size: 10px;
   font-family: "SF Mono", Menlo, Consolas, monospace;
   color: #475569;
-  background: #f1f5f9;
+  background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 4px;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+  font-weight: 600;
 }
 
 /* ========== ColorPalette 右侧调色板 ========== */

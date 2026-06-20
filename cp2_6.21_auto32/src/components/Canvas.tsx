@@ -3,7 +3,9 @@ import { useStore } from '../store/useStore';
 import {
   drawLayers,
   drawSelectionHandles,
+  drawDeleteButton,
   isPointInLayer,
+  isPointOnDeleteBtn,
   getHandleAtPoint,
   loadImage,
   BLEND_MODES,
@@ -35,6 +37,7 @@ export default function Canvas() {
   const [interaction, setInteraction] = useState<InteractionMode>({ kind: 'none' });
   const [isDragging, setIsDragging] = useState(false);
   const [cursor, setCursor] = useState<string>('default');
+  const [deleteBtnHovered, setDeleteBtnHovered] = useState(false);
   const lastClickTime = useRef(0);
   const rafId = useRef<number | null>(null);
   const interactionRef = useRef(interaction);
@@ -42,6 +45,7 @@ export default function Canvas() {
   const selectedRef = useRef(selectedLayerId);
   const deleteLayerRef = useRef(deleteLayer);
   const pushHistoryRef = useRef(pushHistory);
+  const deleteBtnHoveredRef = useRef(deleteBtnHovered);
 
   useEffect(() => {
     interactionRef.current = interaction;
@@ -55,6 +59,10 @@ export default function Canvas() {
     selectedRef.current = selectedLayerId;
   }, [selectedLayerId]);
 
+  useEffect(() => {
+    deleteBtnHoveredRef.current = deleteBtnHovered;
+  }, [deleteBtnHovered]);
+
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -67,6 +75,7 @@ export default function Canvas() {
       const selLayer = layers.find((l) => l.id === selectedLayerId);
       if (selLayer) {
         drawSelectionHandles(ctx, selLayer);
+        drawDeleteButton(ctx, selLayer, deleteBtnHoveredRef.current);
       }
     }
   }, [layers, selectedLayerId]);
@@ -133,6 +142,12 @@ export default function Canvas() {
     if (selId) {
       const selLayer = layers.find((l) => l.id === selId);
       if (selLayer) {
+        if (isPointOnDeleteBtn(selLayer, px, py)) {
+          setCursor('pointer');
+          setDeleteBtnHovered(true);
+          return;
+        }
+        setDeleteBtnHovered(false);
         const handle = getHandleAtPoint(selLayer, px, py);
         if (handle === 'rotate') {
           setCursor('grab');
@@ -164,6 +179,7 @@ export default function Canvas() {
         }
       }
     }
+    setDeleteBtnHovered(false);
 
     for (let i = layers.length - 1; i >= 0; i--) {
       if (isPointInLayer(layers[i], px, py)) {
@@ -187,6 +203,13 @@ export default function Canvas() {
     if (selectedLayerId) {
       const selLayer = layers.find((l) => l.id === selectedLayerId);
       if (selLayer) {
+        if (isPointOnDeleteBtn(selLayer, x, y)) {
+          pushHistory();
+          deleteLayer(selLayer.id);
+          e.preventDefault();
+          return;
+        }
+
         const handle = getHandleAtPoint(selLayer, x, y);
         if (handle === 'rotate') {
           const dx = x - selLayer.x;
@@ -258,6 +281,7 @@ export default function Canvas() {
     }
 
     setSelectedLayer(null);
+    setDeleteBtnHovered(false);
   }
 
   useEffect(() => {
@@ -362,16 +386,14 @@ export default function Canvas() {
       }
     }
 
-    function onMouseUp() {
-      const cur = interactionRef.current;
-      if (cur.kind === 'move' && !cur.moved) {
-      } else if (cur.kind !== 'none') {
-      }
+    function onMouseUp(e: MouseEvent) {
+      const { x, y } = getCanvasCoords(e);
       setIsDragging(false);
       const none: InteractionMode = { kind: 'none' };
       setInteraction(none);
       interactionRef.current = none;
       setCursor('default');
+      updateCursor(x, y);
     }
 
     window.addEventListener('mousemove', onMouseMove);
@@ -402,6 +424,11 @@ export default function Canvas() {
           height={CANVAS_HEIGHT}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
+          onMouseLeave={() => {
+            if (!isDragging) {
+              setDeleteBtnHovered(false);
+            }
+          }}
           style={{ cursor: cursorStyle }}
         />
       </div>
@@ -428,7 +455,8 @@ export default function Canvas() {
             </select>
           </div>
           <div className="prop-hint">
-            提示：按 <kbd>Delete</kbd> 或双击可删除选中元素
+            <span className="hint-icon">⌫</span>
+            按 <kbd>Delete</kbd> 键、双击图层或点击右上角 ✕ 按钮可删除
           </div>
         </div>
       )}
