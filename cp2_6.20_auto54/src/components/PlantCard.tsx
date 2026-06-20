@@ -20,7 +20,7 @@ const getStageLabel = (stage: GrowthStage): { label: string; icon: string; color
   }
 };
 
-const CooldownProgress: React.FC<{ remaining: number; total: number }> = ({ remaining, total }) => {
+const CooldownProgress: React.FC<{ remaining: number; total: number; plantId: string }> = ({ remaining, total, plantId }) => {
   const progress = 1 - remaining / total;
   const size = 36;
   const strokeWidth = 3.5;
@@ -29,15 +29,18 @@ const CooldownProgress: React.FC<{ remaining: number; total: number }> = ({ rema
   const dashOffset = circumference * (1 - progress);
   const seconds = Math.ceil(remaining / 1000);
 
+  const gradientId = `cooldown-gradient-${plantId}`;
+  const filterId = `cooldown-shadow-${plantId}`;
+
   return (
     <div className="cooldown-container">
       <svg width={size} height={size} className="cooldown-ring">
         <defs>
-          <linearGradient id="cooldown-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#ff9800" />
             <stop offset="100%" stopColor="#f44336" />
           </linearGradient>
-          <filter id="cooldown-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id={filterId} x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="1" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
@@ -60,13 +63,13 @@ const CooldownProgress: React.FC<{ remaining: number; total: number }> = ({ rema
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="url(#cooldown-gradient)"
+          stroke={`url(#${gradientId})`}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          filter="url(#cooldown-shadow)"
+          filter={`url(#${filterId})`}
           style={{
             transition: 'stroke-dashoffset 0.1s linear'
           }}
@@ -258,7 +261,7 @@ export const PlantCard: React.FC<PlantCardProps> = ({ plant }) => {
           disabled={isFullyGrown || isCooldownActive}
         >
           {isCooldownActive ? (
-            <CooldownProgress remaining={cooldownRemaining} total={FERTILIZE_COOLDOWN} />
+            <CooldownProgress remaining={cooldownRemaining} total={FERTILIZE_COOLDOWN} plantId={plant.id} />
           ) : (
             <span className={`action-icon-wrap ${plant.isFertilizing ? 'sparkle' : ''}`}>✨</span>
           )}

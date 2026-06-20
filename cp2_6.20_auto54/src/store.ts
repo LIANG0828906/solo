@@ -10,7 +10,8 @@ import {
   PLANT_CONFIGS,
   GROWTH_THRESHOLDS,
   FERTILIZE_COOLDOWN,
-  GRID_SIZE
+  GRID_SIZE,
+  STAGE_LABELS
 } from './types';
 import { soundManager } from './utils/sound';
 
@@ -67,18 +68,7 @@ const findCellByPlantId = (
   return null;
 };
 
-const getStageLabel = (stage: GrowthStage): string => {
-  switch (stage) {
-    case GrowthStage.SEEDLING:
-      return '幼苗期';
-    case GrowthStage.GROWING:
-      return '生长期';
-    case GrowthStage.MATURE:
-      return '成熟期';
-    default:
-      return '';
-  }
-};
+const getStageLabel = (stage: GrowthStage): string => STAGE_LABELS[stage];
 
 export const useGardenStore = create<GardenState>((set, get) => ({
   grid: [],

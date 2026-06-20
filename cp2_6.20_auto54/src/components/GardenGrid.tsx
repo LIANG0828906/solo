@@ -41,31 +41,75 @@ const PlantSelectorPanel: React.FC<{
   const updatePos = useCallback(() => {
     if (!cellRef.current) return;
     const rect = cellRef.current.getBoundingClientRect();
+    
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const MARGIN = 12;
+    const ARROW_HEIGHT = 10;
+    const GAP = 6;
+    const TOTAL_OFFSET = ARROW_HEIGHT + GAP;
+    
     const cellCenterX = rect.left + rect.width / 2;
     const cellTop = rect.top;
-
+    const cellBottom = rect.bottom;
+    
     let left = cellCenterX - PANEL_WIDTH / 2;
-    const minLeft = 12;
-    const maxLeft = window.innerWidth - PANEL_WIDTH - 12;
-    left = Math.max(minLeft, Math.min(left, maxLeft));
-
+    left = Math.max(MARGIN, Math.min(left, viewportWidth - PANEL_WIDTH - MARGIN));
+    
     let arrowOffset = ((cellCenterX - left) / PANEL_WIDTH) * 100;
     arrowOffset = Math.max(10, Math.min(90, arrowOffset));
-
-    let top = cellTop - PANEL_HEIGHT - ARROW_SIZE - GAP;
-    let originY = 100;
-
-    if (top < 12) {
-      top = cellTop + rect.height + ARROW_SIZE + GAP;
-      originY = 0;
-    }
-
+    
     const originX = ((cellCenterX - left) / PANEL_WIDTH) * 100;
+    const clampedOriginX = Math.max(10, Math.min(90, originX));
+    
+    const spaceAbove = cellTop - TOTAL_OFFSET - MARGIN;
+    const spaceBelow = viewportHeight - cellBottom - TOTAL_OFFSET - MARGIN;
+    
+    let top: number;
+    let originY: number;
+    let isAbove: boolean;
+    
+    if (spaceAbove >= PANEL_HEIGHT || spaceAbove >= spaceBelow) {
+      top = cellTop - PANEL_HEIGHT - TOTAL_OFFSET;
+      if (top < MARGIN) {
+        const fitsBelow = (cellBottom + TOTAL_OFFSET + PANEL_HEIGHT) <= (viewportHeight - MARGIN);
+        if (fitsBelow) {
+          top = cellBottom + TOTAL_OFFSET;
+          originY = 0;
+          isAbove = false;
+        } else {
+          top = MARGIN;
+          originY = Math.min(90, Math.max(10, ((cellTop - MARGIN) / PANEL_HEIGHT) * 100));
+          isAbove = true;
+        }
+      } else {
+        originY = 100;
+        isAbove = true;
+      }
+    } else {
+      top = cellBottom + TOTAL_OFFSET;
+      const maxBottom = viewportHeight - MARGIN;
+      if (top + PANEL_HEIGHT > maxBottom) {
+        const fitsAbove = (cellTop - TOTAL_OFFSET - PANEL_HEIGHT) >= MARGIN;
+        if (fitsAbove) {
+          top = cellTop - PANEL_HEIGHT - TOTAL_OFFSET;
+          originY = 100;
+          isAbove = true;
+        } else {
+          top = Math.max(MARGIN, maxBottom - PANEL_HEIGHT);
+          originY = Math.min(90, Math.max(10, ((cellBottom - top) / PANEL_HEIGHT) * 100));
+          isAbove = false;
+        }
+      } else {
+        originY = 0;
+        isAbove = false;
+      }
+    }
 
     setPanelPos({
       top,
       left,
-      originX: Math.max(10, Math.min(90, originX)),
+      originX: clampedOriginX,
       originY,
       arrowOffset
     });
