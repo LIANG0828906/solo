@@ -200,6 +200,7 @@ function SceneContent() {
           <CuttingPiece3D
             key={piece.id}
             piece={piece}
+            allPieces={pieces}
             defects={defects}
             isSelected={piece.id === selectedPieceId}
             showPath={showCuttingPath}

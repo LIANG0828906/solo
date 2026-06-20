@@ -8,6 +8,7 @@ import { isAnyCollision } from '@/utils/collision';
 
 interface CuttingPieceProps {
   piece: CuttingPieceData;
+  allPieces: CuttingPieceData[];
   defects: LeatherDefect[];
   isSelected: boolean;
   showPath: boolean;
@@ -19,6 +20,7 @@ interface CuttingPieceProps {
 
 export function CuttingPiece3D({
   piece,
+  allPieces,
   defects,
   isSelected,
   showPath,
@@ -46,8 +48,8 @@ export function CuttingPiece3D({
   }, [piece.shape, piece.width, piece.height, piece.scale]);
 
   const collisionDetected = useMemo(
-    () => isAnyCollision(piece, [piece], defects) || piece.isColliding,
-    [piece, defects]
+    () => isAnyCollision(piece, allPieces, defects) || piece.isColliding,
+    [piece, allPieces, defects]
   );
 
   useFrame((_, delta) => {

@@ -133,7 +133,7 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
       set({ pendingParams: newPending, paramsDirty: dirty });
     },
 
-    applyParams: () => {
+    applyParams: async () => {
       const state = get();
       const { pendingParams } = state;
       const newPieces = state.pieces.map((p) => ({
@@ -141,13 +141,43 @@ export const useLayoutStore = create<LayoutState & LayoutActions>((set, get) => 
         scale: pendingParams.scaleRatio,
         rotation: pendingParams.rotationAngle * (Math.PI / 180),
       }));
-      const utilization = calculateTotalUtilization(newPieces, state.defects);
-      layout.pieces = newPieces;
+
       set({
         pieces: newPieces,
         params: { ...pendingParams },
         paramsDirty: false,
-        utilization,
+        utilization: calculateTotalUtilization(newPieces, state.defects),
+        optimizationProgress: {
+          ...state.optimizationProgress,
+          isRunning: true,
+          currentIteration: 0,
+          currentUtilization: 0,
+        },
+      });
+
+      const optimizer = new LayoutOptimizer((iteration, utilization) => {
+        set((s) => ({
+          optimizationProgress: {
+            ...s.optimizationProgress,
+            currentIteration: iteration,
+            currentUtilization: utilization,
+          },
+        }));
+      });
+
+      const optimizedPieces = await optimizer.optimize(newPieces, pendingParams.layoutDensity);
+      const finalUtilization = calculateTotalUtilization(optimizedPieces, state.defects);
+      layout.pieces = optimizedPieces;
+
+      set({
+        pieces: optimizedPieces,
+        utilization: finalUtilization,
+        optimizationProgress: {
+          currentIteration: OPTIMIZATION_ITERATIONS,
+          totalIterations: OPTIMIZATION_ITERATIONS,
+          currentUtilization: finalUtilization,
+          isRunning: false,
+        },
       });
     },
 
