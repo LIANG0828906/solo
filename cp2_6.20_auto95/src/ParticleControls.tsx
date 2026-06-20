@@ -144,7 +144,7 @@ export const ParticleControls: React.FC = () => {
           value={params.particleCount}
           min={500}
           max={5000}
-          step={100}
+          step={1}
           onChange={handleParticleCountChange}
         />
       </div>

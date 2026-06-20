@@ -1,14 +1,33 @@
-import React, { useRef, useMemo, useEffect, useState } from 'react';
+import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Points, PointMaterial } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useParticleStore } from './particleStore';
+import { getColorByDistance } from './utils/colorUtils';
 
-interface ParticleSystemProps {
-  onFpsUpdate: (fps: number) => void;
-}
+const MAX_DISTANCE = 100;
 
-const ParticleSystem: React.FC<ParticleSystemProps> = ({ onFpsUpdate }) => {
+const createParticleTexture = (): THREE.Texture => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d')!;
+
+  const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+  gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.4)');
+  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 64, 64);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+};
+
+const ParticleSystem = ({ onFpsUpdate }: { onFpsUpdate: (fps: number) => void }) => {
   const pointsRef = useRef<THREE.Points>(null);
   const particles = useParticleStore((state) => state.particles);
   const updateParticlePositions = useParticleStore((state) => state.updateParticlePositions);
@@ -17,81 +36,99 @@ const ParticleSystem: React.FC<ParticleSystemProps> = ({ onFpsUpdate }) => {
 
   const [, setFpsCounter] = useState({ frames: 0, lastTime: performance.now() });
 
-  const [positions, colors, sizes] = useMemo(() => {
-    const pos = new Float32Array(particles.length * 3);
-    const col = new Float32Array(particles.length * 3);
-    const siz = new Float32Array(particles.length);
+  const particleTexture = useMemo(() => createParticleTexture(), []);
 
-    particles.forEach((p, i) => {
-      pos[i * 3] = p.x;
-      pos[i * 3 + 1] = p.y;
-      pos[i * 3 + 2] = p.z;
-      col[i * 3] = p.color[0];
-      col[i * 3 + 1] = p.color[1];
-      col[i * 3 + 2] = p.color[2];
-      siz[i] = p.size;
+  const { geometry, material } = useMemo(() => {
+    const count = Math.max(particles.length, 1);
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+    const mat = new THREE.PointsMaterial({
+      size: 1.2,
+      sizeAttenuation: true,
+      vertexColors: true,
+      map: particleTexture,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
     });
 
-    return [pos, col, siz];
-  }, [particles.length]);
+    return { geometry: geo, material: mat };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    if (!pointsRef.current) return;
-    
-    const geometry = pointsRef.current.geometry;
+    if (!geometry) return;
+    const count = particles.length;
+    const positionAttr = geometry.attributes.position as THREE.BufferAttribute;
+
+    if (positionAttr.count !== count) {
+      const newPositions = new Float32Array(count * 3);
+      const newColors = new Float32Array(count * 3);
+      const newSizes = new Float32Array(count);
+      geometry.setAttribute('position', new THREE.BufferAttribute(newPositions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(newColors, 3));
+      geometry.setAttribute('size', new THREE.BufferAttribute(newSizes, 1));
+    }
+  }, [particles.length, geometry]);
+
+  const updateBuffers = useCallback(() => {
+    if (!geometry || particles.length === 0) return;
     const positionAttr = geometry.attributes.position as THREE.BufferAttribute;
     const colorAttr = geometry.attributes.color as THREE.BufferAttribute;
     const sizeAttr = geometry.attributes.size as THREE.BufferAttribute;
+    const posArr = positionAttr.array as Float32Array;
+    const colArr = colorAttr.array as Float32Array;
+    const sizArr = sizeAttr.array as Float32Array;
 
-    particles.forEach((p, i) => {
-      positionAttr.array[i * 3] = p.x;
-      positionAttr.array[i * 3 + 1] = p.y;
-      positionAttr.array[i * 3 + 2] = p.z;
-      colorAttr.array[i * 3] = p.color[0];
-      colorAttr.array[i * 3 + 1] = p.color[1];
-      colorAttr.array[i * 3 + 2] = p.color[2];
-      sizeAttr.array[i] = p.size;
-    });
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const i3 = i * 3;
+
+      posArr[i3] = p.x;
+      posArr[i3 + 1] = p.y;
+      posArr[i3 + 2] = p.z;
+
+      const distance = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+      let normalizedDistance = distance / MAX_DISTANCE;
+      normalizedDistance = Math.max(0, Math.min(1, normalizedDistance));
+      const mappedDistance = Math.pow(normalizedDistance, 0.7);
+
+      const color = getColorByDistance(mappedDistance);
+      colArr[i3] = color[0];
+      colArr[i3 + 1] = color[1];
+      colArr[i3 + 2] = color[2];
+
+      sizArr[i] = 3 - mappedDistance * 2;
+    }
 
     positionAttr.needsUpdate = true;
     colorAttr.needsUpdate = true;
     sizeAttr.needsUpdate = true;
-  }, [particles]);
+  }, [particles, geometry]);
 
-  const particleTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
-    gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.4)');
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 64, 64);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    return texture;
-  }, []);
+  useEffect(() => {
+    updateBuffers();
+  }, [updateBuffers]);
 
   useFrame((_, delta) => {
     const currentTime = performance.now();
-    
+
     setFpsCounter((prev) => {
       const newFrames = prev.frames + 1;
       const elapsed = currentTime - prev.lastTime;
-      
       if (elapsed >= 500) {
         const fps = (newFrames / elapsed) * 1000;
         onFpsUpdate(Math.round(fps));
         return { frames: 0, lastTime: currentTime };
       }
-      
       return { ...prev, frames: newFrames };
     });
 
@@ -100,54 +137,30 @@ const ParticleSystem: React.FC<ParticleSystemProps> = ({ onFpsUpdate }) => {
     } else {
       updateParticlePositions(delta * 60);
     }
+
+    updateBuffers();
   });
 
-  return (
-    <Points
-      ref={pointsRef}
-      positions={positions}
-      colors={colors}
-      frustumCulled={false}
-    >
-      <bufferAttribute
-        attach="attributes-size"
-        args={[sizes, 1]}
-      />
-      <PointMaterial
-        map={particleTexture}
-        vertexColors
-        size={0.8}
-        sizeAttenuation
-        transparent
-        opacity={0.9}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </Points>
-  );
+  return <points ref={pointsRef} geometry={geometry} material={material} frustumCulled={false} />;
 };
 
-const GalaxyCenter: React.FC = () => {
+const GalaxyCenter = () => {
   const params = useParticleStore((state) => state.params);
   const glowIntensity = params.gravityStrength / 100;
 
   return (
     <mesh>
       <sphereGeometry args={[3, 32, 32]} />
-      <meshBasicMaterial
-        color="#ff8c42"
-        transparent
-        opacity={0.3 + glowIntensity * 0.4}
-      />
+      <meshBasicMaterial color="#ff8c42" transparent opacity={0.3 + glowIntensity * 0.4} />
     </mesh>
   );
 };
 
-export const ParticleScene: React.FC = () => {
+export const ParticleScene = () => {
   const setFps = useParticleStore((state) => state.setFps);
   const params = useParticleStore((state) => state.params);
 
-  const handleFpsUpdate = React.useCallback((fps: number) => {
+  const handleFpsUpdate = useCallback((fps: number) => {
     setFps(fps);
   }, [setFps]);
 
@@ -160,20 +173,14 @@ export const ParticleScene: React.FC = () => {
       >
         <color attach="background" args={['#0d0d1a']} />
         <fog attach="fog" args={['#0d0d1a', 150, 350]} />
-        
+
         <ambientLight intensity={0.1} />
         <pointLight position={[0, 0, 0]} intensity={params.gravityStrength / 50} color="#ff6b35" />
-        
+
         <ParticleSystem onFpsUpdate={handleFpsUpdate} />
         <GalaxyCenter />
-        
-        <OrbitControls
-          enableDamping
-          dampingFactor={0.05}
-          minDistance={30}
-          maxDistance={300}
-          enablePan={false}
-        />
+
+        <OrbitControls enableDamping dampingFactor={0.05} minDistance={30} maxDistance={300} enablePan={false} />
       </Canvas>
     </div>
   );
