@@ -41,9 +41,35 @@ interface GameState {
 }
 
 const PLAYER_MAX_HP = 50
+const STORAGE_KEY_CURRENT_LEVEL = 'dungeon_crawler_current_level'
 
-const initializeState = () => {
+const getSavedLevel = (): number => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_CURRENT_LEVEL)
+    if (saved) {
+      const level = parseInt(saved, 10)
+      return isNaN(level) || level < 1 ? 1 : level
+    }
+  } catch (e) {
+    console.warn('Failed to read from localStorage:', e)
+  }
+  return 1
+}
+
+const saveLevel = (level: number): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY_CURRENT_LEVEL, level.toString())
+  } catch (e) {
+    console.warn('Failed to write to localStorage:', e)
+  }
+}
+
+const initializeState = (resetLevel: boolean = false) => {
   const dungeon = createNewDungeon()
+  const initialLevel = resetLevel ? 1 : getSavedLevel()
+  if (resetLevel) {
+    saveLevel(1)
+  }
   return {
     dungeonGrid: dungeon.grid,
     enemies: dungeon.enemies,
@@ -51,7 +77,7 @@ const initializeState = () => {
     playerHP: PLAYER_MAX_HP,
     playerMaxHP: PLAYER_MAX_HP,
     playerGold: 0,
-    currentLevel: 1,
+    currentLevel: initialLevel,
     turnCount: MAX_TURNS,
     isGameOver: false,
     gameOverReason: '',
@@ -67,7 +93,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   ...initializeState(),
 
   startNewGame: () => {
-    set(initializeState())
+    set(initializeState(true))
   },
 
   handleCellClick: (targetPos: Position) => {
@@ -133,6 +159,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           draft.currentLevel = newLevel
           draft.turnCount = MAX_TURNS
           draft.message = `进入第 ${newLevel} 层！`
+          saveLevel(newLevel)
         }
 
         if (newPlayerHP <= 0) {

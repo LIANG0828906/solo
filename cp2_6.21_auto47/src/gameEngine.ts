@@ -276,7 +276,6 @@ export class TurnManager {
             occupiedPositions.delete(`${enemy.position.x},${enemy.position.y}`)
             enemy.position = newPos
             occupiedPositions.add(`${newPos.x},${newPos.y}`)
-            moved = true
             break
           }
         }
