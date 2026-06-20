@@ -46,6 +46,7 @@ const GameBoard = () => {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 1200
   );
+  const [explosionCenter, setExplosionCenter] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -95,8 +96,26 @@ const GameBoard = () => {
   }, [lastFeedback, feedbackCell, particleId, clearFeedback, cellSize]);
 
   useEffect(() => {
-    if (gameStatus === 'won') {
+    if (gameStatus === 'won' && gridContainerRef.current) {
       setShowFlash(true);
+
+      const containerRect = gridContainerRef.current.getBoundingClientRect();
+      const scrollX = window.scrollX || document.documentElement.scrollLeft;
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+
+      const containerLeft = containerRect.left + scrollX;
+      const containerTop = containerRect.top + scrollY;
+
+      const parentRect = gridContainerRef.current.offsetParent
+        ? gridContainerRef.current.offsetParent.getBoundingClientRect()
+        : null;
+      const parentLeft = parentRect ? parentRect.left + scrollX : 0;
+      const parentTop = parentRect ? parentRect.top + scrollY : 0;
+
+      const relativeX = containerLeft - parentLeft + containerRect.width / 2;
+      const relativeY = containerTop - parentTop + (cellSize * 3 + gap * 2 + gridPadding * 2) / 2;
+
+      setExplosionCenter({ x: relativeX, y: relativeY });
 
       const newParticles = Array.from({ length: 10 }, (_, i) => ({
         id: i,
@@ -105,14 +124,17 @@ const GameBoard = () => {
       setExplosionParticles(newParticles);
 
       const flashTimer = setTimeout(() => setShowFlash(false), 300);
-      const particleTimer = setTimeout(() => setExplosionParticles([]), 600);
+      const particleTimer = setTimeout(() => {
+        setExplosionParticles([]);
+        setExplosionCenter(null);
+      }, 600);
 
       return () => {
         clearTimeout(flashTimer);
         clearTimeout(particleTimer);
       };
     }
-  }, [gameStatus]);
+  }, [gameStatus, cellSize, gap, gridPadding]);
 
   const onDragEnd = useCallback(
     (result: DropResult) => {
@@ -429,12 +451,12 @@ const GameBoard = () => {
         </AnimatePresence>
 
         <AnimatePresence>
-          {explosionParticles.length > 0 && (
+          {explosionParticles.length > 0 && explosionCenter && (
             <div
               className="absolute pointer-events-none"
               style={{
-                left: gridWidth / 2,
-                top: (cellSize * 3 + gap * 2 + gridPadding * 2) / 2,
+                left: explosionCenter.x,
+                top: explosionCenter.y,
               }}
             >
               {explosionParticles.map((particle) => (
@@ -444,8 +466,8 @@ const GameBoard = () => {
                   initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
                   animate={{
                     scale: [0, 1.5, 0],
-                    x: Math.cos((particle.angle * Math.PI) / 180) * 120,
-                    y: Math.sin((particle.angle * Math.PI) / 180) * 120,
+                    x: Math.cos((particle.angle * Math.PI) / 180) * 150,
+                    y: Math.sin((particle.angle * Math.PI) / 180) * 150,
                     opacity: [1, 1, 0],
                   }}
                   transition={{ duration: 0.6, ease: 'easeOut' }}

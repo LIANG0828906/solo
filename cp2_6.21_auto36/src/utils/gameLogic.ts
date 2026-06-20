@@ -20,19 +20,62 @@ export const CRYSTAL_TYPES: CrystalType[] = ['fire', 'ice', 'thunder', 'nature',
 
 export const GRID_SIZE = 3;
 export const CELL_COUNT = GRID_SIZE * GRID_SIZE;
-export const CRYSTALS_PER_TYPE = 3;
 export const MAX_ENERGY = 100;
 export const ENERGY_GAIN = 10;
 export const ENERGY_LOSS = 5;
 export const MAX_HINTS = 3;
 
-export function generateCrystalPool(): CrystalType[] {
-  const pool: CrystalType[] = [];
-  for (const type of CRYSTAL_TYPES) {
-    for (let i = 0; i < CRYSTALS_PER_TYPE; i++) {
-      pool.push(type);
+const BASE_SOLUTION: CrystalType[] = [
+  'fire', 'ice', 'thunder',
+  'nature', 'shadow', 'fire',
+  'ice', 'thunder', 'nature',
+];
+
+function isSolutionValid(solution: CrystalType[]): boolean {
+  const emptyGrid = createEmptyGrid();
+  for (let i = 0; i < solution.length; i++) {
+    if (!validatePlacement(emptyGrid, i, solution[i])) {
+      return false;
     }
+    emptyGrid[i] = solution[i];
   }
+  return true;
+}
+
+function generateValidSolution(): CrystalType[] {
+  const shuffledTypes = shuffleArray([...CRYSTAL_TYPES]);
+  const typeMapping = new Map<CrystalType, CrystalType>();
+  
+  const usedTypes = new Set(BASE_SOLUTION);
+  const baseUniqueTypes = Array.from(usedTypes);
+  
+  baseUniqueTypes.forEach((type, i) => {
+    typeMapping.set(type, shuffledTypes[i]);
+  });
+  
+  const remainingTypes = shuffledTypes.slice(baseUniqueTypes.length);
+  const unmappedTypes = CRYSTAL_TYPES.filter(t => !usedTypes.has(t));
+  unmappedTypes.forEach((type, i) => {
+    typeMapping.set(type, remainingTypes[i] || shuffledTypes[0]);
+  });
+  
+  const solution = BASE_SOLUTION.map(type => typeMapping.get(type) || type);
+  
+  if (isSolutionValid(solution)) {
+    return solution;
+  }
+  
+  return [...BASE_SOLUTION];
+}
+
+export function generateCrystalPool(): CrystalType[] {
+  const solution = generateValidSolution();
+  const pool: CrystalType[] = [];
+
+  for (const type of solution) {
+    pool.push(type);
+  }
+
   return shuffleArray(pool);
 }
 
