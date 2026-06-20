@@ -67,6 +67,7 @@ export default function BTEditor() {
     y: 0,
     nodeId: '',
   });
+  const [draggingNodePos, setDraggingNodePos] = useState<Record<string, { x: number; y: number }>>({});
 
   const currentTree = useMemo(
     () => behaviorTrees.find((t) => t.id === currentTreeId),
@@ -198,7 +199,9 @@ export default function BTEditor() {
         if (rafRef.current === null) {
           rafRef.current = requestAnimationFrame(() => {
             if (pendingPosRef.current && nodeDragRef.current) {
-              moveNode(nodeDragRef.current.nodeId, pendingPosRef.current);
+              const nid = nodeDragRef.current.nodeId;
+              const pos = pendingPosRef.current;
+              setDraggingNodePos((prev) => ({ ...prev, [nid]: pos }));
             }
             rafRef.current = null;
           });
@@ -212,14 +215,24 @@ export default function BTEditor() {
         forceUpdate((n) => n + 1);
       }
     },
-    [getCanvasCoords, moveNode]
+    [getCanvasCoords]
   );
 
   const handleMouseUp = useCallback(
     (e: MouseEvent) => {
       if (nodeDragRef.current) {
+        if (pendingPosRef.current) {
+          moveNode(nodeDragRef.current.nodeId, pendingPosRef.current);
+        }
+        const dragNodeId = nodeDragRef.current.nodeId;
         nodeDragRef.current = null;
         pendingPosRef.current = null;
+        setDraggingNodePos((prev) => {
+          if (!(dragNodeId in prev)) return prev;
+          const next = { ...prev };
+          delete next[dragNodeId];
+          return next;
+        });
       }
 
       if (connectionDragRef.current) {
@@ -245,7 +258,7 @@ export default function BTEditor() {
         forceUpdate((n) => n + 1);
       }
     },
-    [nodes, connectNodes]
+    [nodes, connectNodes, moveNode]
   );
 
   const handleCanvasClick = () => {
@@ -338,14 +351,20 @@ export default function BTEditor() {
     const result: Array<{ parentId: string; childId: string; path: string }> = [];
 
     Object.values(nodes).forEach((node) => {
-      if (node.children && node.children.length > 0) {
-        const startPos = getOutputPortPos(node);
-        node.children.forEach((childId) => {
+      const effectiveNode = draggingNodePos[node.id]
+        ? { ...node, position: draggingNodePos[node.id] }
+        : node;
+      if (effectiveNode.children && effectiveNode.children.length > 0) {
+        const startPos = getOutputPortPos(effectiveNode);
+        effectiveNode.children.forEach((childId) => {
           const child = nodes[childId];
           if (child) {
-            const endPos = getInputPortPos(child);
+            const effectiveChild = draggingNodePos[child.id]
+              ? { ...child, position: draggingNodePos[child.id] }
+              : child;
+            const endPos = getInputPortPos(effectiveChild);
             result.push({
-              parentId: node.id,
+              parentId: effectiveNode.id,
               childId,
               path: createBezierPath(startPos.x, startPos.y, endPos.x, endPos.y),
             });
@@ -355,20 +374,21 @@ export default function BTEditor() {
     });
 
     return result;
-  }, [nodes, getOutputPortPos, getInputPortPos, createBezierPath]);
+  }, [nodes, draggingNodePos, getOutputPortPos, getInputPortPos, createBezierPath]);
 
   const renderNode = (node: BTNode) => {
     const isSelected = selectedNodeId === node.id;
     const isRoot = currentTree?.rootId === node.id;
     const config = NODE_CONFIGS[node.type];
     const { width, height } = getNodeSize(node.type);
+    const pos = draggingNodePos[node.id] ?? node.position;
 
     return (
       <div
         key={node.id}
         data-node-id={node.id}
         className={`bt-node ${node.type} ${isSelected ? 'selected' : ''}`}
-        style={{ left: node.position.x, top: node.position.y, width, height }}
+        style={{ left: pos.x, top: pos.y, width, height }}
         onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
         onContextMenu={(e) => handleNodeContextMenu(e, node.id)}
       >

@@ -96,6 +96,12 @@ interface PathNode {
   parent: PathNode | null;
 }
 
+const DEFAULT_TERRAIN: [number, number, TerrainType][] = [
+  [1, 3, 'forest'], [2, 3, 'forest'], [3, 4, 'forest'], [4, 4, 'forest'],
+  [2, 5, 'rock'], [3, 5, 'rock'],
+  [3, 2, 'river'], [3, 3, 'river'],
+];
+
 export function createGrid(): GridCell[][] {
   const grid: GridCell[][] = [];
   for (let y = 0; y < GRID_HEIGHT; y++) {
@@ -106,6 +112,11 @@ export function createGrid(): GridCell[][] {
         y,
         terrain: 'grass',
       };
+    }
+  }
+  for (const [x, y, terrain] of DEFAULT_TERRAIN) {
+    if (y < GRID_HEIGHT && x < GRID_WIDTH) {
+      grid[y][x].terrain = terrain;
     }
   }
   return grid;

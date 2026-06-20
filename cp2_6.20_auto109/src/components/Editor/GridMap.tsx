@@ -4,6 +4,7 @@ import {
   TERRAIN_INFO,
   UNIT_COLORS,
   getMovableCells,
+  findPath,
   CELL_SIZE,
   GRID_WIDTH,
   GRID_HEIGHT,
@@ -46,7 +47,9 @@ export default function GridMap() {
 
   const [damagePopups, setDamagePopups] = useState<DamagePopup[]>([]);
   const [animationStates, setAnimationStates] = useState<UnitAnimationState>({});
+  const [animatingUnits, setAnimatingUnits] = useState<Record<string, { x: number; y: number }>>({});
   const prevUnitsRef = useRef<Unit[]>([]);
+  const animationTimersRef = useRef<Record<string, number[]>>({});
 
   const selectedUnit = useMemo(
     () => units.find((u) => u.id === selectedUnitId) || null,
@@ -135,6 +138,66 @@ export default function GridMap() {
     prevUnitsRef.current = units;
   }, [units, addDamagePopup, triggerAnimation]);
 
+  const animateAlongPath = useCallback(
+    (unitId: string, path: { x: number; y: number }[]) => {
+      if (animationTimersRef.current[unitId]) {
+        animationTimersRef.current[unitId].forEach((t) => clearTimeout(t));
+      }
+      const timers: number[] = [];
+      animationTimersRef.current[unitId] = timers;
+
+      path.forEach((point, i) => {
+        const timer = window.setTimeout(() => {
+          setAnimatingUnits((prev) => ({
+            ...prev,
+            [unitId]: { x: point.x, y: point.y },
+          }));
+
+          if (i === path.length - 1) {
+            setAnimatingUnits((prev) => {
+              const next = { ...prev };
+              delete next[unitId];
+              return next;
+            });
+            delete animationTimersRef.current[unitId];
+          }
+        }, i * 150);
+        timers.push(timer);
+      });
+    },
+    []
+  );
+
+  useEffect(() => {
+    const prevUnits = prevUnitsRef.current;
+
+    units.forEach((unit) => {
+      const prevUnit = prevUnits.find((u) => u.id === unit.id);
+      if (!prevUnit) return;
+
+      const posChanged =
+        prevUnit.position.x !== unit.position.x || prevUnit.position.y !== unit.position.y;
+
+      if (posChanged && unit.isAlive) {
+        const path = findPath(
+          prevUnit.position.x,
+          prevUnit.position.y,
+          unit.position.x,
+          unit.position.y,
+          grid,
+          unit.moveRange
+        );
+        if (path && path.length > 1) {
+          setAnimatingUnits((prev) => ({
+            ...prev,
+            [unit.id]: { x: prevUnit.position.x, y: prevUnit.position.y },
+          }));
+          animateAlongPath(unit.id, path);
+        }
+      }
+    });
+  }, [units, grid, animateAlongPath]);
+
   const getCellStyle = (x: number, y: number, terrain: TerrainType) => {
     const terrainInfo = TERRAIN_INFO[terrain];
     const isAlternate = (x + y) % 2 === 0;
@@ -147,10 +210,13 @@ export default function GridMap() {
 
   const getUnitStyle = (unit: Unit) => {
     const color = UNIT_COLORS[unit.unitClass];
+    const animPos = animatingUnits[unit.id];
+    const pos = animPos || unit.position;
     return {
-      left: `${unit.position.x * CELL_SIZE + (CELL_SIZE - 48) / 2}px`,
-      top: `${unit.position.y * CELL_SIZE + (CELL_SIZE - 48) / 2}px`,
+      left: `${pos.x * CELL_SIZE + (CELL_SIZE - 48) / 2}px`,
+      top: `${pos.y * CELL_SIZE + (CELL_SIZE - 48) / 2}px`,
       backgroundColor: color,
+      transition: 'left 150ms linear, top 150ms linear',
     };
   };
 
