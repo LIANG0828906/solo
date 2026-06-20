@@ -21,6 +21,8 @@ export interface GameState {
   discoveredPlates: Position[];
   discoveredDoors: Position[];
   plateFlash: Position | null;
+  victoryBeam: boolean;
+  discoveredItems: Position[];
 }
 
 export type GameAction =
@@ -34,7 +36,8 @@ export type GameAction =
   | { type: 'CLEAR_PLATE_FLASH' }
   | { type: 'TICK_TIMER' }
   | { type: 'NEW_GAME' }
-  | { type: 'START_GAME' };
+  | { type: 'START_GAME' }
+  | { type: 'CLEAR_VICTORY_BEAM' };
 
 function createInitialState(): GameState {
   const maze = generateMaze(10, 10);
@@ -58,6 +61,8 @@ function createInitialState(): GameState {
     discoveredPlates: [],
     discoveredDoors: [],
     plateFlash: null,
+    victoryBeam: false,
+    discoveredItems: [],
   };
 }
 
@@ -103,6 +108,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       let flash = state.plateFlash;
       let newDiscoveredPlates = state.discoveredPlates;
       let newDiscoveredDoors = state.discoveredDoors;
+      let newDiscoveredItems = state.discoveredItems;
+      let newVictoryBeam = false;
 
       const itemIdx = newItems.findIndex(i => i.position.row === newPos.row && i.position.col === newPos.col && !i.collected);
       if (itemIdx >= 0) {
@@ -119,6 +126,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           if (hint) {
             newHint = hint.message;
           }
+        }
+
+        if (!newDiscoveredItems.some(di => di.row === item.position.row && di.col === item.position.col)) {
+          newDiscoveredItems = [...newDiscoveredItems, item.position];
         }
       }
 
@@ -160,6 +171,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       const gameWon = newPos.row === state.maze.endPosition.row && newPos.col === state.maze.endPosition.col;
+      if (gameWon) {
+        newVictoryBeam = true;
+      }
 
       return {
         ...state,
@@ -176,6 +190,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         discoveredPlates: newDiscoveredPlates,
         discoveredDoors: newDiscoveredDoors,
         plateFlash: flash,
+        victoryBeam: newVictoryBeam,
+        discoveredItems: newDiscoveredItems,
       };
     }
 
@@ -190,6 +206,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'CLEAR_PLATE_FLASH':
       return { ...state, plateFlash: null };
+
+    case 'CLEAR_VICTORY_BEAM':
+      return { ...state, victoryBeam: false };
 
     case 'TICK_TIMER':
       if (!state.gameStarted || state.gameWon) return state;

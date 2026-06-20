@@ -257,11 +257,36 @@ export default function HUD() {
             }
 
             for (const item of state.items) {
-              if (item.collected) continue;
-              ctx.fillStyle = '#22c55e';
-              ctx.beginPath();
-              ctx.arc(item.position.col * cellW + cellW / 2, item.position.row * cellH + cellH / 2, Math.max(1.5, cellW / 3), 0, Math.PI * 2);
-              ctx.fill();
+              const collected = item.collected;
+              if (!collected) {
+                ctx.fillStyle = item.type === 'key' ? '#facc15' : (item.type === 'potion' ? '#22c55e' : '#e5e7eb');
+              } else {
+                ctx.fillStyle = item.type === 'key' ? 'rgba(250, 204, 21, 0.4)' : (item.type === 'potion' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(229, 231, 235, 0.4)');
+              }
+              if (item.type === 'key') {
+                ctx.beginPath();
+                ctx.moveTo(item.position.col * cellW + cellW / 2, item.position.row * cellH + cellH / 2 - Math.max(1.5, cellW / 3));
+                ctx.lineTo(item.position.col * cellW + cellW / 2 + Math.max(1.5, cellW / 3), item.position.row * cellH + cellH / 2 + Math.max(1.5, cellW / 3) * 0.5);
+                ctx.lineTo(item.position.col * cellW + cellW / 2 - Math.max(1.5, cellW / 3), item.position.row * cellH + cellH / 2 + Math.max(1.5, cellW / 3) * 0.5);
+                ctx.closePath();
+                ctx.fill();
+              } else if (item.type === 'potion') {
+                ctx.beginPath();
+                ctx.arc(item.position.col * cellW + cellW / 2, item.position.row * cellH + cellH / 2, Math.max(1.5, cellW / 3), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = collected ? 'rgba(255,255,255,0.3)' : '#fff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(item.position.col * cellW + cellW / 2, item.position.row * cellH + cellH / 2 - Math.max(1, cellW / 4));
+                ctx.lineTo(item.position.col * cellW + cellW / 2, item.position.row * cellH + cellH / 2 + Math.max(1, cellW / 4));
+                ctx.moveTo(item.position.col * cellW + cellW / 2 - Math.max(1, cellW / 4), item.position.row * cellH + cellH / 2);
+                ctx.lineTo(item.position.col * cellW + cellW / 2 + Math.max(1, cellW / 4), item.position.row * cellH + cellH / 2);
+                ctx.stroke();
+              } else {
+                ctx.beginPath();
+                ctx.arc(item.position.col * cellW + cellW / 2, item.position.row * cellH + cellH / 2, Math.max(1.5, cellW / 3), 0, Math.PI * 2);
+                ctx.fill();
+              }
             }
 
             ctx.fillStyle = '#4488ff';

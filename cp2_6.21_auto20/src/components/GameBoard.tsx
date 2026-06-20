@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useGame } from '../GameContext';
-import { CellType, SymbolType } from '../GameCore';
+import { CellType, SymbolType, Position } from '../GameCore';
 
 const CELL_SIZE = 28;
 
@@ -91,6 +91,25 @@ export default function GameBoard() {
   }, [state.hintMessage, dispatch]);
 
   useEffect(() => {
+    if (state.victoryBeam) {
+      const px = state.maze.endPosition.col * CELL_SIZE + CELL_SIZE / 2;
+      const py = state.maze.endPosition.row * CELL_SIZE + CELL_SIZE / 2;
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+          for (let j = 0; j < 20; j++) {
+            spawnParticles(
+              px + (Math.random() - 0.5) * 30,
+              py - Math.random() * 100
+            );
+          }
+        }, i * 150);
+      }
+      const timer = setTimeout(() => dispatch({ type: 'CLEAR_VICTORY_BEAM' }), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [state.victoryBeam, state.maze.endPosition, spawnParticles, dispatch]);
+
+  useEffect(() => {
     if (
       prevPosRef.current.row !== state.playerPos.row ||
       prevPosRef.current.col !== state.playerPos.col
@@ -164,29 +183,33 @@ export default function GameBoard() {
       }
 
       for (const plate of state.plates) {
-        if (plate.activated) continue;
         const x = plate.position.col * CELL_SIZE + CELL_SIZE / 2;
         const y = plate.position.row * CELL_SIZE + CELL_SIZE / 2;
         const isFlashing = state.plateFlash &&
           state.plateFlash.row === plate.position.row &&
           state.plateFlash.col === plate.position.col;
+        const playerStandingOn = state.playerPos.row === plate.position.row &&
+          state.playerPos.col === plate.position.col;
 
-        ctx.save();
-        ctx.translate(x, y);
-        const scale = CELL_SIZE / 24;
-        ctx.scale(scale, scale);
+        if (!plate.activated || playerStandingOn) {
+          ctx.save();
+          ctx.translate(x, y);
+          const scale = CELL_SIZE / 24;
+          ctx.scale(scale, scale);
 
-        if (isFlashing) {
-          ctx.shadowColor = '#ffd700';
-          ctx.shadowBlur = 12;
+          if (isFlashing || playerStandingOn) {
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = isFlashing ? 12 : 8;
+          }
+
+          const breathPulse = 0.6 + 0.4 * Math.sin(time / 500);
+          ctx.fillStyle = SYMBOL_COLORS[plate.symbol];
+          ctx.globalAlpha = isFlashing ? 1 : (playerStandingOn ? 0.9 * breathPulse : 0.7);
+          const path2d = new Path2D(SYMBOL_PATHS[plate.symbol]);
+          ctx.fill(path2d);
+          ctx.globalAlpha = 1;
+          ctx.restore();
         }
-
-        ctx.fillStyle = SYMBOL_COLORS[plate.symbol];
-        ctx.globalAlpha = isFlashing ? 1 : 0.7;
-        const path2d = new Path2D(SYMBOL_PATHS[plate.symbol]);
-        ctx.fill(path2d);
-        ctx.globalAlpha = 1;
-        ctx.restore();
       }
 
       for (const item of state.items) {
@@ -247,6 +270,34 @@ export default function GameBoard() {
       ctx.fill();
       ctx.restore();
 
+      if (state.victoryBeam) {
+        const beamProgress = Math.min(1, (time - (moveStartRef.current || time)) / 2000);
+        const beamGradient = ctx.createLinearGradient(endX, endY, endX, endY - height);
+        beamGradient.addColorStop(0, 'rgba(255, 215, 0, 0.9)');
+        beamGradient.addColorStop(0.3, 'rgba(255, 215, 0, 0.5)');
+        beamGradient.addColorStop(0.6, 'rgba(255, 200, 0, 0.3)');
+        beamGradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+
+        ctx.save();
+        ctx.globalAlpha = 1 - beamProgress * 0.3;
+        ctx.fillStyle = beamGradient;
+        ctx.beginPath();
+        ctx.moveTo(endX - 25, endY);
+        ctx.lineTo(endX - 60, endY - height * 1.2);
+        ctx.lineTo(endX + 60, endY - height * 1.2);
+        ctx.lineTo(endX + 25, endY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 30;
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.6)';
+        ctx.beginPath();
+        ctx.arc(endX, endY, CELL_SIZE * 1.5 * (1 + beamProgress * 0.5), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
       let playerX: number;
       let playerY: number;
       let bounceOffset = 0;
@@ -276,9 +327,22 @@ export default function GameBoard() {
         playerY = state.playerPos.row * CELL_SIZE + CELL_SIZE / 2;
       }
 
+      const breathPulse = 0.7 + 0.3 * Math.sin(time / 600);
+      const haloSize = (CELL_SIZE / 2 + 4 + 3 * breathPulse);
+
       ctx.save();
       ctx.shadowColor = '#4488ff';
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 14 * breathPulse;
+
+      const haloGrad = ctx.createRadialGradient(playerX, playerY + bounceOffset, 0, playerX, playerY + bounceOffset, haloSize);
+      haloGrad.addColorStop(0, `rgba(68, 136, 255, ${0.5 * breathPulse})`);
+      haloGrad.addColorStop(0.4, `rgba(68, 136, 255, ${0.2 * breathPulse})`);
+      haloGrad.addColorStop(1, 'rgba(68, 136, 255, 0)');
+      ctx.fillStyle = haloGrad;
+      ctx.beginPath();
+      ctx.arc(playerX, playerY + bounceOffset, haloSize, 0, Math.PI * 2);
+      ctx.fill();
+
       const grad = ctx.createRadialGradient(playerX, playerY + bounceOffset, 0, playerX, playerY + bounceOffset, CELL_SIZE / 2 - 2);
       grad.addColorStop(0, '#88ccff');
       grad.addColorStop(0.5, '#4488ff');
@@ -315,7 +379,7 @@ export default function GameBoard() {
 
     animFrameRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [grid, gridRows, gridCols, width, height, state.doors, state.plates, state.items, state.screenShake, state.plateFlash, state.maze.endPosition, state.playerPos]);
+  }, [grid, gridRows, gridCols, width, height, state.doors, state.plates, state.items, state.screenShake, state.plateFlash, state.maze.endPosition, state.playerPos, state.victoryBeam]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
