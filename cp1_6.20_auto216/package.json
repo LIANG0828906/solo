@@ -1,0 +1,30 @@
+{
+  "name": "competitor-compare",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "tsx watch server/index.ts",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "puppeteer": "^21.6.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.10",
+    "tsx": "^4.7.0",
+    "concurrently": "^8.2.2",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17"
+  }
+}
