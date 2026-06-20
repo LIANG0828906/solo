@@ -13,9 +13,8 @@ import { useRouteStore } from '../stores/routeStore'
 import { useTeamStore } from '../stores/teamStore'
 import { supplyIcon, campIcon, createMemberIcon } from '../components/mapIcons'
 import { formatRelativeTime } from '../utils'
+import { useToast } from '../components/Toast'
 import type { RoutePoint, MemberStatus, TeamMember } from '../types'
-
-const GL = (window as any).L as any
 
 function FitBounds({ points, members }: { points: RoutePoint[]; members: TeamMember[] }) {
   const map = useMap()
@@ -36,15 +35,15 @@ function FitBounds({ points, members }: { points: RoutePoint[]; members: TeamMem
 
 function HeatmapLayer({ data }: { data: [number, number, number][] }) {
   const map = useMap()
-  const heatRef = useRef<any>(null)
+  const heatRef = useRef<L.HeatLayer | null>(null)
 
   useEffect(() => {
     if (heatRef.current) {
       heatRef.current.remove()
       heatRef.current = null
     }
-    if (data.length > 0 && GL && typeof GL.heatLayer === 'function') {
-      heatRef.current = GL.heatLayer(data, {
+    if (data.length > 0 && typeof L.heatLayer === 'function') {
+      heatRef.current = L.heatLayer(data, {
         minOpacity: 0.3,
         maxZoom: 14,
         max: 1.0,
@@ -87,6 +86,7 @@ export default function TeamTracker() {
     error,
     resetFailures,
   } = useTeamStore()
+  const toast = useToast()
   const [status, setStatus] = useState<MemberStatus>('moving')
   const [geoError, setGeoError] = useState<string | null>(null)
   const watchIdRef = useRef<number | null>(null)
@@ -130,6 +130,7 @@ export default function TeamTracker() {
     if (!currentMember) return
     if (!navigator.geolocation) {
       setGeoError('浏览器不支持地理定位')
+      toast.showError('您的浏览器不支持地理定位功能')
       return
     }
 
@@ -145,12 +146,18 @@ export default function TeamTracker() {
 
     const onError = (err: GeolocationPositionError) => {
       if (!active) return
-      if (err.code === err.PERMISSION_DENIED) {
-        setGeoError('位置权限被拒绝，请在浏览器设置中允许')
-      } else if (err.code === err.POSITION_UNAVAILABLE) {
-        setGeoError('无法获取位置信息')
-      } else if (err.code === err.TIMEOUT) {
-        setGeoError('获取位置超时')
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          setGeoError('位置权限被拒绝，请在浏览器设置中允许')
+          toast.showError('位置权限被拒绝，无法上报位置。请在浏览器设置中允许位置访问。', 5000)
+          break
+        case err.POSITION_UNAVAILABLE:
+          setGeoError('无法获取位置信息')
+          toast.showWarning('暂时无法获取位置，请检查GPS或网络状态')
+          break
+        case err.TIMEOUT:
+          setGeoError('获取位置超时')
+          break
       }
     }
 
@@ -180,7 +187,7 @@ export default function TeamTracker() {
         intervalRef.current = null
       }
     }
-  }, [currentMember, status, sendPositionUpdate])
+  }, [currentMember, status, sendPositionUpdate, toast])
 
   useEffect(() => {
     if (!routeId) return
@@ -192,10 +199,11 @@ export default function TeamTracker() {
 
   useEffect(() => {
     if (error && error.includes('位置同步失败')) {
+      toast.showError('位置同步失败，服务器连接异常')
       const timer = setTimeout(() => resetFailures(), 5000)
       return () => clearTimeout(timer)
     }
-  }, [error, resetFailures])
+  }, [error, resetFailures, toast])
 
   const points = currentRoute?.points || []
   const members = teamData?.members || []
@@ -336,7 +344,10 @@ export default function TeamTracker() {
                           : '#991b1b'
                         : '#6b7280',
                   }}
-                  onClick={() => setStatus(s)}
+                  onClick={() => {
+                    setStatus(s)
+                    toast.showSuccess(`状态已切换为：${statusLabels[s].label}`)
+                  }}
                 >
                   {statusLabels[s].label}
                 </div>
@@ -344,12 +355,20 @@ export default function TeamTracker() {
             </div>
             {geoError && (
               <div style={{ fontSize: 11, color: '#dc2626', marginTop: 6 }}>
-                {geoError}
+                ⚠️ {geoError}
               </div>
             )}
-            {lastPosRef.current && (
-              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4, fontFamily: 'monospace' }}>
-                最后上报: {lastPosRef.current.lat.toFixed(4)}, {lastPosRef.current.lng.toFixed(4)}
+            {lastPosRef.current && !geoError && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: '#6b7280',
+                  marginTop: 4,
+                  fontFamily: 'monospace',
+                }}
+              >
+                📍 位置已同步: {lastPosRef.current.lat.toFixed(4)},{' '}
+                {lastPosRef.current.lng.toFixed(4)}
               </div>
             )}
           </div>
@@ -361,7 +380,9 @@ export default function TeamTracker() {
               <div className="member-card-header">
                 <span className="member-name">{member.name}</span>
                 <span
-                  className={`status-tag ${statusLabels[member.status as MemberStatus]?.cls || 'status-moving'}`}
+                  className={`status-tag ${
+                    statusLabels[member.status as MemberStatus]?.cls || 'status-moving'
+                  }`}
                 >
                   {statusLabels[member.status as MemberStatus]?.label || '未知'}
                 </span>
@@ -413,10 +434,6 @@ export default function TeamTracker() {
           查看路线规划
         </button>
       </div>
-
-      {error && error.includes('位置同步失败') && (
-        <div className="sync-error">⚠️ {error}</div>
-      )}
     </>
   )
 }
@@ -444,6 +461,9 @@ function PointPopupContent({
       <div className="popup-amenities">
         {point.hasWater && <span className="amenity-icon">💧 水源</span>}
         {point.hasShelter && <span className="amenity-icon">⛺ 庇护所</span>}
+        {!point.hasWater && !point.hasShelter && (
+          <span style={{ fontSize: 12, color: '#9ca3af' }}>暂无设施</span>
+        )}
       </div>
       <div className="popup-detail">
         <span className="popup-label">海拔</span>
@@ -477,10 +497,20 @@ function PointPopupContent({
               />
               <span>{m.name}</span>
               <span
-                className={`status-tag ${m.status === 'moving' ? 'status-moving' : m.status === 'resting' ? 'status-resting' : 'status-trouble'}`}
+                className={`status-tag ${
+                  m.status === 'moving'
+                    ? 'status-moving'
+                    : m.status === 'resting'
+                    ? 'status-resting'
+                    : 'status-trouble'
+                }`}
                 style={{ fontSize: 10, padding: '1px 6px', marginLeft: 4 }}
               >
-                {m.status === 'moving' ? '行进中' : m.status === 'resting' ? '休息中' : '困难'}
+                {m.status === 'moving'
+                  ? '行进中'
+                  : m.status === 'resting'
+                  ? '休息中'
+                  : '困难'}
               </span>
             </div>
           ))}

@@ -13,6 +13,7 @@ import L from 'leaflet'
 import { useRouteStore } from '../stores/routeStore'
 import { useTeamStore } from '../stores/teamStore'
 import { supplyIcon, campIcon } from '../components/mapIcons'
+import { useToast } from '../components/Toast'
 import type { PointType, RoutePoint, MemberStatus } from '../types'
 
 function MapClickHandler({
@@ -195,6 +196,7 @@ export default function RoutePlanner() {
   const navigate = useNavigate()
   const { currentRoute, fetchRoute, addPoint, updatePoint, deletePoint } = useRouteStore()
   const { fetchTeam, teamData } = useTeamStore()
+  const toast = useToast()
   const [addMode, setAddMode] = useState<PointType | null>(null)
   const [selectedPoint, setSelectedPoint] = useState<RoutePoint | null>(null)
   const [showPointModal, setShowPointModal] = useState(false)
@@ -255,6 +257,7 @@ export default function RoutePlanner() {
           lat: pendingCoords.lat,
           lng: pendingCoords.lng,
         })
+        toast.showSuccess(`已更新：${editingPoint.name}`)
       } else if (pendingCoords) {
         await addPoint(routeId, {
           name: editingPoint.name!,
@@ -267,9 +270,13 @@ export default function RoutePlanner() {
           hasWater: editingPoint.hasWater,
           hasShelter: editingPoint.hasShelter,
         })
+        toast.showSuccess(
+          `已添加${editingPoint.type === 'supply' ? '补给点' : '营地'}：${editingPoint.name}`,
+        )
       }
     } catch (e) {
-      console.error(e)
+      const msg = e instanceof Error ? e.message : '保存失败'
+      toast.showError(msg)
     }
     setShowPointModal(false)
     setEditingPoint(null)
@@ -291,7 +298,9 @@ export default function RoutePlanner() {
 
   const handleDeletePoint = async (pointId: string) => {
     if (!routeId) return
+    const pointName = points.find((p) => p.id === pointId)?.name || '该点'
     await deletePoint(routeId, pointId)
+    toast.showSuccess(`已删除：${pointName}`)
   }
 
   const formatDuration = (minutes: number) => {
@@ -304,18 +313,25 @@ export default function RoutePlanner() {
     if (!currentRoute) return
     const shareUrl = `${window.location.origin}/join/${currentRoute.code}`
     try {
-      await navigator.clipboard.writeText(shareUrl)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(shareUrl)
+      } else {
+        const textArea = document.createElement('textarea')
+        textArea.value = shareUrl
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-9999px'
+        document.body.appendChild(textArea)
+        textArea.select()
+        const ok = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        if (!ok) throw new Error('复制命令执行失败')
+      }
       setCopied(true)
+      toast.showSuccess(`分享链接已复制：${shareUrl}`)
       setTimeout(() => setCopied(false), 2000)
     } catch (e) {
-      const textArea = document.createElement('textarea')
-      textArea.value = shareUrl
-      document.body.appendChild(textArea)
-      textArea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textArea)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      const msg = e instanceof Error ? e.message : '复制失败'
+      toast.showError(`${msg}，请手动复制：${shareUrl}`, 5000)
     }
   }
 

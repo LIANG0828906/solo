@@ -94,16 +94,6 @@ def create_route(name: str, description: Optional[str] = None) -> Dict[str, Any]
     return get_route(route_id)
 
 
-def get_all_routes() -> List[Dict[str, Any]]:
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM routes ORDER BY created_at DESC")
-        routes = [row_to_dict(r) for r in cursor.fetchall()]
-        for route in routes:
-            route['points'] = get_route_points(route['id'])
-        return routes
-
-
 def get_route(route_id: str) -> Optional[Dict[str, Any]]:
     with get_db() as conn:
         cursor = conn.cursor()
@@ -111,8 +101,17 @@ def get_route(route_id: str) -> Optional[Dict[str, Any]]:
         row = cursor.fetchone()
         if not row:
             return None
-        route = row_to_dict(row)
-        route['points'] = get_route_points(route_id)
+        d = row_to_dict(row)
+        route = {
+            'id': d['id'],
+            'code': d['code'],
+            'name': d['name'],
+            'description': d['description'],
+            'totalDistance': d['total_distance'],
+            'totalDuration': d['total_duration'],
+            'createdAt': d['created_at'],
+            'points': get_route_points(route_id),
+        }
         return route
 
 
@@ -123,9 +122,38 @@ def get_route_by_code(code: str) -> Optional[Dict[str, Any]]:
         row = cursor.fetchone()
         if not row:
             return None
-        route = row_to_dict(row)
-        route['points'] = get_route_points(route['id'])
+        d = row_to_dict(row)
+        route = {
+            'id': d['id'],
+            'code': d['code'],
+            'name': d['name'],
+            'description': d['description'],
+            'totalDistance': d['total_distance'],
+            'totalDuration': d['total_duration'],
+            'createdAt': d['created_at'],
+            'points': get_route_points(d['id']),
+        }
         return route
+
+
+def get_all_routes() -> List[Dict[str, Any]]:
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM routes ORDER BY created_at DESC")
+        routes = []
+        for row in cursor.fetchall():
+            d = row_to_dict(row)
+            routes.append({
+                'id': d['id'],
+                'code': d['code'],
+                'name': d['name'],
+                'description': d['description'],
+                'totalDistance': d['total_distance'],
+                'totalDuration': d['total_duration'],
+                'createdAt': d['created_at'],
+                'points': get_route_points(d['id']),
+            })
+        return routes
 
 
 def update_route(route_id: str, **kwargs) -> Optional[Dict[str, Any]]:
@@ -259,7 +287,20 @@ def get_team_member(member_id: str) -> Optional[Dict[str, Any]]:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM team_members WHERE id = ?", (member_id,))
         row = cursor.fetchone()
-        return row_to_dict(row) if row else None
+        if not row:
+            return None
+        d = row_to_dict(row)
+        return {
+            'id': d['id'],
+            'routeId': d['route_id'],
+            'name': d['name'],
+            'lat': d['lat'],
+            'lng': d['lng'],
+            'status': d['status'],
+            'lastUpdated': d['last_updated'],
+            'nearestPointId': d['nearest_point_id'],
+            'progress': d['progress'],
+        }
 
 
 def get_team_members(route_id: str) -> List[Dict[str, Any]]:
@@ -269,7 +310,21 @@ def get_team_members(route_id: str) -> List[Dict[str, Any]]:
             "SELECT * FROM team_members WHERE route_id = ? ORDER BY last_updated DESC",
             (route_id,)
         )
-        return [row_to_dict(r) for r in cursor.fetchall()]
+        members = []
+        for row in cursor.fetchall():
+            d = row_to_dict(row)
+            members.append({
+                'id': d['id'],
+                'routeId': d['route_id'],
+                'name': d['name'],
+                'lat': d['lat'],
+                'lng': d['lng'],
+                'status': d['status'],
+                'lastUpdated': d['last_updated'],
+                'nearestPointId': d['nearest_point_id'],
+                'progress': d['progress'],
+            })
+        return members
 
 
 def update_member_position(

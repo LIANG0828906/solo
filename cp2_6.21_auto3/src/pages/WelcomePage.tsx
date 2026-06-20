@@ -2,20 +2,19 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRouteStore } from '../stores/routeStore'
 import { useTeamStore } from '../stores/teamStore'
-import { generateId, generateRouteCode } from '../utils'
-import type { RoutePoint } from '../types'
+import { useToast } from '../components/Toast'
 
 export default function WelcomePage() {
   const navigate = useNavigate()
   const { createRoute } = useRouteStore()
-  const { joinRoute } = useTeamStore()
+  const { joinRoute, setCurrentMember } = useTeamStore()
+  const toast = useToast()
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(false)
   const [routeName, setRouteName] = useState('')
   const [routeDesc, setRouteDesc] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [memberName, setMemberName] = useState('')
-  const [memberNameForJoin, setMemberNameForJoin] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -38,9 +37,11 @@ export default function WelcomePage() {
         description: routeDesc,
         points: [],
       })
+      toast.showSuccess(`路线已创建：${route.name}`)
       navigate(`/planner/${route.id}`)
     } catch (e) {
-      alert('创建失败，请重试')
+      const msg = e instanceof Error ? e.message : '创建失败'
+      toast.showError(`${msg}，请重试`)
     } finally {
       setLoading(false)
     }
@@ -50,10 +51,14 @@ export default function WelcomePage() {
     if (!joinCode.trim() || !memberName.trim()) return
     setLoading(true)
     try {
-      const member = await joinRoute(joinCode.toUpperCase(), memberName)
+      setCurrentMember(null)
+      localStorage.removeItem('currentMember')
+      const member = await joinRoute(joinCode.toUpperCase(), memberName.trim())
+      toast.showSuccess(`已成功加入路线，欢迎 ${member.name}！`)
       navigate(`/tracker/${member.routeId}`)
     } catch (e) {
-      alert('加入失败，请检查路线代码是否正确')
+      const msg = e instanceof Error ? e.message : '加入失败'
+      toast.showError(`${msg}，请检查路线代码是否正确`)
     } finally {
       setLoading(false)
     }
@@ -69,13 +74,21 @@ export default function WelcomePage() {
       <div className="welcome-buttons">
         <button
           className="welcome-btn welcome-btn-primary"
-          onClick={() => setShowCreate(true)}
+          onClick={() => {
+            setRouteName('')
+            setRouteDesc('')
+            setShowCreate(true)
+          }}
         >
           创建新路线
         </button>
         <button
           className="welcome-btn welcome-btn-secondary"
-          onClick={() => setShowJoin(true)}
+          onClick={() => {
+            setJoinCode('')
+            setMemberName('')
+            setShowJoin(true)
+          }}
         >
           加入已有路线
         </button>
@@ -148,10 +161,25 @@ export default function WelcomePage() {
                 className="form-input"
                 placeholder="例如：ABC123"
                 maxLength={6}
-                style={{ textTransform: 'uppercase', letterSpacing: 2, fontFamily: 'monospace' }}
+                style={{
+                  textTransform: 'uppercase',
+                  letterSpacing: 2,
+                  fontFamily: 'monospace',
+                }}
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               />
+            </div>
+            <div
+              style={{
+                padding: '10px 12px',
+                background: '#f0f9ff',
+                borderRadius: 8,
+                fontSize: 12,
+                color: '#0c4a6e',
+              }}
+            >
+              💡 加入后将自动请求定位权限，用于实时上报位置。
             </div>
             <div className="modal-actions">
               <button
