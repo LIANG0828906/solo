@@ -1,0 +1,108 @@
+.graph-viewer {
+  width: 100%;
+  height: 100%;
+  background-color: #1a1a2e;
+  display: flex;
+  flex-direction: column;
+}
+
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background-color: #16213e;
+  border-bottom: 1px solid #0f3460;
+  height: 60px;
+}
+
+.graph-toolbar label {
+  font-size: 13px;
+  color: #b0b0b0;
+}
+
+.graph-toolbar select {
+  padding: 6px 12px;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  background-color: #1a1a2e;
+  color: #e0e0e0;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.graph-toolbar select:focus {
+  border-color: #e94560;
+}
+
+.type-legend {
+  display: flex;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #888;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.graph-viewer svg {
+  flex: 1;
+  cursor: grab;
+}
+
+.graph-viewer svg:active {
+  cursor: grabbing;
+}
+
+.links line {
+  stroke-opacity: 0.6;
+  transition: stroke-opacity 0.2s, stroke-width 0.2s;
+}
+
+.links line:hover {
+  stroke-opacity: 1;
+  stroke-width: 3px;
+}
+
+.nodes circle {
+  transition: r 0.2s, filter 0.2s;
+  cursor: pointer;
+}
+
+.nodes circle:hover {
+  filter: brightness(1.2);
+}
+
+.nodes g:hover circle {
+  r: 28;
+}
+
+.nodes text {
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .graph-toolbar {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 8px;
+  }
+
+  .type-legend {
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+}
