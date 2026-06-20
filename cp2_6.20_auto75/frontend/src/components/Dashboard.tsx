@@ -12,6 +12,9 @@ const Dashboard = () => {
   const initWebSocket = useClimateStore(state => state.initWebSocket)
   const disconnectWebSocket = useClimateStore(state => state.disconnectWebSocket)
   const isConnected = useClimateStore(state => state.isConnected)
+  const isReconnecting = useClimateStore(state => state.isReconnecting)
+  const reconnectAttempts = useClimateStore(state => state.reconnectAttempts)
+  const reconnectDelay = useClimateStore(state => state.reconnectDelay)
 
   useEffect(() => {
     loadInitialData()
@@ -89,17 +92,17 @@ const Dashboard = () => {
             gap: 6,
             padding: '4px 10px',
             borderRadius: 12,
-            background: isConnected ? 'rgba(46, 213, 115, 0.15)' : 'rgba(255, 71, 87, 0.15)',
+            background: isConnected ? 'rgba(46, 213, 115, 0.15)' : isReconnecting ? 'rgba(255, 165, 2, 0.15)' : 'rgba(255, 71, 87, 0.15)',
           }}>
             <div style={{
               width: 6,
               height: 6,
               borderRadius: '50%',
-              background: isConnected ? '#2ed573' : '#ff4757',
-              animation: 'pulse 2s infinite',
+              background: isConnected ? '#2ed573' : isReconnecting ? '#ffa502' : '#ff4757',
+              animation: isConnected || isReconnecting ? 'pulse 2s infinite' : 'none',
             }} />
-            <span style={{ fontSize: 11, color: isConnected ? '#2ed573' : '#ff4757' }}>
-              {isConnected ? '实时连接' : '模拟模式'}
+            <span style={{ fontSize: 11, color: isConnected ? '#2ed573' : isReconnecting ? '#ffa502' : '#ff4757' }}>
+              {isConnected ? '实时连接' : isReconnecting ? `重连中 (${reconnectAttempts}/10) - ${(reconnectDelay / 1000).toFixed(1)}s` : '模拟模式'}
             </span>
           </div>
         </div>

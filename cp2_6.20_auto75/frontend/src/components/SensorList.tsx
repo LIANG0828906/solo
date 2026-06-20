@@ -36,7 +36,10 @@ const SensorCard = ({ sensor }: { sensor: SensorData }) => {
   const timeRange = useClimateStore(state => state.timeRange)
 
   const isExpanded = selectedSensorId === sensor.id
-  const history = sensorHistoryMap[sensor.id]?.data || []
+  const historyData = sensorHistoryMap[sensor.id]?.data
+  const history = Array.isArray(historyData) ? historyData : []
+
+  const hasValidHistory = history.length > 1
 
   const statusColors = {
     online: '#2ed573',
@@ -54,15 +57,19 @@ const SensorCard = ({ sensor }: { sensor: SensorData }) => {
     setSelectedSensor(isExpanded ? null : sensor.id)
   }
 
-  const miniChartData = history.slice(-24).map((d, i) => ({
-    name: i,
-    value: d.value,
-  }))
+  const miniChartData = hasValidHistory
+    ? history.slice(-24).map((d, i) => ({
+        name: i,
+        value: d.value,
+      }))
+    : []
 
-  const expandedChartData = history.map(d => ({
-    time: dayjs(d.timestamp).format('HH:mm'),
-    value: d.value,
-  }))
+  const expandedChartData = hasValidHistory
+    ? history.map(d => ({
+        time: dayjs(d.timestamp).format('HH:mm'),
+        value: d.value,
+      }))
+    : []
 
   return (
     <div

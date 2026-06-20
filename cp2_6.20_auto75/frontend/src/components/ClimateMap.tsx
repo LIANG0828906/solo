@@ -5,9 +5,18 @@ import type { SensorData, MapPoint } from '../types'
 const MAP_WIDTH = 800
 const MAP_HEIGHT = 600
 const GRID_SIZE = 20
+const KDE_BANDWIDTH = 80
+const HEATMAP_SCALE = 4
+
+const gaussianKernel = (dx: number, dy: number, sigma: number): number => {
+  const d2 = dx * dx + dy * dy
+  const sigma2 = sigma * sigma
+  return Math.exp(-d2 / (2 * sigma2)) / (2 * Math.PI * sigma2)
+}
 
 const ClimateMap = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const heatmapCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const animationRef = useRef<number>(0)
   const timeRef = useRef(0)
@@ -35,40 +44,138 @@ const ClimateMap = () => {
   const [pendingSensorPos, setPendingSensorPos] = useState<MapPoint | null>(null)
   const [popupInfo, setPopupInfo] = useState<{ x: number; y: number; data: any } | null>(null)
   const [dragDistance, setDragDistance] = useState(0)
+  const [, forceRender] = useState(0)
+
+  useEffect(() => {
+    const offscreen = document.createElement('canvas')
+    offscreen.width = MAP_WIDTH / HEATMAP_SCALE
+    offscreen.height = MAP_HEIGHT / HEATMAP_SCALE
+    heatmapCanvasRef.current = offscreen
+  }, [])
+
+  useEffect(() => {
+    const onResize = () => forceRender(n => n + 1)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const computeHeatmapKDE = useCallback((sensors: SensorData[]): Float32Array => {
+    const width = Math.floor(MAP_WIDTH / HEATMAP_SCALE)
+    const height = Math.floor(MAP_HEIGHT / HEATMAP_SCALE)
+    const heatmap = new Float32Array(width * height)
+    let minVal = Infinity
+    let maxVal = -Infinity
+
+    const temperatureSensors = sensors.filter(s => s.type === 'temperature')
+    if (temperatureSensors.length === 0) {
+      heatmap.fill(25)
+      return heatmap
+    }
+
+    for (let py = 0; py < height; py++) {
+      for (let px = 0; px < width; px++) {
+        const worldX = px * HEATMAP_SCALE + HEATMAP_SCALE / 2
+        const worldY = py * HEATMAP_SCALE + HEATMAP_SCALE / 2
+
+        let totalWeight = 0
+        let weightedSum = 0
+
+        for (const sensor of temperatureSensors) {
+          const dx = worldX - sensor.x
+          const dy = worldY - sensor.y
+          const weight = gaussianKernel(dx, dy, KDE_BANDWIDTH)
+          weightedSum += sensor.value * weight
+          totalWeight += weight
+        }
+
+        let value = totalWeight > 0 ? weightedSum / totalWeight : 25
+        const idx = py * width + px
+        heatmap[idx] = value
+        if (value < minVal) minVal = value
+        if (value > maxVal) maxVal = value
+      }
+    }
+
+    const range = maxVal - minVal
+    if (range > 0) {
+      for (let i = 0; i < heatmap.length; i++) {
+        heatmap[i] = 15 + ((heatmap[i] - minVal) / range) * 20
+      }
+    }
+
+    return heatmap
+  }, [])
+
+  const bilinearSample = useCallback((heatmap: Float32Array, x: number, y: number): number => {
+    const width = Math.floor(MAP_WIDTH / HEATMAP_SCALE)
+    const height = Math.floor(MAP_HEIGHT / HEATMAP_SCALE)
+    const fx = (x / HEATMAP_SCALE) - 0.5
+    const fy = (y / HEATMAP_SCALE) - 0.5
+
+    const x0 = Math.max(0, Math.min(width - 2, Math.floor(fx)))
+    const y0 = Math.max(0, Math.min(height - 2, Math.floor(fy)))
+    const x1 = x0 + 1
+    const y1 = y0 + 1
+
+    const tx = fx - x0
+    const ty = fy - y0
+
+    const v00 = heatmap[y0 * width + x0]
+    const v10 = heatmap[y0 * width + x1]
+    const v01 = heatmap[y1 * width + x0]
+    const v11 = heatmap[y1 * width + x1]
+
+    const a = v00 * (1 - tx) + v10 * tx
+    const b = v01 * (1 - tx) + v11 * tx
+    return a * (1 - ty) + b * ty
+  }, [])
 
   const interpolateTemperature = useCallback((x: number, y: number): number => {
-    let totalWeight = 0
-    let totalValue = 0
-
-    sensorList.forEach(sensor => {
-      const dx = x - sensor.x
-      const dy = y - sensor.y
-      const distance = Math.sqrt(dx * dx + dy * dy)
-      const radius = 180
-      if (distance < radius) {
-        const weight = (1 - distance / radius) ** 2
-        const sensorValue = sensor.type === 'temperature' ? sensor.value : 25
-        totalValue += sensorValue * weight
+    if (!heatmapCanvasRef.current) {
+      let totalWeight = 0
+      let totalValue = 0
+      sensorList.forEach(sensor => {
+        if (sensor.type !== 'temperature') return
+        const dx = x - sensor.x
+        const dy = y - sensor.y
+        const weight = gaussianKernel(dx, dy, KDE_BANDWIDTH)
+        totalValue += sensor.value * weight
         totalWeight += weight
-      }
-    })
-
-    if (totalWeight > 0) {
-      return totalValue / totalWeight
+      })
+      return totalWeight > 0 ? totalValue / totalWeight : 25
     }
     return 25
   }, [sensorList])
 
-  const getTemperatureColor = (temp: number): string => {
+  const getTemperatureColor = (temp: number, alpha: number = 0.6): [number, number, number, number] => {
     const minTemp = 15
     const maxTemp = 35
     const t = Math.max(0, Math.min(1, (temp - minTemp) / (maxTemp - minTemp)))
 
-    const r = Math.floor(30 + t * 200)
-    const g = Math.floor(100 + (1 - t) * 100)
-    const b = Math.floor(255 - t * 200)
+    let r: number, g: number, b: number
+    if (t < 0.25) {
+      const p = t / 0.25
+      r = Math.floor(30 + p * 40)
+      g = Math.floor(144 + p * 40)
+      b = Math.floor(255)
+    } else if (t < 0.5) {
+      const p = (t - 0.25) / 0.25
+      r = Math.floor(70 + p * 100)
+      g = Math.floor(184 - p * 34)
+      b = Math.floor(255 - p * 80)
+    } else if (t < 0.75) {
+      const p = (t - 0.5) / 0.25
+      r = Math.floor(170 + p * 55)
+      g = Math.floor(150 - p * 60)
+      b = Math.floor(175 - p * 100)
+    } else {
+      const p = (t - 0.75) / 0.25
+      r = Math.floor(225 + p * 30)
+      g = Math.floor(90 - p * 60)
+      b = Math.floor(75 - p * 50)
+    }
 
-    return `rgba(${r}, ${g}, ${b}, 0.55)`
+    return [r, g, b, Math.floor(alpha * 255)]
   }
 
   const draw = useCallback(() => {
@@ -80,10 +187,8 @@ const ClimateMap = () => {
 
     const rect = canvas.getBoundingClientRect()
     const dpr = window.devicePixelRatio || 1
-    if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
-      canvas.width = rect.width * dpr
-      canvas.height = rect.height * dpr
-    }
+    canvas.width = rect.width * dpr
+    canvas.height = rect.height * dpr
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
     const displayWidth = rect.width
@@ -101,7 +206,32 @@ const ClimateMap = () => {
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT)
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)'
+    const heatmap = computeHeatmapKDE(sensorList)
+    const heatWidth = Math.floor(MAP_WIDTH / HEATMAP_SCALE)
+
+    const imgData = ctx.createImageData(MAP_WIDTH, MAP_HEIGHT)
+    for (let py = 0; py < MAP_HEIGHT; py++) {
+      for (let px = 0; px < MAP_WIDTH; px++) {
+        const worldX = px
+        const worldY = py
+        const temp = bilinearSample(heatmap, worldX, worldY)
+        const [r, g, b, a] = getTemperatureColor(temp, 0.55)
+        const pixelIdx = (py * MAP_WIDTH + px) * 4
+        imgData.data[pixelIdx] = r
+        imgData.data[pixelIdx + 1] = g
+        imgData.data[pixelIdx + 2] = b
+        imgData.data[pixelIdx + 3] = a
+      }
+    }
+
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = MAP_WIDTH
+    tempCanvas.height = MAP_HEIGHT
+    const tempCtx = tempCanvas.getContext('2d')!
+    tempCtx.putImageData(imgData, 0, 0)
+    ctx.drawImage(tempCanvas, 0, 0)
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)'
     ctx.lineWidth = 1 / mapState.zoom
     for (let x = 0; x <= MAP_WIDTH; x += GRID_SIZE) {
       ctx.beginPath()
@@ -116,43 +246,29 @@ const ClimateMap = () => {
       ctx.stroke()
     }
 
-    const heatCols = Math.ceil(MAP_WIDTH / GRID_SIZE)
-    const heatRows = Math.ceil(MAP_HEIGHT / GRID_SIZE)
-
-    for (let row = 0; row < heatRows; row++) {
-      for (let col = 0; col < heatCols; col++) {
-        const x = col * GRID_SIZE
-        const y = row * GRID_SIZE
-        const temp = interpolateTemperature(x + GRID_SIZE / 2, y + GRID_SIZE / 2)
-        ctx.fillStyle = getTemperatureColor(temp)
-        ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE)
-      }
-    }
-
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.55)'
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.6)'
     ctx.beginPath()
     ctx.arc(100, 80, 35, 0, Math.PI * 2)
     ctx.fill()
-    ctx.fillStyle = 'rgba(255,255,255,0.05)'
     ctx.font = `${10 / mapState.zoom}px Inter`
-    ctx.fillStyle = 'rgba(255,255,255,0.3)'
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
     ctx.fillText('办公楼', 70, 85)
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.55)'
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.6)'
     ctx.fillRect(550, 80, 100, 80)
-    ctx.fillStyle = 'rgba(255,255,255,0.3)'
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
     ctx.fillText('住宅区', 575, 125)
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.55)'
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.6)'
     ctx.fillRect(280, 440, 120, 100)
-    ctx.fillStyle = 'rgba(255,255,255,0.3)'
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
     ctx.fillText('中央花园', 305, 495)
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.55)'
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.6)'
     ctx.beginPath()
     ctx.arc(700, 530, 40, 0, Math.PI * 2)
     ctx.fill()
-    ctx.fillStyle = 'rgba(255,255,255,0.3)'
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
     ctx.fillText('健身区', 675, 535)
 
     routes.forEach(route => {
@@ -214,7 +330,6 @@ const ClimateMap = () => {
       ctx.lineWidth = 2 / mapState.zoom
       ctx.stroke()
       ctx.fillStyle = '#fff'
-      ctx.font = `${10 / mapState.zoom}px Inter`
       ctx.fillText('起点', routeStart.x - 12, routeStart.y - pulseSize - 5)
     }
 
@@ -228,7 +343,6 @@ const ClimateMap = () => {
       ctx.lineWidth = 2 / mapState.zoom
       ctx.stroke()
       ctx.fillStyle = '#fff'
-      ctx.font = `${10 / mapState.zoom}px Inter`
       ctx.fillText('终点', routeEnd.x - 12, routeEnd.y - pulseSize - 5)
     }
 
@@ -236,11 +350,12 @@ const ClimateMap = () => {
       const pulseSize = (10 + Math.sin(timeRef.current / 400) * 2) / mapState.zoom
       const glowRadius = pulseSize * 2.5
 
+      const sensorColor = sensor.isVirtual ? '#ffd700' : '#00d9ff'
+
       const glow = ctx.createRadialGradient(
         sensor.x, sensor.y, 0,
         sensor.x, sensor.y, glowRadius
       )
-      const sensorColor = sensor.isVirtual ? '#ffd700' : '#00d9ff'
       glow.addColorStop(0, sensorColor + '60')
       glow.addColorStop(1, sensorColor + '00')
       ctx.fillStyle = glow
@@ -262,7 +377,7 @@ const ClimateMap = () => {
     })
 
     ctx.restore()
-  }, [sensorList, mapState, routes, selectedRouteId, routeStart, routeEnd, interpolateTemperature])
+  }, [sensorList, mapState, routes, selectedRouteId, routeStart, routeEnd, computeHeatmapKDE, bilinearSample])
 
   useEffect(() => {
     const animate = () => {
@@ -418,6 +533,7 @@ const ClimateMap = () => {
         style={{
           width: '100%',
           height: '100%',
+          display: 'block',
           cursor: isDragging ? 'grabbing' : isPlanningRoute ? 'crosshair' : showAddSensor ? 'copy' : 'grab',
         }}
         onMouseDown={handleMouseDown}
@@ -750,14 +866,14 @@ const ClimateMap = () => {
         border: '1px solid rgba(255,255,255,0.08)',
         zIndex: 10,
       }}>
-        <span>🌡️ 温度热力图</span>
+        <span>🌡️ KDE温度热力图</span>
         <div style={{
-          width: 80,
+          width: 100,
           height: 8,
-          background: 'linear-gradient(to right, #1e90ff, #7ac9ff, #ffdd55, #ff7f50, #ff4757)',
+          background: 'linear-gradient(to right, #1e90ff, #7ac9ff, #ffeaa7, #ff7f50, #ff4757)',
           borderRadius: 4,
         }} />
-        <span>低 → 高</span>
+        <span>15°C → 35°C</span>
       </div>
     </div>
   )
