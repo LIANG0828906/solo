@@ -10,29 +10,57 @@ const TeacherSlotsPage: React.FC = () => {
   const [endTime, setEndTime] = useState('18:00')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [error, setError] = useState('')
+
+  const daysCount = startDate && endDate
+    ? moment(endDate).diff(moment(startDate), 'days') + 1
+    : 0
+
+  const hoursPerDay = startTime && endTime
+    ? parseInt(endTime.split(':')[0], 10) - parseInt(startTime.split(':')[0], 10)
+    : 0
+
+  const totalSlots = daysCount * hoursPerDay
+
+  const validateForm = (): string | null => {
+    if (!startDate || !endDate || !startTime || !endTime) {
+      return '请填写完整信息'
+    }
+
+    if (moment(startDate).isBefore(moment(), 'day')) {
+      return '开始日期不能早于今天'
+    }
+
+    if (moment(endDate).isBefore(moment(startDate), 'day')) {
+      return '结束日期不能早于开始日期'
+    }
+
+    if (startTime >= endTime) {
+      return '开始时间必须早于结束时间'
+    }
+
+    if (daysCount > 30) {
+      return '日期范围不能超过30天'
+    }
+
+    return null
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!startDate || !endDate || !startTime || !endTime) {
-      alert('请填写完整信息')
+    const validationError = validateForm()
+    if (validationError) {
+      setError(validationError)
       return
     }
 
-    if (moment(startDate).isAfter(moment(endDate))) {
-      alert('开始日期不能晚于结束日期')
-      return
-    }
-
-    if (startTime >= endTime) {
-      alert('开始时间必须早于结束时间')
-      return
-    }
+    setError('')
+    setSuccess(false)
 
     try {
       setLoading(true)
-      setSuccess(false)
-      await setTeacherTimeSlots({
+      const result = await setTeacherTimeSlots({
         startDate,
         endDate,
         startTime,
@@ -40,9 +68,10 @@ const TeacherSlotsPage: React.FC = () => {
       })
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to set time slots:', error)
-      alert('设置失败，请重试')
+      const errorMsg = error?.response?.data?.detail || '设置失败，请稍后重试'
+      setError(errorMsg)
     } finally {
       setLoading(false)
     }
@@ -66,7 +95,13 @@ const TeacherSlotsPage: React.FC = () => {
 
           {success && (
             <div className="success-message">
-              ✓ 课时设置成功！
+              ✓ 课时设置成功！共设置 {totalSlots} 个可预约时段
+            </div>
+          )}
+
+          {error && (
+            <div className="error-message">
+              ✗ {error}
             </div>
           )}
 
@@ -77,9 +112,13 @@ const TeacherSlotsPage: React.FC = () => {
                 <input
                   type="date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    setStartDate(e.target.value)
+                    setError('')
+                  }}
                   className="form-input"
                   min={moment().format('YYYY-MM-DD')}
+                  disabled={loading}
                 />
               </div>
 
@@ -88,9 +127,13 @@ const TeacherSlotsPage: React.FC = () => {
                 <input
                   type="date"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => {
+                    setEndDate(e.target.value)
+                    setError('')
+                  }}
                   className="form-input"
                   min={moment().format('YYYY-MM-DD')}
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -100,8 +143,12 @@ const TeacherSlotsPage: React.FC = () => {
                 <label>开始时间</label>
                 <select
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={(e) => {
+                    setStartTime(e.target.value)
+                    setError('')
+                  }}
                   className="form-input"
+                  disabled={loading}
                 >
                   {hours.map((hour) => (
                     <option key={hour} value={hour}>
@@ -115,8 +162,12 @@ const TeacherSlotsPage: React.FC = () => {
                 <label>结束时间</label>
                 <select
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  onChange={(e) => {
+                    setEndTime(e.target.value)
+                    setError('')
+                  }}
                   className="form-input"
+                  disabled={loading}
                 >
                   {hours.map((hour) => (
                     <option key={hour} value={hour}>
@@ -131,9 +182,16 @@ const TeacherSlotsPage: React.FC = () => {
               <p>
                 <strong>预览：</strong>
                 将为
-                {moment(startDate).format('MM月DD日')} 至 {moment(endDate).format('MM月DD日')}
-                （共 {moment(endDate).diff(moment(startDate), 'days') + 1} 天）
-                设置 {startTime} - {endTime} 的可预约时段
+                {startDate && endDate ? (
+                  <>
+                    {moment(startDate).format('MM月DD日')} 至 {moment(endDate).format('MM月DD日')}
+                    （共 {daysCount} 天）
+                  </>
+                ) : '--'}
+                设置 {startTime || '--'} - {endTime || '--'} 的可预约时段
+                {totalSlots > 0 && (
+                  <span className="slot-count">，共 {totalSlots} 个时段</span>
+                )}
               </p>
             </div>
 
@@ -142,7 +200,11 @@ const TeacherSlotsPage: React.FC = () => {
               className="btn btn-primary btn-submit"
               disabled={loading}
             >
-              {loading ? '设置中...' : '确认设置'}
+              {loading ? (
+                <span className="btn-loading">设置中...</span>
+              ) : (
+                '确认设置'
+              )}
             </button>
           </form>
         </div>
@@ -154,6 +216,7 @@ const TeacherSlotsPage: React.FC = () => {
             <li>每次设置会覆盖对应日期的已有时间段</li>
             <li>可预约时段以1小时为单位</li>
             <li>如临时有事，请及时取消对应时段的预约</li>
+            <li>日期范围最多可设置30天</li>
           </ul>
         </div>
       </div>

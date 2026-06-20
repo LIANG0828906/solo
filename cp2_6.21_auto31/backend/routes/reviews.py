@@ -51,7 +51,7 @@ def create_review(
         raise HTTPException(status_code=404, detail="Booking not found")
 
     if booking.student_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to review this booking")
+        raise HTTPException(status_code=403, detail="Only the student who booked this lesson can review")
 
     if booking.status != "completed" and booking.status != "confirmed":
         raise HTTPException(status_code=400, detail="Only completed or confirmed bookings can be reviewed")

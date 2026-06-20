@@ -69,14 +69,7 @@
 
 .teacher-card-wrapper {
   opacity: 0;
-}
-
-.teacher-card-wrapper.fade-in {
   animation: fadeInUp 0.3s ease forwards;
-}
-
-.teacher-card-wrapper.fade-out {
-  opacity: 0;
 }
 
 @keyframes fadeInUp {

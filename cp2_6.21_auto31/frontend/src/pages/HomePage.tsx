@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import TeacherCard from '../modules/teachers/TeacherCard'
 import { Teacher, getTeachers } from '../modules/teachers/TeacherService'
 import './HomePage.css'
@@ -8,8 +8,7 @@ const HomePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [filteredTeachers, setFilteredTeachers] = useState<Teacher[]>([])
   const [loading, setLoading] = useState(true)
-  const [animate, setAnimate] = useState(false)
-  const prevSearchRef = useRef('')
+  const [animationKey, setAnimationKey] = useState(0)
 
   useEffect(() => {
     fetchTeachers()
@@ -17,16 +16,8 @@ const HomePage: React.FC = () => {
 
   useEffect(() => {
     filterTeachers()
-    if (prevSearchRef.current !== searchQuery) {
-      setAnimate(false)
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setAnimate(true)
-        })
-      })
-      prevSearchRef.current = searchQuery
-    }
-  }, [searchQuery, teachers])
+    setAnimationKey((prev) => prev + 1)
+  }, [searchQuery])
 
   const fetchTeachers = async () => {
     try {
@@ -34,7 +25,7 @@ const HomePage: React.FC = () => {
       const data = await getTeachers()
       setTeachers(data)
       setFilteredTeachers(data)
-      setAnimate(true)
+      setAnimationKey((prev) => prev + 1)
     } catch (error) {
       console.error('Failed to fetch teachers:', error)
     } finally {
@@ -85,11 +76,11 @@ const HomePage: React.FC = () => {
         {loading ? (
           <div className="loading">加载中...</div>
         ) : filteredTeachers.length > 0 ? (
-          <div className="teacher-grid">
+          <div key={animationKey} className="teacher-grid">
             {filteredTeachers.map((teacher, index) => (
             <div
               key={teacher.id}
-              className={`teacher-card-wrapper ${animate ? 'fade-in' : 'fade-out'}`}
+              className="teacher-card-wrapper"
               style={{ animationDelay: `${index * 0.05}s` }}
             >
               <TeacherCard teacher={teacher} />
