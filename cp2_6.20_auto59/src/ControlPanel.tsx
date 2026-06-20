@@ -13,11 +13,11 @@ interface ControlPanelProps {
   onNotePlay: (freq: number) => void
 }
 
-const WAVEFORMS: { type: WaveformType; name: string }[] = [
-  { type: 'sine', name: '正弦' },
-  { type: 'square', name: '方波' },
-  { type: 'sawtooth', name: '锯齿' },
-  { type: 'triangle', name: '三角' }
+const WAVEFORMS: { type: WaveformType; name: string; subtitle: string }[] = [
+  { type: 'sine', name: '正弦波', subtitle: 'Sine' },
+  { type: 'square', name: '方波', subtitle: 'Square' },
+  { type: 'sawtooth', name: '锯齿波', subtitle: 'Sawtooth' },
+  { type: 'triangle', name: '三角波', subtitle: 'Triangle' }
 ]
 
 const NOTE_FREQS: { name: string; freq: number }[] = [
@@ -50,68 +50,81 @@ export function ControlPanel({
 }: ControlPanelProps) {
   return (
     <div className="control-panel">
-      <div className="panel-section">
-        <h3 className="section-title">波形选择</h3>
-        <WaveformSelector current={currentWaveform} onChange={onWaveformChange} />
-        <WaveformPreview type={currentWaveform} />
+      <div className="panel-row">
+        <div className="panel-section waveform-card-section">
+          <h3 className="section-title">波形选择</h3>
+          <WaveformCardSelector current={currentWaveform} onChange={onWaveformChange} />
+          <WaveformPreview type={currentWaveform} />
+        </div>
+        <div className="panel-section envelope-card-section">
+          <h3 className="section-title">包络调节</h3>
+          <EnvelopeEditor value={envelope} onChange={onEnvelopeChange} />
+        </div>
       </div>
-      <div className="panel-section">
-        <h3 className="section-title">包络调节</h3>
-        <EnvelopeEditor value={envelope} onChange={onEnvelopeChange} />
-      </div>
-      <div className="panel-section">
-        <h3 className="section-title">LFO 调制</h3>
-        <LFOController
-          enabled={lfoEnabled}
-          frequency={lfoFrequency}
-          target={lfoTarget}
-          onChange={onLFOChange}
-        />
-      </div>
-      <div className="panel-section">
-        <h3 className="section-title">快捷音符</h3>
-        <div className="note-buttons">
-          {NOTE_FREQS.map((note) => (
-            <button
-              key={note.name}
-              className="note-btn"
-              onClick={() => onNotePlay(note.freq)}
-            >
-              {note.name}
-            </button>
-          ))}
+      <div className="panel-row">
+        <div className="panel-section lfo-card-section">
+          <h3 className="section-title">LFO 调制</h3>
+          <LFOController
+            enabled={lfoEnabled}
+            frequency={lfoFrequency}
+            target={lfoTarget}
+            onChange={onLFOChange}
+          />
+        </div>
+        <div className="panel-section notes-card-section">
+          <h3 className="section-title">快捷音符</h3>
+          <div className="note-buttons">
+            {NOTE_FREQS.map((note) => (
+              <button
+                key={note.name}
+                className="note-btn"
+                onClick={() => onNotePlay(note.freq)}
+              >
+                {note.name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function WaveformSelector({ current, onChange }: { current: WaveformType; onChange: (type: WaveformType) => void }) {
+function WaveformCardSelector({ current, onChange }: { current: WaveformType; onChange: (type: WaveformType) => void }) {
   return (
-    <div className="waveform-selector">
-      {WAVEFORMS.map((w) => (
-        <button
-          key={w.type}
-          className={`waveform-btn ${current === w.type ? 'active' : ''}`}
-          onClick={() => onChange(w.type)}
-        >
-          <WaveformIcon type={w.type} />
-          <span>{w.name}</span>
-        </button>
-      ))}
+    <div className="waveform-card-selector">
+      {WAVEFORMS.map((w) => {
+        const isActive = current === w.type
+        return (
+          <button
+            key={w.type}
+            className={`waveform-card ${isActive ? 'active' : ''}`}
+            onClick={() => onChange(w.type)}
+          >
+            <div className="waveform-card-icon">
+              <WaveformIcon type={w.type} />
+            </div>
+            <div className="waveform-card-info">
+              <span className="waveform-card-name">{w.name}</span>
+              <span className="waveform-card-subtitle">{w.subtitle}</span>
+            </div>
+            {isActive && <div className="waveform-card-glow" />}
+          </button>
+        )
+      })}
     </div>
   )
 }
 
 function WaveformIcon({ type }: { type: WaveformType }) {
   const paths: Record<WaveformType, string> = {
-    sine: 'M 2 12 Q 8 4, 14 12 T 26 12',
-    square: 'M 2 12 L 2 6 L 8 6 L 8 18 L 14 18 L 14 6 L 20 6 L 20 18 L 26 18',
-    sawtooth: 'M 2 18 L 8 6 L 14 18 L 20 6 L 26 18',
-    triangle: 'M 2 12 L 8 6 L 14 18 L 20 6 L 26 12'
+    sine: 'M 1 16 Q 7 4, 13 16 T 25 16 T 37 16',
+    square: 'M 1 16 L 1 6 L 7 6 L 7 26 L 13 26 L 13 6 L 19 6 L 19 26 L 25 26 L 25 6 L 31 6 L 31 26 L 37 26',
+    sawtooth: 'M 1 26 L 7 6 L 13 26 L 19 6 L 25 26 L 31 6 L 37 26',
+    triangle: 'M 1 16 L 7 6 L 13 26 L 19 6 L 25 26 L 31 6 L 37 16'
   }
   return (
-    <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
+    <svg width="38" height="32" viewBox="0 0 38 32" fill="none">
       <path
         d={paths[type]}
         stroke="currentColor"
@@ -126,20 +139,41 @@ function WaveformIcon({ type }: { type: WaveformType }) {
 
 function WaveformPreview({ type }: { type: WaveformType }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [fadeIn, setFadeIn] = useState(0)
+  const rippleRef = useRef(0)
+  const fadeInRef = useRef(0)
+  const animationIdRef = useRef<number | null>(null)
+  const lastTypeRef = useRef<WaveformType>(type)
 
   useEffect(() => {
-    setFadeIn(0)
-    const startTime = Date.now()
-    const animate = () => {
-      const elapsed = Date.now() - startTime
-      const progress = Math.min(elapsed / 300, 1)
-      setFadeIn(progress)
+    if (lastTypeRef.current !== type) {
+      rippleRef.current = 0
+      fadeInRef.current = 0
+      lastTypeRef.current = type
+    }
+    const startTime = performance.now()
+    const duration = 500
+    const animate = (now: number) => {
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      fadeInRef.current = progress
+      rippleRef.current = progress
+      const canvas = canvasRef.current
+      if (canvas) {
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          drawWaveformPreview(ctx, canvas, type, fadeInRef.current, rippleRef.current)
+        }
+      }
       if (progress < 1) {
-        requestAnimationFrame(animate)
+        animationIdRef.current = requestAnimationFrame(animate)
       }
     }
-    requestAnimationFrame(animate)
+    animationIdRef.current = requestAnimationFrame(animate)
+    return () => {
+      if (animationIdRef.current) {
+        cancelAnimationFrame(animationIdRef.current)
+      }
+    }
   }, [type])
 
   useEffect(() => {
@@ -147,31 +181,69 @@ function WaveformPreview({ type }: { type: WaveformType }) {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    const w = canvas.width
-    const h = canvas.height
-    ctx.fillStyle = '#0b0e14'
-    ctx.fillRect(0, 0, w, h)
-    ctx.strokeStyle = 'rgba(42, 58, 90, 0.5)'
-    ctx.lineWidth = 1
-    for (let x = 0; x <= w; x += 20) {
+    drawWaveformPreview(ctx, canvas, type, 1, 1)
+  }, [])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={280}
+      height={72}
+      className="waveform-preview"
+    />
+  )
+}
+
+function drawWaveformPreview(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, type: WaveformType, fadeProgress: number, rippleProgress: number) {
+  const w = canvas.width
+  const h = canvas.height
+  ctx.fillStyle = '#0b0e14'
+  ctx.fillRect(0, 0, w, h)
+  ctx.strokeStyle = 'rgba(42, 58, 90, 0.4)'
+  ctx.lineWidth = 1
+  for (let x = 0; x <= w; x += 28) {
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, h)
+    ctx.stroke()
+  }
+  for (let y = 0; y <= h; y += 18) {
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.lineTo(w, y)
+    ctx.stroke()
+  }
+  ctx.strokeStyle = 'rgba(138, 180, 248, 0.15)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(0, h / 2)
+  ctx.lineTo(w, h / 2)
+  ctx.stroke()
+  if (rippleProgress < 1) {
+    const rippleRadius = rippleProgress * Math.max(w, h) * 0.7
+    const rippleAlpha = (1 - rippleProgress) * 0.5
+    const centerX = w / 2
+    const centerY = h / 2
+    for (let i = 0; i < 3; i++) {
+      const r = rippleRadius - i * 20
+      if (r <= 0) continue
       ctx.beginPath()
-      ctx.moveTo(x, 0)
-      ctx.lineTo(x, h)
+      ctx.strokeStyle = `rgba(138, 180, 248, ${rippleAlpha * (1 - i * 0.25)})`
+      ctx.lineWidth = 2 - i * 0.5
+      ctx.arc(centerX, centerY, r, 0, Math.PI * 2)
       ctx.stroke()
     }
-    for (let y = 0; y <= h; y += 15) {
-      ctx.beginPath()
-      ctx.moveTo(0, y)
-      ctx.lineTo(w, y)
-      ctx.stroke()
-    }
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, rippleRadius, 0, Math.PI * 2)
+    ctx.clip()
     const samples = 200
-    ctx.globalAlpha = fadeIn
+    ctx.globalAlpha = fadeProgress
     ctx.beginPath()
     ctx.strokeStyle = '#8ab4f8'
-    ctx.lineWidth = 2
-    ctx.shadowColor = 'rgba(138, 180, 248, 0.5)'
-    ctx.shadowBlur = 8
+    ctx.lineWidth = 2.5
+    ctx.shadowColor = 'rgba(138, 180, 248, 0.6)'
+    ctx.shadowBlur = 12
     for (let i = 0; i < samples; i++) {
       const t = i / samples
       const x = t * w
@@ -183,31 +255,49 @@ function WaveformPreview({ type }: { type: WaveformType }) {
         case 'sawtooth': value = 2 * (t - Math.floor(t + 0.5)); break
         case 'triangle': value = 2 * Math.abs(2 * (t - Math.floor(t + 0.5))) - 1; break
       }
-      const y = h / 2 - value * (h / 2 - 10)
+      const y = h / 2 - value * (h / 2 - 12)
       if (i === 0) ctx.moveTo(x, y)
       else ctx.lineTo(x, y)
     }
     ctx.stroke()
     ctx.globalAlpha = 1
     ctx.shadowBlur = 0
-  }, [type, fadeIn])
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={260}
-      height={80}
-      className="waveform-preview"
-    />
-  )
+    ctx.restore()
+  } else {
+    const samples = 200
+    ctx.globalAlpha = fadeProgress
+    ctx.beginPath()
+    ctx.strokeStyle = '#8ab4f8'
+    ctx.lineWidth = 2.5
+    ctx.shadowColor = 'rgba(138, 180, 248, 0.6)'
+    ctx.shadowBlur = 12
+    for (let i = 0; i < samples; i++) {
+      const t = i / samples
+      const x = t * w
+      const phase = t * Math.PI * 2
+      let value = 0
+      switch (type) {
+        case 'sine': value = Math.sin(phase); break
+        case 'square': value = Math.sin(phase) >= 0 ? 1 : -1; break
+        case 'sawtooth': value = 2 * (t - Math.floor(t + 0.5)); break
+        case 'triangle': value = 2 * Math.abs(2 * (t - Math.floor(t + 0.5))) - 1; break
+      }
+      const y = h / 2 - value * (h / 2 - 12)
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.stroke()
+    ctx.globalAlpha = 1
+    ctx.shadowBlur = 0
+  }
 }
 
 function EnvelopeEditor({ value, onChange }: { value: ADSRParams; onChange: (adsr: ADSRParams) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [dragging, setDragging] = useState<number | null>(null)
-  const w = 260
+  const w = 280
   const h = 120
-  const padding = 20
+  const padding = 18
 
   const getControlPoints = useCallback(() => {
     const totalTime = value.attack + value.decay + 1 + value.release
@@ -232,7 +322,7 @@ function EnvelopeEditor({ value, onChange }: { value: ADSRParams; onChange: (ads
     for (let i = 0; i < points.length; i++) {
       const dx = x - points[i].x
       const dy = y - points[i].y
-      if (Math.sqrt(dx * dx + dy * dy) < 12) {
+      if (Math.sqrt(dx * dx + dy * dy) < 14) {
         setDragging(i + 1)
         return
       }
@@ -270,15 +360,15 @@ function EnvelopeEditor({ value, onChange }: { value: ADSRParams; onChange: (ads
     if (!ctx) return
     ctx.fillStyle = '#0b0e14'
     ctx.fillRect(0, 0, w, h)
-    ctx.strokeStyle = 'rgba(42, 58, 90, 0.5)'
+    ctx.strokeStyle = 'rgba(42, 58, 90, 0.4)'
     ctx.lineWidth = 1
-    for (let x = 0; x <= w; x += 20) {
+    for (let x = 0; x <= w; x += 28) {
       ctx.beginPath()
       ctx.moveTo(x, 0)
       ctx.lineTo(x, h)
       ctx.stroke()
     }
-    for (let y = 0; y <= h; y += 20) {
+    for (let y = 0; y <= h; y += 24) {
       ctx.beginPath()
       ctx.moveTo(0, y)
       ctx.lineTo(w, y)
@@ -298,24 +388,31 @@ function EnvelopeEditor({ value, onChange }: { value: ADSRParams; onChange: (ads
     ctx.shadowBlur = 0
     points.slice(1, 4).forEach((p, i) => {
       ctx.beginPath()
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 12)
+      gradient.addColorStop(0, dragging === i + 1 ? 'rgba(255, 255, 255, 0.9)' : 'rgba(138, 180, 248, 0.9)')
+      gradient.addColorStop(1, 'rgba(138, 180, 248, 0.1)')
+      ctx.fillStyle = gradient
+      ctx.arc(p.x, p.y, 12, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.beginPath()
       ctx.fillStyle = dragging === i + 1 ? '#ffffff' : '#8ab4f8'
-      ctx.arc(p.x, p.y, 8, 0, Math.PI * 2)
+      ctx.arc(p.x, p.y, 7, 0, Math.PI * 2)
       ctx.fill()
       ctx.strokeStyle = '#ffffff'
       ctx.lineWidth = 2
       ctx.stroke()
-      ctx.fillStyle = '#ffffff'
-      ctx.font = '10px Inter, sans-serif'
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+      ctx.font = 'bold 10px Inter, sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText(p.label, p.x, p.y - 14)
+      ctx.fillText(p.label, p.x, p.y - 16)
     })
-    const labels = ['Attack', 'Decay', 'Sustain', 'Release']
+    const labels = ['A', 'D', 'S', 'R']
     const values = [value.attack.toFixed(2), value.decay.toFixed(2), value.sustain.toFixed(2), value.release.toFixed(2)]
-    ctx.font = '11px Inter, sans-serif'
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'
+    ctx.font = '10px Inter, sans-serif'
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'
     for (let i = 0; i < 4; i++) {
       ctx.textAlign = 'left'
-      ctx.fillText(`${labels[i]}: ${values[i]}`, 10, h - 5 - (3 - i) * 14)
+      ctx.fillText(`${labels[i]}: ${values[i]}`, 8, h - 6 - (3 - i) * 12)
     }
   }, [value, dragging, getControlPoints, w, h, padding])
 
@@ -373,7 +470,7 @@ function LFOController({
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [enabled, target, onChange])
+  }, [enabled, target, onChange, frequency])
 
   const rotation = ((frequency - 0.1) / 19.9) * 270 - 135
 

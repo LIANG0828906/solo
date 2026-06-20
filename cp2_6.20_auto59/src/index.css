@@ -166,11 +166,11 @@ html, body {
 }
 
 .control-panel {
-  width: 300px;
+  width: 620px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
+  gap: 12px;
+  padding: 16px;
   background: rgba(26, 31, 47, 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -192,60 +192,126 @@ html, body {
   border-radius: 3px;
 }
 
+.panel-row {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
 .panel-section {
-  padding: 16px;
+  flex: 1;
+  padding: 14px;
   background: #1a1f2f;
   border-radius: 12px;
   border: 1px solid rgba(42, 58, 90, 0.5);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .section-title {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: #8ab4f8;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
+  font-family: 'Orbitron', sans-serif;
 }
 
-.waveform-selector {
+.waveform-card-selector {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
-.waveform-btn {
+.waveform-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #0b0e14;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  opacity: 0.65;
+}
+
+.waveform-card:hover {
+  background: #121826;
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(138, 180, 248, 0.4);
+  transform: translateY(-2px);
+  opacity: 0.95;
+}
+
+.waveform-card.active {
+  background: linear-gradient(135deg, rgba(138, 180, 248, 0.15), rgba(167, 139, 250, 0.15));
+  border-color: #8ab4f8;
+  color: #ffffff;
+  opacity: 1;
+  transform: scale(1.02);
+  box-shadow:
+    0 0 20px rgba(138, 180, 248, 0.25),
+    inset 0 0 20px rgba(138, 180, 248, 0.08);
+}
+
+.waveform-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 36px;
+  background: rgba(138, 180, 248, 0.08);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.waveform-card.active .waveform-card-icon {
+  background: rgba(138, 180, 248, 0.2);
+}
+
+.waveform-card-info {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 8px;
-  background: #0b0e14;
-  border: 1px solid #2a3a5a;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  align-items: flex-start;
+  min-width: 0;
 }
 
-.waveform-btn:hover {
-  background: #151b2b;
-  border-color: #8ab4f8;
-  color: #ffffff;
-  transform: translateY(-2px);
+.waveform-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
-.waveform-btn.active {
-  background: linear-gradient(135deg, rgba(138, 180, 248, 0.2), rgba(167, 139, 250, 0.2));
-  border-color: #8ab4f8;
-  color: #ffffff;
-  box-shadow: 0 0 20px rgba(138, 180, 248, 0.3);
+.waveform-card-subtitle {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: inherit;
+  opacity: 0.6;
+  margin-top: 2px;
 }
 
-.waveform-btn span {
-  font-size: 12px;
-  font-weight: 500;
+.waveform-card-glow {
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(138, 180, 248, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  animation: cardGlowPulse 3s ease-in-out infinite;
+}
+
+@keyframes cardGlowPulse {
+  0%, 100% { opacity: 0.5; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(-20%); }
 }
 
 .waveform-preview {
@@ -268,25 +334,26 @@ html, body {
 .lfo-controller {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .lfo-controls {
   display: flex;
-  gap: 16px;
-  align-items: center;
+  gap: 12px;
+  align-items: flex-start;
 }
 
 .knob-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .knob {
-  width: 70px;
-  height: 70px;
+  width: 62px;
+  height: 62px;
   position: relative;
   cursor: grab;
   transition: transform 0.2s ease;
@@ -301,7 +368,7 @@ html, body {
 }
 
 .knob.active {
-  filter: drop-shadow(0 0 10px rgba(138, 180, 248, 0.6));
+  filter: drop-shadow(0 0 8px rgba(138, 180, 248, 0.6));
 }
 
 .knob-track {
@@ -315,12 +382,12 @@ html, body {
 
 .knob-tick {
   position: absolute;
-  top: 4px;
+  top: 3px;
   left: 50%;
   width: 2px;
-  height: 6px;
+  height: 5px;
   background: rgba(255, 255, 255, 0.2);
-  transform-origin: 50% 31px;
+  transform-origin: 50% 28px;
   border-radius: 1px;
 }
 
@@ -331,10 +398,10 @@ html, body {
 
 .knob-inner {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  width: 50px;
-  height: 50px;
+  top: 9px;
+  left: 9px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: linear-gradient(145deg, #1a1f2f, #0f141e);
   border: 2px solid #2a3a5a;
@@ -350,18 +417,18 @@ html, body {
 
 .knob-indicator {
   position: absolute;
-  top: 6px;
+  top: 5px;
   left: 50%;
   transform: translateX(-50%);
   width: 3px;
-  height: 14px;
+  height: 12px;
   background: linear-gradient(to top, #8ab4f8, #a78bfa);
   border-radius: 2px;
   box-shadow: 0 0 6px rgba(138, 180, 248, 0.8);
 }
 
 .knob-value {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.8);
   font-family: 'Orbitron', monospace;
@@ -371,23 +438,24 @@ html, body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
+  min-width: 0;
 }
 
 .target-label {
-  font-size: 11px;
+  font-size: 10px;
   color: rgba(255, 255, 255, 0.5);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .target-select {
-  padding: 8px 12px;
+  padding: 7px 10px;
   background: #0b0e14;
   border: 1px solid #2a3a5a;
   border-radius: 6px;
   color: #ffffff;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   outline: none;
@@ -405,12 +473,12 @@ html, body {
 
 .lfo-toggle {
   width: 100%;
-  padding: 10px;
+  padding: 8px;
   background: #0b0e14;
   border: 1px solid #2a3a5a;
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.8);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -425,7 +493,7 @@ html, body {
   background: linear-gradient(135deg, rgba(138, 180, 248, 0.3), rgba(167, 139, 250, 0.3));
   border-color: #8ab4f8;
   color: #ffffff;
-  box-shadow: 0 0 20px rgba(138, 180, 248, 0.2);
+  box-shadow: 0 0 15px rgba(138, 180, 248, 0.2);
 }
 
 .note-buttons {
@@ -435,12 +503,12 @@ html, body {
 }
 
 .note-btn {
-  padding: 12px 0;
+  padding: 10px 0;
   background: #0b0e14;
   border: 1px solid #2a3a5a;
   border-radius: 6px;
   color: #ffffff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -466,8 +534,17 @@ html, body {
   }
 
   .control-panel {
-    width: 280px;
-    padding: 16px;
+    width: 560px;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .panel-row {
+    gap: 10px;
+  }
+
+  .panel-section {
+    padding: 12px;
   }
 
   .app-title {
@@ -486,7 +563,12 @@ html, body {
 
   .control-panel {
     width: 100%;
-    max-height: 40vh;
+    max-height: 50vh;
+  }
+
+  .panel-row {
+    flex-direction: column;
+    gap: 10px;
   }
 
   .app-header {
