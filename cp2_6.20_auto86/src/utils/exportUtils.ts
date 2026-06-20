@@ -1,4 +1,5 @@
 import type { Node, Edge } from 'reactflow';
+import type { NodeShape } from '../types';
 
 const NODE_PADDING_X = 32;
 const NODE_PADDING_Y = 24;
@@ -18,6 +19,38 @@ const getNodeDimensions = (node: Node): { width: number; height: number } => {
   const width = Math.max(NODE_MIN_WIDTH, textWidth + NODE_PADDING_X);
   const height = NODE_MIN_HEIGHT;
   return { width, height };
+};
+
+const buildShapeSVG = (
+  node: Node,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  color: string
+): string => {
+  const shape: NodeShape = node.data?.shape || 'rounded-rectangle';
+
+  switch (shape) {
+    case 'rectangle':
+      return `    <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}" stroke="#e5e7eb" stroke-width="1" />\n`;
+
+    case 'rounded-rectangle':
+      return `    <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="8" ry="8" fill="${color}" stroke="#e5e7eb" stroke-width="1" />\n`;
+
+    case 'diamond': {
+      const cx = x + width / 2;
+      const cy = y + height / 2;
+      const points = `${cx},${y} ${x + width},${cy} ${cx},${y + height} ${x},${cy}`;
+      return `    <polygon points="${points}" fill="${color}" stroke="#e5e7eb" stroke-width="1" />\n`;
+    }
+
+    case 'ellipse':
+      return `    <ellipse cx="${x + width / 2}" cy="${y + height / 2}" rx="${width / 2}" ry="${height / 2}" fill="${color}" stroke="#e5e7eb" stroke-width="1" />\n`;
+
+    default:
+      return `    <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="8" ry="8" fill="${color}" stroke="#e5e7eb" stroke-width="1" />\n`;
+  }
 };
 
 const calculateCanvasBounds = (nodes: Node[]) => {
@@ -111,7 +144,7 @@ export const exportToSVG = (
     const fontSize = node.data?.fontSize || FONT_SIZE_DEFAULT;
     const label = node.data?.title || node.data?.label || '';
 
-    svgContent += `    <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="8" ry="8" fill="${color}" stroke="#e5e7eb" stroke-width="1" />\n`;
+    svgContent += buildShapeSVG(node, x, y, width, height, color);
 
     const textX = x + width / 2;
     const textY = y + height / 2 + fontSize / 3;

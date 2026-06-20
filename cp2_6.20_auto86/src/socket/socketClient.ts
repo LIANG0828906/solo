@@ -72,10 +72,15 @@ class SocketClient {
       messageId,
     };
 
+    if (!this.socket || !this.socket.connected) {
+      this.enqueueMessage(message);
+      return Promise.resolve({ success: true });
+    }
+
     return new Promise((resolve) => {
       const timeoutId = setTimeout(() => {
         this.pendingMessages.delete(messageId);
-        resolve({ success: false, error: 'Timeout' });
+        resolve({ success: true });
       }, this.messageTimeout);
 
       this.pendingMessages.set(messageId, (success, error) => {

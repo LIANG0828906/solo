@@ -206,6 +206,7 @@ const MindMapPage: React.FC = () => {
         fontSize: 18,
         x: 400,
         y: 300,
+        shape: 'rounded-rectangle',
       },
       {
         id: 'node-2',
@@ -215,6 +216,7 @@ const MindMapPage: React.FC = () => {
         fontSize: 16,
         x: 650,
         y: 200,
+        shape: 'rounded-rectangle',
       },
       {
         id: 'node-3',
@@ -224,6 +226,7 @@ const MindMapPage: React.FC = () => {
         fontSize: 16,
         x: 650,
         y: 400,
+        shape: 'rounded-rectangle',
       },
       {
         id: 'node-4',
@@ -233,6 +236,7 @@ const MindMapPage: React.FC = () => {
         fontSize: 14,
         x: 880,
         y: 180,
+        shape: 'rounded-rectangle',
       },
     ];
 

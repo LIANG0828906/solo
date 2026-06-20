@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { Node, Edge, NodeChange, EdgeChange } from 'reactflow';
-import type { MindMapNode, MindMapEdge } from '../types';
+import type { MindMapNode, MindMapEdge, NodeShape } from '../types';
 import socketClient from '../socket/socketClient';
 
 interface HistoryState {
@@ -48,30 +48,71 @@ interface FlowState {
 
 const DEFAULT_COLOR = '#ffffff';
 const DEFAULT_FONT_SIZE = 16;
+const DEFAULT_SHAPE: NodeShape = 'rounded-rectangle';
 
-const mindMapNodeToFlowNode = (node: MindMapNode): Node => ({
-  id: node.id,
-  type: 'default',
-  position: { x: node.x, y: node.y },
-  data: {
-    label: node.title,
-    title: node.title,
-    note: node.note,
-    color: node.color || DEFAULT_COLOR,
-    fontSize: node.fontSize || DEFAULT_FONT_SIZE,
-  },
-  style: {
-    backgroundColor: node.color || DEFAULT_COLOR,
-    border: '1px solid #e5e7eb',
-    borderRadius: '8px',
-    padding: '12px 16px',
-    fontSize: `${node.fontSize || DEFAULT_FONT_SIZE}px`,
-    color: '#1f2937',
-    textAlign: 'center' as const,
-    minWidth: '120px',
-    transition: 'background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease',
-  },
-});
+const getShapeStyle = (shape: NodeShape): React.CSSProperties => {
+  const baseStyle: React.CSSProperties = {
+    transition: 'background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, border-radius 200ms ease, clip-path 200ms ease',
+  };
+
+  switch (shape) {
+    case 'rectangle':
+      return {
+        ...baseStyle,
+        borderRadius: '0px',
+        clipPath: 'none',
+      };
+    case 'rounded-rectangle':
+      return {
+        ...baseStyle,
+        borderRadius: '8px',
+        clipPath: 'none',
+      };
+    case 'diamond':
+      return {
+        ...baseStyle,
+        borderRadius: '0px',
+        clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+      };
+    case 'ellipse':
+      return {
+        ...baseStyle,
+        borderRadius: '50%',
+        clipPath: 'none',
+      };
+    default:
+      return baseStyle;
+  }
+};
+
+const mindMapNodeToFlowNode = (node: MindMapNode): Node => {
+  const shape = node.shape || DEFAULT_SHAPE;
+  const shapeStyle = getShapeStyle(shape);
+
+  return {
+    id: node.id,
+    type: 'default',
+    position: { x: node.x, y: node.y },
+    data: {
+      label: node.title,
+      title: node.title,
+      note: node.note,
+      color: node.color || DEFAULT_COLOR,
+      fontSize: node.fontSize || DEFAULT_FONT_SIZE,
+      shape,
+    },
+    style: {
+      backgroundColor: node.color || DEFAULT_COLOR,
+      border: '1px solid #e5e7eb',
+      padding: '12px 16px',
+      fontSize: `${node.fontSize || DEFAULT_FONT_SIZE}px`,
+      color: '#1f2937',
+      textAlign: 'center' as const,
+      minWidth: '120px',
+      ...shapeStyle,
+    },
+  };
+};
 
 const flowNodeToMindMapNode = (node: Node): MindMapNode => ({
   id: node.id,
@@ -81,6 +122,7 @@ const flowNodeToMindMapNode = (node: Node): MindMapNode => ({
   fontSize: node.data.fontSize || DEFAULT_FONT_SIZE,
   x: node.position.x,
   y: node.position.y,
+  shape: node.data.shape || DEFAULT_SHAPE,
   parentId: node.data.parentId,
 });
 
@@ -118,6 +160,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     const baseX = parentNode ? parentNode.position.x + 200 : 100;
     const baseY = parentNode ? parentNode.position.y + 50 * get().nodes.filter((n) => n.data.parentId === parentId).length : 100;
 
+    const shapeStyle = getShapeStyle(DEFAULT_SHAPE);
+
     const newNode: Node = {
       id: newId,
       type: 'default',
@@ -128,18 +172,18 @@ export const useFlowStore = create<FlowState>((set, get) => ({
         note: '',
         color: DEFAULT_COLOR,
         fontSize: DEFAULT_FONT_SIZE,
+        shape: DEFAULT_SHAPE,
         parentId,
       },
       style: {
         backgroundColor: DEFAULT_COLOR,
         border: '1px solid #e5e7eb',
-        borderRadius: '8px',
         padding: '12px 16px',
         fontSize: `${DEFAULT_FONT_SIZE}px`,
         color: '#1f2937',
         textAlign: 'center' as const,
         minWidth: '120px',
-        transition: 'background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease',
+        ...shapeStyle,
       },
     };
 
@@ -189,6 +233,8 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     set((state) => ({
       nodes: state.nodes.map((node) => {
         if (node.id !== nodeId) return node;
+        const currentShape = (updates.shape || node.data.shape || DEFAULT_SHAPE) as NodeShape;
+        const shapeStyle = getShapeStyle(currentShape);
         const updatedNode = {
           ...node,
           position: {
@@ -202,11 +248,13 @@ export const useFlowStore = create<FlowState>((set, get) => ({
             note: updates.note !== undefined ? updates.note : node.data.note,
             color: updates.color !== undefined ? updates.color : node.data.color,
             fontSize: updates.fontSize !== undefined ? updates.fontSize : node.data.fontSize,
+            shape: updates.shape !== undefined ? updates.shape : node.data.shape,
           },
           style: {
             ...node.style,
             backgroundColor: updates.color || node.style?.backgroundColor,
             fontSize: updates.fontSize ? `${updates.fontSize}px` : node.style?.fontSize,
+            ...shapeStyle,
           },
         };
         return updatedNode;

@@ -1,3 +1,5 @@
+export type NodeShape = 'rectangle' | 'rounded-rectangle' | 'diamond' | 'ellipse';
+
 export interface MindMapNode {
   id: string;
   title: string;
@@ -6,6 +8,7 @@ export interface MindMapNode {
   fontSize: number;
   x: number;
   y: number;
+  shape: NodeShape;
   parentId?: string;
 }
 

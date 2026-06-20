@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useFlowStore from '../store/useFlowStore';
+import type { NodeShape } from '../types';
 
 const PRESET_COLORS = [
   '#ffffff',
@@ -18,6 +19,13 @@ const PRESET_COLORS = [
 
 const FONT_SIZES = [12, 14, 16, 18, 20];
 
+const NODE_SHAPES: { value: NodeShape; label: string }[] = [
+  { value: 'rectangle', label: '矩形' },
+  { value: 'rounded-rectangle', label: '圆角矩形' },
+  { value: 'diamond', label: '菱形' },
+  { value: 'ellipse', label: '椭圆' },
+];
+
 const NodeEditor: React.FC = () => {
   const { selectedNodeId, nodes, updateNode, deleteNode } = useFlowStore();
   const [isVisible, setIsVisible] = useState(false);
@@ -25,6 +33,7 @@ const NodeEditor: React.FC = () => {
   const [note, setNote] = useState('');
   const [color, setColor] = useState('#ffffff');
   const [fontSize, setFontSize] = useState(16);
+  const [shape, setShape] = useState<NodeShape>('rounded-rectangle');
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -36,6 +45,7 @@ const NodeEditor: React.FC = () => {
       setNote(selectedNode.data.note || '');
       setColor(selectedNode.data.color || '#ffffff');
       setFontSize(selectedNode.data.fontSize || 16);
+      setShape(selectedNode.data.shape || 'rounded-rectangle');
       setIsVisible(true);
     } else {
       setIsVisible(false);
@@ -85,6 +95,14 @@ const NodeEditor: React.FC = () => {
     setFontSize(value);
     if (selectedNodeId) {
       updateNode(selectedNodeId, { fontSize: value });
+    }
+  };
+
+  const handleShapeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value as NodeShape;
+    setShape(value);
+    if (selectedNodeId) {
+      updateNode(selectedNodeId, { shape: value });
     }
   };
 
@@ -321,6 +339,50 @@ const NodeEditor: React.FC = () => {
             {FONT_SIZES.map((size) => (
               <option key={size} value={size}>
                 {size}px
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '20px' }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: '#374151',
+              marginBottom: '8px',
+            }}
+          >
+            节点形状
+          </label>
+          <select
+            value={shape}
+            onChange={handleShapeChange}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px',
+              color: '#1f2937',
+              outline: 'none',
+              cursor: 'pointer',
+              backgroundColor: '#ffffff',
+              transition: 'border-color 200ms ease, box-shadow 200ms ease',
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = '#6366f1';
+              e.target.style.boxShadow = '0 0 0 3px rgba(99, 102, 241, 0.1)';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = '#d1d5db';
+              e.target.style.boxShadow = 'none';
+            }}
+          >
+            {NODE_SHAPES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
               </option>
             ))}
           </select>

@@ -16,10 +16,30 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import useFlowStore from '../store/useFlowStore';
 import socketClient from '../socket/socketClient';
+import type { NodeShape } from '../types';
 
 interface FlowCanvasProps {
   onZoomChange?: (zoom: number) => void;
 }
+
+const getRemoteShapeStyle = (shape: NodeShape): React.CSSProperties => {
+  const baseStyle: React.CSSProperties = {
+    transition: 'background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, border-radius 200ms ease, clip-path 200ms ease',
+  };
+
+  switch (shape) {
+    case 'rectangle':
+      return { ...baseStyle, borderRadius: '0px', clipPath: 'none' };
+    case 'rounded-rectangle':
+      return { ...baseStyle, borderRadius: '8px', clipPath: 'none' };
+    case 'diamond':
+      return { ...baseStyle, borderRadius: '0px', clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)' };
+    case 'ellipse':
+      return { ...baseStyle, borderRadius: '50%', clipPath: 'none' };
+    default:
+      return baseStyle;
+  }
+};
 
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ onZoomChange }) => {
   const {
@@ -53,6 +73,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onZoomChange }) => {
   useEffect(() => {
     const handleNodeAdd = (data: any) => {
       const { node, parentId } = data;
+      const shape: NodeShape = node.shape || 'rounded-rectangle';
+      const shapeStyle = getRemoteShapeStyle(shape);
       useFlowStore.getState().setNodes([
         ...useFlowStore.getState().nodes,
         {
@@ -65,18 +87,18 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onZoomChange }) => {
             note: node.note,
             color: node.color,
             fontSize: node.fontSize,
+            shape,
             parentId,
           },
           style: {
             backgroundColor: node.color,
             border: '1px solid #e5e7eb',
-            borderRadius: '8px',
             padding: '12px 16px',
             fontSize: `${node.fontSize}px`,
             color: '#1f2937',
             textAlign: 'center' as const,
             minWidth: '120px',
-            transition: 'background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease',
+            ...shapeStyle,
           },
         },
       ]);
@@ -101,6 +123,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onZoomChange }) => {
       useFlowStore.getState().setNodes(
         useFlowStore.getState().nodes.map((node) => {
           if (node.id !== nodeId) return node;
+          const currentShape: NodeShape = (updates.shape || node.data.shape || 'rounded-rectangle') as NodeShape;
+          const shapeStyle = getRemoteShapeStyle(currentShape);
           return {
             ...node,
             position: {
@@ -114,11 +138,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ onZoomChange }) => {
               note: updates.note !== undefined ? updates.note : node.data.note,
               color: updates.color !== undefined ? updates.color : node.data.color,
               fontSize: updates.fontSize !== undefined ? updates.fontSize : node.data.fontSize,
+              shape: updates.shape !== undefined ? updates.shape : node.data.shape,
             },
             style: {
               ...node.style,
               backgroundColor: updates.color || node.style?.backgroundColor,
               fontSize: updates.fontSize ? `${updates.fontSize}px` : node.style?.fontSize,
+              ...shapeStyle,
             },
           };
         })

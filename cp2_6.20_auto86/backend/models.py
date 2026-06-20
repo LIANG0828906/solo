@@ -10,6 +10,7 @@ class NodeModel(BaseModel):
     fontSize: int = 16
     x: float = 0.0
     y: float = 0.0
+    shape: str = "rounded-rectangle"
     parentId: Optional[str] = None
 
 
