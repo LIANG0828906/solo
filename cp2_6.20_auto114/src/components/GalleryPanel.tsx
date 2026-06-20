@@ -231,22 +231,57 @@ export default function GalleryPanel() {
                 </div>
                 <div
                   style={{
-                    display: 'inline-block',
-                    fontSize: 11,
-                    fontWeight: 500,
-                    color: '#fff',
-                    background: `linear-gradient(135deg, #e67e22, #f39c12)`,
-                    padding: '2px 10px',
-                    borderRadius: 20,
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 4,
                     marginBottom: 6,
                   }}
                 >
-                  {style.styleTag}
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      fontSize: 10,
+                      fontWeight: 500,
+                      color: '#fff',
+                      background: `linear-gradient(135deg, #e67e22, #f39c12)`,
+                      padding: '2px 8px',
+                      borderRadius: 20,
+                    }}
+                  >
+                    {style.styleTag}
+                  </span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      fontSize: 10,
+                      fontWeight: 500,
+                      color: '#8b6914',
+                      background: '#fdebd0',
+                      padding: '2px 8px',
+                      borderRadius: 20,
+                    }}
+                  >
+                    毛发 {style.hairLength}cm
+                  </span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      fontSize: 10,
+                      fontWeight: 500,
+                      color: '#6c3483',
+                      background: '#f4ecf7',
+                      padding: '2px 8px',
+                      borderRadius: 20,
+                    }}
+                  >
+                    {style.trimShape}
+                  </span>
                 </div>
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'space-between',
                     gap: 2,
                   }}
                 >

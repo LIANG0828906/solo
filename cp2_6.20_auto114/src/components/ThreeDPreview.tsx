@@ -156,7 +156,7 @@ export default function ThreeDPreview() {
             <ambientLight intensity={0.5} />
             <directionalLight position={[5, 5, 5]} intensity={1} />
             <PetDog color={bodyColor} />
-            <OrbitControls enableZoom enablePan={false} />
+            <OrbitControls enableZoom enablePan={false} autoRotate autoRotateSpeed={0.02} />
             <ContactShadows position={[0, -0.4, 0]} opacity={0.5} blur={2.5} far={4} />
             <Environment preset="city" />
           </Canvas>
