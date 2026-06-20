@@ -10,6 +10,13 @@ const defaultParams = {
   membraneOpacity: 0.25,
   vesicleSize: 0.2,
   trailLength: 20,
+  visibility: {
+    nucleus: true,
+    mitochondria: true,
+    er: true,
+    membrane: true,
+    axisIndicator: true,
+  },
 };
 
 export const useSceneStore = create<SceneState>((set, get) => ({

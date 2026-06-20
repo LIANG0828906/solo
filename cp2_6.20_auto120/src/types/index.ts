@@ -26,11 +26,20 @@ export interface PathData {
   speed: number;
 }
 
+export interface OrganelleVisibility {
+  nucleus: boolean;
+  mitochondria: boolean;
+  er: boolean;
+  membrane: boolean;
+  axisIndicator: boolean;
+}
+
 export interface SceneParams {
   ambientLightIntensity: number;
   membraneOpacity: number;
   vesicleSize: number;
   trailLength: number;
+  visibility: OrganelleVisibility;
 }
 
 export interface SceneState {

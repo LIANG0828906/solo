@@ -22,6 +22,7 @@ export function buildExportConfig(state: SceneState): ExportConfig {
       membraneOpacity: state.params.membraneOpacity,
       vesicleSize: state.params.vesicleSize,
       trailLength: state.params.trailLength,
+      visibility: state.params.visibility,
     },
     exportTime: new Date().toISOString(),
   };

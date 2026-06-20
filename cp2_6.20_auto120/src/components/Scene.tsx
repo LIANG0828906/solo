@@ -89,20 +89,29 @@ function SceneContent() {
   const progress = useSceneStore((s) => s.progress);
   const activePathId = useSceneStore((s) => s.activePathId);
 
+  const vis = params.visibility;
+
   const renderOrganelle = (organelle: typeof organelles[0]) => {
     const pos = organelle.position;
+    const showType =
+      (organelle.type === 'nucleus' && vis.nucleus) ||
+      (organelle.type === 'mitochondria' && vis.mitochondria) ||
+      (organelle.type === 'er' && vis.er);
+    if (!showType && !vis.axisIndicator) return null;
     return (
       <group key={organelle.id}>
-        {organelle.type === 'nucleus' && (
+        {showType && organelle.type === 'nucleus' && (
           <Nucleus position={pos} scale={organelle.scale} color={organelle.color} />
         )}
-        {organelle.type === 'mitochondria' && (
+        {showType && organelle.type === 'mitochondria' && (
           <Mitochondria position={pos} scale={organelle.scale} color={organelle.color} />
         )}
-        {organelle.type === 'er' && (
+        {showType && organelle.type === 'er' && (
           <EndoplasmicReticulum position={pos} scale={organelle.scale} color={organelle.color} />
         )}
-        <AxisIndicator position={pos} scale={0.8} showLabels={false} />
+        {vis.axisIndicator && (
+          <AxisIndicator position={pos} scale={0.8} showLabels={false} />
+        )}
       </group>
     );
   };
@@ -118,7 +127,7 @@ function SceneContent() {
 
       <SceneClickHandler />
 
-      <CellMembrane opacity={params.membraneOpacity} />
+      {vis.membrane && <CellMembrane opacity={params.membraneOpacity} />}
 
       {organelles.map(renderOrganelle)}
 
