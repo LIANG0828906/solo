@@ -1,15 +1,16 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useAppStore } from './store'
 import { Skill } from './types'
 
-const SkillCard: React.FC<{ skill: Skill; onDragStart: (skill: Skill) => void }> = ({
-  skill,
-  onDragStart,
-}) => {
+const SkillCard: React.FC<{
+  skill: Skill
+  onDragStart: (skill: Skill, e: React.DragEvent<HTMLDivElement>) => void
+}> = ({ skill, onDragStart }) => {
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     e.dataTransfer.setData('skillId', skill.id)
     e.dataTransfer.effectAllowed = 'copy'
-    onDragStart(skill)
+    e.dataTransfer.setDragImage(new Image(), 0, 0)
+    onDragStart(skill, e)
   }
 
   return (
@@ -76,11 +77,13 @@ interface SlotProps {
   index: number
   isPlaying: boolean
   currentPlaybackIndex: number
+  isDragged: boolean
+  dragOverIndex: number | null
   onDrop: (slotId: string) => void
   onRemove: (slotId: string) => void
-  onDragStartSlot: (index: number) => void
+  onDragStartSlot: (index: number, e: React.DragEvent<HTMLDivElement>) => void
   onDragOverSlot: (index: number) => void
-  dragOverIndex: number | null
+  onDragLeaveSlot: () => void
 }
 
 const Slot: React.FC<SlotProps> = ({
@@ -88,11 +91,13 @@ const Slot: React.FC<SlotProps> = ({
   index,
   isPlaying,
   currentPlaybackIndex,
+  isDragged,
+  dragOverIndex,
   onDrop,
   onRemove,
   onDragStartSlot,
   onDragOverSlot,
-  dragOverIndex,
+  onDragLeaveSlot,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false)
   const getSkillById = useAppStore((state) => state.getSkillById)
@@ -100,17 +105,19 @@ const Slot: React.FC<SlotProps> = ({
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'copy'
+    e.dataTransfer.dropEffect = e.dataTransfer.types.includes('slotIndex') ? 'move' : 'copy'
     setIsDragOver(true)
     onDragOverSlot(index)
   }
 
   const handleDragLeave = () => {
     setIsDragOver(false)
+    onDragLeaveSlot()
   }
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
+    e.stopPropagation()
     setIsDragOver(false)
     onDrop(slot.id)
   }
@@ -119,11 +126,13 @@ const Slot: React.FC<SlotProps> = ({
     if (!skill || isPlaying) return
     e.dataTransfer.setData('slotIndex', String(index))
     e.dataTransfer.effectAllowed = 'move'
-    onDragStartSlot(index)
+    e.dataTransfer.setDragImage(new Image(), 0, 0)
+    onDragStartSlot(index, e)
   }
 
   const isActive = isPlaying && currentPlaybackIndex === index
-  const isDragHighlight = isDragOver || dragOverIndex === index
+  const isHighlighted = isDragOver || dragOverIndex === index
+  const showEmptyState = isDragged
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
@@ -133,29 +142,49 @@ const Slot: React.FC<SlotProps> = ({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        className={`slot ${isHighlighted ? 'slot-highlighted' : ''} ${isDragged ? 'slot-dragging' : ''}`}
         style={{
           width: 60,
           height: 60,
           borderRadius: 8,
-          border: skill
-            ? `2px solid ${isActive ? '#4ade80' : '#e94560'}`
-            : isDragHighlight
-              ? '2px dashed #4ade80'
-              : '2px dashed rgba(255,255,255,0.3)',
-          backgroundColor: isDragHighlight ? 'rgba(74, 222, 128, 0.1)' : 'rgba(15, 52, 96, 0.6)',
+          border: showEmptyState
+            ? '2px dashed rgba(255,255,255,0.3)'
+            : isHighlighted
+              ? '2px solid #e94560'
+              : skill
+                ? `2px solid ${isActive ? '#4ade80' : '#e94560'}`
+                : '2px dashed rgba(255,255,255,0.3)',
+          backgroundColor: showEmptyState
+            ? 'rgba(15, 52, 96, 0.3)'
+            : isHighlighted
+              ? 'rgba(233, 69, 96, 0.15)'
+              : 'rgba(15, 52, 96, 0.6)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
           transition: 'all 0.2s ease',
-          cursor: skill ? (isPlaying ? 'default' : 'grab') : 'copy',
-          transform: isActive ? 'scale(1.1)' : 'scale(1)',
-          boxShadow: isActive ? '0 0 20px rgba(74, 222, 128, 0.5)' : 'none',
+          cursor: showEmptyState ? 'default' : skill ? (isPlaying ? 'default' : 'grab') : 'copy',
+          transform: isActive ? 'scale(1.1)' : isHighlighted ? 'scale(1.15)' : 'scale(1)',
+          boxShadow: isActive
+            ? '0 0 20px rgba(74, 222, 128, 0.5)'
+            : isHighlighted
+              ? '0 0 25px rgba(233, 69, 96, 0.6)'
+              : 'none',
         }}
       >
-        {skill && (
+        {skill && !showEmptyState && (
           <>
-            <span style={{ fontSize: 28 }}>{skill.icon}</span>
+            <span
+              className={`slot-icon ${isHighlighted ? 'slot-icon-enlarged' : ''}`}
+              style={{
+                fontSize: 28,
+                transition: 'all 0.2s ease',
+                transform: isHighlighted ? 'scale(1.3)' : 'scale(1)',
+              }}
+            >
+              {skill.icon}
+            </span>
             {!isPlaying && (
               <button
                 onClick={(e) => {
@@ -186,9 +215,32 @@ const Slot: React.FC<SlotProps> = ({
             )}
           </>
         )}
-        {!skill && <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>拖入</span>}
+        {!skill && (
+          <span
+            className={`slot-placeholder ${isHighlighted ? 'slot-placeholder-enlarged' : ''}`}
+            style={{
+              color: isHighlighted ? '#e94560' : 'rgba(255,255,255,0.3)',
+              fontSize: isHighlighted ? 14 : 11,
+              transition: 'all 0.2s ease',
+              fontWeight: isHighlighted ? 600 : 400,
+            }}
+          >
+            {isHighlighted ? '放置' : '拖入'}
+          </span>
+        )}
+        {showEmptyState && (
+          <span
+            style={{
+              color: 'rgba(255,255,255,0.2)',
+              fontSize: 11,
+              fontStyle: 'italic',
+            }}
+          >
+            移动中
+          </span>
+        )}
       </div>
-      {skill && slot.combinationEffects.length > 0 && (
+      {skill && !showEmptyState && slot.combinationEffects.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center', maxWidth: 80 }}>
           {slot.combinationEffects.map((effect, i) => (
             <span
@@ -210,6 +262,41 @@ const Slot: React.FC<SlotProps> = ({
   )
 }
 
+const DragPreview: React.FC<{
+  visible: boolean
+  position: { x: number; y: number }
+  icon: string | null
+}> = ({ visible, position, icon }) => {
+  if (!visible || !icon) return null
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: position.x + 15,
+        top: position.y + 15,
+        width: 50,
+        height: 50,
+        borderRadius: 8,
+        backgroundColor: 'rgba(15, 52, 96, 0.95)',
+        border: '2px solid #e94560',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 32,
+        pointerEvents: 'none',
+        zIndex: 9999,
+        transform: 'rotate(-5deg)',
+        boxShadow: '0 8px 32px rgba(233, 69, 96, 0.5)',
+        opacity: 0.9,
+        transition: 'transform 0.1s ease',
+      }}
+    >
+      {icon}
+    </div>
+  )
+}
+
 const SkillEditor: React.FC = () => {
   const {
     skills,
@@ -218,24 +305,49 @@ const SkillEditor: React.FC = () => {
     setSkillToSlot,
     reorderSlots,
     removeSkillFromSlot,
+    getSkillById,
   } = useAppStore()
 
   const [draggedSkillId, setDraggedSkillId] = useState<string | null>(null)
   const [draggedSlotIndex, setDraggedSlotIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  const handleSkillDragStart = useCallback((skill: Skill) => {
-    setDraggedSkillId(skill.id)
-    setDraggedSlotIndex(null)
+  const handleDragMove = useCallback((e: MouseEvent) => {
+    setDragPosition({ x: e.clientX, y: e.clientY })
   }, [])
 
-  const handleSlotDragStart = useCallback((index: number) => {
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDragMove)
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleDragMove)
+    }
+  }, [isDragging, handleDragMove])
+
+  const handleSkillDragStart = useCallback((skill: Skill, e: React.DragEvent<HTMLDivElement>) => {
+    setDraggedSkillId(skill.id)
+    setDraggedSlotIndex(null)
+    setIsDragging(true)
+    setDragPosition({ x: e.clientX, y: e.clientY })
+  }, [])
+
+  const handleSlotDragStart = useCallback((index: number, e: React.DragEvent<HTMLDivElement>) => {
     setDraggedSlotIndex(index)
     setDraggedSkillId(null)
+    setIsDragging(true)
+    setDragPosition({ x: e.clientX, y: e.clientY })
   }, [])
 
   const handleSlotDragOver = useCallback((index: number) => {
     setDragOverIndex(index)
+  }, [])
+
+  const handleSlotDragLeave = useCallback(() => {
+    setDragOverIndex(null)
   }, [])
 
   const handleDrop = useCallback(
@@ -251,8 +363,31 @@ const SkillEditor: React.FC = () => {
       setDraggedSkillId(null)
       setDraggedSlotIndex(null)
       setDragOverIndex(null)
+      setIsDragging(false)
     },
     [draggedSkillId, draggedSlotIndex, comboSlots, setSkillToSlot, reorderSlots]
+  )
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedSkillId(null)
+    setDraggedSlotIndex(null)
+    setDragOverIndex(null)
+    setIsDragging(false)
+  }, [])
+
+  const handleContainerDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+  }, [])
+
+  const handleContainerDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      const slotContainer = e.currentTarget.querySelector('.slot-container')
+      if (slotContainer && !slotContainer.contains(e.target as Node)) {
+        handleDragEnd()
+      }
+    },
+    [handleDragEnd]
   )
 
   const handleRemove = useCallback(
@@ -264,8 +399,18 @@ const SkillEditor: React.FC = () => {
     [isPlaying, removeSkillFromSlot]
   )
 
+  const draggedIcon = draggedSkillId
+    ? getSkillById(draggedSkillId)?.icon || null
+    : draggedSlotIndex !== null
+      ? getSkillById(comboSlots[draggedSlotIndex]?.skillId)?.icon || null
+      : null
+
   return (
     <div
+      ref={containerRef}
+      onDragOver={handleContainerDragOver}
+      onDrop={handleContainerDrop}
+      onDragEnd={handleDragEnd}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -274,8 +419,11 @@ const SkillEditor: React.FC = () => {
         backgroundColor: '#16213e',
         borderRadius: 4,
         border: '0.5px solid #e94560',
+        position: 'relative',
       }}
     >
+      <DragPreview visible={isDragging} position={dragPosition} icon={draggedIcon} />
+
       <div>
         <h3
           style={{
@@ -315,6 +463,8 @@ const SkillEditor: React.FC = () => {
             alignItems: 'flex-start',
             overflowX: 'auto',
             paddingBottom: 8,
+            padding: 8,
+            minHeight: 80,
           }}
         >
           {comboSlots.map((slot, index) => (
@@ -324,11 +474,13 @@ const SkillEditor: React.FC = () => {
                 index={index}
                 isPlaying={isPlaying}
                 currentPlaybackIndex={currentPlaybackIndex}
+                isDragged={draggedSlotIndex === index}
+                dragOverIndex={dragOverIndex}
                 onDrop={handleDrop}
                 onRemove={handleRemove}
                 onDragStartSlot={handleSlotDragStart}
                 onDragOverSlot={handleSlotDragOver}
-                dragOverIndex={dragOverIndex}
+                onDragLeaveSlot={handleSlotDragLeave}
               />
               {index < comboSlots.length - 1 && (
                 <div
@@ -337,6 +489,8 @@ const SkillEditor: React.FC = () => {
                     color: 'rgba(255,255,255,0.3)',
                     fontSize: 18,
                     marginTop: -16,
+                    transition: 'all 0.2s ease',
+                    opacity: dragOverIndex === index || dragOverIndex === index + 1 ? 0.6 : 1,
                   }}
                 >
                   →
@@ -358,6 +512,25 @@ const SkillEditor: React.FC = () => {
         .slot-container::-webkit-scrollbar-thumb {
           background: #e94560;
           border-radius: 3px;
+        }
+        @keyframes pulse-border {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.4);
+          }
+          50% {
+            box-shadow: 0 0 0 8px rgba(233, 69, 96, 0);
+          }
+        }
+        .slot-highlighted {
+          animation: pulse-border 1s ease-in-out infinite;
+        }
+        @keyframes float {
+          0%, 100% {
+            transform: rotate(-5deg) translateY(0);
+          }
+          50% {
+            transform: rotate(-5deg) translateY(-3px);
+          }
         }
         @media (max-width: 768px) {
           .slot-container {
