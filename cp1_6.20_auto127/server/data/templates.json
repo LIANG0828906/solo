@@ -1,0 +1,318 @@
+[
+  {
+    "id": "template-gallery",
+    "name": "画廊式",
+    "description": "适合展示多幅作品的网格布局",
+    "thumbnail": "gallery",
+    "canvasWidth": 800,
+    "canvasHeight": 600,
+    "elements": [
+      {
+        "id": "img-1",
+        "type": "image",
+        "x": 40,
+        "y": 40,
+        "width": 340,
+        "height": 240,
+        "backgroundColor": "#e0e0e0",
+        "borderRadius": 8
+      },
+      {
+        "id": "img-2",
+        "type": "image",
+        "x": 420,
+        "y": 40,
+        "width": 340,
+        "height": 240,
+        "backgroundColor": "#d0d0d0",
+        "borderRadius": 8
+      },
+      {
+        "id": "img-3",
+        "type": "image",
+        "x": 40,
+        "y": 320,
+        "width": 220,
+        "height": 240,
+        "backgroundColor": "#c8c8c8",
+        "borderRadius": 8
+      },
+      {
+        "id": "img-4",
+        "type": "image",
+        "x": 300,
+        "y": 320,
+        "width": 220,
+        "height": 240,
+        "backgroundColor": "#d8d8d8",
+        "borderRadius": 8
+      },
+      {
+        "id": "img-5",
+        "type": "image",
+        "x": 560,
+        "y": 320,
+        "width": 200,
+        "height": 240,
+        "backgroundColor": "#c0c0c0",
+        "borderRadius": 8
+      }
+    ]
+  },
+  {
+    "id": "template-magazine",
+    "name": "杂志式",
+    "description": "经典杂志排版，图文并茂",
+    "thumbnail": "magazine",
+    "canvasWidth": 800,
+    "canvasHeight": 600,
+    "elements": [
+      {
+        "id": "title-1",
+        "type": "text",
+        "x": 40,
+        "y": 30,
+        "width": 720,
+        "height": 60,
+        "content": "创意作品集",
+        "fontSize": 42,
+        "fontFamily": "Georgia, serif",
+        "color": "#1a1a1a",
+        "fontWeight": 700,
+        "textAlign": "center",
+        "lineHeight": 1.2
+      },
+      {
+        "id": "divider-1",
+        "type": "divider",
+        "x": 300,
+        "y": 105,
+        "width": 200,
+        "height": 2,
+        "color": "#3B82F6",
+        "thickness": 2,
+        "style": "solid"
+      },
+      {
+        "id": "img-main",
+        "type": "image",
+        "x": 40,
+        "y": 140,
+        "width": 450,
+        "height": 320,
+        "backgroundColor": "#e0e0e0",
+        "borderRadius": 4
+      },
+      {
+        "id": "subtitle-1",
+        "type": "text",
+        "x": 530,
+        "y": 140,
+        "width": 230,
+        "height": 40,
+        "content": "关于我",
+        "fontSize": 24,
+        "fontFamily": "Georgia, serif",
+        "color": "#333",
+        "fontWeight": 600,
+        "textAlign": "left",
+        "lineHeight": 1.3
+      },
+      {
+        "id": "text-1",
+        "type": "text",
+        "x": 530,
+        "y": 190,
+        "width": 230,
+        "height": 200,
+        "content": "我是一名独立插画师，专注于数字艺术和品牌设计。用色彩讲述故事，用创意连接情感。",
+        "fontSize": 14,
+        "fontFamily": "Arial, sans-serif",
+        "color": "#666",
+        "fontWeight": 400,
+        "textAlign": "left",
+        "lineHeight": 1.6
+      },
+      {
+        "id": "btn-1",
+        "type": "button",
+        "x": 530,
+        "y": 420,
+        "width": 180,
+        "height": 48,
+        "text": "查看更多",
+        "backgroundColor": "#3B82F6",
+        "textColor": "#ffffff",
+        "fontSize": 16,
+        "borderRadius": 24,
+        "borderWidth": 0,
+        "borderColor": "transparent"
+      },
+      {
+        "id": "img-sm-1",
+        "type": "image",
+        "x": 40,
+        "y": 490,
+        "width": 150,
+        "height": 80,
+        "backgroundColor": "#d0d0d0",
+        "borderRadius": 4
+      },
+      {
+        "id": "img-sm-2",
+        "type": "image",
+        "x": 210,
+        "y": 490,
+        "width": 150,
+        "height": 80,
+        "backgroundColor": "#c8c8c8",
+        "borderRadius": 4
+      },
+      {
+        "id": "img-sm-3",
+        "type": "image",
+        "x": 380,
+        "y": 490,
+        "width": 150,
+        "height": 80,
+        "backgroundColor": "#d8d8d8",
+        "borderRadius": 4
+      }
+    ]
+  },
+  {
+    "id": "template-minimal",
+    "name": "极简式",
+    "description": "简洁大气，突出作品本身",
+    "thumbnail": "minimal",
+    "canvasWidth": 800,
+    "canvasHeight": 600,
+    "elements": [
+      {
+        "id": "img-hero",
+        "type": "image",
+        "x": 100,
+        "y": 80,
+        "width": 600,
+        "height": 350,
+        "backgroundColor": "#f0f0f0",
+        "borderRadius": 0
+      },
+      {
+        "id": "title-minimal",
+        "type": "text",
+        "x": 100,
+        "y": 460,
+        "width": 600,
+        "height": 50,
+        "content": "Project Title",
+        "fontSize": 32,
+        "fontFamily": "Helvetica, Arial, sans-serif",
+        "color": "#111",
+        "fontWeight": 300,
+        "textAlign": "left",
+        "lineHeight": 1.2
+      },
+      {
+        "id": "text-minimal",
+        "type": "text",
+        "x": 100,
+        "y": 520,
+        "width": 400,
+        "height": 60,
+        "content": "A minimal design approach that lets the work speak for itself.",
+        "fontSize": 14,
+        "fontFamily": "Helvetica, Arial, sans-serif",
+        "color": "#888",
+        "fontWeight": 300,
+        "textAlign": "left",
+        "lineHeight": 1.5
+      }
+    ]
+  },
+  {
+    "id": "template-grid",
+    "name": "网格布局",
+    "description": "规整的三列网格展示",
+    "thumbnail": "grid",
+    "canvasWidth": 800,
+    "canvasHeight": 600,
+    "elements": [
+      {
+        "id": "header-text",
+        "type": "text",
+        "x": 40,
+        "y": 30,
+        "width": 720,
+        "height": 50,
+        "content": "精选作品",
+        "fontSize": 28,
+        "fontFamily": "Georgia, serif",
+        "color": "#222",
+        "fontWeight": 600,
+        "textAlign": "center",
+        "lineHeight": 1.2
+      },
+      {
+        "id": "g-img-1",
+        "type": "image",
+        "x": 40,
+        "y": 100,
+        "width": 227,
+        "height": 200,
+        "backgroundColor": "#e5e5e5",
+        "borderRadius": 6
+      },
+      {
+        "id": "g-img-2",
+        "type": "image",
+        "x": 287,
+        "y": 100,
+        "width": 226,
+        "height": 200,
+        "backgroundColor": "#dadada",
+        "borderRadius": 6
+      },
+      {
+        "id": "g-img-3",
+        "type": "image",
+        "x": 533,
+        "y": 100,
+        "width": 227,
+        "height": 200,
+        "backgroundColor": "#cfcfcf",
+        "borderRadius": 6
+      },
+      {
+        "id": "g-img-4",
+        "type": "image",
+        "x": 40,
+        "y": 320,
+        "width": 227,
+        "height": 200,
+        "backgroundColor": "#d5d5d5",
+        "borderRadius": 6
+      },
+      {
+        "id": "g-img-5",
+        "type": "image",
+        "x": 287,
+        "y": 320,
+        "width": 226,
+        "height": 200,
+        "backgroundColor": "#cacaca",
+        "borderRadius": 6
+      },
+      {
+        "id": "g-img-6",
+        "type": "image",
+        "x": 533,
+        "y": 320,
+        "width": 227,
+        "height": 200,
+        "backgroundColor": "#bfbfbf",
+        "borderRadius": 6
+      }
+    ]
+  }
+]
