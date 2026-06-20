@@ -1,4 +1,4 @@
-import type { SolarTerm, Region } from '@/types';
+import type { SolarTerm, Region, Season } from '@/types';
 
 export const solarTerms: SolarTerm[] = [
   {
@@ -9,6 +9,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #a8e063 0%, #56ab2f 100%)',
     date: '2月3-5日',
     regions: ['华北', '华东', '华中'],
+    season: 'spring' as Season,
+    keywords: ['备耕', '春耕始', '咬春'],
   },
   {
     id: 'yushui',
@@ -18,6 +20,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #74ebd5 0%, #9face6 100%)',
     date: '2月18-20日',
     regions: ['华南', '西南', '江南'],
+    season: 'spring' as Season,
+    keywords: ['春灌', '育苗', '返青'],
   },
   {
     id: 'jingzhe',
@@ -27,6 +31,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
     date: '3月5-7日',
     regions: ['长江流域', '黄河流域'],
+    season: 'spring' as Season,
+    keywords: ['春播', '灭虫', '茶萌'],
   },
   {
     id: 'chunfen',
@@ -36,6 +42,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
     date: '3月20-22日',
     regions: ['全国大部'],
+    season: 'spring' as Season,
+    keywords: ['播种', '育秧', '踏青'],
   },
   {
     id: 'qingming',
@@ -45,6 +53,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
     date: '4月4-6日',
     regions: ['江南', '华南', '西南'],
+    season: 'spring' as Season,
+    keywords: ['采茶', '春播', '祭祖'],
   },
   {
     id: 'guyu',
@@ -54,6 +64,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)',
     date: '4月19-21日',
     regions: ['华北', '东北', '西北'],
+    season: 'spring' as Season,
+    keywords: ['播种', '采茶', '移栽'],
   },
   {
     id: 'lixia',
@@ -63,6 +75,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #ff9966 0%, #ff5e62 100%)',
     date: '5月5-7日',
     regions: ['华南', '华东'],
+    season: 'summer' as Season,
+    keywords: ['插秧', '收麦', '养蚕'],
   },
   {
     id: 'xiaoman',
@@ -72,6 +86,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #f7971e 0%, #ffd200 100%)',
     date: '5月20-22日',
     regions: ['黄河流域', '长江流域'],
+    season: 'summer' as Season,
+    keywords: ['夏收', '灌浆', '蚕茧'],
   },
   {
     id: 'mangzhong',
@@ -81,6 +97,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #f2994a 0%, #f2c94c 100%)',
     date: '6月5-7日',
     regions: ['长江中下游', '华南'],
+    season: 'summer' as Season,
+    keywords: ['收麦', '插秧', '煮梅'],
   },
   {
     id: 'xiazhi',
@@ -90,6 +108,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #f85032 0%, #e73827 100%)',
     date: '6月21-22日',
     regions: ['全国大部'],
+    season: 'summer' as Season,
+    keywords: ['夏种', '除草', '晾晒'],
   },
   {
     id: 'xiaoshu',
@@ -99,6 +119,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #fe8c00 0%, #f83600 100%)',
     date: '7月6-8日',
     regions: ['华南', '华中', '华东'],
+    season: 'summer' as Season,
+    keywords: ['伏耕', '防涝', '摘果'],
   },
   {
     id: 'dashu',
@@ -108,6 +130,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #d31027 0%, #ea384d 100%)',
     date: '7月22-24日',
     regions: ['江南', '华南', '西南'],
+    season: 'summer' as Season,
+    keywords: ['双抢', '防暑', '采摘'],
   },
   {
     id: 'liqiu',
@@ -117,6 +141,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #c79081 0%, #dfa579 100%)',
     date: '8月7-9日',
     regions: ['华北', '西北', '东北'],
+    season: 'autumn' as Season,
+    keywords: ['秋收', '晒秋', '贴秋膘'],
   },
   {
     id: 'chushu',
@@ -126,6 +152,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #cd853f 0%, #d2691e 100%)',
     date: '8月22-24日',
     regions: ['长江流域', '黄河流域'],
+    season: 'autumn' as Season,
+    keywords: ['收稻', '采藕', '晾晒'],
   },
   {
     id: 'bailu',
@@ -135,6 +163,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #757f9a 0%, #d7dde8 100%)',
     date: '9月7-9日',
     regions: ['东北', '华北', '西北'],
+    season: 'autumn' as Season,
+    keywords: ['收秋', '酿酒', '摘棉'],
   },
   {
     id: 'qiufen',
@@ -144,6 +174,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #8b4513 0%, #cd853f 100%)',
     date: '9月22-24日',
     regions: ['全国大部'],
+    season: 'autumn' as Season,
+    keywords: ['秋收', '种麦', '祭月'],
   },
   {
     id: 'hanlu',
@@ -153,6 +185,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #4b6cb7 0%, #182848 100%)',
     date: '10月8-9日',
     regions: ['西北', '华北', '东北'],
+    season: 'autumn' as Season,
+    keywords: ['秋播', '摘果', '赏菊'],
   },
   {
     id: 'shuangjiang',
@@ -162,6 +196,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #373b44 0%, #4286f4 100%)',
     date: '10月23-24日',
     regions: ['黄河流域', '华北'],
+    season: 'autumn' as Season,
+    keywords: ['收薯', '摘柿', '秋耕'],
   },
   {
     id: 'lidong',
@@ -171,6 +207,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     date: '11月7-8日',
     regions: ['东北', '西北', '华北'],
+    season: 'winter' as Season,
+    keywords: ['冬储', '秋收尾', '补冬'],
   },
   {
     id: 'xiaoxue',
@@ -180,6 +218,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)',
     date: '11月22-23日',
     regions: ['华北', '西北', '东北'],
+    season: 'winter' as Season,
+    keywords: ['腌菜', '冬灌', '酿酒'],
   },
   {
     id: 'daxue',
@@ -189,6 +229,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%)',
     date: '12月6-8日',
     regions: ['东北', '西北', '华北'],
+    season: 'winter' as Season,
+    keywords: ['冬耕', '储粮', '进补'],
   },
   {
     id: 'dongzhi',
@@ -198,6 +240,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
     date: '12月21-23日',
     regions: ['全国大部'],
+    season: 'winter' as Season,
+    keywords: ['数九', '祭祖', '进补'],
   },
   {
     id: 'xiaohan',
@@ -207,6 +251,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
     date: '1月5-7日',
     regions: ['东北', '西北', '华北'],
+    season: 'winter' as Season,
+    keywords: ['冬修', '防寒', '备年'],
   },
   {
     id: 'dahan',
@@ -216,6 +262,8 @@ export const solarTerms: SolarTerm[] = [
     color: 'linear-gradient(135deg, #0f2027 0%, #2c5364 100%)',
     date: '1月20-21日',
     regions: ['东北', '西北', '华北'],
+    season: 'winter' as Season,
+    keywords: ['备年', '除旧', '迎春'],
   },
 ];
 

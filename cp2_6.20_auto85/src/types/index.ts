@@ -1,3 +1,5 @@
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+
 export interface SolarTerm {
   id: string;
   name: string;
@@ -6,6 +8,8 @@ export interface SolarTerm {
   color: string;
   date: string;
   regions: string[];
+  season: Season;
+  keywords: string[];
 }
 
 export interface Specialty {
