@@ -12,6 +12,7 @@ const StartScreen = ({ onStart }: StartScreenProps) => {
     { icon: '🚀', name: '太空科幻', theme: 'space sci-fi' },
     { icon: '🔍', name: '侦探推理', theme: 'detective mystery' },
     { icon: '👻', name: '恐怖惊悚', theme: 'horror thriller' },
+    { icon: '⚓', name: '海盗冒险', theme: 'pirate treasure' },
   ];
 
   return (
@@ -87,7 +88,7 @@ const StartScreen = ({ onStart }: StartScreenProps) => {
           {'>'} 或选择预设模板:
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {presets.map((preset) => (
             <button
               key={preset.theme}

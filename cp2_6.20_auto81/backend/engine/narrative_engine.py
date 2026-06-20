@@ -2,7 +2,7 @@ import json
 import os
 import copy
 import random
-from typing import Optional, Dict, Any, Tuple, List
+from typing import Optional, Dict, Any, Tuple, List, Union
 
 from models.story_model import StoryNode, GameState, Attributes, InventoryItem
 
@@ -40,6 +40,7 @@ class NarrativeEngine:
             "space": ["space", "sci-fi", "scifi", "galaxy", "star", "太空", "科幻", "星际", "宇宙"],
             "detective": ["detective", "mystery", "crime", "侦探", "推理", "悬疑", "犯罪"],
             "horror": ["horror", "thriller", "scary", "ghost", "恐怖", "惊悚", "鬼", "灵异"],
+            "pirate": ["pirate", "treasure", "sea", "ocean", "海盗", "宝藏", "大海", "航海", "冒险"],
         }
 
         for story_key, keywords in keyword_map.items():
@@ -49,6 +50,27 @@ class NarrativeEngine:
                         return story_key
 
         return random.choice(list(self.stories.keys()))
+
+    def _parse_effect_string(self, effect_str: str) -> Dict[str, Any]:
+        result = {}
+        parts = effect_str.split(",")
+        for part in parts:
+            part = part.strip()
+            if "=" in part:
+                key, value = part.split("=", 1)
+                key = key.strip()
+                value = value.strip()
+                try:
+                    result[key] = int(value)
+                except ValueError:
+                    result[key] = value
+            elif part.startswith("+"):
+                attr = part[1:].strip()
+                result[attr] = result.get(attr, 0) + 1
+            elif part.startswith("-"):
+                attr = part[1:].strip()
+                result[attr] = result.get(attr, 0) - 1
+        return result
 
     def get_start_node(self, theme: Optional[str] = None) -> StoryNode:
         story_key = self._match_theme_to_story(theme)
@@ -86,14 +108,19 @@ class NarrativeEngine:
         return True
 
     def _apply_effects(
-        self, effects: Optional[Dict[str, float]], state: GameState
+        self, effects: Optional[Union[str, Dict[str, Any]]], state: GameState
     ) -> GameState:
         new_state = copy.deepcopy(state)
         if not effects:
             return new_state
 
+        if isinstance(effects, str):
+            effect_dict = self._parse_effect_string(effects)
+        else:
+            effect_dict = effects
+
         attrs = new_state.attributes
-        for key, value in effects.items():
+        for key, value in effect_dict.items():
             if key == "health":
                 attrs.health = max(0, min(100, attrs.health + int(value)))
             elif key == "sanity":

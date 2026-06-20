@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Union
 from pydantic import BaseModel, Field
 
 
@@ -7,7 +7,7 @@ class Choice(BaseModel):
     text: str
     next_node_id: str
     condition: Optional[Dict[str, Any]] = None
-    effect: Optional[Dict[str, Any]] = None
+    effect: Optional[Union[str, Dict[str, Any]]] = None
 
 
 class StoryNode(BaseModel):

@@ -10,19 +10,25 @@
               "id": "m_choice_1",
               "text": "走向神秘的城堡",
               "next_node_id": "medieval_castle_gate",
-              "effect": { "sanity": -5 }
+              "effect": {
+                "sanity": -5
+              }
             },
             {
               "id": "m_choice_2",
               "text": "前往有人烟的村庄",
               "next_node_id": "medieval_village",
-              "effect": { "charisma": 5 }
+              "effect": {
+                "charisma": 5
+              }
             },
             {
               "id": "m_choice_3",
               "text": "就地探索周围的森林",
               "next_node_id": "medieval_forest_explore",
-              "effect": { "health": -5 }
+              "effect": {
+                "health": -5
+              }
             }
           ]
         },
@@ -34,20 +40,29 @@
               "id": "m_castle_1",
               "text": "礼貌地说明自己失去了记忆，请求帮助",
               "next_node_id": "medieval_castle_inside",
-              "condition": { "charisma": 40 },
-              "effect": { "charisma": 10, "add_item": "knight_blessing" }
+              "condition": {
+                "charisma": 40
+              },
+              "effect": {
+                "charisma": 10,
+                "add_item": "knight_blessing"
+              }
             },
             {
               "id": "m_castle_2",
               "text": "尝试强行闯入",
               "next_node_id": "medieval_castle_fight",
-              "effect": { "health": -30 }
+              "effect": {
+                "health": -30
+              }
             },
             {
               "id": "m_castle_3",
               "text": "转身离开，改去村庄",
               "next_node_id": "medieval_village",
-              "effect": { "sanity": 5 }
+              "effect": {
+                "sanity": 5
+              }
             }
           ]
         },
@@ -59,19 +74,27 @@
               "id": "m_village_1",
               "text": "向老妇人打听这里的情况",
               "next_node_id": "medieval_village_info",
-              "effect": { "sanity": 10, "add_item": "old_map" }
+              "effect": {
+                "sanity": 10,
+                "add_item": "old_map"
+              }
             },
             {
               "id": "m_village_2",
               "text": "去村里的酒馆看看",
               "next_node_id": "medieval_tavern",
-              "effect": { "gold": -10, "charisma": 5 }
+              "effect": {
+                "gold": -10,
+                "charisma": 5
+              }
             },
             {
               "id": "m_village_3",
               "text": "询问是否有可以赚钱的工作",
               "next_node_id": "medieval_quest",
-              "effect": { "gold": 20 }
+              "effect": {
+                "gold": 20
+              }
             }
           ]
         },
@@ -83,19 +106,26 @@
               "id": "m_forest_1",
               "text": "拿起那把剑",
               "next_node_id": "medieval_cursed_sword",
-              "effect": { "sanity": -20, "add_item": "ancient_blade" }
+              "effect": {
+                "sanity": -20,
+                "add_item": "ancient_blade"
+              }
             },
             {
               "id": "m_forest_2",
               "text": "仔细搜索遗迹其他地方",
               "next_node_id": "medieval_ruins_treasure",
-              "effect": { "gold": 50 }
+              "effect": {
+                "gold": 50
+              }
             },
             {
               "id": "m_forest_3",
               "text": "感到不安，立刻离开",
               "next_node_id": "medieval_village",
-              "effect": { "sanity": 5 }
+              "effect": {
+                "sanity": 5
+              }
             }
           ]
         },
@@ -107,14 +137,21 @@
               "id": "m_throne_1",
               "text": "询问领主关于自己身世的事",
               "next_node_id": "medieval_truth_revealed",
-              "effect": { "sanity": -10 }
+              "effect": {
+                "sanity": -10
+              }
             },
             {
               "id": "m_throne_2",
               "text": "表示愿意为领主攻劳",
               "next_node_id": "medieval_good_ending",
-              "effect": { "charisma": 20, "gold": 100 },
-              "condition": { "has_item": "knight_blessing" }
+              "effect": {
+                "charisma": 20,
+                "gold": 100
+              },
+              "condition": {
+                "has_item": "knight_blessing"
+              }
             },
             {
               "id": "m_throne_3",
@@ -131,7 +168,9 @@
               "id": "m_dungeon_1",
               "text": "寻找逃狱的方法",
               "next_node_id": "medieval_dungeon_escape",
-              "effect": { "health": -10 }
+              "effect": {
+                "health": -10
+              }
             },
             {
               "id": "m_dungeon_2",
@@ -148,19 +187,25 @@
               "id": "m_info_1",
               "text": "前往北方遗迹",
               "next_node_id": "medieval_forest_explore",
-              "effect": { "sanity": 5 }
+              "effect": {
+                "sanity": 5
+              }
             },
             {
               "id": "m_info_2",
               "text": "先在村子里休息一晚",
               "next_node_id": "medieval_tavern",
-              "effect": { "health": 20 }
+              "effect": {
+                "health": 20
+              }
             },
             {
               "id": "m_info_3",
               "text": "询问更多关于城堡的事",
               "next_node_id": "medieval_castle_gate",
-              "effect": { "charisma": 5 }
+              "effect": {
+                "charisma": 5
+              }
             }
           ]
         },
@@ -172,20 +217,31 @@
               "id": "m_tavern_1",
               "text": "接受邀请，加入冒险队伍",
               "next_node_id": "medieval_dragon_quest",
-              "condition": { "health": 50 },
-              "effect": { "health": -20, "gold": 100 }
+              "condition": {
+                "health": 50
+              },
+              "effect": {
+                "health": -20,
+                "gold": 100
+              }
             },
             {
               "id": "m_tavern_2",
               "text": "婉拒，只想安静地吃饭",
               "next_node_id": "medieval_village_info",
-              "effect": { "health": 10, "sanity": 10 }
+              "effect": {
+                "health": 10,
+                "sanity": 10
+              }
             },
             {
               "id": "m_tavern_3",
               "text": "和他们喝酒套近乎，打听消息",
               "next_node_id": "medieval_quest",
-              "effect": { "gold": -5, "charisma": 10 }
+              "effect": {
+                "gold": -5,
+                "charisma": 10
+              }
             }
           ]
         },
@@ -197,14 +253,21 @@
               "id": "m_quest_1",
               "text": "接受任务，前往森林猎杀狼首",
               "next_node_id": "medieval_wolf_fight",
-              "condition": { "health": 40 },
-              "effect": { "health": -15, "gold": 30 }
+              "condition": {
+                "health": 40
+              },
+              "effect": {
+                "health": -15,
+                "gold": 30
+              }
             },
             {
               "id": "m_quest_2",
               "text": "询问是否有其他更安全的工作",
               "next_node_id": "medieval_neutral_ending",
-              "effect": { "gold": 10 }
+              "effect": {
+                "gold": 10
+              }
             }
           ]
         },
@@ -216,14 +279,21 @@
               "id": "m_cursed_1",
               "text": "带着剑前往城堡，寻找真相",
               "next_node_id": "medieval_castle_gate",
-              "effect": { "sanity": -10 }
+              "effect": {
+                "sanity": -10
+              }
             },
             {
               "id": "m_cursed_2",
               "text": "丢弃这把被诅咒的剑",
               "next_node_id": "medieval_forest_explore",
-              "condition": { "sanity": 30 },
-              "effect": { "sanity": 15, "remove_item": "ancient_blade" }
+              "condition": {
+                "sanity": 30
+              },
+              "effect": {
+                "sanity": 15,
+                "remove_item": "ancient_blade"
+              }
             }
           ]
         },
@@ -235,13 +305,17 @@
               "id": "m_treasure_1",
               "text": "躲藏起来观察",
               "next_node_id": "medieval_ruins_encounter",
-              "effect": { "sanity": -5 }
+              "effect": {
+                "sanity": -5
+              }
             },
             {
               "id": "m_treasure_2",
               "text": "带着战利品快速离开",
               "next_node_id": "medieval_village",
-              "effect": { "charisma": 5 }
+              "effect": {
+                "charisma": 5
+              }
             }
           ]
         },
@@ -253,7 +327,10 @@
               "id": "m_truth_1",
               "text": "接受命运，准备夺回王位",
               "next_node_id": "medieval_good_ending",
-              "condition": { "has_item": "ancient_blade", "sanity": 50 }
+              "condition": {
+                "has_item": "ancient_blade",
+                "sanity": 50
+              }
             },
             {
               "id": "m_truth_2",
@@ -264,7 +341,9 @@
               "id": "m_truth_3",
               "text": "这一定是阴谋，拔刀相向",
               "next_node_id": "medieval_bad_ending",
-              "condition": { "sanity": 30 }
+              "condition": {
+                "sanity": 30
+              }
             }
           ]
         },
@@ -297,7 +376,9 @@
               "id": "m_escape_1",
               "text": "前往村庄寻找机会",
               "next_node_id": "medieval_village",
-              "effect": { "sanity": 5 }
+              "effect": {
+                "sanity": 5
+              }
             }
           ]
         },
@@ -309,7 +390,9 @@
               "id": "m_dragon_1",
               "text": "带着战利品返回村庄",
               "next_node_id": "medieval_village_info",
-              "effect": { "health": 20 }
+              "effect": {
+                "health": 20
+              }
             }
           ]
         },
@@ -321,7 +404,10 @@
               "id": "m_wolf_1",
               "text": "拖着狼尸回村领赏",
               "next_node_id": "medieval_truth_revealed",
-              "effect": { "health": 10, "charisma": 15 }
+              "effect": {
+                "health": 10,
+                "charisma": 15
+              }
             }
           ]
         },
@@ -333,7 +419,9 @@
               "id": "m_encounter_1",
               "text": "耐心听老者讲述",
               "next_node_id": "medieval_truth_revealed",
-              "effect": { "sanity": 10 }
+              "effect": {
+                "sanity": 10
+              }
             }
           ]
         }
@@ -349,19 +437,25 @@
               "id": "s_choice_1",
               "text": "前往引擎室尝试修复飞船",
               "next_node_id": "space_engine_room",
-              "effect": { "sanity": -5 }
+              "effect": {
+                "sanity": -5
+              }
             },
             {
               "id": "s_choice_2",
               "text": "直奔逃生舱，保命要紧",
               "next_node_id": "space_escape_pod",
-              "effect": { "health": 5 }
+              "effect": {
+                "health": 5
+              }
             },
             {
               "id": "s_choice_3",
               "text": "先去驾驶舱查看情况",
               "next_node_id": "space_bridge",
-              "effect": { "sanity": 5 }
+              "effect": {
+                "sanity": 5
+              }
             }
           ]
         },
@@ -373,20 +467,28 @@
               "id": "s_engine_1",
               "text": "冒险手动修复冷却系统",
               "next_node_id": "space_engine_repair",
-              "condition": { "health": 60 },
-              "effect": { "health": -40 }
+              "condition": {
+                "health": 60
+              },
+              "effect": {
+                "health": -40
+              }
             },
             {
               "id": "s_engine_2",
               "text": "寻找防护服再行动",
               "next_node_id": "space_storage",
-              "effect": { "sanity": -5 }
+              "effect": {
+                "sanity": -5
+              }
             },
             {
               "id": "s_engine_3",
               "text": "太危险了，撤退去逃生舱",
               "next_node_id": "space_escape_pod",
-              "effect": { "sanity": 5 }
+              "effect": {
+                "sanity": 5
+              }
             }
           ]
         },
@@ -398,19 +500,25 @@
               "id": "s_pod_1",
               "text": "选择二号逃生舱（系统正常）",
               "next_node_id": "space_pod_launch",
-              "effect": { "health": 10 }
+              "effect": {
+                "health": 10
+              }
             },
             {
               "id": "s_pod_2",
               "text": "尝试修复一号逃生舱",
               "next_node_id": "space_pod_fix",
-              "effect": { "sanity": -10 }
+              "effect": {
+                "sanity": -10
+              }
             },
             {
               "id": "s_pod_3",
               "text": "检查三号逃生舱的错误",
               "next_node_id": "space_pod_mystery",
-              "effect": { "sanity": -5 }
+              "effect": {
+                "sanity": -5
+              }
             }
           ]
         },
@@ -422,19 +530,26 @@
               "id": "s_bridge_1",
               "text": "追踪求救信号的来源",
               "next_node_id": "space_distress_signal",
-              "effect": { "sanity": -10 }
+              "effect": {
+                "sanity": -10
+              }
             },
             {
               "id": "s_bridge_2",
               "text": "搜索舰长的遗物寻找线索",
               "next_node_id": "space_captain_log",
-              "effect": { "sanity": 5, "add_item": "captain_badge" }
+              "effect": {
+                "sanity": 5,
+                "add_item": "captain_badge"
+              }
             },
             {
               "id": "s_bridge_3",
               "text": "设置自动驾驶前往最近星球",
               "next_node_id": "space_auto_pilot",
-              "effect": { "charisma": 10 }
+              "effect": {
+                "charisma": 10
+              }
             }
           ]
         },
@@ -446,19 +561,26 @@
               "id": "s_storage_1",
               "text": "穿好防护服后去调查声响",
               "next_node_id": "space_alien_encounter",
-              "effect": { "health": -10 }
+              "effect": {
+                "health": -10
+              }
             },
             {
               "id": "s_storage_2",
               "text": "拿上防护服立刻离开",
               "next_node_id": "space_engine_room",
-              "effect": { "sanity": 5 }
+              "effect": {
+                "sanity": 5
+              }
             },
             {
               "id": "s_storage_3",
               "text": "找点武器防身",
               "next_node_id": "space_find_weapon",
-              "effect": { "add_item": "plasma_pistol", "gold": 0 }
+              "effect": {
+                "add_item": "plasma_pistol",
+                "gold": 0
+              }
             }
           ]
         },
@@ -470,7 +592,9 @@
               "id": "s_repair_1",
               "text": "返回驾驶舱发送求救信号",
               "next_node_id": "space_good_ending",
-              "condition": { "health": 20 }
+              "condition": {
+                "health": 20
+              }
             },
             {
               "id": "s_repair_2",
@@ -487,7 +611,9 @@
               "id": "s_launch_1",
               "text": "检查补给和通讯设备",
               "next_node_id": "space_neutral_ending",
-              "effect": { "sanity": 10 }
+              "effect": {
+                "sanity": 10
+              }
             }
           ]
         },
@@ -499,13 +625,17 @@
               "id": "s_fix_1",
               "text": "查看飞行记录仪的内容",
               "next_node_id": "space_truth_revealed",
-              "effect": { "sanity": -15 }
+              "effect": {
+                "sanity": -15
+              }
             },
             {
               "id": "s_fix_2",
               "text": "立刻发射逃生舱",
               "next_node_id": "space_pod_launch",
-              "effect": { "health": 5 }
+              "effect": {
+                "health": 5
+              }
             }
           ]
         },
@@ -517,13 +647,17 @@
               "id": "s_mystery_1",
               "text": "打开舱门查看",
               "next_node_id": "space_alien_encounter",
-              "effect": { "sanity": -20 }
+              "effect": {
+                "sanity": -20
+              }
             },
             {
               "id": "s_mystery_2",
               "text": "吓得立刻跑向其他逃生舱",
               "next_node_id": "space_escape_pod",
-              "effect": { "sanity": -5 }
+              "effect": {
+                "sanity": -5
+              }
             }
           ]
         },
@@ -535,20 +669,28 @@
               "id": "s_signal_1",
               "text": "悄悄后退，不发出任何声音",
               "next_node_id": "space_bridge",
-              "condition": { "sanity": 40 },
-              "effect": { "sanity": -10 }
+              "condition": {
+                "sanity": 40
+              },
+              "effect": {
+                "sanity": -10
+              }
             },
             {
               "id": "s_signal_2",
               "text": "转身就跑",
               "next_node_id": "space_alien_chase",
-              "effect": { "health": -15 }
+              "effect": {
+                "health": -15
+              }
             },
             {
               "id": "s_signal_3",
               "text": "尝试与它交流",
               "next_node_id": "space_good_ending",
-              "condition": { "charisma": 60 }
+              "condition": {
+                "charisma": 60
+              }
             }
           ]
         },
@@ -560,13 +702,17 @@
               "id": "s_log_1",
               "text": "听从舰长警告，去引擎室启动自毁",
               "next_node_id": "space_good_ending",
-              "effect": { "sanity": 10 }
+              "effect": {
+                "sanity": 10
+              }
             },
             {
               "id": "s_log_2",
               "text": "无视警告，赶紧坐逃生舱离开",
               "next_node_id": "space_bad_ending",
-              "effect": { "sanity": -20 }
+              "effect": {
+                "sanity": -20
+              }
             }
           ]
         },
@@ -599,14 +745,21 @@
               "id": "s_alien_1",
               "text": "用意志力抵抗精神入侵",
               "next_node_id": "space_distress_signal",
-              "condition": { "sanity": 50 },
-              "effect": { "sanity": -20, "health": -10 }
+              "condition": {
+                "sanity": 50
+              },
+              "effect": {
+                "sanity": -20,
+                "health": -10
+              }
             },
             {
               "id": "s_alien_2",
               "text": "放弃抵抗，任由它进入",
               "next_node_id": "space_bad_ending",
-              "effect": { "sanity": -50 }
+              "effect": {
+                "sanity": -50
+              }
             }
           ]
         },
@@ -618,13 +771,17 @@
               "id": "s_chase_1",
               "text": "冲向引擎室",
               "next_node_id": "space_engine_room",
-              "effect": { "sanity": -10 }
+              "effect": {
+                "sanity": -10
+              }
             },
             {
               "id": "s_chase_2",
               "text": "冲向逃生舱区",
               "next_node_id": "space_escape_pod",
-              "effect": { "health": -10 }
+              "effect": {
+                "health": -10
+              }
             }
           ]
         },
@@ -636,13 +793,17 @@
               "id": "s_truth_1",
               "text": "明白了一切，去引擎室启动自毁程序",
               "next_node_id": "space_good_ending",
-              "effect": { "sanity": 10 }
+              "effect": {
+                "sanity": 10
+              }
             },
             {
               "id": "s_truth_2",
               "text": "决定逃跑，不管后果如何",
               "next_node_id": "space_pod_launch",
-              "effect": { "sanity": -10 }
+              "effect": {
+                "sanity": -10
+              }
             }
           ]
         },
@@ -654,7 +815,9 @@
               "id": "s_auto_1",
               "text": "查看舰长日志打发时间",
               "next_node_id": "space_captain_log",
-              "effect": { "sanity": 5 }
+              "effect": {
+                "sanity": 5
+              }
             }
           ]
         },
@@ -666,13 +829,1458 @@
               "id": "s_weapon_1",
               "text": "调查储物间里的声响",
               "next_node_id": "space_alien_encounter",
-              "effect": { "health": -5 }
+              "effect": {
+                "health": -5
+              }
             },
             {
               "id": "s_weapon_2",
               "text": "带上防护服去引擎室",
               "next_node_id": "space_engine_room",
-              "effect": { "sanity": 5 }
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "detective": {
+      "nodes": [
+        {
+          "id": "detective_start",
+          "text": "1923年，伦敦。\n\n浓雾笼罩着这座古老的城市，你是私人侦探爱德华·霍克。\n\n一封神秘的来信将你带到了贝克特庄园——富翁阿德里安·贝克特昨晚在书房中被人谋杀了。\n\n庄园的大门前，管家正在焦急地等待着你。\n\n\"霍克先生，您可来了...老爷他...他死得太惨了...\"",
+          "choices": [
+            {
+              "id": "d_choice_1",
+              "text": "直接去案发现场查看",
+              "next_node_id": "detective_study",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "d_choice_2",
+              "text": "先询问管家一些基本情况",
+              "next_node_id": "detective_butler_talk",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "d_choice_3",
+              "text": "四处走访庄园里的其他人",
+              "next_node_id": "detective_suspects",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_study",
+          "text": "书房位于庄园的东翼。\n\n推开门，一股血腥味扑面而来。贝克特先生倒在书桌旁，胸口插着一把银质拆信刀。\n\n书桌上散落着一些文件，墙上的保险柜敞开着，里面空空如也。\n\n窗户是从内部锁上的——这是一间密室。\n\n你注意到：\n1. 死者右手紧握着什么东西\n2. 地毯上有暗红色的脚印延伸向门口\n3. 书架第三层的书似乎被动过",
+          "choices": [
+            {
+              "id": "d_study_1",
+              "text": "检查死者右手握着的东西",
+              "next_node_id": "detective_clue_ring",
+              "effect": {
+                "add_item": "golden_ring"
+              }
+            },
+            {
+              "id": "d_study_2",
+              "text": "跟随地上的脚印",
+              "next_node_id": "detective_footprints",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "d_study_3",
+              "text": "检查书架上被动过的书",
+              "next_node_id": "detective_secret_bookshelf",
+              "effect": {
+                "add_item": "old_letter"
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_butler_talk",
+          "text": "管家詹姆斯跟随你走进客厅。\n\n\"老爷昨晚八点左右回的书房，说要处理一些重要文件。我在十点端宵夜过去时...就发现了...\"\n\n他的声音有些颤抖：\n\n\"庄园里除了我，还有厨师玛丽、园丁托马斯、小姐维罗妮卡，以及...昨晚来访的年轻律师埃德蒙先生。\"\n\n你注意到管家的左手似乎受了伤，缠着绷带。",
+          "choices": [
+            {
+              "id": "d_butler_1",
+              "text": "询问管家受伤的手是怎么回事",
+              "next_node_id": "detective_butler_alibi",
+              "condition": {
+                "charisma": 40
+              }
+            },
+            {
+              "id": "d_butler_2",
+              "text": "询问关于律师埃德蒙的事",
+              "next_node_id": "detective_lawyer_info",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "d_butler_3",
+              "text": "去看看其他嫌疑人",
+              "next_node_id": "detective_suspects",
+              "effect": {
+                "charisma": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_suspects",
+          "text": "你在庄园里四处走访。\n\n在花园里，你遇到了园丁托马斯，他正在修剪玫瑰花丛，神情有些紧张。\n\n在厨房，厨师玛丽正在准备午餐，她的眼睛红红的，似乎刚哭过。\n\n在二楼的走廊，你遇见了大小姐维罗妮卡，她穿着一袭黑色长裙，面无表情。\n\n而客厅里，年轻的律师埃德蒙正不安地来回踱步。",
+          "choices": [
+            {
+              "id": "d_sus_1",
+              "text": "与园丁托马斯交谈",
+              "next_node_id": "detective_gardener",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "d_sus_2",
+              "text": "与厨师玛丽交谈",
+              "next_node_id": "detective_cook",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "d_sus_3",
+              "text": "与大小姐维罗妮卡交谈",
+              "next_node_id": "detective_daughter",
+              "effect": {
+                "charisma": -5
+              }
+            },
+            {
+              "id": "d_sus_4",
+              "text": "与律师埃德蒙交谈",
+              "next_node_id": "detective_lawyer",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_clue_ring",
+          "text": "你小心地掰开死者的手指。\n\n那是一枚金戒指，内侧刻着一行小字：\n\n\"永远属于你 —— V\"\n\nV...这会是谁的名字？维罗妮卡？还是...别人？\n\n你将戒指收好。这可能是重要的证据。",
+          "choices": [
+            {
+              "id": "d_ring_1",
+              "text": "继续搜查书房其他地方",
+              "next_node_id": "detective_study_more",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "d_ring_2",
+              "text": "拿着戒指去质问维罗妮卡",
+              "next_node_id": "detective_confront_veronica",
+              "effect": {
+                "charisma": -10
+              }
+            },
+            {
+              "id": "d_ring_3",
+              "text": "先不打草惊蛇，去问问其他人",
+              "next_node_id": "detective_suspects",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_footprints",
+          "text": "你蹲下仔细观察那些脚印。\n\n脚印是男士皮鞋的尺码，大约42码。脚印从书房门口一直延伸到楼梯口，然后消失了。\n\n奇怪的是...这些脚印只有去的方向，没有回来的方向。\n\n难道凶手还在这栋房子里？\n\n你感到后背一阵发凉。",
+          "choices": [
+            {
+              "id": "d_foot_1",
+              "text": "顺着脚印上楼调查",
+              "next_node_id": "detective_upstairs",
+              "effect": {
+                "health": -5,
+                "sanity": -10
+              }
+            },
+            {
+              "id": "d_foot_2",
+              "text": "返回书房，检查窗户",
+              "next_node_id": "detective_window",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "d_foot_3",
+              "text": "去找管家确认大家的鞋码",
+              "next_node_id": "detective_butler_shoes",
+              "effect": {
+                "charisma": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_secret_bookshelf",
+          "text": "你走近书架，仔细观察。\n\n第三层有一本书明显比其他书要新一些。你抽出那本书，发现书里面是空的——中间藏着一封泛黄的信。\n\n信的日期是二十年前，署名是一个叫\"玛格丽特\"的女人。\n\n信中写道：\n\n\"亲爱的阿德里安，我们的孩子...她需要一个父亲。你不能就这样抛弃我们...\"\n\n孩子？贝克特先生还有一个私生女？",
+          "choices": [
+            {
+              "id": "d_book_1",
+              "text": "把信收好，继续调查",
+              "next_node_id": "detective_study_more",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "d_book_2",
+              "text": "去找维罗妮卡问清楚这件事",
+              "next_node_id": "detective_secret_daughter",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "d_book_3",
+              "text": "去问问老管家是否知道这件事",
+              "next_node_id": "detective_butler_secret",
+              "condition": {
+                "charisma": 50
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_study_more",
+          "text": "你继续仔细搜查书房。\n\n书桌的抽屉里，你找到了一份遗嘱草稿——上面写着将全部遗产留给一个名为\"玛格丽特·史密斯\"的人。\n\n但这份遗嘱似乎并没有签字生效。\n\n保险箱里，除了一些现金不见了，还有一个小盒子是空的。盒子上写着：\"给我的女儿。\"\n\n你感觉真相正在一点点浮出水面...",
+          "choices": [
+            {
+              "id": "d_more_1",
+              "text": "去询问律师关于遗嘱的事",
+              "next_node_id": "detective_lawyer_will",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "d_more_2",
+              "text": "去找维罗妮卡，看看她的反应",
+              "next_node_id": "detective_daughter_will",
+              "effect": {
+                "charisma": -5
+              }
+            },
+            {
+              "id": "d_more_3",
+              "text": "去花园散散心，整理一下思路",
+              "next_node_id": "detective_garden",
+              "effect": {
+                "sanity": 10,
+                "health": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_gardener",
+          "text": "园丁托马斯是个沉默寡言的中年人。\n\n\"...我什么都不知道。我昨晚八点就回自己小屋睡觉了。\"\n\n他说话的时候，目光躲闪，不敢直视你。\n\n你注意到他的围裙上有一些暗红色的污渍...是血吗？",
+          "choices": [
+            {
+              "id": "d_garden_1",
+              "text": "直接质问他围裙上的污渍",
+              "next_node_id": "detective_gardener_stain",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "d_garden_2",
+              "text": "假装不在意，问问他和老爷的关系",
+              "next_node_id": "detective_gardener_relation",
+              "effect": {
+                "charisma": 10
+              }
+            },
+            {
+              "id": "d_garden_3",
+              "text": "离开，去看看其他人",
+              "next_node_id": "detective_suspects",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_cook",
+          "text": "厨师玛丽一边擦着眼泪一边接受你的询问。\n\n\"老爷...老爷是个好人...他为什么会死啊...\"\n\n她告诉你，昨晚她七点吃完晚饭就回房了，一直到今早才出来。\n\n但你注意到，厨房的橱柜里少了一把切肉刀——那是她常用的那一把。",
+          "choices": [
+            {
+              "id": "d_cook_1",
+              "text": "问她那把切肉刀去哪了",
+              "next_node_id": "detective_cook_knife",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "d_cook_2",
+              "text": "安慰她，问问老爷生前的事",
+              "next_node_id": "detective_cook_past",
+              "effect": {
+                "charisma": 10
+              }
+            },
+            {
+              "id": "d_cook_3",
+              "text": "不动声色，去别的地方看看",
+              "next_node_id": "detective_suspects",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_daughter",
+          "text": "维罗妮卡·贝克特，28岁，死者唯一的女儿。\n\n她的表情很平静，甚至可以说是冷淡。\n\n\"侦探先生，您想问什么就问吧。我和我父亲的关系...并不好。\"\n\n她点燃一支烟，深吸一口：\n\n\"他是个自私的人，只顾自己。他的死...说实话，我并不意外。\"",
+          "choices": [
+            {
+              "id": "d_daughter_1",
+              "text": "问她昨晚在哪里",
+              "next_node_id": "detective_daughter_alibi",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "d_daughter_2",
+              "text": "问她和父亲关系不好的原因",
+              "next_node_id": "detective_daughter_reason",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "d_daughter_3",
+              "text": "拿出那枚戒指问她是否认识",
+              "next_node_id": "detective_daughter_ring",
+              "condition": {
+                "has_item": "golden_ring"
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_lawyer",
+          "text": "埃德蒙·格雷律师，30岁左右，年轻有为。\n\n\"霍克先生，我是贝克特先生的私人律师。昨晚他叫我过来...说是要修改遗嘱。但我到的时候...他已经...\"\n\n他看起来很焦虑，不停整理着领带。\n\n你注意到他的皮鞋很干净——或者说，干净得有些刻意，像是刚刚擦过。",
+          "choices": [
+            {
+              "id": "d_law_1",
+              "text": "问他遗嘱修改的内容",
+              "next_node_id": "detective_lawyer_will",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "d_law_2",
+              "text": "问他昨晚的具体行踪",
+              "next_node_id": "detective_lawyer_alibi",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "d_law_3",
+              "text": "观察他的反应，暂时不揭穿",
+              "next_node_id": "detective_lawyer_observe",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_secret_daughter",
+          "text": "你来到维罗妮卡的房间。\n\n当你提到那封信和\"玛格丽特\"时，维罗妮卡的脸色瞬间变得惨白。\n\n\"你...你怎么知道的？...不，这不可能...\"\n\n她深吸一口气，试图恢复镇定：\n\n\"那是我母亲。她和我父亲...年轻时候的事。我也是三年前才知道的。\"\n\n她说着，眼中闪过一丝怨恨：\n\n\"他明明知道我的存在，却二十多年来对我们母女不闻不问...\"",
+          "choices": [
+            {
+              "id": "d_secret_1",
+              "text": "问她是否因为这件事恨她父亲",
+              "next_node_id": "detective_daughter_motive",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "d_secret_2",
+              "text": "问她律师埃德蒙是否知道这件事",
+              "next_node_id": "detective_daughter_lawyer",
+              "effect": {
+                "sanity": 10
+              }
+            },
+            {
+              "id": "d_secret_3",
+              "text": "道歉打扰了，离开她的房间",
+              "next_node_id": "detective_suspects",
+              "effect": {
+                "charisma": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_garden",
+          "text": "你来到花园，试图让自己冷静下来。\n\n玫瑰花丛开得正盛，但在这雾蒙蒙的天气里，一切都显得有些阴郁。\n\n突然，你注意到花丛深处似乎埋着什么东西。\n\n你走过去，拨开玫瑰枝——\n\n那是一把沾着血的切肉刀。",
+          "choices": [
+            {
+              "id": "d_garden_knife_1",
+              "text": "小心地捡起刀，作为物证收好",
+              "next_node_id": "detective_knife_evidence",
+              "effect": {
+                "add_item": "bloody_knife"
+              }
+            },
+            {
+              "id": "d_garden_knife_2",
+              "text": "先不碰，看看周围还有没有其他线索",
+              "next_node_id": "detective_garden_more",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_accusation",
+          "text": "你将所有人召集到客厅。\n\n是时候揭开真相了。\n\n你环视着在场的每一个人——管家、厨师、园丁、大小姐、律师。\n\n每个人的脸上都带着不同的表情：不安、悲伤、冷漠、焦虑...\n\n凶手就在他们中间。\n\n你深吸一口气，准备说出那个名字——",
+          "choices": [
+            {
+              "id": "d_accuse_1",
+              "text": "指控管家詹姆斯",
+              "next_node_id": "detective_ending_butler",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "d_accuse_2",
+              "text": "指控厨师玛丽",
+              "next_node_id": "detective_ending_cook",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "d_accuse_3",
+              "text": "指控园丁托马斯",
+              "next_node_id": "detective_ending_gardener",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "d_accuse_4",
+              "text": "指控大小姐维罗妮卡",
+              "next_node_id": "detective_ending_daughter",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "d_accuse_5",
+              "text": "指控律师埃德蒙",
+              "next_node_id": "detective_ending_lawyer",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_ending_lawyer",
+          "text": "═══════════════════════════════\n\n           ✦ 真相大白 ✦\n\n═══════════════════════════════\n\n\"凶手就是你——埃德蒙·格雷先生！\"\n\n律师的脸色瞬间变得煞白。\n\n你继续说道：\n\n\"你是玛格丽特的儿子，也就是贝克特先生的私生子。你接近他，成为他的律师，就是为了今天——\n\n你想让他修改遗嘱，把财产留给你母亲。但他拒绝了。所以你杀了他，伪造了抢劫的假象！\"\n\n埃德蒙跪倒在地，失声痛哭...\n\n案件告破。你又一次捍卫了正义。\n\n【完美结局 - 侦探排名上升】",
+          "end": true,
+          "ending_type": "good",
+          "choices": []
+        },
+        {
+          "id": "detective_ending_daughter",
+          "text": "═══════════════════════════════\n\n           ○ 部分真相 ○\n\n═══════════════════════════════\n\n你指控了维罗妮卡。\n\n她笑了笑：\"你错了，侦探先生。我确实恨他，但我不会杀他。\"\n\n就在这时，管家詹姆斯站了出来：\n\n\"不...是我杀的。老爷他...他二十年前抛弃了我的姐姐和她的孩子...我只是想为姐姐讨回公道...\"\n\n案件虽然告破，但你总觉得哪里不对...\n\n维罗妮卡那意味深长的微笑，你始终无法忘怀。\n\n【普通结局 - 或许另有隐情】",
+          "end": true,
+          "ending_type": "neutral",
+          "choices": []
+        },
+        {
+          "id": "detective_ending_butler",
+          "text": "═══════════════════════════════\n\n           ✗ 冤枉好人 ✗\n\n═══════════════════════════════\n\n你指控了管家詹姆斯。\n\n老人只是沉默地摇了摇头，眼中满是失望。\n\n几天后，警方发现了真凶——是律师埃德蒙。他逃到了国外，再也找不到了。\n\n而詹姆斯因为这次冤狱，身体每况愈下，不久后就去世了。\n\n你一直无法原谅自己的失误。\n\n【失败结局 - 名侦探的污点】",
+          "end": true,
+          "ending_type": "bad",
+          "choices": []
+        },
+        {
+          "id": "detective_butler_alibi",
+          "text": "管家看了看自己的手，有些不自然。\n\n\"这...是我今早修剪玫瑰时不小心被刺的。\"\n\n他似乎有些回避你的目光。\n\n\"霍克先生，您...您不会是在怀疑我吧？我伺候老爷三十年了...\"\n\n他的声音有些哽咽。",
+          "choices": [
+            {
+              "id": "d_but_alibi_1",
+              "text": "道歉，说自己只是例行询问",
+              "next_node_id": "detective_butler_talk",
+              "effect": {
+                "charisma": 10
+              }
+            },
+            {
+              "id": "d_but_alibi_2",
+              "text": "继续追问他昨晚的不在场证明",
+              "next_node_id": "detective_suspects",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_upstairs",
+          "text": "你走上楼梯。\n\n走廊里很安静，只有你的脚步声在回响。\n\n脚印消失在楼梯口，就像凭空蒸发了一样。\n\n旁边是几间卧室——维罗妮卡的房间、客房、还有...一间紧锁的房间。\n\n你试着扭了扭门把手——门从里面锁着。",
+          "choices": [
+            {
+              "id": "d_up_1",
+              "text": "强行撞开这扇门",
+              "next_node_id": "detective_secret_room",
+              "effect": {
+                "health": -10,
+                "sanity": -15
+              }
+            },
+            {
+              "id": "d_up_2",
+              "text": "下楼去找管家要钥匙",
+              "next_node_id": "detective_butler_key",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "detective_secret_room",
+          "text": "你用力撞开了门。\n\n门后是一间小小的密室，墙上挂满了照片——都是同一个女人的照片。\n\n那是一个美丽的女人，眉眼间和维罗妮卡有几分相似...\n\n突然，你听到身后传来脚步声。\n\n你猛地回头——\n\n一个黑影举起了什么东西，向你砸来...\n\n...\n\n【你失去了意识】",
+          "end": true,
+          "ending_type": "bad",
+          "choices": []
+        }
+      ]
+    },
+    "horror": {
+      "nodes": [
+        {
+          "id": "horror_start",
+          "text": "你收到了一封邀请函。\n\n信上说，黑木庄园将举办一场特别的过夜探险活动，邀请勇敢的人来体验一晚。\n\n据说这栋庄园在五十年前发生过一起灭门惨案，之后就荒废了。\n\n作为一名灵异爱好者，你当然不会错过这个机会。\n\n午夜时分，你站在黑木庄园的大门前。生锈的铁门在夜风中发出吱呀的声响。\n\n你深吸一口气，推开了大门——",
+          "choices": [
+            {
+              "id": "h_choice_1",
+              "text": "从正门进入",
+              "next_node_id": "horror_main_hall",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "h_choice_2",
+              "text": "绕到后门进去",
+              "next_node_id": "horror_back_entrance",
+              "effect": {
+                "health": -5
+              }
+            },
+            {
+              "id": "h_choice_3",
+              "text": "先在院子里转转",
+              "next_node_id": "horror_courtyard",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_main_hall",
+          "text": "大厅比你想象的要宽敞得多。\n\n厚厚的灰尘覆盖着一切，蜘蛛网从水晶吊灯上垂落下来。\n\n月光透过破碎的彩色玻璃窗照进来，在地板上投下诡异的光斑。\n\n大厅中央有一座古老的大座钟，指针停在凌晨3点33分。\n\n突然，你听到楼上传来了什么声音——\n\n咚...咚...咚...\n\n像是有人在走路。",
+          "choices": [
+            {
+              "id": "h_hall_1",
+              "text": "上楼去看看",
+              "next_node_id": "horror_upstairs_hall",
+              "effect": {
+                "sanity": -15
+              }
+            },
+            {
+              "id": "h_hall_2",
+              "text": "先检查大厅里的其他房间",
+              "next_node_id": "horror_side_rooms",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "h_hall_3",
+              "text": "站在原地仔细听声音的来源",
+              "next_node_id": "horror_listen",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_back_entrance",
+          "text": "你绕到了庄园的后面。\n\n后院杂草丛生，一口废弃的水井在月光下显得格外阴森。\n\n后门虚掩着，似乎有人刚进去过。\n\n你推开门，是厨房。\n\n生锈的锅碗瓢盆散落一地，灶台上还摆着...没吃完的食物？\n\n不对，那些食物看起来...像是昨天的。\n\n但这栋庄园不是荒废了五十年吗？",
+          "choices": [
+            {
+              "id": "h_back_1",
+              "text": "检查那些食物",
+              "next_node_id": "horror_kitchen_food",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "h_back_2",
+              "text": "顺着走廊往里走",
+              "next_node_id": "horror_main_hall",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "h_back_3",
+              "text": "离开厨房，去看看那口井",
+              "next_node_id": "horror_well",
+              "effect": {
+                "sanity": -15
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_courtyard",
+          "text": "院子里长满了齐膝高的野草。\n\n你小心翼翼地走着，脚下不时传来枯枝断裂的声音。\n\n突然，你看到了一座小教堂——就在庄园的东侧。\n\n教堂的门半开着，里面透出微弱的光。\n\n不可能啊...这里明明废弃了五十年...\n\n你的心跳开始加速。",
+          "choices": [
+            {
+              "id": "h_court_1",
+              "text": "走进那座小教堂",
+              "next_node_id": "horror_chapel",
+              "effect": {
+                "sanity": -20
+              }
+            },
+            {
+              "id": "h_court_2",
+              "text": "还是去主建筑里看看吧",
+              "next_node_id": "horror_main_hall",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "h_court_3",
+              "text": "离开院子，回到大门",
+              "next_node_id": "horror_escape_gate",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_upstairs_hall",
+          "text": "你走上吱呀作响的楼梯。\n\n二楼走廊很长，两旁是紧闭的房门。\n\n走廊的尽头有一面大镜子，镜面有些模糊。\n\n当你走过那面镜子时——\n\n你看到镜子里的自己...在对你笑。\n\n但你并没有笑。",
+          "choices": [
+            {
+              "id": "h_up_1",
+              "text": "凑近镜子仔细看",
+              "next_node_id": "horror_mirror",
+              "effect": {
+                "sanity": -20,
+                "health": -5
+              }
+            },
+            {
+              "id": "h_up_2",
+              "text": "立刻转身往楼下跑",
+              "next_node_id": "horror_stairs_chase",
+              "effect": {
+                "health": -10,
+                "sanity": -10
+              }
+            },
+            {
+              "id": "h_up_3",
+              "text": "闭上眼睛，告诉自己这是幻觉",
+              "next_node_id": "horror_illusion",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_side_rooms",
+          "text": "大厅左侧是餐厅，右侧是会客厅。\n\n餐厅里，长桌上还摆着五套餐具，像是在等待着什么人。\n\n会客厅的壁炉里，居然有火光在跳动。\n\n谁在那里？\n\n你屏住呼吸，慢慢靠近...",
+          "choices": [
+            {
+              "id": "h_side_1",
+              "text": "去餐厅看看",
+              "next_node_id": "horror_dining_room",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "h_side_2",
+              "text": "去会客厅看看",
+              "next_node_id": "horror_living_room",
+              "effect": {
+                "sanity": -15
+              }
+            },
+            {
+              "id": "h_side_3",
+              "text": "大声问：谁在那里？",
+              "next_node_id": "horror_call_out",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_chapel",
+          "text": "你推开了教堂的门。\n\n里面点着白色的蜡烛，摇曳的火光照亮了一排排长椅。\n\n祭坛前站着一个穿白色长裙的女人，背对着你。\n\n她似乎在祈祷，口中念念有词。\n\n你想说话，但喉咙像是被什么堵住了。\n\n突然，她停下了。\n\n她...在慢慢转过头——",
+          "choices": [
+            {
+              "id": "h_chapel_1",
+              "text": "等她转过来",
+              "next_node_id": "horror_ghost_face",
+              "effect": {
+                "sanity": -30,
+                "health": -10
+              }
+            },
+            {
+              "id": "h_chapel_2",
+              "text": "转身就跑",
+              "next_node_id": "horror_run_away",
+              "effect": {
+                "health": -5,
+                "sanity": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_mirror",
+          "text": "你走近那面镜子。\n\n镜中的你笑容越来越诡异，嘴角几乎咧到了耳根。\n\n然后，镜中的你伸出了手——穿过了镜面。\n\n你感到一阵刺骨的寒冷从胸口传来。\n\n低头看，一只苍白的手正从你的胸膛里穿出...\n\n...\n\n不，这都是幻觉！\n\n你用力闭上眼睛，再睁开——\n\n一切恢复了正常。镜子里只是你惊恐的脸。\n\n但...你的胸口上，有一个青紫的手印。",
+          "choices": [
+            {
+              "id": "h_mirror_1",
+              "text": "打碎这面镜子",
+              "next_node_id": "horror_mirror_break",
+              "effect": {
+                "sanity": -10,
+                "health": -5
+              }
+            },
+            {
+              "id": "h_mirror_2",
+              "text": "赶紧离开这个地方",
+              "next_node_id": "horror_main_hall",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_living_room",
+          "text": "你走进会客厅。\n\n壁炉里确实燃着火，但旁边没有人。\n\n奇怪...难道是自燃的？\n\n你在房间里转了一圈，发现了一本日记本——就放在沙发上。\n\n日记本的封面上写着一个名字：艾莉丝·布莱克伍德。\n\n这是五十年前那起惨案中死去的小女儿的名字。",
+          "choices": [
+            {
+              "id": "h_living_1",
+              "text": "翻开日记",
+              "next_node_id": "horror_diary",
+              "effect": {
+                "add_item": "ghost_diary",
+                "sanity": -15
+              }
+            },
+            {
+              "id": "h_living_2",
+              "text": "不碰它，继续搜索房间",
+              "next_node_id": "horror_living_search",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_diary",
+          "text": "你翻开了日记。\n\n纸张已经泛黄，但字迹依然清晰：\n\n\"1974年10月13日\n妈妈说我不能去地下室。但我听到了，下面有人在唱歌...\n\n1974年10月20日\n爸爸最近很奇怪，他总是对着空气说话。他说那是他的朋友...\n\n1974年10月30日\n我看到了。在镜子里。它在对我笑。妈妈说那是我的幻觉。但我知道不是...\n\n1974年11月1日\n它说，如果我邀请它进来，它就带我去一个更好的地方...\n我好想去...\"\n\n日记到这里就结束了。",
+          "choices": [
+            {
+              "id": "h_diary_1",
+              "text": "去找地下室",
+              "next_node_id": "horror_basement_door",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "h_diary_2",
+              "text": "把日记放回去，离开这里",
+              "next_node_id": "horror_main_hall",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_well",
+          "text": "你来到那口古井前。\n\n井很深，看不到底。\n\n你俯下身，想看看井底——\n\n突然，你听到井里传来了...声音？\n\n像是有人在念你的名字。\n\n声音越来越清晰...\n\n\"下来吧...下来陪我...\"",
+          "choices": [
+            {
+              "id": "h_well_1",
+              "text": "探身下去看清楚",
+              "next_node_id": "horror_well_look",
+              "effect": {
+                "health": -10,
+                "sanity": -20
+              }
+            },
+            {
+              "id": "h_well_2",
+              "text": "立刻离开这口井",
+              "next_node_id": "horror_back_entrance",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_basement_door",
+          "text": "你在厨房后面找到了通往地下室的门。\n\n门上挂着一把生锈的锁，但锁是开着的。\n\n你推开了门。一股霉味扑面而来。\n\n楼梯很陡，下面一片漆黑。\n\n你拿出手机打开手电筒，慢慢往下走。\n\n每走一步，木质楼梯都发出吱呀的声响。\n\n你感觉...下面好像有什么东西在等你。",
+          "choices": [
+            {
+              "id": "h_base_1",
+              "text": "继续往下走",
+              "next_node_id": "horror_basement",
+              "effect": {
+                "sanity": -20
+              }
+            },
+            {
+              "id": "h_base_2",
+              "text": "太危险了，还是回去吧",
+              "next_node_id": "horror_back_entrance",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_basement",
+          "text": "地下室比你想象的要大得多。\n\n墙壁上画满了奇怪的符号，散发着...血的味道。\n\n地下室中央有一个祭坛，上面放着一本黑色的书。\n\n书的旁边，是五个蜡烛——排成了五角星的形状。\n\n你慢慢走近，想看看那本书上写着什么。\n\n就在这时——\n\n身后传来了门关上的声音。",
+          "choices": [
+            {
+              "id": "h_base_3",
+              "text": "立刻转身往门口跑",
+              "next_node_id": "horror_trapped",
+              "effect": {
+                "sanity": -15
+              }
+            },
+            {
+              "id": "h_base_4",
+              "text": "打开那本书看看",
+              "next_node_id": "horror_necronomicon",
+              "effect": {
+                "sanity": -25
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_ghost_face",
+          "text": "她转过来了。\n\n那是一张美丽的脸，但苍白得像纸一样。\n\n她的眼睛...全黑的，没有眼白。\n\n\"你...是来陪我的吗？\"\n\n她的声音很轻，像在耳边低语。\n\n你感到身体越来越冷，意识开始模糊...\n\n就在这时——\n\n天亮了。\n\n第一缕阳光透过教堂的窗户照了进来。\n\n那个女人...消失了。\n\n你发现自己躺在地板上，浑身冰冷。\n\n你活下来了。但你知道，有些东西已经永远改变了。",
+          "choices": [
+            {
+              "id": "h_ghost_1",
+              "text": "赶紧离开这个地方",
+              "next_node_id": "horror_survive_ending",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_survive_ending",
+          "text": "═══════════════════════════════\n\n           ✦ 劫后余生 ✦\n\n═══════════════════════════════\n\n你跌跌撞撞地跑出了黑木庄园。\n\n当太阳完全升起时，你回头看了一眼。\n\n大门口站着一个白色的身影，在向你挥手告别。\n\n你活下来了。\n\n但从那以后，你再也不敢在半夜照镜子。\n\n因为你知道，镜子里的东西，一直在看着你。\n\n【好结局 - 活着就好】",
+          "end": true,
+          "ending_type": "good",
+          "choices": []
+        },
+        {
+          "id": "horror_trapped",
+          "text": "你拼命地跑向门口。\n\n但门已经被锁上了。无论你怎么推、怎么撞，都无济于事。\n\n\"放我出去！放我出去！\"\n\n你的声音在空旷的地下室里回荡。\n\n然后，你听到了它的声音——\n\n从四面八方传来...\n\n\"你是我的了...永远...\"\n\n...\n\n三天后，搜救队在地下室里发现了你的尸体。\n\n你的脸上带着诡异的微笑。\n\n就像...镜子里的那个一样。",
+          "end": true,
+          "ending_type": "bad",
+          "choices": []
+        },
+        {
+          "id": "horror_escape_gate",
+          "text": "你决定离开院子，回到大门口。\n\n但当你走到大门时——\n\n门是锁着的。\n\n你明明记得进来的时候是推开的...\n\n你用力摇晃着铁门，大喊着。但没有人回应。\n\n雾越来越浓，越来越浓...\n\n你感觉，自己可能永远也走不出这里了。",
+          "choices": [
+            {
+              "id": "h_escape_1",
+              "text": "翻门爬出去",
+              "next_node_id": "horror_climb_fence",
+              "effect": {
+                "health": -15
+              }
+            },
+            {
+              "id": "h_escape_2",
+              "text": "回到庄园里找找其他出路",
+              "next_node_id": "horror_main_hall",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_climb_fence",
+          "text": "你开始攀爬铁门。\n\n铁门很高，而且布满了铁锈和尖刺。\n\n你的手被划破了，流出了血。\n\n但你不在乎——你只想离开这个鬼地方。\n\n就在你快要翻过去的时候——\n\n你感到脚踝被什么东西抓住了。\n\n一只苍白的、冰冷的手...\n\n它在把你往下拉。",
+          "choices": [
+            {
+              "id": "h_climb_1",
+              "text": "拼命挣扎",
+              "next_node_id": "horror_escape_failed",
+              "effect": {
+                "health": -20,
+                "sanity": -20
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_escape_failed",
+          "text": "═══════════════════════════════\n\n           ○ 永远徘徊 ○\n\n═══════════════════════════════\n\n你被拉回了院子里。\n\n但你没有死。\n\n准确地说...你不知道自己是不是还活着。\n\n你看着自己的身体躺在地上，而你...站在旁边。\n\n远处的庄园大门前，站着和你一样的身影，在徒劳地推着门。\n\n原来，那些传说中的鬼魂...\n\n都是像你一样，没能走出去的人。\n\n【坏结局 - 成为传说的一部分】",
+          "end": true,
+          "ending_type": "bad",
+          "choices": []
+        },
+        {
+          "id": "horror_necronomicon",
+          "text": "你打开了那本黑色的书。\n\n书页是用某种皮肤制成的，上面写着你看不懂的文字。\n\n但不知为何，你能理解它们的意思。\n\n这是一本召唤之书。它可以让你和...另一边的存在对话。\n\n一个声音在你脑海中响起：\n\n\"你想要什么？财富？权力？还是...永生？\"\n\n你知道，你不应该答应。但...这个诱惑太大了...",
+          "choices": [
+            {
+              "id": "h_necro_1",
+              "text": "拒绝，合上书",
+              "next_node_id": "horror_survive_ending",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "h_necro_2",
+              "text": "接受它的交易",
+              "next_node_id": "horror_deal_ending",
+              "effect": {
+                "sanity": -50
+              }
+            }
+          ]
+        },
+        {
+          "id": "horror_deal_ending",
+          "text": "═══════════════════════════════\n\n           ○ 与魔共舞 ○\n\n═══════════════════════════════\n\n你答应了。\n\n从那以后，你获得了一切——财富、权力、永生。\n\n但代价是...\n\n每当月圆之夜，你都必须回到这座庄园。\n\n为它...带来新的访客。\n\n邀请函上的笔迹，你再熟悉不过了。\n\n那是你自己的字。\n\n【中性结局 - 永恒的囚徒】",
+          "end": true,
+          "ending_type": "neutral",
+          "choices": []
+        }
+      ]
+    },
+    "pirate": {
+      "nodes": [
+        {
+          "id": "pirate_start",
+          "text": "托尔图加港，加勒比海最著名的海盗巢穴。\n\n你是杰克·雷文，一个刚出道不久的海盗船长——虽然你现在还没有自己的船。\n\n酒馆里，老船长摩根正在吹嘘他的传奇经历。据说他知道传说中的黄金海岸的位置——那里埋藏着数不尽的宝藏。\n\n但没有人相信他，因为所有去寻找黄金海岸的人，再也没有回来过。\n\n今天，你又一次听到了这个传说。\n\n也许...是时候干一票大的了？",
+          "choices": [
+            {
+              "id": "p_choice_1",
+              "text": "去找老船长摩根打听详情",
+              "next_node_id": "pirate_morgan_talk",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "p_choice_2",
+              "text": "去港口看看有没有可以偷的船",
+              "next_node_id": "pirate_harbor_steal",
+              "effect": {
+                "health": -5
+              }
+            },
+            {
+              "id": "p_choice_3",
+              "text": "招募船员，组建自己的队伍",
+              "next_node_id": "pirate_recruit",
+              "effect": {
+                "gold": -20
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_morgan_talk",
+          "text": "你在酒馆角落找到了老摩根。\n\n他只有一只眼睛，脸上有一道从额头延伸到下巴的刀疤。\n\n\"小子，你也想来听黄金海岸的故事？哈哈哈...\"\n\n他灌了一口朗姆酒：\n\n\"黄金海岸是真的，但也是个诅咒。那里的宝藏...是属于海妖的。\"\n\n他盯着你唯一的眼睛：\n\n\"如果你真的想去，我可以告诉你路线。但你得答应我一件事——帮我把我兄弟的尸骨带回来。\"\n\n他从怀里掏出一张泛黄的海图。",
+          "choices": [
+            {
+              "id": "p_morgan_1",
+              "text": "答应他的条件，接过海图",
+              "next_node_id": "pirate_get_map",
+              "effect": {
+                "add_item": "treasure_map"
+              }
+            },
+            {
+              "id": "p_morgan_2",
+              "text": "问他更多关于海妖的事",
+              "next_node_id": "pirate_siren_info",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "p_morgan_3",
+              "text": "拒绝，太危险了",
+              "next_node_id": "pirate_tavern_leave",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_harbor_steal",
+          "text": "港口停满了大大小小的船只。\n\n你看中了一艘小型双桅横帆船——速度快，容易操控，而且守卫松懈。\n\n但你一个人肯定开不走一艘船...\n\n等等，码头那边有个醉醺醺的水手，看起来很有经验的样子。\n\n你可以：\n1. 直接上船，看看能不能开走\n2. 先去招揽那个水手\n3. 再看看其他更好的船",
+          "choices": [
+            {
+              "id": "p_steal_1",
+              "text": "直接冲上那艘船",
+              "next_node_id": "pirate_ship_fight",
+              "effect": {
+                "health": -20
+              }
+            },
+            {
+              "id": "p_steal_2",
+              "text": "去和那个水手聊聊",
+              "next_node_id": "pirate_sailor_buddy",
+              "effect": {
+                "gold": -10
+              }
+            },
+            {
+              "id": "p_steal_3",
+              "text": "看看有没有更大更好的船",
+              "next_node_id": "pirate_big_ship",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_recruit",
+          "text": "你来到了港口的招聘处——其实就是一块破木板和几个醉醺醺的水手。\n\n你拍了拍桌子：\n\n\"谁愿意跟着我杰克·雷文去寻找黄金海岸？成功了，黄金分你们一半！\"\n\n人群安静了一下，然后爆发出哄堂大笑。\n\n\"就凭你？毛头小子？\"\n\n但人群中，有几个人站了起来...",
+          "choices": [
+            {
+              "id": "p_rec_1",
+              "text": "接受自愿加入的人",
+              "next_node_id": "pirate_crew_assemble",
+              "effect": {
+                "gold": -30
+              }
+            },
+            {
+              "id": "p_rec_2",
+              "text": "用拳头证明自己的实力",
+              "next_node_id": "pirate_bar_fight",
+              "condition": {
+                "health": 50
+              }
+            },
+            {
+              "id": "p_rec_3",
+              "text": "离开，去想别的办法",
+              "next_node_id": "pirate_harbor_steal",
+              "effect": {
+                "charisma": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_get_map",
+          "text": "你接过了海图。\n\n海图上画着一条蜿蜒的路线，穿过危险的暗礁区，到达一个标注着骷髅头的小岛。\n\n\"那就是黄金海岸。岛上有一座神殿，宝藏都在里面。\"\n\n摩根顿了顿：\n\n\"但记住——千万不要在月圆之夜登岛。那是海妖出没的时候。\n\n还有，如果遇到了我的兄弟...告诉他，对不起。\"\n\n他将一个吊坠递给你：\n\n\"拿着这个。他会认出来的。\"",
+          "choices": [
+            {
+              "id": "p_map_1",
+              "text": "接过吊坠，立刻出发准备",
+              "next_node_id": "pirate_crew_assemble",
+              "effect": {
+                "add_item": "morgan_pendant"
+              }
+            },
+            {
+              "id": "p_map_2",
+              "text": "再问他一些细节",
+              "next_node_id": "pirate_morgan_details",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_crew_assemble",
+          "text": "你终于凑齐了人手——五个经验丰富的水手，还有一艘不大但很结实的船。\n\n你把船命名为\"黑鸦号\"。\n\n船员们对你将信将疑，但至少他们愿意跟着你干这一票。\n\n港口的夕阳很美，海风吹拂着你的头发。\n\n这是你成为传奇海盗的第一步。\n\n\"船长，我们什么时候出发？\"大副问道。",
+          "choices": [
+            {
+              "id": "p_crew_1",
+              "text": "立刻出发！今晚月色正好",
+              "next_node_id": "pirate_set_sail_night",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "p_crew_2",
+              "text": "明天一早出发，白天更安全",
+              "next_node_id": "pirate_set_sail_day",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "p_crew_3",
+              "text": "再等等，还需要更多补给",
+              "next_node_id": "pirate_more_supplies",
+              "effect": {
+                "gold": -20,
+                "health": 10
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_set_sail_day",
+          "text": "第二天清晨，黑鸦号启航了。\n\n海风强劲，帆张得满满的。船员们哼着古老的海歌。\n\n一切都很顺利...直到第三天。\n\n海上起了大雾。\n\n能见度不到十米，罗盘也开始疯狂旋转。\n\n船员们开始窃窃私语——这是海妖的诅咒。\n\n你必须做出决定。",
+          "choices": [
+            {
+              "id": "p_sail_1",
+              "text": "按原方向继续前进",
+              "next_node_id": "pirate_fog_forward",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "p_sail_2",
+              "text": "原地抛锚，等雾散了再走",
+              "next_node_id": "pirate_fog_wait",
+              "effect": {
+                "sanity": -5,
+                "health": -5
+              }
+            },
+            {
+              "id": "p_sail_3",
+              "text": "改变方向，绕开这片海域",
+              "next_node_id": "pirate_fog_detour",
+              "effect": {
+                "health": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_fog_forward",
+          "text": "你下令继续前进。\n\n雾越来越浓，几乎伸手不见五指。\n\n突然，瞭望台上的水手大喊：\n\n\"前面有礁石！\"\n\n但已经太晚了。\n\n砰——！\n\n船撞上了暗礁。船体被撕开了一个大洞，海水开始涌入。\n\n船员们尖叫着四处逃窜。\n\n你必须尽快做出决定！",
+          "choices": [
+            {
+              "id": "p_fog_1",
+              "text": "组织船员抢救船只",
+              "next_node_id": "pirate_ship_repair",
+              "condition": {
+                "charisma": 50
+              }
+            },
+            {
+              "id": "p_fog_2",
+              "text": "跳上救生艇，弃船逃生",
+              "next_node_id": "pirate_lifeboat",
+              "effect": {
+                "health": -10,
+                "sanity": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_lifeboat",
+          "text": "你和几个幸存的船员跳上了救生艇。\n\n身后，黑鸦号慢慢沉入了海中。\n\n你们在海上漂流了三天三夜。没有食物，没有淡水。\n\n船员们一个接一个地倒下了...\n\n第四天，当你快要失去意识时——\n\n你看到了一座小岛。\n\n那是...黄金海岸？",
+          "choices": [
+            {
+              "id": "p_life_1",
+              "text": "拼尽全力划过去",
+              "next_node_id": "pirate_island_arrive",
+              "effect": {
+                "health": -20
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_island_arrive",
+          "text": "你终于登上了沙滩。\n\n这是一座美丽的小岛——洁白的沙滩，翠绿的丛林，远处还有一座山。\n\n但空气中，弥漫着一股...甜甜的香味？\n\n你沿着沙滩往前走，发现了一些脚印——很大，不像是人类的。\n\n就在这时，丛林里传来了窸窸窣窣的声音...",
+          "choices": [
+            {
+              "id": "p_island_1",
+              "text": "往丛林深处探索",
+              "next_node_id": "pirate_jungle",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "p_island_2",
+              "text": "沿着海滩走，找个安全的地方",
+              "next_node_id": "pirate_beach_walk",
+              "effect": {
+                "health": 5
+              }
+            },
+            {
+              "id": "p_island_3",
+              "text": "先休息一下，恢复体力",
+              "next_node_id": "pirate_rest_beach",
+              "effect": {
+                "health": 10,
+                "sanity": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_jungle",
+          "text": "丛林里比你想象的要危险得多。\n\n巨大的蜥蜴、有毒的藤蔓、还有...会吃人的花？\n\n你一路披荆斩棘，终于来到了岛屿中央。\n\n那里有一座古老的神殿——和摩根描述的一模一样。\n\n神殿的大门敞开着，里面透出金色的光芒。\n\n黄金...就在里面。\n\n但门口雕刻着警告的符文...看起来很不祥。",
+          "choices": [
+            {
+              "id": "p_jungle_1",
+              "text": "走进神殿",
+              "next_node_id": "pirate_temple_entrance",
+              "effect": {
+                "sanity": -15
+              }
+            },
+            {
+              "id": "p_jungle_2",
+              "text": "先研究一下门口的符文",
+              "next_node_id": "pirate_temple_runes",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_temple_entrance",
+          "text": "你走进了神殿。\n\n里面比你想象的要宏伟得多。巨大的石柱支撑着穹顶，墙上镶嵌着发光的宝石。\n\n而在神殿中央——\n\n金山。\n\n真的是金山。\n\n金币、珠宝、雕像、王冠...堆成了一座小山。\n\n你冲了过去，抓起一把金币——是真的！你发财了！\n\n但就在这时，你听到了身后传来了...歌声？\n\n不，不是歌声。是某种...低语。",
+          "choices": [
+            {
+              "id": "p_temple_1",
+              "text": "不管了，先装金子再说",
+              "next_node_id": "pirate_gold_grab",
+              "effect": {
+                "sanity": -10,
+                "gold": 200
+              }
+            },
+            {
+              "id": "p_temple_2",
+              "text": "转身看看是什么声音",
+              "next_node_id": "pirate_siren_encounter",
+              "effect": {
+                "sanity": -20
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_siren_encounter",
+          "text": "你转过身。\n\n她就站在那里。\n\n一个美丽的...怪物。\n\n上半身是女人的样子，下半身却是巨大的蛇尾。她的眼睛是金色的，像两汪深潭。\n\n\"又一个贪婪的人类...\"\n\n她的声音很好听，像是在唱歌：\n\n\"你想要黄金吗？我可以都给你...只要你...留下来陪我。\"\n\n你感到意识开始模糊...她的声音像是有魔力...",
+          "choices": [
+            {
+              "id": "p_siren_1",
+              "text": "抵抗她的诱惑，拔出武器",
+              "next_node_id": "pirate_siren_fight",
+              "condition": {
+                "sanity": 40
+              }
+            },
+            {
+              "id": "p_siren_2",
+              "text": "用摩根的吊坠试试",
+              "next_node_id": "pirate_siren_pendant",
+              "condition": {
+                "has_item": "morgan_pendant"
+              }
+            },
+            {
+              "id": "p_siren_3",
+              "text": "顺从她的意志",
+              "next_node_id": "pirate_siren_end",
+              "effect": {
+                "sanity": -50
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_siren_pendant",
+          "text": "你掏出了摩根的吊坠。\n\n当海妖看到吊坠的那一刻，她的歌声停了。\n\n\"这个...是你从哪里得到的？\"\n\n你告诉她，是老摩根给你的。\n\n海妖沉默了很久。\n\n\"...他还活着吗？\"\n\n你点了点头。\n\n她的眼中闪过一丝悲伤：\n\n\"五十年了...他终究还是没有回来。\n\n你是他的朋友？那好...我放你走。\n\n但你要告诉他，艾莉丝...从来没有怪过他。\"",
+          "choices": [
+            {
+              "id": "p_pendant_1",
+              "text": "问她关于摩根兄弟的事",
+              "next_node_id": "pirate_siren_story",
+              "effect": {
+                "sanity": 10
+              }
+            },
+            {
+              "id": "p_pendant_2",
+              "text": "问她能不能给一些黄金",
+              "next_node_id": "pirate_siren_gold",
+              "effect": {
+                "gold": 100
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_siren_story",
+          "text": "海妖轻轻叹了口气。\n\n\"五十年前，摩根和他的兄弟詹姆斯来到了这座岛。\n\n他们是来寻找宝藏的。但詹姆斯...他爱上了我。\n\n他选择留在岛上，和我在一起。\n\n而摩根...他回去了。他说他会回来。但他再也没有出现。\"\n\n她看向远方：\n\n\"我知道，他恨我。他认为是我迷惑了他的兄弟。\n\n但我没有...是詹姆斯自己选择的。\"\n\n她从金山上拿起一袋金币，递给你：\n\n\"把这个带给摩根。就当是...我欠他的。\"\n\n然后，她指了指神殿后面：\n\n\"从那里走，有一条水路可以离开。别再回来了。\"",
+          "choices": [
+            {
+              "id": "p_story_1",
+              "text": "谢过她，带上黄金离开",
+              "next_node_id": "pirate_good_ending",
+              "effect": {
+                "add_item": "siren_gold"
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_good_ending",
+          "text": "═══════════════════════════════\n\n           ✦ 传奇诞生 ✦\n\n═══════════════════════════════\n\n你带着一船的黄金回到了托尔图加。\n\n所有人都不敢相信——你，一个毛头小子，居然真的找到了黄金海岸，并且活着回来了。\n\n你找到了老摩根，把金币和吊坠还给了他。\n\n当他听到詹姆斯的消息时，这个铁打的汉子流下了眼泪。\n\n从那以后，你成为了加勒比海上最有名的海盗船长。\n\n但你再也没有去过那座岛。\n\n有些秘密，最好让它永远留在海里。\n\n【好结局 - 传说中的海盗王】",
+          "end": true,
+          "ending_type": "good",
+          "choices": []
+        },
+        {
+          "id": "pirate_siren_end",
+          "text": "═══════════════════════════════\n\n           ○ 永恒之伴 ○\n\n═══════════════════════════════\n\n你选择了留下。\n\n海妖微笑着，伸出了手。\n\n你感觉自己的身体开始变化——皮肤变得冰凉，腿也慢慢变成了...尾巴。\n\n你不再是人类了。\n\n但你很快乐。\n\n这座岛上有无尽的黄金，和一个...爱着你的人？\n\n许多年后，当又有海盗登上这座岛时，\n\n他们会听到一个男人的歌声。\n\n而他们中的一些人...会选择留下来。\n\n【中性结局 - 成为传说的一部分】",
+          "end": true,
+          "ending_type": "neutral",
+          "choices": []
+        },
+        {
+          "id": "pirate_bar_fight",
+          "text": "你决定用拳头说话。\n\n\"你们这些废物，谁敢跟我打一架？赢了我，我就走。输了，就乖乖跟着我！\"\n\n人群中走出一个壮硕的黑人水手：\n\n\"小子，你确定？我可是鲨鱼彼得。\"\n\n你们扭打在了一起。他很强壮，但你更灵活。\n\n经过一番激烈的打斗，你终于将他击倒在地。\n\n酒馆里爆发出欢呼声。\n\n\"好样的，小子！我跟你干了！\"",
+          "choices": [
+            {
+              "id": "p_fight_1",
+              "text": "好，那我们出发！",
+              "next_node_id": "pirate_crew_assemble",
+              "effect": {
+                "charisma": 20,
+                "health": -15
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_sailor_buddy",
+          "text": "你走向那个醉醺醺的水手。\n\n他叫比尔，曾经是皇家海军的炮手，因为喝酒闹事被开除了。\n\n\"嘿，老兄...你想不想干一票大的？\"你递给他一瓶朗姆酒。\n\n比尔打了个嗝：\"大的？有多大？\"\n\n\"黄金海岸那么大。\"\n\n比尔的眼睛一下子就亮了：\"你说真的？你知道路？\"\n\n你神秘地笑了笑。",
+          "choices": [
+            {
+              "id": "p_buddy_1",
+              "text": "带他去看海图，说服他加入",
+              "next_node_id": "pirate_get_map",
+              "effect": {
+                "charisma": 10
+              }
+            },
+            {
+              "id": "p_buddy_2",
+              "text": "先别告诉他，直接去偷船",
+              "next_node_id": "pirate_ship_fight",
+              "effect": {
+                "health": -10
+              }
+            }
+          ]
+        },
+        {
+          "id": "pirate_siren_gold",
+          "text": "海妖轻轻笑了笑。\n\n\"人类...永远都是这么贪婪。\"\n\n她挥了挥手，一袋金币飞到了你面前。\n\n\"拿去吧。这是你应得的——如果你能把我的话带给摩根的话。\"\n\n你接住金币，沉甸甸的。\n\n\"记住，别再回来。这座岛...不是你们人类该来的地方。\"\n\n你点了点头，向着她指的方向走去。",
+          "choices": [
+            {
+              "id": "p_sgold_1",
+              "text": "离开这座岛",
+              "next_node_id": "pirate_good_ending",
+              "effect": {}
             }
           ]
         }
