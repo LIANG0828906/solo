@@ -1,0 +1,90 @@
+[
+  {
+    "id": "plant-1",
+    "name": "小绿",
+    "species": "绿萝",
+    "purchaseDate": "2026-04-15T00:00:00.000Z",
+    "location": "客厅",
+    "image": null,
+    "events": [
+      {
+        "id": "event-1",
+        "type": "water",
+        "date": "2026-06-18T08:00:00.000Z",
+        "note": "浇了约200ml水"
+      },
+      {
+        "id": "event-2",
+        "type": "fertilize",
+        "date": "2026-05-20T10:00:00.000Z",
+        "note": "使用了通用型营养液"
+      },
+      {
+        "id": "event-3",
+        "type": "prune",
+        "date": "2026-05-10T14:00:00.000Z",
+        "note": "修剪了枯黄的叶子"
+      }
+    ]
+  },
+  {
+    "id": "plant-2",
+    "name": "肉肉",
+    "species": "多肉",
+    "purchaseDate": "2026-03-20T00:00:00.000Z",
+    "location": "阳台",
+    "image": null,
+    "events": [
+      {
+        "id": "event-4",
+        "type": "water",
+        "date": "2026-06-10T09:00:00.000Z",
+        "note": "少量浇水，保持土壤微湿"
+      },
+      {
+        "id": "event-5",
+        "type": "repot",
+        "date": "2026-04-15T11:00:00.000Z",
+        "note": "换了更大的陶盆，添加了颗粒土"
+      }
+    ]
+  },
+  {
+    "id": "plant-3",
+    "name": "兰兰",
+    "species": "兰花",
+    "purchaseDate": "2026-02-01T00:00:00.000Z",
+    "location": "卧室",
+    "image": null,
+    "events": [
+      {
+        "id": "event-6",
+        "type": "water",
+        "date": "2026-06-15T07:30:00.000Z",
+        "note": "用静置的自来水浇灌"
+      },
+      {
+        "id": "event-7",
+        "type": "fertilize",
+        "date": "2026-05-01T10:00:00.000Z",
+        "note": "兰花专用肥稀释后施用"
+      }
+    ]
+  },
+  {
+    "id": "plant-4",
+    "name": "发财树",
+    "species": "其他",
+    "purchaseDate": "2026-01-10T00:00:00.000Z",
+    "location": "客厅",
+    "image": null,
+    "events": [
+      {
+        "id": "event-8",
+        "type": "water",
+        "date": "2026-06-05T08:00:00.000Z",
+        "note": "浇透水"
+      }
+    ]
+  }
+]
