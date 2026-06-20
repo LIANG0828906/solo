@@ -1,0 +1,224 @@
+{
+  "poems": [
+    {
+      "id": "poem-1",
+      "title": "静夜思",
+      "author": "李白",
+      "theme": "starry",
+      "likes": 128,
+      "createdAt": "2024-01-15T10:30:00Z",
+      "firstLine": "床前明月光，疑是地上霜",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "lines": [
+            {
+              "id": "line-1",
+              "text": "床前明月光，疑是地上霜",
+              "style": {
+                "fontFamily": "'ZCOOL XiaoWei', 'Noto Serif SC', serif",
+                "fontSize": 24,
+                "color": "#FFD700",
+                "lineHeight": 2,
+                "textAlign": "center"
+              }
+            },
+            {
+              "id": "line-2",
+              "text": "举头望明月，低头思故乡",
+              "style": {
+                "fontFamily": "'ZCOOL XiaoWei', 'Noto Serif SC', serif",
+                "fontSize": 24,
+                "color": "#FFD700",
+                "lineHeight": 2,
+                "textAlign": "center"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poem-2",
+      "title": "春晓",
+      "author": "孟浩然",
+      "theme": "forest",
+      "likes": 89,
+      "createdAt": "2024-01-14T14:20:00Z",
+      "firstLine": "春眠不觉晓，处处闻啼鸟",
+      "paragraphs": [
+        {
+          "id": "para-2",
+          "lines": [
+            {
+              "id": "line-3",
+              "text": "春眠不觉晓，处处闻啼鸟",
+              "style": {
+                "fontFamily": "'Noto Serif SC', serif",
+                "fontSize": 22,
+                "color": "#1A3A2A",
+                "lineHeight": 1.8,
+                "textAlign": "center"
+              }
+            },
+            {
+              "id": "line-4",
+              "text": "夜来风雨声，花落知多少",
+              "style": {
+                "fontFamily": "'Noto Serif SC', serif",
+                "fontSize": 22,
+                "color": "#1A3A2A",
+                "lineHeight": 1.8,
+                "textAlign": "center"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poem-3",
+      "title": "登鹳雀楼",
+      "author": "王之涣",
+      "theme": "ink",
+      "likes": 156,
+      "createdAt": "2024-01-13T09:15:00Z",
+      "firstLine": "白日依山尽，黄河入海流",
+      "paragraphs": [
+        {
+          "id": "para-3",
+          "lines": [
+            {
+              "id": "line-5",
+              "text": "白日依山尽，黄河入海流",
+              "style": {
+                "fontFamily": "'Ma Shan Zheng', 'Noto Serif SC', serif",
+                "fontSize": 28,
+                "color": "#1A1A1A",
+                "lineHeight": 2.2,
+                "textAlign": "center"
+              }
+            },
+            {
+              "id": "line-6",
+              "text": "欲穷千里目，更上一层楼",
+              "style": {
+                "fontFamily": "'Ma Shan Zheng', 'Noto Serif SC', serif",
+                "fontSize": 28,
+                "color": "#1A1A1A",
+                "lineHeight": 2.2,
+                "textAlign": "center"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poem-4",
+      "title": "极光之夜",
+      "author": "现代诗人",
+      "theme": "aurora",
+      "likes": 67,
+      "createdAt": "2024-01-12T20:45:00Z",
+      "firstLine": "北极的夜空，流动着绿色的梦",
+      "paragraphs": [
+        {
+          "id": "para-4",
+          "lines": [
+            {
+              "id": "line-7",
+              "text": "北极的夜空，流动着绿色的梦",
+              "style": {
+                "fontFamily": "'ZCOOL XiaoWei', 'Noto Serif SC', serif",
+                "fontSize": 20,
+                "color": "#4ECDC4",
+                "lineHeight": 2,
+                "textAlign": "center"
+              }
+            },
+            {
+              "id": "line-8",
+              "text": "那是宇宙的呼吸，是时间的彩虹",
+              "style": {
+                "fontFamily": "'ZCOOL XiaoWei', 'Noto Serif SC', serif",
+                "fontSize": 20,
+                "color": "#E0E1DD",
+                "lineHeight": 2,
+                "textAlign": "center"
+              }
+            },
+            {
+              "id": "line-9",
+              "text": "我站在冰雪之上，仰望永恒",
+              "style": {
+                "fontFamily": "'ZCOOL XiaoWei', 'Noto Serif SC', serif",
+                "fontSize": 20,
+                "color": "#778DA9",
+                "lineHeight": 2,
+                "textAlign": "center"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poem-5",
+      "title": "相思",
+      "author": "王维",
+      "theme": "default",
+      "likes": 203,
+      "createdAt": "2024-01-11T16:30:00Z",
+      "firstLine": "红豆生南国，春来发几枝",
+      "paragraphs": [
+        {
+          "id": "para-5",
+          "lines": [
+            {
+              "id": "line-10",
+              "text": "红豆生南国，春来发几枝",
+              "style": {
+                "fontFamily": "'Noto Serif SC', serif",
+                "fontSize": 24,
+                "color": "#2C2C2C",
+                "lineHeight": 1.8,
+                "textAlign": "center"
+              }
+            },
+            {
+              "id": "line-11",
+              "text": "愿君多采撷，此物最相思",
+              "style": {
+                "fontFamily": "'Noto Serif SC', serif",
+                "fontSize": 24,
+                "color": "#2C2C2C",
+                "lineHeight": 1.8,
+                "textAlign": "center",
+                "background": "linear-gradient(90deg, rgba(139, 69, 19, 0.1) 0%, rgba(139, 69, 19, 0.05) 100%)"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "comments": [
+    {
+      "id": "comment-1",
+      "poemId": "poem-1",
+      "author": "诗歌爱好者",
+      "content": "这首诗写得太好了，意境深远！",
+      "mentions": [],
+      "createdAt": "2024-01-16T08:00:00Z"
+    },
+    {
+      "id": "comment-2",
+      "poemId": "poem-1",
+      "author": "文学青年",
+      "content": "@诗歌爱好者 同意，李白的诗总是那么有感染力。",
+      "mentions": ["诗歌爱好者"],
+      "createdAt": "2024-01-16T09:30:00Z"
+    }
+  ]
+}
