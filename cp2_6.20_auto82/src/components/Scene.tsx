@@ -7,6 +7,34 @@ import { checkCollisions, snapToAngleGrid, findNearestEndpoint } from '@/utils/c
 import { CORRIDOR_WIDTH, CORRIDOR_HEIGHT, CORRIDOR_DEPTH } from '@/types';
 import { PipelineMesh, CollisionMarker, PreviewPipeline, SnapIndicator } from './PipelineMesh';
 
+const SCENE_LIGHTING_CONFIG = {
+  ambientIntensity: 0.5,
+  ambientColor: '#b0d4ff',
+  directionalIntensity: 0.75,
+  directionalPosition: [6, 12, 6] as [number, number, number],
+  directionalColor: '#ffffff',
+  shadowMapSize: 1024,
+};
+
+const GROUND_GRID_CONFIG = {
+  size: 40,
+  cellSize: 1,
+  cellThickness: 0.6,
+  cellColor: '#3a3a5c',
+  sectionSize: 5,
+  sectionThickness: 1.2,
+  sectionColor: '#555577',
+  fadeDistance: 35,
+  fadeStrength: 1.2,
+};
+
+const TRANSPARENT_GROUND_CONFIG = {
+  size: 20,
+  color: '#888888',
+  opacity: 0.3,
+  positionY: 0.001,
+};
+
 function SceneContent() {
   const {
     pipelines,
@@ -273,13 +301,17 @@ function SceneContent() {
 
   return (
     <>
-      <ambientLight intensity={0.4} color="#88ccff" />
+      <ambientLight
+        intensity={SCENE_LIGHTING_CONFIG.ambientIntensity}
+        color={SCENE_LIGHTING_CONFIG.ambientColor}
+      />
       <directionalLight
-        position={[5, 10, 5]}
-        intensity={0.6}
+        position={SCENE_LIGHTING_CONFIG.directionalPosition}
+        intensity={SCENE_LIGHTING_CONFIG.directionalIntensity}
+        color={SCENE_LIGHTING_CONFIG.directionalColor}
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={SCENE_LIGHTING_CONFIG.shadowMapSize}
+        shadow-mapSize-height={SCENE_LIGHTING_CONFIG.shadowMapSize}
       />
 
       <mesh
@@ -294,17 +326,32 @@ function SceneContent() {
         <meshStandardMaterial transparent opacity={0} />
       </mesh>
 
+      <mesh
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, TRANSPARENT_GROUND_CONFIG.positionY, 0]}
+      >
+        <planeGeometry args={[TRANSPARENT_GROUND_CONFIG.size, TRANSPARENT_GROUND_CONFIG.size]} />
+        <meshStandardMaterial
+          color={TRANSPARENT_GROUND_CONFIG.color}
+          transparent
+          opacity={TRANSPARENT_GROUND_CONFIG.opacity}
+          side={THREE.DoubleSide}
+          metalness={0.1}
+          roughness={0.9}
+        />
+      </mesh>
+
       <Grid
         position={[0, 0, 0]}
-        args={[50, 50]}
-        cellSize={1}
-        cellThickness={0.5}
-        cellColor="#2a2a4e"
-        sectionSize={5}
-        sectionThickness={1}
-        sectionColor="#3a3a5e"
-        fadeDistance={30}
-        fadeStrength={1}
+        args={[GROUND_GRID_CONFIG.size, GROUND_GRID_CONFIG.size]}
+        cellSize={GROUND_GRID_CONFIG.cellSize}
+        cellThickness={GROUND_GRID_CONFIG.cellThickness}
+        cellColor={GROUND_GRID_CONFIG.cellColor}
+        sectionSize={GROUND_GRID_CONFIG.sectionSize}
+        sectionThickness={GROUND_GRID_CONFIG.sectionThickness}
+        sectionColor={GROUND_GRID_CONFIG.sectionColor}
+        fadeDistance={GROUND_GRID_CONFIG.fadeDistance}
+        fadeStrength={GROUND_GRID_CONFIG.fadeStrength}
         followCamera={false}
         infiniteGrid
       />
