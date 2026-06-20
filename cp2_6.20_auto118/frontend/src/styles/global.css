@@ -911,6 +911,13 @@ select {
     padding: 32px;
     font-size: 14px;
   }
+
+  .recipe-list-page,
+  .meal-calendar-page,
+  .profile-page,
+  .recipe-editor-page {
+    padding: 12px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1039,6 +1046,13 @@ select {
 
   .card {
     border-radius: 12px;
+  }
+
+  .recipe-list-page,
+  .meal-calendar-page,
+  .profile-page,
+  .recipe-editor-page {
+    padding: 8px;
   }
 }
 

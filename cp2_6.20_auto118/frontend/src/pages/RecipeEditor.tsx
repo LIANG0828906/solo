@@ -189,7 +189,8 @@ const RecipeEditor = () => {
   }
 
   return (
-    <div className="recipe-editor">
+    <div className="recipe-editor-page">
+      <div className="recipe-editor">
       <div className="editor-header">
         <h1 className="editor-title">
           {isEdit ? '编辑食谱' : '新建食谱'}
@@ -369,6 +370,7 @@ const RecipeEditor = () => {
             </div>
           </section>
         </div>
+      </div>
       </div>
     </div>
   );

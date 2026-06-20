@@ -168,8 +168,12 @@ const NutritionPieChart = ({ nutrition }: NutritionPieChartProps) => {
 
     return () => {
       isMounted = false;
-      cancelAnimationFrame(animationId);
-      cancelAnimationFrame(animationRef.current);
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
       if (resizeObserver) {
         resizeObserver.disconnect();
       }

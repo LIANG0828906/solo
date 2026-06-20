@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Recipe } from '../types';
 import { useDragDrop } from '../contexts/DragDropContext';
 
@@ -10,15 +10,32 @@ const DraggableRecipe: React.FC<DraggableRecipeProps> = ({ recipe }) => {
   const { startDrag, updateDragPosition, endDrag, isDragging, draggedRecipe, dragPosition } = useDragDrop();
   const elementRef = useRef<HTMLDivElement>(null);
   const [isTouchDragging, setIsTouchDragging] = useState(false);
+  const [isNativeDragging, setIsNativeDragging] = useState(false);
   const touchStartPos = useRef<{ x: number; y: number; time: number } | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const hasMoved = useRef(false);
 
+  const isTouchDevice = useMemo(() => {
+    return (
+      typeof window !== 'undefined' &&
+      ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+    );
+  }, []);
+
   const isThisDragging = isDragging && draggedRecipe?.id === recipe.id;
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    if (isTouchDevice) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.setData('recipeId', recipe.id);
     e.dataTransfer.effectAllowed = 'copy';
+    setIsNativeDragging(true);
+  };
+
+  const handleDragEnd = () => {
+    setIsNativeDragging(false);
   };
 
   const handleTouchStart = useCallback(
@@ -113,12 +130,15 @@ const DraggableRecipe: React.FC<DraggableRecipeProps> = ({ recipe }) => {
     };
   }, []);
 
+  const isDraggingActive = isThisDragging || isNativeDragging;
+
   return (
     <div
       ref={elementRef}
-      className={`draggable-recipe${isThisDragging ? ' dragging' : ''}`}
-      draggable
+      className={`draggable-recipe${isDraggingActive ? ' dragging' : ''}`}
+      draggable={!isTouchDevice}
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

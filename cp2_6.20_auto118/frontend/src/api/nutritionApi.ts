@@ -1,8 +1,8 @@
 import axios from 'axios';
-import { Ingredient, Nutrition } from '../types';
+import { Nutrition, Ingredient } from '../types';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'http://localhost:8001',
   timeout: 10000,
 });
 

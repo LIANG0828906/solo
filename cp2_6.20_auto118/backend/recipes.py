@@ -123,13 +123,18 @@ DEFAULT_UNIT_CATEGORY = "weight"
 
 
 def get_unit_factor(unit: str) -> float:
+    if not unit:
+        return DEFAULT_UNIT_FACTOR
+    
     unit_info = UNIT_CONVERSIONS.get(unit)
     if unit_info:
         return unit_info["factor"]
+    
     lower_unit = unit.lower().strip()
     for key, info in UNIT_CONVERSIONS.items():
         if key.lower() == lower_unit:
             return info["factor"]
+    
     return DEFAULT_UNIT_FACTOR
 
 

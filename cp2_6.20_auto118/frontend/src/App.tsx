@@ -13,8 +13,7 @@ const App = () => {
   const setDailySummary = useStore((state) => state.setDailySummary);
 
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/daily-summary`;
+    const wsUrl = 'ws://localhost:8001/ws/daily-summary';
     const socket = new WebSocket(wsUrl);
 
     socket.onmessage = (event) => {
