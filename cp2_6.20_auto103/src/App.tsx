@@ -253,16 +253,24 @@ function App() {
                   flex-direction: column !important;
                   padding: 60px 12px 12px 12px !important;
                   gap: 12px !important;
+                  height: 100% !important;
+                  min-height: 100% !important;
                 }
                 .main-container > [data-panel="timeline"] {
                   width: 100% !important;
-                  min-height: 50vh !important;
+                  flex: 0 0 50vh !important;
+                  flex-basis: 50vh !important;
                   height: 50vh !important;
+                  min-height: 50vh !important;
+                  max-height: 50vh !important;
                   display: ${showMobilePanel === 'timeline' ? 'flex' : 'none'} !important;
                 }
                 .main-container > [data-panel="map"] {
-                  min-height: 50vh !important;
+                  flex: 0 0 50vh !important;
+                  flex-basis: 50vh !important;
                   height: 50vh !important;
+                  min-height: 50vh !important;
+                  max-height: 50vh !important;
                   display: ${showMobilePanel === 'map' ? 'block' : 'none'} !important;
                 }
                 .mobile-toggle {

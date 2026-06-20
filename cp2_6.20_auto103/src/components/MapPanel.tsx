@@ -14,11 +14,20 @@ const MapPanel = () => {
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
   const routeRef = useRef<RouteOverlay>({ polyline: null, glows: [] });
   const playButtonRef = useRef<L.Control | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const rafIdsRef = useRef<number[]>([]);
   const playIntervalRef = useRef<number | null>(null);
   const glowProgressRef = useRef(0);
   const initializedRef = useRef(false);
   const unmountedRef = useRef(false);
+
+  const addRafId = useCallback((id: number) => {
+    rafIdsRef.current.push(id);
+    return id;
+  }, []);
+  const cancelAllRaf = useCallback(() => {
+    rafIdsRef.current.forEach((id) => cancelAnimationFrame(id));
+    rafIdsRef.current = [];
+  }, []);
 
   const memories = useMemoryStore((s) => s.memories);
   const isPlaying = useMemoryStore((s) => s.isPlaying);
@@ -160,16 +169,17 @@ const MapPanel = () => {
 
     return () => {
       unmountedRef.current = true;
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
+      cancelAllRaf();
       if (playIntervalRef.current !== null) {
         clearInterval(playIntervalRef.current);
         playIntervalRef.current = null;
       }
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
     };
-  }, [togglePlaying]);
+  }, [togglePlaying, cancelAllRaf]);
 
   useEffect(() => {
     const map = leafletMapRef.current;
@@ -294,9 +304,10 @@ const MapPanel = () => {
       routeRef.current.glows.push(glow);
     }
 
-    let localRaf: number | null = null;
+    let active = true;
+    let lastRafId = 0;
     const animate = () => {
-      if (unmountedRef.current) return;
+      if (!active || unmountedRef.current) return;
       glowProgressRef.current = (glowProgressRef.current + 0.004) % 1;
       routeRef.current.glows.forEach((g, i) => {
         const offset = i * 0.2;
@@ -304,21 +315,13 @@ const MapPanel = () => {
         const [lat, lng] = positionOnCurve(curve, p);
         g.setLatLng([lat, lng]);
       });
-      localRaf = requestAnimationFrame(animate);
-      rafRef.current = localRaf;
+      lastRafId = addRafId(requestAnimationFrame(animate));
     };
-    localRaf = requestAnimationFrame(animate);
-    rafRef.current = localRaf;
+    lastRafId = addRafId(requestAnimationFrame(animate));
 
     return () => {
-      if (localRaf !== null) {
-        cancelAnimationFrame(localRaf);
-        localRaf = null;
-      }
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
+      active = false;
+      cancelAllRaf();
     };
   }, [sortedMemories, buildCurvePoints, positionOnCurve]);
 

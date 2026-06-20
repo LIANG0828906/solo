@@ -318,31 +318,44 @@ const TimelinePanel = () => {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [dragOverPosition, setDragOverPosition] = useState<'before' | 'after' | null>(null);
-  const [listHeight, setListHeight] = useState<number>(500);
+  const [listHeight, setListHeight] = useState<number>(600);
+  const listHeightRef = useRef<number>(600);
 
   const listRef = useRef<List>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const roRef = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
+    let rafId: number | null = null;
     const updateHeight = () => {
-      if (scrollRef.current) {
-        const h = scrollRef.current.getBoundingClientRect().height;
-        if (h > 0) setListHeight(Math.max(400, Math.floor(h)));
+      if (!scrollRef.current) return;
+      const rect = scrollRef.current.getBoundingClientRect();
+      const h = Math.max(400, Math.floor(rect.height));
+      if (h > 0 && h !== listHeightRef.current) {
+        listHeightRef.current = h;
+        setListHeight(h);
       }
     };
-    updateHeight();
+    const scheduleUpdate = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateHeight);
+    };
+    scheduleUpdate();
     roRef.current = new ResizeObserver((entries) => {
       for (const e of entries) {
         const h = Math.max(400, Math.floor(e.contentRect.height));
-        setListHeight(h);
+        if (h > 0 && h !== listHeightRef.current) {
+          listHeightRef.current = h;
+          setListHeight(h);
+        }
       }
     });
     if (scrollRef.current) roRef.current.observe(scrollRef.current);
-    window.addEventListener('resize', updateHeight);
+    window.addEventListener('resize', scheduleUpdate);
     return () => {
       roRef.current?.disconnect();
-      window.removeEventListener('resize', updateHeight);
+      window.removeEventListener('resize', scheduleUpdate);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);
 
