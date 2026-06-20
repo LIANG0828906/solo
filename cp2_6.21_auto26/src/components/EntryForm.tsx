@@ -20,6 +20,11 @@ export default function EntryForm({ initialData, onSubmit, onCancel }: EntryForm
       setSource(initialData.source);
       setSummary(initialData.summary);
       setMood(initialData.mood);
+    } else {
+      setTitle('');
+      setSource('');
+      setSummary('');
+      setMood('excited');
     }
   }, [initialData]);
 
@@ -69,7 +74,10 @@ export default function EntryForm({ initialData, onSubmit, onCancel }: EntryForm
       </div>
 
       <div className="form-group">
-        <label className="form-label">心情标签</label>
+        <label className="form-label">
+          心情标签
+          <span className="required-mark"> *</span>
+        </label>
         <div className="mood-selector">
           {(Object.keys(MOOD_CONFIG) as Mood[]).map((m) => (
             <button

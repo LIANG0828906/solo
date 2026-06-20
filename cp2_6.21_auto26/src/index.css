@@ -106,7 +106,21 @@ body {
 .nav-tab.active {
   background-color: #ffffff;
   color: #333333;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+  background-color: #4a90d9;
 }
 
 .app-main {
@@ -121,17 +135,17 @@ body {
   position: fixed;
   bottom: 32px;
   right: 32px;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   background-color: #4a90d9;
   color: #ffffff;
-  border: none;
+  border: 3px solid #ffffff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(74, 144, 217, 0.4);
+  box-shadow: 0 6px 24px rgba(74, 144, 217, 0.45);
   transition: all 0.2s ease-out;
   z-index: 90;
 }
@@ -579,6 +593,11 @@ body {
   font-size: 0.9rem;
   font-weight: 500;
   color: #555555;
+}
+
+.required-mark {
+  color: #e53e3e;
+  font-weight: 600;
 }
 
 .form-input {
