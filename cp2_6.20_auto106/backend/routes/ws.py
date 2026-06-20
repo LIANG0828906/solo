@@ -31,12 +31,15 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 async def check_alerts_task():
+    from backend.routes.inventory import calculate_safety_threshold
+
     while True:
         try:
             now = datetime.now().timestamp()
 
             for cid, consumable in consumables_db.items():
-                if consumable.currentStock < consumable.safetyThreshold:
+                safety_threshold = calculate_safety_threshold(consumable.id, consumable.purchaseCycle)
+                if consumable.currentStock < safety_threshold:
                     last_alert = alerted_consumables.get(cid, 0)
                     if now - last_alert > 30:
                         alert_message = {
@@ -45,7 +48,7 @@ async def check_alerts_task():
                                 "consumableId": consumable.id,
                                 "consumableName": consumable.name,
                                 "currentStock": consumable.currentStock,
-                                "safetyThreshold": consumable.safetyThreshold,
+                                "safetyThreshold": safety_threshold,
                             }
                         }
 

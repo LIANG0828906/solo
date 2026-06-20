@@ -85,11 +85,18 @@ async def startup_event():
 
 @app.get("/dashboard/stats")
 async def get_dashboard_stats():
+    from backend.routes.inventory import calculate_safety_threshold
+
     now = datetime.now().date()
     today_in = sum(r.quantity for r in records_db if r.type == "in" and datetime.fromisoformat(r.timestamp).date() == now)
     today_out = sum(r.quantity for r in records_db if r.type == "out" and datetime.fromisoformat(r.timestamp).date() == now)
     total_stock = sum(c.currentStock for c in consumables_db.values())
-    low_alert = sum(1 for c in consumables_db.values() if c.currentStock < c.safetyThreshold)
+
+    low_alert = 0
+    for c in consumables_db.values():
+        safety_threshold = calculate_safety_threshold(c.id, c.purchaseCycle)
+        if c.currentStock < safety_threshold:
+            low_alert += 1
 
     return {
         "totalStock": total_stock,

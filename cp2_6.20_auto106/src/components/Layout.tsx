@@ -33,10 +33,11 @@ export default function Layout() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  const handleAlertClick = (alertId: string, _consumableId: string) => {
+  const handleAlertClick = (alertId: string, consumableId: string) => {
     markAlertAsRead(alertId)
     setShowNotifications(false)
-    navigate('/inventory')
+    useInventoryStore.getState().setSelectedConsumableId(consumableId)
+    navigate('/inventory', { state: { openDetail: consumableId } })
   }
 
   const Sidebar = () => (

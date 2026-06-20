@@ -8,16 +8,49 @@ from backend.models import Consumable, StockRecord, StockCheckRequest, consumabl
 router = APIRouter()
 
 
+def calculate_safety_threshold(consumable_id: str, purchase_cycle: int) -> int:
+    now = datetime.now().date()
+    thirty_days_ago = now - timedelta(days=30)
+
+    out_records = [
+        r for r in records_db
+        if r.consumableId == consumable_id
+        and r.type == "out"
+        and datetime.fromisoformat(r.timestamp).date() >= thirty_days_ago
+    ]
+
+    total_out = sum(r.quantity for r in out_records)
+    daily_consumption = total_out / 30 if total_out > 0 else 0
+
+    if daily_consumption == 0:
+        for c in consumables_db.values():
+            if c.id == consumable_id:
+                daily_consumption = c.dailyConsumption
+                break
+
+    safety_threshold = round(daily_consumption * purchase_cycle * 1.5)
+    return max(1, safety_threshold)
+
+
 @router.get("", response_model=List[Consumable])
 async def get_inventory():
-    return list(consumables_db.values())
+    result = []
+    for c in consumables_db.values():
+        safety_threshold = calculate_safety_threshold(c.id, c.purchaseCycle)
+        updated = c.model_copy(update={
+            "safetyThreshold": safety_threshold
+        })
+        result.append(updated)
+    return result
 
 
 @router.get("/{consumable_id}", response_model=Consumable)
 async def get_consumable(consumable_id: str):
     if consumable_id not in consumables_db:
         raise HTTPException(status_code=404, detail="Consumable not found")
-    return consumables_db[consumable_id]
+    c = consumables_db[consumable_id]
+    safety_threshold = calculate_safety_threshold(c.id, c.purchaseCycle)
+    return c.model_copy(update={"safetyThreshold": safety_threshold})
 
 
 @router.post("/check")
@@ -53,6 +86,8 @@ async def check_stock(request: StockCheckRequest):
         )
         records_db.insert(0, record)
 
+    safety_threshold = calculate_safety_threshold(consumable.id, consumable.purchaseCycle)
+    consumable.safetyThreshold = safety_threshold
     consumable.lastCheckTime = now
     consumables_db[request.consumableId] = consumable
 

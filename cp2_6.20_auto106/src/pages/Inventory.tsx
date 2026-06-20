@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   SearchOutlined,
   EyeOutlined,
@@ -29,6 +30,7 @@ const SkeletonRow = () => (
 )
 
 export default function Inventory() {
+  const location = useLocation()
   const {
     fetchInventory,
     fetchRecords,
@@ -41,6 +43,7 @@ export default function Inventory() {
     getFilteredConsumables,
     getStockStatus,
     loading,
+    consumables,
   } = useInventoryStore()
 
   const [modalVisible, setModalVisible] = useState(false)
@@ -57,6 +60,17 @@ export default function Inventory() {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [fetchInventory, fetchRecords])
+
+  useEffect(() => {
+    const state = location.state as { openDetail?: string } | null
+    if (state?.openDetail && consumables.length > 0) {
+      const consumable = consumables.find(c => c.id === state.openDetail)
+      if (consumable) {
+        setSelectedConsumable(consumable)
+        setDetailVisible(true)
+      }
+    }
+  }, [location.state, consumables])
 
   const filteredConsumables = useMemo(() => getFilteredConsumables(), [getFilteredConsumables])
 
