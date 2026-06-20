@@ -12,12 +12,13 @@
 //   属性变化通过preview也会持续更新材质参数
 // ============================================================
 
-import { useRef, useMemo, useEffect, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Stars, Float } from '@react-three/drei';
+import { useRef, useMemo, useEffect, useState, useCallback } from 'react';
+import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
+import { OrbitControls, Stars, Float, Html } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { useCrafting } from '../hooks/useCrafting';
+import type { AttributeKey } from '../types';
 
 // ==========================================================================
 // 粒子系统 - 合成成功后播放扩散特效
@@ -95,18 +96,37 @@ function ParticleBurst({ trigger, colors, particleCount = 80 }: ParticleSystemPr
   );
 }
 
+// 装备tooltip显示数据类型
+interface TooltipData {
+  visible: boolean;
+  x: number;     // 鼠标在NDC的x
+  y: number;     // 鼠标在NDC的y
+}
+
 // ==========================================================================
 // 装备模型 - 根据modelType构建不同几何体 (纯程序化建模，无需外部模型文件)
 // 接收emissive参数实现属性提升时边缘发光
+// 新增: 支持hover事件 - 向父组件通知hover状态和鼠标位置用于Html tooltip
 // ==========================================================================
 interface EquipmentModelProps {
   modelType: 'sword' | 'shield' | 'staff';
   emissiveIntensity: number;   // 发光强度 - 受属性增益影响
   emissiveColor: string;       // 发光颜色
   baseColor: string;
+  onPointerOver: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerMove: (e: ThreeEvent<PointerEvent>) => void;
+  onPointerOut: (e: ThreeEvent<PointerEvent>) => void;
 }
 
-function EquipmentModel({ modelType, emissiveIntensity, emissiveColor, baseColor }: EquipmentModelProps) {
+function EquipmentModel({
+  modelType,
+  emissiveIntensity,
+  emissiveColor,
+  baseColor,
+  onPointerOver,
+  onPointerMove,
+  onPointerOut,
+}: EquipmentModelProps) {
   const groupRef = useRef<THREE.Group>(null);
 
   // 自动缓慢旋转 - 绕Y轴360度旋转
@@ -119,9 +139,16 @@ function EquipmentModel({ modelType, emissiveIntensity, emissiveColor, baseColor
   const emissiveColorObj = useMemo(() => new THREE.Color(emissiveColor), [emissiveColor]);
   const baseColorObj = useMemo(() => new THREE.Color(baseColor), [baseColor]);
 
+  // 所有子mesh都挂载pointer事件，group层面绑定一次并事件冒泡即可
+  const bindPointer = {
+    onPointerOver,
+    onPointerMove,
+    onPointerOut,
+  };
+
   if (modelType === 'sword') {
     return (
-      <group ref={groupRef} castShadow>
+      <group ref={groupRef} castShadow {...bindPointer}>
         {/* 剑身 */}
         <mesh position={[0, 1.5, 0]} castShadow>
           <boxGeometry args={[0.15, 2.6, 0.04]} />
@@ -159,7 +186,7 @@ function EquipmentModel({ modelType, emissiveIntensity, emissiveColor, baseColor
 
   if (modelType === 'shield') {
     return (
-      <group ref={groupRef} castShadow>
+      <group ref={groupRef} castShadow {...bindPointer}>
         {/* 盾体 - 扁平椭球 */}
         <mesh castShadow>
           <sphereGeometry args={[1.4, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2.2]} />
@@ -193,7 +220,7 @@ function EquipmentModel({ modelType, emissiveIntensity, emissiveColor, baseColor
 
   // staff - 法杖
   return (
-    <group ref={groupRef} castShadow>
+    <group ref={groupRef} castShadow {...bindPointer}>
       {/* 杖身 */}
       <mesh position={[0, -0.5, 0]} castShadow>
         <cylinderGeometry args={[0.06, 0.08, 3.2, 12]} />
@@ -245,10 +272,51 @@ function EquipmentModel({ modelType, emissiveIntensity, emissiveColor, baseColor
 }
 
 // ==========================================================================
-// 场景主逻辑 - 订阅lastResult变化触发粒子，计算材质发光强度
+// 场景主逻辑 - 订阅lastResult变化触发粒子，计算材质发光强度，
+//             处理装备hover显示Html tooltip
 // ==========================================================================
+// 稀有度等级映射 - 根据装备基础属性综合评估
+function getEquipmentRarity(baseAtk: number, baseDef: number, baseMag: number, baseDur: number): { label: string; color: string } {
+  const total = baseAtk + baseDef + baseMag + baseDur;
+  if (total >= 160) return { label: '史诗', color: '#a855f7' };
+  if (total >= 110) return { label: '精良', color: '#3b82f6' };
+  if (total >= 70)  return { label: '优秀', color: '#22c55e' };
+  return { label: '普通', color: '#ffffff' };
+}
+
 function SceneContent() {
   const { currentEquipment, lastResult, preview } = useCrafting();
+
+  // ================ hover tooltip状态 ================
+  // 鼠标悬停在装备上时的3D空间位置 -> 跟随Html显示
+  const [tooltip, setTooltip] = useState<TooltipData>({ visible: false, x: 0, y: 0 });
+  const [hoverPos, setHoverPos] = useState<[number, number, number]>([0, 0, 0]);
+
+  const handlePointerOver = useCallback((e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    setTooltip((t) => ({ ...t, visible: true }));
+    document.body.style.cursor = 'pointer';
+  }, []);
+
+  const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    // 使用NDC坐标的x/y - 让Html组件位置跟随鼠标
+    const point = e.point;
+    setHoverPos([point.x, point.y + 0.5, point.z]);
+  }, []);
+
+  const handlePointerOut = useCallback((e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    setTooltip((t) => ({ ...t, visible: false }));
+    document.body.style.cursor = 'auto';
+  }, []);
+
+  // 计算装备稀有度 - 基于基础属性总和
+  const rarityInfo = useMemo(() => {
+    if (!currentEquipment) return { label: '普通', color: '#ffffff' };
+    const b = currentEquipment.baseAttributes;
+    return getEquipmentRarity(b.attack, b.defense, b.magic, b.durability);
+  }, [currentEquipment]);
 
   // 粒子触发计数器 - 每次lastResult变化+1 => 爆炸
   const [burstTrigger, setBurstTrigger] = useState(0);
@@ -263,24 +331,21 @@ function SceneContent() {
   }, [lastResult]);
 
   // 计算材质发光强度 - 基于预览或最终结果的攻击力增益
-  // 攻击力/魔力增益越高，发光越强
   const emissiveParams = useMemo(() => {
     const diff = lastResult?.success ? lastResult.attributeDiff : preview?.attributeDiff;
     const atkGain = diff?.attack ?? 0;
     const magGain = diff?.magic ?? 0;
     const intensity = Math.min(1.2, (atkGain + magGain) * 0.03);
-    // 攻击高发红光，魔力高发紫光
     let color = '#e94560';
     if (magGain > atkGain) color = '#a855f7';
     if (magGain > 0 && atkGain > 0) color = '#f59e0b';
     return { intensity, color };
   }, [lastResult, preview]);
 
-  // 根据装备类型选不同基础色
   const modelType: 'sword' | 'shield' | 'staff' = currentEquipment?.modelType ?? 'sword';
   const baseColor = modelType === 'sword' ? '#cfd8dc' : modelType === 'shield' ? '#78909c' : '#6d4c41';
 
-  // 成功/失败闪烁 - 使用后处理bloom + 主光颜色实现
+  // 成功/失败闪烁
   const [flashColor, setFlashColor] = useState<THREE.Color | null>(null);
   useEffect(() => {
     if (!lastResult) return;
@@ -292,11 +357,9 @@ function SceneContent() {
 
   return (
     <>
-      {/* 环境与星空背景 */}
       <color attach="background" args={[flashColor ?? '#0a0a1f']} />
       <Stars radius={80} depth={60} count={1500} factor={3} saturation={0} fade speed={0.5} />
       <ambientLight intensity={0.35} />
-      {/* 主光 - 模拟前上方方向光 */}
       <directionalLight
         position={[5, 8, 5]}
         intensity={1.2}
@@ -304,21 +367,43 @@ function SceneContent() {
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
-      {/* 轮廓光 - 品牌色 */}
       <pointLight position={[-4, 3, -4]} color="#e94560" intensity={0.6} distance={20} />
       <pointLight position={[4, -3, -4]} color="#0f3460" intensity={0.5} distance={20} />
-      {/* 合成结果闪烁光源 */}
       {flashColor && (
         <pointLight position={[0, 0, 2]} color={flashColor} intensity={3} distance={10} />
       )}
 
-      {/* 装备模型 - 自动旋转 + 发光参数 */}
+      {/* 装备模型 - 传入pointer事件处理器 */}
       <EquipmentModel
         modelType={modelType}
         emissiveIntensity={emissiveParams.intensity}
         emissiveColor={emissiveParams.color}
         baseColor={baseColor}
+        onPointerOver={handlePointerOver}
+        onPointerMove={handlePointerMove}
+        onPointerOut={handlePointerOut}
       />
+
+      {/* ================ 鼠标悬停装备时的3D Html tooltip ================ */}
+      {tooltip.visible && currentEquipment && (
+        <Html
+          position={hoverPos}
+          center
+          distanceFactor={8}
+          zIndexRange={[100, 0]}
+          style={{ pointerEvents: 'none' }}
+        >
+          <div className="r3f-tooltip">
+            <div className="r3f-tooltip__name">{currentEquipment.name}</div>
+            <div className="r3f-tooltip__rarity" style={{ color: rarityInfo.color, borderColor: rarityInfo.color }}>
+              ★ {rarityInfo.label}
+            </div>
+            <div className="r3f-tooltip__type">
+              {currentEquipment.type === 'weapon' ? '⚔️ 武器' : currentEquipment.type === 'armor' ? '🛡️ 防具' : '💍 饰品'}
+            </div>
+          </div>
+        </Html>
+      )}
 
       {/* 合成成功粒子爆发 */}
       <ParticleBurst trigger={burstTrigger} colors={burstColors} particleCount={100} />
@@ -365,10 +450,83 @@ function SceneContent() {
 }
 
 // ==========================================================================
-// 外层导出组件 - 包装R3F Canvas + 结果消息浮层
+// 外层导出组件 - 包装R3F Canvas + 结果消息浮层 + 分享按钮
 // ==========================================================================
+
+// 属性标签映射
+const ATTR_LABEL: Record<AttributeKey, string> = {
+  attack: '攻击力',
+  defense: '防御力',
+  magic: '魔力',
+  durability: '耐久度',
+};
+
+// 生成分享文本: "装备名称 | 基础材料+材料1+材料2 | 攻击力:xxx 防御力:xxx"
+function buildShareText(
+  eqName: string,
+  eqBase: Record<AttributeKey, number>,
+  materialNames: string[],
+  successRate: number,
+  newAttrs: Record<string, number>,
+  diff: Record<string, number>,
+): string {
+  const parts: string[] = [];
+  parts.push(eqName);
+  const matPart = ['基础装备', ...materialNames].join('+');
+  parts.push(matPart);
+  // 收集变化过的属性 + 所有主要属性
+  const attrParts: string[] = [];
+  (['attack', 'defense', 'magic', 'durability'] as AttributeKey[]).forEach((k) => {
+    const val = newAttrs[k] ?? eqBase[k];
+    const d = diff[k] ?? 0;
+    const line = `${ATTR_LABEL[k]}:${val}${d > 0 ? `(+${d})` : d < 0 ? `(${d})` : ''}`;
+    attrParts.push(line);
+  });
+  parts.push(attrParts.join(' '));
+  parts.push(`成功率:${successRate}%`);
+  return parts.join(' | ');
+}
+
 export function EquipmentViewer() {
-  const { lastResult, currentEquipment } = useCrafting();
+  const { lastResult, currentEquipment, selectedMaterials } = useCrafting();
+  const [copyState, setCopyState] = useState<'idle' | 'success' | 'fail'>('idle');
+
+  // 合成成功时激活分享按钮 - 基于lastResult.success且有材料
+  const matsInRecipe = selectedMaterials.filter((m): m is NonNullable<typeof m> => m !== null);
+  const canShare = lastResult?.success && currentEquipment && matsInRecipe.length > 0;
+
+  const handleShare = useCallback(async () => {
+    if (!lastResult?.success || !currentEquipment) return;
+    const matNames = matsInRecipe.map((m) => m.name);
+    const text = buildShareText(
+      currentEquipment.name,
+      currentEquipment.baseAttributes,
+      matNames,
+      lastResult.successRate,
+      lastResult.newAttributes,
+      lastResult.attributeDiff,
+    );
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyState('success');
+      setTimeout(() => setCopyState('idle'), 2000);
+    } catch {
+      // 兼容降级方案
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        setCopyState('success');
+        setTimeout(() => setCopyState('idle'), 2000);
+      } catch {
+        setCopyState('fail');
+        setTimeout(() => setCopyState('idle'), 2000);
+      }
+    }
+  }, [lastResult, currentEquipment, matsInRecipe]);
 
   return (
     <div className="equipment-viewer">
@@ -377,9 +535,25 @@ export function EquipmentViewer() {
           <span className="title-icon">👁️</span>
           3D装备预览
         </h2>
-        {currentEquipment && (
-          <span className="viewer-equipment-name">{currentEquipment.name}</span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {canShare && (
+            <button
+              className={`share-btn share-btn--${copyState}`}
+              onClick={handleShare}
+              title="复制合成配方到剪贴板"
+            >
+              <span className="share-btn__icon">
+                {copyState === 'success' ? '✓' : copyState === 'fail' ? '✗' : '🔗'}
+              </span>
+              <span className="share-btn__text">
+                {copyState === 'success' ? '已复制!' : copyState === 'fail' ? '复制失败' : '分享配方'}
+              </span>
+            </button>
+          )}
+          {currentEquipment && (
+            <span className="viewer-equipment-name">{currentEquipment.name}</span>
+          )}
+        </div>
       </div>
 
       <div className="viewer-canvas">
@@ -392,13 +566,28 @@ export function EquipmentViewer() {
           <SceneContent />
         </Canvas>
 
-        {/* 合成结果浮层提示 */}
+        {/* 合成结果浮层提示 + 合成成功时的属性展示 */}
         {lastResult && (
           <div className={`result-toast ${lastResult.success ? 'toast--success' : 'toast--fail'}`}>
             <div className="toast-icon">{lastResult.success ? '🎉' : '💥'}</div>
             <div className="toast-content">
               <div className="toast-title">{lastResult.success ? '合成成功！' : '合成失败'}</div>
               <div className="toast-message">{lastResult.message}</div>
+
+              {/* 合成成功时的详细属性展示 */}
+              {lastResult.success && (
+                <div className="toast-attrs">
+                  {(['attack', 'defense', 'magic', 'durability'] as AttributeKey[]).map((k) => {
+                    const d = lastResult.attributeDiff[k] ?? 0;
+                    if (d === 0) return null;
+                    return (
+                      <span key={k} className={`toast-attr toast-attr--${d > 0 ? 'up' : 'down'}`}>
+                        {ATTR_LABEL[k]} {d > 0 ? '+' : ''}{d}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -407,6 +596,7 @@ export function EquipmentViewer() {
         <div className="viewer-hints">
           <span>🖱️ 拖拽旋转</span>
           <span>🔍 滚轮缩放</span>
+          <span>💡 悬停装备查看详情</span>
         </div>
       </div>
     </div>

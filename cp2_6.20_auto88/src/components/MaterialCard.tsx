@@ -27,8 +27,9 @@ const ATTR_LABELS: Record<AttributeKey, string> = {
 };
 
 function MaterialCardComponent({ material, disabled }: Props) {
-  const { addMaterial } = useCrafting();
+  const { addMaterial, toggleFavorite, isFavorite } = useCrafting();
   const rarity = RARITY_CONFIG[material.rarity];
+  const fav = isFavorite(material.id);
 
   // react-dnd拖拽源配置 - 拖拽时携带material数据
   const [{ isDragging }, dragRef] = useDrag(() => ({
@@ -45,17 +46,34 @@ function MaterialCardComponent({ material, disabled }: Props) {
     addMaterial(material); // 点击添加 -> useCrafting.storeAddMaterial -> 触发预览重算
   };
 
+  // 点击星标切换收藏 - 阻止冒泡，避免同时添加材料
+  const handleStarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    toggleFavorite(material.id);
+  };
+
   return (
     <div
       ref={dragRef}
       onClick={handleClick}
-      className="material-card"
+      className={`material-card ${fav ? 'material-card--fav' : ''}`}
       style={{
         borderColor: rarity.color,
+        boxShadow: fav ? `0 0 16px ${rarity.color}55` : undefined,
         opacity: disabled ? 0.4 : isDragging ? 0.5 : 1,
         cursor: disabled ? 'not-allowed' : 'pointer',
       }}
     >
+      {/* 星标按钮 - 右上角 */}
+      <button
+        className={`material-card__star ${fav ? 'star--on' : 'star--off'}`}
+        onClick={handleStarClick}
+        title={fav ? '取消收藏' : '收藏材料'}
+      >
+        {fav ? '★' : '☆'}
+      </button>
+
       {/* 稀有度标签条 */}
       <div className="material-card__rarity" style={{ backgroundColor: rarity.color }}>
         {rarity.label}

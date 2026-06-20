@@ -44,6 +44,8 @@ export function useCrafting() {
     swapSlots,
     addHistory,
     loadHistoryToSlots,
+    toggleFavorite,
+    isFavorite,
   } = useCraftingStore((s) => s);
 
   // ============== 初始化：加载材料和装备列表 ==============
@@ -149,5 +151,7 @@ export function useCrafting() {
     executeCrafting,
     loadHistoryToSlots,
     getEquipmentDetails,
+    toggleFavorite,
+    isFavorite,
   };
 }
