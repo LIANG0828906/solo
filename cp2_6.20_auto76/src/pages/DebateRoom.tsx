@@ -2,9 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { Room, Message, ArgumentNode, Connection, fetchRoom, fetchMessages, fetchNodes, fetchConnections } from '../api/debateApi';
 import { debateSocket } from '../socket/debateSocket';
 import ViewpointChart from '../charts/ViewpointChart';
+
+dayjs.extend(utc);
 
 const DebateRoom: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -14,7 +17,7 @@ const DebateRoom: React.FC = () => {
   const [nodes, setNodes] = useState<ArgumentNode[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [userSide, setUserSide] = useState<'pro' | 'con'>('pro');
+  const [userSide, setUserSide] = useState<'pro' | 'con' | null>(null);
   const [userId] = useState(() => uuidv4());
   const proRef = useRef<HTMLDivElement>(null);
   const conRef = useRef<HTMLDivElement>(null);
@@ -97,9 +100,10 @@ const DebateRoom: React.FC = () => {
   };
 
   const handleSend = () => {
-    if (!inputValue.trim() || !roomId || room?.status === 'ended') return;
+    if (!inputValue.trim() || !roomId || !userSide || room?.status === 'ended') return;
     debateSocket.sendMessage(roomId, userId, userSide, inputValue.trim());
     setInputValue('');
+    setUserSide(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -126,7 +130,7 @@ const DebateRoom: React.FC = () => {
   const buildFrequencyData = (msgs: Message[]) => {
     const timeMap = new Map<string, { pro: number; con: number }>();
     msgs.forEach((msg) => {
-      const time = dayjs(msg.timestamp).format('HH:mm');
+      const time = dayjs.utc(msg.timestamp).local().format('HH:mm');
       if (!timeMap.has(time)) timeMap.set(time, { pro: 0, con: 0 });
       const entry = timeMap.get(time)!;
       if (msg.side === 'pro') entry.pro++;
@@ -139,6 +143,11 @@ const DebateRoom: React.FC = () => {
 
   const proMessages = messages.filter((m) => m.side === 'pro');
   const conMessages = messages.filter((m) => m.side === 'con');
+
+  const getDisplayName = (uid: string) => {
+    if (uid === userId) return '我';
+    return '用户' + uid.substring(0, 4);
+  };
 
   if (!room) {
     return (
@@ -223,9 +232,9 @@ const DebateRoom: React.FC = () => {
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
-                        <span style={{ fontSize: '12px', color: '#1890ff', fontWeight: 600 }}>正方</span>
+                        <span style={{ fontSize: '12px', color: '#1890ff', fontWeight: 600 }}>正方 · {getDisplayName(msg.userId)}</span>
                         <span style={{ fontSize: '11px', color: '#8c8c8c', whiteSpace: 'nowrap' }}>
-                          {dayjs(msg.timestamp).format('HH:mm:ss')}
+                          {dayjs.utc(msg.timestamp).local().format('HH:mm:ss')}
                         </span>
                       </div>
                       <div style={{ fontSize: '14px', color: '#262626', lineHeight: 1.6 }}>{msg.content}</div>
@@ -270,9 +279,9 @@ const DebateRoom: React.FC = () => {
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', gap: '8px' }}>
-                        <span style={{ fontSize: '12px', color: '#ff6b6b', fontWeight: 600 }}>反方</span>
+                        <span style={{ fontSize: '12px', color: '#ff6b6b', fontWeight: 600 }}>反方 · {getDisplayName(msg.userId)}</span>
                         <span style={{ fontSize: '11px', color: '#8c8c8c', whiteSpace: 'nowrap' }}>
-                          {dayjs(msg.timestamp).format('HH:mm:ss')}
+                          {dayjs.utc(msg.timestamp).local().format('HH:mm:ss')}
                         </span>
                       </div>
                       <div style={{ fontSize: '14px', color: '#262626', lineHeight: 1.6 }}>{msg.content}</div>
@@ -296,32 +305,32 @@ const DebateRoom: React.FC = () => {
             >
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
-                  onClick={() => setUserSide('pro')}
+                  onClick={() => setUserSide(userSide === 'pro' ? null : 'pro')}
                   style={{
                     padding: '8px 16px',
                     border: `2px solid ${userSide === 'pro' ? '#1890ff' : '#d9d9d9'}`,
                     background: userSide === 'pro' ? '#e6f7ff' : 'white',
-                    color: userSide === 'pro' ? '#1890ff' : '#595959',
+                    color: userSide === 'pro' ? '#1890ff' : '#8c8c8c',
                     borderRadius: '6px',
                     cursor: 'pointer',
                     fontSize: '14px',
-                    fontWeight: 500,
+                    fontWeight: userSide === 'pro' ? 600 : 400,
                     transition: 'all 0.3s',
                   }}
                 >
                   正方
                 </button>
                 <button
-                  onClick={() => setUserSide('con')}
+                  onClick={() => setUserSide(userSide === 'con' ? null : 'con')}
                   style={{
                     padding: '8px 16px',
                     border: `2px solid ${userSide === 'con' ? '#ff6b6b' : '#d9d9d9'}`,
                     background: userSide === 'con' ? '#fff1f0' : 'white',
-                    color: userSide === 'con' ? '#ff6b6b' : '#595959',
+                    color: userSide === 'con' ? '#ff6b6b' : '#8c8c8c',
                     borderRadius: '6px',
                     cursor: 'pointer',
                     fontSize: '14px',
-                    fontWeight: 500,
+                    fontWeight: userSide === 'con' ? 600 : 400,
                     transition: 'all 0.3s',
                   }}
                 >
@@ -349,17 +358,17 @@ const DebateRoom: React.FC = () => {
               />
               <button
                 onClick={handleSend}
-                disabled={!inputValue.trim() || room.status === 'ended'}
+                disabled={!inputValue.trim() || !userSide || room.status === 'ended'}
                 style={{
                   padding: '12px 28px',
                   border: 'none',
-                  background: '#1890ff',
+                  background: inputValue.trim() && userSide && room.status !== 'ended' ? '#1890ff' : '#bfbfbf',
                   color: 'white',
                   borderRadius: '24px',
-                  cursor: inputValue.trim() && room.status !== 'ended' ? 'pointer' : 'not-allowed',
+                  cursor: inputValue.trim() && userSide && room.status !== 'ended' ? 'pointer' : 'not-allowed',
                   fontSize: '14px',
                   fontWeight: 500,
-                  opacity: inputValue.trim() && room.status !== 'ended' ? 1 : 0.5,
+                  opacity: inputValue.trim() && userSide && room.status !== 'ended' ? 1 : 0.45,
                   transition: 'all 0.3s',
                 }}
               >
