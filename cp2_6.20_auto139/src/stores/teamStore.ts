@@ -90,6 +90,13 @@ export const useTeamStore = create<TeamState>((set, get) => ({
         },
         (error) => {
           console.error('获取位置失败:', error);
+          set((state) => {
+            const newErrorCount = state.syncErrorCount + 1;
+            return {
+              syncErrorCount: newErrorCount,
+              error: newErrorCount >= 2 ? '位置同步失败' : null
+            };
+          });
         },
         { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );

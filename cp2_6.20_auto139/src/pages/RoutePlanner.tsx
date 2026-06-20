@@ -5,12 +5,25 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useRouteStore } from '../stores/routeStore';
 import { useTeamStore } from '../stores/teamStore';
 import type { Point } from '../types';
+import type { TeamMemberStatus } from '../types';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
 
 dayjs.extend(relativeTime);
 dayjs.locale('zh-cn');
+
+const statusColors: Record<TeamMemberStatus, string> = {
+  moving: '#2ecc71',
+  resting: '#f1c40f',
+  trouble: '#e74c3c'
+};
+
+const statusLabels: Record<TeamMemberStatus, string> = {
+  moving: '行进中',
+  resting: '休息中',
+  trouble: '遇到困难'
+};
 
 const supplyIcon = L.divIcon({
   className: 'custom-marker supply-marker',
@@ -44,13 +57,186 @@ function MapClickHandler({ onMapClick, activeTool }: { onMapClick: (lat: number,
   return null;
 }
 
-function DraggableMarker({ point, onDragEnd, onDelete, isSelected, onSelect, members }: {
+function PointDetailCard({ point, members, onClose, onDelete }: {
+  point: Point;
+  members: any[];
+  onClose: () => void;
+  onDelete: (pointId: string) => void;
+}) {
+  const pointMembers = members.filter((m) => m.nearestPointId === point.id);
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: '80px',
+        left: '16px',
+        width: '300px',
+        background: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+        zIndex: 600,
+        overflow: 'hidden',
+        transition: 'all 0.2s ease-out'
+      }}
+    >
+      <div style={{ padding: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#1a3c2e' }}>{point.name}</h3>
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: 500,
+              background: point.type === 'supply' ? 'rgba(243, 156, 18, 0.2)' : 'rgba(139, 69, 19, 0.2)',
+              color: point.type === 'supply' ? '#e67e22' : '#8b4513'
+            }}
+          >
+            {point.type === 'supply' ? '补给点' : '营地'}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#555' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+              <circle cx="12" cy="9" r="2.5" />
+            </svg>
+            <span>{point.lat.toFixed(4)}, {point.lng.toFixed(4)}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#555' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+            <span>海拔 {point.altitude} 米</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#555' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>预计到达 {point.estimatedArrival}</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #eee' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '12px',
+              color: point.hasWater ? '#3498db' : '#999'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z" />
+            </svg>
+            水源{point.hasWater ? '' : ' (无)'}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '12px',
+              color: point.hasShelter ? '#8b4513' : '#999'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L2 22H22L12 2Z" />
+            </svg>
+            庇护所{point.hasShelter ? '' : ' (无)'}
+          </div>
+        </div>
+
+        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #eee' }}>
+          <h5 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#666', fontWeight: 500 }}>
+            到达队员 ({pointMembers.length})
+          </h5>
+          {pointMembers.length === 0 ? (
+            <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>暂无队员到达</p>
+          ) : (
+            pointMembers.map((member) => (
+              <div
+                key={member.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 0',
+                  fontSize: '13px'
+                }}
+              >
+                <span style={{ color: '#333' }}>{member.name}</span>
+                <span
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: '10px',
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    background: `rgba(${member.status === 'moving' ? '46,204,113' : member.status === 'resting' ? '241,196,15' : '231,76,60'}, 0.2)`,
+                    color: statusColors[member.status as TeamMemberStatus] || '#666'
+                  }}
+                >
+                  {statusLabels[member.status as TeamMemberStatus]}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+          <button
+            onClick={() => onDelete(point.id)}
+            style={{
+              flex: 1,
+              padding: '10px',
+              background: '#fee',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#e74c3c',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-out'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#fdd'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#fee'; }}
+          >
+            删除
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              padding: '10px',
+              background: '#f0f4f1',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#1a3c2e',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-out'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#e0e8e2'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#f0f4f1'; }}
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DraggableMarker({ point, onDragEnd, onSelect, isSelected }: {
   point: Point;
   onDragEnd: (pointId: string, lat: number, lng: number) => void;
-  onDelete: (pointId: string) => void;
-  isSelected: boolean;
   onSelect: (point: Point) => void;
-  members: any[];
+  isSelected: boolean;
 }) {
   const markerRef = useRef<L.Marker>(null);
 
@@ -72,8 +258,6 @@ function DraggableMarker({ point, onDragEnd, onDelete, isSelected, onSelect, mem
     return point.type === 'supply' ? supplyIcon : campIcon;
   };
 
-  const pointMembers = members.filter((m) => m.nearestPointId === point.id);
-
   return (
     <Marker
       ref={markerRef}
@@ -82,86 +266,7 @@ function DraggableMarker({ point, onDragEnd, onDelete, isSelected, onSelect, mem
       draggable={true}
       eventHandlers={eventHandlers}
       zIndexOffset={isSelected ? 1000 : 100}
-    >
-      <Popup className="point-popup" maxWidth={300}>
-        <div className="popup-content">
-          <div className="popup-header">
-            <h3 className="popup-title">{point.name}</h3>
-            <span className={`popup-type-badge ${point.type}`}>
-              {point.type === 'supply' ? '补给点' : '营地'}
-            </span>
-          </div>
-          <div className="popup-info">
-            <div className="popup-info-item">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                <circle cx="12" cy="9" r="2.5" />
-              </svg>
-              <span>{point.lat.toFixed(4)}, {point.lng.toFixed(4)}</span>
-            </div>
-            <div className="popup-info-item">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-              <span>海拔 {point.altitude} 米</span>
-            </div>
-            <div className="popup-info-item">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              <span>预计到达 {point.estimatedArrival}</span>
-            </div>
-          </div>
-          <div className="popup-icons">
-            <div className={`popup-icon-item ${point.hasWater ? 'has-water' : ''}`}>
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z" />
-              </svg>
-              水源
-            </div>
-            <div className={`popup-icon-item ${point.hasShelter ? 'has-shelter' : ''}`}>
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L2 22H22L12 2Z" />
-              </svg>
-              庇护所
-            </div>
-          </div>
-          {pointMembers.length > 0 && (
-            <div className="team-members-list">
-              <h5>到达队员 ({pointMembers.length})</h5>
-              {pointMembers.map((member) => (
-                <div key={member.id} className="member-list-item">
-                  <span className="member-name">{member.name}</span>
-                  <span className={`member-status-badge ${member.status}`}>
-                    {member.status === 'moving' ? '行进中' : member.status === 'resting' ? '休息中' : '遇到困难'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          <button
-            onClick={() => onDelete(point.id)}
-            style={{
-              marginTop: '12px',
-              width: '100%',
-              padding: '8px',
-              background: '#fee',
-              border: 'none',
-              borderRadius: '6px',
-              color: '#e74c3c',
-              cursor: 'pointer',
-              fontSize: '13px',
-              transition: 'all 0.2s ease-out'
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#fdd'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = '#fee'; }}
-          >
-            删除此点
-          </button>
-        </div>
-      </Popup>
-    </Marker>
+    />
   );
 }
 
@@ -186,6 +291,7 @@ export default function RoutePlanner() {
   const [newPoint, setNewPoint] = useState<Partial<Point> | null>(null);
   const [copied, setCopied] = useState(false);
   const [routeName, setRouteName] = useState('');
+  const [detailPoint, setDetailPoint] = useState<Point | null>(null);
 
   const center: [number, number] = [35.8617, 104.1954];
 
@@ -242,6 +348,8 @@ export default function RoutePlanner() {
   const handleDeletePoint = (pointId: string) => {
     if (!currentRoute) return;
     deletePoint(currentRoute.id, pointId);
+    setDetailPoint(null);
+    setSelectedPoint(null);
   };
 
   const handleCreateRoute = async () => {
@@ -257,14 +365,30 @@ export default function RoutePlanner() {
   const handleCopyCode = async () => {
     if (!currentRoute) return;
     const shareLink = `${window.location.origin}/join/${currentRoute.code}`;
-    await navigator.clipboard.writeText(shareLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      const textArea = document.createElement('textarea');
+      textArea.value = shareLink;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleUpdatePoint = async (field: string, value: any) => {
     if (!selectedPoint || !currentRoute) return;
     await updatePoint(currentRoute.id, selectedPoint.id, { [field]: value });
+  };
+
+  const handleSelectPoint = (point: Point) => {
+    setDetailPoint(point);
+    setSelectedPoint(point);
   };
 
   const polylinePositions = useMemo(() => {
@@ -282,6 +406,8 @@ export default function RoutePlanner() {
   };
 
   const members = teamData?.members || [];
+
+  const shareLink = currentRoute ? `${window.location.origin}/join/${currentRoute.code}` : '';
 
   return (
     <div style={{ height: '100%', position: 'relative' }}>
@@ -307,12 +433,12 @@ export default function RoutePlanner() {
               }}
               placeholder="路线名称"
             />
-            <button className="copy-btn" onClick={handleCopyCode}>
+            <button className="copy-btn" onClick={handleCopyCode} title={shareLink}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="9" y="9" width="13" height="13" rx="2" />
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
               </svg>
-              {copied ? '已复制' : '分享链接'}
+              {copied ? '✓ 已复制!' : '复制分享链接'}
             </button>
             <button
               className="copy-btn"
@@ -343,8 +469,20 @@ export default function RoutePlanner() {
               <span className="stat-label">点数</span>
               <span className="stat-value">{currentRoute.points.length}</span>
             </div>
+            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #eee', fontSize: '11px', color: '#888' }}>
+              分享代码: <strong style={{ color: '#1a3c2e', fontFamily: 'monospace' }}>{currentRoute.code}</strong>
+            </div>
           </div>
         </>
+      )}
+
+      {detailPoint && (
+        <PointDetailCard
+          point={detailPoint}
+          members={members}
+          onClose={() => { setDetailPoint(null); setSelectedPoint(null); }}
+          onDelete={handleDeletePoint}
+        />
       )}
 
       <MapContainer
@@ -379,10 +517,8 @@ export default function RoutePlanner() {
             key={point.id}
             point={point}
             onDragEnd={handleDragEnd}
-            onDelete={handleDeletePoint}
-            isSelected={selectedPoint?.id === point.id}
-            onSelect={setSelectedPoint}
-            members={members}
+            onSelect={handleSelectPoint}
+            isSelected={selectedPoint?.id === point.id || detailPoint?.id === point.id}
           />
         ))}
 
@@ -481,7 +617,7 @@ export default function RoutePlanner() {
         )}
       </MapContainer>
 
-      {selectedPoint && !newPoint && (
+      {selectedPoint && !newPoint && !detailPoint && (
         <div className="toolbar" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '8px' }}>
           <div style={{ fontWeight: 600, color: '#1a3c2e', fontSize: '15px' }}>
             编辑: {selectedPoint.name}
@@ -533,7 +669,7 @@ export default function RoutePlanner() {
               庇护所
             </label>
             <button
-              onClick={() => setSelectedPoint(null)}
+              onClick={() => { setSelectedPoint(null); }}
               style={{ marginLeft: 'auto', padding: '6px 14px', background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', fontSize: '13px' }}
             >
               完成
@@ -542,7 +678,7 @@ export default function RoutePlanner() {
         </div>
       )}
 
-      {!selectedPoint && !newPoint && (
+      {!selectedPoint && !newPoint && !detailPoint && (
         <div className="toolbar">
           {!currentRoute ? (
             <button className="tool-btn active" onClick={handleCreateRoute}>
@@ -556,7 +692,7 @@ export default function RoutePlanner() {
             <>
               <button
                 className={`tool-btn ${activeTool === 'supply' ? 'active' : ''}`}
-                onClick={() => { setActiveTool(activeTool === 'supply' ? null : 'supply'); setSelectedPoint(null); }}
+                onClick={() => { setActiveTool(activeTool === 'supply' ? null : 'supply'); setSelectedPoint(null); setDetailPoint(null); }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="#f39c12">
                   <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
@@ -565,7 +701,7 @@ export default function RoutePlanner() {
               </button>
               <button
                 className={`tool-btn ${activeTool === 'camp' ? 'active' : ''}`}
-                onClick={() => { setActiveTool(activeTool === 'camp' ? null : 'camp'); setSelectedPoint(null); }}
+                onClick={() => { setActiveTool(activeTool === 'camp' ? null : 'camp'); setSelectedPoint(null); setDetailPoint(null); }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="#8b4513">
                   <path d="M12 2L2 22H22L12 2Z" />
