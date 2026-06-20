@@ -23,6 +23,8 @@ class NebulaApp {
     private _draggingGravity: GravityPoint | null = null;
     private _dragPlane: THREE.Plane;
     private _dragOffset: THREE.Vector3;
+    private _intersectPoint: THREE.Vector3;
+    private _camDir: THREE.Vector3;
     private _frameCount: number = 0;
     private _fps: number = 0;
     private _fpsAccum: number = 0;
@@ -33,6 +35,8 @@ class NebulaApp {
         this._mouse = new THREE.Vector2();
         this._dragPlane = new THREE.Plane();
         this._dragOffset = new THREE.Vector3();
+        this._intersectPoint = new THREE.Vector3();
+        this._camDir = new THREE.Vector3();
 
         this.container = document.getElementById('canvas-container')!;
 
@@ -190,14 +194,14 @@ class NebulaApp {
                 this._draggingGravity = gp;
                 this.controls.enabled = false;
 
+                this.camera.getWorldDirection(this._camDir).negate();
                 this._dragPlane.setFromNormalAndCoplanarPoint(
-                    this.camera.getWorldDirection(new THREE.Vector3()).negate(),
+                    this._camDir,
                     gp.position
                 );
 
-                const intersectPoint = new THREE.Vector3();
-                this._raycaster.ray.intersectPlane(this._dragPlane, intersectPoint);
-                this._dragOffset.copy(gp.position).sub(intersectPoint);
+                this._raycaster.ray.intersectPlane(this._dragPlane, this._intersectPoint);
+                this._dragOffset.copy(gp.position).sub(this._intersectPoint);
             }
         }
     }
@@ -208,9 +212,8 @@ class NebulaApp {
         this._updateMouse(e);
         this._raycaster.setFromCamera(this._mouse, this.camera);
 
-        const intersectPoint = new THREE.Vector3();
-        if (this._raycaster.ray.intersectPlane(this._dragPlane, intersectPoint)) {
-            this._draggingGravity.position.copy(intersectPoint.add(this._dragOffset));
+        if (this._raycaster.ray.intersectPlane(this._dragPlane, this._intersectPoint)) {
+            this._draggingGravity.position.copy(this._intersectPoint.add(this._dragOffset));
         }
     }
 

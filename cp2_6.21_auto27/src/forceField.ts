@@ -246,15 +246,14 @@ export class ForceFieldManager {
         out: THREE.Vector3
     ): void {
         out.set(0, 0, 0);
-        const _acc = new THREE.Vector3();
         for (const gp of this.gravityPoints) {
-            if (gp.calculateAcceleration(pos, _acc)) {
-                out.add(_acc);
+            if (gp.calculateAcceleration(pos, _tempVec3A)) {
+                out.add(_tempVec3A);
             }
         }
         for (const vf of this.vortexFields) {
-            if (vf.calculateAcceleration(pos, _acc)) {
-                out.add(_acc);
+            if (vf.calculateAcceleration(pos, _tempVec3A)) {
+                out.add(_tempVec3A);
             }
         }
         void vel;

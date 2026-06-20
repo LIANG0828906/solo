@@ -35,11 +35,8 @@ const COLOR_PALETTES: Record<ColorTheme, [number, number, number][]> = {
 };
 
 export const MAX_PARTICLES = 60000;
-export const TRAIL_MAX_POINTS = 60;
-
-interface ParticleState {
-    active: boolean;
-}
+export const TRAIL_SEGMENTS_PER_PARTICLE = 30;
+export const TRAIL_LIFETIME = 1.0;
 
 export interface ParticleSystemTargetConfig {
     emissionRate: number;
@@ -78,20 +75,22 @@ export class ParticleSystem {
     private _positions!: Float32Array;
     private _colors!: Float32Array;
     private _sizes!: Float32Array;
-
     private _particleAge!: Float32Array;
     private _particleLife!: Float32Array;
     private _particleVel!: Float32Array;
     private _particleInitialSize!: Float32Array;
     private _particleInitialColor!: Float32Array;
-    private _particleState!: ParticleState[];
+    private _particleActive!: Uint8Array;
+
+    private _freeIndices!: Int32Array;
+    private _freeIndexTop: number = 0;
 
     private _trailPositions!: Float32Array;
     private _trailColors!: Float32Array;
-    private _trailParticleIndex!: Int32Array;
-    private _trailAge!: Float32Array;
-    private _maxTrailSegments!: number;
-    private _trailWriteIndex: number = 0;
+    private _trailTimestamp!: Float32Array;
+    private _maxTrailSegments: number;
+    private _trailCount: number = 0;
+    private _trailHead: number = 0;
 
     public targetConfig: ParticleSystemTargetConfig;
     public currentConfig: ParticleSystemCurrentConfig;
@@ -121,34 +120,23 @@ export class ParticleSystem {
         this.geometry.setDrawRange(0, this._maxParticles);
 
         this.material = new THREE.PointsMaterial({
-            size: 0.3,
+            size: 0.35,
             vertexColors: true,
             map: texture,
             transparent: true,
-            alphaTest: 0.01,
+            alphaTest: 0.001,
             depthWrite: false,
             blending: THREE.AdditiveBlending,
             sizeAttenuation: true
         });
-        this.material.onBeforeCompile = (shader) => {
-            shader.vertexShader = shader.vertexShader
-                .replace('attribute float size;', 'attribute float size;\nvarying float vSize;')
-                .replace(
-                    'gl_PointSize = size;',
-                    'vSize = size;\ngl_PointSize = size * (300.0 / -mvPosition.z);'
-                );
-            shader.fragmentShader = shader.fragmentShader
-                .replace('#include <common>', '#include <common>\nvarying float vSize;');
-        };
 
         this.points = new THREE.Points(this.geometry, this.material);
         this.scene.add(this.points);
 
-        this._maxTrailSegments = MAX_PARTICLES * 2;
-        this._trailPositions = new Float32Array(this._maxTrailSegments * 3 * 2);
-        this._trailColors = new Float32Array(this._maxTrailSegments * 4 * 2);
-        this._trailParticleIndex = new Int32Array(this._maxTrailSegments * 2);
-        this._trailAge = new Float32Array(this._maxTrailSegments * 2);
+        this._maxTrailSegments = MAX_PARTICLES;
+        this._trailPositions = new Float32Array(this._maxTrailSegments * 6);
+        this._trailColors = new Float32Array(this._maxTrailSegments * 8);
+        this._trailTimestamp = new Float32Array(this._maxTrailSegments * 2);
 
         this.trailGeometry = new THREE.BufferGeometry();
         this.trailGeometry.setAttribute('position', new THREE.BufferAttribute(this._trailPositions, 3));
@@ -178,9 +166,13 @@ export class ParticleSystem {
         this._particleVel = new Float32Array(this._maxParticles * 3);
         this._particleInitialSize = new Float32Array(this._maxParticles);
         this._particleInitialColor = new Float32Array(this._maxParticles * 3);
-        this._particleState = new Array(this._maxParticles);
+        this._particleActive = new Uint8Array(this._maxParticles);
+
+        this._freeIndices = new Int32Array(this._maxParticles);
+        this._freeIndexTop = this._maxParticles;
         for (let i = 0; i < this._maxParticles; i++) {
-            this._particleState[i] = { active: false };
+            this._freeIndices[i] = this._maxParticles - 1 - i;
+            this._positions[i * 3 + 1] = -99999;
         }
     }
 
@@ -240,21 +232,22 @@ export class ParticleSystem {
         out[offset + 2] = r * Math.sin(t);
     }
 
-    private _findInactiveIndex(): number {
-        for (let i = 0; i < this._maxParticles; i++) {
-            if (!this._particleState[i].active) {
-                return i;
-            }
-        }
-        return -1;
+    private _acquireIndex(): number {
+        if (this._freeIndexTop <= 0) return -1;
+        this._freeIndexTop--;
+        return this._freeIndices[this._freeIndexTop];
+    }
+
+    private _releaseIndex(idx: number): void {
+        this._freeIndices[this._freeIndexTop] = idx;
+        this._freeIndexTop++;
     }
 
     private _emitParticle(): boolean {
-        const idx = this._findInactiveIndex();
+        const idx = this._acquireIndex();
         if (idx === -1) return false;
 
-        const state = this._particleState[idx];
-        state.active = true;
+        this._particleActive[idx] = 1;
         this._activeCount++;
 
         this._randomInSphere(this._positions, idx * 3, this._spawnRadius);
@@ -284,8 +277,10 @@ export class ParticleSystem {
     }
 
     private _killParticle(idx: number): void {
-        this._particleState[idx].active = false;
+        if (this._particleActive[idx] === 0) return;
+        this._particleActive[idx] = 0;
         this._activeCount--;
+        this._releaseIndex(idx);
         this._sizes[idx] = 0;
         this._positions[idx * 3] = 0;
         this._positions[idx * 3 + 1] = -99999;
@@ -300,42 +295,43 @@ export class ParticleSystem {
         this.currentConfig.speed += (this.targetConfig.speed - this.currentConfig.speed) * t;
     }
 
-    private _writeTrailPoint(idx: number): void {
-        if (this._trailWriteIndex >= this._maxTrailSegments) {
-            this._trailWriteIndex = 0;
+    private _writeTrailSegment(pIdx: number, nowTime: number): void {
+        if (this._trailCount < this._maxTrailSegments) {
+            this._trailCount++;
         }
-        const base = this._trailWriteIndex * 6;
-        const prevBase = base;
-        const age = this._particleAge[idx];
-        const life = this._particleLife[idx];
-        const lifeRatio = age / life;
-        const alpha = Math.max(0, 1 - lifeRatio);
 
-        this._trailPositions[prevBase] = this._positions[idx * 3];
-        this._trailPositions[prevBase + 1] = this._positions[idx * 3 + 1];
-        this._trailPositions[prevBase + 2] = this._positions[idx * 3 + 2];
-        this._trailPositions[prevBase + 3] = this._positions[idx * 3];
-        this._trailPositions[prevBase + 4] = this._positions[idx * 3 + 1];
-        this._trailPositions[prevBase + 5] = this._positions[idx * 3 + 2];
+        const head = this._trailHead;
+        this._trailHead = (this._trailHead + 1) % this._maxTrailSegments;
 
-        const r = this._colors[idx * 3];
-        const g = this._colors[idx * 3 + 1];
-        const b = this._colors[idx * 3 + 2];
-        this._trailColors[prevBase * 4 / 3] = r;
-        this._trailColors[prevBase * 4 / 3 + 1] = g;
-        this._trailColors[prevBase * 4 / 3 + 2] = b;
-        this._trailColors[prevBase * 4 / 3 + 3] = alpha * 0.8;
-        this._trailColors[prevBase * 4 / 3 + 4] = r;
-        this._trailColors[prevBase * 4 / 3 + 5] = g;
-        this._trailColors[prevBase * 4 / 3 + 6] = b;
-        this._trailColors[prevBase * 4 / 3 + 7] = alpha * 0.6;
+        const posOffset = head * 6;
+        const colorOffset = head * 8;
+        const timeOffset = head * 2;
 
-        this._trailParticleIndex[this._trailWriteIndex * 2] = idx;
-        this._trailParticleIndex[this._trailWriteIndex * 2 + 1] = idx;
-        this._trailAge[this._trailWriteIndex * 2] = age;
-        this._trailAge[this._trailWriteIndex * 2 + 1] = age;
+        const px = this._positions[pIdx * 3];
+        const py = this._positions[pIdx * 3 + 1];
+        const pz = this._positions[pIdx * 3 + 2];
+        const pr = this._colors[pIdx * 3];
+        const pg = this._colors[pIdx * 3 + 1];
+        const pb = this._colors[pIdx * 3 + 2];
 
-        this._trailWriteIndex++;
+        this._trailPositions[posOffset] = px;
+        this._trailPositions[posOffset + 1] = py;
+        this._trailPositions[posOffset + 2] = pz;
+        this._trailPositions[posOffset + 3] = px;
+        this._trailPositions[posOffset + 4] = py;
+        this._trailPositions[posOffset + 5] = pz;
+
+        this._trailColors[colorOffset] = pr;
+        this._trailColors[colorOffset + 1] = pg;
+        this._trailColors[colorOffset + 2] = pb;
+        this._trailColors[colorOffset + 3] = 0.8;
+        this._trailColors[colorOffset + 4] = pr;
+        this._trailColors[colorOffset + 5] = pg;
+        this._trailColors[colorOffset + 6] = pb;
+        this._trailColors[colorOffset + 7] = 0.8;
+
+        this._trailTimestamp[timeOffset] = nowTime;
+        this._trailTimestamp[timeOffset + 1] = nowTime;
     }
 
     public update(dt: number): void {
@@ -347,8 +343,10 @@ export class ParticleSystem {
             this._emissionAccumulator -= 1;
         }
 
+        const nowTime = performance.now() / 1000;
+
         for (let idx = 0; idx < this._maxParticles; idx++) {
-            if (!this._particleState[idx].active) continue;
+            if (this._particleActive[idx] === 0) continue;
 
             this._particleAge[idx] += dt;
             const age = this._particleAge[idx];
@@ -392,8 +390,8 @@ export class ParticleSystem {
             this._colors[idx * 3 + 1] = this._particleInitialColor[idx * 3 + 1] * colorFade;
             this._colors[idx * 3 + 2] = this._particleInitialColor[idx * 3 + 2] * colorFade;
 
-            if (Math.random() < 0.3) {
-                this._writeTrailPoint(idx);
+            if (Math.random() < 0.35) {
+                this._writeTrailSegment(idx, nowTime);
             }
         }
 
@@ -401,28 +399,38 @@ export class ParticleSystem {
         (this.geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
         (this.geometry.attributes.size as THREE.BufferAttribute).needsUpdate = true;
 
-        this._updateTrailFade(dt);
+        this._updateTrailFade(nowTime);
         (this.trailGeometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
         (this.trailGeometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
-        this.trailGeometry.setDrawRange(0, Math.min(this._trailWriteIndex * 2, this._maxTrailSegments * 2));
+        this.trailGeometry.setDrawRange(0, this._trailCount * 2);
     }
 
-    private _updateTrailFade(dt: number): void {
-        const count = Math.min(this._trailWriteIndex * 2, this._maxTrailSegments * 2);
+    private _updateTrailFade(nowTime: number): void {
+        const count = this._trailCount;
         for (let i = 0; i < count; i++) {
-            this._trailAge[i] += dt;
-            const alphaIdx = (i * 4) + 3;
-            this._trailColors[alphaIdx] = Math.max(0, this._trailColors[alphaIdx] - dt * 0.8);
+            const segIdx = (this._trailHead + this._maxTrailSegments - count + i) % this._maxTrailSegments;
+            const colorOffset = segIdx * 8;
+            const timeOffset = segIdx * 2;
+
+            const t0 = nowTime - this._trailTimestamp[timeOffset];
+            const t1 = nowTime - this._trailTimestamp[timeOffset + 1];
+
+            const alpha0 = Math.max(0, 0.8 * (1 - t0 / TRAIL_LIFETIME));
+            const alpha1 = Math.max(0, 0.8 * (1 - t1 / TRAIL_LIFETIME));
+
+            this._trailColors[colorOffset + 3] = alpha0;
+            this._trailColors[colorOffset + 7] = alpha1;
         }
     }
 
     public reset(): void {
         for (let i = 0; i < this._maxParticles; i++) {
-            if (this._particleState[i].active) {
+            if (this._particleActive[i] === 1) {
                 this._killParticle(i);
             }
         }
-        this._trailWriteIndex = 0;
+        this._trailHead = 0;
+        this._trailCount = 0;
         this._emissionAccumulator = 0;
         this._initInitialParticles(1000);
     }
