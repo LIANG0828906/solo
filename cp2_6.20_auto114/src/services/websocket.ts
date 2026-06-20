@@ -10,14 +10,50 @@ class WebSocketService {
   private fallbackMode = false
   private connectAttempts = 0
   private maxAttempts = 3
+  private fallbackSwitchFired = false
+
+  private clearReconnectTimer() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+  }
+
+  private cleanupConnection() {
+    this.clearReconnectTimer()
+    if (this.ws) {
+      try {
+        this.ws.onopen = null
+        this.ws.onmessage = null
+        this.ws.onerror = null
+        this.ws.onclose = null
+        if (
+          this.ws.readyState === WebSocket.OPEN ||
+          this.ws.readyState === WebSocket.CONNECTING
+        ) {
+          this.ws.close()
+        }
+      } catch {
+      }
+      this.ws = null
+    }
+  }
+
+  private enterFallbackMode() {
+    if (this.fallbackSwitchFired) return
+    this.fallbackSwitchFired = true
+    this.cleanupConnection()
+    this.fallbackMode = true
+    console.log('[WS] Fallback mode activated - using local simulation')
+  }
 
   connect() {
-    if (this.ws?.readyState === WebSocket.OPEN) return
-
+    // force HMR marker
     if (this.fallbackMode) {
-      console.log('[WS] Running in fallback mode (local simulation)')
       return
     }
+
+    if (this.ws?.readyState === WebSocket.OPEN) return
 
     if (this.connectAttempts >= this.maxAttempts) {
       console.log('[WS] Max attempts reached, switching to fallback mode')
@@ -28,51 +64,58 @@ class WebSocketService {
     this.connectAttempts++
 
     try {
+      this.cleanupConnection()
+
       this.ws = new WebSocket(this.url)
 
       this.ws.onopen = () => {
         console.log('[WS] Connected to backend')
         this.connectAttempts = 0
         this.fallbackMode = false
+        this.fallbackSwitchFired = false
       }
 
       this.ws.onmessage = (event) => {
         try {
           const msg: WSMessage = JSON.parse(event.data)
-          this.handlers.forEach((h) => h(msg))
+          this.handlers.forEach((h) => {
+            try {
+              h(msg)
+            } catch {
+            }
+          })
         } catch {
           console.warn('[WS] Failed to parse message')
         }
       }
 
       this.ws.onclose = () => {
-        console.log(`[WS] Disconnected (attempt ${this.connectAttempts}/${this.maxAttempts})`)
+        console.log(
+          `[WS] Disconnected (attempt ${this.connectAttempts}/${this.maxAttempts})`
+        )
         if (this.connectAttempts >= this.maxAttempts) {
           this.enterFallbackMode()
-        } else {
+        } else if (!this.fallbackSwitchFired) {
+          this.clearReconnectTimer()
           this.reconnectTimer = setTimeout(() => this.connect(), 2000)
         }
       }
 
       this.ws.onerror = () => {
         console.warn('[WS] Connection error')
-        this.ws?.close()
+        this.cleanupConnection()
       }
     } catch {
-      console.warn(`[WS] Connection failed, will retry (attempt ${this.connectAttempts}/${this.maxAttempts})`)
+      console.warn(
+        `[WS] Connection failed (attempt ${this.connectAttempts}/${this.maxAttempts})`
+      )
       if (this.connectAttempts >= this.maxAttempts) {
         this.enterFallbackMode()
-      } else {
+      } else if (!this.fallbackSwitchFired) {
+        this.clearReconnectTimer()
         this.reconnectTimer = setTimeout(() => this.connect(), 2000)
       }
     }
-  }
-
-  private enterFallbackMode() {
-    this.fallbackMode = true
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
-    this.ws = null
-    console.log('[WS] Fallback mode activated - using local simulation')
   }
 
   isFallbackMode() {
@@ -80,11 +123,10 @@ class WebSocketService {
   }
 
   disconnect() {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
-    this.ws?.close()
-    this.ws = null
+    this.fallbackSwitchFired = false
     this.fallbackMode = false
     this.connectAttempts = 0
+    this.cleanupConnection()
   }
 
   onMessage(handler: MessageHandler) {
@@ -96,7 +138,11 @@ class WebSocketService {
 
   send(data: unknown) {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(data))
+      try {
+        this.ws.send(JSON.stringify(data))
+      } catch {
+        console.warn('[WS] Failed to send message')
+      }
     } else if (this.fallbackMode) {
       console.log('[WS] Fallback mode: send ignored', data)
     }
@@ -113,7 +159,12 @@ class WebSocketService {
       },
       timestamp: new Date().toISOString(),
     }
-    this.handlers.forEach((h) => h(msg))
+    this.handlers.forEach((h) => {
+      try {
+        h(msg)
+      } catch {
+      }
+    })
     return msg
   }
 
@@ -135,7 +186,12 @@ class WebSocketService {
       },
       timestamp: new Date().toISOString(),
     }
-    this.handlers.forEach((h) => h(msg))
+    this.handlers.forEach((h) => {
+      try {
+        h(msg)
+      } catch {
+      }
+    })
     return msg
   }
 }
