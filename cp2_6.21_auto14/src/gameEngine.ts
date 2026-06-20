@@ -88,18 +88,32 @@ interface Star {
   alpha: number;
 }
 
+// 飞船配置：speed 单位为 像素/秒
+// - 快速型：360px/s，约1.2秒穿越半屏（450px），机动性强但血量低
+// - 均衡型：240px/s，约1.9秒穿越半屏，综合性能平衡
+// - 重装型：150px/s，约3秒穿越半屏，移动缓慢但血量高
 const SHIP_CONFIGS: Record<ShipType, Omit<ShipConfig, 'color'>> = {
-  fast: { type: 'fast', speed: 6, maxHealth: 70, shape: 'triangle' },
-  balanced: { type: 'balanced', speed: 4, maxHealth: 100, shape: 'hexagon' },
-  heavy: { type: 'heavy', speed: 2.5, maxHealth: 150, shape: 'circle' },
+  fast: { type: 'fast', speed: 360, maxHealth: 70, shape: 'triangle' },
+  balanced: { type: 'balanced', speed: 240, maxHealth: 100, shape: 'hexagon' },
+  heavy: { type: 'heavy', speed: 150, maxHealth: 150, shape: 'circle' },
 };
 
-const BULLET_SPEED = 480;
+// 子弹速度：420像素/秒
+// 穿越整个战场（900px）约需2.1秒，穿越半屏约需1.1秒
+// 比最快飞船（360px/s）快约17%，给予玩家一定的躲避空间但保持挑战性
+const BULLET_SPEED = 420;
 const BULLET_RADIUS = 2;
+
+// 子弹发射频率：每秒3发，每发间隔约0.333秒
 const FIRE_RATE = 3;
+
 const INVINCIBLE_DURATION = 0.5;
 const MAX_PARTICLES = 200;
+
+// 空间哈希网格大小：20像素
+// 将战场划分为网格单元，碰撞检测时只查询相邻网格，大幅减少检测次数
 const GRID_SIZE = 20;
+
 const VICTORY_DURATION = 2;
 
 class SpatialHash {
@@ -166,9 +180,19 @@ class ParticlePool {
   }
 
   add(particle: Particle): void {
-    if (this.particles.length >= this.maxParticles) {
-      this.particles.shift();
+    if (this.particles.length < this.maxParticles) {
+      this.particles.push(particle);
+      return;
     }
+
+    for (let i = 0; i < this.particles.length; i++) {
+      if (this.particles[i].life <= 0) {
+        this.particles[i] = particle;
+        return;
+      }
+    }
+
+    this.particles.shift();
     this.particles.push(particle);
   }
 
@@ -193,6 +217,10 @@ class ParticlePool {
 
   clear(): void {
     this.particles = [];
+  }
+
+  getCount(): number {
+    return this.particles.length;
   }
 }
 
@@ -442,8 +470,8 @@ class GameEngine {
       dy /= len;
     }
 
-    const newX = ship.x + dx * ship.speed * 60 * dt;
-    const newY = ship.y + dy * ship.speed * 60 * dt;
+    const newX = ship.x + dx * ship.speed * dt;
+    const newY = ship.y + dy * ship.speed * dt;
 
     const minX = player === 1 ? ship.size : this.halfWidth + ship.size;
     const maxX = player === 1 ? this.halfWidth - ship.size : this.canvasWidth - ship.size;
@@ -504,32 +532,27 @@ class GameEngine {
     this.spatialHash.clear();
     this.spatialHash.insertShip(this.ship1);
     this.spatialHash.insertShip(this.ship2);
-    this.bullets.forEach(b => this.spatialHash.insertBullet(b));
 
-    const cells = this.spatialHash.queryNearby(this.ship1.x, this.ship1.y, this.ship1.size + 10);
-    cells.push(...this.spatialHash.queryNearby(this.ship2.x, this.ship2.y, this.ship2.size + 10));
+    for (let i = this.bullets.length - 1; i >= 0; i--) {
+      const bullet = this.bullets[i];
+      const nearbyItems = this.spatialHash.queryNearby(bullet.x, bullet.y, bullet.radius + 5);
 
-    const checkedBullets = new Set<number>();
+      for (const item of nearbyItems) {
+        if (!item.ship) continue;
 
-    for (const item of cells) {
-      if (!item.bullet) continue;
+        const ship = item.ship;
+        if (ship.player === bullet.player) continue;
+        if (ship.invincibleTime > 0) continue;
 
-      const bulletIndex = this.bullets.indexOf(item.bullet);
-      if (bulletIndex === -1 || checkedBullets.has(bulletIndex)) continue;
-      checkedBullets.add(bulletIndex);
+        const dx = bullet.x - ship.x;
+        const dy = bullet.y - ship.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
 
-      const bullet = item.bullet;
-      const targetShip = bullet.player === 1 ? this.ship2 : this.ship1;
-
-      if (targetShip.invincibleTime > 0) continue;
-
-      const dx = bullet.x - targetShip.x;
-      const dy = bullet.y - targetShip.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < targetShip.size + bullet.radius) {
-        this.bullets.splice(bulletIndex, 1);
-        this.hitShip(targetShip, bullet);
+        if (dist < ship.size + bullet.radius) {
+          this.bullets.splice(i, 1);
+          this.hitShip(ship, bullet);
+          break;
+        }
       }
     }
   }
@@ -587,19 +610,47 @@ class GameEngine {
     this.createVictoryEffect(winner);
   }
 
+  private lerpColor(color1: string, color2: string, t: number): string {
+    const c1 = this.hexToRgb(color1);
+    const c2 = this.hexToRgb(color2);
+    if (!c1 || !c2) return color1;
+
+    const r = Math.round(c1.r + (c2.r - c1.r) * t);
+    const g = Math.round(c1.g + (c2.g - c1.g) * t);
+    const b = Math.round(c1.b + (c2.b - c1.b) * t);
+
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
+  private hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : null;
+  }
+
   private createVictoryEffect(winner: 1 | 2): void {
     const ship = winner === 1 ? this.ship1 : this.ship2;
     if (!ship) return;
 
+    const winnerColor = ship.color;
+    const goldColor = '#ffd700';
+
     for (let i = 0; i < 30; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 80 + Math.random() * 120;
+      const colorT = Math.random();
+      const particleColor = Math.random() > 0.5 ? winnerColor : goldColor;
       this.particlePool.add({
         x: ship.x,
         y: ship.y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        color: '#ffd700',
+        color: particleColor,
         life: 1.5,
         maxLife: 1.5,
         size: 4 + Math.random() * 4,
@@ -615,16 +666,19 @@ class GameEngine {
 
     const winner = this.gameState.winner;
     const ship = winner === 1 ? this.ship1 : this.ship2;
+    const winnerColor = ship?.color || '#ffd700';
+    const goldColor = '#ffd700';
 
     if (Math.random() < 0.3) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 60 + Math.random() * 100;
+      const particleColor = Math.random() > 0.5 ? winnerColor : goldColor;
       this.particlePool.add({
         x: ship.x,
         y: ship.y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        color: '#ffd700',
+        color: particleColor,
         life: 1.5,
         maxLife: 1.5,
         size: 4 + Math.random() * 4,
@@ -928,17 +982,28 @@ class GameEngine {
     const ctx = this.ctx;
     const winnerColor = this.gameState.winnerColor || (this.gameState.winner === 1 ? '#00f0ff' : '#ff007a');
     const progress = Math.min(1, this.victoryTimer / VICTORY_DURATION);
+    const goldColor = '#ffd700';
 
-    const gradient = ctx.createRadialGradient(
+    const bgGradient = ctx.createRadialGradient(
       this.canvasWidth / 2, this.canvasHeight / 2, 0,
-      this.canvasWidth / 2, this.canvasHeight / 2, this.canvasWidth / 2
+      this.canvasWidth / 2, this.canvasHeight / 2, Math.max(this.canvasWidth, this.canvasHeight) / 2
     );
-    const alpha = Math.floor(progress * 0.4 * 255).toString(16).padStart(2, '0');
-    gradient.addColorStop(0, `${winnerColor}${alpha}`);
-    gradient.addColorStop(0.5, `${winnerColor}${Math.floor(progress * 0.2 * 255).toString(16).padStart(2, '0')}`);
-    gradient.addColorStop(1, 'transparent');
+    const outerColor = this.lerpColor('#060612', winnerColor, progress * 0.3);
+    const innerColor = this.lerpColor('#1a0a2e', winnerColor, progress * 0.5);
+    bgGradient.addColorStop(0, innerColor);
+    bgGradient.addColorStop(1, outerColor);
 
-    ctx.fillStyle = gradient;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+
+    const glowGradient = ctx.createRadialGradient(
+      this.canvasWidth / 2, this.canvasHeight / 2, 0,
+      this.canvasWidth / 2, this.canvasHeight / 2, this.canvasWidth / 2.5
+    );
+    glowGradient.addColorStop(0, `${winnerColor}${Math.floor(progress * 0.3 * 255).toString(16).padStart(2, '0')}`);
+    glowGradient.addColorStop(1, 'transparent');
+    ctx.fillStyle = glowGradient;
     ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
 
     if (this.gameState.winner && (this.ship1 || this.ship2)) {
@@ -955,10 +1020,18 @@ class GameEngine {
 
         ctx.beginPath();
         ctx.arc(0, 0, ship.size * 1.5, 0, Math.PI * 2);
-        ctx.strokeStyle = '#ffd700';
+        ctx.strokeStyle = goldColor;
         ctx.lineWidth = 3;
-        ctx.shadowColor = '#ffd700';
+        ctx.shadowColor = goldColor;
         ctx.shadowBlur = 20;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, ship.size * 2, 0, Math.PI * 2);
+        ctx.strokeStyle = winnerColor;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = winnerColor;
+        ctx.globalAlpha = 0.5 * progress;
         ctx.stroke();
 
         ctx.shadowBlur = 0;

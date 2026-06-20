@@ -419,55 +419,11 @@ export const UIControl: React.FC = () => {
     if (gamePhase !== 'select') return null;
 
     return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'rgba(10, 10, 46, 0.98)',
-          zIndex: 100,
-          padding: '20px',
-          boxSizing: 'border-box',
-          overflowY: 'auto',
-        }}
-      >
-        <div style={{
-          maxWidth: '1200px',
-          width: '100%',
-          minHeight: '600px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '40px 20px',
-        }}
-        >
-        <h1 style={{
-          fontSize: 42,
-          fontFamily: '"Courier New", monospace',
-          fontWeight: 'bold',
-          color: '#00f0ff',
-          textShadow: '3px 3px 0 #ff007a, 0 0 20px #00f0ff',
-          marginBottom: 30,
-          letterSpacing: 2,
-        }}>
-          CYBER SHOOTER
-        </h1>
+      <div className="select-screen">
+        <div className="select-container">
+        <h1 className="game-title">CYBER SHOOTER</h1>
 
-        <div style={{
-          display: 'flex',
-          gap: 60,
-          marginBottom: 30,
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-        }}>
+        <div className="player-sections">
           <div style={{ textAlign: 'center' }}>
             <h3 style={{
               color: player1Color,
@@ -478,7 +434,7 @@ export const UIControl: React.FC = () => {
             }}>
               玩家 1 (WASD)
             </h3>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20, justifyContent: 'center' }}>
               {(['fast', 'balanced', 'heavy'] as ShipType[]).map((type) => (
                 <ShipTypeCard
                   key={type}
@@ -498,16 +454,7 @@ export const UIControl: React.FC = () => {
             />
           </div>
 
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 36,
-            color: 'rgba(255,255,255,0.3)',
-            fontFamily: '"Courier New", monospace',
-          }}>
-            VS
-          </div>
+          <div className="vs-text">VS</div>
 
           <div style={{ textAlign: 'center' }}>
             <h3 style={{
@@ -519,7 +466,7 @@ export const UIControl: React.FC = () => {
             }}>
               玩家 2 (方向键)
             </h3>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20, justifyContent: 'center' }}>
               {(['fast', 'balanced', 'heavy'] as ShipType[]).map((type) => (
                 <ShipTypeCard
                   key={type}
@@ -540,43 +487,11 @@ export const UIControl: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={handleStart}
-          style={{
-            padding: '16px 48px',
-            fontSize: 20,
-            fontFamily: '"Courier New", monospace',
-            fontWeight: 'bold',
-            color: 'white',
-            background: 'linear-gradient(135deg, #00f0ff, #ff007a)',
-            border: 'none',
-            borderRadius: 30,
-            cursor: 'pointer',
-            boxShadow: '0 0 20px rgba(0, 240, 255, 0.4), 0 0 40px rgba(255, 0, 122, 0.2)',
-            transition: 'all 0.2s ease',
-            letterSpacing: 2,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.05)';
-            e.currentTarget.style.filter = 'brightness(1.2)';
-            e.currentTarget.style.boxShadow = '0 0 30px rgba(0, 240, 255, 0.6), 0 0 60px rgba(255, 0, 122, 0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.filter = 'brightness(1)';
-            e.currentTarget.style.boxShadow = '0 0 20px rgba(0, 240, 255, 0.4), 0 0 40px rgba(255, 0, 122, 0.2)';
-          }}
-        >
+        <button className="start-button" onClick={handleStart}>
           开始战斗
         </button>
 
-        <div style={{
-          marginTop: 30,
-          fontSize: 13,
-          color: 'rgba(255,255,255,0.5)',
-          fontFamily: '"Courier New", monospace',
-          textAlign: 'center',
-        }}>
+        <div className="instructions">
           玩家1: WASD 移动 / 玩家2: 方向键 移动
           <br />
           自动射击，击中对方得 10 分
@@ -733,6 +648,162 @@ export const UIControl: React.FC = () => {
           0% { transform: scale(0); opacity: 0; }
           60% { transform: scale(1.1); }
           100% { transform: scale(1); opacity: 1; }
+        }
+
+        .select-screen {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background-color: rgba(10, 10, 46, 0.98);
+          z-index: 100;
+          padding: 20px;
+          box-sizing: border-box;
+          overflow-y: auto;
+        }
+
+        .select-container {
+          max-width: 1200px;
+          width: 100%;
+          min-height: 600px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 40px 20px;
+        }
+
+        .game-title {
+          font-size: 42px;
+          font-family: "Courier New", monospace;
+          font-weight: bold;
+          color: #00f0ff;
+          text-shadow: 3px 3px 0 #ff007a, 0 0 20px #00f0ff;
+          margin-bottom: 30px;
+          letter-spacing: 2px;
+          text-align: center;
+        }
+
+        .player-sections {
+          display: flex;
+          gap: 60px;
+          margin-bottom: 30px;
+          flex-wrap: wrap;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .vs-text {
+          font-size: 36px;
+          color: rgba(255,255,255,0.3);
+          font-family: "Courier New", monospace;
+          font-weight: bold;
+        }
+
+        .start-button {
+          padding: 16px 48px;
+          font-size: 20px;
+          font-family: "Courier New", monospace;
+          font-weight: bold;
+          color: white;
+          background: linear-gradient(135deg, #00f0ff, #ff007a);
+          border: none;
+          border-radius: 30px;
+          cursor: pointer;
+          box-shadow: 0 0 20px rgba(0, 240, 255, 0.4), 0 0 40px rgba(255, 0, 122, 0.2);
+          transition: all 0.2s ease;
+          letter-spacing: 2px;
+        }
+
+        .start-button:hover {
+          transform: scale(1.05);
+          filter: brightness(1.2);
+          box-shadow: 0 0 30px rgba(0, 240, 255, 0.6), 0 0 60px rgba(255, 0, 122, 0.3);
+        }
+
+        .instructions {
+          margin-top: 30px;
+          font-size: 13px;
+          color: rgba(255,255,255,0.5);
+          font-family: "Courier New", monospace;
+          text-align: center;
+          line-height: 1.6;
+        }
+
+        @media (max-height: 700px) {
+          .select-container {
+            min-height: auto;
+            padding: 20px 10px;
+          }
+          .game-title {
+            font-size: 32px;
+            margin-bottom: 20px;
+          }
+          .player-sections {
+            gap: 30px;
+            margin-bottom: 20px;
+          }
+          .vs-text {
+            font-size: 28px;
+          }
+          .start-button {
+            padding: 12px 36px;
+            font-size: 18px;
+          }
+          .instructions {
+            margin-top: 20px;
+            font-size: 12px;
+          }
+        }
+
+        @media (max-height: 550px) {
+          .game-title {
+            font-size: 26px;
+            margin-bottom: 12px;
+          }
+          .player-sections {
+            gap: 20px;
+            margin-bottom: 15px;
+          }
+          .start-button {
+            padding: 10px 30px;
+            font-size: 16px;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .game-title {
+            font-size: 32px;
+          }
+          .player-sections {
+            gap: 20px;
+            flex-direction: column;
+          }
+          .vs-text {
+            font-size: 28px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .select-screen {
+            padding: 10px;
+          }
+          .game-title {
+            font-size: 26px;
+            letter-spacing: 1px;
+          }
+          .start-button {
+            padding: 14px 32px;
+            font-size: 18px;
+            width: 100%;
+            max-width: 280px;
+          }
         }
       `}</style>
 
