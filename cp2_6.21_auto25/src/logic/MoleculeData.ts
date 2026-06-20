@@ -37,171 +37,161 @@ export const ATOM_COLORS: Record<string, string> = {
   N: '#4444ff',
 }
 
-let atomCounter = 0
+type RawAtom = [string, number, number, number]
+type RawBond = [number, number, number, number]
 
-function makeAtom(element: string, position: [number, number, number]): Atom {
-  atomCounter += 1
-  return {
-    id: `atom_${atomCounter}`,
-    element,
-    position,
-    radius: ATOM_RADII[element] ?? 0.3,
-    color: ATOM_COLORS[element] ?? '#ff00ff',
-  }
+interface RawMolecule {
+  atoms: RawAtom[]
+  bonds: RawBond[]
 }
 
-let bondCounter = 0
+const SCALE = 0.6
 
-function makeBond(atomAId: string, atomBId: string, order: number, energy: number): Bond {
-  bondCounter += 1
-  return {
-    id: `bond_${bondCounter}`,
-    atomAId,
-    atomBId,
-    order,
-    equilibriumLength: 1.0,
-    energy,
+function buildMoleculeFromRaw(
+  id: string,
+  name: string,
+  formula: string,
+  raw: RawMolecule,
+): MoleculePreset {
+  const atoms: Atom[] = raw.atoms.map(([element, x, y, z], i) => ({
+    id: `atom_${i}`,
+    element,
+    position: [x * SCALE, y * SCALE, z * SCALE],
+    radius: ATOM_RADII[element] ?? 0.3,
+    color: ATOM_COLORS[element] ?? '#ff00ff',
+  }))
+
+  const bonds: Bond[] = raw.bonds.map(([aIdx, bIdx, order, energy], i) => {
+    const aA = atoms[aIdx]
+    const aB = atoms[bIdx]
+    const dx = aB.position[0] - aA.position[0]
+    const dy = aB.position[1] - aA.position[1]
+    const dz = aB.position[2] - aA.position[2]
+    const eqLen = Math.sqrt(dx * dx + dy * dy + dz * dz)
+
+    return {
+      id: `bond_${i}`,
+      atomAId: aA.id,
+      atomBId: aB.id,
+      order,
+      equilibriumLength: eqLen,
+      energy,
+    }
+  })
+
+  return { id, name, formula, atoms, bonds }
+}
+
+const METHANE_RAW: RawMolecule = {
+  atoms: [
+    ['C',  0.00000,  0.00000,  0.00000],
+    ['H',  0.62760,  0.62760,  0.62760],
+    ['H', -0.62760, -0.62760,  0.62760],
+    ['H', -0.62760,  0.62760, -0.62760],
+    ['H',  0.62760, -0.62760, -0.62760],
+  ],
+  bonds: [
+    [0, 1, 1, 413],
+    [0, 2, 1, 413],
+    [0, 3, 1, 413],
+    [0, 4, 1, 413],
+  ],
+}
+
+const BENZENE_CC = 1.39
+const BENZENE_CH = 1.09
+
+function buildBenzeneRaw(): RawMolecule {
+  const atoms: RawAtom[] = []
+  const bonds: RawBond[] = []
+  const R = BENZENE_CC
+  const HR = R + BENZENE_CH
+
+  for (let i = 0; i < 6; i++) {
+    const theta = (Math.PI / 3) * i
+    atoms.push(['C', R * Math.cos(theta), R * Math.sin(theta), 0])
   }
+  for (let i = 0; i < 6; i++) {
+    const theta = (Math.PI / 3) * i
+    atoms.push(['H', HR * Math.cos(theta), HR * Math.sin(theta), 0])
+  }
+
+  for (let i = 0; i < 6; i++) {
+    const next = (i + 1) % 6
+    bonds.push([i, next, i % 2 === 0 ? 2 : 1, i % 2 === 0 ? 518 : 346])
+  }
+  for (let i = 0; i < 6; i++) {
+    bonds.push([i, i + 6, 1, 413])
+  }
+
+  return { atoms, bonds }
+}
+
+const CAFFEINE_RAW: RawMolecule = {
+  atoms: [
+    ['N',  0.00000,  0.00000,  0.00000],
+    ['C',  0.68369,  1.21062,  0.00000],
+    ['N',  2.04589,  1.30873,  0.00000],
+    ['C',  2.88556,  0.15144,  0.00000],
+    ['N',  2.20186, -1.05918,  0.00000],
+    ['C',  0.83966, -1.15729,  0.00000],
+    ['C', -1.44275, -0.09816,  0.00000],
+    ['C', -0.83966,  1.15729,  0.00000],
+    ['O', -1.67933,  2.00695,  0.00000],
+    ['O',  0.00000, -2.30795,  0.00000],
+    ['C',  2.68197,  2.64812,  0.00000],
+    ['H',  2.19243,  3.35144,  0.00000],
+    ['H',  3.74197,  2.77344,  0.00000],
+    ['H',  2.41546,  2.89303,  0.93300],
+    ['C', -2.53517, -1.12169,  0.00000],
+    ['H', -3.59517, -1.24701,  0.00000],
+    ['H', -2.26866, -1.36660,  0.93300],
+    ['H', -2.26866, -1.36660, -0.93300],
+    ['C',  4.37556,  0.25144,  0.00000],
+    ['H',  4.64207, -0.49147,  0.73300],
+    ['H',  4.64207,  1.25144,  0.00000],
+    ['H',  4.64207, -0.49147, -0.73300],
+    ['C', -1.44275, -0.09816,  1.45000],
+    ['H', -2.03517,  0.75184,  1.45000],
+  ],
+  bonds: [
+    [0, 1, 1, 305],
+    [1, 2, 2, 518],
+    [2, 3, 1, 346],
+    [3, 4, 2, 518],
+    [4, 5, 1, 346],
+    [5, 0, 2, 518],
+    [0, 6, 1, 346],
+    [1, 7, 1, 346],
+    [7, 8, 2, 745],
+    [5, 9, 2, 745],
+    [2, 10, 1, 346],
+    [10, 11, 1, 413],
+    [10, 12, 1, 413],
+    [10, 13, 1, 413],
+    [6, 14, 1, 346],
+    [14, 15, 1, 413],
+    [14, 16, 1, 413],
+    [14, 17, 1, 413],
+    [3, 18, 1, 346],
+    [18, 19, 1, 413],
+    [18, 20, 1, 413],
+    [18, 21, 1, 413],
+    [6, 22, 1, 346],
+    [22, 23, 1, 413],
+  ],
 }
 
 export function createMethane(): MoleculePreset {
-  atomCounter = 0
-  bondCounter = 0
-
-  const c = makeAtom('C', [0, 0, 0])
-  const h1 = makeAtom('H', [1.09, 0, 0])
-  const h2 = makeAtom('H', [-0.36, 1.03, 0])
-  const h3 = makeAtom('H', [-0.36, -0.51, 0.89])
-  const h4 = makeAtom('H', [-0.36, -0.51, -0.89])
-
-  return {
-    id: 'methane',
-    name: '甲烷',
-    formula: 'CH₄',
-    atoms: [c, h1, h2, h3, h4],
-    bonds: [
-      makeBond(c.id, h1.id, 1, 413),
-      makeBond(c.id, h2.id, 1, 413),
-      makeBond(c.id, h3.id, 1, 413),
-      makeBond(c.id, h4.id, 1, 413),
-    ],
-  }
+  return buildMoleculeFromRaw('methane', '甲烷', 'CH₄', METHANE_RAW)
 }
 
 export function createBenzene(): MoleculePreset {
-  atomCounter = 0
-  bondCounter = 0
-
-  const r = 1.4
-  const atoms: Atom[] = []
-  const carbonIds: string[] = []
-
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 6
-    const c = makeAtom('C', [r * Math.cos(angle), r * Math.sin(angle), 0])
-    atoms.push(c)
-    carbonIds.push(c.id)
-  }
-
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 6
-    const hR = r + 1.09
-    const h = makeAtom('H', [hR * Math.cos(angle), hR * Math.sin(angle), 0])
-    atoms.push(h)
-  }
-
-  const bonds: Bond[] = []
-  for (let i = 0; i < 6; i++) {
-    const next = (i + 1) % 6
-    bonds.push(makeBond(carbonIds[i], carbonIds[next], i % 2 === 0 ? 2 : 1, i % 2 === 0 ? 518 : 346))
-  }
-  for (let i = 0; i < 6; i++) {
-    bonds.push(makeBond(carbonIds[i], atoms[6 + i].id, 1, 413))
-  }
-
-  return {
-    id: 'benzene',
-    name: '苯环',
-    formula: 'C₆H₆',
-    atoms,
-    bonds,
-  }
+  return buildMoleculeFromRaw('benzene', '苯环', 'C₆H₆', buildBenzeneRaw())
 }
 
 export function createCaffeine(): MoleculePreset {
-  atomCounter = 0
-  bondCounter = 0
-
-  const atoms: Atom[] = []
-  const atomMap: Record<string, string> = {}
-
-  const positions: [string, string, [number, number, number]][] = [
-    ['C1', 'C', [0, 1.2, 0]],
-    ['C2', 'C', [1.04, 0.6, 0]],
-    ['C3', 'C', [1.04, -0.6, 0]],
-    ['C4', 'C', [0, -1.2, 0]],
-    ['C5', 'C', [-1.04, -0.6, 0]],
-    ['C6', 'C', [-1.04, 0.6, 0]],
-    ['N1', 'N', [2.34, -0.9, 0]],
-    ['N2', 'N', [2.34, 0.9, 0]],
-    ['N3', 'N', [-2.34, -0.9, 0]],
-    ['N4', 'N', [-2.34, 0.9, 0]],
-    ['O1', 'O', [0, 2.4, 0]],
-    ['O2', 'O', [0, -2.4, 0]],
-    ['H1', 'H', [3.2, -1.6, 0]],
-    ['H2', 'H', [3.2, 1.6, 0]],
-    ['H3', 'H', [-3.2, -1.6, 0]],
-    ['H4', 'H', [-3.2, 1.6, 0]],
-    ['CH1_C', 'C', [-2.8, 2.2, 0]],
-    ['CH1_H1', 'H', [-3.8, 1.7, 0]],
-    ['CH1_H2', 'H', [-2.5, 3.2, 0]],
-    ['CH1_H3', 'H', [-3.3, 2.6, -0.8]],
-    ['CH2_C', 'C', [-2.8, -2.2, 0]],
-    ['CH2_H1', 'H', [-3.8, -1.7, 0]],
-    ['CH2_H2', 'H', [-2.5, -3.2, 0]],
-    ['CH2_H3', 'H', [-3.3, -2.6, -0.8]],
-  ]
-
-  for (const [name, element, pos] of positions) {
-    const a = makeAtom(element, pos)
-    atoms.push(a)
-    atomMap[name] = a.id
-  }
-
-  const bonds: Bond[] = [
-    makeBond(atomMap['C1'], atomMap['C2'], 1, 346),
-    makeBond(atomMap['C2'], atomMap['C3'], 1, 346),
-    makeBond(atomMap['C3'], atomMap['C4'], 1, 346),
-    makeBond(atomMap['C4'], atomMap['C5'], 1, 346),
-    makeBond(atomMap['C5'], atomMap['C6'], 1, 346),
-    makeBond(atomMap['C6'], atomMap['C1'], 1, 346),
-    makeBond(atomMap['C2'], atomMap['N2'], 2, 518),
-    makeBond(atomMap['N2'], atomMap['H2'], 1, 391),
-    makeBond(atomMap['C3'], atomMap['N1'], 2, 518),
-    makeBond(atomMap['N1'], atomMap['H1'], 1, 391),
-    makeBond(atomMap['C5'], atomMap['N3'], 1, 305),
-    makeBond(atomMap['N3'], atomMap['H3'], 1, 391),
-    makeBond(atomMap['N3'], atomMap['CH2_C'], 1, 346),
-    makeBond(atomMap['C6'], atomMap['N4'], 1, 305),
-    makeBond(atomMap['N4'], atomMap['H4'], 1, 391),
-    makeBond(atomMap['N4'], atomMap['CH1_C'], 1, 346),
-    makeBond(atomMap['C1'], atomMap['O1'], 2, 745),
-    makeBond(atomMap['C4'], atomMap['O2'], 2, 745),
-    makeBond(atomMap['CH1_C'], atomMap['CH1_H1'], 1, 413),
-    makeBond(atomMap['CH1_C'], atomMap['CH1_H2'], 1, 413),
-    makeBond(atomMap['CH1_C'], atomMap['CH1_H3'], 1, 413),
-    makeBond(atomMap['CH2_C'], atomMap['CH2_H1'], 1, 413),
-    makeBond(atomMap['CH2_C'], atomMap['CH2_H2'], 1, 413),
-    makeBond(atomMap['CH2_C'], atomMap['CH2_H3'], 1, 413),
-  ]
-
-  return {
-    id: 'caffeine',
-    name: '咖啡因',
-    formula: 'C₈H₁₀N₄O₂',
-    atoms,
-    bonds,
-  }
+  return buildMoleculeFromRaw('caffeine', '咖啡因', 'C₈H₁₀N₄O₂', CAFFEINE_RAW)
 }
 
 export function getMoleculePreset(id: string): MoleculePreset | undefined {

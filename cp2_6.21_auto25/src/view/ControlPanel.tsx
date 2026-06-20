@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useMoleculeStore } from '@/store/moleculeStore'
 import { MOLECULE_PRESETS, getMoleculePreset } from '@/logic/MoleculeData'
 import type { EnergyMode } from '@/store/moleculeStore'
@@ -150,11 +150,26 @@ function EnergyModeSelector() {
 
 function TemperatureSlider() {
   const { temperature, setTemperature, energyMode } = useMoleculeStore()
+  const [visible, setVisible] = useState(energyMode === 'thermal')
 
-  if (energyMode !== 'thermal') return null
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (energyMode === 'thermal') setVisible(true)
+    }, energyMode === 'thermal' ? 50 : 0)
+    if (energyMode !== 'thermal') setVisible(false)
+    return () => clearTimeout(timer)
+  }, [energyMode])
+
+  if (!visible && energyMode !== 'thermal') return null
 
   return (
-    <div style={{ marginTop: '12px' }}>
+    <div style={{
+      marginTop: '12px',
+      opacity: visible ? 1 : 0,
+      transform: visible ? 'translateY(0)' : 'translateY(-8px)',
+      transition: 'all 0.3s ease',
+      overflow: 'hidden',
+    }}>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -216,7 +231,8 @@ function HeatmapToggle() {
           background: heatmapEnabled ? '#00bfff' : 'rgba(255,255,255,0.15)',
           cursor: 'pointer',
           position: 'relative',
-          transition: 'background 0.3s linear',
+          transition: 'all 0.3s linear',
+          boxShadow: heatmapEnabled ? '0 0 8px rgba(0,191,255,0.5)' : 'none',
         }}
       >
         <div style={{
@@ -227,7 +243,8 @@ function HeatmapToggle() {
           position: 'absolute',
           top: '3px',
           left: heatmapEnabled ? '23px' : '3px',
-          transition: 'left 0.3s linear',
+          transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
         }} />
       </button>
     </div>
@@ -242,6 +259,7 @@ function HeatmapLegend() {
         borderRadius: '3px',
         background: 'linear-gradient(to right, #0000ff, #00ff00, #ff0000)',
         marginBottom: '4px',
+        boxShadow: '0 0 8px rgba(0,191,255,0.2)',
       }} />
       <div style={{
         display: 'flex',
@@ -281,10 +299,12 @@ function ScreenshotButton() {
       onMouseEnter={(e) => {
         e.currentTarget.style.border = '0.5px solid #00bfff'
         e.currentTarget.style.background = 'rgba(0,191,255,0.15)'
+        e.currentTarget.style.boxShadow = '0 0 12px rgba(0,191,255,0.2)'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.border = '1px solid rgba(255,255,255,0.1)'
         e.currentTarget.style.background = 'rgba(0,191,255,0.08)'
+        e.currentTarget.style.boxShadow = 'none'
       }}
       onMouseDown={(e) => {
         e.currentTarget.style.transform = 'scale(0.95)'
@@ -298,52 +318,105 @@ function ScreenshotButton() {
   )
 }
 
-export default function ControlPanel() {
-  const { panelCollapsed, setPanelCollapsed, energyMode } = useMoleculeStore()
-
-  if (panelCollapsed) {
-    return (
-      <div
-        onClick={() => setPanelCollapsed(false)}
-        style={{
-          width: '36px',
-          height: '100%',
-          background: 'rgba(10,14,26,0.85)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          borderLeft: '1px solid #00bfff40',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          transition: 'all 0.3s linear',
-          color: '#00bfff',
-          fontSize: '18px',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderLeft = '1px solid #00bfff80'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderLeft = '1px solid #00bfff40'
-        }}
-      >
+function CollapsedPanel({ onExpand }: { onExpand: () => void }) {
+  return (
+    <div
+      onClick={onExpand}
+      style={{
+        width: '40px',
+        height: '100%',
+        background: 'rgba(10,14,26,0.9)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderLeft: '1px solid #00bfff40',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        color: '#00bfff',
+        fontSize: '18px',
+        position: 'relative',
+        userSelect: 'none',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderLeft = '1px solid #00bfff80'
+        e.currentTarget.style.background = 'rgba(10,14,26,0.95)'
+        e.currentTarget.style.boxShadow = '-4px 0 20px rgba(0,191,255,0.08)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderLeft = '1px solid #00bfff40'
+        e.currentTarget.style.background = 'rgba(10,14,26,0.9)'
+        e.currentTarget.style.boxShadow = 'none'
+      }}
+      onMouseDown={(e) => {
+        e.currentTarget.style.transform = 'scaleX(0.95)'
+      }}
+      onMouseUp={(e) => {
+        e.currentTarget.style.transform = 'scaleX(1)'
+      }}
+    >
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        width: '24px',
+        height: '48px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: '6px',
+        background: 'rgba(0,191,255,0.1)',
+        border: '1px solid rgba(0,191,255,0.3)',
+      }}>
         ◀
       </div>
-    )
+    </div>
+  )
+}
+
+export default function ControlPanel() {
+  const { panelCollapsed, setPanelCollapsed, energyMode } = useMoleculeStore()
+  const [animating, setAnimating] = useState(false)
+  const [contentVisible, setContentVisible] = useState(!panelCollapsed)
+
+  useEffect(() => {
+    if (!panelCollapsed) {
+      setAnimating(true)
+      const t = setTimeout(() => {
+        setContentVisible(true)
+        setAnimating(false)
+      }, 50)
+      return () => clearTimeout(t)
+    } else {
+      setContentVisible(false)
+      setAnimating(true)
+      const t = setTimeout(() => setAnimating(false), 300)
+      return () => clearTimeout(t)
+    }
+  }, [panelCollapsed])
+
+  if (panelCollapsed) {
+    return <CollapsedPanel onExpand={() => setPanelCollapsed(false)} />
   }
 
   return (
     <div style={{
-      width: '280px',
+      width: animating && !contentVisible ? '40px' : '280px',
+      minWidth: animating && !contentVisible ? '40px' : '280px',
+      maxWidth: '280px',
       height: '100%',
-      background: 'rgba(10,14,26,0.85)',
+      background: 'rgba(10,14,26,0.9)',
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
       borderLeft: '1px solid #00bfff40',
-      padding: '20px 16px',
-      overflowY: 'auto',
+      padding: contentVisible ? '20px 16px' : '20px 8px',
+      overflowY: contentVisible ? 'auto' : 'hidden',
       position: 'relative',
-      transition: 'all 0.3s linear',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxSizing: 'border-box',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
       <button
         onClick={() => setPanelCollapsed(true)}
@@ -351,16 +424,34 @@ export default function ControlPanel() {
           position: 'absolute',
           top: '12px',
           right: '12px',
-          background: 'none',
-          border: 'none',
+          width: '28px',
+          height: '28px',
+          background: 'rgba(0,191,255,0.08)',
+          border: '1px solid rgba(0,191,255,0.2)',
+          borderRadius: '6px',
           color: '#00bfff',
           cursor: 'pointer',
-          fontSize: '16px',
-          padding: '4px',
-          transition: 'transform 0.3s linear',
+          fontSize: '14px',
+          padding: '0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.25s ease',
+          zIndex: 10,
+          opacity: contentVisible ? 1 : 0,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(0,191,255,0.2)'
+          e.currentTarget.style.borderColor = '#00bfff80'
+          e.currentTarget.style.boxShadow = '0 0 8px rgba(0,191,255,0.3)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(0,191,255,0.08)'
+          e.currentTarget.style.borderColor = 'rgba(0,191,255,0.2)'
+          e.currentTarget.style.boxShadow = 'none'
         }}
         onMouseDown={(e) => {
-          e.currentTarget.style.transform = 'scale(0.95)'
+          e.currentTarget.style.transform = 'scale(0.9)'
         }}
         onMouseUp={(e) => {
           e.currentTarget.style.transform = 'scale(1)'
@@ -369,33 +460,87 @@ export default function ControlPanel() {
         ▶
       </button>
 
-      <PanelSection title="分子载入">
-        <MoleculeSelector />
-      </PanelSection>
-
-      <PanelSection title="能量模式">
-        <EnergyModeSelector />
-        <TemperatureSlider />
-      </PanelSection>
-
-      <PanelSection title="热力图">
-        <HeatmapToggle />
-        <HeatmapLegend />
-      </PanelSection>
-
-      {energyMode === 'light' && (
-        <PanelSection title="光源控制">
-          <div style={{
-            fontSize: '12px',
-            color: '#888',
-            lineHeight: 1.5,
+      <div style={{
+        opacity: contentVisible ? 1 : 0,
+        transition: 'opacity 0.2s ease 0.1s',
+        pointerEvents: contentVisible ? 'auto' : 'none',
+      }}>
+        <div style={{
+          marginBottom: '24px',
+          marginTop: '4px',
+        }}>
+          <h2 style={{
+            fontSize: '16px',
+            fontWeight: 500,
+            color: '#e0e0e0',
+            marginBottom: '4px',
           }}>
-            拖拽视口中的黄色光点以改变光照角度，分子表面反射与键能将实时更新。
+            控制面板
+          </h2>
+          <div style={{
+            fontSize: '10px',
+            color: '#00bfff80',
+            letterSpacing: '1px',
+            textTransform: 'uppercase',
+          }}>
+            Control Panel
           </div>
-        </PanelSection>
-      )}
+        </div>
 
-      <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
+        <PanelSection title="分子载入">
+          <MoleculeSelector />
+        </PanelSection>
+
+        <PanelSection title="能量模式">
+          <EnergyModeSelector />
+          <TemperatureSlider />
+        </PanelSection>
+
+        <PanelSection title="热力图">
+          <HeatmapToggle />
+          <HeatmapLegend />
+        </PanelSection>
+
+        {energyMode === 'light' && (
+          <PanelSection title="光源控制">
+            <div style={{
+              fontSize: '12px',
+              color: '#888',
+              lineHeight: 1.6,
+              padding: '8px 10px',
+              background: 'rgba(0,191,255,0.05)',
+              borderRadius: '6px',
+              border: '1px solid rgba(0,191,255,0.1)',
+            }}>
+              💡 拖拽视口中的黄色发光圆点以改变光照角度。分子表面反射高光与化学键能量值将实时更新。
+            </div>
+          </PanelSection>
+        )}
+
+        {energyMode === 'thermal' && (
+          <PanelSection title="振动提示">
+            <div style={{
+              fontSize: '12px',
+              color: '#888',
+              lineHeight: 1.6,
+              padding: '8px 10px',
+              background: 'rgba(255,170,0,0.05)',
+              borderRadius: '6px',
+              border: '1px solid rgba(255,170,0,0.15)',
+            }}>
+              🔥 化学键在平衡位置附近做简谐振动，相邻同类型原子间存在协同波传递效应。调节温度滑块可改变振动频率。
+            </div>
+          </PanelSection>
+        )}
+      </div>
+
+      <div style={{
+        marginTop: 'auto',
+        paddingTop: '16px',
+        opacity: contentVisible ? 1 : 0,
+        transition: 'opacity 0.2s ease 0.15s',
+        pointerEvents: contentVisible ? 'auto' : 'none',
+      }}>
         <ScreenshotButton />
       </div>
     </div>
