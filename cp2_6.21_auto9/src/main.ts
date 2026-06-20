@@ -25,11 +25,15 @@ const EFFECT_CONFIGS: EffectConfig[] = [
 let currentColor = PALETTE_COLORS[0];
 let isDrawing = false;
 let drawMode: 'fill' | 'clear' = 'fill';
+let isSpacePressed = false;
+let isPanning = false;
+let lastPanPos: { x: number; y: number } = { x: 0, y: 0 };
 
 const canvas = document.getElementById('pixel-canvas') as HTMLCanvasElement;
 const paletteEl = document.getElementById('palette') as HTMLDivElement;
 const effectsPanel = document.getElementById('effects-panel') as HTMLDivElement;
 const fpsMonitor = document.getElementById('fps-monitor') as HTMLDivElement;
+const zoomIndicator = document.getElementById('zoom-indicator') as HTMLDivElement;
 const customColorInput = document.getElementById('custom-color') as HTMLInputElement;
 
 const canvasEngine = new CanvasEngine(canvas, GRID_SIZE, PIXEL_SIZE);
@@ -103,7 +107,12 @@ canvas.addEventListener('contextmenu', (e) => {
 });
 
 canvas.addEventListener('mousedown', (e) => {
-  if (e.button === 0) {
+  if (isSpacePressed && e.button === 0) {
+    e.preventDefault();
+    isPanning = true;
+    lastPanPos = { x: e.clientX, y: e.clientY };
+    canvas.style.cursor = 'grabbing';
+  } else if (e.button === 0) {
     drawMode = 'fill';
     isDrawing = true;
     handlePixelAction(e.clientX, e.clientY);
@@ -115,18 +124,67 @@ canvas.addEventListener('mousedown', (e) => {
 });
 
 canvas.addEventListener('mousemove', (e) => {
-  if (isDrawing) {
+  if (isPanning) {
+    const dx = e.clientX - lastPanPos.x;
+    const dy = e.clientY - lastPanPos.y;
+    canvasEngine.translateBy(dx, dy);
+    lastPanPos = { x: e.clientX, y: e.clientY };
+    effectManager.markActivity();
+  } else if (isDrawing) {
     handlePixelAction(e.clientX, e.clientY);
   }
 });
 
 window.addEventListener('mouseup', () => {
+  if (isPanning) {
+    isPanning = false;
+    canvas.style.cursor = isSpacePressed ? 'grab' : 'crosshair';
+  }
   isDrawing = false;
 });
 
 canvas.addEventListener('mouseleave', () => {
   isDrawing = false;
 });
+
+canvas.addEventListener('wheel', (e) => {
+  if (e.ctrlKey) {
+    e.preventDefault();
+    canvasEngine.zoom(e.deltaY, e.clientX, e.clientY);
+    updateZoomIndicator();
+    effectManager.markActivity();
+  }
+}, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && !isSpacePressed) {
+    isSpacePressed = true;
+    if (!isPanning) {
+      canvas.style.cursor = 'grab';
+    }
+    e.preventDefault();
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') {
+    isSpacePressed = false;
+    if (!isPanning) {
+      canvas.style.cursor = 'crosshair';
+    }
+  }
+});
+
+canvas.addEventListener('dblclick', (e) => {
+  e.preventDefault();
+  canvasEngine.resetView();
+  updateZoomIndicator();
+});
+
+function updateZoomIndicator(): void {
+  const scale = canvasEngine.getScale();
+  zoomIndicator.textContent = `${Math.round(scale * 100)}%`;
+}
 
 function buildEffectsPanel(): void {
   EFFECT_CONFIGS.forEach((config) => {

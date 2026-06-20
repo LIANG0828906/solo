@@ -50,6 +50,21 @@
       text-align: center;
     }
 
+    #zoom-indicator {
+      position: fixed;
+      top: 56px;
+      left: 16px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      color: #64c8ff;
+      z-index: 100;
+      min-width: 70px;
+      text-align: center;
+    }
+
     #canvas-wrapper {
       position: relative;
       display: flex;
@@ -287,6 +302,7 @@
 <body>
   <div id="app">
     <div id="fps-monitor">-- FPS</div>
+    <div id="zoom-indicator">100%</div>
 
     <div id="canvas-wrapper">
       <canvas id="pixel-canvas"></canvas>
