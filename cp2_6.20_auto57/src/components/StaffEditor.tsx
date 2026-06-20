@@ -180,16 +180,17 @@ export default function StaffEditor() {
           const active = isPlaying && currentPlayIndex === note.order;
           const ledgerYs = getLedgerYs(note.pitch, note.octave);
           const hollow = note.type === 'whole' || note.type === 'half';
+          const fillColor = note.flashState === 'red' ? '#ef4444' : note.flashState === 'green' ? '#22c55e' : '#455a64';
           return (
             <g key={note.id} transform={`translate(${x + dx},${y})`}
-              className={active ? 'note-pulse' : ''} style={{ cursor: 'grab' }}
+              className={`${active ? 'note-pulse' : ''} ${note.flashState !== 'none' ? 'note-flash-' + note.flashState : ''}`} style={{ cursor: 'grab' }}
               onMouseDown={e => handleMouseDown(e, note)} onClick={e => e.stopPropagation()}>
               {ledgerYs.map((ly, i) => (
                 <line key={i} x1={-14} y1={ly - y} x2={14} y2={ly - y} stroke="#b0bec5" strokeWidth={1} />
               ))}
-              <ellipse cx={0} cy={0} rx={7} ry={5} fill={hollow ? 'none' : '#455a64'} stroke="#455a64" strokeWidth={1.5} transform="rotate(-15)" />
-              {note.type !== 'whole' && <line x1={8} y1={0} x2={8} y2={-30} stroke="#455a64" strokeWidth={1.5} />}
-              {note.type === 'eighth' && <path d="M8,-30 Q16,-22 10,-14" fill="none" stroke="#455a64" strokeWidth={1.5} />}
+              <ellipse cx={0} cy={0} rx={7} ry={5} fill={hollow ? 'none' : fillColor} stroke={fillColor} strokeWidth={1.5} transform="rotate(-15)" />
+              {note.type !== 'whole' && <line x1={8} y1={0} x2={8} y2={-30} stroke={fillColor} strokeWidth={1.5} />}
+              {note.type === 'eighth' && <path d="M8,-30 Q16,-22 10,-14" fill="none" stroke={fillColor} strokeWidth={1.5} />}
             </g>
           );
         })}
@@ -232,6 +233,18 @@ export default function StaffEditor() {
         @keyframes note-pulse {
           0%, 100% { filter: drop-shadow(0 0 0px transparent); }
           50% { filter: drop-shadow(0 0 8px #ffd600); }
+        }
+        .note-flash-green { animation: note-flash-green 1.2s ease-out; }
+        @keyframes note-flash-green {
+          0% { filter: drop-shadow(0 0 4px #22c55e); }
+          50% { filter: drop-shadow(0 0 16px #22c55e); }
+          100% { filter: drop-shadow(0 0 0px transparent); }
+        }
+        .note-flash-red { animation: note-flash-red 1.2s ease-out; }
+        @keyframes note-flash-red {
+          0% { filter: drop-shadow(0 0 4px #ef4444); }
+          50% { filter: drop-shadow(0 0 16px #ef4444); }
+          100% { filter: drop-shadow(0 0 0px transparent); }
         }
       `}</style>
     </div>
