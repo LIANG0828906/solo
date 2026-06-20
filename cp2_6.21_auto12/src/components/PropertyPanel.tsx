@@ -1,3 +1,12 @@
+// ============================================================
+// PropertyPanel.tsx - 图层属性编辑面板组件
+// 调用关系:
+//   数据流向: useStore(layers, selectedLayerId, palette) → 显示选中图层属性
+//   用户交互: 位置/缩放/旋转/不透明度/混合模式 → updateLayer(id, {...})
+//   用户交互: 颜色修改 → updateLayer(id, {customColor, colorIndex:-1})
+//   用户交互: 删除图层 → removeLayer(id)
+//   依赖调用: 实时更新 → CanvasRenderer 脏区域重绘
+// ============================================================
 import { useStore } from '@/shared/store';
 import type { BlendMode } from '@/shared/store';
 

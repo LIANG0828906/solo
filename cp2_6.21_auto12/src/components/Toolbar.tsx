@@ -1,3 +1,11 @@
+// ============================================================
+// Toolbar.tsx - 顶部工具栏组件
+// 调用关系:
+//   数据流向: useStore(layers, palette) → 传递给导出函数
+//   用户交互: 汉堡菜单 → 切换响应式抽屉显示
+//   用户交互: 导出按钮 → exportIllustration(layers, palette)
+//   依赖调用: exportIllustration → svgExporter.ts
+// ============================================================
 import { useState, useEffect } from 'react';
 import { Menu, Paintbrush } from 'lucide-react';
 import { useStore } from '@/shared/store';

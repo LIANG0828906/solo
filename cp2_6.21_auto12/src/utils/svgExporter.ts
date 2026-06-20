@@ -1,3 +1,13 @@
+// ============================================================
+// svgExporter.ts - SVG导出工具模块
+// 调用关系:
+//   Toolbar.tsx (导出按钮) → exportIllustration(layers, palette)
+//   → buildSvgDocument(layers, palette) → 构造<svg> XML字符串
+//     → autoViewBox(layers) → 调用 CanvasRenderer.getLayerBounds
+//     → layerToSvgElement(layer, palette) → 调用 SHAPE_PATHS (CanvasRenderer)
+//   → triggerDownload(svgString, filename) → Blob + URL + <a download>
+//   数据流向: Store.layers + Store.palette → 完整SVG DOM → 浏览器下载
+// ============================================================
 import type { Layer, BlendMode, ShapeType } from '@/shared/store';
 import { SHAPE_PATHS, getLayerBounds } from '@/components/CanvasRenderer';
 

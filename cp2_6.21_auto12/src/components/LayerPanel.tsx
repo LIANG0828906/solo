@@ -1,3 +1,13 @@
+// ============================================================
+// LayerPanel.tsx - 图层管理面板组件
+// 调用关系:
+//   数据流向: useStore(layers, selectedLayerId, palette) → 渲染图层列表
+//   用户交互: 点击选中 → selectLayer(id)
+//   用户交互: 拖拽排序 → reorderLayer(from, to)
+//   用户交互: 混合模式/不透明度调整 → updateLayer(id, {...})
+//   用户交互: 添加按钮 → addLayer(newLayer)
+//   依赖调用: renderThumbnail(layer, palette, 30) → CanvasRenderer.ts
+// ============================================================
 import React, { useEffect, useRef, useState } from 'react';
 import { Layer, useStore, BlendMode, ShapeType } from '@/shared/store';
 import { renderThumbnail } from './CanvasRenderer';
@@ -214,7 +224,19 @@ const LayerPanel: React.FC = () => {
     if (draggedId === null) return;
     const fromIndex = Number(e.dataTransfer.getData('text/plain'));
     if (fromIndex !== targetIndex) {
-      reorderLayer(fromIndex, targetIndex);
+      if (dragCloneRef.current) {
+        const el = dragCloneRef.current;
+        const targetRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        el.style.transition = 'all 0.2s ease-out';
+        el.style.top = `${targetRect.top}px`;
+        el.style.left = `${targetRect.left}px`;
+        el.style.transform = 'translate(0, 0)';
+        setTimeout(() => {
+          reorderLayer(fromIndex, targetIndex);
+        }, 180);
+      } else {
+        reorderLayer(fromIndex, targetIndex);
+      }
     }
   };
 

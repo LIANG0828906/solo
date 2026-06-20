@@ -1,3 +1,20 @@
+// ============================================================
+// App.tsx - 根组件 / 主布局容器
+// 调用关系 & 数据流向:
+//   ┌─ useStore(layers, palette, selectedLayerId, activeColor) ─┐
+//   │                                                            ↓
+//   ├─→ CanvasRenderer.render(canvas, layers, palette, selectedId) [脏区域重绘]
+//   ├─→ LayerPanel → 显示图层列表 / 拖拽排序 / 混合模式+不透明度
+//   ├─→ SwatchPalette (absolute bottom) → 调色板 + 选色
+//   ├─→ PropertyPanel → 选中图层属性编辑
+//   └─→ Toolbar → 顶部工具栏 + 导出SVG
+//
+// 交互数据流:
+//   画布mousedown → 命中检测(isPointInPath+逆矩阵) → selectLayer(id)
+//   画布mousemove(拖拽中) → 标记脏区域 → updateLayer(id, {x,y})
+//   属性面板滑块 → 标记脏区域 → updateLayer(id, {...})
+//   Store状态变化 → useEffect → CanvasRenderer.render(requestAnimationFrame节流)
+// ============================================================
 import { useState, useEffect, useRef } from 'react';
 import Toolbar from '@/components/Toolbar';
 import LayerPanel from '@/components/LayerPanel';
@@ -5,7 +22,8 @@ import SwatchPalette from '@/components/SwatchPalette';
 import PropertyPanel from '@/components/PropertyPanel';
 import * as CanvasRenderer from '@/components/CanvasRenderer';
 import { useStore } from '@/shared/store';
-import { getLayerPath2D } from '@/components/CanvasRenderer';
+import type { Layer } from '@/shared/store';
+import { getLayerPath2D, getLayerBounds } from '@/components/CanvasRenderer';
 
 export default function App() {
   const layers = useStore((s) => s.layers);
@@ -20,6 +38,8 @@ export default function App() {
   const [leftPanelOpen, setLeftPanelOpen] = useState<boolean>(false);
   const [rightPanelOpen, setRightPanelOpen] = useState<boolean>(false);
   const draggingRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  const prevLayersRef = useRef<Map<string, Layer>>(new Map());
+  const lastMovePosRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -36,7 +56,29 @@ export default function App() {
 
   useEffect(() => {
     if (canvasRef.current) {
+      const prev = prevLayersRef.current;
+      let needsFullRender = layers.length !== prev.size;
+      if (!needsFullRender) {
+        for (const layer of layers) {
+          const old = prev.get(layer.id);
+          if (!old) { needsFullRender = true; break; }
+          const bOld = getLayerBounds(old);
+          const bNew = getLayerBounds(layer);
+          CanvasRenderer.markDirty(bOld);
+          CanvasRenderer.markDirty(bNew);
+          if (old.blendMode !== layer.blendMode || old.opacity !== layer.opacity ||
+              old.colorIndex !== layer.colorIndex || old.customColor !== layer.customColor ||
+              old.scale !== layer.scale || old.rotation !== layer.rotation || old.type !== layer.type) {
+            needsFullRender = true;
+            break;
+          }
+        }
+      }
+      if (needsFullRender) {
+        CanvasRenderer.markDirty({ x: 0, y: 0, w: 800, h: 600 });
+      }
       CanvasRenderer.render(canvasRef.current, layers, palette, selectedLayerId);
+      prevLayersRef.current = new Map(layers.map(l => [l.id, { ...l }]));
     }
   }, [layers, palette, selectedLayerId]);
 
@@ -72,6 +114,7 @@ export default function App() {
           offsetX: mx - layer.x,
           offsetY: my - layer.y
         };
+        lastMovePosRef.current = { x: layer.x, y: layer.y };
         return;
       }
     }
@@ -90,14 +133,26 @@ export default function App() {
     const my = (e.clientY - rect.top) * scaleY;
 
     const { id, offsetX, offsetY } = draggingRef.current;
-    updateLayer(id, {
-      x: Math.round(mx - offsetX),
-      y: Math.round(my - offsetY)
-    });
+    const newX = Math.round(mx - offsetX);
+    const newY = Math.round(my - offsetY);
+
+    const layer = layers.find(l => l.id === id);
+    if (layer && lastMovePosRef.current) {
+      const oldLayer = { ...layer, x: lastMovePosRef.current.x, y: lastMovePosRef.current.y };
+      const newLayer = { ...layer, x: newX, y: newY };
+      const bOld = getLayerBounds(oldLayer);
+      const bNew = getLayerBounds(newLayer);
+      CanvasRenderer.markDirty(bOld);
+      CanvasRenderer.markDirty(bNew);
+      lastMovePosRef.current = { x: newX, y: newY };
+    }
+
+    updateLayer(id, { x: newX, y: newY });
   };
 
   const handleCanvasMouseUp = () => {
     draggingRef.current = null;
+    lastMovePosRef.current = null;
   };
 
   const leftPanelStyle: React.CSSProperties = isDesktop

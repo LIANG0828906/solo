@@ -1,3 +1,12 @@
+// ============================================================
+// store.ts - Zustand 全局状态管理
+// 调用关系:
+//   数据流入口: 用户操作 → actions → 更新 state
+//   数据流出口: 所有组件 useStore() 订阅 → 实时重渲染
+//   订阅组件: App.tsx, LayerPanel.tsx, SwatchPalette.tsx,
+//             PropertyPanel.tsx, Toolbar.tsx
+//   持久化: 内存状态，无本地持久化
+// ============================================================
 import { create } from 'zustand';
 
 export type ShapeType = 'moon' | 'cloud' | 'mountain' | 'tree' | 'bird' | 'star';
@@ -38,9 +47,12 @@ export interface EditorState {
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 const initialPalette: string[] = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
-  '#BB8FCE', '#85C1E9', '#F8B500', '#FF7F50', '#1ABC9C', '#E74C3C', '#3498DB', '#9B59B6',
-  '#2ECC71', '#F39C12', '#E67E22', '#16A085'
+  // 暖色调 7个 (索引 0-6)
+  '#E8B4B8', '#E67A7A', '#F5A962', '#F9C44A', '#FF8E72', '#FF6B6B', '#D45079',
+  // 冷色调 7个 (索引 7-13)
+  '#7EC8E3', '#008CBA', '#6A89CC', '#487EB0', '#8B78E6', '#9B59B6', '#33D9B2',
+  // 中性色 6个 (索引 14-19)
+  '#2C3E50', '#4A5568', '#718096', '#A0AEC0', '#CBD5E0', '#F7FAFC'
 ];
 
 const initialLayers: Layer[] = [
