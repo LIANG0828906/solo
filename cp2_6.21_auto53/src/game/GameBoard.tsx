@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { getBlockCells } from './gravityEngine';
 import { Block } from '../types';
@@ -36,16 +36,63 @@ const GameBoard: React.FC = () => {
     [rotateBlock]
   );
 
-  const particles = useMemo(() => {
-    if (!showParticles) return [];
-    return Array.from({ length: 30 }, (_, i) => ({
+  interface Particle {
+    id: number;
+    x: number;
+    y: number;
+    angle: number;
+    speed: number;
+    size: number;
+    opacity: number;
+  }
+
+  const [particles, setParticles] = useState<Particle[]>([]);
+
+  useEffect(() => {
+    if (!showParticles) {
+      setParticles([]);
+      return;
+    }
+
+    const cx = boardSize / 2;
+    const cy = boardSize / 2;
+
+    const initialParticles: Particle[] = Array.from({ length: 30 }, (_, i) => ({
       id: i,
+      x: cx,
+      y: cy,
       angle: Math.random() * Math.PI * 2,
       speed: 2 + Math.random() * 3,
       size: 4 + Math.random() * 6,
-      delay: Math.random() * 0.1,
+      opacity: 1,
     }));
-  }, [showParticles]);
+
+    setParticles(initialParticles);
+
+    let frame = 0;
+    const totalFrames = 62;
+
+    const intervalId = setInterval(() => {
+      frame++;
+      if (frame >= totalFrames) {
+        clearInterval(intervalId);
+        return;
+      }
+
+      setParticles((prev) =>
+        prev.map((p) => ({
+          ...p,
+          x: p.x + Math.cos(p.angle) * p.speed,
+          y: p.y + Math.sin(p.angle) * p.speed,
+          opacity: Math.max(0, 1 - frame / totalFrames),
+        }))
+      );
+    }, 16);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [showParticles, boardSize]);
 
   const handleNextLevel = () => {
     hideParticles();
@@ -221,29 +268,16 @@ const GameBoard: React.FC = () => {
   };
 
   const renderParticles = () => {
-    const cx = boardSize / 2;
-    const cy = boardSize / 2;
-
-    return particles.map((p) => {
-      const endX = cx + Math.cos(p.angle) * p.speed * 50;
-      const endY = cy + Math.sin(p.angle) * p.speed * 50;
-
-      return (
-        <circle
-          key={p.id}
-          cx={cx}
-          cy={cy}
-          r={p.size}
-          fill="#ffd700"
-          className="particle"
-          style={{
-            '--end-x': `${endX}px`,
-            '--end-y': `${endY}px`,
-            animationDelay: `${p.delay}s`,
-          } as React.CSSProperties}
-        />
-      );
-    });
+    return particles.map((p) => (
+      <circle
+        key={p.id}
+        cx={p.x}
+        cy={p.y}
+        r={p.size}
+        fill="#FFD700"
+        opacity={p.opacity}
+      />
+    ));
   };
 
   return (
@@ -278,19 +312,6 @@ const GameBoard: React.FC = () => {
               }
               .block-group:hover .block-cell {
                 filter: brightness(1.2);
-              }
-              .particle {
-                animation: particle-explode 1s ease-out forwards;
-              }
-              @keyframes particle-explode {
-                0% {
-                  opacity: 1;
-                  transform: translate(0, 0) scale(1);
-                }
-                100% {
-                  opacity: 0;
-                  transform: translate(var(--end-x), var(--end-y)) scale(0);
-                }
               }
               .gravity-indicator {
                 opacity: 0.3;

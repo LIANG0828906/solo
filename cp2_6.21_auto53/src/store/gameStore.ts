@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
 import { Block, GravityDirection, Position, TargetArea, BlockType, BLOCK_COLORS, GRAVITY_ORDER } from '../types';
-import { applyGravity, checkComplete, rotateBlockShape } from '../game/gravityEngine';
+import { applyGravity, checkComplete, rotateBlockShape, canPlaceBlock, getBlockCells } from '../game/gravityEngine';
 import { puzzleLevels } from '../game/puzzleData';
 
 interface GameState {
@@ -21,6 +21,7 @@ interface GameState {
   setGravity: (dir: GravityDirection) => void;
   cycleGravity: () => void;
   rotateBlock: (blockId: string) => void;
+  moveBlock: (blockId: string, dx: number, dy: number) => void;
   triggerParticles: () => void;
   hideParticles: () => void;
 }
@@ -179,6 +180,7 @@ export const useGameStore = create<GameState>((set, get) => {
             if (index !== -1) {
               draft.blocks[index] = rotated;
               draft.steps += 1;
+              draft.isAnimating = true;
             }
           })
         );
@@ -195,6 +197,75 @@ export const useGameStore = create<GameState>((set, get) => {
           set(
             produce((draft) => {
               draft.blocks = result.blocks;
+              draft.isAnimating = false;
+            })
+          );
+
+          setTimeout(() => {
+            const afterState = get();
+            const complete = checkComplete(afterState.blocks, afterState.targetArea);
+            if (complete) {
+              set(
+                produce((draft) => {
+                  draft.isComplete = true;
+                  draft.showParticles = true;
+                })
+              );
+            }
+          }, 50);
+        });
+      }
+    },
+
+    moveBlock: (blockId: string, dx: number, dy: number) => {
+      const state = get();
+      if (state.isAnimating || state.isComplete) return;
+
+      const block = state.blocks.find((b) => b.id === blockId);
+      if (!block) return;
+
+      const movedBlock: Block = {
+        ...block,
+        position: {
+          x: block.position.x + dx,
+          y: block.position.y + dy,
+        },
+      };
+
+      const obstacleSet = new Set(state.obstacles.map((o) => `${o.x},${o.y}`));
+      const otherBlocks = state.blocks.filter((b) => b.id !== blockId);
+      const otherOccupied = new Set<string>();
+      otherBlocks.forEach((b) => {
+        getBlockCells(b).forEach((cell) => {
+          otherOccupied.add(`${cell.x},${cell.y}`);
+        });
+      });
+
+      if (canPlaceBlock(movedBlock, otherOccupied, obstacleSet, state.gridSize)) {
+        set(
+          produce((draft) => {
+            const index = draft.blocks.findIndex((b: Block) => b.id === blockId);
+            if (index !== -1) {
+              draft.blocks[index] = movedBlock;
+              draft.steps += 1;
+              draft.isAnimating = true;
+            }
+          })
+        );
+
+        requestAnimationFrame(() => {
+          const currentState = get();
+          const result = applyGravity(
+            currentState.blocks,
+            currentState.obstacles,
+            currentState.gridSize,
+            currentState.gravityDirection
+          );
+
+          set(
+            produce((draft) => {
+              draft.blocks = result.blocks;
+              draft.isAnimating = false;
             })
           );
 

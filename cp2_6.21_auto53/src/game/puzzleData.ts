@@ -161,7 +161,7 @@ export const puzzleLevels: LevelData[] = [
     ],
     blocks: [
       { type: 'I4', position: { x: 0, y: 0 }, rotation: 0 },
-      { type: 'I4', position: { x: 4, y: 0 }, rotation: 90 },
+      { type: 'I4', position: { x: 5, y: 0 }, rotation: 90 },
       { type: 'Z4', position: { x: 0, y: 6 }, rotation: 0 },
     ],
     targetArea: { x: 2, y: 3, width: 4, height: 2 },

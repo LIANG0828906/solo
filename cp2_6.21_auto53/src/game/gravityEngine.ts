@@ -26,7 +26,9 @@ export function getBlockCells(block: Block): Position[] {
 }
 
 function isInBounds(pos: Position, gridSize: number): boolean {
-  return pos.x >= 0 && pos.x < gridSize && pos.y >= 0 && pos.y < gridSize;
+  const xOk = pos.x >= 0 && pos.x < gridSize;
+  const yOk = pos.y >= 0 && pos.y < gridSize;
+  return xOk && yOk;
 }
 
 function posKey(pos: Position): string {
@@ -120,7 +122,9 @@ export function applyGravity(
     const otherOccupied = new Set<string>();
     otherBlocks.forEach((b) => {
       getBlockCells(b).forEach((cell) => {
-        otherOccupied.add(posKey(cell));
+        if (isInBounds(cell, gridSize)) {
+          otherOccupied.add(posKey(cell));
+        }
       });
     });
 
