@@ -1,0 +1,202 @@
+[
+  {
+    "id": "r1",
+    "name": "番茄炒蛋",
+    "gradientColors": ["#ff6b6b", "#ffa502"],
+    "prepTime": 5,
+    "cookTime": 8,
+    "difficulty": 1,
+    "ingredients": [
+      { "name": "番茄", "amount": "2", "unit": "个", "category": "蔬菜" },
+      { "name": "鸡蛋", "amount": "3", "unit": "个", "category": "蛋奶" },
+      { "name": "食盐", "amount": "3", "unit": "克", "category": "调味品" },
+      { "name": "白砂糖", "amount": "5", "unit": "克", "category": "调味品" },
+      { "name": "食用油", "amount": "2", "unit": "汤匙", "category": "调味品" }
+    ],
+    "steps": [
+      { "description": "番茄洗净切块，鸡蛋打散加少许盐搅匀" },
+      { "description": "锅中热油，倒入蛋液翻炒至凝固后盛出备用" },
+      { "description": "锅中再加少许油，放入番茄块翻炒出汁" },
+      { "description": "加入白砂糖和盐调味，倒回鸡蛋翻炒均匀即可" }
+    ],
+    "createdAt": "2025-06-01T08:00:00.000Z"
+  },
+  {
+    "id": "r2",
+    "name": "宫保鸡丁",
+    "gradientColors": ["#e74c3c", "#f39c12"],
+    "prepTime": 15,
+    "cookTime": 10,
+    "difficulty": 3,
+    "ingredients": [
+      { "name": "鸡胸肉", "amount": "300", "unit": "克", "category": "肉类" },
+      { "name": "花生米", "amount": "50", "unit": "克", "category": "调味品" },
+      { "name": "干辣椒", "amount": "8", "unit": "根", "category": "调味品" },
+      { "name": "花椒", "amount": "1", "unit": "汤匙", "category": "调味品" },
+      { "name": "大葱", "amount": "1", "unit": "根", "category": "蔬菜" },
+      { "name": "生抽", "amount": "2", "unit": "汤匙", "category": "调味品" },
+      { "name": "香醋", "amount": "1", "unit": "汤匙", "category": "调味品" },
+      { "name": "白砂糖", "amount": "1", "unit": "汤匙", "category": "调味品" },
+      { "name": "淀粉", "amount": "1", "unit": "汤匙", "category": "调味品" }
+    ],
+    "steps": [
+      { "description": "鸡胸肉切丁，用生抽、料酒、淀粉腌制15分钟" },
+      { "description": "调碗汁：生抽、香醋、白砂糖、淀粉和少许水混合" },
+      { "description": "锅中热油，小火炒花生米至金黄盛出；爆香干辣椒和花椒" },
+      { "description": "放入鸡丁大火翻炒至变色，加入葱段翻炒" },
+      { "description": "倒入碗汁快速翻炒至浓稠，加入花生米翻匀出锅" }
+    ],
+    "createdAt": "2025-06-02T08:00:00.000Z"
+  },
+  {
+    "id": "r3",
+    "name": "红烧肉",
+    "gradientColors": ["#8b4513", "#cd853f"],
+    "prepTime": 10,
+    "cookTime": 90,
+    "difficulty": 4,
+    "ingredients": [
+      { "name": "五花肉", "amount": "500", "unit": "克", "category": "肉类" },
+      { "name": "冰糖", "amount": "30", "unit": "克", "category": "调味品" },
+      { "name": "生抽", "amount": "2", "unit": "汤匙", "category": "调味品" },
+      { "name": "老抽", "amount": "1", "unit": "汤匙", "category": "调味品" },
+      { "name": "料酒", "amount": "2", "unit": "汤匙", "category": "调味品" },
+      { "name": "生姜", "amount": "3", "unit": "片", "category": "蔬菜" },
+      { "name": "大葱", "amount": "1", "unit": "根", "category": "蔬菜" },
+      { "name": "八角", "amount": "2", "unit": "个", "category": "调味品" }
+    ],
+    "steps": [
+      { "description": "五花肉切块，冷水下锅焯水去血沫，捞出洗净备用" },
+      { "description": "锅中放少许油，小火融化冰糖至焦糖色，放入肉块翻炒上色" },
+      { "description": "加入生姜、葱段、八角，倒入料酒、生抽、老抽翻炒" },
+      { "description": "加入没过肉的热水，大火烧开后转小火炖60-80分钟" },
+      { "description": "最后大火收汁至浓稠即可出锅" }
+    ],
+    "createdAt": "2025-06-03T08:00:00.000Z"
+  },
+  {
+    "id": "r4",
+    "name": "麻婆豆腐",
+    "gradientColors": ["#c0392b", "#e67e22"],
+    "prepTime": 8,
+    "cookTime": 12,
+    "difficulty": 2,
+    "ingredients": [
+      { "name": "嫩豆腐", "amount": "1", "unit": "块", "category": "蛋奶" },
+      { "name": "猪肉末", "amount": "100", "unit": "克", "category": "肉类" },
+      { "name": "豆瓣酱", "amount": "2", "unit": "汤匙", "category": "调味品" },
+      { "name": "花椒粉", "amount": "1", "unit": "茶匙", "category": "调味品" },
+      { "name": "辣椒粉", "amount": "1", "unit": "茶匙", "category": "调味品" },
+      { "name": "生抽", "amount": "1", "unit": "汤匙", "category": "调味品" },
+      { "name": "淀粉", "amount": "1", "unit": "汤匙", "category": "调味品" },
+      { "name": "小葱", "amount": "2", "unit": "根", "category": "蔬菜" }
+    ],
+    "steps": [
+      { "description": "豆腐切小块，放入加盐的沸水中焯烫2分钟捞出" },
+      { "description": "锅中热油，放入肉末炒散至变色，加豆瓣酱炒出红油" },
+      { "description": "加入辣椒粉和适量水，放入豆腐块轻轻推匀，小火煮3分钟" },
+      { "description": "淋入水淀粉勾芡，撒上花椒粉和葱花即可" }
+    ],
+    "createdAt": "2025-06-04T08:00:00.000Z"
+  },
+  {
+    "id": "r5",
+    "name": "鱼香肉丝",
+    "gradientColors": ["#d35400", "#f1c40f"],
+    "prepTime": 15,
+    "cookTime": 8,
+    "difficulty": 3,
+    "ingredients": [
+      { "name": "猪里脊肉", "amount": "250", "unit": "克", "category": "肉类" },
+      { "name": "木耳", "amount": "30", "unit": "克", "category": "蔬菜" },
+      { "name": "胡萝卜", "amount": "1", "unit": "根", "category": "蔬菜" },
+      { "name": "青椒", "amount": "1", "unit": "个", "category": "蔬菜" },
+      { "name": "泡椒", "amount": "3", "unit": "个", "category": "调味品" },
+      { "name": "生抽", "amount": "2", "unit": "汤匙", "category": "调味品" },
+      { "name": "香醋", "amount": "2", "unit": "汤匙", "category": "调味品" },
+      { "name": "白砂糖", "amount": "2", "unit": "汤匙", "category": "调味品" },
+      { "name": "淀粉", "amount": "1", "unit": "汤匙", "category": "调味品" },
+      { "name": "大蒜", "amount": "3", "unit": "瓣", "category": "蔬菜" }
+    ],
+    "steps": [
+      { "description": "猪里脊切丝，用生抽、料酒、淀粉腌制10分钟；木耳泡发切丝，胡萝卜和青椒切丝" },
+      { "description": "调碗汁：生抽、香醋、白砂糖、淀粉和适量水混合" },
+      { "description": "锅中热油，放入肉丝滑散至变色盛出" },
+      { "description": "锅中留底油，爆香泡椒、蒜末，放入胡萝卜和木耳翻炒" },
+      { "description": "加入青椒丝和肉丝，倒入碗汁快速翻炒至浓稠即可" }
+    ],
+    "createdAt": "2025-06-05T08:00:00.000Z"
+  },
+  {
+    "id": "r6",
+    "name": "蒜蓉西兰花",
+    "gradientColors": ["#27ae60", "#2ecc71"],
+    "prepTime": 5,
+    "cookTime": 6,
+    "difficulty": 1,
+    "ingredients": [
+      { "name": "西兰花", "amount": "1", "unit": "棵", "category": "蔬菜" },
+      { "name": "大蒜", "amount": "5", "unit": "瓣", "category": "蔬菜" },
+      { "name": "食盐", "amount": "3", "unit": "克", "category": "调味品" },
+      { "name": "蚝油", "amount": "1", "unit": "汤匙", "category": "调味品" },
+      { "name": "食用油", "amount": "2", "unit": "汤匙", "category": "调味品" }
+    ],
+    "steps": [
+      { "description": "西兰花切小朵洗净，大蒜切末" },
+      { "description": "锅中烧水加少许盐和油，焯水西兰花1分钟后捞出沥干" },
+      { "description": "锅中热油，爆香蒜末至微黄" },
+      { "description": "放入西兰花翻炒，加蚝油和盐调味，炒匀即可" }
+    ],
+    "createdAt": "2025-06-06T08:00:00.000Z"
+  },
+  {
+    "id": "r7",
+    "name": "酸辣土豆丝",
+    "gradientColors": ["#f39c12", "#e74c3c"],
+    "prepTime": 8,
+    "cookTime": 6,
+    "difficulty": 2,
+    "ingredients": [
+      { "name": "土豆", "amount": "2", "unit": "个", "category": "蔬菜" },
+      { "name": "干辣椒", "amount": "5", "unit": "根", "category": "调味品" },
+      { "name": "花椒", "amount": "1", "unit": "茶匙", "category": "调味品" },
+      { "name": "香醋", "amount": "2", "unit": "汤匙", "category": "调味品" },
+      { "name": "食盐", "amount": "3", "unit": "克", "category": "调味品" },
+      { "name": "大蒜", "amount": "2", "unit": "瓣", "category": "蔬菜" },
+      { "name": "大葱", "amount": "1", "unit": "根", "category": "蔬菜" }
+    ],
+    "steps": [
+      { "description": "土豆去皮切细丝，放入清水中浸泡去淀粉，沥干备用" },
+      { "description": "干辣椒切段，大蒜切片，葱切葱花" },
+      { "description": "锅中热油，爆香花椒后捞出，放入干辣椒和蒜片炒香" },
+      { "description": "大火放入土豆丝快速翻炒，沿锅边淋入香醋" },
+      { "description": "加盐调味，撒入葱花翻炒均匀即可" }
+    ],
+    "createdAt": "2025-06-07T08:00:00.000Z"
+  },
+  {
+    "id": "r8",
+    "name": "糖醋排骨",
+    "gradientColors": ["#8e44ad", "#c0392b"],
+    "prepTime": 10,
+    "cookTime": 30,
+    "difficulty": 3,
+    "ingredients": [
+      { "name": "猪小排", "amount": "400", "unit": "克", "category": "肉类" },
+      { "name": "白砂糖", "amount": "3", "unit": "汤匙", "category": "调味品" },
+      { "name": "香醋", "amount": "3", "unit": "汤匙", "category": "调味品" },
+      { "name": "生抽", "amount": "2", "unit": "汤匙", "category": "调味品" },
+      { "name": "料酒", "amount": "2", "unit": "汤匙", "category": "调味品" },
+      { "name": "生姜", "amount": "3", "unit": "片", "category": "蔬菜" },
+      { "name": "大葱", "amount": "1", "unit": "根", "category": "蔬菜" },
+      { "name": "白芝麻", "amount": "1", "unit": "汤匙", "category": "调味品" }
+    ],
+    "steps": [
+      { "description": "排骨剁小段，冷水下锅加姜片、葱段焯水去血沫，捞出洗净" },
+      { "description": "锅中少油，放入排骨煎至两面微黄" },
+      { "description": "加入料酒、生抽、白砂糖、香醋和适量热水，大火烧开后转小火炖25分钟" },
+      { "description": "大火收汁至浓稠挂在排骨上，撒上白芝麻即可" }
+    ],
+    "createdAt": "2025-06-08T08:00:00.000Z"
+  }
+]
