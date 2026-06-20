@@ -170,7 +170,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ onlineCount, pulseKey, is
                 borderRadius: '8px',
                 background:
                   isCurrent
-                    ? '#252538'
+                    ? '#3e3e55'
                     : dragOverIndex === index && dragIndex !== null && dragIndex !== index
                     ? 'rgba(108, 99, 255, 0.15)'
                     : 'rgba(30, 30, 46, 0.5)',
@@ -195,7 +195,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ onlineCount, pulseKey, is
                 }
                 const indicator = e.currentTarget.querySelector<HTMLElement>('.hover-indicator');
                 if (indicator) {
-                  indicator.style.opacity = '0';
+                  indicator.style.opacity = isCurrent ? '1' : '0';
                 }
               }}
             >
@@ -208,7 +208,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ onlineCount, pulseKey, is
                   bottom: '10%',
                   width: '3px',
                   borderRadius: '0 2px 2px 0',
-                  background: isCurrent ? '#6c63ff' : '#a8a5ff',
+                  background: '#a8a5ff',
                   opacity: isCurrent ? 1 : 0,
                   transition: 'opacity 0.2s ease',
                 }}
@@ -256,14 +256,11 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = ({ onlineCount, pulseKey, is
                   width="16"
                   height="16"
                   viewBox="0 0 16 16"
-                  style={{ marginRight: '8px', flexShrink: 0, filter: 'drop-shadow(0 0 4px rgba(108, 99, 255, 0.6))' }}
+                  style={{ marginRight: '8px', flexShrink: 0 }}
                 >
                   <polygon
                     points="3,2 14,8 3,14"
                     fill="#6c63ff"
-                    style={{
-                      animation: 'blink 1.2s ease-in-out infinite',
-                    }}
                   />
                 </svg>
               )}
