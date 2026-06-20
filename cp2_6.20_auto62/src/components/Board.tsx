@@ -29,7 +29,6 @@ import {
   createPathElement,
   createTextElement,
   createImageElement,
-  distance,
 } from '../utils/geometryUtils';
 
 interface DropData {
@@ -57,7 +56,8 @@ export default function Board() {
   const [canvasRevealed, setCanvasRevealed] = useState(false);
   const [hoverPos, setHoverPos] = useState<Point | null>(null);
 
-  const board = useBoardStore((s) => s.getActiveBoard());
+  const boards = useBoardStore((s) => s.boards);
+  const activeBoardId = useBoardStore((s) => s.activeBoardId);
   const selectedElementId = useBoardStore((s) => s.selectedElementId);
   const addElement = useBoardStore((s) => s.addElement);
   const updateElement = useBoardStore((s) => s.updateElement);
@@ -66,6 +66,12 @@ export default function Board() {
   const setOffset = useBoardStore((s) => s.setOffset);
   const setZoom = useBoardStore((s) => s.setZoom);
   const pageTransition = useBoardStore((s) => s.pageTransition);
+
+  const boardData = boards.find((b) => b.id === activeBoardId);
+  const elements = boardData?.elements ?? [];
+  const zoom = boardData?.zoom ?? 1;
+  const offset = boardData?.offset ?? { x: 0, y: 0 };
+  const maxZIndex = boardData?.maxZIndex ?? 0;
 
   const currentTool = useUIStore((s) => s.currentTool);
   const currentColor = useUIStore((s) => s.currentColor);
@@ -78,13 +84,7 @@ export default function Board() {
   const triggerSnapFlash = useUIStore((s) => s.triggerSnapFlash);
   const togglePropertyPanel = useUIStore((s) => s.togglePropertyPanel);
 
-  const boardData = board();
-  const elements = boardData?.elements ?? [];
-  const zoom = boardData?.zoom ?? 1;
-  const offset = boardData?.offset ?? { x: 0, y: 0 };
-  const maxZIndex = boardData?.maxZIndex ?? 0;
-
-  const selectedElement = elements.find((e) => e.id === selectedElementId) || null;
+  const selectedElement = elements.find((e: BoardElement) => e.id === selectedElementId) || null;
 
   const canvasTheme: Theme = {
     ...theme,
@@ -98,7 +98,7 @@ export default function Board() {
   }, []);
 
   useEffect(() => {
-    elements.forEach((el) => {
+    elements.forEach((el: BoardElement) => {
       if (el.type === 'image' && !imageCacheRef.current.has(el.src)) {
         preloadImage(el.src, imageCacheRef.current).catch(() => {});
       }
@@ -117,7 +117,7 @@ export default function Board() {
       drawGrid(ctx, width / zoom, height / zoom, 1, { x: 0, y: 0 }, canvasTheme);
 
       const sortedElements = [...elements].sort((a, b) => a.zIndex - b.zIndex);
-      sortedElements.forEach((el) => {
+      sortedElements.forEach((el: BoardElement) => {
         if (el.id === selectedElementId) return;
         drawElement(ctx, el, imageCacheRef.current);
       });
@@ -162,7 +162,25 @@ export default function Board() {
     [elements, selectedElementId, selectedElement, zoom, offset, theme, canvasTheme, currentTool, currentColor, currentStrokeWidth, ripple]
   );
 
-  const canvasRef = useCanvas(render, [render]);
+  const [canvasRef, redraw] = useCanvas(render);
+
+  useEffect(() => {
+    redraw();
+  }, [
+    elements,
+    selectedElementId,
+    zoom,
+    offset,
+    theme,
+    gridColor,
+    gridOpacity,
+    currentTool,
+    currentColor,
+    currentStrokeWidth,
+    ripple,
+    pageTransition,
+    redraw,
+  ]);
 
   const handleDrop = useCallback(
     (data: DropData, clientX: number, clientY: number) => {
@@ -260,7 +278,7 @@ export default function Board() {
         }
 
         const sorted = [...elements].sort((a, b) => b.zIndex - a.zIndex);
-        const clicked = sorted.find((el) => pointInRect(pos, el, 4));
+        const clicked = sorted.find((el: BoardElement) => pointInRect(pos, el, 4));
 
         if (clicked) {
           selectElement(clicked.id);
@@ -302,7 +320,7 @@ export default function Board() {
 
       if (currentTool === 'eraser') {
         const sorted = [...elements].sort((a, b) => b.zIndex - a.zIndex);
-        const hit = sorted.find((el) => pointInRect(pos, el, 4));
+        const hit = sorted.find((el: BoardElement) => pointInRect(pos, el, 4));
         if (hit) {
           removeElement(hit.id);
           selectElement(null);
@@ -348,7 +366,7 @@ export default function Board() {
           canvas.style.cursor = getCursor(handle as HandleType);
         } else {
           const sorted = [...elements].sort((a, b) => b.zIndex - a.zIndex);
-          const hovered = sorted.find((el) => pointInRect(pos, el, 4));
+          const hovered = sorted.find((el: BoardElement) => pointInRect(pos, el, 4));
           canvas.style.cursor = hovered ? 'move' : 'default';
         }
         return;
@@ -361,10 +379,15 @@ export default function Board() {
         const targetY = state.startElement.y + dy;
 
         if (e.shiftKey) {
-          const snapped = snapPointToGrid({ x: targetX, y: targetY });
-          updateElement(selectedElement.id, { x: snapped.x, y: snapped.y });
-        } else {
           updateElement(selectedElement.id, { x: targetX, y: targetY });
+        } else {
+          const snapped = snapPointToGrid({ x: targetX, y: targetY });
+          const prevX = state.startElement.x + (pos.x - state.startPoint.x);
+          const prevY = state.startElement.y + (pos.y - state.startPoint.y);
+          if (snapped.x !== Math.round(prevX) || snapped.y !== Math.round(prevY)) {
+            triggerSnapFlash(e.clientX, e.clientY);
+          }
+          updateElement(selectedElement.id, { x: snapped.x, y: snapped.y });
         }
         return;
       }
@@ -422,6 +445,7 @@ export default function Board() {
 
       if (state.isDrawing && currentTool === 'pen') {
         drawingPathRef.current.push(pos);
+        redraw();
         return;
       }
 
@@ -444,6 +468,7 @@ export default function Board() {
           currentStrokeWidth,
           0
         );
+        redraw();
       }
     },
     [
@@ -458,6 +483,8 @@ export default function Board() {
       setOffset,
       updateElement,
       getCursor,
+      triggerSnapFlash,
+      redraw,
     ]
   );
 
@@ -492,6 +519,7 @@ export default function Board() {
         addElement(el);
       }
       previewShapeRef.current = null;
+      redraw();
     }
 
     if (state.isDragging || state.isResizing || state.isRotating) {
@@ -509,7 +537,7 @@ export default function Board() {
       lastPoint: null,
       startElement: null,
     };
-  }, [currentTool, currentColor, currentStrokeWidth, maxZIndex, addElement]);
+  }, [currentTool, currentColor, currentStrokeWidth, maxZIndex, addElement, redraw]);
 
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -549,8 +577,6 @@ export default function Board() {
     },
     [handleCanvasDrop]
   );
-
-  void distance;
 
   return (
     <div

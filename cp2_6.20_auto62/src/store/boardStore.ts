@@ -197,7 +197,7 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
           ? { ...b, elements: b.elements.filter((e) => e.id !== id) }
           : b
       ),
-      selectedElementId: state => state.selectedElementId === id ? null : state.selectedElementId,
+      selectedElementId: state.selectedElementId === id ? null : state.selectedElementId,
     }));
     get()._pushHistory();
     get()._persist();

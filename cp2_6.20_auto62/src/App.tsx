@@ -1,13 +1,45 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "@/pages/Home";
+import { useEffect } from 'react';
+import Toolbar from './components/Toolbar';
+import Board from './components/Board';
+import PropertyPanel from './components/PropertyPanel';
+import AssetLibrary from './components/AssetLibrary';
+import PageSwitcher from './components/PageSwitcher';
+import { useBoardStore } from './store/boardStore';
+import { useUIStore } from './store/uiStore';
 
 export default function App() {
+  const initFromStorage = useBoardStore((s) => s.initFromStorage);
+  const themeName = useUIStore((s) => s.themeName);
+  const setTheme = useUIStore((s) => s.setTheme);
+
+  useEffect(() => {
+    initFromStorage();
+  }, [initFromStorage]);
+
+  useEffect(() => {
+    document.body.classList.toggle('dark', themeName === 'dark');
+  }, [themeName]);
+
+  void setTheme;
+
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/other" element={<div className="text-center text-xl">Other Page - Coming Soon</div>} />
-      </Routes>
-    </Router>
+    <div className="app">
+      <Toolbar />
+      <div
+        style={{
+          position: 'relative',
+          flex: 1,
+          marginTop: 'var(--toolbar-height)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <PageSwitcher />
+        <Board />
+      </div>
+      <PropertyPanel />
+      <AssetLibrary />
+    </div>
   );
 }

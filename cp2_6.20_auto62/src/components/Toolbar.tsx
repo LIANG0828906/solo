@@ -135,7 +135,9 @@ export default function Toolbar() {
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isActive) {
+                if (!isActive)
+                    
+                    {
                   e.currentTarget.style.background = 'transparent';
                   e.currentTarget.style.transform = 'scale(1)';
                 }
@@ -377,7 +379,7 @@ export default function Toolbar() {
         }}
       >
         <button
-          onClick={toggleAssetLibrary}
+          onClick={() => toggleAssetLibrary()}
           title="素材库"
           style={{
             width: 40,

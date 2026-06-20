@@ -12,7 +12,7 @@ const makeAsset = (id: string, name: string, category: string, svg: string): Ass
   thumbnail: svgToDataUrl(svg),
 });
 
-const mountainSvg = (primary: string, secondary: string) => `
+const mountainSvg = (id: string, primary: string, secondary: string) => `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <defs>
     <linearGradient id="g${id}" x1="0" y1="0" x2="0" y2="1">
@@ -244,8 +244,8 @@ const featherSvg = `
 </svg>`;
 
 export const ASSETS: AssetItem[] = [
-  makeAsset('mountain-1', '山脉日出', '自然', mountainSvg('#2D6A4F', '#95D5B2')),
-  makeAsset('mountain-2', '雪山', '自然', mountainSvg('#6C757D', '#DEE2E6')),
+  makeAsset('mountain-1', '山脉日出', '自然', mountainSvg('mountain-1', '#2D6A4F', '#95D5B2')),
+  makeAsset('mountain-2', '雪山', '自然', mountainSvg('mountain-2', '#6C757D', '#DEE2E6')),
   makeAsset('tree', '松树', '自然', treeSvg),
   makeAsset('sun', '太阳', '自然', sunSvg),
   makeAsset('cloud', '云朵', '自然', cloudSvg),
