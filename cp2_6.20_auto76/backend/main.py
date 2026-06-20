@@ -132,7 +132,7 @@ async def get_report(room_id: str):
             pro_count += 1
         else:
             con_count += 1
-        support_timeline.append({"pro": pro_count, "con": con_count})
+        support_timeline.append({"time": msg["timestamp"], "pro": pro_count, "con": con_count})
 
     incoming_count: dict = {}
     for conn in conns:
@@ -148,8 +148,8 @@ async def get_report(room_id: str):
             most_replied.append({
                 "nodeId": node_id,
                 "content": node["content"],
+                "replyCount": count,
                 "side": node["side"],
-                "incomingConnections": count,
             })
 
     return {
@@ -174,7 +174,7 @@ async def disconnect(sid):
 async def join_room(sid, data):
     room_id = data.get("roomId")
     if room_id and room_id in rooms_db:
-        sio.enter_room(sid, room_id)
+        await sio.enter_room(sid, room_id)
         rooms_db[room_id]["participants"] += 1
         await sio.emit("room_updated", rooms_db[room_id], room=room_id)
 
@@ -183,7 +183,7 @@ async def join_room(sid, data):
 async def leave_room(sid, data):
     room_id = data.get("roomId")
     if room_id and room_id in rooms_db:
-        sio.leave_room(sid, room_id)
+        await sio.leave_room(sid, room_id)
         rooms_db[room_id]["participants"] = max(0, rooms_db[room_id]["participants"] - 1)
         await sio.emit("room_updated", rooms_db[room_id], room=room_id)
 

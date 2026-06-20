@@ -86,4 +86,33 @@ body {
   .stats-grid {
     grid-template-columns: 1fr;
   }
+
+  .room-container > div > div:last-child {
+    flex-direction: column !important;
+  }
+
+  .room-container > div > div:last-child > div:first-child {
+    width: 100% !important;
+  }
+
+  .room-container > div > div:last-child > div:first-child > div:first-child {
+    flex-direction: column !important;
+    height: auto !important;
+  }
+
+  .room-container > div > div:last-child > div:first-child > div:first-child > div {
+    min-height: 300px !important;
+  }
+
+  .room-container > div > div:last-child > div:last-child {
+    width: 100% !important;
+  }
+
+  .input-container {
+    flex-wrap: wrap;
+  }
+
+  .input-container input {
+    width: 100%;
+  }
 }
