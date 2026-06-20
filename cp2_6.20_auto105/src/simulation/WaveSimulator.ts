@@ -2,8 +2,36 @@ import type { WaveData, Reflection, Refraction, Hypocenter } from '@/types';
 import { GEOLOGIC_LAYERS, ANIMATION_DURATION } from '@/types';
 
 const POISSON_RATIO = 0.25;
-const MAX_REFLECTIONS = 8;
-const MAX_REFRACTIONS = 8;
+const MAX_REFLECTIONS = 16;
+const MAX_REFRACTIONS = 16;
+const REFRACTION_MIN_ANGLE = 15;
+const REFRACTION_MAX_ANGLE = 30;
+
+interface LayerBoundary {
+  y: number;
+  densityAbove: number;
+  densityBelow: number;
+  nameAbove: string;
+  nameBelow: string;
+}
+
+function getLayerBoundaries(): LayerBoundary[] {
+  const boundaries: LayerBoundary[] = [];
+  for (let i = 0; i < GEOLOGIC_LAYERS.length - 1; i++) {
+    const upper = GEOLOGIC_LAYERS[i];
+    const lower = GEOLOGIC_LAYERS[i + 1];
+    boundaries.push({
+      y: upper.yMax,
+      densityAbove: upper.baseDensity,
+      densityBelow: lower.baseDensity,
+      nameAbove: upper.name,
+      nameBelow: lower.name,
+    });
+  }
+  return boundaries;
+}
+
+const LAYER_BOUNDARIES = getLayerBoundaries();
 
 export function calculateWaveSpeeds(
   elasticityGPa: number,
@@ -17,7 +45,6 @@ export function calculateWaveSpeeds(
   const pWaveSpeed = Math.sqrt(numeratorP / denominatorP);
 
   const sWaveSpeed = pWaveSpeed * 0.6;
-
   const surfaceWaveSpeed = sWaveSpeed * 0.92;
 
   return {
@@ -27,38 +54,26 @@ export function calculateWaveSpeeds(
   };
 }
 
-export function getLayerAtY(y: number): typeof GEOLOGIC_LAYERS[number] | null {
-  for (const layer of GEOLOGIC_LAYERS) {
-    if (y >= layer.yMin && y < layer.yMax) {
-      return layer;
-    }
-  }
-  return null;
+function speedInLayer(baseSpeed: number, layerDensity: number, userDensity: number): number {
+  return baseSpeed * Math.sqrt(userDensity / layerDensity);
 }
 
-export function findLayerBoundaries(
-  startY: number,
-  endY: number
-): Array<{ y: number; boundary: 'upper' | 'lower'; layer: typeof GEOLOGIC_LAYERS[number] }> {
-  const boundaries: Array<{
-    y: number;
-    boundary: 'upper' | 'lower';
-    layer: typeof GEOLOGIC_LAYERS[number];
-  }> = [];
+interface ReflectedWave {
+  origin: [number, number, number];
+  radius: number;
+  speed: number;
+  birthTime: number;
+  color: string;
+  isPWave: boolean;
+}
 
-  const minY = Math.min(startY, endY);
-  const maxY = Math.max(startY, endY);
-
-  for (const layer of GEOLOGIC_LAYERS) {
-    if (layer.yMin >= minY && layer.yMin <= maxY) {
-      boundaries.push({ y: layer.yMin, boundary: 'upper', layer });
-    }
-    if (layer.yMax >= minY && layer.yMax <= maxY) {
-      boundaries.push({ y: layer.yMax, boundary: 'lower', layer });
-    }
-  }
-
-  return boundaries.sort((a, b) => a.y - b.y);
+interface RefractedWave {
+  origin: [number, number, number];
+  direction: [number, number, number];
+  speed: number;
+  birthTime: number;
+  angle: number;
+  isPWave: boolean;
 }
 
 export class WaveSimulator {
@@ -66,17 +81,21 @@ export class WaveSimulator {
   private pWaveSpeed: number;
   private sWaveSpeed: number;
   private surfaceWaveSpeed: number;
+  private userDensity: number;
   private reflections: Reflection[] = [];
   private refractions: Refraction[] = [];
+  private reflectedWaves: ReflectedWave[] = [];
+  private refractedWaves: RefractedWave[] = [];
   private processedBoundaries = new Set<string>();
 
   constructor(
     hypocenter: Hypocenter,
-    _elasticity: number,
-    _density: number
+    elasticity: number,
+    density: number
   ) {
     this.hypocenter = hypocenter;
-    const speeds = calculateWaveSpeeds(_elasticity, _density);
+    this.userDensity = density;
+    const speeds = calculateWaveSpeeds(elasticity, density);
     this.pWaveSpeed = speeds.pWaveSpeed;
     this.sWaveSpeed = speeds.sWaveSpeed;
     this.surfaceWaveSpeed = speeds.surfaceWaveSpeed;
@@ -88,6 +107,7 @@ export class WaveSimulator {
     density: number
   ): void {
     this.hypocenter = hypocenter;
+    this.userDensity = density;
     const speeds = calculateWaveSpeeds(elasticity, density);
     this.pWaveSpeed = speeds.pWaveSpeed;
     this.sWaveSpeed = speeds.sWaveSpeed;
@@ -98,6 +118,8 @@ export class WaveSimulator {
   reset(): void {
     this.reflections = [];
     this.refractions = [];
+    this.reflectedWaves = [];
+    this.refractedWaves = [];
     this.processedBoundaries.clear();
   }
 
@@ -108,7 +130,7 @@ export class WaveSimulator {
     const sWaveRadius = this.sWaveSpeed * clampedTime;
     const surfaceWaveRadius = this.surfaceWaveSpeed * clampedTime;
 
-    this.updateBoundaryInteractions(pWaveRadius);
+    this.detectBoundaryInteractions(pWaveRadius, sWaveRadius, clampedTime);
 
     return {
       pWaveRadius,
@@ -122,72 +144,177 @@ export class WaveSimulator {
     };
   }
 
-  private updateBoundaryInteractions(pWaveRadius: number): void {
-    const { x, y, z } = this.hypocenter;
+  private detectBoundaryInteractions(
+    pWaveRadius: number,
+    sWaveRadius: number,
+    currentTime: number
+  ): void {
+    const { y } = this.hypocenter;
 
-    for (const layer of GEOLOGIC_LAYERS) {
-      const distances = [
-        Math.abs(y - layer.yMin),
-        Math.abs(y - layer.yMax),
-      ];
+    for (const boundary of LAYER_BOUNDARIES) {
+      const distToBoundary = Math.abs(y - boundary.y);
 
-      for (let i = 0; i < distances.length; i++) {
-        const boundaryY = i === 0 ? layer.yMin : layer.yMax;
-        const key = `${boundaryY}-${i}`;
+      this.processWaveBoundary(
+        pWaveRadius, distToBoundary, boundary, currentTime, true
+      );
+      this.processWaveBoundary(
+        sWaveRadius, distToBoundary, boundary, currentTime, false
+      );
+    }
+  }
 
-        if (pWaveRadius >= distances[i] && !this.processedBoundaries.has(key)) {
-          this.processedBoundaries.add(key);
+  private processWaveBoundary(
+    waveRadius: number,
+    distToBoundary: number,
+    boundary: LayerBoundary,
+    _currentTime: number,
+    isPWave: boolean
+  ): void {
+    const waveType = isPWave ? 'P' : 'S';
+    const key = `${boundary.y}-${waveType}`;
 
-          const ratio = (y - boundaryY) / pWaveRadius;
-          const angle = Math.asin(Math.max(-1, Math.min(1, ratio))) * (180 / Math.PI);
-          const refractionAngle = angle + (15 + Math.random() * 15);
+    if (waveRadius >= distToBoundary && !this.processedBoundaries.has(key)) {
+      this.processedBoundaries.add(key);
 
-          const intersectionPoint: [number, number, number] = [
-            x + Math.cos(angle * (Math.PI / 180)) * pWaveRadius * 0.3,
-            boundaryY,
-            z + Math.sin(angle * (Math.PI / 180)) * pWaveRadius * 0.3,
-          ];
+      const densityRatio = boundary.densityBelow / boundary.densityAbove;
+      const sinIncidence = distToBoundary / Math.max(waveRadius, 0.001);
+      const incidenceAngle = Math.asin(Math.min(1, sinIncidence));
 
-          if (this.reflections.length < MAX_REFLECTIONS) {
-            this.reflections.push({
-              position: intersectionPoint,
-              normal: [0, y > boundaryY ? 1 : -1, 0],
-              time: pWaveRadius / this.pWaveSpeed,
-            });
-          }
+      const isEnteringDenser = boundary.densityBelow > boundary.densityAbove;
+      let refractionAngle: number;
 
-          if (this.refractions.length < MAX_REFRACTIONS) {
-            const refractDirY = y > boundaryY ? -1 : 1;
-            this.refractions.push({
-              position: intersectionPoint,
-              direction: [
-                Math.cos(refractionAngle * (Math.PI / 180)) * 0.5,
-                refractDirY,
-                Math.sin(refractionAngle * (Math.PI / 180)) * 0.5,
-              ],
-              angle: refractionAngle,
-              time: pWaveRadius / this.pWaveSpeed,
-            });
-          }
+      if (isEnteringDenser) {
+        refractionAngle = incidenceAngle * (1 / densityRatio);
+      } else {
+        const sinRefracted = Math.sin(incidenceAngle) * densityRatio;
+        if (sinRefracted >= 1) {
+          refractionAngle = Math.PI / 2;
+        } else {
+          refractionAngle = Math.asin(sinRefracted);
         }
       }
+
+      const refractionDeviation =
+        (REFRACTION_MIN_ANGLE + Math.random() * (REFRACTION_MAX_ANGLE - REFRACTION_MIN_ANGLE)) *
+        (Math.PI / 180);
+      refractionAngle = Math.max(refractionAngle, refractionDeviation);
+
+      const birthTime = distToBoundary / (isPWave ? this.pWaveSpeed : this.sWaveSpeed);
+
+      const { x, z } = this.hypocenter;
+      const horizontalDist = Math.sqrt(
+        Math.max(0, waveRadius * waveRadius - distToBoundary * distToBoundary)
+      );
+
+      const numHits = Math.max(1, Math.floor(horizontalDist / 2));
+      for (let i = 0; i < numHits && this.reflections.length < MAX_REFLECTIONS; i++) {
+        const angle = (2 * Math.PI * i) / numHits;
+        const hitX = x + Math.cos(angle) * horizontalDist * 0.6;
+        const hitZ = z + Math.sin(angle) * horizontalDist * 0.6;
+
+        this.reflections.push({
+          position: [hitX, boundary.y, hitZ],
+          normal: [0, this.hypocenter.y > boundary.y ? 1 : -1, 0],
+          time: birthTime,
+        });
+      }
+
+      for (let i = 0; i < Math.min(numHits, 2) && this.refractions.length < MAX_REFRACTIONS; i++) {
+        const angle = (2 * Math.PI * i) / Math.max(numHits, 1);
+        const hitX = x + Math.cos(angle) * horizontalDist * 0.6;
+        const hitZ = z + Math.sin(angle) * horizontalDist * 0.6;
+
+        const downward = this.hypocenter.y > boundary.y ? -1 : 1;
+        const dirX = Math.cos(angle) * Math.sin(refractionAngle);
+        const dirY = downward * Math.cos(refractionAngle);
+        const dirZ = Math.sin(angle) * Math.sin(refractionAngle);
+
+        const refractedSpeed = isPWave
+          ? speedInLayer(this.pWaveSpeed, boundary.densityBelow, this.userDensity)
+          : speedInLayer(this.sWaveSpeed, boundary.densityBelow, this.userDensity);
+
+        this.refractions.push({
+          position: [hitX, boundary.y, hitZ],
+          direction: [dirX, dirY, dirZ],
+          angle: refractionAngle * (180 / Math.PI),
+          time: birthTime,
+        });
+
+        if (this.refractedWaves.length < 8) {
+          this.refractedWaves.push({
+            origin: [hitX, boundary.y, hitZ],
+            direction: [dirX, dirY, dirZ],
+            speed: refractedSpeed,
+            birthTime,
+            angle: refractionAngle * (180 / Math.PI),
+            isPWave,
+          });
+        }
+      }
+
+      if (this.reflectedWaves.length < 8) {
+        const reflSpeed = isPWave ? this.pWaveSpeed : this.sWaveSpeed;
+        this.reflectedWaves.push({
+          origin: [x, boundary.y, z],
+          radius: 0,
+          speed: reflSpeed * 0.8,
+          birthTime,
+          color: isPWave ? '#4fc3f7' : '#81c784',
+          isPWave,
+        });
+      }
     }
+  }
+
+  getReflectedWaveData(time: number): Array<{
+    origin: [number, number, number];
+    radius: number;
+    color: string;
+    isPWave: boolean;
+  }> {
+    return this.reflectedWaves
+      .filter((w) => time >= w.birthTime)
+      .map((w) => ({
+        origin: w.origin,
+        radius: (time - w.birthTime) * w.speed,
+        color: w.color,
+        isPWave: w.isPWave,
+      }));
+  }
+
+  getRefractedWaveData(time: number): Array<{
+    origin: [number, number, number];
+    direction: [number, number, number];
+    length: number;
+    isPWave: boolean;
+  }> {
+    return this.refractedWaves
+      .filter((w) => time >= w.birthTime)
+      .map((w) => ({
+        origin: w.origin,
+        direction: w.direction,
+        length: (time - w.birthTime) * w.speed,
+        isPWave: w.isPWave,
+      }));
   }
 
   getTopographyHeight(x: number, z: number, time: number): number {
     const clampedTime = Math.max(0, Math.min(time, ANIMATION_DURATION));
     const distFromHypo = Math.sqrt(
-      Math.pow(x - this.hypocenter.x, 2) + Math.pow(z - this.hypocenter.z, 2)
+      (x - this.hypocenter.x) ** 2 + (z - this.hypocenter.z) ** 2
     );
     const waveRadius = this.surfaceWaveSpeed * clampedTime;
-    const waveWidth = 1.5;
+    const waveWidth = 2.0;
+
+    if (waveRadius <= 0) return 0;
 
     const distFromWave = Math.abs(distFromHypo - waveRadius);
     if (distFromWave > waveWidth) return 0;
 
-    const amplitude = 0.1 * (1 - distFromWave / waveWidth);
-    const phase = (distFromHypo - waveRadius) * 3;
-    return amplitude * Math.sin(phase) * Math.exp(-distFromWave * 2);
+    const proximity = 1 - distFromWave / waveWidth;
+    const amplitude = 0.3 * proximity * Math.exp(-distFromWave * 1.5);
+    const phase = (distFromHypo - waveRadius) * 4;
+    return amplitude * Math.sin(phase);
   }
 }
 

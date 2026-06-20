@@ -105,7 +105,7 @@ const SceneContent: React.FC<SceneContentProps> = ({ waveSimulator }) => {
 
       <EarthBlock density={density} />
       <Hypocenter position={hypocenter} magnitude={magnitude} />
-      <WaveFront waveData={waveData} hypocenter={hypocenter} magnitude={magnitude} />
+      <WaveFront waveData={waveData} hypocenter={hypocenter} magnitude={magnitude} waveSimulator={waveSimulator} currentTime={currentTime} />
       <SurfaceWave
         waveData={waveData}
         hypocenter={hypocenter}

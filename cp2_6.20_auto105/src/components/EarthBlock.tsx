@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { GEOLOGIC_LAYERS } from '@/types';
-import type { GeologicLayer } from '@/types';
 
 function hexToRgb(hex: string): [number, number, number] {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -13,33 +12,39 @@ function hexToRgb(hex: string): [number, number, number] {
     : [0.5, 0.5, 0.5];
 }
 
-function rgbToHex(r: number, g: number, b: number): string {
-  return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
-}
-
 function adjustColorByDensity(
   baseColor: string,
-  _baseDensity: number,
-  currentDensity: number
+  baseDensity: number,
+  userDensity: number
 ): string {
   const [r, g, b] = hexToRgb(baseColor);
-  const densityRatio = (currentDensity - 1000) / (5000 - 1000);
-  const darkenFactor = 1 - densityRatio * 0.5;
-  return rgbToHex(r * darkenFactor, g * darkenFactor * 0.95, b * darkenFactor * 0.9);
+
+  const densityRatio = (userDensity - 1000) / (5000 - 1000);
+
+  const darkBrownR = 0.25;
+  const darkBrownG = 0.15;
+  const darkBrownB = 0.08;
+
+  const t = densityRatio;
+  const newR = r + (darkBrownR - r) * t * 0.7;
+  const newG = g + (darkBrownG - g) * t * 0.7;
+  const newB = b + (darkBrownB - b) * t * 0.7;
+
+  const ratio = baseDensity / 13000;
+  const layerDarken = 1 - ratio * 0.15;
+
+  return `rgb(${Math.round(Math.max(0, Math.min(1, newR * layerDarken)) * 255)}, ${Math.round(Math.max(0, Math.min(1, newG * layerDarken)) * 255)}, ${Math.round(Math.max(0, Math.min(1, newB * layerDarken)) * 255)})`;
 }
 
 interface EarthBlockProps {
   density: number;
 }
 
-interface LayerMeshProps {
-  layer?: GeologicLayer;
+const LayerMesh: React.FC<{
   color: string;
   size: [number, number, number];
   position: [number, number, number];
-}
-
-const LayerMesh: React.FC<LayerMeshProps> = ({ color, size, position }) => {
+}> = ({ color, size, position }) => {
   return (
     <mesh position={position} castShadow receiveShadow>
       <boxGeometry args={size} />
