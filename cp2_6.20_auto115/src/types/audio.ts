@@ -18,6 +18,8 @@ export interface TrackSettings {
 }
 
 export interface MixSettings {
+  version: string;
+  timestamp: number;
   masterVolume: number;
   masterPan: number;
   activePreset: string | null;

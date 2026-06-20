@@ -6,8 +6,9 @@ const SpectrumVisualizer: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { spectrumData, playTone, audioContext } = useAudioEngine();
   const animationRef = useRef<number>(0);
-  const lastRenderTimeRef = useRef<number>(0);
+  const lastRenderTimeRef = useRef<number>(performance.now());
   const totalBarsRef = useRef<number>(0);
+  const barHeightsRef = useRef<number[]>([]);
 
   const BAR_WIDTH = 4;
   const BAR_SPACING = 1;
@@ -23,16 +24,32 @@ const SpectrumVisualizer: React.FC = () => {
 
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
       const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
       const canvasX = x * scaleX;
+      const canvasY = y * scaleY;
+
+      const dpr = window.devicePixelRatio || 1;
+      const displayWidth = canvas.width / dpr;
+      const displayHeight = canvas.height / dpr;
 
       const barTotalWidth = BAR_WIDTH + BAR_SPACING;
-      const barIndex = Math.floor(canvasX / barTotalWidth);
+      const barIndex = Math.floor(canvasX / (barTotalWidth * dpr));
       const totalBars = totalBarsRef.current;
 
       if (barIndex >= 0 && barIndex < totalBars) {
-        const frequency = indexToFrequency(barIndex, totalBars, MIN_FREQ, MAX_FREQ);
-        playTone(frequency);
+        const barX = barIndex * barTotalWidth;
+        const barHeight = barHeightsRef.current[barIndex] || 0;
+        const barY = displayHeight - barHeight;
+
+        const withinBarX = canvasX >= barX * dpr && canvasX < (barX + BAR_WIDTH) * dpr;
+        const withinBarY = canvasY >= barY * dpr && canvasY <= displayHeight * dpr;
+
+        if (withinBarX && withinBarY && barHeight > 0) {
+          const frequency = indexToFrequency(barIndex, totalBars, MIN_FREQ, MAX_FREQ);
+          playTone(frequency);
+        }
       }
     },
     [playTone]
@@ -72,6 +89,9 @@ const SpectrumVisualizer: React.FC = () => {
         const barTotalWidth = BAR_WIDTH + BAR_SPACING;
         const totalBars = Math.floor(displayWidth / barTotalWidth);
         totalBarsRef.current = totalBars;
+        if (barHeightsRef.current.length !== totalBars) {
+          barHeightsRef.current = new Array(totalBars).fill(0);
+        }
 
         const gradient = ctx.createLinearGradient(0, displayHeight, 0, 0);
         gradient.addColorStop(0, 'rgba(30, 144, 255, 0.1)');
@@ -97,6 +117,7 @@ const SpectrumVisualizer: React.FC = () => {
 
           const normalizedValue = magnitude / 255;
           const barHeight = Math.max(2, normalizedValue * (displayHeight - 20));
+          barHeightsRef.current[i] = barHeight;
           const x = i * barTotalWidth;
           const y = displayHeight - barHeight;
 

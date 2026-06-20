@@ -69,7 +69,9 @@ const TrackCard: React.FC<TrackCardProps> = ({ trackId }) => {
     setIsDragging(false);
 
     const files = e.dataTransfer.files;
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      return;
+    }
 
     const file = files[0];
 
@@ -82,7 +84,15 @@ const TrackCard: React.FC<TrackCardProps> = ({ trackId }) => {
     try {
       const arrayBuffer = await file.arrayBuffer();
       const tempCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer.slice(0));
+      let audioBuffer: AudioBuffer;
+
+      try {
+        audioBuffer = await tempCtx.decodeAudioData(arrayBuffer.slice(0));
+      } catch (decodeError) {
+        console.error('音频解码失败，文件可能已损坏或格式不支持:', decodeError);
+        alert('音频解码失败：文件可能已损坏或格式不支持，请检查文件完整性');
+        return;
+      }
 
       if (audioBuffer.duration > 30) {
         alert('音频文件时长不能超过30秒');
@@ -91,8 +101,12 @@ const TrackCard: React.FC<TrackCardProps> = ({ trackId }) => {
 
       await loadAudioFile(file, trackId);
     } catch (error) {
-      console.error('校验文件失败:', error);
-      alert('音频文件校验失败');
+      console.error('拖拽上传音频文件失败:', error);
+      if (error instanceof Error) {
+        alert(`文件处理失败：${error.message}`);
+      } else {
+        alert('文件处理失败，请尝试其他文件');
+      }
     }
   };
 

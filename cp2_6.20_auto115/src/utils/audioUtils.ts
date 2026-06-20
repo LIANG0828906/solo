@@ -100,11 +100,14 @@ export function frequencyToColor(
 }
 
 export function validateAudioFile(file: File): { valid: boolean; message?: string } {
-  const validTypes = ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp3'];
-  const ext = file.name.split('.').pop()?.toLowerCase();
+  const validMimeTypes = ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp3'];
   const validExtensions = ['wav', 'mp3'];
+  const ext = file.name.split('.').pop()?.toLowerCase();
 
-  if (!validTypes.includes(file.type) && !validExtensions.includes(ext || '')) {
+  const hasValidMime = validMimeTypes.includes(file.type);
+  const hasValidExt = validExtensions.includes(ext || '');
+
+  if (!hasValidMime && !hasValidExt) {
     return { valid: false, message: '仅支持 WAV 和 MP3 格式的音频文件' };
   }
 

@@ -396,13 +396,13 @@ export const AudioEngineProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 nodes.filterNodes[i].connect(nodes.filterNodes[i + 1]);
               }
               nodes.filterNodes[nodes.filterNodes.length - 1].connect(nodes.gainNode);
-              if (nodes.source) {
+              if (nodes.source !== undefined && nodes.source !== null) {
                 try {
                   nodes.source.disconnect();
                 } catch (e) {}
                 nodes.source.connect(nodes.filterNodes[0]);
               }
-            } else if (nodes.source) {
+            } else if (nodes.source !== undefined && nodes.source !== null) {
               try {
                 nodes.source.disconnect();
               } catch (e) {}
@@ -419,8 +419,12 @@ export const AudioEngineProvider: React.FC<{ children: React.ReactNode }> = ({ c
     []
   );
 
+  const SETTINGS_VERSION = '1.0.0';
+
   const exportSettings = useCallback(() => {
     const settings: MixSettings = {
+      version: SETTINGS_VERSION,
+      timestamp: Date.now(),
       masterVolume,
       masterPan,
       activePreset,
