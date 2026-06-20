@@ -17,10 +17,49 @@ export interface Color {
   frequency: number;
 }
 
-export interface Palette {
+export type PaletteType = 'extracted' | 'monochromatic' | 'complementary' | 'triadic';
+
+export type GeneratedPaletteType = 'monochromatic' | 'complementary' | 'triadic';
+
+export interface SavedPalette {
   id: string;
   name: string;
+  tags: string[];
   colors: Color[];
-  type: 'extracted' | 'monochromatic' | 'complementary' | 'triadic';
+  type: PaletteType;
   createdAt: number;
 }
+
+export type Palette = SavedPalette;
+
+export type ThemeMode = 'light' | 'dark';
+
+export interface CurrentPalettes {
+  monochromatic: Color[];
+  complementary: Color[];
+  triadic: Color[];
+  lockedIndices: {
+    monochromatic: number | null;
+    complementary: number | null;
+    triadic: number | null;
+  };
+}
+
+export type Palettes = {
+  extracted: Color[];
+  monochromatic: Color[];
+  complementary: Color[];
+  triadic: Color[];
+};
+
+export type GeneratedPalettes = {
+  monochromatic: Color[];
+  complementary: Color[];
+  triadic: Color[];
+};
+
+export type LockedIndices = {
+  monochromatic: number | null;
+  complementary: number | null;
+  triadic: number | null;
+};

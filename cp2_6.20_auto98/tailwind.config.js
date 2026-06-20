@@ -7,7 +7,18 @@ export default {
     container: {
       center: true,
     },
-    extend: {},
+    extend: {
+      keyframes: {
+        'bounce-click': {
+          '0%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.1)' },
+          '100%': { transform: 'scale(1)' },
+        },
+      },
+      animation: {
+        'bounce-click': 'bounce-click 400ms ease-out',
+      },
+    },
   },
   plugins: [],
 };
