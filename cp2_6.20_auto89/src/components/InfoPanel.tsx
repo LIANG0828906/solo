@@ -169,16 +169,16 @@ export const InfoPanel: React.FC = () => {
               <span className="label">焓变 ΔH</span>
               <span className={reactionResult.enthalpy < 0 ? 'value' : 'value negative'}>
                 {reactionResult.enthalpy > 0 ? '+' : ''}
-                {reactionResult.enthalpy} kJ/mol
+                {reactionResult.enthalpy} kcal/mol
               </span>
             </div>
             <div className="info-row">
               <span className="label">活化能 Ea</span>
-              <span className="value negative">{reactionResult.activationEnergy} kJ/mol</span>
+              <span className="value negative">{reactionResult.activationEnergy} kcal/mol</span>
             </div>
             <div className="info-row">
               <span className="label">路径点数</span>
-              <span className="value">{reactionResult.path.length}</span>
+              <span className="value">{reactionResult.energyProfile.length}</span>
             </div>
             <div className="info-row">
               <span className="label">反应自发性</span>

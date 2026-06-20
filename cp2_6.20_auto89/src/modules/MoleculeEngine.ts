@@ -4,6 +4,14 @@ export type ElementType = 'C' | 'N' | 'O' | 'H' | 'S' | 'P' | 'Cl' | 'Br' | 'I';
 export type BondOrder = 1 | 2 | 3;
 export type EditMode = 'atom' | 'bond' | 'select';
 
+export interface ProximityAlert {
+  atomId: string;
+  nearbyAtoms: Atom[];
+  distances: number[];
+}
+
+export type ProximityCallback = (alert: ProximityAlert) => void;
+
 export interface Vec3 {
   x: number;
   y: number;
@@ -106,9 +114,32 @@ export function calculateBondLength(elementA: ElementType, elementB: ElementType
 export class MoleculeEngine {
   private atoms: Map<string, Atom> = new Map();
   private bonds: Map<string, Bond> = new Map();
+  private proximityCallback: ProximityCallback | null = null;
+  private readonly PROXIMITY_THRESHOLD = 2.0;
 
   constructor() {
     this.initDefaultMolecule();
+  }
+
+  setProximityCallback(callback: ProximityCallback | null): void {
+    this.proximityCallback = callback;
+  }
+
+  private checkProximity(atomId: string, position: Vec3): void {
+    if (!this.proximityCallback) return;
+    const nearby: Atom[] = [];
+    const distances: number[] = [];
+    this.atoms.forEach((atom) => {
+      if (atom.id === atomId) return;
+      const d = distance(atom.position, position);
+      if (d <= this.PROXIMITY_THRESHOLD) {
+        nearby.push(atom);
+        distances.push(d);
+      }
+    });
+    if (nearby.length > 0) {
+      this.proximityCallback({ atomId, nearbyAtoms: nearby, distances });
+    }
   }
 
   private initDefaultMolecule(): void {
@@ -130,6 +161,7 @@ export class MoleculeEngine {
       charge: 0,
     };
     this.atoms.set(id, atom);
+    this.checkProximity(id, atom.position);
     return id;
   }
 
@@ -148,6 +180,7 @@ export class MoleculeEngine {
     const atom = this.atoms.get(id);
     if (atom) {
       atom.position = { ...position };
+      this.checkProximity(id, atom.position);
     }
   }
 

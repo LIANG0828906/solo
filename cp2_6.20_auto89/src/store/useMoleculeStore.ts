@@ -8,6 +8,7 @@ import {
   Molecule,
   Vec3,
   MoleculeEngine,
+  ProximityAlert,
 } from '../modules/MoleculeEngine';
 import { ReactionResult, ReactionSimulator } from '../modules/ReactionSimulator';
 
@@ -106,6 +107,7 @@ interface MoleculeState {
   reactantAId: string;
   reactantBId: string;
   toastMessage: string | null;
+  proximityAlert: ProximityAlert | null;
 
   addAtom: (element: ElementType, position: Vec3) => void;
   removeAtom: (id: string) => void;
@@ -129,6 +131,8 @@ interface MoleculeState {
   getCurrentMolecule: () => Molecule;
   showToast: (msg: string) => void;
   clearToast: () => void;
+  clearProximityAlert: () => void;
+  confirmBondCreation: (nearbyAtomId: string) => void;
 }
 
 function syncFromEngine(set: (state: Partial<MoleculeState>) => void): void {
@@ -138,7 +142,12 @@ function syncFromEngine(set: (state: Partial<MoleculeState>) => void): void {
   });
 }
 
-export const useMoleculeStore = create<MoleculeState>((set, get) => ({
+export const useMoleculeStore = create<MoleculeState>((set, get) => {
+  moleculeEngine.setProximityCallback((alert) => {
+    set({ proximityAlert: alert });
+  });
+
+  return {
   atoms: moleculeEngine.getAtoms(),
   bonds: moleculeEngine.getBonds(),
   selectedAtomId: null,
@@ -154,6 +163,7 @@ export const useMoleculeStore = create<MoleculeState>((set, get) => ({
   reactantAId: 'ethane',
   reactantBId: 'ethene',
   toastMessage: null,
+  proximityAlert: null,
 
   addAtom: (element: ElementType, position: Vec3) => {
     const id = moleculeEngine.addAtom(element, position);
@@ -302,4 +312,21 @@ export const useMoleculeStore = create<MoleculeState>((set, get) => ({
   },
 
   clearToast: () => set({ toastMessage: null }),
-}));
+
+  clearProximityAlert: () => set({ proximityAlert: null }),
+
+  confirmBondCreation: (nearbyAtomId: string) => {
+    const state = get();
+    if (!state.proximityAlert) return;
+    const newAtomId = state.proximityAlert.atomId;
+    if (newAtomId && nearbyAtomId && newAtomId !== nearbyAtomId) {
+      const result = moleculeEngine.addBond(newAtomId, nearbyAtomId, state.currentBondOrder);
+      if (result) {
+        get().showToast('化学键创建成功');
+      }
+      syncFromEngine(set);
+    }
+    set({ proximityAlert: null });
+  },
+};
+});

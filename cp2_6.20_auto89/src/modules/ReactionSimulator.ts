@@ -53,8 +53,16 @@ export interface ReactionPoint {
   label?: 'reactant' | 'transition' | 'intermediate' | 'product';
 }
 
+export interface EnergyPoint {
+  step: number;
+  energy: number;
+  geometry: { element: ElementType; x: number; y: number; z: number }[];
+  type: 'reactant' | 'transition' | 'intermediate' | 'product' | 'normal';
+}
+
 export interface ReactionResult {
   path: ReactionPoint[];
+  energyProfile: EnergyPoint[];
   enthalpy: number;
   activationEnergy: number;
   reactionType: string;
@@ -71,7 +79,7 @@ function getBondEnergy(elemA: ElementType, elemB: ElementType, order: BondOrder)
   return BOND_ENERGY[key] ?? 300;
 }
 
-export function calculateMoleculeEnergy(molecule: Molecule): number {
+export function calculateMoleculeEnergy(molecule: Molecule, unit: 'kJ' | 'kcal' = 'kJ'): number {
   let energy = 0;
   const atomMap = new Map<string, Atom>();
   molecule.atoms.forEach((a) => atomMap.set(a.id, a));
@@ -85,8 +93,13 @@ export function calculateMoleculeEnergy(molecule: Molecule): number {
   molecule.atoms.forEach((a) => {
     energy += ELEMENT_INFO[a.element].mass * 2;
   });
+  if (unit === 'kcal') {
+    energy = energy / 4.184;
+  }
   return energy;
 }
+
+const KJ_TO_KCAL = 1 / 4.184;
 
 function cloneMolecule(mol: Molecule): Molecule {
   return {
@@ -252,10 +265,23 @@ export class ReactionSimulator {
     const maxEnergy = Math.max(...labeledPath.map((p) => p.energy));
     const activationEnergy = maxEnergy - startEnergy;
 
+    const energyProfile: EnergyPoint[] = labeledPath.map((point, idx) => ({
+      step: idx,
+      energy: Math.round(point.energy * KJ_TO_KCAL * 100) / 100,
+      geometry: point.molecule.atoms.map((a) => ({
+        element: a.element,
+        x: Math.round(a.position.x * 1000) / 1000,
+        y: Math.round(a.position.y * 1000) / 1000,
+        z: Math.round(a.position.z * 1000) / 1000,
+      })),
+      type: (point.label ?? 'normal') as EnergyPoint['type'],
+    }));
+
     return {
       path: labeledPath,
-      enthalpy: Math.round(enthalpy * 10) / 10,
-      activationEnergy: Math.round(activationEnergy * 10) / 10,
+      energyProfile,
+      enthalpy: Math.round(enthalpy * KJ_TO_KCAL * 10) / 10,
+      activationEnergy: Math.round(activationEnergy * KJ_TO_KCAL * 10) / 10,
       reactionType: this.determineReactionType(reactants, product),
     };
   }

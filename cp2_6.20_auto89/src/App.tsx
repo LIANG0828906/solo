@@ -5,6 +5,7 @@ import { MoleculeViewer } from './components/MoleculeViewer';
 import { ReactionAnimation } from './components/ReactionAnimation';
 import { ControlPanel } from './components/ControlPanel';
 import { InfoPanel } from './components/InfoPanel';
+import { ProximityDialog } from './components/ProximityDialog';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 
 const TopNav: React.FC = () => {
@@ -109,6 +110,7 @@ export const App: React.FC = () => {
       </div>
       <ControlPanel />
       <InfoPanel />
+      <ProximityDialog />
       {toastMessage && <div className="toast">{toastMessage}</div>}
     </div>
   );

@@ -457,3 +457,99 @@ input {
     transform: translateX(-50%) translateY(0);
   }
 }
+
+.proximity-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-panel);
+  border: 1px solid var(--neon-purple);
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 280px;
+  box-shadow: 0 0 30px rgba(191, 0, 255, 0.4);
+  z-index: 2000;
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, -48%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.proximity-dialog .dialog-title {
+  color: var(--neon-purple);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+}
+
+.proximity-dialog .dialog-desc {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-bottom: 14px;
+  line-height: 1.6;
+}
+
+.proximity-dialog .atom-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.proximity-dialog .atom-option:hover {
+  border-color: var(--neon-green);
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
+}
+
+.proximity-dialog .atom-option .elem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.proximity-dialog .dialog-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.proximity-dialog .dialog-btn {
+  flex: 1;
+  padding: 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.proximity-dialog .dialog-btn:hover {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+}
+
+.proximity-dialog .dialog-btn.primary {
+  background: rgba(57, 255, 20, 0.15);
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+}
+
+.proximity-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1999;
+}

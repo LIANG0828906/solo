@@ -127,26 +127,31 @@ const BondCylinder: React.FC<BondCylinderProps> = ({
     const len = dir.length();
     const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
     const q = new THREE.Quaternion();
-    q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    if (len > 1e-6) {
+      q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    }
 
     const perp = new THREE.Vector3(1, 0, 0);
-    if (Math.abs(dir.x) > 0.9) perp.set(0, 1, 0);
-    perp.cross(dir).normalize();
+    if (len > 1e-6) {
+      if (Math.abs(dir.x) > 0.9) perp.set(0, 1, 0);
+      perp.cross(dir).normalize();
+    }
     const offs: Vec3[] = [];
-    const gap = 0.18;
+    const offset = 0.15;
     if (bond.order === 1) {
       offs.push({ x: 0, y: 0, z: 0 });
     } else if (bond.order === 2) {
       offs.push(
-        { x: perp.x * gap * 0.5, y: perp.y * gap * 0.5, z: perp.z * gap * 0.5 },
-        { x: -perp.x * gap * 0.5, y: -perp.y * gap * 0.5, z: -perp.z * gap * 0.5 }
+        { x: perp.x * offset, y: perp.y * offset, z: perp.z * offset },
+        { x: -perp.x * offset, y: -perp.y * offset, z: -perp.z * offset }
       );
     } else {
-      const perp2 = new THREE.Vector3().crossVectors(dir, perp).normalize();
+      const perp2 = new THREE.Vector3();
+      if (len > 1e-6) perp2.crossVectors(dir, perp).normalize();
       offs.push(
-        { x: perp.x * gap * 0.6, y: perp.y * gap * 0.6, z: perp.z * gap * 0.6 },
-        { x: -perp.x * gap * 0.3 + perp2.x * gap * 0.5, y: -perp.y * gap * 0.3 + perp2.y * gap * 0.5, z: -perp.z * gap * 0.3 + perp2.z * gap * 0.5 },
-        { x: -perp.x * gap * 0.3 - perp2.x * gap * 0.5, y: -perp.y * gap * 0.3 - perp2.y * gap * 0.5, z: -perp.z * gap * 0.3 - perp2.z * gap * 0.5 }
+        { x: perp.x * offset, y: perp.y * offset, z: perp.z * offset },
+        { x: -perp.x * offset * 0.5 + perp2.x * offset * 0.866, y: -perp.y * offset * 0.5 + perp2.y * offset * 0.866, z: -perp.z * offset * 0.5 + perp2.z * offset * 0.866 },
+        { x: -perp.x * offset * 0.5 - perp2.x * offset * 0.866, y: -perp.y * offset * 0.5 - perp2.y * offset * 0.866, z: -perp.z * offset * 0.5 - perp2.z * offset * 0.866 }
       );
     }
     return { position: mid, quaternion: q, length: len, offsets: offs };
