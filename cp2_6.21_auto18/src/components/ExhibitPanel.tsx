@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Trash2, Move, RotateCcw } from 'lucide-react';
+import { Trash2, Move, RotateCcw, Maximize2 } from 'lucide-react';
 import { useSceneStore } from '../store/sceneStore';
 
 interface ExhibitPanelProps {
@@ -31,6 +31,8 @@ export function ExhibitPanel({ collapsed }: ExhibitPanelProps) {
         setTransformMode('translate');
       } else if (e.key === 'r' || e.key === 'R') {
         setTransformMode('rotate');
+      } else if (e.key === 's' || e.key === 'S') {
+        setTransformMode('scale');
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         removeExhibit(selectedId);
       }
@@ -90,6 +92,13 @@ export function ExhibitPanel({ collapsed }: ExhibitPanelProps) {
         >
           <RotateCcw size={16} />
           <span>旋转 (R)</span>
+        </button>
+        <button
+          className={`mode-button ${transformMode === 'scale' ? 'active' : ''}`}
+          onClick={() => setTransformMode('scale')}
+        >
+          <Maximize2 size={16} />
+          <span>缩放 (S)</span>
         </button>
       </div>
 

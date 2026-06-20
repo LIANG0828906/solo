@@ -37,7 +37,7 @@ export interface LightingConfig {
 
 export type CameraPathType = 'orbit' | 'linear' | 'snake' | 'none';
 
-export type TransformMode = 'translate' | 'rotate';
+export type TransformMode = 'translate' | 'rotate' | 'scale';
 
 export interface SceneState {
   exhibits: Exhibit[];

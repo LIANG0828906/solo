@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState } from 'react';
+import { forwardRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Exhibit } from '../types/scene';
@@ -10,17 +10,18 @@ interface ExhibitMeshProps {
   exhibit: Exhibit;
 }
 
-export function ExhibitMesh({ exhibit }: ExhibitMeshProps) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const groupRef = useRef<THREE.Group>(null);
+export const ExhibitMesh = forwardRef<THREE.Group, ExhibitMeshProps>(function ExhibitMesh(
+  { exhibit },
+  ref
+) {
+  const innerRef = useMemo(() => {
+    const group = new THREE.Group();
+    return group;
+  }, []);
+
   const selectedId = useSceneStore((state) => state.selectedId);
   const selectExhibit = useSceneStore((state) => state.selectExhibit);
-  const transformMode = useSceneStore((state) => state.transformMode);
-  const updateTransform = useSceneStore((state) => state.updateTransform);
   const [hovered, setHovered] = useState(false);
-  const [draggingAxis, setDraggingAxis] = useState<string | null>(null);
-  const dragStartPos = useRef<{ x: number; y: number; z: number } | null>(null);
-  const dragStartMouse = useRef<{ x: number; y: number; z: number } | null>(null);
 
   const isSelected = selectedId === exhibit.id;
   const size = EXHIBIT_SIZE[exhibit.type];
@@ -45,9 +46,13 @@ export function ExhibitMesh({ exhibit }: ExhibitMeshProps) {
     return null;
   }, [exhibit.type, size]);
 
+  const particleMeshRef = useMemo(() => {
+    return { current: null as THREE.Points | null };
+  }, []);
+
   useFrame((state) => {
-    if (exhibit.type === 'particle_column' && meshRef.current) {
-      const positions = meshRef.current.geometry.attributes.position.array as Float32Array;
+    if (exhibit.type === 'particle_column' && particleMeshRef.current) {
+      const positions = particleMeshRef.current.geometry.attributes.position.array as Float32Array;
       const time = state.clock.elapsedTime;
       for (let i = 0; i < 250; i++) {
         positions[i * 3 + 1] += 0.01;
@@ -57,18 +62,7 @@ export function ExhibitMesh({ exhibit }: ExhibitMeshProps) {
         positions[i * 3] += Math.sin(time + i) * 0.002;
         positions[i * 3 + 2] += Math.cos(time + i * 0.7) * 0.002;
       }
-      meshRef.current.geometry.attributes.position.needsUpdate = true;
-    }
-
-    if (isSelected && groupRef.current) {
-      const outline = groupRef.current.children.find(
-        (child) => (child as any).isLineSegments
-      ) as THREE.LineSegments;
-      if (outline) {
-        const material = outline.material as THREE.LineBasicMaterial;
-        const pulse = (Math.sin(state.clock.elapsedTime * 4) + 1) / 2;
-        material.color.setHSL(0.44, 1, 0.4 + pulse * 0.2);
-      }
+      particleMeshRef.current.geometry.attributes.position.needsUpdate = true;
     }
   });
 
@@ -83,56 +77,10 @@ export function ExhibitMesh({ exhibit }: ExhibitMeshProps) {
     document.body.style.cursor = 'pointer';
   };
 
-  const handlePointerOut = () => {
+  const handlePointerOut = (e: any) => {
+    e.stopPropagation();
     setHovered(false);
     document.body.style.cursor = 'auto';
-  };
-
-  const handleAxisPointerDown = (e: any, axis: string) => {
-    e.stopPropagation();
-    setDraggingAxis(axis);
-    dragStartPos.current = { ...exhibit.transform.position };
-    dragStartMouse.current = { x: e.point.x, y: e.point.y, z: e.point.z };
-    e.target.setPointerCapture?.(e.pointerId);
-  };
-
-  const handleAxisPointerMove = (e: any) => {
-    if (!draggingAxis || !dragStartPos.current || !dragStartMouse.current) return;
-
-    if (transformMode === 'translate') {
-      const newPos = { ...exhibit.transform.position };
-      const scale = exhibit.transform.scale;
-
-      if (draggingAxis === 'x') {
-        newPos.x = Math.max(-8, Math.min(8, dragStartPos.current.x + (e.point.x - dragStartMouse.current.x)));
-      } else if (draggingAxis === 'y') {
-        newPos.y = Math.max(0, Math.min(6, dragStartPos.current.y + (e.point.y - dragStartMouse.current.y)));
-      } else if (draggingAxis === 'z') {
-        newPos.z = Math.max(-8, Math.min(8, dragStartPos.current.z + (e.point.z - dragStartMouse.current.z)));
-      }
-
-      updateTransform(exhibit.id, { position: newPos });
-    } else if (transformMode === 'rotate') {
-      const newRot = { ...exhibit.transform.rotation };
-      const delta = (e.point.x - dragStartMouse.current.x) * 2;
-
-      if (draggingAxis === 'x') {
-        newRot.x = dragStartPos.current.x + delta;
-      } else if (draggingAxis === 'y') {
-        newRot.y = dragStartPos.current.y + delta;
-      } else if (draggingAxis === 'z') {
-        newRot.z = dragStartPos.current.z + delta;
-      }
-
-      updateTransform(exhibit.id, { rotation: newRot });
-    }
-  };
-
-  const handleAxisPointerUp = (e: any) => {
-    setDraggingAxis(null);
-    dragStartPos.current = null;
-    dragStartMouse.current = null;
-    e.target.releasePointerCapture?.(e.pointerId);
   };
 
   const renderExhibitContent = () => {
@@ -193,7 +141,7 @@ export function ExhibitMesh({ exhibit }: ExhibitMeshProps) {
 
       case 'glowing_sphere':
         return (
-          <mesh ref={meshRef}>
+          <mesh>
             <sphereGeometry args={[size.width / 2, 32, 32]} />
             <meshStandardMaterial
               color={exhibit.color}
@@ -207,7 +155,11 @@ export function ExhibitMesh({ exhibit }: ExhibitMeshProps) {
 
       case 'particle_column':
         return (
-          <points ref={meshRef as any}>
+          <points
+            ref={(el) => {
+              particleMeshRef.current = el;
+            }}
+          >
             <bufferGeometry>
               <bufferAttribute
                 attach="attributes-position"
@@ -244,132 +196,40 @@ export function ExhibitMesh({ exhibit }: ExhibitMeshProps) {
     }
   };
 
-  const renderHandles = () => {
-    if (!isSelected) return null;
-
-    const handleLength = 1;
-    const handleThickness = 0.03;
-
-    if (transformMode === 'translate') {
-      return (
-        <>
-          <mesh
-            position={[handleLength / 2, 0, 0]}
-            onPointerDown={(e) => handleAxisPointerDown(e, 'x')}
-            onPointerMove={handleAxisPointerMove}
-            onPointerUp={handleAxisPointerUp}
-            onPointerOut={handleAxisPointerUp}
-          >
-            <cylinderGeometry args={[handleThickness, handleThickness, handleLength, 8]} />
-            <meshBasicMaterial color="#ff4444" />
-            <mesh rotation={[0, 0, -Math.PI / 2]} />
-          </mesh>
-          <mesh position={[handleLength, 0, 0]}>
-            <coneGeometry args={[0.08, 0.15, 8]} />
-            <meshBasicMaterial color="#ff4444" />
-            <mesh rotation={[0, 0, Math.PI / 2]} />
-          </mesh>
-
-          <mesh
-            position={[0, handleLength / 2, 0]}
-            onPointerDown={(e) => handleAxisPointerDown(e, 'y')}
-            onPointerMove={handleAxisPointerMove}
-            onPointerUp={handleAxisPointerUp}
-            onPointerOut={handleAxisPointerUp}
-          >
-            <cylinderGeometry args={[handleThickness, handleThickness, handleLength, 8]} />
-            <meshBasicMaterial color="#44ff44" />
-          </mesh>
-          <mesh position={[0, handleLength, 0]}>
-            <coneGeometry args={[0.08, 0.15, 8]} />
-            <meshBasicMaterial color="#44ff44" />
-          </mesh>
-
-          <mesh
-            position={[0, 0, handleLength / 2]}
-            onPointerDown={(e) => handleAxisPointerDown(e, 'z')}
-            onPointerMove={handleAxisPointerMove}
-            onPointerUp={handleAxisPointerUp}
-            onPointerOut={handleAxisPointerUp}
-          >
-            <cylinderGeometry args={[handleThickness, handleThickness, handleLength, 8]} />
-            <meshBasicMaterial color="#4488ff" />
-            <mesh rotation={[Math.PI / 2, 0, 0]} />
-          </mesh>
-          <mesh position={[0, 0, handleLength]}>
-            <coneGeometry args={[0.08, 0.15, 8]} />
-            <meshBasicMaterial color="#4488ff" />
-            <mesh rotation={[-Math.PI / 2, 0, 0]} />
-          </mesh>
-        </>
+  const setRefs = (node: THREE.Group | null) => {
+    if (node) {
+      node.position.set(
+        exhibit.transform.position.x,
+        exhibit.transform.position.y,
+        exhibit.transform.position.z
       );
-    } else {
-      return (
-        <>
-          <mesh
-            onPointerDown={(e) => handleAxisPointerDown(e, 'x')}
-            onPointerMove={handleAxisPointerMove}
-            onPointerUp={handleAxisPointerUp}
-            onPointerOut={handleAxisPointerUp}
-          >
-            <torusGeometry args={[0.8, 0.03, 8, 32]} />
-            <meshBasicMaterial color="#ff4444" transparent opacity={0.8} />
-            <mesh rotation={[0, Math.PI / 2, 0]} />
-          </mesh>
-
-          <mesh
-            onPointerDown={(e) => handleAxisPointerDown(e, 'y')}
-            onPointerMove={handleAxisPointerMove}
-            onPointerUp={handleAxisPointerUp}
-            onPointerOut={handleAxisPointerUp}
-          >
-            <torusGeometry args={[0.9, 0.03, 8, 32]} />
-            <meshBasicMaterial color="#44ff44" transparent opacity={0.8} />
-          </mesh>
-
-          <mesh
-            onPointerDown={(e) => handleAxisPointerDown(e, 'z')}
-            onPointerMove={handleAxisPointerMove}
-            onPointerUp={handleAxisPointerUp}
-            onPointerOut={handleAxisPointerUp}
-          >
-            <torusGeometry args={[0.85, 0.03, 8, 32]} />
-            <meshBasicMaterial color="#4488ff" transparent opacity={0.8} />
-            <mesh rotation={[Math.PI / 2, 0, 0]} />
-          </mesh>
-        </>
+      node.rotation.set(
+        exhibit.transform.rotation.x,
+        exhibit.transform.rotation.y,
+        exhibit.transform.rotation.z
       );
+      node.scale.set(
+        exhibit.transform.scale,
+        exhibit.transform.scale,
+        exhibit.transform.scale
+      );
+      Object.assign(innerRef, node);
+      if (typeof ref === 'function') {
+        ref(node);
+      } else if (ref) {
+        (ref as any).current = node;
+      }
     }
   };
 
   return (
     <group
-      ref={groupRef}
-      position={[
-        exhibit.transform.position.x,
-        exhibit.transform.position.y,
-        exhibit.transform.position.z,
-      ]}
-      rotation={[
-        exhibit.transform.rotation.x,
-        exhibit.transform.rotation.y,
-        exhibit.transform.rotation.z,
-      ]}
-      scale={exhibit.transform.scale}
+      ref={setRefs}
       onClick={handleClick}
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}
     >
       {renderExhibitContent()}
-
-      {isSelected && (
-        <lineSegments>
-          <boxGeometry args={[size.width * 1.1, size.height * 1.1, size.depth * 1.1]} />
-          <lineBasicMaterial color="#00ffaa" linewidth={2} />
-        </lineSegments>
-      )}
-
-      {renderHandles()}
     </group>
   );
-}
+});
