@@ -3,10 +3,12 @@ import {
   ChestType,
   OpenMethod,
   Fragment,
+  FragmentCounts,
   Inscription,
   OpenResult,
   HistoryRecord,
   ElementType,
+  Rarity,
   treasureApi,
 } from '../api/treasureApi';
 
@@ -23,7 +25,7 @@ interface GameState {
   isOpening: boolean;
   openResult: OpenResult | null;
   playerStats: PlayerStats;
-  fragments: Record<string, Fragment>;
+  fragments: FragmentCounts;
   inscriptions: Inscription[];
   inscriptionSlots: (Inscription | null)[];
   history: HistoryRecord[];
@@ -31,8 +33,8 @@ interface GameState {
   selectChest: (chest: ChestType) => void;
   selectMethod: (method: OpenMethod) => void;
   openChest: () => Promise<void>;
-  addFragments: (newFragments: Array<{ element: string; count: number }>) => void;
-  synthesize: (element: ElementType) => boolean;
+  addFragments: (newFragments: Fragment[]) => void;
+  synthesizeInscription: (element: ElementType) => boolean;
   equipInscription: (inscriptionId: string, slotIndex: number) => void;
   unequipInscription: (slotIndex: number) => void;
   clearOpenResult: () => void;
@@ -46,26 +48,34 @@ const INITIAL_PLAYER_STATS: PlayerStats = {
   successCount: 0,
 };
 
-const INITIAL_SLOTS: (Inscription | null)[] = [null, null, null];
-
-const ELEMENT_INFO: Record<ElementType, { name: string; color: string }> = {
-  fire: { name: '火焰碎片', color: '#ff4444' },
-  ice: { name: '寒冰碎片', color: '#44aaff' },
-  thunder: { name: '雷电碎片', color: '#ffcc00' },
-  shadow: { name: '暗影碎片', color: '#8844aa' },
-  holy: { name: '圣光碎片', color: '#ffffff' },
+const INITIAL_FRAGMENTS: FragmentCounts = {
+  fire: 0,
+  ice: 0,
+  thunder: 0,
+  shadow: 0,
+  holy: 0,
 };
 
-const createFragment = (element: ElementType, count: number = 0): Fragment => ({
-  id: `frag_${element}`,
-  element,
-  name: ELEMENT_INFO[element].name,
-  color: ELEMENT_INFO[element].color,
-  count,
-});
+const INITIAL_SLOTS: (Inscription | null)[] = [null, null, null];
+
+const RARITY_RANK: Record<Rarity, number> = {
+  common: 1,
+  uncommon: 2,
+  rare: 3,
+  epic: 4,
+  legendary: 5,
+};
+
+const getRandomRarity = (): Rarity => {
+  const rand = Math.random();
+  if (rand < 0.05) return 'legendary';
+  if (rand < 0.15) return 'epic';
+  if (rand < 0.35) return 'rare';
+  if (rand < 0.65) return 'uncommon';
+  return 'common';
+};
 
 const createInscription = (element: ElementType, level: number = 1): Inscription => {
-  const info = ELEMENT_INFO[element];
   const inscriptionNames: Record<ElementType, string> = {
     fire: '炎狱铭文',
     ice: '霜寒铭文',
@@ -73,38 +83,34 @@ const createInscription = (element: ElementType, level: number = 1): Inscription
     shadow: '暗渊铭文',
     holy: '圣辉铭文',
   };
-  const baseEffects = (): Inscription['effects'] => {
-    switch (element) {
-      case 'fire':
-        return { success_boost: 5 * level, fragment_bonus: 10 * level };
-      case 'ice':
-        return { trap_reduction: 8 * level, luck_boost: 3 * level };
-      case 'thunder':
-        return { success_boost: 3 * level, rare_chance: 5 * level };
-      case 'shadow':
-        return { trap_reduction: 5 * level, rare_chance: 8 * level };
-      case 'holy':
-        return { luck_boost: 8 * level, success_boost: 2 * level };
-    }
+  const rarity = getRandomRarity();
+  const rarityMultiplier = RARITY_RANK[rarity];
+
+  const effectsMap: Record<ElementType, string> = {
+    fire: `提升${5 * level * rarityMultiplier}%开宝箱成功率，增加${10 * level}%碎片掉落`,
+    ice: `减少${8 * level}%陷阱伤害，提升${3 * level}%幸运值`,
+    thunder: `提升${3 * level}%成功率，增加${5 * level}%稀有物品几率`,
+    shadow: `减少${5 * level}%陷阱伤害，增加${8 * level}%稀有物品几率`,
+    holy: `提升${8 * level}%幸运值，增加${2 * level}%成功率`,
   };
+
   return {
     id: `insc_${element}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    element,
+    type: element,
     name: inscriptionNames[element],
+    rarity,
     level,
-    color: info.color,
-    effects: baseEffects(),
+    effect: effectsMap[element],
+    bonusStats: {
+      success_boost: 5 * level * rarityMultiplier,
+      fragment_bonus: 10 * level,
+      trap_reduction: 8 * level,
+      luck_boost: 3 * level,
+      rare_chance: 5 * level,
+    },
     equippedSlot: null,
   };
 };
-
-const buildInitialFragments = (): Record<string, Fragment> => ({
-  fire: createFragment('fire'),
-  ice: createFragment('ice'),
-  thunder: createFragment('thunder'),
-  shadow: createFragment('shadow'),
-  holy: createFragment('holy'),
-});
 
 export const useGameStore = create<GameState>((set, get) => ({
   selectedChest: null,
@@ -112,7 +118,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   isOpening: false,
   openResult: null,
   playerStats: { ...INITIAL_PLAYER_STATS },
-  fragments: buildInitialFragments(),
+  fragments: { ...INITIAL_FRAGMENTS },
   inscriptions: [],
   inscriptionSlots: [...INITIAL_SLOTS],
   history: [],
@@ -126,7 +132,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   openChest: async () => {
-    const { selectedChest, selectedMethod, inscriptionSlots, playerStats } = get();
+    const { selectedChest, selectedMethod, inscriptionSlots, playerStats, fragments } = get();
 
     if (!selectedChest || !selectedMethod) {
       return;
@@ -135,29 +141,25 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ isOpening: true, openResult: null });
 
     try {
-      const inscriptionsParam = inscriptionSlots
-        .filter((i): i is Inscription => i !== null)
-        .map((i) => ({ element: i.element, level: i.level }));
-
       const result = await treasureApi.openChest(
         selectedChest,
         selectedMethod,
-        inscriptionsParam
+        inscriptionSlots
       );
 
-      const newHp = Math.max(0, playerStats.hp - result.damage);
+      const newHp = Math.max(0, playerStats.hp - result.damageTaken);
 
-      const newFragments = { ...get().fragments };
-      result.fragments.forEach((f) => {
-        const elem = f.element as ElementType;
-        if (newFragments[elem]) {
-          newFragments[elem] = { ...newFragments[elem], count: newFragments[elem].count + f.count };
-        } else {
-          newFragments[elem] = createFragment(elem, f.count);
-        }
+      const newFragments: FragmentCounts = { ...fragments };
+      result.rewards.fragments.forEach((f) => {
+        newFragments[f.type] += f.amount;
       });
 
-      const rewardsCount = result.fragments.reduce((sum, f) => sum + f.count, 0) + result.items.length;
+      const newInscriptions = [...get().inscriptions, ...result.rewards.inscriptions];
+
+      const rewardsCount =
+        result.rewards.fragments.reduce((sum, f) => sum + f.amount, 0) +
+        result.rewards.items.length +
+        result.rewards.inscriptions.length;
 
       const historyRecord: HistoryRecord = {
         id: crypto.randomUUID(),
@@ -172,9 +174,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         openResult: result,
         isOpening: false,
         fragments: newFragments,
+        inscriptions: newInscriptions,
         playerStats: {
           hp: newHp,
-          reputation: playerStats.reputation,
+          reputation: playerStats.reputation + result.rewards.reputation,
           totalOpens: playerStats.totalOpens + 1,
           successCount: result.success ? playerStats.successCount + 1 : playerStats.successCount,
         },
@@ -189,25 +192,19 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
-  addFragments: (newFragments: Array<{ element: string; count: number }>) => {
+  addFragments: (newFragments: Fragment[]) => {
     set((state) => {
-      const updated = { ...state.fragments };
+      const updated: FragmentCounts = { ...state.fragments };
       newFragments.forEach((f) => {
-        const elem = f.element as ElementType;
-        if (updated[elem]) {
-          updated[elem] = { ...updated[elem], count: updated[elem].count + f.count };
-        } else {
-          updated[elem] = createFragment(elem, f.count);
-        }
+        updated[f.type] += f.amount;
       });
       return { fragments: updated };
     });
   },
 
-  synthesize: (element: ElementType): boolean => {
-    const { fragments, inscriptions } = get();
-    const frag = fragments[element];
-    if (!frag || frag.count < 5) {
+  synthesizeInscription: (element: ElementType): boolean => {
+    const { fragments } = get();
+    if (fragments[element] < 5) {
       return false;
     }
 
@@ -216,10 +213,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       fragments: {
         ...state.fragments,
-        [element]: {
-          ...state.fragments[element],
-          count: state.fragments[element].count - 5,
-        },
+        [element]: state.fragments[element] - 5,
       },
       inscriptions: [...state.inscriptions, newInscription],
     }));
@@ -291,7 +285,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   resetPlayer: () => {
     set({
       playerStats: { ...INITIAL_PLAYER_STATS },
-      fragments: buildInitialFragments(),
+      fragments: { ...INITIAL_FRAGMENTS },
       inscriptions: [],
       inscriptionSlots: [...INITIAL_SLOTS],
       history: [],

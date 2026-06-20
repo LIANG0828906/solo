@@ -4,7 +4,6 @@ import {
   ChestSelector,
   MethodSelector,
   OpenButton,
-  Scene3D,
   InscriptionPanel,
   OpenResultModal,
   GameOverModal,
@@ -122,7 +121,6 @@ const App: React.FC = () => {
               gap: '20px',
             }}
           >
-            <Scene3D />
             <ChestSelector />
             <MethodSelector />
             <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 20px 0' }}>

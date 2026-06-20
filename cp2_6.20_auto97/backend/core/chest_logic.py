@@ -14,19 +14,17 @@ from .fragment_data import (
 
 
 # ============== 宝箱类型基础配置 ==============
+# 所有宝箱共享统一的基础成功率，开箱方式提供加成/减益
 CHEST_CONFIGS: Dict[str, Dict] = {
     "iron_rune": {
         "name": "铁符文宝箱",
         "description": "普通的铁制符文宝箱，内含基础奖励",
         "tier": 1,
-        # 基础成功率（不同开箱方式）
-        "base_success_rates": {
-            "magic_resonance": 70.0,    # 魔法共鸣：70%
-            "mechanical_pick": 85.0,    # 机械撬开：85%
-            "element_infusion": 60.0,   # 元素灌注：60%（高风险高回报）
-        },
+        "level": 1,
+        # 基础成功率（所有宝箱统一基数，开箱方式提供加成）
+        "base_success_rate": 75.0,
         # 基础陷阱触发概率
-        "base_trap_chance": 20.0,
+        "base_trap_chance": 15.0,
         # 陷阱基础伤害范围
         "trap_damage_range": [5, 15],
         # 基础碎片掉落数量范围
@@ -50,13 +48,10 @@ CHEST_CONFIGS: Dict[str, Dict] = {
         "name": "水晶封印宝箱",
         "description": "被水晶封印的神秘宝箱，奖励更为丰厚",
         "tier": 2,
-        "base_success_rates": {
-            "magic_resonance": 55.0,
-            "mechanical_pick": 65.0,
-            "element_infusion": 50.0,
-        },
-        "base_trap_chance": 35.0,
-        "trap_damage_range": [15, 35],
+        "level": 2,
+        "base_success_rate": 60.0,
+        "base_trap_chance": 30.0,
+        "trap_damage_range": [15, 30],
         "fragment_drop_range": [2, 5],
         "item_pool": [
             {"name": "中型生命药水", "type": "consumable", "rarity": "common", "weight": 20},
@@ -76,13 +71,10 @@ CHEST_CONFIGS: Dict[str, Dict] = {
         "name": "暗影诅咒宝箱",
         "description": "被黑暗诅咒笼罩的危险宝箱，高风险高回报",
         "tier": 3,
-        "base_success_rates": {
-            "magic_resonance": 40.0,
-            "mechanical_pick": 35.0,
-            "element_infusion": 45.0,
-        },
-        "base_trap_chance": 60.0,
-        "trap_damage_range": [30, 80],
+        "level": 3,
+        "base_success_rate": 40.0,
+        "base_trap_chance": 55.0,
+        "trap_damage_range": [30, 60],
         "fragment_drop_range": [4, 8],
         "item_pool": [
             {"name": "大型生命药水", "type": "consumable", "rarity": "uncommon", "weight": 15},
@@ -102,39 +94,92 @@ CHEST_CONFIGS: Dict[str, Dict] = {
 
 
 # ============== 开箱方式特殊效果 ==============
+# 严格按照三种定位设计数值
 OPEN_METHOD_EFFECTS: Dict[str, Dict] = {
     "magic_resonance": {
         "name": "魔法共鸣",
-        "description": "使用魔法力量与宝箱共鸣，对魔法类宝箱有额外加成",
-        # 与宝箱属性的匹配加成（属性克制/加成）
-        "trap_multiplier": 1.0,
-        "rare_chance_boost": 5.0,      # 稀有物品额外+5%概率
+        "description": "使用魔法力量与宝箱共鸣，温和地破解宝箱封印",
+        # 成功率加成（百分比）：+15% 对所有宝箱
+        "success_rate_boost": 15.0,
+        # 陷阱概率变化（百分比）：-10% 降低陷阱触发
+        "trap_chance_modifier": -10.0,
+        # 陷阱伤害系数（乘法）：1.0 基础伤害不变
+        "trap_damage_multiplier": 1.0,
+        # 稀有掉落概率变化（百分比）：+3%
+        "rare_drop_modifier": 3.0,
+        # 碎片掉落系数（乘法）：1.0 不变
         "fragment_multiplier": 1.0,
+        # 失败惩罚系数（乘法）：1.0 基础伤害不变
+        "fail_penalty_multiplier": 1.0,
     },
     "mechanical_pick": {
-        "name": "机械撬开",
-        "description": "使用工具强行撬开宝箱，对机械类宝箱效果较好",
-        "trap_multiplier": 1.3,        # 陷阱伤害+30%（更容易触发机关）
-        "rare_chance_boost": 0.0,
-        "fragment_multiplier": 0.9,    # 碎片数量-10%（可能破坏部分内容）
+        "name": "机械撬锁",
+        "description": "使用工具强行撬开宝箱，擅长规避但可能破坏稀有物品",
+        # 成功率加成（百分比）：+5%
+        "success_rate_boost": 5.0,
+        # 陷阱概率变化（百分比）：-25% 大幅降低陷阱触发
+        "trap_chance_modifier": -25.0,
+        # 陷阱伤害系数（乘法）：0.6 即-40%减伤
+        "trap_damage_multiplier": 0.6,
+        # 稀有掉落概率变化（百分比）：-5% 强行撬锁可能破坏稀有物品
+        "rare_drop_modifier": -5.0,
+        # 碎片掉落系数（乘法）：1.0 不变
+        "fragment_multiplier": 1.0,
+        # 失败惩罚系数（乘法）：0.7 即-30%扣血
+        "fail_penalty_multiplier": 0.7,
     },
     "element_infusion": {
-        "name": "元素灌注",
-        "description": "注入元素力量开启宝箱，可能产生意想不到的效果",
-        "trap_multiplier": 1.5,        # 陷阱伤害+50%（元素反应可能引爆陷阱）
-        "rare_chance_boost": 15.0,     # 稀有物品额外+15%概率
-        "fragment_multiplier": 1.5,    # 碎片数量+50%（元素能量凝结）
+        "name": "元素注入",
+        "description": "注入元素力量开启宝箱，高风险高回报",
+        # 成功率加成（百分比）：-5% 略降低
+        "success_rate_boost": -5.0,
+        # 陷阱概率变化（百分比）：+20% 更高风险
+        "trap_chance_modifier": 20.0,
+        # 陷阱伤害系数（乘法）：1.5 即+50%伤害
+        "trap_damage_multiplier": 1.5,
+        # 稀有掉落概率变化（百分比）：+20% 大幅提升
+        "rare_drop_modifier": 20.0,
+        # 碎片掉落系数（乘法）：1.5 即+50%
+        "fragment_multiplier": 1.5,
+        # 失败惩罚系数（乘法）：1.5 即+50%扣血
+        "fail_penalty_multiplier": 1.5,
     },
 }
 
 
+# ============== 陷阱类型配置 ==============
+TRAP_TYPES: List[Dict] = [
+    {
+        "id": "poison_mist",
+        "name": "毒雾陷阱",
+        "description": "释放毒雾，造成持续伤害",
+        "damage_multiplier": 0.8,
+        "special_effect": "持续扣血",
+    },
+    {
+        "id": "lightning",
+        "name": "闪电陷阱",
+        "description": "触发雷击，造成高额伤害",
+        "damage_multiplier": 1.3,
+        "special_effect": "高伤害",
+    },
+    {
+        "id": "spike",
+        "name": "地刺陷阱",
+        "description": "地面伸出尖刺，造成中等伤害",
+        "damage_multiplier": 1.0,
+        "special_effect": "中等伤害",
+    },
+]
+
+
 # ============== 动画类型定义 ==============
 ANIMATION_TYPES = {
-    "success_normal": "success_normal",      # 普通成功
-    "success_rare": "success_rare",          # 稀有成功（金光）
-    "success_legendary": "success_legendary", # 传说成功（彩虹光）
-    "fail_trap": "fail_trap",                # 失败陷阱
-    "fail_destroy": "fail_destroy",          # 失败宝箱损坏
+    "success_normal": "success_normal",
+    "success_rare": "success_rare",
+    "success_legendary": "success_legendary",
+    "fail_trap": "fail_trap",
+    "fail_destroy": "fail_destroy",
 }
 
 
@@ -176,7 +221,6 @@ def _weighted_random_choice(item_pool: List[Dict], luck_boost: float = 0.0) -> D
         if rand_val <= cumulative:
             return item
 
-    # 兜底返回第一个
     return adjusted_pool[0][0]
 
 
@@ -187,6 +231,8 @@ def _calculate_success_rate(
 ) -> float:
     """
     计算最终开箱成功率
+    
+    算法：基础成功率 + 开箱方式加成 + 铭文成功率加成 + 幸运折算加成
     
     Args:
         chest_type: 宝箱类型
@@ -200,16 +246,24 @@ def _calculate_success_rate(
     if not config:
         return 0.0
 
-    base_rate = config["base_success_rates"].get(open_method, 50.0)
+    method_effects = OPEN_METHOD_EFFECTS.get(open_method, {})
 
-    # 铭文成功率加成
-    success_boost = bonuses.get("success_boost", 0.0)
-    # 综合幸运加成（按一半比例折算成功率）
+    # 1. 基础成功率（宝箱本身的难度）
+    base_rate = config["base_success_rate"]
+
+    # 2. 开箱方式的成功率加成
+    method_boost = method_effects.get("success_rate_boost", 0.0)
+
+    # 3. 铭文成功率加成
+    inscription_boost = bonuses.get("success_boost", 0.0)
+
+    # 4. 幸运加成（按一半比例折算成功率）
     luck_boost = bonuses.get("luck_boost", 0.0) * 0.5
 
-    final_rate = base_rate + success_boost + luck_boost
+    # 汇总计算
+    final_rate = base_rate + method_boost + inscription_boost + luck_boost
 
-    # 限制在合理范围（5% ~ 98%）
+    # 限制在合理范围（5% ~ 98%，永远有成功和失败的可能）
     final_rate = max(5.0, min(final_rate, 98.0))
 
     return final_rate
@@ -223,6 +277,8 @@ def _calculate_trap_chance(
     """
     计算陷阱触发概率
     
+    算法：基础陷阱率 + 开箱方式修正 + 幸运减益
+    
     Args:
         chest_type: 宝箱类型
         open_method: 开箱方式
@@ -235,14 +291,21 @@ def _calculate_trap_chance(
     if not config:
         return 0.0
 
+    method_effects = OPEN_METHOD_EFFECTS.get(open_method, {})
+
+    # 1. 基础陷阱概率
     base_chance = config["base_trap_chance"]
 
-    # 综合幸运加成减少陷阱概率（每2%幸运减1%陷阱）
+    # 2. 开箱方式的陷阱概率修正（正为增加，负为减少）
+    method_modifier = method_effects.get("trap_chance_modifier", 0.0)
+
+    # 3. 幸运加成减少陷阱概率（每2%幸运减1%陷阱）
     luck_reduction = bonuses.get("luck_boost", 0.0) * 0.5
 
-    final_chance = base_chance - luck_reduction
+    # 汇总计算
+    final_chance = base_chance + method_modifier - luck_reduction
 
-    # 限制在5% ~ 90%
+    # 限制在5% ~ 90%（陷阱永远有触发和不触发的可能）
     final_chance = max(5.0, min(final_chance, 90.0))
 
     return final_chance
@@ -252,33 +315,97 @@ def _calculate_trap_damage(
     chest_type: str,
     open_method: str,
     bonuses: Dict[str, float],
-) -> int:
+    is_failure: bool = False,
+) -> Tuple[int, Dict]:
     """
-    计算陷阱实际造成的伤害
+    计算陷阱实际造成的伤害，并确定陷阱类型
+    
+    算法：
+    - 随机抽取基础伤害值
+    - 随机选择陷阱类型（影响伤害系数）
+    - 应用开箱方式的伤害系数
+    - 应用铭文减伤
+    - 如果是失败触发陷阱，额外应用失败惩罚系数
     
     Args:
         chest_type: 宝箱类型
         open_method: 开箱方式
         bonuses: 铭文综合加成
+        is_failure: 是否为开箱失败时触发的陷阱
     
     Returns:
-        最终伤害值
+        (最终伤害值, 陷阱类型信息字典)
+    """
+    config = CHEST_CONFIGS.get(chest_type)
+    if not config:
+        return 0, {}
+
+    method_effects = OPEN_METHOD_EFFECTS.get(open_method, {})
+
+    # 1. 随机抽取基础伤害
+    dmg_min, dmg_max = config["trap_damage_range"]
+    base_damage = random.randint(dmg_min, dmg_max)
+
+    # 2. 随机选择陷阱类型
+    trap_type = random.choice(TRAP_TYPES)
+    trap_damage_multiplier = trap_type["damage_multiplier"]
+
+    # 3. 应用开箱方式的陷阱伤害系数
+    method_damage_multiplier = method_effects.get("trap_damage_multiplier", 1.0)
+
+    # 4. 铭文减伤（百分比）
+    trap_reduction = bonuses.get("trap_reduction", 0.0)
+
+    # 5. 如果是失败触发，应用失败惩罚系数
+    fail_penalty_multiplier = 1.0
+    if is_failure:
+        fail_penalty_multiplier = method_effects.get("fail_penalty_multiplier", 1.0)
+
+    # 汇总计算：先乘系数，再减伤
+    final_damage = base_damage * trap_damage_multiplier * method_damage_multiplier
+    final_damage = final_damage * (1.0 - trap_reduction / 100.0)
+    final_damage = final_damage * fail_penalty_multiplier
+
+    # 向上取整，确保至少1点伤害
+    final_damage = max(1, int(math.ceil(final_damage)))
+
+    return final_damage, trap_type
+
+
+def _calculate_fail_penalty(
+    chest_type: str,
+    open_method: str,
+) -> int:
+    """
+    计算开箱失败但未触发陷阱时的惩罚伤害
+    
+    规则：
+    - 失败但未触发陷阱：扣血 = 宝箱等级 × 2 × 失败惩罚系数
+    - 宝箱等级：铁=1，水晶=2，暗影=3 → 对应扣血 2/4/6 基础值
+    
+    Args:
+        chest_type: 宝箱类型
+        open_method: 开箱方式
+    
+    Returns:
+        惩罚伤害值
     """
     config = CHEST_CONFIGS.get(chest_type)
     if not config:
         return 0
 
     method_effects = OPEN_METHOD_EFFECTS.get(open_method, {})
-    trap_multiplier = method_effects.get("trap_multiplier", 1.0)
-    trap_reduction = bonuses.get("trap_reduction", 0.0)
 
-    dmg_min, dmg_max = config["trap_damage_range"]
-    base_damage = random.randint(dmg_min, dmg_max)
+    # 基础惩罚 = 宝箱等级 × 2
+    level = config.get("level", 1)
+    base_penalty = level * 2
 
-    # 先乘开箱方式系数，再减伤（百分比）
-    final_damage = base_damage * trap_multiplier * (1.0 - trap_reduction / 100.0)
+    # 应用失败惩罚系数
+    fail_penalty_multiplier = method_effects.get("fail_penalty_multiplier", 1.0)
+    final_penalty = base_penalty * fail_penalty_multiplier
 
-    return max(0, int(math.ceil(final_damage)))
+    # 向上取整，确保至少1点伤害
+    return max(1, int(math.ceil(final_penalty)))
 
 
 def _drop_fragments(
@@ -333,6 +460,7 @@ def _drop_fragments(
 
 def _drop_items(
     chest_type: str,
+    open_method: str,
     bonuses: Dict[str, float],
 ) -> List[Dict]:
     """
@@ -340,6 +468,7 @@ def _drop_items(
     
     Args:
         chest_type: 宝箱类型
+        open_method: 开箱方式
         bonuses: 铭文综合加成
     
     Returns:
@@ -349,14 +478,16 @@ def _drop_items(
     if not config:
         return []
 
+    method_effects = OPEN_METHOD_EFFECTS.get(open_method, {})
+
     i_min, i_max = config["item_drop_range"]
     drop_count = random.randint(i_min, i_max)
 
-    # 稀有物品概率加成
-    rare_chance_boost = bonuses.get("rare_chance", 0.0)
-    # 幸运加成（折算为稀有加成）
+    # 稀有物品概率加成：开箱方式 + 铭文 + 幸运折算
+    method_rare_boost = method_effects.get("rare_drop_modifier", 0.0)
+    inscription_rare_boost = bonuses.get("rare_chance", 0.0)
     luck_based_rare = bonuses.get("luck_boost", 0.0) * 0.3
-    total_rare_boost = rare_chance_boost + luck_based_rare
+    total_rare_boost = method_rare_boost + inscription_rare_boost + luck_based_rare
 
     dropped_items = []
     for _ in range(drop_count):
@@ -413,6 +544,10 @@ def open_chest(
     """
     执行开箱操作（核心入口函数）
     
+    失败惩罚机制：
+    1. 失败且触发陷阱：扣血 = 基础伤害 × 陷阱类型系数 × 方式系数 × 失败惩罚系数
+    2. 失败但未触发陷阱：扣血 = 宝箱等级 × 2 × 失败惩罚系数（铁=2，水晶=4，暗影=6）
+    
     Args:
         chest_type: 宝箱类型 (iron_rune/crystal_seal/shadow_curse)
         open_method: 开箱方式 (magic_resonance/mechanical_pick/element_infusion)
@@ -422,7 +557,9 @@ def open_chest(
         开箱结果字典:
         {
             "success": bool,              # 是否成功开启
-            "damage": int,                # 受到的伤害（0表示无伤害）
+            "damage": int,                # 受到的总伤害（0表示无伤害）
+            "damage_breakdown": dict,     # 伤害明细（陷阱伤害/失败惩罚）
+            "trap_info": dict,            # 陷阱信息（如触发）
             "items": list,                # 掉落物品列表
             "fragments": list,            # 掉落碎片列表
             "message": str,               # 结果消息
@@ -437,6 +574,8 @@ def open_chest(
         return {
             "success": False,
             "damage": 0,
+            "damage_breakdown": {},
+            "trap_info": {},
             "items": [],
             "fragments": [],
             "message": f"未知的宝箱类型: {chest_type}",
@@ -450,6 +589,8 @@ def open_chest(
         return {
             "success": False,
             "damage": 0,
+            "damage_breakdown": {},
+            "trap_info": {},
             "items": [],
             "fragments": [],
             "message": f"未知的开箱方式: {open_method}",
@@ -469,52 +610,77 @@ def open_chest(
     chest_config = CHEST_CONFIGS[chest_type]
     method_config = OPEN_METHOD_EFFECTS[open_method]
 
-    # 开箱方式的稀有加成也计入
-    bonuses["rare_chance"] = bonuses.get("rare_chance", 0.0) + method_config.get("rare_chance_boost", 0.0)
-
-    # 计算成功率并判定
+    # ========== 步骤1：计算成功率并判定是否成功开启 ==========
     success_rate = _calculate_success_rate(chest_type, open_method, bonuses)
     roll_success = random.uniform(0, 100) < success_rate
 
-    # 计算陷阱概率并判定（无论成功与否都可能触发）
+    # ========== 步骤2：计算陷阱概率并判定是否触发陷阱 ==========
     trap_chance = _calculate_trap_chance(chest_type, open_method, bonuses)
     trap_triggered = random.uniform(0, 100) < trap_chance
 
-    # 计算伤害（仅当陷阱触发时）
-    damage = 0
-    if trap_triggered:
-        damage = _calculate_trap_damage(chest_type, open_method, bonuses)
+    # ========== 步骤3：计算伤害 ==========
+    total_damage = 0
+    trap_damage = 0
+    fail_penalty = 0
+    trap_info = {}
+    damage_breakdown = {}
 
-    # 计算奖励（仅当成功时）
+    if trap_triggered:
+        # 计算陷阱伤害（传入是否为失败触发，影响惩罚系数）
+        trap_damage, trap_info = _calculate_trap_damage(
+            chest_type, open_method, bonuses, is_failure=not roll_success
+        )
+        total_damage += trap_damage
+        damage_breakdown["trap_damage"] = trap_damage
+
+    # 处理失败惩罚
+    if not roll_success:
+        if not trap_triggered:
+            # 失败但未触发陷阱：固定惩罚
+            fail_penalty = _calculate_fail_penalty(chest_type, open_method)
+            total_damage += fail_penalty
+            damage_breakdown["fail_penalty"] = fail_penalty
+        # 如果触发了陷阱，陷阱伤害已经包含了失败惩罚系数
+
+    # ========== 步骤4：计算奖励（仅当成功时） ==========
     items = []
     fragments = []
     if roll_success:
-        items = _drop_items(chest_type, bonuses)
+        items = _drop_items(chest_type, open_method, bonuses)
         fragments = _drop_fragments(chest_type, open_method, bonuses)
 
-    # 构造消息
+    # ========== 步骤5：构造消息 ==========
     if roll_success and not trap_triggered:
         msg = f"成功开启{chest_config['name']}！获得了丰厚的奖励。"
     elif roll_success and trap_triggered:
-        msg = f"成功开启{chest_config['name']}，但触发了陷阱，受到{damage}点伤害。"
+        msg = (f"成功开启{chest_config['name']}，但触发了{trap_info.get('name', '陷阱')}，"
+               f"受到{trap_damage}点伤害。")
     elif not roll_success and trap_triggered:
-        msg = f"开启{chest_config['name']}失败，触发了陷阱，受到{damage}点伤害！"
+        msg = (f"开启{chest_config['name']}失败，触发了{trap_info.get('name', '陷阱')}，"
+               f"受到{trap_damage}点伤害！")
     else:
-        msg = f"开启{chest_config['name']}失败，宝箱已自毁。"
+        msg = f"开启{chest_config['name']}失败，宝箱损毁，受到{fail_penalty}点轻伤。"
 
-    # 决定动画类型
+    # ========== 步骤6：决定动画类型 ==========
     animation_type = _determine_animation(roll_success, items, trap_triggered)
 
-    # 统计信息
+    # ========== 步骤7：统计信息 ==========
     stats = {
         "success_rate": round(success_rate, 2),
         "trap_chance": round(trap_chance, 2),
         "applied_bonuses": bonuses,
+        "method_effects": {
+            "success_rate_boost": method_config.get("success_rate_boost", 0),
+            "trap_chance_modifier": method_config.get("trap_chance_modifier", 0),
+            "rare_drop_modifier": method_config.get("rare_drop_modifier", 0),
+        },
     }
 
     return {
         "success": roll_success,
-        "damage": damage,
+        "damage": total_damage,
+        "damage_breakdown": damage_breakdown,
+        "trap_info": trap_info,
         "items": items,
         "fragments": fragments,
         "message": msg,
@@ -523,6 +689,7 @@ def open_chest(
             "type": chest_type,
             "name": chest_config["name"],
             "tier": chest_config["tier"],
+            "level": chest_config["level"],
         },
         "method_info": {
             "type": open_method,
@@ -566,3 +733,13 @@ def get_open_method_config(method_type: Optional[str] = None) -> Dict:
             return {method_type: config}
         return {}
     return OPEN_METHOD_EFFECTS
+
+
+def get_trap_types() -> List[Dict]:
+    """
+    获取所有陷阱类型配置
+    
+    Returns:
+        陷阱类型列表
+    """
+    return TRAP_TYPES

@@ -46,6 +46,10 @@ const keyframes = `
     0%, 100% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.15); opacity: 0.8; }
   }
+  @keyframes pulseRing {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.15); opacity: 0.4; }
+  }
   @keyframes particleUp {
     0% { transform: translateY(0) scale(1); opacity: 1; }
     100% { transform: translateY(-100px) scale(0); opacity: 0; }
@@ -58,6 +62,10 @@ const keyframes = `
     0%, 100% { box-shadow: 0 0 5px currentColor; }
     50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
   }
+  @keyframes slotHighlight {
+    0%, 100% { box-shadow: 0 0 5px currentColor; }
+    50% { box-shadow: 0 0 30px currentColor, 0 0 40px currentColor; }
+  }
   @keyframes fadeIn {
     from { opacity: 0; transform: scale(0.9); }
     to { opacity: 1; transform: scale(1); }
@@ -66,6 +74,14 @@ const keyframes = `
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-5px); }
     75% { transform: translateX(5px); }
+  }
+  @keyframes flyIn {
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes flyOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.5); }
   }
 `;
 
@@ -86,6 +102,7 @@ interface PlayerPanelProps {
 export const PlayerPanel: React.FC<PlayerPanelProps> = ({ style }) => {
   const playerStats = useGameStore((s) => s.playerStats);
   const fragments = useGameStore((s) => s.fragments);
+  const synthesizeInscription = useGameStore((s) => s.synthesizeInscription);
 
   const hpPercent = (playerStats.hp / 100) * 100;
   const hpColor = hpPercent > 60 ? '#10B981' : hpPercent > 30 ? '#F59E0B' : '#EF4444';
@@ -142,40 +159,71 @@ export const PlayerPanel: React.FC<PlayerPanelProps> = ({ style }) => {
       <div style={{ marginBottom: '20px' }}>
         <div style={{ fontSize: '14px', marginBottom: '10px', color: '#a898c8' }}>💎 元素碎片</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          {(Object.keys(ELEMENT_INFO) as ElementType[]).map((el) => (
-            <div
-              key={el}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px',
-                background: `rgba(${hexToRgb(ELEMENT_INFO[el].color)}, 0.1)`,
-                borderRadius: '8px',
-                border: `1px solid ${ELEMENT_INFO[el].color}44`,
-              }}
-            >
+          {(Object.keys(ELEMENT_INFO) as ElementType[]).map((el) => {
+            const count = fragments[el];
+            const canSynthesize = count >= 5;
+            return (
               <div
+                key={el}
                 style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  background: `radial-gradient(circle, ${ELEMENT_INFO[el].color}, ${ELEMENT_INFO[el].color}66)`,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '14px',
-                  boxShadow: `0 0 8px ${ELEMENT_INFO[el].color}66`,
+                  gap: '8px',
+                  padding: '8px',
+                  background: `rgba(${hexToRgb(ELEMENT_INFO[el].color)}, 0.1)`,
+                  borderRadius: '8px',
+                  border: `1px solid ${ELEMENT_INFO[el].color}44`,
                 }}
               >
-                {ELEMENT_INFO[el].icon}
+                <div
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: `radial-gradient(circle, ${ELEMENT_INFO[el].color}, ${ELEMENT_INFO[el].color}66)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    boxShadow: `0 0 8px ${ELEMENT_INFO[el].color}66`,
+                  }}
+                >
+                  {ELEMENT_INFO[el].icon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '11px', color: '#a898c8' }}>{ELEMENT_INFO[el].name}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#e8dff5' }}>{count}</div>
+                </div>
+                {canSynthesize && (
+                  <button
+                    onClick={() => synthesizeInscription(el)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = `0 0 10px ${ELEMENT_INFO[el].color}`;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    style={{
+                      ...baseInteractiveStyle,
+                      padding: '4px 8px',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      borderRadius: '4px',
+                      border: `1px solid ${ELEMENT_INFO[el].color}`,
+                      background: `linear-gradient(135deg, ${ELEMENT_INFO[el].color}66, ${ELEMENT_INFO[el].color}33)`,
+                      color: '#fff',
+                      transition: 'all 0.2s ease',
+                    }}
+                    title="消耗5个碎片合成铭文"
+                  >
+                    合成
+                  </button>
+                )}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '11px', color: '#a898c8' }}>{ELEMENT_INFO[el].name}</div>
-                <div style={{ fontSize: '15px', fontWeight: 'bold', color: '#e8dff5' }}>{fragments[el]}</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -308,36 +356,62 @@ export const MethodSelector: React.FC<MethodSelectorProps> = ({ style }) => {
     >
       {(Object.keys(METHOD_INFO) as OpenMethod[]).map((method) => {
         const isSelected = selectedMethod === method;
+        const color = METHOD_INFO[method].color;
         return (
-          <div key={method} style={{ textAlign: 'center' }}>
+          <div key={method} style={{ textAlign: 'center', position: 'relative' }}>
+            {isSelected && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: '50%',
+                  border: `2px solid ${color}`,
+                  transform: 'translate(-50%, -50%)',
+                  animation: 'pulseRing 1.5s ease-in-out infinite',
+                  pointerEvents: 'none',
+                  opacity: 0.6,
+                }}
+              />
+            )}
             <button
               onClick={() => selectMethod(method)}
               onMouseEnter={(e) => {
-                if (!isSelected) e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = isSelected
+                  ? `0 0 30px ${color}99`
+                  : `0 0 15px ${color}44`;
               }}
               onMouseLeave={(e) => {
-                if (!isSelected) e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.transform = isSelected ? 'scale(1)' : 'scale(1)';
+                e.currentTarget.style.boxShadow = isSelected
+                  ? `0 0 20px ${color}66`
+                  : 'none';
               }}
               style={{
                 ...baseInteractiveStyle,
                 width: '72px',
                 height: '72px',
                 borderRadius: '50%',
-                border: isSelected ? `3px solid ${METHOD_INFO[method].color}` : '2px solid #3a2a5a',
+                border: isSelected ? `3px solid ${color}` : '2px solid #3a2a5a',
                 background: isSelected
-                  ? `radial-gradient(circle, ${METHOD_INFO[method].color}44, rgba(30,20,50,0.9))`
+                  ? `radial-gradient(circle, ${color}44, rgba(30,20,50,0.9))`
                   : 'rgba(30, 20, 50, 0.7)',
                 fontSize: '30px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 animation: isSelected ? 'pulse 1.5s ease-in-out infinite' : 'none',
-                boxShadow: isSelected ? `0 0 20px ${METHOD_INFO[method].color}66` : 'none',
+                boxShadow: isSelected ? `0 0 20px ${color}66` : 'none',
+                position: 'relative',
+                zIndex: 1,
               }}
             >
               {METHOD_INFO[method].icon}
             </button>
-            <div style={{ marginTop: '8px', fontSize: '12px', color: isSelected ? METHOD_INFO[method].color : '#a898c8' }}>
+            <div style={{ marginTop: '8px', fontSize: '12px', color: isSelected ? color : '#a898c8', fontWeight: isSelected ? 'bold' : 'normal' }}>
               {METHOD_INFO[method].name}
             </div>
           </div>
@@ -417,111 +491,6 @@ export const OpenButton: React.FC<OpenButtonProps> = ({ style }) => {
   );
 };
 
-interface Scene3DProps {
-  style?: React.CSSProperties;
-}
-
-export const Scene3D: React.FC<Scene3DProps> = ({ style }) => {
-  const selectedChest = useGameStore((s) => s.selectedChest);
-  const isOpening = useGameStore((s) => s.isOpening);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const chestInfo = selectedChest ? CHEST_INFO[selectedChest] : null;
-
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        height: '280px',
-        borderRadius: '16px',
-        background: 'linear-gradient(180deg, rgba(20,15,35,0.9) 0%, rgba(40,25,60,0.6) 100%)',
-        border: '1px solid #3a2a5a',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        ...style,
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
-            radial-gradient(ellipse at 20% 80%, rgba(106,90,205,0.15) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 20%, rgba(218,112,214,0.1) 0%, transparent 50%)
-          `,
-          pointerEvents: 'none',
-        }}
-      />
-
-      {Array.from({ length: 30 }).map((_, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute',
-            width: '2px',
-            height: '2px',
-            background: '#d4c8f0',
-            borderRadius: '50%',
-            opacity: 0.3 + Math.random() * 0.4,
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animation: `pulse ${2 + Math.random() * 3}s ease-in-out infinite`,
-            animationDelay: `${Math.random() * 2}s`,
-          }}
-        />
-      ))}
-
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          textAlign: 'center',
-          transform: isOpening ? 'scale(1.1)' : 'scale(1)',
-          transition: 'transform 0.3s ease',
-          animation: isOpening ? 'shake 0.3s ease-in-out infinite' : 'none',
-        }}
-      >
-        <div
-          style={{
-            fontSize: chestInfo ? '120px' : '80px',
-            filter: chestInfo
-              ? `drop-shadow(0 0 30px ${selectedChest === 'shadow_curse' ? '#8A2BE2' : selectedChest === 'crystal_seal' ? '#00CED1' : '#DAA520'}66)`
-              : 'grayscale(0.5)',
-            opacity: chestInfo ? 1 : 0.4,
-            transition: 'all 0.5s ease',
-          }}
-        >
-          {chestInfo ? chestInfo.icon : '❓'}
-        </div>
-        <div
-          style={{
-            marginTop: '16px',
-            color: chestInfo ? '#e8dff5' : '#6b5a8a',
-            fontSize: '16px',
-          }}
-        >
-          {chestInfo ? (
-            <>
-              <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '4px' }}>
-                {chestInfo.name}
-              </div>
-              <div style={{ fontSize: '13px', color: '#a898c8' }}>{chestInfo.description}</div>
-            </>
-          ) : (
-            '请从下方选择一个宝箱'
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 interface InscriptionPanelProps {
   style?: React.CSSProperties;
 }
@@ -534,42 +503,176 @@ export const InscriptionPanel: React.FC<InscriptionPanelProps> = ({ style }) => 
 
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [flyToSlot, setFlyToSlot] = useState<{ id: string; slotIndex: number } | null>(null);
+  const [flyFromSlot, setFlyFromSlot] = useState<number | null>(null);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const animationFrameRef = useRef<number | null>(null);
+  const targetPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   const unequippedInscriptions = inscriptions.filter((i) => i.equippedSlot === null);
+  const draggedInscription = draggedId ? inscriptions.find((i) => i.id === draggedId) : null;
 
-  const handleDragStart = (e: React.DragEvent, inscriptionId: string) => {
-    e.dataTransfer.setData('inscriptionId', inscriptionId);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggedId(inscriptionId);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedId(null);
-    setDragOverSlot(null);
-  };
-
-  const handleDragOver = (e: React.DragEvent, slotIndex: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverSlot(slotIndex);
-  };
-
-  const handleDragLeave = () => {
-    setDragOverSlot(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, slotIndex: number) => {
-    e.preventDefault();
-    const inscriptionId = e.dataTransfer.getData('inscriptionId');
-    if (inscriptionId) {
-      equipInscription(inscriptionId, slotIndex);
+  const updatePosition = () => {
+    if (targetPositionRef.current) {
+      setDragPosition({ ...targetPositionRef.current });
     }
-    setDragOverSlot(null);
-    setDraggedId(null);
+    animationFrameRef.current = requestAnimationFrame(updatePosition);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent, inscriptionId: string, cardElement: HTMLDivElement) => {
+    e.preventDefault();
+    const rect = cardElement.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+    setDraggedId(inscriptionId);
+    targetPositionRef.current = {
+      x: e.clientX - (e.clientX - rect.left),
+      y: e.clientY - (e.clientY - rect.top),
+    };
+    setDragPosition({ ...targetPositionRef.current });
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      targetPositionRef.current = {
+        x: moveEvent.clientX - dragOffset.x,
+        y: moveEvent.clientY - dragOffset.y,
+      };
+
+      let hoveredSlot: number | null = null;
+      slotRefs.current.forEach((slotRef, idx) => {
+        if (slotRef) {
+          const slotRect = slotRef.getBoundingClientRect();
+          if (
+            moveEvent.clientX >= slotRect.left &&
+            moveEvent.clientX <= slotRect.right &&
+            moveEvent.clientY >= slotRect.top &&
+            moveEvent.clientY <= slotRect.bottom
+          ) {
+            hoveredSlot = idx;
+          }
+        }
+      });
+      setDragOverSlot(hoveredSlot);
+    };
+
+    const handleMouseUp = (upEvent: MouseEvent) => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+
+      let targetSlot: number | null = null;
+      slotRefs.current.forEach((slotRef, idx) => {
+        if (slotRef) {
+          const slotRect = slotRef.getBoundingClientRect();
+          if (
+            upEvent.clientX >= slotRect.left &&
+            upEvent.clientX <= slotRect.right &&
+            upEvent.clientY >= slotRect.top &&
+            upEvent.clientY <= slotRect.bottom
+          ) {
+            targetSlot = idx;
+          }
+        }
+      });
+
+      if (targetSlot !== null && draggedId) {
+        setFlyToSlot({ id: draggedId, slotIndex: targetSlot });
+        setTimeout(() => {
+          equipInscription(draggedId, targetSlot!);
+          setFlyToSlot(null);
+        }, 300);
+      }
+
+      setDraggedId(null);
+      setDragPosition(null);
+      setDragOverSlot(null);
+      targetPositionRef.current = null;
+
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    animationFrameRef.current = requestAnimationFrame(updatePosition);
+  };
+
+  const handleSlotClick = (slotIndex: number) => {
+    const slot = inscriptionSlots[slotIndex];
+    if (slot) {
+      setFlyFromSlot(slotIndex);
+      setTimeout(() => {
+        unequipInscription(slotIndex);
+        setFlyFromSlot(null);
+      }, 300);
+    }
+  };
+
+  const renderInscriptionCard = (inscription: Inscription) => {
+    const color = RARITY_COLORS[inscription.rarity] || '#9CA3AF';
+    const elementColor = ELEMENT_INFO[inscription.type]?.color || '#6b5a8a';
+    return (
+      <div
+        style={{
+          padding: '10px 12px',
+          background: `linear-gradient(135deg, rgba(${hexToRgb(color)}, 0.15), rgba(30,20,50,0.6))`,
+          borderRadius: '8px',
+          border: `1px solid ${color}55`,
+          width: '280px',
+          pointerEvents: 'none',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              background: `radial-gradient(circle, ${elementColor}44, rgba(30,20,50,0.8))`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              border: `1px solid ${elementColor}66`,
+            }}
+          >
+            {ELEMENT_INFO[inscription.type]?.icon || '🔮'}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontWeight: 'bold', color: '#e8dff5', fontSize: '13px' }}>{inscription.name}</span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  background: color,
+                  color: '#0d0a14',
+                  fontWeight: 'bold',
+                }}
+              >
+                {inscription.rarity.toUpperCase()}
+              </span>
+            </div>
+            <div style={{ fontSize: '11px', color: '#a898c8', marginTop: '2px' }}>
+              Lv.{inscription.level} · {inscription.effect}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <div
+      ref={panelRef}
       style={{
         background: 'rgba(30, 20, 50, 0.7)',
         border: '1px solid #3a2a5a',
@@ -579,6 +682,7 @@ export const InscriptionPanel: React.FC<InscriptionPanelProps> = ({ style }) => 
         backdropFilter: 'blur(10px)',
         display: 'flex',
         flexDirection: 'column',
+        position: 'relative',
         ...style,
       }}
     >
@@ -592,13 +696,12 @@ export const InscriptionPanel: React.FC<InscriptionPanelProps> = ({ style }) => 
           {inscriptionSlots.map((slot, idx) => {
             const elementColor = slot ? ELEMENT_INFO[slot.type]?.color || '#6b5a8a' : '#3a2a5a';
             const isHover = dragOverSlot === idx;
+            const isFlyingOut = flyFromSlot === idx;
             return (
               <div
                 key={idx}
-                onDragOver={(e) => handleDragOver(e, idx)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, idx)}
-                onClick={() => slot && unequipInscription(idx)}
+                ref={(el) => { slotRefs.current[idx] = el; }}
+                onClick={() => handleSlotClick(idx)}
                 style={{
                   width: '70px',
                   height: '70px',
@@ -614,17 +717,18 @@ export const InscriptionPanel: React.FC<InscriptionPanelProps> = ({ style }) => 
                   color: elementColor,
                   position: 'relative',
                   transition: 'all 0.2s ease',
-                  animation: isHover ? 'dragHighlight 0.8s ease-in-out infinite' : 'none',
-                  boxShadow: isHover ? `0 0 20px ${elementColor}` : slot ? `0 0 10px ${elementColor}44` : 'none',
+                  animation: isHover ? 'slotHighlight 0.8s ease-in-out infinite' : isFlyingOut ? 'flyOut 0.3s ease forwards' : 'none',
+                  boxShadow: isHover ? `0 0 30px ${elementColor}` : slot ? `0 0 10px ${elementColor}44` : 'none',
                 }}
                 title={slot ? `点击卸下 ${slot.name}` : `槽位 ${idx + 1}`}
               >
-                {slot ? (
-                  <div style={{ textAlign: 'center' }}>
+                {slot && !isFlyingOut && (
+                  <div style={{ textAlign: 'center', animation: 'flyIn 0.3s ease' }}>
                     <div style={{ fontSize: '24px' }}>{ELEMENT_INFO[slot.type]?.icon || '🔮'}</div>
                     <div style={{ fontSize: '10px', color: '#e8dff5', fontWeight: 'bold' }}>Lv.{slot.level}</div>
                   </div>
-                ) : (
+                )}
+                {!slot && !isHover && (
                   <div style={{ fontSize: '24px', opacity: 0.3 }}>＋</div>
                 )}
                 <div
@@ -670,65 +774,118 @@ export const InscriptionPanel: React.FC<InscriptionPanelProps> = ({ style }) => 
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {unequippedInscriptions.map((inscription) => (
-                <div
-                  key={inscription.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, inscription.id)}
-                  onDragEnd={handleDragEnd}
-                  style={{
-                    ...baseInteractiveStyle,
-                    padding: '10px 12px',
-                    background: `linear-gradient(135deg, rgba(${hexToRgb(RARITY_COLORS[inscription.rarity] || '#9CA3AF')}, 0.15), rgba(30,20,50,0.6))`,
-                    borderRadius: '8px',
-                    border: `1px solid ${RARITY_COLORS[inscription.rarity] || '#9CA3AF'}55`,
-                    opacity: draggedId === inscription.id ? 0.5 : 1,
-                    cursor: 'grab',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div
-                      style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '8px',
-                        background: `radial-gradient(circle, ${ELEMENT_INFO[inscription.type]?.color || '#6b5a8a'}44, rgba(30,20,50,0.8))`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '18px',
-                        border: `1px solid ${ELEMENT_INFO[inscription.type]?.color || '#6b5a8a'}66`,
-                      }}
-                    >
-                      {ELEMENT_INFO[inscription.type]?.icon || '🔮'}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontWeight: 'bold', color: '#e8dff5', fontSize: '13px' }}>{inscription.name}</span>
-                        <span
-                          style={{
-                            fontSize: '10px',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                            background: RARITY_COLORS[inscription.rarity] || '#9CA3AF',
-                            color: '#0d0a14',
-                            fontWeight: 'bold',
-                          }}
-                        >
-                          {inscription.rarity.toUpperCase()}
-                        </span>
+              {unequippedInscriptions.map((inscription) => {
+                const isDragging = draggedId === inscription.id;
+                const color = RARITY_COLORS[inscription.rarity] || '#9CA3AF';
+                const elementColor = ELEMENT_INFO[inscription.type]?.color || '#6b5a8a';
+                const isFlyingIn = flyToSlot?.id === inscription.id;
+                return (
+                  <div
+                    key={inscription.id}
+                    ref={(el) => { cardRefs.current[inscription.id] = el; }}
+                    onMouseDown={(e) => {
+                      const cardEl = cardRefs.current[inscription.id];
+                      if (cardEl) {
+                        handleMouseDown(e, inscription.id, cardEl);
+                      }
+                    }}
+                    style={{
+                      ...baseInteractiveStyle,
+                      padding: '10px 12px',
+                      background: `linear-gradient(135deg, rgba(${hexToRgb(color)}, 0.15), rgba(30,20,50,0.6))`,
+                      borderRadius: '8px',
+                      border: `1px solid ${color}55`,
+                      opacity: isDragging || isFlyingIn ? 0 : 1,
+                      cursor: 'grab',
+                      transition: isFlyingIn ? 'all 0.3s ease' : 'opacity 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '8px',
+                          background: `radial-gradient(circle, ${elementColor}44, rgba(30,20,50,0.8))`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '18px',
+                          border: `1px solid ${elementColor}66`,
+                        }}
+                      >
+                        {ELEMENT_INFO[inscription.type]?.icon || '🔮'}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#a898c8', marginTop: '2px' }}>
-                        Lv.{inscription.level} · {inscription.effect}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: 'bold', color: '#e8dff5', fontSize: '13px' }}>{inscription.name}</span>
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: color,
+                              color: '#0d0a14',
+                              fontWeight: 'bold',
+                            }}
+                          >
+                            {inscription.rarity.toUpperCase()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#a898c8', marginTop: '2px' }}>
+                          Lv.{inscription.level} · {inscription.effect}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       </div>
+
+      {dragPosition && draggedInscription && (
+        <>
+          <div
+            style={{
+              position: 'fixed',
+              left: dragPosition.x,
+              top: dragPosition.y,
+              zIndex: 9999,
+              opacity: 0.2,
+              pointerEvents: 'none',
+              transition: 'left 0.05s ease, top 0.05s ease',
+            }}
+          >
+            {renderInscriptionCard(draggedInscription)}
+          </div>
+          <div
+            style={{
+              position: 'fixed',
+              left: dragPosition.x,
+              top: dragPosition.y,
+              zIndex: 9999,
+              opacity: 0.4,
+              pointerEvents: 'none',
+              transition: 'left 0.1s ease, top 0.1s ease',
+            }}
+          >
+            {renderInscriptionCard(draggedInscription)}
+          </div>
+          <div
+            style={{
+              position: 'fixed',
+              left: dragPosition.x,
+              top: dragPosition.y,
+              zIndex: 10000,
+              pointerEvents: 'none',
+            }}
+          >
+            {renderInscriptionCard(draggedInscription)}
+          </div>
+        </>
+      )}
     </div>
   );
 };

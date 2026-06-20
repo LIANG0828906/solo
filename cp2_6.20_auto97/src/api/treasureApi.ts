@@ -13,11 +13,13 @@ export interface Fragment {
   amount: number;
 }
 
+export type FragmentCounts = Record<ElementType, number>;
+
 export interface Inscription {
   id: string;
+  type: ElementType;
   name: string;
   rarity: Rarity;
-  type: ElementType;
   level: number;
   effect: string;
   bonusStats: Record<string, number>;
@@ -40,18 +42,17 @@ export type AnimationType =
 export interface OpenResult {
   success: boolean;
   message: string;
-  chestType: ChestType;
-  openMethod: OpenMethod;
-  damageTaken?: number;
-  timestamp: string;
-  animation_type?: AnimationType;
   rewards: {
     fragments: Fragment[];
-    inscriptions?: Inscription[];
-    items?: RewardItem[];
-    reputation?: number;
-    gold?: number;
+    inscriptions: Inscription[];
+    items: RewardItem[];
+    reputation: number;
   };
+  damageTaken: number;
+  animationType?: AnimationType;
+  chestType: ChestType;
+  openMethod: OpenMethod;
+  timestamp: string;
 }
 
 export interface HistoryRecord {
@@ -96,13 +97,13 @@ export const treasureApi = {
       openMethod: openMethod,
       damageTaken: data.damage || 0,
       timestamp: new Date().toISOString(),
-      animation_type: data.animation_type,
+      animationType: data.animation_type,
       rewards: {
         fragments: (data.fragments || []).map((f: any) => ({
           type: f.type as ElementType,
           amount: f.amount || f.count || 1,
         })),
-        inscriptions: data.inscriptions?.map((ins: any) => ({
+        inscriptions: (data.inscriptions || []).map((ins: any) => ({
           id: crypto.randomUUID(),
           name: ins.name,
           rarity: ins.rarity as Rarity,
@@ -114,7 +115,6 @@ export const treasureApi = {
         })),
         items: data.items || [],
         reputation: data.reputation || 0,
-        gold: data.gold || 0,
       },
     };
   },
