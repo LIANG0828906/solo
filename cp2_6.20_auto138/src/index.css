@@ -195,7 +195,7 @@ body {
 .slider-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .slider-header {
@@ -213,8 +213,8 @@ body {
 .slider-value {
   font-size: 13px;
   font-weight: 600;
-  color: #a8d5ba;
   font-variant-numeric: tabular-nums;
+  transition: color 0.2s ease-out;
 }
 
 .slider-track-wrapper {
@@ -273,7 +273,16 @@ body {
   height: 20px;
   border-radius: 50%;
   pointer-events: none;
-  transition: left 0.1s ease-out;
+  transition: left 0.08s ease-out, box-shadow 0.2s ease-out;
+}
+
+.slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 .growth-section {

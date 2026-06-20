@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { usePlantStore } from './store';
 import { GROWTH_STAGES } from './PlantData';
 
@@ -7,19 +8,87 @@ interface SliderProps {
   min: number;
   max: number;
   unit: string;
-  gradientFrom: string;
-  gradientTo: string;
+  gradientColors: { start: string; mid?: string; end: string };
   onChange: (value: number) => void;
 }
 
-function Slider({ label, value, min, max, unit, gradientFrom, gradientTo, onChange }: SliderProps) {
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
+    : { r: 0, g: 0, b: 0 };
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
+}
+
+function interpolateColor(colors: { start: string; mid?: string; end: string }, t: number): string {
+  const clampedT = Math.max(0, Math.min(1, t));
+
+  if (colors.mid && clampedT >= 0.5) {
+    const t2 = (clampedT - 0.5) * 2;
+    const c1 = hexToRgb(colors.mid);
+    const c2 = hexToRgb(colors.end);
+    return rgbToHex(
+      c1.r + (c2.r - c1.r) * t2,
+      c1.g + (c2.g - c1.g) * t2,
+      c1.b + (c2.b - c1.b) * t2,
+    );
+  } else if (colors.mid) {
+    const t2 = clampedT * 2;
+    const c1 = hexToRgb(colors.start);
+    const c2 = hexToRgb(colors.mid);
+    return rgbToHex(
+      c1.r + (c2.r - c1.r) * t2,
+      c1.g + (c2.g - c1.g) * t2,
+      c1.b + (c2.b - c1.b) * t2,
+    );
+  } else {
+    const c1 = hexToRgb(colors.start);
+    const c2 = hexToRgb(colors.end);
+    return rgbToHex(
+      c1.r + (c2.r - c1.r) * clampedT,
+      c1.g + (c2.g - c1.g) * clampedT,
+      c1.b + (c2.b - c1.b) * clampedT,
+    );
+  }
+}
+
+function Slider({ label, value, min, max, unit, gradientColors, onChange }: SliderProps) {
   const percentage = ((value - min) / (max - min)) * 100;
+
+  const gradientStyle = useMemo(() => {
+    const stops: string[] = [];
+    const steps = 10;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const color = interpolateColor(gradientColors, t);
+      stops.push(`${color} ${t * 100}%`);
+    }
+    return `linear-gradient(to right, ${stops.join(', ')})`;
+  }, [gradientColors]);
+
+  const thumbColor = useMemo(() => {
+    const t = (value - min) / (max - min);
+    return interpolateColor(gradientColors, t);
+  }, [value, min, max, gradientColors]);
 
   return (
     <div className="slider-container">
       <div className="slider-header">
         <span className="slider-label">{label}</span>
-        <span className="slider-value">
+        <span
+          className="slider-value"
+          style={{
+            color: thumbColor,
+            textShadow: `0 0 8px ${thumbColor}40`,
+          }}
+        >
           {Math.round(value)}
           {unit}
         </span>
@@ -28,15 +97,17 @@ function Slider({ label, value, min, max, unit, gradientFrom, gradientTo, onChan
         <div
           className="slider-track"
           style={{
-            background: `linear-gradient(to right, ${gradientFrom}, ${gradientTo})`,
+            background: gradientStyle,
+            opacity: 0.9,
           }}
         >
           <div
             className="slider-fill"
             style={{
               width: `${percentage}%`,
-              background: `linear-gradient(to right, ${gradientFrom}, ${gradientTo})`,
-              opacity: 0.8,
+              background: gradientStyle,
+              opacity: 1,
+              boxShadow: `0 0 10px ${thumbColor}60`,
             }}
           />
         </div>
@@ -52,10 +123,17 @@ function Slider({ label, value, min, max, unit, gradientFrom, gradientTo, onChan
           className="slider-thumb"
           style={{
             left: `calc(${percentage}% - 10px)`,
-            background: `radial-gradient(circle, ${gradientTo}, ${gradientFrom})`,
-            boxShadow: `0 0 12px ${gradientTo}80, 0 0 24px ${gradientFrom}40`,
+            background: `radial-gradient(circle at 30% 30%, #ffffff, ${thumbColor})`,
+            boxShadow: `0 0 12px ${thumbColor}aa, 0 0 24px ${thumbColor}60, inset 0 0 6px rgba(255,255,255,0.5)`,
           }}
         />
+      </div>
+      <div className="slider-ticks">
+        <span style={{ color: gradientColors.start, opacity: 0.7 }}>{min}{unit}</span>
+        {gradientColors.mid && (
+          <span style={{ color: gradientColors.mid, opacity: 0.7 }}>{Math.round((min + max) / 2)}{unit}</span>
+        )}
+        <span style={{ color: gradientColors.end, opacity: 0.7 }}>{max}{unit}</span>
       </div>
     </div>
   );
@@ -88,6 +166,12 @@ export default function ControlPanel() {
     return GROWTH_STAGES.mature.label;
   };
 
+  const getProgressColor = () => {
+    if (growthStage < GROWTH_STAGES.seedling.threshold) return '#4a9f4a';
+    if (growthStage < GROWTH_STAGES.growing.threshold) return '#8fc14a';
+    return '#ffd700';
+  };
+
   return (
     <div className="control-panel">
       <h2 className="panel-title">环境控制</h2>
@@ -99,8 +183,11 @@ export default function ControlPanel() {
           min={0}
           max={100}
           unit="%"
-          gradientFrom="#ffd700"
-          gradientTo="#ffffff"
+          gradientColors={{
+            start: '#5a4a1a',
+            mid: '#b8860b',
+            end: '#fff8dc',
+          }}
           onChange={setLight}
         />
 
@@ -110,8 +197,11 @@ export default function ControlPanel() {
           min={0}
           max={100}
           unit="%"
-          gradientFrom="#1e90ff"
-          gradientTo="#00ffff"
+          gradientColors={{
+            start: '#4a3a2a',
+            mid: '#1e90ff',
+            end: '#00ffff',
+          }}
           onChange={setWater}
         />
 
@@ -121,8 +211,11 @@ export default function ControlPanel() {
           min={10}
           max={40}
           unit="°C"
-          gradientFrom="#ff4444"
-          gradientTo="#4488ff"
+          gradientColors={{
+            start: '#4488ff',
+            mid: '#88cc44',
+            end: '#ff4444',
+          }}
           onChange={setTemperature}
         />
       </div>
@@ -140,7 +233,16 @@ export default function ControlPanel() {
 
         {showStageLabel && (
           <div className="stage-label">
-            <span className="stage-badge">{currentStageName}</span>
+            <span
+              className="stage-badge"
+              style={{
+                color: getProgressColor(),
+                borderColor: `${getProgressColor()}60`,
+                background: `${getProgressColor()}15`,
+              }}
+            >
+              {currentStageName}
+            </span>
           </div>
         )}
 
@@ -149,10 +251,19 @@ export default function ControlPanel() {
             <div className="progress-bar">
               <div
                 className="progress-fill"
-                style={{ width: `${growthStage * 100}%` }}
+                style={{
+                  width: `${growthStage * 100}%`,
+                  background: `linear-gradient(90deg, #4a9f4a, ${getProgressColor()})`,
+                  boxShadow: `0 0 8px ${getProgressColor()}60`,
+                }}
               />
             </div>
-            <span className="progress-label">{getProgressLabel()}</span>
+            <span
+              className="progress-label"
+              style={{ color: getProgressColor() }}
+            >
+              {getProgressLabel()} · {Math.round(growthStage * 100)}%
+            </span>
           </div>
         )}
       </div>
