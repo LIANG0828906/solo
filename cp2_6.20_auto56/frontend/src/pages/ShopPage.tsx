@@ -35,11 +35,14 @@ function ShopPage() {
 
   useEffect(() => {
     const allGifts = gifts.length > 0 ? gifts : defaultGifts
+    const timers: ReturnType<typeof setTimeout>[] = []
     allGifts.forEach((g, idx) => {
-      setTimeout(() => {
+      const t = setTimeout(() => {
         setVisibleCards((prev) => new Set(prev).add(g.id))
       }, idx * 100)
+      timers.push(t)
     })
+    return () => timers.forEach(clearTimeout)
   }, [gifts.length])
 
   const displayGifts = gifts.length > 0 ? gifts : defaultGifts
@@ -164,7 +167,7 @@ function ShopPage() {
                 opacity: isVisible ? 1 : 0,
                 transform: isVisible ? 'translateY(0)' : 'translateY(-30px)',
                 transition: `all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)`,
-                transitionDelay: `${idx * 80}ms`,
+                transitionDelay: `${idx * 100}ms`,
                 perspective: '1000px',
                 position: 'relative',
                 overflow: 'hidden',
@@ -184,7 +187,7 @@ function ShopPage() {
                 filter: isVisible ? 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))' : 'none',
                 transform: isVisible ? 'scale(1)' : 'scale(0.5)',
                 transition: `all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)`,
-                transitionDelay: `${idx * 80 + 100}ms`,
+                transitionDelay: `${idx * 100 + 100}ms`,
               }}>{gift.icon}</span>
               <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
                 {gift.name}

@@ -93,6 +93,7 @@ function PetInteraction() {
         onClick={onClick}
         disabled={disabled}
         className="btn-press"
+        aria-disabled={disabled}
         style={{
           position: 'relative',
           flex: 1,
@@ -108,6 +109,7 @@ function PetInteraction() {
           fontWeight: 600,
           fontSize: 14,
           cursor: disabled ? 'not-allowed' : 'pointer',
+          pointerEvents: disabled ? 'none' : 'auto',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -115,6 +117,7 @@ function PetInteraction() {
           boxShadow: disabled ? 'none' : shadow,
           opacity: disabled && !isLoading ? 0.6 : 1,
           transition: 'all 0.2s ease',
+          userSelect: disabled ? 'none' : 'auto',
         }}
       >
         {isLoading && (

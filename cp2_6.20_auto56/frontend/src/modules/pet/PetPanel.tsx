@@ -56,6 +56,7 @@ function PetPanel() {
 
   const lastUpdateRef = useRef<number>(Date.now())
   const localStatsRef = useRef<{ hunger: number; happiness: number; energy: number } | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (pet) {
@@ -66,30 +67,32 @@ function PetPanel() {
       }
       lastUpdateRef.current = pet.lastUpdate * 1000
     }
-  }, [pet?.id])
+  }, [pet?.id, pet?.hunger, pet?.happiness, pet?.energy])
 
   useEffect(() => {
-    const intervalId = setInterval(() => {
+    if (!pet) return
+
+    const tick = () => {
       if (!pet || !localStatsRef.current) return
 
-      const isSocketConnected = socket?.connected
+      const isSocketConnected = socket?.connected ?? false
       const now = Date.now()
       const elapsed = now - lastUpdateRef.current
       const cycles = Math.floor(elapsed / 30000)
 
-      if (cycles > 0) {
-        const newHunger = Math.max(0, localStatsRef.current.hunger - cycles * 2)
-        const newHappiness = Math.max(0, localStatsRef.current.happiness - cycles * 3)
-        const newEnergy = Math.max(0, localStatsRef.current.energy - cycles * 1)
+      if (!isSocketConnected) {
+        if (cycles > 0) {
+          const newHunger = Math.max(0, localStatsRef.current.hunger - cycles * 2)
+          const newHappiness = Math.max(0, localStatsRef.current.happiness - cycles * 3)
+          const newEnergy = Math.max(0, localStatsRef.current.energy - cycles * 1)
 
-        localStatsRef.current = {
-          hunger: newHunger,
-          happiness: newHappiness,
-          energy: newEnergy,
-        }
-        lastUpdateRef.current = lastUpdateRef.current + cycles * 30000
+          localStatsRef.current = {
+            hunger: newHunger,
+            happiness: newHappiness,
+            energy: newEnergy,
+          }
+          lastUpdateRef.current = lastUpdateRef.current + cycles * 30000
 
-        if (!isSocketConnected) {
           updatePetStats({
             id: pet.id,
             hunger: newHunger,
@@ -97,14 +100,29 @@ function PetPanel() {
             energy: newEnergy,
           })
         }
+      } else {
+        fetchUser().then(() => {
+          const latestPet = useUserStore.getState().user?.pet
+          if (latestPet && latestPet.id === pet.id) {
+            localStatsRef.current = {
+              hunger: latestPet.hunger,
+              happiness: latestPet.happiness,
+              energy: latestPet.energy,
+            }
+            lastUpdateRef.current = latestPet.lastUpdate * 1000
+          }
+        })
       }
+    }
 
-      if (isSocketConnected) {
-        fetchUser()
+    timerRef.current = setInterval(tick, 10000)
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
       }
-    }, 10000)
-
-    return () => clearInterval(intervalId)
+    }
   }, [pet?.id, socket?.connected, fetchUser, updatePetStats, pet])
 
   const displayStats = localStatsRef.current || {
@@ -134,6 +152,8 @@ function PetPanel() {
     energy: displayStats.energy,
   }
 
+  const isSocketConnected = socket?.connected ?? false
+
   return (
     <div style={{
       background: 'var(--bg-card)',
@@ -157,18 +177,18 @@ function PetPanel() {
           gap: 4,
           padding: '4px 10px',
           borderRadius: 999,
-          background: socket?.connected ? 'rgba(126,196,160,0.15)' : 'rgba(255,100,100,0.1)',
+          background: isSocketConnected ? 'rgba(126,196,160,0.15)' : 'rgba(255,100,100,0.1)',
           fontSize: 11,
         }}>
           <span style={{
             width: 6,
             height: 6,
             borderRadius: '50%',
-            background: socket?.connected ? 'var(--accent-green)' : '#ff6464',
-            animation: socket?.connected ? 'twinkle 2s ease-in-out infinite' : undefined,
+            background: isSocketConnected ? 'var(--accent-green)' : '#ff6464',
+            animation: isSocketConnected ? 'twinkle 2s ease-in-out infinite' : undefined,
           }} />
-          <span style={{ color: socket?.connected ? 'var(--accent-green)' : '#ff6464', fontWeight: 600 }}>
-            {socket?.connected ? '在线' : '离线模式'}
+          <span style={{ color: isSocketConnected ? 'var(--accent-green)' : '#ff6464', fontWeight: 600 }}>
+            {isSocketConnected ? '在线同步' : '离线计算'}
           </span>
         </div>
       </div>

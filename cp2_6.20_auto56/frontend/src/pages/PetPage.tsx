@@ -33,15 +33,23 @@ const particlePositions = [
 ]
 
 function AchievementBadge({ achievement, index }: { achievement: Achievement; index: number }) {
+  const HEX_SIZE = 92
+  const HEX_GAP = 8
+  const COLS = 3
+  const col = index % COLS
+  const row = Math.floor(index / COLS)
+  const isOddRow = row % 2 === 1
+  const xOffset = isOddRow ? (HEX_SIZE + HEX_GAP) / 2 : 0
+  const verticalStep = (HEX_SIZE + HEX_GAP) * 0.78
+
   return (
     <div
       style={{
-        position: 'relative',
-        width: '100%',
-        aspectRatio: '1 / 1.15',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        position: 'absolute',
+        left: col * (HEX_SIZE + HEX_GAP) + xOffset,
+        top: row * verticalStep,
+        width: HEX_SIZE,
+        height: HEX_SIZE * 1.15,
         animation: achievement.unlocked
           ? `fade-drop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) ${index * 0.12}s both`
           : `fade-drop 0.4s ease-out ${index * 0.12}s both`,
@@ -57,28 +65,29 @@ function AchievementBadge({ achievement, index }: { achievement: Achievement; in
             : 'linear-gradient(145deg, #e8e8e8 0%, #c8c8c8 100%)',
           opacity: achievement.unlocked ? 1 : 0.45,
           filter: achievement.unlocked ? 'saturate(1.1)' : 'grayscale(0.8)',
+          clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
         }}
       />
 
       <div
-        className="hexagon-badge"
         style={{
           position: 'absolute',
           inset: 3,
           background: achievement.unlocked
-            ? 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,240,200,0.85) 40%, rgba(255,200,100,0.8) 100%)'
+            ? 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,240,200,0.88) 40%, rgba(255,200,100,0.82) 100%)'
             : 'linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(230,230,230,0.5) 100%)',
+          clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           gap: 2,
-          padding: '8% 12%',
+          padding: '10% 10%',
         }}
       >
         <span
           style={{
-            fontSize: 'clamp(22px, 7vw, 32px)',
+            fontSize: 30,
             filter: achievement.unlocked
               ? 'drop-shadow(0 2px 4px rgba(255,150,0,0.4))'
               : 'grayscale(1) opacity(0.6)',
@@ -88,11 +97,11 @@ function AchievementBadge({ achievement, index }: { achievement: Achievement; in
         </span>
         <span
           style={{
-            fontSize: 'clamp(9px, 2.8vw, 11px)',
+            fontSize: 11,
             fontWeight: 800,
             color: achievement.unlocked ? '#8b5a00' : '#888',
             textAlign: 'center',
-            lineHeight: 1.2,
+            lineHeight: 1.15,
             letterSpacing: achievement.unlocked ? '0.3px' : '0',
           }}
         >
@@ -101,11 +110,11 @@ function AchievementBadge({ achievement, index }: { achievement: Achievement; in
         {!achievement.unlocked && (
           <span
             style={{
-              fontSize: 'clamp(7px, 2vw, 8px)',
+              fontSize: 8,
               color: '#999',
               textAlign: 'center',
               marginTop: 2,
-              lineHeight: 1.2,
+              lineHeight: 1.15,
             }}
           >
             {achievement.condition}
@@ -115,13 +124,13 @@ function AchievementBadge({ achievement, index }: { achievement: Achievement; in
 
       {achievement.unlocked && (
         <div
-          className="hexagon-badge"
           style={{
             position: 'absolute',
             inset: 3,
-            background: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.8) 50%, transparent 70%)',
+            background: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.85) 50%, transparent 70%)',
             backgroundSize: '250% 100%',
             animation: 'badge-shine 2.8s ease-in-out infinite',
+            clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
             pointerEvents: 'none',
           }}
         />
@@ -249,10 +258,12 @@ function PetPage() {
         </h3>
 
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '14px 10px',
-          padding: '4px 6px 8px',
+          position: 'relative',
+          height: Math.ceil(achievements.length / 3) * ((92 + 8) * 0.78) + 50,
+          width: '100%',
+          maxWidth: 320,
+          margin: '0 auto',
+          padding: '8px 4px 16px',
         }}>
           {achievements.map((ach, idx) => (
             <AchievementBadge key={ach.id} achievement={ach} index={idx} />

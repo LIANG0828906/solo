@@ -6,6 +6,7 @@ import PetAvatar from '../../components/PetAvatar'
 const GRID_COLS = 8
 const GRID_ROWS = 6
 const CELL_SIZE = 70
+const PET_OFFSET = 28
 
 interface InteractionMenuProps {
   onClose: () => void
@@ -125,7 +126,18 @@ function GardenMap() {
     setAnimatingEvents(newAnimations)
   }, [gardenEvents])
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const getMapBounds = () => {
+    const rect = mapRef.current?.getBoundingClientRect()
+    if (!rect) return { minX: PET_OFFSET, maxX: 0, minY: PET_OFFSET, maxY: 0 }
+    return {
+      minX: PET_OFFSET,
+      maxX: rect.width - PET_OFFSET,
+      minY: PET_OFFSET,
+      maxY: rect.height - PET_OFFSET,
+    }
+  }
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!user?.pet) return
     const target = e.target as HTMLElement
     if (!target.closest('.my-pet-container')) return
@@ -134,20 +146,24 @@ function GardenMap() {
     setDragging(true)
     const rect = mapRef.current?.getBoundingClientRect()
     if (rect) {
-      setDragPos({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      })
+      const bounds = getMapBounds()
+      const rawX = e.clientX - rect.left
+      const rawY = e.clientY - rect.top
+      const clampedX = Math.max(bounds.minX, Math.min(bounds.maxX, rawX))
+      const clampedY = Math.max(bounds.minY, Math.min(bounds.maxY, rawY))
+      setDragPos({ x: clampedX, y: clampedY })
     }
   }, [user?.pet])
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!dragging || !mapRef.current) return
     const rect = mapRef.current.getBoundingClientRect()
-    setDragPos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    })
+    const bounds = getMapBounds()
+    const rawX = e.clientX - rect.left
+    const rawY = e.clientY - rect.top
+    const clampedX = Math.max(bounds.minX, Math.min(bounds.maxX, rawX))
+    const clampedY = Math.max(bounds.minY, Math.min(bounds.maxY, rawY))
+    setDragPos({ x: clampedX, y: clampedY })
   }, [dragging])
 
   const handleMouseUp = useCallback(() => {
@@ -165,29 +181,37 @@ function GardenMap() {
     setDragPos(null)
   }, [dragging, dragPos, user?.pet, isMobile, movePet])
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     if (!user?.pet) return
     const target = e.target as HTMLElement
     if (!target.closest('.my-pet-container')) return
     const touch = e.touches[0]
+    if (!touch) return
+    e.preventDefault()
     setDragging(true)
     const rect = mapRef.current?.getBoundingClientRect()
     if (rect) {
-      setDragPos({
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top,
-      })
+      const bounds = getMapBounds()
+      const rawX = touch.clientX - rect.left
+      const rawY = touch.clientY - rect.top
+      const clampedX = Math.max(bounds.minX, Math.min(bounds.maxX, rawX))
+      const clampedY = Math.max(bounds.minY, Math.min(bounds.maxY, rawY))
+      setDragPos({ x: clampedX, y: clampedY })
     }
   }, [user?.pet])
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     if (!dragging || !mapRef.current) return
     const touch = e.touches[0]
+    if (!touch) return
+    e.preventDefault()
     const rect = mapRef.current.getBoundingClientRect()
-    setDragPos({
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top,
-    })
+    const bounds = getMapBounds()
+    const rawX = touch.clientX - rect.left
+    const rawY = touch.clientY - rect.top
+    const clampedX = Math.max(bounds.minX, Math.min(bounds.maxX, rawX))
+    const clampedY = Math.max(bounds.minY, Math.min(bounds.maxY, rawY))
+    setDragPos({ x: clampedX, y: clampedY })
   }, [dragging])
 
   const handleTouchEnd = useCallback(() => {
