@@ -26,22 +26,17 @@ canvas {
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 6px;
-  border-radius: 3px;
-  background: rgba(100, 140, 255, 0.12);
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(100, 140, 255, 0.2);
   outline: none;
   cursor: pointer;
-  transition: all 0.25s ease-out;
-  border: 1px solid transparent;
+  transition: background 0.2s ease-out;
+  border: none;
 }
 
 input[type="range"]:hover {
-  background: rgba(100, 160, 255, 0.2);
-  border-color: rgba(100, 160, 255, 0.3);
-  box-shadow:
-    0 0 0 2px rgba(80, 140, 255, 0.08),
-    0 0 12px rgba(80, 140, 255, 0.15);
-  transform: scale(1.02);
+  background: rgba(100, 160, 255, 0.3);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -50,39 +45,67 @@ input[type="range"]::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(120, 180, 255, 0.9) 0%, rgba(80, 140, 255, 0.8) 100%);
+  background: linear-gradient(135deg, #4a7aff 0%, #6a9aff 100%);
   cursor: pointer;
-  border: 2px solid rgba(160, 200, 255, 0.5);
-  transition: all 0.25s ease-out;
-  box-shadow: 0 0 4px rgba(80, 140, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transition: all 0.2s ease-out;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    0 0 4px rgba(74, 122, 255, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: linear-gradient(135deg, rgba(140, 200, 255, 1) 0%, rgba(100, 160, 255, 0.95) 100%);
-  transform: scale(1.25);
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #5a8aff 0%, #7aaaff 100%);
   box-shadow:
-    0 0 10px rgba(100, 160, 255, 0.7),
-    0 0 20px rgba(80, 140, 255, 0.4);
-  border-color: rgba(180, 220, 255, 0.8);
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(74, 122, 255, 0.7),
+    0 0 20px rgba(74, 122, 255, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(0.95);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    0 0 6px rgba(74, 122, 255, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.25);
 }
 
 input[type="range"]::-moz-range-thumb {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(120, 180, 255, 0.9) 0%, rgba(80, 140, 255, 0.8) 100%);
+  background: linear-gradient(135deg, #4a7aff 0%, #6a9aff 100%);
   cursor: pointer;
-  border: 2px solid rgba(160, 200, 255, 0.5);
-  transition: all 0.25s ease-out;
-  box-shadow: 0 0 4px rgba(80, 140, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transition: all 0.2s ease-out;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    0 0 4px rgba(74, 122, 255, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
 }
 
 input[type="range"]::-moz-range-thumb:hover {
-  background: linear-gradient(135deg, rgba(140, 200, 255, 1) 0%, rgba(100, 160, 255, 0.95) 100%);
-  transform: scale(1.25);
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #5a8aff 0%, #7aaaff 100%);
   box-shadow:
-    0 0 10px rgba(100, 160, 255, 0.7),
-    0 0 20px rgba(80, 140, 255, 0.4);
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(74, 122, 255, 0.7),
+    0 0 20px rgba(74, 122, 255, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(100, 140, 255, 0.2);
+  border: none;
 }
 
 /* ============ 通用按钮悬停 ============ */
@@ -310,6 +333,75 @@ button:active {
 /* ============ 控制面板折叠过渡 ============ */
 .panel-wrapper {
   transition: width 0.3s ease-out !important;
+}
+
+/* ============ 面板触发条（收起时显示） ============ */
+.panel-trigger {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 120px;
+  background: rgba(10, 10, 30, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 0 4px 4px 0;
+  z-index: 99;
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+  box-shadow: 1px 0 6px rgba(0, 0, 0, 0.2);
+}
+
+.panel-trigger::before {
+  content: '';
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 4px solid rgba(160, 190, 255, 0.5);
+  transition: all 0.25s ease-out;
+}
+
+.panel-trigger:hover {
+  width: 12px;
+  background: rgba(30, 30, 60, 0.7);
+  box-shadow:
+    2px 0 10px rgba(0, 0, 0, 0.25),
+    0 0 12px rgba(80, 140, 255, 0.2);
+  border-right: 1px solid rgba(100, 160, 255, 0.4);
+}
+
+.panel-trigger:hover::before {
+  right: 3px;
+  border-left-color: rgba(200, 220, 255, 0.9);
+  filter: drop-shadow(0 0 4px rgba(100, 160, 255, 0.6));
+}
+
+/* ============ 控件组分隔线 ============ */
+.control-separator {
+  height: 1px;
+  width: 100%;
+  background: rgba(100, 140, 255, 0.15);
+  margin: 0;
+  position: relative;
+}
+
+.control-separator::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(100, 140, 255, 0.15) 20%,
+    rgba(100, 140, 255, 0.15) 80%,
+    transparent 100%
+  );
 }
 
 /* ============ 闪光动画（截图） ============ */
