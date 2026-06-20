@@ -60,7 +60,11 @@ function Section({ title, defaultOpen = true, children }: SectionProps) {
           maxHeight: open ? 2000 : 0,
           opacity: open ? 1 : 0,
           overflow: open ? 'visible' : 'hidden',
-          transition: 'max-height 0.3s ease, opacity 0.2s ease',
+          transform: open ? 'translateY(0)' : 'translateY(-6px)',
+          transition: open
+            ? 'max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease 0.06s, transform 0.28s ease 0.06s'
+            : 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease, transform 0.18s ease',
+          pointerEvents: open ? 'auto' : 'none',
         }}
       >
         {children}

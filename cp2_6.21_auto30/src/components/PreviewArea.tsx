@@ -1,11 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useBadgeStore } from '../store'
-import { generateSimpleBadgeSVG } from '../modules/svgGenerator'
+import { generateSimpleBadgeSVG, ICONS } from '../modules/svgGenerator'
+
+const SHAPE_LABELS: Record<string, string> = {
+  circle: '圆形',
+  roundedRect: '圆角矩形',
+  hexagon: '六边形',
+}
 
 export default function PreviewArea() {
   const params = useBadgeStore()
   const svgRef = useRef<HTMLDivElement>(null)
   const [copied, setCopied] = useState(false)
+
+  const summary = useMemo(() => {
+    const iconDef = ICONS.find((i) => i.id === params.icon)
+    return {
+      shapeLabel: SHAPE_LABELS[params.shape] || params.shape,
+      iconLabel: iconDef?.name || params.icon,
+    }
+  }, [params.shape, params.icon])
 
   useEffect(() => {
     if (svgRef.current) {
@@ -74,7 +88,6 @@ export default function PreviewArea() {
       }}
     >
       <div
-        ref={svgRef}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -82,7 +95,92 @@ export default function PreviewArea() {
           flex: 1,
           width: '100%',
         }}
-      />
+      >
+        <div
+          style={{
+            display: 'inline-flex',
+            padding: 24,
+            borderRadius: 20,
+            background: 'linear-gradient(135deg, #fafbff 0%, #f5f7fd 100%)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8)',
+            transition: 'box-shadow 0.25s ease',
+          }}
+          className="badge-stage"
+        >
+          <div ref={svgRef} />
+        </div>
+      </div>
+      <div
+        style={{
+          width: '100%',
+          marginTop: 8,
+          marginBottom: 14,
+          padding: '10px 16px',
+          background: '#f5f6fa',
+          borderRadius: 10,
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 12,
+          justifyContent: 'center',
+          fontSize: 12,
+          color: '#555',
+          fontFamily: 'Inter, sans-serif',
+          lineHeight: 1.5,
+        }}
+      >
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: '#888', fontWeight: 500 }}>形状:</span>
+          <span style={{ fontWeight: 600, color: '#333' }}>{summary.shapeLabel}</span>
+        </span>
+        <span style={{ width: 1, height: 14, background: '#d8dae0', display: 'inline-block' }} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: '#888', fontWeight: 500 }}>图标:</span>
+          <span style={{ fontWeight: 600, color: '#333' }}>{summary.iconLabel}</span>
+        </span>
+        <span style={{ width: 1, height: 14, background: '#d8dae0', display: 'inline-block' }} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: '#888', fontWeight: 500 }}>配色:</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span
+              title={`背景色 ${params.backgroundColor}`}
+              style={{
+                display: 'inline-block',
+                width: 16,
+                height: 16,
+                borderRadius: 4,
+                background: params.backgroundColor,
+                border: '1px solid rgba(0,0,0,0.1)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.5)',
+              }}
+            />
+            <span
+              title={`前景色 ${params.foregroundColor}`}
+              style={{
+                display: 'inline-block',
+                width: 16,
+                height: 16,
+                borderRadius: 4,
+                background: params.foregroundColor,
+                border: '1px solid rgba(0,0,0,0.1)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.5)',
+              }}
+            />
+            <span
+              title={`边框色 ${params.borderColor}`}
+              style={{
+                display: 'inline-block',
+                width: 16,
+                height: 16,
+                borderRadius: 4,
+                background: params.borderColor,
+                border: '1px solid rgba(0,0,0,0.1)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.5)',
+              }}
+            />
+          </span>
+        </span>
+      </div>
       <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
         <button
           type="button"
@@ -188,6 +286,9 @@ export default function PreviewArea() {
             border-color: #6366f1;
             color: #6366f1;
             transform: translateY(-2px);
+          }
+          .badge-stage:hover {
+            box-shadow: 0 8px 20px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.8);
           }
         }
       `}</style>
