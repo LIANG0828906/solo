@@ -1,15 +1,18 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 import type { Vec3 } from '@/types'
+import { lightenColor, darkenColor } from '@/utils/pathUtils'
 
 interface EndoplasmicReticulumProps {
   position?: Vec3
   scale?: Vec3 | number
+  color?: string
 }
 
 export default function EndoplasmicReticulum({
   position = [0, 0, 0],
   scale = 1,
+  color = '#98fb98',
 }: EndoplasmicReticulumProps) {
   const geometry = useMemo(() => {
     const geo = new THREE.IcosahedronGeometry(0.8, 1)
@@ -34,7 +37,7 @@ export default function EndoplasmicReticulum({
     <group position={position} scale={scaleArr}>
       <mesh geometry={geometry}>
         <meshStandardMaterial
-          color="#98fb98"
+          color={color}
           transparent
           opacity={0.55}
           roughness={0.8}
@@ -44,7 +47,7 @@ export default function EndoplasmicReticulum({
       </mesh>
       <mesh geometry={geometry} scale={0.85}>
         <meshStandardMaterial
-          color="#b0ffb0"
+          color={lightenColor(color, 0.1)}
           transparent
           opacity={0.3}
           side={2}
@@ -53,7 +56,7 @@ export default function EndoplasmicReticulum({
       </mesh>
       <mesh geometry={geometry} scale={1.08}>
         <meshBasicMaterial
-          color="#7fff7f"
+          color={darkenColor(color, 0.1)}
           transparent
           opacity={0.1}
           wireframe

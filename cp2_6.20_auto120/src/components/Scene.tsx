@@ -9,6 +9,7 @@ import CellMembrane from '@/components/cell/CellMembrane';
 import Nucleus from '@/components/cell/Nucleus';
 import Mitochondria from '@/components/cell/Mitochondria';
 import EndoplasmicReticulum from '@/components/cell/EndoplasmicReticulum';
+import AxisIndicator from '@/components/cell/AxisIndicator';
 import Marker from '@/components/transport/Marker';
 import PathCurve from '@/components/transport/PathCurve';
 import Vesicle from '@/components/transport/Vesicle';
@@ -90,18 +91,20 @@ function SceneContent() {
 
   const renderOrganelle = (organelle: typeof organelles[0]) => {
     const pos = organelle.position;
-    switch (organelle.type) {
-      case 'nucleus':
-        return <Nucleus key={organelle.id} position={pos} scale={organelle.scale} />;
-      case 'mitochondria':
-        return <Mitochondria key={organelle.id} position={pos} scale={organelle.scale} />;
-      case 'er':
-        return (
-          <EndoplasmicReticulum key={organelle.id} position={pos} scale={organelle.scale} />
-        );
-      default:
-        return null;
-    }
+    return (
+      <group key={organelle.id}>
+        {organelle.type === 'nucleus' && (
+          <Nucleus position={pos} scale={organelle.scale} color={organelle.color} />
+        )}
+        {organelle.type === 'mitochondria' && (
+          <Mitochondria position={pos} scale={organelle.scale} color={organelle.color} />
+        )}
+        {organelle.type === 'er' && (
+          <EndoplasmicReticulum position={pos} scale={organelle.scale} color={organelle.color} />
+        )}
+        <AxisIndicator position={pos} scale={0.8} showLabels={false} />
+      </group>
+    );
   };
 
   return (

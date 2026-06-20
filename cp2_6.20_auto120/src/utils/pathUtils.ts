@@ -1,6 +1,18 @@
 import * as THREE from 'three';
 import type { Vec3 } from '@/types';
 
+export function lightenColor(hex: string, percent: number): string {
+  const c = new THREE.Color(hex);
+  c.offsetHSL(0, 0, percent);
+  return `#${c.getHexString()}`;
+}
+
+export function darkenColor(hex: string, percent: number): string {
+  const c = new THREE.Color(hex);
+  c.offsetHSL(0, 0, -percent);
+  return `#${c.getHexString()}`;
+}
+
 export function vec3ToThree(v: Vec3): THREE.Vector3 {
   return new THREE.Vector3(v[0], v[1], v[2]);
 }

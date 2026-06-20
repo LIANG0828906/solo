@@ -8,6 +8,7 @@ export function buildExportConfig(state: SceneState): ExportConfig {
       type: o.type,
       position: o.position,
       scale: o.scale,
+      color: o.color,
     })),
     paths: state.paths.map((p) => ({
       id: p.id,

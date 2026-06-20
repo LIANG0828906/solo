@@ -5,8 +5,9 @@ import { useSceneStore } from '@/store/sceneStore';
 import PresetTab from '@/components/panel/PresetTab';
 import PathTab from '@/components/panel/PathTab';
 import ParamsTab from '@/components/panel/ParamsTab';
+import OrganelleTab from '@/components/panel/OrganelleTab';
 
-type TabType = 'preset' | 'path' | 'params';
+type TabType = 'preset' | 'organelle' | 'path' | 'params';
 
 interface PanelProps {
   params: SceneParams;
@@ -16,6 +17,7 @@ interface PanelProps {
 
 const tabs: { key: TabType; label: string }[] = [
   { key: 'preset', label: '预设选择' },
+  { key: 'organelle', label: '细胞器' },
   { key: 'path', label: '路径编辑' },
   { key: 'params', label: '参数调整' },
 ];
@@ -52,6 +54,8 @@ export default function Panel({ params, isPlaying, progress }: PanelProps) {
     switch (activeTab) {
       case 'preset':
         return <PresetTab />;
+      case 'organelle':
+        return <OrganelleTab />;
       case 'path':
         return <PathTab />;
       case 'params':

@@ -9,6 +9,7 @@ export interface Organelle {
   type: OrganelleType;
   position: Vec3;
   scale: number;
+  color: string;
 }
 
 export interface MarkerData {
@@ -62,6 +63,7 @@ export interface ExportConfig {
     type: OrganelleType;
     position: Vec3;
     scale: number;
+    color: string;
   }>;
   paths: Array<{
     id: string;

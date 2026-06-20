@@ -1,16 +1,24 @@
-import type { CellType, Organelle } from '@/types';
+import type { CellType, Organelle, OrganelleType } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+
+export const organelleDefaultColors: Record<OrganelleType, string> = {
+  nucleus: '#87ceeb',
+  mitochondria: '#8b0000',
+  er: '#98fb98',
+};
 
 function createOrganelle(
   type: Organelle['type'],
   position: [number, number, number],
-  scale: number = 1
+  scale: number = 1,
+  color?: string
 ): Organelle {
   return {
     id: uuidv4(),
     type,
     position,
     scale,
+    color: color || organelleDefaultColors[type],
   };
 }
 

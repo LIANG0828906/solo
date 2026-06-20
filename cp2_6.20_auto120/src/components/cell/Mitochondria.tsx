@@ -2,15 +2,18 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Vec3 } from '@/types'
+import { lightenColor, darkenColor } from '@/utils/pathUtils'
 
 interface MitochondriaProps {
   position?: Vec3
   scale?: Vec3 | number
+  color?: string
 }
 
 export default function Mitochondria({
   position = [0, 0, 0],
   scale = 1,
+  color = '#8b0000',
 }: MitochondriaProps) {
   const groupRef = useRef<THREE.Group>(null)
 
@@ -36,7 +39,7 @@ export default function Mitochondria({
       <mesh>
         <sphereGeometry args={[0.6, 32, 32]} />
         <meshStandardMaterial
-          color="#8b0000"
+          color={color}
           transparent
           opacity={0.85}
           roughness={0.5}
@@ -46,7 +49,7 @@ export default function Mitochondria({
       <mesh scale={0.9}>
         <sphereGeometry args={[0.6, 32, 32]} />
         <meshStandardMaterial
-          color="#a52a2a"
+          color={lightenColor(color, 0.1)}
           transparent
           opacity={0.5}
           side={2}
@@ -55,7 +58,7 @@ export default function Mitochondria({
       <mesh rotation={[0, 0, Math.PI / 2]} scale={[1, 0.05, 1]} position={[0, 0.15, 0]}>
         <sphereGeometry args={[0.6, 16, 16]} />
         <meshStandardMaterial
-          color="#5c0000"
+          color={darkenColor(color, 0.2)}
           transparent
           opacity={0.6}
         />
@@ -63,7 +66,7 @@ export default function Mitochondria({
       <mesh rotation={[0, 0, Math.PI / 2]} scale={[1, 0.05, 1]} position={[0, -0.15, 0]}>
         <sphereGeometry args={[0.6, 16, 16]} />
         <meshStandardMaterial
-          color="#5c0000"
+          color={darkenColor(color, 0.2)}
           transparent
           opacity={0.6}
         />
