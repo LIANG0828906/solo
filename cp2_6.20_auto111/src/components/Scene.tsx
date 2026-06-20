@@ -201,14 +201,14 @@ export default function Scene({
 
   const atomCount = molecule.atoms.length
   const sphereSegments = useMemo(() => {
-    if (atomCount > 500) return 8
-    if (atomCount > 200) return 16
+    if (atomCount > 500) return 12
+    if (atomCount > 200) return 20
     return 32
   }, [atomCount])
 
   const cylinderSegments = useMemo(() => {
-    if (atomCount > 500) return 6
-    if (atomCount > 200) return 12
+    if (atomCount > 500) return 8
+    if (atomCount > 200) return 16
     return 24
   }, [atomCount])
 

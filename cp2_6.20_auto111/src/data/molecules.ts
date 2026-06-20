@@ -1,5 +1,6 @@
 export interface Atom {
   id: string
+  indexId: number
   element: string
   elementName: string
   atomicNumber: number
@@ -79,6 +80,7 @@ const ELEMENT_NUMBERS: Record<string, number> = {
 function createAtom(id: string, element: string, x: number, y: number, z: number): Atom {
   return {
     id,
+    indexId: 0,
     element,
     elementName: ELEMENT_NAMES[element] || element,
     atomicNumber: ELEMENT_NUMBERS[element] || 0,
@@ -328,7 +330,15 @@ const CAFFEINE: Molecule = (() => {
   }
 })()
 
-export const MOLECULES: Molecule[] = [WATER, BENZENE, AMINO_ACID, GLUCOSE, CAFFEINE]
+export const MOLECULES: Molecule[] = [WATER, BENZENE, AMINO_ACID, GLUCOSE, CAFFEINE].map(
+  (mol) => ({
+    ...mol,
+    atoms: mol.atoms.map((atom, index) => ({
+      ...atom,
+      indexId: index,
+    })),
+  })
+)
 
 export function getMoleculeById(id: string): Molecule | undefined {
   return MOLECULES.find((m) => m.id === id)

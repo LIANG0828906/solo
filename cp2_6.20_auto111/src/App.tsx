@@ -14,7 +14,6 @@ function App() {
   const [isExporting, setIsExporting] = useState(false)
   const [showHint, setShowHint] = useState(true)
   const canvasContainerRef = useRef<HTMLDivElement>(null)
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
 
   const molecule = useAtomsStore((s) => s.molecule)
   const displayMode = useAtomsStore((s) => s.displayMode)
@@ -48,7 +47,7 @@ function App() {
     return () => clearTimeout(timer)
   }, [])
 
-  const handleExport = useCallback(async () => {
+  const handleExport = useCallback(() => {
     if (!canvasContainerRef.current) return
     setIsExporting(true)
 
@@ -58,13 +57,6 @@ function App() {
         setIsExporting(false)
         return
       }
-
-      const renderer = rendererRef.current
-      if (renderer) {
-        renderer.render(renderer.scene, renderer.getRenderTarget()?.texture ? renderer.scene : (null as any))
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 100))
 
       const exportCanvas = document.createElement('canvas')
       const ctx = exportCanvas.getContext('2d')!
@@ -77,34 +69,33 @@ function App() {
       ctx.fillStyle = gradient
       ctx.fillRect(0, 0, 1920, 1080)
 
-      const tempCanvas = document.createElement('canvas')
-      tempCanvas.width = canvas.width
-      tempCanvas.height = canvas.height
-      const tempCtx = tempCanvas.getContext('2d')!
-      tempCtx.drawImage(canvas, 0, 0)
+      const sourceAspect = canvas.width / canvas.height
+      const targetAspect = 1920 / 1080
+      let drawWidth, drawHeight, offsetX, offsetY
 
-      const scaleX = 1920 / canvas.width
-      const scaleY = 1080 / canvas.height
-      const scale = Math.min(scaleX, scaleY)
-      const offsetX = (1920 - canvas.width * scale) / 2
-      const offsetY = (1080 - canvas.height * scale) / 2
+      if (sourceAspect > targetAspect) {
+        drawWidth = 1920
+        drawHeight = 1920 / sourceAspect
+        offsetX = 0
+        offsetY = (1080 - drawHeight) / 2
+      } else {
+        drawHeight = 1080
+        drawWidth = 1080 * sourceAspect
+        offsetX = (1920 - drawWidth) / 2
+        offsetY = 0
+      }
 
-      ctx.drawImage(tempCanvas, offsetX, offsetY, canvas.width * scale, canvas.height * scale)
+      ctx.drawImage(canvas, offsetX, offsetY, drawWidth, drawHeight)
 
+      const dataURL = exportCanvas.toDataURL('image/png')
       const moleculeName = molecule.name.replace(/[^\w\u4e00-\u9fa5]/g, '_')
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      const now = new Date()
+      const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`
       const fileName = `${moleculeName}_${timestamp}.png`
 
-      exportCanvas.toBlob(
-        (blob) => {
-          if (blob) {
-            saveAs(blob, fileName)
-          }
-          setIsExporting(false)
-        },
-        'image/png',
-        1.0
-      )
+      saveAs(dataURL, fileName)
+
+      setTimeout(() => setIsExporting(false), 500)
     } catch (err) {
       console.error('Export failed:', err)
       setIsExporting(false)
@@ -160,10 +151,6 @@ function App() {
       <div className="canvas-container" ref={canvasContainerRef}>
         <Canvas
           camera={{ position: [0, 0, 8], fov: 50 }}
-          onCreated={({ gl }) => {
-            rendererRef.current = gl
-            gl.setClearColor('#000000', 0)
-          }}
           gl={{
             antialias: true,
             alpha: true,
@@ -185,12 +172,16 @@ function App() {
           <OrbitControls
             ref={controlsRef}
             enableDamping
-            dampingFactor={0.05}
-            minDistance={2}
-            maxDistance={30}
+            dampingFactor={0.95}
+            minDistance={4}
+            maxDistance={24}
             autoRotate={autoRotate}
             autoRotateSpeed={rotationSpeed * 0.5}
             enablePan
+            enableZoom
+            zoomSpeed={0.8}
+            rotateSpeed={0.8}
+            panSpeed={0.8}
             mouseButtons={{
               LEFT: THREE.MOUSE.ROTATE,
               MIDDLE: THREE.MOUSE.DOLLY,

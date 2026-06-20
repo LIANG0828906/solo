@@ -763,7 +763,47 @@ body {
     padding: 16px;
   }
 
+  .annotation-card-name {
+    font-size: 14px;
+  }
+
+  .annotation-card-number {
+    font-size: 10px;
+  }
+
+  .annotation-field-label {
+    font-size: 10px;
+  }
+
+  .annotation-field-value {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  .annotation-textarea {
+    font-size: 12px;
+    min-height: 60px;
+  }
+
   .annotation-label {
     font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  .annotation-label::after {
+    display: none;
+  }
+
+  .tooltip {
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+
+  .tooltip-element {
+    font-size: 12px;
+  }
+
+  .tooltip-coords {
+    font-size: 9px;
   }
 }
