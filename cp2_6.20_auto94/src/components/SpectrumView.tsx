@@ -28,7 +28,7 @@ export const SpectrumView: React.FC = () => {
     ctx.fillRect(0, 0, w, h);
 
     const mixed = WaveformGenerator.mixTracks(tracks);
-    const spectrum = SpectrumAnalyzer.analyze(mixed, 44100);
+    const spectrum = SpectrumAnalyzer.analyzeSync(mixed, 44100);
     spectrumDataRef.current = spectrum;
 
     const minFreq = 20;

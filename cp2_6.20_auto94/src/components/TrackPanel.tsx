@@ -16,13 +16,24 @@ const ADSREditor: React.FC<{
 }> = ({ adsr, color, onChange }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dragging = useRef<string | null>(null);
+  const [curveControls, setCurveControls] = useState({ attackCurve: 0, decayCurve: 0, releaseCurve: 0 });
   const W = 240, H = 70;
 
-  const points = {
-    attack: { x: adsr.attack * 0.25 * W, y: 0 },
-    decay: { x: adsr.attack * 0.25 * W + adsr.decay * 0.25 * W, y: (1 - adsr.sustain) * H },
-    sustain: { x: W * 0.75 - adsr.release * 0.25 * W, y: (1 - adsr.sustain) * H },
-    release: { x: W, y: H },
+  const getPoints = () => {
+    const ax = adsr.attack * 0.25 * W;
+    const dx = ax + adsr.decay * 0.25 * W;
+    const sx = W * 0.75 - adsr.release * 0.25 * W;
+    const sy = (1 - adsr.sustain) * H;
+    return {
+      start: { x: 0, y: H },
+      attack: { x: ax, y: 0 },
+      attackCP: { x: ax * (0.5 + curveControls.attackCurve * 0.4), y: H * (0.5 - curveControls.attackCurve * 0.4) },
+      decay: { x: dx, y: sy },
+      decayCP: { x: ax + (dx - ax) * (0.5 + curveControls.decayCurve * 0.4), y: sy + (0 - sy) * (0.5 - curveControls.decayCurve * 0.4) },
+      sustain: { x: sx, y: sy },
+      release: { x: W, y: H },
+      releaseCP: { x: sx + (W - sx) * (0.5 + curveControls.releaseCurve * 0.4), y: sy + (H - sy) * (0.5 - curveControls.releaseCurve * 0.4) },
+    };
   };
 
   const draw = useCallback(() => {
@@ -52,39 +63,76 @@ const ADSREditor: React.FC<{
       ctx.stroke();
     }
 
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 4;
+    const pts = getPoints();
+
+    ctx.setLineDash([2, 2]);
+    ctx.strokeStyle = color + '55';
+    ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.moveTo(0, H);
-    ctx.lineTo(points.attack.x, points.attack.y);
-    ctx.lineTo(points.decay.x, points.decay.y);
-    ctx.lineTo(points.sustain.x, points.sustain.y);
-    ctx.lineTo(points.release.x, points.release.y);
+    ctx.moveTo(pts.start.x, pts.start.y);
+    ctx.lineTo(pts.attackCP.x, pts.attackCP.y);
+    ctx.moveTo(pts.attack.x, pts.attack.y);
+    ctx.lineTo(pts.attackCP.x, pts.attackCP.y);
+    ctx.moveTo(pts.attack.x, pts.attack.y);
+    ctx.lineTo(pts.decayCP.x, pts.decayCP.y);
+    ctx.moveTo(pts.decay.x, pts.decay.y);
+    ctx.lineTo(pts.decayCP.x, pts.decayCP.y);
+    ctx.moveTo(pts.sustain.x, pts.sustain.y);
+    ctx.lineTo(pts.releaseCP.x, pts.releaseCP.y);
+    ctx.moveTo(pts.release.x, pts.release.y);
+    ctx.lineTo(pts.releaseCP.x, pts.releaseCP.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(pts.start.x, pts.start.y);
+    ctx.bezierCurveTo(pts.attackCP.x, pts.attackCP.y, pts.attackCP.x, pts.attackCP.y, pts.attack.x, pts.attack.y);
+    ctx.bezierCurveTo(pts.decayCP.x, pts.decayCP.y, pts.decayCP.x, pts.decayCP.y, pts.decay.x, pts.decay.y);
+    ctx.lineTo(pts.sustain.x, pts.sustain.y);
+    ctx.bezierCurveTo(pts.releaseCP.x, pts.releaseCP.y, pts.releaseCP.x, pts.releaseCP.y, pts.release.x, pts.release.y);
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    const drawPoint = (p: { x: number; y: number }) => {
+    const drawAnchor = (p: { x: number; y: number }, isActive: boolean = false) => {
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, isActive ? 5 : 4, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 1;
       ctx.stroke();
     };
-    drawPoint(points.attack);
-    drawPoint(points.decay);
-    drawPoint(points.sustain);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    const drawCP = (p: { x: number; y: number }) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = color + '88';
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([1, 1]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    };
+
+    drawAnchor(pts.attack);
+    drawAnchor(pts.decay);
+    drawAnchor(pts.sustain);
+    drawCP(pts.attackCP);
+    drawCP(pts.decayCP);
+    drawCP(pts.releaseCP);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.font = '9px monospace';
-    ctx.fillText('A', points.attack.x - 3, points.attack.y - 8);
-    ctx.fillText('D', points.decay.x - 3, points.decay.y - 8);
-    ctx.fillText('S', points.sustain.x - 3, points.sustain.y - 8);
+    ctx.fillText('A', pts.attack.x - 3, pts.attack.y - 8);
+    ctx.fillText('D', pts.decay.x - 3, pts.decay.y - 8);
+    ctx.fillText('S', pts.sustain.x - 3, pts.sustain.y - 8);
     ctx.fillText('R', W - 12, H - 4);
-  }, [adsr, color, points]);
+  }, [adsr, color, curveControls]);
 
   useEffect(() => { draw(); }, [draw]);
 
@@ -92,14 +140,21 @@ const ADSREditor: React.FC<{
     const rect = canvasRef.current!.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const pts: [string, { x: number; y: number }][] = [
-      ['attack', points.attack],
-      ['decay', points.decay],
-      ['sustain', points.sustain],
+    const pts = getPoints();
+
+    const anchors: [string, { x: number; y: number }][] = [
+      ['attack', pts.attack],
+      ['decay', pts.decay],
+      ['sustain', pts.sustain],
+      ['attackCurve', pts.attackCP],
+      ['decayCurve', pts.decayCP],
+      ['releaseCurve', pts.releaseCP],
     ];
-    for (const [name, p] of pts) {
+
+    for (const [name, p] of anchors) {
       if (Math.hypot(mx - p.x, my - p.y) < 10) {
         dragging.current = name;
+        e.preventDefault();
         break;
       }
     }
@@ -114,13 +169,34 @@ const ADSREditor: React.FC<{
 
     if (dragging.current === 'attack') {
       newAdsr.attack = Math.max(0.01, Math.min(1, (mx / W) / 0.25));
+      onChange(newAdsr);
     } else if (dragging.current === 'decay') {
-      const decayX = mx - adsr.attack * 0.25 * W;
-      newAdsr.decay = Math.max(0.01, Math.min(1, (decayX / W) / 0.25));
+      const attackEndX = adsr.attack * 0.25 * W;
+      const decayX = Math.max(attackEndX + 5, mx);
+      newAdsr.decay = Math.max(0.01, Math.min(1, ((decayX - attackEndX) / W) / 0.25));
+      onChange(newAdsr);
     } else if (dragging.current === 'sustain') {
-      newAdsr.sustain = Math.max(0.01, Math.min(1, 1 - my / H));
+      const newSustain = Math.max(0.01, Math.min(1, 1 - my / H));
+      newAdsr.sustain = newSustain;
+      const attackEndX = adsr.attack * 0.25 * W;
+      const releaseStartX = W * 0.75 - adsr.release * 0.25 * W;
+      const sustainX = Math.max(attackEndX + 5, Math.min(releaseStartX - 5, mx));
+      newAdsr.release = Math.max(0.01, Math.min(1, ((W - sustainX) / W) / 0.25));
+      onChange(newAdsr);
+    } else if (dragging.current === 'attackCurve') {
+      const ax = adsr.attack * 0.25 * W;
+      const curve = ((mx / ax) - 0.5) / 0.4;
+      setCurveControls(c => ({ ...c, attackCurve: Math.max(-1, Math.min(1, curve)) }));
+    } else if (dragging.current === 'decayCurve') {
+      const ax = adsr.attack * 0.25 * W;
+      const dx = ax + adsr.decay * 0.25 * W;
+      const curve = ((mx - ax) / (dx - ax) - 0.5) / 0.4;
+      setCurveControls(c => ({ ...c, decayCurve: Math.max(-1, Math.min(1, curve)) }));
+    } else if (dragging.current === 'releaseCurve') {
+      const sx = W * 0.75 - adsr.release * 0.25 * W;
+      const curve = ((mx - sx) / (W - sx) - 0.5) / 0.4;
+      setCurveControls(c => ({ ...c, releaseCurve: Math.max(-1, Math.min(1, curve)) }));
     }
-    onChange(newAdsr);
   };
 
   const handleMouseUp = () => { dragging.current = null; };
@@ -143,8 +219,11 @@ const PanKnob: React.FC<{
   onChange: (v: number) => void;
 }> = ({ value, color, onChange }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [hoverAngle, setHoverAngle] = useState<number | null>(null);
   const lastY = useRef(0);
-  const angle = ((value + 1) / 2) * 270 - 135;
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const valueAngle = ((value + 1) / 2) * 270 - 135;
 
   useEffect(() => {
     if (!isDragging) return;
@@ -167,28 +246,101 @@ const PanKnob: React.FC<{
     lastY.current = e.clientY;
   };
 
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const mx = e.clientX - rect.left - cx;
+    const my = e.clientY - rect.top - cy;
+    const angle = (Math.atan2(my, mx) * 180 / Math.PI) + 90;
+    setHoverAngle(angle);
+  };
+
+  const handleMouseLeave = () => setHoverAngle(null);
+
+  const polarToCart = (cx: number, cy: number, r: number, angleDeg: number) => {
+    const rad = (angleDeg - 90) * Math.PI / 180;
+    return { x: cx + r * Math.sin(rad), y: cy - r * Math.cos(rad) };
+  };
+
+  const cx = 20, cy = 20;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
       <svg
-        width={40}
-        height={40}
+        ref={svgRef}
+        width={44}
+        height={44}
         style={{ cursor: 'pointer' }}
         onMouseDown={startDrag}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
-        <circle cx={20} cy={20} r={17} fill="#1a1a2e" stroke={isDragging ? color : '#2d2d44'} strokeWidth={2} />
-        {isDragging && <circle cx={20} cy={20} r={19} fill="none" stroke={color} strokeWidth={1} opacity={0.5} />}
-        <line
-          x1={20}
-          y1={20}
-          x2={20 + 12 * Math.sin((angle * Math.PI) / 180)}
-          y2={20 - 12 * Math.cos((angle * Math.PI) / 180)}
-          stroke={color}
+        <defs>
+          <radialGradient id={`glow-${color.replace('#', '')}`}>
+            <stop offset="0%" stopColor={color} stopOpacity="0.6" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {isDragging && (
+          <circle cx={cx} cy={cy} r={21} fill={`url(#glow-${color.replace('#', '')})`} />
+        )}
+
+        <circle
+          cx={cx} cy={cy} r={17}
+          fill="#1a1a2e"
+          stroke={isDragging ? color : '#2d2d44'}
           strokeWidth={2}
+        />
+
+        <circle
+          cx={cx} cy={cy} r={19}
+          fill="none"
+          stroke={color}
+          strokeWidth={1}
+          strokeDasharray="270 90"
+          strokeDashoffset="135"
+          opacity={0.2}
+        />
+
+        {hoverAngle !== null && !isDragging && (() => {
+          const clamped = Math.max(-135, Math.min(135, hoverAngle));
+          const p = polarToCart(cx, cy, 19, clamped);
+          return (
+            <>
+              <circle cx={p.x} cy={p.y} r={3} fill={color} opacity={0.7} />
+              <circle cx={p.x} cy={p.y} r={5} fill={color} opacity={0.2} />
+            </>
+          );
+        })()}
+
+        {isDragging && (() => {
+          const p = polarToCart(cx, cy, 19, valueAngle);
+          return (
+            <>
+              <circle cx={p.x} cy={p.y} r={4} fill={color} />
+              <circle cx={p.x} cy={p.y} r={7} fill={color} opacity={0.3} />
+              <circle cx={p.x} cy={p.y} r={10} fill={color} opacity={0.15} />
+            </>
+          );
+        })()}
+
+        <line
+          x1={cx}
+          y1={cy}
+          x2={cx + 12 * Math.sin((valueAngle * Math.PI) / 180)}
+          y2={cy - 12 * Math.cos((valueAngle * Math.PI) / 180)}
+          stroke={color}
+          strokeWidth={2.5}
           strokeLinecap="round"
         />
+
+        <circle cx={cx} cy={cy} r={2.5} fill={color} />
       </svg>
       <span style={{ fontSize: 9, color: '#888' }}>
-        {value < -0.05 ? 'L' : value > 0.05 ? 'R' : 'C'}
+        {value < -0.05 ? `L ${Math.abs(Math.round(value * 100))}%` : value > 0.05 ? `R ${Math.round(value * 100)}%` : 'C'}
       </span>
     </div>
   );
@@ -200,30 +352,27 @@ const VolumeFader: React.FC<{
   onChange: (v: number) => void;
 }> = ({ value, color, onChange }) => {
   const faderRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const H = 90;
   const normalized = (value + 60) / 66;
   const fillH = normalized * H;
 
-  const handleClick = (e: React.MouseEvent) => {
+  const updateFromY = (clientY: number) => {
     if (!faderRef.current) return;
     const rect = faderRef.current.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const newNorm = 1 - y / H;
+    const y = clientY - rect.top;
+    const newNorm = Math.max(0, Math.min(1, 1 - y / H));
     const newDb = newNorm * 66 - 60;
     onChange(Math.max(-60, Math.min(6, Math.round(newDb * 2) / 2)));
   };
 
-  const startDrag = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
-    const onMove = (ev: MouseEvent) => {
-      if (!faderRef.current) return;
-      const rect = faderRef.current.getBoundingClientRect();
-      const y = ev.clientY - rect.top;
-      const newNorm = 1 - y / H;
-      const newDb = newNorm * 66 - 60;
-      onChange(Math.max(-60, Math.min(6, Math.round(newDb * 2) / 2)));
-    };
+    setIsDragging(true);
+    updateFromY(e.clientY);
+    const onMove = (ev: MouseEvent) => updateFromY(ev.clientY);
     const onUp = () => {
+      setIsDragging(false);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
@@ -231,49 +380,82 @@ const VolumeFader: React.FC<{
     window.addEventListener('mouseup', onUp);
   };
 
+  const tickMarks = [];
+  for (let db = 6; db >= -60; db -= 12) {
+    const norm = (db + 60) / 66;
+    tickMarks.push({ db, y: (1 - norm) * H });
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      <div
-        ref={faderRef}
-        style={{
-          width: 22,
-          height: H,
-          background: 'linear-gradient(to top, #0a1628, #0d4a2a, #22cc66)',
-          borderRadius: 4,
-          position: 'relative',
-          cursor: 'pointer',
-          border: '1px solid #2d2d44',
-        }}
-        onClick={handleClick}
-        onMouseDown={startDrag}
-      >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: H }}>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: H, padding: '0 0' }}>
+          {tickMarks.map(t => (
+            <span key={t.db} style={{ fontSize: 7, color: '#444', lineHeight: 1, transform: `translateY(${t.y - (1 - ((t.db + 60) / 66)) * H}px)`, position: 'absolute', left: -22 }}>
+              {t.db >= 0 ? `+${t.db}` : t.db}
+            </span>
+          ))}
+        </div>
         <div
+          ref={faderRef}
           style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: fillH,
-            background: `linear-gradient(to top, ${color}88, ${color}cc)`,
-            borderRadius: '0 0 3px 3px',
-            pointerEvents: 'none' as const,
+            width: 24,
+            height: H,
+            background: 'linear-gradient(to top, #0a1628 0%, #122a55 20%, #1a5a88 40%, #228877 60%, #44bb55 80%, #77ee44 100%)',
+            borderRadius: 5,
+            position: 'relative',
+            cursor: 'pointer',
+            border: isDragging ? `1px solid ${color}` : '1px solid #2d2d44',
+            boxShadow: isDragging ? `0 0 8px ${color}66` : 'none',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
+            overflow: 'hidden',
           }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            left: -2,
-            right: -2,
-            bottom: fillH - 3,
-            height: 6,
-            background: color,
-            borderRadius: 2,
-            boxShadow: `0 0 6px ${color}`,
-            pointerEvents: 'none' as const,
-          }}
-        />
+          onMouseDown={handleMouseDown}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: fillH,
+              background: `linear-gradient(to top, ${color}aa, ${color}ee)`,
+              boxShadow: `inset 0 0 6px ${color}88`,
+              pointerEvents: 'none' as const,
+              transition: 'height 0.08s ease-out',
+            }}
+          />
+
+          {[0.25, 0.5, 0.75].map(t => (
+            <div key={t} style={{
+              position: 'absolute',
+              left: 2, right: 2,
+              top: `${t * 100}%`,
+              height: 1,
+              background: 'rgba(255,255,255,0.1)',
+              pointerEvents: 'none' as const,
+            }} />
+          ))}
+
+          <div
+            style={{
+              position: 'absolute',
+              left: -4,
+              right: -4,
+              bottom: fillH - 4,
+              height: 8,
+              background: `linear-gradient(to bottom, ${color}, ${color}cc)`,
+              borderRadius: 3,
+              boxShadow: `0 0 8px ${color}cc, inset 0 1px 2px rgba(255,255,255,0.3)`,
+              pointerEvents: 'none' as const,
+              transition: 'bottom 0.08s ease-out',
+            }}
+          />
+        </div>
       </div>
-      <span style={{ fontSize: 8, color: '#888' }}>{value}dB</span>
+      <span style={{ fontSize: 9, color: color, fontWeight: 600 }}>
+        {value >= 0 ? `+${value}dB` : `${value}dB`}
+      </span>
     </div>
   );
 };
@@ -281,7 +463,7 @@ const VolumeFader: React.FC<{
 const TrackCard: React.FC<{ track: TrackState }> = ({ track }) => {
   const updateTrack = useAppStore((s) => s.updateTrack);
 
-  const sliderStyle = (value: number, min: number, max: number): React.CSSProperties => ({
+  const sliderStyle = (): React.CSSProperties => ({
     width: '100%',
     accentColor: track.color,
     height: 4,
@@ -298,14 +480,20 @@ const TrackCard: React.FC<{ track: TrackState }> = ({ track }) => {
         display: 'flex',
         flexDirection: 'column',
         gap: 6,
-        transition: 'border-color 0.3s',
+        transition: 'border-color 0.3s, box-shadow 0.3s',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6c5ce7'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2d2d44'; }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = '#6c5ce7';
+        e.currentTarget.style.boxShadow = '0 0 12px rgba(108,92,231,0.2)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = '#2d2d44';
+        e.currentTarget.style.boxShadow = 'none';
+      }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: track.color, boxShadow: `0 0 6px ${track.color}` }} />
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: track.color, boxShadow: `0 0 8px ${track.color}` }} />
           <span style={{ fontSize: 12, fontWeight: 600 }}>{track.name}</span>
         </div>
         <button
@@ -315,13 +503,14 @@ const TrackCard: React.FC<{ track: TrackState }> = ({ track }) => {
             border: '1px solid #6c5ce7',
             color: track.muted ? '#fff' : '#6c5ce7',
             borderRadius: 4,
-            padding: '1px 6px',
+            padding: '2px 8px',
             fontSize: 10,
+            fontWeight: 600,
             cursor: 'pointer',
             transition: 'all 0.2s',
           }}
         >
-          M
+          {track.muted ? 'MUTED' : 'M'}
         </button>
       </div>
 
@@ -332,14 +521,14 @@ const TrackCard: React.FC<{ track: TrackState }> = ({ track }) => {
             onClick={() => updateTrack(track.id, { waveType: wt.type })}
             style={{
               flex: 1,
-              padding: '3px 0',
+              padding: '4px 0',
               background: track.waveType === wt.type ? '#6c5ce7' : '#2d2d44',
-              border: 'none',
+              border: track.waveType === wt.type ? `1px solid ${track.color}` : '1px solid transparent',
               borderRadius: 4,
               color: '#e0e0e0',
-              fontSize: 13,
+              fontSize: 14,
               cursor: 'pointer',
-              transition: 'background 0.2s',
+              transition: 'all 0.2s',
             }}
           >
             {wt.label}
@@ -349,42 +538,45 @@ const TrackCard: React.FC<{ track: TrackState }> = ({ track }) => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 9, color: '#888' }}>Freq</span>
-          <span style={{ fontSize: 9, color: track.color }}>{track.frequency}Hz</span>
+          <span style={{ fontSize: 9, color: '#888' }}>Frequency</span>
+          <span style={{ fontSize: 10, color: track.color, fontWeight: 600, fontFamily: 'monospace' }}>{track.frequency} Hz</span>
         </div>
         <input
           type="range" min={20} max={2000} step={1} value={track.frequency}
           onChange={(e) => updateTrack(track.id, { frequency: +e.target.value })}
-          style={sliderStyle(track.frequency, 20, 2000)}
+          style={sliderStyle()}
         />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 9, color: '#888' }}>Amp</span>
-          <span style={{ fontSize: 9, color: track.color }}>{track.amplitude.toFixed(2)}</span>
+          <span style={{ fontSize: 9, color: '#888' }}>Amplitude</span>
+          <span style={{ fontSize: 10, color: track.color, fontWeight: 600, fontFamily: 'monospace' }}>{(track.amplitude * 100).toFixed(0)}%</span>
         </div>
         <input
           type="range" min={0} max={1} step={0.01} value={track.amplitude}
           onChange={(e) => updateTrack(track.id, { amplitude: +e.target.value })}
-          style={sliderStyle(track.amplitude, 0, 1)}
+          style={sliderStyle()}
         />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 9, color: '#888' }}>Phase</span>
-          <span style={{ fontSize: 9, color: track.color }}>{track.phase}°</span>
+          <span style={{ fontSize: 10, color: track.color, fontWeight: 600, fontFamily: 'monospace' }}>{track.phase}°</span>
         </div>
         <input
           type="range" min={0} max={360} step={1} value={track.phase}
           onChange={(e) => updateTrack(track.id, { phase: +e.target.value })}
-          style={sliderStyle(track.phase, 0, 360)}
+          style={sliderStyle()}
         />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span style={{ fontSize: 9, color: '#888' }}>ADSR Envelope</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 9, color: '#888' }}>ADSR Envelope</span>
+          <span style={{ fontSize: 8, color: '#555' }}>drag points + curves</span>
+        </div>
         <ADSREditor
           adsr={track.adsr}
           color={track.color}
@@ -392,7 +584,7 @@ const TrackCard: React.FC<{ track: TrackState }> = ({ track }) => {
         />
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
         <VolumeFader
           value={track.volume}
           color={track.color}

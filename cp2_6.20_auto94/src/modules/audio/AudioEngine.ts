@@ -49,9 +49,11 @@ export class AudioEngine {
     const numSamples = buffer.length;
     this._duration = numSamples / sampleRate;
 
+    const normalizedBuffer = AudioEngine.normalizeBuffer(buffer);
+
     const audioBuffer = ctx.createBuffer(1, numSamples, sampleRate);
     const channelData = audioBuffer.getChannelData(0);
-    channelData.set(buffer);
+    channelData.set(normalizedBuffer);
 
     this.gainNode = ctx.createGain();
     this.gainNode.gain.value = 1.0;
@@ -106,6 +108,36 @@ export class AudioEngine {
     }
   }
 
+  private static normalizeBuffer(buffer: Float32Array): Float32Array {
+    let maxAbs = 0;
+    const n = buffer.length;
+    for (let i = 0; i < n; i++) {
+      const abs = Math.abs(buffer[i]);
+      if (abs > maxAbs) maxAbs = abs;
+    }
+
+    const result = new Float32Array(n);
+    const scale = maxAbs > 1.0 ? 1.0 / maxAbs : 0.95 / Math.max(maxAbs, 0.0001);
+
+    for (let i = 0; i < n; i++) {
+      let sample = buffer[i] * scale;
+      if (sample > 1) sample = 1;
+      else if (sample < -1) sample = -1;
+      result[i] = sample;
+    }
+
+    return result;
+  }
+
+  private static floatToInt16(sample: number): number {
+    const clamped = Math.max(-1, Math.min(1, sample));
+    if (clamped >= 0) {
+      return Math.round(clamped * 0x7FFF);
+    } else {
+      return Math.round(clamped * 0x8000);
+    }
+  }
+
   exportWav(buffer: Float32Array, sampleRate: number = 44100): Blob {
     const numChannels = 1;
     const bitsPerSample = 16;
@@ -113,6 +145,8 @@ export class AudioEngine {
     const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
     const blockAlign = numChannels * (bitsPerSample / 8);
     const dataSize = numSamples * blockAlign;
+
+    const normalized = AudioEngine.normalizeBuffer(buffer);
 
     const arrayBuffer = new ArrayBuffer(44 + dataSize);
     const view = new DataView(arrayBuffer);
@@ -139,9 +173,8 @@ export class AudioEngine {
 
     let offset = 44;
     for (let i = 0; i < numSamples; i++) {
-      const clamped = Math.max(-1, Math.min(1, buffer[i]));
-      const intSample = clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF;
-      view.setInt16(offset, intSample, true);
+      const int16 = AudioEngine.floatToInt16(normalized[i]);
+      view.setInt16(offset, int16, true);
       offset += 2;
     }
 

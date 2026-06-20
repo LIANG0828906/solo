@@ -1,5 +1,15 @@
 export type WaveType = 'sine' | 'square' | 'sawtooth' | 'triangle';
 
+export interface ADSRControlPoints {
+  attack: number;
+  decay: number;
+  sustain: number;
+  release: number;
+  attackCurve: number;
+  decayCurve: number;
+  releaseCurve: number;
+}
+
 export interface ADSREnvelope {
   attack: number;
   decay: number;
@@ -21,6 +31,23 @@ export interface TrackParams {
 export class WaveformGenerator {
   static SAMPLE_RATE = 44100;
   static DURATION = 4;
+
+  private static cubicBezier(t: number, p0: number, p1: number, p2: number, p3: number): number {
+    const u = 1 - t;
+    const tt = t * t;
+    const uu = u * u;
+    const uuu = uu * u;
+    const ttt = tt * t;
+    return uuu * p0 + 3 * uu * t * p1 + 3 * u * tt * p2 + ttt * p3;
+  }
+
+  private static bezierEase(t: number, curve: number): number {
+    const cp1x = Math.max(0, Math.min(1, 0.5 + curve * 0.5));
+    const cp1y = Math.max(0, Math.min(1, 0.5 + curve * 0.5));
+    const cp2x = 1 - cp1x;
+    const cp2y = 1 - cp1y;
+    return WaveformGenerator.cubicBezier(t, 0, cp1y, cp2y, 1);
+  }
 
   static generate(
     type: WaveType,
@@ -46,11 +73,13 @@ export class WaveformGenerator {
         case 'square':
           sample = Math.sin(angle) >= 0 ? 1 : -1;
           break;
-        case 'sawtooth':
-          sample = 2 * ((frequency * t + phase / 360) % 1) - 1;
+        case 'sawtooth': {
+          const sawPhase = (frequency * t + phase / 360) % 1;
+          sample = 2 * sawPhase - 1;
           break;
+        }
         case 'triangle': {
-          const p = ((frequency * t + phase / 360) % 1);
+          const p = (frequency * t + phase / 360) % 1;
           sample = 4 * Math.abs(p - 0.5) - 1;
           break;
         }
@@ -65,10 +94,15 @@ export class WaveformGenerator {
   static applyADSR(
     buffer: Float32Array,
     adsr: ADSREnvelope,
-    sampleRate: number = WaveformGenerator.SAMPLE_RATE
+    sampleRate: number = WaveformGenerator.SAMPLE_RATE,
+    controlPoints?: Partial<ADSRControlPoints>
   ): Float32Array {
     const result = new Float32Array(buffer.length);
     const totalSamples = buffer.length;
+
+    const attackCurve = controlPoints?.attackCurve ?? 0;
+    const decayCurve = controlPoints?.decayCurve ?? 0;
+    const releaseCurve = controlPoints?.releaseCurve ?? 0;
 
     const attackEnd = Math.floor(adsr.attack * totalSamples * 0.25);
     const decayEnd = attackEnd + Math.floor(adsr.decay * totalSamples * 0.25);
@@ -78,13 +112,16 @@ export class WaveformGenerator {
       let envelope = 1.0;
 
       if (i < attackEnd && attackEnd > 0) {
-        envelope = i / attackEnd;
+        const progress = i / attackEnd;
+        envelope = WaveformGenerator.bezierEase(progress, attackCurve);
       } else if (i < decayEnd && decayEnd > attackEnd) {
-        const decayProgress = (i - attackEnd) / (decayEnd - attackEnd);
-        envelope = 1.0 - (1.0 - adsr.sustain) * decayProgress;
+        const progress = (i - attackEnd) / (decayEnd - attackEnd);
+        const eased = WaveformGenerator.bezierEase(progress, decayCurve);
+        envelope = 1.0 - (1.0 - adsr.sustain) * eased;
       } else if (i >= releaseStart && releaseStart < totalSamples) {
-        const releaseProgress = (i - releaseStart) / (totalSamples - releaseStart);
-        envelope = adsr.sustain * (1.0 - releaseProgress);
+        const progress = (i - releaseStart) / (totalSamples - releaseStart);
+        const eased = WaveformGenerator.bezierEase(progress, releaseCurve);
+        envelope = adsr.sustain * (1.0 - eased);
       } else if (i >= decayEnd && i < releaseStart) {
         envelope = adsr.sustain;
       }
@@ -93,6 +130,35 @@ export class WaveformGenerator {
     }
 
     return result;
+  }
+
+  static getADSRSampleValue(
+    sampleIndex: number,
+    totalSamples: number,
+    adsr: ADSREnvelope,
+    controlPoints?: Partial<ADSRControlPoints>
+  ): number {
+    const attackCurve = controlPoints?.attackCurve ?? 0;
+    const decayCurve = controlPoints?.decayCurve ?? 0;
+    const releaseCurve = controlPoints?.releaseCurve ?? 0;
+
+    const attackEnd = Math.floor(adsr.attack * totalSamples * 0.25);
+    const decayEnd = attackEnd + Math.floor(adsr.decay * totalSamples * 0.25);
+    const releaseStart = totalSamples - Math.floor(adsr.release * totalSamples * 0.25);
+
+    if (sampleIndex < attackEnd && attackEnd > 0) {
+      const progress = sampleIndex / attackEnd;
+      return WaveformGenerator.bezierEase(progress, attackCurve);
+    } else if (sampleIndex < decayEnd && decayEnd > attackEnd) {
+      const progress = (sampleIndex - attackEnd) / (decayEnd - attackEnd);
+      const eased = WaveformGenerator.bezierEase(progress, decayCurve);
+      return 1.0 - (1.0 - adsr.sustain) * eased;
+    } else if (sampleIndex >= releaseStart && releaseStart < totalSamples) {
+      const progress = (sampleIndex - releaseStart) / (totalSamples - releaseStart);
+      const eased = WaveformGenerator.bezierEase(progress, releaseCurve);
+      return adsr.sustain * (1.0 - eased);
+    }
+    return adsr.sustain;
   }
 
   static dBToLinear(dB: number): number {
