@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState, useRef } from 'react'
 import { useFlowerStore } from '../store/flowerStore'
 import type { Flower } from '../services/api'
 
@@ -9,8 +9,16 @@ const SEASON_STYLES: Record<string, { bg: string; color: string }> = {
   冬: { bg: '#dcedc140', color: '#3498db' },
 }
 
+interface PreviewState {
+  flower: Flower
+  rect: DOMRect
+}
+
 function FlowerLibrary() {
   const { allFlowers, activeCategory, loading, error, addFlowerToVase } = useFlowerStore()
+  const [preview, setPreview] = useState<PreviewState | null>(null)
+  const previewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const filteredFlowers = activeCategory
     ? allFlowers.filter((f) => f.category === activeCategory)
@@ -40,6 +48,64 @@ function FlowerLibrary() {
     },
     [addFlowerToVase]
   )
+
+  const handleCardMouseEnter = useCallback(
+    (flower: Flower, e: React.MouseEvent<HTMLDivElement>) => {
+      if (hideTimeout.current) {
+        clearTimeout(hideTimeout.current)
+        hideTimeout.current = null
+      }
+      const rect = e.currentTarget.getBoundingClientRect()
+      previewTimeout.current = setTimeout(() => {
+        setPreview({ flower, rect })
+      }, 120)
+    },
+    []
+  )
+
+  const handleCardMouseLeave = useCallback(() => {
+    if (previewTimeout.current) {
+      clearTimeout(previewTimeout.current)
+      previewTimeout.current = null
+    }
+    hideTimeout.current = setTimeout(() => {
+      setPreview(null)
+    }, 80)
+  }, [])
+
+  const handlePreviewEnter = useCallback(() => {
+    if (hideTimeout.current) {
+      clearTimeout(hideTimeout.current)
+      hideTimeout.current = null
+    }
+  }, [])
+
+  const handlePreviewLeave = useCallback(() => {
+    setPreview(null)
+  }, [])
+
+  const getPreviewPosition = (rect: DOMRect) => {
+    const previewWidth = 200
+    const previewHeight = 260
+    const gap = 12
+
+    const spaceRight = window.innerWidth - rect.right
+    const spaceLeft = rect.left
+
+    let left: number | undefined
+    let right: number | undefined
+    if (spaceRight >= previewWidth + gap) {
+      left = rect.right + gap
+    } else if (spaceLeft >= previewWidth + gap) {
+      right = window.innerWidth - rect.left + gap
+    } else {
+      left = Math.min(rect.right + gap, window.innerWidth - previewWidth - 8)
+    }
+
+    const top = Math.max(8, Math.min(rect.top, window.innerHeight - previewHeight - 8))
+
+    return { left, right, top }
+  }
 
   return (
     <div
@@ -124,6 +190,8 @@ function FlowerLibrary() {
               onDragStart={(e) => handleDragStart(e, flower)}
               onDragEnd={handleDragEnd}
               onClick={() => handleClick(flower)}
+              onMouseEnter={(e) => handleCardMouseEnter(flower, e)}
+              onMouseLeave={handleCardMouseLeave}
               style={{
                 background: '#fff',
                 borderRadius: '14px',
@@ -135,17 +203,7 @@ function FlowerLibrary() {
                 position: 'relative',
                 touchAction: 'none',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)'
-                e.currentTarget.style.boxShadow =
-                  '0 8px 24px rgba(74, 55, 40, 0.14), 0 2px 6px rgba(74, 55, 40, 0.06)'
-                e.currentTarget.style.borderColor = 'var(--border-medium)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = 'none'
-                e.currentTarget.style.borderColor = 'var(--border-soft)'
-              }}
+              className="flower-card"
               onMouseDown={(e) => (e.currentTarget.style.cursor = 'grabbing')}
               onMouseUp={(e) => (e.currentTarget.style.cursor = 'grab')}
             >
@@ -260,6 +318,141 @@ function FlowerLibrary() {
             </div>
           ))}
       </div>
+
+      {preview && (
+        <div
+          onMouseEnter={handlePreviewEnter}
+          onMouseLeave={handlePreviewLeave}
+          style={{
+            position: 'fixed',
+            ...(() => {
+              const pos = getPreviewPosition(preview.rect)
+              return {
+                left: pos.left !== undefined ? pos.left : undefined,
+                right: pos.right !== undefined ? pos.right : undefined,
+                top: pos.top,
+              }
+            })(),
+            width: '200px',
+            background: 'var(--bg-glass-strong)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+            borderRadius: '16px',
+            border: '1px solid var(--border-medium)',
+            boxShadow: '0 12px 36px rgba(74, 55, 40, 0.18), 0 4px 12px rgba(74, 55, 40, 0.08)',
+            zIndex: 1000,
+            overflow: 'hidden',
+            animation: 'previewFadeIn 0.2s ease both',
+            pointerEvents: 'auto',
+          }}
+        >
+          <div
+            style={{
+              height: '160px',
+              background: `radial-gradient(ellipse at 50% 40%, ${preview.flower.color_hex}28 0%, ${preview.flower.color_hex}08 70%, transparent 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.35) 0%, transparent 60%)`,
+                pointerEvents: 'none',
+              }}
+            />
+            <span
+              style={{
+                fontSize: '88px',
+                filter: `drop-shadow(0 6px 16px ${preview.flower.color_hex}40)`,
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              {preview.flower.image}
+            </span>
+          </div>
+          <div
+            style={{
+              padding: '14px 14px 16px',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '15px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                marginBottom: '6px',
+              }}
+            >
+              {preview.flower.name}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '4px',
+                marginBottom: '6px',
+              }}
+            >
+              {preview.flower.seasons.map((s) => {
+                const style = SEASON_STYLES[s]
+                return (
+                  <span
+                    key={s}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '8px',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      background: style.bg,
+                      color: style.color,
+                      border: `0.5px solid ${style.color}30`,
+                    }}
+                  >
+                    {s}
+                  </span>
+                )
+              })}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <span
+                style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  background: preview.flower.color_hex,
+                  border: '1px solid rgba(0,0,0,0.06)',
+                  boxShadow: `0 0 6px ${preview.flower.color_hex}40`,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--text-secondary)',
+                  fontWeight: 500,
+                }}
+              >
+                {preview.flower.color}
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 2px' }}>·</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                {preview.flower.height}cm
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

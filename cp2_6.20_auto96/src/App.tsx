@@ -22,6 +22,14 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   填充花类: 'var(--filler-gradient)',
 }
 
+const CATEGORY_FADE_GRADIENTS: Record<string, string> = {
+  玫瑰类: 'linear-gradient(90deg, var(--cat-rose), transparent)',
+  百合类: 'linear-gradient(90deg, var(--cat-lily), transparent)',
+  菊类: 'linear-gradient(90deg, var(--cat-chrysanthemum), transparent)',
+  配叶类: 'linear-gradient(90deg, var(--cat-foliage), transparent)',
+  填充花类: 'linear-gradient(90deg, var(--cat-filler), transparent)',
+}
+
 function createRipple(e: React.MouseEvent<HTMLButtonElement>) {
   const button = e.currentTarget
   const circle = document.createElement('span')
@@ -432,7 +440,7 @@ function App() {
                             right: '8px',
                             height: '8px',
                             borderRadius: '4px 4px 0 0',
-                            background: CATEGORY_GRADIENTS[cat],
+                            background: CATEGORY_FADE_GRADIENTS[cat],
                             animation: 'fadeIn 0.3s ease',
                           }}
                         />

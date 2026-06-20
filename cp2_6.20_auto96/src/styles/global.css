@@ -21,6 +21,11 @@
   --chrysanthemum-gradient: linear-gradient(135deg, #ffd93d 0%, #ff9f43 100%);
   --foliage-gradient: linear-gradient(135deg, #78a07a 0%, #4a7c59 100%);
   --filler-gradient: linear-gradient(135deg, #dfe6e9 0%, #b2bec3 100%);
+  --cat-rose: #f8b4c4;
+  --cat-lily: #e8e0f0;
+  --cat-chrysanthemum: #ffd93d;
+  --cat-foliage: #78a07a;
+  --cat-filler: #b2bec3;
   --shadow-soft: 0 4px 20px rgba(74, 55, 40, 0.08);
   --shadow-medium: 0 8px 32px rgba(74, 55, 40, 0.12);
   --shadow-deep: 0 16px 48px rgba(74, 55, 40, 0.18);
@@ -61,6 +66,16 @@ button {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.flower-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(74, 55, 40, 0.14), 0 2px 6px rgba(74, 55, 40, 0.06);
+  border-color: var(--border-medium);
+}
+
+.flower-card:active {
+  cursor: grabbing;
 }
 
 .ripple {
@@ -158,6 +173,17 @@ button:disabled {
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes previewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
   }
 }
 

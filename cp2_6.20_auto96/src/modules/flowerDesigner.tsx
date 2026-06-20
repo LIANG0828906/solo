@@ -281,6 +281,17 @@ function FlowerDesigner() {
                 <stop offset="40%" stopColor="rgba(255,255,255,0.4)" />
                 <stop offset="60%" stopColor="rgba(255,255,255,0)" />
               </linearGradient>
+              <radialGradient id="innerGlow" cx="50%" cy="40%" r="50%" fx="45%" fy="35%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.5)" />
+                <stop offset="30%" stopColor="rgba(230,245,255,0.25)" />
+                <stop offset="70%" stopColor="rgba(200,230,255,0.08)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+              </radialGradient>
+              <radialGradient id="innerGlowBottom" cx="50%" cy="85%" r="40%" fx="50%" fy="80%">
+                <stop offset="0%" stopColor="rgba(180,220,255,0.18)" />
+                <stop offset="60%" stopColor="rgba(200,235,255,0.06)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+              </radialGradient>
               <filter id="glassBlur">
                 <feGaussianBlur stdDeviation="1" />
               </filter>
@@ -290,6 +301,14 @@ function FlowerDesigner() {
               fill="url(#glassBody)"
               stroke="rgba(255,255,255,0.7)"
               strokeWidth="1.5"
+            />
+            <path
+              d="M60,10 L240,10 L255,40 L270,140 Q275,190 240,210 L60,210 Q25,190 30,140 L45,40 Z"
+              fill="url(#innerGlow)"
+            />
+            <path
+              d="M60,10 L240,10 L255,40 L270,140 Q275,190 240,210 L60,210 Q25,190 30,140 L45,40 Z"
+              fill="url(#innerGlowBottom)"
             />
             <path
               d="M60,10 L240,10 L255,40 L270,140 Q275,190 240,210 L60,210 Q25,190 30,140 L45,40 Z"
