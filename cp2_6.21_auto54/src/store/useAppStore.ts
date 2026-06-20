@@ -13,11 +13,13 @@ interface AppState {
   hoveredOrganelle: string | null
   interactionHistory: HistoryEntry[]
   isCapturing: boolean
+  autoRotate: boolean
   setViewMode: (mode: ViewMode) => void
   selectOrganelle: (name: string | null) => void
   hoverOrganelle: (name: string | null) => void
   addHistory: (entry: HistoryEntry) => void
   setCapturing: (val: boolean) => void
+  setAutoRotate: (val: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -26,6 +28,7 @@ export const useAppStore = create<AppState>((set) => ({
   hoveredOrganelle: null,
   interactionHistory: [],
   isCapturing: false,
+  autoRotate: true,
   setViewMode: (mode) => set({ viewMode: mode }),
   selectOrganelle: (name) =>
     set((state) => {
@@ -44,4 +47,5 @@ export const useAppStore = create<AppState>((set) => ({
       interactionHistory: [...state.interactionHistory, entry],
     })),
   setCapturing: (val) => set({ isCapturing: val }),
+  setAutoRotate: (val) => set({ autoRotate: val }),
 }))

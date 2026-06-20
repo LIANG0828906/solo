@@ -2,7 +2,7 @@ import React, { useCallback } from 'react'
 import { useAppStore } from '@/store/useAppStore'
 import { captureScene } from '@/utils/Screenshot'
 import { getThreeContext } from '@/utils/threeContext'
-import { Layers, CrossSection, Camera } from 'lucide-react'
+import { Layers, Scissors, Camera } from 'lucide-react'
 
 export default function Toolbar() {
   const { viewMode, setViewMode, isCapturing, setCapturing } = useAppStore()
@@ -107,7 +107,7 @@ export default function Toolbar() {
         }}
         title="剖面图"
       >
-        <CrossSection size={18} />
+        <Scissors size={18} />
       </button>
       <div
         style={{

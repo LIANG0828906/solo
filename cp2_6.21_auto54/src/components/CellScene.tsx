@@ -4,9 +4,23 @@ import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useAppStore } from '@/store/useAppStore'
 import { setThreeContext } from '@/utils/threeContext'
+import { RotateCw, RotateCcw } from 'lucide-react'
+
+function breathingOffset(
+  t: number,
+  seed: number,
+  base: number = 0.04,
+  variation: number = 0.025
+): number {
+  const a = Math.sin(t * 0.6 + seed) * base
+  const b = Math.sin(t * 1.3 + seed * 2.1) * variation * 0.6
+  const c = Math.cos(t * 0.35 + seed * 0.7) * variation * 0.3
+  return a + b + c
+}
 
 function CellMembrane({ clippingPlanes }: { clippingPlanes: THREE.Plane[] }) {
   const meshRef = useRef<THREE.Mesh>(null!)
+  const haloRef = useRef<THREE.Mesh>(null!)
   const { viewMode, hoveredOrganelle, selectedOrganelle, hoverOrganelle, selectOrganelle } =
     useAppStore()
   const isHovered = hoveredOrganelle === 'cellMembrane'
@@ -15,7 +29,12 @@ function CellMembrane({ clippingPlanes }: { clippingPlanes: THREE.Plane[] }) {
   useFrame((_, delta) => {
     if (meshRef.current) {
       meshRef.current.rotation.y += 0.002 * delta * 60
-      meshRef.current.position.y = Math.sin(Date.now() * 0.0003) * 0.03
+      meshRef.current.position.y = breathingOffset(Date.now() * 0.001, 0.5, 0.02, 0.015)
+    }
+    if (haloRef.current) {
+      const t = Date.now() * 0.001
+      const pulse = 1 + Math.sin(t * 0.9) * 0.015
+      haloRef.current.scale.setScalar(pulse)
     }
   })
 
@@ -23,36 +42,49 @@ function CellMembrane({ clippingPlanes }: { clippingPlanes: THREE.Plane[] }) {
   const scale = isHovered || isSelected ? 1.02 : 1
 
   return (
-    <mesh
-      ref={meshRef}
-      scale={scale}
-      onClick={(e) => {
-        e.stopPropagation()
-        selectOrganelle('cellMembrane')
-      }}
-      onPointerOver={(e) => {
-        e.stopPropagation()
-        hoverOrganelle('cellMembrane')
-        document.body.style.cursor = 'pointer'
-      }}
-      onPointerOut={() => {
-        hoverOrganelle(null)
-        document.body.style.cursor = 'default'
-      }}
-    >
-      <sphereGeometry args={[2.0, 64, 64]} />
-      <meshPhysicalMaterial
-        color="#4a90d9"
-        transparent
-        opacity={opacity}
-        side={THREE.DoubleSide}
-        depthWrite={false}
-        roughness={0.2}
-        metalness={0.1}
-        clippingPlanes={clippingPlanes}
-        clipShadows
-      />
-    </mesh>
+    <group>
+      <mesh
+        ref={meshRef}
+        scale={scale}
+        onClick={(e) => {
+          e.stopPropagation()
+          selectOrganelle('cellMembrane')
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation()
+          hoverOrganelle('cellMembrane')
+          document.body.style.cursor = 'pointer'
+        }}
+        onPointerOut={() => {
+          hoverOrganelle(null)
+          document.body.style.cursor = 'default'
+        }}
+      >
+        <sphereGeometry args={[2.0, 64, 64]} />
+        <meshPhysicalMaterial
+          color="#4a90d9"
+          transparent
+          opacity={opacity}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+          roughness={0.2}
+          metalness={0.1}
+          clippingPlanes={clippingPlanes}
+          clipShadows
+        />
+      </mesh>
+      <mesh ref={haloRef}>
+        <sphereGeometry args={[2.08, 32, 32]} />
+        <meshBasicMaterial
+          color="#4a90d9"
+          transparent
+          opacity={viewMode === 'section' ? 0.03 : 0.08}
+          side={THREE.BackSide}
+          depthWrite={false}
+          clippingPlanes={clippingPlanes}
+        />
+      </mesh>
+    </group>
   )
 }
 
@@ -67,11 +99,19 @@ function Nucleus({ clippingPlanes }: { clippingPlanes: THREE.Plane[] }) {
   useFrame((_, delta) => {
     if (groupRef.current) {
       groupRef.current.rotation.y += 0.005 * delta * 60
-      groupRef.current.position.y = Math.sin(Date.now() * 0.0005) * 0.05
+      groupRef.current.position.y = breathingOffset(Date.now() * 0.001, 1.2, 0.04, 0.02)
     }
-    if (glowRef.current && isSelected) {
-      const t = Date.now() * 0.005
-      glowRef.current.scale.setScalar(1.15 + Math.sin(t) * 0.05)
+    if (glowRef.current) {
+      if (isSelected) {
+        const t = Date.now() * 0.005
+        glowRef.current.scale.setScalar(1.15 + Math.sin(t) * 0.05)
+        ;(glowRef.current.material as THREE.MeshBasicMaterial).opacity =
+          0.22 + Math.sin(t) * 0.08
+      } else {
+        const t = Date.now() * 0.001
+        glowRef.current.scale.setScalar(1.18 + Math.sin(t * 1.1) * 0.02)
+        ;(glowRef.current.material as THREE.MeshBasicMaterial).opacity = 0.14
+      }
     }
   })
 
@@ -105,17 +145,17 @@ function Nucleus({ clippingPlanes }: { clippingPlanes: THREE.Plane[] }) {
           clippingPlanes={clippingPlanes}
         />
       </mesh>
-      {isSelected && (
-        <mesh ref={glowRef}>
-          <sphereGeometry args={[0.6, 32, 32]} />
-          <meshBasicMaterial
-            color="#ffffff"
-            transparent
-            opacity={0.15}
-            side={THREE.BackSide}
-          />
-        </mesh>
-      )}
+      <mesh ref={glowRef}>
+        <sphereGeometry args={[0.6, 32, 32]} />
+        <meshBasicMaterial
+          color="#e74c3c"
+          transparent
+          opacity={0.14}
+          side={THREE.BackSide}
+          depthWrite={false}
+          clippingPlanes={clippingPlanes}
+        />
+      </mesh>
     </group>
   )
 }
@@ -130,49 +170,75 @@ function Mitochondria({
   clippingPlanes: THREE.Plane[]
 }) {
   const meshRef = useRef<THREE.Mesh>(null!)
+  const haloRef = useRef<THREE.Mesh>(null!)
   const { hoveredOrganelle, selectedOrganelle, hoverOrganelle, selectOrganelle } = useAppStore()
   const id = `mitochondria-${position.join(',')}`
   const isHovered = hoveredOrganelle === id
   const isSelected = selectedOrganelle === id
+  const seed = useMemo(() => position[0] * 3 + position[1] * 5 + position[2] * 7, [position])
 
   useFrame((_, delta) => {
-    if (meshRef.current) {
+    if (meshRef.current && haloRef.current) {
       meshRef.current.rotation.z += 0.005 * delta * 60
-      meshRef.current.position.y =
-        position[1] + Math.sin(Date.now() * 0.0004 + position[0]) * 0.05
+      haloRef.current.rotation.z += 0.005 * delta * 60
+      const yOffset = breathingOffset(Date.now() * 0.001, seed, 0.04, 0.025)
+      const xOffset = breathingOffset(Date.now() * 0.001, seed + 3.3, 0.02, 0.015)
+      meshRef.current.position.set(
+        position[0] + xOffset,
+        position[1] + yOffset,
+        position[2]
+      )
+      haloRef.current.position.copy(meshRef.current.position)
     }
   })
 
   const sc = isHovered || isSelected ? 1.1 : 1
 
   return (
-    <mesh
-      ref={meshRef}
-      position={position}
-      scale={[objScale[0] * sc, objScale[1] * sc, objScale[2] * sc]}
-      onClick={(e) => {
-        e.stopPropagation()
-        selectOrganelle('mitochondria')
-      }}
-      onPointerOver={(e) => {
-        e.stopPropagation()
-        hoverOrganelle(id)
-        document.body.style.cursor = 'pointer'
-      }}
-      onPointerOut={() => {
-        hoverOrganelle(null)
-        document.body.style.cursor = 'default'
-      }}
-    >
-      <sphereGeometry args={[1, 24, 24]} />
-      <meshStandardMaterial
-        color="#27ae60"
-        emissive="#27ae60"
-        emissiveIntensity={isSelected ? 0.5 : isHovered ? 0.3 : 0.05}
-        roughness={0.5}
-        clippingPlanes={clippingPlanes}
-      />
-    </mesh>
+    <group>
+      <mesh
+        ref={meshRef}
+        position={position}
+        scale={[objScale[0] * sc, objScale[1] * sc, objScale[2] * sc]}
+        onClick={(e) => {
+          e.stopPropagation()
+          selectOrganelle('mitochondria')
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation()
+          hoverOrganelle(id)
+          document.body.style.cursor = 'pointer'
+        }}
+        onPointerOut={() => {
+          hoverOrganelle(null)
+          document.body.style.cursor = 'default'
+        }}
+      >
+        <sphereGeometry args={[1, 24, 24]} />
+        <meshStandardMaterial
+          color="#27ae60"
+          emissive="#27ae60"
+          emissiveIntensity={isSelected ? 0.5 : isHovered ? 0.3 : 0.05}
+          roughness={0.5}
+          clippingPlanes={clippingPlanes}
+        />
+      </mesh>
+      <mesh
+        ref={haloRef}
+        position={position}
+        scale={[objScale[0] * 1.22, objScale[1] * 1.22, objScale[2] * 1.22]}
+      >
+        <sphereGeometry args={[1, 20, 20]} />
+        <meshBasicMaterial
+          color="#27ae60"
+          transparent
+          opacity={0.16}
+          side={THREE.BackSide}
+          depthWrite={false}
+          clippingPlanes={clippingPlanes}
+        />
+      </mesh>
+    </group>
   )
 }
 
@@ -197,11 +263,14 @@ function EndoplasmicReticulum({ clippingPlanes }: { clippingPlanes: THREE.Plane[
   useFrame((_, delta) => {
     if (groupRef.current) {
       groupRef.current.rotation.y += 0.003 * delta * 60
-      groupRef.current.position.y = Math.sin(Date.now() * 0.0003 + 1) * 0.04
+      groupRef.current.position.y = breathingOffset(Date.now() * 0.001, 2.1, 0.035, 0.02)
+      groupRef.current.rotation.x =
+        Math.sin(Date.now() * 0.0004 + 1.5) * 0.05
     }
   })
 
   const scale = isHovered || isSelected ? 1.05 : 1
+  const emitIntensity = isSelected ? 0.5 : isHovered ? 0.3 : 0.05
 
   return (
     <group
@@ -222,16 +291,29 @@ function EndoplasmicReticulum({ clippingPlanes }: { clippingPlanes: THREE.Plane[
       }}
     >
       {rings.map(({ radius, tubeRadius, yOffset, rotX, key }) => (
-        <mesh key={key} position={[0, yOffset, 0]} rotation={[rotX, 0, 0]}>
-          <torusGeometry args={[radius, tubeRadius, 12, 64]} />
-          <meshStandardMaterial
-            color="#8e44ad"
-            emissive="#8e44ad"
-            emissiveIntensity={isSelected ? 0.5 : isHovered ? 0.3 : 0.05}
-            roughness={0.5}
-            clippingPlanes={clippingPlanes}
-          />
-        </mesh>
+        <group key={key}>
+          <mesh position={[0, yOffset, 0]} rotation={[rotX, 0, 0]}>
+            <torusGeometry args={[radius, tubeRadius, 12, 64]} />
+            <meshStandardMaterial
+              color="#8e44ad"
+              emissive="#8e44ad"
+              emissiveIntensity={emitIntensity}
+              roughness={0.5}
+              clippingPlanes={clippingPlanes}
+            />
+          </mesh>
+          <mesh position={[0, yOffset, 0]} rotation={[rotX, 0, 0]}>
+            <torusGeometry args={[radius + tubeRadius * 1.8, tubeRadius * 0.9, 10, 48]} />
+            <meshBasicMaterial
+              color="#8e44ad"
+              transparent
+              opacity={0.13}
+              side={THREE.BackSide}
+              depthWrite={false}
+              clippingPlanes={clippingPlanes}
+            />
+          </mesh>
+        </group>
       ))}
     </group>
   )
@@ -246,12 +328,15 @@ function GolgiApparatus({ clippingPlanes }: { clippingPlanes: THREE.Plane[] }) {
   useFrame((_, delta) => {
     if (groupRef.current) {
       groupRef.current.rotation.y += 0.004 * delta * 60
+      const t = Date.now() * 0.001
       groupRef.current.position.y =
-        0.4 + Math.sin(Date.now() * 0.00035 + 2) * 0.05
+        0.4 + breathingOffset(t, 3.7, 0.04, 0.025)
+      groupRef.current.rotation.z = Math.sin(t * 0.45 + 2) * 0.04
     }
   })
 
   const scale = isHovered || isSelected ? 1.08 : 1
+  const emitIntensity = isSelected ? 0.5 : isHovered ? 0.3 : 0.05
 
   const discs = useMemo(() => {
     return Array.from({ length: 5 }, (_, i) => ({
@@ -281,16 +366,29 @@ function GolgiApparatus({ clippingPlanes }: { clippingPlanes: THREE.Plane[] }) {
       }}
     >
       {discs.map(({ y, radius, key }) => (
-        <mesh key={key} position={[0, y, 0]}>
-          <cylinderGeometry args={[radius, radius, 0.04, 32]} />
-          <meshStandardMaterial
-            color="#f39c12"
-            emissive="#f39c12"
-            emissiveIntensity={isSelected ? 0.5 : isHovered ? 0.3 : 0.05}
-            roughness={0.4}
-            clippingPlanes={clippingPlanes}
-          />
-        </mesh>
+        <group key={key} position={[0, y, 0]}>
+          <mesh>
+            <cylinderGeometry args={[radius, radius, 0.04, 32]} />
+            <meshStandardMaterial
+              color="#f39c12"
+              emissive="#f39c12"
+              emissiveIntensity={emitIntensity}
+              roughness={0.4}
+              clippingPlanes={clippingPlanes}
+            />
+          </mesh>
+          <mesh>
+            <cylinderGeometry args={[radius * 1.18, radius * 1.18, 0.06, 32]} />
+            <meshBasicMaterial
+              color="#f39c12"
+              transparent
+              opacity={0.14}
+              side={THREE.BackSide}
+              depthWrite={false}
+              clippingPlanes={clippingPlanes}
+            />
+          </mesh>
+        </group>
       ))}
     </group>
   )
@@ -304,49 +402,71 @@ function Lysosome({
   clippingPlanes: THREE.Plane[]
 }) {
   const meshRef = useRef<THREE.Mesh>(null!)
+  const haloRef = useRef<THREE.Mesh>(null!)
   const { hoveredOrganelle, selectedOrganelle, hoverOrganelle, selectOrganelle } = useAppStore()
   const id = `lysosome-${position.join(',')}`
   const isHovered = hoveredOrganelle === id
   const isSelected = selectedOrganelle === id
+  const seed = useMemo(() => position[0] * 11 + position[1] * 13 + position[2] * 17, [position])
 
   useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.position.y =
-        position[1] + Math.sin(Date.now() * 0.0005 + position[0] * 3) * 0.05
+    if (meshRef.current && haloRef.current) {
+      const t = Date.now() * 0.001
       meshRef.current.rotation.x += 0.005
+      meshRef.current.rotation.y += 0.003
+      haloRef.current.rotation.x += 0.005
+      haloRef.current.rotation.y += 0.003
+      const y = position[1] + breathingOffset(t, seed, 0.04, 0.03)
+      const x = position[0] + breathingOffset(t, seed + 5.5, 0.025, 0.02)
+      const z = position[2] + breathingOffset(t, seed + 7.7, 0.02, 0.018)
+      meshRef.current.position.set(x, y, z)
+      haloRef.current.position.set(x, y, z)
     }
   })
 
   const scale = isHovered || isSelected ? 1.2 : 1
 
   return (
-    <mesh
-      ref={meshRef}
-      position={position}
-      scale={scale}
-      onClick={(e) => {
-        e.stopPropagation()
-        selectOrganelle('lysosome')
-      }}
-      onPointerOver={(e) => {
-        e.stopPropagation()
-        hoverOrganelle(id)
-        document.body.style.cursor = 'pointer'
-      }}
-      onPointerOut={() => {
-        hoverOrganelle(null)
-        document.body.style.cursor = 'default'
-      }}
-    >
-      <sphereGeometry args={[0.15, 16, 16]} />
-      <meshStandardMaterial
-        color="#e67e22"
-        emissive="#e67e22"
-        emissiveIntensity={isSelected ? 0.5 : isHovered ? 0.3 : 0.05}
-        roughness={0.5}
-        clippingPlanes={clippingPlanes}
-      />
-    </mesh>
+    <group>
+      <mesh
+        ref={meshRef}
+        position={position}
+        scale={scale}
+        onClick={(e) => {
+          e.stopPropagation()
+          selectOrganelle('lysosome')
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation()
+          hoverOrganelle(id)
+          document.body.style.cursor = 'pointer'
+        }}
+        onPointerOut={() => {
+          hoverOrganelle(null)
+          document.body.style.cursor = 'default'
+        }}
+      >
+        <sphereGeometry args={[0.15, 16, 16]} />
+        <meshStandardMaterial
+          color="#e67e22"
+          emissive="#e67e22"
+          emissiveIntensity={isSelected ? 0.5 : isHovered ? 0.3 : 0.05}
+          roughness={0.5}
+          clippingPlanes={clippingPlanes}
+        />
+      </mesh>
+      <mesh ref={haloRef} position={position} scale={scale * 1.25}>
+        <sphereGeometry args={[0.15, 14, 14]} />
+        <meshBasicMaterial
+          color="#e67e22"
+          transparent
+          opacity={0.18}
+          side={THREE.BackSide}
+          depthWrite={false}
+          clippingPlanes={clippingPlanes}
+        />
+      </mesh>
+    </group>
   )
 }
 
@@ -398,8 +518,81 @@ function ThreeContextSync() {
   return null
 }
 
-function Scene() {
-  const { viewMode, selectOrganelle } = useAppStore()
+function AutoRotateController({
+  controlsRef,
+}: {
+  controlsRef: React.MutableRefObject<any>
+}) {
+  const { autoRotate } = useAppStore()
+  const userActiveRef = useRef(false)
+  const resumeTimerRef = useRef<number | null>(null)
+  const rotatingGroupRef = useRef<THREE.Group | null>(null)
+
+  useEffect(() => {
+    const controls = controlsRef.current
+    if (!controls) return
+    let enabled = true
+
+    const handleStart = () => {
+      if (!enabled) return
+      userActiveRef.current = true
+      if (resumeTimerRef.current !== null) {
+        window.clearTimeout(resumeTimerRef.current)
+        resumeTimerRef.current = null
+      }
+    }
+    const handleEnd = () => {
+      if (!enabled) return
+      resumeTimerRef.current = window.setTimeout(() => {
+        userActiveRef.current = false
+        resumeTimerRef.current = null
+      }, 3000)
+    }
+    controls.addEventListener('start', handleStart)
+    controls.addEventListener('end', handleEnd)
+    return () => {
+      enabled = false
+      controls.removeEventListener('start', handleStart)
+      controls.removeEventListener('end', handleEnd)
+      if (resumeTimerRef.current !== null) {
+        window.clearTimeout(resumeTimerRef.current)
+      }
+    }
+  }, [controlsRef])
+
+  const { scene } = useThree()
+  useEffect(() => {
+    let rotator = scene.getObjectByName('__AUTO_ROTATOR__') as THREE.Group | undefined
+    if (!rotator) {
+      rotator = new THREE.Group()
+      rotator.name = '__AUTO_ROTATOR__'
+      const childrenToMove = [...scene.children].filter(
+        (c) =>
+          c.type !== 'AmbientLight' &&
+          c.type !== 'DirectionalLight' &&
+          c.type !== 'PointLight' &&
+          c.type !== 'Fog' &&
+          c.name !== '__AUTO_ROTATOR__' &&
+          !(c as any).isOrbitControls
+      )
+      childrenToMove.forEach((c) => rotator!.add(c))
+      scene.add(rotator)
+    }
+    rotatingGroupRef.current = rotator
+  }, [scene])
+
+  useFrame((_, delta) => {
+    if (!autoRotate || userActiveRef.current) return
+    if (rotatingGroupRef.current) {
+      rotatingGroupRef.current.rotation.y += 0.08 * delta
+    }
+  })
+
+  return null
+}
+
+function Scene({ controlsRef }: { controlsRef: React.MutableRefObject<any> }) {
+  const { viewMode } = useAppStore()
   const clippingPlane = useMemo(
     () => new THREE.Plane(new THREE.Vector3(0, 0, -1), viewMode === 'section' ? 0 : 10),
     []
@@ -436,33 +629,108 @@ function Scene() {
       ))}
 
       <OrbitControls
+        ref={controlsRef}
         enableDamping
         dampingFactor={0.1}
         minDistance={2}
         maxDistance={8}
         enablePan={false}
       />
+
+      <AutoRotateController controlsRef={controlsRef} />
     </>
   )
 }
 
-export default function CellScene() {
+function AutoRotateToggle() {
+  const { autoRotate, setAutoRotate, isCapturing } = useAppStore()
+  if (isCapturing) return null
+  const Icon = autoRotate ? RotateCw : RotateCcw
   return (
-    <Canvas
-      camera={{ position: [0, 0, 5], fov: 50 }}
-      gl={{
-        antialias: true,
-        preserveDrawingBuffer: true,
-        alpha: false,
-      }}
-      style={{ width: '100%', height: '100%' }}
-      onPointerMissed={() => {
-        useAppStore.getState().selectOrganelle(null)
+    <div
+      style={{
+        position: 'fixed',
+        bottom: '24px',
+        right: '28px',
+        zIndex: 150,
       }}
     >
-      <color attach="background" args={['#0c0f1e']} />
-      <fog attach="fog" args={['#0c0f1e', 6, 12]} />
-      <Scene />
-    </Canvas>
+      <button
+        onClick={() => setAutoRotate(!autoRotate)}
+        style={{
+          width: '40px',
+          height: '40px',
+          border: 'none',
+          borderRadius: '8px',
+          background: autoRotate
+            ? 'rgba(74, 144, 217, 0.85)'
+            : 'rgba(42, 47, 82, 0.85)',
+          color: '#fff',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.2s',
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.3)',
+        }}
+        onMouseEnter={(e) => {
+          const el = e.currentTarget as HTMLButtonElement
+          el.style.background = autoRotate
+            ? 'rgba(74, 144, 217, 1)'
+            : 'rgba(58, 63, 98, 0.95)'
+        }}
+        onMouseLeave={(e) => {
+          const el = e.currentTarget as HTMLButtonElement
+          el.style.background = autoRotate
+            ? 'rgba(74, 144, 217, 0.85)'
+            : 'rgba(42, 47, 82, 0.85)'
+        }}
+        onMouseDown={(e) => {
+          ;(e.currentTarget as HTMLElement).style.transform = 'scale(0.95)'
+        }}
+        onMouseUp={(e) => {
+          ;(e.currentTarget as HTMLElement).style.transform = 'scale(1)'
+        }}
+        title={autoRotate ? '自动旋转：开启（点击关闭）' : '自动旋转：关闭（点击开启）'}
+      >
+        <Icon size={18} className={autoRotate ? 'spin-icon' : ''} />
+      </button>
+      <style>{`
+        .spin-icon {
+          animation: slow-spin 4s linear infinite;
+        }
+        @keyframes slow-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  )
+}
+
+export default function CellScene() {
+  const controlsRef = useRef<any>(null)
+
+  return (
+    <>
+      <Canvas
+        camera={{ position: [0, 0, 5], fov: 50 }}
+        gl={{
+          antialias: true,
+          preserveDrawingBuffer: true,
+          alpha: false,
+        }}
+        style={{ width: '100%', height: '100%' }}
+        onPointerMissed={() => {
+          useAppStore.getState().selectOrganelle(null)
+        }}
+      >
+        <color attach="background" args={['#0c0f1e']} />
+        <fog attach="fog" args={['#0c0f1e', 6, 12]} />
+        <Scene controlsRef={controlsRef} />
+      </Canvas>
+      <AutoRotateToggle />
+    </>
   )
 }
