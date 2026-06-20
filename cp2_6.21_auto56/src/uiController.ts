@@ -45,6 +45,30 @@ function formatNumber(n: number, decimals = 2): string {
   return n.toFixed(decimals);
 }
 
+function pulseValue(el: HTMLElement): void {
+  el.classList.remove('pulse');
+  void el.offsetWidth;
+  el.classList.add('pulse');
+  setTimeout(() => {
+    el.classList.remove('pulse');
+  }, 200);
+}
+
+function createRipple(btn: HTMLButtonElement, x: number, y: number): void {
+  const ripple = document.createElement('span');
+  ripple.className = 'launch-ripple';
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  ripple.style.width = `${size}px`;
+  ripple.style.height = `${size}px`;
+  ripple.style.left = `${x - rect.left - size / 2}px`;
+  ripple.style.top = `${y - rect.top - size / 2}px`;
+  btn.appendChild(ripple);
+  setTimeout(() => {
+    ripple.remove();
+  }, 300);
+}
+
 export function initUIController(cb: UICallbacks): void {
   if (initialized) return;
   initialized = true;
@@ -71,6 +95,7 @@ export function initUIController(cb: UICallbacks): void {
     massSlider.addEventListener('input', () => {
       const v = parseInt(massSlider!.value, 10);
       massValue!.textContent = String(v);
+      pulseValue(massValue!);
       useStore.getState().setParam('mass', v);
     });
   }
@@ -79,6 +104,7 @@ export function initUIController(cb: UICallbacks): void {
     speedSlider.addEventListener('input', () => {
       const v = parseFloat(speedSlider!.value);
       speedValue!.textContent = v.toFixed(1);
+      pulseValue(speedValue!);
       useStore.getState().setParam('speed', v);
     });
   }
@@ -87,20 +113,26 @@ export function initUIController(cb: UICallbacks): void {
     angleSlider.addEventListener('input', () => {
       const v = parseInt(angleSlider!.value, 10);
       angleValue!.textContent = `${v}°`;
+      pulseValue(angleValue!);
       useStore.getState().setParam('angle', v);
     });
   }
 
   if (launchBtn) {
+    launchBtn.addEventListener('mousedown', (e) => {
+      if (launchBtn!.disabled) return;
+      createRipple(launchBtn!, e.clientX, e.clientY);
+    });
     launchBtn.addEventListener('click', handleLaunch);
   }
 
-  useStore.subscribe(
-    (state) => state.asteroids.length,
-    () => {
+  let prevLen = useStore.getState().asteroids.length;
+  useStore.subscribe((state) => {
+    if (state.asteroids.length !== prevLen) {
+      prevLen = state.asteroids.length;
       updateLaunchButtonState();
     }
-  );
+  });
   updateLaunchButtonState();
 }
 
