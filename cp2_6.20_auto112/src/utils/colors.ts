@@ -1,5 +1,17 @@
 export type ColorMode = 'red-blue' | 'purple-green' | 'orange-cyan';
 
+export type NebulaPresetId = 'eagle' | 'crab' | 'spiral';
+
+export interface NebulaPreset {
+  id: NebulaPresetId;
+  name: string;
+  description: string;
+  density: number;
+  turbulence: number;
+  colorMode: ColorMode;
+  icon: string;
+}
+
 export interface ColorScheme {
   name: string;
   stops: string[];
@@ -89,3 +101,39 @@ export function createRgbColorInterpolator(stops: string[]): (t: number) => { r:
     return lerpColor(rgbStops[index], rgbStops[index + 1], localT);
   };
 }
+
+export const NEBULA_PRESETS: Record<NebulaPresetId, NebulaPreset> = {
+  eagle: {
+    id: 'eagle',
+    name: '鹰状星云',
+    description: 'M16 创生之柱',
+    density: 0.65,
+    turbulence: 75,
+    colorMode: 'purple-green',
+    icon: '🦅',
+  },
+  crab: {
+    id: 'crab',
+    name: '蟹状星云',
+    description: 'M1 超新星遗迹',
+    density: 0.85,
+    turbulence: 50,
+    colorMode: 'orange-cyan',
+    icon: '🦀',
+  },
+  spiral: {
+    id: 'spiral',
+    name: '螺旋星云',
+    description: 'NGC 7293 行星状星云',
+    density: 0.4,
+    turbulence: 25,
+    colorMode: 'red-blue',
+    icon: '🌀',
+  },
+};
+
+export const NEBULA_PRESET_LIST: NebulaPreset[] = [
+  NEBULA_PRESETS.eagle,
+  NEBULA_PRESETS.crab,
+  NEBULA_PRESETS.spiral,
+];

@@ -1,7 +1,8 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { useNebulaStore } from '@/store/nebulaStore';
 import { Slider } from './Slider';
 import { ColorPicker } from './ColorPicker';
+import { PresetSelector } from './PresetSelector';
 import { captureScreenshotWithUiToggle } from './Screenshot';
 import * as THREE from 'three';
 import { CameraIcon, Sparkles, Palette, Settings } from 'lucide-react';
@@ -79,6 +80,8 @@ export function ControlPanel({ rendererRef, sceneRef, cameraRef }: ControlPanelP
         <h1 className={styles.title}>星云工作室</h1>
         <p className={styles.subtitle}>3D 星云形态生成器</p>
       </div>
+
+      <PresetSelector />
 
       <div className={styles.section}>
         <div className={styles.sectionHeader}>

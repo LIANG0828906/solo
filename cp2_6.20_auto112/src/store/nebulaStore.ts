@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ColorMode, COLOR_SCHEMES, createRgbColorInterpolator, lerpColor } from '@/utils/colors';
+import { ColorMode, COLOR_SCHEMES, createRgbColorInterpolator, lerpColor, NebulaPreset } from '@/utils/colors';
 
 type RgbColor = { r: number; g: number; b: number };
 
@@ -26,6 +26,7 @@ interface NebulaState {
   setColorMode: (v: ColorMode) => void;
   updateColorTransition: (deltaTime: number) => void;
   getInterpolatedColor: (t: number) => RgbColor;
+  applyPreset: (preset: NebulaPreset) => void;
   setCameraPosition: (v: [number, number, number]) => void;
   setParticleScale: (v: number) => void;
   setCurrentFPS: (v: number) => void;
@@ -104,4 +105,23 @@ export const useNebulaStore = create<NebulaState>((set, get) => ({
   setParticleScale: (v: number) => set({ particleScale: v }),
   setCurrentFPS: (v: number) => set({ currentFPS: v }),
   setUiVisible: (v: boolean) => set({ uiVisible: v }),
+
+  applyPreset: (preset: NebulaPreset) => {
+    const { colorMode } = get();
+    set({
+      density: preset.density,
+      turbulence: preset.turbulence,
+    });
+    if (colorMode !== preset.colorMode) {
+      set({
+        colorTransition: {
+          isTransitioning: true,
+          fromMode: colorMode,
+          toMode: preset.colorMode,
+          progress: 0,
+          startTime: performance.now(),
+        },
+      });
+    }
+  },
 }));
