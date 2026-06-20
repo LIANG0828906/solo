@@ -271,18 +271,30 @@ export const UIControl: React.FC = () => {
     };
   }, []);
 
+  const gamePhaseRef = useRef(gamePhase);
+  const scoresRef = useRef(scores);
+
+  useEffect(() => {
+    gamePhaseRef.current = gamePhase;
+  }, [gamePhase]);
+
+  useEffect(() => {
+    scoresRef.current = scores;
+  }, [scores]);
+
   useEffect(() => {
     onStateChange((state) => {
       setGameState(state);
+      const currentPhase = gamePhaseRef.current;
 
-      if (state.phase === 'countdown' && gamePhase === 'select') {
+      if (state.phase === 'countdown' && currentPhase === 'select') {
         setGamePhase('countdown');
-      } else if (state.phase === 'playing' && gamePhase === 'countdown') {
+      } else if (state.phase === 'playing' && currentPhase === 'countdown') {
         setGamePhase('playing');
-      } else if (state.phase === 'victory' && gamePhase === 'playing') {
+      } else if (state.phase === 'victory' && currentPhase === 'playing') {
         setGamePhase('victory');
 
-        const newScores = { ...scores };
+        const newScores = { ...scoresRef.current };
         if (state.winner === 1) {
           newScores.player1Wins++;
         } else if (state.winner === 2) {
@@ -299,7 +311,7 @@ export const UIControl: React.FC = () => {
         }, 2000);
       }
     });
-  }, [gamePhase, scores]);
+  }, []);
 
   const handleStart = useCallback(() => {
     playClick();
@@ -409,21 +421,34 @@ export const UIControl: React.FC = () => {
     return (
       <div
         style={{
-          position: 'absolute',
+          position: 'fixed',
           top: 0,
           left: 0,
-          width: '100%',
-          height: '100%',
+          width: '100vw',
+          height: '100vh',
+          minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: 'rgba(10, 10, 46, 0.95)',
-          zIndex: 20,
-          padding: 20,
+          backgroundColor: 'rgba(10, 10, 46, 0.98)',
+          zIndex: 100,
+          padding: '20px',
           boxSizing: 'border-box',
+          overflowY: 'auto',
         }}
       >
+        <div style={{
+          maxWidth: '1200px',
+          width: '100%',
+          minHeight: '600px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '40px 20px',
+        }}
+        >
         <h1 style={{
           fontSize: 42,
           fontFamily: '"Courier New", monospace',
@@ -555,6 +580,7 @@ export const UIControl: React.FC = () => {
           玩家1: WASD 移动 / 玩家2: 方向键 移动
           <br />
           自动射击，击中对方得 10 分
+        </div>
         </div>
       </div>
     );
@@ -713,6 +739,7 @@ export const UIControl: React.FC = () => {
       {renderTitle()}
       {renderScoreboard()}
       {renderSidePanels()}
+      {renderSelectScreen()}
 
       <div style={{
         position: 'relative',
@@ -735,7 +762,6 @@ export const UIControl: React.FC = () => {
         />
         {renderCountdown()}
         {renderVictory()}
-        {renderSelectScreen()}
       </div>
     </div>
   );

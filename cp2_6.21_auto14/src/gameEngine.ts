@@ -37,6 +37,7 @@ export interface GameState {
   };
   countdown: number;
   winner: 1 | 2 | null;
+  winnerColor: string | null;
 }
 
 interface Ship {
@@ -93,7 +94,7 @@ const SHIP_CONFIGS: Record<ShipType, Omit<ShipConfig, 'color'>> = {
   heavy: { type: 'heavy', speed: 2.5, maxHealth: 150, shape: 'circle' },
 };
 
-const BULLET_SPEED = 8;
+const BULLET_SPEED = 480;
 const BULLET_RADIUS = 2;
 const FIRE_RATE = 3;
 const INVINCIBLE_DURATION = 0.5;
@@ -295,6 +296,7 @@ class GameEngine {
       },
       countdown: 3,
       winner: null,
+      winnerColor: null,
     };
 
     this.notifyStateChange();
@@ -464,7 +466,7 @@ class GameEngine {
     const bullet: Bullet = {
       x: ship.x + direction * ship.size,
       y: ship.y,
-      vx: BULLET_SPEED * 60 * direction,
+      vx: BULLET_SPEED * direction,
       vy: 0,
       color: ship.player === 1 ? '#00f0ff' : '#ff007a',
       player: ship.player,
@@ -504,8 +506,19 @@ class GameEngine {
     this.spatialHash.insertShip(this.ship2);
     this.bullets.forEach(b => this.spatialHash.insertBullet(b));
 
-    for (let i = this.bullets.length - 1; i >= 0; i--) {
-      const bullet = this.bullets[i];
+    const cells = this.spatialHash.queryNearby(this.ship1.x, this.ship1.y, this.ship1.size + 10);
+    cells.push(...this.spatialHash.queryNearby(this.ship2.x, this.ship2.y, this.ship2.size + 10));
+
+    const checkedBullets = new Set<number>();
+
+    for (const item of cells) {
+      if (!item.bullet) continue;
+
+      const bulletIndex = this.bullets.indexOf(item.bullet);
+      if (bulletIndex === -1 || checkedBullets.has(bulletIndex)) continue;
+      checkedBullets.add(bulletIndex);
+
+      const bullet = item.bullet;
       const targetShip = bullet.player === 1 ? this.ship2 : this.ship1;
 
       if (targetShip.invincibleTime > 0) continue;
@@ -515,7 +528,7 @@ class GameEngine {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < targetShip.size + bullet.radius) {
-        this.bullets.splice(i, 1);
+        this.bullets.splice(bulletIndex, 1);
         this.hitShip(targetShip, bullet);
       }
     }
@@ -562,8 +575,10 @@ class GameEngine {
     if (!this.gameState || !this.ship1 || !this.ship2) return;
 
     const winner: 1 | 2 = this.ship1.health <= 0 ? 2 : 1;
+    const winnerShip = winner === 1 ? this.ship1 : this.ship2;
     this.gameState.phase = 'victory';
     this.gameState.winner = winner;
+    this.gameState.winnerColor = winnerShip.color;
     this.victoryTimer = 0;
 
     this.notifyStateChange();
@@ -911,13 +926,16 @@ class GameEngine {
     if (!this.ctx || !this.gameState || this.gameState.phase !== 'victory') return;
 
     const ctx = this.ctx;
-    const winnerColor = this.gameState.winner === 1 ? '#00f0ff' : '#ff007a';
+    const winnerColor = this.gameState.winnerColor || (this.gameState.winner === 1 ? '#00f0ff' : '#ff007a');
+    const progress = Math.min(1, this.victoryTimer / VICTORY_DURATION);
 
     const gradient = ctx.createRadialGradient(
       this.canvasWidth / 2, this.canvasHeight / 2, 0,
       this.canvasWidth / 2, this.canvasHeight / 2, this.canvasWidth / 2
     );
-    gradient.addColorStop(0, `${winnerColor}33`);
+    const alpha = Math.floor(progress * 0.4 * 255).toString(16).padStart(2, '0');
+    gradient.addColorStop(0, `${winnerColor}${alpha}`);
+    gradient.addColorStop(0.5, `${winnerColor}${Math.floor(progress * 0.2 * 255).toString(16).padStart(2, '0')}`);
     gradient.addColorStop(1, 'transparent');
 
     ctx.fillStyle = gradient;
