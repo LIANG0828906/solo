@@ -1,0 +1,14 @@
+{
+  "users": [
+    {
+      "id": "aef5094a-c2ca-439b-abb4-d726ecd4a7c0",
+      "username": "testuser",
+      "passwordHash": "$2a$10$fP1YhwioYj3o7I4pyguelOcp58FOF9r5nUAqRoAk8Po.x5.ZcrV1a",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=testuser",
+      "favorites": [
+        "2b4ea13c-ee03-4cb9-b933-fec22eb4e3f4"
+      ],
+      "createdAt": "2026-06-20T06:20:57.612Z"
+    }
+  ]
+}
