@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/colormodule/colorengine.ts","./src/colormodule/colorstatecontext.tsx","./src/colormodule/types.ts","./src/uimodule/collectionsdrawer.tsx","./src/uimodule/tuningpanel.tsx","./src/uimodule/uploadpanel.tsx"],"errors":true,"version":"5.9.3"}
