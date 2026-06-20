@@ -2,12 +2,12 @@ import { create } from 'zustand';
 import type { Pet, Service, Appointment, Review, ReviewStats } from '@/types';
 
 const SERVICES: Service[] = [
-  { id: 's1', name: '基础洗护', priceRange: '¥80-120', duration: '约45分钟', color: '#a8d5e2', icon: '🛁' },
-  { id: 's2', name: '剪毛造型', priceRange: '¥150-280', duration: '约90分钟', color: '#f4c7ab', icon: '✂️' },
-  { id: 's3', name: 'SPA护理', priceRange: '¥200-350', duration: '约60分钟', color: '#c5b3d9', icon: '💆' },
-  { id: 's4', name: '指甲修剪', priceRange: '¥30-50', duration: '约15分钟', color: '#b5d8b0', icon: '💅' },
-  { id: 's5', name: '耳眼清洁', priceRange: '¥40-60', duration: '约20分钟', color: '#f7d794', icon: '👁️' },
-  { id: 's6', name: '全身除虫', priceRange: '¥120-180', duration: '约30分钟', color: '#e6a0a0', icon: '🛡️' },
+  { id: 's1', name: '基础洗护', priceRange: '¥80-120', duration: '约45分钟', color: '#a8d5e2', icon: '🛁', description: '深层清洁+护毛素护理' },
+  { id: 's2', name: '剪毛造型', priceRange: '¥150-280', duration: '约90分钟', color: '#f4c7ab', icon: '✂️', description: '专业造型师一对一设计' },
+  { id: 's3', name: 'SPA护理', priceRange: '¥200-350', duration: '约60分钟', color: '#c5b3d9', icon: '💆', description: '精油按摩+舒缓香氛疗愈' },
+  { id: 's4', name: '指甲修剪', priceRange: '¥30-50', duration: '约15分钟', color: '#b5d8b0', icon: '💅', description: '专业打磨+指甲护理精华' },
+  { id: 's5', name: '耳眼清洁', priceRange: '¥40-60', duration: '约20分钟', color: '#f7d794', icon: '👁️', description: '温和清洁+预防耳道疾病' },
+  { id: 's6', name: '全身除虫', priceRange: '¥120-180', duration: '约30分钟', color: '#e6a0a0', icon: '🛡️', description: '安全驱虫+长效防护处理' },
 ];
 
 interface PetStoreState {

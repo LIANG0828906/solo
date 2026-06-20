@@ -17,6 +17,7 @@ export interface Service {
   duration: string;
   color: string;
   icon: string;
+  description: string;
 }
 
 export interface Appointment {
