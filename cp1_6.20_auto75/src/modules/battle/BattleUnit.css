@@ -1,0 +1,173 @@
+.battle-unit {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.battle-unit.acting {
+  animation: unitActing 0.5s ease-out;
+}
+
+.battle-unit.target {
+  animation: targetPulse 0.3s ease-in-out 2;
+}
+
+.battle-unit.dead {
+  opacity: 0.4;
+  filter: grayscale(0.8);
+}
+
+.unit-avatar {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unit-halo {
+  position: absolute;
+  width: 120%;
+  height: 120%;
+  border-radius: 50%;
+  filter: blur(15px);
+  opacity: 0.6;
+  animation: haloPulse 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes haloPulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes unitActing {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: translateY(-15px) scale(1.1);
+  }
+  60% {
+    transform: translateY(-5px) scale(1.05);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes targetPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+    filter: brightness(1.5);
+  }
+}
+
+.unit-hp-bar {
+  position: relative;
+  width: 100%;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.hp-fill {
+  height: 100%;
+  border-radius: 8px;
+  transition: width 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.hp-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, transparent 100%);
+}
+
+.hp-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  z-index: 1;
+}
+
+.unit-name {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.status-effects {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 10;
+}
+
+.status-effect {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(0, 0, 0, 0.5);
+}
+
+.status-effect.burn {
+  background: linear-gradient(135deg, #ff6b35, #ff4500);
+}
+
+.status-effect.freeze {
+  background: linear-gradient(135deg, #4ecdc4, #45b7d1);
+}
+
+.status-effect.stun {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+}
+
+.status-effect.shield {
+  background: linear-gradient(135deg, #95d5b2, #52b788);
+}
+
+.status-effect.heal {
+  background: linear-gradient(135deg, #90be6d, #43aa8b);
+}
