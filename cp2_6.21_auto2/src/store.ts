@@ -36,6 +36,8 @@ const DEFAULT_ENV: EnvironmentParams = {
   temperature: 25,
 }
 
+const _smoothedTarget: EnvironmentParams = { ...DEFAULT_ENV }
+
 export const useAppStore = create<AppState>((set, get) => ({
   selectedPlant: 'sunflower',
   environment: { ...DEFAULT_ENV },
@@ -50,7 +52,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ selectedPlant: id })
     const state = get()
     if (state.isSimulating) {
-      gsap.killTweensOf({ dummy: true })
+      gsap.killTweensOf(_smoothedTarget)
     }
     set({
       isSimulating: false,
@@ -58,36 +60,56 @@ export const useAppStore = create<AppState>((set, get) => ({
       growthStage: 'mature',
       stageLabelVisible: false,
     })
-    const currentSmoothed = get().smoothedEnv
-    const target = get().environment
-    gsap.to(currentSmoothed, {
-      ...target,
+
+    _smoothedTarget.light = state.smoothedEnv.light
+    _smoothedTarget.water = state.smoothedEnv.water
+    _smoothedTarget.temperature = state.smoothedEnv.temperature
+
+    const target = state.environment
+    gsap.killTweensOf(_smoothedTarget)
+    gsap.to(_smoothedTarget, {
+      light: target.light,
+      water: target.water,
+      temperature: target.temperature,
       duration: 0.4,
       ease: 'power2.out',
-      onUpdate: () => set({ smoothedEnv: { ...currentSmoothed } }),
+      onUpdate: () => set({ smoothedEnv: { ..._smoothedTarget } }),
     })
   },
 
   setEnvironment: (params) => {
     const newEnv = { ...get().environment, ...params }
     set({ environment: newEnv })
-    const currentSmoothed = { ...get().smoothedEnv }
-    gsap.to(currentSmoothed, {
+
+    gsap.killTweensOf(_smoothedTarget)
+
+    if (params.light !== undefined) _smoothedTarget.light = get().smoothedEnv.light
+    if (params.water !== undefined) _smoothedTarget.water = get().smoothedEnv.water
+    if (params.temperature !== undefined) _smoothedTarget.temperature = get().smoothedEnv.temperature
+
+    gsap.to(_smoothedTarget, {
       ...newEnv,
-      duration: 0.35,
-      ease: 'power3.out',
-      onUpdate: () => set({ smoothedEnv: { ...currentSmoothed } }),
+      duration: 0.28,
+      ease: 'power2.out',
+      onUpdate: () => set({ smoothedEnv: { ..._smoothedTarget } }),
     })
   },
 
   resetEnvironment: () => {
     set({ environment: { ...DEFAULT_ENV } })
-    const currentSmoothed = { ...get().smoothedEnv }
-    gsap.to(currentSmoothed, {
-      ...DEFAULT_ENV,
+
+    gsap.killTweensOf(_smoothedTarget)
+    _smoothedTarget.light = get().smoothedEnv.light
+    _smoothedTarget.water = get().smoothedEnv.water
+    _smoothedTarget.temperature = get().smoothedEnv.temperature
+
+    gsap.to(_smoothedTarget, {
+      light: DEFAULT_ENV.light,
+      water: DEFAULT_ENV.water,
+      temperature: DEFAULT_ENV.temperature,
       duration: 0.6,
       ease: 'expo.out',
-      onUpdate: () => set({ smoothedEnv: { ...currentSmoothed } }),
+      onUpdate: () => set({ smoothedEnv: { ..._smoothedTarget } }),
       onComplete: () => {
         set({
           isSimulating: false,

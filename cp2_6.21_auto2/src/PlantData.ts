@@ -29,6 +29,8 @@ export interface PlantSpecies {
     size: number
   }
   baseHeight: number
+  phototropismCenter: number
+  heatTolerance: number
   thumbnailColor: string
   thumbnailEmoji: string
 }
@@ -39,6 +41,8 @@ export const PLANTS: PlantSpecies[] = [
     name: '向日葵',
     description: '喜阳植物，金黄色花朵象征阳光与希望，茎干高大挺拔。',
     baseHeight: 2.4,
+    phototropismCenter: 0.3,
+    heatTolerance: 0.7,
     stem: {
       baseRadius: 0.08,
       topRadius: 0.04,
@@ -71,6 +75,8 @@ export const PLANTS: PlantSpecies[] = [
     name: '仙人掌',
     description: '耐旱多肉植物，肉质茎干储存水分，适应高温干燥环境。',
     baseHeight: 1.6,
+    phototropismCenter: 0.5,
+    heatTolerance: 0.9,
     stem: {
       baseRadius: 0.22,
       topRadius: 0.16,
@@ -103,6 +109,8 @@ export const PLANTS: PlantSpecies[] = [
     name: '蕨类',
     description: '阴生植物，羽状复叶优美舒展，喜湿润阴凉环境。',
     baseHeight: 1.8,
+    phototropismCenter: 0.2,
+    heatTolerance: 0.4,
     stem: {
       baseRadius: 0.05,
       topRadius: 0.025,
@@ -135,6 +143,8 @@ export const PLANTS: PlantSpecies[] = [
     name: '红枫',
     description: '观叶树种，掌状叶片秋季转为艳红，喜凉爽气候。',
     baseHeight: 2.2,
+    phototropismCenter: 0.4,
+    heatTolerance: 0.5,
     stem: {
       baseRadius: 0.1,
       topRadius: 0.035,
@@ -167,6 +177,8 @@ export const PLANTS: PlantSpecies[] = [
     name: '多肉植物',
     description: '肥厚叶片储存丰富水分，形态可爱圆润，易养护。',
     baseHeight: 0.9,
+    phototropismCenter: 0.45,
+    heatTolerance: 0.75,
     stem: {
       baseRadius: 0.12,
       topRadius: 0.08,

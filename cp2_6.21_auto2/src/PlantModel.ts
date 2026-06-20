@@ -11,6 +11,7 @@ export interface MorphologyParams {
   leafOpenFactor: number
   leafColorShift: number
   leafSaturation: number
+  lightResponse: number
   leafCurl: number
   leafFade: number
   animationSpeed: number
@@ -27,6 +28,7 @@ export interface LeafMorph {
   edgeColor: THREE.Color
   curl: number
   index: number
+  thickness: number
 }
 
 export interface StemSegment {
@@ -46,19 +48,23 @@ export interface PetalMorph {
 }
 
 const sigmoid = (x: number, k: number = 5, mid: number = 0.5): number => {
-  return 1 / (1 + Math.exp(-k * (x - mid)))
+  const cx = Math.max(0.001, Math.min(0.999, x))
+  return 1 / (1 + Math.exp(-k * (cx - mid)))
 }
 
 const easeInOutQuad = (t: number): number => {
-  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+  const ct = Math.max(0, Math.min(1, t))
+  return ct < 0.5 ? 2 * ct * ct : 1 - Math.pow(-2 * ct + 2, 2) / 2
 }
 
 const easeOutCubic = (t: number): number => {
-  return 1 - Math.pow(1 - t, 3)
+  const ct = Math.max(0, Math.min(1, t))
+  return 1 - Math.pow(1 - ct, 3)
 }
 
 const easeInCubic = (t: number): number => {
-  return t * t * t
+  const ct = Math.max(0, Math.min(1, t))
+  return ct * ct * ct
 }
 
 const clamp = (v: number, min: number, max: number): number => {
@@ -73,21 +79,21 @@ const rgbToColor = (rgb: [number, number, number]): THREE.Color => {
   return new THREE.Color(rgb[0], rgb[1], rgb[2])
 }
 
-const hsvShiftSaturation = (color: THREE.Color, satFactor: number): THREE.Color => {
+const hslSetSaturation = (color: THREE.Color, satFactor: number): THREE.Color => {
   const hsl = { h: 0, s: 0, l: 0 }
   color.getHSL(hsl)
   hsl.s = clamp(hsl.s * satFactor, 0, 1)
   return new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l)
 }
 
-const hsvShiftValue = (color: THREE.Color, valShift: number): THREE.Color => {
+const hslShiftLightness = (color: THREE.Color, lightShift: number): THREE.Color => {
   const hsl = { h: 0, s: 0, l: 0 }
   color.getHSL(hsl)
-  hsl.l = clamp(hsl.l + valShift, 0, 1)
+  hsl.l = clamp(hsl.l + lightShift, 0, 1)
   return new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l)
 }
 
-const hsvShiftHue = (color: THREE.Color, hueShift: number): THREE.Color => {
+const hslShiftHue = (color: THREE.Color, hueShift: number): THREE.Color => {
   const hsl = { h: 0, s: 0, l: 0 }
   color.getHSL(hsl)
   hsl.h = (hsl.h + hueShift + 1) % 1
@@ -104,14 +110,19 @@ export const computeMorphology = (
   const waterNorm = clamp(env.water / 100, 0, 1)
   const tempNorm = clamp((env.temperature - 10) / 30, 0, 1)
 
-  const leafOpenFactorRaw = sigmoid(lightNorm, 6, 0.35)
-  const leafOpenFactor = easeOutCubic(leafOpenFactorRaw)
+  const photoCenter = clamp(species.phototropismCenter ?? 0.35, 0.15, 0.65)
+  const heatTol = clamp(species.heatTolerance ?? 0.6, 0.3, 0.95)
 
-  const colorShiftRaw = sigmoid(lightNorm, 5, 0.25)
+  const lightResponseRaw = sigmoid(lightNorm, 6.5, photoCenter)
+  const lightResponse = easeOutCubic(lightResponseRaw)
+
+  const leafOpenFactor = lightResponse
+
+  const saturationBase = 0.35 + easeInOutQuad(lightResponseRaw) * 0.75
+  const leafSaturation = saturationBase
+
+  const colorShiftRaw = sigmoid(lightNorm, 5.5, photoCenter - 0.08)
   const leafColorShift = easeInOutQuad(colorShiftRaw)
-
-  const satSigmoid = sigmoid(lightNorm, 4.5, 0.4)
-  const leafSaturation = 0.35 + easeInOutQuad(satSigmoid) * 0.75
 
   const stemCurveRaw = 1 - easeInOutQuad(waterNorm)
   const stemCurve = stemCurveRaw * 0.55
@@ -121,11 +132,14 @@ export const computeMorphology = (
 
   const stemThickness = 0.65 + easeInOutQuad(waterNorm) * 0.5
 
-  const tempMid = 0.5
-  const tempDist = Math.abs(tempNorm - tempMid) * 2
-  const tempStressHigh = clamp((tempNorm - 0.6) / 0.4, 0, 1)
-  const leafCurl = easeInCubic(tempStressHigh) * 0.45
-  const leafFade = easeInOutQuad(tempStressHigh) * 0.3
+  const tempThreshold = 0.55 + (heatTol - 0.5) * 0.4
+  const tempStressHigh = clamp((tempNorm - tempThreshold) / (1 - tempThreshold), 0, 1)
+  const leafCurl = easeInCubic(tempStressHigh) * 0.5
+
+  const lightFadeFactor = 1 - lightNorm
+  const rawFade = tempStressHigh * 0.35 + lightFadeFactor * 0.25
+  const combinedFade = 1 - (1 - tempStressHigh * 0.45) * (1 - lightFadeFactor * 0.3)
+  const leafFade = easeInOutQuad(clamp(combinedFade, 0, 0.55))
 
   const speedBase = 0.35
   const speedPeak = 1.0
@@ -154,6 +168,7 @@ export const computeMorphology = (
     leafOpenFactor,
     leafColorShift,
     leafSaturation,
+    lightResponse,
     leafCurl,
     leafFade,
     animationSpeed,
@@ -213,7 +228,7 @@ export const generateLeafMorphs = (
     const verticalT = easeInOutQuad(rawT)
     const yPos = minY + (maxY - minY) * verticalT
 
-    const spiralAngle = i * GOLDEN_ANGLE + species.leaves.spiralOffset * Math.PI * 2
+    const spiralAngle = i * GOLDEN_ANGLE + (species.leaves.spiralOffset || 0) * Math.PI * 2
     const heightPhase = yPos / stemHeight
     const additionalTwist = heightPhase * Math.PI * 0.8
     const finalAngle = spiralAngle + additionalTwist
@@ -258,23 +273,24 @@ export const generateLeafMorphs = (
     leafBase = lerpColor(leafBase, yellowTint, shiftAmount * 0.55)
     leafEdge = lerpColor(leafEdge, yellowTint, shiftAmount * 0.4)
 
-    leafBase = hsvShiftSaturation(leafBase, morph.leafSaturation)
-    leafEdge = hsvShiftSaturation(leafEdge, morph.leafSaturation * 1.05)
+    const satFactor = morph.leafSaturation
+    leafBase = hslSetSaturation(leafBase, satFactor)
+    leafEdge = hslSetSaturation(leafEdge, satFactor * 1.05)
 
-    const fadeTint = new THREE.Color(1.0, 0.95, 0.8)
-    leafBase = lerpColor(leafBase, fadeTint, morph.leafFade * 0.6)
-    leafEdge = lerpColor(leafEdge, fadeTint, morph.leafFade * 0.8)
+    const fadeTint = new THREE.Color(1.0, 0.96, 0.85)
+    const fadeAmt = morph.leafFade
+    leafBase = lerpColor(leafBase, fadeTint, fadeAmt * 0.55)
+    leafEdge = lerpColor(leafEdge, fadeTint, fadeAmt * 0.75)
 
     if (species.id === 'cactus') {
-      const tint = new THREE.Color(0.1, 0.1, 0.1)
-      leafBase = lerpColor(leafBase, tint, 0.4)
-      leafEdge = rgbToColor([1, 1, 1])
+      const darkTint = new THREE.Color(0.1, 0.1, 0.1)
+      leafBase = lerpColor(leafBase, darkTint, 0.4)
+      leafEdge = new THREE.Color(1, 1, 1)
     }
 
     if (species.id === 'maple') {
-      const cool = (1 - (morph.leafCurl > 0 ? 0 : 0)) * 1
-      leafBase = hsvShiftHue(leafBase, -0.02 * cool)
-      leafEdge = hsvShiftHue(leafEdge, -0.01 * cool)
+      leafBase = hslShiftHue(leafBase, -0.02)
+      leafEdge = hslShiftHue(leafEdge, -0.01)
     }
 
     leaves.push({
@@ -285,6 +301,7 @@ export const generateLeafMorphs = (
       edgeColor: leafEdge,
       curl: curlEffect,
       index: i,
+      thickness: leafT,
     })
   }
   return leaves
@@ -319,8 +336,8 @@ export const generatePetalMorphs = (
     const z = center.z + Math.sin(angle) * radial
     const y = center.y + size * 0.15 * (1 - bloom * 0.3)
 
-    const innerColor = hsvShiftValue(petalCol, 0.1)
-    const outerColor = hsvShiftValue(petalCol, -0.08)
+    const innerColor = hslShiftLightness(petalCol, 0.1)
+    const outerColor = hslShiftLightness(petalCol, -0.08)
     const color = lerpColor(innerColor, outerColor, i % 2 === 0 ? 0.3 : 0.6)
 
     petals.push({
@@ -399,37 +416,48 @@ export const createCurvedLeafGeometry = (
   width: number,
   length: number,
   curl: number,
-  thickness: number
-): { geometry: THREE.BufferGeometry; edgeColorFactor: Float32Array } => {
-  const wSegs = 6
-  const lSegs = 10
+  thickness: number,
+  taperStrength: number = 1.0
+): { geometry: THREE.BufferGeometry } => {
+  const wSegs = 10
+  const lSegs = 14
   const positions: number[] = []
   const uvs: number[] = []
   const indices: number[] = []
   const edgeFactors: number[] = []
 
+  const halfLen = length * 0.5
+
   for (let li = 0; li <= lSegs; li++) {
     const lt = li / lSegs
+    const z = -halfLen + lt * length
+    const lengthTaper =
+      0.15 + Math.sin(lt * Math.PI) * 0.75 + Math.pow(Math.sin(lt * Math.PI), 3) * 0.1
+    const effectiveWidth = width * lengthTaper * taperStrength
+
+    const tipFactor = Math.max(0, (lt - 0.6) / 0.4)
+    const baseFactor = 1 - Math.max(0, (0.15 - lt) / 0.15) * 0.6
+    const curlAmount = curl * Math.sin(lt * Math.PI) * 0.7 * tipFactor
+
+    const edgeCurl = curl * 0.4 * tipFactor
+    const midBend = curl * 0.15 * baseFactor
+
     for (let wi = 0; wi <= wSegs; wi++) {
       const wt = wi / wSegs
-      const x = (wt - 0.5) * width
-      const zNorm = lt * 2 - 1
-      const halfLen = length * 0.5
+      const xNorm = wt * 2 - 1
+      const x = xNorm * effectiveWidth * 0.5
 
-      const widthTaper =
-        0.15 + Math.sin(lt * Math.PI) * 0.75 + Math.pow(Math.sin(lt * Math.PI), 3) * 0.1
-      const finalX = x * widthTaper
+      const yFromEdge = -Math.abs(xNorm) * edgeCurl * thickness * 20
+      const yFromLength = -curlAmount * thickness * 22
+      const yFromMid = -midBend * thickness * 8
+      const y = yFromEdge + yFromLength + yFromMid
 
-      const curlAmount = Math.sin(lt * Math.PI) * curl * 0.5
-      const y = -curlAmount * (0.5 + Math.abs(wt - 0.5)) * thickness * 18
-      const z = -halfLen + lt * length
-
-      positions.push(finalX, y, z)
+      positions.push(x, y, z)
       uvs.push(wt, 1 - lt)
 
       const edgeDist = Math.abs(wt - 0.5) * 2
       const tipDist = lt
-      const edgeFactor = Math.max(edgeDist, tipDist * 0.5)
+      const edgeFactor = Math.max(edgeDist * 0.7, tipDist * 0.5)
       edgeFactors.push(edgeFactor)
     }
   }
@@ -448,13 +476,37 @@ export const createCurvedLeafGeometry = (
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  geo.setAttribute('aEdgeFactor', new THREE.Float32BufferAttribute(edgeFactors, 1))
   geo.setIndex(indices)
   geo.computeVertexNormals()
 
-  return {
-    geometry: geo,
-    edgeColorFactor: new Float32Array(edgeFactors),
+  return { geometry: geo }
+}
+
+export const applyLeafVertexColors = (
+  geometry: THREE.BufferGeometry,
+  baseColor: THREE.Color,
+  edgeColor: THREE.Color
+): void => {
+  const posCount = geometry.getAttribute('position').count
+  const colors = new Float32Array(posCount * 3)
+  const uvAttr = geometry.getAttribute('uv')
+
+  for (let i = 0; i < posCount; i++) {
+    const u = uvAttr.getX(i)
+    const v = uvAttr.getY(i)
+
+    const edgeDist = Math.abs(u - 0.5) * 2
+    const tipDist = 1 - v
+    const t = Math.min(1, Math.max(edgeDist, tipDist * 0.7))
+
+    colors[i * 3] = baseColor.r + (edgeColor.r - baseColor.r) * t
+    colors[i * 3 + 1] = baseColor.g + (edgeColor.g - baseColor.g) * t
+    colors[i * 3 + 2] = baseColor.b + (edgeColor.b - baseColor.b) * t
   }
+
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  geometry.computeVertexNormals()
 }
 
 export { clamp, lerpColor, easeInOutQuad, easeOutCubic, easeInCubic, sigmoid }
