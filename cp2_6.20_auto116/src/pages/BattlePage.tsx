@@ -62,6 +62,8 @@ export const BattlePage: React.FC = () => {
     gameState,
     selectedCardIndex,
     selectedBoardCardId,
+    battleEvents,
+    recentlyDamaged,
     setSelectedCardIndex,
     setSelectedBoardCardId,
     playCard,
@@ -217,10 +219,16 @@ export const BattlePage: React.FC = () => {
             <GameBoard
               playerBoard={gameState.player.board}
               aiBoard={gameState.ai.board}
+              playerHealth={gameState.player.health}
+              playerMaxHealth={gameState.player.maxHealth}
+              aiHealth={gameState.ai.health}
+              aiMaxHealth={gameState.ai.maxHealth}
               currentTurn={gameState.turn}
               selectedBoardCardId={selectedBoardCardId}
               dragCard={dragInfo}
               playerMana={gameState.player.mana}
+              battleEvents={battleEvents}
+              recentlyDamaged={recentlyDamaged}
               onCardClick={handleBoardCardClick}
               onCellDrop={handleCellDrop}
               onCellDragOver={handleCellDragOver}
