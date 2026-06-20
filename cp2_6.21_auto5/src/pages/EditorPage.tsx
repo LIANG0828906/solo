@@ -40,6 +40,80 @@ export default function EditorPage() {
   const [showImport, setShowImport] = useState(false);
   const [showNewTrack, setShowNewTrack] = useState(false);
 
+  const MAX_HISTORY = 50;
+  const [history, setHistory] = useState<Track[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const historyIndexRef = useRef(-1);
+
+  useEffect(() => {
+    historyIndexRef.current = historyIndex;
+  }, [historyIndex]);
+
+  const pushToHistory = useCallback((track: Track) => {
+    const snapshot: Track = {
+      ...track,
+      cells: track.cells.map((row) => row.map((c) => ({ ...c }))),
+    };
+    const currentIndex = historyIndexRef.current;
+    setHistory((prev) => {
+      const newHistory = prev.slice(0, currentIndex + 1);
+      newHistory.push(snapshot);
+      if (newHistory.length > MAX_HISTORY) {
+        newHistory.shift();
+      }
+      return newHistory;
+    });
+    const nextIndex = Math.min(currentIndex + 1, MAX_HISTORY - 1);
+    setHistoryIndex(nextIndex);
+    historyIndexRef.current = nextIndex;
+  }, []);
+
+  const initializeHistory = useCallback((track: Track) => {
+    const snapshot: Track = {
+      ...track,
+      cells: track.cells.map((row) => row.map((c) => ({ ...c }))),
+    };
+    setHistory([snapshot]);
+    setHistoryIndex(0);
+    historyIndexRef.current = 0;
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return;
+    const newIndex = historyIndexRef.current - 1;
+    setHistory((prevHistory) => {
+      const prevTrack = prevHistory[newIndex];
+      if (prevTrack) {
+        setCurrentTrack({
+          ...prevTrack,
+          cells: prevTrack.cells.map((row) => row.map((c) => ({ ...c }))),
+        });
+      }
+      return prevHistory;
+    });
+    setHistoryIndex(newIndex);
+    historyIndexRef.current = newIndex;
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    setHistory((prevHistory) => {
+      if (historyIndexRef.current >= prevHistory.length - 1) return prevHistory;
+      const newIndex = historyIndexRef.current + 1;
+      const nextTrack = prevHistory[newIndex];
+      if (nextTrack) {
+        setCurrentTrack({
+          ...nextTrack,
+          cells: nextTrack.cells.map((row) => row.map((c) => ({ ...c }))),
+        });
+        setHistoryIndex(newIndex);
+        historyIndexRef.current = newIndex;
+      }
+      return prevHistory;
+    });
+  }, []);
+
+
+
   const renderEditor = useCallback(
     (track: Track, selected: { x: number; y: number } | null) => {
       const canvas = canvasRef.current;
@@ -131,6 +205,22 @@ export default function EditorPage() {
     }
   }, [currentTrack, selectedCell, renderEditor]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!showTrackList && currentTrack) {
+        if (e.ctrlKey && e.key === 'z') {
+          e.preventDefault();
+          handleUndo();
+        } else if (e.ctrlKey && e.key === 'y') {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showTrackList, currentTrack, handleUndo, handleRedo]);
+
   const handleCanvasClick = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
       if (!currentTrack) return;
@@ -164,10 +254,11 @@ export default function EditorPage() {
         ),
       };
 
+      pushToHistory(newTrack);
       setCurrentTrack(newTrack);
       setSelectedCell({ x: gx, y: gy });
     },
-    [currentTrack]
+    [currentTrack, pushToHistory]
   );
 
   const handleCellTypeChange = (newType: CellType) => {
@@ -189,6 +280,7 @@ export default function EditorPage() {
         })
       ),
     };
+    pushToHistory(newTrack);
     setCurrentTrack(newTrack);
   };
 
@@ -203,6 +295,7 @@ export default function EditorPage() {
         )
       ),
     };
+    pushToHistory(newTrack);
     setCurrentTrack(newTrack);
   };
 
@@ -217,6 +310,7 @@ export default function EditorPage() {
         )
       ),
     };
+    pushToHistory(newTrack);
     setCurrentTrack(newTrack);
   };
 
@@ -225,6 +319,7 @@ export default function EditorPage() {
     saveTrack(currentTrack);
     setSaveFeedback(true);
     setTimeout(() => setSaveFeedback(false), 1500);
+    initializeHistory(currentTrack);
   };
 
   const handleExport = () => {
@@ -258,6 +353,7 @@ export default function EditorPage() {
       setSelectedCell(null);
       setImportText('');
       setShowImport(false);
+      initializeHistory(parsed);
     } catch {
       setErrorMessage('导入失败：JSON 解析错误');
     }
@@ -272,6 +368,7 @@ export default function EditorPage() {
     setShowTrackList(false);
     setTrackName('');
     setShowNewTrack(false);
+    initializeHistory(track);
   };
 
   const handleDeleteTrack = (id: string) => {
@@ -279,9 +376,11 @@ export default function EditorPage() {
   };
 
   const handleEditTrack = (track: Track) => {
-    setCurrentTrack({ ...track, cells: track.cells.map((row) => row.map((c) => ({ ...c }))) });
+    const newTrack = { ...track, cells: track.cells.map((row) => row.map((c) => ({ ...c }))) };
+    setCurrentTrack(newTrack);
     setSelectedCell(null);
     setShowTrackList(false);
+    initializeHistory(newTrack);
   };
 
   if (showTrackList) {
@@ -435,7 +534,39 @@ export default function EditorPage() {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
-            <button className="btn-primary" onClick={handleSave}>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                className="undo-redo-btn"
+                onClick={handleUndo}
+                disabled={historyIndex <= 0}
+                title="撤销 (Ctrl+Z)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7v6h6" />
+                  <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+                </svg>
+                撤销
+              </button>
+              <button
+                className="undo-redo-btn"
+                onClick={handleRedo}
+                disabled={historyIndex >= history.length - 1}
+                title="重做 (Ctrl+Y)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 7v6h-6" />
+                  <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+                </svg>
+                重做
+              </button>
+            </div>
+            <button
+              className="btn-primary"
+              onClick={handleSave}
+              style={{
+                boxShadow: '0 0 15px rgba(0, 245, 212, 0.4)',
+              }}
+            >
               {saveFeedback ? '✓ 已保存' : '保存赛道'}
             </button>
             <button className="btn-secondary" onClick={() => { setCurrentTrack(null); setSelectedCell(null); setShowTrackList(true); }}>

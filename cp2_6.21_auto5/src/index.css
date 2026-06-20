@@ -447,3 +447,54 @@ body {
   display: flex;
   gap: 12px;
 }
+
+.undo-redo-btn {
+  background: transparent;
+  border: 1px solid #00d9ff;
+  color: #00d9ff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+  flex: 1;
+  box-shadow: 0 0 8px rgba(0, 217, 255, 0.3);
+  font-size: 13px;
+}
+
+.undo-redo-btn:hover:not(:disabled) {
+  background: rgba(0, 217, 255, 0.1);
+  box-shadow: 0 0 15px rgba(0, 217, 255, 0.6);
+  transform: scale(1.02);
+}
+
+.undo-redo-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.undo-redo-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.undo-redo-btn svg {
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+@keyframes neonPulseBlue {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(0, 217, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(0, 217, 255, 0.6);
+  }
+}
+
+.undo-redo-btn:not(:disabled) {
+  animation: neonPulseBlue 2s ease-in-out infinite alternate;
+}
