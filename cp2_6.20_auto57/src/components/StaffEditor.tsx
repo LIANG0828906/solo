@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { useScoreStore, NoteData } from '@/stores/useScoreStore';
+import { useScoreStore, NoteData, NoteType } from '@/stores/useScoreStore';
 
 const LINE_SPACING = 12;
 const LEFT_MARGIN = 60;
@@ -9,8 +9,9 @@ const STAFF_Y = (SVG_HEIGHT - 4 * LINE_SPACING) / 2;
 const E4_REF = 30;
 const PITCHES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const PITCH_INDEX: Record<string, number> = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
-const NOTE_TYPES = ['whole', 'half', 'quarter', 'eighth'] as const;
+const NOTE_TYPES: NoteType[] = ['whole', 'half', 'quarter', 'eighth'];
 const TYPE_LABELS: Record<string, string> = { whole: '全音符', half: '二分音符', quarter: '四分音符', eighth: '八分音符' };
+const TYPE_TO_DURATION: Record<NoteType, number> = { whole: 4, half: 2, quarter: 1, eighth: 0.5 };
 
 function pitchToY(pitch: string, octave: number): number {
   const pos = octave * 7 + PITCH_INDEX[pitch] - E4_REF;
@@ -105,6 +106,7 @@ export default function StaffEditor() {
     if (!dragId) return;
     const svg = svgRef.current;
     if (!svg) return;
+
     const onMove = (e: MouseEvent) => {
       const d = dragRef.current;
       if (!d) return;
@@ -115,6 +117,7 @@ export default function StaffEditor() {
       offsetRef.current = { x: dx, y: dy };
       setDragOffset({ x: dx, y: dy });
     };
+
     const onUp = (e: MouseEvent) => {
       const d = dragRef.current;
       if (!d) { setDragId(null); return; }
@@ -143,7 +146,9 @@ export default function StaffEditor() {
           const note = s.notes.find(n => n.id === d.id);
           if (note) {
             const newOrder = Math.max(0, Math.min(s.notes.length - 1, note.order + Math.round(dx / NOTE_SPACING)));
-            if (newOrder !== note.order) reorderNotes(note.order, newOrder);
+            if (newOrder !== note.order) {
+              reorderNotes(note.order, newOrder);
+            }
           }
         }
       }
@@ -152,9 +157,13 @@ export default function StaffEditor() {
       setDragOffset({ x: 0, y: 0 });
       setDragId(null);
     };
+
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
   }, [dragId, updateNote, reorderNotes]);
 
   const handleBgClick = useCallback(() => {
@@ -162,15 +171,21 @@ export default function StaffEditor() {
     setShowPropertyPanel(false);
   }, [setSelectedNoteId, setShowPropertyPanel]);
 
+  const handleTypeChange = useCallback((noteId: string, newType: NoteType) => {
+    updateNote(noteId, { type: newType, duration: TYPE_TO_DURATION[newType] });
+  }, [updateNote]);
+
   const sorted = [...notes].sort((a, b) => a.order - b.order);
   const selectedNote = notes.find(n => n.id === selectedNoteId);
 
   return (
     <div ref={containerRef} className="relative overflow-x-auto overflow-y-hidden w-full h-full bg-white" onClick={handleBgClick}>
-      <svg ref={svgRef} width={staffWidth} height={SVG_HEIGHT} className="block">
+      <svg ref={svgRef} width={staffWidth} height={SVG_HEIGHT} className="block" style={{ minHeight: SVG_HEIGHT }}>
         {[0, 1, 2, 3, 4].map(i => (
           <line key={i} x1={0} y1={STAFF_Y + i * LINE_SPACING} x2={staffWidth} y2={STAFF_Y + i * LINE_SPACING} stroke="#b0bec5" strokeWidth={1} />
         ))}
+        <line x1={0} y1={STAFF_Y} x2={0} y2={STAFF_Y + 4 * LINE_SPACING} stroke="#b0bec5" strokeWidth={2} />
+        <line x1={staffWidth} y1={STAFF_Y} x2={staffWidth} y2={STAFF_Y + 4 * LINE_SPACING} stroke="#b0bec5" strokeWidth={2} />
         {sorted.map(note => {
           const x = LEFT_MARGIN + note.order * NOTE_SPACING;
           let y = pitchToY(note.pitch, note.octave);
@@ -181,9 +196,14 @@ export default function StaffEditor() {
           const ledgerYs = getLedgerYs(note.pitch, note.octave);
           const hollow = note.type === 'whole' || note.type === 'half';
           const fillColor = note.flashState === 'red' ? '#ef4444' : note.flashState === 'green' ? '#22c55e' : '#455a64';
+          const cls = [
+            active ? 'note-pulse' : '',
+            note.flashState === 'green' ? 'note-flash-green' : '',
+            note.flashState === 'red' ? 'note-flash-red' : '',
+          ].filter(Boolean).join(' ');
           return (
             <g key={note.id} transform={`translate(${x + dx},${y})`}
-              className={`${active ? 'note-pulse' : ''} ${note.flashState !== 'none' ? 'note-flash-' + note.flashState : ''}`} style={{ cursor: 'grab' }}
+              className={cls} style={{ cursor: 'grab' }}
               onMouseDown={e => handleMouseDown(e, note)} onClick={e => e.stopPropagation()}>
               {ledgerYs.map((ly, i) => (
                 <line key={i} x1={-14} y1={ly - y} x2={14} y2={ly - y} stroke="#b0bec5" strokeWidth={1} />
@@ -196,57 +216,53 @@ export default function StaffEditor() {
         })}
       </svg>
       {showPropertyPanel && selectedNote && (
-        <div className="absolute bg-white border border-gray-300 rounded-lg shadow-lg p-3 z-10 min-w-[180px]"
-          style={{ left: Math.min(popupPos.x, cw - 200), top: Math.min(popupPos.y + 10, SVG_HEIGHT - 200) }}
+        <div className="absolute bg-white border border-bark-100 rounded-lg shadow-xl p-4 z-20 min-w-[200px]"
+          style={{
+            left: Math.min(popupPos.x, cw - 220),
+            top: Math.min(popupPos.y + 10, SVG_HEIGHT - 220),
+          }}
           onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-display font-semibold text-bark-900 text-sm">音符属性</span>
+            <button onClick={() => { setSelectedNoteId(null); setShowPropertyPanel(false); }}
+              className="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+          </div>
           <div className="mb-2">
-            <label className="text-xs text-gray-600 block mb-1">音名</label>
-            <select className="w-full border rounded px-2 py-1 text-sm" value={selectedNote.pitch}
+            <label className="text-xs text-gray-500 block mb-1">音名</label>
+            <select className="w-full border border-gray-200 rounded px-2 py-1 text-sm bg-white" value={selectedNote.pitch}
               onChange={e => updateNote(selectedNote.id, { pitch: e.target.value })}>
               {PITCHES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
           <div className="mb-2">
-            <label className="text-xs text-gray-600 block mb-1">八度</label>
-            <select className="w-full border rounded px-2 py-1 text-sm" value={selectedNote.octave}
+            <label className="text-xs text-gray-500 block mb-1">八度</label>
+            <select className="w-full border border-gray-200 rounded px-2 py-1 text-sm bg-white" value={selectedNote.octave}
               onChange={e => updateNote(selectedNote.id, { octave: Number(e.target.value) })}>
               {[3, 4, 5, 6].map(o => <option key={o} value={o}>{o}</option>)}
             </select>
           </div>
           <div className="mb-2">
-            <label className="text-xs text-gray-600 block mb-1">时值</label>
-            <select className="w-full border rounded px-2 py-1 text-sm" value={selectedNote.type}
-              onChange={e => updateNote(selectedNote.id, { type: e.target.value as NoteData['type'] })}>
+            <label className="text-xs text-gray-500 block mb-1">时值</label>
+            <select className="w-full border border-gray-200 rounded px-2 py-1 text-sm bg-white" value={selectedNote.type}
+              onChange={e => handleTypeChange(selectedNote.id, e.target.value as NoteType)}>
               {NOTE_TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
             </select>
           </div>
-          <div>
-            <label className="text-xs text-gray-600 block mb-1">力度</label>
-            <input type="range" min={1} max={127} value={selectedNote.velocity} className="w-full"
+          <div className="mb-2">
+            <label className="text-xs text-gray-500 block mb-1">力度: {selectedNote.velocity}</label>
+            <input type="range" min={1} max={127} value={selectedNote.velocity} className="w-full accent-bark-700"
               onChange={e => updateNote(selectedNote.id, { velocity: Number(e.target.value) })} />
-            <span className="text-xs text-gray-500">{selectedNote.velocity}</span>
           </div>
+          <button onClick={() => {
+            useScoreStore.getState().removeNote(selectedNote.id);
+            setSelectedNoteId(null);
+            setShowPropertyPanel(false);
+          }}
+            className="mt-2 w-full text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded py-1 transition-colors">
+            删除音符
+          </button>
         </div>
       )}
-      <style>{`
-        .note-pulse { animation: note-pulse 0.8s ease-in-out infinite; }
-        @keyframes note-pulse {
-          0%, 100% { filter: drop-shadow(0 0 0px transparent); }
-          50% { filter: drop-shadow(0 0 8px #ffd600); }
-        }
-        .note-flash-green { animation: note-flash-green 1.2s ease-out; }
-        @keyframes note-flash-green {
-          0% { filter: drop-shadow(0 0 4px #22c55e); }
-          50% { filter: drop-shadow(0 0 16px #22c55e); }
-          100% { filter: drop-shadow(0 0 0px transparent); }
-        }
-        .note-flash-red { animation: note-flash-red 1.2s ease-out; }
-        @keyframes note-flash-red {
-          0% { filter: drop-shadow(0 0 4px #ef4444); }
-          50% { filter: drop-shadow(0 0 16px #ef4444); }
-          100% { filter: drop-shadow(0 0 0px transparent); }
-        }
-      `}</style>
     </div>
   );
 }

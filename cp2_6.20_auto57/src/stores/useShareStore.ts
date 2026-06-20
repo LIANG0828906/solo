@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { NoteData } from './useScoreStore';
+import type { NoteData } from './useScoreStore';
 
 interface SharedScore {
   notes: NoteData[];
@@ -9,8 +9,6 @@ interface SharedScore {
   loadShare: (id: string) => void;
   clearShare: () => void;
 }
-
-type RawNote = Partial<Record<keyof NoteData, unknown>>;
 
 export const useShareStore = create<SharedScore>((set) => ({
   notes: [],
@@ -22,18 +20,18 @@ export const useShareStore = create<SharedScore>((set) => ({
     try {
       const raw = localStorage.getItem(`share_${id}`);
       if (!raw) {
-        set({ loaded: true, error: '分享链接无效或已过期' });
+        set({ loaded: true, error: '分享链接无效或已过期', notes: [], tempo: 120 });
         return;
       }
       const data = JSON.parse(raw);
-      const notes: NoteData[] = ((data.notes || []) as RawNote[]).map((n, i: number) => ({
-        ...(n as NoteData),
+      const notes: NoteData[] = (data.notes || []).map((n: Record<string, unknown>, i: number) => ({
+        ...(n as Omit<NoteData, 'flashState' | 'order'>),
         flashState: 'none' as const,
         order: i,
       }));
       set({ notes, tempo: data.tempo || 120, loaded: true, error: null });
     } catch {
-      set({ loaded: true, error: '分享数据加载失败' });
+      set({ loaded: true, error: '分享数据加载失败', notes: [], tempo: 120 });
     }
   },
 
