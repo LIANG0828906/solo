@@ -101,6 +101,7 @@ export class Terrain {
     const vertices = new Float32Array(this.resolution * this.resolution * 3);
     const indices = [];
     const uvs = new Float32Array(this.resolution * this.resolution * 2);
+    const randomPhases = new Float32Array(this.resolution * this.resolution);
 
     for (let i = 0; i < this.resolution; i++) {
       for (let j = 0; j < this.resolution; j++) {
@@ -119,6 +120,8 @@ export class Terrain {
 
         uvs[idx * 2] = i / (this.resolution - 1);
         uvs[idx * 2 + 1] = j / (this.resolution - 1);
+
+        randomPhases[idx] = Math.random() * Math.PI * 2;
       }
     }
 
@@ -135,6 +138,7 @@ export class Terrain {
 
     geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
     geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geometry.setAttribute('aRandomPhase', new THREE.BufferAttribute(randomPhases, 1));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
 
@@ -155,6 +159,8 @@ export class Terrain {
         uniform float windStrength;
         uniform float heightScale;
         
+        attribute float aRandomPhase;
+        
         varying vec3 vNormal;
         varying float vHeight;
         varying vec2 vUv;
@@ -163,7 +169,11 @@ export class Terrain {
           vec3 pos = position;
           vHeight = pos.y * heightScale;
           
-          float windOffset = sin(time * 0.5 + pos.x * 2.0 + pos.z * 2.0) * 0.05 * windStrength;
+          float phase = aRandomPhase;
+          float windX = sin(time * 0.5 + pos.x * 2.0 + pos.z * 1.5 + phase);
+          float windZ = cos(time * 0.5 + pos.z * 2.0 + pos.x * 1.5 + phase * 1.3);
+          float combinedWind = (windX + windZ) * 0.5;
+          float windOffset = combinedWind * 0.05 * windStrength;
           pos.y += windOffset;
           pos.y *= heightScale;
           

@@ -12,7 +12,7 @@ class App {
   private controls: OrbitControls;
   private terrain: Terrain;
   private particleSystem: ParticleSystem;
-  private uiManager: UIManager;
+  private _uiManager: UIManager | undefined;
   private container: HTMLElement;
   private clock: THREE.Clock;
   private animationId: number | null = null;
@@ -39,8 +39,8 @@ class App {
 
     this._uiManager = new UIManager(
       document.getElementById('app')!,
-      (mode) => this.handleWeatherChange(mode),
-      (params) => this.handleParamsChange(params)
+      (mode: WeatherMode) => this.handleWeatherChange(mode),
+      (params: Partial<ControlParams>) => this.handleParamsChange(params)
     );
 
     this.setupVisibilityListener();

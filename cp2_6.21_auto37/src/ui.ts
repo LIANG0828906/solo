@@ -193,8 +193,9 @@ export class UIManager {
     sliderConfigs.forEach(({ key, label, min, max, step, value, unit }) => {
       const row = document.createElement('div');
       row.style.display = 'flex';
-      row.style.alignItems = 'center';
+      row.style.alignItems = 'flex-start';
       row.style.gap = '16px';
+      row.style.paddingTop = '8px';
 
       const labelEl = document.createElement('span');
       labelEl.textContent = label;
@@ -202,6 +203,42 @@ export class UIManager {
       labelEl.style.fontSize = '14px';
       labelEl.style.minWidth = '80px';
       labelEl.style.fontWeight = '300';
+      labelEl.style.paddingTop = '7px';
+
+      const sliderWrap = document.createElement('div');
+      sliderWrap.style.flex = '1';
+      sliderWrap.style.position = 'relative';
+      sliderWrap.style.paddingTop = '24px';
+      sliderWrap.style.minWidth = '0';
+
+      const valueDisplay = this.valueDisplays![key];
+      valueDisplay.textContent = `${value}${unit}`;
+      valueDisplay.style.position = 'absolute';
+      valueDisplay.style.top = '0';
+      valueDisplay.style.left = '0';
+      valueDisplay.style.transform = 'translateX(-50%)';
+      valueDisplay.style.color = '#00bfff';
+      valueDisplay.style.fontSize = '12px';
+      valueDisplay.style.fontWeight = '600';
+      valueDisplay.style.opacity = '0';
+      valueDisplay.style.transition = 'opacity 0.2s ease, transform 0.15s ease-out';
+      valueDisplay.style.pointerEvents = 'none';
+      valueDisplay.style.background = 'rgba(0, 191, 255, 0.1)';
+      valueDisplay.style.padding = '2px 8px';
+      valueDisplay.style.borderRadius = '4px';
+      valueDisplay.style.border = '1px solid rgba(0, 191, 255, 0.3)';
+      valueDisplay.style.whiteSpace = 'nowrap';
+      valueDisplay.style.zIndex = '101';
+
+      const updateTooltipPosition = (sliderEl: HTMLInputElement) => {
+        const val = parseFloat(sliderEl.value);
+        const percent = (val - min) / (max - min);
+        const trackWidth = sliderEl.offsetWidth;
+        const thumbHalf = 10;
+        const percentAdjusted = percent * (trackWidth - thumbHalf * 2) / trackWidth + thumbHalf / trackWidth;
+        const leftPercent = percentAdjusted * 100;
+        valueDisplay.style.left = `${leftPercent}%`;
+      };
 
       const slider = this.sliders![key];
       slider.type = 'range';
@@ -209,7 +246,7 @@ export class UIManager {
       slider.max = String(max);
       slider.step = String(step);
       slider.value = String(value);
-      slider.style.flex = '1';
+      slider.style.width = '100%';
       slider.style.height = '6px';
       slider.style.borderRadius = '3px';
       slider.style.background = 'linear-gradient(to right, #333333, #555555)';
@@ -217,16 +254,9 @@ export class UIManager {
       slider.style.webkitAppearance = 'none';
       slider.style.appearance = 'none';
       slider.style.cursor = 'pointer';
-
-      const valueDisplay = this.valueDisplays![key];
-      valueDisplay.textContent = `${value}${unit}`;
-      valueDisplay.style.color = '#00bfff';
-      valueDisplay.style.fontSize = '13px';
-      valueDisplay.style.minWidth = '60px';
-      valueDisplay.style.textAlign = 'right';
-      valueDisplay.style.fontWeight = '500';
-      valueDisplay.style.opacity = '0';
-      valueDisplay.style.transition = 'opacity 0.2s ease';
+      slider.style.padding = '0';
+      slider.style.margin = '0';
+      slider.style.display = 'block';
 
       const style = document.createElement('style');
       style.textContent = `
@@ -241,10 +271,15 @@ export class UIManager {
           border: 2px solid rgba(0, 191, 255, 0.5);
           box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
+          margin-top: -7px;
         }
         input[type="range"]::-webkit-slider-thumb:hover {
           transform: scale(1.2);
           box-shadow: 0 0 15px rgba(0, 191, 255, 0.6);
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+          height: 6px;
+          border-radius: 3px;
         }
         input[type="range"]::-moz-range-thumb {
           width: 20px;
@@ -260,23 +295,30 @@ export class UIManager {
           transform: scale(1.2);
           box-shadow: 0 0 15px rgba(0, 191, 255, 0.6);
         }
+        input[type="range"]::-moz-range-track {
+          height: 6px;
+          border-radius: 3px;
+          background: linear-gradient(to right, #333333, #555555);
+        }
       `;
       document.head.appendChild(style);
 
       slider.addEventListener('input', (e) => {
-        const val = parseFloat((e.target as HTMLInputElement).value);
+        const sliderEl = e.target as HTMLInputElement;
+        const val = parseFloat(sliderEl.value);
         valueDisplay.textContent = `${val}${unit}`;
         valueDisplay.style.opacity = '1';
-        
+        updateTooltipPosition(sliderEl);
+
         this.onParamsChange({ [key]: val });
       });
 
       slider.addEventListener('mousedown', () => {
-        slider.style.transform = 'scale(1.02)';
+        valueDisplay.style.opacity = '1';
+        setTimeout(() => updateTooltipPosition(slider), 0);
       });
 
       slider.addEventListener('mouseup', () => {
-        slider.style.transform = 'scale(1)';
         setTimeout(() => {
           valueDisplay.style.opacity = '0';
         }, 1000);
@@ -288,9 +330,25 @@ export class UIManager {
         }, 500);
       });
 
+      slider.addEventListener('touchstart', () => {
+        valueDisplay.style.opacity = '1';
+        setTimeout(() => updateTooltipPosition(slider), 0);
+      }, { passive: true });
+
+      slider.addEventListener('touchend', () => {
+        setTimeout(() => {
+          valueDisplay.style.opacity = '0';
+        }, 1500);
+      });
+
+      window.addEventListener('resize', () => updateTooltipPosition(slider));
+
+      setTimeout(() => updateTooltipPosition(slider), 50);
+
+      sliderWrap.appendChild(valueDisplay);
+      sliderWrap.appendChild(slider);
       row.appendChild(labelEl);
-      row.appendChild(slider);
-      row.appendChild(valueDisplay);
+      row.appendChild(sliderWrap);
       panel.appendChild(row);
     });
 
