@@ -15,10 +15,75 @@ const ELEMENT_ICONS: Record<ElementType, string> = {
 
 function LeftPanel() {
   const addElement = useStore((s) => s.addElement)
+  const theme = useStore((s) => s.theme)
+  const primaryColor = THEME_COLORS[theme][0]
+  const shadowColor = primaryColor
 
   const handleDragStart = (e: React.DragEvent, type: ElementType) => {
     e.dataTransfer.setData('elementType', type)
     e.dataTransfer.effectAllowed = 'copy'
+  }
+
+  const renderThumbnail = (type: ElementType) => {
+    const size = 44
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 44 44"
+        style={{ flexShrink: 0 }}
+      >
+        {type === 'beatBars' && (
+          <>
+            <rect x="6" y="22" width="5" height="16" rx="1" fill={THEME_COLORS[theme][0]} opacity="0.9" />
+            <rect x="14" y="14" width="5" height="24" rx="1" fill={THEME_COLORS[theme][1]} opacity="0.95" />
+            <rect x="22" y="8" width="5" height="30" rx="1" fill={THEME_COLORS[theme][0]} opacity="1" />
+            <rect x="30" y="18" width="5" height="20" rx="1" fill={THEME_COLORS[theme][1]} opacity="0.95" />
+            <rect x="38" y="26" width="0" height="0" rx="0" fill="transparent" />
+          </>
+        )}
+        {type === 'particleGalaxy' && (
+          <>
+            <circle cx="12" cy="14" r="1.5" fill="#ffffff" opacity="0.9" />
+            <circle cx="22" cy="10" r="1.2" fill={THEME_COLORS[theme][0]} opacity="0.8" />
+            <circle cx="32" cy="16" r="1.8" fill={THEME_COLORS[theme][1]} opacity="0.95" />
+            <circle cx="8" cy="26" r="1" fill={THEME_COLORS[theme][2]} opacity="0.7" />
+            <circle cx="22" cy="22" r="2.2" fill={THEME_COLORS[theme][1]} opacity="1" />
+            <circle cx="36" cy="28" r="1.4" fill="#ffffff" opacity="0.85" />
+            <circle cx="14" cy="34" r="1.3" fill={THEME_COLORS[theme][0]} opacity="0.8" />
+            <circle cx="26" cy="36" r="1" fill="#ffffff" opacity="0.7" />
+            <circle cx="34" cy="38" r="1.6" fill={THEME_COLORS[theme][2]} opacity="0.9" />
+          </>
+        )}
+        {type === 'waveSphere' && (
+          <g stroke={THEME_COLORS[theme][1]} strokeWidth="1" fill="none" opacity="0.85">
+            <circle cx="22" cy="22" r="14" stroke={THEME_COLORS[theme][0]} opacity="0.6" />
+            <ellipse cx="22" cy="22" rx="14" ry="5" opacity="0.7" />
+            <ellipse cx="22" cy="22" rx="5" ry="14" opacity="0.7" />
+            <path d="M 8 18 Q 15 12, 22 18 T 36 18" stroke={THEME_COLORS[theme][1]} opacity="0.9" />
+            <path d="M 8 26 Q 15 32, 22 26 T 36 26" stroke={THEME_COLORS[theme][0]} opacity="0.9" />
+          </g>
+        )}
+        {type === 'lightWall' && (
+          <>
+            <defs>
+              <linearGradient id={`grad-${theme}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor={THEME_COLORS[theme][0]} stopOpacity="0.7" />
+                <stop offset="50%" stopColor={THEME_COLORS[theme][1]} stopOpacity="0.95" />
+                <stop offset="100%" stopColor={THEME_COLORS[theme][2]} stopOpacity="0.8" />
+              </linearGradient>
+            </defs>
+            <rect x="6" y="8" width="32" height="28" rx="2" fill={`url(#grad-${theme})`} opacity="0.9" />
+            <rect x="6" y="8" width="32" height="28" rx="2" fill="none" stroke="#ffffff" strokeWidth="0.5" opacity="0.2" />
+            <line x1="14" y1="8" x2="14" y2="36" stroke="#ffffff" strokeWidth="0.5" opacity="0.15" />
+            <line x1="22" y1="8" x2="22" y2="36" stroke="#ffffff" strokeWidth="0.5" opacity="0.15" />
+            <line x1="30" y1="8" x2="30" y2="36" stroke="#ffffff" strokeWidth="0.5" opacity="0.15" />
+            <line x1="6" y1="17" x2="38" y2="17" stroke="#ffffff" strokeWidth="0.5" opacity="0.15" />
+            <line x1="6" y1="26" x2="38" y2="26" stroke="#ffffff" strokeWidth="0.5" opacity="0.15" />
+          </>
+        )}
+      </svg>
+    )
   }
 
   return (
@@ -50,61 +115,81 @@ function LeftPanel() {
       <p style={{
         color: 'rgba(255,255,255,0.4)',
         fontSize: 11,
-        margin: '0 0 12px 0',
+        margin: '0 0 16px 0',
       }}>
         拖拽到场景中添加
       </p>
-      {ELEMENT_TYPES.map((type) => (
-        <div
-          key={type}
-          draggable
-          onDragStart={(e) => handleDragStart(e, type)}
-          onClick={() => addElement(type)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '10px 12px',
-            marginBottom: 8,
-            borderRadius: 8,
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            cursor: 'grab',
-            transition: 'all 0.3s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.1)'
-            e.currentTarget.style.boxShadow = '0 0 12px rgba(255,255,255,0.15)'
-            e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)'
-            e.currentTarget.style.boxShadow = 'none'
-            e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-          }}
-        >
-          <span style={{
-            fontSize: 22,
-            width: 36,
-            height: 36,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(255,255,255,0.06)',
-            borderRadius: 8,
-            flexShrink: 0,
-          }}>
-            {ELEMENT_ICONS[type]}
-          </span>
-          <span style={{
-            color: 'rgba(255,255,255,0.85)',
-            fontSize: 13,
-            fontWeight: 500,
-          }}>
-            {ELEMENT_LABELS[type]}
-          </span>
-        </div>
-      ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {ELEMENT_TYPES.map((type) => (
+          <div
+            key={type}
+            draggable
+            onDragStart={(e) => handleDragStart(e, type)}
+            onClick={() => addElement(type)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '12px 10px',
+              borderRadius: 12,
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              cursor: 'grab',
+              transition: 'all 0.3s ease',
+              transformOrigin: 'center left',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.1)'
+              e.currentTarget.style.boxShadow = `0 0 8px 4px ${shadowColor}4d`
+              e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
+              e.currentTarget.style.borderColor = `${shadowColor}55`
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)'
+              e.currentTarget.style.boxShadow = 'none'
+              e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 3,
+              padding: '0 2px 0 4px',
+              opacity: 0.5,
+            }}>
+              <div style={{ width: 12, height: 2, background: 'rgba(255,255,255,0.6)', borderRadius: 1 }} />
+              <div style={{ width: 12, height: 2, background: 'rgba(255,255,255,0.6)', borderRadius: 1 }} />
+              <div style={{ width: 12, height: 2, background: 'rgba(255,255,255,0.6)', borderRadius: 1 }} />
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 52,
+              height: 52,
+              borderRadius: 10,
+              background: 'rgba(255,255,255,0.04)',
+              flexShrink: 0,
+            }}>
+              {renderThumbnail(type)}
+            </div>
+
+            <span style={{
+              color: '#ffffff',
+              fontSize: 14,
+              fontWeight: 600,
+              letterSpacing: '0.2px',
+              flex: 1,
+            }}>
+              {ELEMENT_LABELS[type]}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
