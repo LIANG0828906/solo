@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy
+aiosqlite
+python-socketio
+pydantic
+python-multipart
+websockets
+nanoid
