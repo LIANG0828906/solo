@@ -1,0 +1,524 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans", Helvetica, Arial,
+    sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app-root {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+}
+
+.app-layout {
+  flex: 1;
+  display: flex;
+  gap: 16px;
+  min-height: 0;
+  align-items: stretch;
+  justify-content: center;
+}
+
+/* ========== Toolbar 左侧工具栏 ========== */
+.toolbar {
+  width: 50px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.toolbar-btn-wrapper {
+  position: relative;
+}
+
+.toolbar-btn {
+  width: 38px;
+  height: 38px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease-out;
+}
+
+.toolbar-btn:hover:not(.disabled):not(:disabled) {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  transform: scale(1.15);
+}
+
+.toolbar-btn:active:not(.disabled):not(:disabled) {
+  transform: scale(1.05);
+}
+
+.toolbar-btn.disabled,
+.toolbar-btn:disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.toolbar-divider {
+  width: 28px;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 4px 0;
+}
+
+.shape-menu {
+  position: absolute;
+  left: 48px;
+  top: 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 100px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.shape-menu-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.shape-menu-item:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.dropzone-overlay {
+  position: absolute;
+  inset: -2px;
+  border: 2px dashed #3b82f6;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #3b82f6;
+  writing-mode: vertical-rl;
+  pointer-events: none;
+}
+
+.dropzone-overlay span {
+  transform: rotate(180deg);
+}
+
+/* ========== Canvas 主画布 ========== */
+.main-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.canvas-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.canvas-container {
+  width: 800px;
+  max-width: 100%;
+  height: 500px;
+  max-height: calc(100vh - 200px);
+  background: #ffffff;
+  border-radius: 12px;
+  border: 2px solid #e0e0e0;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 8px 32px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  position: relative;
+}
+
+#moodboard-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.layer-properties {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 240px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.prop-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prop-label {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
+  min-width: 64px;
+}
+
+.prop-select {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 13px;
+  color: #1e293b;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.prop-select:focus {
+  border-color: #3b82f6;
+}
+
+/* ========== ColorPalette 右侧调色板 ========== */
+.color-palette {
+  width: 250px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  overflow-y: auto;
+}
+
+.palette-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.palette-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.palette-reset-btn {
+  border: none;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.palette-reset-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.swatches-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.swatch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.swatch-inputs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.swatch-hex-input,
+.swatch-name-input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  font-size: 12px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  color: #1e293b;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.swatch-hex-input:focus,
+.swatch-name-input:focus {
+  border-color: #3b82f6;
+}
+
+.swatch-hex-input {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.swatch-name-input {
+  font-family: inherit;
+}
+
+.picker-popup {
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+}
+
+.picker-current-hex {
+  text-align: center;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  padding: 6px;
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+/* ========== StatusBar 状态栏 ========== */
+.status-bar {
+  height: 32px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.status-item {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.status-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* ========== 响应式适配 < 1200px ========== */
+@media (max-width: 1200px) {
+  .app-root {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .app-layout {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .toolbar {
+    width: auto;
+    height: 50px;
+    flex-direction: row;
+    padding: 0 12px;
+    gap: 6px;
+  }
+
+  .toolbar-inner {
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .toolbar-divider {
+    width: 1px;
+    height: 28px;
+    margin: 0 4px;
+  }
+
+  .shape-menu {
+    left: 0;
+    top: 52px;
+    writing-mode: horizontal-tb;
+  }
+
+  .shape-menu span {
+    transform: none;
+  }
+
+  .main-area {
+    width: 100%;
+    flex: 1;
+  }
+
+  .canvas-container {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 8 / 5;
+    max-height: calc(100vh - 320px);
+  }
+
+  .color-palette {
+    width: 100%;
+    height: 120px;
+    max-height: 120px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 16px;
+  }
+
+  .palette-header {
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .swatches-container {
+    flex-direction: row;
+    gap: 18px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-right: 8px;
+  }
+
+  .swatch-row {
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .swatch-inputs {
+    flex-direction: row;
+    gap: 4px;
+    width: auto;
+  }
+
+  .swatch-hex-input,
+  .swatch-name-input {
+    width: 70px;
+  }
+
+  .picker-popup {
+    right: auto;
+    left: 50%;
+    top: calc(100% + 8px);
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 1200px) {
+  .dropzone-overlay {
+    writing-mode: horizontal-tb;
+  }
+
+  .dropzone-overlay span {
+    transform: none;
+  }
+}
