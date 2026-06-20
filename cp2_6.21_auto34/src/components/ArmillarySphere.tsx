@@ -30,24 +30,38 @@ function Ring({ radius, isEclipsing, onClick, ringIndex, rotationX, rotationZ }:
   rotationZ: number;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
   const [hovered, setHovered] = useState(false);
+  const breathPhase = useMemo(() => Math.random() * Math.PI * 2, []);
+  const breathSpeed = useMemo(() => 0.8 + Math.random() * 0.4, []);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (meshRef.current && isEclipsing) {
       meshRef.current.rotation.y += delta * 0.8;
+    }
+
+    if (materialRef.current) {
+      const time = state.clock.elapsedTime;
+      const breath = Math.sin(time * breathSpeed + breathPhase) * 0.5 + 0.5;
+
+      const baseEmissive = hovered ? 0.9 : 0.6;
+      const breathEmissive = breath * 0.3;
+      const eclipseFactor = isEclipsing ? 0.7 : 1.0;
+
+      materialRef.current.emissiveIntensity = (baseEmissive + breathEmissive) * eclipseFactor;
+      materialRef.current.roughness = 0.22 - breath * 0.05;
+      materialRef.current.metalness = 0.85 + breath * 0.08;
     }
   });
 
   const ringGeometry = useMemo(() => {
-    return new THREE.TorusGeometry(radius, 0.05, 24, 128);
+    return new THREE.TorusGeometry(radius, 0.07, 32, 160);
   }, [radius]);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     onClick();
   };
-
-  const emissiveIntensity = isEclipsing ? 0.3 : (hovered ? 0.8 : 0.5);
 
   return (
     <mesh
@@ -64,13 +78,92 @@ function Ring({ radius, isEclipsing, onClick, ringIndex, rotationX, rotationZ }:
       }}
       geometry={ringGeometry}
       rotation={[rotationX, 0, rotationZ]}
+      castShadow={true}
+      receiveShadow={true}
     >
       <meshStandardMaterial
+        ref={materialRef}
         color={BRASS_COLOR}
         metalness={0.85}
-        roughness={0.25}
+        roughness={0.22}
         emissive={BRASS_COLOR}
-        emissiveIntensity={emissiveIntensity}
+        emissiveIntensity={0.6}
+        envMapIntensity={1.2}
+      />
+    </mesh>
+  );
+}
+
+function Star({ c, index, baseOpacity, isEclipsing, fadeRef, onClick }: {
+  c: ConstellationType;
+  index: number;
+  baseOpacity: number;
+  isEclipsing: boolean;
+  fadeRef: React.MutableRefObject<number>;
+  onClick: (data: PanelData) => void;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<THREE.MeshBasicMaterial>(null);
+  const twinklePhase = useMemo(() => Math.random() * Math.PI * 2, []);
+  const twinkleSpeed = useMemo(() => 0.5 + Math.random() * 1.5, []);
+
+  const position = useMemo(() => {
+    const radius = RADIUS_INNER + 0.15;
+    const azimuthRad = (c.azimuth * Math.PI) / 180;
+    const elevationRad = (c.elevation * Math.PI) / 180;
+    return [
+      radius * Math.cos(elevationRad) * Math.cos(azimuthRad),
+      radius * Math.sin(elevationRad),
+      radius * Math.cos(elevationRad) * Math.sin(azimuthRad),
+    ] as [number, number, number];
+  }, [c]);
+
+  const geometry = useMemo(() => new THREE.SphereGeometry(0.025, 16, 16), []);
+
+  useFrame((state) => {
+    if (materialRef.current && meshRef.current) {
+      const time = state.clock.elapsedTime;
+      const twinkle = 0.55 + 0.45 * Math.sin(time * twinkleSpeed + twinklePhase);
+      const sizePulse = 1 + 0.25 * Math.sin(time * twinkleSpeed * 1.3 + twinklePhase);
+
+      const fade = fadeRef.current;
+      materialRef.current.opacity = baseOpacity * twinkle * fade;
+      meshRef.current.scale.setScalar(sizePulse);
+    }
+  });
+
+  const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    onClick({
+      title: c.name,
+      azimuth: c.azimuth,
+      elevation: c.elevation,
+      description: c.description,
+      type: 'constellation',
+    });
+  };
+
+  return (
+    <mesh
+      ref={meshRef}
+      position={position}
+      onClick={handleClick}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = 'default';
+      }}
+      geometry={geometry}
+    >
+      <meshBasicMaterial
+        ref={materialRef}
+        color="#ffffff"
+        transparent
+        opacity={baseOpacity}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
       />
     </mesh>
   );
@@ -81,94 +174,38 @@ function ConstellationPoints({ isEclipsing, opacity, onPointClick }: {
   opacity: number;
   onPointClick: (data: PanelData) => void;
 }) {
-  const pointsRef = useRef<THREE.Points>(null);
   const fadeRef = useRef(1);
   const fadeDirRef = useRef(-1);
 
-  const { positions, data } = useMemo(() => {
-    const pos = new Float32Array(constellations.length * 3);
-    const dataArr: ConstellationType[] = [];
-
-    constellations.forEach((c, i) => {
-      const radius = RADIUS_INNER + 0.15;
-      const azimuthRad = (c.azimuth * Math.PI) / 180;
-      const elevationRad = (c.elevation * Math.PI) / 180;
-      pos[i * 3] = radius * Math.cos(elevationRad) * Math.cos(azimuthRad);
-      pos[i * 3 + 1] = radius * Math.sin(elevationRad);
-      pos[i * 3 + 2] = radius * Math.cos(elevationRad) * Math.sin(azimuthRad);
-      dataArr.push(c);
-    });
-
-    return { positions: pos, data: dataArr };
-  }, []);
-
-  useFrame((state) => {
-    if (pointsRef.current) {
-      const time = state.clock.elapsedTime;
-      const twinkle = 0.6 + 0.4 * Math.sin(time * 2.5);
-
-      if (isEclipsing) {
-        fadeRef.current += fadeDirRef.current * 0.02;
-        if (fadeRef.current <= 0.1) {
-          fadeDirRef.current = 1;
-        }
-        if (fadeRef.current >= 1) {
-          fadeDirRef.current = -1;
-        }
-        fadeRef.current = Math.max(0.1, Math.min(1, fadeRef.current));
-      } else {
-        fadeRef.current += (1 - fadeRef.current) * 0.05;
+  useFrame(() => {
+    if (isEclipsing) {
+      fadeRef.current += fadeDirRef.current * 0.02;
+      if (fadeRef.current <= 0.1) {
+        fadeDirRef.current = 1;
       }
-
-      const material = pointsRef.current.material as THREE.PointsMaterial;
-      material.opacity = opacity * twinkle * fadeRef.current;
-      material.size = 0.08 * (1 + 0.3 * Math.sin(time * 3));
+      if (fadeRef.current >= 1) {
+        fadeDirRef.current = -1;
+      }
+      fadeRef.current = Math.max(0.1, Math.min(1, fadeRef.current));
+    } else {
+      fadeRef.current += (1 - fadeRef.current) * 0.05;
     }
   });
 
-  const handleClick = (e: ThreeEvent<MouseEvent>) => {
-    e.stopPropagation();
-    const pointIndex = (e as any).index;
-    if (pointIndex !== undefined && data[pointIndex]) {
-      const c = data[pointIndex];
-      onPointClick({
-        title: c.name,
-        azimuth: c.azimuth,
-        elevation: c.elevation,
-        description: c.description,
-        type: 'constellation',
-      });
-    }
-  };
-
   return (
-    <points
-      ref={pointsRef}
-      onClick={handleClick}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        document.body.style.cursor = 'pointer';
-      }}
-      onPointerOut={() => {
-        document.body.style.cursor = 'default';
-      }}
-    >
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={constellations.length}
-          array={positions}
-          itemSize={3}
+    <group>
+      {constellations.map((c, i) => (
+        <Star
+          key={i}
+          c={c}
+          index={i}
+          baseOpacity={opacity}
+          isEclipsing={isEclipsing}
+          fadeRef={fadeRef}
+          onClick={onPointClick}
         />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.08}
-        color="#ffffff"
-        transparent
-        opacity={opacity}
-        sizeAttenuation
-      />
-    </points>
+      ))}
+    </group>
   );
 }
 
@@ -241,6 +278,10 @@ export function ArmillarySphere() {
     <Canvas
       camera={{ position: [0, 0, 5], fov: 60 }}
       gl={{ antialias: true, alpha: true }}
+      shadows={{
+        enabled: true,
+        type: THREE.PCFShadowMap,
+      }}
       style={{
         position: 'absolute',
         top: 0,
@@ -252,11 +293,44 @@ export function ArmillarySphere() {
         mixBlendMode: mix < 1 ? 'multiply' : 'normal',
       }}
     >
-      <ambientLight intensity={0.8} />
-      <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
-      <pointLight position={[-3, 3, -3]} intensity={1.0} color="#d4af37" />
-      <pointLight position={[3, -2, 3]} intensity={0.8} color="#ffd700" />
-      <pointLight position={[0, 5, 0]} intensity={0.5} color="#ffe4b5" />
+      <ambientLight intensity={0.65} />
+      <directionalLight
+        position={[5, 5, 5]}
+        intensity={1.2}
+        color="#ffffff"
+        castShadow={true}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-camera-near={0.5}
+        shadow-camera-far={50}
+        shadow-camera-left={-5}
+        shadow-camera-right={5}
+        shadow-camera-top={5}
+        shadow-camera-bottom={-5}
+        shadow-bias={-0.0005}
+      />
+      <pointLight
+        position={[-3, 3, -3]}
+        intensity={0.9}
+        color="#d4af37"
+        castShadow={true}
+        distance={20}
+        decay={2}
+      />
+      <pointLight
+        position={[3, -2, 3]}
+        intensity={0.7}
+        color="#ffd700"
+        distance={20}
+        decay={2}
+      />
+      <pointLight
+        position={[0, 5, 0]}
+        intensity={0.4}
+        color="#ffe4b5"
+        distance={30}
+        decay={2}
+      />
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={0.3} />
       <ArmillaryContent />
       <OrbitControls
