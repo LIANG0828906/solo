@@ -1,9 +1,14 @@
 import * as THREE from 'three';
 import { CognitiveStatus, hexToRgbVec, easeInOutCubic } from './statusStore';
 
-const PARTICLE_COUNT = 5000;
+const INITIAL_PARTICLE_COUNT = 5000;
+const MIN_PARTICLE_COUNT = 2000;
+const MAX_PARTICLE_COUNT = 5000;
+const PARTICLE_COUNT_STEP = 500;
 const BRAIN_RADIUS = 1.65;
 const MAX_UPDATE_MS = 8;
+const FPS_TARGET = 50;
+const FRAME_TIME_TARGET = 1000 / FPS_TARGET;
 
 type MotionMode = 'circle' | 'brownian' | 'pulse' | 'linear';
 type SizeMode = 'angle' | 'random' | 'pulse' | 'speed';
@@ -32,14 +37,15 @@ const VERTEX_SHADER = /* glsl */ `
     float sizePulse = 1.0;
 
     if (uSizeMode == 0) {
-      sizePulse = 0.6 + sin(aSizePhase + uTime * aSizeSpeed * 3.0) * 0.4;
+      sizePulse = 0.55 + sin(aSizePhase + uTime * aSizeSpeed * 3.0) * 0.45;
     } else if (uSizeMode == 1) {
       sizePulse = 0.7 + sin(aSizePhase + uTime * (aSizeSpeed + 2.0)) * 0.3;
     } else if (uSizeMode == 2) {
       float p = sin(uTime * uSizePulseSpeed + aSeed * 30.0);
-      sizePulse = 0.3 + smoothstep(-0.2, 1.0, p) * uSizePulseAmount;
+      float sharp = smoothstep(-0.3, 1.0, p);
+      sizePulse = 0.25 + sharp * uSizePulseAmount;
     } else if (uSizeMode == 3) {
-      sizePulse = 0.5 + sin(aSizePhase + uTime * aSizeSpeed * 5.0) * 0.5;
+      sizePulse = 0.45 + sin(aSizePhase + uTime * aSizeSpeed * 5.0) * 0.55;
     }
 
     vSizePulse = sizePulse;
@@ -69,14 +75,14 @@ const FRAGMENT_SHADER = /* glsl */ `
     float dist = length(coord);
     if (dist > 0.5) discard;
 
-    float alpha = smoothstep(0.5, 0.1, dist);
+    float alpha = smoothstep(0.5, 0.08, dist);
     float core = smoothstep(0.5, 0.0, dist);
 
     float flicker = sin(uTime * (2.0 + vSeed * 6.0) + vSeed * 25.0) * 0.3 + 0.7;
     float baseAlpha = uAlphaBase * flicker;
 
     vec3 glow = uColor * (1.0 + core * (0.8 + vIntensity * 1.5));
-    vec3 whiteCore = vec3(1.0) * core * 0.5 * vIntensity;
+    vec3 whiteCore = vec3(1.0) * core * 0.5 * vIntensity * vSizePulse;
 
     vec3 finalColor = glow + whiteCore;
     float finalAlpha = (baseAlpha + core * 0.35 * vIntensity) * alpha;
@@ -90,7 +96,8 @@ interface ParticleData {
   baseY: number;
   baseZ: number;
   phase: number;
-  radius: number;
+  orbitRadius: number;
+  orbitSpeed: number;
   axisX: number;
   axisY: number;
   axisZ: number;
@@ -101,6 +108,20 @@ interface ParticleData {
   sizeBase: number;
   sizePhase: number;
   sizeSpeed: number;
+  flickerFreq: number;
+  blinkPhase: number;
+}
+
+interface PerfMetrics {
+  updateDurations: number[];
+  frameTimes: number[];
+  lastFrameTimestamp: number;
+  lastSampleTime: number;
+  sampleCount: number;
+  avgUpdateMs: number;
+  avgFps: number;
+  particleCount: number;
+  scale: number;
 }
 
 export class WaveOverlay {
@@ -132,10 +153,11 @@ export class WaveOverlay {
   private maxR2: number;
   private minR2: number;
 
-  private perfSampleCount: number;
-  private perfTotalMs: number;
-  private perfLastLog: number;
+  private perf: PerfMetrics;
   private lastUpdateDuration: number;
+  private particleCount: number;
+  private needsRebuild: boolean;
+  private lastAdaptTime: number;
 
   constructor() {
     this.startTime = performance.now();
@@ -155,20 +177,60 @@ export class WaveOverlay {
     this.maxR2 = (BRAIN_RADIUS * 1.25) * (BRAIN_RADIUS * 1.25);
     this.minR2 = (BRAIN_RADIUS * 0.8) * (BRAIN_RADIUS * 0.8);
 
-    this.perfSampleCount = 0;
-    this.perfTotalMs = 0;
-    this.perfLastLog = this.startTime;
+    this.particleCount = INITIAL_PARTICLE_COUNT;
     this.lastUpdateDuration = 0;
+    this.needsRebuild = false;
+    this.lastAdaptTime = 0;
 
-    this.geometry = new THREE.BufferGeometry();
-    this.positions = new Float32Array(PARTICLE_COUNT * 3);
-    this.seeds = new Float32Array(PARTICLE_COUNT);
-    this.sizeBases = new Float32Array(PARTICLE_COUNT);
-    this.sizePhases = new Float32Array(PARTICLE_COUNT);
-    this.sizeSpeeds = new Float32Array(PARTICLE_COUNT);
-    this.particles = new Array(PARTICLE_COUNT);
+    this.perf = {
+      updateDurations: [],
+      frameTimes: [],
+      lastFrameTimestamp: this.startTime,
+      lastSampleTime: this.startTime,
+      sampleCount: 0,
+      avgUpdateMs: 0,
+      avgFps: 60,
+      particleCount: this.particleCount,
+      scale: 1.0,
+    };
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const built = this.buildParticleSystem(this.particleCount);
+    this.geometry = built.geometry;
+    this.material = built.material;
+    this.particles = built.particles;
+    this.positions = built.positions;
+    this.seeds = built.seeds;
+    this.sizeBases = built.sizeBases;
+    this.sizePhases = built.sizePhases;
+    this.sizeSpeeds = built.sizeSpeeds;
+    this.positionAttr = built.positionAttr;
+
+    this.points = new THREE.Points(this.geometry, this.material);
+    this.points.frustumCulled = false;
+
+    this.applySizeModeForStatus('focus');
+  }
+
+  private buildParticleSystem(count: number): {
+    geometry: THREE.BufferGeometry;
+    material: THREE.ShaderMaterial;
+    particles: ParticleData[];
+    positions: Float32Array;
+    seeds: Float32Array;
+    sizeBases: Float32Array;
+    sizePhases: Float32Array;
+    sizeSpeeds: Float32Array;
+    positionAttr: THREE.BufferAttribute;
+  } {
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const seeds = new Float32Array(count);
+    const sizeBases = new Float32Array(count);
+    const sizePhases = new Float32Array(count);
+    const sizeSpeeds = new Float32Array(count);
+    const particles = new Array(count);
+
+    for (let i = 0; i < count; i++) {
       const u = Math.random();
       const v = Math.random();
       const theta = 2 * Math.PI * u;
@@ -186,18 +248,19 @@ export class WaveOverlay {
       axisY /= axisLen;
       axisZ /= axisLen;
 
-      const speed = 0.45 + Math.random() * 0.5;
+      const speed = 0.35 + Math.random() * 0.6;
       const dirTheta = Math.random() * Math.PI * 2;
       const dirPhi = Math.acos(2 * Math.random() - 1);
 
       const seed = Math.random();
 
-      this.particles[i] = {
+      particles[i] = {
         baseX: x,
         baseY: y,
         baseZ: z,
         phase: Math.random() * Math.PI * 2,
-        radius: 0.035 + Math.random() * 0.035,
+        orbitRadius: 0.025 + Math.random() * 0.075,
+        orbitSpeed: 0.8 + Math.random() * 2.2,
         axisX,
         axisY,
         axisZ,
@@ -205,37 +268,40 @@ export class WaveOverlay {
         vy: Math.sin(dirPhi) * Math.sin(dirTheta) * speed,
         vz: Math.cos(dirPhi) * speed,
         seed,
-        sizeBase: 1.2 + Math.random() * 2.8,
+        sizeBase: 1.0 + Math.random() * 3.0,
         sizePhase: Math.random() * Math.PI * 2,
-        sizeSpeed: 0.5 + Math.random() * 2.5,
+        sizeSpeed: 0.3 + Math.random() * 2.7,
+        flickerFreq: 0.6 + Math.random() * 2.5,
+        blinkPhase: Math.random() * Math.PI * 2,
       };
 
-      this.positions[i * 3 + 0] = x;
-      this.positions[i * 3 + 1] = y;
-      this.positions[i * 3 + 2] = z;
-      this.seeds[i] = seed;
-      this.sizeBases[i] = this.particles[i].sizeBase;
-      this.sizePhases[i] = this.particles[i].sizePhase;
-      this.sizeSpeeds[i] = this.particles[i].sizeSpeed;
+      positions[i * 3 + 0] = x;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = z;
+      seeds[i] = seed;
+      sizeBases[i] = particles[i].sizeBase;
+      sizePhases[i] = particles[i].sizePhase;
+      sizeSpeeds[i] = particles[i].sizeSpeed;
     }
 
-    this.positionAttr = new THREE.BufferAttribute(this.positions, 3);
-    this.geometry.setAttribute('position', this.positionAttr);
-    this.geometry.setAttribute('aSeed', new THREE.BufferAttribute(this.seeds, 1));
-    this.geometry.setAttribute('aSizeBase', new THREE.BufferAttribute(this.sizeBases, 1));
-    this.geometry.setAttribute('aSizePhase', new THREE.BufferAttribute(this.sizePhases, 1));
-    this.geometry.setAttribute('aSizeSpeed', new THREE.BufferAttribute(this.sizeSpeeds, 1));
+    const positionAttr = new THREE.BufferAttribute(positions, 3);
+    geometry.setAttribute('position', positionAttr);
+    geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+    geometry.setAttribute('aSizeBase', new THREE.BufferAttribute(sizeBases, 1));
+    geometry.setAttribute('aSizePhase', new THREE.BufferAttribute(sizePhases, 1));
+    geometry.setAttribute('aSizeSpeed', new THREE.BufferAttribute(sizeSpeeds, 1));
 
-    const [r, g, b] = hexToRgbVec(this.currentColorHex);
+    const [r, g, b] = hexToRgbVec(this.currentColorHex || '#00aaff');
+    const intensity = typeof this.intensity === 'number' ? this.intensity : 0.75;
 
-    this.material = new THREE.ShaderMaterial({
+    const material = new THREE.ShaderMaterial({
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
       uniforms: {
         uTime: { value: 0 },
-        uIntensity: { value: this.intensity },
+        uIntensity: { value: intensity },
         uColor: { value: new THREE.Color(r, g, b) },
-        uPointScale: { value: 1.0 },
+        uPointScale: { value: this.perf?.scale || 1.0 },
         uSizeMode: { value: 0 },
         uSizePulseSpeed: { value: 2.0 },
         uSizePulseAmount: { value: 2.0 },
@@ -246,10 +312,45 @@ export class WaveOverlay {
       blending: THREE.AdditiveBlending,
     });
 
-    this.points = new THREE.Points(this.geometry, this.material);
-    this.points.frustumCulled = false;
+    return { geometry, material, particles, positions, seeds, sizeBases, sizePhases, sizeSpeeds, positionAttr };
+  }
 
-    this.applySizeModeForStatus('focus');
+  private rebuildParticleSystem(newCount: number): void {
+    if (newCount === this.particleCount) return;
+    if (newCount < MIN_PARTICLE_COUNT || newCount > MAX_PARTICLE_COUNT) return;
+
+    const oldPositions = this.positions;
+    const oldParticles = this.particles;
+    const oldCount = this.particleCount;
+
+    const built = this.buildParticleSystem(newCount);
+
+    const copyCount = Math.min(oldCount, newCount);
+    for (let i = 0; i < copyCount; i++) {
+      built.positions[i * 3 + 0] = oldPositions[i * 3 + 0];
+      built.positions[i * 3 + 1] = oldPositions[i * 3 + 1];
+      built.positions[i * 3 + 2] = oldPositions[i * 3 + 2];
+      built.particles[i] = { ...oldParticles[i] };
+    }
+
+    this.geometry.dispose();
+    this.geometry = built.geometry;
+    this.material = built.material;
+    this.particles = built.particles;
+    this.positions = built.positions;
+    this.seeds = built.seeds;
+    this.sizeBases = built.sizeBases;
+    this.sizePhases = built.sizePhases;
+    this.sizeSpeeds = built.sizeSpeeds;
+    this.positionAttr = built.positionAttr;
+    this.particleCount = newCount;
+    this.perf.particleCount = newCount;
+
+    this.points.geometry = this.geometry;
+    this.points.material = this.material;
+
+    this.applySizeModeForStatus(this.currentStatus);
+    this.applyColorAndIntensity();
   }
 
   private modeFromStatus(status: CognitiveStatus): MotionMode {
@@ -287,7 +388,7 @@ export class WaveOverlay {
     switch (status) {
       case 'focus':
         this.material.uniforms.uSizePulseSpeed.value = 2.5;
-        this.material.uniforms.uSizePulseAmount.value = 1.8;
+        this.material.uniforms.uSizePulseAmount.value = 1.9;
         this.material.uniforms.uAlphaBase.value = 0.32;
         break;
       case 'relax':
@@ -296,13 +397,13 @@ export class WaveOverlay {
         this.material.uniforms.uAlphaBase.value = 0.28;
         break;
       case 'sleep':
-        this.material.uniforms.uSizePulseSpeed.value = 1.2;
-        this.material.uniforms.uSizePulseAmount.value = 2.8;
+        this.material.uniforms.uSizePulseSpeed.value = 1.3;
+        this.material.uniforms.uSizePulseAmount.value = 3.2;
         this.material.uniforms.uAlphaBase.value = 0.22;
         break;
       case 'excited':
-        this.material.uniforms.uSizePulseSpeed.value = 5.0;
-        this.material.uniforms.uSizePulseAmount.value = 2.5;
+        this.material.uniforms.uSizePulseSpeed.value = 5.5;
+        this.material.uniforms.uSizePulseAmount.value = 2.7;
         this.material.uniforms.uAlphaBase.value = 0.35;
         break;
     }
@@ -363,15 +464,14 @@ export class WaveOverlay {
   private updateCircle(t: number, intensity: number, dt: number): void {
     const positions = this.positions;
     const particles = this.particles;
-    const maxR2 = this.maxR2;
-    const minR2 = this.minR2;
+    const count = this.particleCount;
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let i = 0; i < count; i++) {
       const p = particles[i];
       const ix = i * 3;
 
-      const phase = p.phase + t * (1.5 + p.sizeSpeed * 0.8);
-      const cr = p.radius * (0.5 + intensity * 1.1);
+      const phase = p.phase + t * p.orbitSpeed;
+      const cr = p.orbitRadius * (0.5 + intensity * 1.2);
 
       const cosPh = Math.cos(phase) * cr;
       const sinPh = Math.sin(phase) * cr;
@@ -390,21 +490,9 @@ export class WaveOverlay {
       positions[ix + 1] = p.baseY + cosPh * pyn + sinPh * qy;
       positions[ix + 2] = p.baseZ + cosPh * pzn + sinPh * qz;
 
-      const dx = positions[ix] - p.baseX;
-      const dy = positions[ix + 1] - p.baseY;
-      const dz = positions[ix + 2] - p.baseZ;
-      const dist2 = dx * dx + dy * dy + dz * dz;
-      const maxDist = 0.25;
-      if (dist2 > maxDist * maxDist) {
-        const s = maxDist / Math.sqrt(dist2);
-        positions[ix] = p.baseX + dx * s;
-        positions[ix + 1] = p.baseY + dy * s;
-        positions[ix + 2] = p.baseZ + dz * s;
-      }
+      p.sizePhase = phase;
 
       void dt;
-      void maxR2;
-      void minR2;
     }
   }
 
@@ -414,8 +502,9 @@ export class WaveOverlay {
     const maxR2 = this.maxR2;
     const minR2 = this.minR2;
     const stepMul = 0.02 * (0.5 + intensity * 1.3) * dt * 60;
+    const count = this.particleCount;
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let i = 0; i < count; i++) {
       const p = particles[i];
       const ix = i * 3;
 
@@ -451,16 +540,20 @@ export class WaveOverlay {
   private updatePulse(t: number, intensity: number, dt: number): void {
     const positions = this.positions;
     const particles = this.particles;
+    const count = this.particleCount;
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let i = 0; i < count; i++) {
       const p = particles[i];
       const ix = i * 3;
 
-      const pulseSpeed = 0.8 + intensity * 1.2;
-      const pulse = Math.sin(t * pulseSpeed + p.seed * 15.0) * 0.5 + 0.5;
-      const expand = 1.0 + pulse * 0.06 * (0.5 + intensity * 0.8);
+      const pulseSpeed = p.flickerFreq * (0.8 + intensity * 1.3);
+      const pulse = Math.sin(t * pulseSpeed + p.blinkPhase) * 0.5 + 0.5;
+      const sharpPulse = Math.pow(pulse, 2.5);
+      const expand = 1.0 + sharpPulse * 0.08 * (0.5 + intensity * 0.8);
 
-      const noiseAmp = 0.002 + intensity * 0.003;
+      p.sizePhase = t * pulseSpeed + p.blinkPhase;
+
+      const noiseAmp = 0.0015 + intensity * 0.0025;
       const noiseX = (Math.random() - 0.5) * noiseAmp;
       const noiseY = (Math.random() - 0.5) * noiseAmp;
       const noiseZ = (Math.random() - 0.5) * noiseAmp;
@@ -478,15 +571,21 @@ export class WaveOverlay {
     const particles = this.particles;
     const maxR2 = this.maxR2;
     const minR2 = this.minR2;
-    const speedMul = 0.4 + intensity * 0.9;
+    const speedMul = 0.4 + intensity * 0.95;
+    const count = this.particleCount;
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let i = 0; i < count; i++) {
       const p = particles[i];
       const ix = i * 3;
 
-      let x = positions[ix] + p.vx * dt * speedMul;
-      let y = positions[ix + 1] + p.vy * dt * speedMul;
-      let z = positions[ix + 2] + p.vz * dt * speedMul;
+      const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy + p.vz * p.vz) || 1;
+      const speedPhase = t * 4.0 + p.phase;
+      const speedMod = 0.8 + Math.sin(speedPhase) * 0.2;
+      p.sizePhase = speedPhase;
+
+      let x = positions[ix] + p.vx * dt * speedMul * speedMod;
+      let y = positions[ix + 1] + p.vy * dt * speedMul * speedMod;
+      let z = positions[ix + 2] + p.vz * dt * speedMul * speedMod;
 
       const dr2 = x * x + y * y + z * z;
       if (dr2 > maxR2 || dr2 < minR2) {
@@ -507,20 +606,72 @@ export class WaveOverlay {
         }
       }
 
-      if (Math.random() < 0.004) {
-        const spd = 0.3 + Math.random() * 0.7;
+      if (Math.random() < 0.005) {
+        const spd2 = 0.3 + Math.random() * 0.7;
         const dTh = Math.random() * Math.PI * 2;
         const dPh = Math.acos(2 * Math.random() - 1);
-        p.vx = Math.sin(dPh) * Math.cos(dTh) * spd;
-        p.vy = Math.sin(dPh) * Math.sin(dTh) * spd;
-        p.vz = Math.cos(dPh) * spd;
+        p.vx = Math.sin(dPh) * Math.cos(dTh) * spd2;
+        p.vy = Math.sin(dPh) * Math.sin(dTh) * spd2;
+        p.vz = Math.cos(dPh) * spd2;
       }
 
+      void spd;
       positions[ix] = x;
       positions[ix + 1] = y;
       positions[ix + 2] = z;
+    }
+  }
 
-      void t;
+  private updatePerformanceMetrics(now: number, updateDur: number): void {
+    const frameTime = now - this.perf.lastFrameTimestamp;
+    this.perf.lastFrameTimestamp = now;
+
+    this.perf.updateDurations.push(updateDur);
+    this.perf.frameTimes.push(frameTime);
+
+    const maxSamples = 60;
+    if (this.perf.updateDurations.length > maxSamples) {
+      this.perf.updateDurations.shift();
+      this.perf.frameTimes.shift();
+    }
+
+    this.perf.sampleCount++;
+    this.perf.avgUpdateMs =
+      this.perf.updateDurations.reduce((a, b) => a + b, 0) / this.perf.updateDurations.length;
+    const avgFrameTime =
+      this.perf.frameTimes.reduce((a, b) => a + b, 0) / this.perf.frameTimes.length;
+    this.perf.avgFps = 1000 / Math.max(1, avgFrameTime);
+  }
+
+  private adaptivePerformance(now: number): void {
+    if (now - this.lastAdaptTime < 3000) return;
+    this.lastAdaptTime = now;
+
+    const avgMs = this.perf.avgUpdateMs;
+    const avgFps = this.perf.avgFps;
+
+    if (avgMs > MAX_UPDATE_MS * 1.1 || avgFps < FPS_TARGET * 0.9) {
+      const newCount = Math.max(MIN_PARTICLE_COUNT, this.particleCount - PARTICLE_COUNT_STEP);
+      if (newCount < this.particleCount) {
+        this.rebuildParticleSystem(newCount);
+        this.material.uniforms.uPointScale.value = Math.min(1.2, this.material.uniforms.uPointScale.value + 0.08);
+        this.perf.scale = this.material.uniforms.uPointScale.value;
+      } else if (this.material.uniforms.uPointScale.value > 0.6) {
+        this.material.uniforms.uPointScale.value = Math.max(0.6, this.material.uniforms.uPointScale.value - 0.1);
+        this.perf.scale = this.material.uniforms.uPointScale.value;
+      }
+    } else if (
+      avgMs < MAX_UPDATE_MS * 0.5 &&
+      avgFps > FPS_TARGET * 1.1 &&
+      this.particleCount < MAX_PARTICLE_COUNT
+    ) {
+      const newCount = Math.min(MAX_PARTICLE_COUNT, this.particleCount + PARTICLE_COUNT_STEP);
+      if (newCount > this.particleCount) {
+        this.rebuildParticleSystem(newCount);
+      } else if (this.material.uniforms.uPointScale.value < 1.0) {
+        this.material.uniforms.uPointScale.value = Math.min(1.0, this.material.uniforms.uPointScale.value + 0.05);
+        this.perf.scale = this.material.uniforms.uPointScale.value;
+      }
     }
   }
 
@@ -549,24 +700,22 @@ export class WaveOverlay {
 
     const dur = performance.now() - updateStart;
     this.lastUpdateDuration = dur;
-    this.perfSampleCount++;
-    this.perfTotalMs += dur;
 
-    if (now - this.perfLastLog > 5000) {
-      const avg = this.perfTotalMs / this.perfSampleCount;
-      if (avg > MAX_UPDATE_MS * 0.8) {
-        this.material.uniforms.uPointScale.value = Math.max(0.6, this.material.uniforms.uPointScale.value - 0.05);
-      } else if (avg < MAX_UPDATE_MS * 0.4 && this.material.uniforms.uPointScale.value < 1.0) {
-        this.material.uniforms.uPointScale.value = Math.min(1.0, this.material.uniforms.uPointScale.value + 0.05);
-      }
-      this.perfSampleCount = 0;
-      this.perfTotalMs = 0;
-      this.perfLastLog = now;
-    }
+    this.updatePerformanceMetrics(now, dur);
+    this.adaptivePerformance(now);
   }
 
   public getLastUpdateDuration(): number {
     return this.lastUpdateDuration;
+  }
+
+  public getPerformanceMetrics(): { avgUpdateMs: number; avgFps: number; particleCount: number; scale: number } {
+    return {
+      avgUpdateMs: this.perf.avgUpdateMs,
+      avgFps: this.perf.avgFps,
+      particleCount: this.particleCount,
+      scale: this.perf.scale,
+    };
   }
 
   public dispose(): void {

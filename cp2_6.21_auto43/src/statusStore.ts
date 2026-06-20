@@ -15,6 +15,13 @@ export interface HistoryFrame {
   status: CognitiveStatus;
   color: string;
   intensity: number;
+  intensityMap: IntensityMap;
+  isTransitioning: boolean;
+}
+
+export interface HistoryIndex {
+  timestampToFrame: Map<number, number>;
+  sortedTimestamps: number[];
 }
 
 export const STATUS_COLORS: Record<CognitiveStatus, string> = {
@@ -90,6 +97,7 @@ export interface StatusState {
   timelineProgress: number;
   isSeeking: boolean;
   history: HistoryFrame[];
+  historyIndex: HistoryIndex;
   screenshotQueue: string[];
   lastRecordTime: number;
 
@@ -106,6 +114,39 @@ const defaultStatus: CognitiveStatus = 'focus';
 const defaultColor = STATUS_COLORS[defaultStatus];
 const defaultIntensity = STATUS_INTENSITY[defaultStatus];
 const defaultBands = STATUS_BANDS[defaultStatus];
+
+function buildHistoryIndex(history: HistoryFrame[]): HistoryIndex {
+  const timestampToFrame = new Map<number, number>();
+  const sortedTimestamps: number[] = [];
+  for (let i = 0; i < history.length; i++) {
+    const ts = history[i].timestamp;
+    timestampToFrame.set(ts, i);
+    sortedTimestamps.push(ts);
+  }
+  sortedTimestamps.sort((a, b) => a - b);
+  return { timestampToFrame, sortedTimestamps };
+}
+
+function findNearestFrameIndex(index: HistoryIndex, targetTimestamp: number): number {
+  const timestamps = index.sortedTimestamps;
+  if (timestamps.length === 0) return -1;
+  if (targetTimestamp <= timestamps[0]) return 0;
+  if (targetTimestamp >= timestamps[timestamps.length - 1]) return timestamps.length - 1;
+
+  let lo = 0, hi = timestamps.length - 1;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (timestamps[mid] === targetTimestamp) return mid;
+    if (timestamps[mid] < targetTimestamp) {
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  const dLo = targetTimestamp - timestamps[hi];
+  const dHi = timestamps[lo] - targetTimestamp;
+  return dLo <= dHi ? hi : lo;
+}
 
 export const useStatusStore = create<StatusState>((set, get) => ({
   currentStatus: defaultStatus,
@@ -124,6 +165,7 @@ export const useStatusStore = create<StatusState>((set, get) => ({
   timelineProgress: 0,
   isSeeking: false,
   history: [],
+  historyIndex: { timestampToFrame: new Map(), sortedTimestamps: [] },
   screenshotQueue: [],
   lastRecordTime: 0,
 
@@ -154,13 +196,31 @@ export const useStatusStore = create<StatusState>((set, get) => ({
   },
 
   resetTimeline: () => {
-    set({ timelineProgress: 0, isSeeking: false, history: [], lastRecordTime: 0 });
+    set({
+      timelineProgress: 0,
+      isSeeking: false,
+      history: [],
+      historyIndex: { timestampToFrame: new Map(), sortedTimestamps: [] },
+      lastRecordTime: 0,
+    });
   },
 
-  seekFrame: (index: number) => {
-    const { history } = get();
-    if (index < 0 || index >= history.length) return;
-    const frame = history[index];
+  seekFrame: (indexOrTimestamp: number) => {
+    const state = get();
+    const { history, historyIndex } = state;
+
+    let frameIndex: number;
+    if (Number.isInteger(indexOrTimestamp) && indexOrTimestamp >= 0 && indexOrTimestamp < history.length) {
+      frameIndex = indexOrTimestamp;
+    } else {
+      frameIndex = findNearestFrameIndex(historyIndex, indexOrTimestamp);
+    }
+
+    if (frameIndex < 0 || frameIndex >= history.length) return;
+
+    const frame = history[frameIndex];
+    const targetBands = frame.intensityMap || STATUS_BANDS[frame.status];
+
     set({
       isSeeking: true,
       timelineProgress: frame.timestamp,
@@ -172,8 +232,8 @@ export const useStatusStore = create<StatusState>((set, get) => ({
       intensity: frame.intensity,
       baseIntensity: frame.intensity,
       targetIntensity: frame.intensity,
-      intensityMap: { ...STATUS_BANDS[frame.status] },
-      baseIntensityMap: { ...STATUS_BANDS[frame.status] },
+      intensityMap: { ...targetBands },
+      baseIntensityMap: { ...targetBands },
       isTransitioning: false,
     });
   },
@@ -187,13 +247,16 @@ export const useStatusStore = create<StatusState>((set, get) => ({
       status: state.currentStatus,
       color: state.currentColor,
       intensity: state.intensity,
+      intensityMap: { ...state.intensityMap },
+      isTransitioning: state.isTransitioning,
     };
     const nextHistory = [...state.history, frame];
     if (nextHistory.length > MAX_HISTORY) {
       nextHistory.shift();
       for (let i = 0; i < nextHistory.length; i++) nextHistory[i].index = i;
     }
-    set({ history: nextHistory, lastRecordTime: elapsedSeconds });
+    const nextIndex = buildHistoryIndex(nextHistory);
+    set({ history: nextHistory, historyIndex: nextIndex, lastRecordTime: elapsedSeconds });
   },
 
   pushScreenshot: (dataUrl: string) => {

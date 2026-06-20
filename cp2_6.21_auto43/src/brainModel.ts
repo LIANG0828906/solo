@@ -101,50 +101,83 @@ const FRAGMENT_SHADER = /* glsl */ `
 `;
 
 function createHemisphereGeometry(radius: number, detail: number, side: 'left' | 'right'): THREE.BufferGeometry {
-  const sphere = new THREE.SphereGeometry(radius, detail * 2, detail, 0, Math.PI * 2, 0, Math.PI);
-  const posAttr = sphere.getAttribute('position') as THREE.BufferAttribute;
+  const widthSegments = Math.max(6, detail * 2);
+  const heightSegments = Math.max(6, detail);
+
+  let geometry: THREE.BufferGeometry;
+
+  if (side === 'left') {
+    geometry = new THREE.SphereGeometry(
+      radius,
+      widthSegments,
+      heightSegments,
+      Math.PI / 2,
+      Math.PI,
+      0,
+      Math.PI,
+    );
+  } else {
+    geometry = new THREE.SphereGeometry(
+      radius,
+      widthSegments,
+      heightSegments,
+      -Math.PI / 2,
+      Math.PI,
+      0,
+      Math.PI,
+    );
+  }
+
+  const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
   const positions = posAttr.array as Float32Array;
-  const vertexCount = posAttr.count;
+  const normalsAttr = geometry.getAttribute('normal') as THREE.BufferAttribute;
+  const normals = normalsAttr.array as Float32Array;
+  const count = posAttr.count;
 
-  const keptIndices: number[] = [];
-  const threshold = side === 'left' ? 0.001 : -0.001;
+  const seamThreshold = 0.002;
+  const indicesToRemove: number[] = [];
 
-  for (let i = 0; i < vertexCount; i++) {
+  for (let i = 0; i < count; i++) {
     const x = positions[i * 3 + 0];
-    if (side === 'left' && x <= threshold) {
-      keptIndices.push(i);
-    } else if (side === 'right' && x >= threshold) {
-      keptIndices.push(i);
+    if (Math.abs(x) < seamThreshold) {
+      indicesToRemove.push(i);
     }
   }
 
-  const idxCount = keptIndices.length;
-  const newPositions = new Float32Array(idxCount * 3);
-  const newNormals = new Float32Array(idxCount * 3);
-  const newUvs = new Float32Array(idxCount * 2);
+  if (indicesToRemove.length > 0) {
+    const keepCount = count - indicesToRemove.length;
+    const newPositions = new Float32Array(keepCount * 3);
+    const newNormals = new Float32Array(keepCount * 3);
+    const newUvs = new Float32Array(keepCount * 2);
+    const oldUvs = (geometry.getAttribute('uv') as THREE.BufferAttribute).array as Float32Array;
 
-  const oldNormals = (sphere.getAttribute('normal') as THREE.BufferAttribute).array as Float32Array;
-  const oldUvs = (sphere.getAttribute('uv') as THREE.BufferAttribute).array as Float32Array;
+    let writeIdx = 0;
+    const removeSet = new Set(indicesToRemove);
+    for (let i = 0; i < count; i++) {
+      if (removeSet.has(i)) continue;
+      newPositions[writeIdx * 3 + 0] = positions[i * 3 + 0];
+      newPositions[writeIdx * 3 + 1] = positions[i * 3 + 1];
+      newPositions[writeIdx * 3 + 2] = positions[i * 3 + 2];
+      newNormals[writeIdx * 3 + 0] = normals[i * 3 + 0];
+      newNormals[writeIdx * 3 + 1] = normals[i * 3 + 1];
+      newNormals[writeIdx * 3 + 2] = normals[i * 3 + 2];
+      newUvs[writeIdx * 2 + 0] = oldUvs[i * 2 + 0];
+      newUvs[writeIdx * 2 + 1] = oldUvs[i * 2 + 1];
+      writeIdx++;
+    }
 
-  for (let k = 0; k < idxCount; k++) {
-    const i = keptIndices[k];
-    newPositions[k * 3 + 0] = positions[i * 3 + 0];
-    newPositions[k * 3 + 1] = positions[i * 3 + 1];
-    newPositions[k * 3 + 2] = positions[i * 3 + 2];
-    newNormals[k * 3 + 0] = oldNormals[i * 3 + 0];
-    newNormals[k * 3 + 1] = oldNormals[i * 3 + 1];
-    newNormals[k * 3 + 2] = oldNormals[i * 3 + 2];
-    newUvs[k * 2 + 0] = oldUvs[i * 2 + 0];
-    newUvs[k * 2 + 1] = oldUvs[i * 2 + 1];
+    geometry.dispose();
+    geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(newPositions, 3));
+    geometry.setAttribute('normal', new THREE.BufferAttribute(newNormals, 3));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(newUvs, 2));
+    geometry.computeVertexNormals();
   }
 
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(newPositions, 3));
-  geometry.setAttribute('normal', new THREE.BufferAttribute(newNormals, 3));
-  geometry.setAttribute('uv', new THREE.BufferAttribute(newUvs, 2));
-  geometry.computeVertexNormals();
+  if (geometry.index) {
+    geometry = geometry.toNonIndexed();
+  }
 
-  sphere.dispose();
   return geometry;
 }
 
