@@ -1,0 +1,110 @@
+[
+  {
+    "id": "f1a1b2c3",
+    "good": "本迭代团队协作非常顺畅，代码评审效率显著提升，每日站会沟通清晰高效",
+    "bad": "需求变更频繁导致部分功能需要返工，测试环境不稳定",
+    "improve": "建议建立需求变更审批流程，减少返工情况发生",
+    "sentiment": { "positive": 55, "negative": 30, "neutral": 15 },
+    "iteration": 1,
+    "createdAt": "2026-05-05T09:00:00.000Z"
+  },
+  {
+    "id": "f2d3e4f5",
+    "good": "新功能按时交付，用户反馈良好，团队士气高涨",
+    "bad": "文档更新滞后，部分接口缺少说明",
+    "improve": "建立文档同步更新机制，确保接口文档与代码保持一致",
+    "sentiment": { "positive": 65, "negative": 20, "neutral": 15 },
+    "iteration": 1,
+    "createdAt": "2026-05-06T14:30:00.000Z"
+  },
+  {
+    "id": "f3g6h7i8",
+    "good": "自动化测试覆盖率提升到了80%，回归测试效率大幅提高",
+    "bad": "上线部署流程仍然比较混乱，缺少回滚方案",
+    "improve": "完善CI/CD流水线，增加一键回滚功能",
+    "sentiment": { "positive": 50, "negative": 35, "neutral": 15 },
+    "iteration": 1,
+    "createdAt": "2026-05-07T11:00:00.000Z"
+  },
+  {
+    "id": "f4j9k0l1",
+    "good": "性能优化效果显著，页面加载时间缩短了40%",
+    "bad": "跨部门沟通效率低，信息传递存在断层",
+    "improve": "引入跨部门周会机制，建立信息同步渠道",
+    "sentiment": { "positive": 60, "negative": 25, "neutral": 15 },
+    "iteration": 2,
+    "createdAt": "2026-05-19T10:00:00.000Z"
+  },
+  {
+    "id": "f5m2n3o4",
+    "good": "代码质量持续提升，技术债务明显减少",
+    "bad": "部分团队成员加班严重，工作生活平衡差",
+    "improve": "合理分配任务，关注团队成员工作负荷",
+    "sentiment": { "positive": 45, "negative": 35, "neutral": 20 },
+    "iteration": 2,
+    "createdAt": "2026-05-20T15:00:00.000Z"
+  },
+  {
+    "id": "f6p5q6r7",
+    "good": "产品需求评审流程更加规范，减少了后期变更",
+    "bad": "线上出现P1故障，监控告警不及时",
+    "improve": "加强监控告警体系建设，完善应急预案",
+    "sentiment": { "positive": 40, "negative": 45, "neutral": 15 },
+    "iteration": 2,
+    "createdAt": "2026-05-21T09:30:00.000Z"
+  },
+  {
+    "id": "f7s8t9u0",
+    "good": "敏捷实践深入，Sprint目标达成率90%以上",
+    "bad": "数据库慢查询问题严重，影响用户体验",
+    "improve": "优化数据库索引，引入查询性能监控",
+    "sentiment": { "positive": 55, "negative": 30, "neutral": 15 },
+    "iteration": 3,
+    "createdAt": "2026-06-02T10:00:00.000Z"
+  },
+  {
+    "id": "f8v1w2x3",
+    "good": "团队知识分享氛围好，技术分享会参与度高",
+    "bad": "需求排期不合理，经常压缩开发时间",
+    "improve": "优化需求排期算法，预留合理缓冲时间",
+    "sentiment": { "positive": 50, "negative": 30, "neutral": 20 },
+    "iteration": 3,
+    "createdAt": "2026-06-03T14:00:00.000Z"
+  },
+  {
+    "id": "f9y4z5a6",
+    "good": "微服务拆分进展顺利，系统稳定性提升",
+    "bad": "前后端联调效率低，接口定义不清晰",
+    "improve": "推行API First原则，先定义接口再开发",
+    "sentiment": { "positive": 55, "negative": 25, "neutral": 20 },
+    "iteration": 3,
+    "createdAt": "2026-06-04T16:30:00.000Z"
+  },
+  {
+    "id": "f10b7c8d9",
+    "good": "本迭代产品交付质量优秀，客户满意度调查结果很好",
+    "bad": "技术文档严重不足，新人上手困难",
+    "improve": "制定文档编写规范，将文档纳入Definition of Done",
+    "sentiment": { "positive": 60, "negative": 25, "neutral": 15 },
+    "iteration": 4,
+    "createdAt": "2026-06-16T09:00:00.000Z"
+  },
+  {
+    "id": "f11e0f1g2",
+    "good": "DevOps实践落地效果好，部署频率大幅提升",
+    "bad": "代码冲突频繁，分支管理混乱",
+    "improve": "优化Git分支策略，推行trunk-based开发模式",
+    "sentiment": { "positive": 55, "negative": 30, "neutral": 15 },
+    "iteration": 4,
+    "createdAt": "2026-06-17T11:00:00.000Z"
+  },
+  {
+    "id": "f12h3i4j5",
+    "good": "团队复盘机制运行良好，改进项执行率高",
+    "bad": "安全漏洞扫描发现多个中高风险问题",
+    "improve": "建立安全编码规范，定期进行安全审计",
+    "sentiment": { "positive": 45, "negative": 40, "neutral": 15 },
+    "iteration": 4,
+    "createdAt": "2026-06-18T13:30:00.000Z"
+  }
+]
