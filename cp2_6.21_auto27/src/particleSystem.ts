@@ -37,6 +37,7 @@ const COLOR_PALETTES: Record<ColorTheme, [number, number, number][]> = {
 export const MAX_PARTICLES = 60000;
 export const TRAIL_SEGMENTS_PER_PARTICLE = 30;
 export const TRAIL_LIFETIME = 1.0;
+export const MAX_TRAIL_SEGMENTS = 2000;
 
 export interface ParticleSystemTargetConfig {
     emissionRate: number;
@@ -64,9 +65,12 @@ export class ParticleSystem {
     public points: THREE.Points;
     public geometry: THREE.BufferGeometry;
     public trailLine: THREE.LineSegments;
+    public trailGlowLine: THREE.LineSegments;
     public trailGeometry: THREE.BufferGeometry;
+    public trailGlowGeometry: THREE.BufferGeometry;
     public material: THREE.PointsMaterial;
     public trailMaterial: THREE.LineBasicMaterial;
+    public trailGlowMaterial: THREE.LineBasicMaterial;
 
     private _maxParticles: number = MAX_PARTICLES;
     private _activeCount: number = 0;
@@ -87,10 +91,14 @@ export class ParticleSystem {
 
     private _trailPositions!: Float32Array;
     private _trailColors!: Float32Array;
+    private _trailGlowColors!: Float32Array;
+    private _trailBaseColors!: Float32Array;
+    private _trailGlowBaseColors!: Float32Array;
     private _trailTimestamp!: Float32Array;
     private _maxTrailSegments: number;
     private _trailCount: number = 0;
     private _trailHead: number = 0;
+    private _flowTime: number = 0;
 
     public targetConfig: ParticleSystemTargetConfig;
     public currentConfig: ParticleSystemCurrentConfig;
@@ -133,9 +141,12 @@ export class ParticleSystem {
         this.points = new THREE.Points(this.geometry, this.material);
         this.scene.add(this.points);
 
-        this._maxTrailSegments = MAX_PARTICLES;
+        this._maxTrailSegments = MAX_TRAIL_SEGMENTS;
         this._trailPositions = new Float32Array(this._maxTrailSegments * 6);
         this._trailColors = new Float32Array(this._maxTrailSegments * 8);
+        this._trailGlowColors = new Float32Array(this._maxTrailSegments * 8);
+        this._trailBaseColors = new Float32Array(this._maxTrailSegments * 8);
+        this._trailGlowBaseColors = new Float32Array(this._maxTrailSegments * 8);
         this._trailTimestamp = new Float32Array(this._maxTrailSegments * 2);
 
         this.trailGeometry = new THREE.BufferGeometry();
@@ -153,6 +164,22 @@ export class ParticleSystem {
 
         this.trailLine = new THREE.LineSegments(this.trailGeometry, this.trailMaterial);
         this.scene.add(this.trailLine);
+
+        this.trailGlowGeometry = new THREE.BufferGeometry();
+        this.trailGlowGeometry.setAttribute('position', new THREE.BufferAttribute(this._trailPositions, 3));
+        this.trailGlowGeometry.setAttribute('color', new THREE.BufferAttribute(this._trailGlowColors, 4));
+        this.trailGlowGeometry.setDrawRange(0, 0);
+
+        this.trailGlowMaterial = new THREE.LineBasicMaterial({
+            vertexColors: true,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            linewidth: 1
+        });
+
+        this.trailGlowLine = new THREE.LineSegments(this.trailGlowGeometry, this.trailGlowMaterial);
+        this.scene.add(this.trailGlowLine);
 
         this._initInitialParticles(1000);
     }
@@ -314,6 +341,11 @@ export class ParticleSystem {
         const pg = this._colors[pIdx * 3 + 1];
         const pb = this._colors[pIdx * 3 + 2];
 
+        const vx = this._particleVel[pIdx * 3];
+        const vy = this._particleVel[pIdx * 3 + 1];
+        const vz = this._particleVel[pIdx * 3 + 2];
+        const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+
         this._trailPositions[posOffset] = px;
         this._trailPositions[posOffset + 1] = py;
         this._trailPositions[posOffset + 2] = pz;
@@ -321,14 +353,43 @@ export class ParticleSystem {
         this._trailPositions[posOffset + 4] = py;
         this._trailPositions[posOffset + 5] = pz;
 
-        this._trailColors[colorOffset] = pr;
-        this._trailColors[colorOffset + 1] = pg;
-        this._trailColors[colorOffset + 2] = pb;
+        const flowPhase = this._flowTime + head * 0.15;
+        const brightness = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(flowPhase));
+        const speedBoost = Math.min(1.0, speed * 0.15);
+        const totalBoost = brightness + speedBoost;
+
+        this._trailBaseColors[colorOffset] = pr * totalBoost;
+        this._trailBaseColors[colorOffset + 1] = pg * totalBoost;
+        this._trailBaseColors[colorOffset + 2] = pb * totalBoost;
+        this._trailBaseColors[colorOffset + 4] = pr * totalBoost * 1.5;
+        this._trailBaseColors[colorOffset + 5] = pg * totalBoost * 1.5;
+        this._trailBaseColors[colorOffset + 6] = pb * totalBoost * 1.5;
+
+        this._trailColors[colorOffset] = pr * totalBoost;
+        this._trailColors[colorOffset + 1] = pg * totalBoost;
+        this._trailColors[colorOffset + 2] = pb * totalBoost;
         this._trailColors[colorOffset + 3] = 0.8;
-        this._trailColors[colorOffset + 4] = pr;
-        this._trailColors[colorOffset + 5] = pg;
-        this._trailColors[colorOffset + 6] = pb;
+        this._trailColors[colorOffset + 4] = pr * totalBoost * 1.5;
+        this._trailColors[colorOffset + 5] = pg * totalBoost * 1.5;
+        this._trailColors[colorOffset + 6] = pb * totalBoost * 1.5;
         this._trailColors[colorOffset + 7] = 0.8;
+
+        const glowBoost = totalBoost * 2.2;
+        this._trailGlowBaseColors[colorOffset] = pr * glowBoost;
+        this._trailGlowBaseColors[colorOffset + 1] = pg * glowBoost;
+        this._trailGlowBaseColors[colorOffset + 2] = pb * glowBoost;
+        this._trailGlowBaseColors[colorOffset + 4] = pr * glowBoost * 1.4;
+        this._trailGlowBaseColors[colorOffset + 5] = pg * glowBoost * 1.4;
+        this._trailGlowBaseColors[colorOffset + 6] = pb * glowBoost * 1.4;
+
+        this._trailGlowColors[colorOffset] = pr * glowBoost;
+        this._trailGlowColors[colorOffset + 1] = pg * glowBoost;
+        this._trailGlowColors[colorOffset + 2] = pb * glowBoost;
+        this._trailGlowColors[colorOffset + 3] = 0.25;
+        this._trailGlowColors[colorOffset + 4] = pr * glowBoost * 1.4;
+        this._trailGlowColors[colorOffset + 5] = pg * glowBoost * 1.4;
+        this._trailGlowColors[colorOffset + 6] = pb * glowBoost * 1.4;
+        this._trailGlowColors[colorOffset + 7] = 0.25;
 
         this._trailTimestamp[timeOffset] = nowTime;
         this._trailTimestamp[timeOffset + 1] = nowTime;
@@ -344,6 +405,7 @@ export class ParticleSystem {
         }
 
         const nowTime = performance.now() / 1000;
+        this._flowTime += dt * 2.5;
 
         for (let idx = 0; idx < this._maxParticles; idx++) {
             if (this._particleActive[idx] === 0) continue;
@@ -402,7 +464,9 @@ export class ParticleSystem {
         this._updateTrailFade(nowTime);
         (this.trailGeometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
         (this.trailGeometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
+        (this.trailGlowGeometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
         this.trailGeometry.setDrawRange(0, this._trailCount * 2);
+        this.trailGlowGeometry.setDrawRange(0, this._trailCount * 2);
     }
 
     private _updateTrailFade(nowTime: number): void {
@@ -415,11 +479,53 @@ export class ParticleSystem {
             const t0 = nowTime - this._trailTimestamp[timeOffset];
             const t1 = nowTime - this._trailTimestamp[timeOffset + 1];
 
-            const alpha0 = Math.max(0, 0.8 * (1 - t0 / TRAIL_LIFETIME));
-            const alpha1 = Math.max(0, 0.8 * (1 - t1 / TRAIL_LIFETIME));
+            const ageRatio0 = Math.min(1.0, t0 / TRAIL_LIFETIME);
+            const ageRatio1 = Math.min(1.0, t1 / TRAIL_LIFETIME);
 
-            this._trailColors[colorOffset + 3] = alpha0;
-            this._trailColors[colorOffset + 7] = alpha1;
+            const alpha0 = 0.8 * Math.exp(-ageRatio0 * 3.5);
+            const alpha1 = 0.8 * Math.exp(-ageRatio1 * 3.5);
+
+            const flowPhase = this._flowTime + segIdx * 0.12;
+            const wave = 0.5 + 0.5 * Math.sin(flowPhase);
+            const flowMod = 0.7 + 0.6 * wave;
+            const ageDim = 1.0 - ageRatio0 * 0.5;
+            const totalMod = flowMod * ageDim;
+
+            const br0 = this._trailBaseColors[colorOffset];
+            const bg0 = this._trailBaseColors[colorOffset + 1];
+            const bb0 = this._trailBaseColors[colorOffset + 2];
+            const br1 = this._trailBaseColors[colorOffset + 4];
+            const bg1 = this._trailBaseColors[colorOffset + 5];
+            const bb1 = this._trailBaseColors[colorOffset + 6];
+
+            this._trailColors[colorOffset] = br0 * totalMod;
+            this._trailColors[colorOffset + 1] = bg0 * totalMod;
+            this._trailColors[colorOffset + 2] = bb0 * totalMod;
+            this._trailColors[colorOffset + 3] = Math.max(0, alpha0);
+            this._trailColors[colorOffset + 4] = br1 * totalMod * 1.1;
+            this._trailColors[colorOffset + 5] = bg1 * totalMod * 1.1;
+            this._trailColors[colorOffset + 6] = bb1 * totalMod * 1.1;
+            this._trailColors[colorOffset + 7] = Math.max(0, alpha1);
+
+            const gbr0 = this._trailGlowBaseColors[colorOffset];
+            const gbg0 = this._trailGlowBaseColors[colorOffset + 1];
+            const gbb0 = this._trailGlowBaseColors[colorOffset + 2];
+            const gbr1 = this._trailGlowBaseColors[colorOffset + 4];
+            const gbg1 = this._trailGlowBaseColors[colorOffset + 5];
+            const gbb1 = this._trailGlowBaseColors[colorOffset + 6];
+
+            const glowMod = flowMod * 1.5 * ageDim;
+            const glowAlpha0 = 0.25 * Math.exp(-ageRatio0 * 2.8);
+            const glowAlpha1 = 0.25 * Math.exp(-ageRatio1 * 2.8);
+
+            this._trailGlowColors[colorOffset] = gbr0 * glowMod;
+            this._trailGlowColors[colorOffset + 1] = gbg0 * glowMod;
+            this._trailGlowColors[colorOffset + 2] = gbb0 * glowMod;
+            this._trailGlowColors[colorOffset + 3] = Math.max(0, glowAlpha0);
+            this._trailGlowColors[colorOffset + 4] = gbr1 * glowMod * 1.1;
+            this._trailGlowColors[colorOffset + 5] = gbg1 * glowMod * 1.1;
+            this._trailGlowColors[colorOffset + 6] = gbb1 * glowMod * 1.1;
+            this._trailGlowColors[colorOffset + 7] = Math.max(0, glowAlpha1);
         }
     }
 
@@ -431,6 +537,7 @@ export class ParticleSystem {
         }
         this._trailHead = 0;
         this._trailCount = 0;
+        this._flowTime = 0;
         this._emissionAccumulator = 0;
         this._initInitialParticles(1000);
     }
