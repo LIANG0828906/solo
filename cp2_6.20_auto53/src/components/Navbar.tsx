@@ -7,13 +7,14 @@ import {
   Heart,
   User,
   Bell,
+  type LucideIcon,
 } from 'lucide-react';
 import { useAuctionStore } from '@/stores/auctionStore';
 
 interface MenuItem {
   label: string;
   path: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
 }
 
 const menuItems: MenuItem[] = [

@@ -14,10 +14,11 @@ interface DragHandlers {
 interface FavoriteCardProps {
   item: AuctionItem;
   index: number;
+  delay?: number;
   dragHandlers?: DragHandlers;
 }
 
-export default function FavoriteCard({ item, index, dragHandlers }: FavoriteCardProps) {
+export default function FavoriteCard({ item, index, delay, dragHandlers }: FavoriteCardProps) {
   const toggleFavorite = useAuctionStore((s) => s.toggleFavorite);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -33,7 +34,7 @@ export default function FavoriteCard({ item, index, dragHandlers }: FavoriteCard
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.3 }}
+      transition={{ delay: delay ?? 0, duration: 0.3 }}
       whileHover={{ y: -4 }}
       className={cn(
         'relative w-[200px] h-[280px] rounded-2xl overflow-hidden',
@@ -54,7 +55,7 @@ export default function FavoriteCard({ item, index, dragHandlers }: FavoriteCard
           src={item.thumbnail}
           alt={item.name}
           className="w-full h-full object-cover"
-          whileHover={{ scale: 1.08 }}
+          whileHover={{ scale: 1.08, filter: 'brightness(1.05)' }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-primary-bg/80 via-transparent to-transparent" />
