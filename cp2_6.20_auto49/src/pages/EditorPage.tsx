@@ -1,13 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { Save, ArrowLeft, X } from 'lucide-react';
+import axios from 'axios';
 import dayjs from 'dayjs';
 import { useNoteStore } from '@/store/noteStore';
 import TagCapsule from '@/components/TagCapsule';
 import BacklinkList from '@/components/BacklinkList';
 import type { Tag, Note } from '@/types';
+
+const api = axios.create({ baseURL: '/api' });
 
 const modules = {
   toolbar: [
@@ -161,13 +164,43 @@ export default function EditorPage() {
   };
 
   const handleRemoveTag = (tagId: string) => {
-    setTags(tags.filter((t) => t.id !== tagId));
+    const newTags = tags.filter((t) => t.id !== tagId);
+    setTags(newTags);
+    if (!isNew && id && title.trim()) {
+      const summary = generateSummary(content);
+      const referenceIds = parseReferences(content, notes);
+      updateNote(id, { tags: newTags, summary, referenceIds, updatedAt: dayjs().toISOString() });
+    }
   };
 
+  const handleRenameTag = useCallback(async (tagId: string, newName: string) => {
+    try {
+      await api.put(`/tags/${tagId}`, { name: newName });
+      const renamedTag = tags.find((t) => t.id === tagId);
+      if (renamedTag) {
+        const updated = { ...renamedTag, name: newName };
+        const newTags = tags.map((t) => (t.id === tagId ? updated : t));
+        setTags(newTags);
+        useNoteStore.setState((s) => ({
+          notes: s.notes.map((n) => ({
+            ...n,
+            tags: n.tags.map((t) => (t.id === tagId ? updated : t)),
+          })),
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to rename tag:', err);
+    }
+  }, [tags, isNew, id, title, content, notes, updateNote]);
+
   const allTags = [...new Map(notes.flatMap((n) => n.tags).map((t) => [t.id, t])).values()];
-  const filteredTags = allTags.filter(
-    (t) => t.name.toLowerCase().includes(tagInput.toLowerCase()) && !tags.find((ut) => ut.id === t.id)
-  );
+  const filteredTags = allTags
+    .filter((t) => t.name.toLowerCase().includes(tagInput.toLowerCase()) && !tags.find((ut) => ut.id === t.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const sortedTags = useMemo(() => {
+    return [...tags].sort((a, b) => a.name.localeCompare(b.name));
+  }, [tags]);
 
   const handleBacklinkClick = (noteId: string) => {
     navigate(`/editor/${noteId}`);
@@ -217,12 +250,13 @@ export default function EditorPage() {
         />
 
         <div className="flex flex-wrap items-center gap-2 mb-6" ref={tagDropdownRef}>
-          {tags.map((tag) => (
-            <div key={tag.id} className="flex items-center gap-1">
-              <TagCapsule tag={tag} />
+          {sortedTags.map((tag) => (
+            <div key={tag.id} className="flex items-center gap-1 group">
+              <TagCapsule tag={tag} editable onRename={handleRenameTag} />
               <button
                 onClick={() => handleRemoveTag(tag.id)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-300 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="删除标签"
               >
                 <X size={14} />
               </button>

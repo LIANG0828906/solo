@@ -20,7 +20,7 @@ const nodeColorMap: Record<string, string> = {
 interface SimulationNode extends d3.SimulationNodeDatum {
   id: string;
   title: string;
-  tags: { category: string }[];
+  tags: { id: string; name: string; category: string }[];
   radius: number;
 }
 

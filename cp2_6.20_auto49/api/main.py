@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.database import close_db, get_db, init_db
-from api.routes import graph, notes, search
+from api.routes import graph, notes, search, tags
 
 
 async def _seed():
@@ -140,6 +140,7 @@ app.add_middleware(
 app.include_router(notes.router)
 app.include_router(graph.router)
 app.include_router(search.router)
+app.include_router(tags.router)
 
 
 if __name__ == "__main__":
